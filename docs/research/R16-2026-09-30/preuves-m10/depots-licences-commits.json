@@ -1,0 +1,609 @@
+[
+  {
+    "repo": "topoteretes/cognee",
+    "repository_url": "https://github.com/topoteretes/cognee",
+    "observed_at": "2026-09-30T11:42:51.412915+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 31231,
+    "license_api": "Apache-2.0",
+    "commit": "ba3631f2ed363a6ea50d649c34c56885af6b36fe",
+    "commit_date": "2026-09-29T21:58:03Z",
+    "commit_url": "https://github.com/topoteretes/cognee/commit/ba3631f2ed363a6ea50d649c34c56885af6b36fe",
+    "last_pushed": "2026-09-30T11:11:55Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/topoteretes/cognee/blob/ba3631f2ed363a6ea50d649c34c56885af6b36fe/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/topoteretes/cognee/ba3631f2ed363a6ea50d649c34c56885af6b36fe/LICENSE",
+        "sha256": "a471e34908f50c3f120e9a56f3c30cb34e133e4ede01a9cbd5ce718fc358ecd4",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object"
+      }
+    ],
+    "readme_url": "https://github.com/topoteretes/cognee/blob/ba3631f2ed363a6ea50d649c34c56885af6b36fe/README.md",
+    "readme_sha256": "c483ca4aa67c92ba906f810a85dae519c84034c2984ded304d6fbd92022c1726",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "run-llama/llama_index",
+    "repository_url": "https://github.com/run-llama/llama_index",
+    "observed_at": "2026-09-30T11:42:51.413579+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 52371,
+    "license_api": "MIT",
+    "commit": "7e2c60a78ec27e8d146dfdd596778aea83c041d5",
+    "commit_date": "2026-09-29T04:49:06Z",
+    "commit_url": "https://github.com/run-llama/llama_index/commit/7e2c60a78ec27e8d146dfdd596778aea83c041d5",
+    "last_pushed": "2026-09-29T04:49:06Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/run-llama/llama_index/blob/7e2c60a78ec27e8d146dfdd596778aea83c041d5/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/run-llama/llama_index/7e2c60a78ec27e8d146dfdd596778aea83c041d5/LICENSE",
+        "sha256": "24f40b5190fdacabc24ddbb5f76364d15e4f030925220ea300d8a2dd4993c8cb",
+        "excerpt": "The MIT License\n\nCopyright (c) Jerry Liu\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE.\n"
+      }
+    ],
+    "readme_url": "https://github.com/run-llama/llama_index/blob/7e2c60a78ec27e8d146dfdd596778aea83c041d5/README.md",
+    "readme_sha256": "625c49e7dedf84826b350be28d118e7823e669504689105611e91ff709406d1f",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "langchain-ai/langgraph",
+    "repository_url": "https://github.com/langchain-ai/langgraph",
+    "observed_at": "2026-09-30T11:42:51.413998+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 42507,
+    "license_api": "MIT",
+    "commit": "07b33185eab893be2ed031eedae52f09314bf77c",
+    "commit_date": "2026-09-27T21:34:53Z",
+    "commit_url": "https://github.com/langchain-ai/langgraph/commit/07b33185eab893be2ed031eedae52f09314bf77c",
+    "last_pushed": "2026-09-29T16:44:15Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/langchain-ai/langgraph/blob/07b33185eab893be2ed031eedae52f09314bf77c/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/langchain-ai/langgraph/07b33185eab893be2ed031eedae52f09314bf77c/LICENSE",
+        "sha256": "d9bb52f2e3540d60ff50d8f0f5b6ba649b7fd346948c4c3d086c8afb120763c7",
+        "excerpt": "MIT License\n\nCopyright (c) 2024 LangChain, Inc.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+      },
+      {
+        "path": "libs/checkpoint/LICENSE",
+        "url": "https://github.com/langchain-ai/langgraph/blob/07b33185eab893be2ed031eedae52f09314bf77c/libs/checkpoint/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/langchain-ai/langgraph/07b33185eab893be2ed031eedae52f09314bf77c/libs/checkpoint/LICENSE",
+        "sha256": "d9bb52f2e3540d60ff50d8f0f5b6ba649b7fd346948c4c3d086c8afb120763c7",
+        "excerpt": "MIT License\n\nCopyright (c) 2024 LangChain, Inc.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+      },
+      {
+        "path": "libs/checkpoint-postgres/LICENSE",
+        "url": "https://github.com/langchain-ai/langgraph/blob/07b33185eab893be2ed031eedae52f09314bf77c/libs/checkpoint-postgres/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/langchain-ai/langgraph/07b33185eab893be2ed031eedae52f09314bf77c/libs/checkpoint-postgres/LICENSE",
+        "sha256": "d9bb52f2e3540d60ff50d8f0f5b6ba649b7fd346948c4c3d086c8afb120763c7",
+        "excerpt": "MIT License\n\nCopyright (c) 2024 LangChain, Inc.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+      },
+      {
+        "path": "libs/checkpoint-sqlite/LICENSE",
+        "url": "https://github.com/langchain-ai/langgraph/blob/07b33185eab893be2ed031eedae52f09314bf77c/libs/checkpoint-sqlite/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/langchain-ai/langgraph/07b33185eab893be2ed031eedae52f09314bf77c/libs/checkpoint-sqlite/LICENSE",
+        "sha256": "d9bb52f2e3540d60ff50d8f0f5b6ba649b7fd346948c4c3d086c8afb120763c7",
+        "excerpt": "MIT License\n\nCopyright (c) 2024 LangChain, Inc.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+      }
+    ],
+    "readme_url": "https://github.com/langchain-ai/langgraph/blob/07b33185eab893be2ed031eedae52f09314bf77c/README.md",
+    "readme_sha256": "3a13e257af1216962d53d72414a7f44ac1fc5cea34d994bdff60ea2a3b045933",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "getzep/graphiti",
+    "repository_url": "https://github.com/getzep/graphiti",
+    "observed_at": "2026-09-30T11:42:51.414460+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 31323,
+    "license_api": "Apache-2.0",
+    "commit": "3c427640abf909f12f71f963fce15eb514a3c493",
+    "commit_date": "2026-09-30T08:02:28Z",
+    "commit_url": "https://github.com/getzep/graphiti/commit/3c427640abf909f12f71f963fce15eb514a3c493",
+    "last_pushed": "2026-09-30T08:02:29Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/getzep/graphiti/blob/3c427640abf909f12f71f963fce15eb514a3c493/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/getzep/graphiti/3c427640abf909f12f71f963fce15eb514a3c493/LICENSE",
+        "sha256": "2825300b20d7b951209835a4a331f29e24725a39d65168e4b831df53aa372650",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object"
+      }
+    ],
+    "readme_url": "https://github.com/getzep/graphiti/blob/3c427640abf909f12f71f963fce15eb514a3c493/README.md",
+    "readme_sha256": "ce1628c02b3c6fd5b59e3e48dc61c958f07824033b4d0b989bb8d433932b6b3f",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "getzep/zep",
+    "repository_url": "https://github.com/getzep/zep",
+    "observed_at": "2026-09-30T11:42:51.414830+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 4941,
+    "license_api": "Apache-2.0",
+    "commit": "495bf72880d13f0b81696ec4f88a9817ed85ca73",
+    "commit_date": "2026-09-11T17:07:55Z",
+    "commit_url": "https://github.com/getzep/zep/commit/495bf72880d13f0b81696ec4f88a9817ed85ca73",
+    "last_pushed": "2026-09-29T15:10:37Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/getzep/zep/blob/495bf72880d13f0b81696ec4f88a9817ed85ca73/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/getzep/zep/495bf72880d13f0b81696ec4f88a9817ed85ca73/LICENSE",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object"
+      }
+    ],
+    "readme_url": "https://github.com/getzep/zep/blob/495bf72880d13f0b81696ec4f88a9817ed85ca73/README.md",
+    "readme_sha256": "8afa05accfcc29ecc9a22407e46723017fa44d18ec64768fab10a72b28fb8451",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "mem0ai/mem0",
+    "repository_url": "https://github.com/mem0ai/mem0",
+    "observed_at": "2026-09-30T11:42:51.415144+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 66360,
+    "license_api": "Apache-2.0",
+    "commit": "94c3fe9f238f3dbf29c9ce98643bd71eb13077cd",
+    "commit_date": "2026-09-25T17:34:12Z",
+    "commit_url": "https://github.com/mem0ai/mem0/commit/94c3fe9f238f3dbf29c9ce98643bd71eb13077cd",
+    "last_pushed": "2026-09-30T10:03:23Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/mem0ai/mem0/blob/94c3fe9f238f3dbf29c9ce98643bd71eb13077cd/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/mem0ai/mem0/94c3fe9f238f3dbf29c9ce98643bd71eb13077cd/LICENSE",
+        "sha256": "0bbcbe931c353293a2fafce08326181dfeea0e568c566afd4ce8337a70f5e219",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object"
+      }
+    ],
+    "readme_url": "https://github.com/mem0ai/mem0/blob/94c3fe9f238f3dbf29c9ce98643bd71eb13077cd/README.md",
+    "readme_sha256": "7509347d34a767a2ef37ceb6cf6c714de9e8d84fe66ad5eea92bbae824a8fbeb",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "open-telemetry/opentelemetry-python",
+    "repository_url": "https://github.com/open-telemetry/opentelemetry-python",
+    "observed_at": "2026-09-30T11:42:52.485355+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 2651,
+    "license_api": "Apache-2.0",
+    "commit": "cee5f52e2d009085a330874ea8d1549eb5b68baa",
+    "commit_date": "2026-09-29T19:40:40Z",
+    "commit_url": "https://github.com/open-telemetry/opentelemetry-python/commit/cee5f52e2d009085a330874ea8d1549eb5b68baa",
+    "last_pushed": "2026-09-30T05:29:49Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/open-telemetry/opentelemetry-python/blob/cee5f52e2d009085a330874ea8d1549eb5b68baa/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/open-telemetry/opentelemetry-python/cee5f52e2d009085a330874ea8d1549eb5b68baa/LICENSE",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object"
+      }
+    ],
+    "readme_url": "https://github.com/open-telemetry/opentelemetry-python/blob/cee5f52e2d009085a330874ea8d1549eb5b68baa/README.md",
+    "readme_sha256": "93108fac76291e204d29ea9a5531c6079f7e118bd3faee11e70efaf2c8948aaa",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "langfuse/langfuse",
+    "repository_url": "https://github.com/langfuse/langfuse",
+    "observed_at": "2026-09-30T11:42:52.510362+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 35230,
+    "license_api": "NOASSERTION",
+    "commit": "0de9ccd64e0f9d35c1990fb6c851fa00530e7960",
+    "commit_date": "2026-09-30T10:10:34Z",
+    "commit_url": "https://github.com/langfuse/langfuse/commit/0de9ccd64e0f9d35c1990fb6c851fa00530e7960",
+    "last_pushed": "2026-09-30T10:36:55Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/langfuse/langfuse/blob/0de9ccd64e0f9d35c1990fb6c851fa00530e7960/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/langfuse/langfuse/0de9ccd64e0f9d35c1990fb6c851fa00530e7960/LICENSE",
+        "sha256": "fd09d42b5b16606ad2042cc1edf3a82da1c47743709f170c959c74758af229d6",
+        "excerpt": "Copyright (c) 2023-2026 ClickHouse, Inc.\n\nPortions of this software are licensed as follows:\n\n- All content that resides under the \"ee/\", \"web/src/ee/\", and/or \"worker/src/ee/\" directories of this repository, if these directories exist, is licensed under the license defined in \"ee/LICENSE\".\n- All third party components incorporated into the Langfuse Software are licensed under the original license provided by the owner of the applicable component.\n- Content outside of the above mentioned directories or restrictions above is available under the \"MIT Expat\" license as defined below.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR O"
+      },
+      {
+        "path": "ee/LICENSE",
+        "url": "https://github.com/langfuse/langfuse/blob/0de9ccd64e0f9d35c1990fb6c851fa00530e7960/ee/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/langfuse/langfuse/0de9ccd64e0f9d35c1990fb6c851fa00530e7960/ee/LICENSE",
+        "sha256": "760f5202be4f31f9f8ca43a3c558bebaa5187fa7d7eccad6a32de8392cdccee6",
+        "excerpt": "START NOTE\nLangfuse is an open core project. Langfuse's core\nis permissively licensed (MIT license).\nCertain parts of the periphery of Langfuse are commercially\nlicensed and governed by this Enterprise License.\nFor the avoidance of doubt, this license does not apply \nto the core of Langfuse as it is defined in its license in \nthe directory \"/LICENSE\" (as opposed to this file  \"ee/LICENSE\")\nwhich can be used and run without infringing the below license\nand its licensed materials.\nEND NOTE\n\nSTART OF LICENSE\nLangfuse Enterprise license (the “Enterprise License” or \"EE license\")\n\nCopyright (c) 2023-2026 ClickHouse, Inc\n\nWith regard to the Langfuse Enterprise Software:\nThis software and associated documentation files (the \"Software\") may only be\nused, if you (and any entity that you represent) have agreed to,\nand are in compliance with, the applicable agreement governing the use of the Software, \nas agreed by you and Langfuse GmbH or ClickHouse, Inc. (including any successor or permitted assignee of either),\nand otherwise have a valid Langfuse Enterprise License.\n\nSubject to the foregoing sentence, you are free to\nmodify this Software and publish patches to the Software. You agree that Langfuse\nand/or its licensors (as applicable) retain all right, title and interest in and\nto all such modifications and/or patches, and all such modifications and/or\npatches may only be used, copied, modified, displayed, distributed, or otherwise\nexploited with a valid Langfuse Enterprise License. Notwithstanding the foregoing, you may copy and modify\nthe Software for development and testing purposes, without requiring a\nsubscription. You agree that Langfuse GmbH and/or its licensors (as applicable) retain\nall right, title and interest in and to all such modifications. You are not\ngranted any other rights beyond what is expressly stated herein. Subject to the\nforegoing, it is forbidden to copy, merge, publish, distribute, sublicense,\nand/or sell the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHO"
+      }
+    ],
+    "readme_url": "https://github.com/langfuse/langfuse/blob/0de9ccd64e0f9d35c1990fb6c851fa00530e7960/README.md",
+    "readme_sha256": "d5a07630afeeaa4c11eda7c0d133941950805cb29ce84b13fa272eeb9a3794f5",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "explodinggradients/ragas",
+    "repository_url": "https://github.com/explodinggradients/ragas",
+    "observed_at": "2026-09-30T11:42:52.533209+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 15885,
+    "license_api": "Apache-2.0",
+    "commit": "298b68274234c060deacab3cf5fb52aa3a20e885",
+    "commit_date": "2026-02-24T07:47:18Z",
+    "commit_url": "https://github.com/explodinggradients/ragas/commit/298b68274234c060deacab3cf5fb52aa3a20e885",
+    "last_pushed": "2026-02-24T07:47:19Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/explodinggradients/ragas/blob/298b68274234c060deacab3cf5fb52aa3a20e885/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/explodinggradients/ragas/298b68274234c060deacab3cf5fb52aa3a20e885/LICENSE",
+        "sha256": "664b930830f291c2936ab30bcd6ef9ca6c9c7384cc475ae0c526156a27d5a6c6",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object"
+      }
+    ],
+    "readme_url": "https://github.com/explodinggradients/ragas/blob/298b68274234c060deacab3cf5fb52aa3a20e885/README.md",
+    "readme_sha256": "af20b2258507b12bf930e897b63ee5bb87aac4a4696da078ea5a3c29addb6db7",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "confident-ai/deepeval",
+    "repository_url": "https://github.com/confident-ai/deepeval",
+    "observed_at": "2026-09-30T11:42:52.538925+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 18520,
+    "license_api": "Apache-2.0",
+    "commit": "b13093cf9c9b5468dbe7d00529e8f20e14300d55",
+    "commit_date": "2026-09-29T19:30:55Z",
+    "commit_url": "https://github.com/confident-ai/deepeval/commit/b13093cf9c9b5468dbe7d00529e8f20e14300d55",
+    "last_pushed": "2026-09-29T19:32:30Z",
+    "license_files": [
+      {
+        "path": "LICENSE.md",
+        "url": "https://github.com/confident-ai/deepeval/blob/b13093cf9c9b5468dbe7d00529e8f20e14300d55/LICENSE.md",
+        "raw_url": "https://raw.githubusercontent.com/confident-ai/deepeval/b13093cf9c9b5468dbe7d00529e8f20e14300d55/LICENSE.md",
+        "sha256": "d004e4b8bbfa420b094c13835070b945a93f3c0ac0ea0bf6b7b8a72733533f7f",
+        "excerpt": "\n                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled objec"
+      }
+    ],
+    "readme_url": "https://github.com/confident-ai/deepeval/blob/b13093cf9c9b5468dbe7d00529e8f20e14300d55/README.md",
+    "readme_sha256": "64b1000d1a1f148a1073162eabc7766bb529c0de7b6a410c7100cb47aeb691d3",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "promptfoo/promptfoo",
+    "repository_url": "https://github.com/promptfoo/promptfoo",
+    "observed_at": "2026-09-30T11:42:52.546303+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 25588,
+    "license_api": "MIT",
+    "commit": "e6b46046e7f454edc54b27143cb0902d929f3fa6",
+    "commit_date": "2026-09-30T08:51:33Z",
+    "commit_url": "https://github.com/promptfoo/promptfoo/commit/e6b46046e7f454edc54b27143cb0902d929f3fa6",
+    "last_pushed": "2026-09-30T09:51:09Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/promptfoo/promptfoo/blob/e6b46046e7f454edc54b27143cb0902d929f3fa6/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/promptfoo/promptfoo/e6b46046e7f454edc54b27143cb0902d929f3fa6/LICENSE",
+        "sha256": "bf813686553f451e1b833fbd827488aee49b60b189626915bf3108d10b754e44",
+        "excerpt": "Copyright (c) Promptfoo 2025\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+      }
+    ],
+    "readme_url": "https://github.com/promptfoo/promptfoo/blob/e6b46046e7f454edc54b27143cb0902d929f3fa6/README.md",
+    "readme_sha256": "0b6031de6f2062786eb2dd858c80c6c0e4a2109f9c21a2ea02bea51343814d6a",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "pgvector/pgvector",
+    "repository_url": "https://github.com/pgvector/pgvector",
+    "observed_at": "2026-09-30T11:42:52.631834+00:00",
+    "default_branch": "master",
+    "archived": false,
+    "stars": 23201,
+    "license_api": "NOASSERTION",
+    "commit": "70fb225dc0b9a6abb9aa05508a1f770dd1b05a23",
+    "commit_date": "2026-09-30T07:08:07Z",
+    "commit_url": "https://github.com/pgvector/pgvector/commit/70fb225dc0b9a6abb9aa05508a1f770dd1b05a23",
+    "last_pushed": "2026-09-30T07:08:10Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/pgvector/pgvector/blob/70fb225dc0b9a6abb9aa05508a1f770dd1b05a23/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/pgvector/pgvector/70fb225dc0b9a6abb9aa05508a1f770dd1b05a23/LICENSE",
+        "sha256": "6bba9ebeb73e27477463b05e5ef1bf303bccbddb3db9bbc95905d351604d6a87",
+        "excerpt": "Portions Copyright (c) 1996-2026, PostgreSQL Global Development Group\n\nPortions Copyright (c) 1994, The Regents of the University of California\n\nPermission to use, copy, modify, and distribute this software and its\ndocumentation for any purpose, without fee, and without a written agreement\nis hereby granted, provided that the above copyright notice and this\nparagraph and the following two paragraphs appear in all copies.\n\nIN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR\nDIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING\nLOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS\nDOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE\nPOSSIBILITY OF SUCH DAMAGE.\n\nTHE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,\nINCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY\nAND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS\nON AN \"AS IS\" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO\nPROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.\n"
+      }
+    ],
+    "readme_url": "https://github.com/pgvector/pgvector/blob/70fb225dc0b9a6abb9aa05508a1f770dd1b05a23/README.md",
+    "readme_sha256": "54cb3a5f4344308476cb2378469ac77d10fbff415d1b5be66608bb386ce8f527",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "postgres/postgres",
+    "repository_url": "https://github.com/postgres/postgres",
+    "observed_at": "2026-09-30T11:42:53.509997+00:00",
+    "default_branch": "master",
+    "archived": false,
+    "stars": 22246,
+    "license_api": "NOASSERTION",
+    "commit": "9510a826e4add77280e0a7a65f429563a4c4a2a8",
+    "commit_date": "2026-09-30T05:35:14Z",
+    "commit_url": "https://github.com/postgres/postgres/commit/9510a826e4add77280e0a7a65f429563a4c4a2a8",
+    "last_pushed": "2026-09-30T05:38:11Z",
+    "license_files": [
+      {
+        "path": "COPYRIGHT",
+        "url": "https://github.com/postgres/postgres/blob/9510a826e4add77280e0a7a65f429563a4c4a2a8/COPYRIGHT",
+        "raw_url": "https://raw.githubusercontent.com/postgres/postgres/9510a826e4add77280e0a7a65f429563a4c4a2a8/COPYRIGHT",
+        "sha256": "3d6af92ff8a4c2cdf69afb1cf44edea727922f5cd0cf8b5f72b11cdecac8fdfd",
+        "excerpt": "PostgreSQL Database Management System\n(also known as Postgres, formerly known as Postgres95)\n\nPortions Copyright (c) 1996-2026, PostgreSQL Global Development Group\n\nPortions Copyright (c) 1994, The Regents of the University of California\n\nPermission to use, copy, modify, and distribute this software and its\ndocumentation for any purpose, without fee, and without a written agreement\nis hereby granted, provided that the above copyright notice and this\nparagraph and the following two paragraphs appear in all copies.\n\nIN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR\nDIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING\nLOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS\nDOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE\nPOSSIBILITY OF SUCH DAMAGE.\n\nTHE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,\nINCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY\nAND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS\nON AN \"AS IS\" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO\nPROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.\n"
+      }
+    ],
+    "readme_url": "https://github.com/postgres/postgres/blob/9510a826e4add77280e0a7a65f429563a4c4a2a8/README.md",
+    "readme_sha256": "f8f3f3b5e7f522c8b4d8e49679ccab090b26fd0a0b4bcf6fd54e22fec6a88b2a",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "sqlite/sqlite",
+    "repository_url": "https://github.com/sqlite/sqlite",
+    "observed_at": "2026-09-30T11:42:53.584705+00:00",
+    "default_branch": "master",
+    "archived": false,
+    "stars": 10569,
+    "license_api": "NOASSERTION",
+    "commit": "737c12a04cded128ee204ab50b368bdd8a068f01",
+    "commit_date": "2026-09-30T10:36:27Z",
+    "commit_url": "https://github.com/sqlite/sqlite/commit/737c12a04cded128ee204ab50b368bdd8a068f01",
+    "last_pushed": "2026-09-30T11:06:13Z",
+    "license_files": [
+      {
+        "path": "LICENSE.md",
+        "url": "https://github.com/sqlite/sqlite/blob/737c12a04cded128ee204ab50b368bdd8a068f01/LICENSE.md",
+        "raw_url": "https://raw.githubusercontent.com/sqlite/sqlite/737c12a04cded128ee204ab50b368bdd8a068f01/LICENSE.md",
+        "sha256": "ee6af51062b30d532991face5164136ae6f84e265ecf8abe89dc69dac45ca1e7",
+        "excerpt": "License Information\n===================\n\nSQLite Is Public Domain\n-----------------------\n\nThe SQLite source code, including all of the files in the directories\nlisted in the bullets below are \n[Public Domain](https://sqlite.org/copyright.html).\nThe authors have submitted written affidavits releasing their work to\nthe public for any use.  Every byte of the public-domain code can be\ntraced back to the original authors.  The files of this repository\nthat are public domain include the following:\n\n  *  All of the primary SQLite source code files found in the\n     [src/ directory](https://sqlite.org/src/tree/src?type=tree&expand)\n  *  All of the test cases and testing code in the\n     [test/ directory](https://sqlite.org/src/tree/test?type=tree&expand)\n  *  All of the SQLite extension source code and test cases in the\n     [ext/ directory](https://sqlite.org/src/tree/ext?type=tree&expand)\n  *  All code that ends up in the \"sqlite3.c\" and \"sqlite3.h\" build products\n     that actually implement the SQLite RDBMS.\n  *  All of the code used to compile the\n     [command-line interface](https://sqlite.org/cli.html)\n  *  All of the code used to build various utility programs such as\n     \"sqldiff\", \"sqlite3_rsync\", and \"sqlite3_analyzer\".\n\n\nThe public domain source files usually contain a header comment\nsimilar to the following to make it clear that the software is\npublic domain.\n\n> The author disclaims copyright to this source code.  In place of\n> a legal notice, here is a blessing:\n> \n> "
+      }
+    ],
+    "readme_url": "https://github.com/sqlite/sqlite/blob/737c12a04cded128ee204ab50b368bdd8a068f01/README.md",
+    "readme_sha256": "6d593a9a8d89b86caec382ad0eea43b6aa7c31c8280849e4e10f40a2987d2e37",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "vectorize-io/hindsight",
+    "repository_url": "https://github.com/vectorize-io/hindsight",
+    "observed_at": "2026-09-30T11:42:53.695215+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 43481,
+    "license_api": "MIT",
+    "commit": "d56c4acdf59c41957613d399094cdf8c489b060c",
+    "commit_date": "2026-09-30T09:24:10Z",
+    "commit_url": "https://github.com/vectorize-io/hindsight/commit/d56c4acdf59c41957613d399094cdf8c489b060c",
+    "last_pushed": "2026-09-30T11:08:21Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/vectorize-io/hindsight/blob/d56c4acdf59c41957613d399094cdf8c489b060c/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/vectorize-io/hindsight/d56c4acdf59c41957613d399094cdf8c489b060c/LICENSE",
+        "sha256": "01fde0bedf83bdc185065d7af524a61690efe576a67f922eaff3a1280c17b63a",
+        "excerpt": "MIT License\n\nCopyright (c) 2025 Vectorize AI, Inc.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+      }
+    ],
+    "readme_url": "https://github.com/vectorize-io/hindsight/blob/d56c4acdf59c41957613d399094cdf8c489b060c/README.md",
+    "readme_sha256": "a3e2745dedec4f9e0d4452857ef054699e60414740f5d8f12d41bd42711d476a",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "letta-ai/letta",
+    "repository_url": "https://github.com/letta-ai/letta",
+    "observed_at": "2026-09-30T11:42:53.720242+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 24982,
+    "license_api": "Apache-2.0",
+    "commit": "5bcdd177d70fa2b31a754cfcd801e77b2e1ab16a",
+    "commit_date": "2026-09-10T17:59:06Z",
+    "commit_url": "https://github.com/letta-ai/letta/commit/5bcdd177d70fa2b31a754cfcd801e77b2e1ab16a",
+    "last_pushed": "2026-09-10T17:59:08Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/letta-ai/letta/blob/5bcdd177d70fa2b31a754cfcd801e77b2e1ab16a/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/letta-ai/letta/5bcdd177d70fa2b31a754cfcd801e77b2e1ab16a/LICENSE",
+        "sha256": "984c6db99fc6609803108dfc196762118662cd94b82a456dd9217583f18f3612",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object"
+      }
+    ],
+    "readme_url": "https://github.com/letta-ai/letta/blob/5bcdd177d70fa2b31a754cfcd801e77b2e1ab16a/README.md",
+    "readme_sha256": "1d624e8fd383c1198c8d42da87b055d591a5760e19607692eb46bbbfe2a58f03",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "HKUDS/LightRAG",
+    "repository_url": "https://github.com/HKUDS/LightRAG",
+    "observed_at": "2026-09-30T11:42:53.720524+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 39931,
+    "license_api": "MIT",
+    "commit": "453dce83d6d0354a06e46c8d4029a0895c4e054b",
+    "commit_date": "2026-09-26T08:33:35Z",
+    "commit_url": "https://github.com/HKUDS/LightRAG/commit/453dce83d6d0354a06e46c8d4029a0895c4e054b",
+    "last_pushed": "2026-09-30T11:19:48Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/HKUDS/LightRAG/blob/453dce83d6d0354a06e46c8d4029a0895c4e054b/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/HKUDS/LightRAG/453dce83d6d0354a06e46c8d4029a0895c4e054b/LICENSE",
+        "sha256": "0c16924564059e493c86854574660a47ed1dcc2a476ba7b5f949d3f2f73a1984",
+        "excerpt": "MIT License\n\nCopyright (c) 2025 LightRAG Team\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+      }
+    ],
+    "readme_url": "https://github.com/HKUDS/LightRAG/blob/453dce83d6d0354a06e46c8d4029a0895c4e054b/README.md",
+    "readme_sha256": "7b394a331a17be0fe27b14800984c0abba94dba6f08e4f14f89a4e762cd350a5",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "alibaba/zvec",
+    "repository_url": "https://github.com/alibaba/zvec",
+    "observed_at": "2026-09-30T11:42:53.808910+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 16030,
+    "license_api": "Apache-2.0",
+    "commit": "13fd088b6255363c0d1362724340243bc8f6d0d2",
+    "commit_date": "2026-09-29T05:56:02Z",
+    "commit_url": "https://github.com/alibaba/zvec/commit/13fd088b6255363c0d1362724340243bc8f6d0d2",
+    "last_pushed": "2026-09-29T05:56:15Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/alibaba/zvec/blob/13fd088b6255363c0d1362724340243bc8f6d0d2/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/alibaba/zvec/13fd088b6255363c0d1362724340243bc8f6d0d2/LICENSE",
+        "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object"
+      }
+    ],
+    "readme_url": "https://github.com/alibaba/zvec/blob/13fd088b6255363c0d1362724340243bc8f6d0d2/README.md",
+    "readme_sha256": "aea3d41c46926b6463fee0b1d9db799f3abdd938c3aefb6cd7ac56b538da64c8",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "asg017/sqlite-vec",
+    "repository_url": "https://github.com/asg017/sqlite-vec",
+    "observed_at": "2026-09-30T11:42:54.654709+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 8156,
+    "license_api": "Apache-2.0",
+    "commit": "04d28bd21773981e2d266bbf6aa4efbd011eb4f6",
+    "commit_date": "2026-05-18T06:50:43Z",
+    "commit_url": "https://github.com/asg017/sqlite-vec/commit/04d28bd21773981e2d266bbf6aa4efbd011eb4f6",
+    "last_pushed": "2026-05-18T06:50:45Z",
+    "license_files": [
+      {
+        "path": "LICENSE-APACHE",
+        "url": "https://github.com/asg017/sqlite-vec/blob/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/LICENSE-APACHE",
+        "raw_url": "https://raw.githubusercontent.com/asg017/sqlite-vec/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/LICENSE-APACHE",
+        "sha256": "a38070a94d4afd9cd710e3ce67bd1de78097cfe1784c1f0109ac95d3c196bfdc",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\nTERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n1.  Definitions.\n\n    \"License\" shall mean the terms and conditions for use, reproduction,\n    and distribution as defined by Sections 1 through 9 of this document.\n\n    \"Licensor\" shall mean the copyright owner or entity authorized by\n    the copyright owner that is granting the License.\n\n    \"Legal Entity\" shall mean the union of the acting entity and all\n    other entities that control, are controlled by, or are under common\n    control with that entity. For the purposes of this definition,\n    \"control\" means (i) the power, direct or indirect, to cause the\n    direction or management of such entity, whether by contract or\n    otherwise, or (ii) ownership of fifty percent (50%) or more of the\n    outstanding shares, or (iii) beneficial ownership of such entity.\n\n    \"You\" (or \"Your\") shall mean an individual or Legal Entity\n    exercising permissions granted by this License.\n\n    \"Source\" form shall mean the preferred form for making modifications,\n    including but not limited to software source code, documentation\n    source, and configuration files.\n\n    \"Object\" form shall mean any form resulting from mechanical\n    transformation or translation of a Source form, including but\n    not limited to compiled object code, generated documentation,\n    and conversions to other media types.\n\n    \"Work\" shall mean the work of authorship, whether in Source or\n    Object form, made available under the License, as indicated by a\n    copyright notice that is included in or attached to the work\n    (an example is provided in the Appendix below).\n\n    \"Derivative Works\" shall mean any work, whether in Source or Object\n    form, that is based on (or derived from) the Work and for which the\n    editorial revisions, annotations, elaborations, or other modifications\n    represent, as a whole, an original work of authorship. For the purposes\n    of this License, Derivative Works shall not include works that remain\n    separable from, or merely link (or bind b"
+      },
+      {
+        "path": "LICENSE-MIT",
+        "url": "https://github.com/asg017/sqlite-vec/blob/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/LICENSE-MIT",
+        "raw_url": "https://raw.githubusercontent.com/asg017/sqlite-vec/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/LICENSE-MIT",
+        "sha256": "6ce72bbe12d975bd5286e5ab0a064c069693300c47bccbc57bec18485f1621ea",
+        "excerpt": "MIT License\n\nCopyright (c) 2024 Alex Garcia\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+      }
+    ],
+    "readme_url": "https://github.com/asg017/sqlite-vec/blob/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/README.md",
+    "readme_sha256": "9116ef6e0b78eb0caf5c6bb6419ccf4f8c6523967eef2045928c33dc66053d64",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "tree-sitter/tree-sitter",
+    "repository_url": "https://github.com/tree-sitter/tree-sitter",
+    "observed_at": "2026-09-30T11:42:54.714442+00:00",
+    "default_branch": "master",
+    "archived": false,
+    "stars": 27090,
+    "license_api": "MIT",
+    "commit": "0b1cc6843e4b397eae758e93022cbed569623e46",
+    "commit_date": "2026-09-30T08:06:37Z",
+    "commit_url": "https://github.com/tree-sitter/tree-sitter/commit/0b1cc6843e4b397eae758e93022cbed569623e46",
+    "last_pushed": "2026-09-30T10:15:00Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/tree-sitter/tree-sitter/blob/0b1cc6843e4b397eae758e93022cbed569623e46/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/tree-sitter/tree-sitter/0b1cc6843e4b397eae758e93022cbed569623e46/LICENSE",
+        "sha256": "c5cfb43042b6b72045f4ba997834d0a7786d2793d91680868b5815b39f14fc78",
+        "excerpt": "The MIT License (MIT)\n\nCopyright (c) 2018 Max Brunsfeld\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+      }
+    ],
+    "readme_url": "https://github.com/tree-sitter/tree-sitter/blob/0b1cc6843e4b397eae758e93022cbed569623e46/README.md",
+    "readme_sha256": "7984c7c2f775cd08f470431af058b5523886888daa8ef6443c0dbd8c2afe3bcc",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "sourcegraph/zoekt",
+    "repository_url": "https://github.com/sourcegraph/zoekt",
+    "observed_at": "2026-09-30T11:42:54.721959+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 1942,
+    "license_api": "Apache-2.0",
+    "commit": "153817f643cde8b229ee388c1dddbcf07f4798af",
+    "commit_date": "2026-09-11T06:18:44Z",
+    "commit_url": "https://github.com/sourcegraph/zoekt/commit/153817f643cde8b229ee388c1dddbcf07f4798af",
+    "last_pushed": "2026-09-23T06:40:47Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/sourcegraph/zoekt/blob/153817f643cde8b229ee388c1dddbcf07f4798af/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/sourcegraph/zoekt/153817f643cde8b229ee388c1dddbcf07f4798af/LICENSE",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object"
+      }
+    ],
+    "readme_url": "https://github.com/sourcegraph/zoekt/blob/153817f643cde8b229ee388c1dddbcf07f4798af/README.md",
+    "readme_sha256": "f4999a084451694d74223450b3f21635afffb127839c37a9e497ba5c448ff8f5",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "tobi/qmd",
+    "repository_url": "https://github.com/tobi/qmd",
+    "observed_at": "2026-09-30T11:42:54.738647+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "stars": 30116,
+    "license_api": "MIT",
+    "commit": "04e4dbd8245c527a88f1a8f0bda547aef9ca81fb",
+    "commit_date": "2026-09-09T20:51:54Z",
+    "commit_url": "https://github.com/tobi/qmd/commit/04e4dbd8245c527a88f1a8f0bda547aef9ca81fb",
+    "last_pushed": "2026-09-09T20:51:56Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/tobi/qmd/blob/04e4dbd8245c527a88f1a8f0bda547aef9ca81fb/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/tobi/qmd/04e4dbd8245c527a88f1a8f0bda547aef9ca81fb/LICENSE",
+        "sha256": "24c446836e7e2cdea13a914de10c88c553e6297366061ba24013b8ce73c8f7fa",
+        "excerpt": "MIT License\n\nCopyright (c) 2024-2026 Tobi Lutke\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
+      }
+    ],
+    "readme_url": "https://github.com/tobi/qmd/blob/04e4dbd8245c527a88f1a8f0bda547aef9ca81fb/README.md",
+    "readme_sha256": "0b08e5c533fea7406def0613027249f49e9b5c3168689467d6b3f86cd9c0701f",
+    "result": "PRIMARY_FETCHED"
+  },
+  {
+    "repo": "open-telemetry/semantic-conventions-genai",
+    "repository_url": "https://github.com/open-telemetry/semantic-conventions-genai",
+    "observed_at": "2026-09-30T11:53:03.573888+00:00",
+    "default_branch": "main",
+    "archived": false,
+    "license_api": "Apache-2.0",
+    "commit": "bcc7f9c2856fa7f4feb753f54d4ebba9455cc3dc",
+    "commit_date": "2026-09-29T21:34:59Z",
+    "commit_url": "https://github.com/open-telemetry/semantic-conventions-genai/commit/bcc7f9c2856fa7f4feb753f54d4ebba9455cc3dc",
+    "last_pushed": "2026-09-29T21:36:25Z",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/open-telemetry/semantic-conventions-genai/blob/bcc7f9c2856fa7f4feb753f54d4ebba9455cc3dc/LICENSE",
+        "raw_url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/bcc7f9c2856fa7f4feb753f54d4ebba9455cc3dc/LICENSE",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "excerpt": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object code, generated documentation,\n      and conversions to other media types.\n\n      \"Work\" shall mean the work of authorship, whether in Source or\n      Object form, made available under the License, as indicated by a\n      copyright notice that is included in or attached to the work\n      (an example is provided in the Appendix below).\n\n      \"Derivative Works\" shall mean any work, whether in Source or Object\n      form, that is based on (or derived from) the Work and for which the\n      editorial revisions, annotations, elaborations, or other modifications\n      represent, as a whole, an original work of authorship. For the purposes\n      of this License, Derivative Works shall not include "
+      }
+    ],
+    "result": "PRIMARY_FETCHED"
+  }
+]

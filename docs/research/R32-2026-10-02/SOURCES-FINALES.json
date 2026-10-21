@@ -1,0 +1,22 @@
+{
+  "controle": "six chemins R32 contrôlés; protocole pur R30 référencé par hash",
+  "dependances_r30": {
+    "MANIFEST.json": "2685dd4e20b7e288ff47ddb9fd62af07e50f7781e284cf2c58790784aa2d99ae",
+    "README.md": "74d091c45617570851c5952a965f51d142059f7e51b986704810fa6cf1d7fe43",
+    "SOURCES-FINALES.json": "26f9338fa63d89e10aea564c33d59ac931d9f63bce758cf0f7a55bf04272a25d"
+  },
+  "documents": {
+    "docs/architecture/CALIBRATION-COHORTES-TEMPS.md": "505464065c76a41aee679fafba776400b5c71a783e26cea21c9a9810ec1addd5",
+    "docs/programme/LOT-COHORTES-TEMPS.md": "ea7e1afb048796e7f3b4ef246e261fb635290f4559cd0759775d9bec61992595",
+    "docs/programme/LOT-RACCORDEMENT-COHORTES.md": "9fccc952861c4794c7aef263931f2f83bdef39c3f41369e9502f895b2a8be820"
+  },
+  "schema": "opsys.r32-sources/v1",
+  "sources_r32": {
+    "departments/m03-estimation/src/m3_estimation/calibration_raccord.py": "4a811b2044e2fc458d01093b8c8ecd2cf443a7a451a0c66769b7a0d4094695a6",
+    "departments/m03-estimation/src/m3_estimation/outils.py": "100f888817846372b15a3fee2dc37760b818aff6d0e44d6d08c66a021d07c4e4",
+    "departments/m03-estimation/tests/test_calibration_raccord.py": "65ac5553b66980605adbd5f24793a5f619ea13d9036098adfe5a19a84b57ea10",
+    "departments/m04-field-ops/src/m4_field_ops/calibration_projection.py": "c5818b65c3dad37933db175f6eb359b3e28fde38521974ead342a50f556d88a6",
+    "departments/m04-field-ops/src/m4_field_ops/outils.py": "7303a22f610c8a6bd9b1e7454e99d0bd3f0b5427882c2fe10370ea9d3f68cfad",
+    "departments/m04-field-ops/tests/test_evenements_m4.py": "022a0d39cb7b40e1ccd48e0836cbb2e519ed5de3114ffa82509a4b245db8353b"
+  }
+}

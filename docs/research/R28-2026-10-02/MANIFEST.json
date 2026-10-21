@@ -1,0 +1,1293 @@
+{
+  "archives": [
+    {
+      "archive": "docs/docs-architecture-FUSION-PDF-NATIF.md-63a559ccdb94-045ec08f1ad11e9dd2bd0c8aceaae007f9bfe293f310394d3fbe0d44f206f20b.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/architecture/FUSION-PDF-NATIF.md",
+      "sha256_archive": "b354ed99c9aef9169dd38671a533f045983485e10cfd5fcffa6f4910001d282d",
+      "sha256_original": "045ec08f1ad11e9dd2bd0c8aceaae007f9bfe293f310394d3fbe0d44f206f20b",
+      "taille_archive": 3046,
+      "taille_originale": 6256
+    },
+    {
+      "archive": "docs/docs-programme-LOT-FUSION-PDF-NATIF.md-e2abf0e4135b-fd9959c4aa756031cafaf9080c25017d6b0c9ff809eb98a05c9224aaf8bfff56.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/LOT-FUSION-PDF-NATIF.md",
+      "sha256_archive": "38ccdf9f17efa0b001cc1e02035f872d8d00a01f1411205f64a7992d960e3665",
+      "sha256_original": "fd9959c4aa756031cafaf9080c25017d6b0c9ff809eb98a05c9224aaf8bfff56",
+      "taille_archive": 2234,
+      "taille_originale": 4224
+    },
+    {
+      "archive": "docs/docs-programme-REPRISE-PLAN-2026-10-02.md-47113b327657-e17605844fd4df4c6e489fe63789dcb89b49cd4651bda75bbad422208fd48d92.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/REPRISE-PLAN-2026-10-02.md",
+      "sha256_archive": "97f3b49dab88807685aabc79269d9a7252fb28e3263e81ef4969e4b8680c4122",
+      "sha256_original": "e17605844fd4df4c6e489fe63789dcb89b49cd4651bda75bbad422208fd48d92",
+      "taille_archive": 4698,
+      "taille_originale": 10014
+    },
+    {
+      "archive": "docs/docs-research-INGREDIENTS.md-4bbf4f338e8d-78bf474306a536d5d69aae1e4e478b04619f626ccd0d6966757526a54ff331c8.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/INGREDIENTS.md",
+      "sha256_archive": "30d62fb47ab8a7360d4b2d15d7e26213fef7dcb87f3430bd6aa83fc19cd2e215",
+      "sha256_original": "78bf474306a536d5d69aae1e4e478b04619f626ccd0d6966757526a54ff331c8",
+      "taille_archive": 26160,
+      "taille_originale": 68198
+    },
+    {
+      "archive": "historique-r30/docs-research-R30-2026-10-02-MANIFEST.json-7ce267aaef6c-2685dd4e20b7e288ff47ddb9fd62af07e50f7781e284cf2c58790784aa2d99ae.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/MANIFEST.json",
+      "sha256_archive": "141fe202b0e21b2744d3416d33c8b2be80eca232c0387da5745eec9d04ff3462",
+      "sha256_original": "2685dd4e20b7e288ff47ddb9fd62af07e50f7781e284cf2c58790784aa2d99ae",
+      "taille_archive": 5008,
+      "taille_originale": 21858
+    },
+    {
+      "archive": "historique-r30/docs-research-R30-2026-10-02-POST-CHECK.json-21afff98c126-1d3a6e5305adf5b5f031d3e32bd537eff0c4350d42f9cccf6151f46d20ce6c5c.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/POST-CHECK.json",
+      "sha256_archive": "50138d4be9456ccb4248a1a5f56b23bc2c3656548b80150e30e04e97df93be99",
+      "sha256_original": "1d3a6e5305adf5b5f031d3e32bd537eff0c4350d42f9cccf6151f46d20ce6c5c",
+      "taille_archive": 215,
+      "taille_originale": 270
+    },
+    {
+      "archive": "historique-r30/docs-research-R30-2026-10-02-QUALIFICATION.json-8273e37b8d4e-9d377c616e769a79653d8024a4a020ef374db2be8d767241ff61d98b1490eb35.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/QUALIFICATION.json",
+      "sha256_archive": "545ffdca4087218f259e47ebf1eab22ab7b8bcdf848ec8a87c2cf4eadc83940d",
+      "sha256_original": "9d377c616e769a79653d8024a4a020ef374db2be8d767241ff61d98b1490eb35",
+      "taille_archive": 154002,
+      "taille_originale": 457002
+    },
+    {
+      "archive": "historique-r30/docs-research-R30-2026-10-02-README.md-c2411063703a-74d091c45617570851c5952a965f51d142059f7e51b986704810fa6cf1d7fe43.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/README.md",
+      "sha256_archive": "a6772213fe421c5fcf1bb6ea3cc0c9efccbe7b4a981845dd4b444e4b27fd5472",
+      "sha256_original": "74d091c45617570851c5952a965f51d142059f7e51b986704810fa6cf1d7fe43",
+      "taille_archive": 664,
+      "taille_originale": 1115
+    },
+    {
+      "archive": "historique-r30/docs-research-R30-2026-10-02-SOURCES-FINALES.json-e0be5b0bde33-26f9338fa63d89e10aea564c33d59ac931d9f63bce758cf0f7a55bf04272a25d.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/SOURCES-FINALES.json",
+      "sha256_archive": "4cac7fd1097f0fe176583644dcde63f54426535632de14196bdf3c30a4c646c6",
+      "sha256_original": "26f9338fa63d89e10aea564c33d59ac931d9f63bce758cf0f7a55bf04272a25d",
+      "taille_archive": 480,
+      "taille_originale": 735
+    },
+    {
+      "archive": "sources-r28/pyproject.toml-50c86b7ed8ac-a10aafa44512691dc5fead5d4ee110cb1fa6cb16f928b204c0775105ef023294.gz",
+      "origine": "/workspace/OPSYS-AI-recent/pyproject.toml",
+      "sha256_archive": "99e0e98d0b00f48f9953f0ac4517543400873496126c42774d7809a951d5537a",
+      "sha256_original": "a10aafa44512691dc5fead5d4ee110cb1fa6cb16f928b204c0775105ef023294",
+      "taille_archive": 1733,
+      "taille_originale": 4344
+    },
+    {
+      "archive": "sources-r28/requirements-ingestion-pdf.lock.txt-72094f8abbc6-9cc680aec95492ddb3fc8d80cf4059f707434eae2ec499453d9537cc477bac3e.gz",
+      "origine": "/workspace/OPSYS-AI-recent/requirements-ingestion-pdf.lock.txt",
+      "sha256_archive": "c20827ffbc4dfe02d293ca4f8a4b5cf6b44c14a83658419b4104486049fdec53",
+      "sha256_original": "9cc680aec95492ddb3fc8d80cf4059f707434eae2ec499453d9537cc477bac3e",
+      "taille_archive": 58460,
+      "taille_originale": 125647
+    },
+    {
+      "archive": "sources-r28/src-opsys-console-application.py-3b7bf9682d80-b57c57506e26815e8d0ce9ea0455d3e9cc0bb26407d18302e7fc9b8ee27e2452.gz",
+      "origine": "/workspace/OPSYS-AI-recent/src/opsys/console/application.py",
+      "sha256_archive": "a6feb1c28bf8a2a4c168eddd11411a284162296f937fa7563acce8e9343e3670",
+      "sha256_original": "b57c57506e26815e8d0ce9ea0455d3e9cc0bb26407d18302e7fc9b8ee27e2452",
+      "taille_archive": 10127,
+      "taille_originale": 47422
+    },
+    {
+      "archive": "sources-r28/src-opsys-console-fusion_pdf_ui.py-d2aeb9de3ca5-e22c63df6a8ff0dd64db4ea2274d33267464e64fa11d0009bd3c064b65e7061d.gz",
+      "origine": "/workspace/OPSYS-AI-recent/src/opsys/console/fusion_pdf_ui.py",
+      "sha256_archive": "c4a0083f09440a3a722eb8acb539ce3ccd50473f1c94922f0e0631fec97bd69b",
+      "sha256_original": "e22c63df6a8ff0dd64db4ea2274d33267464e64fa11d0009bd3c064b65e7061d",
+      "taille_archive": 5629,
+      "taille_originale": 22050
+    },
+    {
+      "archive": "sources-r28/src-opsys-fusion_pdf.py-19d04e2f136b-32bccef06c41b67942fe1f7c9ae5a2ba56bf798d717027d252679f35b50798df.gz",
+      "origine": "/workspace/OPSYS-AI-recent/src/opsys/fusion_pdf.py",
+      "sha256_archive": "e5546e6660a60489d3d3ae294afe2f76f8c6c3b7c3321cc1156dac16513d336c",
+      "sha256_original": "32bccef06c41b67942fe1f7c9ae5a2ba56bf798d717027d252679f35b50798df",
+      "taille_archive": 6073,
+      "taille_originale": 22054
+    },
+    {
+      "archive": "sources-r28/src-opsys-fusion_pdf_worker.py-1cd64e5a7c6d-c171dcd08c469944d0301796abbac58f7976c558e4183cdedb683873eea193d1.gz",
+      "origine": "/workspace/OPSYS-AI-recent/src/opsys/fusion_pdf_worker.py",
+      "sha256_archive": "f66ad4313b9a5cf99b37b0987468e1ad2a276075554a9d90b3dca019525a9fbc",
+      "sha256_original": "c171dcd08c469944d0301796abbac58f7976c558e4183cdedb683873eea193d1",
+      "taille_archive": 2789,
+      "taille_originale": 8233
+    },
+    {
+      "archive": "sources-r28/src-opsys-stockage-migrations-versions-0018_fusion_pdf_natif.py-56ab5f5d0858-7b6cee4722507467ce8d3d66ac195dbea2c2985bbfeb4f129939732170a9f212.gz",
+      "origine": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0018_fusion_pdf_natif.py",
+      "sha256_archive": "dc6f5a0ad524fb1d8edc6d4605f1501edbbb9c31daccd596351bf3d413876dcb",
+      "sha256_original": "7b6cee4722507467ce8d3d66ac195dbea2c2985bbfeb4f129939732170a9f212",
+      "taille_archive": 1172,
+      "taille_originale": 4669
+    },
+    {
+      "archive": "sources-r28/src-opsys-stockage-schema.py-7849a2fc3cec-abb961f6a44eb0b36e9763e40d80c0c575216cf1d3a61653263d4c648bccb4a3.gz",
+      "origine": "/workspace/OPSYS-AI-recent/src/opsys/stockage/schema.py",
+      "sha256_archive": "d79b8f1be943e257e8e517d94427cb9117d74caeb289e8206b64cd7221c0b833",
+      "sha256_original": "abb961f6a44eb0b36e9763e40d80c0c575216cf1d3a61653263d4c648bccb4a3",
+      "taille_archive": 8190,
+      "taille_originale": 33947
+    },
+    {
+      "archive": "sources-r28/tests-test_console_fusion_pdf.py-e4d6dacb24bb-f2f9da67b2ed9884efe4717d2a2c50071fa1fdbe2b20802d1e4c31656acec1f6.gz",
+      "origine": "/workspace/OPSYS-AI-recent/tests/test_console_fusion_pdf.py",
+      "sha256_archive": "3b94b22ffb892277f823059120698acb4e739981ae1dc1c99191e1bebc614cc3",
+      "sha256_original": "f2f9da67b2ed9884efe4717d2a2c50071fa1fdbe2b20802d1e4c31656acec1f6",
+      "taille_archive": 4319,
+      "taille_originale": 17693
+    },
+    {
+      "archive": "sources-r28/tests-test_fusion_pdf.py-49d46e725ec8-2677de1e7c6233ca47d1f30527002cabbccde930d9023119d3f9920e7f0a00ff.gz",
+      "origine": "/workspace/OPSYS-AI-recent/tests/test_fusion_pdf.py",
+      "sha256_archive": "c88c71842732b2b37650dc0495d655c2467d169e3da6b220fc93e3dae1f02a95",
+      "sha256_original": "2677de1e7c6233ca47d1f30527002cabbccde930d9023119d3f9920e7f0a00ff",
+      "taille_archive": 8247,
+      "taille_originale": 32348
+    },
+    {
+      "archive": "sources-r28/tests-test_stockage.py-661d9f72a471-8408f92eceb608be2a426bb94cbeb7e5815dbfbd6a6e6862cfafcd9c1f84502a.gz",
+      "origine": "/workspace/OPSYS-AI-recent/tests/test_stockage.py",
+      "sha256_archive": "dc358b17601c894e25b36a6bf86d2bd55945774adc3d66d935db2611d2edd4f7",
+      "sha256_original": "8408f92eceb608be2a426bb94cbeb7e5815dbfbd6a6e6862cfafcd9c1f84502a",
+      "taille_archive": 3068,
+      "taille_originale": 10345
+    },
+    {
+      "archive": "sources-r28/uv.lock-84321598744d-68d2578f217faa88339999f17251a51da9518cad81098c6543c29fe1eedefd36.gz",
+      "origine": "/workspace/OPSYS-AI-recent/uv.lock",
+      "sha256_archive": "060adb6562098321e7d0a770c65f765b0c8862e9ad2dad4970444a22e74a240d",
+      "sha256_original": "68d2578f217faa88339999f17251a51da9518cad81098c6543c29fe1eedefd36",
+      "taille_archive": 148530,
+      "taille_originale": 484235
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-DECISION-BRIQUES.md-8b428ebcb87e-89586a0e574f5bbd061d42847b6673573da845fbe0b750d75d0a82c7f78bcb1b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/DECISION-BRIQUES.md",
+      "sha256_archive": "57ab2f36b16fc4fcb77fab7711a3b292bfd8a561b4184b7ada30dee7c3bc1c7b",
+      "sha256_original": "89586a0e574f5bbd061d42847b6673573da845fbe0b750d75d0a82c7f78bcb1b",
+      "taille_archive": 3939,
+      "taille_originale": 8311
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-PLAN-PILOTE-r1.md-83cdd313c245-f23fa71747628efed41b236ec306f9bcd4b857d76f1e798f39b26b309947f729.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/PLAN-PILOTE-r1.md",
+      "sha256_archive": "65bbd744340a2dd39aa1469e404cbf7386b3f285df3cee2d4f8ccb96249ec7d0",
+      "sha256_original": "f23fa71747628efed41b236ec306f9bcd4b857d76f1e798f39b26b309947f729",
+      "taille_archive": 4156,
+      "taille_originale": 8774
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-PLAN-PILOTE-r2.md-341a5ef52f1f-502bf3309ab8e78a0e7b9fc4d422308ae41f6d7dbbbe01533b17170c64057ebe.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/PLAN-PILOTE-r2.md",
+      "sha256_archive": "23d40d9a5515adca0279426d7e84c87943776f4ef4c1801c4cea449ec1b5daa9",
+      "sha256_original": "502bf3309ab8e78a0e7b9fc4d422308ae41f6d7dbbbe01533b17170c64057ebe",
+      "taille_archive": 2028,
+      "taille_originale": 3657
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-PLAN-UI-r1.md-5728b93f4511-e7a34432d743eb13089dde223e0f67dec4bf21e0b7a2efb08300fd8443a7d7f6.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/PLAN-UI-r1.md",
+      "sha256_archive": "8f211258837608fc3aac5de580cdaa68e67329d9f1503fb11f3e5706a70a4ec7",
+      "sha256_original": "e7a34432d743eb13089dde223e0f67dec4bf21e0b7a2efb08300fd8443a7d7f6",
+      "taille_archive": 3814,
+      "taille_originale": 8449
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-PLAN-UI-r2.md-2daa6bee1c81-161b1b69f744f1388167bb57d7dcf612fa9f7cf487b2cc374436ee39528c8fbe.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/PLAN-UI-r2.md",
+      "sha256_archive": "c2b88f9470457def59ae8d40835912ff67764ac86357f5c485b7c8cde78aff2d",
+      "sha256_original": "161b1b69f744f1388167bb57d7dcf612fa9f7cf487b2cc374436ee39528c8fbe",
+      "taille_archive": 4401,
+      "taille_originale": 9647
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-PROBE-ISOLATION-ROOT-r1.json-15619ee83fde-4d2281fa0aa25fd254fc74915bcd5f3703c14c3e27676133cdb40e002266842d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/PROBE-ISOLATION-ROOT-r1.json",
+      "sha256_archive": "e1b87948b041d72191cc60a94459a828f68f0aa1729279436a56ef962622646a",
+      "sha256_original": "4d2281fa0aa25fd254fc74915bcd5f3703c14c3e27676133cdb40e002266842d",
+      "taille_archive": 689,
+      "taille_originale": 1398
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-ENTREES-QUALIFICATION-R28-r1.json-29032715be1e-7acae7d85dd821b817ca7e64aa6e9f8c51bf4bb51c17d8cbc0a9197fa53e74d3.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/ENTREES-QUALIFICATION-R28-r1.json",
+      "sha256_archive": "78fc39ff0f0d015dd39c04f2bfee05b6b63e202d1452ee3a5bf78147c56f324d",
+      "sha256_original": "7acae7d85dd821b817ca7e64aa6e9f8c51bf4bb51c17d8cbc0a9197fa53e74d3",
+      "taille_archive": 1440,
+      "taille_originale": 5425
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-ENTREES-QUALIFICATION-R28-r2.json-a492b5567aa4-683b45a65d0db7d0637becdb842bd86c757a0d1a2d4e008a93274f65c0893be7.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/ENTREES-QUALIFICATION-R28-r2.json",
+      "sha256_archive": "45d197570c5dcc0e0aa68944e29cedda25a60d3a16f127f7073cc14490fe908e",
+      "sha256_original": "683b45a65d0db7d0637becdb842bd86c757a0d1a2d4e008a93274f65c0893be7",
+      "taille_archive": 1847,
+      "taille_originale": 7085
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-ENTREES-QUALIFICATION-R28-r3.json-d0e8221d49a1-369e271410f83c25fd83d0104230a28b079a7ca6fa8b884f58e57d487fcb0a62.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/ENTREES-QUALIFICATION-R28-r3.json",
+      "sha256_archive": "a7e740b93f04f36f2fd5d520ff82b2483c88a4170e241c5b2a6fc3817d4497c7",
+      "sha256_original": "369e271410f83c25fd83d0104230a28b079a7ca6fa8b884f58e57d487fcb0a62",
+      "taille_archive": 3815,
+      "taille_originale": 15994
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-NOTE-CONDUCTEUR-R28-r1.md-58e682abddaa-7eee107e7c060386ed98c3ad98ae694ef1f3ff7202f82b9a8eb882e190f9650d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/NOTE-CONDUCTEUR-R28-r1.md",
+      "sha256_archive": "7d0a9820ef17072039b344aa0d4ac27a93229f2235efd0ff93b5f85487a3e555",
+      "sha256_original": "7eee107e7c060386ed98c3ad98ae694ef1f3ff7202f82b9a8eb882e190f9650d",
+      "taille_archive": 639,
+      "taille_originale": 1003
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-NOTE-CONDUCTEUR-R28-r2.md-ebb63e8c9806-fd8850a48aae8555a3babd49fe56712f3dbb4869074e618d2b3ca184ccf4056a.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/NOTE-CONDUCTEUR-R28-r2.md",
+      "sha256_archive": "4e524a034e8c84e2951f388f1dffc82e530c1ac77572f6973473db4abd5889ad",
+      "sha256_original": "fd8850a48aae8555a3babd49fe56712f3dbb4869074e618d2b3ca184ccf4056a",
+      "taille_archive": 904,
+      "taille_originale": 1574
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-NOTE-CONDUCTEUR-R28-r3.md-a2eaa0cd4f17-67552f8c7c5485d111f4efeeef5f74c8d8f4c4f7da147b47f55beea891a58353.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/NOTE-CONDUCTEUR-R28-r3.md",
+      "sha256_archive": "09b4c22da886a5f6d59daf3d335331ac5cb08d49a307a1af6abbe775e3876e60",
+      "sha256_original": "67552f8c7c5485d111f4efeeef5f74c8d8f4c4f7da147b47f55beea891a58353",
+      "taille_archive": 874,
+      "taille_originale": 1527
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-PARTIELS-ROOT-R2.json-ee453e4fe705-17e645a210dcac0e8c339ad22411f96ad87e9561037bf34d1dd5e9fba990c092.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/PARTIELS-ROOT-R2.json",
+      "sha256_archive": "afc06620656581bf3b0ca34f354fd9321162cc61836dc089de9a1bcc73aa482d",
+      "sha256_original": "17e645a210dcac0e8c339ad22411f96ad87e9561037bf34d1dd5e9fba990c092",
+      "taille_archive": 1933,
+      "taille_originale": 7369
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-PREFLIGHT-AUTEUR-R2.json-783342148419-21ac799232299080f38b1cc6b7a8b7de449aad6f50e898ca17ab6b74cf149c17.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/PREFLIGHT-AUTEUR-R2.json",
+      "sha256_archive": "1cb90c961d88840475c1909eb9fee274ca4dbf34862310445a28f7f468f41b54",
+      "sha256_original": "21ac799232299080f38b1cc6b7a8b7de449aad6f50e898ca17ab6b74cf149c17",
+      "taille_archive": 494,
+      "taille_originale": 843
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-PROPOSITION-ARCHIVE-R28-r1.json-a3c8d5df372a-0ef72ebb3158ebb771ca57fd75c7eca973d83de6cfcbed6abb79e2f45c996c26.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/PROPOSITION-ARCHIVE-R28-r1.json",
+      "sha256_archive": "2ab91279214439afabf4bfeb8fc5466bf70647e97e080776a9a31f99c497f417",
+      "sha256_original": "0ef72ebb3158ebb771ca57fd75c7eca973d83de6cfcbed6abb79e2f45c996c26",
+      "taille_archive": 10730,
+      "taille_originale": 43654
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-execute-root-echec-r2.json-bdf95b1994bb-9d37b4657fa6ed7167ba47af371b6463ebadb9e2165b19318de648772e8829ae.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/execute-root-echec-r2.json",
+      "sha256_archive": "ce365674e00ca32a4c8797561b50d7ee31b80b848dab74cadfbee0f60ccd1570",
+      "sha256_original": "9d37b4657fa6ed7167ba47af371b6463ebadb9e2165b19318de648772e8829ae",
+      "taille_archive": 1797,
+      "taille_originale": 3788
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-preflight-r28-r1.py-62d83609f180-5de99af56c6e3797b310952f3fe15b9a5e4271f65e111507fc3ba1e68c9fc8c6.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/preflight-r28-r1.py",
+      "sha256_archive": "804feb208a9dc71d4f5d0249e577a93a79405937254bdec1371257e3547f487a",
+      "sha256_original": "5de99af56c6e3797b310952f3fe15b9a5e4271f65e111507fc3ba1e68c9fc8c6",
+      "taille_archive": 6067,
+      "taille_originale": 19328
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-preflight-r28-r2.py-ed1b942e798c-30fc30db99d4f3f52f2af0808160e88309c6542ea60200bdd5537953f2588ce7.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/preflight-r28-r2.py",
+      "sha256_archive": "26635dde54ccb5cb429f6db59c73f026164c72772a518aeca8626b7b05346de8",
+      "sha256_original": "30fc30db99d4f3f52f2af0808160e88309c6542ea60200bdd5537953f2588ce7",
+      "taille_archive": 6350,
+      "taille_originale": 21041
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-preflight-r28-r3.py-7b1467924de3-907c2452e4f278ae2ae8cf2e054506a0becb5ccf75de2f7eb32d2cd04238a34d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/preflight-r28-r3.py",
+      "sha256_archive": "3945b4f34a8a372b3b0a6b7017650617a8539f408f30649050dda8afb28a4dba",
+      "sha256_original": "907c2452e4f278ae2ae8cf2e054506a0becb5ccf75de2f7eb32d2cd04238a34d",
+      "taille_archive": 7209,
+      "taille_originale": 24603
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-preflight-root-red-r1.json-0c1862535fea-ef6a4ff5efc4cc1c7382f8aaf0c2289ba2f8e0ec6ca424b57fbd60f98d2dfd1d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/preflight-root-red-r1.json",
+      "sha256_archive": "36f9799fd888c56e9cb6a3ee536f0da7341b4a098ffab4c5c134e76264486a14",
+      "sha256_original": "ef6a4ff5efc4cc1c7382f8aaf0c2289ba2f8e0ec6ca424b57fbd60f98d2dfd1d",
+      "taille_archive": 379,
+      "taille_originale": 553
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-preflight-root-red-r1.log-65280e26c6f7-acd8d8245fbada3d5e913306e90a70f223e07d327ec631870bd90de7256a6949.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/preflight-root-red-r1.log",
+      "sha256_archive": "f604e152d44d8a26c632baf2a075eb742f712bba8a2dbb1e14b50ed58a1e0221",
+      "sha256_original": "acd8d8245fbada3d5e913306e90a70f223e07d327ec631870bd90de7256a6949",
+      "taille_archive": 437,
+      "taille_originale": 965
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-preimages-r1-PREIMAGES.json-74f9592f904c-bd723fe96dac27326b6a5f7e66aa6edb8da0e775589cfa95eeda7bfe31f57e5a.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/preimages-r1/PREIMAGES.json",
+      "sha256_archive": "4b42a57def7f3ebe523470eece2a420a0c803f16153775dcc967ab500d399f65",
+      "sha256_original": "bd723fe96dac27326b6a5f7e66aa6edb8da0e775589cfa95eeda7bfe31f57e5a",
+      "taille_archive": 491,
+      "taille_originale": 1068
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-preimages-r1-preflight-r28-r1.py.preimage-430b3f0e14f3-5de99af56c6e3797b310952f3fe15b9a5e4271f65e111507fc3ba1e68c9fc8c6.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/preimages-r1/preflight-r28-r1.py.preimage",
+      "sha256_archive": "804feb208a9dc71d4f5d0249e577a93a79405937254bdec1371257e3547f487a",
+      "sha256_original": "5de99af56c6e3797b310952f3fe15b9a5e4271f65e111507fc3ba1e68c9fc8c6",
+      "taille_archive": 6067,
+      "taille_originale": 19328
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-preimages-r2-PREIMAGES.json-8019a52a6780-a30af073274c81846d9c6b04a66f7a9d69c05db89131be6db6578c749192770e.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/preimages-r2/PREIMAGES.json",
+      "sha256_archive": "37db00e470b7467ced575ba41ec84468065ced75d8ec1412c00d49ad9dd4ca2b",
+      "sha256_original": "a30af073274c81846d9c6b04a66f7a9d69c05db89131be6db6578c749192770e",
+      "taille_archive": 543,
+      "taille_originale": 1099
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-archive-r28-r1-preimages-r2-preflight-r28-r2.py.preimage-ed5bc34d9940-30fc30db99d4f3f52f2af0808160e88309c6542ea60200bdd5537953f2588ce7.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/archive-r28-r1/preimages-r2/preflight-r28-r2.py.preimage",
+      "sha256_archive": "26635dde54ccb5cb429f6db59c73f026164c72772a518aeca8626b7b05346de8",
+      "sha256_original": "30fc30db99d4f3f52f2af0808160e88309c6542ea60200bdd5537953f2588ce7",
+      "taille_archive": 6350,
+      "taille_originale": 21041
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-GEL-SOURCES-r1.json-4dd18fbf754f-42e818bb0df8263c3890f8c26db73aa9c53368aad61f901c04bde5776a6a1c6c.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/GEL-SOURCES-r1.json",
+      "sha256_archive": "4c5be63b2e269f143bafea04b125e925f2c7f79630a79b453b7001837bbb850b",
+      "sha256_original": "42e818bb0df8263c3890f8c26db73aa9c53368aad61f901c04bde5776a6a1c6c",
+      "taille_archive": 3514,
+      "taille_originale": 10689
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-GEL-SOURCES-r1.sha256-0bf815c24d53-98cdd567bc01e55b927bd79c8721ef0cf8dfcd61f2bffb1da07f7f40521ea6ff.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/GEL-SOURCES-r1.sha256",
+      "sha256_archive": "f1a96410430f996003028ba1cc1d11a93d6a7bb025fa00ac7ff9c04e7e95604b",
+      "sha256_original": "98cdd567bc01e55b927bd79c8721ef0cf8dfcd61f2bffb1da07f7f40521ea6ff",
+      "taille_archive": 103,
+      "taille_originale": 86
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-RAPPORT-BACKEND-r1.md-02ca367f3155-b6d8efc89ee95a4caf1d34aba4e0e5186d8ec4dd5ad571cf318df0313204d8bd.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/RAPPORT-BACKEND-r1.md",
+      "sha256_archive": "24d0ed0c4b67b327cc5c6bd7cbecf1d0b6949761ea63cca83e7d49b9add63487",
+      "sha256_original": "b6d8efc89ee95a4caf1d34aba4e0e5186d8ec4dd5ad571cf318df0313204d8bd",
+      "taille_archive": 3759,
+      "taille_originale": 7311
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r1.log-9ead0b27ff1b-fd7a93e005f875acac6f538e8518a7f613e11fda9f40e4929580fd3158660b54.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r1.log",
+      "sha256_archive": "8076e0593e7569e64c2208aa7cfb1dd42b16d75ebe14169964a507a3a46320ba",
+      "sha256_original": "fd7a93e005f875acac6f538e8518a7f613e11fda9f40e4929580fd3158660b54",
+      "taille_archive": 751,
+      "taille_originale": 1837
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r1.xml-3abbaceb5c83-72d6afa0ac2322e721f9369cc23f9b28b84dc26d5965a07e0d02a6f8c1c4af18.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r1.xml",
+      "sha256_archive": "d86fdfcc7352bda15f1d2596e2b264b14c5bcfe5be027383753ca05c21818f3c",
+      "sha256_original": "72d6afa0ac2322e721f9369cc23f9b28b84dc26d5965a07e0d02a6f8c1c4af18",
+      "taille_archive": 3095,
+      "taille_originale": 1056291
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r2-resultat.json-ffffe972741c-354c110289e728ec8a8be2765ee4ca31682ff69559065f5bb98f21bbd93a20c2.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r2-resultat.json",
+      "sha256_archive": "904b5610b4edfeedd94d28fa2a09047796f8c208d9b07aaf013721c9f8e28544",
+      "sha256_original": "354c110289e728ec8a8be2765ee4ca31682ff69559065f5bb98f21bbd93a20c2",
+      "taille_archive": 520,
+      "taille_originale": 968
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r2.log-7bbd782bb9d9-8a4216633b2c8365a3342a48a8feba805c81bb3b3531f2c9507ae773f96f6dff.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r2.log",
+      "sha256_archive": "c0fd193299068aeb834e5616c41080282f92eac30d4ae9baba6ef6f781012198",
+      "sha256_original": "8a4216633b2c8365a3342a48a8feba805c81bb3b3531f2c9507ae773f96f6dff",
+      "taille_archive": 310,
+      "taille_originale": 535
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r2.xml-af76917d60f6-487aaecfdb5dcfd47d66766a413484ad349d89e8dc471c7b2665e74b400658ab.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r2.xml",
+      "sha256_archive": "69ee026c8f0e63403edb5e43195cff71864f90e23d9a4def50f54d695edbf815",
+      "sha256_original": "487aaecfdb5dcfd47d66766a413484ad349d89e8dc471c7b2665e74b400658ab",
+      "taille_archive": 2759,
+      "taille_originale": 1056300
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r3-resultat.json-23018c8741ee-be4144478f7b8e40c9d4bd1062d20b5d90901ca208ab1d4806fd82f8eba75fb8.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r3-resultat.json",
+      "sha256_archive": "dff9af9feaf9539fb8173ab411543dd9135ea060c281dd98ca4c9e2f9cc3a6f6",
+      "sha256_original": "be4144478f7b8e40c9d4bd1062d20b5d90901ca208ab1d4806fd82f8eba75fb8",
+      "taille_archive": 522,
+      "taille_originale": 967
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r3.log-d4a4652077d7-30e07e2e4dadc5dee162a06a542f59ce6ef1020ae63a54955be87cb03c5ac159.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r3.log",
+      "sha256_archive": "c8ab99ca397b079a2b31021e910e1f0018f17eb5fbc5f1c68ccd885e0a668c18",
+      "sha256_original": "30e07e2e4dadc5dee162a06a542f59ce6ef1020ae63a54955be87cb03c5ac159",
+      "taille_archive": 1641,
+      "taille_originale": 5608
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r3.xml-77c04f1c6276-4c6bc8a8151894626c6448bf516df34282ad1989fe4f0238c96fc3957f0c48ec.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r3.xml",
+      "sha256_archive": "c84a737c8035c0661dd8d64df262bfb5eb6a8213042d1c5fbe7ecf0aaf151455",
+      "sha256_original": "4c6bc8a8151894626c6448bf516df34282ad1989fe4f0238c96fc3957f0c48ec",
+      "taille_archive": 2848,
+      "taille_originale": 12747
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r4-resultat.json-03861725f716-f704caba66bc22d4bfbc8212bb83876fca11b411d9cca31ff45bcde92f3d5ab7.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r4-resultat.json",
+      "sha256_archive": "a172e282f0ab2ac2ac99189c975a2c604c738adee11cd6163d34a5ff2a961238",
+      "sha256_original": "f704caba66bc22d4bfbc8212bb83876fca11b411d9cca31ff45bcde92f3d5ab7",
+      "taille_archive": 521,
+      "taille_originale": 968
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r4.log-27aa0c09f832-b2a4d7bf328cfe42352a868c48cac0a5d1410155c5922c5cbe6efcc1ec5f990c.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r4.log",
+      "sha256_archive": "94be83c769c6d3972bbfb7b76e9c3f36d6baebf6e6d3bfb39a964cc9d5aa94e0",
+      "sha256_original": "b2a4d7bf328cfe42352a868c48cac0a5d1410155c5922c5cbe6efcc1ec5f990c",
+      "taille_archive": 1769,
+      "taille_originale": 6309
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r4.xml-dfd48b14a680-5420e75e9dbbd256cac0fff3b107558360a64dada7206f10504bdadec4f4a9d7.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r4.xml",
+      "sha256_archive": "472754a527f22e9f3d1e97027d0bbc63769098baa07c7dda82ce6106285e5bf8",
+      "sha256_original": "5420e75e9dbbd256cac0fff3b107558360a64dada7206f10504bdadec4f4a9d7",
+      "taille_archive": 2984,
+      "taille_originale": 13448
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r5-resultat.json-65b4c0dc4fcf-3a19a67f595196e983d80759dfec08b6acddeb4795ec4c5a12b77601c0f04544.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r5-resultat.json",
+      "sha256_archive": "4713a80a9a954cd5b28573f6e8090fc90b3dc4c82b9fe62b286bba1e1dc38764",
+      "sha256_original": "3a19a67f595196e983d80759dfec08b6acddeb4795ec4c5a12b77601c0f04544",
+      "taille_archive": 520,
+      "taille_originale": 966
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r5.log-799a9b78efaf-a46d9874583e1c801d223654e9a3dd8b80ab41fbda7b35c88212087a983b2e75.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r5.log",
+      "sha256_archive": "ef2b19eeee5786fe5f3492743c98fb762e38dd5ca5d28248ab150de743f914c0",
+      "sha256_original": "a46d9874583e1c801d223654e9a3dd8b80ab41fbda7b35c88212087a983b2e75",
+      "taille_archive": 310,
+      "taille_originale": 535
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-corpus-cible-r5.xml-c1360f994485-1b02d123312c87e931097a51206617e69f8f88284ce3420456001b1531f4632d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r5.xml",
+      "sha256_archive": "7433e9c8accd4aa1a6283e53a869e4bd049c16fe9ea80b6bf9fe1aced0e699b7",
+      "sha256_original": "1b02d123312c87e931097a51206617e69f8f88284ce3420456001b1531f4632d",
+      "taille_archive": 1512,
+      "taille_originale": 7851
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-export-offline-r1-resultat.json-8a18c10b0888-87412c4871d384d92b1b1332c0c6957d2005235d3e744d334388a46dcb1a525f.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/export-offline-r1-resultat.json",
+      "sha256_archive": "a5c1c912649c1fc899fc784183c218876f9d7bed836ca08937f0563ecc4593af",
+      "sha256_original": "87412c4871d384d92b1b1332c0c6957d2005235d3e744d334388a46dcb1a525f",
+      "taille_archive": 452,
+      "taille_originale": 849
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-export-offline-r1.log-8c2e06226ea1-9cc680aec95492ddb3fc8d80cf4059f707434eae2ec499453d9537cc477bac3e.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/export-offline-r1.log",
+      "sha256_archive": "c20827ffbc4dfe02d293ca4f8a4b5cf6b44c14a83658419b4104486049fdec53",
+      "sha256_original": "9cc680aec95492ddb3fc8d80cf4059f707434eae2ec499453d9537cc477bac3e",
+      "taille_archive": 58460,
+      "taille_originale": 125647
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-kernel-diagnostic-r1.json-e67a1eb937c0-883cdd799504993ee8a7fadbb34db0853e3592cf259323fb5256e5528d07d4a2.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/kernel-diagnostic-r1.json",
+      "sha256_archive": "fbfe3d5860dc1536fb75fc925f80a0bcb2d4475e3b1fb34c108e81ff309650eb",
+      "sha256_original": "883cdd799504993ee8a7fadbb34db0853e3592cf259323fb5256e5528d07d4a2",
+      "taille_archive": 1261,
+      "taille_originale": 17102
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-kernel-diagnostic-r2.json-b93ce1a21bfd-85cd4eceaa13adc4e7d4ed5bfa710dd652f1eeb895584cbc12fb06fcb8ef1226.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/kernel-diagnostic-r2.json",
+      "sha256_archive": "fa5cdd79783dadcb75e3c3e2306ff544bab1b228dcb67ef767219aa9cd3bf338",
+      "sha256_original": "85cd4eceaa13adc4e7d4ed5bfa710dd652f1eeb895584cbc12fb06fcb8ef1226",
+      "taille_archive": 1059,
+      "taille_originale": 23457
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-lock-extra-r1.diff-900fc3fbbeda-bdb5e8f514aadd69c3db1c6064cd27d5690c031bfdbed43ee16965b9832d4453.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/lock-extra-r1.diff",
+      "sha256_archive": "d964e1558ed77256eab0bd339c711cef05248440e9aa1faa658bae9cc6c8f0fc",
+      "sha256_original": "bdb5e8f514aadd69c3db1c6064cd27d5690c031bfdbed43ee16965b9832d4453",
+      "taille_archive": 509,
+      "taille_originale": 1810
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-lock-metadata-offline-r2-resultat.json-a163b59ecc6b-eec99bc149bac3f8173ccaff3e7034bc74a87e1322a06819e1da7358801713d3.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/lock-metadata-offline-r2-resultat.json",
+      "sha256_archive": "2f3ba3d765f6c266d2faac2f8860f6df17e7cd6b7d6cbf1f201720e694237365",
+      "sha256_original": "eec99bc149bac3f8173ccaff3e7034bc74a87e1322a06819e1da7358801713d3",
+      "taille_archive": 1460,
+      "taille_originale": 11310
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-lock-metadata-offline-r2.log-6aeaa8e90a0b-6cba928680018b7ebf7e44c05d3f02f92e61c6203feefb93aff1338ce36d0ade.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/lock-metadata-offline-r2.log",
+      "sha256_archive": "b6969b7e205341be170dc02b3a40da282b40a6bd43e92c5cff53b21a7f29eb28",
+      "sha256_original": "6cba928680018b7ebf7e44c05d3f02f92e61c6203feefb93aff1338ce36d0ade",
+      "taille_archive": 129,
+      "taille_originale": 118
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-lock-offline-r1.log-053daa3f52cf-f4c53256b7770a6c49d6845c901ca1bbecc7121b022adc541f0ea4163c828851.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/lock-offline-r1.log",
+      "sha256_archive": "9d114a5692c2b2e3d77e52dc67ef554fc2504fe699065d8ad56e8db8b7287003",
+      "sha256_original": "f4c53256b7770a6c49d6845c901ca1bbecc7121b022adc541f0ea4163c828851",
+      "taille_archive": 188,
+      "taille_originale": 219
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-parcours-reel-r1.log-4bdc71769d49-423b1d0e014eb1eab96f4420f7b344c2615be505dd574b756ac884826ca74f2d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/parcours-reel-r1.log",
+      "sha256_archive": "f6d6ed433557b8e06c531874e41d76e55d9f012a8ecc7648840539433f264423",
+      "sha256_original": "423b1d0e014eb1eab96f4420f7b344c2615be505dd574b756ac884826ca74f2d",
+      "taille_archive": 31,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-parcours-reel-r1.xml-f68598d924fa-ced3da59873b0cd3f711bf5b6a7ae4f0044d570d7a92d82108c5705a155c7cfd.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/parcours-reel-r1.xml",
+      "sha256_archive": "4d90fbad20383e891de4ad9eef338e492bf216d091e52abfd061c3f76d96fd1c",
+      "sha256_original": "ced3da59873b0cd3f711bf5b6a7ae4f0044d570d7a92d82108c5705a155c7cfd",
+      "taille_archive": 242,
+      "taille_originale": 362
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-preimages-PREIMAGE-stockage-r1.json-d5955e57aa3c-59b34227af624adbed186a95727326b10d0234f95ae4e08dcfd7759060f931cc.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/preimages/PREIMAGE-stockage-r1.json",
+      "sha256_archive": "47fa640b0541e1238f598ab51c4e724164c210cc1281f114b51b5ae8c4293dba",
+      "sha256_original": "59b34227af624adbed186a95727326b10d0234f95ae4e08dcfd7759060f931cc",
+      "taille_archive": 274,
+      "taille_originale": 373
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-preimages-PREIMAGES.json-7ccff637441e-4c4d8ebfd9f979e4ad11902fc20e19e7b3d5072a7adbe3297ac3e8a8142a1f00.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/preimages/PREIMAGES.json",
+      "sha256_archive": "62291adb8b89a421abf04d34c4e2bfad4f4acd5664e80ad94a260f263ea1c044",
+      "sha256_original": "4c4d8ebfd9f979e4ad11902fc20e19e7b3d5072a7adbe3297ac3e8a8142a1f00",
+      "taille_archive": 611,
+      "taille_originale": 1445
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-preimages-pyproject.toml.preimage-bf7147904605-37e577a34ed80a3db6e4cb5a531e538539a0d166aedc64296bc1f6dc98df875e.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/preimages/pyproject.toml.preimage",
+      "sha256_archive": "1e0e9da8d2965bc4e9c2edf16ce9565881c7a013400f855e412b03ce7d264029",
+      "sha256_original": "37e577a34ed80a3db6e4cb5a531e538539a0d166aedc64296bc1f6dc98df875e",
+      "taille_archive": 1704,
+      "taille_originale": 4249
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-preimages-src__opsys__stockage__schema.py.pre-ec9d9c5099d0-988fb776fb75c3ea1975c21add5916e93521116f3587d24ccbd97c32d7b82039.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/preimages/src__opsys__stockage__schema.py.preimage",
+      "sha256_archive": "16004b2dd3246a7895603b07d4f3d46adf9f567145734933d0ecc48d05450593",
+      "sha256_original": "988fb776fb75c3ea1975c21add5916e93521116f3587d24ccbd97c32d7b82039",
+      "taille_archive": 7810,
+      "taille_originale": 30510
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-preimages-tests__test_stockage.py-edf0c1fa5067-f659e05f3aca8a09a7b38d15be29720b031819a7437dd1db9f8eb6ab90641b2b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/preimages/tests__test_stockage.py",
+      "sha256_archive": "b64cd78ced4c0e2f0e0e47ff2fd233111aca49f2e316aa42fa0f9a704dcfcd58",
+      "sha256_original": "f659e05f3aca8a09a7b38d15be29720b031819a7437dd1db9f8eb6ab90641b2b",
+      "taille_archive": 3068,
+      "taille_originale": 10345
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-preimages-uv.lock.preimage-ba0400420544-2f695eec2c651506a6a5dc50513b6b56f9901313bfa6aeeac04ce60d9720cc01.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/preimages/uv.lock.preimage",
+      "sha256_archive": "8c57df41f8e84c14036f4ede43787ab13338710bbc925304b53fd72ebdd93a4a",
+      "sha256_original": "2f695eec2c651506a6a5dc50513b6b56f9901313bfa6aeeac04ce60d9720cc01",
+      "taille_archive": 148496,
+      "taille_originale": 483966
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-qualite-r3-resultat.json-24f87775d4fd-6a30ef7a0b6bbc099552c341ccab94acc85a07cedd5b573f747dac2e711a6c1b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/qualite-r3-resultat.json",
+      "sha256_archive": "d1058b7890b885893155c333464f506c88102db0e3e494126a6b2d0489bef530",
+      "sha256_original": "6a30ef7a0b6bbc099552c341ccab94acc85a07cedd5b573f747dac2e711a6c1b",
+      "taille_archive": 264,
+      "taille_originale": 460
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-qualite-r3.log-873da72eb0a3-82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/qualite-r3.log",
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_archive": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-qualite-r4-resultat.json-aee52840879d-6a30ef7a0b6bbc099552c341ccab94acc85a07cedd5b573f747dac2e711a6c1b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/qualite-r4-resultat.json",
+      "sha256_archive": "d1058b7890b885893155c333464f506c88102db0e3e494126a6b2d0489bef530",
+      "sha256_original": "6a30ef7a0b6bbc099552c341ccab94acc85a07cedd5b573f747dac2e711a6c1b",
+      "taille_archive": 264,
+      "taille_originale": 460
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-qualite-r4.log-fee0f7f86a5a-82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/qualite-r4.log",
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_archive": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-qualite-r5-resultat.json-39d868d1fab3-6a30ef7a0b6bbc099552c341ccab94acc85a07cedd5b573f747dac2e711a6c1b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/qualite-r5-resultat.json",
+      "sha256_archive": "d1058b7890b885893155c333464f506c88102db0e3e494126a6b2d0489bef530",
+      "sha256_original": "6a30ef7a0b6bbc099552c341ccab94acc85a07cedd5b573f747dac2e711a6c1b",
+      "taille_archive": 264,
+      "taille_originale": 460
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-qualite-r5.log-cac844b426c9-82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/qualite-r5.log",
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_archive": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-red-initial-r1.log-5fe34cc03fd6-2444861e2945cc0a852636ea4098b9dc262cd3fee1bc5c81c38e17400f5f3bc0.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/red-initial-r1.log",
+      "sha256_archive": "1a82ac6c7956605bea77787815a64a48f8d561d8eb42b59cf8ddbaa52d20c865",
+      "sha256_original": "2444861e2945cc0a852636ea4098b9dc262cd3fee1bc5c81c38e17400f5f3bc0",
+      "taille_archive": 321,
+      "taille_originale": 727
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-red-initial-r1.xml-000d8a0d0e6c-674d8d72a1c3002d6a2738f7444629a68c9c7be6cc7e74f6cca1959162af5a7a.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/red-initial-r1.xml",
+      "sha256_archive": "3a40a24db56ad3a792545f5299c0b73ae64e10485f91714b438c90eac03b4d96",
+      "sha256_original": "674d8d72a1c3002d6a2738f7444629a68c9c7be6cc7e74f6cca1959162af5a7a",
+      "taille_archive": 434,
+      "taille_originale": 744
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-sources-apres-corpus-r2.json-d195819c5b63-5a53dea1d49340e4027976541a7ffffb27cfe2a1ba230c1bac3c5f75b2c6e49d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/sources-apres-corpus-r2.json",
+      "sha256_archive": "cdc0c4c7ba801f9a701fac3785bdb843a749b1617aa659206fc45cb8cd3d1dfd",
+      "sha256_original": "5a53dea1d49340e4027976541a7ffffb27cfe2a1ba230c1bac3c5f75b2c6e49d",
+      "taille_archive": 575,
+      "taille_originale": 1182
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-sources-apres-corpus-r3.json-ed8a653e5bb9-be0e7b1406ca555f4a8d2aeeec675c98b1ec8e874c3e45fe4a11734d9dc307d4.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/sources-apres-corpus-r3.json",
+      "sha256_archive": "95711de10be7254a80be78888f5d5ea2ca19f91dfaa95d9804bfbe3427e001d7",
+      "sha256_original": "be0e7b1406ca555f4a8d2aeeec675c98b1ec8e874c3e45fe4a11734d9dc307d4",
+      "taille_archive": 607,
+      "taille_originale": 1264
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-sources-apres-corpus-r4.json-9ad64e3e63ba-5a8f531acd43a576c353ff1c3edcd6a1f640c705e7690c8fdae9e24d92c8bbe6.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/sources-apres-corpus-r4.json",
+      "sha256_archive": "bd4308524e2b01961bf253a6626c185d76c43241537b08f18820f21609756802",
+      "sha256_original": "5a8f531acd43a576c353ff1c3edcd6a1f640c705e7690c8fdae9e24d92c8bbe6",
+      "taille_archive": 610,
+      "taille_originale": 1264
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-sources-apres-corpus-r5.json-3792f3304876-bdf83b992d1ea853e2a9677ba93758c93c938765ea67da23e6d431e2eeab26dd.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/sources-apres-corpus-r5.json",
+      "sha256_archive": "6c2cd2890f312e809c04239081f474ac68be0a60c581645dea005d7c6d9c6768",
+      "sha256_original": "bdf83b992d1ea853e2a9677ba93758c93c938765ea67da23e6d431e2eeab26dd",
+      "taille_archive": 610,
+      "taille_originale": 1264
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-sources-avant-corpus-r2.json-c328add5b19b-5a53dea1d49340e4027976541a7ffffb27cfe2a1ba230c1bac3c5f75b2c6e49d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/sources-avant-corpus-r2.json",
+      "sha256_archive": "cdc0c4c7ba801f9a701fac3785bdb843a749b1617aa659206fc45cb8cd3d1dfd",
+      "sha256_original": "5a53dea1d49340e4027976541a7ffffb27cfe2a1ba230c1bac3c5f75b2c6e49d",
+      "taille_archive": 575,
+      "taille_originale": 1182
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-sources-avant-corpus-r3.json-be26737d4586-be0e7b1406ca555f4a8d2aeeec675c98b1ec8e874c3e45fe4a11734d9dc307d4.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/sources-avant-corpus-r3.json",
+      "sha256_archive": "95711de10be7254a80be78888f5d5ea2ca19f91dfaa95d9804bfbe3427e001d7",
+      "sha256_original": "be0e7b1406ca555f4a8d2aeeec675c98b1ec8e874c3e45fe4a11734d9dc307d4",
+      "taille_archive": 607,
+      "taille_originale": 1264
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-sources-avant-corpus-r4.json-ae7fc2aa9300-5a8f531acd43a576c353ff1c3edcd6a1f640c705e7690c8fdae9e24d92c8bbe6.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/sources-avant-corpus-r4.json",
+      "sha256_archive": "bd4308524e2b01961bf253a6626c185d76c43241537b08f18820f21609756802",
+      "sha256_original": "5a8f531acd43a576c353ff1c3edcd6a1f640c705e7690c8fdae9e24d92c8bbe6",
+      "taille_archive": 610,
+      "taille_originale": 1264
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-r1-sources-avant-corpus-r5.json-2cdf6c579aae-bdf83b992d1ea853e2a9677ba93758c93c938765ea67da23e6d431e2eeab26dd.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/sources-avant-corpus-r5.json",
+      "sha256_archive": "6c2cd2890f312e809c04239081f474ac68be0a60c581645dea005d7c6d9c6768",
+      "sha256_original": "bdf83b992d1ea853e2a9677ba93758c93c938765ea67da23e6d431e2eeab26dd",
+      "taille_archive": 610,
+      "taille_originale": 1264
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-backend-root-r1.xml-2195b1d312cd-785f169fb09a631f7901d5bd83bfeae67d70e7c131e93c33b5e189403b8976c0.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-root-r1.xml",
+      "sha256_archive": "3f8170dd31dbf22ea765a3bcbb277c263564aa1f6f0ba0221fa1c00bd1aa3730",
+      "sha256_original": "785f169fb09a631f7901d5bd83bfeae67d70e7c131e93c33b5e189403b8976c0",
+      "taille_archive": 3047,
+      "taille_originale": 15782
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-docs-preimages-r1-PREIMAGES.json-b3b8b61ccb01-1f375f315bfbc6c8f78d7e850cb552446246bd4d0073b859fee9440194b9511d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/docs-preimages-r1/PREIMAGES.json",
+      "sha256_archive": "b5ef17c435d495ba47f934f46a436c9200ef7a008a7d68509eaaae8fdf026bda",
+      "sha256_original": "1f375f315bfbc6c8f78d7e850cb552446246bd4d0073b859fee9440194b9511d",
+      "taille_archive": 265,
+      "taille_originale": 442
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-docs-preimages-r1-docs-research-INGREDIENTS.md-ccab1d3128d5-27df0563bbeb318ac75a4e6abc096b0098f35f6827eb3b3b1fbef9a69fd8187d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/docs-preimages-r1/docs/research/INGREDIENTS.md",
+      "sha256_archive": "a0063fa69ce8ad801de832e3420b53e656a2013fee7a74531568513e8ff49aaa",
+      "sha256_original": "27df0563bbeb318ac75a4e6abc096b0098f35f6827eb3b3b1fbef9a69fd8187d",
+      "taille_archive": 26079,
+      "taille_originale": 68082
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-docs-preimages-r2-PREIMAGES.json-10703ad51406-6ce614fa14b2fe45987a800b8b245fefe7951841f8fa045cf2c6858967c9df09.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/docs-preimages-r2/PREIMAGES.json",
+      "sha256_archive": "ec7f661b7a48b7edc2c21e8d676428bcb8ec34466ccaf50b46413de128a3a0b1",
+      "sha256_original": "6ce614fa14b2fe45987a800b8b245fefe7951841f8fa045cf2c6858967c9df09",
+      "taille_archive": 288,
+      "taille_originale": 461
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-docs-preimages-r2-docs--architecture--FUSION-PDF-NATIF.m-f30d88cd79cc-2e2e87df38211267576d40ac81b56ae13f01ecce89c3584cbda83910a929b199.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/docs-preimages-r2/docs--architecture--FUSION-PDF-NATIF.md",
+      "sha256_archive": "a6a009d5cc67499816743748f77a9c10c56b3a22d6012f48ca3e1625feb955fa",
+      "sha256_original": "2e2e87df38211267576d40ac81b56ae13f01ecce89c3584cbda83910a929b199",
+      "taille_archive": 2555,
+      "taille_originale": 5016
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-docs-preimages-r2-docs--programme--LOT-FUSION-PDF-NATIF.-656c217ded90-7257251a90bac31d3bec9fe1b70115cfd691af47b07840927e55ccc504f25c02.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/docs-preimages-r2/docs--programme--LOT-FUSION-PDF-NATIF.md",
+      "sha256_archive": "c32713b892f2385cbd56c88eacd3fc61e2d1738aeb4aee9ee3523f208aa41b42",
+      "sha256_original": "7257251a90bac31d3bec9fe1b70115cfd691af47b07840927e55ccc504f25c02",
+      "taille_archive": 1832,
+      "taille_originale": 3291
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-docs-preimages-r2-docs--programme--REPRISE-PLAN-2026-10--f09a0fa28b0f-b559f891fefeb6fe679500849a418464457629196f42c6b1c123037e85c16b19.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/docs-preimages-r2/docs--programme--REPRISE-PLAN-2026-10-02.md",
+      "sha256_archive": "8d2e4ca56f7c1a21f3ec1870c8f26e3cfd6b952d82c5841ade6a73142bd42a6f",
+      "sha256_original": "b559f891fefeb6fe679500849a418464457629196f42c6b1c123037e85c16b19",
+      "taille_archive": 4419,
+      "taille_originale": 9305
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-pdf-ui-integre-root-r1.xml-3356538f1af1-9c8bc5cc26a837f1aefff8a0b9c5586289cb6aac1b7ceb4b10a07a7bd54209ef.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/pdf-ui-integre-root-r1.xml",
+      "sha256_archive": "edcd44599645026a08b93e2802430dee3edb98d62512e772f55926846eadbcc3",
+      "sha256_original": "9c8bc5cc26a837f1aefff8a0b9c5586289cb6aac1b7ceb4b10a07a7bd54209ef",
+      "taille_archive": 3484,
+      "taille_originale": 18812
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-qualite-root-r1.py-0f53017b8786-ce2773493573132d0ca4bcf5e124a597ce421da966ee3bccedcba8ec5827253d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/qualite-root-r1.py",
+      "sha256_archive": "dfb09bb73688e1a9610360b829ac08c7bbef01a9c967788b4a2c1470a9bd62ca",
+      "sha256_original": "ce2773493573132d0ca4bcf5e124a597ce421da966ee3bccedcba8ec5827253d",
+      "taille_archive": 785,
+      "taille_originale": 1701
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-sources-complementaires-root-r1.json-5bab0d9a3e15-c3cca1dc9eedcf016797457349d52f0327ab0f1865e170a8be92a7937af76901.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/sources-complementaires-root-r1.json",
+      "sha256_archive": "368d7b34985808d9beb640f9d59ad6a4290e245ef511afdea6013e35daa69f9c",
+      "sha256_original": "c3cca1dc9eedcf016797457349d52f0327ab0f1865e170a8be92a7937af76901",
+      "taille_archive": 187,
+      "taille_originale": 480
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-preimages-r1-MANIFEST.json-bc6067719115-818a075ffea989d42ec4c79f30bfe3c0d9d954d14dc04b3a119453053fa872eb.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-preimages-r1/MANIFEST.json",
+      "sha256_archive": "84cd315d8252da8c69ac97dcbda596c99f84db5c8388c5e1140b4cfe30e3c968",
+      "sha256_original": "818a075ffea989d42ec4c79f30bfe3c0d9d954d14dc04b3a119453053fa872eb",
+      "taille_archive": 306,
+      "taille_originale": 542
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-preimages-r1-src--opsys--console--application.py-c65d280e46d7-8c55b74d9255fe91ef3b28747447d2d3027a6814b1ec85b58cb1fe9c7f83e8b2.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-preimages-r1/src--opsys--console--application.py",
+      "sha256_archive": "ddadf9d02f1362d84f8bac19ef35fbd30cf5592af5e4526e6c35167fc087b9cb",
+      "sha256_original": "8c55b74d9255fe91ef3b28747447d2d3027a6814b1ec85b58cb1fe9c7f83e8b2",
+      "taille_archive": 10106,
+      "taille_originale": 47222
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-CORRECTION-HASH-r1.md-c571e4fed029-3008090c20a06c98f94835ddc16a0a6c979c96c1a5b323f3430a3b881647b4f1.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/CORRECTION-HASH-r1.md",
+      "sha256_archive": "7675d937a52da63fd5109463eafcc4de77c9a968c242902ad59078cf6a92884c",
+      "sha256_original": "3008090c20a06c98f94835ddc16a0a6c979c96c1a5b323f3430a3b881647b4f1",
+      "taille_archive": 435,
+      "taille_originale": 591
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-RAPPORT-AUTEUR-r1.md-06542fcebbea-5f059fc513e227095d22dd2b6c91f0e730af4568caa35f9587d986775922de95.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/RAPPORT-AUTEUR-r1.md",
+      "sha256_archive": "5588ecfd17b8eea05eefa014eadb6959d7c73acfb0b63ca00dc5105c04a93969",
+      "sha256_original": "5f059fc513e227095d22dd2b6c91f0e730af4568caa35f9587d986775922de95",
+      "taille_archive": 1942,
+      "taille_originale": 3562
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-RAPPORT-AUTEUR-r2.md-b8cee894e66f-17a7b139bb59de2549bf002e8a920236805b798790e50e9a9eafa8b2127159c6.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/RAPPORT-AUTEUR-r2.md",
+      "sha256_archive": "42d8f215913ff05e625e68be4c4123459fdfb6bf151dad83aa56bc3a9f855398",
+      "sha256_original": "17a7b139bb59de2549bf002e8a920236805b798790e50e9a9eafa8b2127159c6",
+      "taille_archive": 1678,
+      "taille_originale": 2920
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-final-r1.log-0af05402f714-341d5dca33250b815baddbafb6001e174c20bf1716bb74f3d612e77777db8938.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-final-r1.log",
+      "sha256_archive": "4602e5d24f235fe41f58a0674951683cc5f77564beb1ad24aa7e4f1ba675093d",
+      "sha256_original": "341d5dca33250b815baddbafb6001e174c20bf1716bb74f3d612e77777db8938",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-final-r1.xml-9f7c78a553f2-468e2034461f3236fcca258cbec6454d06681f05a6280346788f63fb38bd5e0c.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-final-r1.xml",
+      "sha256_archive": "8502e67fa3804a669a48502ccf2f406383a959d388c622c685f922a79ed097ad",
+      "sha256_original": "468e2034461f3236fcca258cbec6454d06681f05a6280346788f63fb38bd5e0c",
+      "taille_archive": 626,
+      "taille_originale": 2609
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-green-r1.log-1dad225031d7-01e74d15ad652d259c1ee81406b8a328be0e353e2c04bbc4b65110b0fb9a9747.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-green-r1.log",
+      "sha256_archive": "b6c4c2df23cea2dd9c1fb79da5bd13cdd41973b1188f0c1c48dfb400c17e38bb",
+      "sha256_original": "01e74d15ad652d259c1ee81406b8a328be0e353e2c04bbc4b65110b0fb9a9747",
+      "taille_archive": 839,
+      "taille_originale": 2349
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-green-r1.xml-b3c69e6f87a0-2cea0fbac830463060e832e496a4653e20905b494a9e4ef1cd198985287ea688.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-green-r1.xml",
+      "sha256_archive": "c747310a2b74b8e9f546d70cd545ec7ae94e64eed0053c2454584009183c730a",
+      "sha256_original": "2cea0fbac830463060e832e496a4653e20905b494a9e4ef1cd198985287ea688",
+      "taille_archive": 1180,
+      "taille_originale": 3653
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-green-r2.log-fabb89e972f7-4d2df7a96ce4a667da3ccf295f2d16c728a65ed0e861a3baa919f7bb469b02b5.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-green-r2.log",
+      "sha256_archive": "e6b349020bee8f3c4aae3d08ab342c5189a9f79fa104633a5aff7d400db3b3f0",
+      "sha256_original": "4d2df7a96ce4a667da3ccf295f2d16c728a65ed0e861a3baa919f7bb469b02b5",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-green-r2.xml-aa1b62d3fe07-9bf08d2f777f001b312d455ebf9358896a6f6042c5c4fd27b8447f59004937d0.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-green-r2.xml",
+      "sha256_archive": "b6cb20eca5cb256bd879ff9ec3cbede8acf40275f74a69a2eca7d1229878c335",
+      "sha256_original": "9bf08d2f777f001b312d455ebf9358896a6f6042c5c4fd27b8447f59004937d0",
+      "taille_archive": 385,
+      "taille_originale": 918
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-green-r3.log-23f1394571d5-341d5dca33250b815baddbafb6001e174c20bf1716bb74f3d612e77777db8938.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-green-r3.log",
+      "sha256_archive": "4602e5d24f235fe41f58a0674951683cc5f77564beb1ad24aa7e4f1ba675093d",
+      "sha256_original": "341d5dca33250b815baddbafb6001e174c20bf1716bb74f3d612e77777db8938",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-green-r3.xml-9dee16dc4db2-bdf9971177a2113b4fabaa2392a5ebf3e5982f846a9988c59976c2c25fb42277.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-green-r3.xml",
+      "sha256_archive": "9268e73291ddffee8734c421c27ac788da51a134b36619d88e3b59f95757a40e",
+      "sha256_original": "bdf9971177a2113b4fabaa2392a5ebf3e5982f846a9988c59976c2c25fb42277",
+      "taille_archive": 624,
+      "taille_originale": 2609
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-green-r4.log-13ad0f2f0df8-538e5a4461bda203b4fbb7dcff7f983e658397bc4fcd479533cbd2eca6074f5b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-green-r4.log",
+      "sha256_archive": "1f63a9ad9d1f33de74bff806d61fa738eebfabdfb7dc3bb98a1c2e6cd64dc7e7",
+      "sha256_original": "538e5a4461bda203b4fbb7dcff7f983e658397bc4fcd479533cbd2eca6074f5b",
+      "taille_archive": 3581,
+      "taille_originale": 17212
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-green-r4.xml-f2b631d2a9d3-b5ffe1bc0283149a36c8eab3803e10075d557199b4c4f624478bdedb975cf474.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-green-r4.xml",
+      "sha256_archive": "79c03bfdcce483f56cf040c4606fb4e23b31c7b7e6a7e7946578c64cc5ae572f",
+      "sha256_original": "b5ffe1bc0283149a36c8eab3803e10075d557199b4c4f624478bdedb975cf474",
+      "taille_archive": 4125,
+      "taille_originale": 19896
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-green-r5.log-3205a5d1f00d-341d5dca33250b815baddbafb6001e174c20bf1716bb74f3d612e77777db8938.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-green-r5.log",
+      "sha256_archive": "4602e5d24f235fe41f58a0674951683cc5f77564beb1ad24aa7e4f1ba675093d",
+      "sha256_original": "341d5dca33250b815baddbafb6001e174c20bf1716bb74f3d612e77777db8938",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-green-r5.xml-7f9a30e50904-25a5785a9f36e183597c525feee37f764e2fec3b3787249f0a5ad16cb091aa69.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-green-r5.xml",
+      "sha256_archive": "00ffde848ca43be20b34764bc8ac0faf38f75c7b1a2590800ec6398cc7e21631",
+      "sha256_original": "25a5785a9f36e183597c525feee37f764e2fec3b3787249f0a5ad16cb091aa69",
+      "taille_archive": 628,
+      "taille_originale": 2609
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-integration-r1.log-ee070f323ddf-8e0dd3e259f68c193f05e3e04acef6407a9ed36e5124438d9f9a04fbd0db33db.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-integration-r1.log",
+      "sha256_archive": "4df3e9cc2c71eb340bf69a59036dc3418aff591ecd2094b34342a11476d5cafc",
+      "sha256_original": "8e0dd3e259f68c193f05e3e04acef6407a9ed36e5124438d9f9a04fbd0db33db",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-integration-r1.xml-74df4cb5632a-33e206043325b3d63e7646a832ea49cd51b13c37191dacc5906f0ecc3582078a.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-integration-r1.xml",
+      "sha256_archive": "40551cb3755805e1d5b6c79d047710374f8cfae55382febfbf8abb717e575789",
+      "sha256_original": "33e206043325b3d63e7646a832ea49cd51b13c37191dacc5906f0ecc3582078a",
+      "taille_archive": 1222,
+      "taille_originale": 5644
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-integration-r2.log-4f092fe99cff-986dbc9a5d6b6525242d1315dd44f9f5e97162596004680091f1927df955e4ea.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-integration-r2.log",
+      "sha256_archive": "d7caa6cc9f944afb442539e6bebc2976ddd291ac6acf9d200b0261149e6f19a7",
+      "sha256_original": "986dbc9a5d6b6525242d1315dd44f9f5e97162596004680091f1927df955e4ea",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-integration-r2.xml-551fbfd4e6e5-2cb694359e2ea1b687f1b390c5ea56a555d1b1d37dfee4ae4f0f8cc16a3bce79.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-integration-r2.xml",
+      "sha256_archive": "3d755b0a9f1bce8f5104d0532d0f1db3d4491e2f9891922da61d1afea36e567e",
+      "sha256_original": "2cb694359e2ea1b687f1b390c5ea56a555d1b1d37dfee4ae4f0f8cc16a3bce79",
+      "taille_archive": 1351,
+      "taille_originale": 6314
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-integration-r3.log-0a405e140a71-986dbc9a5d6b6525242d1315dd44f9f5e97162596004680091f1927df955e4ea.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-integration-r3.log",
+      "sha256_archive": "d7caa6cc9f944afb442539e6bebc2976ddd291ac6acf9d200b0261149e6f19a7",
+      "sha256_original": "986dbc9a5d6b6525242d1315dd44f9f5e97162596004680091f1927df955e4ea",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-integration-r3.xml-4ab9f343e0b4-375b290a9cf06d33d4764b36a592a783a56f928a0d1b5b651bbcac3d1b431e4d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-integration-r3.xml",
+      "sha256_archive": "30b275db988cb0d5c0ea209d97d5ede810bd23abbdbb3fc7dfbe2e72a6ffe18b",
+      "sha256_original": "375b290a9cf06d33d4764b36a592a783a56f928a0d1b5b651bbcac3d1b431e4d",
+      "taille_archive": 1344,
+      "taille_originale": 6314
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-red-r1.log-525c543141e3-c745017072738ec0bc58c6d44c4b00c42cef4cf18755182e244be78742d77336.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-red-r1.log",
+      "sha256_archive": "38dded611f170077c80d0cf33346b615f7b3cf60bf6c559bf88ea1edeab481ad",
+      "sha256_original": "c745017072738ec0bc58c6d44c4b00c42cef4cf18755182e244be78742d77336",
+      "taille_archive": 1424,
+      "taille_originale": 16618
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-red-r1.xml-823f095cabea-ebf32468351d1773bc786bdc3603e983898093211830a40f48faa40f34e99eb9.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-red-r1.xml",
+      "sha256_archive": "935fc9aab89370eb9b374aedd2ae63d7e261cdef85092bd0001ba28d5f900f4d",
+      "sha256_original": "ebf32468351d1773bc786bdc3603e983898093211830a40f48faa40f34e99eb9",
+      "taille_archive": 1536,
+      "taille_originale": 17530
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-red-r2.log-dc4d1e642ceb-bebc75b72c9704e77e6c0ccf210e7a881acd660d4896eb2381cf71835c393d00.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-red-r2.log",
+      "sha256_archive": "c14fc392b7c2680643ea26fbe93fc77c2ffec3cf3c5e6ab580fb85a19486fc5b",
+      "sha256_original": "bebc75b72c9704e77e6c0ccf210e7a881acd660d4896eb2381cf71835c393d00",
+      "taille_archive": 673,
+      "taille_originale": 1951
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-author-red-r2.xml-e3aeb01b457e-189a135e3692c4a24a0258a8f43bd2c8b82ed7fa3cfe05d1b1b7b29fe239e64e.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-red-r2.xml",
+      "sha256_archive": "4be213c38554271090e9bb7ab44f84b679358ced62c9003ef4ce806368dc21d9",
+      "sha256_original": "189a135e3692c4a24a0258a8f43bd2c8b82ed7fa3cfe05d1b1b7b29fe239e64e",
+      "taille_archive": 815,
+      "taille_originale": 2171
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-preimages-MANIFEST.json-c6aadf9ef2ab-44cf897f41af4ac27e0356b214c4b1ff9e10b797a33fad94a22c1387ce50f6dd.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/preimages/MANIFEST.json",
+      "sha256_archive": "24602f9849c7f04ef13a8ae5fd973451a626ded5a371a0d3ddd566fdebc7f5b6",
+      "sha256_original": "44cf897f41af4ac27e0356b214c4b1ff9e10b797a33fad94a22c1387ce50f6dd",
+      "taille_archive": 306,
+      "taille_originale": 538
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-preimages-src--opsys--console--application.py.prei-ed074f94af6e-8c55b74d9255fe91ef3b28747447d2d3027a6814b1ec85b58cb1fe9c7f83e8b2.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/preimages/src--opsys--console--application.py.preimage",
+      "sha256_archive": "ddadf9d02f1362d84f8bac19ef35fbd30cf5592af5e4526e6c35167fc087b9cb",
+      "sha256_original": "8c55b74d9255fe91ef3b28747447d2d3027a6814b1ec85b58cb1fe9c7f83e8b2",
+      "taille_archive": 10106,
+      "taille_originale": 47222
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-preimages-r2-MANIFEST.json-899e9c862716-52bb1865abc94715932ccd2e722975978e60500b3437153a069fb2aa8a540e04.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/preimages-r2/MANIFEST.json",
+      "sha256_archive": "328cea306b5188be7b45c02dc29e4691d14c73de5b42ace55faec2a7dd5f0c76",
+      "sha256_original": "52bb1865abc94715932ccd2e722975978e60500b3437153a069fb2aa8a540e04",
+      "taille_archive": 397,
+      "taille_originale": 806
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-preimages-r2-src--opsys--console--application.py.p-037e20cfe4a3-b57c57506e26815e8d0ce9ea0455d3e9cc0bb26407d18302e7fc9b8ee27e2452.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/preimages-r2/src--opsys--console--application.py.preimage",
+      "sha256_archive": "a6feb1c28bf8a2a4c168eddd11411a284162296f937fa7563acce8e9343e3670",
+      "sha256_original": "b57c57506e26815e8d0ce9ea0455d3e9cc0bb26407d18302e7fc9b8ee27e2452",
+      "taille_archive": 10127,
+      "taille_originale": 47422
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-preimages-r2-src--opsys--console--fusion_pdf_ui.py-099231bf6601-28d344c39b243fe1a643ad76e9050f8f2f78c8e8db6b2d21c2283e52d7e5f398.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/preimages-r2/src--opsys--console--fusion_pdf_ui.py.preimage",
+      "sha256_archive": "71ecd83f4e8ea321f817d3f908bf6d65477cd5f842a72b163e3acde66b00d2c5",
+      "sha256_original": "28d344c39b243fe1a643ad76e9050f8f2f78c8e8db6b2d21c2283e52d7e5f398",
+      "taille_archive": 5392,
+      "taille_originale": 20549
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1-ingestion-pdf-ui-r1-preimages-r2-tests--test_console_fusion_pdf.py.pre-b3c6750c632e-1f3f78e2215f3fbf7dd34603008338cb21d16b40864761077279fe690669c825.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/preimages-r2/tests--test_console_fusion_pdf.py.preimage",
+      "sha256_archive": "9cc4521c4a332ea99010e4711b27cd591bbf00cf1354607f23a270cd6f99de81",
+      "sha256_original": "1f3f78e2215f3fbf7dd34603008338cb21d16b40864761077279fe690669c825",
+      "taille_archive": 3671,
+      "taille_originale": 13810
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-natif-backend-integre-root-r1-2026-10-02-apres.json-03cc6fd7b52c-2fc9111a5cd7e1b3da997ae7d08b922b10e6c50d839ba8c3ff12aca897ff4e7f.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-backend-integre-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "aaf50d359bbe8efac8277abd27217eaed1869f5afee9ce5931b8bfef26bb8b68",
+      "sha256_original": "2fc9111a5cd7e1b3da997ae7d08b922b10e6c50d839ba8c3ff12aca897ff4e7f",
+      "taille_archive": 53294,
+      "taille_originale": 142163
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-natif-backend-integre-root-r1-2026-10-02-avant.json-2959285ee002-cdd7a53f4cd7584a9a599d5494457bad32d2cfcd5d91194fb5e9e404eedfd85b.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-backend-integre-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "94ff7dc19d1aae503295a26a375a4039cf4794d8fad661194c6d621f2373823a",
+      "sha256_original": "cdd7a53f4cd7584a9a599d5494457bad32d2cfcd5d91194fb5e9e404eedfd85b",
+      "taille_archive": 53296,
+      "taille_originale": 142163
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-natif-backend-integre-root-r1-2026-10-02-resultat.json-f6980e7eaaf2-65b1b58da8f5d4bab6c1de721c32d06089cdd2d2daaa4e7dc8f200fb6e0e2077.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-backend-integre-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "feedcd78623c5a4bbb147e2a1c92102043522b5d235463146e44d6334b614285",
+      "sha256_original": "65b1b58da8f5d4bab6c1de721c32d06089cdd2d2daaa4e7dc8f200fb6e0e2077",
+      "taille_archive": 548,
+      "taille_originale": 1039
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-natif-backend-integre-root-r1-2026-10-02.log-0271522af543-ec566c3d4cabf39deda42feb03d7706a6eec677e8afdad3cec8386e7697a90cd.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-backend-integre-root-r1-2026-10-02.log",
+      "sha256_archive": "5141ec976147d431f41a97ee837de859e75e1c52cac83164836bf0106f0964ac",
+      "sha256_original": "ec566c3d4cabf39deda42feb03d7706a6eec677e8afdad3cec8386e7697a90cd",
+      "taille_archive": 319,
+      "taille_originale": 615
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-natif-qualite-root-r1-2026-10-02-apres.json-7345c532bfb3-759450f3ee9184c25ea61e648780eab99c328186685f97b8792603a7d4aa997d.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-qualite-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "ec0cbdcde4706bc552f1510616322e8d1ef533f7042aeeb107bd2e6d38a66d06",
+      "sha256_original": "759450f3ee9184c25ea61e648780eab99c328186685f97b8792603a7d4aa997d",
+      "taille_archive": 53296,
+      "taille_originale": 142163
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-natif-qualite-root-r1-2026-10-02-avant.json-ebfdefd960b0-638b7f72aad742a869763653506b5ec1a4ce66cf059b790e27a6f7956bb9d336.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-qualite-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "e039ef2cc500ac47d0a00b45c200afb5e39a3c5b3822a636e0e8957700255ae8",
+      "sha256_original": "638b7f72aad742a869763653506b5ec1a4ce66cf059b790e27a6f7956bb9d336",
+      "taille_archive": 53295,
+      "taille_originale": 142163
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-natif-qualite-root-r1-2026-10-02-resultat.json-737877bff52b-fb044cdf05efbb3673a4e8575d2bc66664665fa072429b0453c233e8f667549e.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-qualite-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "c5313817f9896ac8ffbb17d1aaf466550fa8e9bfd04ea1dd50b07ab7458c289d",
+      "sha256_original": "fb044cdf05efbb3673a4e8575d2bc66664665fa072429b0453c233e8f667549e",
+      "taille_archive": 331,
+      "taille_originale": 531
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-natif-qualite-root-r1-2026-10-02.log-119836129a3a-64029f5d3b4beb7f4176c5bc5fbb142dfbe028c7d66df8f2def5818ae75bb89a.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-qualite-root-r1-2026-10-02.log",
+      "sha256_archive": "09f6d8a613fe109d644256e5c77ca1f9f3d076572b3b8c8ebfde501dd2956b59",
+      "sha256_original": "64029f5d3b4beb7f4176c5bc5fbb142dfbe028c7d66df8f2def5818ae75bb89a",
+      "taille_archive": 388,
+      "taille_originale": 536
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-ui-geometrie-memoire-qualite-root-r1-2026-10-02-apres.j-aa0b77263c02-551b4d3ac1ca4a1c2d0ab924b59472b0e1fc0d18fed45dc9c586cfc38419f138.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-ui-geometrie-memoire-qualite-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "dd6367d5321cdce853ade641633e3f0e748ea21f84ddf2bcd81840d7778a582c",
+      "sha256_original": "551b4d3ac1ca4a1c2d0ab924b59472b0e1fc0d18fed45dc9c586cfc38419f138",
+      "taille_archive": 53528,
+      "taille_originale": 142713
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-ui-geometrie-memoire-qualite-root-r1-2026-10-02-avant.j-bc9c05642209-affc0d9f209eaf1970aa6c82b452b337a0b5aa8f71fc31165ba2f59d0c4053e8.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-ui-geometrie-memoire-qualite-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "4aaa83243fd8daa8e11fb2871c3be5bbaf68721390006b9b61df874213d8ba8e",
+      "sha256_original": "affc0d9f209eaf1970aa6c82b452b337a0b5aa8f71fc31165ba2f59d0c4053e8",
+      "taille_archive": 53528,
+      "taille_originale": 142713
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-ui-geometrie-memoire-qualite-root-r1-2026-10-02-resulta-9022ee3fde85-9427ee9d3c871cde53349e66bd18a7a7f6a9b3730600b980ba38d1bfe12e7974.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-ui-geometrie-memoire-qualite-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "9a919ce74f08fff43572c8a9105e7c289961e268ffac3772aae814c4ee3ae16f",
+      "sha256_original": "9427ee9d3c871cde53349e66bd18a7a7f6a9b3730600b980ba38d1bfe12e7974",
+      "taille_archive": 420,
+      "taille_originale": 804
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-ui-geometrie-memoire-qualite-root-r1-2026-10-02.log-e363d82cc530-82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-ui-geometrie-memoire-qualite-root-r1-2026-10-02.log",
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_archive": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-ui-integre-root-r1-2026-10-02-apres.json-0a1ad10d5d34-fd823163b1d073e3d2f515b8c1d91d5093f51b0ec9678dee0b59a8a3e10d341e.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-ui-integre-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "465687c910f4569666853dca39e330ad548377b2f0c97bf589c4f6ab87b3ae6e",
+      "sha256_original": "fd823163b1d073e3d2f515b8c1d91d5093f51b0ec9678dee0b59a8a3e10d341e",
+      "taille_archive": 53528,
+      "taille_originale": 142713
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-ui-integre-root-r1-2026-10-02-avant.json-2506f732e5cc-a680087f5074746f74937156201e205074397242a4a18f515c668efa59523811.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-ui-integre-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "6921ecd297ffe928bd6fc804527a724c65ac861db96148615496ed12584cd6ee",
+      "sha256_original": "a680087f5074746f74937156201e205074397242a4a18f515c668efa59523811",
+      "taille_archive": 53528,
+      "taille_originale": 142713
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-ui-integre-root-r1-2026-10-02-resultat.json-788ed0a52c2a-d858294ebf1a50aa0c22ddf23bfa7e96f45ea91aeda97b39cc1f1a4f8a4715ec.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-ui-integre-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "da6429710c9c808c965d7e9c11dee9a6ff1890e93b8a8073dd0d50f3c83357c8",
+      "sha256_original": "d858294ebf1a50aa0c22ddf23bfa7e96f45ea91aeda97b39cc1f1a4f8a4715ec",
+      "taille_archive": 562,
+      "taille_originale": 1116
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30-preuves-pdf-ui-integre-root-r1-2026-10-02.log-0a0ac8b7e778-615877025f833234fefa54557517dc422f277e0ac99d0bb543bbf347814082b4.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-ui-integre-root-r1-2026-10-02.log",
+      "sha256_archive": "1c0a9dd9346559e3ef131d5e040a9541e054e95a4220b42f58e3462bb82929db",
+      "sha256_original": "615877025f833234fefa54557517dc422f277e0ac99d0bb543bbf347814082b4",
+      "taille_archive": 323,
+      "taille_originale": 695
+    }
+  ],
+  "campagnes": {
+    "backend_auteur": {
+      "compteurs": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 65
+      },
+      "ids_uniques": true,
+      "junit_sha256": "1b02d123312c87e931097a51206617e69f8f88284ce3420456001b1531f4632d",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-r1/corpus-cible-r5.xml"
+    },
+    "backend_root": {
+      "compteurs": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 122
+      },
+      "ids_uniques": true,
+      "junit_sha256": "785f169fb09a631f7901d5bd83bfeae67d70e7c131e93c33b5e189403b8976c0",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/backend-root-r1.xml"
+    },
+    "integree_root": {
+      "compteurs": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 145
+      },
+      "ids_uniques": true,
+      "junit_sha256": "9c8bc5cc26a837f1aefff8a0b9c5586289cb6aac1b7ceb4b10a07a7bd54209ef",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/pdf-ui-integre-root-r1.xml"
+    },
+    "ui_auteur": {
+      "compteurs": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 43
+      },
+      "ids_uniques": true,
+      "junit_sha256": "375b290a9cf06d33d4764b36a592a783a56f928a0d1b5b651bbcac3d1b431e4d",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/ui-r1/author-integration-r3.xml"
+    }
+  },
+  "historique": {
+    "directory": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02",
+    "gzip_archives": 36,
+    "historical_pins": 2774,
+    "postcheck_sha256": "1d3a6e5305adf5b5f031d3e32bd537eff0c4350d42f9cccf6151f46d20ce6c5c",
+    "qualification_sha256": "9d377c616e769a79653d8024a4a020ef374db2be8d767241ff61d98b1490eb35",
+    "sealed_files": 41
+  },
+  "limites": "R28 qualifie le backend PDF natif et sa console admin dans le même instantané. Les 122 cas ROOT backend et les 145 cas ROOT intégrés sont deux campagnes différentes; les 65 cas auteur backend et 43 cas auteur UI sont des preuves séparées, non additionnées. Les rouges et reprises sont préservés comme historique, pas présentés comme verts. La réception PDF est préparatoire; extraction locale par worker isolé, aucun OCR, modèle, corpus client ni garantie comptable. Déconnexion ne garantit pas annulation immédiate. Consultation réservée aux admins de la même base SQLite; aucune qualification PostgreSQL.",
+  "schema": "opsys.r28-manifest/v1",
+  "tests_lances": false
+}

@@ -1,0 +1,123 @@
+{
+  "utc": "2026-10-03T10:32:03.714243+00:00",
+  "executor": "ROOT",
+  "ok": true,
+  "status": "PASS",
+  "source_count": 664,
+  "source_delta": {},
+  "oom_before": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "oom_after": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "elapsed_seconds": 33.78849766700296,
+  "steps": [
+    {
+      "name": "ruff",
+      "ok": true,
+      "guard": null,
+      "exit_code": 0,
+      "peak_group_rss_bytes": 0,
+      "minimum_room_bytes": 1430773760,
+      "elapsed_seconds": 0.5713153500109911,
+      "cleanup": {
+        "signals": [],
+        "survivors": {},
+        "leader_start_ticks": 28007785
+      },
+      "junit": null
+    },
+    {
+      "name": "pytest",
+      "ok": true,
+      "guard": null,
+      "exit_code": 0,
+      "peak_group_rss_bytes": 182681600,
+      "minimum_room_bytes": 1255682048,
+      "elapsed_seconds": 33.13525677198777,
+      "cleanup": {
+        "signals": [],
+        "survivors": {},
+        "leader_start_ticks": 28007845
+      },
+      "junit": {
+        "cases": 120,
+        "counts": {
+          "passed": 120,
+          "failure": 0,
+          "error": 0,
+          "skipped": 0
+        },
+        "files": [
+          "departments/m07-marketing/tests/test_brand_growth_local.py",
+          "departments/m07-marketing/tests/test_growth_lecture.py",
+          "tests/test_commande_metier.py",
+          "tests/test_console_growth.py",
+          "tests/test_console_metier.py"
+        ],
+        "expected_cases": 120,
+        "case_count_matches_expected": true,
+        "unique_case_ids": 120,
+        "all_cases_attributed_and_unique": true,
+        "ok": true
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "/dev/shm/opsys-m7-growth-humain-root-r3/FREEZE-SOURCES-r1.json",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M7-GROWTH-HUMAIN-ROOT-r1/execution-r3/FREEZE-SOURCES-r1.json.gz",
+      "raw_sha256": "7ba8543e6184b66d6c2fe9456e43c855c61296faa541cbd5606600dd75d7c1c5",
+      "gzip_sha256": "a9e49ed55ee0d861de379f7e570ec99df4884d517aea4f739b02bc3938a9e515",
+      "raw_bytes": 84305
+    },
+    {
+      "source": "/dev/shm/opsys-m7-growth-humain-root-r3/PLAN-r1.json",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M7-GROWTH-HUMAIN-ROOT-r1/execution-r3/PLAN-r1.json.gz",
+      "raw_sha256": "7fcc7d7ee57ec2402f52e2ccdbf770235aebb57042ec497225df6731ab9d3a9d",
+      "gzip_sha256": "b7262b683f26901d116090604f9a5c65e63b41704844b621b228cdb36574e36a",
+      "raw_bytes": 1692
+    },
+    {
+      "source": "/dev/shm/opsys-m7-growth-humain-root-r3/conducteur-root.py",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M7-GROWTH-HUMAIN-ROOT-r1/execution-r3/conducteur-root.py.gz",
+      "raw_sha256": "742504ca1b8ce72cff3e0bbe320d5f1861bc56482df1494ecbb8a8051f1fe004",
+      "gzip_sha256": "8100857350aa938b5ba319e401739375858b31f6ec156d4ea3400e2398189b75",
+      "raw_bytes": 18469
+    },
+    {
+      "source": "/dev/shm/opsys-m7-growth-humain-root-r3/execution-r1/pytest.log",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M7-GROWTH-HUMAIN-ROOT-r1/execution-r3/execution-r1/pytest.log.gz",
+      "raw_sha256": "c2c0ab735251ca0b9abaa69a2611411f1f18b204349f8e70c78829468e920e2a",
+      "gzip_sha256": "f11b8ad129fca3cf24f89db3deaf9fde04495fc51bee227e7e78db80cf20134b",
+      "raw_bytes": 181
+    },
+    {
+      "source": "/dev/shm/opsys-m7-growth-humain-root-r3/execution-r1/pytest.xml",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M7-GROWTH-HUMAIN-ROOT-r1/execution-r3/execution-r1/pytest.xml.gz",
+      "raw_sha256": "8ba0f907162892e7769819fa6a0c594de52fefe62a07caf64ff93a6f9a585ba4",
+      "gzip_sha256": "9869169fbb0eac672bbfa82dcf9100859e483ca34667d7abf6eb8a8d26a0ab4f",
+      "raw_bytes": 18320
+    },
+    {
+      "source": "/dev/shm/opsys-m7-growth-humain-root-r3/execution-r1/receipt.json",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M7-GROWTH-HUMAIN-ROOT-r1/execution-r3/execution-r1/receipt.json.gz",
+      "raw_sha256": "2276a24431cac1bf2b4127c9de745b700c6d1bf95dd0a734a992088c6e73759a",
+      "gzip_sha256": "704f75060c690e9ef54bfae54eca0787ef376623591015f49c943de53f28cfde",
+      "raw_bytes": 532798
+    },
+    {
+      "source": "/dev/shm/opsys-m7-growth-humain-root-r3/execution-r1/ruff.log",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M7-GROWTH-HUMAIN-ROOT-r1/execution-r3/execution-r1/ruff.log.gz",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "gzip_sha256": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "raw_bytes": 19
+    }
+  ],
+  "scope": "Five whole files; SQLite synthetic data and actual console HTTP, no provider or external verification"
+}

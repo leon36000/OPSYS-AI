@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/opsys.demo_complete",
+  "title": "Démo — événement du socle",
+  "description": "Type fictif réservé aux tests du bus d'événements (tests/test_evenements.py) et aux départements de démonstration de tests/fixtures/departements/. Ne décrit aucun flux métier réel.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "message": {"type": "string", "description": "Contenu arbitraire du test."}
+  },
+  "required": ["message"]
+}

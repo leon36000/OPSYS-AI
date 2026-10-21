@@ -1,0 +1,39 @@
+{
+  "archive": "CI-NATIVE-d2669fa-05fea996-r2.tar.xz",
+  "bytes": 71784,
+  "sha256": "676928838572ac80fda4738a3e101954c516e94e80081f4b4aa18b8784de2d68",
+  "socle": {
+    "head": "d2669faac3f423dca336e34382eab1b758863ad3",
+    "passed": 3773,
+    "skipped": 17,
+    "warnings": 1,
+    "duration_seconds": 2435.85,
+    "job": 111399155852,
+    "run": 37189707445
+  },
+  "mobile": {
+    "head": "05fea996d46138cccc0ca0692963b19f4955e04c",
+    "job": 111404887503,
+    "run": 37191642136,
+    "regressions_passed": 17,
+    "jest_passed": 2607,
+    "suites": 118
+  },
+  "entries": [
+    {
+      "path": "native-ci14-socle-r1.log",
+      "bytes": 215296,
+      "sha256": "c275375493becb2e7ce4c54d29c9e138e61a91dfa1e64ebde49db0c48a268f0a"
+    },
+    {
+      "path": "native-ci15-mobile-r1.log",
+      "bytes": 40006,
+      "sha256": "a1349230793f692acdaab4ca8c97f9037508efaf427580bdaa84be06fa2f33b5"
+    },
+    {
+      "path": "native-snapshot-r1.json",
+      "bytes": 53754,
+      "sha256": "fcc0ce43a053e3b26bb686cbbcd70cf175eb075ebbdfd3f58e1c90c5937af8f5"
+    }
+  ]
+}

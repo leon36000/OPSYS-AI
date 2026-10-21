@@ -1,0 +1,219 @@
+{
+  "date": "2026-09-30",
+  "criteria": [
+    "surface-existante",
+    "licence-file",
+    "maintenance-observee",
+    "interface-reutilisable",
+    "cout-adaptation",
+    "autorite-et-donnees",
+    "preuve-metier-a-fournir"
+  ],
+  "popularity_scores_used": false,
+  "candidates": [
+    {
+      "repo": "openclaw/openclaw",
+      "canonical_url": "https://github.com/openclaw/openclaw",
+      "commit": "537c33e4118ae31a96d0d0c3aee317963058bbd9",
+      "commit_date": "2026-09-30T11:40:50Z",
+      "archived": false,
+      "status_opsys": "adopte-fork",
+      "recommendation": "maintenir-greffes-et-reports-cibles",
+      "language": "TypeScript",
+      "adaptation": "moyen",
+      "license_sources": [
+        "https://github.com/openclaw/openclaw/blob/537c33e4118ae31a96d0d0c3aee317963058bbd9/LICENSE"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "badlogic/pi-mono",
+      "canonical_url": "https://github.com/earendil-works/pi",
+      "commit": "d2931ad3d5bf6936fbdfa5dfc81fb32f875499b2",
+      "commit_date": "2026-09-30T10:10:30Z",
+      "archived": false,
+      "status_opsys": "adopte-components-vendored",
+      "recommendation": "patchs-cibles-sans-remplacer-sdk",
+      "language": "TypeScript",
+      "adaptation": "faible-a-moyen",
+      "license_sources": [
+        "https://github.com/earendil-works/pi/blob/d2931ad3d5bf6936fbdfa5dfc81fb32f875499b2/LICENSE"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "Martian-Engineering/lossless-claw",
+      "canonical_url": "https://github.com/Martian-Engineering/lossless-claw",
+      "commit": "e05d8d34b2a44fdef556ce95dd90115b46630200",
+      "commit_date": "2026-09-28T21:52:12Z",
+      "archived": false,
+      "status_opsys": "candidat",
+      "recommendation": "pilote-context-engine-apres-garde-M10",
+      "language": "TypeScript",
+      "adaptation": "moyen-a-eleve",
+      "license_sources": [
+        "https://github.com/Martian-Engineering/lossless-claw/blob/e05d8d34b2a44fdef556ce95dd90115b46630200/LICENSE"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "langchain-ai/langmem",
+      "canonical_url": "https://github.com/langchain-ai/langmem",
+      "commit": "9d033b47d9ce53e37e92c92241b0496c0278932e",
+      "commit_date": "2026-09-09T06:44:42Z",
+      "archived": false,
+      "status_opsys": "candidat",
+      "recommendation": "apprentissage-procedural-hors-chemin-critique",
+      "language": "Python",
+      "adaptation": "moyen",
+      "license_sources": [
+        "https://github.com/langchain-ai/langmem/blob/9d033b47d9ce53e37e92c92241b0496c0278932e/LICENSE"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "agentskills/agentskills",
+      "canonical_url": "https://github.com/agentskills/agentskills",
+      "commit": "69ef37e9424c0a7ea9dd2293b559e43ec8176379",
+      "commit_date": "2026-08-09T20:36:04Z",
+      "archived": false,
+      "status_opsys": "format-proche-existant-validateur-candidat",
+      "recommendation": "validation-procedures-et-chargement-progressif",
+      "language": "Python/spec",
+      "adaptation": "faible-a-moyen",
+      "license_sources": [
+        "https://github.com/agentskills/agentskills/blob/69ef37e9424c0a7ea9dd2293b559e43ec8176379/LICENSE",
+        "https://github.com/agentskills/agentskills/blob/69ef37e9424c0a7ea9dd2293b559e43ec8176379/skills-ref/LICENSE"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "vectorize-io/hindsight",
+      "canonical_url": "https://github.com/vectorize-io/hindsight",
+      "commit": "d56c4acdf59c41957613d399094cdf8c489b060c",
+      "commit_date": "2026-09-30T09:24:10Z",
+      "archived": false,
+      "status_opsys": "differe",
+      "recommendation": "reserve-rappel-riche-sans-remplacement-verite",
+      "language": "Python/PostgreSQL",
+      "adaptation": "eleve",
+      "license_sources": [
+        "https://github.com/vectorize-io/hindsight/blob/d56c4acdf59c41957613d399094cdf8c489b060c/LICENSE"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "maximhq/bifrost",
+      "canonical_url": "https://github.com/maximhq/bifrost",
+      "commit": "19ecdb510bfb3971a7d680f33e17280187e379f4",
+      "commit_date": "2026-09-30T09:50:01Z",
+      "archived": false,
+      "status_opsys": "differe",
+      "recommendation": "gateway-seulement-si-besoin-mesure",
+      "language": "Go",
+      "adaptation": "eleve",
+      "license_sources": [
+        "https://github.com/maximhq/bifrost/blob/19ecdb510bfb3971a7d680f33e17280187e379f4/LICENSE"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "asg017/sqlite-vec",
+      "canonical_url": "https://github.com/asg017/sqlite-vec",
+      "commit": "04d28bd21773981e2d266bbf6aa4efbd011eb4f6",
+      "commit_date": "2026-05-18T06:50:43Z",
+      "archived": false,
+      "status_opsys": "adopte-core-0.1.9",
+      "recommendation": "conserver-index-local",
+      "language": "C/bindings",
+      "adaptation": "faible",
+      "license_sources": [
+        "https://github.com/asg017/sqlite-vec/blob/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/LICENSE-APACHE",
+        "https://github.com/asg017/sqlite-vec/blob/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/LICENSE-MIT"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "astral-sh/uv",
+      "canonical_url": "https://github.com/astral-sh/uv",
+      "commit": "06fdf0cdb591adae479feb5b769b0213eabb229c",
+      "commit_date": "2026-09-30T02:07:14Z",
+      "archived": false,
+      "status_opsys": "adopte-install",
+      "recommendation": "epingle-release-outil-et-lock",
+      "language": "Rust/outillage",
+      "adaptation": "faible",
+      "license_sources": [
+        "https://github.com/astral-sh/uv/blob/06fdf0cdb591adae479feb5b769b0213eabb229c/LICENSE-APACHE",
+        "https://github.com/astral-sh/uv/blob/06fdf0cdb591adae479feb5b769b0213eabb229c/LICENSE-MIT"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "prefix-dev/pixi",
+      "canonical_url": "https://github.com/prefix-dev/pixi",
+      "commit": "81264a2a914b25e21df4d891889a0495a6269b70",
+      "commit_date": "2026-09-30T10:38:31Z",
+      "archived": false,
+      "status_opsys": "differe",
+      "recommendation": "seulement-si-distribution-native-necessaire",
+      "language": "Rust/outillage",
+      "adaptation": "moyen-a-eleve",
+      "license_sources": [
+        "https://github.com/prefix-dev/pixi/blob/81264a2a914b25e21df4d891889a0495a6269b70/LICENSE"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "obot-platform/obot",
+      "canonical_url": "https://github.com/obot-platform/obot",
+      "commit": "fb4b094cc1643ae5b47dff65cd6e16a5c2606b95",
+      "commit_date": "2026-09-30T00:49:46Z",
+      "archived": false,
+      "status_opsys": "differe",
+      "recommendation": "hebergement-connecteurs-si-besoin-isolation-prouve",
+      "language": "Go/service",
+      "adaptation": "eleve",
+      "license_sources": [
+        "https://github.com/obot-platform/obot/blob/fb4b094cc1643ae5b47dff65cd6e16a5c2606b95/LICENSE"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "tensorzero/tensorzero",
+      "canonical_url": "https://github.com/tensorzero/tensorzero",
+      "commit": "62eb8f63e8ec62018d70420dbf1a8c5d1c026315",
+      "commit_date": "2026-06-04T14:44:10Z",
+      "archived": true,
+      "status_opsys": "ecarte-nouvelle-adoption",
+      "recommendation": "depot-archive",
+      "language": "Rust/service",
+      "adaptation": "eleve",
+      "license_sources": [
+        "https://github.com/tensorzero/tensorzero/blob/62eb8f63e8ec62018d70420dbf1a8c5d1c026315/LICENSE"
+      ],
+      "benchmark_executed": false
+    },
+    {
+      "repo": "NousResearch/hermes-agent",
+      "commit": "f42f579cf8bac4918ac9599bece71618afadd846",
+      "status_opsys": "source-greffes",
+      "recommendation": "checkpoint/procedures/cache/delegation/update-sans-second-runtime",
+      "language": "Python-runtime-3.14",
+      "adaptation": "moyen",
+      "benchmark_executed": false
+    },
+    {
+      "repo": "gitlab-org/gitlab",
+      "commit": "2d1f3c266d04c069c98349923c86ac636bd59744",
+      "status_opsys": "connecteur-candidat",
+      "recommendation": "MCP-HTTP-scope-developpement-lecture",
+      "language": "API/Ruby-non-importe",
+      "adaptation": "moyen",
+      "license_sources": [
+        "https://gitlab.com/gitlab-org/gitlab/-/blob/2d1f3c266d04c069c98349923c86ac636bd59744/LICENSE"
+      ],
+      "benchmark_executed": false
+    }
+  ]
+}

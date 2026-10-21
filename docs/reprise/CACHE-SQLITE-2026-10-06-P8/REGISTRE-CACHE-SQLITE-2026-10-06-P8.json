@@ -1,0 +1,224 @@
+{
+  "date_toronto": "2026-10-06T23:27:33.590904-04:00",
+  "head": "6069c9e61309e4ffd0a1ea33a8e6892c857d5286",
+  "checks": [
+    {
+      "label": "cache-sqlite-reprise-externe-r3",
+      "command": [
+        "node",
+        "--import",
+        "./work/OPSYS-AI/core/node_modules/tsx/dist/loader.mjs",
+        "./work/qualifier_cache_sqlite_reprise.mjs",
+        "./work/OPSYS-AI",
+        "./work/cache-sqlite-externe-r3"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4",
+      "started_utc": "2026-10-07T03:25:16.251637+00:00",
+      "completed_utc": "2026-10-07T03:25:18.442209+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.343,
+      "peak_process_tree_rss_bytes": 60792832,
+      "guard_triggered": null,
+      "source_sha256_before": "812f1b1d4118e6dba04e5d9a1b5c999c23e298172d4c8e7d4797741d4351e4c0",
+      "source_sha256_after": "812f1b1d4118e6dba04e5d9a1b5c999c23e298172d4c8e7d4797741d4351e4c0",
+      "sources_unchanged": true,
+      "log_sha256": "d0836e522472e5e33046e09b1a5b3de7d3421f812b81a67876fef344ea2b1a53"
+    },
+    {
+      "label": "cache-diagnostic-rejeu-corrige-r1",
+      "command": [
+        "node",
+        "--import",
+        "./work/OPSYS-AI/core/node_modules/tsx/dist/loader.mjs",
+        "./work/diagnostic_cache_reponse_tardive.mjs",
+        "./work/OPSYS-AI"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4",
+      "started_utc": "2026-10-07T03:25:59.787772+00:00",
+      "completed_utc": "2026-10-07T03:26:01.984609+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.364,
+      "peak_process_tree_rss_bytes": 49360896,
+      "guard_triggered": null,
+      "source_sha256_before": "812f1b1d4118e6dba04e5d9a1b5c999c23e298172d4c8e7d4797741d4351e4c0",
+      "source_sha256_after": "812f1b1d4118e6dba04e5d9a1b5c999c23e298172d4c8e7d4797741d4351e4c0",
+      "sources_unchanged": true,
+      "log_sha256": "8e9cd4ebd7e20b9e38dafa9346f3b34310de5d4bf7f4db65e94129abbd85844f"
+    }
+  ],
+  "receipt": {
+    "fictif": true,
+    "noNetwork": true,
+    "phases": [
+      {
+        "name": "late",
+        "passed": true,
+        "draftPreserved": true
+      },
+      {
+        "name": "engaged",
+        "passed": true,
+        "draftPreserved": true
+      },
+      {
+        "name": "failed",
+        "passed": true,
+        "draftPreserved": true
+      }
+    ],
+    "reread": {
+      "pid": 318203,
+      "summaries": [
+        {
+          "name": "late",
+          "owner": {
+            "personne": "employe-fictif-b",
+            "role": "employee"
+          },
+          "oldCacheAbsent": true,
+          "draftPreserved": true
+        },
+        {
+          "name": "engaged",
+          "owner": {
+            "personne": "employe-fictif-b",
+            "role": "employee"
+          },
+          "oldCacheAbsent": true,
+          "draftPreserved": true
+        },
+        {
+          "name": "failed",
+          "owner": {
+            "personne": "admin-fictif-a",
+            "role": "admin"
+          },
+          "oldCacheAbsent": false,
+          "draftPreserved": true
+        }
+      ]
+    },
+    "newProcess": true,
+    "sqlite": "node:sqlite avec SQL adaptateur de production",
+    "limits": [
+      "pont Expo et téléphone non exécutés",
+      "brouillon même table conservé ; outbox séparée inchangée, non qualifiée ici",
+      "confirmation nouvelle identité après purge, aucune autorité backend ajoutée"
+    ]
+  },
+  "diagnostic_replayed": {
+    "fictif": true,
+    "noNetwork": true,
+    "memoryStorageOnly": true,
+    "ownerAfterPurge": {
+      "personne": "employe-fictif-b",
+      "role": "employee"
+    },
+    "lateResultSource": "aucune",
+    "staleCacheRecreatedAfterPurge": false,
+    "repeatedDecision": {
+      "genre": "conserver"
+    },
+    "staleCacheSurvivesNextConfirmation": false,
+    "newPersonCanReadThisCache": false,
+    "limites": [
+      "published pure functions with deferred fictional response and memory depot",
+      "no Expo SQLite, phone render, token replacement wiring or foreign UI disclosure proven"
+    ]
+  },
+  "history_outputs_sha256": {
+    "REGISTRE-CACHE-REPRISE-2026-10-06-r1.json": "e943e15b5500521f247de9376449aa3ed3791380a1d56e348e8ac1b4a1625c77",
+    "PREUVES-CACHE-REPONSE-TARDIVE-2026-10-06.tar.xz": "a52b4c53839fd7b6bb3feb6e249f659aabe99bc1866c148c1fc86d066531c891",
+    "REGISTRE-VERTICALE-CORE-CI-2026-10-06-r1.json": "943a8093742f2ed8c45c089ea8a1b2283b2e8b9d2e2bbe7d16e507cd413819e5",
+    "PREUVES-REPRISE-2026-10-06-r6.tar.xz": "96467b842c76026bfc4257c34c3d5b005a4fc7e696cc878719afda0451bbf051",
+    "AUDIT-CI-VERTICALE-6896-2026-10-06.md": "3a361296daf71a2b169922c03d648c6233df4d1524d3272c581514f915f9331f",
+    "PREUVES-REPRISE-2026-10-06-r2.tar.xz": "079c176e26ce9d1831fd61c487f831495b7fb22c38371d41004bbe52b03c51a5",
+    "VERIFICATION-COMPLEMENTAIRE-VERTICALE-2026-10-06-V1.json": "2468673b457bfa049f968c55bbc101a7065706e17731e247302215ffc1c6eef2",
+    "REGISTRE-REPRISE-2026-10-06.json": "d1c60612d64a9944e60d02095679116422c27490a7480b5795d66735ace8debc",
+    "REGISTRE-RESTAURATION-AFFAIRE-2026-10-06-P4.json": "3e576758a600e6839b9c6f84da0705e1c8f34524ac77b411dc2e3e0bb54f5955",
+    "AUDIT-REPRISE-COMPOSEE-2026-10-06-r1.md": "e4310fbd59232a6a19987d4d89f05df207a13468c1bafef7c13fed678967391b",
+    "QUALIFICATION-FINALE-OAUTH-RENOUVELLEMENT-2026-10-06.md": "0ed4246c888fc0bcdb83408c62b08f403414bf251b25f0e0f8bd7a9cbf7d6aa6",
+    "AUDIT-REPRISE-2026-10-06.md": "163f26c00b27ffe387eb997fda8e4b2988fa4a05c85b6fa15c67a616013dd87a",
+    "AUDIT-VERTICALE-2026-10-06-V1.md": "57419d1a627eb4304d300578d8c63e7b49c9bc46f1898cd4ac18f5efae40059f",
+    "REGISTRE-OAUTH-RENOUVELLEMENT-2026-10-06-r1.json": "60d2093bb8c6760b237830519f7a32202c278d26c22662b886fd2005fa0afb39",
+    "REGISTRE-RESERVATION-RESTAUREE-2026-10-06-P5.json": "de30627014c621a5395deadf607d4ca237c63aca978be056f76d7af1d6ae5a86",
+    "QUALIFICATION-ISOLATION-AFFAIRE-2026-10-06-P3.md": "6bde4bcef8f52713f821c8cd7fde5c440cd65e523725ba527867175618152134",
+    "PREUVES-CALLBACK-CONSERVE-2026-10-06-P6.tar.xz": "7e48c659ef79a9d6daa313d61126c9e9d727cf14cd910b43926ea9655be33cd1",
+    "PREUVES-CI-OAUTH-RENOUVELLEMENT-2026-10-06.tar.xz": "5bbe1f3b0f3b64e7beed9ea6de8e320edbd489df6810d988209f730968bc901e",
+    "QUALIFICATION-RESTAURATION-AFFAIRE-2026-10-06-P4.md": "06f03544fa17d4d36a2dac030ef0d9218e951a79ba94493afc463234bbb7629c",
+    "AUDIT-CACHE-REPRISE-2026-10-06-r1.md": "0a8dd5f6ac6c29aa31f1f9e03e6c2c1100d216214f2beccfd30381f22bf30449",
+    "CI-OAUTH-RENOUVELLEMENT-2026-10-06.json": "c91af746b64398d99a992a9a6c11a2d5efa617ab2ae6a04cb7bac61b4f627b47",
+    "REGISTRE-ISOLATION-AFFAIRE-2026-10-06-P3.json": "e71d4b3f31216c434c1c4add0c13269c4ae37863cc9efbde239e337b3da28ba0",
+    "QUALIFICATION-FINALE-VERTICALE-2026-10-06-V1.md": "4a61d9e74b259979ec6117513d911be47b28b2346e8d46f5f204bae797f50966",
+    "PREUVES-VERTICALE-2026-10-06-V1-r1.tar.xz": "6cf157e08d6cb2ef89c6662d1d22854d8ee4eb9535d215cd9d89831bfacc50b7",
+    "PREUVES-CI-FINALE-2026-10-06.tar.xz": "6453b5b2bd3e8fb4a970a23f18f655c70f3bc380a5910f4705528992a0702fd1",
+    "QUALIFICATION-FINALE-COMPOSEE-2026-10-06-db6869.md": "37efc50d1243ecd68ee9adac38a1e8e0f69da1abfa17155d24e5f569b3a6e739",
+    "REGISTRE-MEMOIRE-AFFAIRE-2026-10-06-P2.json": "b45a57dc4607afe8610432e7c98836b825fd1caba43c566f33de2b43cef303de",
+    "PREUVES-REPRISE-2026-10-06-r5.tar.xz": "5a2f93f248a438754cb64ed69e33e4e24c30a2fd411155b45405ab893b0e7754",
+    "PREUVES-OAUTH-RENOUVELLEMENT-2026-10-06-r1.tar.xz": "0bfbbdea3b000898a2e79dcf0f4923ae1e5f0948a8c4554840a93a43b6763c2d",
+    "AUDIT-OAUTH-RENOUVELLEMENT-2026-10-06-r1.md": "25c814046d31be1f98016f2f782456530e49bfc36a955240de0bbe3bbe5f58f5",
+    "CI-VERTICALE-2026-10-06-V1.json": "8dcf2cfb3391e397ec708e93a2ddd04655694aa46c60264db9266d4186c5d68a",
+    "REGISTRE-REPRISE-COMPOSEE-2026-10-06-r1.json": "60b5e01bb8ac3e5b5f218eb6c6ce034f09d653b8e4af376eb532bc74edae800f",
+    "AUDIT-CORPUS-REPRISE-CI-2026-10-06-r1.md": "caa9afc87c97f9e1f5f5a160b55891e7433e65ffdbbf030c7d916e2384eb34cc",
+    "PREUVES-CI-COMPOSEE-2026-10-06-db6869.tar.xz": "858343f2d7f6274c399616d8a0a22789511cf7bea192a4575b990d91f934f3c3",
+    "VERIFICATION-FINALE-REPRISE-2026-10-06.json": "176c7609c11ee401268e01286e40e009e2cf7e4f5f2b446454178e0a5b7fd6a8",
+    "PREUVES-CORPUS-REPRISE-CI-2026-10-06-r1.tar.xz": "356676802947d91d42fad35fb24b1a4ff3efcee37161c338b1f89f0d3f9f9b97",
+    "REGISTRE-CACHE-REPONSE-TARDIVE-2026-10-06.json": "5d77bf90027bd9a06ebb7802f15931c068a59f80c8d68df91af4e06a6af6ed1a",
+    "VERIFICATION-FINALE-OAUTH-RENOUVELLEMENT-2026-10-06.json": "c206d6671943d6bf93ab2deef814bf7e867ec709356181594bde22f07a61f0be",
+    "QUALIFICATION-CALLBACK-CONSERVE-2026-10-06-P6.md": "a82213bb003a526d56e6589bb3ea8b8f24ddbb9ee13b02ed89d9c69c870e6286",
+    "REGISTRE-CI-COMPOSEE-2026-10-06-db6869.json": "948627b1f60752defb46b686ad4db3362dbba4fb287c68c6686b55fb64e22c4a",
+    "VERIFICATION-FINALE-VERTICALE-2026-10-06-V1.json": "f7b1112a47dc78892ea5d23268e2c41ec336d79c91fe1b8ccabd41a850e57065",
+    "PREUVES-RESERVATION-RESTAUREE-2026-10-06-P5.tar.xz": "f5372f8610b8f9340145c0e5fc4e1ea1e49c7bab11325cde92689c08910b918b",
+    "CI-REPRISE-2026-10-06.json": "72faecbe7a157dd3f8bbb8edfca4f9ba2f7870c499820f2b3011a61b11291749",
+    "AUDIT-VERTICALE-2026-10-06-V1-r2.md": "22dde256c7b86ef0c7fa3ecd3ad9e907b1d933c6459b1dc4108e8dda2f8e8d29",
+    "PREUVES-FALLBACK-RESTAURE-2026-10-06-P7.tar.xz": "5f5774081c51f962a151af947eacef15aa264444af36eb669489f9ea897e7faa",
+    "REGISTRE-PROFIL-AFFAIRE-2026-10-06-P1.json": "0484de13fc1c8b52688d27a3844a3a8a618ffca62570b295b37f0221c6602890",
+    "PREUVES-RESTAURATION-AFFAIRE-2026-10-06-P4.tar.xz": "6bc21b3cfbf6c7e4d91b7b68c3e8ec9f66c6d70ac9e21fdf2220a045fa85358f",
+    "QUALIFICATION-PROFIL-AFFAIRE-2026-10-06-P1.md": "08e38ab8480c97c28981dd299a154eec74f124c7ffaa8f2b697dd37db98bbbd3",
+    "REGISTRE-CORPUS-REPRISE-CI-2026-10-06-r1.json": "2b09b6549f2dffd3b8db892d08ef31be6dce9724e342e7144a26796d5368e2b4",
+    "CONTINUITE-VERTICALE-2026-10-06.md": "0465072957ec069f81021d380ebbcb455f09586904cbf151e09240becd5f86fd",
+    "QUALIFICATION-RESERVATION-RESTAUREE-2026-10-06-P5.md": "182318cac0f3aab60443e9932e85ae3df4fa8edf67631374996cac3bf15a5a55",
+    "DIAGNOSTIC-CACHE-REPONSE-TARDIVE-2026-10-06.md": "5d419e6b60a9c54ebee3d89eb3c339a470a255f6d5860fc739f97467e559979a",
+    "QUALIFICATION-MEMOIRE-AFFAIRE-2026-10-06-P2.md": "e789c0f7edcf81de8201642cc1e7134bae9377a657d8d5601b5974548cce9744",
+    "REGISTRE-VERTICALE-2026-10-06-V1.json": "47063ad6e70ab95ac093967d84d9e33bf5838c0c499d914b146818e6778a621c",
+    "REGISTRE-CONTINUITE-REPRISE-COMPOSEE-2026-10-06.json": "f692c9f50aa7c43e0a0fa9fc6f10449aa5edf28734b4c3557d09427559b2c834",
+    "PREUVES-REPRISE-2026-10-06-r3.tar.xz": "30b298ff60bc318abc9ca01d8f52d94a6de612c632363512b192eab3f2ed6ddf",
+    "REPRISE-ETAT-2026-10-06.json": "5993bffc70c3874a46f18acfc04d927abd2803e021a164e3a3569d355209999a",
+    "QUALIFICATION-FALLBACK-RESTAURE-2026-10-06-P7.md": "3675702cab076ec04b5ffb6bcaeb78e01d6c7d21e3bb9df6963fea2aa8bf8f0b",
+    "PREUVES-ISOLATION-AFFAIRE-2026-10-06-P3.tar.xz": "4074f2a0669ad2c0c2aed9b25a598791b3235ae7f12e28b5837702f8a972f9af",
+    "PREUVES-CI-VERTICALE-6896-2026-10-06.tar.xz": "3d1de74b50ef3b9ab76d2fc269e6635b7c7da27bd140cc48db1dfc5ae061ae9d",
+    "REGISTRE-VERTICALE-2026-10-06-V1-r2.json": "ffeda43042595134d0b31f709c2efca9155e7403bcbdc02fdfb8f1b486bca4fd",
+    "PREUVES-CACHE-REPRISE-2026-10-06-r1.tar.xz": "8287ceba8714ac92b8e03c210515a6b01b2904cfdbd4bce236308dbdc846546e",
+    "REGISTRE-FALLBACK-RESTAURE-2026-10-06-P7.json": "1310ce7753d47a8269ad506b18083cfa2fce1da9f952b035bd3fa1fbdf7105fb",
+    "REGISTRE-CI-VERTICALE-6896-2026-10-06.json": "25bb42072ac8534c4517ece919688ee81fabd18c1ed1329d0221a29e9caf4167",
+    "REGISTRE-CALLBACK-CONSERVE-2026-10-06-P6.json": "74e2929f2b2e017be3a674eca66c5083632ba84468642c37bcb529a120113e0d",
+    "PREUVES-REPRISE-2026-10-06-r1.tar.xz": "3cc62e5ad8f48101234475895dea348c0499de129c336e31af3afdb8c1afe797",
+    "PREUVES-PROFIL-AFFAIRE-2026-10-06-P1.tar.xz": "c3fb70fb69f3f9bb705a0f021d71ebad4c8afa6a5f3173db138c074f5a39a021",
+    "PREUVES-CI-VERTICALE-2026-10-06-V1.tar.xz": "a5d44932c168be4391dec33fefa9af3eacb29e27be0d3c42a83f3de9684425b2",
+    "PREUVES-MEMOIRE-AFFAIRE-2026-10-06-P2.tar.xz": "a51c28ff4d8fd2840919e895f283a61b072cdcf74c53f70a5f87c977ed6c926c",
+    "PREUVES-VERTICALE-2026-10-06-V1-r2.tar.xz": "6ac2eae598255a89ab56b675cb101c0126b544af9760dce40197153d00925305",
+    "AUDIT-VERTICALE-CORE-CI-2026-10-06-r1.md": "18cd8105ea7c464609ce9cd792e864963773c09ff37f4b5171ce93ab7a62c3d0",
+    "CONTINUITE-REPRISE-COMPOSEE-2026-10-06.md": "36b44df86bd8955025ec41f0a8b59929ef47fcb78138f20ee0f99145e0a6e11b",
+    "PREUVES-REPRISE-2026-10-06-r4.tar.xz": "315ba335c909676ad618e7db74e86da1d9a482b133150971e25f6b7049eb4e92",
+    "PREUVES-VERTICALE-CORE-CI-2026-10-06-r1.tar.xz": "5a5d7e6eb5fc5facade8aa88509a6b5854a150dfa6f0310a38a63b234f593699"
+  },
+  "excluded_databases": [
+    {
+      "path": "work/cache-sqlite-externe-r3/failed.sqlite",
+      "sha256": "72c87084a952378f447b08585b45a4f71215dd887a266c590d1633e407080c91",
+      "reason": "base de test exclue des preuves publiées, reçu et scripts conservés"
+    },
+    {
+      "path": "work/cache-sqlite-externe-r3/late.sqlite",
+      "sha256": "c0e491e6e3d15ab54f0f51faf824ba50743bc9095a4ecd82e332d02ab6d2e450",
+      "reason": "base de test exclue des preuves publiées, reçu et scripts conservés"
+    },
+    {
+      "path": "work/cache-sqlite-externe-r3/engaged.sqlite",
+      "sha256": "49e03f79cd6243a3aca274083e6b7fa6051ca1c0591e05a5685f4523b2c4fbb4",
+      "reason": "base de test exclue des preuves publiées, reçu et scripts conservés"
+    }
+  ],
+  "product": "PARTIEL",
+  "ci": "en cours, qualification externe indépendante"
+}

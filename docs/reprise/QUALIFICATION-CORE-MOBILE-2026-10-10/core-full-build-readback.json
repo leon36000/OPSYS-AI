@@ -1,0 +1,33 @@
+{
+  "RSS_bytes": 6068789248,
+  "after_files": 149527,
+  "all35_exported_members_rehashed": true,
+  "all_preexisting_bytes_sizes_links_preserved": true,
+  "before_files": 137194,
+  "current_Core_all_bytes_match_actual_compiled_snapshot": true,
+  "current_Core_paths": 36398,
+  "exit_code": 0,
+  "failure": null,
+  "full_log_read": "Independent reviewer complete714lines86864B; Root report acceptance +own metadata/census verification",
+  "guard_triggered": null,
+  "independent_readback_sha256": "9db7b8298da06bc752973dc109bf16679330115452f0680ed06c797f500a012c",
+  "independent_report_sha256": "07b636c210c4693523a7f8b3ea3e48b355107154199569ea97eb83eb5f3bb1f8",
+  "inner_signal_strategy": "revalidated_pid",
+  "limits": [
+    "Full Core x64 build only; autonomous canonical TSC separately passed on sameCore4",
+    "Current mobile ownership3 changed after copy; independently qualified5576 not credited by build",
+    "Census hashes/sizes; Source modes checked by pinned stage validator",
+    "Old ARM retainedlock not touched; old builds and sources preserved",
+    "Root preliminary reader expected absent guard field; stopped before certificate; corrected to actual guard_triggered schema",
+    "No SMS/native/phone/financial finality inferred"
+  ],
+  "observed_owners_stopped": true,
+  "origin_pre_post_sha256": "d440b1c8ba28c4c5bbd15c9ac6888bd316c36334f94d4293b63ef44d7bcd0102",
+  "outputs_only_added_files": 12333,
+  "outputs_only_added_links": 446,
+  "receipt_sha256": "a6942b181673d84afdfe83d253495649aa3225d56f7d76bbd5fd39c4a3241751",
+  "state": "ROOT_FULL_CORE_BUILD_CURRENT_SOURCE4_ACCEPTED",
+  "stdout_eof": true,
+  "utc": "2026-10-11T00:30:01.112399+00:00",
+  "wall_seconds": 561.904
+}

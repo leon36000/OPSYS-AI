@@ -1,0 +1,722 @@
+# Graphes non commencés seulement; lint interrompu et campagne de tests ne sont jamais rejoués.
+name: audit-unstarted-types-fixed-f0b89cc
+'on':
+  push:
+    branches:
+    - codex/restructuration-2026-09-30
+    paths:
+    - .github/workflows/audit-unstarted-types-fixed-f0b89cc.yml
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: audit-unstarted-types-fixed-f0b89cc
+  cancel-in-progress: false
+env:
+  EXPECTED_HEAD: f0b89ccf86d6f6e50eb134de3257af91860e8091
+  EXPECTED_TREE: 03dd91d0a6c749d06dbd502b3b9fe2cb8f576bdb
+  EXPECTED_SOURCE_SHA: ce8def70e470baced49f09a849fa75eee295e7e0f9613a49135dc5637f079349
+  EXPECTED_PACKAGE_MANAGER: pnpm@12.4.0+sha512.37536c26ed40ab4134b6511e09f6b27f3ebb45687468f2406ca3805279a4e5ca158c1931350ad9774d6ab2108d71b3dbaeb39943159294375e4d053e8e05685c
+  NODE_OPTIONS: --max-old-space-size=4096
+  GOMAXPROCS: '1'
+  AUDIT_NONCE: audit-unstarted-types-aeb694e7013a4328baee3eadc275e9cc
+defaults:
+  run:
+    shell: bash
+jobs:
+  unstarted-type-graphs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+    - name: Destinations distinctes hors Source
+      env:
+        ROOT_TEMP: ${{ runner.temp }}
+      run: |
+        set -euo pipefail
+        output="$ROOT_TEMP/audit-types-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+        mkdir -p "$output"
+        echo "AUDIT_OUTPUT=$output" >> "$GITHUB_ENV"
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      with:
+        ref: f0b89ccf86d6f6e50eb134de3257af91860e8091
+        fetch-depth: 1
+        persist-credentials: false
+        submodules: false
+    - name: Source43996 exacte avant acquisition
+      id: identity
+      env:
+        IDENTITY_PHASE: before
+      timeout-minutes: 5
+      run: |
+        python3 -I -B - <<'PY_IDENTITY'
+        import hashlib, json, os, pathlib, re, subprocess
+        root = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(root), *args])
+        head = git('rev-parse', 'HEAD').decode().strip()
+        tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
+        assert head == os.environ['EXPECTED_HEAD'], 'HEAD_DIFFERENT'
+        assert tree == os.environ['EXPECTED_TREE'], 'TREE_DIFFERENT'
+        paths = sorted(p.decode('utf-8') for p in git('ls-files', '-z').split(bytes([0])) if p)
+        assert len(paths) == 43996 and len(set(paths)) == 43996, 'TRACKED_FILE_COUNT'
+        aggregate = hashlib.sha256()
+        for name in paths:
+            file = root / name
+            assert file.is_file() and not file.is_symlink(), 'TRACKED_FILE_KIND'
+            content = hashlib.sha256()
+            with file.open('rb') as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    content.update(block)
+            aggregate.update(name.encode('utf-8'))
+            aggregate.update(bytes([0]))
+            aggregate.update(content.digest())
+        assert aggregate.hexdigest() == os.environ['EXPECTED_SOURCE_SHA'], 'SOURCE_BYTES_DIFFERENT'
+        package = json.loads((root / 'core/package.json').read_text())
+        assert package['packageManager'] == os.environ['EXPECTED_PACKAGE_MANAGER'], 'PACKAGE_MANAGER_DIFFERENT'
+        shards = (root / 'core/test/vitest/vitest.test-shards.mjs').read_text().split('export const fullSuiteVitestShards = [', 1)[1]
+        groups = re.findall('config: "([^"]+)",.*?name: "([^"]+)"', shards, re.S)
+        assert len(groups) == 12 and len({g[0] for g in groups}) == 12, 'CANONICAL_GROUP_COUNT'
+        receipt = {'head':head, 'tree':tree, 'tracked_files':len(paths), 'SourceSHA':aggregate.hexdigest(),
+                   'packageManager':package['packageManager'], 'canonical_groups':[{'config':c,'name':n} for c,n in groups],
+                   'scope':'identity and bytes only; not test/runtime qualification'}
+        output = pathlib.Path(os.environ['AUDIT_OUTPUT'])
+        output.mkdir(parents=True, exist_ok=True)
+        (output / ('identity-' + os.environ['IDENTITY_PHASE'] + '.json')).write_text(json.dumps(receipt, indent=2) + chr(10))
+        print(json.dumps(receipt))
+        PY_IDENTITY
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      with:
+        node-version: 24.x
+    - name: pnpm exact et acquisition verrouillée sans cache partagé
+      id: acquire
+      timeout-minutes: 10
+      working-directory: core
+      run: |-
+        set -euo pipefail
+        corepack enable
+        test "$(pnpm --version)" = "12.4.0"
+        { node --version; pnpm --version; uname -a; } | tee "$AUDIT_OUTPUT/toolchain.log"
+        pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile 2>&1 | tee "$AUDIT_OUTPUT/install.log"
+    - name: Manifeste des29 graphes non commencés, Source inchangée
+      run: |
+        set -euo pipefail
+        cat > "$AUDIT_OUTPUT/commands.json" <<'AUDIT_COMMAND_MANIFEST'
+        [
+          {
+            "id": "type_01",
+            "name": "agents-root",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "1/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.agents-root.json"
+          },
+          {
+            "id": "type_02",
+            "name": "agents-other",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "2/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.agents-other.json"
+          },
+          {
+            "id": "type_03",
+            "name": "agents-tools",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "3/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.agents-tools.json"
+          },
+          {
+            "id": "type_04",
+            "name": "gateway-root",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "4/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.gateway-root.json"
+          },
+          {
+            "id": "type_05",
+            "name": "gateway-server",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "5/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.gateway-server.json"
+          },
+          {
+            "id": "type_06",
+            "name": "gateway-other",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "6/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.gateway-other.json"
+          },
+          {
+            "id": "type_07",
+            "name": "infra",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "7/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.infra.json"
+          },
+          {
+            "id": "type_08",
+            "name": "state-logging",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "8/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.state-logging.json"
+          },
+          {
+            "id": "type_09",
+            "name": "commands",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "9/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.commands.json"
+          },
+          {
+            "id": "type_10",
+            "name": "plugins-platform",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "10/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.plugins-platform.json"
+          },
+          {
+            "id": "type_11",
+            "name": "config-cli",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "11/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.config-cli.json"
+          },
+          {
+            "id": "type_12",
+            "name": "messaging",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "12/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.messaging.json"
+          },
+          {
+            "id": "type_13",
+            "name": "services",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "13/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.services.json"
+          },
+          {
+            "id": "type_14",
+            "name": "other",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "14/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.other.json"
+          },
+          {
+            "id": "type_15",
+            "name": "ui-pages",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "15/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.ui-pages.json"
+          },
+          {
+            "id": "type_16",
+            "name": "ui-e2e",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "16/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.ui-e2e.json"
+          },
+          {
+            "id": "type_17",
+            "name": "ui-other",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "17/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.ui-other.json"
+          },
+          {
+            "id": "type_18",
+            "name": "packages",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "18/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.test.packages.json"
+          },
+          {
+            "id": "type_19",
+            "name": "plugin-sdk",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "19/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.plugin-sdk.json"
+          },
+          {
+            "id": "type_20",
+            "name": "commands-doctor",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "20/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.commands-doctor.json"
+          },
+          {
+            "id": "type_21",
+            "name": "cli-update",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "21/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.cli-update.json"
+          },
+          {
+            "id": "type_22",
+            "name": "gateway-methods",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "22/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.gateway-methods.json"
+          },
+          {
+            "id": "type_23",
+            "name": "ui-chat",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "23/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.ui-chat.json"
+          },
+          {
+            "id": "type_24",
+            "name": "agents-sessions",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "24/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.agents-sessions.json"
+          },
+          {
+            "id": "type_25",
+            "name": "services-cron",
+            "argv": [
+              "pnpm",
+              "tsgo:core:test",
+              "--stripe",
+              "25/25"
+            ],
+            "canonical_config": "test/tsconfig/tsconfig.core.test.services-cron.json"
+          },
+          {
+            "id": "type_26",
+            "name": "ui-production",
+            "argv": [
+              "pnpm",
+              "tsgo:ui"
+            ]
+          },
+          {
+            "id": "type_27",
+            "name": "extensions-production-and-test",
+            "argv": [
+              "pnpm",
+              "tsgo:extensions:all"
+            ]
+          },
+          {
+            "id": "type_28",
+            "name": "scripts",
+            "argv": [
+              "pnpm",
+              "tsgo:scripts"
+            ]
+          },
+          {
+            "id": "type_29",
+            "name": "root-tests",
+            "argv": [
+              "pnpm",
+              "tsgo:test:root"
+            ]
+          }
+        ]
+        AUDIT_COMMAND_MANIFEST
+        printf '%s  %s\n' 'd30fd6a5e13e36327cc2637cb686635aa87106577eb94e66bf7fb7987b92b801' "$AUDIT_OUTPUT/commands.json" | sha256sum -c -
+    - name: 'Type indépendant : agents-root'
+      id: type_01
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 1/25 2>&1 | tee "$AUDIT_OUTPUT/type_01.log"
+    - name: 'Type indépendant : agents-other'
+      id: type_02
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 2/25 2>&1 | tee "$AUDIT_OUTPUT/type_02.log"
+    - name: 'Type indépendant : agents-tools'
+      id: type_03
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 3/25 2>&1 | tee "$AUDIT_OUTPUT/type_03.log"
+    - name: 'Type indépendant : gateway-root'
+      id: type_04
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 4/25 2>&1 | tee "$AUDIT_OUTPUT/type_04.log"
+    - name: 'Type indépendant : gateway-server'
+      id: type_05
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 5/25 2>&1 | tee "$AUDIT_OUTPUT/type_05.log"
+    - name: 'Type indépendant : gateway-other'
+      id: type_06
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 6/25 2>&1 | tee "$AUDIT_OUTPUT/type_06.log"
+    - name: 'Type indépendant : infra'
+      id: type_07
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 7/25 2>&1 | tee "$AUDIT_OUTPUT/type_07.log"
+    - name: 'Type indépendant : state-logging'
+      id: type_08
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 8/25 2>&1 | tee "$AUDIT_OUTPUT/type_08.log"
+    - name: 'Type indépendant : commands'
+      id: type_09
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 9/25 2>&1 | tee "$AUDIT_OUTPUT/type_09.log"
+    - name: 'Type indépendant : plugins-platform'
+      id: type_10
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 10/25 2>&1 | tee "$AUDIT_OUTPUT/type_10.log"
+    - name: 'Type indépendant : config-cli'
+      id: type_11
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 11/25 2>&1 | tee "$AUDIT_OUTPUT/type_11.log"
+    - name: 'Type indépendant : messaging'
+      id: type_12
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 12/25 2>&1 | tee "$AUDIT_OUTPUT/type_12.log"
+    - name: 'Type indépendant : services'
+      id: type_13
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 13/25 2>&1 | tee "$AUDIT_OUTPUT/type_13.log"
+    - name: 'Type indépendant : other'
+      id: type_14
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 14/25 2>&1 | tee "$AUDIT_OUTPUT/type_14.log"
+    - name: 'Type indépendant : ui-pages'
+      id: type_15
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 15/25 2>&1 | tee "$AUDIT_OUTPUT/type_15.log"
+    - name: 'Type indépendant : ui-e2e'
+      id: type_16
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 16/25 2>&1 | tee "$AUDIT_OUTPUT/type_16.log"
+    - name: 'Type indépendant : ui-other'
+      id: type_17
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 17/25 2>&1 | tee "$AUDIT_OUTPUT/type_17.log"
+    - name: 'Type indépendant : packages'
+      id: type_18
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 18/25 2>&1 | tee "$AUDIT_OUTPUT/type_18.log"
+    - name: 'Type indépendant : plugin-sdk'
+      id: type_19
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 19/25 2>&1 | tee "$AUDIT_OUTPUT/type_19.log"
+    - name: 'Type indépendant : commands-doctor'
+      id: type_20
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 20/25 2>&1 | tee "$AUDIT_OUTPUT/type_20.log"
+    - name: 'Type indépendant : cli-update'
+      id: type_21
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 21/25 2>&1 | tee "$AUDIT_OUTPUT/type_21.log"
+    - name: 'Type indépendant : gateway-methods'
+      id: type_22
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 22/25 2>&1 | tee "$AUDIT_OUTPUT/type_22.log"
+    - name: 'Type indépendant : ui-chat'
+      id: type_23
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 23/25 2>&1 | tee "$AUDIT_OUTPUT/type_23.log"
+    - name: 'Type indépendant : agents-sessions'
+      id: type_24
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 24/25 2>&1 | tee "$AUDIT_OUTPUT/type_24.log"
+    - name: 'Type indépendant : services-cron'
+      id: type_25
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:core:test --stripe 25/25 2>&1 | tee "$AUDIT_OUTPUT/type_25.log"
+    - name: 'Type indépendant : ui-production'
+      id: type_26
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:ui 2>&1 | tee "$AUDIT_OUTPUT/type_26.log"
+    - name: 'Type indépendant : extensions-production-and-test'
+      id: type_27
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:extensions:all 2>&1 | tee "$AUDIT_OUTPUT/type_27.log"
+    - name: 'Type indépendant : scripts'
+      id: type_28
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:scripts 2>&1 | tee "$AUDIT_OUTPUT/type_28.log"
+    - name: 'Type indépendant : root-tests'
+      id: type_29
+      if: '!cancelled() && steps.identity.outcome == ''success'' && steps.acquire.outcome == ''success'''
+      timeout-minutes: 6
+      working-directory: core
+      run: |
+        set -euo pipefail
+        pnpm tsgo:test:root 2>&1 | tee "$AUDIT_OUTPUT/type_29.log"
+    - name: État de chaque invocation, sans transformer les rouges en verts
+      if: always()
+      env:
+        ONLY_TYPE_OUTCOMES: '{"type_01":"${{ steps.type_01.outcome }}","type_02":"${{ steps.type_02.outcome }}","type_03":"${{
+          steps.type_03.outcome }}","type_04":"${{ steps.type_04.outcome }}","type_05":"${{ steps.type_05.outcome }}","type_06":"${{
+          steps.type_06.outcome }}","type_07":"${{ steps.type_07.outcome }}","type_08":"${{ steps.type_08.outcome }}","type_09":"${{
+          steps.type_09.outcome }}","type_10":"${{ steps.type_10.outcome }}","type_11":"${{ steps.type_11.outcome }}","type_12":"${{
+          steps.type_12.outcome }}","type_13":"${{ steps.type_13.outcome }}","type_14":"${{ steps.type_14.outcome }}","type_15":"${{
+          steps.type_15.outcome }}","type_16":"${{ steps.type_16.outcome }}","type_17":"${{ steps.type_17.outcome }}","type_18":"${{
+          steps.type_18.outcome }}","type_19":"${{ steps.type_19.outcome }}","type_20":"${{ steps.type_20.outcome }}","type_21":"${{
+          steps.type_21.outcome }}","type_22":"${{ steps.type_22.outcome }}","type_23":"${{ steps.type_23.outcome }}","type_24":"${{
+          steps.type_24.outcome }}","type_25":"${{ steps.type_25.outcome }}","type_26":"${{ steps.type_26.outcome }}","type_27":"${{
+          steps.type_27.outcome }}","type_28":"${{ steps.type_28.outcome }}","type_29":"${{ steps.type_29.outcome }}"}'
+      timeout-minutes: 1
+      run: |
+        python3 -I -B - <<'PY_OUTCOMES'
+        import json,os,pathlib
+        p=pathlib.Path(os.environ['AUDIT_OUTPUT'])
+        commands=json.loads((p/'commands.json').read_text())
+        states=json.loads(os.environ['ONLY_TYPE_OUTCOMES'])
+        assert set(states)=={c['id']for c in commands}
+        result=[dict(c,step_outcome=states[c['id']])for c in commands]
+        (p/'outcomes.json').write_text(json.dumps(result,indent=2)+'\n')
+        print(json.dumps({'total':len(result),'outcomes':states,'not_test_PASS_credit':True}))
+        PY_OUTCOMES
+    - name: Source43996 exacte après les graphes, même rouges
+      if: always() && steps.identity.outcome == 'success'
+      env:
+        IDENTITY_PHASE: after
+      timeout-minutes: 5
+      run: |
+        python3 -I -B - <<'PY_IDENTITY'
+        import hashlib, json, os, pathlib, re, subprocess
+        root = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(root), *args])
+        head = git('rev-parse', 'HEAD').decode().strip()
+        tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
+        assert head == os.environ['EXPECTED_HEAD'], 'HEAD_DIFFERENT'
+        assert tree == os.environ['EXPECTED_TREE'], 'TREE_DIFFERENT'
+        paths = sorted(p.decode('utf-8') for p in git('ls-files', '-z').split(bytes([0])) if p)
+        assert len(paths) == 43996 and len(set(paths)) == 43996, 'TRACKED_FILE_COUNT'
+        aggregate = hashlib.sha256()
+        for name in paths:
+            file = root / name
+            assert file.is_file() and not file.is_symlink(), 'TRACKED_FILE_KIND'
+            content = hashlib.sha256()
+            with file.open('rb') as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    content.update(block)
+            aggregate.update(name.encode('utf-8'))
+            aggregate.update(bytes([0]))
+            aggregate.update(content.digest())
+        assert aggregate.hexdigest() == os.environ['EXPECTED_SOURCE_SHA'], 'SOURCE_BYTES_DIFFERENT'
+        package = json.loads((root / 'core/package.json').read_text())
+        assert package['packageManager'] == os.environ['EXPECTED_PACKAGE_MANAGER'], 'PACKAGE_MANAGER_DIFFERENT'
+        shards = (root / 'core/test/vitest/vitest.test-shards.mjs').read_text().split('export const fullSuiteVitestShards = [', 1)[1]
+        groups = re.findall('config: "([^"]+)",.*?name: "([^"]+)"', shards, re.S)
+        assert len(groups) == 12 and len({g[0] for g in groups}) == 12, 'CANONICAL_GROUP_COUNT'
+        receipt = {'head':head, 'tree':tree, 'tracked_files':len(paths), 'SourceSHA':aggregate.hexdigest(),
+                   'packageManager':package['packageManager'], 'canonical_groups':[{'config':c,'name':n} for c,n in groups],
+                   'scope':'identity and bytes only; not test/runtime qualification'}
+        output = pathlib.Path(os.environ['AUDIT_OUTPUT'])
+        output.mkdir(parents=True, exist_ok=True)
+        (output / ('identity-' + os.environ['IDENTITY_PHASE'] + '.json')).write_text(json.dumps(receipt, indent=2) + chr(10))
+        print(json.dumps(receipt))
+        PY_IDENTITY
+    - name: Préserver les diagnostics et états connus
+      if: always()
+      timeout-minutes: 5
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: audit-unstarted-types-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ env.AUDIT_OUTPUT }}/
+        if-no-files-found: warn
+        retention-days: 14

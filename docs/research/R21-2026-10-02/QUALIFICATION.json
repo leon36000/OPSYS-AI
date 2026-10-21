@@ -1,0 +1,53 @@
+{
+  "archives_verifiees": 73,
+  "liens_locaux_verifies": 180,
+  "liens_absents": [],
+  "sources_connecteurs_identiques_a_la_campagne_312": [
+    "src/opsys/console/connecteurs_ui.py",
+    "src/opsys/console/application.py",
+    "src/opsys/console/pages.py",
+    "tests/test_console_connecteurs.py"
+  ],
+  "documents_sha256": {
+    "docs/produit/INSTRUCTION-NATHAN-2026-10-02.md": "4bb25ea62d9fcd336d4f32fd6b056b085559d3b5beab11066961ae8dd3b7acf7",
+    "docs/produit/VISION-ENTREPRISE-APPRENANTE.md": "f2f9695efd55d2668cb55c6c648df97463359b629821d8004e98dca3648e3db5",
+    "docs/produit/DIRECTIVES-NATHAN.md": "e91bcfd9e310c50717a8bb684d116e248792eb0a0c61ff19af8358b2b2c600c3",
+    "docs/produit/DEFINITION-PRODUIT.md": "187205e887aecc6e7f127581b7ece1fed44d92b0e48528fb8bfbfad163d6cd98",
+    "docs/programme/REPRISE-AUDIT-2026-10-02.md": "78f8c24f4f4ec96a065be3e33dc258565ec25b3ea219e6e3cb1c8497ea0f65c5",
+    "docs/programme/REPRISE-PLAN-2026-10-02.md": "4b2996bd8a670088c5e3b514a6f6cdba42b20c4a63d3206e519ca2e101c400e9",
+    "docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md": "e63c4851f00aeaa6528940c2c36c8d70f31d6ee86b6405c573521f49c4c933ee",
+    "docs/research/INGREDIENTS.md": "49b02e471de20cd734003b2bcb2195eca0cc04f3d5486c819609167badcc13ea",
+    "docs/research/R21-2026-10-02/README.md": "7dcfd060f7ea648b7ff39570d7a582afa347264c390f2f6e9191e2689df392ff"
+  },
+  "anciennes_archives": [
+    {
+      "path": "docs/research/R19-2026-09-30/MANIFEST.json",
+      "expected": "14c92b771ed2f43064e693936fda3cba45e03268c0c4c0c2632205f449206bae",
+      "actual": "14c92b771ed2f43064e693936fda3cba45e03268c0c4c0c2632205f449206bae",
+      "unchanged": true
+    },
+    {
+      "path": "docs/research/R19-2026-09-30/README.md",
+      "expected": "089b8e6a0cba6803588454cf267dd00cabb160a8d0a9c067f31a7ae952b19224",
+      "actual": "089b8e6a0cba6803588454cf267dd00cabb160a8d0a9c067f31a7ae952b19224",
+      "unchanged": true
+    },
+    {
+      "path": "docs/research/R20-2026-10-01/MANIFEST.json",
+      "expected": "426ccb6e1bda8bdaa6fc6efa7580190165049dffc5a361b9f1feee90b1d2f1c8",
+      "actual": "426ccb6e1bda8bdaa6fc6efa7580190165049dffc5a361b9f1feee90b1d2f1c8",
+      "unchanged": true
+    },
+    {
+      "path": "docs/research/R20-2026-10-01/README.md",
+      "expected": "942ce1f0106c527ad5d3c55369d7e1f427db6f570fc2183be4fb5e8fe556f790",
+      "actual": "942ce1f0106c527ad5d3c55369d7e1f427db6f570fc2183be4fb5e8fe556f790",
+      "unchanged": true
+    }
+  ],
+  "manifest_sha256": "1a80a8d01ae6b1d73b9ba9373c36025a1fd2f61cc15f1bdb4fc565477f9fd53c",
+  "limites": [
+    "validation liens restreinte aux neuf documents nommes",
+    "archives compressées et sources conservées, aucun résultat fournisseur/PG/Core/VPS supplémentaire"
+  ]
+}

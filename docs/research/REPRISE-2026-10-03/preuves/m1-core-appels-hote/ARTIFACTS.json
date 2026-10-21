@@ -1,0 +1,1214 @@
+[
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r1-native/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "7fb9d0431f130461ee76176b304c51ba2f65534338933f4dbcb750af7ad897d3",
+    "content_sha256": "116cb98337403e85554703adb1acdb6335a9a1ecb390d406a1e2f1f01d19d65b"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r1-native/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 835,
+    "sha256": "f55935e21049cd8ad270837bfd717048cbeb57c9e77c2a8d5f377a10009b10bc",
+    "content_sha256": "3fe51564d3bb2e9726182f302c53c54e42adc6069a925afa9fe44636c2a90b6f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r1-native/conducteur-root.py.gz",
+    "uncompressed_bytes": 14669,
+    "sha256": "e1799da6010ae87097a4a0c60696c5ab967566cb8ba6a9ee69b03ae2132fb5a0",
+    "content_sha256": "d30e3b9ffc099871dab51488b2d8e84da375d005a7c9e1bbecbb164ad03ed8fe"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r1-native/execution-r1/format.log.gz",
+    "uncompressed_bytes": 935,
+    "sha256": "9ee1262223cbd42d9aecaf51081c10a4842e6a5521f76f39c3de73921eec7f75",
+    "content_sha256": "51df4582be2320ff3211688ae014bca1fe3a8480d4cb771629a10603a6298a77"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r1-native/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1335376,
+    "sha256": "1c497c66af4348a6cc7a2df1c5120477b76878b81a9a33cab05f6f98a9be4ace",
+    "content_sha256": "fdc67c5285df52b675709fddfc1e7083a14588c217fa7555038ead16be097870"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r10-voice-whole/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "f753ec5f79d07f234e7f41bec33d881865feafc53862bb0b24c3d81a632c66e7",
+    "content_sha256": "5ea5a33f9ab69dfe1d3b31201988bec4dcb7b20824c4565874265813f34fa5eb"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r10-voice-whole/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 881,
+    "sha256": "21da15a202b6eec564d156b9525259d84c9da7bde221b77cedbe3408c3efbf85",
+    "content_sha256": "0bb47784798e4b2ac128a0342bddecc8b387c0fa050a4aa67bea697f97d6f9d5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r10-voice-whole/conducteur-root.py.gz",
+    "uncompressed_bytes": 15952,
+    "sha256": "4291698fd81f7b9820ab6726141a00e8681301abe7ca659bc11652b264fac628",
+    "content_sha256": "519a45327ab113fc3c614cc0d0cf9817790afb9195b13516c10b6d82ff187267"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r10-voice-whole/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1336209,
+    "sha256": "1bfb819674d2bfa2e41524af6f2759245dde9ddc763c0d3288b02b08378888fc",
+    "content_sha256": "36d90c9f807e767e1b60b8fff4df22cf653bbc9c40dfab853cef01d9140e950f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r10-voice-whole/execution-r1/voice-call-raw-result.json.gz",
+    "uncompressed_bytes": 2240,
+    "sha256": "d727c59bdce82c8be3a822cd985a5c467ae9bd02c081c4919ea51029fc22f83e",
+    "content_sha256": "b714017f56ed86141a932a5c148ee38d37760077b070cc5c04fb3722349aa27e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r10-voice-whole/execution-r1/voice-call.log.gz",
+    "uncompressed_bytes": 40674,
+    "sha256": "937c568f70ee60913f6e66be5323f5cc1d90c9bb0fa73bce3d2caf666a1ec92f",
+    "content_sha256": "394cd19cdcb68c63a7261c901843447b72e3ba715b487e895a01ac7fa0df1a1a"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r10-voice-whole/execution-r1/voice-call.xml.gz",
+    "uncompressed_bytes": 0,
+    "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+    "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "f753ec5f79d07f234e7f41bec33d881865feafc53862bb0b24c3d81a632c66e7",
+    "content_sha256": "5ea5a33f9ab69dfe1d3b31201988bec4dcb7b20824c4565874265813f34fa5eb"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 881,
+    "sha256": "21da15a202b6eec564d156b9525259d84c9da7bde221b77cedbe3408c3efbf85",
+    "content_sha256": "0bb47784798e4b2ac128a0342bddecc8b387c0fa050a4aa67bea697f97d6f9d5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/conducteur-root.py.gz",
+    "uncompressed_bytes": 15999,
+    "sha256": "0c3da9572cef0e421ea1529c32fecc73ebad38ff9ac60ad03b85acd5ef1aed5f",
+    "content_sha256": "3b644a2150402d92968dcdafbf8d49e61139aaba3029ca9aeeb459758d33e825"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1340752,
+    "sha256": "f24b3f4701edecbfe3f499f29ba35e8b06cfebca94dbb74137c444231d16ae36",
+    "content_sha256": "f312c1baf35038ef960095382969354d4b9faa13eab3e68c2f0f08732fec6196"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/execution-r1/voice-1-raw-result.json.gz",
+    "uncompressed_bytes": 1723,
+    "sha256": "5af5aaa1ab8ea8de26709e3c241e6e9c9970018f3e0676c5b2b6852261408b19",
+    "content_sha256": "2080b796a9a4b26fdf1526859fdcb39830b1cd79ca7c3d6dbc619cf8e159d62d"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/execution-r1/voice-1.log.gz",
+    "uncompressed_bytes": 1112,
+    "sha256": "b2552b4b085c1f7ffb59af711ab3d1d00e7768ecb90fdb8eb17befc13dbc254b",
+    "content_sha256": "c51d337065cd6151685e72970f50943b44205ba7cb80b413f10fa6a25dce9a16"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/execution-r1/voice-1.xml.gz",
+    "uncompressed_bytes": 1246,
+    "sha256": "73c3ee9522d7b5499b86c97b046a810a7a97a83ca164986349728089844fde4f",
+    "content_sha256": "ee37efc622045adabddc4ab9a3ed0ded43934b83314c7bdc446f6436cdb6330e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/execution-r1/voice-2-raw-result.json.gz",
+    "uncompressed_bytes": 1700,
+    "sha256": "897b157eae3b0ac64e90c0365c26d64448e512ffb980748c6a9abbaf32127cdd",
+    "content_sha256": "6a4d2f16d75d504ae045b101e5f0e8943f043f5ebb067ecc6c045a43498faafa"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/execution-r1/voice-2.log.gz",
+    "uncompressed_bytes": 34112,
+    "sha256": "aa167dbd3c3699ecd0f6a3c4f9e2da2e50b902bfbfa7fb5a6580b410b7f1d4bd",
+    "content_sha256": "775205609cad10deafd5adfc593ef07496a19b402b07998e3fd0eec02d084a28"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/execution-r1/voice-2.xml.gz",
+    "uncompressed_bytes": 29281,
+    "sha256": "e7877f4d51b2cff67bb2f1276d3aeba6c4f31ee9d7df3af4c6d7bdcf8a83c136",
+    "content_sha256": "676549714adf1aad3960e6994d41a620d846343ee60ce9504d7d99456f081c45"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/execution-r1/voice-3-raw-result.json.gz",
+    "uncompressed_bytes": 1689,
+    "sha256": "ca088c5830fe73d1321dcb34b8de6b05eacac3c491a72493428d7b323fc99a2b",
+    "content_sha256": "56165765fd751a496a7513148f4357306e38ca2ac6f3cc16267951841becf8de"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/execution-r1/voice-3.log.gz",
+    "uncompressed_bytes": 12309,
+    "sha256": "0fbc543c7de8900d797e597d770d6456272b1df81e1812c52d716bb84239d040",
+    "content_sha256": "6aab717dc756a02b71e9a08c8d10795d03a325bc510bb6b56bfd36ad83b58204"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r11-voice-files/execution-r1/voice-3.xml.gz",
+    "uncompressed_bytes": 12576,
+    "sha256": "0a6ba3b13e1588ba6a9bb2f3c78f2451c51223cc127f1283bdf6f1f4cb551a7f",
+    "content_sha256": "f89af492622b4be0bdacb927aeb3ea07841fca44c0e27685993919fc9ab1d537"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r12-index-fix/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "5858124b07daad338f3b2ccc15c5066f41a4e392bdcbd94e9defdf5a0aca6dd5",
+    "content_sha256": "0ecc4787dde68549d9b8f1d8bc56a11834604d4d8f9fbb7bb08eb885610bcc3b"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r12-index-fix/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 881,
+    "sha256": "21da15a202b6eec564d156b9525259d84c9da7bde221b77cedbe3408c3efbf85",
+    "content_sha256": "0bb47784798e4b2ac128a0342bddecc8b387c0fa050a4aa67bea697f97d6f9d5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r12-index-fix/conducteur-root.py.gz",
+    "uncompressed_bytes": 15948,
+    "sha256": "5fbb051b63a92867e6d6e275e9e87ef2b3d9172ba87655ad33adc2d23d50c1fb",
+    "content_sha256": "1754412fca2e0bbda9df15e81d380a2ce668676f9e10a5abd3bee4495e6db5b1"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r12-index-fix/execution-r1/index-raw-result.json.gz",
+    "uncompressed_bytes": 1677,
+    "sha256": "9c096b8d73c72f61f75d11e6577cded70773fea36ab2665dabb806b22c789ea3",
+    "content_sha256": "336cd095b75dd2f6d233b01229e82c3f32916be57348b2a899c9521c98feda3f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r12-index-fix/execution-r1/index.log.gz",
+    "uncompressed_bytes": 2399,
+    "sha256": "b6c9915d3a2fb89892a009d6b2d9666c9c56e5f98081085b8f22784fe2b44b8b",
+    "content_sha256": "b087b357461b0e1e59faab832d12bfeae6db9a6db2fd5e7ebb150c0db6bd1113"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r12-index-fix/execution-r1/index.xml.gz",
+    "uncompressed_bytes": 11201,
+    "sha256": "e9bfae9ab43183932a93db71baf11169ecf5ae89c95b8852fa92f0d2db19ffd8",
+    "content_sha256": "3747f340bfa0e048c1708801be5951d324de7786e3fcccd44e043b79b452014f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r12-index-fix/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1335947,
+    "sha256": "1ca23b8242fc65ddabab707b905abc9879020b64f5281a8c2d0a53fc0c9ef514",
+    "content_sha256": "b377591e85d0fc42474fcec7ecdd73ff4a39da028f7e7f1ac6f63d6f911d9451"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r13-services/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "5858124b07daad338f3b2ccc15c5066f41a4e392bdcbd94e9defdf5a0aca6dd5",
+    "content_sha256": "0ecc4787dde68549d9b8f1d8bc56a11834604d4d8f9fbb7bb08eb885610bcc3b"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r13-services/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 881,
+    "sha256": "21da15a202b6eec564d156b9525259d84c9da7bde221b77cedbe3408c3efbf85",
+    "content_sha256": "0bb47784798e4b2ac128a0342bddecc8b387c0fa050a4aa67bea697f97d6f9d5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r13-services/conducteur-root.py.gz",
+    "uncompressed_bytes": 15984,
+    "sha256": "2e82ff0415454c77bd76479701d7719cbc7ddb749c5cfe086dfa07d28ff8a003",
+    "content_sha256": "5f8ef3ef0d4e7b0944a3f046372c23b11d43be065f4c23209419b037d0bf1200"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r13-services/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1338273,
+    "sha256": "71c56182c52cc98a0f7dd2df9febb6cd35b14ea6292c80ef168d5439e90516f7",
+    "content_sha256": "17cbc81ee1f77fe35c65575e3e51a8313933ebdcdce720b33d0a9493e8b31d77"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r13-services/execution-r1/services-0-raw-result.json.gz",
+    "uncompressed_bytes": 1684,
+    "sha256": "743d5b1f633cf763d3a7e10e874dffcf409c45b69a1b1fc478b751042eb181c9",
+    "content_sha256": "391cf67a3cf372bfec5db628f3d846976a921267540472b88fc6c48438222764"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r13-services/execution-r1/services-0.log.gz",
+    "uncompressed_bytes": 590,
+    "sha256": "eec650db93b9f5926f3edd3dd9bd99ff48c939271fc488fc31e2aa83e81db914",
+    "content_sha256": "4ed0226c3aa6a4b4de5aebf607f6f3d179451ab017a1b9217241cce6a08be06e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r13-services/execution-r1/services-0.xml.gz",
+    "uncompressed_bytes": 1258,
+    "sha256": "c931193c72232a51724f2789098c49d27919d177b8d7736bb32d1e2bc2e73509",
+    "content_sha256": "683afe6c5480bf90168bba0821b1862137f1e7c992527df991a2d4ebb23b5140"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r13-services/execution-r1/services-1-raw-result.json.gz",
+    "uncompressed_bytes": 1663,
+    "sha256": "a5a780f127b853841a2b4dbfff324b4c828a5dce9809cbf5d9ebcee8f8e9155a",
+    "content_sha256": "b48461fe83552b88fb07b3b03e94b16e74ede14b5429277e2cd6fc1c86c81c2d"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r13-services/execution-r1/services-1.log.gz",
+    "uncompressed_bytes": 582,
+    "sha256": "008832b5a33c2224e63bd2163375e038658cbdeab84bb05b65f19fa2e786abbe",
+    "content_sha256": "3c3ff4089d457298c671331ed282ae93f99c2fd7832635e09c574d728c4c8f14"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r13-services/execution-r1/services-1.xml.gz",
+    "uncompressed_bytes": 4779,
+    "sha256": "50c06ca94b124d2e7fe7088dc4c2879d04b8f81d511742070ebd525ddfe949eb",
+    "content_sha256": "5810852961a1b7d93ecb63cadd6f3c579ff2a81dac432d42d0c7071103f1e648"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r14-style/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "5858124b07daad338f3b2ccc15c5066f41a4e392bdcbd94e9defdf5a0aca6dd5",
+    "content_sha256": "0ecc4787dde68549d9b8f1d8bc56a11834604d4d8f9fbb7bb08eb885610bcc3b"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r14-style/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 881,
+    "sha256": "21da15a202b6eec564d156b9525259d84c9da7bde221b77cedbe3408c3efbf85",
+    "content_sha256": "0bb47784798e4b2ac128a0342bddecc8b387c0fa050a4aa67bea697f97d6f9d5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r14-style/conducteur-root.py.gz",
+    "uncompressed_bytes": 16283,
+    "sha256": "1f4960ff1fb1aaec9a1e22dee982952bdebe43a4cb4f70bdae3e2b02f39bc802",
+    "content_sha256": "66094665b0340a7eebce6ef83df997d55b416a18bd11603b86483e2e4a400146"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r14-style/execution-r1/format-raw-result.json.gz",
+    "uncompressed_bytes": 2126,
+    "sha256": "5149486aac4524fb30b8072adeb8c7bb15a423631e8f7f6081de9d7ce495ea26",
+    "content_sha256": "d20da31a564cede57d5d9d66079aefe68e1ae65aa447e428bb926d5b8d3f91ee"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r14-style/execution-r1/format.log.gz",
+    "uncompressed_bytes": 113,
+    "sha256": "625e8188ef789695ca2f27e2bead589dc5f7878a75475a9485b14647ec29c94f",
+    "content_sha256": "ab29cb466c446cb2e23124d1a76b97a2b354049b925b132730d43e6bc91c6969"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r14-style/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1338380,
+    "sha256": "4744e3c4d5e9b3f407e905af62749a2af1737d4d44d3de1d8685b445f97818ce",
+    "content_sha256": "cf9627170b81e8ef47b3dfdba98ca194d2b47650cd923740b0d56c3fd666b62a"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r14-style/execution-r1/syntax-lint-raw-result.json.gz",
+    "uncompressed_bytes": 2038,
+    "sha256": "0f4594acfc7a08d673aa26723f8c014ca8337f4fa5f2d4ea535a820897e0d57a",
+    "content_sha256": "9015f2f9881f855e9852949a9e0ac744f4e915eb41f25d15e937a3076189d7e7"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r14-style/execution-r1/syntax-lint.log.gz",
+    "uncompressed_bytes": 7160,
+    "sha256": "511c02258821056f862a259618499663d0bd8b4eebb48c52d2406c191d13bcf2",
+    "content_sha256": "b519423344b9aa3e4afac0d0f586411cc6143e06303adb8767d9ab53fcaae9ca"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r15-style-fix/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "69629974caea2306100d12b3e61d0ad10286b8b0e1ae171013a8cc5632308594",
+    "content_sha256": "b6e9b62dbeb4ff9fbe10087975182847a345705e849c037e36046f0a9e4f918d"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r15-style-fix/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 881,
+    "sha256": "21da15a202b6eec564d156b9525259d84c9da7bde221b77cedbe3408c3efbf85",
+    "content_sha256": "0bb47784798e4b2ac128a0342bddecc8b387c0fa050a4aa67bea697f97d6f9d5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r15-style-fix/conducteur-root.py.gz",
+    "uncompressed_bytes": 16291,
+    "sha256": "c09e293dd51d2bbec38a7998fbaf2a89437e236d4de8766de17f8f5305d72d72",
+    "content_sha256": "dece13ef18d7da6264553e1b4e37feffa7919c8e529cd67ff4f06990f16e137b"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r15-style-fix/execution-r1/boundary-guards-raw-result.json.gz",
+    "uncompressed_bytes": 2098,
+    "sha256": "0dc43a041a6fa77c0e75fc225bd709dbaf2ea6a02cd50d836692756dc0eb6ee4",
+    "content_sha256": "a9e0e4430686c078223f701d9930160cb11194087a24a3c6b5f0fe1aa7ee6dfb"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r15-style-fix/execution-r1/boundary-guards.log.gz",
+    "uncompressed_bytes": 91,
+    "sha256": "bae2930b086cae534b85c79c3a87ca7dd41c12a55811ac39c22ad22da4a9d18a",
+    "content_sha256": "2c243a1555dcf6a7bdc9083f40e0b75ea45f8f42f1ee6988497e84c67aa3f64e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r15-style-fix/execution-r1/format-raw-result.json.gz",
+    "uncompressed_bytes": 2132,
+    "sha256": "64ee860c3386374c840c53106f3e4d9ff8c2eb139a22f4e6372bc044e0776fff",
+    "content_sha256": "092c7bf514233bdc6762e45dcef8a60c4829a19f8b5b37e4c69595dfe87a86d1"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r15-style-fix/execution-r1/format.log.gz",
+    "uncompressed_bytes": 113,
+    "sha256": "ec631d8d1c60c9230232cb51ed642a650bf9336c957d84425c2192b2b7cfcce1",
+    "content_sha256": "c43096c963c7d5e512c45c0b61a37b8d35bbf652e73dc9aca24ea41b9779da40"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r15-style-fix/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1340794,
+    "sha256": "8d9d9dcb3ae84c98ccb77c64115b549050309fc4c89ad26a831fbf5f5309a0ad",
+    "content_sha256": "f19f5b8979088ef0e983cb675cd547a8b0a7a250e85ae7a26df98288de9561ba"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r15-style-fix/execution-r1/syntax-lint-raw-result.json.gz",
+    "uncompressed_bytes": 2041,
+    "sha256": "4ebb6263814f56faf8532a4d33b172d904c3ba08675880806aa5166805d38022",
+    "content_sha256": "ebb92d113a249f51c3f3c831965af31ea6be85442420edab6a6afcef4807290a"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r15-style-fix/execution-r1/syntax-lint.log.gz",
+    "uncompressed_bytes": 819,
+    "sha256": "a5bbcefa24f2d973dedcc06c5b36b05e0121eb1ff885784b45b8ff68896c36e6",
+    "content_sha256": "321262e5680f415ec4f4af9081e0afffb26e4ac9815ac7e55761e0a789932679"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 703015,
+    "sha256": "bb3b7427254805366e9c157668a7a0fb3560bab553e07621e586ea89e22bcf44",
+    "content_sha256": "77bf06ba80967c6b6c7d8d9b0e5a2fb92c61698ce6fe025563d8a58bfd155581"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 881,
+    "sha256": "21da15a202b6eec564d156b9525259d84c9da7bde221b77cedbe3408c3efbf85",
+    "content_sha256": "0bb47784798e4b2ac128a0342bddecc8b387c0fa050a4aa67bea697f97d6f9d5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/conducteur-root.py.gz",
+    "uncompressed_bytes": 16667,
+    "sha256": "a6483882bae53a7081f9d9af546f1ea7738a825371fdfbee1e8f3b8d831a4053",
+    "content_sha256": "6d01b5bbf6e9f2d26691ce38a92a0f294784cf92b8655841591f5368ad7bb945"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/boundary-guards-raw-result.json.gz",
+    "uncompressed_bytes": 2093,
+    "sha256": "4d80303fb20869bc9b40e593759a046e804352b9ab4347ee184af0457c75becd",
+    "content_sha256": "b88c5631a0529797dda947e450bfdcef4c761b75d0c8f336daccb81420bd013f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/boundary-guards.log.gz",
+    "uncompressed_bytes": 91,
+    "sha256": "a22160081a9a8fb4c458130e2ab8f6aba954d52bc18c5d13260cb2dcbf3293bb",
+    "content_sha256": "630e6dcc4b8608b2fc0d46c38cea36e6bdbd720272fe2846bef184e5ff27de24"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/format-raw-result.json.gz",
+    "uncompressed_bytes": 2128,
+    "sha256": "2cf77550a1dde7f52ba2a296eb8fe8a5590f38dbbbc3fa04b371e636fc6c8588",
+    "content_sha256": "8d491bc685abd38bc51245ed4632894adf6bdea51f929589f8e30657a375a64c"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/format.log.gz",
+    "uncompressed_bytes": 113,
+    "sha256": "a5b37b61a65854534495921c2b8023f3ca699837661708c2aa6656109e808e3b",
+    "content_sha256": "4ca9d3b60264d04a98f4eed44156838cb2311faf965aea7921920177d9a78c89"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/helper-raw-result.json.gz",
+    "uncompressed_bytes": 1675,
+    "sha256": "f24562becbdc8a6f7ec7c2d298c8bc89aa0bf92ad5e3a179bae662a35de0c594",
+    "content_sha256": "3c951ebe68b7436a2634c528848b0270002bed91b3cc6b7c914f104ff3e12c11"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/helper.log.gz",
+    "uncompressed_bytes": 838,
+    "sha256": "1f11200c02edf8ce4525398a5252c74fb0a62032b38103ecec12fb78403ec96d",
+    "content_sha256": "f34999430ad4fa255455743398925c238a9b0f4b505d3607388e347b04c6792e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/helper.xml.gz",
+    "uncompressed_bytes": 2548,
+    "sha256": "7c409a786b61e688430d16dc9e95da8efbc3c43323d52a31f306481e1e1cc13c",
+    "content_sha256": "1fd7e43a111e988e7d3b2ea68c887a8fd609eb7d01dbac3382c7239dab1f056e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1451131,
+    "sha256": "b4ca3188523cbd9f6375e8c7552b2b966e62f19de17146bdc9ddc7c628847b2a",
+    "content_sha256": "fa4653c6d5d495ece9d3faa50b678aeaeabd0828064f4051ae73562caa7128f8"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/service-0-raw-result.json.gz",
+    "uncompressed_bytes": 1677,
+    "sha256": "4a2e0d1040b6b6db539d9e9ae1fe1be07e191e718dab1b6c181134f8242969b8",
+    "content_sha256": "bca75422e042b36bb86dd127063b7e0ce8cb549eecf5b743c9b9be22e293031d"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/service-0.log.gz",
+    "uncompressed_bytes": 587,
+    "sha256": "2eb375d6f975fd0b3b976ae7501861c175f3781769d49349fcbc8a4b11660730",
+    "content_sha256": "7faba7ff75a55d3d6d6159b6c28160a2412604552008dffb01837cb88fe36ed4"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/service-0.xml.gz",
+    "uncompressed_bytes": 1258,
+    "sha256": "cad5b27f2ed018220ea9bdd881a28b9c3f5df9611fbee5db80ee63543d976876",
+    "content_sha256": "03ff3f4caab4892f4857e2c190d13df4e2ddc61872262b5a5dc1d0eb08afd7fc"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/service-1-raw-result.json.gz",
+    "uncompressed_bytes": 1653,
+    "sha256": "1dfa726c84739ef89a163b1a8aadeab59498ba4f61256bc9974b60403821365c",
+    "content_sha256": "dd5fcbb3ec0516233a89fd47c6200bd0dbfe529ae8cc0e05830810555a393806"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/service-1.log.gz",
+    "uncompressed_bytes": 578,
+    "sha256": "45403bced057663a03e06e8b83c8030baa5adf375436abc4e0c53021bfa5432d",
+    "content_sha256": "f09c5893ee17a1ad431b1a6ea36b9f8f260f5bcd0e622d13aef7d4767c6cc7c4"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/service-1.xml.gz",
+    "uncompressed_bytes": 4782,
+    "sha256": "65b34fcf74f797b9cfdcbe77528425e0ecd873a4da328813bf2125f030f79599",
+    "content_sha256": "fd237af67f8edcfe5c6d55dcc8ed9b29a483ca66c2e36833e6035026cb0e5802"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/syntax-lint-raw-result.json.gz",
+    "uncompressed_bytes": 2035,
+    "sha256": "2dec606435bdf579b7fb782b7c31efcc567504c73e1181ccbd02b4c997260dd5",
+    "content_sha256": "57960ead10e04978794c6abf3497e60fab0c9c1cf617190fe5de3db982efbd61"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/syntax-lint.log.gz",
+    "uncompressed_bytes": 819,
+    "sha256": "a5bbcefa24f2d973dedcc06c5b36b05e0121eb1ff885784b45b8ff68896c36e6",
+    "content_sha256": "321262e5680f415ec4f4af9081e0afffb26e4ac9815ac7e55761e0a789932679"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/voice-0-raw-result.json.gz",
+    "uncompressed_bytes": 1725,
+    "sha256": "116cf79c6e0eb2439da2f29e5cb331ed9d5f3d215f56807fb10b6b09a0b4b4e6",
+    "content_sha256": "9524740c086f2644d434a90626bf9e2363546e290b5d828180cdbe98cdb4afa3"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/voice-0.log.gz",
+    "uncompressed_bytes": 1134,
+    "sha256": "cad50c0e0c91f3bd191fea1e9ec88f50fcad0b1f2207f8d6e538036b17d931c0",
+    "content_sha256": "1c87b4ad647aeefa31105da9a13ebcf383e88ca153c961d3ed33c4a3687ee4de"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/voice-0.xml.gz",
+    "uncompressed_bytes": 1440,
+    "sha256": "7e4f3317b994a30628357fd6263e69a6ae0ad2e4fa1e2adae5102db0c2acf391",
+    "content_sha256": "d8f935d92c212c21964699bd8298402afcd919777c60c877843f6ca9df5df1df"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/voice-1-raw-result.json.gz",
+    "uncompressed_bytes": 1711,
+    "sha256": "dbdf47d531a6ea13d9f0f92c6919d738969b36ed94955c37dddacb94fbaef3e0",
+    "content_sha256": "5de12fb06ab404fb779ed1fda9ef7e85f0e7efac5398ec0a7880d63d5651a944"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/voice-1.log.gz",
+    "uncompressed_bytes": 1096,
+    "sha256": "dd97a830ba93ddcb4b3d3b728173803881b06beb767bf0fd001ee354b34e568b",
+    "content_sha256": "8e423851f535b973cc6cb11a51ea9db7c3e16e15a2a9ebc47a2beef0e020f075"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/voice-1.xml.gz",
+    "uncompressed_bytes": 1246,
+    "sha256": "5042189c6d233835ee4447514ef95eb84d7a82baf995582dbc63a0c3cd45b61d",
+    "content_sha256": "68d4a3f6374d5f93cc570dd0af855f74785ce979cef92977fe184128e9beb8e0"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/voice-2-raw-result.json.gz",
+    "uncompressed_bytes": 1689,
+    "sha256": "e02bfccd6aecb787c6445ef23055fa571fffcd1b44700e12de8f0e937520026b",
+    "content_sha256": "ab2da17e542abe8cdfda11b76ccf98e6e441e7655a8633b0db7cf37d774b1262"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/voice-2.log.gz",
+    "uncompressed_bytes": 48213,
+    "sha256": "31344d754af97031b0134c101b8c8db975eef3f2a353e876434f896ea5515277",
+    "content_sha256": "4f0bad58b19c82cebf5b93db0291139069a0fcace4404b5fb9f1d8d274b54560"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r16-final/execution-r1/voice-2.xml.gz",
+    "uncompressed_bytes": 39773,
+    "sha256": "9f8b69f0929b7bff12283908c8781a1dc07ce7119fbc83b050dd24ebd3177305",
+    "content_sha256": "ddaa8f3a410c2703abe6fdde9d43609fa4f4693b648ca32af7f536b098088a90"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 703015,
+    "sha256": "347cc2946a60b717edcf405489b08068df7d450f015fe64edec7a9d995e23e84",
+    "content_sha256": "5d8bbedcb92c89629bca38f073d031a3b19d8fc33bdcff175ec55ba67c879cb5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 881,
+    "sha256": "21da15a202b6eec564d156b9525259d84c9da7bde221b77cedbe3408c3efbf85",
+    "content_sha256": "0bb47784798e4b2ac128a0342bddecc8b387c0fa050a4aa67bea697f97d6f9d5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/conducteur-root.py.gz",
+    "uncompressed_bytes": 16667,
+    "sha256": "0757225372ef7f96316ebdefc9067f8aa68a1452a5a9a312aa5b28cf0c5d38a9",
+    "content_sha256": "fdbbf0afc0193659dc2ac85551dc213f1c27800868465fa50a921f1c4d2b41b2"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/boundary-guards-raw-result.json.gz",
+    "uncompressed_bytes": 2093,
+    "sha256": "b5415e2c859e45107bdaa6bc1753f09563fe28b94c2b9cadb6cf379dfe0c5f4d",
+    "content_sha256": "11c72b8f5005759d8a3e4ca03859953f33bbc4f51f135038189ee61e39d2d684"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/boundary-guards.log.gz",
+    "uncompressed_bytes": 91,
+    "sha256": "75d7a6b32d755ae48505d52debcbb3161a448b9fae82369cdcc06fb88337722c",
+    "content_sha256": "1c3b300befb9387af015b403654644e79e5e3e31ebeb71baf4bf442507160b8b"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/format-raw-result.json.gz",
+    "uncompressed_bytes": 2128,
+    "sha256": "a18fe3256d53b5e6fca5a9b876a74dfb2cd8686f765aa724dac0ba545b83a0e8",
+    "content_sha256": "268b25a3a0f50a86b36b6daa20ef282ae320b52f0c78f401a30fe406da886ade"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/format.log.gz",
+    "uncompressed_bytes": 113,
+    "sha256": "edb7cb4a18df9033f066a56db5f8fc3972537225751974e2be2f27fd3def33a9",
+    "content_sha256": "be9e455f63a37059ce8b55160669374c7f13fbc93a75fa54da81da047e603f5e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/helper-raw-result.json.gz",
+    "uncompressed_bytes": 1676,
+    "sha256": "6881ed86d7e38b094af2eee1b8de7444c2d0ff0224ada1b4a157387e05837850",
+    "content_sha256": "e74ecea5974415e7496995a6494153a8b87f68e20c4f7a358786814eb18925ec"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/helper.log.gz",
+    "uncompressed_bytes": 838,
+    "sha256": "d9e30791123f3cb28fa9f39b7e5ed25cad396f77d83f69e13fbffe2b39370245",
+    "content_sha256": "b886c1546a683f151cf3df07993a04f9fd81562d6ad43c2cfa800660d2488f1b"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/helper.xml.gz",
+    "uncompressed_bytes": 2549,
+    "sha256": "7369cbf40a1198213b9125b1a120d6fd851e8fd5e0419232faf0ba7b53d5664e",
+    "content_sha256": "5bd1a0b2358feda34472cb0723f5c91021c1babec5a28ad87e0c0b4fc5c1533d"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1453465,
+    "sha256": "af29703f5e0df47e4238923735cc37d25f2e2152b3fafddd5d0d7eb126a01524",
+    "content_sha256": "22be9fda36e59d5f8f21e123af2e9da5a567c7804524ee2f6c244c383df40728"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/service-0-raw-result.json.gz",
+    "uncompressed_bytes": 1677,
+    "sha256": "ab717262d8321a62f965923b8385a4f692035dcd02ea7246ea86c63450f09208",
+    "content_sha256": "c16420c389fd187fb97af2fb1cc0bbe796846053d2f7d2c6553537cb48d32ed0"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/service-0.log.gz",
+    "uncompressed_bytes": 586,
+    "sha256": "c04fe86c873057623d151ba55e36104463f5c9526d3d457a4bb9d095d5cd53ac",
+    "content_sha256": "85058f969cd967669764c653d26ae6126d3d1fff019c8440d1dfc0d723921d81"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/service-0.xml.gz",
+    "uncompressed_bytes": 1257,
+    "sha256": "ab94beb24dd365f2755af54992be95e64e824bbf1c5b719e0b7122dc7b3d7fed",
+    "content_sha256": "185f6800b1b096de215f1d48aa774384ae3fee9b5b7b2918125973b53ca3648f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/service-1-raw-result.json.gz",
+    "uncompressed_bytes": 1653,
+    "sha256": "88f0ce7b7248312404869e8208e0fc46ccba8d34542ed069e031eefb3f765339",
+    "content_sha256": "7208ee9870b15d355cc1ef98039441e2cf2bff0b7e0dfffb7009f1624d99f3ed"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/service-1.log.gz",
+    "uncompressed_bytes": 578,
+    "sha256": "89ae455c87b1805e3685e90d6393a9b36ebb5646e13cf272d2df3f8939c4e917",
+    "content_sha256": "e1b8f96cd00fef350ad521c0b05dca341aff25d69b4effcdae67b901f6f6210c"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/service-1.xml.gz",
+    "uncompressed_bytes": 4780,
+    "sha256": "b965a98750eac497dab1c14c5692866cf5e1bae0d69991dfc3d30aa7b4d5abd6",
+    "content_sha256": "3b3c0a3775dbc9224df8e15e94eb654969d8734a381b36ead5a0eec447dce2df"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/syntax-lint-raw-result.json.gz",
+    "uncompressed_bytes": 2036,
+    "sha256": "5e152bb2a6d412ceafe1b58969b7dc25e4c534c3266113c88414cdb35b77326a",
+    "content_sha256": "07e452fcef1983b6d5d075fac6b189d34cbc16265317caa4545f8edf61c3d6d9"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/syntax-lint.log.gz",
+    "uncompressed_bytes": 819,
+    "sha256": "a5bbcefa24f2d973dedcc06c5b36b05e0121eb1ff885784b45b8ff68896c36e6",
+    "content_sha256": "321262e5680f415ec4f4af9081e0afffb26e4ac9815ac7e55761e0a789932679"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-0-raw-result.json.gz",
+    "uncompressed_bytes": 1725,
+    "sha256": "aead6fb0dec1409052e3e2748d78056ef0ef974ac699b1edf869ce08e83fb8d4",
+    "content_sha256": "4ecad3a392b2efa2282231b9d59db3a595708a499744c026180a5d54e43440a1"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-0.log.gz",
+    "uncompressed_bytes": 1135,
+    "sha256": "645ac7784b1b8e99bdaeeb4345325ce1ec33afd32526c663cc0f71dc837c9ee8",
+    "content_sha256": "16c09a3ff181e7eab247741f832f09edd8eebae79fa568c4afe4d9dbe7b34dd5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-0.xml.gz",
+    "uncompressed_bytes": 1438,
+    "sha256": "1b9ab481554213ecec154a144bb75e476cad5f1ed4965d3fb75e39ee4a23fb02",
+    "content_sha256": "f759d9d73d85f4545ecf20b894b61b7543a7be9320af512331aac7e0005b0da6"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-1-raw-result.json.gz",
+    "uncompressed_bytes": 1710,
+    "sha256": "c001213f8b7d67211845b09586c964391f731a44e321f607cf94abd96b7f0226",
+    "content_sha256": "193118374f97fde5901f18276de80bac665514897f9beb6e0bda3f6ec6e59697"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-1.log.gz",
+    "uncompressed_bytes": 1106,
+    "sha256": "5734b619b5252ef360e14fa6d27458fe86cdbb5ae48421b33764e6a659bb6621",
+    "content_sha256": "21e1aa5f7fec0a7aa69044427db369d4b5145b179c8a3c2254566f37f784a7fa"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-1.xml.gz",
+    "uncompressed_bytes": 1247,
+    "sha256": "a9de7c212c390cf74fb372330d22506f18f23d58c6dad6aad2ed71444f52c4bd",
+    "content_sha256": "f39e5113081fc44f8fcc2b3b5082236d9950d4b0070f16a5cf71282bc021c1a6"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-2-raw-result.json.gz",
+    "uncompressed_bytes": 1687,
+    "sha256": "2664cba30ad96bfb64bb6699f8373a8ebbdbdcf20b33302c8bee1c01a6ab0d6a",
+    "content_sha256": "48d6f2bea0640e0ba9fe248c5262f68720a9c8741a73a459997a4d3b378c6b8e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-2.log.gz",
+    "uncompressed_bytes": 35163,
+    "sha256": "bbd187e4a1306213f68ccdb305b1b2cebbd1c3474f7b9dadba935d63769584a0",
+    "content_sha256": "5c4b505d3289fa7c3e96506cdc0e17a005650472095b60993664286c4cc6b271"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-2.xml.gz",
+    "uncompressed_bytes": 30310,
+    "sha256": "e3cf8c6fea808c6791c407b9da6580b74bbfd88a71aa875e4f899c193cc3134c",
+    "content_sha256": "847963672d95beff632178c17039adc27c27e05bd6bb69badb02e6e2cc2c14dd"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-3-raw-result.json.gz",
+    "uncompressed_bytes": 1675,
+    "sha256": "d92212cd50afdb75a1cd52abf3723199841cdeab8b0f80f87c051e912917f4f5",
+    "content_sha256": "63b2bbea3321a10f78b30a8c78aac2f9f363f54f1abc189cc73ec730f42922f0"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-3.log.gz",
+    "uncompressed_bytes": 2397,
+    "sha256": "8b95b6377aaa7332162bb1b0a218245d3a978ddb8cdad61e66680e9e25c61c7b",
+    "content_sha256": "79c778c23c3be9768d0ba06d5c6b3fd9ba21c2f36798d84b2e80c9ea78372e9f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-3.xml.gz",
+    "uncompressed_bytes": 11430,
+    "sha256": "9c22ed0cf1d676b2f50c2773592441a0929d1e40e7298073146390b8bc0aa912",
+    "content_sha256": "57a018e6af3c2d220061599c2a4a8ba82d86fbaac8a85afd2fc5a4b2311c97b5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r2-native/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "77438b93cffd5799be74e9b2a7f847880b0d0e70eb9729ca6558c6e2f932b7bd",
+    "content_sha256": "eea9c2116ce0cb781cdacdf8d4e1ae08e0421c97ca4c3afc9b1561eeb5862e31"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r2-native/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 835,
+    "sha256": "f55935e21049cd8ad270837bfd717048cbeb57c9e77c2a8d5f377a10009b10bc",
+    "content_sha256": "3fe51564d3bb2e9726182f302c53c54e42adc6069a925afa9fe44636c2a90b6f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r2-native/conducteur-root.py.gz",
+    "uncompressed_bytes": 14669,
+    "sha256": "a464424096a7b077ee5e4960ac89e9777d94307de6a8b6ef775c8d7885d77362",
+    "content_sha256": "c17ecea0329324514728c6af599fca1b2d0ee38e9a40fff58e65ed8365644501"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r2-native/execution-r1/format.log.gz",
+    "uncompressed_bytes": 113,
+    "sha256": "f5e00d81bdfe1c8dee9c9ffe909a19d2c5e7a194613c249e5fe7318c8f510fd3",
+    "content_sha256": "a9c7d10f4eadd7972e18e56ab3387b76b70589122e4d84f29718d3759790d5aa"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r2-native/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1337470,
+    "sha256": "27c8021acf52f5a6b41fd9b3a8773bf5adbebcdc7640d3312d377560c7751776",
+    "content_sha256": "7291ee780de9019640533eb83f89a9bedf7840b3a95b9cf33a96d61d92bc1632"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r2-native/execution-r1/unit.log.gz",
+    "uncompressed_bytes": 42120,
+    "sha256": "7581ef221cb5a0e53ac810ca53885a0645ab9dc2a24fa944cd6396f362c9160f",
+    "content_sha256": "5cbe14975cbd246acb7a50a6bbeca56b9c10a732e7aaa38b3fc328dbea295c13"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r2-native/execution-r1/unit.xml.gz",
+    "uncompressed_bytes": 130,
+    "sha256": "ea9fe6919802c79118b7232cd06ebf37f1113b6bf63a491045ac932a6c58a03d",
+    "content_sha256": "c12f033ca32130a31896bed9863221cc3b6e03be2b2019ddbcf60986d1173122"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r3-owners/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "77438b93cffd5799be74e9b2a7f847880b0d0e70eb9729ca6558c6e2f932b7bd",
+    "content_sha256": "eea9c2116ce0cb781cdacdf8d4e1ae08e0421c97ca4c3afc9b1561eeb5862e31"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r3-owners/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 835,
+    "sha256": "f55935e21049cd8ad270837bfd717048cbeb57c9e77c2a8d5f377a10009b10bc",
+    "content_sha256": "3fe51564d3bb2e9726182f302c53c54e42adc6069a925afa9fe44636c2a90b6f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r3-owners/conducteur-root.py.gz",
+    "uncompressed_bytes": 14783,
+    "sha256": "297cf0cb16ea45b9cce9eccb5b94aef5ece0f9c65c0d7e0b97df92111463cf66",
+    "content_sha256": "82ac3a2fa734a5019334a0da3ae9d38fb570d74fddb8d239be3e195787c8b3fa"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r3-owners/execution-r1/format.log.gz",
+    "uncompressed_bytes": 113,
+    "sha256": "1d0b75efaf45a870d91659f79c4b52f9ded0846716abd494c4f291778d3da05c",
+    "content_sha256": "cd5f9ffc6f2fa9f725a53b7eee143fa13d4b9ba698d3300993f27568b3748ce3"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r3-owners/execution-r1/helper.log.gz",
+    "uncompressed_bytes": 618,
+    "sha256": "6966c16603051301960bfc25398c721288f264356dc3a070a176edd159286c68",
+    "content_sha256": "8a1b71da0cc00c857275abc0be018a8cbe6b7613551a880674feeb5bd22df9c0"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r3-owners/execution-r1/helper.xml.gz",
+    "uncompressed_bytes": 130,
+    "sha256": "ea9fe6919802c79118b7232cd06ebf37f1113b6bf63a491045ac932a6c58a03d",
+    "content_sha256": "c12f033ca32130a31896bed9863221cc3b6e03be2b2019ddbcf60986d1173122"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r3-owners/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1337210,
+    "sha256": "72af0903a9e63b97450b395b065531d7c7ea0a8648839b737d8798f6e140ac44",
+    "content_sha256": "9f7f04c503cd2aa1d3c5bda43a166ca9650724edd89568acc40b6dcb3e62aa2b"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r4-owners/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "77438b93cffd5799be74e9b2a7f847880b0d0e70eb9729ca6558c6e2f932b7bd",
+    "content_sha256": "eea9c2116ce0cb781cdacdf8d4e1ae08e0421c97ca4c3afc9b1561eeb5862e31"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r4-owners/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 835,
+    "sha256": "f55935e21049cd8ad270837bfd717048cbeb57c9e77c2a8d5f377a10009b10bc",
+    "content_sha256": "3fe51564d3bb2e9726182f302c53c54e42adc6069a925afa9fe44636c2a90b6f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r4-owners/conducteur-root.py.gz",
+    "uncompressed_bytes": 14768,
+    "sha256": "ca801b815681d1914a5a3c5cfef53047ead52d4a7667fcf589092989ee5687f8",
+    "content_sha256": "f3dafd435e378386c6c4447f356077e47776c65ce1a11304557213694429c2be"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r4-owners/execution-r1/format.log.gz",
+    "uncompressed_bytes": 113,
+    "sha256": "3b1a137b3757e738419eebc93be020bfbfec69585a357a0e4a44d7303ab230ac",
+    "content_sha256": "b7233cfd3534b278c302ac86f8348de3dc9175daabf4b4296e739b452359400e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r4-owners/execution-r1/helper.log.gz",
+    "uncompressed_bytes": 4019,
+    "sha256": "710e501330658d4313f098111a14be2b18c70ac4ae41876de21e77760cc8ad40",
+    "content_sha256": "02aeaae4b2adfa1324b2bc0fc1659a58664e4662a7055c730db51ac4bf8e33bb"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r4-owners/execution-r1/helper.xml.gz",
+    "uncompressed_bytes": 3569,
+    "sha256": "f98e6fab44aa763415ae1c5d56be0bd147c872dc6a43fc93633f86beb6554f2c",
+    "content_sha256": "875bf3d658c1087162a8d83f344f0f006fa3031244a357481b0e20c1f3970f6e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r4-owners/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1337264,
+    "sha256": "99b7372626d36603615f65d57ddf045650a4184d38a65b594f845ccf0ec0f9aa",
+    "content_sha256": "cf75b2a3626a2101357224b8d96ef913ea5ec1ec0a4a39a6592ba207fb45fd84"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r5-owners/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "cec0084a8cc912c0961eaa3a6c504e0867bf65ada8ddad51b1db1c29fce4487d",
+    "content_sha256": "c4fd424837c84d97e45164497e7d65f63a80a64f213384a651279ebd071919cb"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r5-owners/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 835,
+    "sha256": "f55935e21049cd8ad270837bfd717048cbeb57c9e77c2a8d5f377a10009b10bc",
+    "content_sha256": "3fe51564d3bb2e9726182f302c53c54e42adc6069a925afa9fe44636c2a90b6f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r5-owners/conducteur-root.py.gz",
+    "uncompressed_bytes": 14768,
+    "sha256": "7674017cc66125ccbdddd71838ea33246fe906369075f875c9c23b96f620c91e",
+    "content_sha256": "4d1245cfcbce07f8435ac4999f985c688495b9d3c5be779ace770a0290543471"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r5-owners/execution-r1/DRIVER-FAILURE-ADDENDUM.json.gz",
+    "uncompressed_bytes": 268,
+    "sha256": "2a67bbb2ee56ac9b14a12fa58db1c2d7c555d16299d377f6692cd0a78a8e065e",
+    "content_sha256": "2d75504d0d67d05960cce640c0a49ccc8c81632d78347e08d9c60de72105363e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r5-owners/execution-r1/format.log.gz",
+    "uncompressed_bytes": 113,
+    "sha256": "b396eef5610497e9b11eb1459425d327fb04780dc85ec1abc333551f35d2a831",
+    "content_sha256": "9bca5d21cf53ef27b15603802ab8ea3f56783657ea50c72fa58012dd4355aeea"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r5-owners/execution-r1/helper.log.gz",
+    "uncompressed_bytes": 827,
+    "sha256": "cb6ea098eb2c1445ced8d4afa0c2359b33a2a910a8e1ec60900060e5c12558a0",
+    "content_sha256": "18cb6d089525b90c7b60b295ec98a569696025fabca91ce72608a95101dcbdfd"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r5-owners/execution-r1/helper.xml.gz",
+    "uncompressed_bytes": 2547,
+    "sha256": "b914a96a711c6fe94c8565abe4bce889fea7f5068e4454499b5765eac1bd55da",
+    "content_sha256": "54779295305433f28d7a8036dad64154fcff37e047d8617b05ceb41f92f3581f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r5-owners/execution-r1/plugins.log.gz",
+    "uncompressed_bytes": 96,
+    "sha256": "1639e4c212edbf8a6cf47db2699659f84b3f093e44b4fc011b233f2e004d59f7",
+    "content_sha256": "4108f13ec329114d3241ca8a6f5b1de1b049b1f0c82b248e21f3c59bf93531bb"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r5-owners/execution-r1/plugins.xml.gz",
+    "uncompressed_bytes": 0,
+    "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+    "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r6-security-red/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "2bf9d93d8cc075e6bb1a49b5155381b566e70760b7d2a60a841f84c16fb3a4ab",
+    "content_sha256": "4929a2a0ccdaa8e5a9db14d261c034a3b577927148077d929c6eae099d83fa61"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r6-security-red/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 835,
+    "sha256": "f55935e21049cd8ad270837bfd717048cbeb57c9e77c2a8d5f377a10009b10bc",
+    "content_sha256": "3fe51564d3bb2e9726182f302c53c54e42adc6069a925afa9fe44636c2a90b6f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r6-security-red/conducteur-root.py.gz",
+    "uncompressed_bytes": 14699,
+    "sha256": "810970b48a14bac274dc98b9fe5b1208a6c199845c81a4c798bfdc9d5bc20cc1",
+    "content_sha256": "e982b6edb048df1e04dfb78ce30d8d5b3cbaff9c621588b99606119c71576599"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r6-security-red/execution-r1/helper-raw-result.json.gz",
+    "uncompressed_bytes": 1280,
+    "sha256": "2071083bc4bf8d5ac868e8994224b40c324e06035644d006b49825a9a02bc0e3",
+    "content_sha256": "aaa6a8095afb62b6c273e022adaabf542ab8bcd70d7b468f724735ff1485cca9"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r6-security-red/execution-r1/helper.log.gz",
+    "uncompressed_bytes": 844,
+    "sha256": "a0e0889696abfe751ea182d06b781fe0832adc155c41937406596fcc3228eb48",
+    "content_sha256": "920a1d5a2dbf6467ecce7de529b194407df829b918d46a9503d3bc65592a6347"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r6-security-red/execution-r1/helper.xml.gz",
+    "uncompressed_bytes": 2545,
+    "sha256": "aa8ede88ff665868883df4810fa6cff816e87eb19a2b6922f225fca38e3e6aba",
+    "content_sha256": "55407731a8bcae197dc4e8ebc1cb94f688f9f61af36df2d81472ad8cc8762e8f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r6-security-red/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1337457,
+    "sha256": "fd5edc8fde2f720479964020617ffd41041703ea559aac7f5185d73aa263853b",
+    "content_sha256": "2e9c8773e942c1b20571aed997b37d99587dc4b5f4ddfb18a4f1e6ea8e876401"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r6-security-red/execution-r1/voice-call-raw-result.json.gz",
+    "uncompressed_bytes": 1808,
+    "sha256": "a975e304e80d6645e5bf4322ba38ca82db1b760eb48ec7556b04b0a7af8502e1",
+    "content_sha256": "9fa110ed37626f3a9490f8b03850e8f81c5c82b34eeae765efe98f5f7bb4bf1e"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r6-security-red/execution-r1/voice-call.log.gz",
+    "uncompressed_bytes": 96,
+    "sha256": "1639e4c212edbf8a6cf47db2699659f84b3f093e44b4fc011b233f2e004d59f7",
+    "content_sha256": "4108f13ec329114d3241ca8a6f5b1de1b049b1f0c82b248e21f3c59bf93531bb"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r6-security-red/execution-r1/voice-call.xml.gz",
+    "uncompressed_bytes": 0,
+    "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+    "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r7-config-red/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "2bf9d93d8cc075e6bb1a49b5155381b566e70760b7d2a60a841f84c16fb3a4ab",
+    "content_sha256": "4929a2a0ccdaa8e5a9db14d261c034a3b577927148077d929c6eae099d83fa61"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r7-config-red/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 835,
+    "sha256": "f55935e21049cd8ad270837bfd717048cbeb57c9e77c2a8d5f377a10009b10bc",
+    "content_sha256": "3fe51564d3bb2e9726182f302c53c54e42adc6069a925afa9fe44636c2a90b6f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r7-config-red/conducteur-root.py.gz",
+    "uncompressed_bytes": 14484,
+    "sha256": "f874080e4a18a3ec400239b89054a32f759e3cbfbab760d5109bd9bd6abad0f2",
+    "content_sha256": "c098b97d9fbfdb840e5153389a2663cd171c81aedac0d7901ca2431b3f0f69b3"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r7-config-red/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1335035,
+    "sha256": "0811e75f84117cc62e4bc27566b7b8d3bad450642598a7ff8dd48922b99c19c1",
+    "content_sha256": "2905203d061e00e00bef84b053e806f15b15e3380f4136ddd7357b37850548e9"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r7-config-red/execution-r1/voice-call-raw-result.json.gz",
+    "uncompressed_bytes": 1337,
+    "sha256": "e6f9b0043db6eb31635759b14937b17e29121ada45825d9bfeffc985daae228d",
+    "content_sha256": "9150bdebf53a5e2e661b71509255e693c62e7f9256c022dea5789058f4958d48"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r7-config-red/execution-r1/voice-call.log.gz",
+    "uncompressed_bytes": 1255,
+    "sha256": "6ca9dadde9edc5efa93b4f569fc5a638b74978117c7bbcbff45b033c19fdbf47",
+    "content_sha256": "04d3c980e42b55ebc6245069b8c0517582f1dfe90856336eceb2b8d9f4dfe48b"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r7-config-red/execution-r1/voice-call.xml.gz",
+    "uncompressed_bytes": 0,
+    "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+    "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r8-config-heap256/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "2bf9d93d8cc075e6bb1a49b5155381b566e70760b7d2a60a841f84c16fb3a4ab",
+    "content_sha256": "4929a2a0ccdaa8e5a9db14d261c034a3b577927148077d929c6eae099d83fa61"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r8-config-heap256/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 835,
+    "sha256": "f55935e21049cd8ad270837bfd717048cbeb57c9e77c2a8d5f377a10009b10bc",
+    "content_sha256": "3fe51564d3bb2e9726182f302c53c54e42adc6069a925afa9fe44636c2a90b6f"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r8-config-heap256/conducteur-root.py.gz",
+    "uncompressed_bytes": 14728,
+    "sha256": "d252032a799dcd68ee62668cf57b49a7ed359e4d029ae73e669a295974790a49",
+    "content_sha256": "f716136a3d2b539860bffc5a98e6f50f03c3dd3326f9e68e8225c6aedbbaf9b9"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r8-config-heap256/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1335239,
+    "sha256": "96de6ee67294a3b7e6b0781ddfc0fd6a001f46328e67bed0586a8753ba5fe85e",
+    "content_sha256": "afaec6ef76efc2c02b8d8c50ec9fc2e8e0e08dcb4ec2b4e3a4d9e4df3c7c4003"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r8-config-heap256/execution-r1/voice-call-raw-result.json.gz",
+    "uncompressed_bytes": 1513,
+    "sha256": "165e6f2b4534c958d65620c4f36d818fe421e084681421a272423fdc919db53b",
+    "content_sha256": "ddc79c5a66ba9fd50c1d889b5b4d90b4df7a9b318d133df74695afc6b69d4db4"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r8-config-heap256/execution-r1/voice-call.log.gz",
+    "uncompressed_bytes": 96,
+    "sha256": "1639e4c212edbf8a6cf47db2699659f84b3f093e44b4fc011b233f2e004d59f7",
+    "content_sha256": "4108f13ec329114d3241ca8a6f5b1de1b049b1f0c82b248e21f3c59bf93531bb"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r8-config-heap256/execution-r1/voice-call.xml.gz",
+    "uncompressed_bytes": 0,
+    "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+    "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r9-clean-cache/FREEZE-SOURCES-r1.json.gz",
+    "uncompressed_bytes": 655747,
+    "sha256": "f753ec5f79d07f234e7f41bec33d881865feafc53862bb0b24c3d81a632c66e7",
+    "content_sha256": "5ea5a33f9ab69dfe1d3b31201988bec4dcb7b20824c4565874265813f34fa5eb"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r9-clean-cache/SCOPE-r1.json.gz",
+    "uncompressed_bytes": 881,
+    "sha256": "21da15a202b6eec564d156b9525259d84c9da7bde221b77cedbe3408c3efbf85",
+    "content_sha256": "0bb47784798e4b2ac128a0342bddecc8b387c0fa050a4aa67bea697f97d6f9d5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r9-clean-cache/conducteur-root.py.gz",
+    "uncompressed_bytes": 15812,
+    "sha256": "a393c385c08cd4b581bdf3a38e841c28381e448655e07ea00892bd058fb37a07",
+    "content_sha256": "9f00b2a59084f28ff57bab638185415751a598bb064e353d37a65f1d48d863f1"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r9-clean-cache/execution-r1/receipt.json.gz",
+    "uncompressed_bytes": 1336064,
+    "sha256": "49e24684b1944e8b2df0f7e27ab44b26aa7768e56f300224171448840961ca48",
+    "content_sha256": "434bce844cad9c80bb5066a3befb3a833589ff1217c1b9ad73c650b9d4e61e13"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r9-clean-cache/execution-r1/voice-call-raw-result.json.gz",
+    "uncompressed_bytes": 1745,
+    "sha256": "e821bcf7a4635671dc807eb2e535b367b70de342c653c1339f99b02f365fce26",
+    "content_sha256": "2f0c853a68877735d0f9e6b85fb97a9805caff88a832ed0c0b02f93f181a12b5"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r9-clean-cache/execution-r1/voice-call.log.gz",
+    "uncompressed_bytes": 1142,
+    "sha256": "0b0c3ce278624605803701b8248c4b7ddac082c04c7038a85bfc53bd46f73d68",
+    "content_sha256": "dcbcf9d5099da06ead6098a9ba7e1920e2346cb01160c86424860d2ebf229098"
+  },
+  {
+    "path": "campaigns/opsys-m1-core-ingress-root-r9-clean-cache/execution-r1/voice-call.xml.gz",
+    "uncompressed_bytes": 1440,
+    "sha256": "4a2dfd38745bc994b40e36e56d28c555e132b9002620c5812596f15bf57d22f0",
+    "content_sha256": "feb81d96d47d3e7bac8dcc03a5be67dfb368daa8c51c4971ac5d42920f23fdd9"
+  },
+  {
+    "path": "reviews/opsys-core-final-ro-review.txt.gz",
+    "uncompressed_bytes": 2983,
+    "sha256": "44a79383b1e932dfd561d744553b9db8761c0f68197d477faf8d46f30288899c",
+    "content_sha256": "f18c0c1edfa330a70344ae56f9ac4e1e15268558adddd82add97788e321b9fca"
+  },
+  {
+    "path": "reviews/opsys-m1-core-r6-reload-scope-review.txt.gz",
+    "uncompressed_bytes": 2978,
+    "sha256": "666e4959315699ce0b8e6bb1ee2d1f69b855e45cf2631d79f6fadf35183b4ee7",
+    "content_sha256": "b3e6c01e784ae5718b30e163899b59f5c33f161398ad9b9d1e0879f292c4c097"
+  },
+  {
+    "path": "reviews/opsys-core-build-preflight-ro-20261003-r1--NOTE.md.gz",
+    "uncompressed_bytes": 4489,
+    "sha256": "6322275faffa259b608e31edd6b09ec86acbd45005b20f7fe7ba2690dee20348",
+    "content_sha256": "862ce7d31ffbab6ea9f04ebb6b4d6f96a886f31670594fcb74fc33b81863b8de"
+  },
+  {
+    "path": "reviews/opsys-m1-core-build-root-preflight-r1--PREFLIGHT-ROOT.json.gz",
+    "uncompressed_bytes": 1029,
+    "sha256": "566d3dcb651f0803426ad1587d630fb2c5f76c4a8e518c199115d138380d8a63",
+    "content_sha256": "fb9e86b5f43ccb41b8657195f3efb0faa9a055ccb89d2746f2bd776e50a9f3b9"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--README.md.gz",
+    "uncompressed_bytes": 9115,
+    "sha256": "72e65c669ff83a4bdd16e4bb37ac46b22fbbe3dfeae3dfd8b7875dfc9d62ecbd",
+    "content_sha256": "a2b3b83561de6a434388c3ee9a98aa7bd5ffb06ea00ed1eef4afd74374bd9a97"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--index.ts.gz",
+    "uncompressed_bytes": 24026,
+    "sha256": "319959790ab7c3b81f88561ac71c1053c0fdb2d79d881b0da53450e3ccbc7246",
+    "content_sha256": "aa74507eb77b7485fd80e023e86bb011bcc541b0859ca920da6817eb33fb12ec"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--openclaw.plugin.json.gz",
+    "uncompressed_bytes": 29245,
+    "sha256": "22838eaa585b87729d0ff6e36416892081348a3848937f7fbaed4801a988e1f0",
+    "content_sha256": "ed86fc4c8f6859d563c8aeeb8306890eace2c7862a3698db09c57b95a25526c3"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--src--config.missed-call-ingress.test.ts.gz",
+    "uncompressed_bytes": 1798,
+    "sha256": "75cb89c94dbb18ac25b2a9f03e64eb744d1f3bdcac8b1fcc4946393e39303ad7",
+    "content_sha256": "d9d6ee6542a0190fbdf5f47ac80e936b6a20721017288835d453503d439b2010"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--src--config.ts.gz",
+    "uncompressed_bytes": 36674,
+    "sha256": "19f2452f1b1a58ff6dd63bf58cbc04cfab0fc79379bec6dddfc52fddd73ac2e9",
+    "content_sha256": "af08bfb8d75fe968558bbc776d039cd5dd0a1f9aed9dadbc214c0b641024a348"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--src--providers--mock.ts.gz",
+    "uncompressed_bytes": 5751,
+    "sha256": "a1ec0a4bc6b2101385eb16a894104045979f9803c0b16c3bca74c366f336b8a2",
+    "content_sha256": "50d1ce2dbc0f67d1d13ef2dc340efc7c8aa8025f31698c6c6589aa3878155ffd"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--src--runtime.ts.gz",
+    "uncompressed_bytes": 21456,
+    "sha256": "04212115b5d2e8081a0792f3be0aa8596db083e11da0f1402aa4ac47bd224e20",
+    "content_sha256": "3d6b8e0286de44e2038b923bf76ca48dfa958ecac616dc8b2cc767cd314f453a"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--src--webhook.missed-call.test.ts.gz",
+    "uncompressed_bytes": 4184,
+    "sha256": "029ecffeb9b892107f7b8ea7415ef147c927cd260e9efc16b6b20d41845f5db0",
+    "content_sha256": "d797997233e3243a1b9aadbfd530fb7bf8304907d60b76b5c727098e0af22ba2"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--src--webhook.test.ts.gz",
+    "uncompressed_bytes": 117497,
+    "sha256": "16dcce97462e435118ed9374db71e187daa6febd41744980850f9c998cfe6f45",
+    "content_sha256": "b8a053a5d704671f909fe4e2322fd6252845d9c5db874f7f23ebb17f969b2c09"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--src--webhook.ts.gz",
+    "uncompressed_bytes": 44137,
+    "sha256": "f0acf07993ef3aed50107ba1d6342eb0460b2de78ee335238f934c4fa0e06d94",
+    "content_sha256": "7a50c136d4934baf513edfb512fa071b8936c8f3d2307b4713ce3c4064a0646f"
+  },
+  {
+    "path": "sources/core--src--agents--opsys-runtime-missed-call.test.ts.gz",
+    "uncompressed_bytes": 9702,
+    "sha256": "b71e008f071955cf61201728c90af580b11993be9a2a823ca8fd424f07bb6296",
+    "content_sha256": "847329464ba2788351465737dbcf00e4894f4e5a432f4875ae4b72e723834fb9"
+  },
+  {
+    "path": "sources/core--src--agents--opsys-runtime-missed-call.ts.gz",
+    "uncompressed_bytes": 5784,
+    "sha256": "dc58c4326e0797ba15646c0581dd0a8cb69c71fc44578879ce8567fc0c4757e7",
+    "content_sha256": "4fd9ddc427c58d7e813c302081d544a0983bb935b84c93ba6cb99f90ca0b1575"
+  },
+  {
+    "path": "sources/core--src--plugin-sdk--core.ts.gz",
+    "uncompressed_bytes": 30429,
+    "sha256": "84bc997cfb72b569e285f769b839b9664b65d6a0d09608deaee7ddc923474daa",
+    "content_sha256": "51ea03724c074b0c5bc477a1222daed3ea5682c0fdc539193420eedc8e4fa7da"
+  },
+  {
+    "path": "sources/core--src--plugin-sdk--plugin-entry.ts.gz",
+    "uncompressed_bytes": 8861,
+    "sha256": "ee91add194db3b1c5984679813cdc7acb48e33a57e03edaaf2e92f821a47e47e",
+    "content_sha256": "c11d02825d81864040ecaf53b1b5dbd6b7d5d57fbe9f7341d25e8bdd2e2e6159"
+  },
+  {
+    "path": "sources/core--src--plugins--plugin-registration.types.ts.gz",
+    "uncompressed_bytes": 16233,
+    "sha256": "5508bbe1003b2207e93c4217b03b1a32af0301d5161a7c1bdc1e4c4c0df79280",
+    "content_sha256": "5067f5ae0598b551017044a242b9141daae1af3c8e7e3bf9dfc65e4e7f7afd02"
+  },
+  {
+    "path": "sources/core--src--plugins--services.missed-call.test.ts.gz",
+    "uncompressed_bytes": 8458,
+    "sha256": "ed69d01f8e0536ff524ba4e566cc81051a02043a67a387310dc799b3e23361be",
+    "content_sha256": "127d9ab8e03e1c02eea18e29e60c598c8e53bf869c838079fac9339b492dedc5"
+  },
+  {
+    "path": "sources/core--src--plugins--services.ts.gz",
+    "uncompressed_bytes": 32196,
+    "sha256": "881df31be7a41317ac94777e147f11465d2e0f8e743a25696c3a044b79d46d21",
+    "content_sha256": "8bb655a2e5f91e1b38914e8a36c229153c2f00880c8b5c0e1345d07396b51949"
+  },
+  {
+    "path": "sources/core--extensions--voice-call--index.test.ts.gz",
+    "uncompressed_bytes": 48728,
+    "sha256": "252475907d715dccc3b4424a40692d318cd532a263d919ee9f51ea6ce7b7d733",
+    "content_sha256": "e6161bb5483ea04794abcba2524c0ce9d019d4a00700773950c81449391eb320"
+  }
+]

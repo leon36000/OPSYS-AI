@@ -1,0 +1,63 @@
+{
+  "archive": "CI-NATIVE-d2669fa-r1.tar.xz",
+  "sha256": "923cc5a42a10220ce5d7c22919330431ade4ad6207227bff46691e1a187c990e",
+  "bytes": 77760,
+  "heads": {
+    "socle": "d943c5d16c4736b73bdb3c3cd543f9460ba04e9c",
+    "mobile": "d2669faac3f423dca336e34382eab1b758863ad3"
+  },
+  "socle": {
+    "passed": 3773,
+    "skipped": 17,
+    "native_job": 111392029932
+  },
+  "mobile": {
+    "jest_passed": 2607,
+    "jest_suites": 118,
+    "consumer_passed": 17,
+    "audit_moderate": 13,
+    "native_job": 111399156085
+  },
+  "entries": [
+    {
+      "path": "native/jobs-37187354743.json",
+      "bytes": 56153,
+      "sha256": "00c95f55987eceec75771b491de7064da919850c2d0c9bbf6d1bfead2224f119"
+    },
+    {
+      "path": "native/jobs-37187354791.json",
+      "bytes": 13800,
+      "sha256": "9a9d2c91bff02f7a894248037168f9947e04cc6fb4bdf2701fbc1b59e12203d8"
+    },
+    {
+      "path": "native/jobs-37189707458.json",
+      "bytes": 2969,
+      "sha256": "830d16375ff767cd4cecb07145c0e6cbe7ecdb6406caf335f6837e41af1ff18d"
+    },
+    {
+      "path": "native/mobile-d2669fa.log",
+      "bytes": 40640,
+      "sha256": "5aee8e1a94c3ce73abe9644527fe253de286a4ae24bb1e3a4faa5b4e3920b8de"
+    },
+    {
+      "path": "native/socle-d943c5d.log",
+      "bytes": 215292,
+      "sha256": "dd1b131624e976ca888fdc781cfe36ffe5efe3fc8e73d150b57db194fee9ef5a"
+    },
+    {
+      "path": "publication/driver.py",
+      "bytes": 2510,
+      "sha256": "7f8bc7e53a7df0f2684ad07778a63b4e1b386e794eca197ce89266a14e98b309"
+    },
+    {
+      "path": "publication/mobile-plan.json",
+      "bytes": 8637,
+      "sha256": "e539cc35b1be2ea7c9cf09ad3d46570543ecde86754535dc8c1fc32002fbf856"
+    },
+    {
+      "path": "publication/mobile-result.json",
+      "bytes": 8839,
+      "sha256": "d89e73e81572af3a7d72254e7439bef73a1b4c4b85c9009c912fdb2919483dfd"
+    }
+  ]
+}

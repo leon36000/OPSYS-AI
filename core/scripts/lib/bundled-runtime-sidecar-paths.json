@@ -1,0 +1,9 @@
+[
+  "dist/extensions/browser/runtime-api.js",
+  "dist/extensions/google/runtime-api.js",
+  "dist/extensions/lmstudio/runtime-api.js",
+  "dist/extensions/memory-core/runtime-api.js",
+  "dist/extensions/ollama/runtime-api.js",
+  "dist/extensions/telegram/runtime-api.js",
+  "dist/extensions/telegram/runtime-setter-api.js"
+]

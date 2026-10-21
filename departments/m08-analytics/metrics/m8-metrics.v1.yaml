@@ -1,0 +1,67 @@
+# metrics-as-code v1 : les métriques de MESURE D'UN CHANTIER TERMINÉ que M8 calcule lui-même (PLAN T1.5-d,
+# DEFINITION-PRODUIT.md §6 « travaux terminés » : temps réel vs prévu, marge prévue vs réelle,
+# performance d'équipe). Compilé par `m8_analytics.dictionnaire.compiler_fichier` (garde de devise
+# CAD comprise) ; `m8_analytics.mesures_chantier` refuse de calculer une métrique absente d'ici.
+# Chaque métrique a un calcul déterministe dans le code : le LLM ne calcule jamais. Une entrée absente
+# donne « non calculable, manque X », jamais une valeur inventée. Un employé ne voit aucune de ces
+# métriques (marges, coûts) ; le détail par technicien est réservé au rôle admin.
+schema_version: 1
+module: m08-analytics
+owner_calcul: "M8 (le LLM ne calcule jamais)"
+metrics:
+  - id: m8_ecart_duree_minutes
+    nom: "Écart de durée d'un chantier"
+    definition: "Durée réelle sur site du chantier (M4, minutes, pauses déduites) moins la durée estimée du devis accepté (M3, minutes). Positif = dépassement. Non calculable si l'une des deux manque."
+    unite: "minutes"
+    source_donnees: "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)"
+    frequence: "à chaque chantier terminé"
+    consommateur: "M9 (lecture stratégique), tableau de bord admin"
+  - id: m8_ecart_duree_pct
+    nom: "Écart de durée d'un chantier, en pourcentage"
+    definition: "(durée réelle moins durée estimée) divisé par la durée estimée, fois 100. Positif = dépassement. Non calculable si la durée estimée manque ou n'est pas strictement positive."
+    unite: "pourcentage"
+    source_donnees: "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)"
+    frequence: "à chaque chantier terminé"
+    consommateur: "M9 (lecture stratégique), alerte M8 si un seuil est configuré"
+  - id: m8_marge_prevue_cad
+    nom: "Marge prévue d'un chantier"
+    definition: "Prix total moins coût total du devis accepté (M3), tels que M3 les a arrêtés. M8 ne recalcule ni le prix ni le coût."
+    unite: "CAD"
+    source_donnees: "M3 m3.devis_accepte (prix_total, cout_total)"
+    frequence: "à chaque chantier terminé"
+    consommateur: "tableau de bord admin, M9"
+  - id: m8_marge_reelle_cad
+    nom: "Marge réelle d'un chantier"
+    definition: "Marge réelle du chantier telle que M5 la calcule (revenu facturé moins coût réel), reprise sans recalcul : M8 consomme M5, il ne fait pas la comptabilité. Calculable seulement avec le verdict CALCULEE, le coût réel complet (cout_reel_complet=true) et le prix définitif (prix_definitif=true, facture envoyée ou payée). Facture brouillon (prix_definitif=false) ou finalité historique absente : non calculable avec un motif nommé."
+    unite: "CAD"
+    source_donnees: "M5 rentabilité du chantier (verdict, cout_reel_complet, prix_definitif, marge_reelle_cad)"
+    frequence: "à chaque chantier terminé"
+    consommateur: "tableau de bord admin, M9"
+  - id: m8_ecart_marge_cad
+    nom: "Écart de marge d'un chantier"
+    definition: "Marge réelle qualifiée (M5) moins marge prévue (M3). Négatif = marge plus faible que prévu. La marge M5 exige le verdict CALCULEE, le coût réel complet (cout_reel_complet=true) et le prix définitif (prix_definitif=true, facture envoyée ou payée); facture brouillon ou finalité historique absente exclues avec un motif nommé. Non calculable si la marge qualifiée M5 ou la marge prévue M3 manque."
+    unite: "CAD"
+    source_donnees: "M5 rentabilité du chantier (verdict, cout_reel_complet, prix_definitif, marge_reelle_cad) ; M3 m3.devis_accepte (prix_total, cout_total)"
+    frequence: "à chaque chantier terminé"
+    consommateur: "tableau de bord admin, M9"
+  - id: m8_ecart_marge_pct
+    nom: "Écart de marge d'un chantier, en pourcentage"
+    definition: "(marge réelle qualifiée moins marge prévue) divisé par la marge prévue, fois 100. Négatif = marge plus faible que prévu. La marge M5 exige le verdict CALCULEE, le coût réel complet (cout_reel_complet=true) et le prix définitif (prix_definitif=true, facture envoyée ou payée); facture brouillon ou finalité historique absente exclues avec un motif nommé. Non calculable si la marge qualifiée M5 ou la marge prévue manque, ou si la marge prévue est nulle."
+    unite: "pourcentage"
+    source_donnees: "M5 rentabilité du chantier (verdict, cout_reel_complet, prix_definitif, marge_reelle_cad) ; M3 m3.devis_accepte (prix_total, cout_total)"
+    frequence: "à chaque chantier terminé"
+    consommateur: "M9 (lecture stratégique), alerte M8 si un seuil est configuré"
+  - id: m8_ecart_materiaux_max_pct
+    nom: "Plus grand écart de matériaux d'un chantier"
+    definition: "Plus grand écart prévu contre réel parmi les matériaux du chantier, en valeur absolue et en pourcentage, tel que M6 l'a calculé (ecart_pourcentage fois 100) : M8 reprend le verdict de M6 sans le recalculer. Non calculable tant que M6 n'a pas évalué la variance du chantier."
+    unite: "pourcentage"
+    source_donnees: "M6 m6.variance_chantier (lignes, statut evaluee)"
+    frequence: "à chaque chantier terminé"
+    consommateur: "M9 (lecture stratégique), alerte M8 si un seuil est configuré"
+  - id: m8_ecart_duree_technicien_pct
+    nom: "Écart de temps d'un technicien sur ses chantiers mesurés"
+    definition: "Pour un technicien : (somme des durées réelles moins somme des durées estimées) divisée par la somme des durées estimées, fois 100, sur les seuls chantiers qui portent les deux durées. Le technicien est celui du dernier pointage de départ du chantier (M4). Indicateur d'équipe non punitif : aucun classement, aucune alerte, détail nominatif réservé au rôle admin."
+    unite: "pourcentage"
+    source_donnees: "M4 m4.travaux_termines (technicien_id, duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)"
+    frequence: "à la demande de l'admin"
+    consommateur: "admin seulement"

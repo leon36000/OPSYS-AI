@@ -1,0 +1,406 @@
+{
+  "archive": "M5-OCR-ARTEFACT-PDFIUM-r1.tar.xz",
+  "bytes": 266492,
+  "sha256": "b1e2aa58e750bc108974599b5c05af0a637776a05072d87a664515c34ab27acc",
+  "timestamp_utc": "2026-10-04T12:52:28.492163+00:00",
+  "qualification": "Exact candidate wheel identity and 19 notices; native bytes identical to upstream release archive; no installation, library execution, compilation reproducibility or OCR/AP qualification. Agent r1 citation error preserved and corrected in r2. ROOT r138 final three docs: Gitleaks zero alerts, no exclusions.",
+  "payloads_excluded": [
+    ".whl",
+    ".tgz",
+    ".so"
+  ],
+  "original_agent_manifests": "SHA256SUMS and SHA256SUMS-r2 also reference the excluded wheel, retained in private RAM only; artifact SHA and URL remain in metadata.",
+  "parent_publication": "dd415bd90d1e6f7e0f96234d91121e106154437f",
+  "entries": [
+    {
+      "path": "agent/REPORT-r1.md",
+      "bytes": 5673,
+      "sha256": "9c0e9988f984dee8da366d943dbef6911768190e5cf2459152830d5f3332f574"
+    },
+    {
+      "path": "agent/REPORT-r2.md",
+      "bytes": 6353,
+      "sha256": "a0d323b3295b6b89e4a65ecd217a2495fadf533642663800000b68ff3876423f"
+    },
+    {
+      "path": "agent/SHA256SUMS",
+      "bytes": 7734,
+      "sha256": "e2915da6c1d5aa9a508048e0694b55a5332070f6b6796263a68ade3002bb45a8"
+    },
+    {
+      "path": "agent/SHA256SUMS-r2",
+      "bytes": 7622,
+      "sha256": "5f1bac97030b274e3b28bd098a5ae7cb01a1f035b6b4543b17d22360d65d3848"
+    },
+    {
+      "path": "agent/SHA256SUMS-r2.sha256",
+      "bytes": 80,
+      "sha256": "50d732f51a4f8dc8e231c991972341f7c3a7e2356f9381ec8bac837ca11dc3d2"
+    },
+    {
+      "path": "agent/SHA256SUMS.sha256",
+      "bytes": 77,
+      "sha256": "1d75f867b0bfd1d0c08a626aa1b7a9b274c5ecb45c4c66d492dd0bb7e76ede11"
+    },
+    {
+      "path": "agent/artifact-notices/METADATA",
+      "bytes": 66484,
+      "sha256": "ef3d3b0b63299fda9e9df2fbd3978dfef47a3dd35817f979c4a13891d0089b5d"
+    },
+    {
+      "path": "agent/artifact-notices/WHEEL",
+      "bytes": 145,
+      "sha256": "af9692d48e099b442a5d1067c267c59491e13ba47f761b33ae0b2b8e01714190"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__LICENSES__Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__LICENSES__BSD-3-Clause.txt",
+      "bytes": 1459,
+      "sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__LICENSES__CC-BY-4.0.txt",
+      "bytes": 14527,
+      "sha256": "419896aea50c15d6e40c5b4baf4bd346f78223b9a354c7357ad00262afdc08ec"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__abseil.txt",
+      "bytes": 11361,
+      "sha256": "c79a7fea0e3cac04cd43f20e7b648e5a0ff8fa5344e644b0ee09ca1162b62747"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__agg23.txt",
+      "bytes": 725,
+      "sha256": "c110d3ea2ad77467ce0dcff7d3337e6c8be8049a5103f4b9bd5fd911a77972e5"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__fast_float.txt",
+      "bytes": 1079,
+      "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__freetype.txt",
+      "bytes": 6741,
+      "sha256": "f4b133e25df1f86ad3ffea453aa0e613f0474f34778dbbb3e437e7b2724937d8"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__icu.txt",
+      "bytes": 27718,
+      "sha256": "e55522d81edc687a341a4411e0776e54ca654e90147f354a90458aaced4116af"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__lcms.txt",
+      "bytes": 1353,
+      "sha256": "7312b68c5b25e9bf2b828706fb4e29588f22705112f411fd42e1f7d84c3d139a"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__libjpeg_turbo.ijg",
+      "bytes": 12799,
+      "sha256": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__libjpeg_turbo.md",
+      "bytes": 5620,
+      "sha256": "96f5b328adbb78eeaaec6980d73fd558cb1e4d62560ed615646bc3cf5e532430"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__libopenjpeg.txt",
+      "bytes": 1794,
+      "sha256": "c5ab0890a737c2dfa7ba675036554f6d17741d98629b0c2a145354d00617e6b2"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__libpng.txt",
+      "bytes": 5345,
+      "sha256": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__libtiff.txt",
+      "bytes": 1139,
+      "sha256": "92b72ba97e6c2749c2a94bc0ef646b47080217f1e772a482b33cf5a5f98a6506"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__llvm-libc.txt",
+      "bytes": 15140,
+      "sha256": "ebcd9bbf783a73d05c53ba4d586b8d5813dcdf3bbec50265860ccc885e606f47"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__pdfium-binaries.txt",
+      "bytes": 1177,
+      "sha256": "ba26c1263131696b86c10496b5066b918a20b7161822a80c274d0080105f6c93"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__pdfium.txt",
+      "bytes": 12818,
+      "sha256": "961eacd9633fff6d051db7208b755e9210e30efac7adec3e6a6d52798f0ccf0e"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__simdutf.txt",
+      "bytes": 1059,
+      "sha256": "fc8dbc04e03ad4efc08a647ffe7f995b811a95bc04c0e85a56d5277c6593fa5f"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2-5.13.0.dist-info__licenses__data__linux_x64__BUILD_LICENSES__zlib.txt",
+      "bytes": 1332,
+      "sha256": "33fd641c9f3b0e0be64bc78fea9e94807674cdd70c48477599226cb8956565fe"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2_raw_version.json",
+      "bytes": 143,
+      "sha256": "8be60fa03b8fc8da9850a5366c19538532cc44183256c4fad72b06416fba0fb9"
+    },
+    {
+      "path": "agent/artifact-notices/pypdfium2_version.json",
+      "bytes": 161,
+      "sha256": "7125ae3a331cb7ed1dbb319ef6c90e8c0cb1a597ccd271bafcfcc6c45e39ff88"
+    },
+    {
+      "path": "agent/artifact-r2.json",
+      "bytes": 5103,
+      "sha256": "43030811d0c4e7740cbbb688335a27b1f1ff508c0378e31a4ecfdcd9f529f49c"
+    },
+    {
+      "path": "agent/artifact.json",
+      "bytes": 4418,
+      "sha256": "33f20b9a3cdfc862cb9a44182d6111adec258022af7e52c5530555ee5aacd1d5"
+    },
+    {
+      "path": "agent/captures/github-pypdfium2-release-5.13.0.json",
+      "bytes": 106489,
+      "sha256": "dacb3ad8224c514b511c9936c501471bd32c6abdf626b5cb7406b7c11416964c"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-chromium-7999-LICENSE",
+      "bytes": 1068,
+      "sha256": "493abc10084b58f97dce3fac1654624e1a25788f17180fe8925786c266cd2416"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-chromium-7999-README_md",
+      "bytes": 18079,
+      "sha256": "a48c1c0e9f90fe8efcd366fe8e2f861ed606aa862ea8ac2c312c0850e2172648"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-chromium-7999-_github_workflows_build-all_yml",
+      "bytes": 30028,
+      "sha256": "d77b2076106f847e6fbbcace02d8ef6f49af24a92cd5ffc2725551b1c2a740e8"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-chromium-7999-_github_workflows_build-one_yml",
+      "bytes": 1972,
+      "sha256": "e845449bb1ebf39f27029ee9313fb64ffe52b691ffdc287f5c56349f195fda8b"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-chromium-7999-_github_workflows_build_yml",
+      "bytes": 3977,
+      "sha256": "14739080ac4d8edd4f734a28f1959733fffa70b622a346765bc0fd8c0cfee813"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-chromium-7999-_github_workflows_patch_yml",
+      "bytes": 3221,
+      "sha256": "60ae789529d8d02ca09362bdd4f862908072c491f561e6cb4633248b4b6c9b1e"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-chromium-7999-steps_00-environment.sh",
+      "bytes": 175,
+      "sha256": "ba36d6b0710ce1e6b0cc078b7f26e947811c5f009416180ac6c0339e4d4d7786"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-chromium-7999-steps_02-checkout.sh",
+      "bytes": 680,
+      "sha256": "75eafb141796de6e37a076cb920c305d2aca46d6408c4bc13f64cc65ac7b91a9"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-chromium-7999-steps_08-licenses_sh",
+      "bytes": 3498,
+      "sha256": "cd6b7443bfdb62b9584fbb2f41a03f910200e285eb592ec887bbcb6d027d4e23"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-commit-chromium-7999.json",
+      "bytes": 1190,
+      "sha256": "d365cbe5003be17142af7653f0437bd962ceb25c343936797ecd7e23692ccfef"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-release-chromium-7999.json",
+      "bytes": 83115,
+      "sha256": "fc766612840f20020a9d8a168b12c6da624e88eea0c001713c636308c031f6a2"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-releases.json",
+      "bytes": 2400941,
+      "sha256": "d9b8853b4c40d07a13a9d3aa1a94186d44411fabcb3c85e208bffc7055c189a0"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-tag-153.0.7999.0.json",
+      "bytes": 145,
+      "sha256": "a6cfa4338e80115d929f23e1e496ec69bae1beec1e0578851115eab5937008c4"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-tag-153.0.7999.json",
+      "bytes": 143,
+      "sha256": "13a048ec86f8ed1449ea56b1aacf5c71681fb76bbfee7eb655a08102c066e029"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-tag-chromium-7999.json",
+      "bytes": 381,
+      "sha256": "5d3cec739df1266e2428bed765ca39c14055547d8eea648f00b13f54fb4bec36"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-tag-chromium_153.0.7999.0.json",
+      "bytes": 154,
+      "sha256": "ac6c75bd347c09f705603ed165f4d66c574a35c9c7284c3dc7a338c4eef1cf95"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-tag-chromium_153.0.7999.json",
+      "bytes": 152,
+      "sha256": "3128af2f5b5a0abfb1c27fc32bb42443b6854815249eaddb661c96986b059ba2"
+    },
+    {
+      "path": "agent/captures/pdfium-binaries-tree-chromium-7999.json",
+      "bytes": 26148,
+      "sha256": "88e16637c58c6def0cfa765ec9b4c7f9b67fadb02b264aa1d50ded04a807d799"
+    },
+    {
+      "path": "agent/captures/pdfium-googlesource-chromium-7999-0.json",
+      "bytes": 101,
+      "sha256": "28a247f3e3aa8eea024a5ff83d4a217f349e54d209706d083c83db267fc24174"
+    },
+    {
+      "path": "agent/captures/pdfium-googlesource-chromium-7999-1.json",
+      "bytes": 101,
+      "sha256": "28a247f3e3aa8eea024a5ff83d4a217f349e54d209706d083c83db267fc24174"
+    },
+    {
+      "path": "agent/captures/pdfium-googlesource-source-commit.json",
+      "bytes": 2671,
+      "sha256": "f13529751dd70aef8e4541d08185f608d4266484b361db840c0a6c0bc2b88422"
+    },
+    {
+      "path": "agent/captures/pypdfium2-tag-5.13.0.json",
+      "bytes": 343,
+      "sha256": "79f9c4badae24f8e0df7a45da972c6f12fc56aa108a04021d9bd6c3ce457afee"
+    },
+    {
+      "path": "agent/captures/pypdfium2-tagobject-5.13.0.json",
+      "bytes": 672,
+      "sha256": "c756e2b7ac8169e4a851028b227b09c5bbae922e922f51c1a8ba38d1a975ccc6"
+    },
+    {
+      "path": "agent/captures/pypdfium2-v5.13.0-BUILD_LICENSES_pdfium-binaries.txt",
+      "bytes": 1177,
+      "sha256": "18f922f766364a25a6327e7b1b8287d7c36cf8bbea80767d014fb453e2fe4a50"
+    },
+    {
+      "path": "agent/captures/pypdfium2-v5.13.0-BUILD_LICENSES_pdfium.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9"
+    },
+    {
+      "path": "agent/captures/pypdfium2-v5.13.0-LICENSES_Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "agent/captures/pypdfium2-v5.13.0-LICENSES_BSD-3-Clause.txt",
+      "bytes": 1459,
+      "sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39"
+    },
+    {
+      "path": "agent/captures/pypdfium2-v5.13.0-README.md",
+      "bytes": 64324,
+      "sha256": "ffcdbf6d1b7970ddad89fa0ed51209bbbee2d1f44ba83f1fd458e374d29b9c9e"
+    },
+    {
+      "path": "agent/captures/pypdfium2-v5.13.0-tree.json",
+      "bytes": 68140,
+      "sha256": "9ced004362f14d3fc5aa932293c77f22c816169c1e84b5777a3b18276d8ad618"
+    },
+    {
+      "path": "agent/captures/pypi-pypdfium2-5.13.0.json",
+      "bytes": 87139,
+      "sha256": "bb9165e4d2cbc1b961c563298c2c52646407f32fbff7daf42fa8da237ad6814b"
+    },
+    {
+      "path": "agent/sources-r2.json",
+      "bytes": 6072,
+      "sha256": "582706a5d757c4392c952a7c56f8af81434322165e99071c2a1d00856c1219cb"
+    },
+    {
+      "path": "agent/sources.json",
+      "bytes": 4871,
+      "sha256": "57475556da28c78afb46c95bc1c645b2e00c69b7456aadcb48cabb01755322cc"
+    },
+    {
+      "path": "agent/wheel-file-inventory.json",
+      "bytes": 9738,
+      "sha256": "c75fd520a0e57553eec08db8675c5898d5cb10dc177652f9370f1bf0e203c71d"
+    },
+    {
+      "path": "drivers/guard_helpers_r2.py",
+      "bytes": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844"
+    },
+    {
+      "path": "drivers/qa_root_r138.py",
+      "bytes": 3398,
+      "sha256": "d45a78c19e7263889dfb83e6d074cf0f67046622dd612d5e9d80d9d0fc5d131c"
+    },
+    {
+      "path": "qa-r138/execution-r1/gitleaks.log",
+      "bytes": 133,
+      "sha256": "2996f611d48a6c7bdc63403f462f87b9ffd0339b0b1411054398284ab1843a88"
+    },
+    {
+      "path": "qa-r138/freeze.json",
+      "bytes": 378,
+      "sha256": "c0b1eb0307e13e13445f872773aaaacf26ea3372bc38be490d749c501836cd19"
+    },
+    {
+      "path": "qa-r138/receipt.json",
+      "bytes": 3114,
+      "sha256": "01a54ff47e93709b9d2f9a49a3187d189286d3e9f76d81b07f4ebc2e1e5e8c82"
+    },
+    {
+      "path": "qa-r138/scan.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "root/RELEASE-BINARY-COMPARISON-r1.json",
+      "bytes": 892,
+      "sha256": "f92e3b782f57d7521b883e226fe9cb121f9342ead3f270ea7c654eb18b8930ce"
+    },
+    {
+      "path": "root/ROOT-REVIEW-r1.json",
+      "bytes": 659,
+      "sha256": "e0f4f6c8dde63d28ce91ba227e0197a5b33dcd1b658568b6478bf14163867e0a"
+    },
+    {
+      "path": "root/ROOT-REVIEW-r2.json",
+      "bytes": 551,
+      "sha256": "b52c85f0fc8517456365362f1bc2136fe43859010a54de6091defdf3ba69dc5c"
+    },
+    {
+      "path": "root/package-proof-r1.py",
+      "bytes": 2550,
+      "sha256": "e61b4e630f5eba94ec6eb256c53949d53e79129c11e62edf7b25ad7a5d8a21bf"
+    },
+    {
+      "path": "sources/docs/research/INGREDIENTS.md",
+      "bytes": 78109,
+      "sha256": "6408bdaa05cca6d482d7ca41e6de090f20b494e43219286588bbc59a8ab98ce7"
+    },
+    {
+      "path": "sources/docs/research/REPRISE-2026-10-04/M5-OCR-ARTEFACT-PDFIUM-2026-10-04.md",
+      "bytes": 3891,
+      "sha256": "29d9a0a75cf5ddd57a80a969eedfd30fe5fc69bf16870a4c8b2be2afa0bbec7b"
+    },
+    {
+      "path": "sources/docs/research/REPRISE-2026-10-04/M5-OCR-GITHUB-GITLAB.md",
+      "bytes": 17648,
+      "sha256": "e80ff5a462a1c7d056713c2d1e692b73ba2fa16c3f60bda689b1132512dd31a7"
+    }
+  ]
+}

@@ -1,0 +1,529 @@
+{
+  "schema_version": 1,
+  "recorded_toronto": "2026-10-09T11:15:56.137824-04:00",
+  "status": "FINAL_REVIEWABLE_PENDING_ROOT",
+  "parent": "532a4ee11ecbab984c99bc90d0cd41bbd0279e2b",
+  "product": "PARTIEL",
+  "authorization_ROOT": false,
+  "source_files": [
+    {
+      "origin_owner": "backend8",
+      "path": "departments/m05-financecore/docs/OBLIGATIONS-PREPARATOIRES-APPAREIL.md",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "b5cef0626dd6b93b944165e86b49b39d77928f685dbb1148cb903a886e91bffa",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "backend8",
+      "path": "departments/m05-financecore/src/m5_financecore/analyse.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "836aa2b87e1073528be9dc5365a4f58cdd3fa35d2f69e14aafcf64a464182390",
+      "sha256": "270f8e91d07c855da96bcb29a66179ddc7990b5dbe4540e5d7deaa0d7c3d7276",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "backend8",
+      "path": "departments/m05-financecore/src/m5_financecore/obligations_preparees.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "90c8427d2502aa62f44079232dbae71503d817ac39d586bb49d7ea16cecfde85",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "backend8",
+      "path": "departments/m05-financecore/src/m5_financecore/outils.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "3a06fe08c423287c927ac37b1461a6bb0f2dbff694e341b1fb45d7dffdbcf304",
+      "sha256": "25fdaf3f7a60f5851e4d0a1631d6e017255f3b0b162fef14d6d93e918f929cfe",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "backend8",
+      "path": "departments/m05-financecore/src/m5_financecore/registre.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "69474e63e8e382a6d3a32822b2583d3a9a8bb613216a4da153b92be3edd6c493",
+      "sha256": "ab98888fa1f0d781c75e466c666cd368f45ebcfd5a115f4482aff4aaff54da36",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "backend8",
+      "path": "departments/m05-financecore/tests/test_acces_appareil.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "ca50358760ba484d07d21b77ae6e5251ffcbc1ee58d70b7352daa7a4bfe31cd4",
+      "sha256": "43639298c445fce4f5b0cbd8217105e56e2e582460ceb036d5be3e4075325213",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "backend8",
+      "path": "departments/m05-financecore/tests/test_obligations_preparees.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "26b830114c910da7c227b8bbe01a68a4bddfce77e21a30783f9c554de9b93288",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "backend8",
+      "path": "departments/m05-financecore/tests/test_obligations_preparees_appareil.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "05a37467dcb2d5d1ec31afe3163d0eae9812df4267a3648da23f85e5a4532a77",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "Root5",
+      "path": "docs/architecture/ROLES.md",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "03ac624ce0cbddff0d0620898f07d8cdee13cf22923d31ab4325bd5b40f22453",
+      "sha256": "a577b3788fd30cb48cbb2ccb88fef6e9203c7f99318d5e98e5f06cd65a0aa837",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/app/(admin)/chiffres.tsx",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "8675deee4fb28f8ebf48d5fceaa748a69c084b0d76c70a254d154d88dc5d6016",
+      "sha256": "d5f7efbba63bb352e9de5d7ad8def9f7d441b159c765ddc4a1531567e208332a",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/app/(admin)/obligations.tsx",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "91ed7063f5c89c8efa5c03b1be170018bf4af71da7dacfe7d78ae242c63ac004",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/admin/ObligationsPrepareesM5.test.tsx",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "72957fe13ee66879937488b54a64d0426f2d229f931106c0b5a872d6c9d2048b",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/admin/ObligationsPrepareesM5.tsx",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "5b12c51ad19f14d85c5b21cc62d83a8efd7ff29c1f03f1a4c38db34d91d8c643",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/admin/obligationsPrepareesM5.test.ts",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "9fce10212a991ae71fed9d66aa4cb6aced9a4639b60f279441e9acba7dba4b71",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/admin/obligationsPrepareesM5.ts",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "be412b97d164b014cc66e4b3ffda564273058c2024e62e1102b03c1ead2082bd",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/ecrans/cashConstatM8.rendu.test.tsx",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "996ed848c7d9d654dd6deace7be1c99a2d77b2bdc3bd71e860a462f2ce76488a",
+      "sha256": "a7546200dd42a8bd816e803bd07b3346facfa3b8486e334a200216fdddb1fe41",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/i18n/locales/admin.en-CA.ts",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "6482ccb04c02166df9a3be013cf029437715c5261e6c09775e72a7ea9840ebb7",
+      "sha256": "83e241e0d34ca591f506c479bcb2e90ddd33f3a1854aad6b06ebf66a2ad7ed9e",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/i18n/locales/admin.fr-CA.ts",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "3bcbad8d8544ac989326c47380571765790b578c3082d19cca3a7481d9aed032",
+      "sha256": "d6032746e27735c74d3628dc9d2736f816ed718e201d1f7f9c4a0eedc762527b",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/m5/fixturesObligationsPrepareesCalendarSQL.json",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "0cfbccc553bc36ed6bfb44bf0f4a04ef446228569d45d73b5ac84960a74e5f7a",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/m5/fixturesObligationsPrepareesCapSQL.json",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "d95636b81188f9f829e8c45fd020675e010d63c3d7bf61c72e4d2bd55e6fba45",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/m5/fixturesObligationsPrepareesSQL.json",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "9ba5924635bac3520956ff633e7bed502f4f40b926589e9fdf94b93b0692a5be",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/m5/obligationsPreparees.test.ts",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "7c9003af85ada96594d72886a01b5a4a3231633a772f31a3b94cf660b00996da",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/m5/obligationsPreparees.ts",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "8fa61ebd21156b12ec45295b2ab252d8a571050c71675173ef26928ec7364575",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/outbox/descripteurs.ts",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "f1dd73d3dec6b91d69584eb0006b1dc984eb204f4c2df53b9a343284e8b2c524",
+      "sha256": "5e6b46121bcab7eda9f7cc836003caea17d590585026afd0dfa9feae9ee97cb7",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/outbox/obligationsPreparees.test.ts",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "b666e45e718851dbaa96a85c789afbe5346a1a7f9a87de51bc7aa839dbff5eda",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/outbox/service.ts",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "125b74b1d1a15a995ddc635b9b58488d01f9b5d9e4f01b40311364c55a97408d",
+      "sha256": "df73b4a51ab37fd039d75f291bfaa42e4e3bd14f105dc4ef2f4256528ac208c8",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "mobile18",
+      "path": "mobile/src/outbox/types.ts",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "dbbe1e6813647fefcae77cd85f849a437623e16b3f331df6b4ffc663eb510444",
+      "sha256": "a038e12a00cd69c48c901099959a92f4b1e2bbcc56d4b44884b1fd9fae9566b2",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "Root5",
+      "path": "src/opsys/capacites.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "4874a04a3261addf2dd48f1d326ce4814b6d85b57d4c8cd2c400d2dfc655b461",
+      "sha256": "115fe3e877e3d93cb36a58c2d56b4bbf58d31fc08b1576942b12af03d860e0dc",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "Root5",
+      "path": "src/opsys/intentions_obligations_m5.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "15ee7808b3748d3b4e81e6aadc1db2a5b1378130abffc109c1419eaf6733e7da",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "Root5",
+      "path": "tests/test_obligations_preparees_appareil_atomiques.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": null,
+      "sha256": "304b3df3078fead105c71b9970f62f2ae9f43558c0157b0d5ed6171e7ddaa51f",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    },
+    {
+      "origin_owner": "Root5",
+      "path": "tests/test_portees_appareil.py",
+      "preimage_origin": "Root Git532a reconciliation plus assembler R-byte equality; assembler ran no Git",
+      "preimage_sha256": "93c2edb73cc9efc5bd9961baf4f3e2aa9ae2e5133190bf9f6a1b47e2e67a734c",
+      "sha256": "b5b41d7d9945459ca982a3c8d4d12c9a6e57b2703b1e6a20a26076c13e8375e6",
+      "status": "CURRENT_CANDIDATE_SOURCE_NOT_PUBLISHED"
+    }
+  ],
+  "source_count": 31,
+  "modified14_preimages_confirmed": true,
+  "new17_absent_at_parent": true,
+  "source_origin_registry": "evidence/root/source31-reconciliation-root-r1.json",
+  "source_origin_status_disposition": "Original historical limit not integrated/published/Native/phone retained byte-exact in source origin; current minimal Native qualified by exterior receipt cea7987a…; integration/future CI/phone still pending",
+  "docroot": "docs/reprise/OBLIGATIONS-M5-2026-10-09",
+  "additional_new_docs": [
+    "AUDIT.md",
+    "REGISTRE.json",
+    "CAPSULE.json"
+  ],
+  "evidence_capsule": {
+    "path": "EVIDENCE-FINAL-r1.tar.gz",
+    "sha256": "71052b403354e5216481a75c0ffbf0ed0d0e35de70e107b3700a45bf5bb98f76",
+    "members": 894,
+    "roundtrip_verified": true
+  },
+  "evidence_origins": [
+    {
+      "id": "backend_history",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "14e83c873c078cdf4ca364ee64bf9220180a10e6c6eefff1e8f5d8cd59b64a37",
+      "members_rehashed": 52,
+      "receipt": "receipt-final-r1.json",
+      "root": "qualification/M5-OBLIGATIONS-BACKEND-20261009-r1/PUBLIC-r1",
+      "scanner": "scanner-r1.json",
+      "scanner_format": "status_CLEAN",
+      "scanner_scope_preserved": "explicit public source/DTO/check bytes only; pattern scanner not all-secret guarantee; no SQL/auth/config/private data copied",
+      "scope": "Initial backend6/SQL direct; later metadata hardening distinct authoritative source31",
+      "verdict_preserved": true
+    },
+    {
+      "id": "socle_review",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "6d8d5c579f0cfc431367e53b3a7d21dc2cd7afd745896456c09883eef8ca8ecd",
+      "members_rehashed": 27,
+      "receipt": "receipt-final-r2.json",
+      "root": "qualification/M5-SOCLE-REVIEW-20261009-r1/PUBLIC-r1",
+      "scanner": "scanner-r1.json",
+      "scanner_format": "status_CLEAN",
+      "scanner_scope_preserved": "explicit selected public source/log/receipt bytes only; pattern scan not all-secret guarantee",
+      "scope": "Independent readonly Socle/helper, two P2 closed; no self-author backend approval",
+      "verdict_preserved": true
+    },
+    {
+      "id": "mobile_final",
+      "manifest": "SHA256-final-r1.json",
+      "manifest_sha256": "cbd1dcb4e764a0416c8a5aef85227e180b3a9091e4cc7365fc345fe0dc72f8f7",
+      "members_rehashed": 240,
+      "receipt": "receipt-final-r1.json",
+      "root": "qualification/T4-16-B-A-M5-MOBILE-1253-r1/PUBLIC-r4",
+      "scanner": "scanner-final-r1.json",
+      "scanner_format": "status_CLEAN",
+      "scanner_scope_preserved": "selected public UTF8/source bytes only; no actual runtime credentials created by mobile check",
+      "scope": "Mobile18 current source600; prior red/green history retained, no HTTP claim",
+      "verdict_preserved": true
+    },
+    {
+      "id": "mobile_review",
+      "manifest": "SHA256-r3.json",
+      "manifest_sha256": "c2393bfd3f7de185174e3bb12e4c2bffc1b87a9f400a579f3d3311d55b89ab7c",
+      "members_rehashed": 19,
+      "receipt": "receipt-final-r5.json",
+      "root": "qualification/M5-MOBILE-INDEPENDENT-REVIEW-20261009-r1/PUBLIC-r3",
+      "scanner": "scanner-r3.json",
+      "scanner_format": "status_CLEAN",
+      "scanner_scope_preserved": "input scanner scope retained verbatim",
+      "scope": "Independent mobile18/metadata review, exact current final receipt5",
+      "verdict_preserved": true
+    },
+    {
+      "id": "restore_requalification",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "5efc34ddf9715a853ed532b9756566f884be62dbd741e53d5440b1145ec975ef",
+      "members_rehashed": 16,
+      "receipt": "receipt-final-r1.json",
+      "root": "qualification/M5-MOBILE-LOCK-RESTORATION-20261009-r1/CHANTIER-REQUAL-r1/PUBLIC-r1",
+      "scanner": "scanner-r1.json",
+      "scanner_format": "status_CLEAN",
+      "scanner_scope_preserved": "input scanner scope retained verbatim",
+      "scope": "Fresh locked npm restoration qualification, 5411/231/TS/22deps, no prior whole dependency byte parity",
+      "verdict_preserved": true
+    },
+    {
+      "id": "android_JS",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "ef9e3e1fca1382c0e085d5b04ce97416cfe2823389bac30737ae366408459271",
+      "members_rehashed": 12,
+      "receipt": "receipt-final-r1.json",
+      "root": "qualification/M5-OBLIGATIONS-ANDROID-20261009-r2/PUBLIC-r1",
+      "scanner": "scanner-r1.json",
+      "scanner_format": "status_CLEAN",
+      "scanner_scope_preserved": "input scanner scope retained verbatim",
+      "scope": "JS export C30files/source1617, no Hermes/APK/phone",
+      "verdict_preserved": true
+    },
+    {
+      "id": "android_RED",
+      "manifest": "SHA256-r2.json",
+      "manifest_sha256": "f4ac95ceb7d45bbf5c645b8e6814be509479b01820ee63fe6b747311b70e2877",
+      "members_rehashed": 14,
+      "receipt": "receipt-final-red-r2.json",
+      "root": "qualification/M5-OBLIGATIONS-ANDROID-20261009-r1/PUBLIC-RED-r2",
+      "scanner": "scanner-r2.json",
+      "scanner_format": "status_CLEAN",
+      "scanner_scope_preserved": "input scanner scope retained verbatim",
+      "scope": "pnpm auto-install side effects + ARM/x86 Hermes mismatch; historical red not product qualification",
+      "verdict_preserved": true
+    },
+    {
+      "id": "native",
+      "manifest": "SHA256-final-r1.json",
+      "manifest_sha256": "22fde51aa681b7cebf0acaffb88f1b181466a30754f8e9e9278e43cd3e816012",
+      "members_rehashed": 173,
+      "receipt": "receipt-final-r1.json",
+      "root": "qualification/M5-OBLIGATIONS-NATIVE-20261009-r1/PUBLIC-runtime-r1",
+      "scanner": "scanner-final-r1.json",
+      "scanner_format": "status_CLEAN",
+      "scanner_scope_preserved": [
+        "known credential values and bearer syntax only; not a universal secret detector",
+        "raw private logs not exported; retained logs redact known values"
+      ],
+      "scope": "Real opaque DEVICE official minimal Gateway/public HTTPMCP/C SQLite; exterior closure PASS; all historical pending text distinct",
+      "verdict_preserved": true
+    },
+    {
+      "id": "CI_532a_A1",
+      "manifest": "SHA256-final-r1.json",
+      "manifest_sha256": "d79b19e1099c3e4c38ac7cd388e8c78827872bbe8b8beba3eb8ecca83f553171",
+      "members_rehashed": 68,
+      "receipt": "receipt-final-r1.json",
+      "root": "qualification/CI-M4-N4-CORRECTIF-20261009-r1",
+      "scanner": "scanner-public-final-r1.json",
+      "scanner_format": "status_PASS",
+      "scanner_scope_preserved": "Explicit public projections/scripts and separately sealed run manifests only",
+      "scope": "Parent532a attempt1 failure; artifactA1 exact sameHEAD, no M5 candidate CI",
+      "verdict_preserved": true
+    },
+    {
+      "id": "CI_532a_A2",
+      "manifest": "SHA256-final-attempt2-r1.json",
+      "manifest_sha256": "1d5e5af10b216eacd5323e792a7cbae22c6eab78cc04beaa19bb76cbdc711f87",
+      "members_rehashed": 15,
+      "receipt": "receipt-final-attempt2-r1.json",
+      "root": "qualification/CI-M4-N4-CORRECTIF-ATTEMPT2-20261009-r1",
+      "scanner": "scanner-public-attempt2-r1.json",
+      "scanner_format": "passed_bool",
+      "scanner_scope_preserved": "input scanner scope retained verbatim",
+      "scope": "Parent532a attempt2 composite PASS:2 reexecuted/36 A1 successes sameHEAD/2 skips; artifact A1 not A2",
+      "verdict_preserved": true
+    },
+    {
+      "id": "CI_1253_RED",
+      "manifest": "SHA256-final-r1.json",
+      "manifest_sha256": "add68a11da6a4830acb590f9f28829eb1285f4d798a2464fc17f5565d1a261df",
+      "members_rehashed": 68,
+      "receipt": "receipt-final-r1.json",
+      "root": "qualification/CI-M4-REVUE-SOURCES-20261009-r1",
+      "scanner": "scanner-public-final-r1.json",
+      "scanner_format": "status_PASS",
+      "scanner_scope_preserved": "Explicit public projections/scripts and separately sealed run manifests only",
+      "scope": "Historical1253 failure retained; never candidateM5 qualification",
+      "verdict_preserved": true
+    },
+    {
+      "id": "native_review",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "d077462e2212d9a825a3930f1f8fa2800214f1a4af48d8f135e24abbb2ed6547",
+      "members_rehashed": 12,
+      "receipt": "receipt-final-r1.json",
+      "root": "qualification/M5-NATIVE-FINAL-INDEPENDENT-REVIEW-20261009-r1/PUBLIC-r1",
+      "scanner": "independent-public-pattern-scan-r1.json",
+      "scanner_format": "status_CLEAN",
+      "scanner_scope_preserved": "input scanner scope retained verbatim",
+      "scope": "Independent read-only Native final review173/raw70/pairs3430; no own runtime or PRIVATE reads",
+      "verdict_preserved": true
+    }
+  ],
+  "omissions": [
+    {
+      "disposition": "never read/copied by this assembler; destroyed Native auth state certified externally",
+      "scope": "PRIVATE/auth/DB/config/cache/headers/generated credentials/transcripts/node_modules"
+    },
+    {
+      "disposition": "excluded heavy or private payloads; public SHA/source/CI projections preserve provenance",
+      "scope": "Android bundles/maps/assets and Core artifact ZIP/raw CI logs"
+    },
+    {
+      "disposition": "remain local; only explicitly hashed inputs selected; no recursive history copy",
+      "scope": "older unpublished proof files outside selected capsules or Root list"
+    },
+    {
+      "disposition": "absent, never recreated; missing conversations unknown",
+      "scope": "104 proof references and full transfer supplement"
+    },
+    {
+      "disposition": "not delivered by current preparatory slice; past red remains distinct",
+      "scope": "Normal Gateway Runtime5 M4, provider/phone/PG/Hermes/CPA/whole M5/M6/backlog"
+    },
+    {
+      "disposition": "original source origins preserved; Root matrixr3 and exterior Native closure authoritative for present status",
+      "scope": "qualification-matrix draft/r2 and historical pending source31 limits"
+    }
+  ],
+  "limits": [
+    "T4.16-b.a.1 seule : registre préparatoire séparé, pas T4.16-b ni départementM5 complet",
+    "Pas de calcul fiscal légal, paie officielle, déclaration/remise, banque/paiement/fournisseur/client réel",
+    "Aucune activation YAML propriétaire/cash/CFO/calendrier existant depuis ce registre",
+    "Gateway minimal/VITEST/auth-store-readonly seulement ; boot normal/heartbeat/provider non qualifiés ; ancien Runtime5M4 réseau rouge distinct",
+    "Pas de téléphone/Hermes/APK/ExpoSQLite/Postgres/N5/CPA qualifié",
+    "Identité DEVICE technique attribuée, sans preuve de personne physique devant écran",
+    "Known-token scan Native et scan de motifs du paquet limité ; aucune absence universelle ni isolation OS/machine",
+    "Dépendances restaurées sur lock npm exact ; parité byte de tout ancien arbre inconnue",
+    "104 références de preuve absentes et supplément intégral absent ; conversations manquantes inconnues",
+    "Toutes ambitions profondes des dix départements/M5/M6/backlog restent partielles",
+    "CI532a A2 couvre le parent seulement ; intégration, smokes R, publication et CI du futur commit M5 restent à faire par Root"
+  ],
+  "assembly_red_disposition": {
+    "receipt": "assembly-receipt-final-r1.json",
+    "cause": "builder1 falsely treated public private-core-tests-projection filename as PRIVATE directory",
+    "resolution": "builder2 checks directory components and explicitly excludes runtime credentials; no secret read and no product defect"
+  },
+  "qualification_counts": {
+    "backend_local": {
+      "passes": 7316,
+      "skips": 22,
+      "source1526": "1a3eb93712ec3b9b443424cadaf9a79587347bb0280868cfab047508825ae3f6"
+    },
+    "mobile_restored": {
+      "tests": 5411,
+      "suites": 231,
+      "TypeScript_exit": 0,
+      "dependency_checks": 22,
+      "fixed_source_files": 600
+    },
+    "Android_JS": {
+      "files": 30,
+      "map_sources": 1617,
+      "runtime_source_contents_exact_C": 9,
+      "Hermes": false
+    },
+    "Native": {
+      "Gateway": 70,
+      "MCP_tools_calls": 64,
+      "reads": 23,
+      "write_replay_refusal_RPCs": 47,
+      "tables_each": 49,
+      "pairs": 3430,
+      "unchanged_windows": 64,
+      "N3_four_table_writes": 5,
+      "fresh_negative_idem_only": 1,
+      "http200": 63,
+      "http403": 5,
+      "http401": 1,
+      "http500_expected_posttrace_rollback": 1,
+      "instrumented_connections": 448,
+      "nonloopback_attempts": 0,
+      "restart_UTF8_SHA_pairs": 2,
+      "artifacts": 0
+    },
+    "CI_parent532a_A2": {
+      "run_id": 37933524866,
+      "attempt": 2,
+      "status": "PASS_EXACT_ATTEMPT2_COMPOSITE",
+      "reexecuted_jobs": 2,
+      "same_HEAD_A1_successes_reused": 36,
+      "nonexecuted_skips": 2,
+      "Core_artifact_origin": "A1 same HEAD, never reexecuted A2"
+    }
+  },
+  "Native_pending_receipt_disposition": "Runtime pending receipt is historical nonqualified output; exterior final PASS applies after cleanup/scanner. Its inherited limit text closure still pass separately remains original, not current state."
+}

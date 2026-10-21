@@ -1,0 +1,261 @@
+{
+  "date": "2026-09-30",
+  "phase": "fiabilisation et raccords locaux, avant approfondissement des lots suivants",
+  "python": {
+    "tests_ordinaires_collectes": 16611,
+    "passes": 16506,
+    "sautes": 105,
+    "echecs": 0,
+    "erreurs": 0,
+    "identifiants_junit_distincts": 16611,
+    "aucun_doublon": true,
+    "suites": [
+      {
+        "preuve": "integration-socle-hors-install-final.xml",
+        "tests": 2004,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 78,
+        "passed": 1926,
+        "sha256": "a366369fb5ce5a614545b7c7a92f7acb51724bc0f0b8d4b673e81e8586fb76ed"
+      },
+      {
+        "preuve": "installer-extra-final.xml",
+        "tests": 63,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 63,
+        "sha256": "3743a21115a9a761a93144c8b1273989f0cb34b3f707dce0d5fbd996da1ad2c0"
+      },
+      {
+        "preuve": "integration-parcours-appareil-final.xml",
+        "tests": 171,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 26,
+        "passed": 145,
+        "sha256": "2812a9c5b7f4a8afd56e4fde1286c7692ab1028fb0ffe8a19b4cba7449e00874"
+      },
+      {
+        "preuve": "integration-m1-final.xml",
+        "tests": 1575,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 1575,
+        "sha256": "c4640092157bfa4b6ec26424ffd99c1eba5964fbecc6688bb6073ddec831b275"
+      },
+      {
+        "preuve": "integration-m2-m4-m6-m8-m9-final.xml",
+        "tests": 6731,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 6731,
+        "sha256": "4466828d7b2baa7b494ecbe5f8ef05986c91c0d6a913876657d412c95e521770"
+      },
+      {
+        "preuve": "integration-m3-ordinaire-final.xml",
+        "tests": 2134,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "passed": 2133,
+        "sha256": "d56cabdc2016c1e169d1fa23992b4ebbf28e8d2e611869df0ea3676a047d1977"
+      },
+      {
+        "preuve": "m5-taxes-pieces-final.xml",
+        "tests": 2014,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 2014,
+        "sha256": "1e59c3cb010013ccbe17c7341cd64729bf237cb16a7da74546cfe68fc02c1cd1"
+      },
+      {
+        "preuve": "integration-m7-final.xml",
+        "tests": 1011,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 1011,
+        "sha256": "cb248c215cd7bc8f8ea8934c81f15302c45b1e36d8cc7a46f1c0160309568bcc"
+      },
+      {
+        "preuve": "integration-m10-final.xml",
+        "tests": 908,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 908,
+        "sha256": "56a935fba0e8d35d671c6ee31fed3363b9344f5f3d5f52a111f579d7aa5e79fc"
+      }
+    ]
+  },
+  "mobile": {
+    "passes": 2607,
+    "suites": 118,
+    "echecs": 0,
+    "sautes": 0,
+    "typecheck": "code0",
+    "preuve": "preuves/mobile-jest-final.json.gz"
+  },
+  "core": {
+    "frontieres_tests_passes": 244,
+    "admission_tests_passes_rapport_auteur": 44,
+    "fixtures_voisines_tests_passes_rapport_auteur": 72,
+    "mcp_python_reel_tests_passes": 1,
+    "provider_mcp": "StreamFn simulé; MCP etSQLiteréels",
+    "typecheck_core_production": "réussi, rapport auteur",
+    "typecheck_tests_complet": "25/25 shards distincts réussis sur plusieurs invocations; première commande intégrale échouée conservée, pas une seule exécution intégrale code0.",
+    "pas_de_total_chevauchant": true,
+    "ci_distante": "non exécutée",
+    "typecheck_tests_preuve": "preuves/core-tsgo-core-test-final-status.json.gz"
+  },
+  "archives": [
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/integration-socle-hors-install-final.xml.gz",
+      "sha256_archive": "5624bcbb0a51ab295d63aed97f669bb570c446958948cacb971117ac686e0c2e",
+      "taille_archive": 41088,
+      "sha256_original": "a366369fb5ce5a614545b7c7a92f7acb51724bc0f0b8d4b673e81e8586fb76ed",
+      "taille_original": 340758,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-socle-hors-install-final.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/installer-extra-final.xml.gz",
+      "sha256_archive": "52337a39cf15bfef399185b9517632820b9a5b7da8d759d6c413728c46d71f17",
+      "taille_archive": 1880,
+      "sha256_original": "3743a21115a9a761a93144c8b1273989f0cb34b3f707dce0d5fbd996da1ad2c0",
+      "taille_original": 10177,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/installer-extra-final.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/integration-parcours-appareil-final.xml.gz",
+      "sha256_archive": "e5051563ac60e83374e0f66fd0e56e92165c7f7cc4715ba503f019680b8e9f75",
+      "taille_archive": 5439,
+      "sha256_original": "2812a9c5b7f4a8afd56e4fde1286c7692ab1028fb0ffe8a19b4cba7449e00874",
+      "taille_original": 37917,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-parcours-appareil-final.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/integration-m1-final.xml.gz",
+      "sha256_archive": "cdf7ffd3f28fc7b994ca7286145c90a3d4e7c49010c99694e4fea9384cf065c8",
+      "taille_archive": 27325,
+      "sha256_original": "c4640092157bfa4b6ec26424ffd99c1eba5964fbecc6688bb6073ddec831b275",
+      "taille_original": 282478,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-m1-final.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/integration-m2-m4-m6-m8-m9-final.xml.gz",
+      "sha256_archive": "a8c826bf669984f3d0efd1c6cddab2f8c830f593b4f0f4bb2af21942eace3b00",
+      "taille_archive": 115632,
+      "sha256_original": "4466828d7b2baa7b494ecbe5f8ef05986c91c0d6a913876657d412c95e521770",
+      "taille_original": 1152467,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-m2-m4-m6-m8-m9-final.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/integration-m3-ordinaire-final.xml.gz",
+      "sha256_archive": "1b3fb9688694cce34e28f21411ebfe7b277646028179690fba1ba106e5312945",
+      "taille_archive": 31067,
+      "sha256_original": "d56cabdc2016c1e169d1fa23992b4ebbf28e8d2e611869df0ea3676a047d1977",
+      "taille_original": 358327,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-m3-ordinaire-final.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/m5-taxes-pieces-final.xml.gz",
+      "sha256_archive": "ec0f06ce34a1245b35f3985e434bcc0c6c3cd5da65fc13ba65ec16d163d10c5d",
+      "taille_archive": 36250,
+      "sha256_original": "1e59c3cb010013ccbe17c7341cd64729bf237cb16a7da74546cfe68fc02c1cd1",
+      "taille_original": 356859,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/m5-taxes-pieces-final.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/integration-m7-final.xml.gz",
+      "sha256_archive": "1834f48c6f13bcf578c5fddfb9db81a7bdd5414e5cc8f16bceaf6c62d634c993",
+      "taille_archive": 17527,
+      "sha256_original": "cb248c215cd7bc8f8ea8934c81f15302c45b1e36d8cc7a46f1c0160309568bcc",
+      "taille_original": 181452,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-m7-final.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/integration-m10-final.xml.gz",
+      "sha256_archive": "9bfd3466ec11d5a8502bcb6efcdde903019d8490d10ae2aabb36dc508caea518",
+      "taille_archive": 15127,
+      "sha256_original": "56a935fba0e8d35d671c6ee31fed3363b9344f5f3d5f52a111f579d7aa5e79fc",
+      "taille_original": 150327,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-m10-final.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/mobile-jest-final.json.gz",
+      "sha256_archive": "44ca14318d806e33488247a8af401f16b339a3d4c5a29e96b7869e147088c003",
+      "taille_archive": 90598,
+      "sha256_original": "1029c4867f36cecb11753c89a35d9109a4e6c87abb80b46808cb59b7d0050b3e",
+      "taille_original": 1139145,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/mobile-jest-final.json"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/core-frontieres.json.gz",
+      "sha256_archive": "38a661668ba06eef5355179329501904220c625a16a29ca6b7d0936435634120",
+      "taille_archive": 10833,
+      "sha256_original": "e3b36e511c1900a1533db6dc7c00f2f84c868eb6ae97e3e214fd1461ba0b1da0",
+      "taille_original": 98949,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/core-frontieres.json"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/ci-console-final.xml.gz",
+      "sha256_archive": "8d17d9eba01f2990759709f856726eede19c66a6dba62e7ccf65ef3bc4085cdc",
+      "taille_archive": 1691,
+      "sha256_original": "2dba0571516b70544b04f624a30b775e8f1574e02af6df556590a83d85d06224",
+      "taille_original": 7782,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/ci-console-final.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/ci-admission-cibles-final.json.gz",
+      "sha256_archive": "e6249ee177991dc63d848e2afd381de17d9cb462f5eaa5bfa520335a3d6bb1ee",
+      "taille_archive": 634,
+      "sha256_original": "953146883e4774b6821179305b42c8689afca6c5431f9e81105b68d49b5ea927",
+      "taille_original": 1383,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/ci-admission-cibles-final.json"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/core-cli-reel-final.json.gz",
+      "sha256_archive": "3695551df839ea45df0bf51b16dfbded1188773efb101b62e6c0bef90540aa5c",
+      "taille_archive": 670,
+      "sha256_original": "b29ac6379dd519c43f9cb10e45249b9767b5ef85e7fd13e376ba51d80648eca8",
+      "taille_original": 1195,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/core-cli-reel-final.json"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/integration-socle-hors-install-final.json.gz",
+      "sha256_archive": "c02434ad76c0e4ee57ef271b140fe575fe81656032313697c59ab304aebf9b5a",
+      "taille_archive": 2668,
+      "sha256_original": "42b7a4562ed0f64053053882ad4aff37427608b150c83408224548ace4ebe2e8",
+      "taille_original": 7328,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-socle-hors-install-final.json"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/core-admission-runtime-mcp-http.xml.gz",
+      "sha256_archive": "7045aef82f6a97fb93f39c10a0d64ed0c398975b3e893dff458f64a48944d88d",
+      "taille_archive": 376,
+      "sha256_original": "344ec4fbcb6086e2e37d2c3f803324b646e7754e55175aee6480693cfb79452e",
+      "taille_original": 705,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/core-admission-runtime-mcp-http.xml"
+    },
+    {
+      "chemin_archive": "docs/research/R17-2026-09-30/preuves/core-tsgo-core-test-final-status.json.gz",
+      "sha256_archive": "6416e7383b4e33e34c767ec49f84a929ca92cc887e34d87b8ee1ce46a54e8eb8",
+      "taille_archive": 1118,
+      "sha256_original": "1d41a53b1ebda45d3aa6b70572946310696a8f2905909d3a6f4f1f0cf01e4926",
+      "taille_original": 2538,
+      "original_workspace": "/workspace/restructuration-opsys-2026-09-30/core-tsgo-core-test-final-status.json"
+    }
+  ],
+  "limites": [
+    "M3 suite ordinaire exclut deux scripts de mutation/instrumentation; preuves spécialisées distinctes déjà consignées, pas additionnées.",
+    "105 skips:104socle (76Windows,1Docker explicite,1actionlint,26E2EPostgreSQL) et1M3.",
+    "Pas de preuve100% du produit; les E2E core de la suite Python utilisent un Gatewayfactice.",
+    "Pas de validation fournisseurLLM réel, image officielleCore Docker, VPS neuf, appareil réel, CI distante.",
+    "Les changements suivants seront prouvés par leurs propres lots; les empreintes figent ce passage et ne promettent pas que le futur arbre resteraidentique."
+  ]
+}

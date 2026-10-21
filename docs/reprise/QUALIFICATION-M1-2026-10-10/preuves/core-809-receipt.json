@@ -1,0 +1,695 @@
+{
+  "label": "m1-current74-integrated-core-r1",
+  "command": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/tools/node-v24.16.0-linux-arm64/bin:/usr/bin:/bin",
+    "LANG=C.UTF-8",
+    "CI=1",
+    "TMPDIR=/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-CURRENT74-INTEGRATED-QUALIFICATION-PREPARATION-20261010-r1/tmp",
+    "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/tools/node-v24.16.0-linux-arm64/bin/node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-CURRENT74-INTEGRATED-QUALIFICATION-PREPARATION-20261010-r1/vitest-r1.config.mts"
+  ],
+  "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/core",
+  "started_utc": "2026-10-10T22:16:40.649231+00:00",
+  "completed_utc": "2026-10-10T22:18:18.820964+00:00",
+  "exit_code": 0,
+  "wall_seconds": 98.172,
+  "peak_process_tree_rss_bytes": 1682411520,
+  "guard_triggered": null,
+  "failure": null,
+  "qualified": true,
+  "source_sha256_before": "029cb3655eee2a5afd0bced4844e25a2ba390a13aa62e87b142a6ceb44990690",
+  "source_sha256_after": "029cb3655eee2a5afd0bced4844e25a2ba390a13aa62e87b142a6ceb44990690",
+  "sources_unchanged": true,
+  "source_inventory": "fixed_external",
+  "source_inventory_sha256_before": "ba550362e93a6abf5361c750bacc0f97c2a5240fdd73715466d18d30b3268596",
+  "source_inventory_sha256_after": "ba550362e93a6abf5361c750bacc0f97c2a5240fdd73715466d18d30b3268596",
+  "process_helper_sha256_before": "84f070830c6872b9dd2611e6f512f262f010d2d09597815f750115c0b5996af2",
+  "process_helper_sha256_after": "84f070830c6872b9dd2611e6f512f262f010d2d09597815f750115c0b5996af2",
+  "harness_sha256_before": "7b097b42a2f1faa282e3bcfcc3b2a0bab8c5da6cdd862f84bc7a06225c883dd4",
+  "harness_sha256_after": "7b097b42a2f1faa282e3bcfcc3b2a0bab8c5da6cdd862f84bc7a06225c883dd4",
+  "processes": [
+    {
+      "pid": 2601443,
+      "parent": 2601438,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34340757,
+      "state": "R"
+    },
+    {
+      "pid": 2601509,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34340790,
+      "state": "R"
+    },
+    {
+      "pid": 2601667,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34343480,
+      "state": "R"
+    },
+    {
+      "pid": 2601698,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34343804,
+      "state": "R"
+    },
+    {
+      "pid": 2601713,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34344050,
+      "state": "R"
+    },
+    {
+      "pid": 2601731,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34344391,
+      "state": "R"
+    },
+    {
+      "pid": 2601753,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34345109,
+      "state": "R"
+    },
+    {
+      "pid": 2601805,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34345666,
+      "state": "R"
+    },
+    {
+      "pid": 2601838,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34346111,
+      "state": "R"
+    },
+    {
+      "pid": 2601849,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34346379,
+      "state": "R"
+    },
+    {
+      "pid": 2601900,
+      "parent": 2601849,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34346472,
+      "state": "S"
+    },
+    {
+      "pid": 2601908,
+      "parent": 2601900,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34346479,
+      "state": "S"
+    },
+    {
+      "pid": 2601931,
+      "parent": 2601849,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34346623,
+      "state": "R"
+    },
+    {
+      "pid": 2601940,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34346810,
+      "state": "R"
+    },
+    {
+      "pid": 2601972,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34347120,
+      "state": "R"
+    },
+    {
+      "pid": 2601998,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34347488,
+      "state": "R"
+    },
+    {
+      "pid": 2602009,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34347710,
+      "state": "R"
+    },
+    {
+      "pid": 2602023,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34347933,
+      "state": "R"
+    },
+    {
+      "pid": 2602036,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348064,
+      "state": "R"
+    },
+    {
+      "pid": 2602061,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348303,
+      "state": "R"
+    },
+    {
+      "pid": 2602072,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348458,
+      "state": "R"
+    },
+    {
+      "pid": 2602100,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348566,
+      "state": "R"
+    },
+    {
+      "pid": 2602111,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348657,
+      "state": "S"
+    },
+    {
+      "pid": 2602119,
+      "parent": 2602111,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348663,
+      "state": "R"
+    },
+    {
+      "pid": 2602134,
+      "parent": 2602111,
+      "group": 2602134,
+      "session": 2602134,
+      "start_time": 34348672,
+      "state": "R"
+    },
+    {
+      "pid": 2602142,
+      "parent": 2602134,
+      "group": 2602134,
+      "session": 2602134,
+      "start_time": 34348681,
+      "state": "S"
+    },
+    {
+      "pid": 2602165,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348691,
+      "state": "R"
+    },
+    {
+      "pid": 2602172,
+      "parent": 2602165,
+      "group": 2602172,
+      "session": 2602172,
+      "start_time": 34348699,
+      "state": "R"
+    },
+    {
+      "pid": 2602187,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348711,
+      "state": "R"
+    },
+    {
+      "pid": 2602194,
+      "parent": 2602187,
+      "group": 2602194,
+      "session": 2602194,
+      "start_time": 34348721,
+      "state": "S"
+    },
+    {
+      "pid": 2602208,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348731,
+      "state": "R"
+    },
+    {
+      "pid": 2602218,
+      "parent": 2602208,
+      "group": 2602218,
+      "session": 2602218,
+      "start_time": 34348739,
+      "state": "S"
+    },
+    {
+      "pid": 2602232,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348749,
+      "state": "R"
+    },
+    {
+      "pid": 2602239,
+      "parent": 2602232,
+      "group": 2602239,
+      "session": 2602239,
+      "start_time": 34348760,
+      "state": "S"
+    },
+    {
+      "pid": 2602253,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348770,
+      "state": "R"
+    },
+    {
+      "pid": 2602260,
+      "parent": 2602253,
+      "group": 2602260,
+      "session": 2602260,
+      "start_time": 34348781,
+      "state": "R"
+    },
+    {
+      "pid": 2602275,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348792,
+      "state": "R"
+    },
+    {
+      "pid": 2602282,
+      "parent": 2602275,
+      "group": 2602282,
+      "session": 2602282,
+      "start_time": 34348800,
+      "state": "R"
+    },
+    {
+      "pid": 2602296,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348813,
+      "state": "R"
+    },
+    {
+      "pid": 2602303,
+      "parent": 2602296,
+      "group": 2602303,
+      "session": 2602303,
+      "start_time": 34348824,
+      "state": "R"
+    },
+    {
+      "pid": 2602317,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348835,
+      "state": "R"
+    },
+    {
+      "pid": 2602324,
+      "parent": 2602317,
+      "group": 2602324,
+      "session": 2602324,
+      "start_time": 34348843,
+      "state": "R"
+    },
+    {
+      "pid": 2602331,
+      "parent": 2602324,
+      "group": 2602324,
+      "session": 2602324,
+      "start_time": 34348850,
+      "state": "R"
+    },
+    {
+      "pid": 2602339,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348855,
+      "state": "R"
+    },
+    {
+      "pid": 2602346,
+      "parent": 2602339,
+      "group": 2602346,
+      "session": 2602346,
+      "start_time": 34348864,
+      "state": "R"
+    },
+    {
+      "pid": 2602360,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348875,
+      "state": "R"
+    },
+    {
+      "pid": 2602367,
+      "parent": 2602360,
+      "group": 2602367,
+      "session": 2602367,
+      "start_time": 34348883,
+      "state": "S"
+    },
+    {
+      "pid": 2602381,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348892,
+      "state": "R"
+    },
+    {
+      "pid": 2602388,
+      "parent": 2602381,
+      "group": 2602388,
+      "session": 2602388,
+      "start_time": 34348901,
+      "state": "R"
+    },
+    {
+      "pid": 2602402,
+      "parent": 2602100,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348913,
+      "state": "R"
+    },
+    {
+      "pid": 2602409,
+      "parent": 2602402,
+      "group": 2602409,
+      "session": 2602409,
+      "start_time": 34348921,
+      "state": "R"
+    },
+    {
+      "pid": 2602423,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348932,
+      "state": "R"
+    },
+    {
+      "pid": 2602430,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349014,
+      "state": "R"
+    },
+    {
+      "pid": 2602443,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349132,
+      "state": "R"
+    },
+    {
+      "pid": 2602457,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349237,
+      "state": "R"
+    },
+    {
+      "pid": 2602466,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349463,
+      "state": "R"
+    },
+    {
+      "pid": 2602477,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349571,
+      "state": "R"
+    },
+    {
+      "pid": 2602488,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349666,
+      "state": "R"
+    },
+    {
+      "pid": 2602499,
+      "parent": 2602488,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349753,
+      "state": "R"
+    },
+    {
+      "pid": 2602506,
+      "parent": 2602499,
+      "group": 2602506,
+      "session": 2602506,
+      "start_time": 34349763,
+      "state": "S"
+    },
+    {
+      "pid": 2602520,
+      "parent": 2602488,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349773,
+      "state": "R"
+    },
+    {
+      "pid": 2602527,
+      "parent": 2602520,
+      "group": 2602527,
+      "session": 2602527,
+      "start_time": 34349783,
+      "state": "S"
+    },
+    {
+      "pid": 2602545,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349793,
+      "state": "R"
+    },
+    {
+      "pid": 2602561,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349849,
+      "state": "R"
+    },
+    {
+      "pid": 2602568,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349923,
+      "state": "R"
+    },
+    {
+      "pid": 2602584,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34350213,
+      "state": "R"
+    },
+    {
+      "pid": 2602595,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34350295,
+      "state": "R"
+    }
+  ],
+  "observed_dead_descendants": [
+    {
+      "pid": 2601509,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34340790,
+      "state": "Z"
+    },
+    {
+      "pid": 2601698,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34343804,
+      "state": "Z"
+    },
+    {
+      "pid": 2601731,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34344391,
+      "state": "Z"
+    },
+    {
+      "pid": 2601805,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34345666,
+      "state": "Z"
+    },
+    {
+      "pid": 2601838,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34346111,
+      "state": "Z"
+    },
+    {
+      "pid": 2601940,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34346810,
+      "state": "Z"
+    },
+    {
+      "pid": 2601972,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34347120,
+      "state": "Z"
+    },
+    {
+      "pid": 2602023,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34347933,
+      "state": "Z"
+    },
+    {
+      "pid": 2602072,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34348458,
+      "state": "Z"
+    },
+    {
+      "pid": 2602430,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349014,
+      "state": "Z"
+    },
+    {
+      "pid": 2602457,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349237,
+      "state": "Z"
+    },
+    {
+      "pid": 2602568,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34349923,
+      "state": "Z"
+    },
+    {
+      "pid": 2602595,
+      "parent": 2601443,
+      "group": 2601443,
+      "session": 2601443,
+      "start_time": 34350295,
+      "state": "Z"
+    }
+  ],
+  "failed_pin_attempt": null,
+  "signal_strategy": "pidfd",
+  "cancellation": null,
+  "owned_processes_stopped": true,
+  "stdout_eof": true,
+  "output_complete": true,
+  "stdout_bytes_received": 8831,
+  "log_bytes": 8831,
+  "log_sha256": "84e4dc13cf8f34472812367e14d6a4af4e217522d9abca7ad9d7c07c4b817d4c",
+  "sealing": "closed_sole_writer_then_immutable_copy",
+  "limits": [
+    "ownership applies only to observed, pinned descendants; unobserved descendants not qualified",
+    "RSS sampled; disk floor covers cwd/source/evidence filesystems, not arbitrary other mounts",
+    "fixed inventory cannot detect files never listed; stdout copy incomplete unless EOF established",
+    "read-only file mode is not OS immutability against intentional alteration by its owner"
+  ]
+}

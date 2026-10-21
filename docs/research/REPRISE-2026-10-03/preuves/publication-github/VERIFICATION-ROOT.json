@@ -1,0 +1,81 @@
+{
+  "scope": "publication preparation; not full product quality gate",
+  "gitleaks_version": "8.30.1",
+  "default_scan_exit": 1,
+  "findings": 5269,
+  "context_review_unknowns": 0,
+  "report_redacted": true,
+  "root_fingerprint_set_verified": true,
+  "source_blobs_read": 36,
+  "limitations": [
+    "No universal absence-of-secrets guarantee",
+    "Binary archives additionally inspected read-only in bounded streams by audit_docs; not a native Gitleaks archive traversal",
+    "No remote CI or full Core build result yet"
+  ],
+  "artifacts": [
+    {
+      "path": "TOOL-GITLEAKS.json.gz",
+      "sha256_original": "39ee1b05e0601d7a67df54c7380b3e434c66591c48194cdadcf10d4ae2226d85",
+      "sha256_gzip": "1cbcb6ca2aff0a582973648d1d4a1792c53a4b62f813704af01a424c6803ca81"
+    },
+    {
+      "path": "GITLEAKS-RUN-ROOT.json.gz",
+      "sha256_original": "fbcaeb870789611c626cf8f369816cc8fa44741b2b412596e66e742a1fc468be",
+      "sha256_gzip": "e9df8d8886bd08bc02ef6e7bf99c60170d7c4fa22e4dcc223bff8e87722075c1"
+    },
+    {
+      "path": "GITLEAKS-RUN-ROOT-r2.json.gz",
+      "sha256_original": "e7becf3ad0397b36dea0cd4490b34a0c664debc6903822bd4e70c14155a5309e",
+      "sha256_gzip": "cff1aa23f4db13733c5b596692f61fcbb0e398945bd7b966842b17609232d657"
+    },
+    {
+      "path": "gitleaks-staged-report-r2.json.gz",
+      "sha256_original": "c1e9f2c4a708109c5be0fdf34fc8a07318a1864b3987a4cf74510ece514e0ee7",
+      "sha256_gzip": "f1ddf7001349481a4ce6917a428279ff72f0af01f8bda6f139d60bbc64dc60b9"
+    },
+    {
+      "path": "GITLEAKS-CLASSIFICATION-r2.json.gz",
+      "sha256_original": "c36bb8fd02d10edb9aedc77c5a8fb82a7085f7ad2c4754478fdaadd83f5d3357",
+      "sha256_gzip": "16f553fbbd6ffbc52ea723cb3229e0df0754b322af2e88abf2bc65c35c62cbfe"
+    },
+    {
+      "path": "CI-TARGETS-ROOT.json.gz",
+      "sha256_original": "b69c59ba7b7e3e0cfb4464454070b524e8a9e0c2a7e2c35df6b0375f5c3fecfb",
+      "sha256_gzip": "dd5d0a238291a1592fea112ac0c772b027e208f4353f9849f0192690b901dd0e"
+    },
+    {
+      "path": "ARCHIVE-DEDUP-ROOT.json.gz",
+      "sha256_original": "6bb31e423719733800906a5c8428a22e0c05bb7fbe2f2da97ffbf429621e23c4",
+      "sha256_gzip": "99d3cc39259ed577cc53957a725adcdb5c73dd224f24896a0d2a30da73b7eebe"
+    },
+    {
+      "path": "ARCHIVE-DEDUP-ALL-ALIASES-ROOT.json.gz",
+      "sha256_original": "03591a0aed5d3826d8b721234b1a8d32e5bbfa945a3058ed56dbbdec3d821fa0",
+      "sha256_gzip": "a213e07d93cd18b426350306f59fe52c05c241042c22e6ecb5a1adaf24b7eb5f"
+    },
+    {
+      "path": "CLOSED-ARCHIVE-RELOCATION-ROOT.json.gz",
+      "sha256_original": "4a10ee46c13e7acd75477ae619b77392b150c8853a75e42c200814775e35007e",
+      "sha256_gzip": "dca0df76e4d5b47bd8ea5d4d20b69320bbb11bc2b6c982954c30ad48f789f7af"
+    },
+    {
+      "path": "CLOSED-ARCHIVE-RESTORED-ROOT.json.gz",
+      "sha256_original": "2d06e0fd443faa47f7b186db85d49ce952599d002c5c059a3a386407dc99d3fc",
+      "sha256_gzip": "e31af20dc82053c34f645a9a4549b9e48507cde5ca9222cb49fd8b626b6e90b1"
+    },
+    {
+      "path": "REGENERABLE-PYTHON-CACHE-CLEANUP.json.gz",
+      "sha256_original": "89565081e5d3f29c02e414348ef515f69c86ffa773363d0c1e91d1fdfbf0e2a4",
+      "sha256_gzip": "b1aa8881edaa9532db0a7b8fcbd2705fe417243b1e371e0e5ff4799812a0c308"
+    }
+  ],
+  "final_staged_rescan": {
+    "findings": 5269,
+    "new_unclassified": 0,
+    "same_36_context_blobs_sha256_verified": true,
+    "report": "gitleaks-staged-report-r3.json.gz",
+    "execution": "GITLEAKS-RUN-ROOT-r3.json.gz",
+    "default_scan_exit": 1,
+    "no_rule_disabled": true
+  }
+}

@@ -1,0 +1,409 @@
+{
+  "ok": true,
+  "guard": null,
+  "elapsed_seconds": 27.19573528302135,
+  "source_count": 667,
+  "source_bytes": 9298720,
+  "source_delta": {},
+  "oom_before": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "oom_after": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "junit": null,
+  "steps": [
+    {
+      "name": "ruff",
+      "ok": true,
+      "guard": null,
+      "exit_code": 0,
+      "peak_group_rss_bytes": 0,
+      "minimum_room_bytes": 1377521664,
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 28361335
+      },
+      "elapsed_seconds": 0.924231021956075
+    },
+    {
+      "name": "pytest",
+      "ok": true,
+      "guard": null,
+      "exit_code": 0,
+      "peak_group_rss_bytes": 315887616,
+      "minimum_room_bytes": 1129680896,
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [
+          {
+            "pid": 1281464,
+            "start_ticks": 28362745,
+            "status": 0
+          }
+        ],
+        "survivors": {},
+        "leader_start_ticks": 28361431
+      },
+      "elapsed_seconds": 26.19377648399677
+    }
+  ],
+  "scope": "5 complete files plus SQLite cases in admission_agents; exactly 5 PostgreSQL cases deselected by -k not test_postgresql",
+  "limitations": [
+    "PostgreSQL not qualified: Docker vfs image copy exceeds available disk/resources",
+    "No external provider, production credential, deployment or whole Gateway qualification"
+  ],
+  "history": "R1 lint failure; R2/R3 resource abort and only exact newly Created Docker containers removed; R4 Node PATH failure; R5 110 tests passed but orphan zombie cleanup failed; R6 subreaper and native Node PATH, 110 tests passed with clean process closure",
+  "artifacts": [
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r1/FREEZE-SOURCES-r1.json",
+      "archive": "r1/FREEZE-SOURCES-r1.json.gz",
+      "raw_sha256": "6a164501dfec6949c2a7c1f35ea71fd7b1227c34bf826279266925d1546457ba",
+      "raw_bytes": 83280,
+      "gzip_sha256": "a0123560e91e539b3279fbbe5225239bc2a5bde4e37dc041570e48bb2b8f299b",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r1/PLAN-r1.json",
+      "archive": "r1/PLAN-r1.json.gz",
+      "raw_sha256": "4203b4a07d00bdf0e20415fda13fe9901056ae67deb99d9f2a274eb495f12968",
+      "raw_bytes": 1541,
+      "gzip_sha256": "209537a540c38508def0a532c9a1b85154740e192ba15e644b71c3b9ea6050fb",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r1/PLAN-template.json",
+      "archive": "r1/PLAN-template.json.gz",
+      "raw_sha256": "e73ea0f507b7036caac702230d49ce9ed43d5e456e598a28f98830977ca224cc",
+      "raw_bytes": 1541,
+      "gzip_sha256": "9537b0b4580684266e6b6da6ba9371d35369141120e856a5734d4fcf5cd1fa2b",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r1/SOURCE-PATHS.json",
+      "archive": "r1/SOURCE-PATHS.json.gz",
+      "raw_sha256": "7033f6732104f6d37bef1be8925ce75180aa0e8ee85c859622b4b45424de5274",
+      "raw_bytes": 37924,
+      "gzip_sha256": "bf16040d1cd29014e02a95dcd4473e65c1c9a284880340380afb50929f589c9c",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r1/apply-provider-root.py",
+      "archive": "r1/apply-provider-root.py.gz",
+      "raw_sha256": "e803d597f4811efb3245b9e09c2deb129f863775d2d1571acdce502a4b413e7d",
+      "raw_bytes": 1776,
+      "gzip_sha256": "babf928c30442b9be5a12c71ac71672465c418df2378a301549741df1afef197",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r1/conducteur-root.py",
+      "archive": "r1/conducteur-root.py.gz",
+      "raw_sha256": "2afb5e3b5a8f8111459903cd42cca9a7887e51552c7c84ae543a7fae8ca908b2",
+      "raw_bytes": 18317,
+      "gzip_sha256": "bd11ff0a3d5b01ac0878050249ca40d82d66fd3c456a120baf6de903afe10225",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r1/execution-r1/receipt.json",
+      "archive": "r1/execution-r1/receipt.json.gz",
+      "raw_sha256": "cc15d66095505d2d7d40d40005bd7dd2fd68bf80c27070c336a25e0a3243cda0",
+      "raw_bytes": 354763,
+      "gzip_sha256": "f8e34b6afbe1aee693cf2cd13198d4e0029356cca3d355398af2cbd8395fa69f",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r1/execution-r1/ruff.log",
+      "archive": "r1/execution-r1/ruff.log.gz",
+      "raw_sha256": "8c4e1fd80c66b20fa2527ee9ce50e1585f51676a7dbab1ed55808e68fccfd519",
+      "raw_bytes": 1594,
+      "gzip_sha256": "2698950ef10c8650283714b2c72bffef80be2a015be53cbd09e50fc521c71788",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r2/FREEZE-SOURCES-r1.json",
+      "archive": "r2/FREEZE-SOURCES-r1.json.gz",
+      "raw_sha256": "cedbfe9968a19d21e6c45a50db9cfea854b753d3950d81f7f492005d9adc4f5a",
+      "raw_bytes": 83280,
+      "gzip_sha256": "dbaadf426f5e6988462f5726fa15a8074e9d3b28f7a6b8ade23c8b38c8943509",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r2/PLAN-r1.json",
+      "archive": "r2/PLAN-r1.json.gz",
+      "raw_sha256": "834cbc7315b6378648fe4b6771efeaee0fd1662665b01f79d53930d0e986c621",
+      "raw_bytes": 1753,
+      "gzip_sha256": "d274e68a7bc1d8987772eac8d09e4fb1c0ecb324cd8c30953ba44c2bf61c0090",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r2/cleanup-postgres-created.json",
+      "archive": "r2/cleanup-postgres-created.json.gz",
+      "raw_sha256": "ab2f77d459c4e300e6ff000cbc00d7b3e16230569ae90d68cd3f60b7ec3cf128",
+      "raw_bytes": 805,
+      "gzip_sha256": "06d979882603b81c34529cfd27d91b66a62580ff0233abc52d073cd225774320",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r2/conducteur-root.py",
+      "archive": "r2/conducteur-root.py.gz",
+      "raw_sha256": "709b305a6d768dc6d02cb60d07929c4f2b3815101eb85f4a1e192b9700603848",
+      "raw_bytes": 18317,
+      "gzip_sha256": "fa4204928919e36abd2f1ae38864151bbf3c7eb3797b90312089074ca567b975",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r2/execution-r1/pytest.log",
+      "archive": "r2/execution-r1/pytest.log.gz",
+      "raw_sha256": "1daed90b5518b44bf5d8add9b231fef90f7083e36bf6f679f988b5b00403e308",
+      "raw_bytes": 13,
+      "gzip_sha256": "8c3af3d8c606c3b2e8d92afa0912c8606a43050da293e983ee206929b720dc0a",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r2/execution-r1/receipt.json",
+      "archive": "r2/execution-r1/receipt.json.gz",
+      "raw_sha256": "5a1932f090a33798e10d1049f9a8bf8b09886ac079a9d21630ba339ba80ebc7a",
+      "raw_bytes": 534167,
+      "gzip_sha256": "c48e94cca627015b39e7df75704fcc1ea422fc8342043bbaf52651cd7cb7e27b",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r2/execution-r1/ruff.log",
+      "archive": "r2/execution-r1/ruff.log.gz",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_bytes": 19,
+      "gzip_sha256": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r3/FREEZE-SOURCES-r1.json",
+      "archive": "r3/FREEZE-SOURCES-r1.json.gz",
+      "raw_sha256": "2b26c6b498c36496fa156c62518a95680d66093858f8f51a86fa3c7bb7a8c537",
+      "raw_bytes": 83280,
+      "gzip_sha256": "21b9f1000d9a5095754b3af5a94bf9eb9214eb48324c5a71dd02f1b32b179585",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r3/PLAN-r1.json",
+      "archive": "r3/PLAN-r1.json.gz",
+      "raw_sha256": "bf90200292c4c04252f4f9bae85ad546ba24063796b22cc77f16fac498ddaeb1",
+      "raw_bytes": 1858,
+      "gzip_sha256": "6f0e63da74246e4a4dd299491dc603f6cf6be2ced0313321f88d13f9f29bdd1a",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r3/cleanup-postgres-created.json",
+      "archive": "r3/cleanup-postgres-created.json.gz",
+      "raw_sha256": "0e41cfdbf02c44d39a84f8f46e4a5713d56f9f77eb698a955e5ffdcece934577",
+      "raw_bytes": 493,
+      "gzip_sha256": "e0a226a93a1ac487fa8104f35048e1ab9937e3699fd82c9f85f8353a8ab260fa",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r3/conducteur-root.py",
+      "archive": "r3/conducteur-root.py.gz",
+      "raw_sha256": "e36047327f146bf94cd160f20901b4dc2ad4362a3c2749beb78e9c4519dbbed1",
+      "raw_bytes": 18317,
+      "gzip_sha256": "4bf3651313888578265472e37721fdef7197447e64d282280db213cc944b1ddb",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r3/execution-r1/pytest.log",
+      "archive": "r3/execution-r1/pytest.log.gz",
+      "raw_sha256": "1daed90b5518b44bf5d8add9b231fef90f7083e36bf6f679f988b5b00403e308",
+      "raw_bytes": 13,
+      "gzip_sha256": "8c3af3d8c606c3b2e8d92afa0912c8606a43050da293e983ee206929b720dc0a",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r3/execution-r1/receipt.json",
+      "archive": "r3/execution-r1/receipt.json.gz",
+      "raw_sha256": "fc1d3c839a9aa2ea0cd267239c1760324ef4740c545d5bdbcb2748b2d0180450",
+      "raw_bytes": 534167,
+      "gzip_sha256": "1b7ab1a9630b0fa00e1074e2471ec564f5c23df63fa40c06ac7b578769958fdd",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r3/execution-r1/ruff.log",
+      "archive": "r3/execution-r1/ruff.log.gz",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_bytes": 19,
+      "gzip_sha256": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r4-sqlite/FREEZE-SOURCES-r1.json",
+      "archive": "r4-sqlite/FREEZE-SOURCES-r1.json.gz",
+      "raw_sha256": "2b26c6b498c36496fa156c62518a95680d66093858f8f51a86fa3c7bb7a8c537",
+      "raw_bytes": 83280,
+      "gzip_sha256": "21b9f1000d9a5095754b3af5a94bf9eb9214eb48324c5a71dd02f1b32b179585",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r4-sqlite/PLAN-r1.json",
+      "archive": "r4-sqlite/PLAN-r1.json.gz",
+      "raw_sha256": "ef22c373b4e83a0c00606403b108afabf94ae0d338542b43ee14145b39de67ec",
+      "raw_bytes": 2574,
+      "gzip_sha256": "b907aa3c3a4dcc10b37d12eaff3ead31a0f44dd00ccdcafbb52d663439658498",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r4-sqlite/conducteur-root.py",
+      "archive": "r4-sqlite/conducteur-root.py.gz",
+      "raw_sha256": "42b63f775791dffc367dc533c891cbb2892638658fc0060a4f96738da376bd56",
+      "raw_bytes": 18360,
+      "gzip_sha256": "2862b51d17e9466f07e5b5d6a136f5bcc635734fa68ea32080f5d874e2558882",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r4-sqlite/execution-r1/pytest.log",
+      "archive": "r4-sqlite/execution-r1/pytest.log.gz",
+      "raw_sha256": "d3159819b20e1290ab246b9c77138f90071038937c495833880af0fd8b316931",
+      "raw_bytes": 11348,
+      "gzip_sha256": "5ac7900a43007e106402d5cae4ecf21b21d1e91e1bc47686290b15840d8fbe1e",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r4-sqlite/execution-r1/pytest.xml",
+      "archive": "r4-sqlite/execution-r1/pytest.xml.gz",
+      "raw_sha256": "b0bb8fb4f346d5407f7de8c6fd41760cbec9ec3dc864fa861178f244f0dad997",
+      "raw_bytes": 27492,
+      "gzip_sha256": "900164f61bed2d8d83affc722536cdbcb3dc5677e4c4191b60f1ed799b3b480e",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r4-sqlite/execution-r1/receipt.json",
+      "archive": "r4-sqlite/execution-r1/receipt.json.gz",
+      "raw_sha256": "62dd4d4c229b3125534261356c98439a0f7300d292147dd4c01a03e038f027b8",
+      "raw_bytes": 534590,
+      "gzip_sha256": "fa9492322ebb5a4ce602cf9c7c568332527db5929b911eba8e693eca03798b5d",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r4-sqlite/execution-r1/ruff.log",
+      "archive": "r4-sqlite/execution-r1/ruff.log.gz",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_bytes": 19,
+      "gzip_sha256": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r5-sqlite/FREEZE-SOURCES-r1.json",
+      "archive": "r5-sqlite/FREEZE-SOURCES-r1.json.gz",
+      "raw_sha256": "2b26c6b498c36496fa156c62518a95680d66093858f8f51a86fa3c7bb7a8c537",
+      "raw_bytes": 83280,
+      "gzip_sha256": "21b9f1000d9a5095754b3af5a94bf9eb9214eb48324c5a71dd02f1b32b179585",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r5-sqlite/PLAN-r1.json",
+      "archive": "r5-sqlite/PLAN-r1.json.gz",
+      "raw_sha256": "03cce81e892a11634636de4f127bc48d4b9b6c8016253c425afca3d474e14753",
+      "raw_bytes": 3026,
+      "gzip_sha256": "b7059dec32fb35afb8091667d9de2a609d9bb12ef598e0edd9dd90986c1a5c65",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r5-sqlite/conducteur-root.py",
+      "archive": "r5-sqlite/conducteur-root.py.gz",
+      "raw_sha256": "1e18fa8acf3e70359fced214c77d65a0f129b6dbe93c9209748a6eecf3212e55",
+      "raw_bytes": 18468,
+      "gzip_sha256": "fa5648013fe04f183cf6df8e2bec5f96c1774b4c8eb300d9f7759bc6d8da6c32",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r5-sqlite/execution-r1/pytest.log",
+      "archive": "r5-sqlite/execution-r1/pytest.log.gz",
+      "raw_sha256": "94ec13d888f71083b8b3dcba15f06d6dac3fb1c0bc270e5b729b466e79f3d9bb",
+      "raw_bytes": 195,
+      "gzip_sha256": "858f34f8ae9152832d2387a99f46d24fe8ed2793f7918f4ab5d6b67b1dde0877",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r5-sqlite/execution-r1/pytest.xml",
+      "archive": "r5-sqlite/execution-r1/pytest.xml.gz",
+      "raw_sha256": "31d2778fe50a2495908779319fc38a5d41fa91715cea55a8649f880239a6900a",
+      "raw_bytes": 16635,
+      "gzip_sha256": "2bd21b75ad6b752aa79fe170dcb6b0fe7646066af049c00053d08a218d0cdb80",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r5-sqlite/execution-r1/receipt.json",
+      "archive": "r5-sqlite/execution-r1/receipt.json.gz",
+      "raw_sha256": "d404b8fcbb7924ba09f6745facba3941a42f9918fd8ad1f6c15a02e2e089dce5",
+      "raw_bytes": 535067,
+      "gzip_sha256": "d00e700914b445f10cc76a17df13f6e70e799e4739d8af420c635882d040bdb5",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r5-sqlite/execution-r1/ruff.log",
+      "archive": "r5-sqlite/execution-r1/ruff.log.gz",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_bytes": 19,
+      "gzip_sha256": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r6-sqlite/FREEZE-SOURCES-r1.json",
+      "archive": "r6-sqlite/FREEZE-SOURCES-r1.json.gz",
+      "raw_sha256": "2b26c6b498c36496fa156c62518a95680d66093858f8f51a86fa3c7bb7a8c537",
+      "raw_bytes": 83280,
+      "gzip_sha256": "21b9f1000d9a5095754b3af5a94bf9eb9214eb48324c5a71dd02f1b32b179585",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r6-sqlite/PLAN-r1.json",
+      "archive": "r6-sqlite/PLAN-r1.json.gz",
+      "raw_sha256": "6db5b6186ba55e173fb66351ff0e277688fcef5996cd12a67bf01271a9613bd8",
+      "raw_bytes": 3087,
+      "gzip_sha256": "52afeb00d88540c3c9b976b485cc3444ff93e1b014279c8a97b7e68c132eedd9",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r6-sqlite/conducteur-root.py",
+      "archive": "r6-sqlite/conducteur-root.py.gz",
+      "raw_sha256": "a81f5ec02ad2cc971f95428e00d07fe9544c6549292b49243bf8e2d68499edae",
+      "raw_bytes": 19268,
+      "gzip_sha256": "f4ecdce5bf92680d1e52837cc5ff5fcbb48aa689a65d71d12e8f7435cea7cb73",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r6-sqlite/execution-r1/pytest.log",
+      "archive": "r6-sqlite/execution-r1/pytest.log.gz",
+      "raw_sha256": "96338ee1c313809913059bdfd0eb96cd729bb792678af79b02fe90ca67bad0c6",
+      "raw_bytes": 195,
+      "gzip_sha256": "aba76f58fea8329a022896807fbc599346a742c7b40c1bff1e27f857fcc678c1",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r6-sqlite/execution-r1/pytest.xml",
+      "archive": "r6-sqlite/execution-r1/pytest.xml.gz",
+      "raw_sha256": "16bc96d9e8e567c2a6dcf1a81564c709b9b6303f1020449628f8bed92952ae4e",
+      "raw_bytes": 16635,
+      "gzip_sha256": "46569cdaee9f087730adc90f9dc36b7b0d1301afbd2e74916749d2a884df8449",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r6-sqlite/execution-r1/receipt.json",
+      "archive": "r6-sqlite/execution-r1/receipt.json.gz",
+      "raw_sha256": "0436d8041837e1da7b8d08e330d2fb0ac1ba9e0aadad505c203d47134c97aecd",
+      "raw_bytes": 534785,
+      "gzip_sha256": "3223483926776d8b0c695fc1a3de7f28b4a8883d8ffde1e4f43205a5e2452ba8",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-provider-release-python-root-r6-sqlite/execution-r1/ruff.log",
+      "archive": "r6-sqlite/execution-r1/ruff.log.gz",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_bytes": 19,
+      "gzip_sha256": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "readback": true
+    }
+  ]
+}

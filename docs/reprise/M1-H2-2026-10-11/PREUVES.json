@@ -1,0 +1,58 @@
+{
+  "Toronto": "2026-10-11T14:55:18.650858-04:00",
+  "state": "LOCAL_QUALIFIED_PUBLICATION_PENDING_NEW_CI",
+  "product": "PARTIEL",
+  "parent_HEAD": "0e66dc11d89c604335e804f77e7a75f7f3f8c74d",
+  "Source43851_candidate_manifest_SHA": "948fbca7112ea29cbef73cd4faa8d11f0956db971d449642054a09f0272a185c",
+  "changed_source": [
+    {
+      "path": "core/src/plugins/registry-state.ts",
+      "before": "6beadf4f299b472a5dd20cab2126f45c5dd11174f456367e4c1a9423ca339fc9",
+      "after": "60a9095bee9eb001b992a795639c9cd253c2e4ff57b52d70eab94c5e4a5153b5",
+      "origin": "Root reviewed minimal existing owner extension",
+      "status": "local qualified isolated, publication pending",
+      "verification": "7 coherence,37legacy,63neighbors/style2/TS7; independent reviews",
+      "limit": "constructor-coherence not permission/full H/P/M/T; newexactCI/fullbuild pending"
+    },
+    {
+      "path": "core/src/plugins/registry-runtime.state-coherence.test.ts",
+      "before": "7d9ac7e35cd7c15dddfc90a98ff2e180f79c193d8343def3a687d59d139b33e7",
+      "after": "3e67b16611178edda8063364c9525c66bdea428697cbbcdc257cd52f38482765",
+      "origin": "Root preserves original2 cases, adds5 real-factory data/accessor negatives",
+      "status": "local canonical7PASS noSkip",
+      "verification": "test3e67 identical RED2PASS5FAIL/GREEN7PASS; JSON/JUnit fulltitles; getter0 asserted",
+      "limit": "no new credit to copies/Proxy tests or permission"
+    }
+  ],
+  "proofs": {
+    "RED_Root": "40a8f526f771f8124775f9b7789a2a3f2902735a0c905c7a9eede718fc98796d",
+    "GREEN_Root": "03d07596135d2906f2c21071af2ce29384e8d3d3a2b093fc4ae50b442caf6adb",
+    "affected_Root": "98a55ea302af358f4061cd1e9a242e178694cd5b0f480686bbeb18f35340f70e",
+    "GREEN_independent": "a8d80203a5947a8a80b6db9382f7a0748ff810d34fb814ef7afc0d7ecdd2f60e",
+    "affected_independent": "51cd18379997d79d6176961ea66a98c522e4b0829e4089f8e04779367d287785",
+    "Opus_disposition": "4141f35b703c4dca89276754ecc6510591886f234c05279abac3d695fe9fa5fa",
+    "mode_incident_Root": "4b06d34def4c63802535827d36b26e19fe933f7a4f13f58baf1723fca5780e56",
+    "scope": "These SHA capsules are local Q, not claimed GitHub artifacts"
+  },
+  "preservation": {
+    "initial_import_failure0tests": "preserved NO_PRODUCT_RED",
+    "RED2pass5fail": "preserved",
+    "old600s_model_timeout": "preserved NONQUAL, no retry; new180s noTools separate bounded productive staticmission",
+    "wrong_mode_seal_manifest": "5b04ba86a3457d16d1a1c1110c80cc7fd619d6627d2a13885ee1cbc93c93345f NONQUAL preserved",
+    "absent_light_pack_proofs": 104,
+    "complete_transfer_supplement": "ABSENT",
+    "automation": "PAUSED",
+    "future_M10_worktree": "oldbase339 eightpending protected, not integrated or equated to0e/H2"
+  },
+  "next_queue": {
+    "capsule": "9fbad6b7d1d0e87dc57501b77f8264463618f1ab87231b607601c239c08e05f9",
+    "ordered": [
+      "Authentic H record-slot-lifecycle writer and oracles",
+      "NEW passive P + exact M reservation before participant",
+      "Exact local OLD keeper refusal vs intrinsic/prior closing T"
+    ],
+    "condition": "new explicit leases + REDs, canonical qualification, not delivered by H2"
+  },
+  "CI_and_fullbuild": "PENDING_EXACT_NEW_COMMIT",
+  "force_merge_production": false
+}

@@ -1,0 +1,2684 @@
+{
+  "date_toronto": "2026-10-06T21:58:01.222201-04:00",
+  "parent": "6896bb22cab8718a2350c396c7709a15f04e97d1",
+  "files": [
+    {
+      "path": ".github/workflows/core.yml",
+      "sha256": "adc9f7fba565c2aabaaa8fc7630fb878656a5ea2bc2bd24939bcfd2fba6161eb",
+      "preimage_sha256": "d39dd7f3494c94a0efa0a497f73bab72d4e90c7a040621cd8b7609f7357946d1",
+      "origin": "dépôt existant",
+      "integration": "modifié",
+      "verification": [
+        "verticale-corpus-reprise-integration-r5",
+        "verticale-corpus-reprise-suites-final-r2",
+        "verticale-corpus-reprise-ruff-final-r2"
+      ],
+      "limit": "preuve/CI, aucune nouvelle autorité"
+    },
+    {
+      "path": "core/test/fixtures/opsys-verticale/README.md",
+      "sha256": "fd46cd1ef3a8c7750b7bd990ff8de4ade88fb43decfec46306b08af4f02742f4",
+      "preimage_sha256": "43ac6cba5c379f2e3b597001e49044dbed33b1541fb0ccb3607d950f90506f18",
+      "origin": "dépôt existant",
+      "integration": "modifié",
+      "verification": [
+        "verticale-corpus-reprise-integration-r5",
+        "verticale-corpus-reprise-suites-final-r2",
+        "verticale-corpus-reprise-ruff-final-r2"
+      ],
+      "limit": "preuve/CI, aucune nouvelle autorité"
+    },
+    {
+      "path": "departments/m10-memoire/src/m10_memoire/developpement.py",
+      "sha256": "04420d1c0f0a694ab1f2ead1a9e00ff4946e879cc564fcc940f2baf7ea70839f",
+      "preimage_sha256": "3046f83e3be07358b8cdb6d73d2190bb5894cea52981cf474f2fa2f03e03c86b",
+      "origin": "dépôt existant",
+      "integration": "modifié",
+      "verification": [
+        "verticale-corpus-reprise-integration-r5",
+        "verticale-corpus-reprise-suites-final-r2",
+        "verticale-corpus-reprise-ruff-final-r2"
+      ],
+      "limit": "ordre des ex aequo de preflight seulement"
+    },
+    {
+      "path": "departments/m10-memoire/tests/test_developpement.py",
+      "sha256": "3bd229ce1abdbc5bc56d654b14f99e962849aa46cb7f6eaa02a539adf35fc122",
+      "preimage_sha256": "84d49ede9a96fd59c7e6c2d19f2d4f4091f761a13ef8248339ffa663ba6886cf",
+      "origin": "dépôt existant",
+      "integration": "modifié",
+      "verification": [
+        "verticale-corpus-reprise-integration-r5",
+        "verticale-corpus-reprise-suites-final-r2",
+        "verticale-corpus-reprise-ruff-final-r2"
+      ],
+      "limit": "preuve/CI, aucune nouvelle autorité"
+    },
+    {
+      "path": "tests/fixtures/core_verticale_developpement_plugin.py",
+      "sha256": "4071016562e0b12ef0387e4dbfa4fa7fbf521cf6c72bf2addeb76c4b0a97973c",
+      "preimage_sha256": null,
+      "origin": "qualification externe adaptée",
+      "integration": "nouveau",
+      "verification": [
+        "verticale-corpus-reprise-integration-r5",
+        "verticale-corpus-reprise-suites-final-r2",
+        "verticale-corpus-reprise-ruff-final-r2"
+      ],
+      "limit": "preuve/CI, aucune nouvelle autorité"
+    },
+    {
+      "path": "tests/fixtures/core_verticale_memoire_plugin.py",
+      "sha256": "8f156451906ecd157aae0628c4a92dfd83e229457c0cf8f5f4b5113ad518790a",
+      "preimage_sha256": "daf1124eb7f2631601d602d63c9ea67ab0d228d2106a4d556bdd0679ed9392a5",
+      "origin": "qualification externe adaptée",
+      "integration": "modifié",
+      "verification": [
+        "verticale-corpus-reprise-integration-r5",
+        "verticale-corpus-reprise-suites-final-r2",
+        "verticale-corpus-reprise-ruff-final-r2"
+      ],
+      "limit": "preuve/CI, aucune nouvelle autorité"
+    },
+    {
+      "path": "tests/fixtures/core_verticale_restoration_driver.py",
+      "sha256": "4a1a086072f6f5621264afee21a4910675ed9c72156a936bd86c82702765a286",
+      "preimage_sha256": null,
+      "origin": "qualification externe adaptée",
+      "integration": "nouveau",
+      "verification": [
+        "verticale-corpus-reprise-integration-r5",
+        "verticale-corpus-reprise-suites-final-r2",
+        "verticale-corpus-reprise-ruff-final-r2"
+      ],
+      "limit": "preuve/CI, aucune nouvelle autorité"
+    },
+    {
+      "path": "tests/fixtures/core_verticale_restoration_plugin.py",
+      "sha256": "8608e295af5b65a10c105eaa9c595f8db31487ac85337385786895b1caab4dbc",
+      "preimage_sha256": null,
+      "origin": "qualification externe adaptée",
+      "integration": "nouveau",
+      "verification": [
+        "verticale-corpus-reprise-integration-r5",
+        "verticale-corpus-reprise-suites-final-r2",
+        "verticale-corpus-reprise-ruff-final-r2"
+      ],
+      "limit": "preuve/CI, aucune nouvelle autorité"
+    },
+    {
+      "path": "tests/fixtures/qualifier_verticale_core.py",
+      "sha256": "b5da2fdeece1748f64b03a270292e9e1840b46d1731b66a6f040ebceb9a5e43a",
+      "preimage_sha256": "374690727227969a32b62c100a119e6b8cad30eea1222d9fa7a6eb86e4b121cd",
+      "origin": "dépôt existant",
+      "integration": "modifié",
+      "verification": [
+        "verticale-corpus-reprise-integration-r5",
+        "verticale-corpus-reprise-suites-final-r2",
+        "verticale-corpus-reprise-ruff-final-r2"
+      ],
+      "limit": "preuve/CI, aucune nouvelle autorité"
+    },
+    {
+      "path": "tests/test_ci_verticale_core.py",
+      "sha256": "38b012aeef2b4fabeacc6047850a04cee57861348febb7c2758de0363468a50c",
+      "preimage_sha256": "325945a0575efd3b8b906ad089c0a13e37196ef80dca9d91bec6cd18ccb53e05",
+      "origin": "dépôt existant",
+      "integration": "modifié",
+      "verification": [
+        "verticale-corpus-reprise-integration-r5",
+        "verticale-corpus-reprise-suites-final-r2",
+        "verticale-corpus-reprise-ruff-final-r2"
+      ],
+      "limit": "preuve/CI, aucune nouvelle autorité"
+    }
+  ],
+  "checks": {
+    "memoire-classement-ties-green-r1": {
+      "label": "memoire-classement-ties-green-r1",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "departments/m10-memoire/tests/test_developpement.py",
+        "departments/m10-memoire/tests/test_memoire_developpement_api.py",
+        "-q",
+        "--junitxml=../qualification/memoire-classement-ties-green-r1.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:40:55.877393+00:00",
+      "completed_utc": "2026-10-07T01:41:08.544289+00:00",
+      "exit_code": 1,
+      "wall_seconds": 11.818,
+      "peak_process_tree_rss_bytes": 130908160,
+      "guard_triggered": null,
+      "source_sha256_before": "16f4c63a31643afa9edaa8967142f3b3200688ebb0ce2c7110c4b22053e3da08",
+      "source_sha256_after": "16f4c63a31643afa9edaa8967142f3b3200688ebb0ce2c7110c4b22053e3da08",
+      "sources_unchanged": true,
+      "log_sha256": "6b77741bbd40698ea480bdfc26fc720cb672611061f55aeeaac4f5113bf7a9c0"
+    },
+    "memoire-classement-ties-green-r2": {
+      "label": "memoire-classement-ties-green-r2",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "departments/m10-memoire/tests/test_developpement.py",
+        "departments/m10-memoire/tests/test_memoire_developpement_api.py",
+        "-q",
+        "--junitxml=../qualification/memoire-classement-ties-green-r2.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:42:19.774259+00:00",
+      "completed_utc": "2026-10-07T01:42:32.960287+00:00",
+      "exit_code": 0,
+      "wall_seconds": 12.343,
+      "peak_process_tree_rss_bytes": 157171712,
+      "guard_triggered": null,
+      "source_sha256_before": "4cbcec692d54d918bb8c95e15398dac688b37989724ba85562bf28038e368e56",
+      "source_sha256_after": "4cbcec692d54d918bb8c95e15398dac688b37989724ba85562bf28038e368e56",
+      "sources_unchanged": true,
+      "log_sha256": "1be49fd895b85885e95320656461b947bb142db14a4772834cc5d75315465192"
+    },
+    "memoire-classement-ties-red-r1": {
+      "label": "memoire-classement-ties-red-r1",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "departments/m10-memoire/tests/test_developpement.py",
+        "-k",
+        "classement_ex_aequo_stable",
+        "-q",
+        "--junitxml=../qualification/memoire-classement-ties-red-r1.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:39:35.982254+00:00",
+      "completed_utc": "2026-10-07T01:39:38.687630+00:00",
+      "exit_code": 1,
+      "wall_seconds": 1.866,
+      "peak_process_tree_rss_bytes": 116756480,
+      "guard_triggered": null,
+      "source_sha256_before": "241526cb8779b0b52740853be9dfd6042c0c59835cdb812d8082d1ab79fc1eb7",
+      "source_sha256_after": "241526cb8779b0b52740853be9dfd6042c0c59835cdb812d8082d1ab79fc1eb7",
+      "sources_unchanged": true,
+      "log_sha256": "92fa654d210ee06111f8ef0feb26b68c2ed81f048d357816abc6b2fc76371f7e"
+    },
+    "verticale-corpus-reprise-contrat-red-r1": {
+      "label": "verticale-corpus-reprise-contrat-red-r1",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_ci_verticale_core.py",
+        "-q",
+        "--junitxml=../qualification/verticale-corpus-reprise-contrat-red-r1.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:30:23.114402+00:00",
+      "completed_utc": "2026-10-07T01:30:25.292203+00:00",
+      "exit_code": 1,
+      "wall_seconds": 1.349,
+      "peak_process_tree_rss_bytes": 16945152,
+      "guard_triggered": null,
+      "source_sha256_before": "d349eb980c6731be042d87e7ec94f7643f89ac575f6efd1417d7a95fcc57f0bd",
+      "source_sha256_after": "d349eb980c6731be042d87e7ec94f7643f89ac575f6efd1417d7a95fcc57f0bd",
+      "sources_unchanged": true,
+      "log_sha256": "7629dc75898616cecc1494ab2fe1a6b00f8ab7dfbcd4864588b1b730d19abe00"
+    },
+    "verticale-corpus-reprise-contrats-r1": {
+      "label": "verticale-corpus-reprise-contrats-r1",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_ci_verticale_core.py",
+        "tests/test_ci_departements.py",
+        "tests/test_openclaw_contexte.py",
+        "-q",
+        "--junitxml=../qualification/verticale-corpus-reprise-contrats-r1.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:31:54.430810+00:00",
+      "completed_utc": "2026-10-07T01:31:58.205164+00:00",
+      "exit_code": 0,
+      "wall_seconds": 2.921,
+      "peak_process_tree_rss_bytes": 76611584,
+      "guard_triggered": null,
+      "source_sha256_before": "53dc7cf492db9a21de98b63cb23947b0b957fb12a3558b8cefca8b6aeb8e0bd3",
+      "source_sha256_after": "53dc7cf492db9a21de98b63cb23947b0b957fb12a3558b8cefca8b6aeb8e0bd3",
+      "sources_unchanged": true,
+      "log_sha256": "20f5f27046a7bba4f1632529723920cb0714405e7c436f83ff72626e3a37131b"
+    },
+    "verticale-corpus-reprise-contrats-r2": {
+      "label": "verticale-corpus-reprise-contrats-r2",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_ci_verticale_core.py",
+        "tests/test_ci_departements.py",
+        "tests/test_openclaw_contexte.py",
+        "-q",
+        "--junitxml=../qualification/verticale-corpus-reprise-contrats-r2.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:47:37.902277+00:00",
+      "completed_utc": "2026-10-07T01:47:41.130297+00:00",
+      "exit_code": 0,
+      "wall_seconds": 2.382,
+      "peak_process_tree_rss_bytes": 77234176,
+      "guard_triggered": null,
+      "source_sha256_before": "e006ff2c76fbb10196536d1708b4ea901d227ed076b0b37d7e4186f1bc9216f5",
+      "source_sha256_after": "e006ff2c76fbb10196536d1708b4ea901d227ed076b0b37d7e4186f1bc9216f5",
+      "sources_unchanged": true,
+      "log_sha256": "e35c4fb0464f9c25fb1600faa381b8d99b1dfac2853362d44748385704772fe8"
+    },
+    "verticale-corpus-reprise-integration-r1": {
+      "label": "verticale-corpus-reprise-integration-r1",
+      "command": [
+        "python",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "--preuve-dir",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/verticale-corpus-reprise-integration-r1"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:31:54.429864+00:00",
+      "completed_utc": "2026-10-07T01:33:30.362995+00:00",
+      "exit_code": 1,
+      "wall_seconds": 95.096,
+      "peak_process_tree_rss_bytes": 800071680,
+      "guard_triggered": null,
+      "source_sha256_before": "53dc7cf492db9a21de98b63cb23947b0b957fb12a3558b8cefca8b6aeb8e0bd3",
+      "source_sha256_after": "53dc7cf492db9a21de98b63cb23947b0b957fb12a3558b8cefca8b6aeb8e0bd3",
+      "sources_unchanged": true,
+      "log_sha256": "6a106119713358550e828c657b88f541d17fcd90c49c41574561b6c5ad955056"
+    },
+    "verticale-corpus-reprise-integration-r2": {
+      "label": "verticale-corpus-reprise-integration-r2",
+      "command": [
+        "python",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "--preuve-dir",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/verticale-corpus-reprise-integration-r2"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:45:14.044900+00:00",
+      "completed_utc": "2026-10-07T01:46:57.037006+00:00",
+      "exit_code": 0,
+      "wall_seconds": 102.163,
+      "peak_process_tree_rss_bytes": 848834560,
+      "guard_triggered": null,
+      "source_sha256_before": "f5a9ac1b6599d89c5e92444cd0cad63054235489b5851fe1f020d8d8c2c9af65",
+      "source_sha256_after": "f5a9ac1b6599d89c5e92444cd0cad63054235489b5851fe1f020d8d8c2c9af65",
+      "sources_unchanged": true,
+      "log_sha256": "692bcfeae54bea69e3da4cd56c2433f2729fe17fd5ba40415cb245dd83a14726"
+    },
+    "verticale-corpus-reprise-integration-r3": {
+      "label": "verticale-corpus-reprise-integration-r3",
+      "command": [
+        "python",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "--preuve-dir",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/verticale-corpus-reprise-integration-r3"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:47:37.907873+00:00",
+      "completed_utc": "2026-10-07T01:49:21.939560+00:00",
+      "exit_code": 0,
+      "wall_seconds": 103.204,
+      "peak_process_tree_rss_bytes": 822222848,
+      "guard_triggered": null,
+      "source_sha256_before": "e006ff2c76fbb10196536d1708b4ea901d227ed076b0b37d7e4186f1bc9216f5",
+      "source_sha256_after": "e006ff2c76fbb10196536d1708b4ea901d227ed076b0b37d7e4186f1bc9216f5",
+      "sources_unchanged": true,
+      "log_sha256": "621a6498eac860c5f02988554a2b9b744570400e79587527ba7544f041817810"
+    },
+    "verticale-corpus-reprise-integration-r4": {
+      "label": "verticale-corpus-reprise-integration-r4",
+      "command": [
+        "python",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "--preuve-dir",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/verticale-corpus-reprise-integration-r4"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:50:37.023299+00:00",
+      "completed_utc": "2026-10-07T01:52:18.877079+00:00",
+      "exit_code": 0,
+      "wall_seconds": 101.01,
+      "peak_process_tree_rss_bytes": 822861824,
+      "guard_triggered": null,
+      "source_sha256_before": "b5638f08b5af0825df863fca2352b0ef977e48ac30bab2ee5818d7c8f58ff043",
+      "source_sha256_after": "b5638f08b5af0825df863fca2352b0ef977e48ac30bab2ee5818d7c8f58ff043",
+      "sources_unchanged": true,
+      "log_sha256": "621a6498eac860c5f02988554a2b9b744570400e79587527ba7544f041817810"
+    },
+    "verticale-corpus-reprise-integration-r5": {
+      "label": "verticale-corpus-reprise-integration-r5",
+      "command": [
+        "python",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "--preuve-dir",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/verticale-corpus-reprise-integration-r5"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:55:49.962868+00:00",
+      "completed_utc": "2026-10-07T01:57:32.820691+00:00",
+      "exit_code": 0,
+      "wall_seconds": 102.022,
+      "peak_process_tree_rss_bytes": 846811136,
+      "guard_triggered": null,
+      "source_sha256_before": "22c9eb8e5060ec0d0907893176e6cd2ecd2769a71cc33be5407754f57cdbde99",
+      "source_sha256_after": "22c9eb8e5060ec0d0907893176e6cd2ecd2769a71cc33be5407754f57cdbde99",
+      "sources_unchanged": true,
+      "log_sha256": "621a6498eac860c5f02988554a2b9b744570400e79587527ba7544f041817810"
+    },
+    "verticale-corpus-reprise-metier-r1": {
+      "label": "verticale-corpus-reprise-metier-r1",
+      "command": [
+        "opsys-metier",
+        "verifier"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:47:37.903489+00:00",
+      "completed_utc": "2026-10-07T01:47:41.129384+00:00",
+      "exit_code": 0,
+      "wall_seconds": 2.393,
+      "peak_process_tree_rss_bytes": 86446080,
+      "guard_triggered": null,
+      "source_sha256_before": "e006ff2c76fbb10196536d1708b4ea901d227ed076b0b37d7e4186f1bc9216f5",
+      "source_sha256_after": "e006ff2c76fbb10196536d1708b4ea901d227ed076b0b37d7e4186f1bc9216f5",
+      "sources_unchanged": true,
+      "log_sha256": "474c156de198e68f60fd508b3b3d5a7be826fbb3c3bc90bb4bb93269fb7a7cea"
+    },
+    "verticale-corpus-reprise-outer-timeout-r1": {
+      "label": "verticale-corpus-reprise-outer-timeout-r1",
+      "command": [
+        "python",
+        "../check_qualification_outer_timeout.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:44:16.435041+00:00",
+      "completed_utc": "2026-10-07T01:44:18.608838+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.345,
+      "peak_process_tree_rss_bytes": 14204928,
+      "guard_triggered": null,
+      "source_sha256_before": "f5a9ac1b6599d89c5e92444cd0cad63054235489b5851fe1f020d8d8c2c9af65",
+      "source_sha256_after": "f5a9ac1b6599d89c5e92444cd0cad63054235489b5851fe1f020d8d8c2c9af65",
+      "sources_unchanged": true,
+      "log_sha256": "ddefccc4b58a8fc076be931725d748af2500099d9015dedc0b4d4bd3e1ac0f47"
+    },
+    "verticale-corpus-reprise-ruff-final-r1": {
+      "label": "verticale-corpus-reprise-ruff-final-r1",
+      "command": [
+        "python",
+        "-m",
+        "ruff",
+        "check",
+        "tests/fixtures/core_verticale_developpement_plugin.py",
+        "tests/fixtures/core_verticale_restoration_plugin.py",
+        "tests/fixtures/core_verticale_restoration_driver.py",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "tests/test_ci_verticale_core.py",
+        "tests/fixtures/core_verticale_memoire_plugin.py",
+        "departments/m10-memoire/src/m10_memoire/developpement.py",
+        "departments/m10-memoire/tests/test_developpement.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:50:37.029459+00:00",
+      "completed_utc": "2026-10-07T01:50:39.261006+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.395,
+      "peak_process_tree_rss_bytes": 0,
+      "guard_triggered": null,
+      "source_sha256_before": "b5638f08b5af0825df863fca2352b0ef977e48ac30bab2ee5818d7c8f58ff043",
+      "source_sha256_after": "b5638f08b5af0825df863fca2352b0ef977e48ac30bab2ee5818d7c8f58ff043",
+      "sources_unchanged": true,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "verticale-corpus-reprise-ruff-final-r2": {
+      "label": "verticale-corpus-reprise-ruff-final-r2",
+      "command": [
+        "python",
+        "-m",
+        "ruff",
+        "check",
+        "tests/fixtures/core_verticale_developpement_plugin.py",
+        "tests/fixtures/core_verticale_restoration_plugin.py",
+        "tests/fixtures/core_verticale_restoration_driver.py",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "tests/test_ci_verticale_core.py",
+        "tests/fixtures/core_verticale_memoire_plugin.py",
+        "departments/m10-memoire/src/m10_memoire/developpement.py",
+        "departments/m10-memoire/tests/test_developpement.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:55:49.967067+00:00",
+      "completed_utc": "2026-10-07T01:55:52.147743+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.349,
+      "peak_process_tree_rss_bytes": 11354112,
+      "guard_triggered": null,
+      "source_sha256_before": "22c9eb8e5060ec0d0907893176e6cd2ecd2769a71cc33be5407754f57cdbde99",
+      "source_sha256_after": "22c9eb8e5060ec0d0907893176e6cd2ecd2769a71cc33be5407754f57cdbde99",
+      "sources_unchanged": true,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "verticale-corpus-reprise-ruff-r1": {
+      "label": "verticale-corpus-reprise-ruff-r1",
+      "command": [
+        "python",
+        "-m",
+        "ruff",
+        "check",
+        "tests/fixtures/core_verticale_developpement_plugin.py",
+        "tests/fixtures/core_verticale_restoration_plugin.py",
+        "tests/fixtures/core_verticale_restoration_driver.py",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "tests/test_ci_verticale_core.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:31:54.431321+00:00",
+      "completed_utc": "2026-10-07T01:31:56.630357+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.362,
+      "peak_process_tree_rss_bytes": 0,
+      "guard_triggered": null,
+      "source_sha256_before": "53dc7cf492db9a21de98b63cb23947b0b957fb12a3558b8cefca8b6aeb8e0bd3",
+      "source_sha256_after": "53dc7cf492db9a21de98b63cb23947b0b957fb12a3558b8cefca8b6aeb8e0bd3",
+      "sources_unchanged": true,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "verticale-corpus-reprise-source-r2": {
+      "label": "verticale-corpus-reprise-source-r2",
+      "command": [
+        "python",
+        "-m",
+        "ruff",
+        "check",
+        "tests/fixtures/core_verticale_developpement_plugin.py",
+        "tests/fixtures/core_verticale_restoration_plugin.py",
+        "tests/fixtures/core_verticale_restoration_driver.py",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "tests/test_ci_verticale_core.py",
+        "departments/m10-memoire/src/m10_memoire/developpement.py",
+        "departments/m10-memoire/tests/test_developpement.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:45:15.211697+00:00",
+      "completed_utc": "2026-10-07T01:45:17.378072+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.344,
+      "peak_process_tree_rss_bytes": 0,
+      "guard_triggered": null,
+      "source_sha256_before": "f5a9ac1b6599d89c5e92444cd0cad63054235489b5851fe1f020d8d8c2c9af65",
+      "source_sha256_after": "f5a9ac1b6599d89c5e92444cd0cad63054235489b5851fe1f020d8d8c2c9af65",
+      "sources_unchanged": true,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "verticale-corpus-reprise-suites-final-r1": {
+      "label": "verticale-corpus-reprise-suites-final-r1",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_ci_verticale_core.py",
+        "tests/test_ci_departements.py",
+        "tests/test_openclaw_contexte.py",
+        "departments/m10-memoire/tests/test_developpement.py",
+        "departments/m10-memoire/tests/test_memoire_developpement_api.py",
+        "-q",
+        "--junitxml=../qualification/verticale-corpus-reprise-suites-final-r1.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:50:37.026197+00:00",
+      "completed_utc": "2026-10-07T01:50:51.483994+00:00",
+      "exit_code": 0,
+      "wall_seconds": 13.605,
+      "peak_process_tree_rss_bytes": 152858624,
+      "guard_triggered": null,
+      "source_sha256_before": "b5638f08b5af0825df863fca2352b0ef977e48ac30bab2ee5818d7c8f58ff043",
+      "source_sha256_after": "b5638f08b5af0825df863fca2352b0ef977e48ac30bab2ee5818d7c8f58ff043",
+      "sources_unchanged": true,
+      "log_sha256": "c902b1432fba371f1e5f08dd5b6028ae0a2d8fe3f7f4eccd4db8d3705d45c6bb"
+    },
+    "verticale-corpus-reprise-suites-final-r2": {
+      "label": "verticale-corpus-reprise-suites-final-r2",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_ci_verticale_core.py",
+        "tests/test_ci_departements.py",
+        "tests/test_openclaw_contexte.py",
+        "departments/m10-memoire/tests/test_developpement.py",
+        "departments/m10-memoire/tests/test_memoire_developpement_api.py",
+        "-q",
+        "--junitxml=../qualification/verticale-corpus-reprise-suites-final-r2.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T01:55:49.988551+00:00",
+      "completed_utc": "2026-10-07T01:56:04.223395+00:00",
+      "exit_code": 0,
+      "wall_seconds": 13.4,
+      "peak_process_tree_rss_bytes": 176386048,
+      "guard_triggered": null,
+      "source_sha256_before": "22c9eb8e5060ec0d0907893176e6cd2ecd2769a71cc33be5407754f57cdbde99",
+      "source_sha256_after": "22c9eb8e5060ec0d0907893176e6cd2ecd2769a71cc33be5407754f57cdbde99",
+      "sources_unchanged": true,
+      "log_sha256": "c902b1432fba371f1e5f08dd5b6028ae0a2d8fe3f7f4eccd4db8d3705d45c6bb"
+    }
+  },
+  "source_sha256_qualification": "22c9eb8e5060ec0d0907893176e6cd2ecd2769a71cc33be5407754f57cdbde99",
+  "qualification": {
+    "affaires_sqlite": 1,
+    "phases": {
+      "profil": 13,
+      "memoire": 9,
+      "dev": 10,
+      "restauration": 8
+    },
+    "passed_suites": 154,
+    "skipped_suites_docker": 1
+  },
+  "excluded_files": [
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/affaire-fictive-alteree.tar.gz",
+      "sha256": "4a21fb5526f0467a911d2ad6b7461171705858ea0592bbbcb0d5a68ccda7c8c8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/affaire-fictive.tar.gz",
+      "sha256": "4b695de2fb614a8689a08603a8ae869d42b6b78f35d46983f9deb54d505e3ba1",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/affaire-fictive.tar.gz.sha256",
+      "sha256": "01a94f41e35e9e489ce2e7f3016e9e06399fd6b128537526e3ebd980364ab09a",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/agents.json",
+      "sha256": "cfe7c9b5ff152a8fd83da3538878ee6ab151b9420c8fe7aa53efceb8c4a9a2c7",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/automatisations.sh",
+      "sha256": "d4a1a34d6db4637c701bf1a264b133d482468b8ba414bb1dbb77d25d6b98b59e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/bindings.json",
+      "sha256": "4a7cf912db30b69feb3a808d0b68fcd60e0f3c390bfb000df4d7dcbaebde982e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/channels.json",
+      "sha256": "39ccf0b6d8780e867e00e314d9691c60b30445f35590b60bcd4a28a1ab50857f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/contexte.json",
+      "sha256": "d484e2b60ecb8909e324eeec848ded0b5ae4bc55b87d5254579c00c93d683b83",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m01-front-office/AGENTS.md",
+      "sha256": "bf3ce907cc5335eb876496eb70e6df921639cd4b49070e1830665a9253eeeba5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m01-front-office/SOUL.md",
+      "sha256": "0054f63e885257cf1f3b37c063b063de04e0c06d0fd46144253afb43de91f0bb",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/mener-un-appel-vocal/SKILL.md",
+      "sha256": "a03cab16efc17f7fb16e2fb7cdfeed7f1916618d8e8b60c0d7a5cdab016951c6",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/recevoir-un-message-de-canal/SKILL.md",
+      "sha256": "3687487d80d292fe5e05838160e5ab34c7447b4dec22b0dc49a06767856f0202",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/traiter-une-demande-entrante/SKILL.md",
+      "sha256": "8c8e12615de9a359bea58f01bf9928d278d648c5cb05b5b8a675a190f2adf3a8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/transferer-a-un-humain/SKILL.md",
+      "sha256": "566c847f7ff962be9efa3ba82186792df595dc4e4954fc50f7298705126f0f65",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/AGENTS.md",
+      "sha256": "9fc8c68ca0450821e56cd8624f2c3043c034c2673a4aa1ea460e7330c6f72bbd",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/SOUL.md",
+      "sha256": "532f566ebb14c4d9fe78dc715513c62e0102d8ab14d2cf03975eb47e92fb7fc0",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/arbitrer-un-doublon/SKILL.md",
+      "sha256": "626d6f375f3bd5b9d3d5016ef58b0c69615f65942b08d0abcc9443561c76b168",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/faire-progresser-vers-m3/SKILL.md",
+      "sha256": "a817afb184689ecc8e4f961c8c975caa9e02e76289acb25c8acab6e193264838",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/ingerer-un-lead/SKILL.md",
+      "sha256": "981adad769584364860cf4db80eccdbd1000141d381fe3d1c20b747080331713",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/lister-les-leads/SKILL.md",
+      "sha256": "02485e23425004baaecaf2972a6aa5814316d8be522358466a3304f5094b0e0a",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/preparer-une-relance/SKILL.md",
+      "sha256": "ad33576774a85a69117a86c0089318198d4ea3428f6ece9e398182999f3cb71c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m03-estimation/AGENTS.md",
+      "sha256": "ef9b2b459d682ae8307c8d1f468d50368082ded12893387f78d4b130382ef169",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m03-estimation/SOUL.md",
+      "sha256": "1b0544c38e64bf76205dceb1d9b0d143db10defb46c36611c6e498d7f35c3612",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m03-estimation/skills/estimer-un-projet/SKILL.md",
+      "sha256": "7f8bbad11d1f9daf755e3b587350bd91cdb509187bef3e2f992d5d66ed712ff3",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m04-field-ops/AGENTS.md",
+      "sha256": "9b953e4c16874820d1b17941323e9cb4ce137feedad96bbb93879f09962e1b54",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m04-field-ops/SOUL.md",
+      "sha256": "bbebd6704c07caf7da555902b5a3bc8d76989c2bf2057c84bf729715cd7a0de6",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/arbitrer-un-ecart/SKILL.md",
+      "sha256": "c6f9d3307a3f85e555547bbabb0a447e85d3e16e32d1659a4f58dcab91525233",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/gerer-une-intervention/SKILL.md",
+      "sha256": "fe931cb057a0abd2946b2037214123d6546803fca7812214775e2036e2f17154",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/localiser-un-chantier/SKILL.md",
+      "sha256": "ad5de0ae5e4d53b358fac0150bf4ef2cc2917f9fbaef4a15790935f858edd345",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/optimiser-la-cedule/SKILL.md",
+      "sha256": "a0c42bc644a2355fed898afc4d4fc28e19a8a8679dc40ee93ae8b530d621c7ec",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m05-financecore/AGENTS.md",
+      "sha256": "588519730aec88636c8a04648cfb88ee4f1bf0b2c9dda5ce99f44bc6ba2d4e5f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m05-financecore/SOUL.md",
+      "sha256": "bbe409daaf22f7fdf779ab97568618d4065a7fb483ad628a4e2bc8790176e60f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m05-financecore/skills/gerer-les-approbations-f0-f7/SKILL.md",
+      "sha256": "22f16e78f88f818b8af554cc551fa3eb73200a6a61cd64a0c9c7b0e225c93b13",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m05-financecore/skills/tenir-le-registre-financier/SKILL.md",
+      "sha256": "5354c65a399e3f88adcb4fc8330deeba1951dc21136da00f1cf2d7daadca4826",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m06-material-control/AGENTS.md",
+      "sha256": "f5e10cec0563b86d8281933fcc816b65e6dfe9bbd372c200af002edf6ff7a7b8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m06-material-control/SOUL.md",
+      "sha256": "69b98c40dcb7e8b547db19c8cefee6cd3bfc175a4e14dffdc240006104316393",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/compter-l-inventaire/SKILL.md",
+      "sha256": "5908e3be84c67634a6b840d9c6d9db4793efba33ea9893794663c09426c04e2b",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/consommer-du-materiel-terrain/SKILL.md",
+      "sha256": "6e61c1b1af56c691eb23ac8175e4b615dcdb83444de13aadadf0f9471cf70e53",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/receptionner-une-commande/SKILL.md",
+      "sha256": "5ee31bc508cd9e8a52020cb952a838e4a38dd103f772c74ab91e4d130470a7ea",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m07-marketing/AGENTS.md",
+      "sha256": "53741e3558338c9a853d6304d7f44306603c013dde0a0938ebe2ddf279995fb4",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m07-marketing/SOUL.md",
+      "sha256": "d195280a4237efeac3510b1f9d9a565245812c6ed7de536e8d4c8d4e4ad95e6c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/audit-seo-local/SKILL.md",
+      "sha256": "2bb7d2b33fd19efc2d802a29d01b987b7b36eadfeb0e616d5490171720a87ac7",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/contenu-de-chantier/SKILL.md",
+      "sha256": "2d4150aa974b017106937b583bf239e2c73b939934e786a4de227b54cb424b6c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/plan-de-contenu-saisonnier/SKILL.md",
+      "sha256": "1d2020c43804d745a7561a1702240f4a2d4d1bec08d088bb79a596b818ad869d",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/reponse-aux-avis/SKILL.md",
+      "sha256": "b63f73c6927918d0ec5ce3ecff450e0b0a85751d41b313f6dfbab2d27e77b0ec",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m08-analytics/AGENTS.md",
+      "sha256": "347a4c730fd13262fe69253e29a56e5878567e99d759fc9ac0c6062b0a04529f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m08-analytics/SOUL.md",
+      "sha256": "407d7d7f5e6614767ffdb6ca170baeb2e81b97773c6fae2a93d209493e6fbd1f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m08-analytics/skills/rapport-analytique-quotidien/SKILL.md",
+      "sha256": "880c4ab8888311c4d2a529dcff4f60892eaaff9e1d1e0726bb7b2a9165c11871",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/AGENTS.md",
+      "sha256": "59d202a592f49f0c3f743745ec5d3b79630a281622245d70798feacc2e0c48ae",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/SOUL.md",
+      "sha256": "bc2fac703e36437fcf1a9c64a05221ba90599d3ee862e62182d8a9d9b49fc65e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/skills/briefing-du-matin/SKILL.md",
+      "sha256": "76bba17c4e338d8f559116937af37a5ae383fe59474b9bd5d437b8a437a4f2b5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/skills/etat-consolide-et-contradictions/SKILL.md",
+      "sha256": "e0445f8148c71dab5e5d54b679c0a052e85a382770eab15911aebf6f0f05f879",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m10-memoire/AGENTS.md",
+      "sha256": "fd5168d148806ae327a16ae53d4afb82a46c8b9fafa9582092cfa45c6e473189",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m10-memoire/SOUL.md",
+      "sha256": "3dfd03482dff9993b106603bbe62b8f8d2b392374c4a95fea28af31d8cbb6533",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/journaliser-une-decision/SKILL.md",
+      "sha256": "d1b22b0fa1a7606af586bc0051340f2ded7af66286d67962889b5b1f58d4aa48",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/preflight-contexte-suffisant/SKILL.md",
+      "sha256": "fc5e98037f3aea14aa590d7f5f737249b362d526054a6da2bfbe4f04cd69260d",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/traiter-un-signal-critique/SKILL.md",
+      "sha256": "4064aa82538f2eab6a08d7152f233c8e2cec7bda24f72142802402d16d75e85c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/mcp.json",
+      "sha256": "8c391c3de40207428e5c4250decf26899b0bf17b1517d11469469d94aa3975dc",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/memoire-autorites.json",
+      "sha256": "736f180b88b9672428dded5a00ecdc06de50780cf248c871fb2e41093128a483",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/memory.json",
+      "sha256": "53eeb9e1bbbbe39e75effa81171b2938c5a9afb365d36c6800692f90323d19da",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/models.json",
+      "sha256": "e5ed6cc63699b65e67d353224665e5b3fb87fc9777238541a9a8dce0a58ccf31",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/plugins.json",
+      "sha256": "86301e49b51b02f3868ab51086310f6dae28b52a949142763028ee2af108d2da",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/profils-en-attente.json",
+      "sha256": "dc43999ad67b7c1b4e4e7d733e4caadf327d2f0334c12ad3a0dbc9aa7b6398c5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/roles.json",
+      "sha256": "0498c3495f8545463cd373d8209ebd0b1a8e6b46b49225200cff6de2c59d4a23",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/session.json",
+      "sha256": "1eb378bb9b578ed54b33a3741b2babab350c6149a372eb903885aebadda8f124",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/backend-fictif/config-core/opsys/tools.json",
+      "sha256": "7456617943419d69ba1d69436b89d36f1f490e0ed890c03d7230197c07131bd9",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/instance-restauree-fictive/entreprise.yaml",
+      "sha256": "6bdcea8abd2d86cfe5bbf73afeecffa83d2539aa3ecb7aa56a3e54fd25f0ab19",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r1/instance-restauree-fictive/opsys.db",
+      "sha256": "acb3e39159da78cb1ed4d13bd6c5b179cbc53cff397eed653a7416a4788f5f5c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/affaire-fictive-alteree.tar.gz",
+      "sha256": "a023b3e9716bf38ae06499c98c5734ba42b76bbb31861689337f6c40f6d6a55a",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/affaire-fictive.tar.gz",
+      "sha256": "f88719d426f9b499e2cc7a46d8232319ec5270ec6a237cb774e4ff2a524562a3",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/affaire-fictive.tar.gz.sha256",
+      "sha256": "1567db4f9f5a1ae11a4db291f3e374ce1716a2f4ce5e53237e3a7fe09e0bc031",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/agents.json",
+      "sha256": "cfe7c9b5ff152a8fd83da3538878ee6ab151b9420c8fe7aa53efceb8c4a9a2c7",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/automatisations.sh",
+      "sha256": "d4a1a34d6db4637c701bf1a264b133d482468b8ba414bb1dbb77d25d6b98b59e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/bindings.json",
+      "sha256": "4a7cf912db30b69feb3a808d0b68fcd60e0f3c390bfb000df4d7dcbaebde982e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/channels.json",
+      "sha256": "39ccf0b6d8780e867e00e314d9691c60b30445f35590b60bcd4a28a1ab50857f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/contexte.json",
+      "sha256": "d484e2b60ecb8909e324eeec848ded0b5ae4bc55b87d5254579c00c93d683b83",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m01-front-office/AGENTS.md",
+      "sha256": "bf3ce907cc5335eb876496eb70e6df921639cd4b49070e1830665a9253eeeba5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m01-front-office/SOUL.md",
+      "sha256": "0054f63e885257cf1f3b37c063b063de04e0c06d0fd46144253afb43de91f0bb",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/mener-un-appel-vocal/SKILL.md",
+      "sha256": "a03cab16efc17f7fb16e2fb7cdfeed7f1916618d8e8b60c0d7a5cdab016951c6",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/recevoir-un-message-de-canal/SKILL.md",
+      "sha256": "3687487d80d292fe5e05838160e5ab34c7447b4dec22b0dc49a06767856f0202",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/traiter-une-demande-entrante/SKILL.md",
+      "sha256": "8c8e12615de9a359bea58f01bf9928d278d648c5cb05b5b8a675a190f2adf3a8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/transferer-a-un-humain/SKILL.md",
+      "sha256": "566c847f7ff962be9efa3ba82186792df595dc4e4954fc50f7298705126f0f65",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/AGENTS.md",
+      "sha256": "9fc8c68ca0450821e56cd8624f2c3043c034c2673a4aa1ea460e7330c6f72bbd",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/SOUL.md",
+      "sha256": "532f566ebb14c4d9fe78dc715513c62e0102d8ab14d2cf03975eb47e92fb7fc0",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/arbitrer-un-doublon/SKILL.md",
+      "sha256": "626d6f375f3bd5b9d3d5016ef58b0c69615f65942b08d0abcc9443561c76b168",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/faire-progresser-vers-m3/SKILL.md",
+      "sha256": "a817afb184689ecc8e4f961c8c975caa9e02e76289acb25c8acab6e193264838",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/ingerer-un-lead/SKILL.md",
+      "sha256": "981adad769584364860cf4db80eccdbd1000141d381fe3d1c20b747080331713",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/lister-les-leads/SKILL.md",
+      "sha256": "02485e23425004baaecaf2972a6aa5814316d8be522358466a3304f5094b0e0a",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/preparer-une-relance/SKILL.md",
+      "sha256": "ad33576774a85a69117a86c0089318198d4ea3428f6ece9e398182999f3cb71c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m03-estimation/AGENTS.md",
+      "sha256": "ef9b2b459d682ae8307c8d1f468d50368082ded12893387f78d4b130382ef169",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m03-estimation/SOUL.md",
+      "sha256": "1b0544c38e64bf76205dceb1d9b0d143db10defb46c36611c6e498d7f35c3612",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m03-estimation/skills/estimer-un-projet/SKILL.md",
+      "sha256": "7f8bbad11d1f9daf755e3b587350bd91cdb509187bef3e2f992d5d66ed712ff3",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m04-field-ops/AGENTS.md",
+      "sha256": "9b953e4c16874820d1b17941323e9cb4ce137feedad96bbb93879f09962e1b54",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m04-field-ops/SOUL.md",
+      "sha256": "bbebd6704c07caf7da555902b5a3bc8d76989c2bf2057c84bf729715cd7a0de6",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/arbitrer-un-ecart/SKILL.md",
+      "sha256": "c6f9d3307a3f85e555547bbabb0a447e85d3e16e32d1659a4f58dcab91525233",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/gerer-une-intervention/SKILL.md",
+      "sha256": "fe931cb057a0abd2946b2037214123d6546803fca7812214775e2036e2f17154",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/localiser-un-chantier/SKILL.md",
+      "sha256": "ad5de0ae5e4d53b358fac0150bf4ef2cc2917f9fbaef4a15790935f858edd345",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/optimiser-la-cedule/SKILL.md",
+      "sha256": "a0c42bc644a2355fed898afc4d4fc28e19a8a8679dc40ee93ae8b530d621c7ec",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m05-financecore/AGENTS.md",
+      "sha256": "588519730aec88636c8a04648cfb88ee4f1bf0b2c9dda5ce99f44bc6ba2d4e5f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m05-financecore/SOUL.md",
+      "sha256": "bbe409daaf22f7fdf779ab97568618d4065a7fb483ad628a4e2bc8790176e60f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m05-financecore/skills/gerer-les-approbations-f0-f7/SKILL.md",
+      "sha256": "22f16e78f88f818b8af554cc551fa3eb73200a6a61cd64a0c9c7b0e225c93b13",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m05-financecore/skills/tenir-le-registre-financier/SKILL.md",
+      "sha256": "5354c65a399e3f88adcb4fc8330deeba1951dc21136da00f1cf2d7daadca4826",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m06-material-control/AGENTS.md",
+      "sha256": "f5e10cec0563b86d8281933fcc816b65e6dfe9bbd372c200af002edf6ff7a7b8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m06-material-control/SOUL.md",
+      "sha256": "69b98c40dcb7e8b547db19c8cefee6cd3bfc175a4e14dffdc240006104316393",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/compter-l-inventaire/SKILL.md",
+      "sha256": "5908e3be84c67634a6b840d9c6d9db4793efba33ea9893794663c09426c04e2b",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/consommer-du-materiel-terrain/SKILL.md",
+      "sha256": "6e61c1b1af56c691eb23ac8175e4b615dcdb83444de13aadadf0f9471cf70e53",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/receptionner-une-commande/SKILL.md",
+      "sha256": "5ee31bc508cd9e8a52020cb952a838e4a38dd103f772c74ab91e4d130470a7ea",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m07-marketing/AGENTS.md",
+      "sha256": "53741e3558338c9a853d6304d7f44306603c013dde0a0938ebe2ddf279995fb4",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m07-marketing/SOUL.md",
+      "sha256": "d195280a4237efeac3510b1f9d9a565245812c6ed7de536e8d4c8d4e4ad95e6c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/audit-seo-local/SKILL.md",
+      "sha256": "2bb7d2b33fd19efc2d802a29d01b987b7b36eadfeb0e616d5490171720a87ac7",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/contenu-de-chantier/SKILL.md",
+      "sha256": "2d4150aa974b017106937b583bf239e2c73b939934e786a4de227b54cb424b6c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/plan-de-contenu-saisonnier/SKILL.md",
+      "sha256": "1d2020c43804d745a7561a1702240f4a2d4d1bec08d088bb79a596b818ad869d",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/reponse-aux-avis/SKILL.md",
+      "sha256": "b63f73c6927918d0ec5ce3ecff450e0b0a85751d41b313f6dfbab2d27e77b0ec",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m08-analytics/AGENTS.md",
+      "sha256": "347a4c730fd13262fe69253e29a56e5878567e99d759fc9ac0c6062b0a04529f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m08-analytics/SOUL.md",
+      "sha256": "407d7d7f5e6614767ffdb6ca170baeb2e81b97773c6fae2a93d209493e6fbd1f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m08-analytics/skills/rapport-analytique-quotidien/SKILL.md",
+      "sha256": "880c4ab8888311c4d2a529dcff4f60892eaaff9e1d1e0726bb7b2a9165c11871",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/AGENTS.md",
+      "sha256": "59d202a592f49f0c3f743745ec5d3b79630a281622245d70798feacc2e0c48ae",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/SOUL.md",
+      "sha256": "bc2fac703e36437fcf1a9c64a05221ba90599d3ee862e62182d8a9d9b49fc65e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/skills/briefing-du-matin/SKILL.md",
+      "sha256": "76bba17c4e338d8f559116937af37a5ae383fe59474b9bd5d437b8a437a4f2b5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/skills/etat-consolide-et-contradictions/SKILL.md",
+      "sha256": "e0445f8148c71dab5e5d54b679c0a052e85a382770eab15911aebf6f0f05f879",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m10-memoire/AGENTS.md",
+      "sha256": "fd5168d148806ae327a16ae53d4afb82a46c8b9fafa9582092cfa45c6e473189",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m10-memoire/SOUL.md",
+      "sha256": "3dfd03482dff9993b106603bbe62b8f8d2b392374c4a95fea28af31d8cbb6533",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/journaliser-une-decision/SKILL.md",
+      "sha256": "d1b22b0fa1a7606af586bc0051340f2ded7af66286d67962889b5b1f58d4aa48",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/preflight-contexte-suffisant/SKILL.md",
+      "sha256": "fc5e98037f3aea14aa590d7f5f737249b362d526054a6da2bfbe4f04cd69260d",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/traiter-un-signal-critique/SKILL.md",
+      "sha256": "4064aa82538f2eab6a08d7152f233c8e2cec7bda24f72142802402d16d75e85c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/mcp.json",
+      "sha256": "a16fe93739d912fc04d153deb092c7dc1199ea4a01ca2998efe46988841ff1b0",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/memoire-autorites.json",
+      "sha256": "736f180b88b9672428dded5a00ecdc06de50780cf248c871fb2e41093128a483",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/memory.json",
+      "sha256": "53eeb9e1bbbbe39e75effa81171b2938c5a9afb365d36c6800692f90323d19da",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/models.json",
+      "sha256": "e5ed6cc63699b65e67d353224665e5b3fb87fc9777238541a9a8dce0a58ccf31",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/plugins.json",
+      "sha256": "86301e49b51b02f3868ab51086310f6dae28b52a949142763028ee2af108d2da",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/profils-en-attente.json",
+      "sha256": "dc43999ad67b7c1b4e4e7d733e4caadf327d2f0334c12ad3a0dbc9aa7b6398c5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/roles.json",
+      "sha256": "0498c3495f8545463cd373d8209ebd0b1a8e6b46b49225200cff6de2c59d4a23",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/session.json",
+      "sha256": "1eb378bb9b578ed54b33a3741b2babab350c6149a372eb903885aebadda8f124",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/backend-fictif/config-core/opsys/tools.json",
+      "sha256": "7456617943419d69ba1d69436b89d36f1f490e0ed890c03d7230197c07131bd9",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/instance-restauree-fictive/entreprise.yaml",
+      "sha256": "6bdcea8abd2d86cfe5bbf73afeecffa83d2539aa3ecb7aa56a3e54fd25f0ab19",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r2/instance-restauree-fictive/opsys.db",
+      "sha256": "9eb2031fba346e36594f9aa3f8c9cdba92fb8dc842bf048526212bbad6d90f82",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/affaire-fictive-alteree.tar.gz",
+      "sha256": "9e8ae8c10d060678751e39894897518037c44ec24128d8d791e3667a4362807e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/affaire-fictive.tar.gz",
+      "sha256": "faeed38f0aeeec791df26ed7cbd003b33a8ea872ba1d6204b54b6179015bfee0",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/affaire-fictive.tar.gz.sha256",
+      "sha256": "f423d7743234f9748f0add41a1907907d295ceeb562ae8279c6dd99aa6147345",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/agents.json",
+      "sha256": "cfe7c9b5ff152a8fd83da3538878ee6ab151b9420c8fe7aa53efceb8c4a9a2c7",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/automatisations.sh",
+      "sha256": "d4a1a34d6db4637c701bf1a264b133d482468b8ba414bb1dbb77d25d6b98b59e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/bindings.json",
+      "sha256": "4a7cf912db30b69feb3a808d0b68fcd60e0f3c390bfb000df4d7dcbaebde982e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/channels.json",
+      "sha256": "39ccf0b6d8780e867e00e314d9691c60b30445f35590b60bcd4a28a1ab50857f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/contexte.json",
+      "sha256": "d484e2b60ecb8909e324eeec848ded0b5ae4bc55b87d5254579c00c93d683b83",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m01-front-office/AGENTS.md",
+      "sha256": "bf3ce907cc5335eb876496eb70e6df921639cd4b49070e1830665a9253eeeba5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m01-front-office/SOUL.md",
+      "sha256": "0054f63e885257cf1f3b37c063b063de04e0c06d0fd46144253afb43de91f0bb",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/mener-un-appel-vocal/SKILL.md",
+      "sha256": "a03cab16efc17f7fb16e2fb7cdfeed7f1916618d8e8b60c0d7a5cdab016951c6",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/recevoir-un-message-de-canal/SKILL.md",
+      "sha256": "3687487d80d292fe5e05838160e5ab34c7447b4dec22b0dc49a06767856f0202",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/traiter-une-demande-entrante/SKILL.md",
+      "sha256": "8c8e12615de9a359bea58f01bf9928d278d648c5cb05b5b8a675a190f2adf3a8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/transferer-a-un-humain/SKILL.md",
+      "sha256": "566c847f7ff962be9efa3ba82186792df595dc4e4954fc50f7298705126f0f65",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/AGENTS.md",
+      "sha256": "9fc8c68ca0450821e56cd8624f2c3043c034c2673a4aa1ea460e7330c6f72bbd",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/SOUL.md",
+      "sha256": "532f566ebb14c4d9fe78dc715513c62e0102d8ab14d2cf03975eb47e92fb7fc0",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/arbitrer-un-doublon/SKILL.md",
+      "sha256": "626d6f375f3bd5b9d3d5016ef58b0c69615f65942b08d0abcc9443561c76b168",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/faire-progresser-vers-m3/SKILL.md",
+      "sha256": "a817afb184689ecc8e4f961c8c975caa9e02e76289acb25c8acab6e193264838",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/ingerer-un-lead/SKILL.md",
+      "sha256": "981adad769584364860cf4db80eccdbd1000141d381fe3d1c20b747080331713",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/lister-les-leads/SKILL.md",
+      "sha256": "02485e23425004baaecaf2972a6aa5814316d8be522358466a3304f5094b0e0a",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/preparer-une-relance/SKILL.md",
+      "sha256": "ad33576774a85a69117a86c0089318198d4ea3428f6ece9e398182999f3cb71c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m03-estimation/AGENTS.md",
+      "sha256": "ef9b2b459d682ae8307c8d1f468d50368082ded12893387f78d4b130382ef169",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m03-estimation/SOUL.md",
+      "sha256": "1b0544c38e64bf76205dceb1d9b0d143db10defb46c36611c6e498d7f35c3612",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m03-estimation/skills/estimer-un-projet/SKILL.md",
+      "sha256": "7f8bbad11d1f9daf755e3b587350bd91cdb509187bef3e2f992d5d66ed712ff3",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m04-field-ops/AGENTS.md",
+      "sha256": "9b953e4c16874820d1b17941323e9cb4ce137feedad96bbb93879f09962e1b54",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m04-field-ops/SOUL.md",
+      "sha256": "bbebd6704c07caf7da555902b5a3bc8d76989c2bf2057c84bf729715cd7a0de6",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/arbitrer-un-ecart/SKILL.md",
+      "sha256": "c6f9d3307a3f85e555547bbabb0a447e85d3e16e32d1659a4f58dcab91525233",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/gerer-une-intervention/SKILL.md",
+      "sha256": "fe931cb057a0abd2946b2037214123d6546803fca7812214775e2036e2f17154",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/localiser-un-chantier/SKILL.md",
+      "sha256": "ad5de0ae5e4d53b358fac0150bf4ef2cc2917f9fbaef4a15790935f858edd345",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/optimiser-la-cedule/SKILL.md",
+      "sha256": "a0c42bc644a2355fed898afc4d4fc28e19a8a8679dc40ee93ae8b530d621c7ec",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m05-financecore/AGENTS.md",
+      "sha256": "588519730aec88636c8a04648cfb88ee4f1bf0b2c9dda5ce99f44bc6ba2d4e5f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m05-financecore/SOUL.md",
+      "sha256": "bbe409daaf22f7fdf779ab97568618d4065a7fb483ad628a4e2bc8790176e60f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m05-financecore/skills/gerer-les-approbations-f0-f7/SKILL.md",
+      "sha256": "22f16e78f88f818b8af554cc551fa3eb73200a6a61cd64a0c9c7b0e225c93b13",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m05-financecore/skills/tenir-le-registre-financier/SKILL.md",
+      "sha256": "5354c65a399e3f88adcb4fc8330deeba1951dc21136da00f1cf2d7daadca4826",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m06-material-control/AGENTS.md",
+      "sha256": "f5e10cec0563b86d8281933fcc816b65e6dfe9bbd372c200af002edf6ff7a7b8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m06-material-control/SOUL.md",
+      "sha256": "69b98c40dcb7e8b547db19c8cefee6cd3bfc175a4e14dffdc240006104316393",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/compter-l-inventaire/SKILL.md",
+      "sha256": "5908e3be84c67634a6b840d9c6d9db4793efba33ea9893794663c09426c04e2b",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/consommer-du-materiel-terrain/SKILL.md",
+      "sha256": "6e61c1b1af56c691eb23ac8175e4b615dcdb83444de13aadadf0f9471cf70e53",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/receptionner-une-commande/SKILL.md",
+      "sha256": "5ee31bc508cd9e8a52020cb952a838e4a38dd103f772c74ab91e4d130470a7ea",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m07-marketing/AGENTS.md",
+      "sha256": "53741e3558338c9a853d6304d7f44306603c013dde0a0938ebe2ddf279995fb4",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m07-marketing/SOUL.md",
+      "sha256": "d195280a4237efeac3510b1f9d9a565245812c6ed7de536e8d4c8d4e4ad95e6c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/audit-seo-local/SKILL.md",
+      "sha256": "2bb7d2b33fd19efc2d802a29d01b987b7b36eadfeb0e616d5490171720a87ac7",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/contenu-de-chantier/SKILL.md",
+      "sha256": "2d4150aa974b017106937b583bf239e2c73b939934e786a4de227b54cb424b6c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/plan-de-contenu-saisonnier/SKILL.md",
+      "sha256": "1d2020c43804d745a7561a1702240f4a2d4d1bec08d088bb79a596b818ad869d",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/reponse-aux-avis/SKILL.md",
+      "sha256": "b63f73c6927918d0ec5ce3ecff450e0b0a85751d41b313f6dfbab2d27e77b0ec",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m08-analytics/AGENTS.md",
+      "sha256": "347a4c730fd13262fe69253e29a56e5878567e99d759fc9ac0c6062b0a04529f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m08-analytics/SOUL.md",
+      "sha256": "407d7d7f5e6614767ffdb6ca170baeb2e81b97773c6fae2a93d209493e6fbd1f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m08-analytics/skills/rapport-analytique-quotidien/SKILL.md",
+      "sha256": "880c4ab8888311c4d2a529dcff4f60892eaaff9e1d1e0726bb7b2a9165c11871",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/AGENTS.md",
+      "sha256": "59d202a592f49f0c3f743745ec5d3b79630a281622245d70798feacc2e0c48ae",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/SOUL.md",
+      "sha256": "bc2fac703e36437fcf1a9c64a05221ba90599d3ee862e62182d8a9d9b49fc65e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/skills/briefing-du-matin/SKILL.md",
+      "sha256": "76bba17c4e338d8f559116937af37a5ae383fe59474b9bd5d437b8a437a4f2b5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/skills/etat-consolide-et-contradictions/SKILL.md",
+      "sha256": "e0445f8148c71dab5e5d54b679c0a052e85a382770eab15911aebf6f0f05f879",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m10-memoire/AGENTS.md",
+      "sha256": "fd5168d148806ae327a16ae53d4afb82a46c8b9fafa9582092cfa45c6e473189",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m10-memoire/SOUL.md",
+      "sha256": "3dfd03482dff9993b106603bbe62b8f8d2b392374c4a95fea28af31d8cbb6533",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/journaliser-une-decision/SKILL.md",
+      "sha256": "d1b22b0fa1a7606af586bc0051340f2ded7af66286d67962889b5b1f58d4aa48",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/preflight-contexte-suffisant/SKILL.md",
+      "sha256": "fc5e98037f3aea14aa590d7f5f737249b362d526054a6da2bfbe4f04cd69260d",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/traiter-un-signal-critique/SKILL.md",
+      "sha256": "4064aa82538f2eab6a08d7152f233c8e2cec7bda24f72142802402d16d75e85c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/mcp.json",
+      "sha256": "c335521ebd0b84b0ab4f1d56e88ca563b91ac4c3b527b8f9ff40f1deccb9e26f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/memoire-autorites.json",
+      "sha256": "736f180b88b9672428dded5a00ecdc06de50780cf248c871fb2e41093128a483",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/memory.json",
+      "sha256": "53eeb9e1bbbbe39e75effa81171b2938c5a9afb365d36c6800692f90323d19da",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/models.json",
+      "sha256": "e5ed6cc63699b65e67d353224665e5b3fb87fc9777238541a9a8dce0a58ccf31",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/plugins.json",
+      "sha256": "86301e49b51b02f3868ab51086310f6dae28b52a949142763028ee2af108d2da",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/profils-en-attente.json",
+      "sha256": "dc43999ad67b7c1b4e4e7d733e4caadf327d2f0334c12ad3a0dbc9aa7b6398c5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/roles.json",
+      "sha256": "0498c3495f8545463cd373d8209ebd0b1a8e6b46b49225200cff6de2c59d4a23",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/session.json",
+      "sha256": "1eb378bb9b578ed54b33a3741b2babab350c6149a372eb903885aebadda8f124",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/backend-fictif/config-core/opsys/tools.json",
+      "sha256": "7456617943419d69ba1d69436b89d36f1f490e0ed890c03d7230197c07131bd9",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/instance-restauree-fictive/entreprise.yaml",
+      "sha256": "6bdcea8abd2d86cfe5bbf73afeecffa83d2539aa3ecb7aa56a3e54fd25f0ab19",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r3/instance-restauree-fictive/opsys.db",
+      "sha256": "c83f5369a53365b916bf49a459bae87c3f3551b70f9f29dbfdddc7117291b2fe",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/affaire-fictive-alteree.tar.gz",
+      "sha256": "fbfc7ad948f414fb893e9965b875ef8908dd25241e58d715c32cfc617e352d75",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/affaire-fictive.tar.gz",
+      "sha256": "02e62c955f9d0399e7e5bb77c4f18c7be385f8141a3004ce6c75e61155447979",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/affaire-fictive.tar.gz.sha256",
+      "sha256": "1c86757de9abf5e23f540c0fe3cdec343dd334b2f89d13c9e0425f20c835640a",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/agents.json",
+      "sha256": "cfe7c9b5ff152a8fd83da3538878ee6ab151b9420c8fe7aa53efceb8c4a9a2c7",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/automatisations.sh",
+      "sha256": "d4a1a34d6db4637c701bf1a264b133d482468b8ba414bb1dbb77d25d6b98b59e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/bindings.json",
+      "sha256": "4a7cf912db30b69feb3a808d0b68fcd60e0f3c390bfb000df4d7dcbaebde982e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/channels.json",
+      "sha256": "39ccf0b6d8780e867e00e314d9691c60b30445f35590b60bcd4a28a1ab50857f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/contexte.json",
+      "sha256": "d484e2b60ecb8909e324eeec848ded0b5ae4bc55b87d5254579c00c93d683b83",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m01-front-office/AGENTS.md",
+      "sha256": "bf3ce907cc5335eb876496eb70e6df921639cd4b49070e1830665a9253eeeba5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m01-front-office/SOUL.md",
+      "sha256": "0054f63e885257cf1f3b37c063b063de04e0c06d0fd46144253afb43de91f0bb",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/mener-un-appel-vocal/SKILL.md",
+      "sha256": "a03cab16efc17f7fb16e2fb7cdfeed7f1916618d8e8b60c0d7a5cdab016951c6",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/recevoir-un-message-de-canal/SKILL.md",
+      "sha256": "3687487d80d292fe5e05838160e5ab34c7447b4dec22b0dc49a06767856f0202",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/traiter-une-demande-entrante/SKILL.md",
+      "sha256": "8c8e12615de9a359bea58f01bf9928d278d648c5cb05b5b8a675a190f2adf3a8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/transferer-a-un-humain/SKILL.md",
+      "sha256": "566c847f7ff962be9efa3ba82186792df595dc4e4954fc50f7298705126f0f65",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/AGENTS.md",
+      "sha256": "9fc8c68ca0450821e56cd8624f2c3043c034c2673a4aa1ea460e7330c6f72bbd",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/SOUL.md",
+      "sha256": "532f566ebb14c4d9fe78dc715513c62e0102d8ab14d2cf03975eb47e92fb7fc0",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/arbitrer-un-doublon/SKILL.md",
+      "sha256": "626d6f375f3bd5b9d3d5016ef58b0c69615f65942b08d0abcc9443561c76b168",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/faire-progresser-vers-m3/SKILL.md",
+      "sha256": "a817afb184689ecc8e4f961c8c975caa9e02e76289acb25c8acab6e193264838",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/ingerer-un-lead/SKILL.md",
+      "sha256": "981adad769584364860cf4db80eccdbd1000141d381fe3d1c20b747080331713",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/lister-les-leads/SKILL.md",
+      "sha256": "02485e23425004baaecaf2972a6aa5814316d8be522358466a3304f5094b0e0a",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/preparer-une-relance/SKILL.md",
+      "sha256": "ad33576774a85a69117a86c0089318198d4ea3428f6ece9e398182999f3cb71c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m03-estimation/AGENTS.md",
+      "sha256": "ef9b2b459d682ae8307c8d1f468d50368082ded12893387f78d4b130382ef169",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m03-estimation/SOUL.md",
+      "sha256": "1b0544c38e64bf76205dceb1d9b0d143db10defb46c36611c6e498d7f35c3612",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m03-estimation/skills/estimer-un-projet/SKILL.md",
+      "sha256": "7f8bbad11d1f9daf755e3b587350bd91cdb509187bef3e2f992d5d66ed712ff3",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m04-field-ops/AGENTS.md",
+      "sha256": "9b953e4c16874820d1b17941323e9cb4ce137feedad96bbb93879f09962e1b54",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m04-field-ops/SOUL.md",
+      "sha256": "bbebd6704c07caf7da555902b5a3bc8d76989c2bf2057c84bf729715cd7a0de6",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/arbitrer-un-ecart/SKILL.md",
+      "sha256": "c6f9d3307a3f85e555547bbabb0a447e85d3e16e32d1659a4f58dcab91525233",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/gerer-une-intervention/SKILL.md",
+      "sha256": "fe931cb057a0abd2946b2037214123d6546803fca7812214775e2036e2f17154",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/localiser-un-chantier/SKILL.md",
+      "sha256": "ad5de0ae5e4d53b358fac0150bf4ef2cc2917f9fbaef4a15790935f858edd345",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/optimiser-la-cedule/SKILL.md",
+      "sha256": "a0c42bc644a2355fed898afc4d4fc28e19a8a8679dc40ee93ae8b530d621c7ec",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m05-financecore/AGENTS.md",
+      "sha256": "588519730aec88636c8a04648cfb88ee4f1bf0b2c9dda5ce99f44bc6ba2d4e5f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m05-financecore/SOUL.md",
+      "sha256": "bbe409daaf22f7fdf779ab97568618d4065a7fb483ad628a4e2bc8790176e60f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m05-financecore/skills/gerer-les-approbations-f0-f7/SKILL.md",
+      "sha256": "22f16e78f88f818b8af554cc551fa3eb73200a6a61cd64a0c9c7b0e225c93b13",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m05-financecore/skills/tenir-le-registre-financier/SKILL.md",
+      "sha256": "5354c65a399e3f88adcb4fc8330deeba1951dc21136da00f1cf2d7daadca4826",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m06-material-control/AGENTS.md",
+      "sha256": "f5e10cec0563b86d8281933fcc816b65e6dfe9bbd372c200af002edf6ff7a7b8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m06-material-control/SOUL.md",
+      "sha256": "69b98c40dcb7e8b547db19c8cefee6cd3bfc175a4e14dffdc240006104316393",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/compter-l-inventaire/SKILL.md",
+      "sha256": "5908e3be84c67634a6b840d9c6d9db4793efba33ea9893794663c09426c04e2b",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/consommer-du-materiel-terrain/SKILL.md",
+      "sha256": "6e61c1b1af56c691eb23ac8175e4b615dcdb83444de13aadadf0f9471cf70e53",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/receptionner-une-commande/SKILL.md",
+      "sha256": "5ee31bc508cd9e8a52020cb952a838e4a38dd103f772c74ab91e4d130470a7ea",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m07-marketing/AGENTS.md",
+      "sha256": "53741e3558338c9a853d6304d7f44306603c013dde0a0938ebe2ddf279995fb4",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m07-marketing/SOUL.md",
+      "sha256": "d195280a4237efeac3510b1f9d9a565245812c6ed7de536e8d4c8d4e4ad95e6c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/audit-seo-local/SKILL.md",
+      "sha256": "2bb7d2b33fd19efc2d802a29d01b987b7b36eadfeb0e616d5490171720a87ac7",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/contenu-de-chantier/SKILL.md",
+      "sha256": "2d4150aa974b017106937b583bf239e2c73b939934e786a4de227b54cb424b6c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/plan-de-contenu-saisonnier/SKILL.md",
+      "sha256": "1d2020c43804d745a7561a1702240f4a2d4d1bec08d088bb79a596b818ad869d",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/reponse-aux-avis/SKILL.md",
+      "sha256": "b63f73c6927918d0ec5ce3ecff450e0b0a85751d41b313f6dfbab2d27e77b0ec",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m08-analytics/AGENTS.md",
+      "sha256": "347a4c730fd13262fe69253e29a56e5878567e99d759fc9ac0c6062b0a04529f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m08-analytics/SOUL.md",
+      "sha256": "407d7d7f5e6614767ffdb6ca170baeb2e81b97773c6fae2a93d209493e6fbd1f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m08-analytics/skills/rapport-analytique-quotidien/SKILL.md",
+      "sha256": "880c4ab8888311c4d2a529dcff4f60892eaaff9e1d1e0726bb7b2a9165c11871",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/AGENTS.md",
+      "sha256": "59d202a592f49f0c3f743745ec5d3b79630a281622245d70798feacc2e0c48ae",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/SOUL.md",
+      "sha256": "bc2fac703e36437fcf1a9c64a05221ba90599d3ee862e62182d8a9d9b49fc65e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/skills/briefing-du-matin/SKILL.md",
+      "sha256": "76bba17c4e338d8f559116937af37a5ae383fe59474b9bd5d437b8a437a4f2b5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/skills/etat-consolide-et-contradictions/SKILL.md",
+      "sha256": "e0445f8148c71dab5e5d54b679c0a052e85a382770eab15911aebf6f0f05f879",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m10-memoire/AGENTS.md",
+      "sha256": "fd5168d148806ae327a16ae53d4afb82a46c8b9fafa9582092cfa45c6e473189",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m10-memoire/SOUL.md",
+      "sha256": "3dfd03482dff9993b106603bbe62b8f8d2b392374c4a95fea28af31d8cbb6533",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/journaliser-une-decision/SKILL.md",
+      "sha256": "d1b22b0fa1a7606af586bc0051340f2ded7af66286d67962889b5b1f58d4aa48",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/preflight-contexte-suffisant/SKILL.md",
+      "sha256": "fc5e98037f3aea14aa590d7f5f737249b362d526054a6da2bfbe4f04cd69260d",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/traiter-un-signal-critique/SKILL.md",
+      "sha256": "4064aa82538f2eab6a08d7152f233c8e2cec7bda24f72142802402d16d75e85c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/mcp.json",
+      "sha256": "f9b839b3673cd63ec718319d227aa8820e5556f9e49eb2f50a54842c40969989",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/memoire-autorites.json",
+      "sha256": "736f180b88b9672428dded5a00ecdc06de50780cf248c871fb2e41093128a483",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/memory.json",
+      "sha256": "53eeb9e1bbbbe39e75effa81171b2938c5a9afb365d36c6800692f90323d19da",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/models.json",
+      "sha256": "e5ed6cc63699b65e67d353224665e5b3fb87fc9777238541a9a8dce0a58ccf31",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/plugins.json",
+      "sha256": "86301e49b51b02f3868ab51086310f6dae28b52a949142763028ee2af108d2da",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/profils-en-attente.json",
+      "sha256": "dc43999ad67b7c1b4e4e7d733e4caadf327d2f0334c12ad3a0dbc9aa7b6398c5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/roles.json",
+      "sha256": "0498c3495f8545463cd373d8209ebd0b1a8e6b46b49225200cff6de2c59d4a23",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/session.json",
+      "sha256": "1eb378bb9b578ed54b33a3741b2babab350c6149a372eb903885aebadda8f124",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/backend-fictif/config-core/opsys/tools.json",
+      "sha256": "7456617943419d69ba1d69436b89d36f1f490e0ed890c03d7230197c07131bd9",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/instance-restauree-fictive/entreprise.yaml",
+      "sha256": "6bdcea8abd2d86cfe5bbf73afeecffa83d2539aa3ecb7aa56a3e54fd25f0ab19",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r4/instance-restauree-fictive/opsys.db",
+      "sha256": "13afc0d87c843ab4ecba808e6c879b2a3eaa91499cdc7dfd3a337139341c9ecd",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/affaire-fictive-alteree.tar.gz",
+      "sha256": "8c5edb25c0a1dbdd30398cdd03fe290870d7f87c7c67082c7ff8e2a29b1815b3",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/affaire-fictive.tar.gz",
+      "sha256": "45bcb0bf8aa71f879827f69a7d4e8ff0f25b9b78be2f6cbd9f7e3261a038ee32",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/affaire-fictive.tar.gz.sha256",
+      "sha256": "b933048b0ad332becdb6396d641ee9b3537f13075b9b3991ef7c9c722b90b4ac",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/agents.json",
+      "sha256": "cfe7c9b5ff152a8fd83da3538878ee6ab151b9420c8fe7aa53efceb8c4a9a2c7",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/automatisations.sh",
+      "sha256": "d4a1a34d6db4637c701bf1a264b133d482468b8ba414bb1dbb77d25d6b98b59e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/bindings.json",
+      "sha256": "4a7cf912db30b69feb3a808d0b68fcd60e0f3c390bfb000df4d7dcbaebde982e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/channels.json",
+      "sha256": "39ccf0b6d8780e867e00e314d9691c60b30445f35590b60bcd4a28a1ab50857f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/contexte.json",
+      "sha256": "d484e2b60ecb8909e324eeec848ded0b5ae4bc55b87d5254579c00c93d683b83",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m01-front-office/AGENTS.md",
+      "sha256": "bf3ce907cc5335eb876496eb70e6df921639cd4b49070e1830665a9253eeeba5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m01-front-office/SOUL.md",
+      "sha256": "0054f63e885257cf1f3b37c063b063de04e0c06d0fd46144253afb43de91f0bb",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/mener-un-appel-vocal/SKILL.md",
+      "sha256": "a03cab16efc17f7fb16e2fb7cdfeed7f1916618d8e8b60c0d7a5cdab016951c6",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/recevoir-un-message-de-canal/SKILL.md",
+      "sha256": "3687487d80d292fe5e05838160e5ab34c7447b4dec22b0dc49a06767856f0202",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/traiter-une-demande-entrante/SKILL.md",
+      "sha256": "8c8e12615de9a359bea58f01bf9928d278d648c5cb05b5b8a675a190f2adf3a8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m01-front-office/skills/transferer-a-un-humain/SKILL.md",
+      "sha256": "566c847f7ff962be9efa3ba82186792df595dc4e4954fc50f7298705126f0f65",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/AGENTS.md",
+      "sha256": "9fc8c68ca0450821e56cd8624f2c3043c034c2673a4aa1ea460e7330c6f72bbd",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/SOUL.md",
+      "sha256": "532f566ebb14c4d9fe78dc715513c62e0102d8ab14d2cf03975eb47e92fb7fc0",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/arbitrer-un-doublon/SKILL.md",
+      "sha256": "626d6f375f3bd5b9d3d5016ef58b0c69615f65942b08d0abcc9443561c76b168",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/faire-progresser-vers-m3/SKILL.md",
+      "sha256": "a817afb184689ecc8e4f961c8c975caa9e02e76289acb25c8acab6e193264838",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/ingerer-un-lead/SKILL.md",
+      "sha256": "981adad769584364860cf4db80eccdbd1000141d381fe3d1c20b747080331713",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/lister-les-leads/SKILL.md",
+      "sha256": "02485e23425004baaecaf2972a6aa5814316d8be522358466a3304f5094b0e0a",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m02-revenue-crm/skills/preparer-une-relance/SKILL.md",
+      "sha256": "ad33576774a85a69117a86c0089318198d4ea3428f6ece9e398182999f3cb71c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m03-estimation/AGENTS.md",
+      "sha256": "ef9b2b459d682ae8307c8d1f468d50368082ded12893387f78d4b130382ef169",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m03-estimation/SOUL.md",
+      "sha256": "1b0544c38e64bf76205dceb1d9b0d143db10defb46c36611c6e498d7f35c3612",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m03-estimation/skills/estimer-un-projet/SKILL.md",
+      "sha256": "7f8bbad11d1f9daf755e3b587350bd91cdb509187bef3e2f992d5d66ed712ff3",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m04-field-ops/AGENTS.md",
+      "sha256": "9b953e4c16874820d1b17941323e9cb4ce137feedad96bbb93879f09962e1b54",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m04-field-ops/SOUL.md",
+      "sha256": "bbebd6704c07caf7da555902b5a3bc8d76989c2bf2057c84bf729715cd7a0de6",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/arbitrer-un-ecart/SKILL.md",
+      "sha256": "c6f9d3307a3f85e555547bbabb0a447e85d3e16e32d1659a4f58dcab91525233",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/gerer-une-intervention/SKILL.md",
+      "sha256": "fe931cb057a0abd2946b2037214123d6546803fca7812214775e2036e2f17154",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/localiser-un-chantier/SKILL.md",
+      "sha256": "ad5de0ae5e4d53b358fac0150bf4ef2cc2917f9fbaef4a15790935f858edd345",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m04-field-ops/skills/optimiser-la-cedule/SKILL.md",
+      "sha256": "a0c42bc644a2355fed898afc4d4fc28e19a8a8679dc40ee93ae8b530d621c7ec",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m05-financecore/AGENTS.md",
+      "sha256": "588519730aec88636c8a04648cfb88ee4f1bf0b2c9dda5ce99f44bc6ba2d4e5f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m05-financecore/SOUL.md",
+      "sha256": "bbe409daaf22f7fdf779ab97568618d4065a7fb483ad628a4e2bc8790176e60f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m05-financecore/skills/gerer-les-approbations-f0-f7/SKILL.md",
+      "sha256": "22f16e78f88f818b8af554cc551fa3eb73200a6a61cd64a0c9c7b0e225c93b13",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m05-financecore/skills/tenir-le-registre-financier/SKILL.md",
+      "sha256": "5354c65a399e3f88adcb4fc8330deeba1951dc21136da00f1cf2d7daadca4826",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m06-material-control/AGENTS.md",
+      "sha256": "f5e10cec0563b86d8281933fcc816b65e6dfe9bbd372c200af002edf6ff7a7b8",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m06-material-control/SOUL.md",
+      "sha256": "69b98c40dcb7e8b547db19c8cefee6cd3bfc175a4e14dffdc240006104316393",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/compter-l-inventaire/SKILL.md",
+      "sha256": "5908e3be84c67634a6b840d9c6d9db4793efba33ea9893794663c09426c04e2b",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/consommer-du-materiel-terrain/SKILL.md",
+      "sha256": "6e61c1b1af56c691eb23ac8175e4b615dcdb83444de13aadadf0f9471cf70e53",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m06-material-control/skills/receptionner-une-commande/SKILL.md",
+      "sha256": "5ee31bc508cd9e8a52020cb952a838e4a38dd103f772c74ab91e4d130470a7ea",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m07-marketing/AGENTS.md",
+      "sha256": "53741e3558338c9a853d6304d7f44306603c013dde0a0938ebe2ddf279995fb4",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m07-marketing/SOUL.md",
+      "sha256": "d195280a4237efeac3510b1f9d9a565245812c6ed7de536e8d4c8d4e4ad95e6c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/audit-seo-local/SKILL.md",
+      "sha256": "2bb7d2b33fd19efc2d802a29d01b987b7b36eadfeb0e616d5490171720a87ac7",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/contenu-de-chantier/SKILL.md",
+      "sha256": "2d4150aa974b017106937b583bf239e2c73b939934e786a4de227b54cb424b6c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/plan-de-contenu-saisonnier/SKILL.md",
+      "sha256": "1d2020c43804d745a7561a1702240f4a2d4d1bec08d088bb79a596b818ad869d",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m07-marketing/skills/reponse-aux-avis/SKILL.md",
+      "sha256": "b63f73c6927918d0ec5ce3ecff450e0b0a85751d41b313f6dfbab2d27e77b0ec",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m08-analytics/AGENTS.md",
+      "sha256": "347a4c730fd13262fe69253e29a56e5878567e99d759fc9ac0c6062b0a04529f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m08-analytics/SOUL.md",
+      "sha256": "407d7d7f5e6614767ffdb6ca170baeb2e81b97773c6fae2a93d209493e6fbd1f",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m08-analytics/skills/rapport-analytique-quotidien/SKILL.md",
+      "sha256": "880c4ab8888311c4d2a529dcff4f60892eaaff9e1d1e0726bb7b2a9165c11871",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/AGENTS.md",
+      "sha256": "59d202a592f49f0c3f743745ec5d3b79630a281622245d70798feacc2e0c48ae",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/SOUL.md",
+      "sha256": "bc2fac703e36437fcf1a9c64a05221ba90599d3ee862e62182d8a9d9b49fc65e",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/skills/briefing-du-matin/SKILL.md",
+      "sha256": "76bba17c4e338d8f559116937af37a5ae383fe59474b9bd5d437b8a437a4f2b5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m09-strategic-intelligence/skills/etat-consolide-et-contradictions/SKILL.md",
+      "sha256": "e0445f8148c71dab5e5d54b679c0a052e85a382770eab15911aebf6f0f05f879",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m10-memoire/AGENTS.md",
+      "sha256": "fd5168d148806ae327a16ae53d4afb82a46c8b9fafa9582092cfa45c6e473189",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m10-memoire/SOUL.md",
+      "sha256": "3dfd03482dff9993b106603bbe62b8f8d2b392374c4a95fea28af31d8cbb6533",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/journaliser-une-decision/SKILL.md",
+      "sha256": "d1b22b0fa1a7606af586bc0051340f2ded7af66286d67962889b5b1f58d4aa48",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/preflight-contexte-suffisant/SKILL.md",
+      "sha256": "fc5e98037f3aea14aa590d7f5f737249b362d526054a6da2bfbe4f04cd69260d",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/espaces/m10-memoire/skills/traiter-un-signal-critique/SKILL.md",
+      "sha256": "4064aa82538f2eab6a08d7152f233c8e2cec7bda24f72142802402d16d75e85c",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/mcp.json",
+      "sha256": "4ea0ffbcad4c46bebd061aad0d3f0b0ecaa4da60cddf1d5adc189d2f309dbc49",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/memoire-autorites.json",
+      "sha256": "736f180b88b9672428dded5a00ecdc06de50780cf248c871fb2e41093128a483",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/memory.json",
+      "sha256": "53eeb9e1bbbbe39e75effa81171b2938c5a9afb365d36c6800692f90323d19da",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/models.json",
+      "sha256": "e5ed6cc63699b65e67d353224665e5b3fb87fc9777238541a9a8dce0a58ccf31",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/plugins.json",
+      "sha256": "86301e49b51b02f3868ab51086310f6dae28b52a949142763028ee2af108d2da",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/profils-en-attente.json",
+      "sha256": "dc43999ad67b7c1b4e4e7d733e4caadf327d2f0334c12ad3a0dbc9aa7b6398c5",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/roles.json",
+      "sha256": "0498c3495f8545463cd373d8209ebd0b1a8e6b46b49225200cff6de2c59d4a23",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/session.json",
+      "sha256": "1eb378bb9b578ed54b33a3741b2babab350c6149a372eb903885aebadda8f124",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/backend-fictif/config-core/opsys/tools.json",
+      "sha256": "7456617943419d69ba1d69436b89d36f1f490e0ed890c03d7230197c07131bd9",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/instance-restauree-fictive/entreprise.yaml",
+      "sha256": "6bdcea8abd2d86cfe5bbf73afeecffa83d2539aa3ecb7aa56a3e54fd25f0ab19",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    },
+    {
+      "path": "work/qualification/verticale-corpus-reprise-integration-r5/instance-restauree-fictive/opsys.db",
+      "sha256": "e4f3c3c3365d71d45d87ad6c9fa2f831d82b400adab3e40778d046674626b48a",
+      "disposition": "conservé localement, exclu de la capsule et du dépôt",
+      "reason": "archive/base native, état généré, cache ou manifeste privé ; non nécessaire à la preuve publiée"
+    }
+  ],
+  "history_outputs_sha256": {
+    "AUDIT-CI-VERTICALE-6896-2026-10-06.md": "3a361296daf71a2b169922c03d648c6233df4d1524d3272c581514f915f9331f",
+    "AUDIT-OAUTH-RENOUVELLEMENT-2026-10-06-r1.md": "25c814046d31be1f98016f2f782456530e49bfc36a955240de0bbe3bbe5f58f5",
+    "AUDIT-REPRISE-2026-10-06.md": "163f26c00b27ffe387eb997fda8e4b2988fa4a05c85b6fa15c67a616013dd87a",
+    "AUDIT-VERTICALE-2026-10-06-V1-r2.md": "22dde256c7b86ef0c7fa3ecd3ad9e907b1d933c6459b1dc4108e8dda2f8e8d29",
+    "AUDIT-VERTICALE-2026-10-06-V1.md": "57419d1a627eb4304d300578d8c63e7b49c9bc46f1898cd4ac18f5efae40059f",
+    "AUDIT-VERTICALE-CORE-CI-2026-10-06-r1.md": "18cd8105ea7c464609ce9cd792e864963773c09ff37f4b5171ce93ab7a62c3d0",
+    "CI-OAUTH-RENOUVELLEMENT-2026-10-06.json": "c91af746b64398d99a992a9a6c11a2d5efa617ab2ae6a04cb7bac61b4f627b47",
+    "CI-REPRISE-2026-10-06.json": "72faecbe7a157dd3f8bbb8edfca4f9ba2f7870c499820f2b3011a61b11291749",
+    "CI-VERTICALE-2026-10-06-V1.json": "8dcf2cfb3391e397ec708e93a2ddd04655694aa46c60264db9266d4186c5d68a",
+    "CONTINUITE-VERTICALE-2026-10-06.md": "0465072957ec069f81021d380ebbcb455f09586904cbf151e09240becd5f86fd",
+    "PREUVES-CI-FINALE-2026-10-06.tar.xz": "6453b5b2bd3e8fb4a970a23f18f655c70f3bc380a5910f4705528992a0702fd1",
+    "PREUVES-CI-OAUTH-RENOUVELLEMENT-2026-10-06.tar.xz": "5bbe1f3b0f3b64e7beed9ea6de8e320edbd489df6810d988209f730968bc901e",
+    "PREUVES-CI-VERTICALE-2026-10-06-V1.tar.xz": "a5d44932c168be4391dec33fefa9af3eacb29e27be0d3c42a83f3de9684425b2",
+    "PREUVES-CI-VERTICALE-6896-2026-10-06.tar.xz": "3d1de74b50ef3b9ab76d2fc269e6635b7c7da27bd140cc48db1dfc5ae061ae9d",
+    "PREUVES-ISOLATION-AFFAIRE-2026-10-06-P3.tar.xz": "4074f2a0669ad2c0c2aed9b25a598791b3235ae7f12e28b5837702f8a972f9af",
+    "PREUVES-MEMOIRE-AFFAIRE-2026-10-06-P2.tar.xz": "a51c28ff4d8fd2840919e895f283a61b072cdcf74c53f70a5f87c977ed6c926c",
+    "PREUVES-OAUTH-RENOUVELLEMENT-2026-10-06-r1.tar.xz": "0bfbbdea3b000898a2e79dcf0f4923ae1e5f0948a8c4554840a93a43b6763c2d",
+    "PREUVES-PROFIL-AFFAIRE-2026-10-06-P1.tar.xz": "c3fb70fb69f3f9bb705a0f021d71ebad4c8afa6a5f3173db138c074f5a39a021",
+    "PREUVES-REPRISE-2026-10-06-r1.tar.xz": "3cc62e5ad8f48101234475895dea348c0499de129c336e31af3afdb8c1afe797",
+    "PREUVES-REPRISE-2026-10-06-r2.tar.xz": "079c176e26ce9d1831fd61c487f831495b7fb22c38371d41004bbe52b03c51a5",
+    "PREUVES-REPRISE-2026-10-06-r3.tar.xz": "30b298ff60bc318abc9ca01d8f52d94a6de612c632363512b192eab3f2ed6ddf",
+    "PREUVES-REPRISE-2026-10-06-r4.tar.xz": "315ba335c909676ad618e7db74e86da1d9a482b133150971e25f6b7049eb4e92",
+    "PREUVES-REPRISE-2026-10-06-r5.tar.xz": "5a2f93f248a438754cb64ed69e33e4e24c30a2fd411155b45405ab893b0e7754",
+    "PREUVES-REPRISE-2026-10-06-r6.tar.xz": "96467b842c76026bfc4257c34c3d5b005a4fc7e696cc878719afda0451bbf051",
+    "PREUVES-RESTAURATION-AFFAIRE-2026-10-06-P4.tar.xz": "6bc21b3cfbf6c7e4d91b7b68c3e8ec9f66c6d70ac9e21fdf2220a045fa85358f",
+    "PREUVES-VERTICALE-2026-10-06-V1-r1.tar.xz": "6cf157e08d6cb2ef89c6662d1d22854d8ee4eb9535d215cd9d89831bfacc50b7",
+    "PREUVES-VERTICALE-2026-10-06-V1-r2.tar.xz": "6ac2eae598255a89ab56b675cb101c0126b544af9760dce40197153d00925305",
+    "PREUVES-VERTICALE-CORE-CI-2026-10-06-r1.tar.xz": "5a5d7e6eb5fc5facade8aa88509a6b5854a150dfa6f0310a38a63b234f593699",
+    "QUALIFICATION-FINALE-OAUTH-RENOUVELLEMENT-2026-10-06.md": "0ed4246c888fc0bcdb83408c62b08f403414bf251b25f0e0f8bd7a9cbf7d6aa6",
+    "QUALIFICATION-FINALE-VERTICALE-2026-10-06-V1.md": "4a61d9e74b259979ec6117513d911be47b28b2346e8d46f5f204bae797f50966",
+    "QUALIFICATION-ISOLATION-AFFAIRE-2026-10-06-P3.md": "6bde4bcef8f52713f821c8cd7fde5c440cd65e523725ba527867175618152134",
+    "QUALIFICATION-MEMOIRE-AFFAIRE-2026-10-06-P2.md": "e789c0f7edcf81de8201642cc1e7134bae9377a657d8d5601b5974548cce9744",
+    "QUALIFICATION-PROFIL-AFFAIRE-2026-10-06-P1.md": "08e38ab8480c97c28981dd299a154eec74f124c7ffaa8f2b697dd37db98bbbd3",
+    "QUALIFICATION-RESTAURATION-AFFAIRE-2026-10-06-P4.md": "06f03544fa17d4d36a2dac030ef0d9218e951a79ba94493afc463234bbb7629c",
+    "REGISTRE-CI-VERTICALE-6896-2026-10-06.json": "25bb42072ac8534c4517ece919688ee81fabd18c1ed1329d0221a29e9caf4167",
+    "REGISTRE-ISOLATION-AFFAIRE-2026-10-06-P3.json": "e71d4b3f31216c434c1c4add0c13269c4ae37863cc9efbde239e337b3da28ba0",
+    "REGISTRE-MEMOIRE-AFFAIRE-2026-10-06-P2.json": "b45a57dc4607afe8610432e7c98836b825fd1caba43c566f33de2b43cef303de",
+    "REGISTRE-OAUTH-RENOUVELLEMENT-2026-10-06-r1.json": "60d2093bb8c6760b237830519f7a32202c278d26c22662b886fd2005fa0afb39",
+    "REGISTRE-PROFIL-AFFAIRE-2026-10-06-P1.json": "0484de13fc1c8b52688d27a3844a3a8a618ffca62570b295b37f0221c6602890",
+    "REGISTRE-REPRISE-2026-10-06.json": "d1c60612d64a9944e60d02095679116422c27490a7480b5795d66735ace8debc",
+    "REGISTRE-RESTAURATION-AFFAIRE-2026-10-06-P4.json": "3e576758a600e6839b9c6f84da0705e1c8f34524ac77b411dc2e3e0bb54f5955",
+    "REGISTRE-VERTICALE-2026-10-06-V1-r2.json": "ffeda43042595134d0b31f709c2efca9155e7403bcbdc02fdfb8f1b486bca4fd",
+    "REGISTRE-VERTICALE-2026-10-06-V1.json": "47063ad6e70ab95ac093967d84d9e33bf5838c0c499d914b146818e6778a621c",
+    "REGISTRE-VERTICALE-CORE-CI-2026-10-06-r1.json": "943a8093742f2ed8c45c089ea8a1b2283b2e8b9d2e2bbe7d16e507cd413819e5",
+    "REPRISE-ETAT-2026-10-06.json": "5993bffc70c3874a46f18acfc04d927abd2803e021a164e3a3569d355209999a",
+    "VERIFICATION-COMPLEMENTAIRE-VERTICALE-2026-10-06-V1.json": "2468673b457bfa049f968c55bbc101a7065706e17731e247302215ffc1c6eef2",
+    "VERIFICATION-FINALE-OAUTH-RENOUVELLEMENT-2026-10-06.json": "c206d6671943d6bf93ab2deef814bf7e867ec709356181594bde22f07a61f0be",
+    "VERIFICATION-FINALE-REPRISE-2026-10-06.json": "176c7609c11ee401268e01286e40e009e2cf7e4f5f2b446454178e0a5b7fd6a8",
+    "VERIFICATION-FINALE-VERTICALE-2026-10-06-V1.json": "f7b1112a47dc78892ea5d23268e2c41ec336d79c91fe1b8ccabd41a850e57065"
+  },
+  "ci_parent": "six workflows réussis, capsule distincte CI6896",
+  "ci_new_commit": "à obtenir après publication",
+  "absent_proofs": 104,
+  "supplement_generated_declarations": "absent du transfert léger",
+  "product": "PARTIEL"
+}

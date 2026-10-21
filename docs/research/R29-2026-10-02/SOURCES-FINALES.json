@@ -1,0 +1,14 @@
+{
+  "documents_actuels": {
+    "docs/architecture/MESURE-GEOMETRIQUE-PLANE.md": "cd880673abd7175176822a49ed559432e42f2f86427e0809f1e0bd2640706dec",
+    "docs/programme/LOT-MESURE-PLAN-SYNTHETIQUE.md": "af823cf03c0b1a343cd581452fa5d36693a0ba2f9a4e0d1ade1a2a6a5939b08e"
+  },
+  "documents_crees_apres_campagne_ROOT": true,
+  "schema": "opsys.r29-sources-finales/v1",
+  "snapshot_delta": [],
+  "snapshot_root_r2_fichiers": 1112,
+  "sources": {
+    "departments/m03-estimation/src/m3_estimation/mesure_plan.py": "c72a6a0548a3ddaa4ab4af310d394a84161cf095728b947e52d67a54a3ffa396",
+    "departments/m03-estimation/tests/test_mesure_plan.py": "6dca13d76fa0531ce5787689ebf1cdc0a41b6ef4a92521dd92be946ba388667b"
+  }
+}

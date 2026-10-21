@@ -1,0 +1,220 @@
+{
+  "fictif": true,
+  "node": "v24.19.0",
+  "sourceCommit": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "probes": [
+    {
+      "name": "transport_slow_body",
+      "delaiMs": 60,
+      "pendingAfter120ms": true,
+      "aborted": false,
+      "elapsedMs": 237,
+      "result": {
+        "ok": true,
+        "result": {
+          "ok": true,
+          "resultat": {
+            "accepte": true,
+            "resultat": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "transport_disconnected_body",
+      "result": {
+        "ok": false,
+        "echec": {
+          "origine": "http",
+          "reessayable": false,
+          "message": "réponse HTTP 200 inattendue",
+          "status": 200
+        }
+      }
+    },
+    {
+      "name": "transport_body_error_permanent_mutation",
+      "status": "echec_permanent",
+      "idempotencyId": "broken-1"
+    },
+    {
+      "name": "partial_enqueue_unrecoverable",
+      "persistedIndices": [
+        0
+      ],
+      "declaredBlocks": 2,
+      "restartResult": {
+        "ok": true,
+        "blocsEnfiles": 0
+      },
+      "state": {
+        "statut": "en_cours",
+        "reference": null,
+        "blocsEnvoyes": 0,
+        "nombreBlocs": 2
+      }
+    },
+    {
+      "name": "server_resume_never_completes",
+      "serverAcknowledged": {
+        "complet": true,
+        "blocs_recus": [
+          0,
+          1
+        ]
+      },
+      "localIndices": [
+        1
+      ],
+      "acceptedReport": [
+        "probe-4"
+      ],
+      "state": {
+        "statut": "en_cours",
+        "reference": null,
+        "blocsEnvoyes": 1,
+        "nombreBlocs": 2
+      },
+      "preparation": {
+        "pret": false,
+        "raison": "fichiers_en_cours"
+      }
+    },
+    {
+      "name": "server_already_complete_invisible",
+      "result": {
+        "ok": true,
+        "blocsEnfiles": 0
+      },
+      "state": {
+        "statut": "non_demarre",
+        "reference": null,
+        "blocsEnvoyes": 0,
+        "nombreBlocs": 0
+      }
+    },
+    {
+      "name": "cross_owner_capture_reissued",
+      "currentPerson": "B",
+      "draftOwner": "A",
+      "visiblePhotoIds": [
+        "photo-A"
+      ],
+      "selectedSignature": "signature-5",
+      "newBlockOwners": [
+        "B",
+        "B"
+      ],
+      "sentUnderB": [
+        "probe-6",
+        "probe-7"
+      ]
+    },
+    {
+      "name": "identity_switch_during_purge",
+      "currentToken": "new-session",
+      "appliedToken": "fictif-B",
+      "appliedPerson": "A",
+      "applied": true
+    },
+    {
+      "name": "background_completion_ack_not_persisted",
+      "accepted": [
+        {
+          "id": "complete-8",
+          "resume": {
+            "wct_id": "fictif-WCT1",
+            "intervention_id": "I1",
+            "ligne_id": "fictif-L1",
+            "statut": "completed_pending_review",
+            "hash_maillon": "fictif-hash",
+            "duree_reelle_minutes": 60,
+            "ecart_signale": false,
+            "tete_chaine": null
+          }
+        }
+      ],
+      "persisted": {
+        "id": "complete-8",
+        "sequence": 1,
+        "type": "job_completion",
+        "chantierId": "I1",
+        "payload": {
+          "intervention_id": "I1",
+          "horodatage": "2026-09-30T08:00:00-04:00",
+          "preuves_completion": {
+            "checklist_complete": true,
+            "photos_apres": [
+              "fichier:sha256:24fe511e7281abb8179dd75f3292e1152aedb2f48f5b5449702255fafa9ff5be"
+            ],
+            "notes": "fictif",
+            "signature": null
+          },
+          "signature_requise": false
+        },
+        "dependsOn": null,
+        "statut": "envoyee",
+        "tentatives": 0,
+        "createdAtLocal": "2026-09-30T08:00:00-04:00",
+        "prochaineTentativeA": null,
+        "proprietaire": "B"
+      },
+      "storedWctId": null
+    },
+    {
+      "name": "unknown_ack_is_success",
+      "unrecognizedServerPayload": {},
+      "sentIds": [
+        "probe-9",
+        "probe-10"
+      ],
+      "localState": {
+        "statut": "complet",
+        "reference": "fichier:sha256:24fe511e7281abb8179dd75f3292e1152aedb2f48f5b5449702255fafa9ff5be",
+        "blocsEnvoyes": 2,
+        "nombreBlocs": 2
+      },
+      "preparation": {
+        "pret": true,
+        "preuves": {
+          "checklist_complete": true,
+          "photos_apres": [
+            "fichier:sha256:24fe511e7281abb8179dd75f3292e1152aedb2f48f5b5449702255fafa9ff5be"
+          ],
+          "notes": "fictif",
+          "signature": null
+        }
+      }
+    },
+    {
+      "name": "concurrent_enqueue_duplicate_indices",
+      "indices": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "acknowledgedIndices": [
+        0,
+        0
+      ],
+      "state": {
+        "statut": "complet",
+        "reference": "fichier:sha256:24fe511e7281abb8179dd75f3292e1152aedb2f48f5b5449702255fafa9ff5be",
+        "blocsEnvoyes": 2,
+        "nombreBlocs": 2
+      },
+      "preparation": {
+        "pret": true,
+        "preuves": {
+          "checklist_complete": true,
+          "photos_apres": [
+            "fichier:sha256:24fe511e7281abb8179dd75f3292e1152aedb2f48f5b5449702255fafa9ff5be"
+          ],
+          "notes": "fictif",
+          "signature": null
+        }
+      }
+    }
+  ]
+}

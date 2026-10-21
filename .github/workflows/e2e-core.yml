@@ -1,0 +1,71 @@
+name: e2e-core
+on:
+  workflow_dispatch:
+    inputs:
+      moteur:
+        description: "superviseur : le Gateway lance le moteur (T0.10) ; direct : le script le lance"
+        type: choice
+        options: [superviseur, direct]
+        default: superviseur
+  workflow_call:
+    inputs:
+      moteur:
+        type: string
+        default: superviseur
+
+permissions:
+  contents: read
+
+# Les appels automatiques sont sérialisés par ci.yml ; le dispatch manuel reste indépendant.
+
+jobs:
+  # Le trajet RÉEL app -> core -> moteur (PLAN T1.5-b). `tests/e2e/` (job `socle` de ci.yml) prouve le moteur avec la
+  # règle de la porte d'appareil refaite en Python ; ce job prouve la porte elle-même : le Gateway construit, la
+  # configuration de `opsys-metier openclaw configurer`, l'appairage d'un appareil, `GET /opsys/identite` et
+  # `/tools/invoke`. Aucune étape ne tolère l'échec : un constat faux, un processus arrêté ou un délai fait échouer le job.
+  # Il reconstruit le core (comme le job `construction` de core.yml) : un workflow ne peut pas réutiliser le `dist/`
+  # d'un autre, et `node_modules` est trop gros pour un artefact.
+  e2e-core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: Client d'appairage (vecteurs de la charge v3, signature Ed25519, sans réseau)
+        run: node tests/e2e_core/appairer.mjs --autotest
+      - name: uv (version verrouillée)
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: Installation verrouillée (socle + dépendances E2E)
+        run: |
+          uv sync --locked --group build --extra dev --no-build-isolation --no-install-project
+          uv sync --locked --group build --extra dev --no-build-isolation
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+      - name: Répétition sans core (le script contre une passerelle factice)
+        run: python -m pytest tests/e2e_core -q --import-mode=importlib -p no:cacheprovider
+      - name: pnpm (version fixée par packageManager)
+        working-directory: core
+        run: corepack enable && pnpm --version
+      - name: Installation du core
+        working-directory: core
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Construction du core
+        working-directory: core
+        run: pnpm build
+      - name: E2E app -> core -> moteur
+        env:
+          MOTEUR: ${{ inputs.moteur || 'superviseur' }}
+        run: python tests/e2e_core/scenario.py --core core --travail "$RUNNER_TEMP/e2e-core" --moteur "$MOTEUR"
+      - name: Journaux du Gateway et du moteur (en cas d'échec)
+        if: failure()
+        shell: bash
+        run: |
+          for journal in "$RUNNER_TEMP"/e2e-core/journaux/*.log; do
+            echo "::group::$journal"
+            tail -n 300 "$journal" || true
+            echo "::endgroup::"
+          done

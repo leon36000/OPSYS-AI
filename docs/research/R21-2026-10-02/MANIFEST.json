@@ -1,0 +1,593 @@
+{
+  "jalon": "R21 reprise 2026-10-02 UTC / 2026-10-01 Quebec",
+  "cree_utc": "2026-10-02T00:59:41.873266+00:00",
+  "head": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "branche": "codex/restructuration-2026-09-30",
+  "portee": "reprise ciblee, catalogue Connecteurs prive et commentaire M3; ni audit exhaustif du fork, ni qualification fournisseurs/PG/Core/VPS",
+  "archives": [
+    {
+      "origine": "connecteurs-console-e2e-r1.xml",
+      "archive": "reprise/connecteurs-console-e2e-r1.xml--1da451223444.gz",
+      "octets_originaux": 47644,
+      "sha256_original": "1da4512234440cdf88fdef6448af60322a8c91ef07ea0866dc8c302e00ecd5ec",
+      "octets_archive": 7606,
+      "sha256_archive": "7c86ab92c7655fca1b728384127ddec6f03f035f236276db870d492f90af56d5"
+    },
+    {
+      "origine": "connecteurs-negatifs-r1.xml",
+      "archive": "reprise/connecteurs-negatifs-r1.xml--e877c9f749df.gz",
+      "octets_originaux": 2494,
+      "sha256_original": "e877c9f749dfff33e635a77ccce31fa65d4b7759fc8556a9e589bd1eae09b5f7",
+      "octets_archive": 598,
+      "sha256_archive": "3f89b64a6948184768d5f3454d3e132c48cb5b0915026011116d76f184250e1b"
+    },
+    {
+      "origine": "connecteurs-revue.md",
+      "archive": "reprise/connecteurs-revue.md--a7e389cc2461.gz",
+      "octets_originaux": 2725,
+      "sha256_original": "a7e389cc246159b05d2c9ac056fedb0218e68ce23c1f9caa4200c80590040b63",
+      "octets_archive": 1416,
+      "sha256_archive": "ff68e91bb389ce0f6ef279d7aefd32e89b235d870a42d9d780be6faaba7c3bce"
+    },
+    {
+      "origine": "connecteurs-rouge-r1.xml",
+      "archive": "reprise/connecteurs-rouge-r1.xml--fe7daafd4bbe.gz",
+      "octets_originaux": 1666,
+      "sha256_original": "fe7daafd4bbed03529ad596367fb359f6449abf5dd91dc6781947be81c0b3e57",
+      "octets_archive": 520,
+      "sha256_archive": "cd249c0a70598cac42d31b154e2ae99622999e61a3d1776bbb18c08759691ae5"
+    },
+    {
+      "origine": "connecteurs-vert-r1.xml",
+      "archive": "reprise/connecteurs-vert-r1.xml--674e23a1efca.gz",
+      "octets_originaux": 502,
+      "sha256_original": "674e23a1efca69133c55d41a56bc82e93d76c1349b70f83fac40349ae2d57010",
+      "octets_archive": 275,
+      "sha256_archive": "927f5e936e6a6e76fc76005b24d97cba854f889006ab50aa8e7ca977b45f6491"
+    },
+    {
+      "origine": "etat-initial.json",
+      "archive": "reprise/etat-initial.json--53631839426e.gz",
+      "octets_originaux": 224946,
+      "sha256_original": "53631839426e2fd36321b2e689981bf7ca6a1aa10794718f306550252d11a686",
+      "octets_archive": 25817,
+      "sha256_archive": "f5ec8ef31d05016ddfd235e101c04a9d5e9d3105588ad54a93150c5ad9b40dbd"
+    },
+    {
+      "origine": "m3-commentaire-r2.xml",
+      "archive": "reprise/m3-commentaire-r2.xml--3bbcbce56f8f.gz",
+      "octets_originaux": 24975,
+      "sha256_original": "3bbcbce56f8f5d39815335cda2d464ff1abc5686314bc57545d4215b7c1f71db",
+      "octets_archive": 3236,
+      "sha256_archive": "be0f8ec53c35f59c4061cb6bb3321bf227dd8b3299b3e6a69c34a16673b80106"
+    },
+    {
+      "origine": "m3-docstring-preimage.py",
+      "archive": "reprise/m3-docstring-preimage.py--3e0d20016c75.gz",
+      "octets_originaux": 19099,
+      "sha256_original": "3e0d20016c75cfea0e6a6cce665fadd0fcf12a7133567f09c2fddba2a854b76e",
+      "octets_archive": 5982,
+      "sha256_archive": "3027f7ecb493848ae6b8be582efc6e5b87c07fbe9fbaa4f89d86edc80f150ee9"
+    },
+    {
+      "origine": "m3-docstring-verification.json",
+      "archive": "reprise/m3-docstring-verification.json--c650257e6281.gz",
+      "octets_originaux": 299,
+      "sha256_original": "c650257e6281fd3a83d051cf61c81b063b05e723126f602b6d3ef1656a4d027d",
+      "octets_archive": 229,
+      "sha256_archive": "1cb93f1713c83064d98c3df383672af4cc0e09fc2fbaf2e9ec38296f5d39328b"
+    },
+    {
+      "origine": "m3-harnais-echec-r1.json",
+      "archive": "reprise/m3-harnais-echec-r1.json--3abfd750faf2.gz",
+      "octets_originaux": 376,
+      "sha256_original": "3abfd750faf2a13f241755c5b330efb8c5e6e88d1f7ba979004faae4dcd0a3d6",
+      "octets_archive": 263,
+      "sha256_archive": "9b30947067fd05ba2082928d6278ed1aa674cd6c9193428daad7345b575ffb01"
+    },
+    {
+      "origine": "modules-profondeur-audit.md",
+      "archive": "reprise/modules-profondeur-audit.md--0574e464a693.gz",
+      "octets_originaux": 7292,
+      "sha256_original": "0574e464a6939046fd0d3fd0ff9f3bef3ea17e484da7ee29688f703e66cbdb8a",
+      "octets_archive": 3194,
+      "sha256_archive": "753982a8aec0e69602521b26250c3d4d408955657ae95c0d7e514534590658f3"
+    },
+    {
+      "origine": "opus-audit.md",
+      "archive": "reprise/opus-audit.md--d640bc57226f.gz",
+      "octets_originaux": 4633,
+      "sha256_original": "d640bc57226f5932813d6dd40ab324a005c603a2b7e5a96245c446d4c0024295",
+      "octets_archive": 2400,
+      "sha256_archive": "6247a4a000c536cdfeec7052a21c02b658b8a07bb9df882fa9bfc565b05446e2"
+    },
+    {
+      "origine": "preimages/AGENTS.md",
+      "archive": "reprise/preimages-AGENTS.md--2cd33157c33a.gz",
+      "octets_originaux": 7219,
+      "sha256_original": "2cd33157c33a8c75cde4d83c10b4180224fb365bbd1ebb69427a17eb03350cc1",
+      "octets_archive": 3606,
+      "sha256_archive": "98d433352440915a94ed6298e8b82a2483a394882cefca0ccb3094aaaaf4de57"
+    },
+    {
+      "origine": "preimages/docs/produit/DEFINITION-PRODUIT.md",
+      "archive": "reprise/preimages-docs-produit-DEFINITION-PRODUIT.md--4e1cae69f50b.gz",
+      "octets_originaux": 94496,
+      "sha256_original": "4e1cae69f50b9f7469c071c4dade6c336995c6b068d7a565109741256cb3d8df",
+      "octets_archive": 33939,
+      "sha256_archive": "b9db0d6d4aac193823b89f8339808f48c0b6f0000740332e318286f46f30061f"
+    },
+    {
+      "origine": "preimages/docs/produit/DIRECTIVES-NATHAN.md",
+      "archive": "reprise/preimages-docs-produit-DIRECTIVES-NATHAN.md--5642083a6427.gz",
+      "octets_originaux": 6065,
+      "sha256_original": "5642083a6427fe99359f7349791c757d2b59af367f80d80396a03b99f824ee4d",
+      "octets_archive": 2893,
+      "sha256_archive": "8e2d20fd60c6514e5a22eda74dc3aadc2b237cf0156ba8756ac08a611052d059"
+    },
+    {
+      "origine": "preimages/docs/produit/PERIMETRE-MODULES.md",
+      "archive": "reprise/preimages-docs-produit-PERIMETRE-MODULES.md--27b0369454b6.gz",
+      "octets_originaux": 20975,
+      "sha256_original": "27b0369454b60be59922f8f15ae85b9b661d6e57b5ab074aff602b2d8a9daf15",
+      "octets_archive": 9131,
+      "sha256_archive": "ef4cd82b38ec283109ebd80a7c1aec1910b051741e211c0145b57f1772f837f3"
+    },
+    {
+      "origine": "preimages/docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "archive": "reprise/preimages-docs-programme-BILAN-RESTRUCTURATION-2026-09-30.md--9fac58fd7373.gz",
+      "octets_originaux": 57367,
+      "sha256_original": "9fac58fd737303d4a1bc3eaa1e04519ab048507928dd32c5dad02caa88d181d3",
+      "octets_archive": 20124,
+      "sha256_archive": "a12067ac6db667f49079199d0adaac9b26d047f5da8f76afc587f83e165cfafd"
+    },
+    {
+      "origine": "preimages/docs/programme/REGISTRE-AUDIT-2026-09-30.md",
+      "archive": "reprise/preimages-docs-programme-REGISTRE-AUDIT-2026-09-30.md--4504d9f6552b.gz",
+      "octets_originaux": 28589,
+      "sha256_original": "4504d9f6552b2403c74675bc204891786ab9ad0f945fb0e4192f34fa46038beb",
+      "octets_archive": 11055,
+      "sha256_archive": "73088c7c7bcb1ab9c7829e95c2033deb6223a279e67ef3b1bbf32ac1c06f6ff4"
+    },
+    {
+      "origine": "recherche-briques-sources.json",
+      "archive": "reprise/recherche-briques-sources.json--ca71bb566ca4.gz",
+      "octets_originaux": 2567,
+      "sha256_original": "ca71bb566ca472fb069d17cf3640e3665536b09821555465bb1b1555d36b1494",
+      "octets_archive": 1124,
+      "sha256_archive": "1fd9e819b49f337bcc585e2178925dc96d5e85809985276957dec93ac100f315"
+    },
+    {
+      "origine": "recherche-briques.md",
+      "archive": "reprise/recherche-briques.md--e6ee848d7385.gz",
+      "octets_originaux": 7844,
+      "sha256_original": "e6ee848d7385611857554cf9f81df22916932cb843179e8b55abfb41231b66e7",
+      "octets_archive": 3806,
+      "sha256_archive": "215f74cfeffce1b2ad4ffb5bb161368191bc1da26f356f2d0acab632da73cbbb"
+    },
+    {
+      "origine": "sources-root/agentcl-arxiv.txt",
+      "archive": "sources/sources-root-agentcl-arxiv.txt--32067bf1e9f5.gz",
+      "octets_originaux": 44488,
+      "sha256_original": "32067bf1e9f5c4cbf731277bb96dacf7e4bc0c5227bf844f333d571b12e81125",
+      "octets_archive": 9398,
+      "sha256_archive": "ebe7d1402225b4baea3f9dc1b4a319c0630275c8e03124c111a3fa9e403e0274"
+    },
+    {
+      "origine": "sources-root/audio2face-sdk-license-r2.txt",
+      "archive": "sources/sources-root-audio2face-sdk-license-r2.txt--211c1b442d1d.gz",
+      "octets_originaux": 1097,
+      "sha256_original": "211c1b442d1d55e2989de4344d63e9e6b8896cb3bd91289a92da708597087dd6",
+      "octets_archive": 665,
+      "sha256_archive": "47e073e28980d72d8998a995ffca8ae1f6b62a2c0b6c4f84dd91d5f19a044c9f"
+    },
+    {
+      "origine": "sources-root/docling-license.txt",
+      "archive": "sources/sources-root-docling-license.txt--edb765d1e3e6.gz",
+      "octets_originaux": 1072,
+      "sha256_original": "edb765d1e3e60d0c7a7d5fba5f2bb2c3c29f7465cecb5c22cf1185c884954e4c",
+      "octets_archive": 642,
+      "sha256_archive": "e7f4094d33d99189052e6168656325c85ff7094c84cdaca0e92be5f412aadad9"
+    },
+    {
+      "origine": "sources-root/longmemeval-v2-arxiv.txt",
+      "archive": "sources/sources-root-longmemeval-v2-arxiv.txt--ea1d16898567.gz",
+      "octets_originaux": 44030,
+      "sha256_original": "ea1d168985670501994b913e39cc7d380ef09c99750cbe7f65da2065b352d7da",
+      "octets_archive": 9275,
+      "sha256_archive": "be19eada2ab0a015d72070ab6b73c9e2595cf10f61029842f5a3a9c643e81b5c"
+    },
+    {
+      "origine": "sources-root/memorybench-arxiv.txt",
+      "archive": "sources/sources-root-memorybench-arxiv.txt--8675a5f52ed5.gz",
+      "octets_originaux": 44270,
+      "sha256_original": "8675a5f52ed5af4eb045cf4e3af92f4112d9888c135b1357046d9f2880bcae70",
+      "octets_archive": 9341,
+      "sha256_archive": "2f78f9a622c6df95cc211b0e23ed8fff78ca078f0fc5f57816f11cd437385b05"
+    },
+    {
+      "origine": "sources-root/py3dtiles-license.txt",
+      "archive": "sources/sources-root-py3dtiles-license.txt--7d20d332d501.gz",
+      "octets_originaux": 713,
+      "sha256_original": "7d20d332d5012938af68709309ceb25d4d4a7de9f53cb01267e694599fbd7d26",
+      "octets_archive": 461,
+      "sha256_archive": "6b4249527ac84d7d6aae09ad7f05722a94e1b6c296c3070d5ebd315204ec162c"
+    },
+    {
+      "origine": "sources-root/recherche-outils.json",
+      "archive": "sources/sources-root-recherche-outils.json--0b74958fdc76.gz",
+      "octets_originaux": 77146,
+      "sha256_original": "0b74958fdc76de750e49ea23c0daefbc9f1acdde9f5692e7940b4136ed93e351",
+      "octets_archive": 17536,
+      "sha256_archive": "bcd4d60207db6f635190c1feffed6353e4bd210fad419e37a924f641b4d49329"
+    },
+    {
+      "origine": "sources-root/sources-r2.json",
+      "archive": "sources/sources-root-sources-r2.json--4d0d1c6d156f.gz",
+      "octets_originaux": 743,
+      "sha256_original": "4d0d1c6d156f593bd9f0e9c7c12af5b3b46614bca59b2046724cbbcc8b44b442",
+      "octets_archive": 378,
+      "sha256_archive": "f00c7469319f2e8960346551e73f1260f88e50bae64252f50462d3d2f2b087eb"
+    },
+    {
+      "origine": "sources-root/sources-r3.json",
+      "archive": "sources/sources-root-sources-r3.json--ca054be23b33.gz",
+      "octets_originaux": 1013,
+      "sha256_original": "ca054be23b33c8766ab94d30fc0528e0bff25f871721ce34416d06056c944b77",
+      "octets_archive": 414,
+      "sha256_archive": "91cfdbf51d766e1940f777e3a7105c320da44f522808f428d0c9ae56f89d18c1"
+    },
+    {
+      "origine": "sources-root/sources.json",
+      "archive": "sources/sources-root-sources.json--03c843605481.gz",
+      "octets_originaux": 768,
+      "sha256_original": "03c843605481a107b7c38f1e705928e30252c37e90e9d5a9f7a05408c8fbb1f8",
+      "octets_archive": 384,
+      "sha256_archive": "13b92ea5b15762fcbdeac4e97dbd6b10eef51e82913cc7273a23b80b229a3773"
+    },
+    {
+      "origine": "reprise-connecteurs-negatifs-root-r1-2026-10-02-apres.json",
+      "archive": "preuves/reprise-connecteurs-negatifs-root-r1-2026-10-02-apres.json--6acf67dddf21.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "6acf67dddf21d061519cc6a43d1b89f1d0af96276a7283dd0d44db1508821ee6",
+      "octets_archive": 51519,
+      "sha256_archive": "d897cf067ac5784b1cd7bd73dd150fcb9dec6dd457774e7464063da0fd05c452"
+    },
+    {
+      "origine": "reprise-connecteurs-negatifs-root-r1-2026-10-02-avant.json",
+      "archive": "preuves/reprise-connecteurs-negatifs-root-r1-2026-10-02-avant.json--e2f6c38bb0ac.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "e2f6c38bb0ace0cf27d5aae1bffaa96fd40959710d5d1b260193a35736f46b73",
+      "octets_archive": 51519,
+      "sha256_archive": "c602def5b5cbd265a0e7a3fa4ab088ea2803337ab5c11045473d16bbeaa467e2"
+    },
+    {
+      "origine": "reprise-connecteurs-negatifs-root-r1-2026-10-02-resultat.json",
+      "archive": "preuves/reprise-connecteurs-negatifs-root-r1-2026-10-02-resultat.json--4f664ea2cc3a.gz",
+      "octets_originaux": 927,
+      "sha256_original": "4f664ea2cc3ae40bf952d13e749835cc327c923c1c987c4425a549597f7d2ef8",
+      "octets_archive": 484,
+      "sha256_archive": "86ae29731e3bd8b44d7b4fabd9bb33df3d394aed0d95134ec3dbfbf58e6ec855"
+    },
+    {
+      "origine": "reprise-connecteurs-negatifs-root-r1-2026-10-02.log",
+      "archive": "preuves/reprise-connecteurs-negatifs-root-r1-2026-10-02.log--6a9f5d9e4082.gz",
+      "octets_originaux": 99,
+      "sha256_original": "6a9f5d9e4082111c570951a04a831c79c761af0340350cec5bb198d1e7f5a063",
+      "octets_archive": 52,
+      "sha256_archive": "bf9393defe369c16cd6dbb0c4ab93e8ea61abfc1736434ed7fe77c0f89c2dadb"
+    },
+    {
+      "origine": "reprise-connecteurs-rouge-root-r1-2026-10-02-apres.json",
+      "archive": "preuves/reprise-connecteurs-rouge-root-r1-2026-10-02-apres.json--1dcb8f470db5.gz",
+      "octets_originaux": 137875,
+      "sha256_original": "1dcb8f470db524c17047875b2995abd2b64e4af67b63a866791978afb70f775e",
+      "octets_archive": 51476,
+      "sha256_archive": "e45edce5382429d923bcc02f0977972f5c4217d0c972f449d54c2b19789092fa"
+    },
+    {
+      "origine": "reprise-connecteurs-rouge-root-r1-2026-10-02-avant.json",
+      "archive": "preuves/reprise-connecteurs-rouge-root-r1-2026-10-02-avant.json--9a4d7b3e9646.gz",
+      "octets_originaux": 137875,
+      "sha256_original": "9a4d7b3e9646216358d247ea7d299eca4cae596ab2889b819e7a2f1c5813c465",
+      "octets_archive": 51477,
+      "sha256_archive": "c49d976ddb408108e43499ed02713f170955c7b94fadf9fad7cedb85b70e6949"
+    },
+    {
+      "origine": "reprise-connecteurs-rouge-root-r1-2026-10-02-resultat.json",
+      "archive": "preuves/reprise-connecteurs-rouge-root-r1-2026-10-02-resultat.json--26c929f47596.gz",
+      "octets_originaux": 913,
+      "sha256_original": "26c929f475964a3d249c59025714bab12c3b93e94b9033b7fcb285aa16da4734",
+      "octets_archive": 479,
+      "sha256_archive": "80c1ad198bbc9a8fa89071f1eaa2171be51a92ee5dfa48670fe4e1f4ea369318"
+    },
+    {
+      "origine": "reprise-connecteurs-rouge-root-r1-2026-10-02.log",
+      "archive": "preuves/reprise-connecteurs-rouge-root-r1-2026-10-02.log--ca7a237d51e7.gz",
+      "octets_originaux": 1506,
+      "sha256_original": "ca7a237d51e7775aa23cfde980e7b29a077f0657fa828c884ed8ea8ea4f512f5",
+      "octets_archive": 402,
+      "sha256_archive": "9510cf8c2476ddb9a3cf125ab8e1a25a68b166f95114046c78943868ae1adb94"
+    },
+    {
+      "origine": "reprise-connecteurs-ruff-root-r1-2026-10-02-apres.json",
+      "archive": "preuves/reprise-connecteurs-ruff-root-r1-2026-10-02-apres.json--bc7a044433ee.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "bc7a044433eed8f336cc26f4eddc6b0f8b4efc91c39f248d318d781234569f5c",
+      "octets_archive": 51518,
+      "sha256_archive": "a995f4355fc957f561a4f14e403a4187b25f6b09668efdd3463b155b0d06c957"
+    },
+    {
+      "origine": "reprise-connecteurs-ruff-root-r1-2026-10-02-avant.json",
+      "archive": "preuves/reprise-connecteurs-ruff-root-r1-2026-10-02-avant.json--82a6a8798906.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "82a6a8798906af7a976bef171ec0c474902000a1f1ad8a9c49b28f0ddce4f067",
+      "octets_archive": 51519,
+      "sha256_archive": "ca833b90e32e00bce346a1094554c3d4f598cc9c59e3df830e4dfea7eb5c2bf7"
+    },
+    {
+      "origine": "reprise-connecteurs-ruff-root-r1-2026-10-02-resultat.json",
+      "archive": "preuves/reprise-connecteurs-ruff-root-r1-2026-10-02-resultat.json--590364911706.gz",
+      "octets_originaux": 626,
+      "sha256_original": "5903649117062fa71f739259a8f61130288095e5f881916d50ab83b95b231cf3",
+      "octets_archive": 357,
+      "sha256_archive": "6badcee7fed2232286385f7218cf07279981b9d195ced2c57f94d6ceded6ba03"
+    },
+    {
+      "origine": "reprise-connecteurs-ruff-root-r1-2026-10-02.log",
+      "archive": "preuves/reprise-connecteurs-ruff-root-r1-2026-10-02.log--f5719ca10942.gz",
+      "octets_originaux": 1207,
+      "sha256_original": "f5719ca109426e8bf59f49745e13e1a5bf0365eb71dee436bc4e98d2ef9aee7f",
+      "octets_archive": 606,
+      "sha256_archive": "23f104e6a64d76b04532f8f3f998247193878c382102d0da4522a83cb98fe8a9"
+    },
+    {
+      "origine": "reprise-connecteurs-ruff-root-r2-2026-10-02-apres.json",
+      "archive": "preuves/reprise-connecteurs-ruff-root-r2-2026-10-02-apres.json--4a3cafb5fbd3.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "4a3cafb5fbd3ea5e6c9e38d0226b9d659630dda137424b49a642c271e5a9927e",
+      "octets_archive": 51519,
+      "sha256_archive": "14da25a2b034720d4e215af1d1c7ba11fead7d098f863ed991ff78bb937a4f69"
+    },
+    {
+      "origine": "reprise-connecteurs-ruff-root-r2-2026-10-02-avant.json",
+      "archive": "preuves/reprise-connecteurs-ruff-root-r2-2026-10-02-avant.json--157bfedc8b35.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "157bfedc8b358fcfb4ef1508120f4d4c0c6ccb435d18bfb211a119f92e457817",
+      "octets_archive": 51519,
+      "sha256_archive": "30f706a9d0cd1f0caad51cb2abd181c139c9bead87e894b3e66704103e174ffd"
+    },
+    {
+      "origine": "reprise-connecteurs-ruff-root-r2-2026-10-02-resultat.json",
+      "archive": "preuves/reprise-connecteurs-ruff-root-r2-2026-10-02-resultat.json--a032497b2e5d.gz",
+      "octets_originaux": 626,
+      "sha256_original": "a032497b2e5d510431d8c6c626706d11b2d1de05099fcefca66c37838047dc15",
+      "octets_archive": 357,
+      "sha256_archive": "28694fb802055afd60343070ce76e68cda1f50a4c705b0e2ef6cc0502af20ec5"
+    },
+    {
+      "origine": "reprise-connecteurs-ruff-root-r2-2026-10-02.log",
+      "archive": "preuves/reprise-connecteurs-ruff-root-r2-2026-10-02.log--82b3e6a6c090.gz",
+      "octets_originaux": 19,
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "octets_archive": 39,
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd"
+    },
+    {
+      "origine": "reprise-connecteurs-verifier-root-r2-2026-10-02-apres.json",
+      "archive": "preuves/reprise-connecteurs-verifier-root-r2-2026-10-02-apres.json--d13530fa5907.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "d13530fa590798c42c90cb24301c65904b7ef1460b7d59768dac4abffa3b5c5e",
+      "octets_archive": 51519,
+      "sha256_archive": "0b1d8c056344bdbfde7c35a97fd957af3befef2f5c88d45391a43dc965dc4741"
+    },
+    {
+      "origine": "reprise-connecteurs-verifier-root-r2-2026-10-02-avant.json",
+      "archive": "preuves/reprise-connecteurs-verifier-root-r2-2026-10-02-avant.json--4a073340d23c.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "4a073340d23c8cec243de5dbc189202c4bab494850c236d157e80926f2a20f1f",
+      "octets_archive": 51519,
+      "sha256_archive": "d10dcb7a99feaa6256f0d1097463b605270e0619b77bf671e6ce9b133041e2c2"
+    },
+    {
+      "origine": "reprise-connecteurs-verifier-root-r2-2026-10-02-resultat.json",
+      "archive": "preuves/reprise-connecteurs-verifier-root-r2-2026-10-02-resultat.json--d6cb5350ea9b.gz",
+      "octets_originaux": 504,
+      "sha256_original": "d6cb5350ea9bff6588e7a262a896f8c1dc09af9125bfc6d4434b73973671f803",
+      "octets_archive": 324,
+      "sha256_archive": "4c82d762a92b7f23b9049eb7dad712e71253c2d23361ed96cf9ff0025056fc6e"
+    },
+    {
+      "origine": "reprise-connecteurs-verifier-root-r2-2026-10-02.log",
+      "archive": "preuves/reprise-connecteurs-verifier-root-r2-2026-10-02.log--2535ad9f0626.gz",
+      "octets_originaux": 384,
+      "sha256_original": "2535ad9f06261ff50ba73345f2d4166e02e8520b7cccdc6fd0d4358f7c080347",
+      "octets_archive": 287,
+      "sha256_archive": "4859cbced66c40cc3211e14eebf0d4dcb13faed7ace3f3cddd150e6e34c4a655"
+    },
+    {
+      "origine": "reprise-connecteurs-vert-root-r1-2026-10-02-apres.json",
+      "archive": "preuves/reprise-connecteurs-vert-root-r1-2026-10-02-apres.json--e0319e231bb6.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "e0319e231bb6cc1bdc0c9f0c02ff5c6490176ace99cea83102671a1da121ada2",
+      "octets_archive": 51523,
+      "sha256_archive": "828277356bc4a0e67e6ea8ed703a20f1921076f6d3dcb417dea07ee04c5d280e"
+    },
+    {
+      "origine": "reprise-connecteurs-vert-root-r1-2026-10-02-avant.json",
+      "archive": "preuves/reprise-connecteurs-vert-root-r1-2026-10-02-avant.json--985c7d9213bf.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "985c7d9213bf5644112bd457e896ebd2ee67de87fc8b2a64c6f16a5242e6dd38",
+      "octets_archive": 51523,
+      "sha256_archive": "e821b0e543a2e939164ed0aaf3ec38926586b42f76341f5fd72c93eb1601efbf"
+    },
+    {
+      "origine": "reprise-connecteurs-vert-root-r1-2026-10-02-resultat.json",
+      "archive": "preuves/reprise-connecteurs-vert-root-r1-2026-10-02-resultat.json--765beb0a6d99.gz",
+      "octets_originaux": 908,
+      "sha256_original": "765beb0a6d99060153596ec29f93d45d46d8fc7d59ca6cb237191622b1e30ff1",
+      "octets_archive": 478,
+      "sha256_archive": "72a8847dfc61ac8ef603e091a8e52bffe4d0966e657474421cf4b7414bda0642"
+    },
+    {
+      "origine": "reprise-connecteurs-vert-root-r1-2026-10-02.log",
+      "archive": "preuves/reprise-connecteurs-vert-root-r1-2026-10-02.log--c2f48776b3d7.gz",
+      "octets_originaux": 98,
+      "sha256_original": "c2f48776b3d719cf5090b9e3f0f78a460e95ce21a6f9ff9a7e05b2b53cad3f74",
+      "octets_archive": 50,
+      "sha256_archive": "3247253f2cab4a4a05ecd3264e021033cdc31a42174d5e457e121cf0c9ba0bce"
+    },
+    {
+      "origine": "reprise-console-e2e-root-r1-2026-10-02-apres.json",
+      "archive": "preuves/reprise-console-e2e-root-r1-2026-10-02-apres.json--141f09aee32f.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "141f09aee32f29d74e7f0f050587315b1897f1a9cfef73337f850fa52d5645f3",
+      "octets_archive": 51519,
+      "sha256_archive": "3c9ed1edaab85bd8ded654e1905dc9a2593878cf51e4a5146c6e00e303bb4c8b"
+    },
+    {
+      "origine": "reprise-console-e2e-root-r1-2026-10-02-avant.json",
+      "archive": "preuves/reprise-console-e2e-root-r1-2026-10-02-avant.json--9fb7ab4ab622.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "9fb7ab4ab6224a01adbff0b2d2a09b9aff57fc53d5ed247354e045e114b5b4bf",
+      "octets_archive": 51519,
+      "sha256_archive": "59d15735afbb93dfb65640b9a89814e98c1f51fb81468e1dd2641c765d73dff9"
+    },
+    {
+      "origine": "reprise-console-e2e-root-r1-2026-10-02-resultat.json",
+      "archive": "preuves/reprise-console-e2e-root-r1-2026-10-02-resultat.json--bf3dbef7a06c.gz",
+      "octets_originaux": 1612,
+      "sha256_original": "bf3dbef7a06c7cec967f0778d9ee276904b52abbb2f37771bf76fa32bfbb4f6a",
+      "octets_archive": 653,
+      "sha256_archive": "f835f29b8b7780cca1765c1c03ce55e5122bb40f46b359b076eba9a536a4fb2c"
+    },
+    {
+      "origine": "reprise-console-e2e-root-r1-2026-10-02.log",
+      "archive": "preuves/reprise-console-e2e-root-r1-2026-10-02.log--928bec070a9e.gz",
+      "octets_originaux": 446,
+      "sha256_original": "928bec070a9e77831a43e65896444acd32f201524309c560c630f33c460bb9b4",
+      "octets_archive": 104,
+      "sha256_archive": "52aefd0d7729b08c19c17c79b10210af9d560dd3aac2c4d02638756ee344439c"
+    },
+    {
+      "origine": "reprise-m3-commentaire-root-r1-2026-10-02-avant.json",
+      "archive": "preuves/reprise-m3-commentaire-root-r1-2026-10-02-avant.json--c782b9de6bd4.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "c782b9de6bd48034faf297ab77974a1855cf695eea06f2fa3b4251c651fcc7cb",
+      "octets_archive": 51518,
+      "sha256_archive": "68246ef05407cfd09634dd0569d488153debf88ff11af41b2ebddc3d9d94209f"
+    },
+    {
+      "origine": "reprise-m3-commentaire-root-r1-2026-10-02.log",
+      "archive": "preuves/reprise-m3-commentaire-root-r1-2026-10-02.log--e3b0c44298fc.gz",
+      "octets_originaux": 0,
+      "sha256_original": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "octets_archive": 20,
+      "sha256_archive": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "origine": "reprise-m3-commentaire-root-r2-2026-10-02-apres.json",
+      "archive": "preuves/reprise-m3-commentaire-root-r2-2026-10-02-apres.json--1277e9dc866b.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "1277e9dc866b55e8381ac8dcd9868315c6a31b623e4c1362df02012c96324510",
+      "octets_archive": 51517,
+      "sha256_archive": "34ed9821b057dacc327a22bba66123b2073709ffeb5ba6a0e4e7644b3e8ecf8b"
+    },
+    {
+      "origine": "reprise-m3-commentaire-root-r2-2026-10-02-avant.json",
+      "archive": "preuves/reprise-m3-commentaire-root-r2-2026-10-02-avant.json--98cda4fd5053.gz",
+      "octets_originaux": 137986,
+      "sha256_original": "98cda4fd5053098835b1054fab9542d1fa95450bd89f78944e666ebc4cb4326c",
+      "octets_archive": 51516,
+      "sha256_archive": "4e30b730fcbf3dabdbb9278caf2ec406547e5aa69eb121aaa58301857ada27f0"
+    },
+    {
+      "origine": "reprise-m3-commentaire-root-r2-2026-10-02-resultat.json",
+      "archive": "preuves/reprise-m3-commentaire-root-r2-2026-10-02-resultat.json--10fbc61a7814.gz",
+      "octets_originaux": 1149,
+      "sha256_original": "10fbc61a78140a6e1d72607b9341ee806f4eedde49c2dd05b1159687b2c88c8c",
+      "octets_archive": 535,
+      "sha256_archive": "3283d6e1113e0a557bf59c3f369ef3e3a38cedd89daf048733a71ec891a55087"
+    },
+    {
+      "origine": "reprise-m3-commentaire-root-r2-2026-10-02.log",
+      "archive": "preuves/reprise-m3-commentaire-root-r2-2026-10-02.log--632077e000ec.gz",
+      "octets_originaux": 240,
+      "sha256_original": "632077e000ec3110031d124d34558cc1861fce1b3a7f170625cdb637b55adf6f",
+      "octets_archive": 49,
+      "sha256_archive": "3400c22353ae1e7152a23ecb46713509e355f5ead3de2e7e3974efb957f9bf32"
+    },
+    {
+      "origine": "reprise-verifier-root-r1-2026-10-02-apres.json",
+      "archive": "preuves/reprise-verifier-root-r1-2026-10-02-apres.json--3b1579d72a19.gz",
+      "octets_originaux": 137766,
+      "sha256_original": "3b1579d72a1902c529414d4b9f7d190fae7834459eae0090f7f0beab55eec0e0",
+      "octets_archive": 51425,
+      "sha256_archive": "e4d7bdf4b775e0ad5d48be35c27ba05150a7677c85c8728e47c3e46aa33bbaa4"
+    },
+    {
+      "origine": "reprise-verifier-root-r1-2026-10-02-avant.json",
+      "archive": "preuves/reprise-verifier-root-r1-2026-10-02-avant.json--ae51b1fd7d88.gz",
+      "octets_originaux": 137766,
+      "sha256_original": "ae51b1fd7d889f8c239438888bae1f0d3a8b6e8e627ab45c3b98f0841cf3eff5",
+      "octets_archive": 51425,
+      "sha256_archive": "ee5a69cb26a2cd7596b76d3e00b4ffdfa9f6abd35fdc49cba4ce49a581ca92ab"
+    },
+    {
+      "origine": "reprise-verifier-root-r1-2026-10-02-resultat.json",
+      "archive": "preuves/reprise-verifier-root-r1-2026-10-02-resultat.json--43df6202b9e0.gz",
+      "octets_originaux": 492,
+      "sha256_original": "43df6202b9e0bccf2886f98b107b5759d9362c2a61f7d1d2ac66038fe8cbef52",
+      "octets_archive": 316,
+      "sha256_archive": "098199730994cf3dd4ff72f1e195571b68c196a322d07842b3f61afb1d7d0b45"
+    },
+    {
+      "origine": "reprise-verifier-root-r1-2026-10-02.log",
+      "archive": "preuves/reprise-verifier-root-r1-2026-10-02.log--2535ad9f0626.gz",
+      "octets_originaux": 384,
+      "sha256_original": "2535ad9f06261ff50ba73345f2d4166e02e8520b7cccdc6fd0d4358f7c080347",
+      "octets_archive": 287,
+      "sha256_archive": "4859cbced66c40cc3211e14eebf0d4dcb13faed7ace3f3cddd150e6e34c4a655"
+    },
+    {
+      "origine": "src/opsys/console/connecteurs_ui.py",
+      "archive": "code/src-opsys-console-connecteurs_ui.py--a0c77b6c8d41.gz",
+      "octets_originaux": 7340,
+      "sha256_original": "a0c77b6c8d41fa57a278892a539a0efa2c3e06f5f97f0e184968d9385dd0d82d",
+      "octets_archive": 2762,
+      "sha256_archive": "4ebf010c4848f0f3f1f02527413dbff8aad321ef25f1b7bcdc70b0c873e89128"
+    },
+    {
+      "origine": "src/opsys/console/application.py",
+      "archive": "code/src-opsys-console-application.py--b664a8a54833.gz",
+      "octets_originaux": 46703,
+      "sha256_original": "b664a8a54833880a7b8c48fa5c3a32b9884137964e293e34e939ff1fc98f0947",
+      "octets_archive": 10054,
+      "sha256_archive": "a1cdaab1f81dd31fc4d004cdb3a4f589b3a1e65e45f033b2033abb98e326c593"
+    },
+    {
+      "origine": "src/opsys/console/pages.py",
+      "archive": "code/src-opsys-console-pages.py--e28c7ac04164.gz",
+      "octets_originaux": 22357,
+      "sha256_original": "e28c7ac04164e9f9a3e2e94a2b02ed0d9aa603c3531a21928527de68394061bc",
+      "octets_archive": 7077,
+      "sha256_archive": "1f065b8ab9a7a8bd3bcaef64807b68929ecdad0f402e11730945b0b76cd27054"
+    },
+    {
+      "origine": "tests/test_console_connecteurs.py",
+      "archive": "code/tests-test_console_connecteurs.py--681174fae662.gz",
+      "octets_originaux": 8011,
+      "sha256_original": "681174fae6623a25325106f98d14a8b01cab295ba45840f2f6cdc273062c9e61",
+      "octets_archive": 2402,
+      "sha256_archive": "79ac8d15d9290ffe713169dec17e6d214e34a9c13d9b7c6e699cdfd467cb3355"
+    },
+    {
+      "origine": "departments/m03-estimation/src/m3_estimation/estime_vs_reel.py",
+      "archive": "code/departments-m03-estimation-src-m3_estimation-estime_vs_reel.py--0eea0edae008.gz",
+      "octets_originaux": 18975,
+      "sha256_original": "0eea0edae00840f7834985d4864dbc566501bf27522a15f196a5d66800c307bb",
+      "octets_archive": 5902,
+      "sha256_archive": "5be74e42ee9fb72901583e139678b1354afbaee6c66b08faa90ee4e68faa2c18"
+    }
+  ]
+}

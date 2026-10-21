@@ -1,0 +1,12 @@
+{
+  "archives": 148,
+  "entrees_stables": true,
+  "index_historique_r1_stable": true,
+  "liens": 19,
+  "qualification_sha256": "8213304ef80651239f30f3409e29be3cd180dbca3029d19db6df8299b603f8b1",
+  "roundtrip_integral": true,
+  "schema": "opsys.r33-post-check/v1",
+  "services_lances_par_collecteur": false,
+  "sources_courantes_controlees": 15,
+  "tests_lances_par_collecteur": false
+}

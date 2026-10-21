@@ -1,0 +1,19 @@
+# M10 : lecture d’instance bornée et admission pure
+
+Audit du 2026-10-09T19:59:02.953697-04:00 (Toronto). OPSYS-AI reste PARTIEL. Base exacte : 146c71859ac00e77ea272e918100327c056cfbfc ; Core Git TREE 4ad1a927b4286039c23f7b93cbf43c2d02b61c7e. Cinq sources et trois documents de suivi, sans renouvellement de dépendances.
+
+Le lecteur exige la connexion canonique actuelle, ouverte et en transaction. Quatre noms de registres fermés, namespace M10 fixe : evenements, affaires, documents_affaire, documents_affaire_traces. Le préfixe SQL avec sentinel, les types/rangs/dates, les octets par ligne et cumulés et CASE globale ferment les payloads inadmissibles avant codec. Les copies sont indépendantes ; les dates SQL et le texte brut du digest sont conservés. Décodage puis réencodabilité UTF8 stricte ferment les nonfinis/surrogates, sans remplacer le raw JSON original. Les plafonds bornent retour/décodage, sans garantie sur planner ou allocations DB/driver/RSS.
+
+L’API pure valider_commande(operation, commande) restitue une copie structurelle/scalar fermée, réutilise les gardes actuels et ne consulte aucun snapshot, CAS, contexte, autorité ou horloge. Une référence peut encore être absente, étrangère ou périmée. Les préparateurs existants conservent leur ordre ; _index réutilise seulement la forme de référence extraite. Aucun outil RPC ou writer n’est ajouté.
+
+Qualification candidate fraîche combinée : 342 succès, zéro ignoré en 7,916 s de wrapper, pic RSS échantillonné 170864640 octets, EOF/owners PIDFD fermés ; imports réels F12 (19 M10 et 29 OPSYS). Cela comprend 29 admissions + 233 domaine existant + 60 lecteur + 14 snapshots + 6 voisins stockage. Ce n’est pas l’addition de campagnes historiques. Vérification primaire après intégration et nouvelle CI requises.
+
+Revues indépendantes : lecteur2 manifest ee1564d542c0f49501b5007de54e40bf3daa4ef815ef98ab61843a44598a092d ; admission gel2 manifest 7b0f0631d0cb558ed5522836fc752a382de6177d40c676def5abec617ac93481. Aucun constat matériel ouvert dans ces périmètres ; pas de garantie globale d’absence de défauts. Le test Root qui imposait le basename local a été corrigé vers la racine du test, puis 262 cas réexécutés. Son ancien gel et la revue initiale ayant manqué ce défaut restent conservés.
+
+Preuves conservées : reader absent4RED, réencodabilité3RED, RuffSIM117 corrigé ; admission absente29RED, mauvais chemin de suite avant collecte, RuffI001 et portabilité du test disposés. Les manifestes/archives r1 et r2 sont distincts. Aucune ancienne qualification n’est attribuée aux octets nouveaux.
+
+CI de la base : run38002574658/A1 SUCCESS, 38 contrôles réussis et 2 ignorés conditionnels, gates114076250053 réussi, SourceLOCAL161 indépendante. Core artefact11650533959 SHA17d2c5bd63656c4241b9366b41a053b26bb6488df60a5950210fff7bf4bedfb2 :40phases/38paires/0skip/47tables+journal1/reprise. Rouge du collecteur20888 (couplage HEADS) conservé ; helper r2 unique avec assertions artefact inchangées, puis relecture fraîche75+7 membres rehashés Root. Cette CI ne qualifie pas ce futur commit.
+
+Limites et suite : SQLite fictif qualifié ; SQL PostgreSQL construit mais non exécuté pour ce nouveau lecteur. Autorité DEVICE, corpus métier autorisé, claims, trace APP/J propre, writer, rollback postappend, rejeu réel, HTTP/stdio/Native et téléphone ne sont pas livrés par ce lot. Les dix départements profonds, Core OpenClaw, mobile quatre profils/hors ligne, permissions, dashboard/avatars et mémoires séparées restent au programme. Les104 preuves exclues du transfert, supplément et conversations absentes restent indisponibles. Pas de forcepush, fusion main ou production.
+
+REGISTRE.json trace les huit dispositions ; les huit empreintes finales (dont les trois documents) sont attestées par le manifeste externe de publication et les objets Git du commit. Les preuves complètes restent dans qualification locale, aucune prétention de pièces historiques récupérées.

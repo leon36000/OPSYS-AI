@@ -1,0 +1,155 @@
+{
+  "fictif": true,
+  "avertissement": "TOUT est fictif : aucun client, aucune adresse, aucun chantier réel. Les coordonnées sont des APPROXIMATIONS du centre de municipalités de Lanaudière (Repentigny à Joliette), sans adresse ; les durées, fenêtres, compétences et quarts sont inventés pour éprouver le solveur (T4.1-c).",
+  "parametres_distance": {"facteur_detour_milliemes": 1300, "vitesse_moyenne_kmh": 50, "marge_par_trajet_secondes": 600},
+  "sites": [
+    {"id": "depot-repentigny", "secteur": "Repentigny", "latitude_microdeg": 45735000, "longitude_microdeg": -73455000, "role": "depot", "coordonnees_approximatives": true},
+    {"id": "depot-joliette", "secteur": "Joliette", "latitude_microdeg": 46015000, "longitude_microdeg": -73445000, "role": "depot", "coordonnees_approximatives": true},
+    {"id": "ch-01", "secteur": "Repentigny", "latitude_microdeg": 45742000, "longitude_microdeg": -73450000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-02", "secteur": "Le Gardeur", "latitude_microdeg": 45753000, "longitude_microdeg": -73468000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-03", "secteur": "Charlemagne", "latitude_microdeg": 45720000, "longitude_microdeg": -73480000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-04", "secteur": "L'Assomption", "latitude_microdeg": 45822000, "longitude_microdeg": -73427000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-05", "secteur": "Saint-Sulpice", "latitude_microdeg": 45840000, "longitude_microdeg": -73340000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-06", "secteur": "Lavaltrie", "latitude_microdeg": 45885000, "longitude_microdeg": -73280000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-07", "secteur": "Terrebonne", "latitude_microdeg": 45700000, "longitude_microdeg": -73640000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-08", "secteur": "Mascouche", "latitude_microdeg": 45750000, "longitude_microdeg": -73600000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-09", "secteur": "Saint-Lin-Laurentides", "latitude_microdeg": 45850000, "longitude_microdeg": -73770000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-10", "secteur": "Joliette", "latitude_microdeg": 46020000, "longitude_microdeg": -73440000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-11", "secteur": "Notre-Dame-des-Prairies", "latitude_microdeg": 46050000, "longitude_microdeg": -73430000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-12", "secteur": "Crabtree", "latitude_microdeg": 46050000, "longitude_microdeg": -73470000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-13", "secteur": "Saint-Thomas", "latitude_microdeg": 46000000, "longitude_microdeg": -73350000, "role": "chantier", "coordonnees_approximatives": true},
+    {"id": "ch-14", "secteur": "Lanoraie", "latitude_microdeg": 45960000, "longitude_microdeg": -73210000, "role": "chantier", "coordonnees_approximatives": true}
+  ],
+  "instances": [
+    {
+      "nom": "journee-8-competence-rare",
+      "fictif": true,
+      "equipes": [
+        {"id": "eq-a", "competences": ["gouttieres", "revetement"], "depot": "depot-repentigny", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]},
+        {"id": "eq-b", "competences": ["gouttieres", "toiture"], "depot": "depot-repentigny", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]}
+      ],
+      "chantiers": [
+        {"id": "ch-01", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["gouttieres"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-02", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["revetement"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-03", "duree_min": 180, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 900}, "competences_requises": ["toiture"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-04", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 540, "fin_min": 1020}, "competences_requises": ["gouttieres"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-05", "duree_min": 150, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["revetement"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-06", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 600, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-10", "duree_min": 240, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["toiture"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-14", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["gouttieres"], "urgence": 0, "creneau_fige": null}
+      ],
+      "parametres": {"graine": 1, "iterations": 2000, "cout_non_cedule_m": 60000}
+    },
+    {
+      "nom": "deux-jours-9",
+      "fictif": true,
+      "equipes": [
+        {"id": "eq-a", "competences": ["gouttieres", "revetement"], "depot": "depot-repentigny", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}, {"jour": 1, "debut_min": 480, "fin_min": 1020}]},
+        {"id": "eq-b", "competences": ["gouttieres", "revetement", "toiture"], "depot": "depot-repentigny", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}, {"jour": 1, "debut_min": 480, "fin_min": 1020}]}
+      ],
+      "chantiers": [
+        {"id": "ch-01", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-02", "duree_min": 120, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-03", "duree_min": 180, "fenetre": {"jours": [1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-04", "duree_min": 90, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-05", "duree_min": 150, "fenetre": {"jours": [1], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["revetement"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-07", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-08", "duree_min": 90, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-10", "duree_min": 180, "fenetre": {"jours": [1], "debut_min": 540, "fin_min": 1020}, "competences_requises": ["toiture"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-13", "duree_min": 120, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null}
+      ],
+      "parametres": {"graine": 2, "iterations": 2000, "cout_non_cedule_m": 60000}
+    },
+    {
+      "nom": "competence-rare-10",
+      "fictif": true,
+      "equipes": [
+        {"id": "eq-a", "competences": ["gouttieres"], "depot": "depot-repentigny", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]},
+        {"id": "eq-b", "competences": ["gouttieres", "toiture"], "depot": "depot-joliette", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]}
+      ],
+      "chantiers": [
+        {"id": "ch-01", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["toiture"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-02", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-03", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["toiture"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-04", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["gouttieres"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-05", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-10", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["gouttieres"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-11", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-12", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["gouttieres"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-13", "duree_min": 150, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["toiture"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-06", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null}
+      ],
+      "parametres": {"graine": 3, "iterations": 2000, "cout_non_cedule_m": 60000}
+    },
+    {
+      "nom": "depots-distincts-11",
+      "fictif": true,
+      "equipes": [
+        {"id": "eq-a", "competences": ["gouttieres", "revetement"], "depot": "depot-repentigny", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]},
+        {"id": "eq-b", "competences": ["gouttieres", "revetement"], "depot": "depot-repentigny", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]},
+        {"id": "eq-c", "competences": ["gouttieres", "revetement", "toiture"], "depot": "depot-joliette", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]}
+      ],
+      "chantiers": [
+        {"id": "ch-01", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 720}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-02", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 780, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-04", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 900}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-05", "duree_min": 150, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-06", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 600, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-07", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 720}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-08", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 780, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-10", "duree_min": 150, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["toiture"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-11", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-13", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 540, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-14", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null}
+      ],
+      "parametres": {"graine": 4, "iterations": 2000, "cout_non_cedule_m": 60000}
+    },
+    {
+      "nom": "fenetres-serrees-12",
+      "fictif": true,
+      "equipes": [
+        {"id": "eq-a", "competences": ["gouttieres", "revetement"], "depot": "depot-repentigny", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]},
+        {"id": "eq-b", "competences": ["gouttieres", "revetement", "toiture"], "depot": "depot-repentigny", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]},
+        {"id": "eq-c", "competences": ["gouttieres"], "depot": "depot-joliette", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]}
+      ],
+      "chantiers": [
+        {"id": "ch-01", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 660}, "competences_requises": [], "urgence": 2, "creneau_fige": null},
+        {"id": "ch-02", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 540, "fin_min": 720}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-03", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 720}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-04", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 600, "fin_min": 780}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-05", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 720, "fin_min": 960}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-06", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 780, "fin_min": 960}, "competences_requises": [], "urgence": 1, "creneau_fige": null},
+        {"id": "ch-07", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 720}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-08", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 660, "fin_min": 900}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-10", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 720}, "competences_requises": ["toiture"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-11", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 720, "fin_min": 960}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-12", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 600, "fin_min": 900}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-13", "duree_min": 90, "fenetre": {"jours": [0], "debut_min": 840, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null}
+      ],
+      "parametres": {"graine": 5, "iterations": 2000, "cout_non_cedule_m": 60000}
+    },
+    {
+      "nom": "deux-jours-12",
+      "fictif": true,
+      "equipes": [
+        {"id": "eq-a", "competences": ["gouttieres", "revetement"], "depot": "depot-repentigny", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}, {"jour": 1, "debut_min": 480, "fin_min": 1020}]},
+        {"id": "eq-b", "competences": ["gouttieres", "toiture"], "depot": "depot-joliette", "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}, {"jour": 1, "debut_min": 480, "fin_min": 1020}]}
+      ],
+      "chantiers": [
+        {"id": "ch-01", "duree_min": 120, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-02", "duree_min": 150, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-03", "duree_min": 120, "fenetre": {"jours": [1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-04", "duree_min": 180, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-05", "duree_min": 120, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-06", "duree_min": 150, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-07", "duree_min": 120, "fenetre": {"jours": [1], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["revetement"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-09", "duree_min": 120, "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["gouttieres"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-10", "duree_min": 180, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": ["toiture"], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-11", "duree_min": 120, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-13", "duree_min": 120, "fenetre": {"jours": [1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null},
+        {"id": "ch-14", "duree_min": 150, "fenetre": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}, "competences_requises": [], "urgence": 0, "creneau_fige": null}
+      ],
+      "parametres": {"graine": 6, "iterations": 2000, "cout_non_cedule_m": 60000}
+    }
+  ]
+}

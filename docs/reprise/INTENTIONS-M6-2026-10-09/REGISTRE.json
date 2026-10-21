@@ -1,0 +1,245 @@
+{
+  "schema": 1,
+  "recorded_toronto": "2026-10-09T02:56:23.490592-04:00",
+  "status": "LOCAL_CANDIDATE_PROPOSAL_READY_ROOT_INTEGRATION_FUTURE_CI_PENDING",
+  "parent": "8099dd8acb009695bb89a8d0db2be1bab88ff8e0",
+  "source_count": 12,
+  "sources": [
+    {
+      "path": "departments/m06-material-control/docs/CLASSEMENT-VARIANCE-APPAREIL.md",
+      "sha256_candidate": "617ddd564af1d2e451dccbf3498aba2b8bf08a80ff3c79589f88857180b8c01f",
+      "preimage_git_8099_sha256": "d673ed6fe78c1f05c476fa0ab539344c0dacaf885e8dad2acd0de495d1faa035",
+      "preimage": "Git8099 exact verified primary bytes",
+      "origin": "backend delegate",
+      "verification": "backend66/Ruff;Root64Cap20SQL/affected6245",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "departments/m06-material-control/src/m6_material_control/classement_variance_appareil.py",
+      "sha256_candidate": "d227467984aa10b00d4965845bb1446eeab4cd9f728ef43ba741e0fc3f6a342a",
+      "preimage_git_8099_sha256": "803b04c0fdbde806a97e050218821c6d9b2e292a000f1f386b6773f67d70f9bc",
+      "preimage": "Git8099 exact verified primary bytes",
+      "origin": "backend delegate",
+      "verification": "backend66/Ruff;Root64Cap20SQL/affected6245",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "departments/m06-material-control/src/m6_material_control/classement_variance_contexte.py",
+      "sha256_candidate": "c26e31f4e424c1d70b9f17582fa8977ed5671487c2baba7d971dc89ddebb67b2",
+      "preimage_git_8099_sha256": null,
+      "preimage": "NOUVEAU",
+      "origin": "backend delegate",
+      "verification": "backend66/Ruff;Root64Cap20SQL/affected6245",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "departments/m06-material-control/src/m6_material_control/outils.py",
+      "sha256_candidate": "aa3bc7ce131bcdb15437a1286b3012808dc43080b1d798de6f13bd034ff1e116",
+      "preimage_git_8099_sha256": "b358a3817e60c4a40239886619abf0fac805f3ec9e7591abd5f7d4a30cafc83d",
+      "preimage": "Git8099 exact verified primary bytes",
+      "origin": "backend delegate",
+      "verification": "backend66/Ruff;Root64Cap20SQL/affected6245",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "departments/m06-material-control/tests/test_classement_intention_appareil.py",
+      "sha256_candidate": "2a4d13d4ca115f9f7c824961e1360bbb4d1636230c444908e1ed1968cd906c97",
+      "preimage_git_8099_sha256": null,
+      "preimage": "NOUVEAU",
+      "origin": "backend delegate",
+      "verification": "backend66/Ruff;Root64Cap20SQL/affected6245",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "departments/m06-material-control/tests/test_classement_variance_appareil.py",
+      "sha256_candidate": "ed0d08a47d31b0c2e9043b0a6141d23778bec0fffe89eb7ef8e856148fe95e31",
+      "preimage_git_8099_sha256": "436d75aa73984a450855307b465bd37a89a4f6105497a110d5ad061362c7bc06",
+      "preimage": "Git8099 exact verified primary bytes",
+      "origin": "backend delegate",
+      "verification": "backend66/Ruff;Root64Cap20SQL/affected6245",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "mobile/src/m6/classementCapSQL.test.ts",
+      "sha256_candidate": "9dfe92535a9ac6e78110746732e037d8bde385b0a28726f1f56aee9062e3c2df",
+      "preimage_git_8099_sha256": "7ff59c3450513902f4cfee2d2d5ddcf2aefb31fbe0ff25543723c139e305ae5f",
+      "preimage": "Git8099 exact verified primary bytes",
+      "origin": "mobile delegate",
+      "verification": "mobile5135/221/TS0+interop110",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "mobile/src/m6/classementVariance.test.ts",
+      "sha256_candidate": "bd18297aadbe0d2596656331f6cf5b76e3e0f50e87628ff1203be99144101b18",
+      "preimage_git_8099_sha256": "369bf92f2df35aa26df5d8d4ced1b66141b4d5cc98eae740a21f4f5931866647",
+      "preimage": "Git8099 exact verified primary bytes",
+      "origin": "mobile delegate",
+      "verification": "mobile5135/221/TS0+interop110",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "mobile/src/m6/classementVariance.ts",
+      "sha256_candidate": "de0895ff0a1e3926fb03b1fa742b9da2b851582ec8882dd352cc90cfe49bccb0",
+      "preimage_git_8099_sha256": "9a445a5c506548fa1b8026e1dd591b33df0d93d8b6ddbb8b43e499f431d43ba0",
+      "preimage": "Git8099 exact verified primary bytes",
+      "origin": "mobile delegate",
+      "verification": "mobile5135/221/TS0+interop110",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "mobile/src/m6/fixturesClassementIntentionCapSQL.json",
+      "sha256_candidate": "37d8c3a671b4c33149079a22b65b12a75782d6631650522b61a921ca22d2ae6f",
+      "preimage_git_8099_sha256": null,
+      "preimage": "NOUVEAU",
+      "origin": "mobile delegate",
+      "verification": "mobile5135/221/TS0+interop110",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "src/opsys/capacites.py",
+      "sha256_candidate": "7e59ec6bd9a23dff1ab37fbc2fc7a87891278c4096bcdd83ebae4d27e07dddbc",
+      "preimage_git_8099_sha256": "fd7aa2d74d683330d194a5fc9da07966c325e7ffc1246d38e3e677ac7cb31e90",
+      "preimage": "Git8099 exact verified primary bytes",
+      "origin": "ROOT Cap/test",
+      "verification": "Root64Cap/237P2skip/Ruff/verifier232140",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    },
+    {
+      "path": "tests/test_classement_variance_appareil_atomique.py",
+      "sha256_candidate": "53fccb9f04f06893eb560a63d81d38372479bc39ad44c73854d5cad42069faaf",
+      "preimage_git_8099_sha256": "ae0d0858e56ba3505cd2fb92d0203b7f11a14909ee47cf394aea84abd495a598",
+      "preimage": "Git8099 exact verified primary bytes",
+      "origin": "ROOT Cap/test",
+      "verification": "Root64Cap/237P2skip/Ruff/verifier232140",
+      "limits": [
+        "candidate local proof; exact future commit CI pending",
+        "Native/SQL/fictive client separate from phone and physical stock"
+      ]
+    }
+  ],
+  "source_candidate": {
+    "departments/m06-material-control/src/m6_material_control/classement_variance_appareil.py": "d227467984aa10b00d4965845bb1446eeab4cd9f728ef43ba741e0fc3f6a342a",
+    "departments/m06-material-control/src/m6_material_control/classement_variance_contexte.py": "c26e31f4e424c1d70b9f17582fa8977ed5671487c2baba7d971dc89ddebb67b2",
+    "departments/m06-material-control/src/m6_material_control/outils.py": "aa3bc7ce131bcdb15437a1286b3012808dc43080b1d798de6f13bd034ff1e116",
+    "departments/m06-material-control/tests/test_classement_variance_appareil.py": "ed0d08a47d31b0c2e9043b0a6141d23778bec0fffe89eb7ef8e856148fe95e31",
+    "departments/m06-material-control/tests/test_classement_intention_appareil.py": "2a4d13d4ca115f9f7c824961e1360bbb4d1636230c444908e1ed1968cd906c97",
+    "departments/m06-material-control/docs/CLASSEMENT-VARIANCE-APPAREIL.md": "617ddd564af1d2e451dccbf3498aba2b8bf08a80ff3c79589f88857180b8c01f",
+    "src/opsys/capacites.py": "7e59ec6bd9a23dff1ab37fbc2fc7a87891278c4096bcdd83ebae4d27e07dddbc",
+    "tests/test_classement_variance_appareil_atomique.py": "53fccb9f04f06893eb560a63d81d38372479bc39ad44c73854d5cad42069faaf",
+    "mobile/src/m6/classementVariance.ts": "de0895ff0a1e3926fb03b1fa742b9da2b851582ec8882dd352cc90cfe49bccb0",
+    "mobile/src/m6/classementVariance.test.ts": "bd18297aadbe0d2596656331f6cf5b76e3e0f50e87628ff1203be99144101b18",
+    "mobile/src/m6/classementCapSQL.test.ts": "9dfe92535a9ac6e78110746732e037d8bde385b0a28726f1f56aee9062e3c2df",
+    "mobile/src/m6/fixturesClassementIntentionCapSQL.json": "37d8c3a671b4c33149079a22b65b12a75782d6631650522b61a921ca22d2ae6f"
+  },
+  "R_clean": true,
+  "B_status": " M departments/m06-material-control/docs/CLASSEMENT-VARIANCE-APPAREIL.md\n M departments/m06-material-control/src/m6_material_control/classement_variance_appareil.py\n M departments/m06-material-control/src/m6_material_control/outils.py\n M departments/m06-material-control/tests/test_classement_variance_appareil.py\n M mobile/src/m6/classementCapSQL.test.ts\n M mobile/src/m6/classementVariance.test.ts\n M mobile/src/m6/classementVariance.ts\n M src/opsys/capacites.py\n M tests/test_classement_variance_appareil_atomique.py\n?? departments/m06-material-control/src/m6_material_control/classement_variance_contexte.py\n?? departments/m06-material-control/tests/test_classement_intention_appareil.py\n?? mobile/node_modules\n?? mobile/src/m6/fixturesClassementIntentionCapSQL.json\n",
+  "excluded": [
+    {
+      "path": "mobile/node_modules",
+      "reason": "local canonical dependency symlink, excluded from source/capsule"
+    }
+  ],
+  "Core4ad_inherited_sources_dist_equal": true,
+  "native_freeze_sha256": "2902e1a79f06c9650118054e94baa718f1a6ae818a1621fbffe5e9b5d2905389",
+  "qualifications": {
+    "backend_own": 66,
+    "backend_affected": {
+      "passed": 6245,
+      "skip_pyvrp": 20,
+      "initial_deselected": 1,
+      "deselection_followup_pass": 1
+    },
+    "root_cap": 64,
+    "real_Cap_SQL_captures": 20,
+    "neighbors": {
+      "passed": 237,
+      "DockerPG_skips": 2
+    },
+    "Ruff": 0,
+    "tools": 232,
+    "DEVICE": 140,
+    "mobile": {
+      "passed": 5135,
+      "suites": 221,
+      "typescript_exit": 0,
+      "interop": 110
+    },
+    "Android": {
+      "export_exit": 0,
+      "files": 29,
+      "bytes": 2790525,
+      "phone": false
+    }
+  },
+  "parent_CI": {
+    "head": "8099dd8acb009695bb89a8d0db2be1bab88ff8e0",
+    "run": 37888943194,
+    "jobs": {
+      "total": 40,
+      "conclusions": {
+        "success": 38,
+        "failure": 0,
+        "skipped": 2,
+        "cancelled": 0,
+        "timed_out": 0
+      }
+    },
+    "gates": "PASS",
+    "artifact_id": 11599141578,
+    "artifact_sha256": "8092ea3d9df206dad4debf9cee7a859dfa7455d73a9d8d2912b6db6dc2eaca09",
+    "future_M6_CI": false
+  },
+  "pending": {
+    "Native": "final local public proof admitted, no phone/CI extrapolation",
+    "independent_final_review": "source12 review complete without findings, scope limitations retained",
+    "future_commit_CI": "must qualify exact published head"
+  },
+  "limitations": [
+    "legacynegative unknown, no migration of historical echec_permanent/no real incident claimed",
+    "v1success unchanged/no inferred UUID",
+    "proof/cache tamper scope, not coordinated SQL rewrite protection",
+    "source10000 after copies; not global allocation guarantee",
+    "104 excluded M1 transfer proof references, supplements/conversations unknown",
+    "PARTIEL; next typed M4N4 linked revision, M5 prerequisites, M10 versions/development separate"
+  ],
+  "independent_review_receipt_sha256": "96b4f07d03f725ef6d0af66bd21f7be10a0923e021273fee784211f4bac4fc35",
+  "Native_final": {
+    "receipt_sha256": "0e58b92739ee48e5639b5cdef12cd590760ee9ccf480712f50d6a2b72d91937a",
+    "manifest_sha256": "8c889a44724b5b1db70e88ed6446ac2d7af86005be5a3bbad531bc0846aa7045",
+    "request_total": 75,
+    "actual_HTTPMCP_calls": 64
+  }
+}

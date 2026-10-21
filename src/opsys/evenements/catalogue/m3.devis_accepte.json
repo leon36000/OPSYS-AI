@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m3.devis_accepte",
+  "title": "M3 — Devis accepté",
+  "description": "Émis par M3 quand un devis passe à ACCEPTE (departments/m03-estimation/src/m3_estimation/devis_durable.py::marquer_devis_accepte, outil m3_marquer_devis_accepte, PLAN T2.3-a/b). Publié dans la MÊME transaction que l'acceptation, et seulement à ce moment (jamais à la création ou à l'envoi d'un devis), sous un evenement_id déterministe (f\"m3-devis-accepte-{devis_id}\", défense en profondeur contre une redélivrance). M6 le consommera pour ses besoins matériaux prévus (docs/produit/DEFINITION-PRODUIT.md §6, flux M3 -> M6). Porte ce qu'il faut pour que M5 facture SANS RIEN RECALCULER DIFFÉREMMENT (PLAN T2.3-b) : prix_unitaire/prix_ligne par ligne, déjà arrondis dans le même ordre que facturation.creer_facture_brouillon (montant = quantite x prix_unitaire, arrondi une fois) refera.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "devis_id": {
+      "type": "string",
+      "description": "Identifiant du devis accepté (devis_durable.py::creer_devis)."
+    },
+    "lead_id": {
+      "type": "string",
+      "description": "Lead M2 d'origine, porté tel quel depuis la création du devis."
+    },
+    "chantier_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Chantier M4, si déjà connu au moment de la création du devis ; null sinon."
+    },
+    "lignes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "description": "{reference_ligne (identifiant stable f\"{devis_id}-L{index}\", pour relier une ligne de facture M5 à sa ligne de devis), description, quantite (texte décimal), unite, prix_unitaire (texte décimal CAD, déjà arrondi ROUND_HALF_UP au cent depuis cout_unitaire x (1 + taux_marge)), prix_ligne (texte décimal CAD, = prix_unitaire x quantite, arrondi une seconde fois), reference_besoin_materiau (ou null)} — JAMAIS de coût par ligne (cout_unitaire/cout_ligne) : M6 planifie des quantités de matériaux, pas des montants (séparation coût/prix, docs/departements/M3-audit.md §2.1) ; le PRIX, lui, est porté : M5 en a besoin pour facturer sans recalculer différemment.",
+        "additionalProperties": false,
+        "properties": {
+          "reference_ligne": {
+            "type": "string",
+            "description": "Identifiant stable dans le devis : f\"{devis_id}-L{index}\"."
+          },
+          "description": {
+            "type": "string"
+          },
+          "quantite": {
+            "type": "string",
+            "description": "Texte décimal."
+          },
+          "unite": {
+            "type": "string"
+          },
+          "prix_unitaire": {
+            "type": "string",
+            "description": "Texte décimal CAD, arrondi ROUND_HALF_UP au cent."
+          },
+          "prix_ligne": {
+            "type": "string",
+            "description": "Texte décimal CAD : prix_unitaire x quantite, arrondi ROUND_HALF_UP."
+          },
+          "reference_besoin_materiau": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "reference_ligne",
+          "description",
+          "quantite",
+          "unite",
+          "prix_unitaire",
+          "prix_ligne",
+          "reference_besoin_materiau"
+        ]
+      },
+      "description": "Lignes du devis accepté, avec prix (jamais de coût) — voir la description de chaque élément.",
+      "minItems": 1
+    },
+    "cout_total": {
+      "type": "string",
+      "description": "Texte décimal CAD : coût total recalculé par le code (avant marge). Réservé aux consommateurs financiers (M5) ; jamais transmis à un profil employé (cf. m3_estimation.devis_durable.projeter_devis)."
+    },
+    "prix_total": {
+      "type": "string",
+      "description": "Texte décimal CAD : prix total recommandé au client, recalculé par le code (somme des prix_ligne, déjà arrondis)."
+    },
+    "taux_marge": {
+      "type": "string",
+      "description": "Texte décimal (ex. \"0.35\" pour 35 %) : taux de marge appliqué à ce devis, fourni explicitement à sa création — jamais codé en dur."
+    },
+    "estimation_source_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "OPTIONNEL — hash_maillon SHA-256 de l'estimation M3 explicitement liée à ce devis à sa création. Opaque; ne prouve que la référence à la chaîne M3 validée. Absent sur les devis historiques ou sans source déclarée."
+    },
+    "semantique_temps": {
+      "type": "string",
+      "enum": ["duree_ecoulee_intervention"],
+      "description": "OPTIONNEL — durée écoulée sur site par unité, pauses validées et déplacement exclus; émis uniquement si le barème source l'a déclaré exactement."
+    },
+    "duree_estimee_minutes": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "description": "OPTIONNEL (PLAN T1.5-d) — durée de main-d'œuvre estimée du chantier, en minutes (texte décimal, estimation.py::duree_estimee_minutes = quantité × durée par unité du barème). M8 la compare à la durée réelle du WCT (m4.travaux_termines). Absente quand le barème ne fournit aucune durée : M8 répond alors « non calculable, manque duree_estimee_minutes », jamais une durée par défaut. Additive : toute charge valide avant reste valide."
+    },
+    "horodatage_acceptation": {
+      "type": "string",
+      "description": "Horodatage fourni à m3_marquer_devis_accepte (jamais celui de la création ou d'un envoi antérieur du même devis)."
+    }
+  },
+  "required": [
+    "devis_id",
+    "lead_id",
+    "chantier_id",
+    "lignes",
+    "cout_total",
+    "prix_total",
+    "taux_marge",
+    "horodatage_acceptation"
+  ]
+}

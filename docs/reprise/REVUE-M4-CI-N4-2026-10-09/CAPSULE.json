@@ -1,0 +1,8 @@
+{
+  "sha256": "ba59647a61c9c1d49ae220d8cd5d24236c0068a83acf75b79e309954935301e1",
+  "members": 102,
+  "archive": "PREUVES-CORRECTION-CI-N4-r1.tar.gz",
+  "roundtrip": true,
+  "doc3_outside_archive": true,
+  "parent_CI_manifest_sha256": "add68a11da6a4830acb590f9f28829eb1285f4d798a2464fc17f5565d1a261df"
+}

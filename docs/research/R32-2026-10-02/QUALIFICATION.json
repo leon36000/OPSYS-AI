@@ -1,0 +1,374 @@
+{
+  "archive_tests_lances": false,
+  "campagnes": [
+    {
+      "junit": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 80
+      },
+      "prefix": "cohortes-raccord-root-r1-2026-10-02",
+      "receipt_sha256": "95dafd36231af138a220a74b8930313850ebd5f4fa75360d0894c8f077d11a57"
+    },
+    {
+      "prefix": "cohortes-raccord-qualite-root-r1-2026-10-02",
+      "qualite": {
+        "codes": [
+          0,
+          0
+        ],
+        "exit_code": 0,
+        "sources": 1110
+      },
+      "receipt_sha256": "d8a854886e8939ceaa7067c8db719290f646c1bbbd9e56d6cbe02a9840e59908"
+    }
+  ],
+  "candidate_active": false,
+  "couverture_unique": 80,
+  "gain_terrain_demontre": false,
+  "identites": [
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_bool_float_dates_locales_et_decimaux_non_stricts_rejetes"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_candidate_deterministe_inactive_et_avec_statistiques_robustes"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_coupure_exclut_tout_chantier_traversant_et_compte_le_retrait"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_limite_chantiers_fail_closed"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_limite_observations_fail_closed"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_minima_holdout_absent_ou_coupure_non_utc_ne_produisent_pas_de_candidate"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_observation_invalide_avec_wct_deja_vu_invalide_le_conflit"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_preuves_internes_et_unites_non_qualifiees_exclues[<lambda>-chaine_m3_non_valide]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_preuves_internes_et_unites_non_qualifiees_exclues[<lambda>-liaison_exacte_non_prouvee]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_preuves_internes_et_unites_non_qualifiees_exclues[<lambda>-semantique_trace_non_qualifiee]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_preuves_internes_et_unites_non_qualifiees_exclues[<lambda>-unite_duree_non_qualifiee]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_quantite_exacte_separe_les_segments_et_provenance_reste_auditable"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_rejeu_identique_compte_une_observation_et_conflit_refuse"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_cohortes",
+      "test_resultat_independant_du_contexte_decimal_ambiant_et_appelant_inchange"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_raccord",
+      "test_outil_cohorte_refuse_appel_sans_origine_ni_identite"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_raccord",
+      "test_raccord_refuse_sequence_devis_ambigue"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_raccord",
+      "test_raccord_refuse_source_hash_absent_meme_si_devis_et_lead_correspondent"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_raccord",
+      "test_raccord_refuse_transition_devis_invalide"
+    ],
+    [
+      "departments.m03-estimation.tests.test_calibration_raccord",
+      "test_raccord_resout_hash_exact_lead_devis_trace_et_laisse_candidate_inactive"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_accepte_datetime_fromisoformat"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_accepte_generateur_random_local_ensemence"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_asctime_est_signale_comme_horloge_interne"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_ctime_est_signale_comme_horloge_interne"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_detecte_random_choice_avec_argument"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_detecte_random_randint_avec_arguments"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_detecte_random_uniform_avec_arguments"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_detecte_time_time_ns"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_detecte_uuid_uuid4"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_digest_est_canonique_pour_des_registres_equivalents_ordonnes_autrement"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_digest_est_lecture_seule_deterministe_et_filtre_la_fenetre"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_digest_n_importe_aucune_source_d_ambiance_interdite"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_digest_refuse_une_fenetre_invalide[2026-03-03T00:00:00+00:00-2026-03-03T00:00:00+00:00]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_digest_refuse_une_fenetre_invalide[2026-03-03T01:00:00+01:00-2026-03-03T00:00:00+00:00]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_digest_refuse_une_fenetre_invalide[2026-03-04T00:00:00+00:00-2026-03-03T00:00:00+00:00]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_digest_sur_le_vrai_registre_m3_hors_fenetre_est_exclu"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_digest_sur_le_vrai_registre_m3_n_est_plus_structurellement_vide"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_digest_sur_le_vrai_registre_m3_trouve_l_alerte_plancher"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_digest_vide_est_explicite_et_ne_mutile_pas_le_registre"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_extracteur_sans_enumere_echoue_ferme"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_extracteur_vide_echoue_ferme"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_graines_litterales_non_nulles_restent_licites"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_limite_du_controle_de_cout_est_declaree_et_non_mensongere"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_listes_de_champs_exclues_et_enumeres_de_domaine_declares"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_litteral_de_cout_nomme_est_detecte_sans_confondre_seuil_et_indice"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_monotonic_ns_est_signale_comme_horloge_interne"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ast_interdits_sont_detectes[from datetime import datetime\\nvaleur = datetime.now()\\n-HORLOGE_INTERNE]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ast_interdits_sont_detectes[from datetime import datetime\\nvaleur = datetime.today()\\n-HORLOGE_INTERNE]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ast_interdits_sont_detectes[from datetime import datetime\\nvaleur = datetime.utcnow()\\n-HORLOGE_INTERNE]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ast_interdits_sont_detectes[from random import Random\\nvaleur = Random()\\n-RANDOM_NON_ENSEMENCE]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ast_interdits_sont_detectes[import http.client\\nhttp.client.HTTPConnection('exemple.test')\\n-RESEAU_INTERDIT]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ast_interdits_sont_detectes[import random\\nvaleur = random.random()\\n-RANDOM_NON_ENSEMENCE]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ast_interdits_sont_detectes[import requests\\nrequests.get('https://exemple.test')\\n-RESEAU_INTERDIT]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ast_interdits_sont_detectes[import socket\\nclient = socket.socket()\\n-RESEAU_INTERDIT]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ast_interdits_sont_detectes[import time\\nvaleur = time.time()\\n-HORLOGE_INTERNE]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ast_interdits_sont_detectes[import urllib.request\\nurllib.request.urlopen('https://exemple.test')\\n-RESEAU_INTERDIT]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ressemblants_mais_licites_ne_sont_pas_detectes[from datetime import datetime\\ninstant = datetime.fromisoformat(valeur_fournie)\\n]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ressemblants_mais_licites_ne_sont_pas_detectes[from random import Random\\ngenerateur = Random(graine_fournie)\\n]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ressemblants_mais_licites_ne_sont_pas_detectes[prix_bloque = bareme['prix_bloque']\\n]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ressemblants_mais_licites_ne_sont_pas_detectes[requests_count = 3\\n]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ressemblants_mais_licites_ne_sont_pas_detectes[socket_name = 'socket sans import reseau'\\n]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_motifs_ressemblants_mais_licites_ne_sont_pas_detectes[temps_de_traitement = entree.time\\n]"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_os_urandom_est_interdit"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_paquet_m3_reel_passe_sa_propre_conformite"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_perf_counter_ns_est_signale_comme_horloge_interne"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_process_time_est_signale_comme_horloge_interne"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_random_none_est_signale_comme_aleatoire_non_ensemence"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_random_random_accepte_le_mot_cle_x"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_random_seed_accepte_le_mot_cle_a"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_reference_d_echappatoire_est_resolue_depuis_contrats"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_reference_d_enumere_non_resoluble_echoue_ferme"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_resout_import_direct_de_verdict_indetermine"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_secrets_token_bytes_est_interdit"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_seed_none_est_signale_comme_aleatoire_non_ensemence"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_seed_sans_argument_est_signale_comme_aleatoire_non_ensemence"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_thread_time_est_signale_comme_horloge_interne"
+    ],
+    [
+      "departments.m03-estimation.tests.test_conformite",
+      "test_type_travaux_sans_autre_est_refuse_explicitement"
+    ],
+    [
+      "departments.m04-field-ops.tests.test_evenements_m4",
+      "test_m3_cohorte_jointure_positive_depuis_estimation_devis_et_wct_durables"
+    ],
+    [
+      "departments.m04-field-ops.tests.test_evenements_m4",
+      "test_m3_cohorte_lit_projection_m4_et_bus_sans_activer_candidate"
+    ],
+    [
+      "departments.m04-field-ops.tests.test_evenements_m4",
+      "test_projection_refuse_arrivee_absente_sans_fabriquer_debut"
+    ],
+    [
+      "departments.m04-field-ops.tests.test_evenements_m4",
+      "test_projection_refuse_chaine_corrompue_et_depassement_quota_avant_lecture"
+    ]
+  ],
+  "limites": "ROOT indépendant : 80 IDs uniques, zéro échec/erreur/skip, 0,828 s; snapshots 1110 sources stables. Ruff et vérification du catalogue des outils ont réussi (codes 0/0). Le scénario positif traverse les outils M3/M4 et leurs registres/bus mais contient un seul WCT fictif : observation admise, statut de cohorte insuffisant aux minima R30 20 train/10 holdout. Aucun gain terrain ni activation de candidate/barème n’est établi.",
+  "modules": {
+    "test_calibration_cohortes": 14,
+    "test_calibration_raccord": 5,
+    "test_conformite": 57,
+    "test_evenements_m4": 4
+  },
+  "root_junit": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 80
+  },
+  "schema": "opsys.r32-qualification/v1",
+  "sources_r32": {
+    "departments/m03-estimation/src/m3_estimation/calibration_raccord.py": "4a811b2044e2fc458d01093b8c8ecd2cf443a7a451a0c66769b7a0d4094695a6",
+    "departments/m03-estimation/src/m3_estimation/outils.py": "100f888817846372b15a3fee2dc37760b818aff6d0e44d6d08c66a021d07c4e4",
+    "departments/m03-estimation/tests/test_calibration_raccord.py": "65ac5553b66980605adbd5f24793a5f619ea13d9036098adfe5a19a84b57ea10",
+    "departments/m04-field-ops/src/m4_field_ops/calibration_projection.py": "c5818b65c3dad37933db175f6eb359b3e28fde38521974ead342a50f556d88a6",
+    "departments/m04-field-ops/src/m4_field_ops/outils.py": "7303a22f610c8a6bd9b1e7454e99d0bd3f0b5427882c2fe10370ea9d3f68cfad",
+    "departments/m04-field-ops/tests/test_evenements_m4.py": "022a0d39cb7b40e1ccd48e0836cbb2e519ed5de3114ffa82509a4b245db8353b"
+  }
+}

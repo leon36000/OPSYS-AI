@@ -1,0 +1,7 @@
+{
+  "recorded_toronto": "2026-10-08T19:56:08.718119-04:00",
+  "scope": "Docker server info readonly; no container/image operation",
+  "exit_code": 1,
+  "accessible": false,
+  "reason": "socket_permission_denied"
+}

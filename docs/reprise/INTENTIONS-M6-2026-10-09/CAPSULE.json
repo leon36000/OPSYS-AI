@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "status": "LOCAL_CANDIDATE_CAPSULE_VERIFIED_FUTURE_CI_PENDING",
+  "recorded_toronto": "2026-10-09T02:56:30.185273-04:00",
+  "archive_q_only": "PREUVES-INTENTIONS-M6-CANDIDAT-2026-10-09-r1.tar.xz",
+  "sha256": "75a635ef0a4531dfdb1091f8b735cbc2aed9e487fc896cab490663f24597ba56",
+  "bytes": 3156972,
+  "public_manifest_sha256": "3a55aee2ee0d129dda1d95404bf586f225e75a25df655cdee8480894754e7ca9",
+  "public_members": 480,
+  "archive_members": 481,
+  "producer_manifests": [
+    {
+      "namespace": "CONCEPTION-M6-ASSOCIATION-INTENTION-8099-r1",
+      "manifest": "SHA256-r2.json",
+      "manifest_sha256": "2882b4575d948e340090a36459910b2c529be2fc855745ee050ffbd8a5bf560a",
+      "members_checked": 10,
+      "all_exact": true
+    },
+    {
+      "namespace": "DIAGNOSTIC-M6-CACHE-NEGATIF-8099-r1",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "91bd120552eda234c54346cada8cee85ce2b3331cefc4f0891c5b4414cb9656d",
+      "members_checked": 13,
+      "all_exact": true
+    },
+    {
+      "namespace": "M6-INTENTION-BACKEND-20261009-r1/PUBLIC-r1",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "b6445367a969abc2238e242e1f06c293288fd366792535108f46136cda631fd4",
+      "members_checked": 50,
+      "all_exact": true
+    },
+    {
+      "namespace": "M6-INTENTION-BACKEND-20261009-r1/PUBLIC-r2",
+      "manifest": "SHA256-r2.json",
+      "manifest_sha256": "859d98ca286f252339556f3d8baf501092ebf1d780f563c9e75b329629ac5119",
+      "members_checked": 6,
+      "all_exact": true
+    },
+    {
+      "namespace": "M6-INTENTION-CAP-ROOT-20261009-r1/PUBLIC-r1",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "0fb10c446679d74dce8902fc348f057dc2e4ad60cb8a3849988cc92f379b57d5",
+      "members_checked": 45,
+      "all_exact": true
+    },
+    {
+      "namespace": "M6-INTENTION-MOBILE-20261009-r1/PUBLIC-r1",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "654a5b75cc00e92c4b00cc023ebd33cce4f480928c48b40b3d3dd718e7bbe83d",
+      "members_checked": 43,
+      "all_exact": true
+    },
+    {
+      "namespace": "M6-INTENTION-SKIPS-ROOT-20261009-r1/PUBLIC-r1",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "e774d2c96f73e8ee756f43a51f9762706abb654ac22c4926a47037507a271f7b",
+      "members_checked": 11,
+      "all_exact": true
+    },
+    {
+      "namespace": "CI-RAPPELS-M1-8099-r1",
+      "manifest": "SHA256-final-r1.json",
+      "manifest_sha256": "01ea498dce62ea55de277b0c33f572ddbf95cf7e5f16d566ef1289a232e72c00",
+      "members_checked": 36,
+      "all_exact": true
+    },
+    {
+      "namespace": "M6-INTENTION-REVIEW-INDEPENDANTE-20261009-r1",
+      "manifest": "SHA256-r2.json",
+      "manifest_sha256": "962d93ce195f979efcc89161179a0041d7ef4058e65f26f2486b7badcf8eed43",
+      "members_checked": 19,
+      "all_exact": true
+    },
+    {
+      "namespace": "M6-INTENTION-NATIVE-20261009-r1/PUBLIC-FINAL-r1",
+      "manifest": "SHA256.json",
+      "manifest_sha256": "8c889a44724b5b1db70e88ed6446ac2d7af86005be5a3bbad531bc0846aa7045",
+      "members_checked": 203,
+      "all_exact": true
+    }
+  ],
+  "source_count": 12,
+  "roundtrip_verified": true,
+  "scanner": "CLEAN",
+  "Native": {
+    "status": "LOCAL_NATIVE_PASS",
+    "receipt_sha256": "0e58b92739ee48e5639b5cdef12cd590760ee9ccf480712f50d6a2b72d91937a",
+    "manifest_sha256": "8c889a44724b5b1db70e88ed6446ac2d7af86005be5a3bbad531bc0846aa7045",
+    "counts": {
+      "captured_Gateway_requests": 75,
+      "actual_HTTPMCP_tools_calls": 64,
+      "phase_count": 74,
+      "unchanged_windows": 60,
+      "changed_windows": 14,
+      "registry_append_counts": {
+        "classements_variance": 10,
+        "refus_classement_variance": 5
+      },
+      "concurrent_window": {
+        "windows": 1,
+        "Gateway_requests": 2,
+        "classifications": 1,
+        "refusal_proofs": 1,
+        "claims": 2,
+        "N3_approval_traces": 1,
+        "journal_traces": 1,
+        "per_RPC_table_isolation_claimed": false
+      },
+      "artefacts": 0,
+      "resources": {
+        "wall_seconds": 45.425,
+        "peak_process_tree_rss_bytes": 1435930624,
+        "guard_triggered": null
+      }
+    },
+    "phone": false
+  },
+  "independent_final_review": {
+    "status": "SCOPED_NO_FINDINGS",
+    "receipt_sha256": "96b4f07d03f725ef6d0af66bd21f7be10a0923e021273fee784211f4bac4fc35",
+    "manifest_sha256": "962d93ce195f979efcc89161179a0041d7ef4058e65f26f2486b7badcf8eed43",
+    "limits": "26Python/30mobile fresh,64Jest filtered are not delivered; no phone"
+  },
+  "future_exact_commit_CI": "pending",
+  "exclusions": [
+    "auth/config/DB/runtimeprivates/rawCIZIP/node_modules",
+    "Native not relabeled as qualified"
+  ],
+  "future_copy_to_repo": "Root decision only; no R/B write by this preparation"
+}

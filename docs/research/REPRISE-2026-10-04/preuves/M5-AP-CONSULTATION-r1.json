@@ -1,0 +1,685 @@
+{
+  "archive": "M5-AP-CONSULTATION-r1.tar.xz",
+  "bytes": 186416,
+  "sha256": "8448a1d1491f9412bb43a20793646b09d7a597018336577d9a7c4349dd0ae922",
+  "timestamp_utc": "2026-10-04T11:58:07.386443+00:00",
+  "qualification": "ROOT r130:668/668 passing across21full files,104.600secJUnit,no skip;1240runtime sources unchanged; r127/r128/r129 RED preserved; Gitleaks r131 zero alerts scoped14finalsourcefiles; no exclusions",
+  "source_sha256": {
+    "docs/grs/compta/M5-AP-CONSULTATION-DESIGN-2026-10-04.md": "f442218ae5540459e24dbf505c883f74611b35466f34795ac572eb210802218b",
+    "docs/grs/compta/M5-AP-CONSULTATION-RAPPORT-2026-10-04.md": "822609546581b15b4553fa6da2f42146e172e3e65cc450cf9318d43212d829c9",
+    "docs/grs/compta/M5-CFO-IA-FISCALITE-PAIE-STRATEGIE-AUDIT.md": "29a3a0b5cd568bf1a6ff690b8f19bceb85a9356080e0800085e22ab0d647d203",
+    "docs/programme/REPRISE-PLAN-2026-10-02.md": "76cafabdfc4fcdb403c1923edc5a3092cdf38bad0c6fde2b9f8a5aa4cbc081e1",
+    "docs/programme/RESTRUCTURATION-2026-09-30.md": "478a537e044f33eccac0f1f20d16b38b793741dfe7cb60a488366253aacf1880",
+    "docs/research/INGREDIENTS.md": "facc48b4eb2d53ffc04bc2dc86b3d6d1efda65f119ae0b30b4330a500af46a92",
+    "docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md": "d022b21cceb25b758bcbe3c1d9519c2d28bbf791d6560d13dc3b624ca85e7450",
+    "docs/research/REPRISE-2026-10-04/M5-OCR-GITHUB-GITLAB.md": "c78bdbec75887b35dc903e6066334cd8db4209af5f4fbed7435f8c7cf140c555",
+    "src/opsys/console/fusion_ap_m5_reference.py": "a0afaaa905dbfcf5d0aa5dc0754db339a9e58c5ca36b1b2bf465d320c4702b0d",
+    "src/opsys/console/fusion_ap_m5_saisie.py": "82ddf4bcb07c68ca3702a8a8a7a29c9617881027dedb651e850680a8c9249662",
+    "src/opsys/console/fusion_ap_ui.py": "173bacfcd97f88afb9d82adff0aa7b8dd38ca4f2f21249a13fb404ef587a447e",
+    "tests/test_console_fusion_ap_m5_reference.py": "4b4c53a4ae45827ca007d70b9e5790242ce32db8fd022a85d1a72d49ffa540f8",
+    "tests/test_fusion_ap_m5_reference.py": "f3dd1bd40befdd6a59296dc15b2e39fa1e609ac37c21ef99b9484c35e0bbb68b",
+    "tests/test_fusion_ap_m5_saisie_unicode.py": "8b0f365b6014c9b5c2841bdc7c0608e01b9110971995718349843811a283d5ad"
+  },
+  "parent_publication": "1f08a4a3dff86b43ee72414d5cf20d2670d133b8",
+  "runtime_environment": "M10-IMPORT-LOTS-ENV-r1.json shared Python toolchain; SQLite and native PDF worker, no PostgreSQL fixture in this tranche",
+  "entries": [
+    {
+      "path": "drivers/guard_helpers_r2.py",
+      "bytes": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844",
+      "raw_sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/package-proof-r1.py",
+      "bytes": 2957,
+      "sha256": "0897fd7806e6e87c5a2a708c7efcac1bc1097e3f0f2315ba12bc88102039f4c8",
+      "raw_sha256": "0897fd7806e6e87c5a2a708c7efcac1bc1097e3f0f2315ba12bc88102039f4c8",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r127.py",
+      "bytes": 3721,
+      "sha256": "ab225c1543febdfa4dffdc382088301faf864411921d6f4e8018056d6383a86d",
+      "raw_sha256": "ab225c1543febdfa4dffdc382088301faf864411921d6f4e8018056d6383a86d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r128.py",
+      "bytes": 5244,
+      "sha256": "ba94a636591061c65cc5efb278a6cfeed71b792f122f34cfe11e8786668328eb",
+      "raw_sha256": "ba94a636591061c65cc5efb278a6cfeed71b792f122f34cfe11e8786668328eb",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r129.py",
+      "bytes": 5244,
+      "sha256": "aad6e40ff8a3d15af632feb912b8f3211b7ada357039165682289a9de04565de",
+      "raw_sha256": "aad6e40ff8a3d15af632feb912b8f3211b7ada357039165682289a9de04565de",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r130.py",
+      "bytes": 5243,
+      "sha256": "b285f4dcaeafb9d6c80190aed53f105361ee1c078b721b1fbec6242e4db772b7",
+      "raw_sha256": "b285f4dcaeafb9d6c80190aed53f105361ee1c078b721b1fbec6242e4db772b7",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r131.py",
+      "bytes": 3808,
+      "sha256": "e9dc4cd7556e2dd912332b37becc63bb5f1b66937940fd1b8a69726b4de74c10",
+      "raw_sha256": "e9dc4cd7556e2dd912332b37becc63bb5f1b66937940fd1b8a69726b4de74c10",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native/NATIVE-CI-head19-20-r1.json",
+      "bytes": 189249,
+      "sha256": "d5c0d9eed7ca7813d78b9e1cabc81b670db10c7c7063fcad7507732368c2b7f6",
+      "raw_sha256": "d5c0d9eed7ca7813d78b9e1cabc81b670db10c7c7063fcad7507732368c2b7f6",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native/NATIVE-CI-head19-20-r2.json",
+      "bytes": 189249,
+      "sha256": "d5c0d9eed7ca7813d78b9e1cabc81b670db10c7c7063fcad7507732368c2b7f6",
+      "raw_sha256": "d5c0d9eed7ca7813d78b9e1cabc81b670db10c7c7063fcad7507732368c2b7f6",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r127/execution-r1/pytest.log",
+      "bytes": 5801,
+      "sha256": "afef7c911fb8ae8a7d1476794247328c5e8edc8bb411108bdee476631c25c3bb",
+      "raw_sha256": "afef7c911fb8ae8a7d1476794247328c5e8edc8bb411108bdee476631c25c3bb",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r127/execution-r1/pytest.xml",
+      "bytes": 5873,
+      "sha256": "66adcf6bb38062b2884e3e0934c1b4d614651bc4bcf825c8799ef38a0dc390bc",
+      "raw_sha256": "66adcf6bb38062b2884e3e0934c1b4d614651bc4bcf825c8799ef38a0dc390bc",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r127/freeze.json",
+      "bytes": 155279,
+      "sha256": "6ec8acd6499c6938988bcd224a00763cc7ac2da4a834caad8ff2d1955f7103ec",
+      "raw_sha256": "6ec8acd6499c6938988bcd224a00763cc7ac2da4a834caad8ff2d1955f7103ec",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r127/receipt.json",
+      "bytes": 318346,
+      "sha256": "557ac7d16e2fa450e8b7ea9a3fb21b79062fb142402aa354bad830e269165a6f",
+      "raw_sha256": "557ac7d16e2fa450e8b7ea9a3fb21b79062fb142402aa354bad830e269165a6f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r128/execution-r1/ruff.log",
+      "bytes": 2488,
+      "sha256": "f774abb3be6a81767f0a015a15d817ed2762183e3c24a85d72ed6f83cb5ac702",
+      "raw_sha256": "f774abb3be6a81767f0a015a15d817ed2762183e3c24a85d72ed6f83cb5ac702",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r128/freeze.json",
+      "bytes": 155731,
+      "sha256": "fe1dee5e9412364536e92117e6e6a04293f69efbc4715cb972d7108788b0cde8",
+      "raw_sha256": "fe1dee5e9412364536e92117e6e6a04293f69efbc4715cb972d7108788b0cde8",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r128/receipt.json",
+      "bytes": 319359,
+      "sha256": "960f165f11e759be18f4bc77dcd3c43f0616031a311f022fdfa52e3bdb8303d2",
+      "raw_sha256": "960f165f11e759be18f4bc77dcd3c43f0616031a311f022fdfa52e3bdb8303d2",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r129/execution-r1/pytest.log",
+      "bytes": 4505,
+      "sha256": "0396a2cdf0280b6ffbf4dc4103d4643275c368f368194b225ed084c6029653d0",
+      "raw_sha256": "0396a2cdf0280b6ffbf4dc4103d4643275c368f368194b225ed084c6029653d0",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r129/execution-r1/pytest.xml",
+      "bytes": 153087,
+      "sha256": "3311153ca235aaf69242682a9c9ccac63890d217bd32f647c626b8ef3484c7d8",
+      "raw_sha256": "3311153ca235aaf69242682a9c9ccac63890d217bd32f647c626b8ef3484c7d8",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r129/execution-r1/ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r129/freeze.json",
+      "bytes": 155731,
+      "sha256": "6b678cd4eefba30bf4a8ec76d931276ccda38022c2ea12f4fad0799741e7e0cb",
+      "raw_sha256": "6b678cd4eefba30bf4a8ec76d931276ccda38022c2ea12f4fad0799741e7e0cb",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r129/receipt.json",
+      "bytes": 323663,
+      "sha256": "d1b6aafbd8d7e5cf2658f460fa24f5220c7c245fc0f677260114cd3939bf3c3a",
+      "raw_sha256": "d1b6aafbd8d7e5cf2658f460fa24f5220c7c245fc0f677260114cd3939bf3c3a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r130/execution-r1/pytest.log",
+      "bytes": 800,
+      "sha256": "39e70419c59129d8a1196e1cc7f2592f4c79f301088932ee4cd77b87623cdad6",
+      "raw_sha256": "39e70419c59129d8a1196e1cc7f2592f4c79f301088932ee4cd77b87623cdad6",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r130/execution-r1/pytest.xml",
+      "bytes": 151561,
+      "sha256": "6fa6ffe59e2656f518b4c2e5ba85449773dbf44e43362c52c782312e52b81a5f",
+      "raw_sha256": "6fa6ffe59e2656f518b4c2e5ba85449773dbf44e43362c52c782312e52b81a5f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r130/execution-r1/ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r130/freeze.json",
+      "bytes": 155731,
+      "sha256": "04f13b4fe47de45ed78f47195f5bd60ab9fbf742687be554f430002a48a0ab8d",
+      "raw_sha256": "04f13b4fe47de45ed78f47195f5bd60ab9fbf742687be554f430002a48a0ab8d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r130/receipt.json",
+      "bytes": 323659,
+      "sha256": "4ba00a15b7f86d38d376df789a0673755d91e994db873a0a64719fe1889d81d0",
+      "raw_sha256": "4ba00a15b7f86d38d376df789a0673755d91e994db873a0a64719fe1889d81d0",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r131/execution-r1/gitleaks.log",
+      "bytes": 135,
+      "sha256": "aa20125bf4e793d1e477e9ab8ae72214083fe424c4cec1afaedef12e9fb5ddbd",
+      "raw_sha256": "aa20125bf4e793d1e477e9ab8ae72214083fe424c4cec1afaedef12e9fb5ddbd",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r131/freeze.json",
+      "bytes": 1665,
+      "sha256": "14b698cf8ba577875a78bce336d75236632f3b35fd06769a6eb03dc7f5f13d52",
+      "raw_sha256": "14b698cf8ba577875a78bce336d75236632f3b35fd06769a6eb03dc7f5f13d52",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r131/receipt.json",
+      "bytes": 5733,
+      "sha256": "75614af473f6f245d5451044c04f500fb7ede0a94cf8a8c0546cc0b821e0f5de",
+      "raw_sha256": "75614af473f6f245d5451044c04f500fb7ede0a94cf8a8c0546cc0b821e0f5de",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r131/scan.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/grs/compta/M5-AP-CONSULTATION-DESIGN-2026-10-04.md",
+      "bytes": 3145,
+      "sha256": "f442218ae5540459e24dbf505c883f74611b35466f34795ac572eb210802218b",
+      "raw_sha256": "f442218ae5540459e24dbf505c883f74611b35466f34795ac572eb210802218b",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/grs/compta/M5-AP-CONSULTATION-RAPPORT-2026-10-04.md",
+      "bytes": 7286,
+      "sha256": "822609546581b15b4553fa6da2f42146e172e3e65cc450cf9318d43212d829c9",
+      "raw_sha256": "822609546581b15b4553fa6da2f42146e172e3e65cc450cf9318d43212d829c9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/grs/compta/M5-CFO-IA-FISCALITE-PAIE-STRATEGIE-AUDIT.md",
+      "bytes": 36661,
+      "sha256": "29a3a0b5cd568bf1a6ff690b8f19bceb85a9356080e0800085e22ab0d647d203",
+      "raw_sha256": "29a3a0b5cd568bf1a6ff690b8f19bceb85a9356080e0800085e22ab0d647d203",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/programme/REPRISE-PLAN-2026-10-02.md",
+      "bytes": 11735,
+      "sha256": "76cafabdfc4fcdb403c1923edc5a3092cdf38bad0c6fde2b9f8a5aa4cbc081e1",
+      "raw_sha256": "76cafabdfc4fcdb403c1923edc5a3092cdf38bad0c6fde2b9f8a5aa4cbc081e1",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "bytes": 49132,
+      "sha256": "478a537e044f33eccac0f1f20d16b38b793741dfe7cb60a488366253aacf1880",
+      "raw_sha256": "478a537e044f33eccac0f1f20d16b38b793741dfe7cb60a488366253aacf1880",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/research/INGREDIENTS.md",
+      "bytes": 77460,
+      "sha256": "facc48b4eb2d53ffc04bc2dc86b3d6d1efda65f119ae0b30b4330a500af46a92",
+      "raw_sha256": "facc48b4eb2d53ffc04bc2dc86b3d6d1efda65f119ae0b30b4330a500af46a92",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md",
+      "bytes": 18721,
+      "sha256": "d022b21cceb25b758bcbe3c1d9519c2d28bbf791d6560d13dc3b624ca85e7450",
+      "raw_sha256": "d022b21cceb25b758bcbe3c1d9519c2d28bbf791d6560d13dc3b624ca85e7450",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/research/REPRISE-2026-10-04/M5-OCR-GITHUB-GITLAB.md",
+      "bytes": 16899,
+      "sha256": "c78bdbec75887b35dc903e6066334cd8db4209af5f4fbed7435f8c7cf140c555",
+      "raw_sha256": "c78bdbec75887b35dc903e6066334cd8db4209af5f4fbed7435f8c7cf140c555",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/src/opsys/console/fusion_ap_m5_reference.py",
+      "bytes": 14930,
+      "sha256": "a0afaaa905dbfcf5d0aa5dc0754db339a9e58c5ca36b1b2bf465d320c4702b0d",
+      "raw_sha256": "a0afaaa905dbfcf5d0aa5dc0754db339a9e58c5ca36b1b2bf465d320c4702b0d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/src/opsys/console/fusion_ap_m5_saisie.py",
+      "bytes": 22224,
+      "sha256": "82ddf4bcb07c68ca3702a8a8a7a29c9617881027dedb651e850680a8c9249662",
+      "raw_sha256": "82ddf4bcb07c68ca3702a8a8a7a29c9617881027dedb651e850680a8c9249662",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/src/opsys/console/fusion_ap_ui.py",
+      "bytes": 37764,
+      "sha256": "173bacfcd97f88afb9d82adff0aa7b8dd38ca4f2f21249a13fb404ef587a447e",
+      "raw_sha256": "173bacfcd97f88afb9d82adff0aa7b8dd38ca4f2f21249a13fb404ef587a447e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/tests/test_console_fusion_ap_m5_reference.py",
+      "bytes": 9767,
+      "sha256": "4b4c53a4ae45827ca007d70b9e5790242ce32db8fd022a85d1a72d49ffa540f8",
+      "raw_sha256": "4b4c53a4ae45827ca007d70b9e5790242ce32db8fd022a85d1a72d49ffa540f8",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/tests/test_fusion_ap_m5_reference.py",
+      "bytes": 14987,
+      "sha256": "f3dd1bd40befdd6a59296dc15b2e39fa1e609ac37c21ef99b9484c35e0bbb68b",
+      "raw_sha256": "f3dd1bd40befdd6a59296dc15b2e39fa1e609ac37c21ef99b9484c35e0bbb68b",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/tests/test_fusion_ap_m5_saisie_unicode.py",
+      "bytes": 2180,
+      "sha256": "8b0f365b6014c9b5c2841bdc7c0608e01b9110971995718349843811a283d5ad",
+      "raw_sha256": "8b0f365b6014c9b5c2841bdc7c0608e01b9110971995718349843811a283d5ad",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/DOC-PROMOTION-r1.json",
+      "bytes": 495,
+      "sha256": "dedd07fe95db93e9628508ad638628f6f511d9ea64377d39450c30df6b49ef83",
+      "raw_sha256": "dedd07fe95db93e9628508ad638628f6f511d9ea64377d39450c30df6b49ef83",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/fusion_ap_m5_reference.patch",
+      "bytes": 7219,
+      "sha256": "f73f0b08bda871dafaf36ca43fcd7ebdd482f71dbeb06b76b7bf23aab4638fdb",
+      "raw_sha256": "f73f0b08bda871dafaf36ca43fcd7ebdd482f71dbeb06b76b7bf23aab4638fdb",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/fusion_ap_m5_reference.post.py",
+      "bytes": 14930,
+      "sha256": "a0afaaa905dbfcf5d0aa5dc0754db339a9e58c5ca36b1b2bf465d320c4702b0d",
+      "raw_sha256": "a0afaaa905dbfcf5d0aa5dc0754db339a9e58c5ca36b1b2bf465d320c4702b0d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/fusion_ap_m5_reference.pre.py",
+      "bytes": 13218,
+      "sha256": "1235ea8003c59a4329be4730ab8cd904b2844aa6b97488a2742c290562d88541",
+      "raw_sha256": "1235ea8003c59a4329be4730ab8cd904b2844aa6b97488a2742c290562d88541",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/scope.txt",
+      "bytes": 131,
+      "sha256": "a63e1c541fa6da28799e6745ab4dd4c608fe8775cf968d953a4f8b3e934c61a7",
+      "raw_sha256": "a63e1c541fa6da28799e6745ab4dd4c608fe8775cf968d953a4f8b3e934c61a7",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/sha256.txt",
+      "bytes": 457,
+      "sha256": "dde4c4460411c3b8dc62fcc1e824e6341ce6079e4dd4b9425c0e88ca4b2493f1",
+      "raw_sha256": "dde4c4460411c3b8dc62fcc1e824e6341ce6079e4dd4b9425c0e88ca4b2493f1",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/test_fusion_ap_m5_reference.patch",
+      "bytes": 10327,
+      "sha256": "3ed1920c8d85b124e23c42924c30301cb72e669ffd0e85963df2eefeb248bc19",
+      "raw_sha256": "3ed1920c8d85b124e23c42924c30301cb72e669ffd0e85963df2eefeb248bc19",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/test_fusion_ap_m5_reference.post.py",
+      "bytes": 9945,
+      "sha256": "ef9051470d41f1fe2f659cb4e4aa8e6f434a19f118af58566c1bad76df8c97c1",
+      "raw_sha256": "ef9051470d41f1fe2f659cb4e4aa8e6f434a19f118af58566c1bad76df8c97c1",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/validation.txt",
+      "bytes": 49,
+      "sha256": "cecf72242b570e0001124d5b11bffea422d9b4d76efc500df6a4fc1f42a0874d",
+      "raw_sha256": "cecf72242b570e0001124d5b11bffea422d9b4d76efc500df6a4fc1f42a0874d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-ui-r1/post/src/opsys/console/fusion_ap_ui.py",
+      "bytes": 37764,
+      "sha256": "173bacfcd97f88afb9d82adff0aa7b8dd38ca4f2f21249a13fb404ef587a447e",
+      "raw_sha256": "173bacfcd97f88afb9d82adff0aa7b8dd38ca4f2f21249a13fb404ef587a447e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-ui-r1/post/tests/test_console_fusion_ap_m5_reference.py",
+      "bytes": 9729,
+      "sha256": "8502958334e0e6c38b5e2e31d6fb9f3bf47a7ff468617036aa8aafdff858f0c0",
+      "raw_sha256": "8502958334e0e6c38b5e2e31d6fb9f3bf47a7ff468617036aa8aafdff858f0c0",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/INDEX.json",
+      "bytes": 5541,
+      "sha256": "c24cc8586f55afc2fa30f71f69236f0a8b20ed207c17174f4a0098abca99781e",
+      "raw_sha256": "c24cc8586f55afc2fa30f71f69236f0a8b20ed207c17174f4a0098abca99781e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/M5-AP-CONSULTATION-RAPPORT-2026-10-04.md",
+      "bytes": 6383,
+      "sha256": "a10082bbba53e9f691e01b6da981e9286bdc43df9d8ab6dfa54b7ccfa9068b4a",
+      "raw_sha256": "a10082bbba53e9f691e01b6da981e9286bdc43df9d8ab6dfa54b7ccfa9068b4a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/candidate/docs/grs/compta/M5-AP-CONSULTATION-DESIGN-2026-10-04.md",
+      "bytes": 3102,
+      "sha256": "62c33052da07925355d9b823b7d7f70bb6db862a9803efcb6da498da513c8d1d",
+      "raw_sha256": "62c33052da07925355d9b823b7d7f70bb6db862a9803efcb6da498da513c8d1d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/candidate/docs/grs/compta/M5-AP-CONSULTATION-RAPPORT-2026-10-04.md",
+      "bytes": 6383,
+      "sha256": "a10082bbba53e9f691e01b6da981e9286bdc43df9d8ab6dfa54b7ccfa9068b4a",
+      "raw_sha256": "a10082bbba53e9f691e01b6da981e9286bdc43df9d8ab6dfa54b7ccfa9068b4a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/candidate/docs/grs/compta/M5-CFO-IA-FISCALITE-PAIE-STRATEGIE-AUDIT.md",
+      "bytes": 36629,
+      "sha256": "00ea0a9a6c3ffb72f99f5c3de177c14d754424fcffabefbcc7608eda23a8009a",
+      "raw_sha256": "00ea0a9a6c3ffb72f99f5c3de177c14d754424fcffabefbcc7608eda23a8009a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/candidate/docs/programme/REPRISE-PLAN-2026-10-02.md",
+      "bytes": 11621,
+      "sha256": "2b78b6ec5f4eae1664a44559b38519124d21d1a9713ea8c4674cc893a1b41e50",
+      "raw_sha256": "2b78b6ec5f4eae1664a44559b38519124d21d1a9713ea8c4674cc893a1b41e50",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/candidate/docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "bytes": 49039,
+      "sha256": "6eb23b7cb2a6bd2a4fd50990bd5f06a8d9e1d7dbbe8c80821731d96b6f83822c",
+      "raw_sha256": "6eb23b7cb2a6bd2a4fd50990bd5f06a8d9e1d7dbbe8c80821731d96b6f83822c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/candidate/docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md",
+      "bytes": 18734,
+      "sha256": "1ad4f34e946c2c48ecfbb76a0c0172c91a0bc439db7f31faa4c9ef6ad67ebab8",
+      "raw_sha256": "1ad4f34e946c2c48ecfbb76a0c0172c91a0bc439db7f31faa4c9ef6ad67ebab8",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/diffs/docs--grs--compta--M5-AP-CONSULTATION-DESIGN-2026-10-04.md.patch",
+      "bytes": 1101,
+      "sha256": "f6a5654b8e02054e82f8323dac54c9fb46248f2d643172cae8fca74aa21da882",
+      "raw_sha256": "f6a5654b8e02054e82f8323dac54c9fb46248f2d643172cae8fca74aa21da882",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/diffs/docs--grs--compta--M5-AP-CONSULTATION-RAPPORT-2026-10-04.md.patch",
+      "bytes": 6519,
+      "sha256": "dfa7d4c11c8a8239c2493ed657d4d84dcf7dbc75c102a1d84270ea2aeb88dedb",
+      "raw_sha256": "dfa7d4c11c8a8239c2493ed657d4d84dcf7dbc75c102a1d84270ea2aeb88dedb",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/diffs/docs--grs--compta--M5-CFO-IA-FISCALITE-PAIE-STRATEGIE-AUDIT.md.patch",
+      "bytes": 1105,
+      "sha256": "0fc40241b2f34c960f583018b383e9388f0dc075ab88ad674e0c9124105de133",
+      "raw_sha256": "0fc40241b2f34c960f583018b383e9388f0dc075ab88ad674e0c9124105de133",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/diffs/docs--programme--REPRISE-PLAN-2026-10-02.md.patch",
+      "bytes": 1060,
+      "sha256": "99491795b05bb161cfb1ca3737756c98cde36b2c5f045545b328a8af1e6efb35",
+      "raw_sha256": "99491795b05bb161cfb1ca3737756c98cde36b2c5f045545b328a8af1e6efb35",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/diffs/docs--programme--RESTRUCTURATION-2026-09-30.md.patch",
+      "bytes": 960,
+      "sha256": "a3bf67b32de9695b371b247f12563b79681473f5a0dbdde45d9e6e4ffe908c4e",
+      "raw_sha256": "a3bf67b32de9695b371b247f12563b79681473f5a0dbdde45d9e6e4ffe908c4e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/diffs/docs--research--REPRISE-2026-10-04--CI-PUBLICATION.md.patch",
+      "bytes": 1244,
+      "sha256": "9d76d0d7e6075ab8766f52de02af790b9bbd3d141700db8134354f49df664e0f",
+      "raw_sha256": "9d76d0d7e6075ab8766f52de02af790b9bbd3d141700db8134354f49df664e0f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/preimages/docs/grs/compta/M5-AP-CONSULTATION-DESIGN-2026-10-04.md",
+      "bytes": 2894,
+      "sha256": "759e0f2bf06086c238023340ae16306dfa59348777e4b7baece6e47ec6a7c6e5",
+      "raw_sha256": "759e0f2bf06086c238023340ae16306dfa59348777e4b7baece6e47ec6a7c6e5",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/preimages/docs/grs/compta/M5-AP-CONSULTATION-RAPPORT-2026-10-04.md.ABSENT.json",
+      "bytes": 94,
+      "sha256": "fa38c0272a118e256e316efaa51029effb16f2d4a65be5b21c491bdaaa988f34",
+      "raw_sha256": "fa38c0272a118e256e316efaa51029effb16f2d4a65be5b21c491bdaaa988f34",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/preimages/docs/grs/compta/M5-CFO-IA-FISCALITE-PAIE-STRATEGIE-AUDIT.md",
+      "bytes": 36371,
+      "sha256": "33755780fc8fa7af76168dc0d0c283d3cabb5f23e90c7a02d25b6653b630b54c",
+      "raw_sha256": "33755780fc8fa7af76168dc0d0c283d3cabb5f23e90c7a02d25b6653b630b54c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/preimages/docs/programme/REPRISE-PLAN-2026-10-02.md",
+      "bytes": 10922,
+      "sha256": "f3030e53494f818b3aea73788f2f9ee8c72615266a2dadb3cc1dddb7956a5a19",
+      "raw_sha256": "f3030e53494f818b3aea73788f2f9ee8c72615266a2dadb3cc1dddb7956a5a19",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/preimages/docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "bytes": 48579,
+      "sha256": "afa0ca42e32b8dbe50211a269e90beab4852ce72d0e1d49237aaac1994af186c",
+      "raw_sha256": "afa0ca42e32b8dbe50211a269e90beab4852ce72d0e1d49237aaac1994af186c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/preimages/docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md",
+      "bytes": 17761,
+      "sha256": "1dc8dfecc62ae63f2dd948ce39ea9eb3ff3405458cab3c114463761e408906ed",
+      "raw_sha256": "1dc8dfecc62ae63f2dd948ce39ea9eb3ff3405458cab3c114463761e408906ed",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-proposals-r1/proposition-documentaire-r1.patch",
+      "bytes": 11989,
+      "sha256": "9d2bbbecc5e2bd1546a04d475801292da8abea4a50556e569c210b45c636dfcd",
+      "raw_sha256": "9d2bbbecc5e2bd1546a04d475801292da8abea4a50556e569c210b45c636dfcd",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/guard-proposals-r1.md",
+      "bytes": 3777,
+      "sha256": "88ee4a5173f3e1c67ffa5be94f1a98e8b1e5b3d2bf34f1d7ce1ff130f3562173",
+      "raw_sha256": "88ee4a5173f3e1c67ffa5be94f1a98e8b1e5b3d2bf34f1d7ce1ff130f3562173",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/proof-root/ROOT-REVIEW-r1.json",
+      "bytes": 1188,
+      "sha256": "807b759b4a4ccb27784e2b22e7dd33127aa0de41e91bbdf52e115c12774dfe66",
+      "raw_sha256": "807b759b4a4ccb27784e2b22e7dd33127aa0de41e91bbdf52e115c12774dfe66",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/proof-root/ROOT-RUNTIME-SOURCES-r1.json",
+      "bytes": 684,
+      "sha256": "0aa8fe41324d7ba28b836ac45c4514e3e9daf8c7d42cd74230ee964f1bc6cd6e",
+      "raw_sha256": "0aa8fe41324d7ba28b836ac45c4514e3e9daf8c7d42cd74230ee964f1bc6cd6e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/proof-root/ROOT-SOURCES-r1.json",
+      "bytes": 1665,
+      "sha256": "14b698cf8ba577875a78bce336d75236632f3b35fd06769a6eb03dc7f5f13d52",
+      "raw_sha256": "14b698cf8ba577875a78bce336d75236632f3b35fd06769a6eb03dc7f5f13d52",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/proof-root/RUNTIME-r1.json",
+      "bytes": 600,
+      "sha256": "79f854a7f6967b63fceca812711496a296c18a3a1974374f0d2a180d5378af68",
+      "raw_sha256": "79f854a7f6967b63fceca812711496a296c18a3a1974374f0d2a180d5378af68",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/published-preimage-r1/src/opsys/console/fusion_ap_m5_saisie.py",
+      "bytes": 22173,
+      "sha256": "d2b5943e15d37969b49b5e15b17dcd060380a6c10b79e8e40e33a655d8f351ef",
+      "raw_sha256": "d2b5943e15d37969b49b5e15b17dcd060380a6c10b79e8e40e33a655d8f351ef",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/published-preimage-r1/src/opsys/console/fusion_ap_ui.py",
+      "bytes": 34361,
+      "sha256": "743634262ba2a160267a2f1662a37e4d6452138fc12c90924a724867e98e19e4",
+      "raw_sha256": "743634262ba2a160267a2f1662a37e4d6452138fc12c90924a724867e98e19e4",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r128/src/opsys/console/fusion_ap_m5_saisie.py",
+      "bytes": 22173,
+      "sha256": "d2b5943e15d37969b49b5e15b17dcd060380a6c10b79e8e40e33a655d8f351ef",
+      "raw_sha256": "d2b5943e15d37969b49b5e15b17dcd060380a6c10b79e8e40e33a655d8f351ef",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r128/tests/test_fusion_ap_m5_saisie_unicode.py",
+      "bytes": 1807,
+      "sha256": "7edf14cb36bd6a62fd8aae8e7c965f37aae2aa2fff293a76e9a47bde9a8bf0df",
+      "raw_sha256": "7edf14cb36bd6a62fd8aae8e7c965f37aae2aa2fff293a76e9a47bde9a8bf0df",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r129/tests/test_console_fusion_ap_m5_reference.py",
+      "bytes": 9729,
+      "sha256": "8502958334e0e6c38b5e2e31d6fb9f3bf47a7ff468617036aa8aafdff858f0c0",
+      "raw_sha256": "8502958334e0e6c38b5e2e31d6fb9f3bf47a7ff468617036aa8aafdff858f0c0",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r129/tests/test_fusion_ap_m5_reference.py",
+      "bytes": 9945,
+      "sha256": "ef9051470d41f1fe2f659cb4e4aa8e6f434a19f118af58566c1bad76df8c97c1",
+      "raw_sha256": "ef9051470d41f1fe2f659cb4e4aa8e6f434a19f118af58566c1bad76df8c97c1",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r130/tests/test_console_fusion_ap_m5_reference.py",
+      "bytes": 9755,
+      "sha256": "4c468c3559438e36aa558ced3b3ed7e08ee7377c7ab875315ef6133de83c2fa8",
+      "raw_sha256": "4c468c3559438e36aa558ced3b3ed7e08ee7377c7ab875315ef6133de83c2fa8",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r130/tests/test_fusion_ap_m5_reference.py",
+      "bytes": 9961,
+      "sha256": "e1db44aec9a1701b46cfdbc3b4e2f4cbb9cc69a026f54497e7a807a2429356a5",
+      "raw_sha256": "e1db44aec9a1701b46cfdbc3b4e2f4cbb9cc69a026f54497e7a807a2429356a5",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-doc-before-r1/docs/grs/compta/M5-AP-CONSULTATION-DESIGN-2026-10-04.md",
+      "bytes": 2894,
+      "sha256": "759e0f2bf06086c238023340ae16306dfa59348777e4b7baece6e47ec6a7c6e5",
+      "raw_sha256": "759e0f2bf06086c238023340ae16306dfa59348777e4b7baece6e47ec6a7c6e5",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-doc-before-r1/docs/grs/compta/M5-CFO-IA-FISCALITE-PAIE-STRATEGIE-AUDIT.md",
+      "bytes": 36371,
+      "sha256": "33755780fc8fa7af76168dc0d0c283d3cabb5f23e90c7a02d25b6653b630b54c",
+      "raw_sha256": "33755780fc8fa7af76168dc0d0c283d3cabb5f23e90c7a02d25b6653b630b54c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-doc-before-r1/docs/programme/REPRISE-PLAN-2026-10-02.md",
+      "bytes": 10922,
+      "sha256": "f3030e53494f818b3aea73788f2f9ee8c72615266a2dadb3cc1dddb7956a5a19",
+      "raw_sha256": "f3030e53494f818b3aea73788f2f9ee8c72615266a2dadb3cc1dddb7956a5a19",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-doc-before-r1/docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "bytes": 48579,
+      "sha256": "afa0ca42e32b8dbe50211a269e90beab4852ce72d0e1d49237aaac1994af186c",
+      "raw_sha256": "afa0ca42e32b8dbe50211a269e90beab4852ce72d0e1d49237aaac1994af186c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-doc-before-r1/docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md",
+      "bytes": 17761,
+      "sha256": "1dc8dfecc62ae63f2dd948ce39ea9eb3ff3405458cab3c114463761e408906ed",
+      "raw_sha256": "1dc8dfecc62ae63f2dd948ce39ea9eb3ff3405458cab3c114463761e408906ed",
+      "qa_dsn_redactions": 0
+    }
+  ]
+}

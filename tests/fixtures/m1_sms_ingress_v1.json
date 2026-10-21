@@ -1,0 +1,242 @@
+{
+  "fictif": true,
+  "qualification": "Vecteurs synthétiques de codec pur, aucune réception réelle ni signature fournisseur prouvée.",
+  "prefixes_ascii": {
+    "commande": "opsys:m1:sms:commande:v1:",
+    "intention": "opsys:m1:sms:intention:v1:",
+    "arguments": "opsys:m1:sms:arguments:v1:"
+  },
+  "ordre_commande": [
+    "canal",
+    "provider",
+    "compte_id",
+    "account_sid",
+    "message_sid",
+    "expediteur",
+    "destinataire",
+    "recu_le",
+    "texte",
+    "session_key",
+    "agent_id",
+    "preuve_sha256"
+  ],
+  "vecteurs": [
+    {
+      "nom": "nfc_recevoir",
+      "operation": "opsys_runtime_recevoir_sms",
+      "arguments": {
+        "version": 1,
+        "commande": {
+          "canal": "sms",
+          "provider": "twilio",
+          "compte_id": "default",
+          "account_sid": "ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "message_sid": "SMbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "expediteur": "+15145550142",
+          "destinataire": "+15145550143",
+          "recu_le": "2026-10-10T12:34:56.789Z",
+          "texte": "Réparation à Laval.",
+          "session_key": "agent:opsys-agent-m1-sms-fictif:sms:direct:+15145550142",
+          "agent_id": "opsys-agent-m1-sms-fictif",
+          "preuve_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "permission": {
+          "profil_id": "m1-sms-fictif",
+          "revision_profil": 2,
+          "outil_m1": "opsys_m1__m1_recevoir_message_canal"
+        }
+      },
+      "attendu": {
+        "intention_id": "sms-v1:89d19548f5117ef457cac7ba1d21cb2ba032c645f0e37bc01198f684830a8151",
+        "commande_sha256": "8021abbb1abaf160fb2598eb7fd5f407981eb5d0035cecf37ec49e38796687b9",
+        "arguments_sha256": "86f3c81fc84a67280fc8f990c63f07b143b78f2a8f43ac493c2b5b36aae15dab"
+      }
+    },
+    {
+      "nom": "nfc_lire",
+      "operation": "opsys_runtime_lire_reception_sms",
+      "arguments": {
+        "version": 1,
+        "commande": {
+          "canal": "sms",
+          "provider": "twilio",
+          "compte_id": "default",
+          "account_sid": "ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "message_sid": "SMbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "expediteur": "+15145550142",
+          "destinataire": "+15145550143",
+          "recu_le": "2026-10-10T12:34:56.789Z",
+          "texte": "Réparation à Laval.",
+          "session_key": "agent:opsys-agent-m1-sms-fictif:sms:direct:+15145550142",
+          "agent_id": "opsys-agent-m1-sms-fictif",
+          "preuve_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "permission": {
+          "profil_id": "m1-sms-fictif",
+          "revision_profil": 2,
+          "outil_m1": "opsys_m1__m1_recevoir_message_canal"
+        }
+      },
+      "attendu": {
+        "intention_id": "sms-v1:89d19548f5117ef457cac7ba1d21cb2ba032c645f0e37bc01198f684830a8151",
+        "commande_sha256": "8021abbb1abaf160fb2598eb7fd5f407981eb5d0035cecf37ec49e38796687b9",
+        "arguments_sha256": "127246d58301b165dc18378232192ffa4913006abc020683d6d44d53f2917cb4"
+      }
+    },
+    {
+      "nom": "nfd_recevoir",
+      "operation": "opsys_runtime_recevoir_sms",
+      "arguments": {
+        "version": 1,
+        "commande": {
+          "canal": "sms",
+          "provider": "twilio",
+          "compte_id": "default",
+          "account_sid": "ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "message_sid": "SMbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "expediteur": "+15145550142",
+          "destinataire": "+15145550143",
+          "recu_le": "2026-10-10T12:34:56.789Z",
+          "texte": "Réparation à Laval.",
+          "session_key": "agent:opsys-agent-m1-sms-fictif:sms:direct:+15145550142",
+          "agent_id": "opsys-agent-m1-sms-fictif",
+          "preuve_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "permission": {
+          "profil_id": "m1-sms-fictif",
+          "revision_profil": 2,
+          "outil_m1": "opsys_m1__m1_recevoir_message_canal"
+        }
+      },
+      "attendu": {
+        "intention_id": "sms-v1:89d19548f5117ef457cac7ba1d21cb2ba032c645f0e37bc01198f684830a8151",
+        "commande_sha256": "44617f945a2060dd2beadfc9ba207220e18823c9a8c7fa4782a01a31c31a0bda",
+        "arguments_sha256": "a4dc4b83cf44d3a98ac6d5beeab1988d189c6de45c7259c6c634f0b3d6cde346"
+      }
+    },
+    {
+      "nom": "newlines",
+      "operation": "opsys_runtime_recevoir_sms",
+      "arguments": {
+        "version": 1,
+        "commande": {
+          "canal": "sms",
+          "provider": "twilio",
+          "compte_id": "default",
+          "account_sid": "ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "message_sid": "SMbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "expediteur": "+15145550142",
+          "destinataire": "+15145550143",
+          "recu_le": "2026-10-10T12:34:56.789Z",
+          "texte": "Réparation\nà Laval.\t",
+          "session_key": "agent:opsys-agent-m1-sms-fictif:sms:direct:+15145550142",
+          "agent_id": "opsys-agent-m1-sms-fictif",
+          "preuve_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "permission": {
+          "profil_id": "m1-sms-fictif",
+          "revision_profil": 2,
+          "outil_m1": "opsys_m1__m1_recevoir_message_canal"
+        }
+      },
+      "attendu": {
+        "intention_id": "sms-v1:89d19548f5117ef457cac7ba1d21cb2ba032c645f0e37bc01198f684830a8151",
+        "commande_sha256": "e8becb05351a17b54bb532f834299ed97adcf3b29d6af47b78a1525785e04aee",
+        "arguments_sha256": "acbe276c92df2f95d2e99ecda845199b8b573d67cb721b458ef56ac371f15d8c"
+      }
+    },
+    {
+      "nom": "portee_compte",
+      "operation": "opsys_runtime_recevoir_sms",
+      "arguments": {
+        "version": 1,
+        "commande": {
+          "canal": "sms",
+          "provider": "twilio",
+          "compte_id": "autre",
+          "account_sid": "ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "message_sid": "SMbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "expediteur": "+15145550142",
+          "destinataire": "+15145550143",
+          "recu_le": "2026-10-10T12:34:56.789Z",
+          "texte": "Réparation à Laval.",
+          "session_key": "agent:opsys-agent-m1-sms-fictif:sms:direct:+15145550142",
+          "agent_id": "opsys-agent-m1-sms-fictif",
+          "preuve_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "permission": {
+          "profil_id": "m1-sms-fictif",
+          "revision_profil": 2,
+          "outil_m1": "opsys_m1__m1_recevoir_message_canal"
+        }
+      },
+      "attendu": {
+        "intention_id": "sms-v1:89d19548f5117ef457cac7ba1d21cb2ba032c645f0e37bc01198f684830a8151",
+        "commande_sha256": "54aff068fb3dca5f973996c67f03669bcf0846883b0021d5a554740bca721698",
+        "arguments_sha256": "ea9648e9d15048393d520b9194981efa456b9685eb458450e5993daecbe33eb7"
+      }
+    },
+    {
+      "nom": "portee_profil",
+      "operation": "opsys_runtime_recevoir_sms",
+      "arguments": {
+        "version": 1,
+        "commande": {
+          "canal": "sms",
+          "provider": "twilio",
+          "compte_id": "default",
+          "account_sid": "ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "message_sid": "SMbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "expediteur": "+15145550142",
+          "destinataire": "+15145550143",
+          "recu_le": "2026-10-10T12:34:56.789Z",
+          "texte": "Réparation à Laval.",
+          "session_key": "agent:opsys-agent-autre-fictif:sms:direct:+15145550142",
+          "agent_id": "opsys-agent-autre-fictif",
+          "preuve_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "permission": {
+          "profil_id": "autre-fictif",
+          "revision_profil": 2,
+          "outil_m1": "opsys_m1__m1_recevoir_message_canal"
+        }
+      },
+      "attendu": {
+        "intention_id": "sms-v1:89d19548f5117ef457cac7ba1d21cb2ba032c645f0e37bc01198f684830a8151",
+        "commande_sha256": "ebf4e5647207c18420f01c4ad0d6ca11f28e67378e3310835ef59a02584e3b90",
+        "arguments_sha256": "6543ce2b27a007b063a46193598686b286f38c8367fe1662cfefd7f258dfebca"
+      }
+    },
+    {
+      "nom": "revision",
+      "operation": "opsys_runtime_recevoir_sms",
+      "arguments": {
+        "version": 1,
+        "commande": {
+          "canal": "sms",
+          "provider": "twilio",
+          "compte_id": "default",
+          "account_sid": "ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "message_sid": "SMbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "expediteur": "+15145550142",
+          "destinataire": "+15145550143",
+          "recu_le": "2026-10-10T12:34:56.789Z",
+          "texte": "Réparation à Laval.",
+          "session_key": "agent:opsys-agent-m1-sms-fictif:sms:direct:+15145550142",
+          "agent_id": "opsys-agent-m1-sms-fictif",
+          "preuve_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "permission": {
+          "profil_id": "m1-sms-fictif",
+          "revision_profil": 3,
+          "outil_m1": "opsys_m1__m1_recevoir_message_canal"
+        }
+      },
+      "attendu": {
+        "intention_id": "sms-v1:89d19548f5117ef457cac7ba1d21cb2ba032c645f0e37bc01198f684830a8151",
+        "commande_sha256": "8021abbb1abaf160fb2598eb7fd5f407981eb5d0035cecf37ec49e38796687b9",
+        "arguments_sha256": "d4ce6ff54f1534a066c7deb24a483a70116a680deea8071d7b146b8b2888adf3"
+      }
+    }
+  ]
+}

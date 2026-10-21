@@ -1,0 +1,158 @@
+{
+  "schema": "opsys-core-dts-integration-register-v1",
+  "date_toronto": "2026-10-10T10:10:16.019425-04:00",
+  "statut_produit": "PARTIEL",
+  "source_commit": "c864c6796987d40fe8ab84a276658076f5cf701c",
+  "source_parent": "238ce5d672a9020a8abc73a7d720d3f7293bf255",
+  "core_tree": "a965be0f2d95fb64bb39de666bcdd0f76df705ea",
+  "published_commit": "Enclosing Git revision; exact publication HEAD bound by Root external readback and PR",
+  "scope": "10 DTS paths; CI profile and 2 audit files added in next commit outside Core",
+  "files": [
+    {
+      "path": "core/scripts/build-all.mts",
+      "sha256": "3b309cd1bbbb763ad59f20f8487ee0c985874f7b4cfade6b20b6f4d1c9ecf547",
+      "origin": "Git238 exact preimage to localcandidatec864",
+      "integration": "included in this private continuation; publication and exact CI bound by Root readback",
+      "verification": "scoped tests/lint + fullPC1r6 commandPASS + separateadditivepostauditPASS; scopesseeAUDIT",
+      "limit": "CIofnextpublishedHEADpending; noNative/globalCoretypes"
+    },
+    {
+      "path": "core/scripts/lib/tsdown-config-groups.mts",
+      "sha256": "8ed461d6eace61bc70a63482601da0d63befe16a5ad81798267e4cb8465f97eb",
+      "origin": "Git238 exact preimage to localcandidatec864",
+      "integration": "included in this private continuation; publication and exact CI bound by Root readback",
+      "verification": "scoped tests/lint + fullPC1r6 commandPASS + separateadditivepostauditPASS; scopesseeAUDIT",
+      "limit": "CIofnextpublishedHEADpending; noNative/globalCoretypes"
+    },
+    {
+      "path": "core/scripts/lib/tsdown-declaration-writer.mts",
+      "sha256": "8594a6f016eeff4ee8eb151b2368f4156da47ab72f0ed1e32dbe2da39d045cf3",
+      "origin": "Git238 exact preimage to localcandidatec864",
+      "integration": "included in this private continuation; publication and exact CI bound by Root readback",
+      "verification": "scoped tests/lint + fullPC1r6 commandPASS + separateadditivepostauditPASS; scopesseeAUDIT",
+      "limit": "CIofnextpublishedHEADpending; noNative/globalCoretypes"
+    },
+    {
+      "path": "core/scripts/tsdown-build.mts",
+      "sha256": "52f512e67f87c1745eb42fc9e31163aeafae741ca997c291b8496559227fd695",
+      "origin": "Git238 exact preimage to localcandidatec864",
+      "integration": "included in this private continuation; publication and exact CI bound by Root readback",
+      "verification": "scoped tests/lint + fullPC1r6 commandPASS + separateadditivepostauditPASS; scopesseeAUDIT",
+      "limit": "CIofnextpublishedHEADpending; noNative/globalCoretypes"
+    },
+    {
+      "path": "core/scripts/write-unified-entry-dts.ts",
+      "sha256": "c3eceb5110be78c336a437649428787b1d8a9e44d1161ef9a10bc8dae168ae89",
+      "origin": "Git238 exact preimage to localcandidatec864",
+      "integration": "included in this private continuation; publication and exact CI bound by Root readback",
+      "verification": "scoped tests/lint + fullPC1r6 commandPASS + separateadditivepostauditPASS; scopesseeAUDIT",
+      "limit": "CIofnextpublishedHEADpending; noNative/globalCoretypes"
+    },
+    {
+      "path": "core/test/scripts/build-all.test.ts",
+      "sha256": "3c6a839c5a917079ad67bf9adb241008e4e26c57060079eb2f41d2f67212832f",
+      "origin": "Git238 exact preimage to localcandidatec864",
+      "integration": "included in this private continuation; publication and exact CI bound by Root readback",
+      "verification": "scoped tests/lint + fullPC1r6 commandPASS + separateadditivepostauditPASS; scopesseeAUDIT",
+      "limit": "CIofnextpublishedHEADpending; noNative/globalCoretypes"
+    },
+    {
+      "path": "core/test/scripts/tsdown-build.test.ts",
+      "sha256": "c8bf7d0201bc661d4c07e77cbc1ccc3b0f1b1ec47d685e696ab7a900817c966f",
+      "origin": "Git238 exact preimage to localcandidatec864",
+      "integration": "included in this private continuation; publication and exact CI bound by Root readback",
+      "verification": "scoped tests/lint + fullPC1r6 commandPASS + separateadditivepostauditPASS; scopesseeAUDIT",
+      "limit": "CIofnextpublishedHEADpending; noNative/globalCoretypes"
+    },
+    {
+      "path": "core/test/scripts/tsdown-config.test.ts",
+      "sha256": "73753e4b6dcdc8e1c6e1ecd0057338283e4766cb9d71ca34699d768b18bc4c22",
+      "origin": "Git238 exact preimage to localcandidatec864",
+      "integration": "included in this private continuation; publication and exact CI bound by Root readback",
+      "verification": "scoped tests/lint + fullPC1r6 commandPASS + separateadditivepostauditPASS; scopesseeAUDIT",
+      "limit": "CIofnextpublishedHEADpending; noNative/globalCoretypes"
+    },
+    {
+      "path": "core/test/scripts/write-unified-entry-dts.test.ts",
+      "sha256": "79b2f836c0b6b3e9333dd08883aa1545fd3196cbec9f63de53545524b56e0eff",
+      "origin": "Git238 exact preimage to localcandidatec864",
+      "integration": "included in this private continuation; publication and exact CI bound by Root readback",
+      "verification": "scoped tests/lint + fullPC1r6 commandPASS + separateadditivepostauditPASS; scopesseeAUDIT",
+      "limit": "CIofnextpublishedHEADpending; noNative/globalCoretypes"
+    },
+    {
+      "path": "core/tsdown.config.ts",
+      "sha256": "5930ca90f80cadff84f0c843cd9d2fc01febcdb80709e5546ef2261dec9588ce",
+      "origin": "Git238 exact preimage to localcandidatec864",
+      "integration": "included in this private continuation; publication and exact CI bound by Root readback",
+      "verification": "scoped tests/lint + fullPC1r6 commandPASS + separateadditivepostauditPASS; scopesseeAUDIT",
+      "limit": "CIofnextpublishedHEADpending; noNative/globalCoretypes"
+    }
+  ],
+  "unchanged_leased_paths": [
+    {
+      "path": "core/test/scripts/tsdown-declaration-resolution.test.ts",
+      "sha256": "500455306df184b9992f4bad53799784d7d7d8bf1e1322c610a1fa2a87fc46c2",
+      "disposition": "unchanged; no artificialoverlay"
+    },
+    {
+      "path": "core/test/scripts/tsdown-declaration-fixture.ts",
+      "sha256": "85c2a6d560974549f808a4cd0604883caf27a8b045dae9f7406790231ce1c161",
+      "disposition": "unchanged; no artificialoverlay"
+    }
+  ],
+  "proofs": [
+    {
+      "name": "Source10 initialunitpacket",
+      "manifest_sha256": "035ffd58356eeaa294dabc4d1e01550e293916b7b25776fc9772da7d8ebcf151",
+      "scope": "369 selected passes then cwdCorrection new343affected; writer14/config16 remain exact ownedpaths",
+      "availability": "local task qualification folder; largeproofs notGittracked"
+    },
+    {
+      "name": "cwdCorrection",
+      "manifest_sha256": "e314a797bec01e65a30fe78ad9300d86f09901120cf3e9e26c4ef9636a667058",
+      "scope": "343 affected tests,4realREDtoGREEN,lintformat0"
+    },
+    {
+      "name": "r6 pre/full/post originals",
+      "manifest_sha256": "70803e6c5355ed34821c3dcf6b1536d2ee7281b23100c8bb634070a174e72d6b",
+      "scope": "full commandPASS; original aggregateNONQUAL due addedlinks comparator; unchanged"
+    },
+    {
+      "name": "separate postlinks readonlyaudit",
+      "manifest_sha256": "27c5bf44b3573ff8a65ce9c39d93e00b993475ae60642ce4a120b78ab309a278",
+      "scope": "29members rehashed; fresh447physicalrelations and sourcepreservationPASS"
+    },
+    {
+      "name": "Rootcompositequalification",
+      "sha256": "b1a08a851727bad79eddb3999273575893631d4e9c4a0d466a0801798ed33a38",
+      "scope": "new combinedlocalqualification; notrewriting original r6"
+    }
+  ],
+  "omissions": [
+    {
+      "item": "35 heavyconfig cases",
+      "disposition": "not selected; no green credit"
+    },
+    {
+      "item": "fullconfig trial",
+      "disposition": "RSS2GiB guardSTOP retained; no retry/escalation"
+    },
+    {
+      "item": "finalboundary repetition",
+      "disposition": "descendantidentityNONQUAL retained; historical40P4skip separate"
+    },
+    {
+      "item": "NativeM10 and M1Host integration",
+      "disposition": "not executed by this build; separate prep/GO required"
+    },
+    {
+      "item": "wholeCoreTypeScript",
+      "disposition": "oldRSSstops retained; no fulltypecheck success from bundlingDTS"
+    },
+    {
+      "item": "104 excluded transfer proofs/fullsupplement/absent chats",
+      "disposition": "unavailable orunknown; neverreexecuted bythislot"
+    }
+  ]
+}

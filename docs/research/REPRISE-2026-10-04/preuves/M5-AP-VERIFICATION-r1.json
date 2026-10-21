@@ -1,0 +1,530 @@
+{
+  "archive": "M5-AP-VERIFICATION-r1.tar.xz",
+  "bytes": 228444,
+  "sha256": "50fd20a9b0649bd069469d767d35140e242299cbd9718321130502f80bdab120",
+  "timestamp_utc": "2026-10-04T10:41:18.032246+00:00",
+  "qualification": "ROOT r119:363/363 passing across10full files, no skip; r116-r118 RED preserved; Gitleaks r121 zero alerts scoped13files; no exclusions",
+  "source_sha256": {
+    "departments/m05-financecore/src/m5_financecore/comptes_a_payer.py": "131359bc8d653cf61bb16070fac33a0b0b3b1ae35edc573ae2ad96bb5569daa5",
+    "departments/m05-financecore/src/m5_financecore/taux_fiscaux.py": "23b8beee6477a28a48b4693a5771664195d00641c9bd4ddaf42fabad973fa4ba",
+    "departments/m05-financecore/tests/test_comptes_a_payer_verification.py": "04b43b32fba861085cdcecd73b72e1fda870c656153d8ad25cfdb272d547d018",
+    "docs/architecture/FUSION-AP-BROUILLONS.md": "401981e5449bb7a174f1526c021a33b6c1a4295741a5dd44eb143efb50e9c515",
+    "docs/grs/compta/M5-AP-VERIFICATION-DESIGN-2026-10-04.md": "df38039fd723e38c1e2a14a8e32d03b7202622f3f895448ca15a99e45e5b13be",
+    "docs/grs/compta/M5-AP-VERIFICATION-REPRISE-2026-10-04.md": "a3bd926ee0c37265e0f7cfea9c08eb2d6a7165107abdbe6776102e0bdafab46e",
+    "docs/grs/compta/M5-CFO-IA-FISCALITE-PAIE-STRATEGIE-AUDIT.md": "f9b7a112c2019c2295d5e5518b1d8f7c507288bb229b50c2ca015a172796bb83",
+    "docs/programme/RESTRUCTURATION-2026-09-30.md": "b0a92bd553f70cd7ac74b4c27f97dbfed2931d08f9ba187e50353c05d234b7a3",
+    "docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md": "19acc47e322edbccb3f7b55917704cdd9a150ac21652ade75e0d5eba1204bd83",
+    "src/opsys/console/fusion_ap_m5.py": "088511fdfd264e2083d57c70b87a3e8c73192f609a35bbdd9d398b5fb3483c28",
+    "src/opsys/console/fusion_ap_ui.py": "5d94f29bbc46b912522b2658469e55fe0903fbf503684212f2f8e84af85f77ab",
+    "tests/test_console_fusion_ap_m5.py": "af798ca7a5aa6f30f55c43eeeed44b33aa73473f56346daef40cecf098f3fc1f",
+    "tests/test_fusion_ap_m5.py": "0d4df3a4069bd0b54fd7f13f77220c4682e9d6f0896139b7ac53d89750561382"
+  },
+  "parent_publication": "0b2d34f83151eea3ff094fec8a4d08834d5a5831",
+  "runtime_environment": "M10-IMPORT-LOTS-ENV-r1.json shared Python toolchain; SQLite and native PDF worker, no PostgreSQL fixture in this tranche",
+  "entries": [
+    {
+      "path": "drivers/guard_helpers_r2.py",
+      "bytes": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844",
+      "raw_sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/package-proof-r1.py",
+      "bytes": 2792,
+      "sha256": "51149f0bda1f81848d46d57961cefb299f4d42884914e4c7fd2c39da773a19aa",
+      "raw_sha256": "51149f0bda1f81848d46d57961cefb299f4d42884914e4c7fd2c39da773a19aa",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r116.py",
+      "bytes": 4303,
+      "sha256": "edbd1d1c331c25ebae923e341192198147cea228eac95a032bd87ca6e7093405",
+      "raw_sha256": "edbd1d1c331c25ebae923e341192198147cea228eac95a032bd87ca6e7093405",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r117.py",
+      "bytes": 4303,
+      "sha256": "319ab0c48836027e610ebbbfc61c48ac6ca0e9b20571b1af9cdb72cb45568a7e",
+      "raw_sha256": "319ab0c48836027e610ebbbfc61c48ac6ca0e9b20571b1af9cdb72cb45568a7e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r118.py",
+      "bytes": 4435,
+      "sha256": "3d305de5e03786e9eb5218a45b0d23885029ef8baae427d3181438195b83adea",
+      "raw_sha256": "3d305de5e03786e9eb5218a45b0d23885029ef8baae427d3181438195b83adea",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r119.py",
+      "bytes": 4435,
+      "sha256": "32c2dbbd4bfae4aa1fd886099666947fd2e25a633ce6396d71238a967df6804f",
+      "raw_sha256": "32c2dbbd4bfae4aa1fd886099666947fd2e25a633ce6396d71238a967df6804f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r120.py",
+      "bytes": 3758,
+      "sha256": "364c93d4bf07dfcd30c41d21f09eee2e2cfc36d3fcf3b967c4c0c493e2d92517",
+      "raw_sha256": "364c93d4bf07dfcd30c41d21f09eee2e2cfc36d3fcf3b967c4c0c493e2d92517",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r121.py",
+      "bytes": 3805,
+      "sha256": "d831ddfd5b935e570ec406f99843939fe052315a91bddf0763dddacfbe7cea6c",
+      "raw_sha256": "d831ddfd5b935e570ec406f99843939fe052315a91bddf0763dddacfbe7cea6c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native/CI-NATIVE-SNAPSHOT-r1.json",
+      "bytes": 60073,
+      "sha256": "bca95707a351efc1f8803ed7d770b8a80b8e44758bb833fc039a7e648f0eb937",
+      "raw_sha256": "bca95707a351efc1f8803ed7d770b8a80b8e44758bb833fc039a7e648f0eb937",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native/native-ci16-socle-r1.log",
+      "bytes": 214898,
+      "sha256": "be0408c1e53b6bdd9762860aab3ffabb9d5cb4b1ff5510baffa347903a66e3b9",
+      "raw_sha256": "be0408c1e53b6bdd9762860aab3ffabb9d5cb4b1ff5510baffa347903a66e3b9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r116/execution-r1/ruff.log",
+      "bytes": 2728,
+      "sha256": "a903d249a761d9e5391fc62608bf72042b78030f0258fad784724c122d1d186f",
+      "raw_sha256": "a903d249a761d9e5391fc62608bf72042b78030f0258fad784724c122d1d186f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r116/freeze.json",
+      "bytes": 154569,
+      "sha256": "4e86d0a967322f18a0da830124952c57b41de37e62a6c25954b244ad2761016a",
+      "raw_sha256": "4e86d0a967322f18a0da830124952c57b41de37e62a6c25954b244ad2761016a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r116/receipt.json",
+      "bytes": 316581,
+      "sha256": "4d584e5083ca41b2372a2b58b4084daec8bd1b22b400b639e90605d2e8aa2778",
+      "raw_sha256": "4d584e5083ca41b2372a2b58b4084daec8bd1b22b400b639e90605d2e8aa2778",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r117/execution-r1/pytest.log",
+      "bytes": 697,
+      "sha256": "eb2bf1dea5d17f345e21286123a11f25bf7844bd916d9e166f980b79ab992665",
+      "raw_sha256": "eb2bf1dea5d17f345e21286123a11f25bf7844bd916d9e166f980b79ab992665",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r117/execution-r1/pytest.xml",
+      "bytes": 748,
+      "sha256": "44ff9d569932eb1463019d6ac5e828eb1bb9dbb89f66f90385e95842d102938e",
+      "raw_sha256": "44ff9d569932eb1463019d6ac5e828eb1bb9dbb89f66f90385e95842d102938e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r117/execution-r1/ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r117/freeze.json",
+      "bytes": 154569,
+      "sha256": "1e4c1b56abf12ca5fa7abd902400435887f8f2939ae6ae96c60bd55317e0103e",
+      "raw_sha256": "1e4c1b56abf12ca5fa7abd902400435887f8f2939ae6ae96c60bd55317e0103e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r117/receipt.json",
+      "bytes": 316575,
+      "sha256": "3ea5b7b6632db8e14f7a04ab37f1f8d1f7299095d1d36216281523cd3ea410e0",
+      "raw_sha256": "3ea5b7b6632db8e14f7a04ab37f1f8d1f7299095d1d36216281523cd3ea410e0",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r118/execution-r1/pytest.log",
+      "bytes": 6675,
+      "sha256": "0a7ee05e383974ad09f4e0e67dfaf3034e843024296bf8cc64a1cdaadc42a6bd",
+      "raw_sha256": "0a7ee05e383974ad09f4e0e67dfaf3034e843024296bf8cc64a1cdaadc42a6bd",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r118/execution-r1/pytest.xml",
+      "bytes": 92432,
+      "sha256": "b9d7f42cf9bd90f7f5a5047ec1696a1a6fca534853ba393d426bb22dda25dd28",
+      "raw_sha256": "b9d7f42cf9bd90f7f5a5047ec1696a1a6fca534853ba393d426bb22dda25dd28",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r118/execution-r1/ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r118/freeze.json",
+      "bytes": 154569,
+      "sha256": "f56f3c30cf04bd641e067b79d3f81a8d100ff61bc85df2df1e1401ecf4b82d71",
+      "raw_sha256": "f56f3c30cf04bd641e067b79d3f81a8d100ff61bc85df2df1e1401ecf4b82d71",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r118/receipt.json",
+      "bytes": 319791,
+      "sha256": "c3202a5bf7a88ceaecbe58e7b8a60aebb5d2cad288e921489e010839368bdb9b",
+      "raw_sha256": "c3202a5bf7a88ceaecbe58e7b8a60aebb5d2cad288e921489e010839368bdb9b",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r119/execution-r1/pytest.log",
+      "bytes": 480,
+      "sha256": "baab8a974f0b519c8fc308a496c3e64adf479c98236d6d856df52096ae810e52",
+      "raw_sha256": "baab8a974f0b519c8fc308a496c3e64adf479c98236d6d856df52096ae810e52",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r119/execution-r1/pytest.xml",
+      "bytes": 88219,
+      "sha256": "309c94eb826958fdf7845dadd27fa78a8ffe7e60a0852a4c567c5f16101216af",
+      "raw_sha256": "309c94eb826958fdf7845dadd27fa78a8ffe7e60a0852a4c567c5f16101216af",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r119/execution-r1/ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r119/freeze.json",
+      "bytes": 154569,
+      "sha256": "b9805edf396e243b829925d06cf036bcaed9eded7af4f028a21455033d7563fe",
+      "raw_sha256": "b9805edf396e243b829925d06cf036bcaed9eded7af4f028a21455033d7563fe",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r119/receipt.json",
+      "bytes": 319785,
+      "sha256": "937322d9543d9fb60d11c3d0664e62b7ecd8803a212e02b4707e59104e42792b",
+      "raw_sha256": "937322d9543d9fb60d11c3d0664e62b7ecd8803a212e02b4707e59104e42792b",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r120/execution-r1/gitleaks.log",
+      "bytes": 135,
+      "sha256": "41ca9261971ddc76d074a5b7a2b617c8b2e652cd5511a12efb7837c69c193690",
+      "raw_sha256": "41ca9261971ddc76d074a5b7a2b617c8b2e652cd5511a12efb7837c69c193690",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r120/freeze.json",
+      "bytes": 1475,
+      "sha256": "d629f33b0abd55bb404b9bcfcba86980cf79138e4ef3157da4740ed63d5063f2",
+      "raw_sha256": "d629f33b0abd55bb404b9bcfcba86980cf79138e4ef3157da4740ed63d5063f2",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r120/receipt.json",
+      "bytes": 5345,
+      "sha256": "875c584b9e6d03dbaaa88d1c8da595a4f0c7ef8cf197d19d4cb5cc04201423d5",
+      "raw_sha256": "875c584b9e6d03dbaaa88d1c8da595a4f0c7ef8cf197d19d4cb5cc04201423d5",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r120/scan.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r121/execution-r1/gitleaks.log",
+      "bytes": 135,
+      "sha256": "0abda5b240f92fd7bda090be48bd3caa7c85f50f8b42f7acb2021c3312c205b3",
+      "raw_sha256": "0abda5b240f92fd7bda090be48bd3caa7c85f50f8b42f7acb2021c3312c205b3",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r121/freeze.json",
+      "bytes": 1593,
+      "sha256": "83814e1cc6861b8ecdfd35deea6211d100c5915b0384c8cf25c95ba283874815",
+      "raw_sha256": "83814e1cc6861b8ecdfd35deea6211d100c5915b0384c8cf25c95ba283874815",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r121/receipt.json",
+      "bytes": 5583,
+      "sha256": "69ba31297bf0cbbca4c25708565d5b4d0ac770e18ed60080a9742ed588748642",
+      "raw_sha256": "69ba31297bf0cbbca4c25708565d5b4d0ac770e18ed60080a9742ed588748642",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r121/scan.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/departments/m05-financecore/src/m5_financecore/comptes_a_payer.py",
+      "bytes": 88985,
+      "sha256": "131359bc8d653cf61bb16070fac33a0b0b3b1ae35edc573ae2ad96bb5569daa5",
+      "raw_sha256": "131359bc8d653cf61bb16070fac33a0b0b3b1ae35edc573ae2ad96bb5569daa5",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/departments/m05-financecore/src/m5_financecore/taux_fiscaux.py",
+      "bytes": 3410,
+      "sha256": "23b8beee6477a28a48b4693a5771664195d00641c9bd4ddaf42fabad973fa4ba",
+      "raw_sha256": "23b8beee6477a28a48b4693a5771664195d00641c9bd4ddaf42fabad973fa4ba",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/departments/m05-financecore/tests/test_comptes_a_payer_verification.py",
+      "bytes": 7632,
+      "sha256": "04b43b32fba861085cdcecd73b72e1fda870c656153d8ad25cfdb272d547d018",
+      "raw_sha256": "04b43b32fba861085cdcecd73b72e1fda870c656153d8ad25cfdb272d547d018",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/architecture/FUSION-AP-BROUILLONS.md",
+      "bytes": 6036,
+      "sha256": "401981e5449bb7a174f1526c021a33b6c1a4295741a5dd44eb143efb50e9c515",
+      "raw_sha256": "401981e5449bb7a174f1526c021a33b6c1a4295741a5dd44eb143efb50e9c515",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/grs/compta/M5-AP-VERIFICATION-DESIGN-2026-10-04.md",
+      "bytes": 3602,
+      "sha256": "df38039fd723e38c1e2a14a8e32d03b7202622f3f895448ca15a99e45e5b13be",
+      "raw_sha256": "df38039fd723e38c1e2a14a8e32d03b7202622f3f895448ca15a99e45e5b13be",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/grs/compta/M5-AP-VERIFICATION-REPRISE-2026-10-04.md",
+      "bytes": 5879,
+      "sha256": "a3bd926ee0c37265e0f7cfea9c08eb2d6a7165107abdbe6776102e0bdafab46e",
+      "raw_sha256": "a3bd926ee0c37265e0f7cfea9c08eb2d6a7165107abdbe6776102e0bdafab46e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/grs/compta/M5-CFO-IA-FISCALITE-PAIE-STRATEGIE-AUDIT.md",
+      "bytes": 36201,
+      "sha256": "f9b7a112c2019c2295d5e5518b1d8f7c507288bb229b50c2ca015a172796bb83",
+      "raw_sha256": "f9b7a112c2019c2295d5e5518b1d8f7c507288bb229b50c2ca015a172796bb83",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "bytes": 48112,
+      "sha256": "b0a92bd553f70cd7ac74b4c27f97dbfed2931d08f9ba187e50353c05d234b7a3",
+      "raw_sha256": "b0a92bd553f70cd7ac74b4c27f97dbfed2931d08f9ba187e50353c05d234b7a3",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md",
+      "bytes": 16365,
+      "sha256": "19acc47e322edbccb3f7b55917704cdd9a150ac21652ade75e0d5eba1204bd83",
+      "raw_sha256": "19acc47e322edbccb3f7b55917704cdd9a150ac21652ade75e0d5eba1204bd83",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/src/opsys/console/fusion_ap_m5.py",
+      "bytes": 8422,
+      "sha256": "088511fdfd264e2083d57c70b87a3e8c73192f609a35bbdd9d398b5fb3483c28",
+      "raw_sha256": "088511fdfd264e2083d57c70b87a3e8c73192f609a35bbdd9d398b5fb3483c28",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/src/opsys/console/fusion_ap_ui.py",
+      "bytes": 27948,
+      "sha256": "5d94f29bbc46b912522b2658469e55fe0903fbf503684212f2f8e84af85f77ab",
+      "raw_sha256": "5d94f29bbc46b912522b2658469e55fe0903fbf503684212f2f8e84af85f77ab",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/tests/test_console_fusion_ap_m5.py",
+      "bytes": 15323,
+      "sha256": "af798ca7a5aa6f30f55c43eeeed44b33aa73473f56346daef40cecf098f3fc1f",
+      "raw_sha256": "af798ca7a5aa6f30f55c43eeeed44b33aa73473f56346daef40cecf098f3fc1f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/tests/test_fusion_ap_m5.py",
+      "bytes": 8361,
+      "sha256": "0d4df3a4069bd0b54fd7f13f77220c4682e9d6f0896139b7ac53d89750561382",
+      "raw_sha256": "0d4df3a4069bd0b54fd7f13f77220c4682e9d6f0896139b7ac53d89750561382",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/SHA256SUMS",
+      "bytes": 467,
+      "sha256": "9135faa33c217c37a2fcfb22b68111b2c151a05957ebbaa6476d1aeeb49367bd",
+      "raw_sha256": "9135faa33c217c37a2fcfb22b68111b2c151a05957ebbaa6476d1aeeb49367bd",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/change.patch",
+      "bytes": 15250,
+      "sha256": "e72cfde51d38448099286f0aa8988badab58873c300756921b5e9fc6573aed9f",
+      "raw_sha256": "e72cfde51d38448099286f0aa8988badab58873c300756921b5e9fc6573aed9f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/postimages/comptes_a_payer.py",
+      "bytes": 88978,
+      "sha256": "cea95ab3bca58acb8f9b2d4bac2806dec656fef5469dbbc0ef8f726a1768011c",
+      "raw_sha256": "cea95ab3bca58acb8f9b2d4bac2806dec656fef5469dbbc0ef8f726a1768011c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/postimages/test_comptes_a_payer_verification.py",
+      "bytes": 7263,
+      "sha256": "4288a0468a26dad5bdd4004b26a59c445f42a3dcf0aa945cc772b546f04ed2d2",
+      "raw_sha256": "4288a0468a26dad5bdd4004b26a59c445f42a3dcf0aa945cc772b546f04ed2d2",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/preimages/comptes_a_payer.py",
+      "bytes": 85269,
+      "sha256": "5d26e99711c062bc14c7e760806c3039116f1ec62def77bbf43f596c5f7f3cb6",
+      "raw_sha256": "5d26e99711c062bc14c7e760806c3039116f1ec62def77bbf43f596c5f7f3cb6",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-backend-r1/preimages/comptes_a_payer.sha256",
+      "bytes": 132,
+      "sha256": "98e5890d136a6c6b5b1217f3a931f21f403c5f93c475e22606a39c4ac65c0225",
+      "raw_sha256": "98e5890d136a6c6b5b1217f3a931f21f403c5f93c475e22606a39c4ac65c0225",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent-review-r1/revue.md",
+      "bytes": 8252,
+      "sha256": "9d7bd63d513af2e20b94452211efdd37c8a518f7aa29c3cdb8945a05182323de",
+      "raw_sha256": "9d7bd63d513af2e20b94452211efdd37c8a518f7aa29c3cdb8945a05182323de",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/proof-root/DOC-LINKS-r1.json",
+      "bytes": 26858,
+      "sha256": "10948b69d7281854d08eec319c8806183568cbe2c1f5ff8b8e88e19713b0c35a",
+      "raw_sha256": "10948b69d7281854d08eec319c8806183568cbe2c1f5ff8b8e88e19713b0c35a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/proof-root/ROOT-REVIEW-r1.json",
+      "bytes": 1775,
+      "sha256": "83e28253a780319cdd55751a2ccb78698ef7cb1bc3d90f175fc586b7aab9e9c9",
+      "raw_sha256": "83e28253a780319cdd55751a2ccb78698ef7cb1bc3d90f175fc586b7aab9e9c9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/proof-root/ROOT-SOURCES-r1.json",
+      "bytes": 1593,
+      "sha256": "83814e1cc6861b8ecdfd35deea6211d100c5915b0384c8cf25c95ba283874815",
+      "raw_sha256": "83814e1cc6861b8ecdfd35deea6211d100c5915b0384c8cf25c95ba283874815",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r1/departments/m05-financecore/src/m5_financecore/taux_fiscaux.py",
+      "bytes": 2846,
+      "sha256": "9699d92f74c696f3774b832a887f02e9e7fcc850eb727438bb9860cb0a762593",
+      "raw_sha256": "9699d92f74c696f3774b832a887f02e9e7fcc850eb727438bb9860cb0a762593",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r1/docs/architecture/FUSION-AP-BROUILLONS.md",
+      "bytes": 5410,
+      "sha256": "d3f94b54460aaf714eccfe7fb67f72a03c493c16d9789e866c3db52515eff547",
+      "raw_sha256": "d3f94b54460aaf714eccfe7fb67f72a03c493c16d9789e866c3db52515eff547",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r1/docs/grs/compta/M5-CFO-IA-FISCALITE-PAIE-STRATEGIE-AUDIT.md",
+      "bytes": 34903,
+      "sha256": "c38efbf5a21470b17e192002ea68a411399be36cd9552d39068672b9fe0ac774",
+      "raw_sha256": "c38efbf5a21470b17e192002ea68a411399be36cd9552d39068672b9fe0ac774",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r1/src/opsys/console/application.py",
+      "bytes": 53109,
+      "sha256": "78e66029a6574d9806ce2d3907a3a88933edfd2c4867c539474979f1b78f01a4",
+      "raw_sha256": "78e66029a6574d9806ce2d3907a3a88933edfd2c4867c539474979f1b78f01a4",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r1/src/opsys/console/fusion_ap_ui.py",
+      "bytes": 21230,
+      "sha256": "0235a81acc67c597fb3861054099d8508d5ba69fb54dde51972c01530f4f362d",
+      "raw_sha256": "0235a81acc67c597fb3861054099d8508d5ba69fb54dde51972c01530f4f362d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r117/src/opsys/console/fusion_ap_m5.py",
+      "bytes": 8432,
+      "sha256": "c023d2955c4b32374b8582a8df6d1e46392fbefe80f9272ba91d555dfcf843f2",
+      "raw_sha256": "c023d2955c4b32374b8582a8df6d1e46392fbefe80f9272ba91d555dfcf843f2",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r117/src/opsys/console/fusion_ap_ui.py",
+      "bytes": 27845,
+      "sha256": "c0d7af4d482ba3ea4d8b38d8ff25c19acd4b7ec2a49ebe00cbaf6fe9cac71a9f",
+      "raw_sha256": "c0d7af4d482ba3ea4d8b38d8ff25c19acd4b7ec2a49ebe00cbaf6fe9cac71a9f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r117/tests/test_console_fusion_ap_m5.py",
+      "bytes": 14719,
+      "sha256": "39a080e5c46788be4eae6bc0d3a6087920449ab2d3b374b9cc16525c95c9bfaf",
+      "raw_sha256": "39a080e5c46788be4eae6bc0d3a6087920449ab2d3b374b9cc16525c95c9bfaf",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r117/tests/test_fusion_ap_m5.py",
+      "bytes": 7450,
+      "sha256": "87de8b0d6a4a75be0a0f7eda421a68e0fc88045e1203aba6d3df41a062fe3c50",
+      "raw_sha256": "87de8b0d6a4a75be0a0f7eda421a68e0fc88045e1203aba6d3df41a062fe3c50",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r118/tests/test_fusion_ap_m5.py",
+      "bytes": 7450,
+      "sha256": "87de8b0d6a4a75be0a0f7eda421a68e0fc88045e1203aba6d3df41a062fe3c50",
+      "raw_sha256": "87de8b0d6a4a75be0a0f7eda421a68e0fc88045e1203aba6d3df41a062fe3c50",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r119/src/opsys/console/fusion_ap_ui.py",
+      "bytes": 27845,
+      "sha256": "c0d7af4d482ba3ea4d8b38d8ff25c19acd4b7ec2a49ebe00cbaf6fe9cac71a9f",
+      "raw_sha256": "c0d7af4d482ba3ea4d8b38d8ff25c19acd4b7ec2a49ebe00cbaf6fe9cac71a9f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r119/tests/test_console_fusion_ap_m5.py",
+      "bytes": 14766,
+      "sha256": "f667cd9767c55f7e7732f71b7697b277403283c25e95f8546e8c81416d5f10a5",
+      "raw_sha256": "f667cd9767c55f7e7732f71b7697b277403283c25e95f8546e8c81416d5f10a5",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-before-r119/tests/test_fusion_ap_m5.py",
+      "bytes": 7753,
+      "sha256": "f6b2217a4fc41bd071a2bf56da8ee08a982f3e510ab283c62771b25766efb739",
+      "raw_sha256": "f6b2217a4fc41bd071a2bf56da8ee08a982f3e510ab283c62771b25766efb739",
+      "qa_dsn_redactions": 0
+    }
+  ]
+}

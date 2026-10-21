@@ -1,0 +1,41 @@
+# Cohérence documentaire — état vérifié
+
+Date : 2026-09-30. Cette note distingue les faits appuyés par les preuves locales de l’arbre de travail partagé des décisions et descriptions historiques. Elle ne vaut ni livraison, ni validation CI distante, ni approbation de mise en production.
+
+## État actuel appuyé par les preuves
+
+- **Contexte d’entreprise M10 dans Core.** La route privée `/mcp/contexte/<agentId>` fixe l’origine par serveur configuré et utilise `OPSYS_CONTEXT_MCP_JETON`, distinct du bearer public. Le modèle ne reçoit pas les outils de ce namespace. Le moteur de contexte et son activation restent opt-in. Le hook `before_tool_call` applique désormais la garde configurée; le raccord de liaison C02 demeure limité au cas M3 documenté et ne prouve pas toutes les classes d’outils. Voir [architecture actuelle](../../architecture/ARCHITECTURE.md) et [ADR-0010, historique et état courant](../../decisions/ADR-0010-memoire.md).
+- **Admission provider.** Il s’agit d’un mécanisme distinct du paquet mémoire. Il s’applique aux seuls profils configurables exportés sous le runner embedded : admission fraîche et réservation avant chaque dispatch provider, conciliation après réponse uniquement pour un `usage.totalTokens` positif. Erreur ou usage ambigu laisse la réservation ouverte. Les agents départementaux historiques, CLI/harness et plugins à transport propre ne sont pas couverts. Pas d’admission pour la compaction générique; pas de sous-agents. Le plafond est une estimation de tokens, pas une garantie de coût financier. L’intégration a exercé un faux provider et aucun appel fournisseur réel.
+- **Mémoire M10 de développement.** Le registre canonique stocke prompts, plans, décisions, postflights et index de sources. L’API, le CLI, la console et l’audit à la demande sont raccordés d’après [M10-PREUVES](M10-PREUVES.md). L’audit est authentifié et non destructif; le scanner est borné aux fichiers suivis par Git. Les plafonds de l’audit ne bornent pas le chargement/recalcul préalable du journal canonique complet. Il n’y a ni scheduler/nightly prouvé, ni retrieval sémantique, ni mesure de précision/rappel à grande échelle.
+
+## Provenance et limites de preuve
+
+Les preuves de contexte/admission sont dans `/workspace/restructuration-opsys-2026-09-30/core-admission-runtime-resultat.md`; les preuves mémoire/API/console sont dans [M10-PREUVES](M10-PREUVES.md). Ce sont des essais ciblés locaux consignés sur l’arbre partagé. Pour M10, les JUnit fournis comptent 908 tests backend et 61 tests console passés; PostgreSQL a été exercé dans un conteneur éphémère local pour le cas d’intégration indiqué. Pour le raccord admission, 44 Vitest ciblés, `tsgo:core` et un test d’intégration MCP HTTP Python/SQLite avec provider simulé sont rapportés réussis. Les usages préexistants de `Promise.withResolvers` incompatibles avec le lib TS ont été remplacés par le helper deferred existant dans trois fichiers de tests, sans modification de production/configuration. Les 25 shards de typage test sont ensuite verts sur plusieurs invocations; les commandes intégrales initiales échouées restent consignées. Le workflow complet n’a pas été exécuté localement; aucune CI distante, production ou credentials fournisseur n’est revendiquée.
+
+Les journaux et couches historiques décrivent parfois un état ancien (greffe absente, core non exécuté ou CI seule). Ils ne doivent pas être lus comme des preuves actuelles. Les décisions historisées restent intactes; la section datée d’[ADR-0010](../../decisions/ADR-0010-memoire.md) fournit le statut de réconciliation.
+
+## Inventaire documentaire ciblé
+
+| Document | Nature / usage actuel | Action de cohérence |
+|---|---|---|
+| [Architecture](../../architecture/ARCHITECTURE.md) | Description courante de l’architecture, des providers natifs par défaut et des limites C02/admission | Révisée; garder comme référence actuelle avec ses limites explicites. |
+| [ADR-0010](../../decisions/ADR-0010-memoire.md) | Décision durable avec sections d’implémentation successives | La présente date de statut signale les passages historiques obsolètes sans modifier les décisions ni les anciens comptes rendus. |
+| [M10-PREUVES](M10-PREUVES.md) | État probant local du backend développement, API/console et audit | Référence pour les comptes de tests et limites M10; pas une déclaration de production. |
+| `docs/grs/memory/M10-MEMORY-DEVELOPPEMENT.md` | Guide de travail courant M10 développement | Consulter avec M10-PREUVES; vérifier toute formulation qui ferait croire à un audit automatique, non borné en coût total, ou à un statut `done` automatique. |
+| `docs/departements/M10-audit.md`, `docs/memory/RAG-PREMIUM.md`, `docs/research/R4-memory-rag.md` | Audits/recherches de conception et constats de versions antérieures | Historiques; leurs affirmations d’absence d’un hook ou d’un raccord ne décrivent plus l’état courant. Ne pas les utiliser seuls comme état d’implémentation. |
+| `docs/research/R16-2026-09-30/README.md` et `recherche-core.md` | Recherche de septembre, antérieure à la preuve du générateur natif et du raccord admission | Historique de recherche; des notes indiquant encore LiteLLM par défaut sont à dater ou à rapprocher du code courant avant réutilisation. |
+| `docs/programme/RESTRUCTURATION-2026-09-30.md` | Registre de programme, hors du périmètre de cette réconciliation | ECO-001 est désormais coché comme correctif local avec preuve installateur/CLI, sans prétendre à un appel fournisseur ni à un VPS neuf. |
+| `docs/decisions/ADR-0007-core-openclaw.md` | Décision historique LiteLLM par défaut | Décision remplacée sur ce point par ADR-0008; ne pas citer comme configuration courante. |
+| `docs/decisions/ADR-0003-RATIFICATION.md`, `ADR-0012-reutilisation-profondeur-productivite.md` | Historique de ratification et directive actuelle sur la proportionnalité des validations | Les mentions de consensus dans ADR-0003 sont historiques; ADR-0012 rejette les votes/revues extérieures obligatoires comme gate général. Les validations techniques ciblées restent nécessaires. |
+
+## Recherche de formulations susceptibles d’induire en erreur
+
+Recherche locale des expressions « consensus 3 », « revue extérieure », « LiteLLM par défaut » et « preflight » dans les Markdown. Résumé des occurrences pertinentes au 2026-09-30 :
+
+- **Consensus à trois modèles :** aucune garantie courante de consensus n’est établie. Les mentions de consensus identifiées sont des intitulés ou décisions historiques (notamment ADR-0003); ADR-0012 et l’architecture actuelle ne l’imposent pas comme validation générale.
+- **Revue extérieure :** le plan contient encore de nombreuses tâches anciennes portant cette exigence; son en-tête indique qu’elles sont historiques et remplacées par ADR-0012. ADR-0011 et notes d’audit conservent aussi des mentions historiques/localisées. Lire la directive avant de traiter chaque occurrence comme un gate actuel.
+- **LiteLLM par défaut :** les références courantes consultées (architecture, `docs/README.md`, `docs/research/INGREDIENTS.md`, guide d’installation et exploitation) indiquent providers natifs par défaut et LiteLLM en compatibilité explicite. Les formulations inverses demeurent dans ADR-0007 et les recherches R16 antérieures; elles doivent rester contextualisées comme historique.
+- **Préflight d’installation :** le registre de programme `docs/programme/RESTRUCTURATION-2026-09-30.md` conserve à la ligne 138 l’ancien constat ECO-001 de migration à faire depuis LiteLLM. Le rapport d’installation et les entrées d’exploitation courantes indiquent au contraire un défaut natif localement corrigé. Cette divergence est signalée sans modification du registre, hors de mon périmètre.
+- **Preflight :** le terme recouvre le paquet mémoire Core/M10 et le préflight du registre M10 développement; il ne signifie pas qu’un scheduler ou une revue automatique est installé. M10 est à la demande et les limites de reconstruction du journal sont explicitées plus haut. Les consignes préflight dans les documents de travail ou templates Core ne constituent pas une preuve d’exécution applicative.
+
+Cette recherche est une réconciliation ciblée de documents Markdown, pas un audit exhaustif de chaque page du dépôt. Les documents historiques listés plus haut restent à revoir si leur contenu est repris dans un guide opérationnel courant.

@@ -1,0 +1,206 @@
+[
+  {
+    "path": "LICENSE",
+    "sha": "75410e73319c72cd3e991a501c5455eb78f38375",
+    "size": 1070,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/LICENSE"
+  },
+  {
+    "path": "README.md",
+    "sha": "93bab974fd07608879e36a2e7ef833ffdd3b7555",
+    "size": 16924,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/README.md"
+  },
+  {
+    "path": "pyproject.toml",
+    "sha": "7d34726bd6125c1a7b545557ed19690022905cad",
+    "size": 48615,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/pyproject.toml"
+  },
+  {
+    "path": "agent/memory_provider.py",
+    "sha": "90078f5e5e524aaf94e825c9de98a6a4b8bc4962",
+    "size": 10503,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/memory_provider.py"
+  },
+  {
+    "path": "agent/memory_manager.py",
+    "sha": "d023a57f8bc8ddde607c1f7ba519331aedc5952f",
+    "size": 46102,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/memory_manager.py"
+  },
+  {
+    "path": "agent/prompt_caching.py",
+    "sha": "05491f00669a48ad0e26d9618b5dd813f0e4c9a9",
+    "size": 17002,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/prompt_caching.py"
+  },
+  {
+    "path": "agent/prompt_cache_scope.py",
+    "sha": "a2fea6e7e0a0de0267890138eb9effbc24c3f5d2",
+    "size": 11810,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/prompt_cache_scope.py"
+  },
+  {
+    "path": "agent/prompt_cache_boundary.py",
+    "sha": "6d0fa76f54e5969b0ae3a21f149db53da0a0e881",
+    "size": 2369,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/prompt_cache_boundary.py"
+  },
+  {
+    "path": "agent/delegation_context.py",
+    "sha": "fac7fb638cbe3533d2e0a2795b055e66e582df51",
+    "size": 7321,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/delegation_context.py"
+  },
+  {
+    "path": "agent/subagent_lifecycle.py",
+    "sha": "9bf556943d17dc2edbe665d8934eff8f5fb3b7ee",
+    "size": 18207,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/subagent_lifecycle.py"
+  },
+  {
+    "path": "tools/delegate_tool_config.py",
+    "sha": "e7b9db5aa766157b7826e75ecfb6116ada036626",
+    "size": 35173,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/tools/delegate_tool_config.py"
+  },
+  {
+    "path": "tools/delegate_tool.py",
+    "sha": "f091afdeb0a51213e973251f5c7704549b95a653",
+    "size": 42663,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/tools/delegate_tool.py"
+  },
+  {
+    "path": "tools/skill_manager_guards.py",
+    "sha": "06df3cd695592fd2e582b49ce391d76fd137da3b",
+    "size": 15422,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/tools/skill_manager_guards.py"
+  },
+  {
+    "path": "tools/skill_manager_tool.py",
+    "sha": "ce8cb5dab94b679e3d87488a44ccafb38d507858",
+    "size": 47001,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/tools/skill_manager_tool.py"
+  },
+  {
+    "path": "tools/skill_provenance.py",
+    "sha": "4ab73ce25634d642a831a3de4b66283ada19e4e0",
+    "size": 1885,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/tools/skill_provenance.py"
+  },
+  {
+    "path": "tools/approval_context.py",
+    "sha": "f71381c33c05c532bd90ddf2574acfaf76c18846",
+    "size": 15515,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/tools/approval_context.py"
+  },
+  {
+    "path": "tools/approval_floors.py",
+    "sha": "f0aa189b971a6d93660eb7031fb3b44ef6ca028d",
+    "size": 9684,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/tools/approval_floors.py"
+  },
+  {
+    "path": "hermes_cli/install_identity.py",
+    "sha": "1517b255f4349c8e94490dcbffa0fb9dd06820b8",
+    "size": 4061,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/hermes_cli/install_identity.py"
+  },
+  {
+    "path": "hermes_cli/update_contract.py",
+    "sha": "18c64ade20f100d5cca95c4057112453fc4b435e",
+    "size": 7030,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/hermes_cli/update_contract.py"
+  },
+  {
+    "path": "agent/context_compressor.py",
+    "sha": "53bad5bd9fead14c7d6d4e1ccf3ddf78c0b7e2cb",
+    "size": 327696,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/context_compressor.py"
+  },
+  {
+    "path": "agent/conversation_compression.py",
+    "sha": "f832e65dd75def450e5e25734dfc3e072c5ac156",
+    "size": 255076,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/conversation_compression.py"
+  },
+  {
+    "path": "plugins/memory/__init__.py",
+    "sha": "9f0c4c210ab1e9abd690de8e1375f659cf154812",
+    "size": 24411,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/plugins/memory/__init__.py"
+  },
+  {
+    "path": "agent/skill_commands.py",
+    "sha": "909305e78870922831bb0a706a170ddcb015bc62",
+    "size": 38134,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/skill_commands.py"
+  },
+  {
+    "path": "agent/learn_prompt.py",
+    "sha": "db50f95aa3196fb19f265d0491ca93f63b4f2c84",
+    "size": 12246,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/agent/learn_prompt.py"
+  },
+  {
+    "path": "website/docs/developer-guide/memory-provider-plugin.md",
+    "sha": "e88a61074c276157d01ea71dd55073c685a65e89",
+    "size": 25093,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/website/docs/developer-guide/memory-provider-plugin.md"
+  },
+  {
+    "path": "website/docs/developer-guide/context-compression-and-caching.md",
+    "sha": "b7e84c076ef74893442de1c4f96bbccaf4c28a52",
+    "size": 43039,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/website/docs/developer-guide/context-compression-and-caching.md"
+  },
+  {
+    "path": "website/docs/developer-guide/subagent-lifecycle-api.md",
+    "sha": "7054afcdb7356a8da9966c1b1243085a26957a43",
+    "size": 2947,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/website/docs/developer-guide/subagent-lifecycle-api.md"
+  },
+  {
+    "path": "website/docs/developer-guide/creating-skills.md",
+    "sha": "51219596e479baced9d9e1e942682a6105661f2b",
+    "size": 20125,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/website/docs/developer-guide/creating-skills.md"
+  },
+  {
+    "path": "website/docs/user-guide/features/memory.md",
+    "sha": "dba1d42ae9aace4d77e72995ebe15eea9a348610",
+    "size": 29859,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/website/docs/user-guide/features/memory.md"
+  },
+  {
+    "path": "website/docs/user-guide/features/delegation.md",
+    "sha": "95c4268fea6da71a4e22157cb0eeea0c12818519",
+    "size": 50936,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/website/docs/user-guide/features/delegation.md"
+  },
+  {
+    "path": "website/docs/user-guide/security.md",
+    "sha": "f15a4cc4f306d015cc975073c0ff1b68db0812f9",
+    "size": 64253,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/website/docs/user-guide/security.md"
+  },
+  {
+    "path": "website/docs/getting-started/updating.md",
+    "sha": "cbd089c531b5d2d461c598113c0ba8eb0334df72",
+    "size": 42273,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/website/docs/getting-started/updating.md"
+  },
+  {
+    "path": "website/docs/developer-guide/context-engine-plugin.md",
+    "sha": "8ffc9822a03425565e4e05c79999f75cb71aa68d",
+    "size": 20317,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/website/docs/developer-guide/context-engine-plugin.md"
+  },
+  {
+    "path": "website/docs/developer-guide/source-update-completion.md",
+    "sha": "87221130b7918804b10fa02fb4b3607adcc79257",
+    "size": 5382,
+    "html_url": "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/website/docs/developer-guide/source-update-completion.md"
+  }
+]

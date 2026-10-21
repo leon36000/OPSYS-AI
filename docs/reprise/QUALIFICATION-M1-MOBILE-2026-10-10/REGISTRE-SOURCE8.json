@@ -1,0 +1,221 @@
+{
+  "observed_toronto": "2026-10-10T21:53:28.521145-04:00",
+  "status": "QUALIFIED_LOCAL_PREPARED_FOR_NORMAL_PRIVATE_COMMIT",
+  "product": "PARTIEL",
+  "base_HEAD": "31fc51edd7e7716b88a92b5ed05380ca4bd026ea",
+  "source_count": 8,
+  "records": [
+    {
+      "path": "departments/m01-front-office/src/m1_front_office/outils.py",
+      "origin": "Existing tracked source; bounded authorized correction",
+      "preimage_HEAD": "31fc51edd7e7716b88a92b5ed05380ca4bd026ea",
+      "preimage_SHA256": "b6a6d8ea22afbaf51abd029c7a6939d0f3d75e823aa05ca1c510fcbe1e8f3379",
+      "candidate_SHA256": "7794d0f6db7f2379faf347d984080ffdc5d032d9eb9a4a39c049c36205d4d2ae",
+      "mode": "0o644",
+      "integration_status": "QUALIFIED_LOCAL_IN_THIS_CANDIDATE; resulting HEAD recorded after commit in PR",
+      "owner_scope": "M1 voicemail V1/V2",
+      "verification": "Exact fresh R backend2317/5PG-blocks/0failure; 29voice+71transfer cases exercised; métier/Ruff4 exit0; independent Source4 and runtime readbacks",
+      "limit": "Fixture consent and SQLite only; no PBX/PG/device/HTTP or universal quota guarantee",
+      "evidence_files": [
+        "backend-root.json",
+        "backend-independent.md",
+        "python-source4-review.md"
+      ]
+    },
+    {
+      "path": "departments/m01-front-office/src/m1_front_office/transferts.py",
+      "origin": "Existing tracked source; bounded authorized correction",
+      "preimage_HEAD": "31fc51edd7e7716b88a92b5ed05380ca4bd026ea",
+      "preimage_SHA256": "eef978e529d6fd268ddbc4def70ae073c2c9105673a4888d3cebd85b52bfb41f",
+      "candidate_SHA256": "a1ccc86d5d1eee4eafd6f4be1e1d8c1b47453892ad9f69eb078ec362061c0d93",
+      "mode": "0o664",
+      "integration_status": "QUALIFIED_LOCAL_IN_THIS_CANDIDATE; resulting HEAD recorded after commit in PR",
+      "owner_scope": "M1 transfer read projection",
+      "verification": "Exact fresh R backend2317/5PG-blocks/0failure; 29voice+71transfer cases exercised; métier/Ruff4 exit0; independent Source4 and runtime readbacks",
+      "limit": "Fixture consent and SQLite only; no PBX/PG/device/HTTP or universal quota guarantee",
+      "evidence_files": [
+        "backend-root.json",
+        "backend-independent.md",
+        "python-source4-review.md"
+      ]
+    },
+    {
+      "path": "departments/m01-front-office/tests/test_import_appels_durable.py",
+      "origin": "Existing tracked source; bounded authorized correction",
+      "preimage_HEAD": "31fc51edd7e7716b88a92b5ed05380ca4bd026ea",
+      "preimage_SHA256": "58dd37f8d32c95ecd05ce3e1601610f42648d08e40b189f814bf8df2ddf53641",
+      "candidate_SHA256": "57cc944bb1ef1dacd799ab13b9e01125b54051c520add6bcac2876148875e6c7",
+      "mode": "0o644",
+      "integration_status": "QUALIFIED_LOCAL_IN_THIS_CANDIDATE; resulting HEAD recorded after commit in PR",
+      "owner_scope": "M1 voicemail V1/V2",
+      "verification": "Exact fresh R backend2317/5PG-blocks/0failure; 29voice+71transfer cases exercised; métier/Ruff4 exit0; independent Source4 and runtime readbacks",
+      "limit": "Fixture consent and SQLite only; no PBX/PG/device/HTTP or universal quota guarantee",
+      "evidence_files": [
+        "backend-root.json",
+        "backend-independent.md",
+        "python-source4-review.md"
+      ]
+    },
+    {
+      "path": "departments/m01-front-office/tests/test_outils_transfert.py",
+      "origin": "Existing tracked source; bounded authorized correction",
+      "preimage_HEAD": "31fc51edd7e7716b88a92b5ed05380ca4bd026ea",
+      "preimage_SHA256": "fbcf52c60dc05ac91cf3b3798be1cd4c36177ca97f565944180a52b4d14b5882",
+      "candidate_SHA256": "e514348ab9306235f804fd3b4ba22da41347f280396914a4fb272af4e249e8c5",
+      "mode": "0o664",
+      "integration_status": "QUALIFIED_LOCAL_IN_THIS_CANDIDATE; resulting HEAD recorded after commit in PR",
+      "owner_scope": "M1 transfer read projection",
+      "verification": "Exact fresh R backend2317/5PG-blocks/0failure; 29voice+71transfer cases exercised; métier/Ruff4 exit0; independent Source4 and runtime readbacks",
+      "limit": "Fixture consent and SQLite only; no PBX/PG/device/HTTP or universal quota guarantee",
+      "evidence_files": [
+        "backend-root.json",
+        "backend-independent.md",
+        "python-source4-review.md"
+      ]
+    },
+    {
+      "path": "mobile/src/admin/briefing.test.ts",
+      "origin": "Existing tracked source; bounded authorized correction",
+      "preimage_HEAD": "31fc51edd7e7716b88a92b5ed05380ca4bd026ea",
+      "preimage_SHA256": "50905519c4c394daafda944c5045898fe2773350be4e86892f45bc6fe023fb11",
+      "candidate_SHA256": "1e7d59f4759f5acb236b1a9c48e05574ae2a31d5c197e55293e36da4917dfe04",
+      "mode": "0o664",
+      "integration_status": "QUALIFIED_LOCAL_IN_THIS_CANDIDATE; resulting HEAD recorded after commit in PR",
+      "owner_scope": "Mobile Briefing authority cache",
+      "verification": "Exact mobile4 full5600/237/0failure/0skip, TSC exit0/lint4 exit0; Root and independent readback",
+      "limit": "No phone/Expo/process restart/server commit proof",
+      "evidence_files": [
+        "mobile-root.json",
+        "mobile-independent.md"
+      ]
+    },
+    {
+      "path": "mobile/src/admin/briefing.ts",
+      "origin": "Existing tracked source; bounded authorized correction",
+      "preimage_HEAD": "31fc51edd7e7716b88a92b5ed05380ca4bd026ea",
+      "preimage_SHA256": "47ff88e4bf6a9ed7235901e6e1a21c49e7333118614a9d8f2ed12f1aa0b77a26",
+      "candidate_SHA256": "01e0870f1c1fcadda1c4ac9e8a19ec06c98d20413dc7332d2cb00861d39a4f6f",
+      "mode": "0o664",
+      "integration_status": "QUALIFIED_LOCAL_IN_THIS_CANDIDATE; resulting HEAD recorded after commit in PR",
+      "owner_scope": "Mobile Briefing authority cache",
+      "verification": "Exact mobile4 full5600/237/0failure/0skip, TSC exit0/lint4 exit0; Root and independent readback",
+      "limit": "No phone/Expo/process restart/server commit proof",
+      "evidence_files": [
+        "mobile-root.json",
+        "mobile-independent.md"
+      ]
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireControle.test.ts",
+      "origin": "Existing tracked source; bounded authorized correction",
+      "preimage_HEAD": "31fc51edd7e7716b88a92b5ed05380ca4bd026ea",
+      "preimage_SHA256": "c12797178374232a0b99096f1d09a8efdcd7339f8bcf4e01153c2d8f364625a0",
+      "candidate_SHA256": "a8660796c5a28310f11f6a84cd63a59b504bd97a2564c681e1f4f50420a8ac27",
+      "mode": "0o644",
+      "integration_status": "QUALIFIED_LOCAL_IN_THIS_CANDIDATE; resulting HEAD recorded after commit in PR",
+      "owner_scope": "Mobile M10 contradictory selection",
+      "verification": "Exact mobile4 full5600/237/0failure/0skip, TSC exit0/lint4 exit0; Root and independent readback",
+      "limit": "No phone/Expo/process restart/server commit proof",
+      "evidence_files": [
+        "mobile-root.json",
+        "mobile-independent.md"
+      ]
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireControle.ts",
+      "origin": "Existing tracked source; bounded authorized correction",
+      "preimage_HEAD": "31fc51edd7e7716b88a92b5ed05380ca4bd026ea",
+      "preimage_SHA256": "4da5f0ac9694e016e661537f9619cef172b39daa9d5d323847e785931ce5f0ea",
+      "candidate_SHA256": "e2582e6ffe09c60279921986888fd3cef4058fbebb395c48fe4933b155bdcd6c",
+      "mode": "0o644",
+      "integration_status": "QUALIFIED_LOCAL_IN_THIS_CANDIDATE; resulting HEAD recorded after commit in PR",
+      "owner_scope": "Mobile M10 contradictory selection",
+      "verification": "Exact mobile4 full5600/237/0failure/0skip, TSC exit0/lint4 exit0; Root and independent readback",
+      "limit": "No phone/Expo/process restart/server commit proof",
+      "evidence_files": [
+        "mobile-root.json",
+        "mobile-independent.md"
+      ]
+    }
+  ],
+  "omissions": [
+    {
+      "item": "F22 future StageA4/R0/policy/context changes",
+      "disposition": "Different checkout, not integrated or credited by current R proof"
+    },
+    {
+      "item": "104 excluded pack proofs/full supplement/absent chats",
+      "disposition": "Unavailable or unknown; references retained; no recreated historical proof"
+    },
+    {
+      "item": "Production/merge/force push/deployment",
+      "disposition": "Outside this continuation; private branch normal push only"
+    },
+    {
+      "item": "New exact commit CI",
+      "disposition": "Pending publication; CI parent31 is historical only and explicitly does not qualify this Source8"
+    }
+  ],
+  "selected_evidence": {
+    "backend-root.json": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-M10-CURRENT8-BACKEND-20261010-r1/ROOT-FINAL-READBACK-r1.json",
+      "SHA256": "0e4f38c37dec1ee15dedf3eccb8fcfe653c9dbc972e49b1fe59963f8dc00a6eb",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "backend-independent.md": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-M10-CURRENT8-BACKEND-INDEPENDENT-READBACK-20261010-r1/RAPPORT-FINAL-r1.md",
+      "SHA256": "cafd2940efc7c0b42dca480febddbb147e8d29bd888a5e871644cbb262a2f09d",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "backend-independent.json": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-M10-CURRENT8-BACKEND-INDEPENDENT-READBACK-20261010-r1/FINAL-READBACK-r1.json",
+      "SHA256": "c0e687e42b64e72bf49ad501b99ed0a17f380fef02e34822c0bdba241a418912",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "mobile-root.json": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/MOBILE-M10-BRIEFING-COMMON-QUALIFICATION-20261010-r1/ROOT-FINAL-READBACK-r3.json",
+      "SHA256": "1eaca19a28a8975b71a16ff079dbe5268612444676c51e6259228f7cc5c05b57",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "mobile-independent.md": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/MOBILE-M10-BRIEFING-COMMON-INDEPENDENT-READBACK-20261010-r1/RAPPORT-r1.md",
+      "SHA256": "5133cf1f3c7b382989e9b2deded0f4373604ece392eff739ac160ad11e9c9c63",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "voicemail-report.md": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-VOICEMAIL-DIRECT-IMPLEMENTATION-20261010-r1/PUBLIC-r1/REPORT-r1.md",
+      "SHA256": "6f95b5148450cd3cb2c6f056345bc3f555013e03e9a59ce4a6696a2c683b1143",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "transfert-report.md": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-TRANSFERT-OUTPUT-BOUND-IMPLEMENTATION-20261010-r1/PUBLIC-r1/REPORT-r1.md",
+      "SHA256": "7825a77a8a768a690521f11239ed4e044bdf27d9703f232db4cfd3a7b0af69e5",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "python-source4-review.md": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-VOICEMAIL-TRANSFERT-SOURCE4-INDEPENDENT-REVIEW-20261010-r1/RAPPORT-r1.md",
+      "SHA256": "c5efe876f7848cb55b395b4d9381f1473b56213a11f83876c75d0eaa7da4690c",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "briefing-report.md": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/MOBILE-BRIEFING-AUTHORITY-CACHE-20261010-r1/PUBLIC-r2/RAPPORT-r2.md",
+      "SHA256": "99e2c910c28d4c27abe6143cf5899a91ce18ecacd851a31ad5d3f69acd87eacb",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "m10-report.md": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/MOBILE-M10-CONTRADICTORY-SELECTION-20261010-r1/PUBLIC-r1/RAPPORT-r1.md",
+      "SHA256": "4532c733ba5db3cf654d96c8157713dd2b917b2061f1d636f93db1f8e4b2467c",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "ci-parent-31fc51e.json": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/CURRENT18-PUBLICATION-PREPARATION-20261010-r1/CI-31fc51e-FINAL-r1.json",
+      "SHA256": "8826f4609a445d8099503a935ad09722bc4b33daf317e0aeb5d7687fc50c25d2",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    },
+    "model-closed-nonqual.json": {
+      "origin": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/SMS-P0-SHORT-DECISION-CLOSED-DIAGNOSTIC-20261010-r3/DIAGNOSTIC-r1.json",
+      "SHA256": "d026b809ff37d962880c33569cd5b0baca0af7101c406817fdffd0617cb94a93",
+      "availability": "Byte-exact selected receipt/report included here; full logs retained separately in workspace"
+    }
+  }
+}

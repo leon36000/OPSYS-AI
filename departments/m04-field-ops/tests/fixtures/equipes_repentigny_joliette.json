@@ -1,0 +1,115 @@
+{
+  "fictif": true,
+  "avertissement": "Données FICTIVES (T4.12) : la démonstration Repentigny-Joliette de T4.1-d (`scenario_cedule_repentigny_joliette.json`) réécrite comme PROFIL DES ÉQUIPES : mêmes équipes, dépôts, quart, durées, compétences, réglages et fenêtre, un service propre par ancien type de travaux. Les personnes, les équipes et les valeurs sont inventées ; le test `test_le_profil_est_la_demonstration_de_t4_1_d_reecrite` vérifie qu'aucun chiffre n'a dérivé du scénario.",
+  "services_propres": [
+    {
+      "code": "autre",
+      "libelle": "Autre travail (fictif)"
+    },
+    {
+      "code": "extension",
+      "libelle": "Extension (fictif)"
+    },
+    {
+      "code": "isolation_thermique",
+      "libelle": "Isolation thermique (fictif)"
+    },
+    {
+      "code": "ravalement",
+      "libelle": "Ravalement (fictif)"
+    },
+    {
+      "code": "renovation_totale",
+      "libelle": "Rénovation totale (fictif)"
+    }
+  ],
+  "profil": {
+    "liste": [
+      {
+        "id": "eq-a",
+        "membres": [
+          "luc.fictif",
+          "marc.fictif"
+        ],
+        "competences": [
+          "gouttieres",
+          "revetement"
+        ],
+        "depot": {
+          "id": "depot-repentigny",
+          "latitude_microdegres": 45735000,
+          "longitude_microdegres": -73455000
+        },
+        "quarts": [
+          {
+            "jour": 0,
+            "debut_min": 480,
+            "fin_min": 1020
+          }
+        ]
+      },
+      {
+        "id": "eq-b",
+        "membres": [
+          "nadia.fictif"
+        ],
+        "competences": [
+          "gouttieres",
+          "revetement"
+        ],
+        "depot": {
+          "id": "depot-joliette",
+          "latitude_microdegres": 46015000,
+          "longitude_microdegres": -73445000
+        },
+        "quarts": [
+          {
+            "jour": 0,
+            "debut_min": 480,
+            "fin_min": 1020
+          }
+        ]
+      }
+    ],
+    "services": {
+      "autre": {
+        "duree_min": 90,
+        "competences": [
+          "gouttieres"
+        ]
+      },
+      "extension": {
+        "duree_min": 150,
+        "competences": []
+      },
+      "isolation_thermique": {
+        "duree_min": 100,
+        "competences": []
+      },
+      "ravalement": {
+        "duree_min": 120,
+        "competences": [
+          "revetement"
+        ]
+      },
+      "renovation_totale": {
+        "duree_min": 180,
+        "competences": []
+      }
+    },
+    "cedule": {
+      "facteur_detour_milliemes": 1300,
+      "vitesse_moyenne_kmh": 50,
+      "marge_par_trajet_secondes": 600,
+      "iterations": 500,
+      "cout_non_cedule_m": 500000
+    },
+    "fenetre_par_defaut": {
+      "jours": [
+        0
+      ],
+      "debut_min": 480,
+      "fin_min": 1020
+    }
+  }
+}

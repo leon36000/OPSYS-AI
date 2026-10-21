@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m8.alerte_proposee",
+  "title": "M8 — Alerte de qualité proposée",
+  "description": "Émis par M8 (departments/m08-analytics/src/m8_analytics/outils.py::_publier_alerte_proposee, appelé depuis m8_evaluer_qualite_metrique) pour chaque AlerteProposee que m8_analytics.alertes.proposer_action construit (DEFINITION-PRODUIT.md §7 M8.9 : « chaque alerte propose une action »). PLAN T3.2 (M9, briefing du matin) : préférence explicite pour un événement publié plutôt qu'une lecture directe du registre M8 par M9 — M8 ne décide toujours rien et n'exécute jamais l'action proposée ; il publie seulement le FAIT qu'une alerte a été proposée, à qui, et pourquoi. evenement_id est déterministe (metric_id + type_alerte + horodatage_reference) : une réévaluation identique (même métrique, même verdict, même horodatage_reference) republie le même id, donc un no-op de l'outbox (ADR-0009 §3) — jamais un doublon pour la même alerte le même jour de référence. Toutes les propriétés sont REQUISES même quand leur valeur est structurée (sauf action_proposee, optionnelle) : un consommateur ne doit jamais deviner un champ absent. PLAN T1.5-d (extension additive : toute charge valide avant reste valide) : deux types s'ajoutent, produits par les mesures de chantier de M8 (mesures_chantier.py) — MESURE-SEUIL-FRANCHI (une mesure d'un chantier terminé atteint le seuil configuré dans department.yaml de M8) et MESURE-SEUIL-A-CONFIGURER (une mesure calculée n'a aucun seuil valide : M8 n'alerte pas et dit quoi configurer). Pour ces deux types horodatage_reference est l'instant du chantier (horodatage_completion du WCT), pas celui d'une évaluation du jour.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "description": "outils.py : f'm8-alerte-{metric_id}-{type_alerte}-{horodatage_reference}' — clé primaire globale du bus. Répété ici (comme pour m6.variance_chantier) pour que le consommateur trace la base de sa décision sans relire evenements_sortants."
+    },
+    "metric_id": {
+      "type": "string",
+      "description": "Métrique évaluée par m8_evaluer_qualite_metrique (registre durable des définitions, T3.1)."
+    },
+    "type_alerte": {
+      "type": "string",
+      "enum": ["REJ-QUALITE-DONNEE-ABSENTE", "REJ-QUALITE-DONNEE-INVALIDE", "REJ-QUALITE-DONNEE-PERIMEE", "REJ-QUALITE-HORS-PLAGE", "MESURE-SEUIL-FRANCHI", "MESURE-SEUIL-A-CONFIGURER"],
+      "description": "Verdict m8_analytics.qualite.py à l'origine de l'alerte (VERDICT_DONNEE_ABSENTE, VERDICT_DONNEE_PERIMEE, VERDICT_HORS_PLAGE) — les trois premiers sont les seuls que m8_analytics.alertes.proposer_action sait transformer en action proposée ; les deux derniers (T1.5-d) viennent de m8_analytics.mesures_chantier.charges_alertes."
+    },
+    "quoi": {
+      "type": "string",
+      "description": "m8_analytics.alertes.proposer_action : le fait observé (ex. « Valeur périmée pour m4_duree_reelle_minutes. »), jamais une cause."
+    },
+    "a_qui": {
+      "type": "string",
+      "description": "Département propriétaire suggéré (definition['departement_proprietaire'] du registre de métriques) — M8 NOMME un destinataire, n'appelle et ne notifie personne lui-même."
+    },
+    "pourquoi": {
+      "type": "string",
+      "description": "La règle ou le seuil franchi, chiffré (ex. « âge observé 10.00 jours > fraîcheur attendue 2 jours. ») — jamais une cause métier ni un responsable (conformite.verifier_aucune_cause_signalee, appliqué aux DEUX départements)."
+    },
+    "preuve": {
+      "description": "m8_analytics.alertes.proposer_action : le détail chiffré à l'appui de pourquoi, une forme par type_alerte — jamais un mélange, jamais un champ inventé pour un verdict qui ne le produit pas.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "n"],
+          "properties": {
+            "metric_id": {"type": "string"},
+            "n": {"type": "integer", "description": "Taille d'échantillon observée (0 pour REJ-QUALITE-DONNEE-ABSENTE)."}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "fraicheur_jours", "fraicheur_attendue_jours"],
+          "properties": {
+            "metric_id": {"type": "string"},
+            "fraicheur_jours": {"type": "number"},
+            "fraicheur_attendue_jours": {"type": "number"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "n", "valeurs_invalides"],
+          "description": "REJ-QUALITE-DONNEE-INVALIDE : les observations non convertibles en nombre fini ou mal typées sont exclues; aucune n'est acceptée comme mesure.",
+          "properties": {
+            "metric_id": {"type": "string"},
+            "n": {"type": "integer", "minimum": 0, "description": "Nombre d'observations finies conservées pour contrôle."},
+            "valeurs_invalides": {"type": "integer", "minimum": 1, "description": "Nombre d'observations non numériques, mal typées, NaN ou infinies refusées."}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "valeur", "plage_min", "plage_max"],
+          "properties": {
+            "metric_id": {"type": "string"},
+            "valeur": {"type": "number"},
+            "plage_min": {"type": ["number", "null"]},
+            "plage_max": {"type": ["number", "null"]}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "wct_id", "valeur", "unite", "sens", "seuil", "version_definition"],
+          "description": "MESURE-SEUIL-FRANCHI (T1.5-d) : la mesure calculée d'un chantier et le seuil configuré qu'elle atteint. valeur et seuil sont des textes décimaux à deux décimales (jamais un nombre JSON), dans unite.",
+          "properties": {
+            "metric_id": {"type": "string"},
+            "wct_id": {"type": "string", "description": "Chantier mesuré (WCT de m4.travaux_termines)."},
+            "valeur": {"type": "string", "pattern": "^-?[0-9]+\\.[0-9]{2}$"},
+            "unite": {"type": "string"},
+            "sens": {"type": "string", "enum": ["au_dessus", "au_dessous"], "description": "au_dessus : la valeur atteint ou dépasse le seuil ; au_dessous : elle l'atteint ou passe sous."},
+            "seuil": {"type": "string", "pattern": "^-?[0-9]+\\.[0-9]{2}$"},
+            "version_definition": {"type": "string", "description": "Empreinte de la définition gouvernée de la métrique (metrics/m8-metrics.v1.yaml) qui a produit la valeur."}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "manque"],
+          "description": "MESURE-SEUIL-A-CONFIGURER (T1.5-d) : ce qui manque pour qu'une alerte soit possible.",
+          "properties": {
+            "metric_id": {"type": "string"},
+            "manque": {"type": "string", "enum": ["seuil", "seuil_invalide"], "description": "seuil : aucun seuil configuré ; seuil_invalide : présent mais inutilisable (sens ou valeur)."}
+          }
+        }
+      ]
+    },
+    "action_proposee": {
+      "type": "string",
+      "description": "OPTIONNEL (T1.5-d) — l'action que M8 propose (DEFINITION-PRODUIT.md §7 M8.9 : « chaque alerte propose une action »), un texte de gabarit sans cause ni responsable. M8 ne l'exécute jamais et M9 la relaie sans la décider. Présente pour MESURE-SEUIL-FRANCHI et MESURE-SEUIL-A-CONFIGURER."
+    },
+    "source": {
+      "type": "string",
+      "description": "definition['source'] du registre de métriques (T3.1) : provenance déclarée de la définition évaluée, portée telle quelle."
+    },
+    "horodatage_reference": {
+      "type": "string",
+      "description": "Instant de référence RFC 3339 fourni à m8_evaluer_qualite_metrique (M8 n'a pas d'horloge) — jamais l'instant de publication. C'est le jour que le briefing du matin de M9 compare à sa propre date de référence pour retenir ou écarter l'alerte (PLAN T3.2)."
+    }
+  },
+  "required": [
+    "evenement_id",
+    "metric_id",
+    "type_alerte",
+    "quoi",
+    "a_qui",
+    "pourquoi",
+    "preuve",
+    "source",
+    "horodatage_reference"
+  ]
+}

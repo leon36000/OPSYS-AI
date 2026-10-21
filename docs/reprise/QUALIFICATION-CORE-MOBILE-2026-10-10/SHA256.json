@@ -1,0 +1,17 @@
+{
+  "files": {
+    "README.md": "1d2d32894fb80745dca35742260c653a5a75c5a7b86bc997ac0a8c722dc3766b",
+    "SOURCE18-REGISTRE.json": "6ad778e1e6f0522cbe69f0fae8a9600216646198b52e5d94dfaaad10ed7d239e",
+    "core-full-build-independent.md": "07b636c210c4693523a7f8b3ea3e48b355107154199569ea97eb83eb5f3bb1f8",
+    "core-full-build-readback.json": "7bc2fc5eb000e362a59387275f1a73840b17e58b5ee835b277e2117a96efb4e2",
+    "core-local-timeout-independent.md": "739673f91e8b2f34b7dc41c27ff6d81b4079459c3621f4696357f94eb5d4a3cd",
+    "core-styles-readback.json": "c1cad61dfe8a8eeaa9fb8271862e8cb36faac909a0d806126e8777a5170dc64e",
+    "core-tests-readback.json": "22333e6423c898cdff665a3f3662517586a0b2cd3a7609248ceef4d26cce8fe6",
+    "core-types-readback.json": "91eb083fd1cb26702b99c51aca62fb7b35c11e4848e361da1618d88a2401e5a8",
+    "mobile-claude-ownership-disposition.md": "fd9c84c42aa16cd2b26f349a9998754f337ba62d05a2fb41a11550deea0bf64d",
+    "mobile-full-readback.json": "8c9cf71b58f0bfbc7a4ffd8c75054e8bd54658d61b4c60cc9fd4fcb61ba8543c",
+    "mobile-ownership-independent.md": "333ddeaf7362447b25e9b25c34a8699990c7966c26d8e56232a0e2c1f2e2f12a",
+    "mobile-ownership-targeted-receipt.json": "acbde45d10afb67d448d1719c9050cdbf42961c79f7cc93342d601d323bd8de9"
+  },
+  "scope": "12 selected audit members; manifest itself excluded; complete local capsules referenced separately"
+}

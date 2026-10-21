@@ -1,0 +1,63 @@
+{
+  "time_toronto": "2026-10-10T11:01:05.295057-04:00",
+  "product_status": "PARTIEL",
+  "baseline": "c781c4e3770f9a289a5309d35794e2a831656c91",
+  "scope": "candidate continuation PR privée, production non déployée",
+  "paths": [
+    {
+      "path": "src/opsys/capacites.py",
+      "sha256": "8e1ff7e6a84bf3f4a8a7fde2da0b3965d77ece1c6b962212f75b0465a91c2356",
+      "preimage_sha256": "4dc3ef91a297910aa85b4716d3aee3126b5a349b21e3747659a9200a26144f4a",
+      "origin": "F22 isolated worktree from c781; exact preimage and real TDD",
+      "integration": "candidate qualifié localement pour continuation privée",
+      "verification": "194 fresh tests/Ruff3 zero; four Cap/SDK windows49 unchanged; Root full diff read/public47 rehash",
+      "limits": "Native original RED preserved; new exact CI/native pending"
+    },
+    {
+      "path": "tests/test_documents_affaire_lecture_cap_appareil.py",
+      "sha256": "1845c08ff5e12ef300e1cbbc858f209dca9cb35b35824f7e83dfc3fbc7ac70b2",
+      "preimage_sha256": "6191af1ecf3e70b8ba4261dfdda28983fbbe41cbdde2e06b4f046010894aa277",
+      "origin": "F22 isolated worktree from c781; exact preimage and real TDD",
+      "integration": "candidate qualifié localement pour continuation privée",
+      "verification": "194 fresh tests/Ruff3 zero; four Cap/SDK windows49 unchanged; Root full diff read/public47 rehash",
+      "limits": "Native original RED preserved; new exact CI/native pending"
+    },
+    {
+      "path": "tests/test_documents_affaire_lecture_mcp_appareil.py",
+      "sha256": "36d7b7e562ed84e470f7ada860439a61b2c5cfe715a6534008a7f21ead7c0f26",
+      "preimage_sha256": "3fbc3b9b50315352e11b802bc9fad35cc8899d5fc33b7b7e4dfe2de4d0d0dfa9",
+      "origin": "F22 isolated worktree from c781; exact preimage and real TDD",
+      "integration": "candidate qualifié localement pour continuation privée",
+      "verification": "194 fresh tests/Ruff3 zero; four Cap/SDK windows49 unchanged; Root full diff read/public47 rehash",
+      "limits": "Native original RED preserved; new exact CI/native pending"
+    }
+  ],
+  "omissions": [
+    {
+      "item": "original native scenario remainder",
+      "disposition": "Not reached after index-vide refusal; no success claimed"
+    },
+    {
+      "item": "104 excluded proofs/full supplement/absent conversations",
+      "disposition": "Unavailable or unknown, not reconstructed"
+    },
+    {
+      "item": "M1 Source pending",
+      "disposition": "Separate local worktrees and leases; not included"
+    },
+    {
+      "item": "whole Core typing",
+      "disposition": "Not qualified; previous bounded stops preserved"
+    },
+    {
+      "item": "production/phone/real bank/financial PG",
+      "disposition": "Not executed"
+    }
+  ],
+  "proofs": {
+    "native_diagnostic_manifest": "05540c879b7b7550e427e108fdb0ae60c559f42ed7388727b45bedc7b1c8065e",
+    "local_source3_manifest": "52402c0f545fb16abe8dc7cbc892b140c036fe0d03f9335eaaa237033db3e473",
+    "local_receipt": "7a6968bfb11b8d68d4a14ae7a9ce43f41d9ab3bc61a57507e83f316173670c16"
+  },
+  "self_integrity": "Enclosing Git revision and Root publication readback; no fabricated self SHA"
+}

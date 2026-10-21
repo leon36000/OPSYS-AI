@@ -1,0 +1,189 @@
+{
+  "fictif": true,
+  "purpose": "Native legacy accepted result with zero proposals; not payment",
+  "request_mapped_only": {
+    "mutation_id": "9c4f50d6-dff7-4d5f-94a5-850c87984126",
+    "compte_interne_id": "compte-fictif-01",
+    "devise": "CAD",
+    "mapping_colonnes": {
+      "date": "Date",
+      "montant": "Montant",
+      "reference_facture": "Facture"
+    },
+    "csv_utf8": "Date,Montant,Facture\n2026-09-30,10.00,FAC-AR-001\n"
+  },
+  "source_snapshot_cad_strings": {
+    "version": 4,
+    "empreinte": "652fa74eb69a0a3106b484e60ae025fc7d282c3de80ce51e05ef235d526c8d5a",
+    "total_complet": true,
+    "factures": [
+      {
+        "facture_id": "FAC-AR-001",
+        "montant_apres_taxes": "100.00"
+      },
+      {
+        "facture_id": "FAC-AR-002",
+        "montant_apres_taxes": "200.00"
+      }
+    ]
+  },
+  "http_first": {
+    "status": 200,
+    "json": {
+      "ok": true,
+      "resultat": {
+        "accepte": true,
+        "resultat": {
+          "statut": "AUCUNE_PROPOSITION",
+          "compte_interne_id": "compte-fictif-01",
+          "devise": "CAD",
+          "lot_id": "710d86bd33b76d7a30590d64fc12a1a295e01514924314e582770e9eea719c12",
+          "source_csv": {
+            "sha256": "420bceaa347920f4b6abc723d0d58de05abfd5a4eb148d1fc67a60da47866371",
+            "octets": 49,
+            "lignes": 1
+          },
+          "source_factures": {
+            "version": 4,
+            "empreinte": "652fa74eb69a0a3106b484e60ae025fc7d282c3de80ce51e05ef235d526c8d5a",
+            "empreinte_vue": "273151e9d5343b3c80115ee7c9245c2f8778183316e03afba3ac4ca08eba7858"
+          },
+          "lignes": [
+            {
+              "numero": 2,
+              "date": "2026-09-30",
+              "montant": "10.00",
+              "reference_facture": "FAC-AR-001",
+              "statut_rapprochement": "PAIEMENT_PARTIEL_NON_SUPPORTE",
+              "facture_id": "FAC-AR-001",
+              "montant_du": "100.00"
+            }
+          ],
+          "propositions": [],
+          "limites": [
+            "Rapprochement proposé seulement : aucune facture, aucun mouvement ni solde n'est modifié",
+            "La référence doit être le facture_id M5 exact et le montant doit égaler le dû complet",
+            "Partiels, splits, frais, frais bancaires et associations par montant seul ne sont pas pris en charge",
+            "L'adaptateur doit fournir une vue M5 complète et vérifier son intégrité avant cet appel",
+            "La provenance bancaire, les dépôts et l'identité du compte doivent être vérifiés par un humain"
+          ]
+        }
+      }
+    }
+  },
+  "http_same_uuid_replay": {
+    "status": 200,
+    "json": {
+      "ok": true,
+      "resultat": {
+        "accepte": true,
+        "resultat": {
+          "statut": "AUCUNE_PROPOSITION",
+          "compte_interne_id": "compte-fictif-01",
+          "devise": "CAD",
+          "lot_id": "710d86bd33b76d7a30590d64fc12a1a295e01514924314e582770e9eea719c12",
+          "source_csv": {
+            "sha256": "420bceaa347920f4b6abc723d0d58de05abfd5a4eb148d1fc67a60da47866371",
+            "octets": 49,
+            "lignes": 1
+          },
+          "source_factures": {
+            "version": 4,
+            "empreinte": "652fa74eb69a0a3106b484e60ae025fc7d282c3de80ce51e05ef235d526c8d5a",
+            "empreinte_vue": "273151e9d5343b3c80115ee7c9245c2f8778183316e03afba3ac4ca08eba7858"
+          },
+          "lignes": [
+            {
+              "numero": 2,
+              "date": "2026-09-30",
+              "montant": "10.00",
+              "reference_facture": "FAC-AR-001",
+              "statut_rapprochement": "PAIEMENT_PARTIEL_NON_SUPPORTE",
+              "facture_id": "FAC-AR-001",
+              "montant_du": "100.00"
+            }
+          ],
+          "propositions": [],
+          "limites": [
+            "Rapprochement proposé seulement : aucune facture, aucun mouvement ni solde n'est modifié",
+            "La référence doit être le facture_id M5 exact et le montant doit égaler le dû complet",
+            "Partiels, splits, frais, frais bancaires et associations par montant seul ne sont pas pris en charge",
+            "L'adaptateur doit fournir une vue M5 complète et vérifier son intégrité avant cet appel",
+            "La provenance bancaire, les dépôts et l'identité du compte doivent être vérifiés par un humain"
+          ]
+        }
+      },
+      "rejoue": true
+    }
+  },
+  "pure_verdict": null,
+  "native_sql_seed": {
+    "factures_rows": [
+      {
+        "departement": "m05-financecore",
+        "registre": "factures",
+        "rang": 0,
+        "maillon": "{\"type_entree\":\"facture_creee\",\"facture_id\":\"FAC-AR-001\",\"statut\":\"BROUILLON\",\"montant_apres_taxes\":{\"__opsys__\":\"decimal\",\"v\":\"100.00\"},\"horodatage\":\"2026-09-29T12:00:00+00:00\",\"ligne_id\":\"4c87454b86294a0ddff0056e290981bcb0d67bdab628b19640abe53afad6c811\",\"precedent_ligne_id\":null}",
+        "cree_le": "2026-10-10 05:10:53"
+      },
+      {
+        "departement": "m05-financecore",
+        "registre": "factures",
+        "rang": 2,
+        "maillon": "{\"type_entree\":\"facture_creee\",\"facture_id\":\"FAC-AR-002\",\"statut\":\"BROUILLON\",\"montant_apres_taxes\":{\"__opsys__\":\"decimal\",\"v\":\"200.00\"},\"horodatage\":\"2026-09-29T12:00:00+00:00\",\"ligne_id\":\"4fb254ad4187ca79457b9c9c85a3ac1c51919ddfdebcceaa2f5761100b254d04\",\"precedent_ligne_id\":\"0646300126cbae158008f11265ff301760467c8152f537403bbd65c13381d048\"}",
+        "cree_le": "2026-10-10 05:10:53"
+      },
+      {
+        "departement": "m05-financecore",
+        "registre": "factures",
+        "rang": 1,
+        "maillon": "{\"type_entree\":\"transition_facture\",\"facture_id\":\"FAC-AR-001\",\"statut\":\"ENVOYEE\",\"date_envoi\":\"2026-09-29T12:00:00+00:00\",\"horodatage\":\"2026-09-29T12:00:00+00:00\",\"ligne_id\":\"0646300126cbae158008f11265ff301760467c8152f537403bbd65c13381d048\",\"precedent_ligne_id\":\"4c87454b86294a0ddff0056e290981bcb0d67bdab628b19640abe53afad6c811\"}",
+        "cree_le": "2026-10-10 05:10:53"
+      },
+      {
+        "departement": "m05-financecore",
+        "registre": "factures",
+        "rang": 3,
+        "maillon": "{\"type_entree\":\"transition_facture\",\"facture_id\":\"FAC-AR-002\",\"statut\":\"ENVOYEE\",\"date_envoi\":\"2026-09-29T12:00:00+00:00\",\"horodatage\":\"2026-09-29T12:00:00+00:00\",\"ligne_id\":\"652fa74eb69a0a3106b484e60ae025fc7d282c3de80ce51e05ef235d526c8d5a\",\"precedent_ligne_id\":\"4fb254ad4187ca79457b9c9c85a3ac1c51919ddfdebcceaa2f5761100b254d04\"}",
+        "cree_le": "2026-10-10 05:10:53"
+      }
+    ],
+    "journal": [
+      {
+        "action": "console.rapprochement_bancaire.propose",
+        "cible": "710d86bd33b76d7a30590d64fc12a1a295e01514924314e582770e9eea719c12",
+        "details": "{\"sha256_csv\": \"420bceaa347920f4b6abc723d0d58de05abfd5a4eb148d1fc67a60da47866371\", \"sha256_mapping\": \"c6b702755bade9aac4a27be0888affb9ed0b4d545147c067550210e2ad88b109\", \"empreinte_factures\": \"652fa74eb69a0a3106b484e60ae025fc7d282c3de80ce51e05ef235d526c8d5a\", \"empreinte_vue\": \"273151e9d5343b3c80115ee7c9245c2f8778183316e03afba3ac4ca08eba7858\", \"lignes\": 1, \"propositions\": 0}",
+        "id": 1,
+        "par": "owner-banque-fictif",
+        "quand": "2026-10-10T05:10:53+00:00"
+      }
+    ],
+    "mutations_appliquees": [
+      {
+        "appareil": "console:owner-banque-fictif",
+        "cle_idempotence": "9c4f50d6-dff7-4d5f-94a5-850c87984126",
+        "empreinte_arguments": "c049c544577e5d5235ecfb78649f9690177f23630e7727bdd5856cd352bc5eb1",
+        "horodatage_appareil": "2026-10-10T05:10:53.546179+00:00",
+        "outil": "console_rapprochement_bancaire",
+        "recu_le": "2026-10-10T05:10:53+00:00",
+        "reponse": "{\"ok\":true,\"resultat\":{\"accepte\":true,\"resultat\":{\"statut\":\"AUCUNE_PROPOSITION\",\"compte_interne_id\":\"compte-fictif-01\",\"devise\":\"CAD\",\"lot_id\":\"710d86bd33b76d7a30590d64fc12a1a295e01514924314e582770e9eea719c12\",\"source_csv\":{\"sha256\":\"420bceaa347920f4b6abc723d0d58de05abfd5a4eb148d1fc67a60da47866371\",\"octets\":49,\"lignes\":1},\"source_factures\":{\"version\":4,\"empreinte\":\"652fa74eb69a0a3106b484e60ae025fc7d282c3de80ce51e05ef235d526c8d5a\",\"empreinte_vue\":\"273151e9d5343b3c80115ee7c9245c2f8778183316e03afba3ac4ca08eba7858\"},\"lignes\":[{\"numero\":2,\"date\":\"2026-09-30\",\"montant\":\"10.00\",\"reference_facture\":\"FAC-AR-001\",\"statut_rapprochement\":\"PAIEMENT_PARTIEL_NON_SUPPORTE\",\"facture_id\":\"FAC-AR-001\",\"montant_du\":\"100.00\"}],\"propositions\":[],\"limites\":[\"Rapprochement proposé seulement : aucune facture, aucun mouvement ni solde n'est modifié\",\"La référence doit être le facture_id M5 exact et le montant doit égaler le dû complet\",\"Partiels, splits, frais, frais bancaires et associations par montant seul ne sont pas pris en charge\",\"L'adaptateur doit fournir une vue M5 complète et vérifier son intégrité avant cet appel\",\"La provenance bancaire, les dépôts et l'identité du compte doivent être vérifiés par un humain\"]}}}",
+        "statut": "ok"
+      }
+    ],
+    "registres_maillons": [
+      {
+        "cree_le": "2026-10-10 05:10:53",
+        "departement": "m05-financecore",
+        "maillon": "{\"type_entree\":\"rapprochement_bancaire_propose\",\"lot_id\":\"710d86bd33b76d7a30590d64fc12a1a295e01514924314e582770e9eea719c12\",\"auteur\":\"owner-banque-fictif\",\"cree_le\":\"2026-10-10T05:10:53+00:00\",\"sha256_mapping\":\"c6b702755bade9aac4a27be0888affb9ed0b4d545147c067550210e2ad88b109\",\"resultat\":{\"statut\":\"AUCUNE_PROPOSITION\",\"compte_interne_id\":\"compte-fictif-01\",\"devise\":\"CAD\",\"lot_id\":\"710d86bd33b76d7a30590d64fc12a1a295e01514924314e582770e9eea719c12\",\"source_csv\":{\"sha256\":\"420bceaa347920f4b6abc723d0d58de05abfd5a4eb148d1fc67a60da47866371\",\"octets\":49,\"lignes\":1},\"source_factures\":{\"version\":4,\"empreinte\":\"652fa74eb69a0a3106b484e60ae025fc7d282c3de80ce51e05ef235d526c8d5a\",\"empreinte_vue\":\"273151e9d5343b3c80115ee7c9245c2f8778183316e03afba3ac4ca08eba7858\"},\"lignes\":[{\"numero\":2,\"date\":\"2026-09-30\",\"montant\":\"10.00\",\"reference_facture\":\"FAC-AR-001\",\"statut_rapprochement\":\"PAIEMENT_PARTIEL_NON_SUPPORTE\",\"facture_id\":\"FAC-AR-001\",\"montant_du\":\"100.00\"}],\"propositions\":[],\"limites\":[\"Rapprochement proposé seulement : aucune facture, aucun mouvement ni solde n'est modifié\",\"La référence doit être le facture_id M5 exact et le montant doit égaler le dû complet\",\"Partiels, splits, frais, frais bancaires et associations par montant seul ne sont pas pris en charge\",\"L'adaptateur doit fournir une vue M5 complète et vérifier son intégrité avant cet appel\",\"La provenance bancaire, les dépôts et l'identité du compte doivent être vérifiés par un humain\"]},\"ligne_id\":\"e913a827093c6a8c24a19301054563f20b37464f8237906c55c7665361bcb838\",\"precedent_ligne_id\":null}",
+        "rang": 0,
+        "registre": "rapprochements_bancaires_proposes"
+      }
+    ]
+  },
+  "requirements_for_future_seed": [
+    "Migrate native schema; recreate authorized fictitious owner and configured account separately",
+    "Preserve native SQL text fields, keys, ranks, timestamps and hashes exactly",
+    "No identity rows, login credentials, session state or authentication material included",
+    "This capture does not qualify restoration or process restart"
+  ]
+}

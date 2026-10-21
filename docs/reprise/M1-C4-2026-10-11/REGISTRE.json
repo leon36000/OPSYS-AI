@@ -1,0 +1,81 @@
+{
+  "Toronto": "2026-10-11T04:30:33.664062-04:00",
+  "audit_documents": {
+    "integration": "integrated_continuation",
+    "limit": "Documents and selector244 added after qualification; not credited to PC1 source snapshot",
+    "origin": "Root additive synthesis of closed proofs; independent final review before adoption",
+    "paths": [
+      "docs/reprise/M1-C4-2026-10-11/README.md",
+      "docs/reprise/M1-C4-2026-10-11/REGISTRE.json",
+      "docs/reprise/M1-C4-2026-10-11/PROOF-SUMMARY.json",
+      "docs/reprise/M1-C4-2026-10-11/RED-HISTORY.json"
+    ],
+    "sha256_disposition": "External sealed publication manifest stores all10 hashes; no self-hash cycle",
+    "verification": "JSON parsed, facts matched to closed Root and independent receipts"
+  },
+  "baseline_HEAD": "465df7a598fd72490bef57054b717b4cafe653ae",
+  "no_production_merge_forcepush": true,
+  "omissions": [
+    "104 proof files excluded lightpack unavailable; full supplement unavailable",
+    "absent conversation history unknown"
+  ],
+  "product": "PARTIEL",
+  "qualification_Source_sha256": "7d23827e95744de308807fb93533930d88d48a7f9a6895f896e6e14fad2c39e6",
+  "rows": [
+    {
+      "final_sha256": "900056c06f4f9225fbafa0c6ed3bcba34190ffcb81a99ab8c07e189ff2560e11",
+      "integration": "integrated_continuation",
+      "limit": "context capture/projection only; futurekeeper/admission notdelivered",
+      "origin": "Git465df7 preimage + C4 lease1b547f89",
+      "path": "core/src/gateway/server-request-context.ts",
+      "preimage_sha256": "68ab384ac9cff073e7ebbde70f3bc21669e371bf4e2cab59bedbd9271aad09a8",
+      "verification": "full25 affected suites, styles5, official TS7 required production, fresh full Core and independent code review"
+    },
+    {
+      "final_sha256": "574a57161438e1266e91f8462580b8f2ffd7846acd7ea3239ffe9f4306642765",
+      "integration": "integrated_continuation",
+      "limit": "context capture/projection only; futurekeeper/admission notdelivered",
+      "origin": "Git465df7 preimage + C4 lease1b547f89",
+      "path": "core/src/gateway/server-methods/shared-types.ts",
+      "preimage_sha256": "c344fa725e919c00319e023de2352182e7c256df8534338c71c3f6f1df877040",
+      "verification": "full25 affected suites, styles5, official TS7 required production, fresh full Core and independent code review"
+    },
+    {
+      "final_sha256": "f239099624fe1f3f82d94a6ce05a544da82a88c52219016d1917c22f815eb8ff",
+      "integration": "integrated_continuation",
+      "limit": "context capture/projection only; futurekeeper/admission notdelivered",
+      "origin": "Git465df7 preimage + C4 lease1b547f89",
+      "path": "core/src/gateway/server-request-context.test.ts",
+      "preimage_sha256": "a14fb9e43c4ecac1e3092f67e431d5d157ffc69a4428bbd3c917b2353c3c60dc",
+      "verification": "full25 execution and styles5; excluded from production TS7; no test execution credited to build"
+    },
+    {
+      "final_sha256": "6a7468593b8496b3f309ed17bde061e30de8a671766185b98573172d892c35ee",
+      "integration": "integrated_continuation",
+      "limit": "context capture/projection only; futurekeeper/admission notdelivered",
+      "origin": "Git465df7 preimage + C4 lease1b547f89",
+      "path": "core/src/gateway/server-runtime-policy-owner.ts",
+      "preimage_sha256": "e24f69e281548601cac1157d914a5a55996206fc65b50f7d61d3d87e63f4fb8b",
+      "verification": "full25 affected suites, styles5, official TS7 required production, fresh full Core and independent code review"
+    },
+    {
+      "final_sha256": "832e6256b3ba69d0cd2ca3d506a93e290a9a06a0a993e493f14f8e3561944bcd",
+      "integration": "integrated_continuation",
+      "limit": "context capture/projection only; futurekeeper/admission notdelivered",
+      "origin": "Git465df7 preimage + C4 lease1b547f89",
+      "path": "core/src/gateway/server-runtime-policy-owner.test.ts",
+      "preimage_sha256": "072545339c71354a3497459fd2459283e3a5dc38bfb880f72d9d3f09e855fbcd",
+      "verification": "full25 execution and styles5; excluded from production TS7; no test execution credited to build"
+    },
+    {
+      "final_sha256": "5541488ed0ce2aad942a5d384727016c062a9feb25a8f2d72168afcb65185cd3",
+      "integration": "integrated_metadata_single_target",
+      "limit": "new exactCI execution pending; compiler/build snapshot preserves previousselector243",
+      "origin": "Root CI coverage gap from explicit243 selector and realfast6closedlogs",
+      "path": "core/test/opsys-tests-cibles.txt",
+      "preimage_sha256": "c682e30b5a3de111eb29610f8dfed53813a1c3f3266ca811c2821c455e7f2b72",
+      "verification": "243→244 unique; exact added path; whole context file passed in full25; new exact CI pending"
+    }
+  ],
+  "state": "QUALIFIED_C4_CONTINUATION_CI_PENDING"
+}

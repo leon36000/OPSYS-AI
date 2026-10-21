@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""Produit un bilan rejouable des contrôles de preuve du dépôt.
+
+Un bilan de preuves recopié dans un pack de revue n'est pas rejouable : il devient
+une affirmation. À la suite d'une objection critique de revue, ce script produit
+le même bilan directement depuis le dépôt et refuse de conclure lorsqu'un contrôle
+n'a pas pu être exécuté.
+"""
+
+import pathlib
+import shlex
+import shutil
+import subprocess
+import sys
+
+RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
+ESTIMATION = RACINE / "departments" / "m03-estimation"
+TESTS = ESTIMATION / "tests"
+OUTILS = TESTS / "outils_preuve"
+TEST_OUTILS = TESTS / "test_outils_de_preuve.py"
+BMAD = ESTIMATION / "docs" / "bmad" / "verif_coherence.py"
+STATUT_LINT = RACINE / "scripts" / "statut_lint.py"
+STRUCTURE_LINT = RACINE / "scripts" / "structure_lint.py"
+
+# La portabilité de ce contrôle externe n'est pas garantie par le dépôt seul.
+NO_STUB = pathlib.Path.home() / "proof-method" / "git-hooks" / "no_stub_ast.py"
+
+
+def executable_disponible(executable):
+    """Indique si un exécutable peut être lancé."""
+    chemin = pathlib.Path(executable)
+    if chemin.is_absolute() or chemin.parent != pathlib.Path("."):
+        return chemin.is_file()
+    return shutil.which(executable) is not None
+
+
+def derniere_ligne_significative(sortie):
+    """Extrait la dernière ligne non vide de la sortie observée."""
+    lignes = [ligne.strip() for ligne in sortie.splitlines() if ligne.strip()]
+    if lignes:
+        return lignes[-1]
+    return "<aucune ligne significative>"
+
+
+def afficher_controle(
+    nom,
+    commande,
+    code_retour,
+    derniere_ligne,
+    executable_externe=None,
+):
+    """Affiche le résultat consolidé d'un contrôle."""
+    if executable_externe is None:
+        etiquette = nom
+    else:
+        etiquette = (
+            f"{nom} (EXTERNE : exécutable hors du dépôt : {executable_externe})"
+        )
+    print(f"contrôle : {etiquette}")
+    print(f"commande : {shlex.join([str(element) for element in commande])}")
+    print(f"code de retour : {code_retour}")
+    print(f"dernière ligne significative : {derniere_ligne}")
+
+
+def executer(nom, commande, preconditions, executable_externe=None):
+    """Exécute un contrôle ou produit un échec explicite s'il est indisponible."""
+    indisponibles = [str(chemin) for chemin in preconditions if not chemin.exists()]
+    if indisponibles:
+        if executable_externe is not None and str(executable_externe) in indisponibles:
+            message = (
+                "contrôle EXTERNE : exécutable hors du dépôt introuvable : "
+                f"{executable_externe}"
+            )
+        else:
+            message = "introuvable : " + ", ".join(indisponibles)
+        afficher_controle(
+            nom,
+            commande,
+            "introuvable",
+            message,
+            executable_externe,
+        )
+        return False, False
+
+    executable = commande[0]
+    if not executable_disponible(executable):
+        if executable_externe is not None:
+            message = (
+                "contrôle EXTERNE : exécutable hors du dépôt introuvable : "
+                f"{executable_externe}"
+            )
+        else:
+            message = f"exécutable introuvable : {executable}"
+        afficher_controle(
+            nom,
+            commande,
+            "introuvable",
+            message,
+            executable_externe,
+        )
+        return False, False
+
+    try:
+        resultat = subprocess.run(
+            commande,
+            cwd=RACINE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            errors="replace",
+            check=False,
+        )
+    except FileNotFoundError:
+        if executable_externe is not None:
+            message = (
+                "contrôle EXTERNE : exécutable hors du dépôt introuvable : "
+                f"{executable_externe}"
+            )
+        else:
+            message = f"exécutable introuvable : {executable}"
+        afficher_controle(
+            nom,
+            commande,
+            "introuvable",
+            message,
+            executable_externe,
+        )
+        return False, False
+    except PermissionError:
+        message = f"exécutable non lançable : {executable}"
+        afficher_controle(
+            nom,
+            commande,
+            "non lançable",
+            message,
+            executable_externe,
+        )
+        return False, False
+    except OSError as erreur:
+        message = f"échec de lancement : {erreur}"
+        afficher_controle(
+            nom,
+            commande,
+            "non lançable",
+            message,
+            executable_externe,
+        )
+        return False, False
+
+    afficher_controle(
+        nom,
+        commande,
+        resultat.returncode,
+        derniere_ligne_significative(resultat.stdout),
+        executable_externe,
+    )
+    return True, resultat.returncode == 0
+
+
+fichiers_outils = sorted(OUTILS.rglob("*.py")) if OUTILS.is_dir() else []
+cibles_no_stub = fichiers_outils + [TEST_OUTILS]
+
+controles = [
+    (
+        "suite de tests du module",
+        [
+            "pytest",
+            str(TESTS),
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--color=no",
+        ],
+        [TESTS],
+        None,
+    ),
+    (
+        "gate BMAD",
+        [sys.executable, str(BMAD)],
+        [BMAD],
+        None,
+    ),
+    (
+        "statut lint",
+        [sys.executable, str(STATUT_LINT)],
+        [STATUT_LINT],
+        None,
+    ),
+    (
+        "structure lint",
+        [sys.executable, str(STRUCTURE_LINT)],
+        [STRUCTURE_LINT],
+        None,
+    ),
+    (
+        "garde no-stub",
+        [sys.executable, str(NO_STUB)] + [str(chemin) for chemin in cibles_no_stub],
+        [NO_STUB, OUTILS, TEST_OUTILS] + cibles_no_stub,
+        NO_STUB,
+    ),
+]
+
+if not controles:
+    print("ABANDON : aucun contrôle défini ; le bilan n'est pas probant.")
+    sys.exit(1)
+
+exécutés = 0
+echecs = 0
+
+for nom, commande, preconditions, executable_externe in controles:
+    a_execute, reussi = executer(
+        nom,
+        commande,
+        preconditions,
+        executable_externe,
+    )
+    if a_execute:
+        exécutés += 1
+    if not reussi:
+        echecs += 1
+
+print(f"bilan final : contrôles exécutés={exécutés}  contrôles échoués={echecs}")
+sys.exit(1 if echecs else 0)

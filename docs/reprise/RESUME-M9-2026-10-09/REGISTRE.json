@@ -1,0 +1,214 @@
+{
+  "status": "CANDIDATE_BEFORE_ROOT_INTEGRATION",
+  "recorded_toronto": "2026-10-09T16:50:03.420956-04:00",
+  "parent": "d840cf3e5fd6b54362c24c6cc8adca24d43cfc83",
+  "source_files": [
+    {
+      "path": "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_strategique.py",
+      "sha256": "5abbff35ae5b1e0e60ea6aac01ca34528ba525e4a38302631f8dd8c2468064e0",
+      "preimage_sha256": "825cdc4f8915104f356981131ffa74593e59b570d5ec3ba12e54f415e0a8b7db",
+      "preimage_parent": "d840cf3e5fd6b54362c24c6cc8adca24d43cfc83",
+      "scope": "Root-owned production"
+    },
+    {
+      "path": "departments/m09-strategic-intelligence/tests/test_lecture_strategique.py",
+      "sha256": "4ac993694b3833f726ea447a019085a3cd829d9b90e5cb9987eea28ebefaacca",
+      "preimage_sha256": "bd66269fa1db9549ddff94bec9b624aa173b1bc100b940d2d37b716dc6e5e1a8",
+      "preimage_parent": "d840cf3e5fd6b54362c24c6cc8adca24d43cfc83",
+      "scope": "Root-owned regression tests"
+    }
+  ],
+  "doc_files": [
+    {
+      "path": "docs/reprise/RESUME-M9-2026-10-09/AUDIT.md",
+      "preimage_sha256": null,
+      "disposition": "new candidate document"
+    },
+    {
+      "path": "docs/reprise/RESUME-M9-2026-10-09/REGISTRE.json",
+      "preimage_sha256": null,
+      "disposition": "new candidate document"
+    },
+    {
+      "path": "docs/reprise/RESUME-M9-2026-10-09/CAPSULE.json",
+      "preimage_sha256": null,
+      "disposition": "new candidate document"
+    }
+  ],
+  "Root_RED": {
+    "failed": 22,
+    "passed": 40
+  },
+  "Root_GREEN_pure": {
+    "passed": 62
+  },
+  "qualification": {
+    "python_passed": 129,
+    "python_files": 4,
+    "ruff_exit": 0,
+    "jest_passed": 148,
+    "jest_suites": 4,
+    "receipt_sha256": "9bbcb49398b0b453ddd5239a8206329d85bb86e99ecdc5255d7421ab33a9fad3",
+    "overlap": "Pure62 included in Python129; no sum with earlier runs"
+  },
+  "independent_review": {
+    "material_findings": [],
+    "executed_tests": 0,
+    "receipt_sha256": "fb92229e9fbaa505edf06a16b67dfdd7e570c87c28ca85c11d9843e57419e848"
+  },
+  "Claude_lineage": {
+    "r2": "STATIC_REVIEW_NOT_QUALIFIED preserved",
+    "r3": "same closed run observed with exact actual models; no relaunch",
+    "product_validation": false
+  },
+  "states": {
+    "source_in_isolated_checkout": true,
+    "primary_integration": "NOT_PERFORMED",
+    "publication": "NOT_PERFORMED",
+    "parent_M8_CI": "NON_TERMINAL_AT_PREPARATION",
+    "future_M9_CI": "UNKNOWN",
+    "Native_Core_phone": "NOT_QUALIFIED_BY_THIS_CHANGE",
+    "product": "PARTIEL"
+  },
+  "selected_evidence": [
+    {
+      "group": "qualification",
+      "origin": "M9-RESUME-QUALIFICATION-PERIMETRE-D840-20261009-r1/QUALIFICATION-r1",
+      "manifest": "SHA256-final-r1.json",
+      "manifest_sha256": "2bd45a94c944ccda42e0db0f5df8d9221aa71e61ca443125fd71b61a0277fc0d",
+      "manifested_files": 15,
+      "manifest_copy_included": true,
+      "disposition": "Exact public bytes; historical verdicts are not relabelled"
+    },
+    {
+      "group": "independent-review",
+      "origin": "M9-RESUME-INDEPENDENT-REVIEW-20261009-r1",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "4487c1d41a3598e6acc1783fcbbf83cb86142454f36cdc8aee8a49f987a8afdd",
+      "manifested_files": 9,
+      "manifest_copy_included": true,
+      "disposition": "Exact public bytes; historical verdicts are not relabelled"
+    },
+    {
+      "group": "claude-opinions-r3",
+      "origin": "CLAUDE-M9-RESUME-RED-FIRST-20261009-r1/PUBLIC-OPINIONS-r3",
+      "manifest": "SHA256.json",
+      "manifest_sha256": "060a4a20c3bb47f7ab21097c28692f36865f438e1196952cd9e47f9c8b76acbe",
+      "manifested_files": 9,
+      "manifest_copy_included": true,
+      "disposition": "Exact public bytes; historical verdicts are not relabelled"
+    },
+    {
+      "group": "claude-observation-r3",
+      "origin": "CLAUDE-M9-RESUME-RED-FIRST-20261009-r1/PUBLIC-OBSERVATION-r3",
+      "manifest": "SHA256.json",
+      "manifest_sha256": "8ac91343d0285583e777c90ef796f7bfb166a1f3214f6025688539401ac03f6d",
+      "manifested_files": 2,
+      "manifest_copy_included": true,
+      "disposition": "Exact public bytes; historical verdicts are not relabelled"
+    },
+    {
+      "group": "claude-not-qualified-r2",
+      "origin": "CLAUDE-M9-RESUME-RED-FIRST-20261009-r1/PUBLIC-NOT-QUALIFIED-r2",
+      "manifest": "SHA256.json",
+      "manifest_sha256": "56aa825677ec8d4f72f8e6d885caa2d1d473b1978dc41f6d5a2bf7d62e65a8f1",
+      "manifested_files": 1,
+      "manifest_copy_included": true,
+      "disposition": "Exact public bytes; historical verdicts are not relabelled"
+    },
+    {
+      "group": "root-red-green",
+      "origin": "M9-RESUME-ROOT-RED-GREEN-20261009-r1",
+      "explicit_paths": [
+        "ROOT-LEASE-IMPLEMENTATION-r1.json",
+        "baseline-r1.json",
+        "implementation-baseline-r1.json",
+        "run_scoped_pure.py",
+        "source-root-red-r1.json",
+        "source-root-green-r1.json",
+        "RED-r1/m9-root-red-r1.json",
+        "RED-r1/m9-root-red-r1.log",
+        "RED-r1/junit.xml",
+        "GREEN-r1/m9-root-green-r1.json",
+        "GREEN-r1/m9-root-green-r1.log",
+        "GREEN-r1/junit.xml"
+      ],
+      "files": {
+        "ROOT-LEASE-IMPLEMENTATION-r1.json": {
+          "sha256": "cb83e3a1bf8bb30c988c381907ea242870bb497ce72490e9dafba1aa04211b88",
+          "bytes": 1658
+        },
+        "baseline-r1.json": {
+          "sha256": "e812e5796528f66da1e5fb493e9bd0166afcf6fb8a5c2da133808939cb033215",
+          "bytes": 877
+        },
+        "implementation-baseline-r1.json": {
+          "sha256": "709c1049c3accff991e9f093e84c906f025f592e1b9457b30a9aa576518e71a3",
+          "bytes": 584
+        },
+        "run_scoped_pure.py": {
+          "sha256": "2fb23c5b76d466f360656c8989dca94cb5eabc69b972f8d1f711adfc95ba6223",
+          "bytes": 712
+        },
+        "source-root-red-r1.json": {
+          "sha256": "84178e35ee20c886648ad6eed47792b26f9652d8f6394cc5c19782b0c8d013f5",
+          "bytes": 727
+        },
+        "source-root-green-r1.json": {
+          "sha256": "7bfb03c9d67dcb4a728968e4a1cf4cc7e332b73893475097de21ad4c2a745680",
+          "bytes": 734
+        },
+        "RED-r1/m9-root-red-r1.json": {
+          "sha256": "c0f0fbf06cecb8a08323dd1089ff8fe41bf9b6768bc305a3b3e950e3e8f0a201",
+          "bytes": 2707
+        },
+        "RED-r1/m9-root-red-r1.log": {
+          "sha256": "9fed3c4dc652f40a168096a8a02f88df097a354d624541ccab4024bcfe9b7316",
+          "bytes": 43112
+        },
+        "RED-r1/junit.xml": {
+          "sha256": "971bd331e980fcdd2b0b50e73cdaaef0ae0c5f01b1923eb1896579ee1cc503b7",
+          "bytes": 54431
+        },
+        "GREEN-r1/m9-root-green-r1.json": {
+          "sha256": "4bcd968178648e1dc23fd9266889713be868b9882427a26a9241278fa807a3f1",
+          "bytes": 2704
+        },
+        "GREEN-r1/m9-root-green-r1.log": {
+          "sha256": "4933422f895fdb44119b2c6bdd0dbc028d3190e94390762980fa4a6a8a09b8af",
+          "bytes": 99
+        },
+        "GREEN-r1/junit.xml": {
+          "sha256": "7fd7d3b07f1fa1b7e7118b679c61c2bb78c9da1874b57aef2599b2b661ede533",
+          "bytes": 12702
+        }
+      },
+      "disposition": "RED22F/40P and GREEN62P preserved separately; no rerun"
+    }
+  ],
+  "omissions": [
+    {
+      "scope": "PRIVATE/init/auth/account/transcripts and raw Claude streams",
+      "reason": "Sensitive and outside the public allowlist; only already-public hashes/receipts selected"
+    },
+    {
+      "scope": "Core/Native/dependency trees/Jest caches",
+      "reason": "No such qualification or archive requested for this text-only correction"
+    },
+    {
+      "scope": "Historical M8/M5 capsules and unreceived conversations/104 absent references",
+      "reason": "Continuity is linked, not recursively copied or reconstructed"
+    },
+    {
+      "scope": "Three repository audit documents",
+      "reason": "Generated after the archive; excluded to prevent a hash cycle"
+    },
+    {
+      "scope": "Runtime reservation files and unmanifested preparation input",
+      "reason": "Not necessary to establish the selected closed receipts"
+    }
+  ],
+  "historical_mobile_fixtures": "untouched; dated captures are not regenerated",
+  "missing104_and_absent_conversations": "remain unknown; not reconstructed",
+  "authorization_ROOT": false
+}

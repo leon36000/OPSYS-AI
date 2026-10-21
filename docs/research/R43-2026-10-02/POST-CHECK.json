@@ -1,0 +1,11 @@
+{
+  "archives": 83,
+  "audios_inclus": 0,
+  "docker_lance": false,
+  "liens": 16,
+  "qualification_sha256": "2a48d9ab338001526c3a1c04a8bf7b799d379cdc7121265cdf6d6d5139c027be",
+  "roundtrip_integral": true,
+  "schema": "opsys.r43-post-check/v1",
+  "sources_historiques_et_originaux_stables": true,
+  "tests_lances": false
+}

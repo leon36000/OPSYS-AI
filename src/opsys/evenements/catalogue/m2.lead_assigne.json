@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m2.lead_assigne",
+  "title": "M2 — Lead assigné à son propriétaire",
+  "description": "Émis par M2 quand un lead est qualifié (transition nouveau -> qualifie, qui exige un owner), dans la MÊME transaction que la transition (departments/m02-revenue-crm/src/m2_revenue_crm/outils.py::transitionner_statut, PLAN T1.4-k2). Porte le propriétaire du lead tel que M2 le tient : c'est le seul fait d'assignation de M2, jamais déduit d'un autre champ. evenement_id déterministe (f\"m2-lead-assigne-{lead_id}\", même patron que m2.client_associe) : un lead n'est qualifié qu'une fois, une redélivrance est un no-op. Consommateur visé : M3, qui le relit à la source (opsys.evenements.charge_publiee, sans copie ni import de M2) pour ne rendre à un vendeur que les devis des leads dont il est le propriétaire. `proprietaire` est du texte libre pour une qualification faite sans jeton d'appareil (agent) ; il ne désigne un vendeur que s'il est l'identifiant de sa personne OPSYS. PLAN T1.4-m (extension additive : toute charge valide avant reste valide, le rang 1 est octet pour octet celui de T1.4-k2) : le fait est VERSIONNÉ par un rang. La qualification est le rang 1, sans clé `rang`, sous l'identifiant m2-lead-assigne-<lead_id>. Chaque réassignation (outil m2_reassigner_lead, décision humaine) publie, dans la MÊME transaction que son maillon de registre, une charge de rang n >= 2 qui porte `rang` et `proprietaire_precedent`, sous l'identifiant m2-lead-reassigne-<n>-<lead_id> : les deux familles d'identifiants ne se confondent jamais, quel que soit le lead_id. Le propriétaire COURANT est celui du plus grand rang publié : un consommateur (M3) lit le rang 1, puis les rangs 2, 3... jusqu'au premier absent. Un fait absent (lead qualifié avant T1.4-k2) est republié par l'outil m2_republier_assignations, avec les mêmes identifiant et charge que la publication d'origine.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lead_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lead M2 (opportunité) qui vient d'être qualifié."
+    },
+    "proprietaire": {
+      "type": "string",
+      "minLength": 1,
+      "description": "L'owner consigné à la qualification, sans espaces de tête ni de queue : l'identifiant OPSYS de la personne (opsys.identite) quand la qualification vient d'un appareil."
+    },
+    "horodatage_assignation": {
+      "type": "string",
+      "description": "Horodatage RFC 3339 de la transition (fourni à m2_transitionner_statut, jamais une horloge ambiante)."
+    },
+    "rang": {
+      "type": "integer",
+      "minimum": 2,
+      "description": "Clé additive (PLAN T1.4-m) : rang de cette assignation, présent SEULEMENT pour une réassignation (2 pour la première, 3 pour la suivante...). Absent = rang 1, la qualification. Jamais 1 : une seule écriture du rang 1."
+    },
+    "proprietaire_precedent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Clé additive (PLAN T1.4-m) : le propriétaire que cette réassignation remplace (celui du rang précédent). Présent SEULEMENT avec `rang`."
+    }
+  },
+  "required": ["lead_id", "proprietaire", "horodatage_assignation"],
+  "dependentRequired": {"rang": ["proprietaire_precedent"], "proprietaire_precedent": ["rang"]}
+}

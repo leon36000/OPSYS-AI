@@ -1,0 +1,9 @@
+{
+  "archive_sha256": "2037fd27a8692b7e5d7b2f72010929ceecdffa002d2e9bee1807af2eb4732b3c",
+  "index_sha256": {
+    "README.md": "b061806a6a8e4a7b9ba8eed00d2f687e68c93eb22e6477d39995b6c7367db455",
+    "QUALIFICATION.json": "01ea40577f4827e2b5a0caa52e68a568496fb48c21d3362f88622a3ce7e59fd4"
+  },
+  "roundtrip_without_extraction": true,
+  "source_live_comparison_at_seal": true
+}

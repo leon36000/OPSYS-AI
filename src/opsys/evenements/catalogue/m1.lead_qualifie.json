@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.lead_qualifie",
+  "title": "M1 — Lead qualifié",
+  "description": "Émis par M1 (departments/m01-front-office/src/m1_front_office/outils.py, PLAN T2.1-a) dans la MÊME transaction que l'inscription du lead au registre anti-perte, dès qu'une demande entrante est qualifiée (decision TRANSMETTRE_M2). Porte le LeadQualifie v2 tel que le contrat gelé departments/m01-front-office/contracts/m1-lead-qualifie.v2.yaml le définit (le service est un code de la taxonomie du socle, source/utm/campagne sont optionnels) et l'horodatage de réception du message, que M2 passe à m2_ingerer_lead. evenement_id déterministe (f\"m1-lead-qualifie-{lead_id}\") : une redélivrance ou un message rejoué est un no-op, jamais un second lead. La clé de session du correspondant n'est PAS portée ici : elle contient son numéro, elle reste au registre de M1 et sert au lien session-affaire fait par un humain (M10). Consommateur visé : M2 (ingestion, Client 360) ; ajouter le type à evenements.consomme de M2 et sa fonction dans consommateurs().",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lead": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": 2, "description": "Version explicite du contrat (entier 2, jamais deviné)."},
+        "lead_id": {"type": "string", "minLength": 1},
+        "conversation_id": {"type": "string", "minLength": 1},
+        "contact": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "nom": {"type": "string", "minLength": 1},
+            "telephone": {"type": "string", "minLength": 1},
+            "courriel": {"type": "string", "minLength": 1}
+          }
+        },
+        "service": {"type": "string", "minLength": 1, "description": "Code d'un service déclaré par le profil d'entreprise (opsys.taxonomie)."},
+        "ville": {"type": "string", "minLength": 1},
+        "urgence_declaree": {"type": "boolean"},
+        "canal": {"enum": ["telephone", "courriel", "formulaire", "texte"]},
+        "source": {"type": "string", "minLength": 1, "description": "Canal d'entrée du core (sms, courriel...), fourni par la plateforme."},
+        "utm": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "utm_source": {"type": "string", "minLength": 1},
+            "utm_medium": {"type": "string", "minLength": 1},
+            "utm_campaign": {"type": "string", "minLength": 1},
+            "utm_content": {"type": "string", "minLength": 1}
+          }
+        },
+        "campagne": {"type": "string", "minLength": 1}
+      },
+      "required": ["schema_version", "lead_id", "conversation_id", "contact", "service", "ville", "urgence_declaree", "canal"]
+    },
+    "horodatage": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Heure de réception du message, RFC 3339 avec fuseau, fournie par la plateforme : jamais une horloge de M1."
+    },
+    "signal_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant du signal au registre de M1 (canal:identifiant du message), pour retrouver la ligne."
+    }
+  },
+  "required": ["lead", "horodatage", "signal_id"]
+}

@@ -1,0 +1,81 @@
+{
+  "utc": "2026-10-03T09:31:49.435027+00:00",
+  "qualified": true,
+  "tests": {
+    "cases": 185,
+    "counts": {
+      "passed": 185,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "files": [
+      "tests/test_agents_cron_autorite.py",
+      "tests/test_agents_cron_empreintes.py",
+      "tests/test_agents_cron_retraits.py",
+      "tests/test_agents_declencheurs.py",
+      "tests/test_console_agent_cfo_grants.py",
+      "tests/test_console_agents_declencheurs.py",
+      "tests/test_cron_operateur_http.py"
+    ],
+    "expected_cases": 185,
+    "case_count_matches_expected": true,
+    "unique_case_ids": 185,
+    "all_cases_attributed_and_unique": true,
+    "ok": true
+  },
+  "source_count": 587,
+  "scope_sha256": {
+    "src/opsys/agents_cron_retraits.py": "d90ef10b7a5c62101ceba343512b9cbae6f1e5fc2bdc35b8165c00d2bffbe22f",
+    "src/opsys/serveur_mcp.py": "f393e6115b4916a35a16a2b9aab4ba9c9e264e3217795d5a47e24dc6a936a84b",
+    "src/opsys/stockage/schema.py": "76405a534f5e5e3e92b446939efb4c2a979122356aaa56191e82df21e82d3b19",
+    "src/opsys/stockage/migrations/versions/0023_agents_cron_retraits.py": "8e2184a7eac4e3533d98c57d642074b28b69f70e709ba19941d18906c0546ac5",
+    "tests/test_agents_cron_retraits.py": "eb91ffb48e272d92c667af208db42711f2bab31a693c5fd849600dcd23969e90",
+    "tests/test_agents_cron_autorite.py": "5c27b689870dbef780d91d65735c4aed8694a0480dbd3d38230d436f936a8a93"
+  },
+  "files": [
+    {
+      "source": "/dev/shm/opsys-cron-retrait-python-root-r1/execution-r1/receipt.json",
+      "archive": "receipt.json.gz",
+      "sha256": "00a04c3d765ccc092732a1a41f6908e616ec11591699f9bad889c03352b00937",
+      "bytes": 469691
+    },
+    {
+      "source": "/dev/shm/opsys-cron-retrait-python-root-r1/execution-r1/pytest.xml",
+      "archive": "pytest.xml.gz",
+      "sha256": "d05185882b6f0af7e8d56f031074fb22ddb6ef5ba6ec16bf85021a70739a3ca4",
+      "bytes": 27443
+    },
+    {
+      "source": "/dev/shm/opsys-cron-retrait-python-root-r1/execution-r1/pytest.log",
+      "archive": "pytest.log.gz",
+      "sha256": "13d2e4a657caae44ddf0d97de13d047ddff411ee18c713edd94294e22f748224",
+      "bytes": 261
+    },
+    {
+      "source": "/dev/shm/opsys-cron-retrait-python-root-r1/execution-r1/ruff.log",
+      "archive": "ruff.log.gz",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "source": "/dev/shm/opsys-cron-retrait-python-root-r1/FREEZE-SOURCES-r1.json",
+      "archive": "FREEZE-SOURCES-r1.json.gz",
+      "sha256": "3e96193afcd4187c0b96fbc5ea762218a20a66b6ae04bd9e68345efec94c9ccc",
+      "bytes": 74118
+    },
+    {
+      "source": "/dev/shm/opsys-cron-retrait-python-root-r1/PLAN-r1.json",
+      "archive": "PLAN-r1.json.gz",
+      "sha256": "e833ada014616ae306acecac9372f2592eae042d2d77651417ff42b643b76310",
+      "bytes": 5179
+    },
+    {
+      "source": "/dev/shm/opsys-cron-retrait-python-root-r1/conducteur-root.py",
+      "archive": "conducteur-root.py.gz",
+      "sha256": "7a76bea89d8be5b26dc4be7788e0f2cad7622bde68d14177ae6faa6646f9e17b",
+      "bytes": 18494
+    }
+  ],
+  "limitations": "Propri\u00e9taire Python/SQLite/migration/HTTP r\u00e9els. Preuve de suppression native simul\u00e9e par op\u00e9rateur de test; aucun CoreDELETE/stream/provider/prod/VPS qualifi\u00e9 ici."
+}

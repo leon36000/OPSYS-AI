@@ -1,0 +1,89 @@
+{
+  "canonical_TS7": {
+    "DTS_not_tested": true,
+    "RSS_bytes": 5715673088,
+    "Root_sha256": "723b992db80e11e647000cd6b8aaf238bfa2536af649b4c7acee8c34ad3445f7",
+    "actual_listed_inputs": 16306,
+    "diagnostics": 0,
+    "independent_manifest": "1ae860704f2a010ad10f1645b234f57da8a26d15fd7fea2595bf42d44b710774",
+    "required_productions": 15,
+    "seconds": 63.607,
+    "test_files_excluded": true
+  },
+  "copy": {
+    "Root_sha256": "b8146b3f15d0e62b7d35419db84f702e71769fc07827288bc840d50b6e0a4441",
+    "Source": 43840,
+    "deps": 93391,
+    "links": 4060
+  },
+  "fresh_fullCore": {
+    "DTS_invocations": 18,
+    "GO": "672944760270dd66e0b3a199dbd4927c59b62c295e8f83f60e767dd27685e879",
+    "RSS_bytes": 6073409536,
+    "Root_sha256": "a1d50f86d7734d8d56c404c5e630715af15656fbda60e5bacb1dd952b4e4f174",
+    "SDK_invocations": 2,
+    "added_files": 12334,
+    "added_links": 446,
+    "exports": 38,
+    "independent_manifest": "41dd1e73bd2162b20f94e936f30166170a5e5ea79e8a4695e112a39b41fe2c09",
+    "independent_report": "86cc86af3f01d7b8179ec010084d9c61e87c9f8ce5f911644d1ce5e15214a42c",
+    "native_modules": 23,
+    "plugins": 15,
+    "postbuild_phases": 13,
+    "public_subpaths": 158,
+    "seconds": 507.469,
+    "stamp_git_head_commit": null,
+    "startup_CSS_margin_bytes": 35,
+    "startup_JS_margin_bytes": 164,
+    "state": "CLOSED_QUALIFIED_SCOPE",
+    "warnings_retained": {
+      "CSS_advisory": true,
+      "EVAL": 6,
+      "browser_externalization": 2
+    }
+  },
+  "full25": {
+    "RSS_bytes": 5003218944,
+    "Root_sha256": "83cd2aff293f6b60f653a217f91c43ad4f2fd06e66db64bf84c540ea2f56444c",
+    "distinct": 1178,
+    "failed": 0,
+    "files": 25,
+    "parameter_duplicates": 32,
+    "records": 1210,
+    "seconds": 199.367,
+    "skipped": 0
+  },
+  "independent_code_review": {
+    "manifest": "fe5d14206e1a4453f2f7b925a6cd62834517f6757cfbe80bf66e447352d64213",
+    "new_P1_P2_found": false,
+    "scope": "exact5/preimages/closedtests/styles; actualcode only"
+  },
+  "limits": [
+    "models are static opinions, not tests; provider effort and account usage unknown",
+    "fixed scope inventories/observed owners only; sampled RSS",
+    "localDocker unavailable; no runner success borrowing to new C4commit",
+    "no keeper/OriginalC/allSenders/copies/native positive provider/phone/recovery or production proof"
+  ],
+  "new_exactCI": {
+    "actual_context_file_required": true,
+    "previous_baseline_HEAD": "465df7a598fd72490bef57054b717b4cafe653ae",
+    "previous_baseline_green_run": 38117869729,
+    "previous_success_not_new_commit_credit": true,
+    "selector": 244,
+    "state": "PENDING_NEW_COMMIT_AND_RUN"
+  },
+  "post_qualification_delta": {
+    "PC1_selector": 243,
+    "audit_documents": 4,
+    "metadata_paths": 1,
+    "production_and_test_Source5_unchanged": true,
+    "published_selector": 244
+  },
+  "product": "PARTIEL",
+  "state": "QUALIFIED_C4_LOCAL_PC1_NEW_EXACT_CI_PENDING",
+  "styles5": {
+    "Root_sha256": "ce604e99350e430a7f00b1318df57d078336e1c4e2d49796b1eb7978e504fd93",
+    "format": 0,
+    "lint": 0
+  }
+}

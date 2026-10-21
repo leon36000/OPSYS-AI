@@ -1,0 +1,38 @@
+{
+  "node": "v24.19.0",
+  "npm": "11.9.0",
+  "repo": "/workspace/OPSYS-AI-recent",
+  "commit": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "copy": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-copy",
+  "checks": [
+    {
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "exit": 0,
+      "result": "810 packages installed in external copy"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "command": "npm test -- --ci --runInBand --coverage --coverageDirectory=../mobile-coverage --collectCoverageFrom=src/**/*.{ts,tsx} --collectCoverageFrom=app/**/*.{ts,tsx}",
+      "exit": 0,
+      "suites": 117,
+      "tests": 2578
+    },
+    {
+      "command": "node mobile-repro.cjs",
+      "exit": 0,
+      "probes": 11
+    }
+  ],
+  "ci": {
+    "run": 36642024371,
+    "commit": "1b1c70cb3549202a5301ba88452586cc462cdc4b",
+    "result": "success",
+    "mobile_tree": "2d1f8d0f8aaffb51a882af69679257d86197a08d",
+    "same_tree_as_HEAD": true,
+    "raw_logs": "gh run view --log returned empty; job logs redirect failed Forbidden; metadata available"
+  },
+  "repository_status": "clean before and after checks"
+}

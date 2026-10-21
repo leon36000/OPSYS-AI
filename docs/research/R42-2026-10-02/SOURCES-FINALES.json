@@ -1,0 +1,14 @@
+{
+  "pdf_reference": {
+    "edition": "2026-01",
+    "pages": "12-16, 46-49",
+    "pdf_inclus": false,
+    "sha256": "a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b"
+  },
+  "source_status": "NON_QUALIFIEE_POUR_PAIE",
+  "sources": {
+    "departments/m05-financecore/docs/m54e-impot-quebec-regulier-preparatoire.md": "35ba04573b48b45dc7b77acf1bd971c3acae3da21286cf661f16cde15ac4a108",
+    "departments/m05-financecore/src/m5_financecore/impot_quebec_regulier.py": "bd4eb4409689032c402fcc695411a4fbc5438c56223c7e813f4b1a638b92633d",
+    "departments/m05-financecore/tests/test_impot_quebec_regulier.py": "7a79a22b5aa7e1f3d4ecef1fb9424372c4b7ba26a4827a25acd5a1dc040d3521"
+  }
+}

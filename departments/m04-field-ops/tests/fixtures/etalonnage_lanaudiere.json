@@ -1,0 +1,180 @@
+{
+  "fictif": true,
+  "objet": "Étalonnage du palier 0 (haversine × détour) sur des paires de Lanaudière et de Laval : documente l'écart du modèle à une distance routière de référence (PLAN T4.1-b, R15 §2).",
+  "avertissement": "TOUT est fictif. Les coordonnées sont des centres de ville approximatifs, arrondis à 0,01°, non vérifiés à la source. Les distances routières de référence sont des ordres de grandeur inventés pour exercer la mécanique : elles ne mesurent rien. Pour étalonner pour de vrai : au moins 30 paires réelles, distances routières mesurées avec OSRM sur l'extrait régional épinglé (R15 §2), puis fournir le détour à l'entreprise ; ce fichier ne sert jamais de source de valeurs.",
+  "parametres": {
+    "facteur_detour_milliemes": 1300,
+    "vitesse_moyenne_kmh": 50,
+    "marge_par_trajet_secondes": 600,
+    "note": "valeurs de départ proposées par R15 §2, non sourcées, à calibrer : ici, seulement des entrées de test"
+  },
+  "points": [
+    {
+      "id": "repentigny",
+      "latitude_microdeg": 45742000,
+      "longitude_microdeg": -73450000
+    },
+    {
+      "id": "terrebonne",
+      "latitude_microdeg": 45700000,
+      "longitude_microdeg": -73640000
+    },
+    {
+      "id": "mascouche",
+      "latitude_microdeg": 45750000,
+      "longitude_microdeg": -73600000
+    },
+    {
+      "id": "l-assomption",
+      "latitude_microdeg": 45830000,
+      "longitude_microdeg": -73430000
+    },
+    {
+      "id": "joliette",
+      "latitude_microdeg": 46020000,
+      "longitude_microdeg": -73440000
+    },
+    {
+      "id": "saint-lin-laurentides",
+      "latitude_microdeg": 45850000,
+      "longitude_microdeg": -73760000
+    },
+    {
+      "id": "laval-des-rapides",
+      "latitude_microdeg": 45560000,
+      "longitude_microdeg": -73710000
+    }
+  ],
+  "paires": [
+    {
+      "a": "repentigny",
+      "b": "joliette",
+      "route_reference_m": 40000,
+      "source_reference": "fictif : ordre de grandeur inventé pour tester la mécanique, non mesuré",
+      "contexte": "paire éloignée, aucun cours d'eau à traverser (hypothèse de la fixture)"
+    },
+    {
+      "a": "repentigny",
+      "b": "terrebonne",
+      "route_reference_m": 19500,
+      "source_reference": "fictif : ordre de grandeur inventé pour tester la mécanique, non mesuré",
+      "contexte": "paire voisine, aucun cours d'eau à traverser (hypothèse de la fixture)"
+    },
+    {
+      "a": "repentigny",
+      "b": "l-assomption",
+      "route_reference_m": 12000,
+      "source_reference": "fictif : ordre de grandeur inventé pour tester la mécanique, non mesuré",
+      "contexte": "paire voisine, aucun cours d'eau à traverser (hypothèse de la fixture)"
+    },
+    {
+      "a": "l-assomption",
+      "b": "joliette",
+      "route_reference_m": 28000,
+      "source_reference": "fictif : ordre de grandeur inventé pour tester la mécanique, non mesuré",
+      "contexte": "paire éloignée, aucun cours d'eau à traverser (hypothèse de la fixture)"
+    },
+    {
+      "a": "terrebonne",
+      "b": "mascouche",
+      "route_reference_m": 8500,
+      "source_reference": "fictif : ordre de grandeur inventé pour tester la mécanique, non mesuré",
+      "contexte": "paire voisine, aucun cours d'eau à traverser (hypothèse de la fixture)"
+    },
+    {
+      "a": "terrebonne",
+      "b": "saint-lin-laurentides",
+      "route_reference_m": 25000,
+      "source_reference": "fictif : ordre de grandeur inventé pour tester la mécanique, non mesuré",
+      "contexte": "paire éloignée, aucun cours d'eau à traverser (hypothèse de la fixture)"
+    },
+    {
+      "a": "mascouche",
+      "b": "joliette",
+      "route_reference_m": 42000,
+      "source_reference": "fictif : ordre de grandeur inventé pour tester la mécanique, non mesuré",
+      "contexte": "paire éloignée, aucun cours d'eau à traverser (hypothèse de la fixture)"
+    },
+    {
+      "a": "repentigny",
+      "b": "laval-des-rapides",
+      "route_reference_m": 48000,
+      "source_reference": "fictif : ordre de grandeur inventé pour tester la mécanique, non mesuré",
+      "contexte": "paire séparée par un cours d'eau : le franchissement impose un détour bien plus grand que la moyenne, le genre d'exception locale près des rives que R15 §2 signale (valeur inventée)"
+    }
+  ],
+  "attendu": [
+    {
+      "a": "repentigny",
+      "b": "joliette",
+      "ligne_droite_m": 30922,
+      "route_estimee_m": 40199,
+      "ecart_m": 199,
+      "ecart_pour_mille": 5,
+      "rapport_reel_milliemes": 1294
+    },
+    {
+      "a": "repentigny",
+      "b": "terrebonne",
+      "ligne_droite_m": 15472,
+      "route_estimee_m": 20114,
+      "ecart_m": 614,
+      "ecart_pour_mille": 31,
+      "rapport_reel_milliemes": 1260
+    },
+    {
+      "a": "repentigny",
+      "b": "l-assomption",
+      "ligne_droite_m": 9907,
+      "route_estimee_m": 12879,
+      "ecart_m": 879,
+      "ecart_pour_mille": 73,
+      "rapport_reel_milliemes": 1211
+    },
+    {
+      "a": "l-assomption",
+      "b": "joliette",
+      "ligne_droite_m": 21141,
+      "route_estimee_m": 27483,
+      "ecart_m": -517,
+      "ecart_pour_mille": -18,
+      "rapport_reel_milliemes": 1324
+    },
+    {
+      "a": "terrebonne",
+      "b": "mascouche",
+      "ligne_droite_m": 6368,
+      "route_estimee_m": 8278,
+      "ecart_m": -222,
+      "ecart_pour_mille": -26,
+      "rapport_reel_milliemes": 1335
+    },
+    {
+      "a": "terrebonne",
+      "b": "saint-lin-laurentides",
+      "ligne_droite_m": 19100,
+      "route_estimee_m": 24830,
+      "ecart_m": -170,
+      "ecart_pour_mille": -7,
+      "rapport_reel_milliemes": 1309
+    },
+    {
+      "a": "mascouche",
+      "b": "joliette",
+      "ligne_droite_m": 32477,
+      "route_estimee_m": 42220,
+      "ecart_m": 220,
+      "ecart_pour_mille": 5,
+      "rapport_reel_milliemes": 1293
+    },
+    {
+      "a": "repentigny",
+      "b": "laval-des-rapides",
+      "ligne_droite_m": 28600,
+      "route_estimee_m": 37180,
+      "ecart_m": -10820,
+      "ecart_pour_mille": -225,
+      "rapport_reel_milliemes": 1678
+    }
+  ]
+}

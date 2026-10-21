@@ -1,0 +1,11 @@
+{
+  "archives": 76,
+  "docker_lance": false,
+  "entrees_sources_et_historique_stables": true,
+  "liens": 25,
+  "qualification_sha256": "b1ebac6356714038bee01c0e092f8701db2ad4ca1340594bf03c6e0ab3419415",
+  "roundtrip_integral": true,
+  "schema": "opsys.r45-post-check/v1",
+  "tests_lances": false,
+  "vps_qualifie": false
+}

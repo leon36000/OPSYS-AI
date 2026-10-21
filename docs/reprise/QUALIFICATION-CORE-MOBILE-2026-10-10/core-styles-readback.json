@@ -1,0 +1,20 @@
+{
+  "phases": {
+    "format": {
+      "receipt_sha256": "aa2138efe912b5533826dcea5d0bf98597c9bcc9e9671f6953d087c08d9b634b",
+      "log_sha256": "831feaf3f4ce92956d2f6144962d9d5d060c299db87d042c79a6b903e0f04515",
+      "log": "Checking formatting...\n\nAll matched files use the correct format.\nFinished in 6ms on 4 files using 20 threads.\n",
+      "seconds": 1.809,
+      "RSS": 129998848
+    },
+    "lint": {
+      "receipt_sha256": "6f6b1b9d1a294da85eeca22180fc7989974b7f2383d5b02a0b94aece2a63ef1b",
+      "log_sha256": "2353ad1a5056393a25dd4eda21ff8bac1e44c8759fbab584ca28c5a3b7a2e1df",
+      "log": "Found 0 warnings and 0 errors.\nFinished in 590ms on 4 files with 230 rules using 1 threads.\n",
+      "seconds": 2.359,
+      "RSS": 292229120
+    }
+  },
+  "scope": "four Source4 production files, existing61runtimepins, fixed36421source before/after stable",
+  "outside_scope": "not global styles and not mobile writer files"
+}

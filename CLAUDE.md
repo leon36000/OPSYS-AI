@@ -1,19 +1,17 @@
 @AGENTS.md
 
-# CLAUDE.md — Projet OPSYS-AI
+# CLAUDE.md — OPSYS-AI
 
-La constitution globale (`~/.claude/CLAUDE.md`) et les hooks globaux s'appliquent déjà.
-Ici : uniquement le spécifique projet.
-
-- Profil PROOF : voir `AGENTS.md` (PROOF-Team). Team ⇒ CIV_MODELS 3 vendors.
-- Subagents (noms LiteLLM dédiés, jamais opus/sonnet/haiku) : crew-coder-long=Kimi K2.7 Code · crew-coder-bulk=DeepSeek V4 Pro. Architecte = **Kimi-K3** via `--difficulty difficile` (l'alias crew-architect→GLM-5.2 est RETIRÉ pour ce rôle — GLM fuit son raisonnement, ADR-0003 R-038). opus/sonnet/haiku = passthrough Claude réel réservé à l'Orchestrateur (toi, cette session).
-- Packs : `pack_build.sh` (doc compressée si `PROOF_COMPRESS=1` ; diff toujours verbatim ; revue = 0).
-
-## Arrêts durs projet
-
-- Lire `00-DIGEST.md` puis `docs/canon/REGLES.md` avant toute story ; plan maître PDF = source de vérité.
-- `python3 scripts/structure_lint.py` VERT avant tout commit (arborescence D-038).
-- Registres projet : `registries/ledger/*.jsonl` via `scripts/ledger_append.py` UNIQUEMENT (jamais à la main) ; registre méthode : `Registres/` (proof-method). Cf. ADR-0002.
-- Story pilote : `Modules M/M7-marketing/stories/M7-S000-story-pilote.md`. Ne JAMAIS sauter une phase (ordre : `PROMPT_BOOTSTRAP_CLAUDE_CODE.md`).
-- Les fichiers ForgeAI PROOF IDE System à la racine = référence produit distinct, ne gouvernent pas cette exécution (ADR-0002).
-
+- Lire `AGENTS.md`, puis `docs/produit/DEFINITION-PRODUIT.md` (§1, §5, §6, et §7 du département
+  concerné) avant toute livraison, et `docs/architecture/ARCHITECTURE.md` avant toute modification
+  structurelle.
+- Direction durable : `docs/produit/DIRECTIVES-NATHAN.md` et ADR-0012.
+- Travail en cours : `docs/programme/RESTRUCTURATION-2026-09-30.md` ; `PLAN.md` conserve l'historique.
+- Nouveau département ou nouvel outil : suivre `docs/architecture/DEPARTEMENTS.md`. La référence
+  vivante est `departments/m03-estimation/`.
+- Vérifier les comportements touchés avant livraison ; suites/lint/manifestes selon le périmètre
+  défini dans `AGENTS.md`. Documents seuls : liens, cohérence et diff. CI applicable avant intégration.
+- Aucun consensus de modèles ni revue d'un autre fournisseur obligatoire. Les comptes rendus
+  indiquent les preuves, limites et blocages utiles sans format administratif imposé.
+- `core/` est un fork dur d'OpenClaw (ADR-0008) : on le modifie librement, mais le bac à sable
+  n'exécute pas son code ; il se construit et se teste en CI.

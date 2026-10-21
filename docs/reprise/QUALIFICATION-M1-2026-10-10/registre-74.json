@@ -1,0 +1,2919 @@
+{
+  "base": "33911c7ba887a0134eaa7223cadbaa76ff096e3f",
+  "time_toronto": "2026-10-10T18:36:46.963804-04:00",
+  "product": "PARTIEL",
+  "scope": "CURRENT_R74;futureSourceReceiver excluded",
+  "files": [
+    {
+      "path": "core/extensions/sms/api.ts",
+      "current_sha256": "69951bb3ea78ee23c17e4c2ad8f5626e818d0ea57f99b88bfd9fa9d85af2c1ad",
+      "bytes": 308,
+      "preimage_git_blob_sha1": "67a8cf4e0647ea22cf7c42e4efe0741eb2e26326",
+      "preimage_sha256": "ac2dd604ffeca9e5c719e403779f5a7268f3e597aa973fc6f0b379a33fd41403",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/extensions/sms/src/gateway.ts",
+      "current_sha256": "1cbebe3ece9ce0cffcf321095152ba19c0ac5aa3dc6b0969cc779da916501476",
+      "bytes": 7922,
+      "preimage_git_blob_sha1": "d3a459d8e21742af3c164033ea9aeb543bac28c7",
+      "preimage_sha256": "10454c759ea5a91b1f18ec9a1425d55bc8ba02f0cde10efee5ac7fc0ca4bba8d",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "consumer154",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/extensions/sms/src/ingress-spool.test.ts",
+      "current_sha256": "9e9ee70bc671dfc7eca4bff2ded0d30c80d1a19304b687efa60b3e97bfc64d2e",
+      "bytes": 35169,
+      "preimage_git_blob_sha1": "7c47b1e1bc6978d5600a2a3e8d3fff60605c9e4e",
+      "preimage_sha256": "43dc4c6204c2a868a8ede68d17ead1bcdcdc696a50a4f9606f8d6f4c08f70055",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "consumer154",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/extensions/sms/src/ingress-spool.ts",
+      "current_sha256": "4e7c290f85eab4cbf70f7e351d84d96fdb29c38c9f914593d25aa1a813ebfb07",
+      "bytes": 12435,
+      "preimage_git_blob_sha1": "1a20d0a7a6d5be3fab5b3cec786edb78f23fe52c",
+      "preimage_sha256": "53e67a94849848b4f5e1c96100647d5859c909c7b7afa7297ace326337a2cd7e",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "consumer154",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/extensions/sms/src/opsys-host-bridge.ts",
+      "current_sha256": "b1b9ff5622cb77c75c5cb4f4eceb32850a6d6693d2e3c779a6be636a7c1ecfa3",
+      "bytes": 1705,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "consumer154",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/extensions/sms/src/twilio.ts",
+      "current_sha256": "8b4019f5660938fdd2072706cc6a733b32cb072be3619247ecbe23bcad4d6abd",
+      "bytes": 21795,
+      "preimage_git_blob_sha1": "b919fdc15239c6c307f7cd4b3a0e9ab852e58528",
+      "preimage_sha256": "edec7f2f3b4e4d3db4875e887a80f347c14d5ae078f0cf4dd91a30a42610a62d",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "consumer154",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/extensions/sms/src/webhook.test.ts",
+      "current_sha256": "a5ead2199920079954534a438a6cc50eeefaea55180056c8d2ed52a255455bdb",
+      "bytes": 37460,
+      "preimage_git_blob_sha1": "4b5993200a204a09b1ecf2fafb38aa8bf8e4e184",
+      "preimage_sha256": "ed8bd29b9d3dda44cbd2bf457073e273f62e391f5e8fdfd361f1260062ad7bed",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "consumer154",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/extensions/sms/src/webhook.ts",
+      "current_sha256": "df3aab8e1ef0b6c0a7e07b0d69c8dd5fc912c523c9926f198e24454ca349a4ba",
+      "bytes": 11855,
+      "preimage_git_blob_sha1": "445cebc758425cd15db25504d2e00b397824ee94",
+      "preimage_sha256": "65e723fb7c5c34f810354253f7d4405efb3c833fffebfb94831f2b0b8b9ec240",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "consumer154",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts",
+      "current_sha256": "882bae23fcd5cc73f5d3587433dfeabde7431bb14126b7d08cfc03a78974328f",
+      "bytes": 32770,
+      "preimage_git_blob_sha1": "914d4e0a964de48349ee4849a6a092a6194a605a",
+      "preimage_sha256": "8a8f2cf36d96cb3d924a400bf6a5a3abead28e5c98d2792742c6c659f4864b0d",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/agents/embedded-agent-runner/run/attempt-execution-phase.ts",
+      "current_sha256": "96456c679e364b4ad77273516a81dfa16abad442ee719cfa46429d65fad45b67",
+      "bytes": 9115,
+      "preimage_git_blob_sha1": "4884ba6f67d237cc904e73964c7112f32aa48129",
+      "preimage_sha256": "7c21f5cd19d6489dc54352d9cf0a1d1d405d134618dbcfde68347a54cf3300fc",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/agents/opsys-runtime-sms-contract.test.ts",
+      "current_sha256": "b4167f83d48450904e70f248477ae62276656a17dcfd59f15dd21898c91a1534",
+      "bytes": 8637,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/agents/opsys-runtime-sms-contract.ts",
+      "current_sha256": "e72a8805c988715bf151a06ad322f6fb1ca8a1820910da2ab2c539c961d23db3",
+      "bytes": 6764,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/message-access/admission-evidence.ts",
+      "current_sha256": "6321e752b45a800f6fc9e1df8bdebe7f88079981652b3df0b2567e6fd747ac3d",
+      "bytes": 25738,
+      "preimage_git_blob_sha1": "06088f6ad449125729eece8666344ad7f1772bb5",
+      "preimage_sha256": "1e395df394e58f6a1ab4f90725b2d222cf8dbbd233b188693644fc66ac5ed924",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-SMS-TASK-ACCOUNT-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r2/proofs/builder-lint-final-r1/sms-task-account-builder-lint-final-r1.json",
+          "sha256": "b6646812abc2ca9421419bb181e4634dd6e5af8cfa18dea7d5ba42c8f9633376",
+          "exit": 0,
+          "manifest_sha256": "a7168d745bf72dd7c91f02a9e46a6835b14c2733dbc738b6ceb2cfc970fb95db"
+        },
+        {
+          "receipt": "M1-SMS-TASK-ACCOUNT-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r2/proofs/builder-format-final-r1/sms-task-account-builder-format-final-r1.json",
+          "sha256": "661349630b10cfdddbae417688c7d46159fb3e108c4e963df1fa7fea074a80b2",
+          "exit": 0,
+          "manifest_sha256": "a7168d745bf72dd7c91f02a9e46a6835b14c2733dbc738b6ceb2cfc970fb95db"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/message/ingress-claim-writes.ts",
+      "current_sha256": "436735fcbf341e489b65f3faf0aeb04b9d55a868de3790311a2a8b23131097fe",
+      "bytes": 5107,
+      "preimage_git_blob_sha1": "493127a30b79c503c369833da3ee3c2ef79c8e2c",
+      "preimage_sha256": "a91ce857f48a847494b8537f0c84c9240379d4913b3824eabadd05af649f71d1",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/message/ingress-drain.adoption-commit.test.ts",
+      "current_sha256": "f23dafac5cbda9b139b02f08a0c5b120bda486f6891e0c387d0e12e85478843a",
+      "bytes": 15641,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/message/ingress-drain.ts",
+      "current_sha256": "9b57dda980bf682b74283b8f9ff01eb15194d4b054fa1e74a2cf874c2df508c6",
+      "bytes": 28337,
+      "preimage_git_blob_sha1": "07fc1fe901b838652971bc7ac9f825e0539218d3",
+      "preimage_sha256": "45ecc296dca7decda7d3769c51f0662243611b5b2d382cb7f9d76ea7c9b71382",
+      "origin": "modified exact primary339",
+      "last_change_A1": true,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-PREADOPTION-SIGNAL-GREEN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/lint3-r1/m1-preadoption-lint3-r1.json",
+          "sha256": "2a66acb5959baf9ca4a42b15fc38fe99dde24d1de53dc7dea5d1c73c88857c3b",
+          "exit": 0,
+          "manifest_sha256": "518f608ddf8cf4f204324510cabc13754200b9e5eff41807be56888f332db9a6"
+        },
+        {
+          "receipt": "M1-PREADOPTION-SIGNAL-GREEN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/format3-r1/m1-preadoption-format3-r1.json",
+          "sha256": "670305aabb7ca147c1a961176b80b24eb7f5ab35804b3df9a91d08b8e25cc5bc",
+          "exit": 0,
+          "manifest_sha256": "518f608ddf8cf4f204324510cabc13754200b9e5eff41807be56888f332db9a6"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/message/ingress-native-completion.test.ts",
+      "current_sha256": "891359d0bf0fdc0dc82469dd3ec34e92faab3f8558306e66549c1560a5f8ab1d",
+      "bytes": 10857,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/message/ingress-queue.read-only-access.test.ts",
+      "current_sha256": "148028899b1cabd32f5dc10603994518174fca341f3faf8e4a502bf0fdfa4d6f",
+      "bytes": 28230,
+      "preimage_git_blob_sha1": "24199f73c135d8e0fb9753c11a3fe66b1fdc0482",
+      "preimage_sha256": "22b7af5ce3f9297da3de77160a953d99c22ee00b0c1d4dda7a7d8bb1fd84882c",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/lint-final-r2/sms-original-c-lint-final-r2.json",
+          "sha256": "a8e8581b882a9470b40fa764976a04722e40af0c33cae4cf2deec29ab53afe08",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        },
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/format-final-r2/sms-original-c-format-final-r2.json",
+          "sha256": "ba280977eb9152d9cb2d1344a1e142e427193463d1a3aea56194410c434fc5d9",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/message/ingress-queue.ts",
+      "current_sha256": "756cf856848a728fdb4871144bf13e204d9d51b6853f16c1c6dc1734b7e6a346",
+      "bytes": 76030,
+      "preimage_git_blob_sha1": "7d90fb2023ade1a744f9935b227e984eb7d9f7e3",
+      "preimage_sha256": "2c2603d457738fd6a1e563ec65e48c9dd460451aad4a5fbf524c529f03b5a575",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/lint-final-r2/sms-original-c-lint-final-r2.json",
+          "sha256": "a8e8581b882a9470b40fa764976a04722e40af0c33cae4cf2deec29ab53afe08",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        },
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/format-final-r2/sms-original-c-format-final-r2.json",
+          "sha256": "ba280977eb9152d9cb2d1344a1e142e427193463d1a3aea56194410c434fc5d9",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/message/opsys-sms-source.test.ts",
+      "current_sha256": "769263bb8c5bc2b8bd1b89d1268015193d14ab9c3dec29eb661dae49c07b589d",
+      "bytes": 44057,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": true,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-PREADOPTION-SIGNAL-GREEN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/lint3-r1/m1-preadoption-lint3-r1.json",
+          "sha256": "2a66acb5959baf9ca4a42b15fc38fe99dde24d1de53dc7dea5d1c73c88857c3b",
+          "exit": 0,
+          "manifest_sha256": "518f608ddf8cf4f204324510cabc13754200b9e5eff41807be56888f332db9a6"
+        },
+        {
+          "receipt": "M1-PREADOPTION-SIGNAL-GREEN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/format3-r1/m1-preadoption-format3-r1.json",
+          "sha256": "670305aabb7ca147c1a961176b80b24eb7f5ab35804b3df9a91d08b8e25cc5bc",
+          "exit": 0,
+          "manifest_sha256": "518f608ddf8cf4f204324510cabc13754200b9e5eff41807be56888f332db9a6"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/message/opsys-sms-source.ts",
+      "current_sha256": "24f7aa0b527c83e505a771b6c7ca4272252db598c1f6013375b3d9e32095c16e",
+      "bytes": 17151,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": true,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-PREADOPTION-SIGNAL-GREEN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/lint3-r1/m1-preadoption-lint3-r1.json",
+          "sha256": "2a66acb5959baf9ca4a42b15fc38fe99dde24d1de53dc7dea5d1c73c88857c3b",
+          "exit": 0,
+          "manifest_sha256": "518f608ddf8cf4f204324510cabc13754200b9e5eff41807be56888f332db9a6"
+        },
+        {
+          "receipt": "M1-PREADOPTION-SIGNAL-GREEN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/format3-r1/m1-preadoption-format3-r1.json",
+          "sha256": "670305aabb7ca147c1a961176b80b24eb7f5ab35804b3df9a91d08b8e25cc5bc",
+          "exit": 0,
+          "manifest_sha256": "518f608ddf8cf4f204324510cabc13754200b9e5eff41807be56888f332db9a6"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/turn/execution.ts",
+      "current_sha256": "033edc1c4d148bd491ab002f2e4f9fb693976aaa3c73f96d79f1c51e8850d13e",
+      "bytes": 14533,
+      "preimage_git_blob_sha1": "de48516ac48ba55c8138c428b5eeef0c655981d6",
+      "preimage_sha256": "08e0c77a2bcd19bed01859823a7a91fee264db6252b681b9cae26ffcf6093969",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/turn/lifecycle.ts",
+      "current_sha256": "67825deef9fce2359f95d3297c0fa65ff79e4b32e45ada9a99b344e5a99a6175",
+      "bytes": 28660,
+      "preimage_git_blob_sha1": "5eaa6030876778f15f20c1d2da27ef2cbcea004d",
+      "preimage_sha256": "80dc71c71373890fedab45bb541a75efe9d01a48e7c4725e2a54c6e863b69a96",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/turn/run-channel-turn.finalize.test.ts",
+      "current_sha256": "e340dc6e03b3a60cb2cb6c8e8a8e456e94ba3f6d93ffe890ab875f86bedb6d52",
+      "bytes": 37616,
+      "preimage_git_blob_sha1": "30a72542968777d054e858c0fe39e01372eb649d",
+      "preimage_sha256": "aac82b845d67d390d25ec2589883b588e8f8b65118c0b2a2968b899a8cc0908e",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/turn/run-channel-turn.pipeline.test.ts",
+      "current_sha256": "19b614e06bf37b36a3da0050c081d94102b63bcfabd4ad4b09ca711f1c2aeb09",
+      "bytes": 50546,
+      "preimage_git_blob_sha1": "b62c6320b503d6657aa00e19cad1db86f555b434",
+      "preimage_sha256": "4080ba2a7da1cfb520e50d353d946e92245ed6a86e5fe102e013cadbec7c2d23",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/turn/run-channel-turn.ts",
+      "current_sha256": "33fa06b54d1f48ddc8ba8376b62bbd08816253a9a5966e1c5933130d94011419",
+      "bytes": 10827,
+      "preimage_git_blob_sha1": "669676967a9dbd19500579462699d92d09b82e59",
+      "preimage_sha256": "5491b439b39bb400b95f3b057e50985e12a3be513eaa955f7f8dc351fc8fa58a",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/channels/turn/types.ts",
+      "current_sha256": "bd4c29762954c65860b94704f52b6687d3539776d46d3a1dd3425a778e4c92ea",
+      "bytes": 18525,
+      "preimage_git_blob_sha1": "3b38fc3d4c6920abf6bd0b14050a58dc797aad10",
+      "preimage_sha256": "da5dbacf3ec49f97401dd364988dbd793737542cb7d2d7ff5241f89632287f74",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/config/opsys-sms-ingress.test.ts",
+      "current_sha256": "91ef091aa9d4caf5c574b8d4a794c45363847346230561a6034709cea1b605a7",
+      "bytes": 3978,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/config/types.agents.ts",
+      "current_sha256": "9091ed3fcb85d1ac5d58890587d756e2c900df04f080ca1723d362777b2893a0",
+      "bytes": 3227,
+      "preimage_git_blob_sha1": "ea90c8e32d387dabba8c8cda3433dccb62e8e4ed",
+      "preimage_sha256": "8cca3a0a0ca8316c7210a2081afdcbd0551b554467e5ceb2e12992cdd1ca82bf",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/config/zod-schema.agent-runtime.ts",
+      "current_sha256": "e515279c498600d8451295071a3847b5197fcf48bdadc2e130e1074d3e52ee6a",
+      "bytes": 33865,
+      "preimage_git_blob_sha1": "c0aef5f7efce4b4dda543d8966de878c47fb08e6",
+      "preimage_sha256": "af306dd2d7df62e01bb2d2e453f5d0c5ac4ac37f6e15621821ff6acd1f06cb1b",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-mcp.guarded.test.ts",
+      "current_sha256": "a6f7dce84d217f4c21c7407dadbe525d6d63f46057a75060f114f23de0237f15",
+      "bytes": 9128,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-mcp.ts",
+      "current_sha256": "33c0e3dbb51440310b61ab5412429ea1216c2f17afc2ac4f95dc4e9fdb74fade",
+      "bytes": 6174,
+      "preimage_git_blob_sha1": "634549c1cfa8cd498cd56a68dce519bbe6e6dc8e",
+      "preimage_sha256": "86b9814d002e799e62acd1928953fef0d5b79cc2823ab044c27614af586296a8",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-gate-consumer.test.ts",
+      "current_sha256": "4a4de8fafa6513019befa5a576e252f69f40603da824a595f76cf5e01e3db4c8",
+      "bytes": 14525,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/lint-final-r2/sms-original-c-lint-final-r2.json",
+          "sha256": "a8e8581b882a9470b40fa764976a04722e40af0c33cae4cf2deec29ab53afe08",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        },
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/format-final-r2/sms-original-c-format-final-r2.json",
+          "sha256": "ba280977eb9152d9cb2d1344a1e142e427193463d1a3aea56194410c434fc5d9",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-host-authority.test.ts",
+      "current_sha256": "71de7f46985f8507f90ff35370a5430fbaccd001fedc136945fec0bd77da18c6",
+      "bytes": 22976,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-host-authority.ts",
+      "current_sha256": "d9fd14b109c76fab20c28c29cd2c8cf3385a50fc6625f7cfce061792785c490d",
+      "bytes": 14736,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-host-claim-adapter.test.ts",
+      "current_sha256": "07a134265c71fce2a24332da45db19c6092ef6b8873a6254c1a2d03a0b26a1ce",
+      "bytes": 31182,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/lint-final-r2/sms-original-c-lint-final-r2.json",
+          "sha256": "a8e8581b882a9470b40fa764976a04722e40af0c33cae4cf2deec29ab53afe08",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        },
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/format-final-r2/sms-original-c-format-final-r2.json",
+          "sha256": "ba280977eb9152d9cb2d1344a1e142e427193463d1a3aea56194410c434fc5d9",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-host-claim-adapter.ts",
+      "current_sha256": "64d3be9d57e6f0ef2c56f811d916a3d0057d5a0b6417e75a3c7038f7d0d160a1",
+      "bytes": 11688,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/lint-final-r2/sms-original-c-lint-final-r2.json",
+          "sha256": "a8e8581b882a9470b40fa764976a04722e40af0c33cae4cf2deec29ab53afe08",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        },
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/format-final-r2/sms-original-c-format-final-r2.json",
+          "sha256": "ba280977eb9152d9cb2d1344a1e142e427193463d1a3aea56194410c434fc5d9",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-host-controller.test.ts",
+      "current_sha256": "97f62c3e3c09bc469255cbe4b94c1d2dffaf206d31c8200fcf2b21180b779ed3",
+      "bytes": 14925,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-host-controller.ts",
+      "current_sha256": "7365c961668be8a3e8005379a8c42069fe78c878b5d256abde84803188a21a89",
+      "bytes": 6829,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-ingress-capture.test.ts",
+      "current_sha256": "e71c5b193b49a21ed6e540bab3303df4a3c2f45d38a61bd706012bc8f2c826b4",
+      "bytes": 15760,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-ingress-capture.ts",
+      "current_sha256": "66007caed95455897782617d2fb48e3ed435b3f0ad978aec2af5b011263e170a",
+      "bytes": 16301,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "consumer154",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-managed-host-bridge.test.ts",
+      "current_sha256": "b7222be0dbfe5bff3208007286517870e0dd8f966efd7ffd4f46d17a6824c0da",
+      "bytes": 20455,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-managed-host-bridge.ts",
+      "current_sha256": "a8988229cd912edb94a73a5e077f4dd48752879f12e4978e976b21cdc0732fc6",
+      "bytes": 7983,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-receipt-gate.test.ts",
+      "current_sha256": "59366a7738b478943e0ae4782659c8387fc9e7231c7408b6c9ce76ae4e969c42",
+      "bytes": 16675,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/lint-final-r2/sms-original-c-lint-final-r2.json",
+          "sha256": "a8e8581b882a9470b40fa764976a04722e40af0c33cae4cf2deec29ab53afe08",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        },
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/format-final-r2/sms-original-c-format-final-r2.json",
+          "sha256": "ba280977eb9152d9cb2d1344a1e142e427193463d1a3aea56194410c434fc5d9",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/opsys-sms-receipt-gate.ts",
+      "current_sha256": "f5d19bbc11f2ef11442f32cd1b4480ac1d8d2baf411dcd60bc6e20db7237154a",
+      "bytes": 13976,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/lint-final-r2/sms-original-c-lint-final-r2.json",
+          "sha256": "a8e8581b882a9470b40fa764976a04722e40af0c33cae4cf2deec29ab53afe08",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        },
+        {
+          "receipt": "M1-ORIGINAL-C-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r1/proofs/format-final-r2/sms-original-c-format-final-r2.json",
+          "sha256": "ba280977eb9152d9cb2d1344a1e142e427193463d1a3aea56194410c434fc5d9",
+          "exit": 0,
+          "manifest_sha256": "38f8982b5e7a8d04b75cba38c07ba5c0073a3ae856dc7d0121478035356a23e8"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/server-channels.ownership.test.ts",
+      "current_sha256": "74d1a03b7eca4667fb68505c43b714500b3c34ace032f75af3d1fdcf08ecda9b",
+      "bytes": 26164,
+      "preimage_git_blob_sha1": "ed6c8ff376332757df22c36da75da82f45f39b9c",
+      "preimage_sha256": "a974be6a17404ba60ef1627967b8755fd340e82782ee42dd4fd2c0f2a8227559",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-SMS-TASK-ACCOUNT-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r2/proofs/lint-final-r1/sms-task-account-lint-final-r1.json",
+          "sha256": "8c8278a39ace9e9e6f8f48feda69c3e7860597dd9f12be9ccbf4eae558a56c9e",
+          "exit": 0,
+          "manifest_sha256": "c34c1289a79ced60384dbce569c0ae9339708030a7358b7128e151702cc99a45"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/gateway/server-channels.ts",
+      "current_sha256": "0010fee7e30711660567758686159fdef6001058f3661a8ed2cca5b4d22586c0",
+      "bytes": 75838,
+      "preimage_git_blob_sha1": "c596da456108cb78da54dec9bc13ea9585bcc6e2",
+      "preimage_sha256": "9f6d906191ed3eb90b71920c9e43fbfc3dcde836c5c0a0d0cd49df9c2d86b47d",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-SMS-TASK-ACCOUNT-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r2/proofs/lint-final-r1/sms-task-account-lint-final-r1.json",
+          "sha256": "8c8278a39ace9e9e6f8f48feda69c3e7860597dd9f12be9ccbf4eae558a56c9e",
+          "exit": 0,
+          "manifest_sha256": "c34c1289a79ced60384dbce569c0ae9339708030a7358b7128e151702cc99a45"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/infra/opsys-sms-task-runtime.test.ts",
+      "current_sha256": "bfe733616ec94f9372017d49f8fd7e6215c2e81f2f9635ee3d9dc300a8743d45",
+      "bytes": 26982,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-SMS-TASK-ACCOUNT-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r2/proofs/builder-lint-final-r1/sms-task-account-builder-lint-final-r1.json",
+          "sha256": "b6646812abc2ca9421419bb181e4634dd6e5af8cfa18dea7d5ba42c8f9633376",
+          "exit": 0,
+          "manifest_sha256": "a7168d745bf72dd7c91f02a9e46a6835b14c2733dbc738b6ceb2cfc970fb95db"
+        },
+        {
+          "receipt": "M1-SMS-TASK-ACCOUNT-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r2/proofs/builder-format-final-r1/sms-task-account-builder-format-final-r1.json",
+          "sha256": "661349630b10cfdddbae417688c7d46159fb3e108c4e963df1fa7fea074a80b2",
+          "exit": 0,
+          "manifest_sha256": "a7168d745bf72dd7c91f02a9e46a6835b14c2733dbc738b6ceb2cfc970fb95db"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/infra/opsys-sms-task-runtime.ts",
+      "current_sha256": "66716ebf90d6e030b5c094efd8dac4c657c7976bc7cb91dbe1a7f6757e1baa15",
+      "bytes": 9448,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-SMS-TASK-ACCOUNT-JOIN-IMPLEMENTATION-20261010-r1/PUBLIC-r2/proofs/lint-final-r1/sms-task-account-lint-final-r1.json",
+          "sha256": "8c8278a39ace9e9e6f8f48feda69c3e7860597dd9f12be9ccbf4eae558a56c9e",
+          "exit": 0,
+          "manifest_sha256": "c34c1289a79ced60384dbce569c0ae9339708030a7358b7128e151702cc99a45"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/plugins/opsys-sms-host-bridge.test.ts",
+      "current_sha256": "696f91bd9059698c14bf079dc5ebf2e651ea8acd9bcacae7e12d628be0e20ca4",
+      "bytes": 6399,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "managed87",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": true,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/src/plugins/plugin-instance-value-views.ts",
+      "current_sha256": "19a6d08b97fcaf95af9777286332a979dabd871e4e48238a54aa5fa904cf4244",
+      "bytes": 23031,
+      "preimage_git_blob_sha1": "c409a969c10714ab931b9bd1ab334fd195150c8f",
+      "preimage_sha256": "50bc3b43d42a32e3783b9988a356d16f7a1d0d3d4590f07937552742cb25ed90",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "Task565",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "OriginalC368",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        },
+        {
+          "campaign": "A1249",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Core952/36 and fullbuild identicalproductionSource73",
+        "style": "Core51format/lint0 with6max-lines warnings"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "departments/m01-front-office/src/m1_front_office/digest.py",
+      "current_sha256": "c24aafc0cea1167b14dcdeb8fa3f52b41cd12149dd15dd5e3245bd075c93b2c4",
+      "bytes": 7990,
+      "preimage_git_blob_sha1": "56d3d2a65f878fc15c0c70dd5530b8e17a5afc39",
+      "preimage_sha256": "ce5106da251ce2ebddae699a846758b6ff3d2dd5928d9d96d3f732c88c2a052a",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "departments/m01-front-office/src/m1_front_office/outils.py",
+      "current_sha256": "b6a6d8ea22afbaf51abd029c7a6939d0f3d75e823aa05ca1c510fcbe1e8f3379",
+      "bytes": 130852,
+      "preimage_git_blob_sha1": "29d7ec79a9615e51022b6dc800e1c081885e9ce1",
+      "preimage_sha256": "5b2c19a933c64f524eaecee30a293f55cc1b34946eb5da750fa61948b7ea3dd1",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "departments/m01-front-office/src/m1_front_office/registre.py",
+      "current_sha256": "9332fc0fe799cfaab2259d703f1579347240926da81fa4035980242f1f7c779f",
+      "bytes": 8180,
+      "preimage_git_blob_sha1": "e43a710f5c7899bbfd25d1b71862a3ee9edbb615",
+      "preimage_sha256": "6545ec02567b1af4490a69fe0355db3e0b21b926d24097eaa116633a98a7177f",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "departments/m01-front-office/tests/test_import_appels_durable.py",
+      "current_sha256": "58dd37f8d32c95ecd05ce3e1601610f42648d08e40b189f814bf8df2ddf53641",
+      "bytes": 11537,
+      "preimage_git_blob_sha1": "8e607b3b407dd3b0e330fb240bff71ca60ee204b",
+      "preimage_sha256": "010426752f37d36642bbd0004e462ffa0f4708f75445a67351cc615dd4127294",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "src/opsys/admission_agents.py",
+      "current_sha256": "b835d040164c8442869bad154124a9b93254535ce9028e7efc62b92408ecebb9",
+      "bytes": 41024,
+      "preimage_git_blob_sha1": "6e1d9b51a3b5ce9bca483f57c0ffff13429a8229",
+      "preimage_sha256": "97b34be72ad6aa8653dc707da7b9ee2c22a5ebd6165b8a6685787eae7b7b3b00",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "src/opsys/agents.py",
+      "current_sha256": "23209ccbe9a28e207a387e254d3507cf787d3a8ffb0d53b8c3668f83601d36b8",
+      "bytes": 17075,
+      "preimage_git_blob_sha1": "d16887ebf482619c3babfb7b119700fcd3859814",
+      "preimage_sha256": "eb7516f3a853bb443ac6f5f26fa3dbf19314119091d496c82e4b9f9be2ddf883",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "src/opsys/canaux.py",
+      "current_sha256": "e537f1249a5e4a03b9d110eaeff1c83dbd018ffca68625191822812fb92ce0a6",
+      "bytes": 17390,
+      "preimage_git_blob_sha1": "4f6f897748c11f9aba4ed092ccf6dc10288746d6",
+      "preimage_sha256": "e81b8da2fd00db9c9aaab9ab662e1d5e0ffc101a7526830a6dbc3ecd89213534",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "src/opsys/capacites.py",
+      "current_sha256": "9d88ec0e64dbc2cf535acd874280b4af68c864c1389a00d2d3531f5e820abb2e",
+      "bytes": 95400,
+      "preimage_git_blob_sha1": "7d43934d217923828526bee33a1c39f686bcbf91",
+      "preimage_sha256": "8e1ff7e6a84bf3f4a8a7fde2da0b3965d77ece1c6b962212f75b0465a91c2356",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "src/opsys/console/agents_ui.py",
+      "current_sha256": "cdad74170260d85c5ba301ff5a70713eb63959e8895d82a698fc61ace90faf29",
+      "bytes": 19976,
+      "preimage_git_blob_sha1": "22d23df98eeb8298141a5bfa4ba1a442f741922c",
+      "preimage_sha256": "73a082bd5e9262065900c04f9465de67a8a2b74941b3a33dec21fc0b16dd3b14",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "src/opsys/openclaw.py",
+      "current_sha256": "9cd3a0c9b78f39d17c9532719266fe00ac2f1c18fd4eedf7f33dd9b009f3585c",
+      "bytes": 59678,
+      "preimage_git_blob_sha1": "c3c590f2f2b7c9bc063eb4cbf49f01f5edd80e9f",
+      "preimage_sha256": "9a8dfcdb26d4491e146671537fe0027622d9c1f4209ec94dee408e3d5d2335ab",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "src/opsys/reception_sms_receipt.py",
+      "current_sha256": "c2ffe733fa00eae8ceb91f3bb88acff08259ebf28e9c75eb7b5d28fae18e4c71",
+      "bytes": 14425,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "src/opsys/reception_sms_runtime.py",
+      "current_sha256": "2110fca73799b223386c311dcebbef336638b97308973eba9a4eecc666d2b3b6",
+      "bytes": 4915,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "src/opsys/serveur_mcp.py",
+      "current_sha256": "3bcbf8231b1eab26c532fc1d99a3b940fbf57a89aecd7704b42c2722c28a4987",
+      "bytes": 66945,
+      "preimage_git_blob_sha1": "43efce38c7a8c16bd8c8309fe8b04a0a7748a617",
+      "preimage_sha256": "ac74a2f5b96bae1007e2d960540071567f11fbbfa596bf7650648c97a46159b2",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "tests/fixtures/m1_sms_ingress_v1.json",
+      "current_sha256": "8f5ccdcd6eb19c564b24473856598b113b18b8e123781e3971a9c5601b613c36",
+      "bytes": 9513,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [],
+      "style_limit": "No direct argv/current-byte style proof established by this bounded audit; not a claim of style failure.",
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        },
+        {
+          "campaign": "Core777_HISTORICAL",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": false
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "tests/test_agents_sms_configuration.py",
+      "current_sha256": "efff913536ef43f3f406ff873daca897961ac3a5fdba5d5f8ee50787821f55c1",
+      "bytes": 12785,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "tests/test_console_agents_sms.py",
+      "current_sha256": "f284efe2e9e77d24ff9f9e460d7d57e3f8ae2dbb89a94a2f6c7c763a449f1ef1",
+      "bytes": 9037,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "tests/test_openclaw_sms_profile.py",
+      "current_sha256": "53991872cfffe11c69752f9a036143639449cd47f6e5faf0931b3f0875eb52e8",
+      "bytes": 13158,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "tests/test_reception_sms_codec.py",
+      "current_sha256": "25970689dc905560acbc8c82da3b93fd38550724e3dc7714864cfbd0a8c62077",
+      "bytes": 7830,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "tests/test_reception_sms_receipt.py",
+      "current_sha256": "5db0279b190645c3c54a403c45cc258fc6b1c8dac503d2fa6ea154c3afeda0bd",
+      "bytes": 32476,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "tests/test_runtime_reception_sms_mcp.py",
+      "current_sha256": "4d4d47bdc48f8775ec7bcb306064c210c80a7143d171f2c787bbea8a1c329d72",
+      "bytes": 20396,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "tests/test_runtime_sms_profile_guard.py",
+      "current_sha256": "7d7fdd5abce4793e8d0ed937255900d619dc8d5acfb1598c0d3fb04fc1662dae",
+      "bytes": 9055,
+      "preimage_git_blob_sha1": null,
+      "preimage_sha256": null,
+      "origin": "new path absent primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "tests/test_serveur_mcp_http.py",
+      "current_sha256": "4ef1c97a6e7a5de3358552089631a15d19c885d4f9b72d40bacf9b2b4512ca97",
+      "bytes": 25956,
+      "preimage_git_blob_sha1": "e56f0803636c98124b80d31e5e3ad4b23c05ed00",
+      "preimage_sha256": "86ee5c9e7915f8f3994163846fdf0f86efbfcd3912fd888d621fa7958482a355",
+      "origin": "modified exact primary339",
+      "last_change_A1": false,
+      "limitation": "GlobalTSC3GiB RSS NONQUAL; exactnewcommitCI pending; SMSReceiver/OriginalC full/model/allSender positive notdelivered",
+      "CI": null,
+      "style_proofs_current_bytes_explicit_argv": [
+        {
+          "receipt": "M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/evidence-ruff-r1/m1-m10-foundations-ruff-r1.json",
+          "sha256": "02c047fcc78688414b261474a30037f48a4b0ced807592a8a90050811d2bec74",
+          "exit": 0,
+          "manifest_sha256": "b0217ea7c62eeccda395cd30e180132102b84b247a8d3e4773aef7462e5f979c"
+        }
+      ],
+      "historical_qualification": [
+        {
+          "campaign": "backend2292",
+          "bytes_equal": true,
+          "test_file_is_JUnit_suite": false,
+          "whole_dependency_snapshot_equal": true
+        }
+      ],
+      "verification_current": {
+        "scope": "Backend2292 relevantfixeddependencies unchanged",
+        "style": "PreviousclosedPython/business proofscope retained"
+      },
+      "integration_status": "PREPARED_CURRENT_R74"
+    },
+    {
+      "path": "core/test/opsys-tests-cibles.txt",
+      "current_sha256": "44607735c92ee7720605d92b45b8258f120b0c52d8059f3cab72882341a4d4e5",
+      "bytes": 17882,
+      "preimage_sha256": "fd0c4e1f72b3cbb181b03936cbc673907234b98ecdf445f9773e3c78881f89ad",
+      "preimage_git_blob_sha1": "64eaa02e2dfaef953eb422c40f338b784500080a",
+      "origin": "Root21M1CIselectionfix afterold73freeze",
+      "integration_status": "PREPARED_CURRENT_R74",
+      "verification_current": {
+        "selection": "199→220 unique21existingtests;actualunitFastclassification+21hasheschecked"
+      },
+      "limitation": "selection not execution; exactnewcommitCI pending",
+      "CI": null
+    }
+  ],
+  "counts": {
+    "paths": 74,
+    "modified": 39,
+    "new": 35
+  },
+  "history_registry_sha256": "e90403ba346d4a446f15ac0ccdb63d7f2d18e7217c624134a48cfb1ebaf14a59",
+  "backend_current_fixed_paths_rehashed": 1548,
+  "evidence_location": "SelectedreceiptsGit;fulllogs/censuses/origins/REDruns privateQ hashespreserved",
+  "commit_CI": "pendingnewHEAD"
+}

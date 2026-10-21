@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m4.travaux_termines",
+  "title": "M4 — Travaux terminés",
+  "description": "Émis par M4 quand une intervention atteint completed_pending_review ou completed_verified (Work Completion Trigger, departments/m04-field-ops/src/m4_field_ops/outbox.py::completer_intervention). Les champs requis sont exactement les clés du WCT (outbox.py::CHAMPS_WCT, lignes 26-30). Les champs optionnels sont ceux que les audits réclament pour les consommateurs avals : M5-audit.md lignes 110-115 (devis_id, déjà requis, suffit à M5 pour retrouver le prix chez M3 — aucun champ supplémentaire n'est demandé pour M5) ; M7-audit.md lignes 114-120 (ville, type de travaux, photos, description factuelle, consentement client, signal de qualité absents du WCT actuel).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "wct_id": {
+      "type": "string",
+      "description": "Identifiant du Work Completion Trigger (outbox.py::CHAMPS_WCT)."
+    },
+    "intervention_id": {
+      "type": "string",
+      "description": "Intervention M4 complétée."
+    },
+    "lead_id": {
+      "type": "string",
+      "description": "Lead M2 d'origine, porté tel quel depuis l'inscription (outbox.py::_extraire_lead_id)."
+    },
+    "technicien_id": {
+      "type": "string",
+      "description": "Technicien du dernier pointage de départ (outbox.py::_dernier_depart)."
+    },
+    "horodatage_completion": {
+      "type": "string",
+      "description": "Horodatage RFC 3339 du dernier départ (outbox.py::_dernier_depart)."
+    },
+    "fix_gps_completion": {
+      "type": "object",
+      "description": "{latitude, longitude} du dernier pointage de départ ; peut être absent de coordonnées si le terrain n'en a pas fourni."
+    },
+    "duree_reelle_minutes": {
+      "type": "integer",
+      "description": "Durée réelle sur site, pauses déduites (outbox.py::calculer_duree_reelle)."
+    },
+    "ecart_signale": {
+      "type": "boolean",
+      "description": "Écart MÉTIER connu de M4 à la complétion : une demande d'écart ouverte ou validée (outbox.py::completer_intervention, ecarts.py::ecart_metier_ouvert). Booléen explicite de l'appelant, jamais déduit ni vrai par précaution (PLAN T1.5-c). Ne dit RIEN de la variance des matériaux, que M6 publie ensuite dans m6.variance_chantier. true impose completed_pending_review ; false donne completed_verified, sauf vérification encore en attente (matériaux non comparés au prévu) qui garde completed_pending_review."
+    },
+    "revue_id": {
+      "type": ["string", "null"],
+      "description": "Demande de revue ayant motivé la complétion, si ecart_signale est vrai et que la complétion découle de sa résolution (ecarts.py::resoudre_demande) ; sinon null, dont toute complétion venue de l'appareil."
+    },
+    "hash_maillon": {
+      "type": "string",
+      "description": "Empreinte de la partie transition du maillon (sans le WCT), pour vérifier l'intégrité."
+    },
+    "consommateurs_cibles": {
+      "type": "array",
+      "description": "Cibles déclarées par M4 au moment de l'émission (outbox.py::CONSOMMATEURS_CIBLES) ; la liste vivante des consommateurs réels est la déclaration department.yaml/evenements.consomme du catalogue, pas ce champ figé dans le maillon."
+    },
+    "devis_id": {
+      "type": ["string", "null"],
+      "description": "Devis M3, porté tel quel depuis l'inscription ; null si l'intervention a été inscrite sans devis. M5-audit.md L110-115 : M5 retrouve le prix chez M3 par ce champ, déjà requis — aucun montant n'est porté par l'événement lui-même."
+    },
+    "statut": {
+      "type": "string",
+      "enum": ["completed_pending_review", "completed_verified"],
+      "description": "Les deux seules issues de complétion (outbox.py::STATUTS_COMPLETION)."
+    },
+    "ville": {
+      "type": "string",
+      "description": "M7-audit.md L117 : absente du WCT actuel, nécessaire à la cascade marketing (usine à contenu, ROI géographique)."
+    },
+    "type_travaux": {
+      "type": "string",
+      "description": "Lead v1 (LeadQualifie gelé) : type de travaux de l'énuméré v1, porté tel quel depuis l'inscription (M7-audit.md L117). Un lead v2 porte `service` à la place, jamais `type_travaux` : aucune des deux clés n'est déduite de l'autre (PLAN T0.13-b)."
+    },
+    "service": {
+      "type": "string",
+      "description": "Lead v2 (LeadQualifie v2) : code du service, déclaré par le profil d'entreprise de l'instance (opsys.taxonomie ; gouttieres, revetement, soffite_fascia, reparation pour le premier client), porté tel quel depuis l'inscription. Clé additive : un lead v1 porte `type_travaux` à la place, jamais `service` (PLAN T0.13-b)."
+    },
+    "photos": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "M7-audit.md L117 : références de photos après-chantier, absentes du WCT actuel ; jamais composées en contenu sans consentement_marketing explicite (M7-audit.md L322-324)."
+    },
+    "description_factuelle": {
+      "type": "string",
+      "description": "M7-audit.md L117-118 : description factuelle du chantier, absente du WCT actuel."
+    },
+    "consentement_marketing": {
+      "type": "boolean",
+      "description": "M7-audit.md L118 : « consentement client » absent du WCT actuel — trou le plus grave de l'audit M7 (L374-376) ; obligatoire avant toute composition de contenu à partir d'une photo de chantier, jamais déduit."
+    },
+    "client_satisfait": {
+      "type": ["boolean", "null"],
+      "description": "M7-audit.md L118 : signal de qualité (« client satisfait oui/non »), absent du WCT actuel ; null si non recueilli, jamais inventé."
+    },
+    "consentement_demande_avis": {
+      "type": "boolean",
+      "description": "Clé additive (PLAN T1.5-d) : consentement explicite du client à être contacté pour laisser un avis sur les travaux (Loi 25 ; POLITIQUE-photos-non-contractuelles.md §3 : consentement DISTINCT de consentement_marketing, qui vise l'usage de photos). Jamais déduit de consentement_marketing ni l'inverse. Recueilli par l'employé auprès du client dans l'app, accepté par M4 SEULEMENT pendant un appel d'appareil ; absent = non consenti."
+    },
+    "consentement_recueilli_par": {
+      "type": "string",
+      "description": "Clé additive (PLAN T1.5-d) : la personne authentifiée (identité confirmée en base) qui a recueilli consentement_marketing et/ou consentement_demande_avis auprès du client. Posée par M4, jamais fournie par l'appareil. Présente seulement avec l'un de ces deux consentements."
+    },
+    "consentement_recueilli_le": {
+      "type": "string",
+      "description": "Clé additive (PLAN T1.5-d) : heure de RÉCEPTION du serveur (RFC 3339) à laquelle ces consentements ont été enregistrés, jamais l'horloge de l'appareil. Posée par M4, présente seulement avec l'un des deux consentements."
+    },
+    "consentement_version_texte": {
+      "type": "string",
+      "description": "Clé additive (PLAN T1.5-d) : identifiant de la version du texte de consentement que l'app a présenté au client (POLITIQUE-consentement-sms.md §4 : « version de la politique »). Fournie par l'appareil, exigée par M4 dès qu'un consentement est envoyé ; l'app garde le texte de chaque version."
+    }
+  },
+  "required": [
+    "wct_id",
+    "intervention_id",
+    "lead_id",
+    "technicien_id",
+    "horodatage_completion",
+    "fix_gps_completion",
+    "duree_reelle_minutes",
+    "ecart_signale",
+    "revue_id",
+    "hash_maillon",
+    "consommateurs_cibles",
+    "devis_id",
+    "statut"
+  ]
+}

@@ -1,0 +1,587 @@
+{
+  "executor": "ROOT",
+  "date": "2026-10-03T14:27:43.229509+00:00",
+  "status": "SOURCE_TESTS_QUALIFIED_BUILD_UNQUALIFIED",
+  "ok_native_tests": true,
+  "cases": 164,
+  "whole_test_files": 7,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "whole_file_native_processes_serial": true,
+  "native_pool_override": false,
+  "environment_secret_inheritance": false,
+  "source_count": 5715,
+  "source_bytes": 61470637,
+  "source_unchanged": true,
+  "scope": {
+    "core/extensions/voice-call/README.md": "a2b3b83561de6a434388c3ee9a98aa7bd5ffb06ea00ed1eef4afd74374bd9a97",
+    "core/extensions/voice-call/index.ts": "aa74507eb77b7485fd80e023e86bb011bcc541b0859ca920da6817eb33fb12ec",
+    "core/extensions/voice-call/openclaw.plugin.json": "ed86fc4c8f6859d563c8aeeb8306890eace2c7862a3698db09c57b95a25526c3",
+    "core/extensions/voice-call/src/config.missed-call-ingress.test.ts": "d9d6ee6542a0190fbdf5f47ac80e936b6a20721017288835d453503d439b2010",
+    "core/extensions/voice-call/src/config.ts": "af08bfb8d75fe968558bbc776d039cd5dd0a1f9aed9dadbc214c0b641024a348",
+    "core/extensions/voice-call/src/providers/mock.ts": "50d1ce2dbc0f67d1d13ef2dc340efc7c8aa8025f31698c6c6589aa3878155ffd",
+    "core/extensions/voice-call/src/runtime.ts": "3d6b8e0286de44e2038b923bf76ca48dfa958ecac616dc8b2cc767cd314f453a",
+    "core/extensions/voice-call/src/webhook.missed-call.test.ts": "d797997233e3243a1b9aadbfd530fb7bf8304907d60b76b5c727098e0af22ba2",
+    "core/extensions/voice-call/src/webhook.test.ts": "b8a053a5d704671f909fe4e2322fd6252845d9c5db874f7f23ebb17f969b2c09",
+    "core/extensions/voice-call/src/webhook.ts": "7a50c136d4934baf513edfb512fa071b8936c8f3d2307b4713ce3c4064a0646f",
+    "core/src/agents/opsys-runtime-missed-call.test.ts": "847329464ba2788351465737dbcf00e4894f4e5a432f4875ae4b72e723834fb9",
+    "core/src/agents/opsys-runtime-missed-call.ts": "4fd9ddc427c58d7e813c302081d544a0983bb935b84c93ba6cb99f90ca0b1575",
+    "core/src/plugin-sdk/core.ts": "51ea03724c074b0c5bc477a1222daed3ea5682c0fdc539193420eedc8e4fa7da",
+    "core/src/plugin-sdk/plugin-entry.ts": "c11d02825d81864040ecaf53b1b5dbd6b7d5d57fbe9f7341d25e8bdd2e2e6159",
+    "core/src/plugins/plugin-registration.types.ts": "5067f5ae0598b551017044a242b9141daae1af3c8e7e3bf9dfc65e4e7f7afd02",
+    "core/src/plugins/services.missed-call.test.ts": "127d9ab8e03e1c02eea18e29e60c598c8e53bf869c838079fac9339b492dedc5",
+    "core/src/plugins/services.ts": "8bb655a2e5f91e1b38914e8a36c229153c2f00880c8b5c0e1345d07396b51949",
+    "core/extensions/voice-call/index.test.ts": "e6161bb5483ea04794abcba2524c0ce9d019d4a00700773950c81449391eb320"
+  },
+  "elapsed_seconds": 57.11806219100254,
+  "maximum_process_group_rss_bytes": 809775104,
+  "minimum_effective_room_bytes": 1635233792,
+  "minimum_raw_room_bytes": 385363968,
+  "style": {
+    "format18": true,
+    "syntax_lint16": true,
+    "syntax_warnings": 2,
+    "typed_lint_or_full_typecheck": false,
+    "native_focused_boundary16": true
+  },
+  "steps": [
+    {
+      "name": "format",
+      "ok": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/OPSYS-AI-recent/core/node_modules/oxfmt/bin/oxfmt",
+        "--check",
+        "--threads=1",
+        "extensions/voice-call/README.md",
+        "extensions/voice-call/index.ts",
+        "extensions/voice-call/openclaw.plugin.json",
+        "extensions/voice-call/src/config.missed-call-ingress.test.ts",
+        "extensions/voice-call/src/config.ts",
+        "extensions/voice-call/src/providers/mock.ts",
+        "extensions/voice-call/src/runtime.ts",
+        "extensions/voice-call/src/webhook.missed-call.test.ts",
+        "extensions/voice-call/src/webhook.test.ts",
+        "extensions/voice-call/src/webhook.ts",
+        "src/agents/opsys-runtime-missed-call.test.ts",
+        "src/agents/opsys-runtime-missed-call.ts",
+        "src/plugin-sdk/core.ts",
+        "src/plugin-sdk/plugin-entry.ts",
+        "src/plugins/plugin-registration.types.ts",
+        "src/plugins/services.missed-call.test.ts",
+        "src/plugins/services.ts",
+        "extensions/voice-call/index.test.ts"
+      ],
+      "peak_group_rss_bytes": 58904576,
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 29418701
+      },
+      "source_unchanged": true
+    },
+    {
+      "name": "syntax-lint",
+      "ok": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/OPSYS-AI-recent/core/node_modules/oxlint/bin/oxlint",
+        "--threads=1",
+        "extensions/voice-call/index.ts",
+        "extensions/voice-call/src/config.missed-call-ingress.test.ts",
+        "extensions/voice-call/src/config.ts",
+        "extensions/voice-call/src/providers/mock.ts",
+        "extensions/voice-call/src/runtime.ts",
+        "extensions/voice-call/src/webhook.missed-call.test.ts",
+        "extensions/voice-call/src/webhook.test.ts",
+        "extensions/voice-call/src/webhook.ts",
+        "src/agents/opsys-runtime-missed-call.test.ts",
+        "src/agents/opsys-runtime-missed-call.ts",
+        "src/plugin-sdk/core.ts",
+        "src/plugin-sdk/plugin-entry.ts",
+        "src/plugins/plugin-registration.types.ts",
+        "src/plugins/services.missed-call.test.ts",
+        "src/plugins/services.ts",
+        "extensions/voice-call/index.test.ts"
+      ],
+      "peak_group_rss_bytes": 193531904,
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 29418909
+      },
+      "source_unchanged": true
+    },
+    {
+      "name": "boundary-guards",
+      "ok": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "scripts/run-oxlint.mjs",
+        "--openclaw-focused-config",
+        "--config",
+        "config/oxlint/boundary-guards.json",
+        "--threads=1",
+        "extensions/voice-call/index.ts",
+        "extensions/voice-call/src/config.missed-call-ingress.test.ts",
+        "extensions/voice-call/src/config.ts",
+        "extensions/voice-call/src/providers/mock.ts",
+        "extensions/voice-call/src/runtime.ts",
+        "extensions/voice-call/src/webhook.missed-call.test.ts",
+        "extensions/voice-call/src/webhook.test.ts",
+        "extensions/voice-call/src/webhook.ts",
+        "src/agents/opsys-runtime-missed-call.test.ts",
+        "src/agents/opsys-runtime-missed-call.ts",
+        "src/plugin-sdk/core.ts",
+        "src/plugin-sdk/plugin-entry.ts",
+        "src/plugins/plugin-registration.types.ts",
+        "src/plugins/services.missed-call.test.ts",
+        "src/plugins/services.ts",
+        "extensions/voice-call/index.test.ts"
+      ],
+      "peak_group_rss_bytes": 46301184,
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 29419206
+      },
+      "source_unchanged": true
+    },
+    {
+      "name": "helper",
+      "ok": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/OPSYS-AI-recent/core/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "test/vitest/vitest.agents.config.ts",
+        "src/agents/opsys-runtime-missed-call.test.ts",
+        "--maxWorkers=1",
+        "--no-file-parallelism",
+        "--passWithNoTests=false",
+        "--reporter=default",
+        "--reporter=junit",
+        "--outputFile.junit=/dev/shm/opsys-m1-core-ingress-root-r17-final/execution-r1/helper.xml"
+      ],
+      "peak_group_rss_bytes": 324333568,
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 29419444
+      },
+      "source_unchanged": true,
+      "junit": {
+        "cases": 10,
+        "counts": {
+          "passed": 10,
+          "failure": 0,
+          "error": 0,
+          "skipped": 0
+        },
+        "files": [
+          "src/agents/opsys-runtime-missed-call.test.ts"
+        ],
+        "all_attributed": true,
+        "unique": true,
+        "covered": [
+          "src/agents/opsys-runtime-missed-call.test.ts"
+        ]
+      }
+    },
+    {
+      "name": "service-0",
+      "ok": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/OPSYS-AI-recent/core/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "test/vitest/vitest.plugins.config.ts",
+        "src/plugins/services.missed-call.test.ts",
+        "--maxWorkers=1",
+        "--no-file-parallelism",
+        "--passWithNoTests=false",
+        "--reporter=default",
+        "--reporter=junit",
+        "--outputFile.junit=/dev/shm/opsys-m1-core-ingress-root-r17-final/execution-r1/service-0.xml"
+      ],
+      "peak_group_rss_bytes": 664903680,
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 29419780
+      },
+      "source_unchanged": true,
+      "junit": {
+        "cases": 4,
+        "counts": {
+          "passed": 4,
+          "failure": 0,
+          "error": 0,
+          "skipped": 0
+        },
+        "files": [
+          "src/plugins/services.missed-call.test.ts"
+        ],
+        "all_attributed": true,
+        "unique": true,
+        "covered": [
+          "src/plugins/services.missed-call.test.ts"
+        ]
+      }
+    },
+    {
+      "name": "service-1",
+      "ok": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/OPSYS-AI-recent/core/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "test/vitest/vitest.plugins.config.ts",
+        "src/plugins/services.test.ts",
+        "--maxWorkers=1",
+        "--no-file-parallelism",
+        "--passWithNoTests=false",
+        "--reporter=default",
+        "--reporter=junit",
+        "--outputFile.junit=/dev/shm/opsys-m1-core-ingress-root-r17-final/execution-r1/service-1.xml"
+      ],
+      "peak_group_rss_bytes": 650448896,
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 29420411
+      },
+      "source_unchanged": true,
+      "junit": {
+        "cases": 23,
+        "counts": {
+          "passed": 23,
+          "failure": 0,
+          "error": 0,
+          "skipped": 0
+        },
+        "files": [
+          "src/plugins/services.test.ts"
+        ],
+        "all_attributed": true,
+        "unique": true,
+        "covered": [
+          "src/plugins/services.test.ts"
+        ]
+      }
+    },
+    {
+      "name": "voice-0",
+      "ok": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/OPSYS-AI-recent/core/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "test/vitest/vitest.extension-voice-call.config.ts",
+        "extensions/voice-call/src/config.missed-call-ingress.test.ts",
+        "--maxWorkers=1",
+        "--no-file-parallelism",
+        "--passWithNoTests=false",
+        "--reporter=default",
+        "--reporter=junit",
+        "--outputFile.junit=/dev/shm/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-0.xml"
+      ],
+      "peak_group_rss_bytes": 693760000,
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 29421015
+      },
+      "source_unchanged": true,
+      "junit": {
+        "cases": 5,
+        "counts": {
+          "passed": 5,
+          "failure": 0,
+          "error": 0,
+          "skipped": 0
+        },
+        "files": [
+          "extensions/voice-call/src/config.missed-call-ingress.test.ts"
+        ],
+        "all_attributed": true,
+        "unique": true,
+        "covered": [
+          "extensions/voice-call/src/config.missed-call-ingress.test.ts"
+        ]
+      }
+    },
+    {
+      "name": "voice-1",
+      "ok": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/OPSYS-AI-recent/core/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "test/vitest/vitest.extension-voice-call.config.ts",
+        "extensions/voice-call/src/webhook.missed-call.test.ts",
+        "--maxWorkers=1",
+        "--no-file-parallelism",
+        "--passWithNoTests=false",
+        "--reporter=default",
+        "--reporter=junit",
+        "--outputFile.junit=/dev/shm/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-1.xml"
+      ],
+      "peak_group_rss_bytes": 728117248,
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 29421725
+      },
+      "source_unchanged": true,
+      "junit": {
+        "cases": 4,
+        "counts": {
+          "passed": 4,
+          "failure": 0,
+          "error": 0,
+          "skipped": 0
+        },
+        "files": [
+          "extensions/voice-call/src/webhook.missed-call.test.ts"
+        ],
+        "all_attributed": true,
+        "unique": true,
+        "covered": [
+          "extensions/voice-call/src/webhook.missed-call.test.ts"
+        ]
+      }
+    },
+    {
+      "name": "voice-2",
+      "ok": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/OPSYS-AI-recent/core/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "test/vitest/vitest.extension-voice-call.config.ts",
+        "extensions/voice-call/src/webhook.test.ts",
+        "--maxWorkers=1",
+        "--no-file-parallelism",
+        "--passWithNoTests=false",
+        "--reporter=default",
+        "--reporter=junit",
+        "--outputFile.junit=/dev/shm/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-2.xml"
+      ],
+      "peak_group_rss_bytes": 809775104,
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 29422431
+      },
+      "source_unchanged": true,
+      "junit": {
+        "cases": 67,
+        "counts": {
+          "passed": 67,
+          "failure": 0,
+          "error": 0,
+          "skipped": 0
+        },
+        "files": [
+          "extensions/voice-call/src/webhook.test.ts"
+        ],
+        "all_attributed": true,
+        "unique": true,
+        "covered": [
+          "extensions/voice-call/src/webhook.test.ts"
+        ]
+      }
+    },
+    {
+      "name": "voice-3",
+      "ok": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "/workspace/OPSYS-AI-recent/core/node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "test/vitest/vitest.extension-voice-call.config.ts",
+        "extensions/voice-call/index.test.ts",
+        "--maxWorkers=1",
+        "--no-file-parallelism",
+        "--passWithNoTests=false",
+        "--reporter=default",
+        "--reporter=junit",
+        "--outputFile.junit=/dev/shm/opsys-m1-core-ingress-root-r17-final/execution-r1/voice-3.xml"
+      ],
+      "peak_group_rss_bytes": 777453568,
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 29423441
+      },
+      "source_unchanged": true,
+      "junit": {
+        "cases": 51,
+        "counts": {
+          "passed": 51,
+          "failure": 0,
+          "error": 0,
+          "skipped": 0
+        },
+        "files": [
+          "extensions/voice-call/index.test.ts"
+        ],
+        "all_attributed": true,
+        "unique": true,
+        "covered": [
+          "extensions/voice-call/index.test.ts"
+        ]
+      }
+    }
+  ],
+  "build": {
+    "executor": "ROOT",
+    "timestamp": "2026-10-03T14:22:27.903731+00:00",
+    "command_required": "pnpm build",
+    "profile_required": "OPENCLAW_LOCAL_CHECK=0 node --import tsx scripts/profile-extension-memory.mts --extension voice-call --skip-combined --concurrency 1",
+    "executed": false,
+    "qualification": false,
+    "reason": "Insufficient safe working disk and effective available cgroup room; preserve existing dist; no reduced heap or old dist substituted for full build",
+    "overlay_available_bytes": 26718208,
+    "cgroup_limit_bytes": 17179869184,
+    "cgroup_current_bytes": 16054595584,
+    "raw_available_bytes": 1125273600,
+    "clean_inactive_file_credit_bytes": 1256574976,
+    "effective_room_bytes": 2381848576,
+    "required_measured_heap_MiB": 4352,
+    "source": "core/scripts/tsdown-build.mts",
+    "source_sha256": "ac49d26dabaedb3b64c3febb766e22a4df87ab59cfebd91ef5251794759be722",
+    "sdk_baselines_modified": false,
+    "dist_modified": false,
+    "oom": "low 0\nhigh 0\nmax 1423608\noom 10\noom_kill 3\noom_group_kill 0\n"
+  },
+  "full_receipt": "campaigns/opsys-m1-core-ingress-root-r17-final/execution-r1/receipt.json.gz",
+  "not_qualified": [
+    "Core→Python private MCP end-to-end across real processes",
+    "full build and generated SDK exports",
+    "fresh built-plugin startup profiler",
+    "Gateway recovery restart following default agent change",
+    "real carrier call, trunk, audio, Quebec speech latency, consent, M10 business event, VPS"
+  ],
+  "historical_red_preserved": true,
+  "artifact_count": 202
+}

@@ -1,0 +1,38 @@
+{
+  "utc": "2026-10-03T08:33:45.228538+00:00",
+  "qualified": true,
+  "original_receipt": "/dev/shm/opsys-m5-cfo-annexe-root-r2/execution-r1/receipt.json",
+  "tests": {},
+  "scope_sha256_current": {
+    "src/opsys/console/cfo_ui.py": "27056e9e3601445451a504b102b182b984235200dfaebcf2ee6fb3d026e795d9",
+    "src/opsys/console/paie_das_privees_cfo.py": "9f2195daa01ee40c5d6a9d85186e2c50424f12cc5e3f5f59f44aff13ee3f111c",
+    "tests/test_console_cfo_prive.py": "adb7abd57b60987edd0349d5f198bcc9d4efd06d60da62e8b2f48aeb82f5c553"
+  },
+  "files": [
+    {
+      "source": "/dev/shm/opsys-m5-cfo-annexe-root-r2/execution-r1/receipt.json",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M5-CFO-ANNEXE-PRIVEE-ROOT-r1/execution-verifiee-r1/receipt.json.gz",
+      "sha256": "28c400772bbce5a682dd12c86de9a340d3708e1420f2a12a16da0b28d3ba3755",
+      "bytes": 462218
+    },
+    {
+      "source": "/dev/shm/opsys-m5-cfo-annexe-root-r2/execution-r1/pytest.xml",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M5-CFO-ANNEXE-PRIVEE-ROOT-r1/execution-verifiee-r1/pytest.xml.gz",
+      "sha256": "0f1568ae05ad3155b3f2e88f853445af0e789400acd0a70b6f8070c11e5b81c3",
+      "bytes": 6897
+    },
+    {
+      "source": "/dev/shm/opsys-m5-cfo-annexe-root-r2/execution-r1/pytest.log",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M5-CFO-ANNEXE-PRIVEE-ROOT-r1/execution-verifiee-r1/pytest.log.gz",
+      "sha256": "ee208bc733af78918032b770f174907ad9e48ed61d92571f2d842a1c82804aa6",
+      "bytes": 100
+    },
+    {
+      "source": "/dev/shm/opsys-m5-cfo-annexe-root-r2/execution-r1/ruff.log",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/M5-CFO-ANNEXE-PRIVEE-ROOT-r1/execution-verifiee-r1/ruff.log.gz",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    }
+  ],
+  "limitations": "Synthetic test data; no external provider, production deployment or official payroll/tax action"
+}

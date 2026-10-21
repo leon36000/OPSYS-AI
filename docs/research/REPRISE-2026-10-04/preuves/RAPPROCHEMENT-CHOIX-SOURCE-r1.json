@@ -1,0 +1,134 @@
+{
+  "created_utc": "2026-10-04T02:26:19.720198+00:00",
+  "archive": "RAPPROCHEMENT-CHOIX-SOURCE-r1.tar.xz",
+  "archive_sha256": "a804030b92f48931f1ac4d1e5949900eeec1a793a759dd4a49ec02141571e0d4",
+  "archive_bytes": 82868,
+  "entries": [
+    {
+      "path": "guard_helpers_r2.py",
+      "size": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844"
+    },
+    {
+      "path": "PUBLICATION-M3-RESULT-r1.json",
+      "size": 1600,
+      "sha256": "91801f0493f97f8c72b55e409dd1009b5aed96524b19939561ae3b1277ca1120"
+    },
+    {
+      "path": "rapprochement-test-before-r1.py",
+      "size": 14824,
+      "sha256": "538aca7756eae93e75b2df2b23737157d24219f3493d1540a8ea6f8d2a12b7b0"
+    },
+    {
+      "path": "qa_root_r42.py",
+      "size": 4006,
+      "sha256": "91b19df2b221093464ce76739504aa9b050432defdf3106ea30b4cb6cf3903e7"
+    },
+    {
+      "path": "qa-r42/execution-r1/actionlint.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "qa-r42/execution-r1/collect-root-affected.log",
+      "size": 182,
+      "sha256": "af25995eaa94550b31b26f8963510d65a88909026a403d5c9e28487eb4e303d6"
+    },
+    {
+      "path": "qa-r42/execution-r1/pytest.log",
+      "size": 4153,
+      "sha256": "55c4ce7235e0890a010e83fa3c655355bb4550bbbccd72f637aa9db209ef43b6"
+    },
+    {
+      "path": "qa-r42/execution-r1/pytest.xml",
+      "size": 17148,
+      "sha256": "4cb380907cbb4b7e544c896155e7005d865ea19301a48d47f8ca07e38c7da293"
+    },
+    {
+      "path": "qa-r42/execution-r1/ruff.log",
+      "size": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "qa-r42/freeze.json",
+      "size": 153301,
+      "sha256": "bb6d157e7a4f430699c5e5ee20a6c91e633a0cca80a6f461ced1f8ddc4b492fe"
+    },
+    {
+      "path": "qa-r42/receipt.json",
+      "size": 319198,
+      "sha256": "b59de89e2d39bd34564984ec2b21733bdc35855c567a0f802e6191c889464e8e"
+    },
+    {
+      "path": "qa_root_r50.py",
+      "size": 4006,
+      "sha256": "fbb597081ddda302fa1e0faae85c3ac24db26dafa1c33b88959d6bb05330efd0"
+    },
+    {
+      "path": "qa-r50/execution-r1/actionlint.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "qa-r50/execution-r1/collect-root-affected.log",
+      "size": 182,
+      "sha256": "59f2541051e851872704285868aff856d81661a5c4392de156bcd559d013d316"
+    },
+    {
+      "path": "qa-r50/execution-r1/pytest.log",
+      "size": 615,
+      "sha256": "bf3d5bafb8f21087d05a1ee59c7b021a6cbc0ff977798563d266ad8d85d4e3f2"
+    },
+    {
+      "path": "qa-r50/execution-r1/pytest.xml",
+      "size": 14311,
+      "sha256": "e863196893a7d8336ef0b28ba6f7bd88cd435cf95cdd681b991c09be5615c3b0"
+    },
+    {
+      "path": "qa-r50/execution-r1/ruff.log",
+      "size": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "qa-r50/freeze.json",
+      "size": 153301,
+      "sha256": "f7e943e30011bb01ef1a7cfb7a05cd2e7f0854eb9a4ec8d8644b7b395751575a"
+    },
+    {
+      "path": "qa-r50/receipt.json",
+      "size": 319195,
+      "sha256": "066441c68ad0ef1625bff38c421823693734017653e571803929c1236dedd5ea"
+    },
+    {
+      "path": "qa_root_r51.py",
+      "size": 3199,
+      "sha256": "1a1e7236ffc81e95d9776cf067b1622be0b330585a3a17acdbeee29f8fafb5a9"
+    },
+    {
+      "path": "qa-r51/execution-r1/gitleaks.log",
+      "size": 131,
+      "sha256": "0df890ac670b31767e69ae9ceb9fecd61acbd5d9b531b2355f1d947dd49a9af6"
+    },
+    {
+      "path": "qa-r51/freeze.json",
+      "size": 116,
+      "sha256": "54b3181b9531acf8845aaaf3a23c6b567656dfad5acdcc73df3d16347670e060"
+    },
+    {
+      "path": "qa-r51/receipt.json",
+      "size": 2621,
+      "sha256": "bccadfeff7bd306e65e8041b56fb084090b6b1e54ac51efa86774907566e7ca0"
+    },
+    {
+      "path": "qa-r51/scan.json",
+      "size": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "diagnostic/analysis.txt",
+      "size": 5162,
+      "sha256": "2c32b12772052095fcf288b2bbc3c185944f9b493adad94c84b0d656744ffb1f"
+    }
+  ],
+  "verified_readback": true
+}

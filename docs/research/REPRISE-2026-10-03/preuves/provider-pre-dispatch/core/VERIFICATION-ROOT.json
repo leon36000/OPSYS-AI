@@ -1,0 +1,247 @@
+{
+  "runs": [
+    {
+      "group": "provider-release-unit",
+      "native_owner_config": "test/vitest/vitest.agents-embedded-agent.config.ts",
+      "status": "PASS",
+      "ok": true,
+      "source_count": 11014,
+      "source_drift_before": {},
+      "source_drift_after": {},
+      "heap_MiB": 192,
+      "group_RSS_cap_MiB": 768,
+      "reserve_MiB": 512,
+      "elapsed": 9.633222179021686,
+      "junit": {
+        "counts": {
+          "passed": 18,
+          "failure": 0,
+          "error": 0,
+          "skipped": 0
+        },
+        "files": [
+          "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts"
+        ],
+        "cases_by_file": {
+          "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts": 18
+        },
+        "ok": true
+      },
+      "exception": null
+    },
+    {
+      "group": "provider-release-deny",
+      "native_owner_config": "test/vitest/vitest.agents-core.config.ts",
+      "status": "RED",
+      "ok": false,
+      "source_count": 11014,
+      "source_drift_before": {},
+      "source_drift_after": {},
+      "heap_MiB": 192,
+      "group_RSS_cap_MiB": 768,
+      "reserve_MiB": 512,
+      "elapsed": 3.4493069109739736,
+      "junit": null,
+      "exception": "JUnit empty, duplicate or unnamed testcase ids"
+    },
+    {
+      "group": "provider-release-deny",
+      "native_owner_config": "test/vitest/vitest.unit-fast.config.ts",
+      "status": "PASS",
+      "ok": true,
+      "source_count": 11014,
+      "source_drift_before": {},
+      "source_drift_after": {},
+      "heap_MiB": 192,
+      "group_RSS_cap_MiB": 768,
+      "reserve_MiB": 512,
+      "elapsed": 4.814394465007354,
+      "junit": {
+        "counts": {
+          "passed": 1,
+          "failure": 0,
+          "error": 0,
+          "skipped": 0
+        },
+        "files": [
+          "src/agents/agent-tools.before-tool-call.opsys-runtime-deny.test.ts"
+        ],
+        "cases_by_file": {
+          "src/agents/agent-tools.before-tool-call.opsys-runtime-deny.test.ts": 1
+        },
+        "ok": true
+      },
+      "exception": null
+    },
+    {
+      "group": "provider-release-http",
+      "native_owner_config": "test/vitest/vitest.agents-embedded-agent.config.ts",
+      "status": "RED",
+      "ok": false,
+      "source_count": 11014,
+      "source_drift_before": {},
+      "source_drift_after": {},
+      "heap_MiB": 192,
+      "group_RSS_cap_MiB": 768,
+      "reserve_MiB": 512,
+      "elapsed": 32.731764285999816,
+      "junit": null,
+      "exception": "ParseError"
+    }
+  ],
+  "artifacts": [
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/qa-root-r20-provider-release.py",
+      "artifact": "qa-root-r20-provider-release.py.gz",
+      "raw_sha256": "6bc6b674e99b452e909b49a9c20d8173311588a60b3f7b35b1197f09ab8be579",
+      "archive_sha256": "2272441f9580d97ccc4be3c6d5e023ee562da10e2d3997614de5f2b0f8956598",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/qa-root-r21-provider-release.py",
+      "artifact": "qa-root-r21-provider-release.py.gz",
+      "raw_sha256": "eb7c3c756fc8cbc6a32153989e331002ca554b63b48e83ab155adf4fc5718683",
+      "archive_sha256": "5923fd83de59ead7265841e51012c01ed76df6c27323e3f43280786601ce7e05",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/bounded-root-r2.py",
+      "artifact": "bounded-root-r2.py.gz",
+      "raw_sha256": "b01f8e238efe28085c134cadca3625febb5ccaec7bc1eebef638a424bc1ffe76",
+      "archive_sha256": "6ecd24bc1709a8e4166b32e4b71a551f43b03aaabc8586bbb3b7c0a5ed44d448",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/sources-frozen-provider-r9.json.gz",
+      "artifact": "sources-frozen-provider-r9.json.gz",
+      "raw_sha256": "169175769cdf53187ce0e53f0183b792eaf5082c36b2fccdf0914e9097ec6e5f",
+      "archive_sha256": "169175769cdf53187ce0e53f0183b792eaf5082c36b2fccdf0914e9097ec6e5f",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/format-provider-root-r1.py",
+      "artifact": "format-provider-root-r1.py.gz",
+      "raw_sha256": "ae854f97cd341470c5926b165bb0504587c252fd555c353b2c714ddee90ce1d7",
+      "archive_sha256": "c2d4bfb3c6428c37c82dafd2d644ef5bb76abdeed01b0ad6bcee0f3cc86886f2",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-unit-r2/RECU-ROOT.json",
+      "artifact": "provider-release-unit-r2/RECU-ROOT.json.gz",
+      "raw_sha256": "4d8e41e04796a74f4e396a4a366fccd906543c3cc1a7e27ea8af55bdbe66732b",
+      "archive_sha256": "181dc4bafca0585452725274f9d12d0bcd7259349fbe985b9ebf15b995dde5b2",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-unit-r2/format.log",
+      "artifact": "provider-release-unit-r2/format.log.gz",
+      "raw_sha256": "a1e32f25ac6d7d6d507f45522a9e500755cd1514476f88d5b1216da8de641a83",
+      "archive_sha256": "49f7f7ffb4375acd7bb4ea64e191f1e539885f125ee25a0eefbe3b5669adc7ac",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-unit-r2/junit.xml",
+      "artifact": "provider-release-unit-r2/junit.xml.gz",
+      "raw_sha256": "6418863760a7bb76e86bf5caf1a664791ddb84bb25666e6e5b2a2105405b3dc8",
+      "archive_sha256": "9dbc44ab5b15b7811814fc7eecc0208240faaa1d38bf3a217752d989e99564a3",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-unit-r2/native.log",
+      "artifact": "provider-release-unit-r2/native.log.gz",
+      "raw_sha256": "d7717a6271118b2833cccf5840d23a3ac106f6fd2f32467a94c85ca62b1d459a",
+      "archive_sha256": "3cab0df692fefa19144202c709cfc60846373542c29efbcff04b9c6bc9294a84",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-deny-r2/RECU-ROOT.json",
+      "artifact": "provider-release-deny-r2/RECU-ROOT.json.gz",
+      "raw_sha256": "48ea3ab2642858e8ecb308acd31aaf946bd452866d05d6f8746b818988087574",
+      "archive_sha256": "12f7e4e7a53cc16ab03eb0ad85a9a629e2a3448af00f18b63bd306fd824c3a4e",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-deny-r2/junit.xml",
+      "artifact": "provider-release-deny-r2/junit.xml.gz",
+      "raw_sha256": "c12f033ca32130a31896bed9863221cc3b6e03be2b2019ddbcf60986d1173122",
+      "archive_sha256": "ea9fe6919802c79118b7232cd06ebf37f1113b6bf63a491045ac932a6c58a03d",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-deny-r2/native.log",
+      "artifact": "provider-release-deny-r2/native.log.gz",
+      "raw_sha256": "4d4f59ac31a12d405ff5dfa12b005edcf364e69fa401a950a43a1d08b4b3ec00",
+      "archive_sha256": "348592ad64ee466d197ab42b3530a7b7a688627c453cad16a5f36c96cf1922d1",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-deny-r3/RECU-ROOT.json",
+      "artifact": "provider-release-deny-r3/RECU-ROOT.json.gz",
+      "raw_sha256": "2f22c71acc76f86c327db9d1bd9841579709f3313de097a8d5c81df50f2424eb",
+      "archive_sha256": "b2f94f762520960b4197755f6c6b97809e0966bcea4280fe2ee7c3e72c4662bb",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-deny-r3/format.log",
+      "artifact": "provider-release-deny-r3/format.log.gz",
+      "raw_sha256": "a1e32f25ac6d7d6d507f45522a9e500755cd1514476f88d5b1216da8de641a83",
+      "archive_sha256": "49f7f7ffb4375acd7bb4ea64e191f1e539885f125ee25a0eefbe3b5669adc7ac",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-deny-r3/junit.xml",
+      "artifact": "provider-release-deny-r3/junit.xml.gz",
+      "raw_sha256": "92d3085b657620385d43ef429c6f184585cf4e3b3c37c9d682f053b7a36c962e",
+      "archive_sha256": "fea774599863e37a48afad829bc238efb4d4d5626860356c23ee95361d17cb81",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-deny-r3/native.log",
+      "artifact": "provider-release-deny-r3/native.log.gz",
+      "raw_sha256": "ce45dd9f965e26f51c5598dad88a08e23334966433dfef0e3099056b10aaea85",
+      "archive_sha256": "f8a21b529a87e17f303cd37e3a8f7e14b4f12b153834fffcd6bac03fde63f84d",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-http-r2/RECU-ROOT.json",
+      "artifact": "provider-release-http-r2/RECU-ROOT.json.gz",
+      "raw_sha256": "da77bae5f867936a44484e83a8085cc039f09281dcea2c0ca05fc66d697ac848",
+      "archive_sha256": "6f8ebbe42aba74c524acd4991f9892dc64efe88e08c4a440ac362ce503e3c626",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-http-r2/junit.xml",
+      "artifact": "provider-release-http-r2/junit.xml.gz",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archive_sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-release-http-r2/native.log",
+      "artifact": "provider-release-http-r2/native.log.gz",
+      "raw_sha256": "ab9089d70a6964fa14ab7708d453250098f197f19e46f9d94c1ccbb1e148825b",
+      "archive_sha256": "e4bbb8af730d0bb1823fbbacd75bd598e2729535314e5e400a19ef162fbd48e2",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/format-provider-r2-root-r1/FORMAT-ROOT.json",
+      "artifact": "format-provider-r2-root-r1/FORMAT-ROOT.json.gz",
+      "raw_sha256": "bcbf3d1eb8551a6c55ba9e5fc480e10b40dfc9c9cb060c142847134e113d86fc",
+      "archive_sha256": "544d796e3c59c5c5afd2e8c778d4bb88cead1f2cef97fb29c34a63f50044692e",
+      "readback": true
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/format-provider-r2-root-r1/format.log",
+      "artifact": "format-provider-r2-root-r1/format.log.gz",
+      "raw_sha256": "e14d8edf9947fb61f9c8d9152c5b71e89aeba410dae8ccf06767300e452d9707",
+      "archive_sha256": "2f3e4c0c286656e8046198fd6db85330dd0ce7cfcc8775d2726f110dd440df0d",
+      "readback": true
+    }
+  ],
+  "limits": [
+    "Unit18 and namespace1 qualified under their unchanged native owners",
+    "Deny-r2 wrong native owner had no tests; r3 routed correctly to unit-fast",
+    "Python HTTP companion2 not qualified: worker exited1 before JUnit",
+    "No provider, whole Gateway or PostgreSQL qualification"
+  ]
+}

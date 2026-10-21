@@ -1,0 +1,25 @@
+{
+  "controle_courant": "12 sources + 4 documents uniquement",
+  "documents": {
+    "docs/architecture/FUSION-PDF-NATIF.md": "045ec08f1ad11e9dd2bd0c8aceaae007f9bfe293f310394d3fbe0d44f206f20b",
+    "docs/programme/LOT-FUSION-PDF-NATIF.md": "fd9959c4aa756031cafaf9080c25017d6b0c9ff809eb98a05c9224aaf8bfff56",
+    "docs/programme/REPRISE-PLAN-2026-10-02.md": "e17605844fd4df4c6e489fe63789dcb89b49cd4651bda75bbad422208fd48d92",
+    "docs/research/INGREDIENTS.md": "78bf474306a536d5d69aae1e4e478b04619f626ccd0d6966757526a54ff331c8"
+  },
+  "inventaire_sha256": "0ef72ebb3158ebb771ca57fd75c7eca973d83de6cfcbed6abb79e2f45c996c26",
+  "schema": "opsys.r28-sources/v1",
+  "sources_qualifiees": {
+    "pyproject.toml": "a10aafa44512691dc5fead5d4ee110cb1fa6cb16f928b204c0775105ef023294",
+    "requirements-ingestion-pdf.lock.txt": "9cc680aec95492ddb3fc8d80cf4059f707434eae2ec499453d9537cc477bac3e",
+    "src/opsys/console/application.py": "b57c57506e26815e8d0ce9ea0455d3e9cc0bb26407d18302e7fc9b8ee27e2452",
+    "src/opsys/console/fusion_pdf_ui.py": "e22c63df6a8ff0dd64db4ea2274d33267464e64fa11d0009bd3c064b65e7061d",
+    "src/opsys/fusion_pdf.py": "32bccef06c41b67942fe1f7c9ae5a2ba56bf798d717027d252679f35b50798df",
+    "src/opsys/fusion_pdf_worker.py": "c171dcd08c469944d0301796abbac58f7976c558e4183cdedb683873eea193d1",
+    "src/opsys/stockage/migrations/versions/0018_fusion_pdf_natif.py": "7b6cee4722507467ce8d3d66ac195dbea2c2985bbfeb4f129939732170a9f212",
+    "src/opsys/stockage/schema.py": "abb961f6a44eb0b36e9763e40d80c0c575216cf1d3a61653263d4c648bccb4a3",
+    "tests/test_console_fusion_pdf.py": "f2f9da67b2ed9884efe4717d2a2c50071fa1fdbe2b20802d1e4c31656acec1f6",
+    "tests/test_fusion_pdf.py": "2677de1e7c6233ca47d1f30527002cabbccde930d9023119d3f9920e7f0a00ff",
+    "tests/test_stockage.py": "8408f92eceb608be2a426bb94cbeb7e5815dbfbd6a6e6862cfafcd9c1f84502a",
+    "uv.lock": "68d2578f217faa88339999f17251a51da9518cad81098c6543c29fe1eedefd36"
+  }
+}

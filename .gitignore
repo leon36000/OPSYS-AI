@@ -10,12 +10,18 @@ __pycache__/
 dist/
 build/
 
+# Dépendances et preuves locales temporaires (les manifestes durables sont dans docs/research).
+/node_modules/
+/preuves/
+
 # Claude Code worktrees
 .claude/worktrees/
 .claude/.digest_count
 
 # Secrets
 .env*
+# Modèle VPS sans secrets nécessaire au clone/installateur.
+!/deploy/.env.example
 *.pem
 id_rsa*
 id_ed25519*

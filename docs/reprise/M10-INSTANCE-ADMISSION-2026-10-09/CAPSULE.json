@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "status": "PARTIEL_LOCAL_READER_AND_PURE_ADMISSION",
+  "proofs": {
+    "reader_public34_manifest": "f990661cf3a7b367ad521fb12d53d45841472578bc526980029a0bcaac526fc7",
+    "reader_archive35": "eba896342b37393e36a179fab41653e1a46ce9ed14349f99d88c0620edd163db",
+    "admission_public25_manifest": "51218c54d03c8527f6fb9870da04f59d3ec49781292a84c86b60b973fd519395",
+    "admission_archive26": "0451b61c6c2d8e0c4ceb020518bdf61ba03b2d0bcb82377e7a156607bc1ff8d9",
+    "candidate_combined_receipt": "8d97d5d9b72d206410f1714ff6df2ba3c7e4fb666cd65d4aca6cbb7d115585b4",
+    "parentCI_Root75plus7": "3513dcf2add006d3e0f2d43447c647954e427dacd11827978387fadc724529b0"
+  },
+  "checks": "342P0skip actual combined, local SQLitefictif/pure only; primary/newCI pending",
+  "archived_histories": "Distinct preserved red/green/corrected oracles, never overwritten",
+  "no_missing104_credit": true
+}

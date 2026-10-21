@@ -1,0 +1,180 @@
+fictif: true
+description: >-
+  Vocabulaire des plaintes, table de destinataires et messages FICTIFS, pour les tests de M1 (PLAN T4.5). Ces termes
+  et ces rôles ne sont pas ceux de l'entreprise : le propriétaire les écrit lui-même dans son profil
+  (`entreprise.yaml`, clés `signaux_plainte` et `destinataires_transfert`). Le code n'en porte aucun, ni par défaut ni en
+  repli. Les messages sont inventés (aucun client réel, aucun numéro) ; une expression de plusieurs mots réduit les
+  faux positifs (« après vos travaux » plutôt que « travaux »).
+signaux_plainte:
+  insatisfaction:
+    - insatisfait
+    - insatisfaite
+    - pas satisfait
+    - pas satisfaite
+    - mécontent
+    - mécontente
+    - déçu
+    - déçue
+    - inacceptable
+    - plainte
+    - scandaleux
+    - arnaque
+    - arnaqué
+    - arnaquée
+    - incompétent
+    - fâché
+    - fâchée
+    - bâclé
+    - mal fait
+    - jamais rappelé
+    - jamais rappelée
+    - aucun retour
+    - unacceptable
+    - complaint
+  degat:
+    - après vos travaux
+    - depuis vos travaux
+    - après l'installation
+    - depuis l'installation
+    - vous avez endommagé
+    - vous avez brisé
+    - vous avez abîmé
+    - vos travaux ont
+    - dégâts causés
+    - dommages causés
+    - dommage causé
+    - dégât causé
+    - vos gars ont
+    - vos employés ont
+  garantie:
+    - sous garantie
+    - honorer la garantie
+    - honorer votre garantie
+    - appliquer la garantie
+    - réclamation
+    - malfaçon
+    - vice caché
+    - défectueux
+    - défectueuse
+    - refaire les travaux
+    - refaire le travail
+    - reprendre les travaux
+    - remboursement
+    - rembourser
+    - remboursez
+  avocat:
+    - avocat
+    - avocate
+    - poursuite
+    - poursuivre
+    - poursuivrai
+    - mise en demeure
+    - tribunal
+    - petites créances
+    - protection du consommateur
+    - recours judiciaire
+    - lawyer
+  securite:
+    - danger
+    - dangereux
+    - dangereuse
+    - blessé
+    - blessée
+    - blessure
+    - électrocution
+    - fil électrique
+    - fils dénudés
+    - odeur de gaz
+    - fuite de gaz
+    - incendie
+    - fumée
+    - étincelles
+    - court-circuit
+    - effondrement
+    - risque de tomber
+    - menace de tomber
+    - ambulance
+    - pompiers
+destinataires_transfert:
+  ventes: seller
+  estimation: manager
+  admin: admin
+  finance: finance
+  plainte: nathan_owner
+  urgence: nathan_owner
+  technique: manager
+  proprietaire: nathan_owner
+# Chaque message porte ce que le code doit y reconnaître (`categories`, ensemble exact) et le type de transfert qui
+# en découle (`urgence` dès que `securite` est reconnue, sinon `plainte`).
+plaintes:
+  - {id: pl-001, categories: [insatisfaction], texte: "Bonjour, je suis très déçu du travail fait chez nous la semaine passée."}
+  - {id: pl-002, categories: [insatisfaction], texte: "Je suis insatisfaite de votre service, personne ne m'a rappelée."}
+  - {id: pl-003, categories: [insatisfaction], texte: "Franchement c'est inacceptable, j'attends depuis des jours."}
+  - {id: pl-004, categories: [insatisfaction], texte: "Je veux faire une plainte officielle contre votre entreprise."}
+  - {id: pl-005, categories: [insatisfaction], texte: "Votre équipe est incompétente, le travail est bâclé."}
+  - {id: pl-006, categories: [insatisfaction], texte: "Je suis pas satisfait pantoute, ça a l'air mal fait."}
+  - {id: pl-007, categories: [insatisfaction], texte: "Je suis mécontent, j'ai l'impression de m'être fait arnaquer."}
+  - {id: pl-008, categories: [insatisfaction], texte: "Ça prend rien pour être fâchée : j'ai jamais été rappelée depuis ma soumission."}
+  - {id: pl-009, categories: [insatisfaction], texte: "This is unacceptable, nobody answers my calls."}
+  - {id: pl-010, categories: [insatisfaction], texte: "Aucun retour de votre part, c'est scandaleux."}
+  - {id: pl-011, categories: [degat], texte: "Depuis vos travaux, il y a une tache d'humidité au plafond du salon."}
+  - {id: pl-012, categories: [degat], texte: "Après vos travaux, la fascia est pleine de bosses."}
+  - {id: pl-013, categories: [degat], texte: "Vous avez endommagé mon patio en déchargeant le matériel."}
+  - {id: pl-014, categories: [degat], texte: "Vos gars ont cassé une fenêtre du sous-sol hier."}
+  - {id: pl-015, categories: [degat], texte: "Il y a des dommages causés à mon aménagement paysager par l'équipe."}
+  - {id: pl-016, categories: [degat], texte: "Vous avez abîmé mon revêtement neuf sur le côté est."}
+  - {id: pl-017, categories: [degat], texte: "Depuis l'installation, l'eau déborde de la gouttière du garage."}
+  - {id: pl-018, categories: [degat], texte: "Vos travaux ont laissé des vis partout dans ma cour."}
+  - {id: pl-019, categories: [garantie], texte: "Ma gouttière est sous garantie, je veux que vous veniez la refaire."}
+  - {id: pl-020, categories: [garantie], texte: "J'aimerais faire une réclamation pour un joint qui a lâché."}
+  - {id: pl-021, categories: [garantie], texte: "Le revêtement est défectueux sur deux panneaux, j'exige que vous honoriez la garantie."}
+  - {id: pl-022, categories: [garantie], texte: "C'est une malfaçon évidente, je veux un remboursement."}
+  - {id: pl-023, categories: [garantie], texte: "Vous devez refaire les travaux, ce n'est pas conforme."}
+  - {id: pl-024, categories: [garantie], texte: "Je demande de rembourser la moitié de la facture."}
+  - {id: pl-025, categories: [garantie], texte: "Il y a un vice caché dans le soffite que vous avez posé."}
+  - {id: pl-026, categories: [garantie], texte: "Remboursez-moi, le produit livré était défectueuse dès le départ."}
+  - {id: pl-027, categories: [avocat], texte: "Si personne ne me répond, je vais consulter mon avocat."}
+  - {id: pl-028, categories: [avocat], texte: "Vous allez recevoir une mise en demeure cette semaine."}
+  - {id: pl-029, categories: [avocat], texte: "Je vais vous poursuivre aux petites créances."}
+  - {id: pl-030, categories: [avocat], texte: "Ma cause s'en va au tribunal si vous ne rappelez pas."}
+  - {id: pl-031, categories: [avocat], texte: "J'ai contacté la protection du consommateur à votre sujet."}
+  - {id: pl-032, categories: [avocat], texte: "My lawyer will contact you."}
+  - {id: pl-033, categories: [insatisfaction, avocat], texte: "Je suis fâché et je vais contacter mon avocate."}
+  - {id: pl-034, categories: [garantie, avocat], texte: "Je fais une réclamation en garantie, sinon c'est une poursuite."}
+  - {id: pl-035, categories: [insatisfaction, garantie], texte: "Déçue du travail, j'aimerais un remboursement partiel."}
+  - {id: pl-036, categories: [degat, garantie], texte: "Après vos travaux j'ai une infiltration, c'est une malfaçon."}
+urgences:
+  - {id: ur-001, categories: [securite], texte: "Un fil électrique pend de la gouttière près de l'entrée."}
+  - {id: ur-002, categories: [securite], texte: "Il y a de la fumée qui sort du soffite, on appelle les pompiers."}
+  - {id: ur-003, categories: [securite], texte: "Mon mari est blessé, une échelle est tombée pendant les travaux."}
+  - {id: ur-004, categories: [securite], texte: "La gouttière est dangereuse, elle pend au-dessus de la porte."}
+  - {id: ur-005, categories: [securite], texte: "Je sens une odeur de gaz près de l'endroit où l'équipe a travaillé."}
+  - {id: ur-006, categories: [securite], texte: "Il y a des étincelles dans le mur du soffite."}
+  - {id: ur-007, categories: [securite], texte: "Le bardeau a un risque de tomber sur le trottoir des enfants."}
+  - {id: ur-008, categories: [securite], texte: "Danger: des fils dénudés traînent au sol."}
+  - {id: ur-009, categories: [securite], texte: "Un court-circuit a eu lieu depuis que le fil a été touché."}
+  - {id: ur-010, categories: [securite], texte: "Une ambulance est en route, quelqu'un s'est fait mal sur le chantier."}
+  - {id: ur-011, categories: [insatisfaction, securite], texte: "Je suis déçu et surtout c'est dangereux, il y a une menace de tomber."}
+  - {id: ur-012, categories: [degat, securite], texte: "Après vos travaux, il y a un risque d'effondrement de l'auvent."}
+# Messages de demande ordinaire : aucun ne doit être escaladé. `faux_positif_connu: true` marque ceux qu'un lecteur de
+# mots ne peut pas distinguer d'une plainte (il escalade : une personne lit, rien n'est perdu).
+legitimes:
+  - {id: lg-001, texte: "Bonjour, mes gouttières fuient à Laval, c'est urgent."}
+  - {id: lg-002, texte: "Je voudrais une soumission pour du revêtement à Québec."}
+  - {id: lg-003, texte: "Ma gouttière est brisée depuis l'hiver, pouvez-vous la réparer?"}
+  - {id: lg-004, texte: "Avez-vous de la disponibilité pour le soffite le mois prochain?"}
+  - {id: lg-005, texte: "Est-ce que vos gouttières sont garanties?"}
+  - {id: lg-006, texte: "Quel est le délai pour une réparation de fascia à Laval?"}
+  - {id: lg-007, texte: "Bonjour, un ami m'a recommandé vos services."}
+  - {id: lg-008, texte: "Merci pour la soumission, je vais y penser."}
+  - {id: lg-009, texte: "J'ai une fuite d'eau au plafond, pouvez-vous passer?"}
+  - {id: lg-010, texte: "Nous avons un bungalow à Laval, environ 40 pieds de gouttières à remplacer."}
+  - {id: lg-011, texte: "Ma voisine est avocate et m'a parlé de vous.", faux_positif_connu: true}
+  - {id: lg-012, texte: "Je cherche un prix pour du revêtement, ma maison a deux étages."}
+# Ce qu'un lecteur de mots ne reconnaît PAS : la plainte y est dite sans aucun terme du vocabulaire. Documenté, jamais
+# masqué : `m1_escalader_plainte` (jugement de l'agent) est la voie pour ces cas.
+limites:
+  - {id: li-001, texte: "Bravo pour le travail, vraiment. Mes gouttières débordent encore."}
+  - {id: li-002, texte: "Je ne recommanderai pas votre compagnie à personne."}
+  - {id: li-003, texte: "I want my money back."}
+  - {id: li-004, texte: "Ça fait trois fois que j'écris et rien ne bouge."}

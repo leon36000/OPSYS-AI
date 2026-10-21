@@ -1,0 +1,9 @@
+{
+  "archives": 32,
+  "bilan_courant_sha256_pinne": "e4910e340a43cff92c96189e0cb63489208e0752083066c0a769f99023a7bebb",
+  "gzip_mtime_zero_roundtrip": true,
+  "liens_locaux_valides": 28,
+  "qualification_sha256": "2248d059f2b3277791fd2a52e66b575b876acfd9085298a5dd5b4a26a58af72a",
+  "schema": "opsys.r37-post-check/v1",
+  "tests_lances": false
+}

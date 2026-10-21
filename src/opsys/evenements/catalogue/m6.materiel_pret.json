@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m6.materiel_pret",
+  "title": "M6 — Matériel prêt, partiel ou à commander pour le devis d'un chantier",
+  "description": "Émis par M6 (departments/m06-material-control/src/m6_material_control/outils.py, PLAN T4.14, DEFINITION-PRODUIT §6 « M6 vérifie le stock, réserve, ou crée un besoin de commande » et §7 M6 « fournit à M4 : matériel prêt ou à commander ») chaque fois que la RÉSERVATION du matériel d'un devis ACCEPTÉ change : elle naît (m3.devis_accepte, ou m6_reserver_materiel), elle se complète ou se réduit quand l'en main change (réception, sortie de stock, transfert hors main, libération d'une autre réservation), ou elle est libérée (m6_liberer_reservation). Publié dans la MÊME transaction que le fait de réservation, jamais autrement. Jamais émis pour un prévu vide (aucune ligne reliée à un besoin matériau : M6 ne dit rien plutôt que « prêt »), pour une estimation (seul un devis accepté réserve) ni à la clôture de la réservation (matériaux déclarés : le chantier est terminé). Chaque changement est une RÉVISION du même devis : evenement_id déterministe f\"m6-materiel-pret-{devis_id}-{revision}\", donc publier deux fois la même révision est un no-op du bus, et un retour à un état déjà vu (prêt, partiel, prêt) n'est jamais confondu avec le premier. LE CONSOMMATEUR (M4, `preparation.py`) LIT LA CHARGE DE PLUS GRANDE `revision` de son `devis_id` (une intervention naît d'un devis) ; `statut` = `pret` avec `reservation_active` vrai est le SEUL état qui dit que le matériel est prêt, et l'absence de toute charge pour un devis n'est PAS « prêt » (M6 n'a rien vérifié). `a_commander` ne signifie pas qu'un bon de commande existe : M6 ne crée jamais de bon de commande seul (un brouillon se demande, puis s'approuve) ; `lignes_manquantes` dit ce qui manque, par ligne. Aucun prix, aucun coût, aucun montant, aucune date de chantier : M6 dit des quantités. Quantités en TEXTE décimal exact canonique (jamais un nombre JSON), dans l'unité du prévu que M6 recopie sans convertir (le stock ne déclare pas d'unité). Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant de CET événement : f\"m6-materiel-pret-{devis_id}-{revision}\". Répété ici pour que le consommateur, qui ne reçoit que la charge, trace la base de sa décision."
+    },
+    "devis_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Devis M3 accepté dont le matériel est réservé (m3.devis_accepte) : la clé du consommateur. Une intervention de M4 naît d'un devis."
+    },
+    "chantier_id": {
+      "type": ["string", "null"],
+      "description": "Chantier du prévu, quand M3 le connaissait à l'acceptation ; null sinon (jamais deviné : M4 le résout de son côté)."
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Numéro du fait de réservation de ce devis : 1 à la création, +1 à chaque changement (ajustement, libération). Le consommateur retient la plus grande : ordre total et monotone, sans horloge."
+    },
+    "statut": {
+      "type": "string",
+      "enum": ["pret", "partiel", "a_commander"],
+      "description": "pret : chaque ligne est réservée en entier. a_commander : RIEN n'est réservé, tout est à commander. partiel : une partie est réservée, une autre manque. Calculé par le code sur `lignes`, jamais par un modèle."
+    },
+    "reservation_active": {
+      "type": "boolean",
+      "description": "Faux après une libération : rien n'est plus tenu de côté, `statut` vaut alors a_commander. Vrai sinon."
+    },
+    "declencheur": {
+      "type": "string",
+      "enum": ["devis_accepte", "reservation_manuelle", "stock_recu", "stock_sorti", "liberation"],
+      "description": "Ce qui a produit cette révision : devis_accepte (m3.devis_accepte reçu), reservation_manuelle (m6_reserver_materiel), stock_recu (la réservation s'est complétée : une réception ou du stock libéré l'a rendue possible), stock_sorti (la réservation a CÉDÉ du stock : une sortie, une perte ou un transfert hors main a diminué l'en main sous le réservé), liberation (la réservation de CE devis a été libérée). Le SENS du changement, jamais sa cause : le matériel se rapproche du prêt (stock_recu) ou s'en éloigne (stock_sorti)."
+    },
+    "horodatage": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Horodatage du fait déclencheur, repris tel quel (acceptation du devis, réception, déclaration, libération) : M6 n'a pas d'horloge, l'événement ne date donc jamais de l'instant de publication."
+    },
+    "lignes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Une ligne par matériau du prévu, dans l'ordre du prévu.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "materiau_id": {"type": "string", "minLength": 1},
+          "unite": {
+            "type": ["string", "null"],
+            "description": "Unité du prévu, recopiée sans conversion."
+          },
+          "quantite_besoin": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "maxLength": 40,
+            "description": "Quantité que le devis accepté prévoit, texte décimal."
+          },
+          "quantite_reservee": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "maxLength": 40,
+            "description": "Quantité mise de côté pour ce devis : jamais plus que le besoin, jamais plus que ce qui était disponible."
+          },
+          "quantite_manquante": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "maxLength": 40,
+            "description": "besoin - réservé, jamais négatif ; 0 quand la ligne est réservée en entier."
+          }
+        },
+        "required": ["materiau_id", "unite", "quantite_besoin", "quantite_reservee", "quantite_manquante"]
+      }
+    },
+    "lignes_manquantes": {
+      "type": "array",
+      "description": "Les lignes de `lignes` dont il manque quelque chose, avec ce qui manque, dans le même ordre. Vide exactement quand `statut` vaut pret. Ce que l'admin peut décider de commander (m6_creer_po_brouillon) : M6 n'en crée jamais seul.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "materiau_id": {"type": "string", "minLength": 1},
+          "unite": {"type": ["string", "null"]},
+          "quantite_besoin": {"type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$", "maxLength": 40},
+          "quantite_reservee": {"type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$", "maxLength": 40},
+          "quantite_manquante": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "maxLength": 40,
+            "description": "Strictement positive."
+          }
+        },
+        "required": ["materiau_id", "unite", "quantite_besoin", "quantite_reservee", "quantite_manquante"]
+      }
+    }
+  },
+  "required": [
+    "evenement_id",
+    "devis_id",
+    "chantier_id",
+    "revision",
+    "statut",
+    "reservation_active",
+    "declencheur",
+    "horodatage",
+    "lignes",
+    "lignes_manquantes"
+  ]
+}

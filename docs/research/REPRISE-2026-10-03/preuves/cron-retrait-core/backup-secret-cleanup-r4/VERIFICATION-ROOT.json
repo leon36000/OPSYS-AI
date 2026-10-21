@@ -1,0 +1,140 @@
+{
+  "status": "PASS",
+  "ok": true,
+  "elapsed": 10.033826258964837,
+  "scope": {
+    "src/snapshot/git-backup-codec.test.ts": 8,
+    "src/state/secret-state-tables.test.ts": 2
+  },
+  "junit": {
+    "cases": 10,
+    "counts": {
+      "passed": 10,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "files": [
+      "src/snapshot/git-backup-codec.test.ts",
+      "src/state/secret-state-tables.test.ts"
+    ],
+    "cases_by_file": {
+      "src/snapshot/git-backup-codec.test.ts": 8,
+      "src/state/secret-state-tables.test.ts": 2
+    },
+    "testcases": [
+      {
+        "file": "src/snapshot/git-backup-codec.test.ts",
+        "classname": "src/snapshot/git-backup-codec.test.ts",
+        "name": "omits terminal cleanup ciphertext from secret-excluded Git dumps and preserves full operator backups",
+        "status": "passed"
+      },
+      {
+        "file": "src/snapshot/git-backup-codec.test.ts",
+        "classname": "src/snapshot/git-backup-codec.test.ts",
+        "name": "parses legacy Git backup manifests without redactedTables",
+        "status": "passed"
+      },
+      {
+        "file": "src/snapshot/git-backup-codec.test.ts",
+        "classname": "src/snapshot/git-backup-codec.test.ts",
+        "name": "omits decryption keys from secret-excluded snapshots and preserves them in full backups",
+        "status": "passed"
+      },
+      {
+        "file": "src/snapshot/git-backup-codec.test.ts",
+        "classname": "src/snapshot/git-backup-codec.test.ts",
+        "name": "preserves NUL-bearing TEXT, storage classes, and source key order",
+        "status": "passed"
+      },
+      {
+        "file": "src/snapshot/git-backup-codec.test.ts",
+        "classname": "src/snapshot/git-backup-codec.test.ts",
+        "name": "redacts private cron runtime authorities only from secret-excluded Git snapshots",
+        "status": "passed"
+      },
+      {
+        "file": "src/snapshot/git-backup-codec.test.ts",
+        "classname": "src/snapshot/git-backup-codec.test.ts",
+        "name": "fails closed when a secret-redacted cron job has malformed job JSON",
+        "status": "passed"
+      },
+      {
+        "file": "src/snapshot/git-backup-codec.test.ts",
+        "classname": "src/snapshot/git-backup-codec.test.ts",
+        "name": "refuses redacted backups containing legacy embedded cron authority",
+        "status": "passed"
+      },
+      {
+        "file": "src/snapshot/git-backup-codec.test.ts",
+        "classname": "src/snapshot/git-backup-codec.test.ts",
+        "name": "fails closed on a diagnostic event with a non-text scope",
+        "status": "passed"
+      },
+      {
+        "file": "src/state/secret-state-tables.test.ts",
+        "classname": "src/state/secret-state-tables.test.ts",
+        "name": "secret state table policy > classifies every schema table with credential-suggestive columns",
+        "status": "passed"
+      },
+      {
+        "file": "src/state/secret-state-tables.test.ts",
+        "classname": "src/state/secret-state-tables.test.ts",
+        "name": "secret state table policy > classifies opaque payload tables that embed credentials",
+        "status": "passed"
+      }
+    ],
+    "ok": true
+  },
+  "source_drift_before": {},
+  "source_drift_after": {},
+  "artifacts": [
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/backup-secret-cleanup-r4/RECU-ROOT.json",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/backup-secret-cleanup-r4/RECU-ROOT.json.gz",
+      "source_sha256": "718a325ba381022a7f5390a612cb0beb2e303ededaec9fbae49ab252082ae82c",
+      "archive_sha256": "bb7efd143dff65a0463cbbee415bc525edda703fa27ba79bb7257c4ab7544869",
+      "bytes": 9575
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/backup-secret-cleanup-r4/format.log",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/backup-secret-cleanup-r4/format.log.gz",
+      "source_sha256": "0ce0ddcc85bcbfca4bbcbca2096156601996557c86b6839331e5d0a77afcd044",
+      "archive_sha256": "65a13f7702af679bf3942ddffda8d0a310ce4b767a19e3e375323c99ef1a1db6",
+      "bytes": 112
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/backup-secret-cleanup-r4/junit.xml",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/backup-secret-cleanup-r4/junit.xml.gz",
+      "source_sha256": "d17616dfd1f256cccf3e974eb3150046a60864dc48d7d9fe6c6155bfadd7dbd0",
+      "archive_sha256": "871eb56f20325ea19b0c6867809ca4cdd568350bb188af57512f014d98a8ba6e",
+      "bytes": 2468
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/backup-secret-cleanup-r4/native.log",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/backup-secret-cleanup-r4/native.log.gz",
+      "source_sha256": "e5197058b6fc7e070f08bbd4936d0a09630d8cab465aa613deb25d81b1f71aba",
+      "archive_sha256": "133739035e155f5034bb21c21ac4e84c8056458c97faf172820416e152b29628",
+      "bytes": 1353
+    }
+  ],
+  "common": {
+    "qa-root-r18-cleanup-native-unit.py": {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/qa-root-r18-cleanup-native-unit.py",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/commun/qa-root-r18-cleanup-native-unit.py.gz",
+      "source_sha256": "125ea79d934c61f1585fa666a00cf32034478513b4e3358831b7288f841d6316",
+      "archive_sha256": "76faaaa2c5dab74f740f0c1618cf97f6465b025c8661c5b23e1691269c0fb110",
+      "bytes": 7520
+    },
+    "sources-frozen-r8.json.gz": {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/sources-frozen-r8.json.gz",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/commun/sources-frozen-r8.json.gz.gz",
+      "source_sha256": "c7a348b21779d82b04e889e23820647274c41bdf7a6afdf0afcb5645ace7c170",
+      "archive_sha256": "81722dbd74feec8198d74c60824ea1266ebe956407c75361076e4c64b5095085",
+      "bytes": 538100
+    }
+  },
+  "native_owner_config": "test/vitest/vitest.unit.config.ts",
+  "hermetic_closure": false,
+  "limits": "Fixtures synth\u00e9tiques; aucun provider r\u00e9el/VPS; voir garde de chaque re\u00e7u."
+}

@@ -1,0 +1,3574 @@
+{
+  "groups": {
+    "app": {
+      "statements": [
+        0,
+        1129
+      ],
+      "functions": [
+        0,
+        282
+      ],
+      "branches": [
+        0,
+        914
+      ],
+      "lines": [
+        0,
+        1092
+      ]
+    },
+    "src/admin": {
+      "statements": [
+        176,
+        255
+      ],
+      "functions": [
+        67,
+        112
+      ],
+      "branches": [
+        131,
+        312
+      ],
+      "lines": [
+        168,
+        246
+      ]
+    },
+    "src/appairage": {
+      "statements": [
+        218,
+        232
+      ],
+      "functions": [
+        36,
+        46
+      ],
+      "branches": [
+        148,
+        162
+      ],
+      "lines": [
+        211,
+        219
+      ]
+    },
+    "src/approbations": {
+      "statements": [
+        112,
+        117
+      ],
+      "functions": [
+        23,
+        24
+      ],
+      "branches": [
+        149,
+        153
+      ],
+      "lines": [
+        109,
+        114
+      ]
+    },
+    "src/checklist": {
+      "statements": [
+        20,
+        22
+      ],
+      "functions": [
+        11,
+        13
+      ],
+      "branches": [
+        17,
+        17
+      ],
+      "lines": [
+        17,
+        19
+      ]
+    },
+    "src/ecrans": {
+      "statements": [
+        404,
+        408
+      ],
+      "functions": [
+        166,
+        166
+      ],
+      "branches": [
+        489,
+        507
+      ],
+      "lines": [
+        370,
+        374
+      ]
+    },
+    "src/fichiers": {
+      "statements": [
+        127,
+        153
+      ],
+      "functions": [
+        34,
+        39
+      ],
+      "branches": [
+        101,
+        121
+      ],
+      "lines": [
+        119,
+        144
+      ]
+    },
+    "src/i18n": {
+      "statements": [
+        13,
+        16
+      ],
+      "functions": [
+        1,
+        2
+      ],
+      "branches": [
+        4,
+        4
+      ],
+      "lines": [
+        13,
+        15
+      ]
+    },
+    "src/identite": {
+      "statements": [
+        173,
+        220
+      ],
+      "functions": [
+        31,
+        43
+      ],
+      "branches": [
+        130,
+        161
+      ],
+      "lines": [
+        171,
+        217
+      ]
+    },
+    "src/m2": {
+      "statements": [
+        183,
+        194
+      ],
+      "functions": [
+        35,
+        35
+      ],
+      "branches": [
+        151,
+        165
+      ],
+      "lines": [
+        177,
+        188
+      ]
+    },
+    "src/m3": {
+      "statements": [
+        40,
+        41
+      ],
+      "functions": [
+        11,
+        11
+      ],
+      "branches": [
+        52,
+        53
+      ],
+      "lines": [
+        38,
+        39
+      ]
+    },
+    "src/m4": {
+      "statements": [
+        214,
+        220
+      ],
+      "functions": [
+        54,
+        54
+      ],
+      "branches": [
+        200,
+        222
+      ],
+      "lines": [
+        212,
+        218
+      ]
+    },
+    "src/m5": {
+      "statements": [
+        255,
+        268
+      ],
+      "functions": [
+        31,
+        31
+      ],
+      "branches": [
+        358,
+        376
+      ],
+      "lines": [
+        250,
+        263
+      ]
+    },
+    "src/m6": {
+      "statements": [
+        21,
+        22
+      ],
+      "functions": [
+        7,
+        7
+      ],
+      "branches": [
+        19,
+        24
+      ],
+      "lines": [
+        21,
+        22
+      ]
+    },
+    "src/m8": {
+      "statements": [
+        131,
+        143
+      ],
+      "functions": [
+        14,
+        14
+      ],
+      "branches": [
+        136,
+        152
+      ],
+      "lines": [
+        131,
+        143
+      ]
+    },
+    "src/outbox": {
+      "statements": [
+        262,
+        305
+      ],
+      "functions": [
+        79,
+        95
+      ],
+      "branches": [
+        120,
+        149
+      ],
+      "lines": [
+        255,
+        297
+      ]
+    },
+    "src/photos": {
+      "statements": [
+        20,
+        42
+      ],
+      "functions": [
+        6,
+        10
+      ],
+      "branches": [
+        17,
+        20
+      ],
+      "lines": [
+        19,
+        40
+      ]
+    },
+    "src/protocole": {
+      "statements": [
+        81,
+        82
+      ],
+      "functions": [
+        18,
+        19
+      ],
+      "branches": [
+        109,
+        110
+      ],
+      "lines": [
+        80,
+        80
+      ]
+    },
+    "src/roles": {
+      "statements": [
+        12,
+        25
+      ],
+      "functions": [
+        4,
+        11
+      ],
+      "branches": [
+        6,
+        8
+      ],
+      "lines": [
+        11,
+        24
+      ]
+    },
+    "src/signature": {
+      "statements": [
+        11,
+        33
+      ],
+      "functions": [
+        4,
+        7
+      ],
+      "branches": [
+        5,
+        10
+      ],
+      "lines": [
+        11,
+        32
+      ]
+    },
+    "src/stockage": {
+      "statements": [
+        27,
+        35
+      ],
+      "functions": [
+        12,
+        14
+      ],
+      "branches": [
+        10,
+        12
+      ],
+      "lines": [
+        27,
+        35
+      ]
+    },
+    "src/today": {
+      "statements": [
+        75,
+        84
+      ],
+      "functions": [
+        20,
+        24
+      ],
+      "branches": [
+        50,
+        59
+      ],
+      "lines": [
+        71,
+        80
+      ]
+    },
+    "src/vendeur": {
+      "statements": [
+        282,
+        299
+      ],
+      "functions": [
+        70,
+        77
+      ],
+      "branches": [
+        244,
+        264
+      ],
+      "lines": [
+        267,
+        284
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "app/_layout.tsx",
+      "statements": [
+        0,
+        12
+      ],
+      "functions": [
+        0,
+        7
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        12
+      ]
+    },
+    {
+      "path": "app/index.tsx",
+      "statements": [
+        0,
+        8
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        6
+      ],
+      "lines": [
+        0,
+        8
+      ]
+    },
+    {
+      "path": "app/(admin)/_layout.tsx",
+      "statements": [
+        0,
+        5
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        2
+      ],
+      "lines": [
+        0,
+        5
+      ]
+    },
+    {
+      "path": "app/(admin)/admin.tsx",
+      "statements": [
+        0,
+        21
+      ],
+      "functions": [
+        0,
+        9
+      ],
+      "branches": [
+        0,
+        34
+      ],
+      "lines": [
+        0,
+        20
+      ]
+    },
+    {
+      "path": "app/(admin)/approvals.tsx",
+      "statements": [
+        0,
+        114
+      ],
+      "functions": [
+        0,
+        33
+      ],
+      "branches": [
+        0,
+        130
+      ],
+      "lines": [
+        0,
+        107
+      ]
+    },
+    {
+      "path": "app/(admin)/chantiers.tsx",
+      "statements": [
+        0,
+        60
+      ],
+      "functions": [
+        0,
+        23
+      ],
+      "branches": [
+        0,
+        58
+      ],
+      "lines": [
+        0,
+        58
+      ]
+    },
+    {
+      "path": "app/(admin)/chiffres.tsx",
+      "statements": [
+        0,
+        66
+      ],
+      "functions": [
+        0,
+        12
+      ],
+      "branches": [
+        0,
+        34
+      ],
+      "lines": [
+        0,
+        66
+      ]
+    },
+    {
+      "path": "app/(client)/_layout.tsx",
+      "statements": [
+        0,
+        5
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        2
+      ],
+      "lines": [
+        0,
+        5
+      ]
+    },
+    {
+      "path": "app/(client)/client.tsx",
+      "statements": [
+        0,
+        3
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        3
+      ]
+    },
+    {
+      "path": "app/(employee)/_layout.tsx",
+      "statements": [
+        0,
+        5
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        2
+      ],
+      "lines": [
+        0,
+        5
+      ]
+    },
+    {
+      "path": "app/(employee)/consent.tsx",
+      "statements": [
+        0,
+        58
+      ],
+      "functions": [
+        0,
+        9
+      ],
+      "branches": [
+        0,
+        31
+      ],
+      "lines": [
+        0,
+        56
+      ]
+    },
+    {
+      "path": "app/(employee)/employee.tsx",
+      "statements": [
+        0,
+        3
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        3
+      ]
+    },
+    {
+      "path": "app/(employee)/punch.tsx",
+      "statements": [
+        0,
+        82
+      ],
+      "functions": [
+        0,
+        13
+      ],
+      "branches": [
+        0,
+        47
+      ],
+      "lines": [
+        0,
+        80
+      ]
+    },
+    {
+      "path": "app/(employee)/today.tsx",
+      "statements": [
+        0,
+        26
+      ],
+      "functions": [
+        0,
+        9
+      ],
+      "branches": [
+        0,
+        16
+      ],
+      "lines": [
+        0,
+        26
+      ]
+    },
+    {
+      "path": "app/(employee)/job/[id]/checklist.tsx",
+      "statements": [
+        0,
+        32
+      ],
+      "functions": [
+        0,
+        10
+      ],
+      "branches": [
+        0,
+        20
+      ],
+      "lines": [
+        0,
+        32
+      ]
+    },
+    {
+      "path": "app/(employee)/job/[id]/complete.tsx",
+      "statements": [
+        0,
+        104
+      ],
+      "functions": [
+        0,
+        25
+      ],
+      "branches": [
+        0,
+        76
+      ],
+      "lines": [
+        0,
+        97
+      ]
+    },
+    {
+      "path": "app/(employee)/job/[id]/index.tsx",
+      "statements": [
+        0,
+        69
+      ],
+      "functions": [
+        0,
+        9
+      ],
+      "branches": [
+        0,
+        48
+      ],
+      "lines": [
+        0,
+        68
+      ]
+    },
+    {
+      "path": "app/(employee)/job/[id]/materials.tsx",
+      "statements": [
+        0,
+        84
+      ],
+      "functions": [
+        0,
+        25
+      ],
+      "branches": [
+        0,
+        69
+      ],
+      "lines": [
+        0,
+        78
+      ]
+    },
+    {
+      "path": "app/(employee)/job/[id]/photos.tsx",
+      "statements": [
+        0,
+        47
+      ],
+      "functions": [
+        0,
+        14
+      ],
+      "branches": [
+        0,
+        33
+      ],
+      "lines": [
+        0,
+        46
+      ]
+    },
+    {
+      "path": "app/(employee)/job/[id]/signature.tsx",
+      "statements": [
+        0,
+        25
+      ],
+      "functions": [
+        0,
+        5
+      ],
+      "branches": [
+        0,
+        10
+      ],
+      "lines": [
+        0,
+        25
+      ]
+    },
+    {
+      "path": "app/(seller)/_layout.tsx",
+      "statements": [
+        0,
+        5
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        2
+      ],
+      "lines": [
+        0,
+        5
+      ]
+    },
+    {
+      "path": "app/(seller)/leads.tsx",
+      "statements": [
+        0,
+        75
+      ],
+      "functions": [
+        0,
+        24
+      ],
+      "branches": [
+        0,
+        95
+      ],
+      "lines": [
+        0,
+        75
+      ]
+    },
+    {
+      "path": "app/(seller)/quotes.tsx",
+      "statements": [
+        0,
+        72
+      ],
+      "functions": [
+        0,
+        18
+      ],
+      "branches": [
+        0,
+        61
+      ],
+      "lines": [
+        0,
+        67
+      ]
+    },
+    {
+      "path": "app/(seller)/seller.tsx",
+      "statements": [
+        0,
+        3
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        3
+      ]
+    },
+    {
+      "path": "app/(seller)/lead/[id].tsx",
+      "statements": [
+        0,
+        81
+      ],
+      "functions": [
+        0,
+        17
+      ],
+      "branches": [
+        0,
+        88
+      ],
+      "lines": [
+        0,
+        78
+      ]
+    },
+    {
+      "path": "app/identite/index.tsx",
+      "statements": [
+        0,
+        22
+      ],
+      "functions": [
+        0,
+        5
+      ],
+      "branches": [
+        0,
+        18
+      ],
+      "lines": [
+        0,
+        22
+      ]
+    },
+    {
+      "path": "app/pairing/index.tsx",
+      "statements": [
+        0,
+        42
+      ],
+      "functions": [
+        0,
+        7
+      ],
+      "branches": [
+        0,
+        32
+      ],
+      "lines": [
+        0,
+        42
+      ]
+    },
+    {
+      "path": "src/admin/aVoir.ts",
+      "statements": [
+        16,
+        16
+      ],
+      "functions": [
+        5,
+        5
+      ],
+      "branches": [
+        13,
+        13
+      ],
+      "lines": [
+        15,
+        15
+      ]
+    },
+    {
+      "path": "src/admin/appel.ts",
+      "statements": [
+        7,
+        7
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        2,
+        2
+      ],
+      "lines": [
+        7,
+        7
+      ]
+    },
+    {
+      "path": "src/admin/cache.ts",
+      "statements": [
+        11,
+        11
+      ],
+      "functions": [
+        3,
+        3
+      ],
+      "branches": [
+        9,
+        9
+      ],
+      "lines": [
+        11,
+        11
+      ]
+    },
+    {
+      "path": "src/admin/chantiers.ts",
+      "statements": [
+        13,
+        13
+      ],
+      "functions": [
+        12,
+        12
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        12,
+        12
+      ]
+    },
+    {
+      "path": "src/admin/chiffres.ts",
+      "statements": [
+        26,
+        26
+      ],
+      "functions": [
+        13,
+        13
+      ],
+      "branches": [
+        10,
+        10
+      ],
+      "lines": [
+        25,
+        25
+      ]
+    },
+    {
+      "path": "src/admin/composants.tsx",
+      "statements": [
+        0,
+        22
+      ],
+      "functions": [
+        0,
+        13
+      ],
+      "branches": [
+        0,
+        14
+      ],
+      "lines": [
+        0,
+        21
+      ]
+    },
+    {
+      "path": "src/admin/donneesDeTest.ts",
+      "statements": [
+        26,
+        29
+      ],
+      "functions": [
+        15,
+        15
+      ],
+      "branches": [
+        19,
+        24
+      ],
+      "lines": [
+        24,
+        27
+      ]
+    },
+    {
+      "path": "src/admin/enveloppe.ts",
+      "statements": [
+        32,
+        32
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        39,
+        39
+      ],
+      "lines": [
+        31,
+        31
+      ]
+    },
+    {
+      "path": "src/admin/horloge.ts",
+      "statements": [
+        2,
+        2
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "path": "src/admin/lecteurs.ts",
+      "statements": [
+        25,
+        25
+      ],
+      "functions": [
+        8,
+        8
+      ],
+      "branches": [
+        25,
+        25
+      ],
+      "lines": [
+        24,
+        24
+      ]
+    },
+    {
+      "path": "src/admin/lecture.ts",
+      "statements": [
+        18,
+        18
+      ],
+      "functions": [
+        3,
+        3
+      ],
+      "branches": [
+        14,
+        14
+      ],
+      "lines": [
+        17,
+        17
+      ]
+    },
+    {
+      "path": "src/admin/service.ts",
+      "statements": [
+        0,
+        23
+      ],
+      "functions": [
+        0,
+        11
+      ],
+      "branches": [
+        0,
+        20
+      ],
+      "lines": [
+        0,
+        23
+      ]
+    },
+    {
+      "path": "src/admin/vuesChiffres.tsx",
+      "statements": [
+        0,
+        31
+      ],
+      "functions": [
+        0,
+        21
+      ],
+      "branches": [
+        0,
+        142
+      ],
+      "lines": [
+        0,
+        31
+      ]
+    },
+    {
+      "path": "src/appairage/base64url.ts",
+      "statements": [
+        41,
+        41
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        22,
+        22
+      ],
+      "lines": [
+        39,
+        39
+      ]
+    },
+    {
+      "path": "src/appairage/chargeV3.ts",
+      "statements": [
+        12,
+        12
+      ],
+      "functions": [
+        3,
+        3
+      ],
+      "branches": [
+        6,
+        6
+      ],
+      "lines": [
+        11,
+        11
+      ]
+    },
+    {
+      "path": "src/appairage/client.ts",
+      "statements": [
+        79,
+        88
+      ],
+      "functions": [
+        14,
+        20
+      ],
+      "branches": [
+        45,
+        53
+      ],
+      "lines": [
+        76,
+        79
+      ]
+    },
+    {
+      "path": "src/appairage/clientInfo.ts",
+      "statements": [
+        6,
+        6
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        2,
+        2
+      ],
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "path": "src/appairage/codeAppairage.ts",
+      "statements": [
+        49,
+        49
+      ],
+      "functions": [
+        5,
+        5
+      ],
+      "branches": [
+        58,
+        58
+      ],
+      "lines": [
+        48,
+        48
+      ]
+    },
+    {
+      "path": "src/appairage/identite.ts",
+      "statements": [
+        10,
+        10
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        2,
+        2
+      ],
+      "lines": [
+        10,
+        10
+      ]
+    },
+    {
+      "path": "src/appairage/stockage.ts",
+      "statements": [
+        21,
+        26
+      ],
+      "functions": [
+        5,
+        9
+      ],
+      "branches": [
+        13,
+        19
+      ],
+      "lines": [
+        21,
+        26
+      ]
+    },
+    {
+      "path": "src/appairage/types.ts",
+      "statements": [
+        0,
+        0
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        0
+      ]
+    },
+    {
+      "path": "src/approbations/chargeur.ts",
+      "statements": [
+        16,
+        16
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        15,
+        15
+      ],
+      "lines": [
+        16,
+        16
+      ]
+    },
+    {
+      "path": "src/approbations/contrat.ts",
+      "statements": [
+        96,
+        97
+      ],
+      "functions": [
+        19,
+        19
+      ],
+      "branches": [
+        134,
+        136
+      ],
+      "lines": [
+        93,
+        94
+      ]
+    },
+    {
+      "path": "src/approbations/service.ts",
+      "statements": [
+        0,
+        4
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        2
+      ],
+      "lines": [
+        0,
+        4
+      ]
+    },
+    {
+      "path": "src/checklist/cache.ts",
+      "statements": [
+        10,
+        10
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        11,
+        11
+      ],
+      "lines": [
+        10,
+        10
+      ]
+    },
+    {
+      "path": "src/checklist/logique.ts",
+      "statements": [
+        10,
+        10
+      ],
+      "functions": [
+        7,
+        7
+      ],
+      "branches": [
+        6,
+        6
+      ],
+      "lines": [
+        7,
+        7
+      ]
+    },
+    {
+      "path": "src/checklist/service.ts",
+      "statements": [
+        0,
+        2
+      ],
+      "functions": [
+        0,
+        2
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        2
+      ]
+    },
+    {
+      "path": "src/checklist/types.ts",
+      "statements": [
+        0,
+        0
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        0
+      ]
+    },
+    {
+      "path": "src/ecrans/admin.ts",
+      "statements": [
+        10,
+        10
+      ],
+      "functions": [
+        8,
+        8
+      ],
+      "branches": [
+        23,
+        25
+      ],
+      "lines": [
+        9,
+        9
+      ]
+    },
+    {
+      "path": "src/ecrans/adminCommun.ts",
+      "statements": [
+        17,
+        17
+      ],
+      "functions": [
+        9,
+        9
+      ],
+      "branches": [
+        24,
+        24
+      ],
+      "lines": [
+        17,
+        17
+      ]
+    },
+    {
+      "path": "src/ecrans/approvals.ts",
+      "statements": [
+        77,
+        77
+      ],
+      "functions": [
+        15,
+        15
+      ],
+      "branches": [
+        81,
+        81
+      ],
+      "lines": [
+        74,
+        74
+      ]
+    },
+    {
+      "path": "src/ecrans/chantiers.ts",
+      "statements": [
+        19,
+        19
+      ],
+      "functions": [
+        16,
+        16
+      ],
+      "branches": [
+        30,
+        31
+      ],
+      "lines": [
+        16,
+        16
+      ]
+    },
+    {
+      "path": "src/ecrans/chiffres.ts",
+      "statements": [
+        45,
+        45
+      ],
+      "functions": [
+        29,
+        29
+      ],
+      "branches": [
+        94,
+        100
+      ],
+      "lines": [
+        42,
+        42
+      ]
+    },
+    {
+      "path": "src/ecrans/complete.ts",
+      "statements": [
+        21,
+        21
+      ],
+      "functions": [
+        5,
+        5
+      ],
+      "branches": [
+        20,
+        20
+      ],
+      "lines": [
+        18,
+        18
+      ]
+    },
+    {
+      "path": "src/ecrans/donneesDeVue.ts",
+      "statements": [
+        23,
+        25
+      ],
+      "functions": [
+        12,
+        12
+      ],
+      "branches": [
+        5,
+        7
+      ],
+      "lines": [
+        16,
+        18
+      ]
+    },
+    {
+      "path": "src/ecrans/job.ts",
+      "statements": [
+        10,
+        10
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        6,
+        6
+      ],
+      "lines": [
+        9,
+        9
+      ]
+    },
+    {
+      "path": "src/ecrans/lead.ts",
+      "statements": [
+        23,
+        24
+      ],
+      "functions": [
+        10,
+        10
+      ],
+      "branches": [
+        28,
+        29
+      ],
+      "lines": [
+        21,
+        22
+      ]
+    },
+    {
+      "path": "src/ecrans/leads.ts",
+      "statements": [
+        17,
+        17
+      ],
+      "functions": [
+        10,
+        10
+      ],
+      "branches": [
+        22,
+        22
+      ],
+      "lines": [
+        15,
+        15
+      ]
+    },
+    {
+      "path": "src/ecrans/manquesM4.ts",
+      "statements": [
+        8,
+        8
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        16,
+        16
+      ],
+      "lines": [
+        8,
+        8
+      ]
+    },
+    {
+      "path": "src/ecrans/materials.ts",
+      "statements": [
+        35,
+        36
+      ],
+      "functions": [
+        11,
+        11
+      ],
+      "branches": [
+        32,
+        34
+      ],
+      "lines": [
+        32,
+        33
+      ]
+    },
+    {
+      "path": "src/ecrans/punch.ts",
+      "statements": [
+        15,
+        15
+      ],
+      "functions": [
+        5,
+        5
+      ],
+      "branches": [
+        8,
+        8
+      ],
+      "lines": [
+        14,
+        14
+      ]
+    },
+    {
+      "path": "src/ecrans/quotes.ts",
+      "statements": [
+        43,
+        43
+      ],
+      "functions": [
+        8,
+        8
+      ],
+      "branches": [
+        30,
+        30
+      ],
+      "lines": [
+        42,
+        42
+      ]
+    },
+    {
+      "path": "src/ecrans/texteSur.ts",
+      "statements": [
+        4,
+        4
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        9,
+        9
+      ],
+      "lines": [
+        4,
+        4
+      ]
+    },
+    {
+      "path": "src/ecrans/today.ts",
+      "statements": [
+        8,
+        8
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        11,
+        11
+      ],
+      "lines": [
+        8,
+        8
+      ]
+    },
+    {
+      "path": "src/ecrans/vueExecutive.ts",
+      "statements": [
+        29,
+        29
+      ],
+      "functions": [
+        20,
+        20
+      ],
+      "branches": [
+        50,
+        54
+      ],
+      "lines": [
+        25,
+        25
+      ]
+    },
+    {
+      "path": "src/fichiers/base64.ts",
+      "statements": [
+        12,
+        12
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        8,
+        8
+      ],
+      "lines": [
+        11,
+        11
+      ]
+    },
+    {
+      "path": "src/fichiers/candidats.ts",
+      "statements": [
+        22,
+        22
+      ],
+      "functions": [
+        9,
+        9
+      ],
+      "branches": [
+        27,
+        28
+      ],
+      "lines": [
+        21,
+        21
+      ]
+    },
+    {
+      "path": "src/fichiers/decoupage.ts",
+      "statements": [
+        12,
+        12
+      ],
+      "functions": [
+        3,
+        3
+      ],
+      "branches": [
+        5,
+        5
+      ],
+      "lines": [
+        11,
+        11
+      ]
+    },
+    {
+      "path": "src/fichiers/empreinte.ts",
+      "statements": [
+        2,
+        2
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "path": "src/fichiers/envoiOrchestrateur.ts",
+      "statements": [
+        29,
+        29
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        16,
+        16
+      ],
+      "lines": [
+        27,
+        27
+      ]
+    },
+    {
+      "path": "src/fichiers/etatEnvoi.ts",
+      "statements": [
+        15,
+        15
+      ],
+      "functions": [
+        5,
+        5
+      ],
+      "branches": [
+        16,
+        18
+      ],
+      "lines": [
+        13,
+        13
+      ]
+    },
+    {
+      "path": "src/fichiers/protocole.ts",
+      "statements": [
+        31,
+        34
+      ],
+      "functions": [
+        12,
+        12
+      ],
+      "branches": [
+        27,
+        36
+      ],
+      "lines": [
+        30,
+        33
+      ]
+    },
+    {
+      "path": "src/fichiers/service.ts",
+      "statements": [
+        0,
+        23
+      ],
+      "functions": [
+        0,
+        5
+      ],
+      "branches": [
+        0,
+        8
+      ],
+      "lines": [
+        0,
+        22
+      ]
+    },
+    {
+      "path": "src/fichiers/verification.ts",
+      "statements": [
+        4,
+        4
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        2,
+        2
+      ],
+      "lines": [
+        4,
+        4
+      ]
+    },
+    {
+      "path": "src/i18n/index.ts",
+      "statements": [
+        0,
+        3
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        2
+      ]
+    },
+    {
+      "path": "src/i18n/langue.ts",
+      "statements": [
+        9,
+        9
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        4,
+        4
+      ],
+      "lines": [
+        9,
+        9
+      ]
+    },
+    {
+      "path": "src/i18n/locales/admin.en-CA.ts",
+      "statements": [
+        1,
+        1
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "src/i18n/locales/admin.fr-CA.ts",
+      "statements": [
+        1,
+        1
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "src/i18n/locales/en-CA.ts",
+      "statements": [
+        1,
+        1
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "src/i18n/locales/fr-CA.ts",
+      "statements": [
+        1,
+        1
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "src/identite/BandeauIdentite.tsx",
+      "statements": [
+        0,
+        8
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        6
+      ],
+      "lines": [
+        0,
+        8
+      ]
+    },
+    {
+      "path": "src/identite/appliquerLecture.ts",
+      "statements": [
+        8,
+        8
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        5,
+        5
+      ],
+      "lines": [
+        8,
+        8
+      ]
+    },
+    {
+      "path": "src/identite/caches.ts",
+      "statements": [
+        34,
+        34
+      ],
+      "functions": [
+        6,
+        6
+      ],
+      "branches": [
+        26,
+        26
+      ],
+      "lines": [
+        34,
+        34
+      ]
+    },
+    {
+      "path": "src/identite/client.ts",
+      "statements": [
+        15,
+        15
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        6,
+        7
+      ],
+      "lines": [
+        14,
+        14
+      ]
+    },
+    {
+      "path": "src/identite/contrat.ts",
+      "statements": [
+        37,
+        37
+      ],
+      "functions": [
+        6,
+        6
+      ],
+      "branches": [
+        38,
+        38
+      ],
+      "lines": [
+        37,
+        37
+      ]
+    },
+    {
+      "path": "src/identite/etat.ts",
+      "statements": [
+        23,
+        23
+      ],
+      "functions": [
+        6,
+        6
+      ],
+      "branches": [
+        20,
+        20
+      ],
+      "lines": [
+        23,
+        23
+      ]
+    },
+    {
+      "path": "src/identite/hooks.ts",
+      "statements": [
+        0,
+        38
+      ],
+      "functions": [
+        0,
+        10
+      ],
+      "branches": [
+        0,
+        17
+      ],
+      "lines": [
+        0,
+        37
+      ]
+    },
+    {
+      "path": "src/identite/service.ts",
+      "statements": [
+        33,
+        34
+      ],
+      "functions": [
+        5,
+        6
+      ],
+      "branches": [
+        10,
+        14
+      ],
+      "lines": [
+        32,
+        33
+      ]
+    },
+    {
+      "path": "src/identite/sessionEnvoi.ts",
+      "statements": [
+        7,
+        7
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        9,
+        9
+      ],
+      "lines": [
+        7,
+        7
+      ]
+    },
+    {
+      "path": "src/identite/stockage.ts",
+      "statements": [
+        16,
+        16
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        16,
+        19
+      ],
+      "lines": [
+        16,
+        16
+      ]
+    },
+    {
+      "path": "src/m2/client360.ts",
+      "statements": [
+        61,
+        66
+      ],
+      "functions": [
+        15,
+        15
+      ],
+      "branches": [
+        49,
+        55
+      ],
+      "lines": [
+        59,
+        64
+      ]
+    },
+    {
+      "path": "src/m2/interaction.ts",
+      "statements": [
+        40,
+        40
+      ],
+      "functions": [
+        8,
+        8
+      ],
+      "branches": [
+        28,
+        30
+      ],
+      "lines": [
+        38,
+        38
+      ]
+    },
+    {
+      "path": "src/m2/listeLeads.ts",
+      "statements": [
+        82,
+        88
+      ],
+      "functions": [
+        12,
+        12
+      ],
+      "branches": [
+        74,
+        80
+      ],
+      "lines": [
+        80,
+        86
+      ]
+    },
+    {
+      "path": "src/m3/devis.ts",
+      "statements": [
+        40,
+        41
+      ],
+      "functions": [
+        11,
+        11
+      ],
+      "branches": [
+        52,
+        53
+      ],
+      "lines": [
+        38,
+        39
+      ]
+    },
+    {
+      "path": "src/m4/completion.ts",
+      "statements": [
+        15,
+        16
+      ],
+      "functions": [
+        6,
+        6
+      ],
+      "branches": [
+        17,
+        23
+      ],
+      "lines": [
+        15,
+        16
+      ]
+    },
+    {
+      "path": "src/m4/consentementClient.ts",
+      "statements": [
+        18,
+        18
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        17,
+        17
+      ],
+      "lines": [
+        18,
+        18
+      ]
+    },
+    {
+      "path": "src/m4/consentementGps.ts",
+      "statements": [
+        23,
+        23
+      ],
+      "functions": [
+        6,
+        6
+      ],
+      "branches": [
+        17,
+        18
+      ],
+      "lines": [
+        23,
+        23
+      ]
+    },
+    {
+      "path": "src/m4/contextePointageProvisoire.ts",
+      "statements": [
+        6,
+        6
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "path": "src/m4/dispatch.ts",
+      "statements": [
+        85,
+        90
+      ],
+      "functions": [
+        13,
+        13
+      ],
+      "branches": [
+        77,
+        82
+      ],
+      "lines": [
+        83,
+        88
+      ]
+    },
+    {
+      "path": "src/m4/interventions.ts",
+      "statements": [
+        38,
+        38
+      ],
+      "functions": [
+        10,
+        10
+      ],
+      "branches": [
+        44,
+        51
+      ],
+      "lines": [
+        38,
+        38
+      ]
+    },
+    {
+      "path": "src/m4/pointage.ts",
+      "statements": [
+        14,
+        14
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        15,
+        18
+      ],
+      "lines": [
+        14,
+        14
+      ]
+    },
+    {
+      "path": "src/m4/preuvesCompletion.ts",
+      "statements": [
+        11,
+        11
+      ],
+      "functions": [
+        7,
+        7
+      ],
+      "branches": [
+        9,
+        9
+      ],
+      "lines": [
+        11,
+        11
+      ]
+    },
+    {
+      "path": "src/m4/wctIdCompletion.ts",
+      "statements": [
+        4,
+        4
+      ],
+      "functions": [
+        3,
+        3
+      ],
+      "branches": [
+        4,
+        4
+      ],
+      "lines": [
+        4,
+        4
+      ]
+    },
+    {
+      "path": "src/m5/pagesPrevision.ts",
+      "statements": [
+        12,
+        12
+      ],
+      "functions": [
+        3,
+        3
+      ],
+      "branches": [
+        17,
+        17
+      ],
+      "lines": [
+        10,
+        10
+      ]
+    },
+    {
+      "path": "src/m5/tresorerie.ts",
+      "statements": [
+        243,
+        256
+      ],
+      "functions": [
+        28,
+        28
+      ],
+      "branches": [
+        341,
+        359
+      ],
+      "lines": [
+        240,
+        253
+      ]
+    },
+    {
+      "path": "src/m6/materiaux.ts",
+      "statements": [
+        21,
+        22
+      ],
+      "functions": [
+        7,
+        7
+      ],
+      "branches": [
+        19,
+        24
+      ],
+      "lines": [
+        21,
+        22
+      ]
+    },
+    {
+      "path": "src/m8/vueExecutive.ts",
+      "statements": [
+        131,
+        143
+      ],
+      "functions": [
+        14,
+        14
+      ],
+      "branches": [
+        136,
+        152
+      ],
+      "lines": [
+        131,
+        143
+      ]
+    },
+    {
+      "path": "src/outbox/declenchement.ts",
+      "statements": [
+        9,
+        9
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        6,
+        6
+      ],
+      "lines": [
+        9,
+        9
+      ]
+    },
+    {
+      "path": "src/outbox/declencheurs.ts",
+      "statements": [
+        15,
+        15
+      ],
+      "functions": [
+        7,
+        7
+      ],
+      "branches": [
+        7,
+        11
+      ],
+      "lines": [
+        15,
+        15
+      ]
+    },
+    {
+      "path": "src/outbox/depot.sqlite.ts",
+      "statements": [
+        16,
+        17
+      ],
+      "functions": [
+        8,
+        8
+      ],
+      "branches": [
+        4,
+        6
+      ],
+      "lines": [
+        15,
+        16
+      ]
+    },
+    {
+      "path": "src/outbox/depot.ts",
+      "statements": [
+        13,
+        13
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        6,
+        6
+      ],
+      "lines": [
+        13,
+        13
+      ]
+    },
+    {
+      "path": "src/outbox/descripteurs.ts",
+      "statements": [
+        33,
+        33
+      ],
+      "functions": [
+        8,
+        8
+      ],
+      "branches": [
+        16,
+        16
+      ],
+      "lines": [
+        33,
+        33
+      ]
+    },
+    {
+      "path": "src/outbox/hooks.ts",
+      "statements": [
+        0,
+        20
+      ],
+      "functions": [
+        0,
+        4
+      ],
+      "branches": [
+        0,
+        10
+      ],
+      "lines": [
+        0,
+        20
+      ]
+    },
+    {
+      "path": "src/outbox/id.ts",
+      "statements": [
+        0,
+        1
+      ],
+      "functions": [
+        0,
+        1
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        1
+      ]
+    },
+    {
+      "path": "src/outbox/mutation.ts",
+      "statements": [
+        28,
+        28
+      ],
+      "functions": [
+        11,
+        11
+      ],
+      "branches": [
+        9,
+        9
+      ],
+      "lines": [
+        28,
+        28
+      ]
+    },
+    {
+      "path": "src/outbox/planification.ts",
+      "statements": [
+        35,
+        36
+      ],
+      "functions": [
+        14,
+        14
+      ],
+      "branches": [
+        22,
+        25
+      ],
+      "lines": [
+        32,
+        33
+      ]
+    },
+    {
+      "path": "src/outbox/proprietaire.ts",
+      "statements": [
+        21,
+        21
+      ],
+      "functions": [
+        9,
+        9
+      ],
+      "branches": [
+        10,
+        10
+      ],
+      "lines": [
+        20,
+        20
+      ]
+    },
+    {
+      "path": "src/outbox/recul.ts",
+      "statements": [
+        5,
+        5
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "path": "src/outbox/refusAppareil.ts",
+      "statements": [
+        8,
+        8
+      ],
+      "functions": [
+        3,
+        3
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        8,
+        8
+      ]
+    },
+    {
+      "path": "src/outbox/service.ts",
+      "statements": [
+        4,
+        23
+      ],
+      "functions": [
+        0,
+        11
+      ],
+      "branches": [
+        0,
+        6
+      ],
+      "lines": [
+        4,
+        22
+      ]
+    },
+    {
+      "path": "src/outbox/transitions.ts",
+      "statements": [
+        5,
+        5
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        3,
+        4
+      ],
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "path": "src/outbox/types.ts",
+      "statements": [
+        0,
+        0
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        0
+      ]
+    },
+    {
+      "path": "src/outbox/vidangeur.ts",
+      "statements": [
+        70,
+        71
+      ],
+      "functions": [
+        9,
+        9
+      ],
+      "branches": [
+        37,
+        40
+      ],
+      "lines": [
+        68,
+        69
+      ]
+    },
+    {
+      "path": "src/photos/mutation.ts",
+      "statements": [
+        4,
+        4
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        3,
+        3
+      ],
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "path": "src/photos/service.ts",
+      "statements": [
+        0,
+        20
+      ],
+      "functions": [
+        0,
+        4
+      ],
+      "branches": [
+        0,
+        2
+      ],
+      "lines": [
+        0,
+        19
+      ]
+    },
+    {
+      "path": "src/photos/taille.ts",
+      "statements": [
+        16,
+        17
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        14,
+        15
+      ],
+      "lines": [
+        16,
+        17
+      ]
+    },
+    {
+      "path": "src/photos/types.ts",
+      "statements": [
+        0,
+        1
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        1
+      ]
+    },
+    {
+      "path": "src/protocole/classification.ts",
+      "statements": [
+        9,
+        9
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        14,
+        14
+      ],
+      "lines": [
+        9,
+        9
+      ]
+    },
+    {
+      "path": "src/protocole/client.ts",
+      "statements": [
+        16,
+        17
+      ],
+      "functions": [
+        1,
+        2
+      ],
+      "branches": [
+        16,
+        17
+      ],
+      "lines": [
+        16,
+        16
+      ]
+    },
+    {
+      "path": "src/protocole/configuration.ts",
+      "statements": [
+        10,
+        10
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        6,
+        6
+      ],
+      "lines": [
+        10,
+        10
+      ]
+    },
+    {
+      "path": "src/protocole/echec.ts",
+      "statements": [
+        10,
+        10
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        16,
+        16
+      ],
+      "lines": [
+        10,
+        10
+      ]
+    },
+    {
+      "path": "src/protocole/enveloppeOutil.ts",
+      "statements": [
+        36,
+        36
+      ],
+      "functions": [
+        9,
+        9
+      ],
+      "branches": [
+        57,
+        57
+      ],
+      "lines": [
+        35,
+        35
+      ]
+    },
+    {
+      "path": "src/protocole/types.ts",
+      "statements": [
+        0,
+        0
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        0
+      ]
+    },
+    {
+      "path": "src/roles/contexte.tsx",
+      "statements": [
+        0,
+        13
+      ],
+      "functions": [
+        0,
+        7
+      ],
+      "branches": [
+        0,
+        2
+      ],
+      "lines": [
+        0,
+        13
+      ]
+    },
+    {
+      "path": "src/roles/garde.ts",
+      "statements": [
+        11,
+        11
+      ],
+      "functions": [
+        4,
+        4
+      ],
+      "branches": [
+        6,
+        6
+      ],
+      "lines": [
+        10,
+        10
+      ]
+    },
+    {
+      "path": "src/roles/types.ts",
+      "statements": [
+        1,
+        1
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "path": "src/signature/dataUrl.ts",
+      "statements": [
+        9,
+        10
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        5,
+        6
+      ],
+      "lines": [
+        9,
+        10
+      ]
+    },
+    {
+      "path": "src/signature/mutation.ts",
+      "statements": [
+        2,
+        2
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "path": "src/signature/service.ts",
+      "statements": [
+        0,
+        21
+      ],
+      "functions": [
+        0,
+        3
+      ],
+      "branches": [
+        0,
+        4
+      ],
+      "lines": [
+        0,
+        20
+      ]
+    },
+    {
+      "path": "src/stockage/cles.ts",
+      "statements": [
+        6,
+        6
+      ],
+      "functions": [
+        1,
+        1
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "path": "src/stockage/depotCleValeur.sqlite.ts",
+      "statements": [
+        10,
+        10
+      ],
+      "functions": [
+        6,
+        6
+      ],
+      "branches": [
+        4,
+        4
+      ],
+      "lines": [
+        10,
+        10
+      ]
+    },
+    {
+      "path": "src/stockage/depotCleValeur.ts",
+      "statements": [
+        11,
+        11
+      ],
+      "functions": [
+        5,
+        5
+      ],
+      "branches": [
+        6,
+        6
+      ],
+      "lines": [
+        11,
+        11
+      ]
+    },
+    {
+      "path": "src/stockage/service.ts",
+      "statements": [
+        0,
+        8
+      ],
+      "functions": [
+        0,
+        2
+      ],
+      "branches": [
+        0,
+        2
+      ],
+      "lines": [
+        0,
+        8
+      ]
+    },
+    {
+      "path": "src/today/cache.ts",
+      "statements": [
+        15,
+        15
+      ],
+      "functions": [
+        6,
+        6
+      ],
+      "branches": [
+        13,
+        13
+      ],
+      "lines": [
+        14,
+        14
+      ]
+    },
+    {
+      "path": "src/today/orchestrateur.ts",
+      "statements": [
+        39,
+        39
+      ],
+      "functions": [
+        8,
+        8
+      ],
+      "branches": [
+        19,
+        19
+      ],
+      "lines": [
+        36,
+        36
+      ]
+    },
+    {
+      "path": "src/today/selection.ts",
+      "statements": [
+        8,
+        8
+      ],
+      "functions": [
+        3,
+        3
+      ],
+      "branches": [
+        3,
+        6
+      ],
+      "lines": [
+        8,
+        8
+      ]
+    },
+    {
+      "path": "src/today/service.ts",
+      "statements": [
+        0,
+        9
+      ],
+      "functions": [
+        0,
+        4
+      ],
+      "branches": [
+        0,
+        6
+      ],
+      "lines": [
+        0,
+        9
+      ]
+    },
+    {
+      "path": "src/today/statut.ts",
+      "statements": [
+        13,
+        13
+      ],
+      "functions": [
+        3,
+        3
+      ],
+      "branches": [
+        15,
+        15
+      ],
+      "lines": [
+        13,
+        13
+      ]
+    },
+    {
+      "path": "src/today/types.ts",
+      "statements": [
+        0,
+        0
+      ],
+      "functions": [
+        0,
+        0
+      ],
+      "branches": [
+        0,
+        0
+      ],
+      "lines": [
+        0,
+        0
+      ]
+    },
+    {
+      "path": "src/vendeur/appel.ts",
+      "statements": [
+        7,
+        7
+      ],
+      "functions": [
+        2,
+        2
+      ],
+      "branches": [
+        2,
+        2
+      ],
+      "lines": [
+        7,
+        7
+      ]
+    },
+    {
+      "path": "src/vendeur/cache.ts",
+      "statements": [
+        37,
+        38
+      ],
+      "functions": [
+        11,
+        11
+      ],
+      "branches": [
+        29,
+        30
+      ],
+      "lines": [
+        37,
+        38
+      ]
+    },
+    {
+      "path": "src/vendeur/chargeurDevis.ts",
+      "statements": [
+        64,
+        64
+      ],
+      "functions": [
+        10,
+        10
+      ],
+      "branches": [
+        39,
+        41
+      ],
+      "lines": [
+        59,
+        59
+      ]
+    },
+    {
+      "path": "src/vendeur/chargeurFiche.ts",
+      "statements": [
+        39,
+        40
+      ],
+      "functions": [
+        5,
+        5
+      ],
+      "branches": [
+        31,
+        32
+      ],
+      "lines": [
+        38,
+        39
+      ]
+    },
+    {
+      "path": "src/vendeur/chargeurLeads.ts",
+      "statements": [
+        35,
+        35
+      ],
+      "functions": [
+        7,
+        7
+      ],
+      "branches": [
+        26,
+        26
+      ],
+      "lines": [
+        33,
+        33
+      ]
+    },
+    {
+      "path": "src/vendeur/devisConnus.ts",
+      "statements": [
+        25,
+        25
+      ],
+      "functions": [
+        6,
+        6
+      ],
+      "branches": [
+        27,
+        29
+      ],
+      "lines": [
+        23,
+        23
+      ]
+    },
+    {
+      "path": "src/vendeur/donneesDeTest.ts",
+      "statements": [
+        30,
+        30
+      ],
+      "functions": [
+        13,
+        13
+      ],
+      "branches": [
+        31,
+        33
+      ],
+      "lines": [
+        28,
+        28
+      ]
+    },
+    {
+      "path": "src/vendeur/fiche.ts",
+      "statements": [
+        28,
+        28
+      ],
+      "functions": [
+        10,
+        10
+      ],
+      "branches": [
+        36,
+        36
+      ],
+      "lines": [
+        27,
+        27
+      ]
+    },
+    {
+      "path": "src/vendeur/lectureLeads.ts",
+      "statements": [
+        17,
+        17
+      ],
+      "functions": [
+        6,
+        6
+      ],
+      "branches": [
+        23,
+        23
+      ],
+      "lines": [
+        15,
+        15
+      ]
+    },
+    {
+      "path": "src/vendeur/service.ts",
+      "statements": [
+        0,
+        15
+      ],
+      "functions": [
+        0,
+        7
+      ],
+      "branches": [
+        0,
+        12
+      ],
+      "lines": [
+        0,
+        15
+      ]
+    }
+  ]
+}

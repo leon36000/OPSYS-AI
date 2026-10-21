@@ -1,0 +1,38 @@
+{
+  "status": "FINAL_REVIEWABLE_PENDING_ROOT",
+  "archive_path": "m8-provenance-backend-public-final-r3.tar.gz",
+  "archive_sha256": "7f314b6acc9044e366cb66b333c0e170d6594d66384977e12a23813081c6a8d4",
+  "archive_members": 932,
+  "archive_octets": 10111721,
+  "public_folder": "PUBLIC-CANDIDAT-FINAL-r3",
+  "global_manifest_sha256": "f333bfa6efd60190d41e7d56f2c206216ef1ce007ae71935ebd5d62ae7228b9a",
+  "global_manifest_members": 931,
+  "roundtrip_verified": true,
+  "scanner": {
+    "status": "CLEAN",
+    "files_scanned": 930,
+    "patterns": [
+      "github_token",
+      "api_key",
+      "private_key",
+      "bearer_value"
+    ],
+    "findings": [],
+    "scope": "Explicit public allowlists only; lexical scan not exhaustive DLP; Native known-token scanner retained separately",
+    "exclusions": "PRIVATE/auth/account/DB/rawmodel/logs/CANARY/runtime-auth scripts/cache/dependencies/research",
+    "falsepositive_dispositions_preserved": "r1/r2 filename projection and task-/ask- source-path keys, not secret values"
+  },
+  "source_count": 13,
+  "preimages": 6,
+  "docs3_excluded": [
+    "AUDIT.md",
+    "REGISTRE.json",
+    "CAPSULE.json"
+  ],
+  "no_hash_cycle": true,
+  "source_epoch": "gel5 doc-only; code/tests identical gel4",
+  "Native2_source_epoch": "gel4 exact, Root adopted; no Native3",
+  "future_M8_CI": "UNKNOWN",
+  "direction_opinions": "static completed, dated Native2 NOT_RUN then separate adoption",
+  "Root_only_Git_PR_publisher": true
+}

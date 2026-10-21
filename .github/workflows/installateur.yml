@@ -1,0 +1,311 @@
+name: installateur
+on:
+  workflow_dispatch:
+    inputs:
+      sans_service:
+        description: "1 : saute la phase du service utilisateur (systemd, launchd, tâche planifiée) sur les trois systèmes"
+        type: choice
+        options: ["0", "1"]
+        default: "0"
+      preuve_poste_docker:
+        description: "Exécute aussi les E2E macOS/Windows sur les runners self-hosted opsys-docker-linux"
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      sans_service:
+        type: string
+        default: "0"
+      preuve_poste_docker:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Les appels automatiques sont sérialisés par ci.yml ; le dispatch manuel reste indépendant.
+
+jobs:
+  # Analyse statique, rapide : les scripts bash passent shellcheck, les scripts PowerShell passent l'analyseur
+  # syntaxique de PowerShell (préinstallé sur les runners GitHub) et un contrôle de l'arbre syntaxique qui refuse toute
+  # variable lue sans avoir été posée et toute commande inconnue (fautes que rien ne montre avant l'exécution). Elle ne remplace pas
+  # l'exécution : install.ps1 et uninstall.ps1 sont exécutés sous Windows par le job installation-windows, install.sh
+  # et launchd sous macOS par installation-macos.
+  analyse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - name: shellcheck et bash -n
+        run: |
+          shellcheck -s bash install/install.sh install/uninstall.sh tests/installateur/bout_en_bout.sh tests/installateur/diagnostic.sh
+          for script in install/install.sh install/uninstall.sh tests/installateur/bout_en_bout.sh tests/installateur/diagnostic.sh; do bash -n "$script"; done
+      # Le workflow lui-même : contextes disponibles par niveau (« runner » n'existe pas dans le env d'un job), expressions,
+      # noms d'entrées. Version et empreinte épinglées (MIT, docs/research/INGREDIENTS.md) ; shellcheck relit les `run`.
+      - name: "actionlint (ce workflow)"
+        run: |
+          curl -sSfL -o actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -color .github/workflows/installateur.yml
+      - name: Analyse syntaxique PowerShell
+        shell: pwsh
+        run: |
+          $echec = $false
+          foreach ($fichier in @(Get-ChildItem install/*.ps1, tests/installateur/*.ps1 | ForEach-Object { $_.FullName })) {
+            $erreurs = $null
+            $jetons = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($fichier, [ref]$jetons, [ref]$erreurs) | Out-Null
+            if ($erreurs.Count -gt 0) {
+              $echec = $true
+              foreach ($erreur in $erreurs) { Write-Host "::error file=$fichier,line=$($erreur.Extent.StartLineNumber)::$($erreur.Message)" }
+            } else {
+              Write-Host "$fichier : syntaxe valide"
+            }
+          }
+          if ($echec) { exit 1 }
+      - name: "PowerShell : variables lues sans avoir été posées, commandes inconnues"
+        shell: pwsh
+        run: |
+          $echec = $false
+          foreach ($fichier in @(Get-ChildItem install/*.ps1, tests/installateur/*.ps1 | ForEach-Object { $_.FullName })) {
+            & pwsh -NoProfile -File tests/installateur/lint_variables.ps1 $fichier
+            if ($LASTEXITCODE -ne 0) {
+              $echec = $true
+              Write-Host "::error file=$fichier::variable lue sans avoir été posée, ou commande inconnue (voir la liste ci-dessus)"
+            } else {
+              Write-Host "$fichier : aucune variable ni commande suspecte"
+            }
+          }
+          if ($echec) { exit 1 }
+
+  # Le trajet réel : install.sh construit le core, installe le moteur par uv, génère et valide la configuration,
+  # démarre le Gateway (qui lance le moteur), installe le service utilisateur si systemd --user existe, exporte,
+  # restaure, puis désinstalle sans perdre une donnée. Aucune étape ne tolère l'échec ; l'absence de systemd --user
+  # est signalée en clair (annotation et résumé du job), et le Gateway est alors prouvé au premier plan.
+  # Le trajet Mac/Windows complet existe dans des jobs poste séparés, opt-in, après prévol Docker Linux.
+  #
+  # Le core tourne sous son profil « opsys » (PLAN T0.11-b). Attendus, écrits dans bout_en_bout.sh d'après le code du
+  # fork : état du core dans ~/.opsys/core, configuration opsys.json (T0.7 lot 3 ; avant, ~/.openclaw-opsys, que Doctor
+  # déplace : étapes « 1 quinquies » et « 5 bis ») ; service systemd utilisateur openclaw-gateway-opsys.service,
+  # distinct de openclaw-gateway.service (celui du core d'origine).
+  installation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      # uv est un prérequis de l'installateur, comme il le serait chez un utilisateur ; PyPI le publie.
+      - name: "uv (version verrouillée de l'installateur)"
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: "Installateur : scripts joués contre de fausses commandes"
+        run: |
+          uv sync --locked --group build --extra dev --no-build-isolation --no-install-project
+          uv sync --locked --group build --extra dev --no-build-isolation
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+          uv run --locked --no-sync python -m pytest tests/test_installateur_scripts.py tests/test_installateur_powershell.py tests/test_installateur_windows.py tests/test_installateur_powershell_faux.py tests/test_installateur_bout_en_bout.py tests/test_installateur_workflow.py tests/test_commande_metier.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
+      - name: "Docker : cache public des images épinglées"
+        run: python scripts/ci/preparer_pgvector.py --miroir-seulement
+      - name: "Docker : CLI et daemon Linux requis avant le vrai E2E"
+        run: |
+          command -v docker
+          docker --version
+          systeme_docker="$(docker info --format '{{.OSType}}')"
+          if [ "$systeme_docker" != "linux" ]; then
+            echo "Le daemon Docker doit utiliser des conteneurs Linux (docker info a retourné '$systeme_docker')." >&2
+            exit 1
+          fi
+      - name: Installateur avec le vrai core
+        env:
+          OPSYS_TRAVAIL: ${{ runner.temp }}/installateur
+          OPSYS_SANS_SERVICE: ${{ inputs.sans_service || '0' }}
+        run: bash tests/installateur/bout_en_bout.sh
+      - name: "Diagnostic (en cas d'échec)"
+        if: failure()
+        shell: bash
+        env:
+          OPSYS_TRAVAIL: ${{ runner.temp }}/installateur
+        run: bash tests/installateur/diagnostic.sh
+
+  # Runner hosted : garde les tests Bash/fakes autonomes. GitHub ne garantit pas un daemon Linux prêt sur macOS.
+  installation-macos:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: "uv (version verrouillée de l'installateur)"
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: "Le poste : macOS, bash et outils BSD"
+        run: |
+          sw_vers
+          uname -m
+          echo "bash du PATH : $(command -v bash) ($(bash --version | head -n 1))"
+          echo "node $(node -v), python $(python --version 2>&1), git $(git --version)"
+      - name: "Installateur : scripts joués contre de fausses commandes (hosted)"
+        run: |
+          uv sync --locked --group build --extra dev --no-build-isolation --no-install-project
+          uv sync --locked --group build --extra dev --no-build-isolation
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+          uv run --locked --no-sync python -m pytest tests/test_installateur_scripts.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
+
+  # Runner hosted : exécute les vérifications Windows/fakes. L'E2E réel a son job poste séparé et opt-in.
+  installation-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      # Avant l'extraction : le core a des chemins longs (node_modules, sources), que Git pour Windows refuse sinon.
+      - name: "Git : chemins longs"
+        shell: pwsh
+        run: git config --global core.longpaths true
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: "uv (version verrouillée de l'installateur)"
+        shell: pwsh
+        run: |
+          python -m pip install --quiet uv==0.12.19
+          uv --version
+      - name: "Le poste : système et interpréteurs PowerShell"
+        shell: pwsh
+        run: |
+          Write-Host "$((Get-CimInstance Win32_OperatingSystem).Caption) $([Environment]::OSVersion.Version)"
+          Write-Host "pwsh $($PSVersionTable.PSVersion)"
+          Write-Host "Windows PowerShell : $((Get-Command powershell.exe).Source)"
+          Write-Host "node $(node -v), python $(python --version), git $(git --version)"
+          Write-Host "curl.exe : $((Get-Command curl.exe).Source)"
+          Write-Host "schtasks.exe : $((Get-Command schtasks.exe).Source)"
+      - name: "Installateur : scripts et fakes Windows (hosted)"
+        shell: pwsh
+        run: |
+          uv sync --locked --group build --extra dev --no-build-isolation --no-install-project
+          uv sync --locked --group build --extra dev --no-build-isolation
+          uv run --locked --no-sync python -m pytest tests/test_installateur_powershell.py tests/test_installateur_windows.py tests/test_installateur_powershell_faux.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
+
+  # Qualification E2E réelle, opérée uniquement sur demande et sur le poste du propriétaire. L'opérateur doit avoir
+  # enregistré le runner avec les labels ci-dessous et avoir préparé Docker Desktop en mode Linux. Le workflow ne
+  # installe pas Docker, ne change aucun droit ni groupe et n'active aucun daemon; le prévol fail-closed vérifie le poste.
+  installation-macos-docker:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.preuve_poste_docker }}
+    runs-on: [self-hosted, macOS, opsys-docker-linux]
+    timeout-minutes: 90
+    env:
+      OPSYS_SANS_SERVICE: ${{ inputs.sans_service || '0' }}
+      OPSYS_SERVICE_REQUIS: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: "uv (version verrouillée de l'installateur)"
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: "Le poste : macOS, bash, outils BSD et launchd"
+        run: |
+          sw_vers
+          uname -m
+          echo "bash du PATH : $(command -v bash) ($(bash --version | head -n 1))"
+          echo "node $(node -v), python $(python --version 2>&1), git $(git --version)"
+          if launchctl print "gui/$(id -u)" >/dev/null 2>&1; then
+            echo "launchd : le domaine gui/$(id -u) existe (session graphique de l'utilisateur)"
+          else
+            echo "::warning::launchd : le domaine gui/$(id -u) n'existe pas ; l'étape du service échouera (OPSYS_SERVICE_REQUIS=1)"
+          fi
+      - name: "Docker : CLI et daemon Linux requis avant le vrai E2E"
+        run: |
+          command -v docker
+          docker --version
+          systeme_docker="$(docker info --format '{{.OSType}}')"
+          if [ "$systeme_docker" != "linux" ]; then
+            echo "Docker Desktop doit être démarré en mode conteneurs Linux (docker info a retourné '$systeme_docker')." >&2
+            exit 1
+          fi
+      - name: Installateur avec le vrai core (macOS, launchd)
+        env:
+          OPSYS_TRAVAIL: ${{ runner.temp }}/installateur
+        run: bash tests/installateur/bout_en_bout.sh
+      - name: "Diagnostic (en cas d'échec)"
+        if: failure()
+        env:
+          OPSYS_TRAVAIL: ${{ runner.temp }}/installateur
+        run: bash tests/installateur/diagnostic.sh
+
+  installation-windows-docker:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.preuve_poste_docker }}
+    runs-on: [self-hosted, Windows, opsys-docker-linux]
+    timeout-minutes: 120
+    env:
+      OPSYS_SANS_SERVICE: ${{ inputs.sans_service || '0' }}
+      OPSYS_SERVICE_REQUIS: "1"
+      PYTHONUTF8: "1"
+    steps:
+      - name: "Git : chemins longs"
+        shell: pwsh
+        run: git config --global core.longpaths true
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: "uv (version verrouillée de l'installateur)"
+        shell: pwsh
+        run: |
+          python -m pip install --quiet uv==0.12.19
+          uv --version
+      - name: "Le poste : Windows, interpréteurs PowerShell et outils"
+        shell: pwsh
+        run: |
+          Write-Host "$((Get-CimInstance Win32_OperatingSystem).Caption) $([Environment]::OSVersion.Version)"
+          Write-Host "pwsh $($PSVersionTable.PSVersion)"
+          Write-Host "Windows PowerShell : $((Get-Command powershell.exe).Source)"
+          Write-Host "node $(node -v), python $(python --version), git $(git --version)"
+          Write-Host "curl.exe : $((Get-Command curl.exe).Source)"
+          Write-Host "schtasks.exe : $((Get-Command schtasks.exe).Source)"
+          $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+          Write-Host "administrateur : $($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+      - name: "Docker : CLI et daemon Linux requis avant le vrai E2E"
+        shell: pwsh
+        run: |
+          try { Get-Command docker -ErrorAction Stop | Out-Null } catch {
+            throw "Docker CLI absent. Installez Docker Desktop et enregistrez ce runner avec le label opsys-docker-linux."
+          }
+          & docker --version
+          if ($LASTEXITCODE -ne 0) { throw "Docker CLI indisponible sur ce runner." }
+          $systemeDocker = & docker info --format '{{.OSType}}'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Daemon Docker inaccessible. Démarrez Docker Desktop; OPSYS ne modifie aucun droit ni groupe."
+          }
+          if ($systemeDocker.Trim() -ne 'linux') {
+            throw "Docker Desktop doit être en mode Linux (docker info a retourné '$($systemeDocker.Trim())')."
+          }
+      - name: Installateur avec le vrai core (Windows, tâche planifiée)
+        shell: pwsh
+        env:
+          OPSYS_TRAVAIL: ${{ runner.temp }}\installateur
+        run: |
+          & ./tests/installateur/bout_en_bout.ps1
+          exit $LASTEXITCODE
+      - name: "Diagnostic (en cas d'échec)"
+        if: failure()
+        shell: pwsh
+        env:
+          OPSYS_TRAVAIL: ${{ runner.temp }}\installateur
+        run: ./tests/installateur/diagnostic.ps1

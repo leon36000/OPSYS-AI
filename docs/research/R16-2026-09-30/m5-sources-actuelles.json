@@ -1,0 +1,2100 @@
+[
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/__init__.py",
+    "lines": 7,
+    "functions": []
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/acces.py",
+    "lines": 141,
+    "functions": [
+      {
+        "name": "acteur_de",
+        "line": 81,
+        "end": 93,
+        "doc": "``(Acteur, None)`` si ``role`` est dans ``roles_permis``, sinon ``(None, verdict)``.\n\n``roles_permis`` est la portée déclarée de l'outil (``Outil.roles_appareil``, la source unique\nque le core applique déjà en amont) : la repasser"
+      },
+      {
+        "name": "droit_couts",
+        "line": 96,
+        "end": 100,
+        "doc": "Vrai si ce rôle voit solde, argent disponible et taux (règle écrite en tête de module).\n\nUn rôle inconnu ne voit rien. Ne prend que le rôle, jamais un argument de l'appelant."
+      },
+      {
+        "name": "_refus",
+        "line": 103,
+        "end": 104,
+        "doc": ""
+      },
+      {
+        "name": "resoudre_vue",
+        "line": 107,
+        "end": 141,
+        "doc": "``({\"role\", \"autorise_couts\"}, None)`` : la vue à construire, ou ``(None, verdict)`` : un refus.\n\n``autorise_couts`` fourni doit être un booléen (jamais interprété par sa « vérité » : la chaîne\n``\"false\"`` est vraie en Python) ou "
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/analyse.py",
+    "lines": 57,
+    "functions": [
+      {
+        "name": "avec_mention",
+        "line": 52,
+        "end": 57,
+        "doc": "`sortie` avec la mention obligatoire. Un dictionnaire seulement : la mention est une clé, jamais un texte collé\nsur autre chose."
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/approbation.py",
+    "lines": 179,
+    "functions": [
+      {
+        "name": "_dernier_maillon",
+        "line": 28,
+        "end": 39,
+        "doc": ""
+      },
+      {
+        "name": "statut_courant",
+        "line": 42,
+        "end": 44,
+        "doc": ""
+      },
+      {
+        "name": "creer_demande",
+        "line": 47,
+        "end": 73,
+        "doc": ""
+      },
+      {
+        "name": "_est_texte_non_vide",
+        "line": 76,
+        "end": 77,
+        "doc": ""
+      },
+      {
+        "name": "_preuve_structure_verifiable",
+        "line": 80,
+        "end": 108,
+        "doc": "Structure minimale exigée d'une preuve F6/F7 : méthode, horodatage ISO 8601\navec fuseau, identifiant d'approbateur — jamais un fournisseur MFA/CPA précis\n(l'intégration cryptographique réelle est hors périmètre v1, cf. PRD §3.2).\n"
+      },
+      {
+        "name": "_transitionner",
+        "line": 111,
+        "end": 167,
+        "doc": ""
+      },
+      {
+        "name": "approuver",
+        "line": 170,
+        "end": 173,
+        "doc": ""
+      },
+      {
+        "name": "refuser",
+        "line": 176,
+        "end": 179,
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/calendrier_fiscal.py",
+    "lines": 464,
+    "functions": [
+      {
+        "name": "_verdict",
+        "line": 81,
+        "end": 82,
+        "doc": ""
+      },
+      {
+        "name": "_date",
+        "line": 86,
+        "end": 94,
+        "doc": "Une date `AAAA-MM-JJ` (texte), ou `None`. Un objet `date` déjà converti par YAML est refusé : le fichier écrit\nses dates entre guillemets, un texte n'est jamais réinterprété."
+      },
+      {
+        "name": "_fin_de_mois",
+        "line": 97,
+        "end": 98,
+        "doc": ""
+      },
+      {
+        "name": "_fin_de_mois_apres",
+        "line": 101,
+        "end": 104,
+        "doc": "Le dernier jour du mois situé `mois` mois après le mois de `fin` (avant), ou avant (négatif)."
+      },
+      {
+        "name": "_periode",
+        "line": 108,
+        "end": 138,
+        "doc": "Une période validée (dates en `date`), ou le texte de l'erreur."
+      },
+      {
+        "name": "_annee",
+        "line": 141,
+        "end": 204,
+        "doc": ""
+      },
+      {
+        "name": "charger_calendrier_fiscal",
+        "line": 207,
+        "end": 231,
+        "doc": "`({année: année validée}, erreurs)` : même patron que `taux_fiscaux.charger_taux_fiscaux`. Une année invalide\nest absente du dictionnaire et nommée dans les erreurs ; l'appelant refuse le fichier dès qu'il y a une erreur\n(`REJ-CAL"
+      },
+      {
+        "name": "lire_configuration_fiscale",
+        "line": 235,
+        "end": 281,
+        "doc": "`(configuration, None)` ou `(None, verdict)` : ce que le propriétaire a déclaré (`configuration.fiscal` de\n`department.yaml`), sans rien supposer. Le verdict est celui de la PREMIÈRE information qui manque, et il dit quoi\nfournir."
+      },
+      {
+        "name": "periodes_applicables",
+        "line": 284,
+        "end": 306,
+        "doc": "Les périodes de déclaration de l'entreprise pour ces années (de fin de période), les plus anciennes d'abord.\n\nMensuelle : les douze. Trimestrielle : celles dont le mois de fin est le mois de fin d'exercice, à trois mois\nd'interval"
+      },
+      {
+        "name": "_annees_requises",
+        "line": 309,
+        "end": 310,
+        "doc": ""
+      },
+      {
+        "name": "_annees_manquantes",
+        "line": 313,
+        "end": 322,
+        "doc": ""
+      },
+      {
+        "name": "lire_taxes_remises",
+        "line": 325,
+        "end": 354,
+        "doc": "`(date, None)` : la fin de la dernière période dont les taxes sont remises (`configuration.fiscal.\ntaxes_remises_jusqu_au`, un fait établi par un humain, avec le CPA) ; ou `(None, verdict)` : absente, illisible,\nd'une année non dé"
+      },
+      {
+        "name": "_echeance",
+        "line": 358,
+        "end": 368,
+        "doc": ""
+      },
+      {
+        "name": "prochaines_echeances",
+        "line": 371,
+        "end": 464,
+        "doc": "`(échéances, None)` ou `(None, verdict)` : les prochaines échéances TPS/TVQ de l'entreprise à partir de\n`aujourd_hui` (texte `AAAA-MM-JJ`, fourni par l'appelant : M5 n'a pas d'horloge).\n\n`fiscal` est `configuration.fiscal` de `dep"
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/cash_libre.py",
+    "lines": 555,
+    "functions": [
+      {
+        "name": "hypotheses",
+        "line": 97,
+        "end": 100,
+        "doc": "Les hypothèses du calcul, dites avec chaque réponse (le sens de chacune est prudent, sauf les crédits de taxes\nsur intrants, que le CPA valide)."
+      },
+      {
+        "name": "_verdict",
+        "line": 103,
+        "end": 104,
+        "doc": ""
+      },
+      {
+        "name": "_au_cent",
+        "line": 107,
+        "end": 108,
+        "doc": ""
+      },
+      {
+        "name": "_court",
+        "line": 111,
+        "end": 115,
+        "doc": "Un identifiant de pièce, abrégé pour un message : la réponse d'un outil est bornée par le socle."
+      },
+      {
+        "name": "_texte",
+        "line": 118,
+        "end": 120,
+        "doc": "Un montant en texte positionnel (jamais de notation scientifique) ; `None` reste `None`."
+      },
+      {
+        "name": "_date",
+        "line": 123,
+        "end": 129,
+        "doc": ""
+      },
+      {
+        "name": "registre_lu",
+        "line": 132,
+        "end": 134,
+        "doc": "La source d'un chiffre : un registre lu, sa taille et la tête de sa chaîne."
+      },
+      {
+        "name": "_composante",
+        "line": 137,
+        "end": 155,
+        "doc": "Une composante, toujours de la même forme : montant (ou `None` : non calculable), statut, source, fraîcheur,\nmanque, réserves, plancher (le certain, si le total est inconnu) et détail."
+      },
+      {
+        "name": "composante_solde",
+        "line": 159,
+        "end": 178,
+        "doc": "Le point de départ : le solde du registre des mouvements (`soldes.calculer_solde`,\n`soldes.decrire_mouvements`).\n\nUn registre sans aucun mouvement n'a pas de solde connu : aucun solde d'ouverture n'a été enregistré, et un solde\nà "
+      },
+      {
+        "name": "_montants_de_taxes",
+        "line": 182,
+        "end": 196,
+        "doc": "La taxe de chaque type (TPS, TVQ) d'une facture, ou `None` si elle n'est pas lisible : une facture dont la taxe\nne se lit pas n'entre jamais au total avec un montant inventé."
+      },
+      {
+        "name": "_jour_d_envoi",
+        "line": 199,
+        "end": 206,
+        "doc": ""
+      },
+      {
+        "name": "calculer_taxes_nettes",
+        "line": 209,
+        "end": 270,
+        "doc": "La TPS et la TVQ nettes des factures datées APRÈS `apres` (et au plus tard `jusqu_a`, si donné).\n\n- `clients` : les états des factures clients ENVOYEE ou PAYEE (un brouillon n'est pas envoyé, une annulée n'est\n  plus due) ; la dat"
+      },
+      {
+        "name": "vue_taxes_nettes",
+        "line": 273,
+        "end": 288,
+        "doc": "Les taxes nettes en texte, au cent, par taxe (tps, tvq), avec ce qui est retranché."
+      },
+      {
+        "name": "composante_taxes",
+        "line": 291,
+        "end": 327,
+        "doc": "La TPS/TVQ à remettre : ce que les factures clients envoyées ont collecté, moins les crédits de taxes sur\nintrants des factures fournisseur saisies, depuis la dernière remise (`remises_jusqu_au`).\n\nSans date de dernière remise (`r"
+      },
+      {
+        "name": "composante_comptes_a_payer",
+        "line": 331,
+        "end": 370,
+        "doc": "Les comptes à payer de T4.15 (`comptes_a_payer.resume_a_payer`) : l'« à payer » après taxes de tous les PO\nreçus (facturé + attendu non facturé). Un PO dont l'attendu n'est pas calculable (prix du PO absent, devise autre\nque CAD) "
+      },
+      {
+        "name": "composante_declaree",
+        "line": 386,
+        "end": 423,
+        "doc": "Une composante que rien ne calcule encore (paies, DAS, dettes ; réserves sans mouvement de réserve), telle que\nle propriétaire l'a DÉCLARÉE dans `department.yaml` (`configuration.obligations_declarees.<id>`) : `montant`\n(texte déc"
+      },
+      {
+        "name": "composante_reserves",
+        "line": 426,
+        "end": 439,
+        "doc": "Les réserves critiques : les mouvements de réserve du registre (`soldes.calculer_provisions`), déjà mis de côté\nsans sortir du solde. S'il n'y en a aucun, la déclaration du propriétaire (`composante_declaree`, « 0.00 »\ncompris) ou"
+      },
+      {
+        "name": "calculer_cash_libre",
+        "line": 443,
+        "end": 487,
+        "doc": "Le cash libre : le solde moins les six composantes, dans l'ordre de la définition produit.\n\n`cash_libre` est `None` (non calculable) dès que le solde ou une composante l'est ; `manque` dit alors quoi\ndemander. `au_plus` (le solde "
+      },
+      {
+        "name": "_lecture",
+        "line": 490,
+        "end": 506,
+        "doc": ""
+      },
+      {
+        "name": "_vue_composante",
+        "line": 512,
+        "end": 534,
+        "doc": "Une composante en vue JSON, compacte : `outils.py` la rend dans une réponse bornée à 6 000 caractères par le\nsocle. La tête d'un registre n'est montrée que par ses 16 premiers caractères (l'empreinte du cash libre porte le\nreste)."
+      },
+      {
+        "name": "vue_cash_libre",
+        "line": 537,
+        "end": 555,
+        "doc": "Le cash libre tel que la réponse d'un outil le porte : tout en texte (montants) ou en valeurs simples, avec sa\nlecture en une phrase, ses hypothèses, la mention obligatoire et son empreinte. Aucun chiffre n'est produit ici :\nseule"
+      },
+      {
+        "name": "dans_la_fenetre",
+        "line": 229,
+        "end": 230,
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/clients_recus.py",
+    "lines": 42,
+    "functions": [
+      {
+        "name": "construire",
+        "line": 26,
+        "end": 33,
+        "doc": "Le maillon client associé reçu — construction pure, sans écriture (l'appelant, `outils.py`,\nvérifie d'abord `pour_lead_id` et n'ajoute que si absent : l'idempotence vit là, pas ici)."
+      },
+      {
+        "name": "pour_lead_id",
+        "line": 36,
+        "end": 42,
+        "doc": "Le client associé reçu pour ce lead_id, ou None si M5 ne l'a jamais reçu (le devis/WCT\nfacture alors avec le repli documenté par `_essayer_facture_brouillon`, jamais un blocage)."
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/comptes_a_payer.py",
+    "lines": 1616,
+    "functions": [
+      {
+        "name": "_verdict",
+        "line": 154,
+        "end": 155,
+        "doc": ""
+      },
+      {
+        "name": "_texte_non_vide",
+        "line": 158,
+        "end": 159,
+        "doc": ""
+      },
+      {
+        "name": "_decimal_du_texte",
+        "line": 162,
+        "end": 169,
+        "doc": "Un texte décimal positionnel, zéro ou plus, comme l'exige le schéma du catalogue ; `None` sinon.\n\nUn nombre JSON, un signe, une notation scientifique, un texte de plus de `_LONGUEUR_TEXTE_MAX` caractères sont\nrefusés : la charge e"
+      },
+      {
+        "name": "_au_cent",
+        "line": 172,
+        "end": 176,
+        "doc": "Arrondi au cent, `ROUND_HALF_UP` ; `None` si le montant sort du plafond de lecture."
+      },
+      {
+        "name": "_montant_ligne",
+        "line": 179,
+        "end": 180,
+        "doc": ""
+      },
+      {
+        "name": "_texte",
+        "line": 183,
+        "end": 185,
+        "doc": "Représentation positionnelle d'un montant ou d'une quantité, pour une réponse JSON ; `None` reste `None`."
+      },
+      {
+        "name": "_somme",
+        "line": 188,
+        "end": 190,
+        "doc": "Somme de montants au cent, rendue au cent (une somme vide vaut `0.00`, jamais `0`)."
+      },
+      {
+        "name": "_instant",
+        "line": 193,
+        "end": 194,
+        "doc": ""
+      },
+      {
+        "name": "_normaliser_numero",
+        "line": 197,
+        "end": 200,
+        "doc": "Forme de comparaison d'un numéro de facture : espaces réduits, casse ignorée. Rien d'autre : `00123` et `123`\nrestent deux numéros (deviner qu'ils sont le même serait inventer)."
+      },
+      {
+        "name": "_ligne_recue",
+        "line": 204,
+        "end": 261,
+        "doc": "Une ligne de la charge -> une ligne de réception avec son montant attendu, ou le refus qui nomme la ligne."
+      },
+      {
+        "name": "construire_reception",
+        "line": 264,
+        "end": 312,
+        "doc": "`(entrée du registre, None)` pour une charge `m6.reception_enregistree`, ou `(None, verdict)`.\n\nLa charge est déjà validée par le catalogue du socle à la publication ; elle est REVALIDÉE ici, parce qu'un\nconsommateur ne fait pas c"
+      },
+      {
+        "name": "_retrouver",
+        "line": 315,
+        "end": 319,
+        "doc": ""
+      },
+      {
+        "name": "enregistrer_reception",
+        "line": 322,
+        "end": 344,
+        "doc": "`((maillon, deja_recue), None)` : range la réception au registre, une seule fois par `evenement_id` (une\nredélivrance rend le premier maillon et `deja_recue` vrai, sans rien écrire) ; ou `(None, verdict)` si le PO est\ndéjà connu s"
+      },
+      {
+        "name": "_montant_saisi",
+        "line": 348,
+        "end": 358,
+        "doc": "Un montant tapé par un humain : texte décimal, 2 décimales au plus, jamais un signe ni un exposant."
+      },
+      {
+        "name": "_po_connu",
+        "line": 361,
+        "end": 367,
+        "doc": "Le fournisseur et le chantier d'un PO, tels que sa première réception les a dits ; `None` si M5 n'a reçu\naucune réception de ce PO."
+      },
+      {
+        "name": "_humain_identifie",
+        "line": 370,
+        "end": 380,
+        "doc": "`None` si `par`, `voie` (et `role`, quand la pièce l'exige : correction et annulation) décrivent un humain\nidentifié ; sinon le refus `REJ-AP-HUMAIN-REQUIS`. L'identité est établie par `outils.py` (jeton d'appareil\nconfirmé en bas"
+      },
+      {
+        "name": "_horodatage_valide",
+        "line": 383,
+        "end": 391,
+        "doc": ""
+      },
+      {
+        "name": "_date_facture_valide",
+        "line": 394,
+        "end": 407,
+        "doc": "`None` si la date est une vraie date AAAA-MM-JJ, au plus celle du jour de la saisie (ou de la correction)."
+      },
+      {
+        "name": "_numero_valide",
+        "line": 410,
+        "end": 417,
+        "doc": "`None` si le numéro (déjà sans espaces aux bouts) est imprimable et de longueur raisonnable."
+      },
+      {
+        "name": "_controler_total",
+        "line": 420,
+        "end": 440,
+        "doc": "`(calcul des taxes, None)` : les taxes et le total après taxes de `montant`, RECALCULÉS (taux versionnés). Le\ntotal imprimé sur la facture (`total_facture`), s'il est fourni, doit égaler le total recalculé au cent près\n(`REJ-AP-FA"
+      },
+      {
+        "name": "_motif_valide",
+        "line": 443,
+        "end": 454,
+        "doc": "Le motif d'une correction ou d'une annulation : OBLIGATOIRE, une ligne de texte imprimable, `_LONGUEUR_MOTIF_MAX`\ncaractères au plus. Rendu sans espaces aux bouts."
+      },
+      {
+        "name": "_forme_de_comparaison",
+        "line": 457,
+        "end": 459,
+        "doc": "Forme de comparaison d'un fournisseur ou d'un numéro de facture : espaces réduits, casse ignorée."
+      },
+      {
+        "name": "_chercher_doublon",
+        "line": 462,
+        "end": 485,
+        "doc": "`(doublon, avertissements)` d'une facture qui aurait ce fournisseur, ce numéro et ce montant avant taxes.\n\nNe comptent que les factures VIVANTES (une annulée n'existe plus : la ressaisir est le geste juste après une erreur\nd'annul"
+      },
+      {
+        "name": "_ou_est_rangee",
+        "line": 488,
+        "end": 489,
+        "doc": ""
+      },
+      {
+        "name": "_refus_doublon",
+        "line": 492,
+        "end": 497,
+        "doc": ""
+      },
+      {
+        "name": "_identifiant_facture",
+        "line": 500,
+        "end": 515,
+        "doc": "Identifiant DÉTERMINISTE de (fournisseur, numéro, montant) : le montant s'écrit d'une seule façon (« 12.5 » et\n« 12.50 » sont le même montant), comme la comparaison des doublons. Un identifiant est unique au registre : si\ncelui-là"
+      },
+      {
+        "name": "_ranger_facture",
+        "line": 518,
+        "end": 545,
+        "doc": "Écrit la facture au registre (au statut `SAISIE`, le seul de départ) et rend son état courant."
+      },
+      {
+        "name": "saisir_facture_fournisseur",
+        "line": 548,
+        "end": 625,
+        "doc": "`({\"facture\": état, \"avertissements\": [codes]}, None)` : range une facture fournisseur SAISIE par un humain ;\nou `(None, verdict)` sans rien écrire.\n\nOrdre des refus, du plus bête au plus fin : champs texte, humain identifié (`sai"
+      },
+      {
+        "name": "lire_categories_depense",
+        "line": 629,
+        "end": 658,
+        "doc": "La liste FERMÉE des catégories de dépense d'une facture sans PO (`department.yaml`,\n`configuration.categories_depense_sans_po`) : `(catégories, None)` ou `(None, verdict)`.\n\nAbsente ou vide : `REJ-AP-CATEGORIES-A-CONFIGURER` (le p"
+      },
+      {
+        "name": "saisir_facture_sans_po",
+        "line": 661,
+        "end": 736,
+        "doc": "`({\"facture\": état, \"avertissements\": [codes]}, None)` : range une facture fournisseur SANS PO (carburant,\noutils : une dépense que M6 n'a pas commandée), saisie par un humain ; ou `(None, verdict)` sans rien écrire.\n\nMêmes règles"
+      },
+      {
+        "name": "_instantane",
+        "line": 740,
+        "end": 747,
+        "doc": "Ce qu'une pièce de correction ou d'annulation garde de la facture AVANT elle : de quoi lire, sans recalcul, ce\nqui a changé."
+      },
+      {
+        "name": "_facture_a_modifier",
+        "line": 750,
+        "end": 759,
+        "doc": ""
+      },
+      {
+        "name": "_identifiant_a_modifier",
+        "line": 762,
+        "end": 765,
+        "doc": ""
+      },
+      {
+        "name": "corriger_facture_fournisseur",
+        "line": 768,
+        "end": 876,
+        "doc": "`({\"facture\": état, \"avertissements\": [codes]}, None)` : corrige une facture fournisseur SAISIE en AJOUTANT une\npièce de correction chaînée au registre ; ou `(None, verdict)` sans rien écrire. La facture d'origine n'est jamais\nmod"
+      },
+      {
+        "name": "annuler_facture_fournisseur",
+        "line": 879,
+        "end": 931,
+        "doc": "`({\"facture\": état, \"avertissements\": [codes]}, None)` : annule une facture fournisseur saisie en AJOUTANT une\npièce d'annulation chaînée au registre ; ou `(None, verdict)` sans rien écrire. La facture d'origine n'est jamais\nmodif"
+      },
+      {
+        "name": "_identifiant_modification",
+        "line": 935,
+        "end": 937,
+        "doc": "Identifiant DÉTERMINISTE de la pièce suivante d'une facture : (facture, rang de la pièce)."
+      },
+      {
+        "name": "_resume_modification",
+        "line": 940,
+        "end": 951,
+        "doc": "Une pièce de correction ou d'annulation, en une ligne : ce qu'une lecture de la facture en dit."
+      },
+      {
+        "name": "_etats_factures",
+        "line": 954,
+        "end": 1001,
+        "doc": "L'ÉTAT COURANT de chaque facture fournisseur du registre, dans l'ordre de saisie : la facture d'origine, puis\nce que ses pièces de correction et d'annulation y changent, dans l'ordre du registre. C'est LE seul endroit où une\nfactu"
+      },
+      {
+        "name": "vue_facture",
+        "line": 1004,
+        "end": 1022,
+        "doc": "Ce qu'une réponse dit d'une facture fournisseur : son état courant, sans les empreintes du registre. Les montants\nrestent des `Decimal` (l'enveloppe des outils les rend en texte). `categorie_depense` (facture sans PO),\n`correction"
+      },
+      {
+        "name": "_pos",
+        "line": 1026,
+        "end": 1048,
+        "doc": "Les PO connus, chacun avec ses réceptions et ses factures, dans l'ordre du registre.\n\nLes factures d'un PO sont leur ÉTAT COURANT (`_etats_factures`, calculé ici si l'appelant ne le donne pas) : les\nVIVANTES (`SAISIE`, `CORRIGEE`)"
+      },
+      {
+        "name": "_commande_avant_taxes",
+        "line": 1051,
+        "end": 1063,
+        "doc": "Valeur du PO au prix du PO, depuis la dernière réception (chacune porte TOUTES les lignes du PO, que M6 gèle à\nsa création) ; `None` si un prix manque ou n'est pas en CAD."
+      },
+      {
+        "name": "_quantites",
+        "line": 1066,
+        "end": 1080,
+        "doc": "Quantités commandées et reçues (cumulées sur les livraisons) par matériau, dans l'ordre du PO. Aucune unité."
+      },
+      {
+        "name": "synthese_du_po",
+        "line": 1083,
+        "end": 1168,
+        "doc": "L'attendu, le facturé, le « à payer » et le rapprochement PROPOSÉ d'un PO, calculés depuis le registre.\n\n`(None, verdict)` seulement si un taux fiscal manque (`REJ-TAUX-INCONNU`) : rien n'est alors chiffré à demi. Les\nmontants son"
+      },
+      {
+        "name": "_vue_rapprochement",
+        "line": 1172,
+        "end": 1190,
+        "doc": ""
+      },
+      {
+        "name": "_vue_facture_liste",
+        "line": 1193,
+        "end": 1214,
+        "doc": "Une facture en une ligne, à son ÉTAT COURANT. `statut`, `corrections` et `derniere_modification` (qui, pourquoi,\nquand) disent ce qui a changé depuis la saisie ; `fournisseur_id` et `categorie_depense` n'y sont que pour une\nfactur"
+      },
+      {
+        "name": "vue_synthese",
+        "line": 1217,
+        "end": 1264,
+        "doc": "Une ligne de la liste (`detail` faux) ou le détail d'un PO (`detail` vrai : quantités, factures, réceptions).\nTout est du texte (montants et quantités), jamais un nombre JSON."
+      },
+      {
+        "name": "proposer_rapprochement",
+        "line": 1267,
+        "end": 1281,
+        "doc": "Le rapprochement PO / réception / facture PROPOSÉ d'un PO, en vue JSON, avec ses écarts et ses réserves.\n\nUne proposition, jamais un état : elle est recalculée à chaque lecture, n'est stockée nulle part, et rien ne\nl'« applique » "
+      },
+      {
+        "name": "factures_saisies",
+        "line": 1285,
+        "end": 1290,
+        "doc": "Les factures fournisseur VIVANTES du registre (avec ou sans PO), à leur ÉTAT COURANT et dans l'ordre de saisie\n(lecture pure) : une corrigée vaut sa dernière correction, une annulée n'y est plus. Le cash libre (T4.16) en tire\nles "
+      },
+      {
+        "name": "dettes_datables",
+        "line": 1293,
+        "end": 1338,
+        "doc": "Ce que l'entreprise doit aux fournisseurs, UNE DETTE À LA FOIS, pour que la prévision de trésorerie (PLAN\nT4.16-d, `prevision.py`) date chacune : `(dettes, None)` ou `(None, verdict)`.\n\nCe sont les dettes de `resume_a_payer`, sépa"
+      },
+      {
+        "name": "_dette_facture",
+        "line": 1341,
+        "end": 1347,
+        "doc": "Une facture fournisseur vivante, en dette : son montant après taxes à son état courant."
+      },
+      {
+        "name": "_resume_sans_po",
+        "line": 1350,
+        "end": 1369,
+        "doc": "Ce que valent les factures SANS PO vivantes, en `Decimal` : leur nombre, le total avant taxes, taxes et après\ntaxes, et le détail par catégorie de dépense (ordre alphabétique). Une facture sans PO est une dette ferme : elle\ncompte"
+      },
+      {
+        "name": "_vue_sans_po",
+        "line": 1372,
+        "end": 1382,
+        "doc": ""
+      },
+      {
+        "name": "totaux_sans_po",
+        "line": 1385,
+        "end": 1388,
+        "doc": "Ce que les factures SANS PO vivantes valent en tout, en texte (`_vue_sans_po`) : ce que la réponse d'une écriture\nsur une facture sans PO ajoute à la facture elle-même. Lecture pure."
+      },
+      {
+        "name": "resume_a_payer",
+        "line": 1391,
+        "end": 1430,
+        "doc": "Ce que les comptes à payer disent au total, pour le cash libre (T4.16) : `(résumé, None)` ou `(None, verdict)`.\n\nLe total porte sur TOUS les PO et sur toutes les factures SANS PO vivantes (comme `totaux` de `lister`, dont il\nrepre"
+      },
+      {
+        "name": "_taille",
+        "line": 1434,
+        "end": 1437,
+        "doc": "Taille sérialisée EXACTE telle que `Capacites._tronquer` la mesure (`json.dumps`, sans échappement ASCII) : la\nborne se calcule sur ce que le modèle recevrait, jamais sur une estimation."
+      },
+      {
+        "name": "_totaux",
+        "line": 1440,
+        "end": 1472,
+        "doc": "Les totaux des PO donnés et, si `sans_po` est donné (`_resume_sans_po`), des factures sans PO vivantes : une\nfacture sans PO est une dette ferme, comptée en entier dans l'« à payer » et dans son plancher, et n'ôte rien à\n`complet`"
+      },
+      {
+        "name": "lister",
+        "line": 1475,
+        "end": 1559,
+        "doc": "Une page des comptes à payer, PAR PO, avec l'attendu, le facturé, le « à payer » et le rapprochement proposé.\n\nLecture pure : n'écrit rien. Ordre stable et total (`_ORDRE`). `depart` est un rang dans la liste complète\n(entier ≥ 0,"
+      },
+      {
+        "name": "lister_sans_po",
+        "line": 1562,
+        "end": 1616,
+        "doc": "Une page des factures fournisseur SANS PO (carburant, outils), à leur ÉTAT COURANT, avec leur identifiant (celui\nque la correction et l'annulation demandent), leur catégorie, leur statut et ce qui a changé depuis la saisie.\n\nLectu"
+      },
+      {
+        "name": "refus",
+        "line": 206,
+        "end": 207,
+        "doc": ""
+      },
+      {
+        "name": "page",
+        "line": 1532,
+        "end": 1549,
+        "doc": ""
+      },
+      {
+        "name": "page",
+        "line": 1589,
+        "end": 1605,
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/conformite.py",
+    "lines": 1011,
+    "functions": [
+      {
+        "name": "_chemin_module",
+        "line": 69,
+        "end": 74,
+        "doc": ""
+      },
+      {
+        "name": "_nom_cible",
+        "line": 77,
+        "end": 82,
+        "doc": ""
+      },
+      {
+        "name": "_est_sequence_constante",
+        "line": 85,
+        "end": 86,
+        "doc": ""
+      },
+      {
+        "name": "_est_catalogue_codes_rejet",
+        "line": 89,
+        "end": 98,
+        "doc": ""
+      },
+      {
+        "name": "_est_enumere_domaine",
+        "line": 101,
+        "end": 109,
+        "doc": ""
+      },
+      {
+        "name": "_attribut_complet",
+        "line": 112,
+        "end": 121,
+        "doc": ""
+      },
+      {
+        "name": "_est_nombre",
+        "line": 124,
+        "end": 125,
+        "doc": ""
+      },
+      {
+        "name": "_contexte_monetaire",
+        "line": 128,
+        "end": 134,
+        "doc": ""
+      },
+      {
+        "name": "_importations",
+        "line": 137,
+        "end": 158,
+        "doc": ""
+      },
+      {
+        "name": "_origine_appelee",
+        "line": 161,
+        "end": 180,
+        "doc": ""
+      },
+      {
+        "name": "_argument_graine_fournie",
+        "line": 183,
+        "end": 194,
+        "doc": ""
+      },
+      {
+        "name": "_analyser_motifs",
+        "line": 197,
+        "end": 310,
+        "doc": ""
+      },
+      {
+        "name": "_construire_tables",
+        "line": 313,
+        "end": 343,
+        "doc": ""
+      },
+      {
+        "name": "_module_existant",
+        "line": 346,
+        "end": 359,
+        "doc": ""
+      },
+      {
+        "name": "_cible_importee",
+        "line": 362,
+        "end": 371,
+        "doc": ""
+      },
+      {
+        "name": "_resoudre_sequence",
+        "line": 374,
+        "end": 432,
+        "doc": ""
+      },
+      {
+        "name": "_resoudre_valeur",
+        "line": 435,
+        "end": 546,
+        "doc": ""
+      },
+      {
+        "name": "verifier_conformite",
+        "line": 549,
+        "end": 686,
+        "doc": "Analyse récursivement les sources Python d'un répertoire M5."
+      },
+      {
+        "name": "verifier_aucun_import_domaine",
+        "line": 689,
+        "end": 733,
+        "doc": "Vérifie l'absence d'import absolu d'un autre module de domaine."
+      },
+      {
+        "name": "verifier_arrondi_monetaire_explicite",
+        "line": 736,
+        "end": 778,
+        "doc": "Vérifie qu'aucun appel `.quantize(` du paquet n'omet `rounding=` (PLAN T1.2-d).\n\nSans `rounding=` explicite, `Decimal.quantize` prend le mode par défaut du module `decimal`\n(ROUND_HALF_EVEN, « arrondi du banquier ») au lieu du ROU"
+      },
+      {
+        "name": "verifier_aucune_cause_signalee",
+        "line": 781,
+        "end": 814,
+        "doc": "Vérifie qu'aucune cause ou responsabilité n'est signalée."
+      },
+      {
+        "name": "_violations_ecriture",
+        "line": 899,
+        "end": 913,
+        "doc": ""
+      },
+      {
+        "name": "_violations_decaissement",
+        "line": 916,
+        "end": 937,
+        "doc": ""
+      },
+      {
+        "name": "_controler_portees",
+        "line": 940,
+        "end": 963,
+        "doc": ""
+      },
+      {
+        "name": "verifier_aucun_decaissement",
+        "line": 966,
+        "end": 1011,
+        "doc": "Vérifie que le code des comptes à payer, du calendrier fiscal et du cash libre n'écrit jamais au registre des\nmouvements et ne fait jamais bouger d'argent (PLAN T4.15, T4.16).\n\nPayer un fournisseur, remettre une taxe ou verser une"
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/constat_cash_libre.py",
+    "lines": 174,
+    "functions": [
+      {
+        "name": "lire_jour",
+        "line": 57,
+        "end": 67,
+        "doc": "`aujourd_hui` : `(date, None)` ou `(None, verdict)`. Le module n'a pas d'horloge et ne devine jamais la\ndate : un texte qui n'est pas exactement `AAAA-MM-JJ` (ni un jour du calendrier) est refusé, jamais corrigé."
+      },
+      {
+        "name": "identifiant",
+        "line": 70,
+        "end": 73,
+        "doc": "L'identifiant de l'événement : `m5-cash-libre-<rang>-<jour>-<début de la version>`. Déterministe : le même\nconstat (même rang, même jour, même version) redonne le même identifiant, donc un no-op du bus."
+      },
+      {
+        "name": "_origine",
+        "line": 76,
+        "end": 82,
+        "doc": "D'où vient le chiffre d'une composante : d'un registre (il est nommé), de la déclaration du propriétaire (un\nmontant sans registre), ou d'aucune source (rien de connu). Ne lit que la forme du calcul, jamais un texte\nlibre."
+      },
+      {
+        "name": "_composante",
+        "line": 85,
+        "end": 106,
+        "doc": "Une composante du constat : `vue` est celle de `cash_libre.vue_cash_libre` (montants déjà en texte),\n`calculee` celle de `calculer_cash_libre` (le libellé et l'origine). Une liste blanche : le texte de la source et\nle détail de la"
+      },
+      {
+        "name": "charge_evenement",
+        "line": 109,
+        "end": 140,
+        "doc": "La charge de `m5.cash_libre_constate` pour un cash libre que `calculer_cash_libre` vient de rendre.\n\n`resultat` : ce que `calculer_cash_libre` rend (montants en `Decimal`) ; `jour` : la date de référence, donnée\npar l'appelant ; `"
+      },
+      {
+        "name": "construire_trace",
+        "line": 143,
+        "end": 155,
+        "doc": "Le maillon qui trace un constat publié (registre `constats_cash_libre`, DÉRIVÉ : ni le grand livre, ni les\nfactures). Il ne garde que l'en-tête : le rang, le jour, la version, le statut et l'identifiant ; la charge\ncomplète est ce"
+      },
+      {
+        "name": "resume",
+        "line": 158,
+        "end": 174,
+        "doc": "Ce que la réponse de l'outil dit d'un constat : l'en-tête, le statut, les montants tels que publiés, la\nlecture, ce qui manque et les réserves. Court, sous la limite de sortie du socle : la charge complète part au\nbus, M8 la montr"
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/contrats.py",
+    "lines": 23,
+    "functions": []
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/cout_reel.py",
+    "lines": 573,
+    "functions": [
+      {
+        "name": "_en_decimal",
+        "line": 99,
+        "end": 121,
+        "doc": "Décimal fini depuis un texte (ou un nombre, si permis) ; `None` si illisible.\n\nUn nombre JSON passe par `str()` (jamais `Decimal(float)`, qui importerait l'imprécision binaire)."
+      },
+      {
+        "name": "_au_cent",
+        "line": 124,
+        "end": 129,
+        "doc": "Arrondi au cent, `ROUND_HALF_UP` ; `None` si le résultat sort de la précision de `decimal`."
+      },
+      {
+        "name": "_pourcentage_du_prix",
+        "line": 132,
+        "end": 140,
+        "doc": "Marge ÷ prix à 4 décimales ; `None` si le prix n'est pas strictement positif (jamais une division\npar zéro ni un ratio inventé) ou si le rapport sort de la précision de `decimal`."
+      },
+      {
+        "name": "_manque",
+        "line": 143,
+        "end": 144,
+        "doc": ""
+      },
+      {
+        "name": "valider_taux_horaire",
+        "line": 147,
+        "end": 161,
+        "doc": "`(taux, None)` si la configuration porte un taux horaire strictement positif, sinon\n`(None, verdict)` : `REJ-COUT-TAUX-HORAIRE-A-CONFIGURER`. Absent ou illisible, jamais un taux par défaut."
+      },
+      {
+        "name": "_resoudre_prix",
+        "line": 165,
+        "end": 208,
+        "doc": "Le prix unitaire du livre de prix M6 pour ce matériau, ou pourquoi il n'y en a pas.\n\nPour chaque fournisseur, le DERNIER maillon écrit fait foi (l'ordre d'écriture, comme\n`livre_prix.prix_en_vigueur` de M6 : aucune comparaison de "
+      },
+      {
+        "name": "_ligne_materiau",
+        "line": 211,
+        "end": 248,
+        "doc": "Une ligne du signal de variance -> une ligne de coût, et le manque qu'elle porte (ou `None`)."
+      },
+      {
+        "name": "_materiaux",
+        "line": 251,
+        "end": 290,
+        "doc": ""
+      },
+      {
+        "name": "_main_d_oeuvre",
+        "line": 294,
+        "end": 316,
+        "doc": ""
+      },
+      {
+        "name": "calculer_cout_reel",
+        "line": 320,
+        "end": 380,
+        "doc": "Le coût réel d'un chantier, tel que les pièces lues à la source le permettent.\n\n`complet` n'est vrai que si les matériaux ET la main-d'oeuvre sont chiffrés ; sinon `cout_total` est `None`\n(jamais une somme partielle prise pour un "
+      },
+      {
+        "name": "_marge_prevue",
+        "line": 384,
+        "end": 402,
+        "doc": "La marge prévue du devis accepté (`cout_total` et `prix_total` de M3, recopiés), ou pourquoi elle manque."
+      },
+      {
+        "name": "calculer_rentabilite",
+        "line": 405,
+        "end": 474,
+        "doc": "Prix facturé moins coût réel, marge réelle contre marge prévue. Ne lit et n'écrit rien d'autre.\n\n`verdict` : `CALCULEE` seulement si le coût est complet ET qu'une facture existe ; sinon `PARTIELLE`, avec\n`manque`. Coût partiel : `"
+      },
+      {
+        "name": "construire_trace",
+        "line": 477,
+        "end": 494,
+        "doc": "Le maillon qui trace un état calculé (registre `rentabilite`, dérivé : ni le grand livre, ni les\nfactures). `horodatage` est celui du WCT reçu : M5 n'a pas d'horloge (DA-M5-06). Les deux textes constants\ndu code (`hypotheses`, `ar"
+      },
+      {
+        "name": "_texte_decimal",
+        "line": 497,
+        "end": 502,
+        "doc": "Texte décimal exact d'un montant (jamais un nombre JSON, jamais un arrondi de plus), `None` si absent.\nUn zéro est écrit sans signe (pas de « -0.00 »)."
+      },
+      {
+        "name": "charge_evenement",
+        "line": 505,
+        "end": 540,
+        "doc": "La charge de `m5.rentabilite_chantier` pour un état qui vient d'être tracé (voir la docstring du module).\n\n`sequence` : le rang de la trace pour ce devis (1 pour la première). Il entre dans l'identifiant : un retour\nà une version "
+      },
+      {
+        "name": "masquer_montants",
+        "line": 543,
+        "end": 555,
+        "doc": "La vue d'un appelant qui n'a pas le droit de voir les coûts (`autorise_couts` faux) : identifiants,\nverdict et codes de manque, AUCUN montant ni détail (un détail de manque peut citer un prix\nfournisseur). Même règle que `etat_fin"
+      },
+      {
+        "name": "resumer",
+        "line": 558,
+        "end": 573,
+        "doc": "Une ligne par chantier pour une liste (économie de jetons, P11) : le verdict, les montants qui\ncomptent et les codes de manque ; le détail (lignes de matériaux, sources de prix) reste à la lecture\nd'un chantier précis. Sans `devis"
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/devis_recus.py",
+    "lines": 65,
+    "functions": [
+      {
+        "name": "construire",
+        "line": 31,
+        "end": 57,
+        "doc": "Le maillon devis reçu — construction pure, sans écriture (l'appelant, `outils.py`, vérifie\nd'abord `pour_devis_id` et n'ajoute que si absent : l'idempotence vit là, pas ici).\n\n`cout_total` et `taux_marge` (PLAN T1.5-d) : le coût p"
+      },
+      {
+        "name": "pour_devis_id",
+        "line": 60,
+        "end": 65,
+        "doc": "Le devis reçu pour ce devis_id, ou None si M5 ne l'a jamais reçu."
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/encodage.py",
+    "lines": 88,
+    "functions": [
+      {
+        "name": "_normaliser",
+        "line": 18,
+        "end": 69,
+        "doc": "Normalise récursivement un objet Python vers une forme canonique stable ET injective."
+      },
+      {
+        "name": "encoder_canonique",
+        "line": 72,
+        "end": 81,
+        "doc": "Forme canonique inspectable des arguments."
+      },
+      {
+        "name": "empreinte",
+        "line": 84,
+        "end": 88,
+        "doc": "Condensat SHA-256 hexadécimal de la forme canonique."
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/etat_financier.py",
+    "lines": 35,
+    "functions": [
+      {
+        "name": "construire_etat_financier",
+        "line": 10,
+        "end": 35,
+        "doc": "Fail-closed par construction (bug NEW-PROD : autorise_couts=True par défaut\nexposait le solde à un rôle non autorisé, ex. « employe »). L'appelant doit\nfournir explicitement autorise_couts=True pour voir solde/argent_disponible ;\n"
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/facturation.py",
+    "lines": 622,
+    "functions": [
+      {
+        "name": "_est_texte_non_vide",
+        "line": 108,
+        "end": 109,
+        "doc": ""
+      },
+      {
+        "name": "_texte_vers_decimal",
+        "line": 112,
+        "end": 123,
+        "doc": ""
+      },
+      {
+        "name": "_valider_ligne",
+        "line": 126,
+        "end": 161,
+        "doc": ""
+      },
+      {
+        "name": "_champs_facture",
+        "line": 164,
+        "end": 181,
+        "doc": "Aplati `facture` en un dict sûr pour le registre : `lignes`/`taxes` en listes de dicts\n(jamais des dataclasses ni des tuples — `encodage.empreinte` ne connaît pas les dataclasses,\net une liste est ce qu'un `historique` retransmis "
+      },
+      {
+        "name": "_ajouter_et_retrouver",
+        "line": 184,
+        "end": 189,
+        "doc": ""
+      },
+      {
+        "name": "_etats_courants",
+        "line": 192,
+        "end": 207,
+        "doc": "État courant de chaque facture connue de `registre_cible` : une fusion, dans l'ordre du\nregistre, de son maillon `facture_creee` puis de chacun de ses `transition_facture` — pas\nseulement le dernier maillon, pour qu'un champ posé "
+      },
+      {
+        "name": "_etat_facture",
+        "line": 210,
+        "end": 211,
+        "doc": ""
+      },
+      {
+        "name": "facture_active_pour_devis",
+        "line": 214,
+        "end": 229,
+        "doc": "La facture ACTIVE (statut != ANNULEE) pour ce devis_id, ou None si aucune.\n\nUn devis ne porte jamais plus d'une facture active à la fois — `creer_facture_brouillon` le\ngarantit (REJ-FACTURE-DEVIS-DEJA-FACTURE) en appelant CETTE fo"
+      },
+      {
+        "name": "factures_actives_par_devis",
+        "line": 232,
+        "end": 241,
+        "doc": "La facture ACTIVE (statut != ANNULEE) de chaque devis, en UNE relecture du registre : la même règle que\n`facture_active_pour_devis` (la première trouvée), pour un appelant qui lit beaucoup de devis (PLAN T1.5-d) et\nne doit pas rel"
+      },
+      {
+        "name": "factures_par_statut",
+        "line": 244,
+        "end": 255,
+        "doc": "Toutes les factures actuellement à ce statut (état courant, PLAN T1.3-c), triées par\n`facture_id` pour un ordre stable. Même patron que `facture_active_pour_devis` : fonction\npublique extraite de `_etats_courants`, exposée pour un"
+      },
+      {
+        "name": "creer_facture_brouillon",
+        "line": 258,
+        "end": 342,
+        "doc": "Crée une facture BROUILLON sur `registre_cible` (le registre dédié des FACTURES,\ntroisième registre du département, jamais celui des mouvements). Idempotent par\n`devis_id` : refuse s'il existe déjà une facture ACTIVE (statut != AN"
+      },
+      {
+        "name": "envoyer_facture",
+        "line": 345,
+        "end": 370,
+        "doc": "Verrou d'envoi : BROUILLON -> ENVOYEE. La décision d'approuver appartient exclusivement au\nsocle (N4, `opsys.approbations.decider` — voir le docstring du module) : cette fonction ne\nreçoit et ne vérifie plus aucun maillon d'approb"
+      },
+      {
+        "name": "marquer_facture_payee",
+        "line": 373,
+        "end": 405,
+        "doc": "ENVOYEE -> PAYEE. Frontière humaine T3 : même garde que `approbation.approuver` —\n`approbateur` doit être une chaîne non vide, un humain qui constate un paiement réel sur\npièces. AUCUN pont bancaire réel et AUCUNE écriture dans le"
+      },
+      {
+        "name": "enregistrer_paiement_facture",
+        "line": 408,
+        "end": 462,
+        "doc": "Frontière N5 (PLAN T1.3-c) : le socle exige déjà `nathan_owner` ET l'attestation du\nprofessionnel (ADR-0009 §5, `opsys.approbations.decider`) avant que cette fonction ne\ns'exécute — jamais vérifié ici (voir le docstring du module)"
+      },
+      {
+        "name": "_tranche_pour_age",
+        "line": 465,
+        "end": 472,
+        "doc": ""
+      },
+      {
+        "name": "calculer_age_creances",
+        "line": 475,
+        "end": 559,
+        "doc": "Âge des comptes à recevoir : regroupe par tranche (0-30, 31-60, 61-90, 90+) les factures\nactuellement ENVOYEE — les seules encore « à recevoir » : une BROUILLON n'a pas été envoyée,\nune PAYEE ou une ANNULEE ne sont plus dues — dep"
+      },
+      {
+        "name": "comptes_a_recevoir",
+        "line": 562,
+        "end": 622,
+        "doc": "Les comptes à recevoir (PLAN T1.5-d, DEFINITION-PRODUIT §6 « travaux terminés ») : les factures\nactuellement ENVOYEE, et seulement elles.\n\nIl n'y a AUCUNE écriture à faire pour « mettre à jour » les comptes à recevoir : ils sont u"
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/outils.py",
+    "lines": 2537,
+    "functions": [
+      {
+        "name": "utiliser_stockage_durable",
+        "line": 282,
+        "end": 288,
+        "doc": "Revient au registre de PRODUCTION des mouvements, adossé au stockage durable de l'instance\n(ADR-0009) : `opsys.stockage.maillons(\"m05-financecore\", \"principal\")`, dans la base et la\ntransaction de l'appel courant (`opsys.outils.ex"
+      },
+      {
+        "name": "reinitialiser_stockage_mouvements",
+        "line": 291,
+        "end": 295,
+        "doc": "Revient au registre des mouvements EN MÉMOIRE (réservé aux tests) : annule un éventuel\n`utiliser_stockage_durable()`."
+      },
+      {
+        "name": "_rejouer_registre",
+        "line": 337,
+        "end": 356,
+        "doc": "Reconstruit un registre M5 en rejouant l'historique fourni par l'appelant.\n\nFonctionne indifféremment pour la chaîne des mouvements ou celle des\napprobations : `Registre.ajouter` distingue déjà les `type_entree`. Rejouer\ndétermini"
+      },
+      {
+        "name": "_registre_mouvements",
+        "line": 359,
+        "end": 375,
+        "doc": "Registre des MOUVEMENTS pour un appel.\n\nUn `historique` explicite (même vide, `[]`) est rejoué EN MÉMOIRE via\n`_rejouer_registre` — simulation sans effet sur le stockage durable, le\ncomportement gardé par les tests unitaires de ce"
+      },
+      {
+        "name": "_etat_mouvements",
+        "line": 378,
+        "end": 384,
+        "doc": "Ce que la réponse dit du registre des mouvements. Registre durable : la tête et la taille,\njamais tout l'historique, qui grossit sans limite et coûterait des tokens à chaque appel.\nSimulation en mémoire : l'historique complet, que"
+      },
+      {
+        "name": "_registre_factures",
+        "line": 387,
+        "end": 396,
+        "doc": "Registre des FACTURES pour un appel — même patron d'adaptateur que `_registre_mouvements`\n(mandat T1.1-e, tâche 2), y compris la bascule `_stockage_durable_actif` déjà en place pour\nles mouvements (un seul interrupteur pour tout l"
+      },
+      {
+        "name": "_etat_factures",
+        "line": 399,
+        "end": 404,
+        "doc": "Même règle que `_etat_mouvements` : registre durable -> tête et taille seulement (jamais\ntout l'historique) ; simulation en mémoire -> historique complet à retransmettre."
+      },
+      {
+        "name": "_vers_montant_decimal",
+        "line": 407,
+        "end": 413,
+        "doc": ""
+      },
+      {
+        "name": "_acteur_appareil",
+        "line": 440,
+        "end": 465,
+        "doc": "Qui appelle : ``(None, None)`` hors appel d'appareil, ``(acteur, None)`` si l'identité du jeton\nest CONFIRMÉE en base et dans la portée de l'outil, ``(None, verdict)`` sinon (PLAN T1.4-k2).\n\n``contexte.identite_appelante()`` ne re"
+      },
+      {
+        "name": "_refus",
+        "line": 468,
+        "end": 469,
+        "doc": ""
+      },
+      {
+        "name": "_borner_etat",
+        "line": 480,
+        "end": 494,
+        "doc": "`etat` tel quel s'il tient sous `_BUDGET_ETAT_TRESORERIE` ; sinon sans les hypothèses (`hypotheses_omises` dit\ncombien), puis sans le détail des composantes (`detail_omis`). Ne touche à rien d'autre."
+      },
+      {
+        "name": "etat_tresorerie",
+        "line": 497,
+        "end": 535,
+        "doc": "Composé de bout en bout : obtient le registre des mouvements (§`_registre_mouvements`), calcule solde + argent\ndisponible (solde moins réserves) et, PLAN T4.16, le CASH LIBRE RÉEL avec sa décomposition, filtre par rôle.\n\n`argent_d"
+      },
+      {
+        "name": "calculer_taxes_tps_tvq",
+        "line": 538,
+        "end": 543,
+        "doc": ""
+      },
+      {
+        "name": "enregistrer_mouvement",
+        "line": 546,
+        "end": 566,
+        "doc": ""
+      },
+      {
+        "name": "creer_facture_brouillon",
+        "line": 569,
+        "end": 596,
+        "doc": ""
+      },
+      {
+        "name": "_essayer_facture_brouillon",
+        "line": 599,
+        "end": 685,
+        "doc": "Fonction UNIQUE qui tente de créer la facture BROUILLON pour ce devis_id (PLAN T1.2-d,\nsuite). Les deux consommateurs ci-dessous l'appellent avec le MÊME devis_id dès qu'ils\nviennent de garder leur propre pièce (`devis_recus.py`/`"
+      },
+      {
+        "name": "_taux_horaire_configure",
+        "line": 688,
+        "end": 699,
+        "doc": "`department.yaml/configuration.taux_horaire_main_d_oeuvre` tel que l'entreprise l'a écrit, ou `None`.\n\nRelu à chaque appel (comme M6 pour ses seuils) : Nathan change le taux sans redémarrer. Un manifeste\nillisible ou sans ce champ"
+      },
+      {
+        "name": "_livre_de_prix_m6",
+        "line": 702,
+        "end": 705,
+        "doc": "Les entrées du livre de prix de M6, en LECTURE SEULE (copie ; aucun `append`, aucune écriture)."
+      },
+      {
+        "name": "_sources_cout_reel",
+        "line": 708,
+        "end": 726,
+        "doc": "Lit UNE fois chaque source du coût réel (PLAN T1.5-d) : les registres reçus (devis, WCT, variance), la\nfacture ACTIVE de chaque devis, le livre de prix de M6, le taux horaire configuré et le dernier état tracé de\nchaque devis. Lir"
+      },
+      {
+        "name": "_etat_chantier",
+        "line": 729,
+        "end": 759,
+        "doc": "L'état de coût réel et de rentabilité d'un devis, CALCULÉ à l'instant depuis les pièces lues à la\nsource (PLAN T1.5-d) : le devis accepté et le WCT reçus du bus, le dernier signal de variance de M6,\nla facture active du devis, le "
+      },
+      {
+        "name": "_essayer_cout_reel",
+        "line": 762,
+        "end": 792,
+        "doc": "Étape de la cascade « travaux terminés » (DEFINITION-PRODUIT §6, M5 « calcule le coût réel [...] et la\nrentabilité du chantier ») : calcule l'état de ce devis et le TRACE dans le registre `rentabilite`.\n\nAppelée par les consommate"
+      },
+      {
+        "name": "_publier_rentabilite",
+        "line": 795,
+        "end": 807,
+        "doc": "Publie `m5.rentabilite_chantier` pour la trace qui vient d'être ajoutée, dans la transaction courante (le\nrépartiteur, seul appelant de la cascade : la trace et l'événement réussissent ou échouent ensemble).\n\nLa charge est une lis"
+      },
+      {
+        "name": "_essayer_cout_reel_pour_wct",
+        "line": 810,
+        "end": 818,
+        "doc": "Comme `_essayer_cout_reel`, depuis un `wct_id` (le signal de variance ne connaît que lui) : le WCT\nreçu donne le `devis_id`. WCT inconnu ou sans devis : un statut d'attente nommé, rien n'est tracé."
+      },
+      {
+        "name": "_recevoir_devis_accepte",
+        "line": 821,
+        "end": 841,
+        "doc": "Consomme `m3.devis_accepte` : garde ce que M5 a reçu de ce devis (`devis_recus.py`,\nidempotent par devis_id), puis délègue toute la décision de facturer à\n`_essayer_facture_brouillon`, fonction UNIQUE partagée avec `_recevoir_trav"
+      },
+      {
+        "name": "_recevoir_travaux_termines",
+        "line": 844,
+        "end": 865,
+        "doc": "Consomme `m4.travaux_termines` : garde ce que M5 a reçu de ce WCT (`wct_recus.py`,\nidempotent par wct_id — y compris quand `devis_id` est nul, pour que\n`lister_attentes_facturation` puisse le signaler), puis délègue à\n`_essayer_fa"
+      },
+      {
+        "name": "lister_attentes_facturation",
+        "line": 868,
+        "end": 905,
+        "doc": "Outil T0 compact : liste les devis/WCT en attente d'une facture BROUILLON (T1.3 s'en\nservira pour la file d'approbation du propriétaire). Recalculée EN DIRECT depuis les\nregistres reçus (`devis_recus.py`, `wct_recus.py`) et celui "
+      },
+      {
+        "name": "lister_attentes_facturation_appareil",
+        "line": 908,
+        "end": 917,
+        "doc": "L'outil `m5_lister_attentes_facturation` : la même liste, précédée de l'identité (PLAN\nT1.4-k2). Un appel d'appareil doit venir d'une personne confirmée en base dans la portée de l'outil\n(admin) : une personne désactivée, ou qui a"
+      },
+      {
+        "name": "_registre_comptes_a_payer",
+        "line": 921,
+        "end": 925,
+        "doc": "Le registre DÉDIÉ des comptes à payer (`comptes_a_payer.py`), sur le stockage durable de l'instance, relu à\nchaque appel (jamais de cache : même principe que `_registre_mouvements`). Ni le registre des mouvements, ni celui\ndes fac"
+      },
+      {
+        "name": "_dictionnaire_taux",
+        "line": 928,
+        "end": 933,
+        "doc": "Les taux fiscaux versionnés, ou le refus nommé d'un fichier illisible (même verdict que les autres outils)."
+      },
+      {
+        "name": "_recevoir_reception_enregistree",
+        "line": 936,
+        "end": 960,
+        "doc": "Consomme `m6.reception_enregistree` (PLAN T4.15) : range la réception au registre des comptes à payer, une\nseule fois par `evenement_id`. C'est ce qui donne à M5 son « à payer ATTENDU » par PO reçu, cumulé sur les\nlivraisons.\n\nLÈV"
+      },
+      {
+        "name": "_acteur_humain",
+        "line": 994,
+        "end": 1032,
+        "doc": "Qui agit : `({par, role, voie}, None)` si c'est un humain identifié, sinon `(None, verdict)`.\n\nDeux voies, jamais une troisième, et jamais un texte de modèle ni un argument :\n1. un appel d'appareil dont l'identité (posée par le co"
+      },
+      {
+        "name": "_horodatage_faisant_foi",
+        "line": 1035,
+        "end": 1040,
+        "doc": "Pendant un appel d'appareil idempotent, l'heure de RÉCEPTION du serveur fait foi, jamais l'horloge de l'appareil\nni l'`horodatage` fourni (même patron que M10 et `m4_pointer`). Par la file d'approbation, il n'y a pas d'appel\nd'app"
+      },
+      {
+        "name": "_suite_de_la_facture",
+        "line": 1043,
+        "end": 1054,
+        "doc": "Ce que la réponse d'une écriture sur une facture ajoute à la facture elle-même : pour une facture d'un PO, le\nrapprochement PROPOSÉ de ce PO (jamais appliqué) ; pour une facture sans PO, ce que les factures sans PO valent en\ntout."
+      },
+      {
+        "name": "_reponse_facture",
+        "line": 1057,
+        "end": 1064,
+        "doc": ""
+      },
+      {
+        "name": "saisir_facture_fournisseur",
+        "line": 1067,
+        "end": 1102,
+        "doc": "L'outil `m5_saisir_facture_fournisseur` (T1, N3, `admin`) : range une facture fournisseur SAISIE par un humain\ncontre un PO déjà reçu (`comptes_a_payer.saisir_facture_fournisseur`), et rend la facture, ses avertissements et\nle rap"
+      },
+      {
+        "name": "_categories_depense_sans_po",
+        "line": 1105,
+        "end": 1109,
+        "doc": "`department.yaml/configuration.categories_depense_sans_po` tel que le propriétaire l'a écrit, ou `None` : relu à\nchaque appel (pas de redémarrage pour ajouter une catégorie). Absent : la saisie sans PO dit « catégories à\nconfigure"
+      },
+      {
+        "name": "saisir_facture_sans_po",
+        "line": 1112,
+        "end": 1147,
+        "doc": "L'outil `m5_saisir_facture_sans_po` (T1, N3, `admin`) : range une facture fournisseur SANS PO (carburant, outils)\nsaisie par un humain (`comptes_a_payer.saisir_facture_sans_po`), et rend la facture, ses avertissements et ce que\nle"
+      },
+      {
+        "name": "corriger_facture_fournisseur",
+        "line": 1150,
+        "end": 1187,
+        "doc": "L'outil `m5_corriger_facture_fournisseur` (T2, N4, `admin`) : corrige une facture fournisseur saisie en AJOUTANT\nune pièce de correction chaînée au registre (`comptes_a_payer.corriger_facture_fournisseur`) ; la facture d'origine\nn"
+      },
+      {
+        "name": "annuler_facture_fournisseur",
+        "line": 1190,
+        "end": 1214,
+        "doc": "L'outil `m5_annuler_facture_fournisseur` (T2, N4, `admin`) : annule une facture fournisseur saisie en AJOUTANT\nune pièce d'annulation chaînée au registre (`comptes_a_payer.annuler_facture_fournisseur`) ; la facture d'origine\nn'est"
+      },
+      {
+        "name": "lister_comptes_a_payer",
+        "line": 1217,
+        "end": 1270,
+        "doc": "L'outil `m5_lister_comptes_a_payer` (T0, `admin`) : ce que l'entreprise doit aux fournisseurs, PAR PO reçu, avec\nl'attendu, le facturé, le « à payer » et le rapprochement PROPOSÉ (`comptes_a_payer.lister`), les factures sans PO\nco"
+      },
+      {
+        "name": "_configuration_manifeste",
+        "line": 1274,
+        "end": 1283,
+        "doc": "`department.yaml/configuration` tel que l'entreprise l'a écrit, ou `{}` : relu à chaque appel (comme le taux\nhoraire), pour que Nathan ou le CPA change une déclaration sans redémarrer. Un manifeste illisible donne `{}` :\ntout ce q"
+      },
+      {
+        "name": "_calendrier_fiscal",
+        "line": 1286,
+        "end": 1292,
+        "doc": "Le calendrier fiscal versionné, ou le refus nommé d'un fichier illisible ou incohérent : jamais un calendrier à\nmoitié lu (`REJ-CALENDRIER-INVALIDE`)."
+      },
+      {
+        "name": "_lectures_finance",
+        "line": 1295,
+        "end": 1348,
+        "doc": "Tout ce que le cash libre (T4.16) et la prévision de trésorerie (T4.16-d) lisent, lu UNE fois : un instantané,\ndonc des chiffres cohérents entre eux. Le registre des mouvements arrive déjà ouvert (la lecture seule de son\nsolde est"
+      },
+      {
+        "name": "_resultat_cash_libre",
+        "line": 1351,
+        "end": 1377,
+        "doc": "Le cash libre réel (`cash_libre.calculer_cash_libre`), en `Decimal`, depuis `_lectures_finance` : le solde\nmoins la TPS/TVQ à remettre, les paies, les DAS, les comptes à payer, les dettes et les réserves critiques, chaque\ncomposan"
+      },
+      {
+        "name": "_cash_libre",
+        "line": 1380,
+        "end": 1388,
+        "doc": "Le cash libre réel de l'instance, en vue JSON (`cash_libre.vue_cash_libre`) : le solde du registre des\nmouvements moins la TPS/TVQ à remettre, les paies, les DAS, les comptes à payer, les dettes et les réserves\ncritiques.\n\nLecture"
+      },
+      {
+        "name": "_taxes_par_echeance",
+        "line": 1391,
+        "end": 1416,
+        "doc": "Ajoute à chaque échéance nommée ce que les registres disent de la TPS/TVQ NETTE de sa période (`taxes_nettes`),\nquand la date de dernière remise est déclarée (sinon on ne sait pas quelles factures sont déjà remises : rien\nn'est ch"
+      },
+      {
+        "name": "lire_echeances_fiscales",
+        "line": 1419,
+        "end": 1453,
+        "doc": "L'outil `m5_lire_echeances_fiscales` (T0, `admin`) : les prochaines échéances de production et de paiement de\nla TPS et de la TVQ de l'entreprise (`calendrier_fiscal.prochaines_echeances`), avec pour chacune la TPS/TVQ NETTE\nde sa"
+      },
+      {
+        "name": "_reglages_prevision",
+        "line": 1457,
+        "end": 1482,
+        "doc": "Ce que la prévision demande, avant de lire le moindre registre : `(réglages, None)` ou `(None, verdict)`.\n\n`aujourd_hui` (AAAA-MM-JJ) est requis : M5 n'a pas d'horloge. L'horizon est l'argument, ou celui que le\npropriétaire a décl"
+      },
+      {
+        "name": "_dettes_fournisseurs",
+        "line": 1485,
+        "end": 1490,
+        "doc": "Les dettes fournisseurs une à une (`comptes_a_payer.dettes_datables`), ou le verdict qui empêche de les chiffrer\n(le fichier des taux illisible, un taux manquant) : le même que celui du cash libre."
+      },
+      {
+        "name": "_page_prevision",
+        "line": 1493,
+        "end": 1532,
+        "doc": "La prévision de trésorerie, en une page JSON sous `BUDGET_SORTIE` (jamais tronquée par le socle) : `(page,\nNone)` ou `(None, verdict)`. Sans `semaine`, la série (page de semaines, `depart` en rang de semaine) ; avec, les\nlignes de"
+      },
+      {
+        "name": "prevoir_tresorerie",
+        "line": 1535,
+        "end": 1571,
+        "doc": "L'outil `m5_prevoir_tresorerie` (T0, `admin`) : la prévision de trésorerie des flux CONNUS et DATÉS\n(`prevision.py`), semaine par semaine sur `horizon_semaines` semaines de 7 jours à partir d'`aujourd_hui`.\n\nMême contrôle d'accès "
+      },
+      {
+        "name": "_constater_cash_libre",
+        "line": 1575,
+        "end": 1606,
+        "doc": "Calcule le cash libre, le trace et le publie : `{\"deja_constate\", \"publie\", \"constat\"}`. Écrit, donc jamais\nappelée par une lecture : seul `constater_cash_libre` l'appelle, après tous ses refus.\n\nLe cash libre vient du MÊME instan"
+      },
+      {
+        "name": "constater_cash_libre",
+        "line": 1609,
+        "end": 1653,
+        "doc": "L'outil `m5_constater_cash_libre` (T1, N3, `admin`) : fait constater le cash libre réel du jour et le publie\nau bus (`m5.cash_libre_constate`), pour que M8 l'affiche dans la vue exécutive (`constat_cash_libre.py`).\n\nÉcriture INTER"
+      },
+      {
+        "name": "_recevoir_variance_chantier",
+        "line": 1656,
+        "end": 1677,
+        "doc": "Consomme `m6.variance_chantier` (PLAN T1.3-c point 4, catalogue existant, M6 en est\npropriétaire) : garde le DERNIER signal connu par wct_id (`variance_recus.py`) — jamais un\nverrou sur la facture (M6 « signale seulement »). `atte"
+      },
+      {
+        "name": "_recevoir_client_associe",
+        "line": 1680,
+        "end": 1696,
+        "doc": "Consomme `m2.client_associe` (PLAN T2.2, catalogue M2) : garde le lien lead_id -> client_id\n(`clients_recus.py`, idempotent par lead_id), pour que `_essayer_facture_brouillon` facture le\nVRAI client_id du Client 360 M2 dès qu'il e"
+      },
+      {
+        "name": "consommateurs",
+        "line": 1699,
+        "end": 1706,
+        "doc": ""
+      },
+      {
+        "name": "envoyer_facture",
+        "line": 1709,
+        "end": 1721,
+        "doc": "Outil N4 (PLAN T1.3-c) : n'est JAMAIS exécuté hors d'une décision approuvée du socle\n(`opsys.approbations.decider`, `department.yaml/approbations.n4`) — voir\n`facturation.envoyer_facture` et le docstring de ce module (RÈGLE FINANC"
+      },
+      {
+        "name": "enregistrer_paiement_facture",
+        "line": 1724,
+        "end": 1741,
+        "doc": "Outil N5 (PLAN T1.3-c) : le socle exige `nathan_owner` ET l'attestation du professionnel\n(ADR-0009 §5) avant exécution — jamais vérifiées ici. Voir\n`facturation.enregistrer_paiement_facture` pour la comparaison de montant, calculé"
+      },
+      {
+        "name": "_factures_brouillon",
+        "line": 1744,
+        "end": 1745,
+        "doc": ""
+      },
+      {
+        "name": "_depuis_attente_devis",
+        "line": 1748,
+        "end": 1753,
+        "doc": "Date de début d'attente d'un item `attentes_devis` (PLAN T1.3-c point 4) : celle de la\npièce déjà connue (le WCT quand c'est le devis accepté qui manque encore, sinon le devis)."
+      },
+      {
+        "name": "_variance_critique_pour_facture",
+        "line": 1756,
+        "end": 1779,
+        "doc": "Le signal de variance CRITIQUE de M6 (PLAN T1.3-c point 4) à afficher à côté de cette\nfacture BROUILLON, ou None si M5 n'en a reçu aucun pour son WCT, ou si le dernier connu n'est\npas évalué critique — jamais un blocage de l'envoi"
+      },
+      {
+        "name": "attentes",
+        "line": 1782,
+        "end": 1832,
+        "doc": "File du propriétaire (ADR-0009 §5, PLAN T1.3-c point 4) :\n1. les attentes de facturation déjà calculées par `lister_attentes_facturation` (devis/WCT à\n   qui il manque encore une pièce), reformées à la forme commune\n   (`opsys.app"
+      },
+      {
+        "name": "_vue_chantier",
+        "line": 1835,
+        "end": 1862,
+        "doc": "Ce que l'outil de lecture rend pour un devis : un statut d'attente (aucun montant), ou l'état calculé.\n\nSans droit de voir les coûts (`autorise_couts` faux) : identifiants, verdict et codes de manque\nseulement (`cout_reel.masquer_"
+      },
+      {
+        "name": "lire_rentabilite_chantier",
+        "line": 1865,
+        "end": 1917,
+        "doc": "Outil T0 (PLAN T1.5-d) : le coût réel et la rentabilité des chantiers, pour l'admin.\n\nMême contrôle d'accès que `m5_etat_tresorerie` (PLAN T1.4-k2) : pour un appel d'appareil, l'identité\nconfirmée en base (`admin` seulement) ; la "
+      },
+      {
+        "name": "lire_comptes_a_recevoir",
+        "line": 1920,
+        "end": 1941,
+        "doc": "Outil T0 (PLAN T1.5-d) : les comptes à recevoir, c'est-à-dire les factures ENVOYEE (et seulement\nelles), avec leur âge quand la date du jour est fournie. Même contrôle d'accès que\n`lire_rentabilite_chantier` (admin authentifié ; s"
+      },
+      {
+        "name": "outils",
+        "line": 1944,
+        "end": 2537,
+        "doc": ""
+      },
+      {
+        "name": "taille",
+        "line": 483,
+        "end": 484,
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/prevision.py",
+    "lines": 996,
+    "functions": [
+      {
+        "name": "limites",
+        "line": 122,
+        "end": 124,
+        "doc": "Ce que la prévision ne sait pas : elles voyagent avec chaque réponse."
+      },
+      {
+        "name": "_verdict",
+        "line": 127,
+        "end": 128,
+        "doc": ""
+      },
+      {
+        "name": "_au_cent",
+        "line": 132,
+        "end": 133,
+        "doc": ""
+      },
+      {
+        "name": "_somme",
+        "line": 136,
+        "end": 138,
+        "doc": "Somme de montants au cent, rendue au cent (une somme vide vaut `0.00`, jamais `0`)."
+      },
+      {
+        "name": "_texte",
+        "line": 141,
+        "end": 143,
+        "doc": "Un montant en texte positionnel au cent (jamais de notation scientifique) ; `None` reste `None`."
+      },
+      {
+        "name": "_court",
+        "line": 146,
+        "end": 149,
+        "doc": "Un texte abrégé pour un message : la réponse d'un outil est bornée par le socle (6 000 caractères)."
+      },
+      {
+        "name": "_date",
+        "line": 152,
+        "end": 158,
+        "doc": ""
+      },
+      {
+        "name": "_jour_de",
+        "line": 161,
+        "end": 168,
+        "doc": "Le jour, tel qu'écrit, d'un horodatage ISO 8601 (ou d'une date) ; `None` s'il est illisible."
+      },
+      {
+        "name": "_montant_valide",
+        "line": 171,
+        "end": 175,
+        "doc": "Un montant lisible : `Decimal` fini, zéro ou plus, exactement au cent. `None` sinon : jamais arrondi."
+      },
+      {
+        "name": "_semaine_de",
+        "line": 178,
+        "end": 180,
+        "doc": "Numéro (à partir de 1) de la semaine de 7 jours qui contient `jour` ; 0 ou moins si `jour` est déjà passé."
+      },
+      {
+        "name": "_taille",
+        "line": 183,
+        "end": 185,
+        "doc": "Taille sérialisée EXACTE telle que `Capacites._tronquer` la mesure (`json.dumps`, sans échappement ASCII)."
+      },
+      {
+        "name": "lire_jour",
+        "line": 189,
+        "end": 194,
+        "doc": "`aujourd_hui` : `(date, None)` ou `(None, verdict)`. Le module n'a pas d'horloge et ne devine jamais la date."
+      },
+      {
+        "name": "lire_horizon",
+        "line": 197,
+        "end": 212,
+        "doc": "L'horizon, en semaines : `(entier, None)` ou `(None, verdict)`. Absent : `REJ-PREVISION-HORIZON-A-CONFIGURER`\n(une décision du propriétaire, GATE NATHAN : aucun horizon n'est supposé) ; hors de 1 à `HORIZON_MAX` (ou pas un\nentier,"
+      },
+      {
+        "name": "lire_reglages",
+        "line": 215,
+        "end": 230,
+        "doc": "`configuration.prevision` de `department.yaml`, telle que le propriétaire l'a écrite : `(réglages, None)`, ou\n`({}, verdict)`. Absente : `({}, None)`, chaque décision est alors « à déclarer ». Qui n'est pas un objet ou porte\nune c"
+      },
+      {
+        "name": "lire_seuil",
+        "line": 233,
+        "end": 260,
+        "doc": "Le seuil d'alerte (`configuration.prevision.seuil_alerte`) : `({\"montant\", \"source\", \"au\"}, None)` ou `(None,\nverdict)`. Même forme qu'une obligation déclarée : `montant` (texte décimal, 2 décimales au plus, zéro ou plus),\n`source"
+      },
+      {
+        "name": "lire_delai",
+        "line": 263,
+        "end": 279,
+        "doc": "Un délai de paiement, en jours (`configuration.prevision.<cle>`) : `(jours, None)` ou `(None, verdict)`. Absent :\n`code_a_declarer` (une décision du propriétaire, GATE NATHAN : aucune échéance n'est enregistrée sur les factures et"
+      },
+      {
+        "name": "lire_echeances_obligations",
+        "line": 282,
+        "end": 311,
+        "doc": "La date de sortie de chaque obligation que le propriétaire déclare (paies, DAS, dettes ; leurs montants sont\ndans `configuration.obligations_declarees`, T4.16) : `{clé: (date, None) ou (None, verdict)}`. Absente :\n`REJ-PREVISION-E"
+      },
+      {
+        "name": "_flux",
+        "line": 315,
+        "end": 324,
+        "doc": "Un flux, toujours de la même forme : ce qui sort ou entre, quand, d'où l'on tient le montant et la date, et ce\nqui manque quand l'un des deux est inconnu (`manque` est vide si tout est connu)."
+      },
+      {
+        "name": "flux_clients",
+        "line": 327,
+        "end": 362,
+        "doc": "Un ENCAISSEMENT par facture cliente envoyée (`ENVOYEE` : la seule encore due ; une brouillon n'est pas envoyée,\nune payée ou une annulée n'est plus due), pour son montant après taxes, à la date de son envoi plus le délai\ndéclaré p"
+      },
+      {
+        "name": "_jour_de_la_dette",
+        "line": 365,
+        "end": 366,
+        "doc": ""
+      },
+      {
+        "name": "flux_fournisseurs",
+        "line": 369,
+        "end": 418,
+        "doc": "Un DÉCAISSEMENT par dette envoyée par `comptes_a_payer.dettes_datables` : chaque facture fournisseur vivante, à\nsa date imprimée, et l'attendu non facturé de chaque PO, à sa PREMIÈRE réception (la date la plus prudente), plus\nle d"
+      },
+      {
+        "name": "_couvert_jusqu_au",
+        "line": 421,
+        "end": 429,
+        "doc": "La fin de la dernière période du calendrier CONTIGUË à la dernière remise : au-delà, il ne date rien."
+      },
+      {
+        "name": "_taxes_inconnues",
+        "line": 432,
+        "end": 434,
+        "doc": ""
+      },
+      {
+        "name": "flux_taxes",
+        "line": 437,
+        "end": 506,
+        "doc": "Un DÉCAISSEMENT par période de déclaration TPS/TVQ pas encore remise, à la limite de paiement du calendrier\nfiscal (`calendrier_fiscal`, transcrite de Revenu Québec, à valider par le CPA), pour la TPS/TVQ NETTE des\nfactures de cet"
+      },
+      {
+        "name": "flux_obligations",
+        "line": 509,
+        "end": 534,
+        "doc": "Un DÉCAISSEMENT par obligation que le propriétaire déclare (paies, DAS, dettes) : le montant est celui de la\ncomposante du cash libre (`cash_libre.composante_declaree` : une seule déclaration, une seule source), la date\ncelle de `"
+      },
+      {
+        "name": "_controler_flux",
+        "line": 538,
+        "end": 552,
+        "doc": "Le flux tel quel s'il est bien formé. LÈVE `ValueError` sur une erreur d'assemblage du code (ce n'est pas une\ndonnée de l'entreprise, c'est un défaut à corriger) : un flux mal formé, ou inconnu sans dire ce qui manque."
+      },
+      {
+        "name": "_controler_entrees",
+        "line": 555,
+        "end": 573,
+        "doc": ""
+      },
+      {
+        "name": "_cle_de_tri",
+        "line": 576,
+        "end": 579,
+        "doc": "Ordre total et stable : par date (les inconnues à la fin), les sorties avant les entrées, puis nature et id."
+      },
+      {
+        "name": "_bloqueurs",
+        "line": 582,
+        "end": 585,
+        "doc": ""
+      },
+      {
+        "name": "_groupes_de_manque",
+        "line": 588,
+        "end": 600,
+        "doc": "Ce qui manque, PAR CODE : la première semaine touchée, les flux concernés (leurs identifiants) et de quoi\ncomprendre. Un code, une ligne : cent factures sans délai ne font pas cent lignes."
+      },
+      {
+        "name": "_resume_au_dela",
+        "line": 603,
+        "end": 605,
+        "doc": ""
+      },
+      {
+        "name": "_groupes_non_comptes",
+        "line": 608,
+        "end": 618,
+        "doc": ""
+      },
+      {
+        "name": "_alerte",
+        "line": 621,
+        "end": 642,
+        "doc": ""
+      },
+      {
+        "name": "assembler",
+        "line": 645,
+        "end": 758,
+        "doc": "La prévision : le solde de départ (`solde`, la composante du cash libre), les `flux` (les listes de\n`flux_clients`, `flux_fournisseurs`, `flux_taxes` et `flux_obligations`) placés dans les `horizon_semaines`\nsemaines qui commencen"
+      },
+      {
+        "name": "_lecture",
+        "line": 762,
+        "end": 791,
+        "doc": "Une phrase, faite des seuls faits du résultat : rien n'est calculé ici."
+      },
+      {
+        "name": "_vue_ligne",
+        "line": 794,
+        "end": 807,
+        "doc": ""
+      },
+      {
+        "name": "_vue_resume_semaine",
+        "line": 810,
+        "end": 826,
+        "doc": "Une semaine de la série : compacte (les lignes se lisent avec `vue_semaine`). Les indicateurs booléens n'y sont\nque s'ils sont vrais."
+      },
+      {
+        "name": "_vue_alerte",
+        "line": 829,
+        "end": 840,
+        "doc": ""
+      },
+      {
+        "name": "_vue_manque",
+        "line": 843,
+        "end": 848,
+        "doc": ""
+      },
+      {
+        "name": "_vue_au_dela",
+        "line": 851,
+        "end": 855,
+        "doc": ""
+      },
+      {
+        "name": "_vue_source_solde",
+        "line": 858,
+        "end": 866,
+        "doc": ""
+      },
+      {
+        "name": "_en_tete",
+        "line": 869,
+        "end": 900,
+        "doc": "Tout ce qui est vrai de l'ensemble de la prévision, hors les semaines (dites page par page) et les limites."
+      },
+      {
+        "name": "_page",
+        "line": 903,
+        "end": 915,
+        "doc": ""
+      },
+      {
+        "name": "_plus_grande_page",
+        "line": 918,
+        "end": 933,
+        "doc": "La plus longue page qui tient sous `budget_caracteres` (taille MESURÉE, jamais estimée), d'abord avec les\nlimites, puis sans (`limites_omises` dit combien). Au moins un élément ; sinon\n`REJ-PREVISION-REPONSE-TROP-GROSSE`."
+      },
+      {
+        "name": "vue_prevision",
+        "line": 936,
+        "end": 956,
+        "doc": "La prévision en JSON sûr (montants en texte, dates ISO) : `(page, None)` ou `(None, verdict)`. L'en-tête\n(lecture, alerte, manque, solde de départ, cash libre, hors horizon, encaissements non comptés, limites, mention,\nempreinte) "
+      },
+      {
+        "name": "vue_semaine",
+        "line": 959,
+        "end": 996,
+        "doc": "Les LIGNES d'une semaine (chacune avec son montant, sa date, sa source et la règle qui a donné sa date), page\npar page sous `budget_caracteres` : `(page, None)` ou `(None, verdict)`. `semaine` (1 à l'horizon) hors de\nl'horizon : `"
+      },
+      {
+        "name": "fabrique",
+        "line": 952,
+        "end": 954,
+        "doc": ""
+      },
+      {
+        "name": "fabrique",
+        "line": 991,
+        "end": 992,
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/registre.py",
+    "lines": 138,
+    "functions": [
+      {
+        "name": "_valider_horodatage_local",
+        "line": 50,
+        "end": 56,
+        "doc": ""
+      },
+      {
+        "name": "enregistrer_mouvement",
+        "line": 131,
+        "end": 138,
+        "doc": ""
+      },
+      {
+        "name": "__init__",
+        "line": 60,
+        "end": 64,
+        "doc": "`maillons` : la suite où vivent les maillons (protocole liste, cf. docstring du\nmodule). `None` (par défaut) garde le comportement historique : une liste Python en\nmémoire, vide au départ."
+      },
+      {
+        "name": "ajouter",
+        "line": 66,
+        "end": 103,
+        "doc": ""
+      },
+      {
+        "name": "lire",
+        "line": 105,
+        "end": 106,
+        "doc": ""
+      },
+      {
+        "name": "tete",
+        "line": 108,
+        "end": 109,
+        "doc": ""
+      },
+      {
+        "name": "taille",
+        "line": 111,
+        "end": 112,
+        "doc": ""
+      },
+      {
+        "name": "valider_chaine",
+        "line": 114,
+        "end": 128,
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/soldes.py",
+    "lines": 60,
+    "functions": [
+      {
+        "name": "calculer_solde",
+        "line": 9,
+        "end": 16,
+        "doc": ""
+      },
+      {
+        "name": "calculer_provisions",
+        "line": 19,
+        "end": 39,
+        "doc": "`(total, nombre, derniere_piece)` des mouvements `PROVISION` du registre : ce qui est mis de côté sans sortir\ndu solde.\n\nLecture pure (T4.16) : la même somme que celle que `calculer_argent_disponible` retranche, exposée pour que l"
+      },
+      {
+        "name": "calculer_argent_disponible",
+        "line": 42,
+        "end": 45,
+        "doc": ""
+      },
+      {
+        "name": "decrire_mouvements",
+        "line": 48,
+        "end": 60,
+        "doc": "Ce qui porte le solde, pour en dire la source et la fraîcheur (T4.16) : le nombre de mouvements du registre,\nl'horodatage du plus récent (à l'instant, pas à l'ordre d'écriture : l'horodatage est fourni par l'appelant) et la\ntête d"
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/taux_fiscaux.py",
+    "lines": 81,
+    "functions": [
+      {
+        "name": "charger_taux_fiscaux",
+        "line": 21,
+        "end": 72,
+        "doc": ""
+      },
+      {
+        "name": "rechercher_taux",
+        "line": 75,
+        "end": 81,
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/taxes.py",
+    "lines": 77,
+    "functions": [
+      {
+        "name": "calculer_taxes",
+        "line": 38,
+        "end": 77,
+        "doc": "Calcule chaque taxe listée dans `ids_taux` sur `montant_avant_taxes`.\n\n`dictionnaire_taux` est le dictionnaire chargé par\n`taux_fiscaux.charger_taux_fiscaux` depuis le fichier versionné courant.\nBloque par verdict nommé (REJ-TAUX-"
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/validation.py",
+    "lines": 231,
+    "functions": [
+      {
+        "name": "est_verdict",
+        "line": 179,
+        "end": 180,
+        "doc": ""
+      },
+      {
+        "name": "construire_verdict",
+        "line": 183,
+        "end": 186,
+        "doc": ""
+      },
+      {
+        "name": "_est_chaine_non_vide",
+        "line": 189,
+        "end": 190,
+        "doc": ""
+      },
+      {
+        "name": "valider_mouvement",
+        "line": 193,
+        "end": 231,
+        "doc": ""
+      },
+      {
+        "name": "__init__",
+        "line": 15,
+        "end": 17,
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/variance_recus.py",
+    "lines": 79,
+    "functions": [
+      {
+        "name": "construire",
+        "line": 28,
+        "end": 51,
+        "doc": "Le maillon de signal reçu — construction pure, sans écriture (l'appelant, `outils.py`,\najoute inconditionnellement : une variance peut légitimement changer de statut, voir plus\nhaut, donc il n'y a pas de garde d'idempotence « déjà"
+      },
+      {
+        "name": "pour_wct_id",
+        "line": 54,
+        "end": 60,
+        "doc": "Le DERNIER signal connu pour ce wct_id, ou None si M5 n'a jamais reçu de variance pour lui."
+      },
+      {
+        "name": "signal_retenu_pour_wct_id",
+        "line": 63,
+        "end": 79,
+        "doc": "Le signal sur lequel un calcul de coût peut s'appuyer : le DERNIER `evaluee` reçu pour ce wct_id,\nà défaut le dernier signal connu, ou None.\n\nPourquoi pas `pour_wct_id` : `evaluee` est TERMINAL chez M6 (plus rien n'est republié ap"
+      }
+    ]
+  },
+  {
+    "path": "departments/m05-financecore/src/m5_financecore/wct_recus.py",
+    "lines": 67,
+    "functions": [
+      {
+        "name": "construire",
+        "line": 25,
+        "end": 45,
+        "doc": "Le maillon WCT reçu — construction pure, sans écriture (l'appelant, `outils.py`, vérifie\nd'abord `pour_wct_id` et n'ajoute que si absent : l'idempotence vit là, pas ici).\n\n`duree_reelle_minutes` (PLAN T1.5-d) : la durée pointée du"
+      },
+      {
+        "name": "pour_wct_id",
+        "line": 48,
+        "end": 53,
+        "doc": "Le WCT reçu pour ce wct_id, ou None si M5 ne l'a jamais reçu."
+      },
+      {
+        "name": "pour_devis_id",
+        "line": 56,
+        "end": 67,
+        "doc": "Le WCT reçu dont le devis_id correspond, ou None (devis_id absent, ou jamais vu — y compris\nquand `devis_id` vaut `None` : une intervention sans devis ne peut jamais correspondre à une\nrecherche par devis_id, `None` n'est pas une "
+      }
+    ]
+  }
+]

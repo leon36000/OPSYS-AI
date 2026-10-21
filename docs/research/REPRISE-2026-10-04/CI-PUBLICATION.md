@@ -1,0 +1,436 @@
+# Publication et corrections de CI — 4 octobre 2026
+
+## M10 : échec natif expliqué et préparation corrigée — tranche 28
+
+Le relevé API du **4 octobre à 20:56:07 UTC** constate un échec M10 sur le
+head26 `76e949b9540269b4d1f9639a557255d55301622c` (CI37232080654,
+job111523766752). Core/E2E/mobile/dépendances réussissent sur ce head ;
+CI et installateur restent en cours, deux jobs Docker Desktop sont ignorés.
+Les logs natifs obtenus séparément prouvent `No such image: pgvector/pgvector:pg17`.
+Le cache local masquait l'absence de préparation du runner hébergé pour le
+test PostgreSQL en RAM avec `--pull=never`.
+
+Le [correctif et sa vérification](../../grs/memory/M10-CI-POSTGRESQL-2026-10-04.md)
+préparent explicitement l'image canonique, uniquement dans le job M10.
+ROOT r164 passe **1 020/1 020 sur 35 fichiers complets**, zéro échec/erreur/skip,
+45,315 s JUnit ; Ruff/actionlint/vérificateur et diagnostic du bloc CI réussissent,
+1 250 sources inchangées. Aucun test ou contrôle produit n'est assoupli.
+[Preuves](preuves/M10-CI-POSTGRESQL-r1.tar.xz), [inventaire](preuves/M10-CI-POSTGRESQL-r1.json).
+La réussite native du prochain head28 reste à obtenir ; aucun workflow
+précédent n'est relancé ni annulé par cette correction.
+
+Au même relevé, le head27 `3f38364284a917239441b86b14e948dbdbaaac6f` réussit
+mobile/dépendances, Core/E2E sont en cours et CI/installateur en attente sans
+jobs retournés. Ces états sont conservés séparément ; aucun résultat futur
+n'en est déduit. Les anciens snapshots ci-dessous restent historiques.
+
+## Contrat OCR — tranche 27 qualifiée localement
+
+[Rapport du contrat](../../grs/compta/M5-OCR-CONTRAT-RAPPORT-2026-10-04.md) :
+ROOT r161, **202/202 sur quatre fichiers complets**, zéro échec/erreur/skip;
+82 cas OCR, 63 PDF, 49 console PDF et 8 provenance. Ruff/vérificateur verts,
+1 249 sources inchangées; r159/r160 rouges conservés. r162 relit 55 + 55 mots
+historiques fictifs et leurs erreurs intactes, sans nouveau lancement OCR.
+ROOT r163 contrôle les secrets dans six fichiers sans exclusion ajoutée.
+[Capsule](preuves/M5-OCR-CONTRAT-r1.tar.xz) et [manifeste](preuves/M5-OCR-CONTRAT-r1.json).
+Ce contrat n'active pas de worker ni d'OCR produit; la CI du prochain commit
+reste à observer sur son SHA exact.
+
+## Relevé CI du head 26 — 4 octobre 2026 à 20:28:03 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `76e949b9540269b4d1f9639a557255d55301622c` | En cours | En cours | En cours | Succès | Succès | En cours |
+
+Capture API unique sans lecture des logs, relance ou annulation. Deux jobs
+Docker Desktop ignorés et l'étape « Diagnostic du confinement PDF » ignorée
+sont conservés explicitement; les métadonnées ne signalent aucun échec visible.
+Aucun succès de workflow en cours ou du futur head27 n'en est déduit. Le
+snapshot et les empreintes figurent dans la capsule du contrat OCR ci-dessus.
+
+## Provenance PDF → M10 — tranche 26 qualifiée localement
+
+Le [raccord documentaire](../../grs/memory/M10-PROVENANCE-PDF-RAPPORT-2026-10-04.md)
+passe ROOT r156 : **1 401/1 401, 0F/0E/0S, 52 fichiers complets**,
+181,250 s JUnit ; Ruff sur dix chemins et vérificateur verts,
+1 247 sources sans dérive/OOM, aucun processus survivant. Le scope comprend
+les suites AP backend/UI et installation PDF ajoutées avant lancement.
+Les 8 nouveaux cas SQL provenance, 63 PDF historiques, 49 console PDF,
+21 purs M10 et 25 API M10 sont inclus ; un test API M10 utilise vrai PostgreSQL
+en RAM, sans qualifier le raccord PDF Finance sur PostgreSQL.
+
+r152 conserve 0P/1F, canari admis sans parser/worker, zéro trace contre une
+attendue ; r153 conserve 1 398P/3F. La validation UUID reste canonique sans
+import `uuid`, politique de conformité et gardes CSV inchangées. M10 ne garde
+que des métadonnées candidates FINANCIAL ; PDF seul autorité du contenu.
+M10 et Fusion restent PARTIEL, SQLite financier seulement. Le reçu ROOT r158
+et les gels sont conservés dans la [capsule PDF/M10](preuves/M10-PROVENANCE-PDF-r2.tar.xz)
+et son [manifeste](preuves/M10-PROVENANCE-PDF-r2.json). Aucun résultat CI du commit26
+n’est déduit des campagnes locales ou du head25.
+
+## Relevé CI de la base 25 — 4 octobre 2026 à 14:58:34 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `853d31d2c8bab5492f6e27fb034f6a1dbaa65e83` | En cours | En cours | Succès | Succès | Succès | En cours |
+
+Snapshot conservé par ROOT, sans échec visible à ce relevé. Analyse
+installateur et jobs macOS/Windows hébergés simulés réussis ; étape Linux
+simulée active, prévol Docker et E2E Linux réel encore en attente. Les E2E
+macOS/Windows self-hosted sont explicitement ignorés à ce relevé. Ces skips
+observés ne sont pas une qualification Desktop réel. Aucun résultat d’un
+job en cours, ni CI du futur commit26, n’est extrapolé. Le relevé précédent
+est conservé ci-dessous.
+
+## Relevé CI de la base 25 — 4 octobre 2026 à 14:34:16 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `853d31d2c8bab5492f6e27fb034f6a1dbaa65e83` | En cours | En cours | En cours | Succès | Succès | En attente |
+
+Snapshot conservé par ROOT. Les jobs installateur ne sont pas encore observés ;
+aucun skip ou résultat d’installation n’est déduit. Le YAML de cette base
+configure des tests Linux simulés, un prévol Docker et un E2E réel ; les jobs
+Mac/Windows hébergés utilisent des doubles, le réel self-hosted est opt-in
+hors PR. Ces configurations ne sont pas des résultats exécutés observés.
+Aucun résultat CI de la tranche 26 n’est fourni ici.
+Les succès et états précédents conservent leurs dates et commits ; aucune
+qualification M1 ou M10 antérieure n’est reportée sur ce nouveau raccord.
+M10 et Fusion restent PARTIEL ; aucune fusion ou mise en production annoncée.
+
+
+## Suivi de rappels M1 — tranche 25 qualifiée localement
+
+Le [suivi humain](../../grs/reception/M1-SUIVI-RAPPELS-RAPPORT-2026-10-04.md)
+passe ROOT r150 : **1 737/1 737, 39 fichiers complets, 0F/0E/0S**,
+118,464 s JUnit ; Ruff vert sur 11 chemins (dont un test restauré hors diff),
+vérificateur vert, 1 245 sources sans dérive/OOM. Les 61 cas console/SQL/métier
+et neuf unitaires de domaine sont inclus, pas additionnés. Le périmètre
+prévu est 10 chemins code/test, six docs et deux artefacts capsule ; aucune
+CI distante de ce nouveau commit n’est extrapolée.
+
+r144 conserve 0P/1F (404 attendu 409), avec assertion DB non atteinte ; r145
+Ruff rouge sans pytest ; r146 27P/21F ; r147 1 723P/9F ; r148 vert intermédiaire
+1 734/1 734 ; r149 1 734P/1F de fixture. r150 couvre le vrai rollback SQL
+après append et deux refus appareil owner/admin. Saisie console T1/N2 sans
+approbation N3, clôture distincte. Backend console uniquement et rôles appareil
+vides ; lecteur MCP/appareil historique et PostgreSQL hors qualification.
+Aucun appel, contact réussi, ancre externe ou statut global terminé n’est
+promu. ROOT r151 secrets reste en attente à cette préparation.
+
+## Relevé CI de la base M1 — 4 octobre 2026 à 14:06:16 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `7adca5ae3bb18be7799e39f62883ed70c633a115` | En cours | En cours | Succès | Succès | Succès | En cours |
+
+Relevé capturé par ROOT et conservé dans les preuves de préparation. Il porte
+sur la base publiée, pas sur les correctifs de la tranche 25 ni leur prochain
+commit. Les états historiques suivants restent inchangés.
+
+## Résumé M1 — relevé du 04 octobre à 13:07 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `947f4ab66172b522d4e1108e61deb7b6b651dc3e` | En cours | En cours | Succès | Succès | Succès | En attente |
+| `dd415bd90d1e6f7e0f96234d91121e106154437f` | Succès | Succès | Succès | Succès | Succès | Annulé |
+| `4e9beea082140ab007419af935d1f082e4a2624f` | Annulé | Succès | Succès | Succès | Succès | En cours |
+
+Captures exactes dans la [capsule M1](preuves/M1-DIGEST-CONSOLE-r1.tar.xz).
+Les annulations ne valent ni réussite ni défaut de code. Ces états ne qualifient
+pas le prochain commit. Le [résumé de réception](../../grs/reception/M1-DIGEST-CONSOLE-RAPPORT-2026-10-04.md)
+passe localement ROOT r142 : **1 667/1 667 sur 37 fichiers complets**,
+zéro échec/erreur/skip, 95,034 s JUnit, Ruff vert et 1 242 sources inchangées.
+La CI du commit de publication reste à obtenir sur son propre SHA.
+
+
+
+## Pilote OCR — relevé du 4 octobre à 12:20 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `bfc5b8d463cbcdf706ac2657eb39720717473888` | Succès | Succès | Succès | Succès | Succès | Succès |
+| `1f08a4a3dff86b43ee72414d5cf20d2670d133b8` | En cours | Succès | Succès | Succès | Succès | Annulé |
+| `4e9beea082140ab007419af935d1f082e4a2624f` | En attente | En cours | Succès | Succès | Succès | En cours |
+
+L’annulation de l’installateur `37198918400` ne vaut ni réussite ni échec de test.
+Les captures API par commit sont conservées dans la [capsule du pilote OCR](preuves/M5-OCR-PILOTE-CPU-r1.tar.xz).
+Ces observations ne qualifient pas le prochain commit. Le [pilote](M5-OCR-PILOTE-CPU-2026-10-04.md)
+exerce deux scans fictifs en isolation : 10/10 puis 4/10 lignes exactes, avec un
+chiffre du numéro altéré. Aucune intégration produit, précision client/fr-CA ou
+mise en production n’est déduite. Les relevés horodatés précédents sont conservés.
+
+## Consultation AP — tranche 21, relevé du 4 octobre à 11:46 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `bfc5b8d463cbcdf706ac2657eb39720717473888` | Succès | Succès | Succès | Succès | Succès | En cours |
+| `1f08a4a3dff86b43ee72414d5cf20d2670d133b8` | En cours | En cours | Succès | Succès | Succès | En attente |
+
+Métadonnées GitHub conservées dans la capsule de consultation. Les résultats de
+chaque commit restent distincts ; ces états ne qualifient pas la prochaine publication.
+La [consultation AP](../../grs/compta/M5-AP-CONSULTATION-RAPPORT-2026-10-04.md)
+passe localement ROOT r130 : 668/668 sur 21 fichiers complets, sans skip,
+104,600 s JUnit, Ruff sur 16 fichiers et 1 240 sources inchangées. r127 garde le
+vrai défaut Unicode, r128 le lint rouge et r129 les deux erreurs de fixture.
+La CI native de la consultation reste à suivre sur son commit après publication.
+
+## Relevé de la tranche de saisie AP — 4 octobre, 11:24 UTC
+
+`0b2d34f83151eea3ff094fec8a4d08834d5a5831` a réussi les six workflows natifs :
+CI 37194745926, Core 37194745929, E2E 37194745969, mobile 37194745934,
+dépendances 37194745922 et installateur 37194745924. Son socle donne
+**3 829 réussis/17 ignorés/1 warning**, 2 018,70 s; dix départements, neuf
+partitions M3 et gates réussis. L'installation Linux joue le vrai Core;
+les jobs Docker Desktop opt-in restent ignorés. Ces résultats sont conservés
+séparément des preuves de la nouvelle saisie AP.
+
+`bfc5b8d463cbcdf706ac2657eb39720717473888` : mobile, E2E et dépendances réussis;
+CI, Core et installation encore en cours à ce relevé. Aucun résultat du head
+précédent ne qualifie ce commit ni le prochain.
+
+La [saisie humaine Fusion AP → M5](../../grs/compta/M5-AP-SAISIE-RAPPORT-2026-10-04.md)
+réussit localement ROOT r124 : **637/637 sur dix-huit fichiers complets**,
+89,748 s JUnit, aucun échec/erreur/skip; Ruff vert sur les douze fichiers
+modifiés et 1 236 sources surveillées inchangées. r122 (formatage) et r123
+(633P/4F, erreurs de fixtures) restent conservés dans la capsule
+`M5-AP-SAISIE-r1`. La CI du commit de saisie reste à obtenir après publication.
+Le périmètre SQLite/PDF natif fictif ne certifie ni PostgreSQL financier,
+OCR, paiements, ledger final, mobile AP ou mise en production du CFO.
+
+## Relevé complémentaire du 4 octobre, 10:35 UTC
+
+Le head `79b49669fa544c93b5aede738947bb7fbe452768` a réussi les six workflows :
+socle [37192902352](https://github.com/leon36000/OPSYS-AI/actions/runs/37192902352),
+Core 37192902361, E2E 37192902318, mobile 37192902387, dépendances 37192902315,
+installateurs 37192902625. Le socle natif donne **3 815 réussis/17 ignorés/1 warning**,
+2 020,06 s; dix départements, neuf partitions M3 et gates réussis. Les jobs Docker
+Desktop opt-in ne sont pas assimilés à une exécution.
+
+`d67acfdd` : mobile/E2E/dépendances réussis, socle/Core/installateurs annulés
+pendant leur attente et remplacés par le head suivant; aucune réussite ni
+défaillance de code n'est déduite de ces annulations. `0b2d34f` : mobile et
+dépendances réussis; les quatre autres workflows ont démarré et doivent fournir
+leurs propres résultats. Les anciens comptes ne sont pas reportés sur ce head.
+
+La [vérification AP Fusion → M5](../../grs/compta/M5-AP-VERIFICATION-REPRISE-2026-10-04.md)
+est qualifiée localement ROOT r119 : **363/363 tests sur dix fichiers complets**,
+Ruff vert et 1 230 sources stables. r118 reproduit la révocation de finance au
+rendu et garde les autres refus de qualification; le contrôle de production est
+corrigé avant publication. La CI native du prochain commit reste à obtenir.
+
+Les résultats récents du head `b005c4e6`, le diagnostic des 79 échecs du socle
+et son correctif qualifié sont dans [Socle : contrats et mutations M7](SOCLE-CONTRATS-M7.md).
+Les observations historiques ci-dessous restent rattachées à leurs commits.
+
+La reprise suivante identifie le refus AppArmor du runner PDF et qualifie
+une exception ciblée par binaire : [diagnostic et correctif](PDF-RUNNER-UBUNTU.md).
+Les résultats natifs du head `e7f96d3` y sont distingués de la validation
+du prochain head, encore à obtenir.
+
+La reprise est publiée dans la [PR privée #623](https://github.com/leon36000/OPSYS-AI/pull/623),
+branche `codex/restructuration-2026-09-30`, sur la base de Claude
+`claude/opsys-ai-analysis-x4jt87`. Aucun merge de `main`, déploiement ni action métier externe.
+Le premier commit publié est `4a3759753dd7e34333bb5e9b925489f98edc4d8d` ; son arbre
+`04ef17df29b897bff87124dd74e5573ff9b1e9e5` est identique à l'instantané local vérifié.
+Le transfert Git natif a reçu HTTP 401 ; la publication a utilisé les objets Git de l'API,
+avec vérification de l'arbre, création d'une nouvelle branche et sans force-push.
+
+## Ce que la première CI prouve
+
+- Construction complète du core réussie : [job 111322246369](https://github.com/leon36000/OPSYS-AI/actions/runs/37163712515/job/111322246369).
+- M1, M2, M6, M7, M8, M9 et les huit partitions de gardes M3 consultées réussissent.
+  Les autres partitions M3 ne sont pas assimilées à un résultat acquis.
+- Cinq des six partitions unitaires du core réussissent. La sixième refuse la directive
+  Dockerfile qui imposait le téléchargement d'un frontend extérieur.
+- L'audit général des dépendances réussit ; l'audit npm mobile échoue. Ces deux résultats
+  concernent des graphes différents.
+- Les workflows dans leur ensemble ne sont pas verts : installation, socle, M3/M4/M5/M10 et
+  E2E signalent les défauts détaillés ci-dessous. Une construction réussie ne vaut pas une
+  qualification intégrale du produit.
+
+## Correctif consécutif à ces résultats
+
+1. Les installations Python du workflow core partent de `github.workspace`, où se trouve
+   `pyproject.toml`. Les trois installateurs testent avec l'interpréteur géré par `uv`, y
+   compris dans l'étape qui vient de l'installer.
+2. Le script shell consomme sa liste d'extras centrale ; les extras ingestion/PDF/embeddings
+   restent optionnels. Les tests Docker vérifient les deux choix de verrou et les hashes.
+3. Le verrou runtime est réexporté depuis le `uv.lock` existant avec les extras exacts de CI.
+   Aucune mise à jour de résolution ni dépendance supplémentaire dans ce correctif.
+4. Le parcours E2E utilise `/mcp/v1/<département>` comme le serveur et la configuration.
+5. Le test API M10 charge explicitement le double PostgreSQL canonique. Cela corrige la
+   collecte isolée du département sans recopier une infrastructure PostgreSQL.
+6. Le test de persistance M3 lance deux interpréteurs neufs dans un répertoire temporaire
+   unique. Il exécute un calcul de prix réel et vérifie la reprise exacte du reçu durable,
+   sa commande, ses sources, son environnement et son intégrité. Les gardes de corruption
+   et les campagnes complètes de mutations restent distinctes et conservées.
+7. M5 utilise l'horloge centrale et le nonce de demande N4 approuvée pour les coûts marketing.
+   L'arrondi monétaire est explicite. Les contrôles génériques ne sont pas assouplis ; un test
+   HTTP lie l'identifiant produit à la demande approuvée et conserve les refus/rejeux.
+8. La directive frontend du Dockerfile du core est retirée conformément à son test existant.
+   Le workflow ajoute le profil mémoire vocal natif après une construction fraîche ; son
+   résultat est à obtenir sur le nouveau commit, pas présumé.
+
+## Vérifications ROOT du correctif
+
+| Campagne | Résultat | Portée |
+|---|---|---|
+| `qa-r3` | 162 réussis, 1 ignoré | Cinq fichiers entiers : installation, répétition E2E, extras et modes Docker PDF. Le cas ignoré manque d'actionlint ; le reçu brut ne combinait pas `junit.ok`, un verdict séparé corrige explicitement cette interprétation. |
+| `qa-r4` | 238 réussis, aucun ignoré | Sept fichiers entiers M4/M5, dont conformité, absence de décaissement, autorité N4, sources et rejeu. Ruff réussit. |
+| `qa-r4` collecte | 978 cas collectés | Département M10 entier : import corrigé. Les tests PostgreSQL ne sont pas exécutés dans cette campagne. |
+| `qa-r5` | Non qualifié | Contrôle natif Dockerfile core interrompu par le plancher de mémoire local avant résultat. Aucun succès déduit. |
+| `qa-r7` | 55 réussis, aucun ignoré | Persistance M3, gardes du registre de campagnes et workflow installateur complets. Actionlint officiel v1.7.7 vérifié par SHA256 valide aussi les deux workflows modifiés. |
+
+Les anciennes campagnes rouges (`qa-r1`, `qa-r2`, `qa-r5`, `qa-r6`) sont conservées avec leurs
+reprises. Les sources restent identiques pendant chaque campagne ; les compteurs OOM restent
+`10/3/0`, sans nouveau OOM ni processus de test survivant. Les ensembles se recouvrent : leurs
+comptes ne représentent pas un nombre global de fonctionnalités ni la couverture du dépôt.
+Les reçus, logs, JUnit et empreintes sont dans [l'archive de preuves](preuves/ARCHIVE.tar.gz),
+avec [inventaire vérifiable](preuves/INVENTAIRE.json).
+
+Le scan Gitleaks 8.30.1 des fichiers du correctif conserve une alerte brute : le littéral
+API_KEY d'un test de refus HTTP M10, identique à celui du premier commit publié. Le rapport
+expurgé et sa classification sont conservés ; aucune règle ni baseline n'est modifiée, et
+ce résultat n'est pas annoncé comme un scan brut sans alerte.
+
+## Limites et suite obligatoire
+
+L'audit mobile du premier commit signale notamment `braces` (GHSA-vfj7-8cjw-p6xm) et
+`node-forge` (GHSA-86w9-cpqp-85rv). Au moment de la recherche, il n'existe pas de publication
+stable compatible vérifiée qui corrige ces deux chemins Expo/Metro :
+[braces #70](https://github.com/micromatch/braces/issues/70),
+[forge #1152](https://github.com/digitalbazaar/forge/pull/1152).
+Ni `npm audit fix --force`, ni version de développement imposée, ni réduction du seuil d'audit.
+Le gate mobile demeure rouge et bloque une promotion globale.
+
+La nouvelle CI doit encore confirmer les installateurs réels, PostgreSQL, le Gateway construit,
+la suite core complète et le profil vocal. Le manque de disque local empêche une nouvelle image
+PostgreSQL et une construction complète locale ; les résultats GitHub servent de preuve dans
+leur périmètre exact. Aucun module ni OPSYS-AI dans son ensemble n'est déclaré terminé.
+
+## Résultats du second commit et reprise Windows
+
+Le second commit publié est `df76940ff3fce10670f4e195a7228a89ca5e4028`, arbre
+`78ce4a9bb431e2e0d01af2480ab82956ca5008e0`, vérifié identique à l'index de qualification.
+Sa CI confirme la construction du core, le profil mémoire vocal natif après cette
+construction et les six partitions unitaires. L'analyse de l'installateur, son job macOS
+et l'audit général des dépendances réussissent aussi. Cela requalifie le défaut Dockerfile
+de la première CI ; l'interruption locale `qa-r5` reste conservée comme telle.
+
+Le job Windows révèle quatorze échecs de portabilité. Le [correctif Windows](WINDOWS-ACL.md)
+ajoute des assertions d'ACL natives et passe 113 cas locaux sous Linux ; Windows reste à
+confirmer sur le nouveau commit. Le job supplémentaire `tests-opsys` et le parcours E2E
+échouent encore ; le gate mobile reste rouge. Les observations précédentes de ce document
+décrivent leurs commits respectifs et ne sont pas transformées en succès global.
+
+Le troisième commit `c6422b1ece5b7b0c77c1d759cb58e5ec96dcfa8c`, arbre
+`86bbd64652b7a355fa332537ae7b0254974f599d`, est publié et vérifié. Sa CI Windows démontre
+une conservation d'ACE explicites étrangères par le helper de production. Le
+[durcissement Windows/MCP](DURCISSEMENT-WINDOWS-MCP.md) corrige ce helper, le refus des
+lectures authentifiées et les tests Linux qui retrouvaient le vrai Docker du runner.
+Ses preuves locales ne remplacent pas la nouvelle CI native.
+
+## Reprise mobile avec copies maintenues — 4 octobre 2026
+
+La [qualification des dépendances mobile](MOBILE-DEPENDANCES-FORKS.md) traite
+les deux chemins sans release stable corrigée, avec des identités privées et des
+correctifs amont sous licence. Les résultats rouges historiques ci-dessus demeurent
+rattachés à leurs commits. Après installation normale sous Node 22 : TypeScript,
+17 tests de consommateurs et 2 607 tests Jest passent localement; audit npm
+zéro high/critical, 13 moderate, seuil inchangé. Le prochain résultat natif reste
+à obtenir. La même capsule conserve 23 tests PostgreSQL/mémoire réussis en réel.
+
+## Résultats natifs confirmés après la reprise mobile
+
+Le commit mobile publié est `d2669faac3f423dca336e34382eab1b758863ad3`,
+arbre `f9f1bd2eab4a3bd03720cb9901d105130a70b110`, quatorzième commit.
+Son [workflow mobile](https://github.com/leon36000/OPSYS-AI/actions/runs/37189707458)
+réussit : audit sans high/critical (13 moderate), installation normale,
+17 régressions des consommateurs, TypeScript et 2 607 tests Jest dans 118 suites.
+
+Le [socle du head précédent d943c5d](https://github.com/leon36000/OPSYS-AI/actions/runs/37187354743)
+réussit aussi : prévol PDF, 3 773 tests réussis, 17 ignorés et un warning en
+41 min 59 s. Les dix départements et neuf partitions M3 de ce head réussissent.
+Ces exclusions natives restent explicites; aucun verdict de zéro ignoré global.
+Les [logs et reçus distants](preuves/CI-NATIVE-d2669fa-r1.tar.xz) sont conservés
+avec leur [inventaire](preuves/CI-NATIVE-d2669fa-r1.json).
+Les autres workflows du nouveau head poursuivent leur exécution; ces résultats
+ne certifient pas tous les parcours fonctionnels de la vision produit.
+
+## Tranche suivante — imports internes M10 reprenables
+
+Le [rapport M10](../../grs/memory/M10-IMPORT-LOTS-REPRISE-2026-10-04.md) décrit
+le manifeste PostgreSQL, les emplacements stables et les réponses partielles privées.
+ROOT r106 passe **82/82 cas, zéro skip**, avec Ruff vert, 1 224 sources stables,
+aucune garde déclenchée et aucun OOM; Gitleaks r107 trouve zéro alerte.
+L'oubli générique, la rétention et l'ordre des verrous ont leurs régressions PostgreSQL
+réelles, conservées en rouge r105 puis vert r106. Les tests antérieurs ne sont pas
+additionnés pour présenter un nombre de cas uniques artificiel.
+
+Capsule [M10-IMPORT-LOTS-r1.tar.xz](preuves/M10-IMPORT-LOTS-r1.tar.xz),
+SHA-256 `e6cbe872089339e686871946869d03020dc1b8eb9f60b599a0b4df878bfde42b`,
+[inventaire](preuves/M10-IMPORT-LOTS-r1.json) et
+[versions exactes de l'environnement](preuves/M10-IMPORT-LOTS-ENV-r1.json).
+La CI native de cette nouvelle tranche reste à obtenir sur son commit publié.
+**PARTIEL** : procédures internes M03; ni import client universel, ni OCR/PDF,
+ni assimilation sur corpus d'entreprise réel, ni entraînement automatique.
+
+## Confirmation native et tranche Mes imports
+
+La CI du commit `d2669fa` est entièrement verte (run **37189707445**) : dix
+Départements, neuf partitions M3, socle **3 773 passés/17 skips/1 warning**, gate final
+réussi. Le socle prend 2 435,85 s. Core et E2E de ce commit réussissent aussi;
+l'installateur poursuit son propre run et n'est pas déduit de cette preuve.
+Le mobile du commit M10 `05fea996` réussit (run **37191642136**, job111404887503) :
+17 régressions et **2 607 tests Jest/118 suites**. Son E2E et l'audit des dépendances
+réussissent; Core/socle/installateur poursuivent leurs runs au relevé.
+
+[Logs natifs et snapshot](preuves/CI-NATIVE-d2669fa-05fea996-r2.tar.xz),
+[inventaire](preuves/CI-NATIVE-d2669fa-05fea996-r2.json),
+SHA-256 `676928838572ac80fda4738a3e101954c516e94e80081f4b4aa18b8784de2d68`.
+Les archives précédentes restent immuables et concernent leurs propres snapshots.
+
+La [liste privée Mes imports](../../grs/memory/M10-MES-IMPORTS-REPRISE-2026-10-04.md)
+permet maintenant de retrouver un lot après fermeture du navigateur sans sa clé
+originale. ROOT r108 qualifie **95/95 cas dans une commande**, sur neuf fichiers
+complets, PostgreSQL réel, zéro skip, Ruff vert et 1 226 sources stables.
+[Capsule](preuves/M10-MES-IMPORTS-r1.tar.xz), [inventaire](preuves/M10-MES-IMPORTS-r1.json).
+La CI de cette tranche reste à obtenir sur son nouveau commit; aucune promotion du
+statut global PARTIEL n'est effectuée.
+
+## Relevé du 4 octobre à 10:02 UTC et raccordement Fusion
+
+Le run installateur du commit `d2669fa` a finalement réussi : analyse et Linux/
+Windows/macOS verts; les deux jobs Docker Desktop opt-in restent non exécutés.
+Le commit `05fea996` réussit le socle **3 802 passed/17 skipped/1 warning**, en
+2 049,84 s (job111405863049, CI37191642091), ses départements et partitions M3,
+Core, E2E, mobile et dépendances. Son run installateur **37191642065 a été annulé
+sans aucun job** : le run plus récent a remplacé celui qui attendait dans le groupe.
+`cancel-in-progress:false` protège le run actif, pas l'unique emplacement en attente.
+Cette annulation n'est ni un échec de test ni une réussite d'installation.
+
+Sur le commit `79b49669`, E2E **37192902318**, mobile **37192902387** et dépendances
+réussissent. Le mobile confirme encore 17 régressions et 2 607 Jest/118 suites.
+Core **37192902361**, CI **37192902352** et installateurs **37192902625** sont en
+cours au relevé; aucun résultat complet n'en est anticipé. Le collecteur socle
+inclut les nouveaux fichiers M10 sous `tests/` sans exclusion; sa collecte distante
+et son exécution restent à constater dans le run de ce head.
+
+[Relevés/logs natifs et publication Mes imports](preuves/CI-NATIVE-05fea996-79b49669-r1.tar.xz)
+et [inventaire](preuves/CI-NATIVE-05fea996-79b49669-r1.json). Les 17 skips du socle
+restent visibles; ils ne deviennent pas une preuve de zéro skip global.
+
+Le [raccordement Fusion](../../grs/memory/M10-FUSION-IMPORTS-REPRISE-2026-10-04.md)
+ajoute une carte personnelle ATTENTE/RECU/INDEXE/actifs et les liens de reprise.
+ROOT r112 qualifie **127/127 sur dix fichiers complets**, incluant les 95 cas de
+Mes imports : PostgreSQL réel, deux sessions/auteurs, état dérivé et oubli, zéro
+échec/erreur/skip, Ruff vert, 1 226 sources stables. Les essais rouges r110/r111
+sont conservés et concernent une mise en forme puis une fixture CAS erronée;
+aucun contrôle de production n'a été assoupli. Le résultat natif du prochain
+commit doit être obtenu séparément. OPSYS-AI reste PARTIEL.
+
+Gitleaks signale une alerte brute sur le mot de passe fictif préexistant du test HTTP
+de synthèse. ROOT a vérifié la ligne dans le parent, son empreinte et l'usage local
+de fixture; aucun secret réel trouvé dans cette portée et aucune règle/exclusion
+ou baseline ajoutée. Le résultat brut et la classification sont conservés séparément.

@@ -1,0 +1,122 @@
+{
+  "schema": "opsys-continuation-capsule-v3",
+  "product_status": "PARTIEL",
+  "base": "ceca7308392f6948f069f18fc070bd596405fb63",
+  "Source_files": 24,
+  "Core_TREE": "4ad1a927b4286039c23f7b93cbf43c2d02b61c7e",
+  "primary_local_checks": {
+    "state": "PRIMARY_SOURCE24_LOCAL_GREEN",
+    "time_toronto": "2026-10-09T22:50:41.342969-04:00",
+    "Source24_registry_sha256": "6e446744da8e00241793195c222589ddde263c8eccbeae295fe64316559b211f",
+    "python": {
+      "tests": 478,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "mobile": {
+      "passed": 553,
+      "suites": 27,
+      "skipped": 0
+    },
+    "checks": {
+      "python": {
+        "receipt_sha256": "e726235d772b6a2b09c164d58c1e4552c87225c86f7ba2b666d8729959be8677",
+        "exit": 0,
+        "wall_seconds": 36.13,
+        "RSS_sampled_bytes": 157777920,
+        "fixed_sources_unchanged": true,
+        "PIDFD": "pidfd",
+        "EOF": true,
+        "observed_owners_stopped": true
+      },
+      "mobile": {
+        "receipt_sha256": "cc1c0767bea0d0269c6f9d6b887b0fcc5f76d6c8db7cb2c9293fa7d70c917585",
+        "exit": 0,
+        "wall_seconds": 5.659,
+        "RSS_sampled_bytes": 681488384,
+        "fixed_sources_unchanged": true,
+        "PIDFD": "pidfd",
+        "EOF": true,
+        "observed_owners_stopped": true
+      },
+      "ruff": {
+        "receipt_sha256": "70535fe1f4cc4a905c934e2e36e6cd0c9b77fefff581a470633ab0195c526c94",
+        "exit": 0,
+        "wall_seconds": 0.251,
+        "RSS_sampled_bytes": 14123008,
+        "fixed_sources_unchanged": true,
+        "PIDFD": "pidfd",
+        "EOF": true,
+        "observed_owners_stopped": true
+      },
+      "metier": {
+        "receipt_sha256": "d29eb03ec8c1ac9e6666ea32a99cf503379bb251bb26910474672ab2a60333aa",
+        "exit": 0,
+        "wall_seconds": 1.74,
+        "RSS_sampled_bytes": 91140096,
+        "fixed_sources_unchanged": true,
+        "PIDFD": "pidfd",
+        "EOF": true,
+        "observed_owners_stopped": true
+      },
+      "mobile-types": {
+        "receipt_sha256": "0938c11308428345c683f137c50f17f79d0a6e274fd130f1f93b18a2f53329d4",
+        "exit": 0,
+        "wall_seconds": 3.903,
+        "RSS_sampled_bytes": 901971968,
+        "fixed_sources_unchanged": true,
+        "PIDFD": "pidfd",
+        "EOF": true,
+        "observed_owners_stopped": true
+      }
+    },
+    "business": "10departments/240tools/148device tooldeclarations",
+    "actual_primary_imports_tests": 90,
+    "actual_primary_imports_metier": 83,
+    "fixed_source_counts": {
+      "Python": 1264,
+      "mobile": 497
+    },
+    "remaining": "Coretypes/fullbuildresourceprofile pending; exactnewcommitCI notrun; modelreviews separate",
+    "product_status": "PARTIEL"
+  },
+  "Native": {
+    "Root_readback_sha256": "66c9fedc7138506bf0245a3cbd9fd1819f17d183e4b159a18e3ab869e9b798f9",
+    "manifest207_sha256": "3403a77aeb4713f976dbbf4aded152d2ae4da51ea54819b19f053207b241c753",
+    "archive208_sha256": "cd16b13ece1c6c5caa93d67b77c2d5ec21240b16e4b21b4bad4df77755388e03",
+    "Gateway": 56,
+    "HTTPMCP": 52,
+    "table_pairs": 2744,
+    "N3_writes": 7,
+    "pure_windows": 49,
+    "scope": "fictitiousSQLite/officialminimalGateway; noPG/phone/UI/normalbackgroundprovider"
+  },
+  "mobile_process_restart": {
+    "Root_readback_sha256": "69236d4666fc69c1771f9318d91bf90fc9316228081e50cac7aeeb7a65197758",
+    "two_real_Node_processes": true,
+    "scope": "node:sqlite APIshim;positiveACKfixtureRAM notDEVICEcapture"
+  },
+  "embedding_fix": {
+    "Root_readback_sha256": "06f7ade9fa1bbb00ea931d39e4e39afd615b88e1a99bc0049caab5dfcb54ac7b",
+    "local44P_included_in_primary478P": true,
+    "actualHTTP_RED_then_GREEN": true,
+    "absolute_deadline_s": 0.1,
+    "read_bytes_cap": 139264
+  },
+  "models": {
+    "backend_Claude": "PreviousqualifiedOpus5.5+2Sonnet5.5 staticcounterreview foundC1; actualSQLiteREDcorrectedGEL3",
+    "current_mobile_Claude": "OriginalguardNOT_QUALIFIED dueasyncSDKclosureformat; distinctmechanicaldispositionpending, noproductevidence",
+    "Haiku": "actual5.5/MAXconfigured; finiteopinionmatrixSourceexcerptonly; earlierlarge180stimeout preserved",
+    "LiteLLM": "Muse/Luna actualreports;DeepSeek/GLMHTTP400 unknowncause, missingstaticanglesexplicit"
+  },
+  "limits": {
+    "Coreheavy_local": "MemAvailable below6GiBtypes/12GiBfullbuild; noheavycommandstarted",
+    "CI": "ceca38011272844FAIL retained; applicableexactnewcommit resultpending",
+    "Docker": "pc6socketpermissionblocked; no productiongroup/socket/sudochange",
+    "missing104proofs": "Unavailable lightpack, no inherited/reexecutedcredit",
+    "unleased_BRIEF": "F15 delta UNKNOWN preservedexcluded; Rootdisposition600731...",
+    "product": "ten departments deepcapabilities, UIphone,readtool,documentaryPG stillpartial"
+  },
+  "registry_sha256": "6409057483b4cc26b35e75538a33ea7fc979fcdba8f60c81afd6a07dc4972b12"
+}

@@ -1,0 +1,698 @@
+{
+  "recorded_toronto": "2026-10-09T01:29:47.630881-04:00",
+  "product": "PARTIEL",
+  "parent": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+  "source_files": [
+    {
+      "path": "departments/m01-front-office/docs/RAPPELS-APPAREIL.md",
+      "sha256": "0c740dcf667e11ab0169fc17e04f038a6c9ae02ec6c458ac30f38e1ed2a85a42",
+      "preimage_sha256": null,
+      "origin": "backend delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "departments/m01-front-office/src/m1_front_office/outils.py",
+      "sha256": "5b2c19a933c64f524eaecee30a293f55cc1b34946eb5da750fa61948b7ea3dd1",
+      "preimage_sha256": "310c27edf299042652bb3dbda88e957e7839f007d6e6064cf52dd08aeded1402",
+      "origin": "backend delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "departments/m01-front-office/src/m1_front_office/rappels_appareil.py",
+      "sha256": "82140879c8a78229595dd6809b7ff9dc9a80daa8f403976fb419195601faf4a4",
+      "preimage_sha256": null,
+      "origin": "backend delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "departments/m01-front-office/tests/test_canal_capacites.py",
+      "sha256": "4fa59bc08c9ebd162ca6ece3f21007aaf4ae2971a1580f18153926f68b981691",
+      "preimage_sha256": "dc43ff629ca1df7e7a2b0debd27bb2dd5b55b017b04a905d4f6084e19d74f758",
+      "origin": "backend delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "departments/m01-front-office/tests/test_outils_transfert.py",
+      "sha256": "fbcf52c60dc05ac91cf3b3798be1cd4c36177ca97f565944180a52b4d14b5882",
+      "preimage_sha256": "76aec5bb6af570e29bbd1ab4b6e90aa85b1e4ccb3e76bc14208ff2717a7b96ee",
+      "origin": "backend delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "departments/m01-front-office/tests/test_rappels_appareil.py",
+      "sha256": "25248cfb5cf488c8debf18fa009d05e9f0d516b814456ea8405d1f6ac7ea464f",
+      "preimage_sha256": null,
+      "origin": "backend delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "docs/architecture/ROLES.md",
+      "sha256": "27560c4975b9b36e6f5193e9d32a5ebe9e4931a826ba8dbef7aa0e7d44c80e12",
+      "preimage_sha256": "73a59d5cfc44f4d9eb42e1fe3dfc30963480ebc0b39fbd9d394621d6e7738c0a",
+      "origin": "Root Cap/tests/canonical metadata",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/app/(admin)/reception.tsx",
+      "sha256": "474aa6f5609b9afc80736cfd7e5f3c5126e9135c2c7bb869b302ead4233f0bc9",
+      "preimage_sha256": "16738184d48d555bceadd3398515cb3d2216f28ea5e981943bb0460047b5d8e3",
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/admin/RappelsM1.test.tsx",
+      "sha256": "28d33b0a2390bf8520bb2f500fc3deb9dbefdfaf6b96eaa9100bb33747d380fe",
+      "preimage_sha256": null,
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/admin/RappelsM1.tsx",
+      "sha256": "5b7b4cca159922d696c6de74c2551b1a4bd547f399cf12192b5ce6b8a816fdc3",
+      "preimage_sha256": null,
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/admin/rappelsM1.test.ts",
+      "sha256": "f8b41aceee5c9d0a1d41fe9a7a1ffaa768d064853243c5f2b2ae932aa8cd6880",
+      "preimage_sha256": null,
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/admin/rappelsM1.ts",
+      "sha256": "4be23c7f590fe09a693d078e07fee93490da157e21461ad6754f91445cc8b52e",
+      "preimage_sha256": null,
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/ecrans/reception.rendu.test.tsx",
+      "sha256": "84aa5a9fc3044dd048b87205ced68931523982331324cb0f8799860aa0b15094",
+      "preimage_sha256": "3eafc94e17ce8e13d30e73d4a81f8103cbcd182c65369161793f6558fc16f295",
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/i18n/locales/admin.en-CA.ts",
+      "sha256": "bd25b035bdb602b2aac9611297b49bec54ee40b3420f840d963ee7892c579737",
+      "preimage_sha256": "a4acd9642713677b4face527ec85f0a144a00816c75be7ca9fcec63ce19296a5",
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/i18n/locales/admin.fr-CA.ts",
+      "sha256": "59292b072d0afde8f6482ad5655cade624b4f5e1c410c54bb2ab95eb968ccd45",
+      "preimage_sha256": "67b8fcda788cbea356ee0a28e11f2d5ddf88afedcbf3d5ce5dbf612bab665856",
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/m1/contrat.ts",
+      "sha256": "556862e896800c59eaf14165ba7779ea33e74de163874e665e1c90f28cd2aaf7",
+      "preimage_sha256": "279d00d3b497baed4f82395c1a70d857037e0e991952f9a8cbed52f6191fdc80",
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/m1/fixturesRappelsCapSQL.json",
+      "sha256": "0fc6c4eea437a8c179b7bf8e07a8a5165756fa8592fa0ae1ec9ce895788fef39",
+      "preimage_sha256": null,
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/m1/fixturesRappelsSQL.json",
+      "sha256": "4671b37f695da1ce1e135a5155228ab917a6e937971b0794e46075bf6427199c",
+      "preimage_sha256": null,
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/m1/rappelsAppareil.test.ts",
+      "sha256": "3c283359ea273a8701fcfa9678a3d3e90d8c6f3d3e37caa3b82556ae54c34b1c",
+      "preimage_sha256": null,
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/m1/rappelsAppareil.ts",
+      "sha256": "d1890d63d41d2d1d05cd0e0a10d6fcac9c6cc8d21e2b1c70b7cc3fc12b0519a9",
+      "preimage_sha256": null,
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/outbox/descripteurs.ts",
+      "sha256": "fdd49240b243f8ff50873c07a3d3e9716034d5c72e30e72e99c6876503e7abbb",
+      "preimage_sha256": "db13142c401b6f0367095751fd1987a19245641a806e82c707c65ad038e6de1b",
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/outbox/rappelsM1.test.ts",
+      "sha256": "6ebec5fd51d0b46e1ed42378dc3749aab547faeab65b26f3839bad5fdc046538",
+      "preimage_sha256": null,
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/outbox/service.ts",
+      "sha256": "4792c45d72add5b7ff4b522d174f527eb235b5e97379da3194dcbb406b43c83c",
+      "preimage_sha256": "49d1d99db2ea435168fde47207e6abe56dcbb4d3c9443474f700d727f21c4be7",
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "mobile/src/outbox/types.ts",
+      "sha256": "ad5bd01a327d5be90768650579938906fadb2dc48fda965057036f04a00bb138",
+      "preimage_sha256": "6b323637b32582681d8fa8f45477e5680737d6a60b69678fd05c2bdc6bda2769",
+      "origin": "mobile delegate",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "src/opsys/capacites.py",
+      "sha256": "fd7aa2d74d683330d194a5fc9da07966c325e7ffc1246d38e3e677ac7cb31e90",
+      "preimage_sha256": "d0c57a5b7c435b71a85c72c45f4209de08b0fd35444bf9592d8220b74700073c",
+      "origin": "Root Cap/tests/canonical metadata",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "tests/test_portees_appareil.py",
+      "sha256": "ba5fad29bbc2d0387df7366d66509bc9ce57eb90f669084b6d299e538cd54627",
+      "preimage_sha256": "b5a5ad8c38e3b1d81f12963653f590aa32c5f30e097c305f928983437fad38bb",
+      "origin": "Root Cap/tests/canonical metadata",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "modified_preimage_verified",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    },
+    {
+      "path": "tests/test_rappels_appareil_atomique.py",
+      "sha256": "46016a9e16de4b0a8691b039be624a548f08bcc899ccebe6c3afc9d82c769513",
+      "preimage_sha256": null,
+      "origin": "Root Cap/tests/canonical metadata",
+      "base": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+      "integration": "new_file_dependencies_checked",
+      "verification": "scoped fresh local checks, actual native proof, independent review",
+      "limit": "new exact commit CI pending; no phone/provider qualification"
+    }
+  ],
+  "excluded_paths": [
+    {
+      "path": "mobile/node_modules",
+      "disposition": "local dependency symlink excluded",
+      "verification": "canonical primary locked dependencies"
+    }
+  ],
+  "dispositions": {
+    "lost_certain_refusal": {
+      "status": "fixed",
+      "red": "realCap10P1F",
+      "green": "Root19P plus backend49P",
+      "change": "four canonical cached negatives restored after current guards; no forged success ACK"
+    },
+    "success_changed_to_negative": {
+      "status": "fixed_after_real_red",
+      "red": "four actual Cap/SQLite cases plus four producer cases",
+      "green": "Root23P plus backend54P and final native corruption cases",
+      "change": "canonical cached negative contradicting own persisted DEVICE/appareil/UUID maillon fails closed"
+    },
+    "broad_r2": {
+      "status": "infra_red_preserved",
+      "cause": "transient descendant could not be pinned; strict cancellation, stopped observed owners and EOF",
+      "correction": "fresh r3 same assertions and correct1220path inventory; no harness weakening"
+    },
+    "capsule_r1": {
+      "status": "partial_preparation_preserved",
+      "cause": "globalCI manifest already contained its exactrun files, explicit runbundle requested same destination twice",
+      "correction": "one globalCI allowlist covers those same hashes; new r2 directory, no overwritten logs or partial artifacts"
+    },
+    "test_import_blank": {
+      "status": "style_only_AST_identical",
+      "proof": "test-import-style-ast-continuity-r1.json",
+      "limit": "1925 run keeps original source hash; no false rerun claim"
+    },
+    "mobile_parent_oracles": {
+      "status": "fixed",
+      "red": "3 ambiguous old button selectors",
+      "change": "select existing refresh by translation; prior assertions retained"
+    },
+    "mobile_old_callback": {
+      "status": "fixed",
+      "proof": "1 UI red then green with explicit generation rerender"
+    },
+    "mobile_types": {
+      "status": "fixed_test_types",
+      "proof": "five test-only diagnostics then strictTypeScript green"
+    },
+    "catalog_old_oracles": {
+      "status": "fixed",
+      "change": "two tests updated for exactly two new canonical tools; historical order preserved"
+    },
+    "python_import_probe": {
+      "status": "infra_red",
+      "cause": "systemPython lacks SQLAlchemy",
+      "correction": "locked Rvenv and explicitB callableorigins, no dependency upgrade"
+    },
+    "android_marker": {
+      "status": "oracle_red_preserved",
+      "correction": "verify actual RPC, mutation and component markers; translation namespace minified differently"
+    },
+    "android_r2": {
+      "status": "infra_red_no_process",
+      "cause": "guessed final mobile manifest basename missing",
+      "correction": "discovered actual coherence-complet-r2 inventory and fresh r3 export; old receipt retained"
+    },
+    "native_invocation": {
+      "status": "infra_red_preserved",
+      "correction": "absolute Python driver path, no source changes; final native producer records actual attempts"
+    },
+    "Claude_design": {
+      "status": "reviewed_requirements_implemented",
+      "scope": "fifth actual Opus5.5 readonly mission, two actual child auditors",
+      "limit": "static design opinion not tests or finalcode certification"
+    },
+    "M6_M4_M10": {
+      "status": "backlog_retained",
+      "next": "typed N4 link to variance/classification/source revision, then versioned M10 memory",
+      "limit": "not delivered by M1"
+    },
+    "transfer_absences": {
+      "status": "unavailable",
+      "count": 104,
+      "limit": "references only, supplement and missing conversations unknown"
+    }
+  },
+  "capsule": {
+    "path": "PREUVES-RAPPELS-M1-2026-10-09-r1.tar.xz",
+    "sha256": "f48d2988977a0dc2f0f2edd9e853b001ca50058928da0e90811e243fd2eed617",
+    "members": 644
+  },
+  "current_inventory_sha256": "a79a3c7e0f359af9430d3f47c15a7c70e46e1f3ed1a6f3b383eb58b35ac41f91",
+  "inventory_count": 43610,
+  "local": {
+    "backend": "1935 passed plus deferred appname1 passed",
+    "mobile": "5081 passed/221 suites",
+    "types": 0,
+    "ruff": 0,
+    "tools": 232,
+    "DEVICE": 140,
+    "admin": 139,
+    "employee": 16,
+    "seller": 15,
+    "business_origins": "all232 callablemodules and CLI actualB",
+    "android": "JavaScript export0",
+    "counts_overlap": true
+  },
+  "native": {
+    "success": true,
+    "failure": null,
+    "phase_count": 55,
+    "parent_B": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+    "fictif": true,
+    "scope": "real opaque DEVICE/Core Gateway/public HTTPMCP/B Cap/SQLite; mobile excluded",
+    "source_freeze_sha256": "a74cea0d5f4a080c27f769c7081706511c28e94b43156d9fc91ed20e1a1c4a07",
+    "source_backend_Core_dist_before_after_equal": true,
+    "source_counts_measured": true,
+    "all49_table_pairs": true,
+    "artefacts": 0,
+    "processes": [
+      {
+        "pid": 3664340,
+        "start_time": 19623091,
+        "exited": true,
+        "stdout_EOF": true
+      },
+      {
+        "pid": 3664347,
+        "start_time": 19623257,
+        "exited": true,
+        "stdout_EOF": true
+      },
+      {
+        "pid": 3664367,
+        "start_time": 19623455,
+        "exited": true,
+        "stdout_EOF": true
+      },
+      {
+        "pid": 3664699,
+        "start_time": 19625614,
+        "exited": true,
+        "stdout_EOF": true
+      },
+      {
+        "pid": 3664705,
+        "start_time": 19625759,
+        "exited": true,
+        "stdout_EOF": true
+      },
+      {
+        "pid": 3666898,
+        "start_time": 19626571,
+        "exited": true,
+        "stdout_EOF": true
+      },
+      {
+        "pid": 3667020,
+        "start_time": 19626784,
+        "exited": true,
+        "stdout_EOF": true
+      }
+    ],
+    "private_cleanup_pending": false,
+    "scanner_known_token_hits": 0,
+    "limits": [
+      "No phone/ExpoSQLite/Hermes; no mobile UI Native claim",
+      "No provider/client/payment/stock/cost/M2/M4/M5/M10 take-charge effect",
+      "SQLite only; no PostgreSQL Native",
+      "Node/Python network guard test only, not machine isolation",
+      "No inbound supplier/client call/send; imports canonical fictional missed/voicemail",
+      "Only observed owned processes; stdout EOF confirmed"
+    ],
+    "final_status": "NATIVE_REAL_LOCAL_CANDIDATE_PASS",
+    "recorded_toronto": "2026-10-09T01:24:34.932472-04:00",
+    "request_total": 57,
+    "actual_HTTPMCP_call_count": 48,
+    "sequential_table_pairs": 55,
+    "sequential_unchanged_pairs": 49,
+    "concurrency_combined_table_pair": true,
+    "sequential_effects": {
+      "prise-v1-confirmation-perdue": [
+        "mutations_appliquees",
+        "registres_maillons"
+      ],
+      "quota-frais700-certain": [
+        "mutations_appliquees"
+      ],
+      "refus-frais-certain-perdu": [
+        "mutations_appliquees"
+      ],
+      "retry-memeUUID-KeyError": [
+        "mutations_appliquees",
+        "registres_maillons"
+      ],
+      "retry-memeUUID-TypeError": [
+        "mutations_appliquees",
+        "registres_maillons"
+      ],
+      "retry-memeUUID-ValueError": [
+        "mutations_appliquees",
+        "registres_maillons"
+      ]
+    },
+    "generated_DEVICE_tools_union": 140,
+    "generated_role_counts": {
+      "admin": 139,
+      "employee": 16,
+      "seller": 15
+    },
+    "B_Source_count": 6604,
+    "Core_Source_count": 22381,
+    "dist_count": 11287,
+    "resource_receipt_sha256": "40f52421285b4357c433750c039b59785449066d104a45865fc3c7e0aae8984b",
+    "startup_nonloopback_attempts_blocked": 4,
+    "private_removed": true,
+    "scope_released": true,
+    "allowlist_public": [
+      "preparation-130-new-call.json",
+      "preparation-046-restore-device-attribution.json",
+      "body-refus-certain-rejeu-exact.json",
+      "body-conflit-body-memeUUID.json",
+      "phase-extra-par.json",
+      "body-succes-cache-restaure-TRANSFERT-CLOS.json",
+      "phase-source-corrupt-inconnu.json",
+      "receipt.json",
+      "preparation-090-cache-restore.json",
+      "preparation-031-deactivate-person.json",
+      "body-ACK-cache-altere-inconnu.json",
+      "body-succes-cache-substitue-SNAPSHOT-PERIME.json",
+      "preparation-100-cache-restore.json",
+      "phase-extra-source.json",
+      "phase-conflit-body-memeUUID.json",
+      "body-liste-premiere.json",
+      "preparation-052-set-quota.json",
+      "phase-quota-cache800-inconnu.json",
+      "phase-retrait-personne-SQL.json",
+      "preparation-112-cache-restore.json",
+      "concurrence-reelle.json",
+      "body-succes-cache-restaure-SNAPSHOT-PERIME.json",
+      "phase-extra-horodatage.json",
+      "phase-negative-cache-identite-non-certaine.json",
+      "body-panne-TypeError.json",
+      "body-succes-cache-substitue-DEJA-ATTRIBUE.json",
+      "body-retrait-scope-Core.json",
+      "phase-source-change-inconnu.json",
+      "preparation-125-fail-after-append.json",
+      "preparation-136-new-call.json",
+      "phase-role-seller-m1_lister_rappels_appareil.json",
+      "network-guard.json",
+      "preparation-071-source-change.json",
+      "body-retabli-scope-Core.json",
+      "phase-role-seller-m1_prendre_en_charge_rappel_appareil.json",
+      "body-role-employee-m1_lister_rappels_appareil.json",
+      "phase-v1-apres-tentative-clos-foreignappend.json",
+      "preparation-057-set-quota.json",
+      "phase-rejeu-v1-exact.json",
+      "body-succes-cache-restaure-DEJA-ATTRIBUE.json",
+      "preparation-083-cache-alter.json",
+      "body-extra-horodatage.json",
+      "body-role-seller-m1_lister_rappels_appareil.json",
+      "body-quota-cache800-inconnu.json",
+      "preparation-074-source-restore.json",
+      "preparation-086-cache-restore.json",
+      "phase-role-employee-m1_prendre_en_charge_rappel_appareil.json",
+      "phase-restart-liste-exacte.json",
+      "perte-confirmation-modelee.json",
+      "preparation-124-new-call.json",
+      "phase-quota-frais700-certain.json",
+      "body-retabli-device-Core.json",
+      "preparation-049-set-quota.json",
+      "preparation-115-later-console.json",
+      "phase-succes-cache-substitue-TRANSFERT-CLOS.json",
+      "phase-panne-TypeError.json",
+      "phase-role-body-forge.json",
+      "body-liste-avant-restart.json",
+      "body-retry-memeUUID-KeyError.json",
+      "body-prise-v1-confirmation-perdue.json",
+      "phase-liste-suite.json",
+      "body-retrait-personne-SQL.json",
+      "preparation-109-cache-success-negative.json",
+      "body-retabli-role-SQL.json",
+      "preparation-025-revoke-admin.json",
+      "phase-token-restore.json",
+      "body-negative-cache-identite-non-certaine.json",
+      "body-role-employee-m1_prendre_en_charge_rappel_appareil.json",
+      "preparation-091-cache-success-negative.json",
+      "preparation-080-source-restore.json",
+      "body-liste-suite.json",
+      "preparation-097-cache-success-negative.json",
+      "body-retry-memeUUID-ValueError.json",
+      "phase-liste-premiere.json",
+      "phase-succes-cache-substitue-SNAPSHOT-PERIME.json",
+      "preparation-087-cache-negative-alter.json",
+      "phase-source-corrupt-restaure.json",
+      "body-device-body-forge.json",
+      "preparation-118-new-call.json",
+      "phase-retabli-role-SQL.json",
+      "phase-retry-memeUUID-KeyError.json",
+      "phase-refus-frais-certain-perdu.json",
+      "phase-role-employee-m1_lister_rappels_appareil.json",
+      "phase-succes-cache-substitue-DEJA-ATTRIBUE.json",
+      "preparation-094-cache-restore.json",
+      "phase-succes-cache-restaure-TRANSFERT-CLOS.json",
+      "phase-retabli-device-Core.json",
+      "phase-device-body-forge.json",
+      "body-token-restore.json",
+      "preparation-131-fail-after-append.json",
+      "phase-ACK-cache-altere-inconnu.json",
+      "phase-retry-memeUUID-TypeError.json",
+      "phase-quota-refus-cache-inconnu.json",
+      "phase-panne-ValueError.json",
+      "body-retrait-device-Core.json",
+      "phase-refus-certain-rejeu-exact.json",
+      "preparation-037-remove-tool-scope.json",
+      "phase-token-revoke.json",
+      "phase-succes-cache-substitue-SORTIE-TROP-VOLUMINEUSE.json",
+      "phase-succes-cache-restaure-DEJA-ATTRIBUE.json",
+      "phase-source-change-restaure.json",
+      "body-refus-frais-certain-perdu.json",
+      "preparation-119-fail-after-append.json",
+      "phase-retrait-role-SQL.json",
+      "body-source-change-inconnu.json",
+      "body-source-corrupt-inconnu.json",
+      "phase-retry-memeUUID-ValueError.json",
+      "phase-meta-T0-interdit.json",
+      "body-panne-KeyError.json",
+      "body-quota-frais700-certain.json",
+      "preparation-028-restore-admin.json",
+      "phase-liste-avant-restart.json",
+      "preparation-060-set-quota.json",
+      "body-retrait-role-SQL.json",
+      "body-panne-ValueError.json",
+      "body-succes-cache-substitue-TRANSFERT-CLOS.json",
+      "body-quota-refus-cache-inconnu.json",
+      "preparation-043-remove-device-attribution.json",
+      "body-role-seller-m1_prendre_en_charge_rappel_appareil.json",
+      "phase-succes-cache-restaure-SORTIE-TROP-VOLUMINEUSE.json",
+      "phase-retrait-scope-Core.json",
+      "body-extra-par.json",
+      "body-retry-memeUUID-TypeError.json",
+      "preparation-106-cache-restore.json",
+      "phase-retabli-scope-Core.json",
+      "phase-restart-negative-exact.json",
+      "imports-B-r1.json",
+      "phase-restart-v1-exact.json",
+      "body-rejeu-v1-exact.json",
+      "body-meta-T0-interdit.json",
+      "preparation-061-set-quota.json",
+      "body-role-body-forge.json",
+      "preparation-040-restore-tool-scope.json",
+      "body-source-change-restaure.json",
+      "body-retabli-personne-SQL.json",
+      "body-token-revoke.json",
+      "preparation-034-activate-person.json",
+      "body-restart-liste-exacte.json",
+      "body-source-corrupt-restaure.json",
+      "preparation-077-source-corrupt.json",
+      "body-extra-source.json",
+      "body-restart-v1-exact.json",
+      "phase-retrait-device-Core.json",
+      "phase-prise-v1-confirmation-perdue.json",
+      "body-restart-negative-exact.json",
+      "phase-succes-cache-restaure-SNAPSHOT-PERIME.json",
+      "body-succes-cache-restaure-SORTIE-TROP-VOLUMINEUSE.json",
+      "body-v1-apres-tentative-clos-foreignappend.json",
+      "body-succes-cache-substitue-SORTIE-TROP-VOLUMINEUSE.json",
+      "phase-retabli-personne-SQL.json",
+      "preparation-103-cache-success-negative.json",
+      "preparation-064-set-quota.json",
+      "phase-panne-KeyError.json",
+      "plan-r1.md",
+      "reuse-provenance-r1.json",
+      "source-freeze-r3.json",
+      "runner-inventory-r3.json",
+      "driver-r3.py",
+      "backend-r3.py",
+      "pairing-r1.mjs",
+      "network-guard-r1.mjs",
+      "token-control-r1.mjs",
+      "seal-r2.py",
+      "m1-rappels-native-final-r3.json",
+      "m1-rappels-native-final-r3.log"
+    ],
+    "historical_previous_campaign": "PUBLIC-FINAL-r1 remains intact,49Gateway/40HTTPMCP prior sources",
+    "canonical_negative_substitutions": 4,
+    "restored_original_ACKs": 4,
+    "source_Core_build_inherited_not_new": true,
+    "count_R_CPP_noclaim": "native source/dto frozen candidate65d7+diff, not publishedCI"
+  },
+  "parent_CI": {
+    "head": "65d7ae862374cf2a6870e326c75e613f20076bc7",
+    "run": 37878773114,
+    "verdict": "PASS_EXACT_RUN",
+    "jobs": {
+      "total": 40,
+      "conclusions": {
+        "success": 38,
+        "failure": 0,
+        "skipped": 2,
+        "cancelled": 0,
+        "timed_out": 0
+      }
+    },
+    "gates": "success"
+  },
+  "new_exact_CI": "pending",
+  "limits": [
+    "new exact commit CI pending, parent success not inherited",
+    "current keyset pages, late lower IDs require refresh",
+    "global principal source quota10000 lines/65536 perline/8MiB before decoding",
+    "whole response min5400 Python codepoints, no truncation/artifact",
+    "no phone/Hermes/ExpoSQLite, mobile transport/storage fictive",
+    "native SQLite, PostgreSQL runners separate; local Docker inaccessible",
+    "N2 internal take only, no call/send/closure/customer/provider/stock/cost/M4/M5/M10 effect",
+    "receiver loss simulated on actual Gateway bytes, not production loss",
+    "observed processes and sampled RSS only",
+    "104 excluded proof references unavailable; supplement/conversations unknown",
+    "N5/OSstorage/memory separation/LiteLLM route/eightdeepalertfamilies remain partial"
+  ],
+  "continuation": "M7→M1→M2→M3→M4/M6→M5→M8/M9/M10"
+}

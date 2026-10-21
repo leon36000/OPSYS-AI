@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m5.cash_libre_constate",
+  "title": "M5 — Constat du cash libre réel",
+  "description": "Émis par M5 (departments/m05-financecore/src/m5_financecore/outils.py::_constater_cash_libre, PLAN T4.19-b) quand l'admin fait constater le cash libre (outil m5_constater_cash_libre, T1) : le constat du jour, avec ce que `cash_libre.calculer_cash_libre` a rendu, sans aucun calcul de plus. Publié dans la MÊME transaction que la trace du constat (registre `constats_cash_libre` de M5). Un constat par date de référence et par version des données : la version est l'empreinte du calcul (`cash_libre_id`) ; un appel qui redit le même jour et la même version, comme le dernier constat, ne publie rien. evenement_id déterministe f\"m5-cash-libre-{sequence}-{date_reference}-{16 premiers caractères de version_donnees}\" : `sequence` (rang du constat dans le registre de M5, à partir de 1) fait qu'un retour à une version antérieure des données (une déclaration du propriétaire remise à sa valeur d'avant) publie un événement DISTINCT plutôt qu'un no-op du bus qui laisserait les consommateurs sur l'état précédent ; le consommateur retient le plus grand `sequence`, quel que soit l'ordre de livraison. `date_reference` est le jour que l'appelant a donné (M5 n'a pas d'horloge). Consommé par M8 (vue exécutive : le DERNIER constat, tel quel, avec son âge ; M8 ne recalcule rien). Statut CALCULE : le cash libre est un montant, chaque composante aussi. Statut NON_CALCULABLE : le cash libre est nul, `manque` dit quoi demander (composante et code), jamais un zéro à la place ; `au_plus_cad` n'est qu'un repère (le solde moins ce qui est connu), jamais de l'argent disponible, et n'existe que si le solde est connu. RIEN de personnel ni de libre : aucun texte saisi par le propriétaire (la source d'une déclaration est dite par son origine, pas par ses mots), aucun détail de verdict, aucun client, fournisseur, employé ni PO ; seulement des montants en CAD (textes décimaux), des dates, des CODES, des tailles de registre et le début de leur empreinte. La mention obligatoire des analyses de M5 suit la donnée. Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "montant_cad": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+      "maxLength": 24,
+      "description": "Montant en dollars canadiens, texte décimal (jamais un nombre JSON, jamais un flottant)."
+    },
+    "montant_cad_ou_null": {
+      "type": ["string", "null"],
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+      "maxLength": 24,
+      "description": "Montant en dollars canadiens, texte décimal, ou null quand il n'est pas connu."
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^REJ-[A-Z0-9-]+$",
+      "maxLength": 80,
+      "description": "Code de verdict de M5 : ce qui manque ou ce qui réserve, sans son détail."
+    },
+    "composante": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Le solde, ou une des six obligations retranchées, telle que le cash libre de M5 la rend.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": ["solde", "taxes_a_remettre", "paies", "das", "comptes_a_payer", "dettes", "reserves"]
+        },
+        "libelle": {"type": "string", "minLength": 1, "maxLength": 80},
+        "statut": {"type": "string", "enum": ["CALCULE", "NON_CALCULABLE"]},
+        "montant_cad": {
+          "$ref": "#/$defs/montant_cad_ou_null",
+          "description": "Le solde, ou ce que la composante retranche ; null si elle n'est pas calculable, jamais zéro à la place."
+        },
+        "plancher_cad": {
+          "$ref": "#/$defs/montant_cad_ou_null",
+          "description": "Ce que M5 connaît d'une composante non calculable (un plancher, jamais un total) ; null autrement."
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "D'où vient le chiffre, sans les mots du propriétaire : le registre lu (nom, taille, début de la tête de sa chaîne), ou la déclaration du propriétaire, ou aucune source.",
+          "properties": {
+            "origine": {"type": "string", "enum": ["REGISTRE", "DECLARATION_PROPRIETAIRE", "AUCUNE"]},
+            "registres": {
+              "type": "array",
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "registre": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$"},
+                  "taille": {"type": "integer", "minimum": 0},
+                  "tete": {
+                    "type": ["string", "null"],
+                    "pattern": "^[0-9a-f]{16}$",
+                    "description": "Les 16 premiers caractères de l'empreinte du dernier maillon ; null si le registre est vide."
+                  }
+                },
+                "required": ["registre", "taille", "tete"]
+              }
+            }
+          },
+          "required": ["origine", "registres"]
+        },
+        "fraicheur": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "La pièce la plus récente qui porte le chiffre (instant ou date, tel que la pièce le porte) et leur nombre.",
+          "properties": {
+            "derniere_piece": {"type": ["string", "null"], "maxLength": 40},
+            "pieces": {"type": "integer", "minimum": 0}
+          },
+          "required": ["derniere_piece", "pieces"]
+        }
+      },
+      "required": ["id", "libelle", "statut", "montant_cad", "plancher_cad", "source", "fraicheur"],
+      "allOf": [
+        {
+          "description": "CALCULE : un montant, aucun plancher. NON_CALCULABLE : aucun montant.",
+          "if": {
+            "properties": {"statut": {"const": "CALCULE"}},
+            "required": ["statut"]
+          },
+          "then": {
+            "properties": {
+              "montant_cad": {"type": "string"},
+              "plancher_cad": {"type": "null"}
+            }
+          },
+          "else": {
+            "properties": {
+              "montant_cad": {"type": "null"}
+            }
+          }
+        },
+        {
+          "description": "Un chiffre lu d'un registre nomme au moins un registre ; une déclaration ou l'absence de source n'en nomme aucun.",
+          "if": {
+            "properties": {"source": {"properties": {"origine": {"const": "REGISTRE"}}, "required": ["origine"]}},
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {"source": {"properties": {"registres": {"minItems": 1}}}}
+          },
+          "else": {
+            "properties": {"source": {"properties": {"registres": {"maxItems": 0}}}}
+          }
+        },
+        {
+          "description": "Une déclaration du propriétaire donne un montant.",
+          "if": {
+            "properties": {"source": {"properties": {"origine": {"const": "DECLARATION_PROPRIETAIRE"}}, "required": ["origine"]}},
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {"statut": {"const": "CALCULE"}}
+          }
+        },
+        {
+          "description": "Aucune source : aucun montant.",
+          "if": {
+            "properties": {"source": {"properties": {"origine": {"const": "AUCUNE"}}, "required": ["origine"]}},
+            "required": ["source"]
+          },
+          "then": {
+            "properties": {"statut": {"const": "NON_CALCULABLE"}}
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "pattern": "^m5-cash-libre-[1-9][0-9]*-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9a-f]{16}$",
+      "description": "Identifiant de CET événement (voir la description du type). Répété ici pour que le consommateur, qui ne reçoit que la charge, trace la base de sa décision."
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Rang de ce constat dans le registre `constats_cash_libre` de M5 (1 pour le premier). Le plus grand `sequence` est le DERNIER constat, quel que soit l'ordre de livraison du bus."
+    },
+    "date_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "Le jour du constat (AAAA-MM-JJ), tel que l'appelant l'a donné : M5 n'a pas d'horloge, l'événement ne date donc jamais de l'instant de publication."
+    },
+    "version_donnees": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Empreinte SHA-256 du calcul (`cash_libre_id`) : elle change dès qu'une donnée dont le cash libre dépend change."
+    },
+    "devise": {
+      "type": "string",
+      "const": "CAD",
+      "description": "Toutes les valeurs monétaires de la charge sont en dollars canadiens."
+    },
+    "statut": {
+      "type": "string",
+      "enum": ["CALCULE", "NON_CALCULABLE"],
+      "description": "CALCULE : le cash libre est un montant. NON_CALCULABLE : une composante (ou le solde) manque, voir `manque` ; aucun cash libre."
+    },
+    "cash_libre_cad": {
+      "$ref": "#/$defs/montant_cad_ou_null",
+      "description": "Solde moins toutes les obligations, texte décimal (négatif = déficit réel, jamais ramené à zéro). null si le statut est NON_CALCULABLE."
+    },
+    "au_plus_cad": {
+      "$ref": "#/$defs/montant_cad_ou_null",
+      "description": "Un repère seulement, jamais de l'argent disponible : le solde moins ce que M5 connaît des obligations. Présent seulement si le statut est NON_CALCULABLE et que le solde est connu."
+    },
+    "en_deficit": {
+      "type": ["boolean", "null"],
+      "description": "Vrai si le cash libre calculé est négatif ; null si le statut est NON_CALCULABLE."
+    },
+    "lecture": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "La phrase de M5 qui dit le constat (dont ce que `au_plus_cad` n'est pas). M8 la reprend telle quelle."
+    },
+    "solde": {
+      "allOf": [{"$ref": "#/$defs/composante"}, {"properties": {"id": {"const": "solde"}}}],
+      "description": "Le point de départ : le solde du registre des mouvements, avec sa source et sa fraîcheur."
+    },
+    "composantes": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "description": "Les six obligations retranchées, dans l'ordre de la définition produit (§7 M5).",
+      "prefixItems": [
+        {"allOf": [{"$ref": "#/$defs/composante"}, {"properties": {"id": {"const": "taxes_a_remettre"}}}]},
+        {"allOf": [{"$ref": "#/$defs/composante"}, {"properties": {"id": {"const": "paies"}}}]},
+        {"allOf": [{"$ref": "#/$defs/composante"}, {"properties": {"id": {"const": "das"}}}]},
+        {"allOf": [{"$ref": "#/$defs/composante"}, {"properties": {"id": {"const": "comptes_a_payer"}}}]},
+        {"allOf": [{"$ref": "#/$defs/composante"}, {"properties": {"id": {"const": "dettes"}}}]},
+        {"allOf": [{"$ref": "#/$defs/composante"}, {"properties": {"id": {"const": "reserves"}}}]}
+      ],
+      "items": false
+    },
+    "manque": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 32,
+      "description": "Ce qui empêche de conclure : la composante et le CODE de verdict de M5, sans détail. Vide si le statut est CALCULE.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "composante": {
+            "type": "string",
+            "enum": ["solde", "taxes_a_remettre", "paies", "das", "comptes_a_payer", "dettes", "reserves"]
+          },
+          "code": {"$ref": "#/$defs/code"}
+        },
+        "required": ["composante", "code"]
+      }
+    },
+    "reserves": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 16,
+      "description": "Les codes sous réserve desquels le cash libre est dit (ex. l'unité des prix du livre de prix non confirmée), triés.",
+      "items": {"$ref": "#/$defs/code"}
+    },
+    "hypotheses": {
+      "type": "array",
+      "maxItems": 12,
+      "description": "Les hypothèses du calcul, telles que M5 les dit avec chaque réponse.",
+      "items": {"type": "string", "minLength": 1, "maxLength": 400}
+    },
+    "mention": {
+      "type": "string",
+      "const": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle.",
+      "description": "La mention obligatoire des analyses de M5 (DEFINITION-PRODUIT §7 M5, §13.3), qui suit la donnée."
+    }
+  },
+  "required": [
+    "evenement_id",
+    "sequence",
+    "date_reference",
+    "version_donnees",
+    "devise",
+    "statut",
+    "cash_libre_cad",
+    "au_plus_cad",
+    "en_deficit",
+    "lecture",
+    "solde",
+    "composantes",
+    "manque",
+    "reserves",
+    "hypotheses",
+    "mention"
+  ],
+  "allOf": [
+    {
+      "description": "CALCULE : un cash libre, aucun manque, aucun repère, chaque composante calculée. NON_CALCULABLE : aucun cash libre, au moins un manque, et le solde ou une composante n'est pas calculable.",
+      "if": {
+        "properties": {"statut": {"const": "CALCULE"}},
+        "required": ["statut"]
+      },
+      "then": {
+        "properties": {
+          "cash_libre_cad": {"type": "string"},
+          "au_plus_cad": {"type": "null"},
+          "en_deficit": {"type": "boolean"},
+          "manque": {"maxItems": 0},
+          "solde": {"properties": {"statut": {"const": "CALCULE"}}},
+          "composantes": {"items": {"properties": {"statut": {"const": "CALCULE"}}}}
+        }
+      },
+      "else": {
+        "properties": {
+          "cash_libre_cad": {"type": "null"},
+          "en_deficit": {"type": "null"},
+          "manque": {"minItems": 1}
+        },
+        "anyOf": [
+          {
+            "properties": {"solde": {"properties": {"statut": {"const": "NON_CALCULABLE"}}, "required": ["statut"]}},
+            "required": ["solde"]
+          },
+          {
+            "properties": {
+              "composantes": {
+                "contains": {"properties": {"statut": {"const": "NON_CALCULABLE"}}, "required": ["statut"]}
+              }
+            },
+            "required": ["composantes"]
+          }
+        ]
+      }
+    },
+    {
+      "description": "Le repère `au_plus_cad` n'existe que pour un constat non calculable dont le solde est connu.",
+      "if": {
+        "properties": {
+          "statut": {"const": "NON_CALCULABLE"},
+          "solde": {"properties": {"statut": {"const": "CALCULE"}}, "required": ["statut"]}
+        },
+        "required": ["statut", "solde"]
+      },
+      "then": {
+        "properties": {"au_plus_cad": {"type": "string"}}
+      },
+      "else": {
+        "properties": {"au_plus_cad": {"type": "null"}}
+      }
+    }
+  ]
+}

@@ -1,0 +1,258 @@
+[
+  {
+    "repo": "pipecat-ai/pipecat",
+    "path": "src/pipecat/serializers/twilio.py",
+    "sha": "20999cd7b816dc5950eb9553b1ae36a1e771f2bc",
+    "html_url": "https://github.com/pipecat-ai/pipecat/blob/20999cd7b816dc5950eb9553b1ae36a1e771f2bc/src/pipecat/serializers/twilio.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/pipecat-ai/pipecat/src/pipecat/serializers/twilio.py",
+    "bytes": 12919
+  },
+  {
+    "repo": "pipecat-ai/pipecat",
+    "path": "src/pipecat/pipeline/task.py",
+    "sha": "20999cd7b816dc5950eb9553b1ae36a1e771f2bc",
+    "html_url": "https://github.com/pipecat-ai/pipecat/blob/20999cd7b816dc5950eb9553b1ae36a1e771f2bc/src/pipecat/pipeline/task.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/pipecat-ai/pipecat/src/pipecat/pipeline/task.py",
+    "bytes": 621
+  },
+  {
+    "repo": "pipecat-ai/pipecat",
+    "path": "src/pipecat/transports/websocket/fastapi.py",
+    "sha": "20999cd7b816dc5950eb9553b1ae36a1e771f2bc",
+    "html_url": "https://github.com/pipecat-ai/pipecat/blob/20999cd7b816dc5950eb9553b1ae36a1e771f2bc/src/pipecat/transports/websocket/fastapi.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/pipecat-ai/pipecat/src/pipecat/transports/websocket/fastapi.py",
+    "bytes": 26120
+  },
+  {
+    "repo": "pipecat-ai/pipecat",
+    "path": "src/pipecat/services/whisper/stt.py",
+    "sha": "20999cd7b816dc5950eb9553b1ae36a1e771f2bc",
+    "html_url": "https://github.com/pipecat-ai/pipecat/blob/20999cd7b816dc5950eb9553b1ae36a1e771f2bc/src/pipecat/services/whisper/stt.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/pipecat-ai/pipecat/src/pipecat/services/whisper/stt.py",
+    "bytes": 23404
+  },
+  {
+    "repo": "pipecat-ai/pipecat",
+    "path": "src/pipecat/services/piper/tts.py",
+    "sha": "20999cd7b816dc5950eb9553b1ae36a1e771f2bc",
+    "html_url": "https://github.com/pipecat-ai/pipecat/blob/20999cd7b816dc5950eb9553b1ae36a1e771f2bc/src/pipecat/services/piper/tts.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/pipecat-ai/pipecat/src/pipecat/services/piper/tts.py",
+    "bytes": 11020
+  },
+  {
+    "repo": "pipecat-ai/pipecat",
+    "path": "src/pipecat/services/kokoro/tts.py",
+    "sha": "20999cd7b816dc5950eb9553b1ae36a1e771f2bc",
+    "html_url": "https://github.com/pipecat-ai/pipecat/blob/20999cd7b816dc5950eb9553b1ae36a1e771f2bc/src/pipecat/services/kokoro/tts.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/pipecat-ai/pipecat/src/pipecat/services/kokoro/tts.py",
+    "bytes": 9180
+  },
+  {
+    "repo": "pipecat-ai/pipecat",
+    "path": "src/pipecat/utils/tracing/turn_trace_observer.py",
+    "sha": "20999cd7b816dc5950eb9553b1ae36a1e771f2bc",
+    "html_url": "https://github.com/pipecat-ai/pipecat/blob/20999cd7b816dc5950eb9553b1ae36a1e771f2bc/src/pipecat/utils/tracing/turn_trace_observer.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/pipecat-ai/pipecat/src/pipecat/utils/tracing/turn_trace_observer.py",
+    "bytes": 10497
+  },
+  {
+    "repo": "livekit/agents",
+    "path": "MODEL_LICENSE",
+    "sha": "d251b89e61fe5f8ba78e0b39b501d91b0856a2d0",
+    "html_url": "https://github.com/livekit/agents/blob/d251b89e61fe5f8ba78e0b39b501d91b0856a2d0/MODEL_LICENSE",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/livekit/agents/MODEL_LICENSE",
+    "bytes": 5623
+  },
+  {
+    "repo": "livekit/agents",
+    "path": "livekit-agents/livekit/agents/beta/workflows/warm_transfer.py",
+    "sha": "d251b89e61fe5f8ba78e0b39b501d91b0856a2d0",
+    "html_url": "https://github.com/livekit/agents/blob/d251b89e61fe5f8ba78e0b39b501d91b0856a2d0/livekit-agents/livekit/agents/beta/workflows/warm_transfer.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/livekit/agents/livekit-agents/livekit/agents/beta/workflows/warm_transfer.py",
+    "bytes": 29396
+  },
+  {
+    "repo": "livekit/agents",
+    "path": "livekit-agents/livekit/agents/voice/agent_session.py",
+    "sha": "d251b89e61fe5f8ba78e0b39b501d91b0856a2d0",
+    "html_url": "https://github.com/livekit/agents/blob/d251b89e61fe5f8ba78e0b39b501d91b0856a2d0/livekit-agents/livekit/agents/voice/agent_session.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/livekit/agents/livekit-agents/livekit/agents/voice/agent_session.py",
+    "bytes": 104146
+  },
+  {
+    "repo": "livekit/agents",
+    "path": "livekit-agents/livekit/agents/metrics/base.py",
+    "sha": "d251b89e61fe5f8ba78e0b39b501d91b0856a2d0",
+    "html_url": "https://github.com/livekit/agents/blob/d251b89e61fe5f8ba78e0b39b501d91b0856a2d0/livekit-agents/livekit/agents/metrics/base.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/livekit/agents/livekit-agents/livekit/agents/metrics/base.py",
+    "bytes": 8783
+  },
+  {
+    "repo": "livekit/agents",
+    "path": "examples/warm-transfer/twilio_connector_warm_transfer.py",
+    "sha": "d251b89e61fe5f8ba78e0b39b501d91b0856a2d0",
+    "html_url": "https://github.com/livekit/agents/blob/d251b89e61fe5f8ba78e0b39b501d91b0856a2d0/examples/warm-transfer/twilio_connector_warm_transfer.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/livekit/agents/examples/warm-transfer/twilio_connector_warm_transfer.py",
+    "bytes": 2660
+  },
+  {
+    "repo": "chatwoot/chatwoot",
+    "path": "enterprise/LICENSE",
+    "sha": "03702d176d6a9c94f421ffa10f472464f8ec198c",
+    "html_url": "https://github.com/chatwoot/chatwoot/blob/03702d176d6a9c94f421ffa10f472464f8ec198c/enterprise/LICENSE",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/chatwoot/chatwoot/enterprise/LICENSE",
+    "bytes": 2207
+  },
+  {
+    "repo": "chatwoot/chatwoot",
+    "path": "app/listeners/webhook_listener.rb",
+    "sha": "03702d176d6a9c94f421ffa10f472464f8ec198c",
+    "html_url": "https://github.com/chatwoot/chatwoot/blob/03702d176d6a9c94f421ffa10f472464f8ec198c/app/listeners/webhook_listener.rb",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/chatwoot/chatwoot/app/listeners/webhook_listener.rb",
+    "bytes": 4547
+  },
+  {
+    "repo": "chatwoot/chatwoot",
+    "path": "app/listeners/agent_bot_listener.rb",
+    "sha": "03702d176d6a9c94f421ffa10f472464f8ec198c",
+    "html_url": "https://github.com/chatwoot/chatwoot/blob/03702d176d6a9c94f421ffa10f472464f8ec198c/app/listeners/agent_bot_listener.rb",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/chatwoot/chatwoot/app/listeners/agent_bot_listener.rb",
+    "bytes": 3459
+  },
+  {
+    "repo": "chatwoot/chatwoot",
+    "path": "app/controllers/api/v1/accounts/agent_bots_controller.rb",
+    "sha": "03702d176d6a9c94f421ffa10f472464f8ec198c",
+    "html_url": "https://github.com/chatwoot/chatwoot/blob/03702d176d6a9c94f421ffa10f472464f8ec198c/app/controllers/api/v1/accounts/agent_bots_controller.rb",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/chatwoot/chatwoot/app/controllers/api/v1/accounts/agent_bots_controller.rb",
+    "bytes": 1305
+  },
+  {
+    "repo": "chatwoot/chatwoot",
+    "path": "app/models/channel/twilio_sms.rb",
+    "sha": "03702d176d6a9c94f421ffa10f472464f8ec198c",
+    "html_url": "https://github.com/chatwoot/chatwoot/blob/03702d176d6a9c94f421ffa10f472464f8ec198c/app/models/channel/twilio_sms.rb",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/chatwoot/chatwoot/app/models/channel/twilio_sms.rb",
+    "bytes": 3186
+  },
+  {
+    "repo": "chatwoot/chatwoot",
+    "path": "app/services/twilio/incoming_message_service.rb",
+    "sha": "03702d176d6a9c94f421ffa10f472464f8ec198c",
+    "html_url": "https://github.com/chatwoot/chatwoot/blob/03702d176d6a9c94f421ffa10f472464f8ec198c/app/services/twilio/incoming_message_service.rb",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/chatwoot/chatwoot/app/services/twilio/incoming_message_service.rb",
+    "bytes": 6374
+  },
+  {
+    "repo": "chatwoot/chatwoot",
+    "path": "docker/Dockerfile",
+    "sha": "03702d176d6a9c94f421ffa10f472464f8ec198c",
+    "html_url": "https://github.com/chatwoot/chatwoot/blob/03702d176d6a9c94f421ffa10f472464f8ec198c/docker/Dockerfile",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/chatwoot/chatwoot/docker/Dockerfile",
+    "bytes": 4552
+  },
+  {
+    "repo": "SYSTRAN/faster-whisper",
+    "path": "README.md",
+    "sha": "ed9a06cd89a93e47838f564998a6c09b655d7f43",
+    "html_url": "https://github.com/SYSTRAN/faster-whisper/blob/ed9a06cd89a93e47838f564998a6c09b655d7f43/README.md",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/SYSTRAN/faster-whisper/README.md",
+    "bytes": 15246
+  },
+  {
+    "repo": "SYSTRAN/faster-whisper",
+    "path": "faster_whisper/transcribe.py",
+    "sha": "ed9a06cd89a93e47838f564998a6c09b655d7f43",
+    "html_url": "https://github.com/SYSTRAN/faster-whisper/blob/ed9a06cd89a93e47838f564998a6c09b655d7f43/faster_whisper/transcribe.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/SYSTRAN/faster-whisper/faster_whisper/transcribe.py",
+    "bytes": 80403
+  },
+  {
+    "repo": "SYSTRAN/faster-whisper",
+    "path": "faster_whisper/vad.py",
+    "sha": "ed9a06cd89a93e47838f564998a6c09b655d7f43",
+    "html_url": "https://github.com/SYSTRAN/faster-whisper/blob/ed9a06cd89a93e47838f564998a6c09b655d7f43/faster_whisper/vad.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/SYSTRAN/faster-whisper/faster_whisper/vad.py",
+    "bytes": 13963
+  },
+  {
+    "repo": "OHF-Voice/piper1-gpl",
+    "path": "README.md",
+    "sha": "efffbfb226bfb511ebbcf55d0cecd8b35a89743d",
+    "html_url": "https://github.com/OHF-Voice/piper1-gpl/blob/efffbfb226bfb511ebbcf55d0cecd8b35a89743d/README.md",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/OHF-Voice/piper1-gpl/README.md",
+    "bytes": 2853
+  },
+  {
+    "repo": "OHF-Voice/piper1-gpl",
+    "path": "docs/VOICES.md",
+    "sha": "efffbfb226bfb511ebbcf55d0cecd8b35a89743d",
+    "html_url": "https://github.com/OHF-Voice/piper1-gpl/blob/efffbfb226bfb511ebbcf55d0cecd8b35a89743d/docs/VOICES.md",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/OHF-Voice/piper1-gpl/docs/VOICES.md",
+    "bytes": 2870
+  },
+  {
+    "repo": "OHF-Voice/piper1-gpl",
+    "path": "docs/API_HTTP.md",
+    "sha": "efffbfb226bfb511ebbcf55d0cecd8b35a89743d",
+    "html_url": "https://github.com/OHF-Voice/piper1-gpl/blob/efffbfb226bfb511ebbcf55d0cecd8b35a89743d/docs/API_HTTP.md",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/OHF-Voice/piper1-gpl/docs/API_HTTP.md",
+    "bytes": 1660
+  },
+  {
+    "repo": "OHF-Voice/piper1-gpl",
+    "path": "src/piper/voice.py",
+    "sha": "efffbfb226bfb511ebbcf55d0cecd8b35a89743d",
+    "html_url": "https://github.com/OHF-Voice/piper1-gpl/blob/efffbfb226bfb511ebbcf55d0cecd8b35a89743d/src/piper/voice.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/OHF-Voice/piper1-gpl/src/piper/voice.py",
+    "bytes": 20458
+  },
+  {
+    "repo": "hexgrad/kokoro",
+    "path": "pyproject.toml",
+    "sha": "dfb907a02bba8152ca444717ca5d78747ccb4bec",
+    "html_url": "https://github.com/hexgrad/kokoro/blob/dfb907a02bba8152ca444717ca5d78747ccb4bec/pyproject.toml",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/hexgrad/kokoro/pyproject.toml",
+    "bytes": 819
+  },
+  {
+    "repo": "hexgrad/kokoro",
+    "path": "kokoro/pipeline.py",
+    "sha": "dfb907a02bba8152ca444717ca5d78747ccb4bec",
+    "html_url": "https://github.com/hexgrad/kokoro/blob/dfb907a02bba8152ca444717ca5d78747ccb4bec/kokoro/pipeline.py",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/hexgrad/kokoro/kokoro/pipeline.py",
+    "bytes": 18113
+  },
+  {
+    "repo": "livekit/sip",
+    "path": "README.md",
+    "sha": "b77a5f439498a818f20ace939eac68fd5783a7f4",
+    "html_url": "https://github.com/livekit/sip/blob/b77a5f439498a818f20ace939eac68fd5783a7f4/README.md",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/livekit/sip/README.md",
+    "bytes": 12079
+  },
+  {
+    "repo": "twilio/twilio-node",
+    "path": "src/webhooks/webhooks.ts",
+    "sha": "de6edf89c937b87dd155b6f1ca9b659ae4dab54d",
+    "html_url": "https://github.com/twilio/twilio-node/blob/de6edf89c937b87dd155b6f1ca9b659ae4dab54d/src/webhooks/webhooks.ts",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/twilio/twilio-node/src/webhooks/webhooks.ts",
+    "bytes": 13734
+  },
+  {
+    "repo": "postalsys/imapflow",
+    "path": "package.json",
+    "sha": "9ddce95003c34edf9ac5d1f3de47fe2890560efa",
+    "html_url": "https://github.com/postalsys/imapflow/blob/9ddce95003c34edf9ac5d1f3de47fe2890560efa/package.json",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/postalsys/imapflow/package.json",
+    "bytes": 3274
+  },
+  {
+    "repo": "nodemailer/nodemailer",
+    "path": "package.json",
+    "sha": "81efd7bfc559305f900d6a22b5c56aa94556002b",
+    "html_url": "https://github.com/nodemailer/nodemailer/blob/81efd7bfc559305f900d6a22b5c56aa94556002b/package.json",
+    "local": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code/nodemailer/nodemailer/package.json",
+    "bytes": 6301
+  }
+]

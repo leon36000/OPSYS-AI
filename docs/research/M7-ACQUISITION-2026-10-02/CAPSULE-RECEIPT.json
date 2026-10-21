@@ -1,0 +1,30 @@
+{
+  "archive": "M7-ACQUISITION-2026-10-02.tar.gz",
+  "archive_bytes": 520037,
+  "archive_sha256": "929c3611bf5960660f859d8266e84c59c67a18e87a007e332a91cfc661d79cb9",
+  "created_utc": "2026-10-02T16:33:21.148125+00:00",
+  "destination": "/workspace/OPSYS-AI-recent/docs/research/M7-ACQUISITION-2026-10-02",
+  "destination_absente": true,
+  "exact_member_set_and_raw_sha_roundtrip": true,
+  "gzip_mtime": 0,
+  "helper_sha256": "9dd5aa0d584f96951d6c8f2e2f1ef7080a7eb6b55a65cc72a1be048cf56cb9be",
+  "index_sha256": "618769b1144af23e101e43471ef8ab786d2f22f34ac0e61c60981b02ba601448",
+  "manifest_sha256": "ae28321110310cc3bb2ecc3c6b7787f79ae30dcb1e030905d202ab352eeadc00",
+  "membres": 85,
+  "mode": "PUBLIE_ROOT",
+  "octets_bruts": 2220574,
+  "plafond": 4194304,
+  "root": {
+    "errors": 0,
+    "failures": 0,
+    "gel_sources_stable": 8,
+    "junit_seconds": 85.835,
+    "minimum_cgroup_headroom_bytes": 3175407616,
+    "passed": 1261,
+    "peak_rss_bytes": 230551552,
+    "scope": "SQLite local fictif; no PostgreSQL runtime; no cross-source as-of snapshot; no publication/VPS",
+    "selected_paths_stable": 1134,
+    "skipped": 0,
+    "tests": 1261
+  }
+}

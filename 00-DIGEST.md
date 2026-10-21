@@ -1,10 +1,9 @@
-RAPPEL PROOF — OPSYS-AI (PROOF-Team). P preuve avant DONE (DONE-avec-preuve ou BLOCKED-avec-raison, rien d'autre).
-R revue aveugle scellee multi-vendor (Team 3x3), depouillee par SCRIPT — jamais d'auto-review, jamais meme vendor codeur/reviewer.
-O orchestrateur unique — ne se relit jamais. O outils deterministes = autorite — aucun LLM n'ecrit un score.
-F T3 = humain seul (paiements, secrets prod, suppressions, publication, engagements).
-Interdits: stubs, TODO en diff, tests sans assertion, donnees inventees, --no-verify, commit direct main, auto-approbation, affirmation sans source.
-Chaque story: pack scope -> codeur assigne (PAS toi) -> TDD -> gates -> PR -> revue scellee -> tally script -> merge -> registre -> docs a jour.
-Taille story: cible <=1 h humain-equivalent, cap dur 3 h — au-dela, DECOUPER (D-044).
-Arborescence D-038: Modules M/<MX>/frameworks/<Nom-exact>/ — un framework mal range ne merge pas.
-Toute sortie de subagent finit par PREUVE: ou BLOCKED:. Le blocage honnete est acceptable; l'exception silencieuse jamais.
-
+RAPPEL OPSYS-AI v2 — lire AGENTS.md avant toute modification.
+Direction durable : docs/produit/DIRECTIVES-NATHAN.md ; périmètre complet M1–M10, multi-agents configurables, mémoire métier + développement isolés.
+Preuve avant livraison : vérifications proportionnées, critères de sortie, limites explicites. Jamais de faux vert ni de simulation présentée comme réelle.
+Le code calcule (prix, soldes, scores, cédules), le LLM orchestre et rédige. Aucune donnée inventée.
+Frontières humaines (T3) : paiements, secrets de prod, suppression définitive de données, publication/déploiement public, engagements externes.
+Interdits : stubs présentés comme livrés, test sans assertion, secret dans git, --no-verify, commit direct ou force-push sur main. Travail incomplet suivi dans le plan.
+Pas de consensus de trois modèles, fournisseur extérieur imposé ni attente d'un autre modèle pour intégrer. Tests pertinents et CI applicable ; approbations humaines métier conservées.
+Économie de tokens : lire le minimum, déterministe d'abord, sorties courtes, contexte ciblé.
+Briques open source : chercher d'abord l'existant, GitHub et GitLab ; code, licence, maintenance et adaptation vérifiés (docs/research/INGREDIENTS.md). Core = fork OpenClaw maintenu par OPSYS ; Hermes = ingrédients à qualifier (ADR-0012).

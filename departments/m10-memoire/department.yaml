@@ -1,0 +1,78 @@
+schema: opsys.departement/v1
+id: m10-memoire
+code: M10
+nom: Mémoire
+mission: >-
+  Ne rien oublier de ce qui compte et ne jamais écraser une vérité en silence : consommer les
+  Work Completion Trigger de M4 sans jamais recalculer leur preuve, journaliser toute décision
+  avec sa raison obligatoire (statut toujours calculé par relecture de la chaîne), signaler les
+  révisions sans jamais fusionner ni muter un maillon existant, et vérifier avant toute action
+  qu'un dossier de contexte est suffisant (PREFLIGHT) — en traçant le refus plutôt qu'en
+  interrompant l'appelant.
+outils: m10_memoire.outils
+mode: ombre
+dependances: []
+modeles:
+  defaut: standard
+skills: [journaliser-une-decision, preflight-contexte-suffisant, traiter-un-signal-critique]
+planifications:
+  - nom: digest-memoire
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes l'activité de la veille des deux registres : décisions journalisées
+      (par statut), révisions signalées vs arbitrées, refus de préflight tracés. Ne journalise
+      aucune décision, ne signale aucune révision.
+  - nom: consolidation-nocturne
+    cron: "0 3 * * *"
+    consigne: >-
+      Pour chaque affaire (lead_id) ayant reçu au moins un événement (lead qualifié, client
+      associé, devis accepté ou sans réponse, WCT, variance matériaux ou rentabilité) la veille,
+      appelle m10_consolider_affaire(affaire_id, jour=<veille AAAA-MM-JJ>,
+      horodatage=<maintenant>) — jamais de résumé calculé par toi-même, l'outil condense
+      déterministiquement et cite ses sources. Idempotente : un jour déjà consolidé pour une
+      affaire ne crée rien de plus, relance sans crainte celles qui restent incertaines.
+budget:
+  tokens_jour: 200000
+  tokens_mois: 2500000
+  alerte_pct: 80
+memoire:
+  lecture: [registre_evenements, registre_affaires]
+  ecriture: [registre_evenements, registre_affaires]
+kpis:
+  - id: taux_revisions_arbitrees
+    description: Part des révisions signalées ayant reçu au moins un arbitrage humain consigné.
+  - id: taux_preflight_insuffisant
+    description: Part des dossiers de contexte soumis au préflight jugés insuffisants (refus tracés).
+  - id: nb_references_forgees_detectees
+    description: Nombre de ReferenceMemoireM10 rejetées par m10_verifier_reference (registre, ligne_id ou hash_tete incohérents).
+  - id: nb_affaires_consolidees_jour
+    description: Nombre d'affaires distinctes ayant reçu un nouveau fait consolidé (ecrit=true) lors du dernier cycle de consolidation nocturne.
+  - id: nb_oublis_detectes_audit
+    description: Nombre de faits attendus (WCT, variance, rentabilité, amont de l'affaire) sans trace trouvée au registre Événements lors du dernier audit non-oubli.
+# PLAN T1.2-c : M10 consomme la fin de travaux de M4 par le bus d'événements du socle (ADR-0009
+# §3) et mémorise le WCT au registre Événements (voir consommateurs() dans outils.py, logique
+# existante memoriser_wct). Catalogue : src/opsys/evenements/catalogue/m4.travaux_termines.json.
+# PLAN T3.3 : M10 consomme aussi la variance matériaux de M6 (catalogue existant, stable :
+# src/opsys/evenements/catalogue/m6.variance_chantier.json), mémorisée au même registre Événements
+# (variance.py, distinguée du WCT à la lecture par classification.py) — alimente les paquets de
+# contexte en couches (paquets.py), la consolidation nocturne (consolidation.py) et l'audit
+# « non-oubli » (audit.py).
+# PLAN T1.5-d : M10 consomme aussi la rentabilité d'un chantier de M5 (catalogue socle :
+# src/opsys/evenements/catalogue/m5.rentabilite_chantier.json), mémorisée au même registre Événements
+# (rentabilite.py) au niveau FINANCIAL : la leçon « marge réelle contre marge prévue » se lit ici et chez M5,
+# et ne sort dans aucun paquet de contexte (confidentialite.py).
+# PLAN T4.18 : M10 consomme aussi l'AMONT d'une affaire (catalogue socle : m1.lead_qualifie, m2.client_associe,
+# m3.devis_accepte, m3.devis_sans_reponse), mémorisé au même registre Événements (etapes.py, amont.py) : des
+# identifiants et des faits d'étape, jamais le contact du lead ni un texte de client (Loi 25) ; le client associé
+# est CLIENT_PRIVATE (M1 et M2 seulement) ; le prix et le coût d'un devis accepté sont FINANCIAL, hors de tout
+# paquet. `m3.devis_envoye` (T4.7) : l'envoi approuvé par le propriétaire, sans montant.
+evenements:
+  consomme:
+    - m4.travaux_termines
+    - m6.variance_chantier
+    - m5.rentabilite_chantier
+    - m1.lead_qualifie
+    - m2.client_associe
+    - m3.devis_envoye
+    - m3.devis_accepte
+    - m3.devis_sans_reponse

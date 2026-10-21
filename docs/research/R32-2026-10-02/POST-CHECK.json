@@ -1,0 +1,10 @@
+{
+  "archives": 52,
+  "gzip_mtime_zero": true,
+  "liens_valides": 28,
+  "qualification_sha256": "40611f38f450a201ef6306a580cb2fd8219626e72d47ecd93dabbad3033dd671",
+  "roundtrip_integral": true,
+  "schema": "opsys.r32-post-check/v1",
+  "sources_docs_preuves_stables": true,
+  "tests_lances": false
+}

@@ -1,0 +1,140 @@
+{
+  "created_at_utc": "2026-10-02T18:39:28.000431+00:00",
+  "archive_path": "/workspace/poursuite-opsys-2026-10-02-r1/voice-cpu-pilot-r1/CAPSULE-ROOT-OUTPUT-R1/voice-cpu-pilot-evidence-r1.tar.gz",
+  "archive_bytes": 42480,
+  "archive_sha256": "714afedb649e9f8f14d25d759c5e8fe63d8c49e49d876914c8e722bb762eea11",
+  "source_stage_manifest_sha256": "6963ae274997675b035da66a36d791313a960860daf6c0011398dd407998601b",
+  "members": [
+    {
+      "path": "CAPSULE-MANIFEST-R1.json",
+      "bytes": 5306,
+      "sha256": "6963ae274997675b035da66a36d791313a960860daf6c0011398dd407998601b",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/FREEZE-R2.json",
+      "bytes": 1568,
+      "sha256": "591510806d152c3dddf35bd37b1216b381e070a779e0f70a08ae81b34236c090",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/FREEZE-R3-ROOT.json",
+      "bytes": 601,
+      "sha256": "68a047b32b224c7f04f508dfd99806cdc26072c8b07af7a7a4ad08ad5b9b981a",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/FREEZE-R4.json",
+      "bytes": 1361,
+      "sha256": "192e5956d2cb456de22aed49c35e23327587adbde0ee16f4599b7eb0d4667964",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/bench-r2.py",
+      "bytes": 33270,
+      "sha256": "fa5fcbf32a222fde43724416898c7c6f8b1f06f7393bb47f5a586274bcf0456a",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/bench-r3.py",
+      "bytes": 33369,
+      "sha256": "dba3a9ebc8e6a6f04f981c2ac72d17686a5d19f1821ca77ad635fa5939533e6e",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/bench-r4.py",
+      "bytes": 33997,
+      "sha256": "bd9ba481700229fd249cc3bae5caeecddc1583aacdc15c5f9cf124db1eaa1a88",
+      "mode": "0600"
+    },
+    {
+      "path": "provenance/CC0-1.0.txt",
+      "bytes": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "mode": "0600"
+    },
+    {
+      "path": "provenance/dataset-card.md",
+      "bytes": 3163,
+      "sha256": "a2c6ed6719c680395e8e6a02374fac01c474fe010dc54a19dd3174d9eba51ddc",
+      "mode": "0600"
+    },
+    {
+      "path": "provenance/licences-provenance.json",
+      "bytes": 1420,
+      "sha256": "d519baad0471ec2c959a4acdf1d963a5ce6a109dc77f203ad2b1271ccfdf4bd2",
+      "mode": "0600"
+    },
+    {
+      "path": "provenance/preparation-receipt.json",
+      "bytes": 4408,
+      "sha256": "a61eb1908ed717155462f46bc81dfc07fae1fa9e2b29e6fe7c7aa2758457566a",
+      "mode": "0600"
+    },
+    {
+      "path": "provenance/whisper-LICENSE.txt",
+      "bytes": 1063,
+      "sha256": "b5d65a59060e68c4ff940e1eddfa6f94b2d68fdf58ed7f4dd57721c997e35e9d",
+      "mode": "0600"
+    },
+    {
+      "path": "research/R43-voice-research.md",
+      "bytes": 12484,
+      "sha256": "2ef36a708ce110dfd7ddd7472315d5eb0cdbdb5e6d45705c985dd827763b4e29",
+      "mode": "0600"
+    },
+    {
+      "path": "runs-green/independent-verification.json",
+      "bytes": 2683,
+      "sha256": "77d063693cb8bcbb81207f540f489845821c79da9f87ae307d9053c386218a74",
+      "mode": "0600"
+    },
+    {
+      "path": "runs-green/public-results.json",
+      "bytes": 5974,
+      "sha256": "14c52791d5e2056147354cc15cbc0d9a36311e62d6592068f21a42f6576314fe",
+      "mode": "0600"
+    },
+    {
+      "path": "runs-green/root-r3-receipt.json",
+      "bytes": 339,
+      "sha256": "d67677de108625ebd8c9113e8aee2dee67dd695b127085c203e868445ea2584d",
+      "mode": "0600"
+    },
+    {
+      "path": "runs-green/root-r3-summary.json",
+      "bytes": 806,
+      "sha256": "2dca7177f74ebbbbb154e54eccf40e8a210a42c9c203083252dbcee94c1efb6f",
+      "mode": "0600"
+    },
+    {
+      "path": "runs-red/root-r1-receipt.json",
+      "bytes": 340,
+      "sha256": "375a9770feb92437797ddc9a1bafc426baeb917790696dbcf2d9ac83650b5f31",
+      "mode": "0600"
+    },
+    {
+      "path": "runs-red/root-r1-summary.json",
+      "bytes": 468,
+      "sha256": "333cf10cdd565705761a4a7f4d36757dfddc1b64de775346d0c91cefca114c1c",
+      "mode": "0600"
+    },
+    {
+      "path": "runs-red/root-r2-receipt.json",
+      "bytes": 339,
+      "sha256": "0b0db6a349bc4124a8dd15e4caf157c3e0f23b5025fe859d1cc78ff330240b51",
+      "mode": "0600"
+    },
+    {
+      "path": "runs-red/root-r2-summary.json",
+      "bytes": 271,
+      "sha256": "4238072146842d46e9a129e87312a662039c479944938c2dc848eb32126308db",
+      "mode": "0600"
+    }
+  ],
+  "roundtrip_verified": true,
+  "private_audio_excluded": true,
+  "private_oracle_excluded": true,
+  "model_weights_excluded": true,
+  "raw_speaker_source_ids_excluded": true
+}

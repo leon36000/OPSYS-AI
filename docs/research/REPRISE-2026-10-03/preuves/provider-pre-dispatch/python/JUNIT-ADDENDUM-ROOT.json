@@ -1,0 +1,17 @@
+{
+  "scope": "SQLite partial; five PostgreSQL cases explicitly deselected",
+  "tests": 110,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "unique_cases": 110,
+  "by_class": {
+    "tests.test_admission_agents": 33,
+    "tests.test_serveur_mcp_http": 24,
+    "tests.test_serveur_mcp": 2,
+    "tests.test_openclaw_profils": 1,
+    "tests.test_cron_operateur_http": 33,
+    "tests.test_agents_cron_retraits": 17
+  },
+  "raw_junit_sha256": "16bc96d9e8e567c2a6dcf1a81564c709b9b6303f1020449628f8bed92952ae4e"
+}

@@ -1,0 +1,42 @@
+{
+  "as_of": "2026-10-03",
+  "method": "GitHub/GitLab official REST metadata and tagged source; no installation, build, or code execution",
+  "github_candidates": [
+    {"project":"run-llama/llama_index","release":"v0.14.25","commit":"f12d46acab73f5b2243ef49c2f00101617b38ce4","license":"MIT","license_source":"https://github.com/run-llama/llama_index/blob/f12d46acab73f5b2243ef49c2f00101617b38ce4/LICENSE","release_source":"https://github.com/run-llama/llama_index/releases/tag/v0.14.25","capability":"ingestion pipeline/connectors/transforms; orchestration framework"},
+    {"project":"topoteretes/cognee","release":"v1.6.2","commit":"ba3631f2ed363a6ea50d649c34c56885af6b36fe","license":"Apache-2.0","license_source":"https://github.com/topoteretes/cognee/blob/ba3631f2ed363a6ea50d649c34c56885af6b36fe/LICENSE","release_source":"https://github.com/topoteretes/cognee/releases/tag/v1.6.2","capability":"document-to-knowledge-graph Extract-Cognify-Load pipeline"},
+    {"project":"qdrant/qdrant","release":"v1.19.1","commit":"6ab21cac18ebb6f4ae29102c7f8f5cc11affd5de","license":"Apache-2.0","license_source":"https://github.com/qdrant/qdrant/blob/6ab21cac18ebb6f4ae29102c7f8f5cc11affd5de/LICENSE","release_source":"https://github.com/qdrant/qdrant/releases/tag/v1.19.1","capability":"vector database with payload filters and multitenancy guidance"},
+    {"project":"Unstructured-IO/unstructured","release":"0.27.10","commit":"ddf4453692ae034e09ab6dadf2fafb2ab3425c08","license":"Apache-2.0","license_source":"https://github.com/Unstructured-IO/unstructured/blob/ddf4453692ae034e09ab6dadf2fafb2ab3425c08/LICENSE.md","release_source":"https://github.com/Unstructured-IO/unstructured/releases/tag/0.27.10","capability":"multi-format partitioning, cleaning and chunking; deployment/service options are separate"},
+    {"project":"docling-project/docling","release":"v2.132.0","commit":"5c349dd696d81c67fe29c378a4fdff08e28090bd","license":"MIT","license_source":"https://github.com/docling-project/docling/blob/5c349dd696d81c67fe29c378a4fdff08e28090bd/LICENSE","release_source":"https://github.com/docling-project/docling/releases/tag/v2.132.0","capability":"document conversion, layout-aware extraction, OCR/VLM options"},
+    {"project":"deepset-ai/haystack","release":"v3.3.0","commit":"daa2d1ffacd083dcb1fc9a455adf541360a9e09c","license":"Apache-2.0","license_source":"https://github.com/deepset-ai/haystack/blob/daa2d1ffacd083dcb1fc9a455adf541360a9e09c/LICENSE","release_source":"https://github.com/deepset-ai/haystack/releases/tag/v3.3.0","capability":"component pipelines for indexing/retrieval/generation"},
+    {"project":"infiniflow/ragflow","release":"v1.0.0-rc1","commit":"14bb02ee4584c1ab18f0c722c48beecd6bbf9860","license":"Apache-2.0","license_source":"https://github.com/infiniflow/ragflow/blob/14bb02ee4584c1ab18f0c722c48beecd6bbf9860/LICENSE","release_source":"https://github.com/infiniflow/ragflow/releases/tag/v1.0.0-rc1","capability":"full RAG application/platform; deployment-stack competitor, not a library swap"}
+  ],
+  "gitlab_primary_reference": {
+    "project":"gitlab-org/gitlab",
+    "tag":"v19.4.1-ee",
+    "commit":"26212baacadb5beea6664f7ef025d753dccfb0d6",
+    "source":"https://gitlab.com/gitlab-org/gitlab/-/tags/v19.4.1-ee",
+    "license_note":"mixed: GitLab LICENSE states content outside ee/ is MIT; ee/ has separate license; docs are CC BY-SA 4.0. Not counted as a reusable OSS RAG library.",
+    "license_source":"https://gitlab.com/gitlab-org/gitlab/-/raw/26212baacadb5beea6664f7ef025d753dccfb0d6/LICENSE",
+    "permissions_docs":"https://docs.gitlab.com/user/group/permissions/"
+  },
+  "gitlab_public_search": {
+    "searched_at":"2026-10-03",
+    "endpoint":"https://gitlab.com/api/v4/projects",
+    "queries":["docling","unstructured","ingestion","RAG","llamaindex","Cognee","Qdrant","Haystack","ragflow"],
+    "method":"public project search; simple=true; sort by star_count descending; first 8 results per query",
+    "result":"No official upstream namespace for a compared ingestion/RAG project was present in the returned results; no GitLab project was retained as a reusable upstream candidate.",
+    "near_matches":[
+      {"query":"docling","path":"integrated-semantics/flexible-graphrag","stars":2,"url":"https://gitlab.com/integrated-semantics/flexible-graphrag"},
+      {"query":"docling","path":"salamony4all/docling-service","stars":0,"url":"https://gitlab.com/salamony4all/docling-service"},
+      {"query":"ragflow","path":"lappis-unb/clusterlab-project/ragflow","stars":1,"url":"https://gitlab.com/lappis-unb/clusterlab-project/ragflow"},
+      {"query":"ragflow","path":"dioarafi1/ragflow","stars":1,"url":"https://gitlab.com/dioarafi1/ragflow"},
+      {"query":"Cognee","path":"Alparslan4434/cognee","stars":0,"url":"https://gitlab.com/Alparslan4434/cognee"}
+    ],
+    "scope_note":"Search is a first-page project search, not exhaustive GitLab code search; near matches are not asserted to be forks without checking their history."
+  },
+  "literature": [
+    {"source":"alphaXiv / arXiv:2404.07220","title":"Blended RAG: Improving RAG (Retriever-Augmented Generation) Accuracy with Semantic Search and Hybrid Query-Based Retrievers","author":"Shivam Raj Solanki","date":"2024-08-04","url":"https://www.alphaxiv.org/abs/2404.07220","method":"dense vector plus sparse encoder retrieval with multi-field query strategies; retrieval on NQ, TREC-COVID and HotPotQA, then generation on SQuAD","use":"motivation to compare sparse+dense retrieval on common qrels; its reported dataset scores are not OPSYS performance evidence"},
+    {"source":"alphaXiv / arXiv:2605.02520","title":"Benchmarking Retrieval Strategies for Biomedical Retrieval-Augmented Generation: A Controlled Empirical Study","author":"Subhashree Puhan","date":"2026-05-04","url":"https://www.alphaxiv.org/abs/2605.02520","method":"250 BioASQ question-answer pairs; fixed generator, vector store and embeddings while comparing dense, BM25+dense, cross-encoder reranking, multi-query expansion and MMR","use":"example of controlled comparison across retrieval methods; small biomedical benchmark is not transferable"}
+  ],
+  "local_status": "No candidate framework or vector service found in pyproject.toml, uv.lock, requirements-runtime.lock.txt, or requirements-ingestion-pdf.lock.txt; these files pin pypdf 6.19.0 only for the PDF pilot and cryptography 50.0.2. No dependencies installed."
+}

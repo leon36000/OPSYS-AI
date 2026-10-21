@@ -1,0 +1,31 @@
+{
+  "checks": {
+    "freezes": 6,
+    "helpers": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 8
+    },
+    "qualification": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 1,
+      "tests": 38
+    },
+    "real_r5": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 1
+    },
+    "redacted_r3": true,
+    "source_files": 16
+  },
+  "entries_count": 66,
+  "entries_index_sha256": "58c7926207e9bd5be77b28939ae741a559f5cd4376f84e7ab0f0b54788976c9d",
+  "helper_sha256": "5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5",
+  "schema": "opsys.r41-archive-qualification/v1",
+  "source_freeze_sha256": "6d3b090c8c33ab34aaf404e06001bf1ec8bffd1bce2252ad359f3ee481d77ac7",
+  "tests_run": false
+}

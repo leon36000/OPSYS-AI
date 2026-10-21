@@ -1,0 +1,84 @@
+{
+  "status": "PASS",
+  "test_cases": 73,
+  "counts": {
+    "passed": 73,
+    "failure": 0,
+    "error": 0,
+    "skipped": 0
+  },
+  "format_files": 5,
+  "source_pins": 10311,
+  "source_delta": {},
+  "capsule_sha256": "9465c7c3cb3c479684e56967babb4664a7ab96aebea0d158653f3dbcd1408704",
+  "capsule_unchanged": true,
+  "stages": [
+    {
+      "name": "opsys-metier-env-credentials",
+      "ok": true,
+      "guard": null,
+      "peak_rss_bytes": 548265984,
+      "minimum_room_bytes": 935235584,
+      "cleanup": {
+        "signals": [],
+        "reaped_descendants": [],
+        "survivors": {}
+      },
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      }
+    },
+    {
+      "name": "format-check-metier",
+      "ok": true,
+      "guard": null,
+      "peak_rss_bytes": 0,
+      "minimum_room_bytes": 1415385088,
+      "cleanup": {
+        "signals": [],
+        "reaped_descendants": [],
+        "survivors": {}
+      },
+      "oom_before": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      },
+      "oom_after": {
+        "oom": 10,
+        "oom_kill": 3,
+        "oom_group_kill": 0
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "copy": "/workspace/poursuite-opsys-2026-10-02-r1/CORE-ENV-PRIVE-ROOT-r1/execution-final-r3/RESULTAT-ROOT.json.gz",
+      "raw_sha256": "58e855f861ac75958777630878b0b9aabfe2677b63ab2330ffd95f69bdddbd4e",
+      "bytes": 35267
+    },
+    {
+      "copy": "/workspace/poursuite-opsys-2026-10-02-r1/CORE-ENV-PRIVE-ROOT-r1/execution-final-r3/format-check-metier.log.gz",
+      "raw_sha256": "4421ce46f66449be98d2b67327cdfcc3c7169df72f7f7218ee6356f656d758ff",
+      "bytes": 110
+    },
+    {
+      "copy": "/workspace/poursuite-opsys-2026-10-02-r1/CORE-ENV-PRIVE-ROOT-r1/execution-final-r3/opsys-metier-env-credentials.log.gz",
+      "raw_sha256": "4109a5bf315baf41c4b4ea684b67abadf266ff1e451e0ac67683a120559b6f64",
+      "bytes": 560
+    },
+    {
+      "copy": "/workspace/poursuite-opsys-2026-10-02-r1/CORE-ENV-PRIVE-ROOT-r1/execution-final-r3/opsys-metier-env-credentials.xml.gz",
+      "raw_sha256": "96e3be54f7f8b8e3448c190066ac85791a1d4b46abb188cb8a3ccebecd798a67",
+      "bytes": 16203
+    }
+  ],
+  "limits": "Actual native test files and official formatter; process, health and providers mocked. No live Gateway/VPS claim."
+}

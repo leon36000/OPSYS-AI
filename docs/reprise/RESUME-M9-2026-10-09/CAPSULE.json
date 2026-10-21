@@ -1,0 +1,54 @@
+{
+  "status": "PUBLIC_PACKET_VERIFIED_PENDING_ROOT_REVIEW",
+  "parent": "d840cf3e5fd6b54362c24c6cc8adca24d43cfc83",
+  "capsule_path": "qualification/M9-RESUME-PUBLICATION-20261009-r1/capsule-public-r1.tar.gz",
+  "capsule_sha256": "8683c9fa40dcef278aa6dd62a86e34342221d6d9457e8c5fcd33f8de4beb4c58",
+  "capsule_bytes": 138753,
+  "capsule_members": 61,
+  "manifested_files": 60,
+  "manifest_sha256": "5905bb1116ab49cebed9eb7bea6d820bad8b19ec663b29fd6e01e9ff8751e66a",
+  "roundtrip_verified": true,
+  "regular_unique_safe": true,
+  "packet_scan_pass": true,
+  "scanner_scope": {
+    "status": "CLEAN",
+    "files_scanned": 61,
+    "bytes_scanned": 543268,
+    "patterns": [
+      "private_key",
+      "credential_prefix",
+      "bearer_value",
+      "jwt_value",
+      "credential_url"
+    ],
+    "hits": [],
+    "scope": "All selected source, preimage and public-evidence bytes; no PRIVATE input read",
+    "limits": "Lexical scanner, not exhaustive DLP; hashed private-log references are not raw logs"
+  },
+  "source_files": [
+    {
+      "path": "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_strategique.py",
+      "sha256": "5abbff35ae5b1e0e60ea6aac01ca34528ba525e4a38302631f8dd8c2468064e0",
+      "preimage_sha256": "825cdc4f8915104f356981131ffa74593e59b570d5ec3ba12e54f415e0a8b7db",
+      "preimage_parent": "d840cf3e5fd6b54362c24c6cc8adca24d43cfc83",
+      "scope": "Root-owned production"
+    },
+    {
+      "path": "departments/m09-strategic-intelligence/tests/test_lecture_strategique.py",
+      "sha256": "4ac993694b3833f726ea447a019085a3cd829d9b90e5cb9987eea28ebefaacca",
+      "preimage_sha256": "bd66269fa1db9549ddff94bec9b624aa173b1bc100b940d2d37b716dc6e5e1a8",
+      "preimage_parent": "d840cf3e5fd6b54362c24c6cc8adca24d43cfc83",
+      "scope": "Root-owned regression tests"
+    }
+  ],
+  "docs_excluded": true,
+  "historical_and_current_statuses_separate": true,
+  "authorization_ROOT": false,
+  "future_exact_CI": "UNKNOWN",
+  "limits": [
+    "No Native/Core/phone/new HTTP path",
+    "No full suite/dependency parity",
+    "Lexical scan not exhaustive DLP",
+    "M8 parent CI nonterminal at preparation; no inherited green"
+  ]
+}

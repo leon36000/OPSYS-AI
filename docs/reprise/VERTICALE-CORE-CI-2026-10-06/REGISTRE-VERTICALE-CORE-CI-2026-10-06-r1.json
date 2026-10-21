@@ -1,0 +1,427 @@
+{
+  "date_toronto": "2026-10-06T20:53:54.372812-04:00",
+  "parent": "59458c92ed5886532afcaf5d234f98b1f3755215",
+  "source_sha256_qualification": "9d38e757ca84816fc9a34f581f030a2aa81dac29c6282d8386d401cbd3e4d2a2",
+  "files": [
+    {
+      "path": ".github/workflows/core.yml",
+      "sha256": "d39dd7f3494c94a0efa0a497f73bab72d4e90c7a040621cd8b7609f7357946d1",
+      "parent_sha256": "971c9fdee10138308241d6bcd69e3a8595b251f973336574f85166bb12d77ae9",
+      "origin": "dépôt existant",
+      "integration": "modifié",
+      "verification": [
+        "verticale-core-ci-r4",
+        "verticale-core-contrats-r3",
+        "verticale-core-source-final-r1"
+      ],
+      "limit": "test/infrastructure CI seulement ; aucune nouvelle capacité métier"
+    },
+    {
+      "path": "docs/research/INGREDIENTS.md",
+      "sha256": "2897ea79329ec1c4d18108a9132710f4661fd100be94bbb0921175800c62cf1e",
+      "parent_sha256": "70b3a7a966b21c19ef5f159d76a35cda81f384fc90e04a4eddb5bd63386839b4",
+      "origin": "dépôt existant",
+      "integration": "modifié",
+      "verification": [
+        "verticale-core-ci-r4",
+        "verticale-core-contrats-r3",
+        "verticale-core-source-final-r1"
+      ],
+      "limit": "test/infrastructure CI seulement ; aucune nouvelle capacité métier"
+    },
+    {
+      "path": "tests/test_ci_verticale_core.py",
+      "sha256": "325945a0575efd3b8b906ad089c0a13e37196ef80dca9d91bec6cd18ccb53e05",
+      "parent_sha256": null,
+      "origin": "qualification externe P1/P2 adaptée",
+      "integration": "nouveau",
+      "verification": [
+        "verticale-core-ci-r4",
+        "verticale-core-contrats-r3",
+        "verticale-core-source-final-r1"
+      ],
+      "limit": "test/infrastructure CI seulement ; aucune nouvelle capacité métier"
+    },
+    {
+      "path": "tests/fixtures/core_verticale_profil_plugin.py",
+      "sha256": "b2eaf491df3068b68446edcb0114d3e301148b95f43373114818a8c733db4536",
+      "parent_sha256": null,
+      "origin": "qualification externe P1/P2 adaptée",
+      "integration": "nouveau",
+      "verification": [
+        "verticale-core-ci-r4",
+        "verticale-core-contrats-r3",
+        "verticale-core-source-final-r1"
+      ],
+      "limit": "test/infrastructure CI seulement ; aucune nouvelle capacité métier"
+    },
+    {
+      "path": "tests/fixtures/core_verticale_memoire_plugin.py",
+      "sha256": "daf1124eb7f2631601d602d63c9ea67ab0d228d2106a4d556bdd0679ed9392a5",
+      "parent_sha256": null,
+      "origin": "qualification externe P1/P2 adaptée",
+      "integration": "nouveau",
+      "verification": [
+        "verticale-core-ci-r4",
+        "verticale-core-contrats-r3",
+        "verticale-core-source-final-r1"
+      ],
+      "limit": "test/infrastructure CI seulement ; aucune nouvelle capacité métier"
+    },
+    {
+      "path": "tests/fixtures/qualifier_verticale_core.py",
+      "sha256": "374690727227969a32b62c100a119e6b8cad30eea1222d9fa7a6eb86e4b121cd",
+      "parent_sha256": null,
+      "origin": "qualification externe P1/P2 adaptée",
+      "integration": "nouveau",
+      "verification": [
+        "verticale-core-ci-r4",
+        "verticale-core-contrats-r3",
+        "verticale-core-source-final-r1"
+      ],
+      "limit": "test/infrastructure CI seulement ; aucune nouvelle capacité métier"
+    },
+    {
+      "path": "core/test/fixtures/opsys-verticale/core_verticale_profil_driver.mjs",
+      "sha256": "5fa3b92727f96c3ad27d705c7063d475b6782f371a2b7bc070aab7143c6f3933",
+      "parent_sha256": null,
+      "origin": "qualification externe P1/P2 adaptée",
+      "integration": "nouveau",
+      "verification": [
+        "verticale-core-ci-r4",
+        "verticale-core-contrats-r3",
+        "verticale-core-source-final-r1"
+      ],
+      "limit": "test/infrastructure CI seulement ; aucune nouvelle capacité métier"
+    },
+    {
+      "path": "core/test/fixtures/opsys-verticale/core_verticale_memoire_driver.mjs",
+      "sha256": "6cb0b0823ad135c7edff738750396a84a4d9bb663085743642b3f9f9a05372a7",
+      "parent_sha256": null,
+      "origin": "qualification externe P1/P2 adaptée",
+      "integration": "nouveau",
+      "verification": [
+        "verticale-core-ci-r4",
+        "verticale-core-contrats-r3",
+        "verticale-core-source-final-r1"
+      ],
+      "limit": "test/infrastructure CI seulement ; aucune nouvelle capacité métier"
+    },
+    {
+      "path": "core/test/fixtures/opsys-verticale/README.md",
+      "sha256": "43ac6cba5c379f2e3b597001e49044dbed33b1541fb0ccb3607d950f90506f18",
+      "parent_sha256": null,
+      "origin": "qualification externe P1/P2 adaptée",
+      "integration": "nouveau",
+      "verification": [
+        "verticale-core-ci-r4",
+        "verticale-core-contrats-r3",
+        "verticale-core-source-final-r1"
+      ],
+      "limit": "test/infrastructure CI seulement ; aucune nouvelle capacité métier"
+    }
+  ],
+  "checks": {
+    "verticale-core-ci-r1": {
+      "label": "verticale-core-ci-r1",
+      "command": [
+        "python",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "--preuve-dir",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/verticale-core-ci-r1"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T00:45:51.453154+00:00",
+      "completed_utc": "2026-10-07T00:47:13.513936+00:00",
+      "exit_code": 0,
+      "wall_seconds": 81.204,
+      "peak_process_tree_rss_bytes": 704249856,
+      "guard_triggered": null,
+      "source_sha256_before": "30d4905fed0f23b3e41be1f21fd49703c29577bdf42ace436413e04fc612fa9a",
+      "source_sha256_after": "30d4905fed0f23b3e41be1f21fd49703c29577bdf42ace436413e04fc612fa9a",
+      "sources_unchanged": true,
+      "log_sha256": "6074a16afe388429b1f248e1b7f8b9bbaff87ff4805b78d3280ae38a7faa2e26"
+    },
+    "verticale-core-ci-r2": {
+      "label": "verticale-core-ci-r2",
+      "command": [
+        "python",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "--preuve-dir",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/verticale-core-ci-r2"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T00:47:47.905419+00:00",
+      "completed_utc": "2026-10-07T00:49:09.427469+00:00",
+      "exit_code": 0,
+      "wall_seconds": 80.68,
+      "peak_process_tree_rss_bytes": 704262144,
+      "guard_triggered": null,
+      "source_sha256_before": "13047f28e3ad0ba30988309fd810180eb8286cf31dfe6f3e69ca6637b5f0b00d",
+      "source_sha256_after": "13047f28e3ad0ba30988309fd810180eb8286cf31dfe6f3e69ca6637b5f0b00d",
+      "sources_unchanged": true,
+      "log_sha256": "6074a16afe388429b1f248e1b7f8b9bbaff87ff4805b78d3280ae38a7faa2e26"
+    },
+    "verticale-core-ci-r3": {
+      "label": "verticale-core-ci-r3",
+      "command": [
+        "python",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "--preuve-dir",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/verticale-core-ci-r3"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T00:49:42.023096+00:00",
+      "completed_utc": "2026-10-07T00:51:04.036911+00:00",
+      "exit_code": 0,
+      "wall_seconds": 81.158,
+      "peak_process_tree_rss_bytes": 711311360,
+      "guard_triggered": null,
+      "source_sha256_before": "9a28effd318ccc976f7e8324f30c99b4f36e386a06bcb57de9895bed8f626b5d",
+      "source_sha256_after": "9a28effd318ccc976f7e8324f30c99b4f36e386a06bcb57de9895bed8f626b5d",
+      "sources_unchanged": true,
+      "log_sha256": "6074a16afe388429b1f248e1b7f8b9bbaff87ff4805b78d3280ae38a7faa2e26"
+    },
+    "verticale-core-ci-r4": {
+      "label": "verticale-core-ci-r4",
+      "command": [
+        "python",
+        "tests/fixtures/qualifier_verticale_core.py",
+        "--preuve-dir",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/verticale-core-ci-r4"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T00:51:35.727015+00:00",
+      "completed_utc": "2026-10-07T00:52:59.295125+00:00",
+      "exit_code": 0,
+      "wall_seconds": 82.72,
+      "peak_process_tree_rss_bytes": 701710336,
+      "guard_triggered": null,
+      "source_sha256_before": "9d38e757ca84816fc9a34f581f030a2aa81dac29c6282d8386d401cbd3e4d2a2",
+      "source_sha256_after": "9d38e757ca84816fc9a34f581f030a2aa81dac29c6282d8386d401cbd3e4d2a2",
+      "sources_unchanged": true,
+      "log_sha256": "6074a16afe388429b1f248e1b7f8b9bbaff87ff4805b78d3280ae38a7faa2e26"
+    },
+    "verticale-core-contrat-ci-r1": {
+      "label": "verticale-core-contrat-ci-r1",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_ci_verticale_core.py",
+        "-q",
+        "--junitxml=../qualification/verticale-core-contrat-ci-r1.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T00:45:51.458451+00:00",
+      "completed_utc": "2026-10-07T00:45:53.680953+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.371,
+      "peak_process_tree_rss_bytes": 17674240,
+      "guard_triggered": null,
+      "source_sha256_before": "30d4905fed0f23b3e41be1f21fd49703c29577bdf42ace436413e04fc612fa9a",
+      "source_sha256_after": "30d4905fed0f23b3e41be1f21fd49703c29577bdf42ace436413e04fc612fa9a",
+      "sources_unchanged": true,
+      "log_sha256": "7040371af15613c02e821ec0eecc1d1330f691ace4cef93a41bfa358822c4103"
+    },
+    "verticale-core-contrats-r2": {
+      "label": "verticale-core-contrats-r2",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_ci_verticale_core.py",
+        "tests/test_ci_departements.py",
+        "tests/test_openclaw_contexte.py",
+        "-q",
+        "--junitxml=../qualification/verticale-core-contrats-r2.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T00:49:42.030194+00:00",
+      "completed_utc": "2026-10-07T00:49:45.300588+00:00",
+      "exit_code": 0,
+      "wall_seconds": 2.438,
+      "peak_process_tree_rss_bytes": 80412672,
+      "guard_triggered": null,
+      "source_sha256_before": "9a28effd318ccc976f7e8324f30c99b4f36e386a06bcb57de9895bed8f626b5d",
+      "source_sha256_after": "9a28effd318ccc976f7e8324f30c99b4f36e386a06bcb57de9895bed8f626b5d",
+      "sources_unchanged": true,
+      "log_sha256": "7aab9d03d5aad3ae7953c0ac55e01a47a25a852128e93ee579eb4dadf81d7df0"
+    },
+    "verticale-core-contrats-r3": {
+      "label": "verticale-core-contrats-r3",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_ci_verticale_core.py",
+        "tests/test_ci_departements.py",
+        "tests/test_openclaw_contexte.py",
+        "-q",
+        "--junitxml=../qualification/verticale-core-contrats-r3.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T00:51:35.726663+00:00",
+      "completed_utc": "2026-10-07T00:51:39.522797+00:00",
+      "exit_code": 0,
+      "wall_seconds": 2.952,
+      "peak_process_tree_rss_bytes": 101924864,
+      "guard_triggered": null,
+      "source_sha256_before": "9d38e757ca84816fc9a34f581f030a2aa81dac29c6282d8386d401cbd3e4d2a2",
+      "source_sha256_after": "9d38e757ca84816fc9a34f581f030a2aa81dac29c6282d8386d401cbd3e4d2a2",
+      "sources_unchanged": true,
+      "log_sha256": "7aab9d03d5aad3ae7953c0ac55e01a47a25a852128e93ee579eb4dadf81d7df0"
+    },
+    "verticale-core-lint-drivers-r1": {
+      "label": "verticale-core-lint-drivers-r1",
+      "command": [
+        "node",
+        "scripts/run-oxlint.mjs",
+        "test/fixtures/opsys-verticale/core_verticale_profil_driver.mts",
+        "test/fixtures/opsys-verticale/core_verticale_memoire_driver.mts"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/core",
+      "started_utc": "2026-10-07T00:45:51.460959+00:00",
+      "completed_utc": "2026-10-07T00:46:17.388595+00:00",
+      "exit_code": 1,
+      "wall_seconds": 25.079,
+      "peak_process_tree_rss_bytes": 10710552576,
+      "guard_triggered": null,
+      "source_sha256_before": "30d4905fed0f23b3e41be1f21fd49703c29577bdf42ace436413e04fc612fa9a",
+      "source_sha256_after": "30d4905fed0f23b3e41be1f21fd49703c29577bdf42ace436413e04fc612fa9a",
+      "sources_unchanged": true,
+      "log_sha256": "3bcef4082059b9882474d417d1a8666692808caf0613b428ae01e41483799c49"
+    },
+    "verticale-core-lint-drivers-r2": {
+      "label": "verticale-core-lint-drivers-r2",
+      "command": [
+        "node",
+        "scripts/run-oxlint.mjs",
+        "test/fixtures/opsys-verticale/core_verticale_profil_driver.mts",
+        "test/fixtures/opsys-verticale/core_verticale_memoire_driver.mts"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/core",
+      "started_utc": "2026-10-07T00:47:47.907233+00:00",
+      "completed_utc": "2026-10-07T00:47:52.737289+00:00",
+      "exit_code": 1,
+      "wall_seconds": 4.008,
+      "peak_process_tree_rss_bytes": 855289856,
+      "guard_triggered": null,
+      "source_sha256_before": "13047f28e3ad0ba30988309fd810180eb8286cf31dfe6f3e69ca6637b5f0b00d",
+      "source_sha256_after": "13047f28e3ad0ba30988309fd810180eb8286cf31dfe6f3e69ca6637b5f0b00d",
+      "sources_unchanged": true,
+      "log_sha256": "ae3d396daedd331088db472fb5293082342c7139c9f294f19cac837c84812c4e"
+    },
+    "verticale-core-lint-drivers-r3": {
+      "label": "verticale-core-lint-drivers-r3",
+      "command": [
+        "node",
+        "scripts/run-oxlint.mjs",
+        "test/fixtures/opsys-verticale/core_verticale_profil_driver.mts",
+        "test/fixtures/opsys-verticale/core_verticale_memoire_driver.mts"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/core",
+      "started_utc": "2026-10-07T00:49:42.043140+00:00",
+      "completed_utc": "2026-10-07T00:49:46.857677+00:00",
+      "exit_code": 0,
+      "wall_seconds": 3.978,
+      "peak_process_tree_rss_bytes": 856113152,
+      "guard_triggered": null,
+      "source_sha256_before": "9a28effd318ccc976f7e8324f30c99b4f36e386a06bcb57de9895bed8f626b5d",
+      "source_sha256_after": "9a28effd318ccc976f7e8324f30c99b4f36e386a06bcb57de9895bed8f626b5d",
+      "sources_unchanged": true,
+      "log_sha256": "65ea5d43566d667e9333e9906db5d6bb3e6fa316268017a0de45a97429a20187"
+    },
+    "verticale-core-ruff-r1": {
+      "label": "verticale-core-ruff-r1",
+      "command": [
+        "python",
+        "-m",
+        "ruff",
+        "check",
+        "tests/test_ci_verticale_core.py",
+        "tests/fixtures/core_verticale_memoire_plugin.py",
+        "tests/fixtures/core_verticale_profil_plugin.py",
+        "tests/fixtures/qualifier_verticale_core.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T00:47:47.916831+00:00",
+      "completed_utc": "2026-10-07T00:47:50.119563+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.365,
+      "peak_process_tree_rss_bytes": 0,
+      "guard_triggered": null,
+      "source_sha256_before": "13047f28e3ad0ba30988309fd810180eb8286cf31dfe6f3e69ca6637b5f0b00d",
+      "source_sha256_after": "13047f28e3ad0ba30988309fd810180eb8286cf31dfe6f3e69ca6637b5f0b00d",
+      "sources_unchanged": true,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "verticale-core-source-final-r1": {
+      "label": "verticale-core-source-final-r1",
+      "command": [
+        "python",
+        "../check_verticale_source.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-07T00:51:35.722147+00:00",
+      "completed_utc": "2026-10-07T00:52:01.458810+00:00",
+      "exit_code": 0,
+      "wall_seconds": 24.887,
+      "peak_process_tree_rss_bytes": 10069671936,
+      "guard_triggered": null,
+      "source_sha256_before": "9d38e757ca84816fc9a34f581f030a2aa81dac29c6282d8386d401cbd3e4d2a2",
+      "source_sha256_after": "9d38e757ca84816fc9a34f581f030a2aa81dac29c6282d8386d401cbd3e4d2a2",
+      "sources_unchanged": true,
+      "log_sha256": "0e78707793b02f495ab4b28988e26f7506d8ba89170acdc6704839684624ee13"
+    }
+  },
+  "history_outputs_sha256": {
+    "AUDIT-OAUTH-RENOUVELLEMENT-2026-10-06-r1.md": "25c814046d31be1f98016f2f782456530e49bfc36a955240de0bbe3bbe5f58f5",
+    "AUDIT-REPRISE-2026-10-06.md": "163f26c00b27ffe387eb997fda8e4b2988fa4a05c85b6fa15c67a616013dd87a",
+    "AUDIT-VERTICALE-2026-10-06-V1-r2.md": "22dde256c7b86ef0c7fa3ecd3ad9e907b1d933c6459b1dc4108e8dda2f8e8d29",
+    "AUDIT-VERTICALE-2026-10-06-V1.md": "57419d1a627eb4304d300578d8c63e7b49c9bc46f1898cd4ac18f5efae40059f",
+    "CI-OAUTH-RENOUVELLEMENT-2026-10-06.json": "c91af746b64398d99a992a9a6c11a2d5efa617ab2ae6a04cb7bac61b4f627b47",
+    "CI-REPRISE-2026-10-06.json": "72faecbe7a157dd3f8bbb8edfca4f9ba2f7870c499820f2b3011a61b11291749",
+    "CI-VERTICALE-2026-10-06-V1.json": "8dcf2cfb3391e397ec708e93a2ddd04655694aa46c60264db9266d4186c5d68a",
+    "CONTINUITE-VERTICALE-2026-10-06.md": "0465072957ec069f81021d380ebbcb455f09586904cbf151e09240becd5f86fd",
+    "PREUVES-CI-FINALE-2026-10-06.tar.xz": "6453b5b2bd3e8fb4a970a23f18f655c70f3bc380a5910f4705528992a0702fd1",
+    "PREUVES-CI-OAUTH-RENOUVELLEMENT-2026-10-06.tar.xz": "5bbe1f3b0f3b64e7beed9ea6de8e320edbd489df6810d988209f730968bc901e",
+    "PREUVES-CI-VERTICALE-2026-10-06-V1.tar.xz": "a5d44932c168be4391dec33fefa9af3eacb29e27be0d3c42a83f3de9684425b2",
+    "PREUVES-MEMOIRE-AFFAIRE-2026-10-06-P2.tar.xz": "a51c28ff4d8fd2840919e895f283a61b072cdcf74c53f70a5f87c977ed6c926c",
+    "PREUVES-OAUTH-RENOUVELLEMENT-2026-10-06-r1.tar.xz": "0bfbbdea3b000898a2e79dcf0f4923ae1e5f0948a8c4554840a93a43b6763c2d",
+    "PREUVES-PROFIL-AFFAIRE-2026-10-06-P1.tar.xz": "c3fb70fb69f3f9bb705a0f021d71ebad4c8afa6a5f3173db138c074f5a39a021",
+    "PREUVES-REPRISE-2026-10-06-r1.tar.xz": "3cc62e5ad8f48101234475895dea348c0499de129c336e31af3afdb8c1afe797",
+    "PREUVES-REPRISE-2026-10-06-r2.tar.xz": "079c176e26ce9d1831fd61c487f831495b7fb22c38371d41004bbe52b03c51a5",
+    "PREUVES-REPRISE-2026-10-06-r3.tar.xz": "30b298ff60bc318abc9ca01d8f52d94a6de612c632363512b192eab3f2ed6ddf",
+    "PREUVES-REPRISE-2026-10-06-r4.tar.xz": "315ba335c909676ad618e7db74e86da1d9a482b133150971e25f6b7049eb4e92",
+    "PREUVES-REPRISE-2026-10-06-r5.tar.xz": "5a2f93f248a438754cb64ed69e33e4e24c30a2fd411155b45405ab893b0e7754",
+    "PREUVES-REPRISE-2026-10-06-r6.tar.xz": "96467b842c76026bfc4257c34c3d5b005a4fc7e696cc878719afda0451bbf051",
+    "PREUVES-VERTICALE-2026-10-06-V1-r1.tar.xz": "6cf157e08d6cb2ef89c6662d1d22854d8ee4eb9535d215cd9d89831bfacc50b7",
+    "PREUVES-VERTICALE-2026-10-06-V1-r2.tar.xz": "6ac2eae598255a89ab56b675cb101c0126b544af9760dce40197153d00925305",
+    "QUALIFICATION-FINALE-OAUTH-RENOUVELLEMENT-2026-10-06.md": "0ed4246c888fc0bcdb83408c62b08f403414bf251b25f0e0f8bd7a9cbf7d6aa6",
+    "QUALIFICATION-FINALE-VERTICALE-2026-10-06-V1.md": "4a61d9e74b259979ec6117513d911be47b28b2346e8d46f5f204bae797f50966",
+    "QUALIFICATION-MEMOIRE-AFFAIRE-2026-10-06-P2.md": "e789c0f7edcf81de8201642cc1e7134bae9377a657d8d5601b5974548cce9744",
+    "QUALIFICATION-PROFIL-AFFAIRE-2026-10-06-P1.md": "08e38ab8480c97c28981dd299a154eec74f124c7ffaa8f2b697dd37db98bbbd3",
+    "REGISTRE-MEMOIRE-AFFAIRE-2026-10-06-P2.json": "b45a57dc4607afe8610432e7c98836b825fd1caba43c566f33de2b43cef303de",
+    "REGISTRE-OAUTH-RENOUVELLEMENT-2026-10-06-r1.json": "60d2093bb8c6760b237830519f7a32202c278d26c22662b886fd2005fa0afb39",
+    "REGISTRE-PROFIL-AFFAIRE-2026-10-06-P1.json": "0484de13fc1c8b52688d27a3844a3a8a618ffca62570b295b37f0221c6602890",
+    "REGISTRE-REPRISE-2026-10-06.json": "d1c60612d64a9944e60d02095679116422c27490a7480b5795d66735ace8debc",
+    "REGISTRE-VERTICALE-2026-10-06-V1-r2.json": "ffeda43042595134d0b31f709c2efca9155e7403bcbdc02fdfb8f1b486bca4fd",
+    "REGISTRE-VERTICALE-2026-10-06-V1.json": "47063ad6e70ab95ac093967d84d9e33bf5838c0c499d914b146818e6778a621c",
+    "REPRISE-ETAT-2026-10-06.json": "5993bffc70c3874a46f18acfc04d927abd2803e021a164e3a3569d355209999a",
+    "VERIFICATION-COMPLEMENTAIRE-VERTICALE-2026-10-06-V1.json": "2468673b457bfa049f968c55bbc101a7065706e17731e247302215ffc1c6eef2",
+    "VERIFICATION-FINALE-OAUTH-RENOUVELLEMENT-2026-10-06.json": "c206d6671943d6bf93ab2deef814bf7e867ec709356181594bde22f07a61f0be",
+    "VERIFICATION-FINALE-REPRISE-2026-10-06.json": "176c7609c11ee401268e01286e40e009e2cf7e4f5f2b446454178e0a5b7fd6a8",
+    "VERIFICATION-FINALE-VERTICALE-2026-10-06-V1.json": "f7b1112a47dc78892ea5d23268e2c41ec336d79c91fe1b8ccabd41a850e57065"
+  },
+  "previous_104_proofs": "absentes, références conservées, aucune réexécution prétendue",
+  "qualification": {
+    "affaires_sqlite": 1,
+    "phases_profil": 13,
+    "phases_memoire": 9,
+    "regressions_contracts": 80,
+    "skip": 0
+  },
+  "ci_new_commit": "à obtenir après publication",
+  "product": "PARTIEL"
+}

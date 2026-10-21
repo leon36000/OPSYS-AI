@@ -1,0 +1,265 @@
+"""Répartiteur du bus d'événements (ADR-0009 §3) : livraison idempotente, réessais, quarantaine.
+
+`repartir` traite chaque paire (événement, consommateur) éligible dans SA PROPRE transaction
+(`stockage.transaction()` : point de sauvegarde si `repartir` est déjà appelée depuis une
+transaction ouverte, sinon une transaction neuve). Ce découpage — plutôt qu'une seule grosse
+transaction pour tout l'appel — donne les deux garanties du plan :
+- un consommateur qui échoue n'annule que SES écritures (point de sauvegarde autour de son appel) ;
+  le reçu, lui, garde l'échec, les tentatives et le backoff dans la même transaction que ce
+  consommateur, donc il survit même si l'écriture du consommateur est annulée ;
+- un consommateur en échec, ou un appel à `repartir` interrompu en cours de route (panne), ne
+  bloque jamais les autres événements ni les autres consommateurs : ce qui est déjà livré ailleurs
+  reste acquis (chaque paire commite indépendamment).
+
+La réclamation d'une paire (insertion pour un premier essai, mise à jour conditionnelle pour un
+réessai) utilise le même patron que `approbations.decider` (une écriture sous condition, dont le
+nombre de lignes touchées dit si la course a été gagnée) : portable SQLite/PostgreSQL, sans verrou
+applicatif supplémentaire.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+from collections.abc import Callable, Mapping
+from typing import Any
+
+from sqlalchemy import Connection, func, insert, select, update
+from sqlalchemy.exc import IntegrityError
+
+from ..departements import Departement
+from ..stockage import codec, transaction
+from ..stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
+from .schemas import types_connus
+
+__all__ = ["etat", "repartir", "verifier_coherence"]
+
+_BASE_BACKOFF_S = 2
+_MAX_TENTATIVES = 5
+_STATUTS_CLOS = ("traite", "quarantaine")
+_CLE_PAIRES_EN_VOL = "_opsys_evenements_paires_en_vol"
+
+
+def _consommateurs_par_type(departements: Mapping[str, Departement]) -> dict[str, list[tuple[str, Callable]]]:
+    """`{type_evenement: [(departement_id, fonction), ...]}`, à partir des manifestes."""
+    index: dict[str, list[tuple[str, Callable]]] = {}
+    for dep in departements.values():
+        if not dep.evenements_consomme:
+            continue
+        fonctions = dep.charger_consommateurs()
+        for type_evenement in dep.evenements_consomme:
+            fonction = fonctions.get(type_evenement)
+            if fonction is None:
+                continue  # déclaration incohérente : signalée par verifier_coherence, jamais bloquante ici
+            index.setdefault(type_evenement, []).append((dep.id, fonction))
+    return index
+
+
+def _candidats(
+    par_type: Mapping[str, list[tuple[str, Callable]]], maintenant_dt: dt.datetime, limite: int
+) -> list[tuple[Mapping[str, Any], str, Callable]]:
+    """Paires (événement, consommateur) sans reçu clos, dues maintenant, dans l'ordre de publication."""
+    with transaction() as cnx:
+        evenements = cnx.execute(
+            select(EVENEMENTS_SORTANTS)
+            .where(EVENEMENTS_SORTANTS.c.type_evenement.in_(list(par_type)))
+            .order_by(EVENEMENTS_SORTANTS.c.cree_le, EVENEMENTS_SORTANTS.c.evenement_id)
+        ).mappings().all()
+        if not evenements:
+            return []
+        ids = [ligne["evenement_id"] for ligne in evenements]
+        recus = cnx.execute(
+            select(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id.in_(ids))
+        ).mappings().all()
+    recus_index = {(r["evenement_id"], r["consommateur"]): r for r in recus}
+    candidats: list[tuple[Mapping[str, Any], str, Callable]] = []
+    for evenement in evenements:
+        for consommateur, fonction in par_type.get(evenement["type_evenement"], ()):
+            recu = recus_index.get((evenement["evenement_id"], consommateur))
+            if recu is not None:
+                if recu["statut"] in _STATUTS_CLOS:
+                    continue
+                prochaine = recu["prochaine_tentative"]
+                if prochaine and dt.datetime.fromisoformat(prochaine) > maintenant_dt:
+                    continue
+            candidats.append((evenement, consommateur, fonction))
+            if len(candidats) >= limite:
+                return candidats
+    return candidats
+
+
+def _backoff(tentatives: int, depuis: dt.datetime) -> str:
+    return (depuis + dt.timedelta(seconds=_BASE_BACKOFF_S**tentatives)).isoformat()
+
+
+def _livrer_une_paire(
+    evenement: Mapping[str, Any], consommateur: str, fonction: Callable[[dict], Any], maintenant_dt: dt.datetime
+) -> str | None:
+    """Livre un événement à un consommateur ; renvoie le statut final, ou `None` si la course est perdue."""
+    evenement_id = evenement["evenement_id"]
+    cible = (EVENEMENTS_RECUS.c.evenement_id == evenement_id) & (EVENEMENTS_RECUS.c.consommateur == consommateur)
+    garde = None
+    try:
+        with transaction() as cnx:
+            # Même connexion native et même paire seulement ; les autres livraisons restent possibles.
+            par_connexion: dict[Connection, set[tuple[str, str]]] = cnx.info.setdefault(_CLE_PAIRES_EN_VOL, {})
+            paire = (evenement_id, consommateur)
+            actives = par_connexion.get(cnx)
+            if actives is None:
+                actives = set()
+            if paire in actives:
+                return None
+            garde = (par_connexion, cnx, actives, paire)
+            par_connexion[cnx] = actives
+            actives.add(paire)
+            charge = codec.decoder(evenement["charge"])
+            existant = cnx.execute(select(
+                EVENEMENTS_RECUS.c.tentatives, EVENEMENTS_RECUS.c.statut, EVENEMENTS_RECUS.c.prochaine_tentative
+            ).where(cible)).fetchone()
+            if existant is None:
+                try:
+                    with cnx.begin_nested():
+                        cnx.execute(insert(EVENEMENTS_RECUS).values(
+                            evenement_id=evenement_id, consommateur=consommateur, statut="echec",
+                            tentatives=0, prochaine_tentative=None, resultat=None, derniere_erreur=None,
+                        ))
+                except IntegrityError:
+                    return None  # réclamée entre-temps par un autre appel concurrent
+                tentatives_avant = 0
+            else:
+                prochaine = existant.prochaine_tentative
+                if (existant.statut != "echec"
+                        or (prochaine and dt.datetime.fromisoformat(prochaine) > maintenant_dt)):
+                    return None  # le reçu a changé depuis la sélection ; respecter son backoff courant
+                # Le temps est comparé en Python (les offsets ISO ne se comparent pas comme du texte).
+                # La réclamation lie ensuite atomiquement le statut, le compteur et l'échéance lus :
+                # un autre essai entre SELECT et UPDATE invalide aussi ce candidat ancien.
+                meme_echeance = (EVENEMENTS_RECUS.c.prochaine_tentative.is_(None) if prochaine is None
+                                 else EVENEMENTS_RECUS.c.prochaine_tentative == prochaine)
+                reclamation = cnx.execute(
+                    update(EVENEMENTS_RECUS)
+                    .where(cible & (EVENEMENTS_RECUS.c.statut == "echec")
+                           & (EVENEMENTS_RECUS.c.tentatives == existant.tentatives) & meme_echeance)
+                    .values(statut="echec")
+                )
+                if reclamation.rowcount != 1:
+                    return None  # déjà traité, mis en quarantaine, ou repris ailleurs entre la sélection et ici
+                tentatives_avant = existant.tentatives
+
+            try:
+                with cnx.begin_nested():
+                    resultat_fonction = fonction(dict(charge))
+                    # Encodé ICI, dans le point de sauvegarde, par le même codec typé que les maillons
+                    # de registre (fidélité Decimal/date) : un résumé non stockable (type non géré par
+                    # le codec) annule aussi les écritures du consommateur, comme une panne — jamais un
+                    # « traité » sans résultat fidèle, jamais des écritures orphelines.
+                    resultat_encode = codec.encoder(dict(resultat_fonction))
+            except Exception as exc:  # noqa: BLE001 — un consommateur ne doit jamais arrêter le répartiteur
+                tentatives = tentatives_avant + 1
+                en_quarantaine = tentatives >= _MAX_TENTATIVES
+                cnx.execute(update(EVENEMENTS_RECUS).where(cible).values(
+                    statut="quarantaine" if en_quarantaine else "echec",
+                    tentatives=tentatives,
+                    prochaine_tentative=None if en_quarantaine else _backoff(tentatives, maintenant_dt),
+                    derniere_erreur=f"{type(exc).__name__}: {exc}",
+                ))
+                return "quarantaine" if en_quarantaine else "echec"
+
+            cnx.execute(update(EVENEMENTS_RECUS).where(cible).values(
+                statut="traite", tentatives=tentatives_avant + 1, prochaine_tentative=None,
+                resultat=resultat_encode, derniere_erreur=None,
+            ))
+            return "traite"
+    finally:
+        # Après commit/rollback aussi : aucun état en vol ne survit à la sortie de cette livraison.
+        if garde is not None:
+            par_connexion, cnx, actives, paire = garde
+            actives.discard(paire)
+            if not actives and par_connexion.get(cnx) is actives:
+                par_connexion.pop(cnx)
+
+
+def repartir(
+    departements: Mapping[str, Departement], *, limite: int = 100, maintenant: str | None = None
+) -> dict[str, int]:
+    """Livre les événements en attente à leurs consommateurs abonnés (ADR-0009 §3).
+
+    `departements` : le manifeste courant (`opsys.departements.charger_departements()`), pour
+    savoir qui consomme quoi. `limite` borne le nombre de paires (événement, consommateur) livrées
+    à cet appel. `maintenant` (texte ISO) est injectable pour les tests, sans horloge cachée : les
+    réessais dus sont ceux dont `prochaine_tentative <= maintenant`.
+    `limite` est un entier positif ou nul : zéro n'accède ni aux consommateurs ni à la base.
+    """
+    if type(limite) is not int or limite < 0:
+        raise ValueError("limite doit être un entier positif ou nul")
+    resume = {"livres": 0, "traites": 0, "echecs": 0, "quarantaines": 0, "ignores": 0}
+    if limite == 0:
+        return resume
+    maintenant_dt = dt.datetime.fromisoformat(maintenant) if maintenant else dt.datetime.now(dt.UTC)
+    par_type = _consommateurs_par_type(departements)
+    if not par_type:
+        return resume
+    for evenement, consommateur, fonction in _candidats(par_type, maintenant_dt, limite):
+        resultat = _livrer_une_paire(evenement, consommateur, fonction, maintenant_dt)
+        if resultat is None:
+            resume["ignores"] += 1
+            continue
+        resume["livres"] += 1
+        resume[{"traite": "traites", "echec": "echecs", "quarantaine": "quarantaines"}[resultat]] += 1
+    return resume
+
+
+def etat() -> dict[str, Any]:
+    """Comptes des reçus par statut et liste de quarantaine (`opsys-metier evenements etat`)."""
+    with transaction() as cnx:
+        comptes = dict(cnx.execute(
+            select(EVENEMENTS_RECUS.c.statut, func.count()).group_by(EVENEMENTS_RECUS.c.statut)
+        ).all())
+        quarantaine = cnx.execute(
+            select(
+                EVENEMENTS_RECUS.c.evenement_id, EVENEMENTS_RECUS.c.consommateur,
+                EVENEMENTS_RECUS.c.tentatives, EVENEMENTS_RECUS.c.derniere_erreur,
+                EVENEMENTS_SORTANTS.c.type_evenement, EVENEMENTS_SORTANTS.c.producteur,
+            )
+            .join(EVENEMENTS_SORTANTS, EVENEMENTS_SORTANTS.c.evenement_id == EVENEMENTS_RECUS.c.evenement_id)
+            .where(EVENEMENTS_RECUS.c.statut == "quarantaine")
+            .order_by(EVENEMENTS_SORTANTS.c.cree_le)
+        ).mappings().all()
+    return {
+        "comptes": comptes,
+        "quarantaine": [dict(ligne) for ligne in quarantaine],
+    }
+
+
+def verifier_coherence(departements: Mapping[str, Departement]) -> list[str]:
+    """Cohérence des déclarations `department.yaml/evenements` (`opsys-metier verifier`) :
+
+    - chaque type publié ou consommé existe au catalogue ;
+    - chaque type consommé a sa fonction dans `consommateurs()` ;
+    - aucune fonction de `consommateurs()` n'est orpheline (absente de `evenements.consomme`).
+
+    Rend la liste des problèmes trouvés (vide : cohérent). Ne lève jamais pour un département dont
+    le module est cassé : le problème est décrit dans la liste, pour que la CLI l'affiche.
+    """
+    catalogue = types_connus()
+    problemes: list[str] = []
+    for dep in departements.values():
+        for type_evenement in (*dep.evenements_publie, *dep.evenements_consomme):
+            if type_evenement not in catalogue:
+                problemes.append(f"{dep.id} : type d'événement {type_evenement!r} absent du catalogue")
+        if not dep.evenements_publie and not dep.evenements_consomme:
+            continue  # département hors du bus d'événements : pas de module à importer pour lui
+        try:
+            fonctions = dep.charger_consommateurs()
+        except Exception as exc:  # noqa: BLE001 — signalé, jamais une panne de `opsys-metier verifier`
+            problemes.append(f"{dep.id} : consommateurs() illisible ({type(exc).__name__}: {exc})")
+            continue
+        for type_evenement in dep.evenements_consomme:
+            if type_evenement not in fonctions:
+                problemes.append(f"{dep.id} : type consommé {type_evenement!r} sans fonction dans consommateurs()")
+        # Orpheline : présente dans consommateurs() mais absente de evenements.consomme — y compris
+        # quand ce dernier est entièrement vide (un département qui ne déclare rien mais publie).
+        for orpheline in sorted(set(fonctions) - set(dep.evenements_consomme)):
+            problemes.append(
+                f"{dep.id} : consommateurs()[{orpheline!r}] orpheline (absente de evenements.consomme)"
+            )
+    return problemes

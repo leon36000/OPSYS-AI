@@ -1,0 +1,41 @@
+{
+  "scope": [
+    "mobile/src/m6/materiaux.ts",
+    "mobile/src/m6/materiaux.test.ts",
+    "mobile/src/outbox/materialsSubmit.test.ts",
+    "mobile/src/outbox/descripteurs.ts"
+  ],
+  "preimages_sha256": {
+    "mobile/src/m6/materiaux.ts": "82affcb0b0d2df92a7327053939404dd01749de3c9661934bd4947027d3d5b97",
+    "mobile/src/m6/materiaux.test.ts": "47b07d3851e3dc34f0deec3c8104624d570651d26b227fc35a8b6d7d30090281",
+    "mobile/src/outbox/materialsSubmit.test.ts": null,
+    "mobile/src/outbox/descripteurs.ts": "4b3629144f86bb69a0e274580552ac1fd847b33bec3cca2c2c7dd53db1ef8a65"
+  },
+  "source_confirmation": {
+    "path": "departments/m06-material-control/src/m6_material_control/contrats_sortie.py",
+    "sha256": "050870343f810da7b6d38b663c732b58d63048a1cfdd8d9f1874d1ea1025100a",
+    "keys": [
+      "intervention_id",
+      "chantier_id",
+      "lignes_declarees"
+    ],
+    "missing_echo": [
+      "wct_id",
+      "UUID",
+      "personne"
+    ]
+  },
+  "requirements": [
+    "JSON entier snapshot, pas getters/prototype unsafe",
+    "ACK absent/inconnu/malformé/partiel/mismatch/artefact -> accuse_invalide, same UUID/payload/backoff",
+    "Confirmation source exacte liée aux IDs et lignes du formulaire attendu, pas wct_id inventé",
+    "Mutation materials_submit/WCT externe=form WCT/owner persisté/chantierId=intervention",
+    "Nominal refus propre identifiable reste terminal ; refus malformé/contradictoire retenu",
+    "Forward contexte wrapper M6 uniquement",
+    "Deux intentions même objet : rouge de risque, ajout flags serialisation/terminalité soumis au ROOT avant politique"
+  ],
+  "limits": [
+    "Pas d’écho du wct_id/personne/UUID dans confirmation native, aucune attestation client ajoutée",
+    "Aucune qualification téléphone, ExpoSQLite, Core/Gateway réel, nouvelle auth ou source backend"
+  ]
+}

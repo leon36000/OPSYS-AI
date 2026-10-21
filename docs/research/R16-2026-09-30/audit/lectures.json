@@ -1,0 +1,419 @@
+{
+  "head": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "method": "lectures explicitement effectuées ; inventaire et recherches ne valent pas lecture complète ; fichier listé comme ciblé si lecture ou sortie incomplète",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "status": "lecture-complete",
+      "bytes": 4938,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/AGENTS.md",
+      "status": "lecture-complete",
+      "bytes": 4488,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/agents/AGENTS.md",
+      "status": "lecture-complete",
+      "bytes": 3858,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/gateway/AGENTS.md",
+      "status": "lecture-complete",
+      "bytes": 9530,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-config.ts",
+      "status": "lecture-complete",
+      "bytes": 10924,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-garde.ts",
+      "status": "lecture-complete",
+      "bytes": 8383,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-engine.ts",
+      "status": "lecture-complete",
+      "bytes": 22214,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-paquet.ts",
+      "status": "lecture-complete",
+      "bytes": 26228,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-depot.ts",
+      "status": "lecture-complete",
+      "bytes": 4810,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-mcp.ts",
+      "status": "lecture-complete",
+      "bytes": 3926,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte.registration.ts",
+      "status": "lecture-complete",
+      "bytes": 743,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/cli/opsys-metier-cli.ts",
+      "status": "lecture-complete",
+      "bytes": 10566,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/cli/opsys-metier-argv.ts",
+      "status": "lecture-complete",
+      "bytes": 3035,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/gateway/opsys-metier-env.ts",
+      "status": "lecture-complete",
+      "bytes": 5152,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/gateway/opsys-metier-supervisor.ts",
+      "status": "lecture-complete",
+      "bytes": 17715,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/agents/mcp-call-meta.ts",
+      "status": "lecture-complete",
+      "bytes": 1681,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/gateway/opsys-device-roles.ts",
+      "status": "lecture-complete",
+      "bytes": 9950,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/config/opsys-instance.ts",
+      "status": "lecture-complete",
+      "bytes": 4034,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/LICENSE",
+      "status": "lecture-complete",
+      "bytes": 1170,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/NOTICE",
+      "status": "lecture-complete",
+      "bytes": 671,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/THIRD_PARTY_NOTICES.md",
+      "status": "lecture-complete",
+      "bytes": 2855,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": ".github/workflows/core.yml",
+      "status": "lecture-complete",
+      "bytes": 5540,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/PROVENANCE.md",
+      "status": "lecture-ciblee",
+      "bytes": 54047,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "docs/produit/DEFINITION-PRODUIT.md",
+      "status": "lecture-ciblee",
+      "bytes": 92386,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "docs/decisions/ADR-0008-fork-openclaw-opsys-core.md",
+      "status": "lecture-ciblee",
+      "bytes": 8137,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "docs/decisions/ADR-0010-memoire.md",
+      "status": "lecture-ciblee",
+      "bytes": 28504,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "docs/architecture/ARCHITECTURE.md",
+      "status": "lecture-ciblee",
+      "bytes": 13964,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "docs/research/INGREDIENTS.md",
+      "status": "lecture-ciblee",
+      "bytes": 65437,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "docs/research/R14-renommage-core.md",
+      "status": "lecture-ciblee",
+      "bytes": 8691,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "docs/exploitation/INSTALLATION.md",
+      "status": "lecture-ciblee",
+      "bytes": 37048,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "outils/fork/elaguer_core.py",
+      "status": "lecture-ciblee",
+      "bytes": 9883,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/pnpm-workspace.yaml",
+      "status": "lecture-ciblee",
+      "bytes": 5045,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/package.json",
+      "status": "lecture-ciblee",
+      "bytes": 143260,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/pnpm-lock.yaml",
+      "status": "lecture-ciblee",
+      "bytes": 494591,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/test/opsys-tests-cibles.txt",
+      "status": "lecture-ciblee",
+      "bytes": 12763,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/agents/agent-tools.before-tool-call.policy.ts",
+      "status": "lecture-ciblee",
+      "bytes": 18850,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/agents/bash-tools.exec-runtime.ts",
+      "status": "lecture-ciblee",
+      "bytes": 36863,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/infra/exec-control-command-guard.ts",
+      "status": "lecture-ciblee",
+      "bytes": 12092,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/gateway/tools-invoke-http.ts",
+      "status": "lecture-ciblee",
+      "bytes": 6545,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/gateway/tools-invoke-shared.ts",
+      "status": "lecture-ciblee",
+      "bytes": 28499,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/gateway/opsys-metier-config.ts",
+      "status": "lecture-ciblee",
+      "bytes": 8752,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/infra/state-migrations.opsys-instance.ts",
+      "status": "lecture-ciblee",
+      "bytes": 12195,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/config/paths.ts",
+      "status": "lecture-ciblee",
+      "bytes": 16552,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/cli/profile.ts",
+      "status": "lecture-ciblee",
+      "bytes": 6095,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/infra/update-check.ts",
+      "status": "lecture-ciblee",
+      "bytes": 23824,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/infra/update-check-package-target.ts",
+      "status": "lecture-ciblee",
+      "bytes": 6597,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/infra/update-global.ts",
+      "status": "lecture-ciblee",
+      "bytes": 52425,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/cli/update-cli.ts",
+      "status": "lecture-ciblee",
+      "bytes": 14261,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/cli/update-cli/shared.ts",
+      "status": "lecture-ciblee",
+      "bytes": 22038,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/cli/update-cli/update-command-target.ts",
+      "status": "lecture-ciblee",
+      "bytes": 25969,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/cli/update-cli/update-command-git.ts",
+      "status": "lecture-ciblee",
+      "bytes": 25175,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-garde.test.ts",
+      "status": "lecture-ciblee",
+      "bytes": 12098,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-engine.test.ts",
+      "status": "lecture-ciblee",
+      "bytes": 42316,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-config.test.ts",
+      "status": "lecture-ciblee",
+      "bytes": 10401,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-paquet.test.ts",
+      "status": "lecture-ciblee",
+      "bytes": 34420,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/context-engine/opsys-contexte-mcp.wire.test.ts",
+      "status": "lecture-ciblee",
+      "bytes": 4986,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/agents/agent-tools.before-tool-call.opsys-contexte.test.ts",
+      "status": "lecture-ciblee",
+      "bytes": 13287,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/cli/opsys-metier-cli.test.ts",
+      "status": "lecture-ciblee",
+      "bytes": 14251,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/gateway/opsys-metier-supervisor.test.ts",
+      "status": "lecture-ciblee",
+      "bytes": 21188,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/infra/exec-control-command-guard.test.ts",
+      "status": "lecture-ciblee",
+      "bytes": 2286,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "src/opsys/cli.py",
+      "status": "lecture-ciblee",
+      "bytes": 35949,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "src/opsys/approbations.py",
+      "status": "lecture-ciblee",
+      "bytes": 28912,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "src/opsys/capacites.py",
+      "status": "lecture-ciblee",
+      "bytes": 17069,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "src/opsys/politiques.py",
+      "status": "lecture-ciblee",
+      "bytes": 3973,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "src/opsys/outils.py",
+      "status": "lecture-ciblee",
+      "bytes": 11682,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "src/opsys/openclaw.py",
+      "status": "lecture-ciblee",
+      "bytes": 35591,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "departments/m03-estimation/src/m3_estimation/outils.py",
+      "status": "lecture-ciblee",
+      "bytes": 69297,
+      "note": "lecture de source seulement, sans exécution"
+    },
+    {
+      "path": "core/src/agents/opsys-device-mcp-target.ts",
+      "status": "lecture-complete",
+      "bytes": 6524,
+      "note": "lecture de source seulement, sans exécution"
+    }
+  ],
+  "excluded_from_claim": [
+    "lecture exhaustive des 36289 fichiers",
+    "exécution locale core",
+    "audit exhaustif de licence/SCA transitif"
+  ]
+}

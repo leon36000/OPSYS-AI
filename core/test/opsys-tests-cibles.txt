@@ -1,0 +1,447 @@
+# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c5, T1.4-c6, T0.10, T3.3-suite, T3.3-suite-b, T4.18-b, T0.7 lots 1 à 3).
+#
+# `pnpm test:fast` (les six morceaux de la CI) exclut `src/gateway/**`, `src/agents/**` et
+# `packages/gateway-protocol/**` : ces tests appartiennent à d'autres projets vitest. Le job
+# « tests-opsys » de `.github/workflows/core.yml` les lance ici par `pnpm test <fichiers>`, qui
+# route chaque fichier vers le projet qui le possède et échoue si une cible ne correspond à rien.
+#
+# Règle : tout fichier source du core modifié par OPSYS a ses tests (nouveaux ET voisins d'origine)
+# dans cette liste, sauf s'ils tournent déjà dans `test:fast`.
+
+# T1.4-c1 : transmission du _meta MCP (src/agents/mcp-call-meta.ts, agent-bundle-mcp-runtime.ts)
+src/agents/mcp-call-meta.test.ts
+src/agents/agent-bundle-mcp-runtime.mcp-call-meta.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.python-http.integration.test.ts
+src/agents/agent-bundle-mcp-runtime.test.ts
+src/agents/agent-bundle-mcp-runtime.agent-bundle.test.ts
+src/agents/agent-bundle-mcp-runtime.sse-recovery.test.ts
+src/agents/agent-bundle-mcp-runtime-shared.test.ts
+src/agents/agent-bundle-mcp-runtime-config.test.ts
+src/agents/agent-bundle-mcp-runtime-config.cache.test.ts
+
+# T1.4-c6 : la porte d'appareil vers le serveur MCP du département (src/agents/opsys-device-mcp-target.ts),
+# sur de vrais serveurs MCP stdio. Projet agents-core (src/agents/*.test.ts), comme le test du _meta.
+src/agents/opsys-device-mcp-target.test.ts
+
+# T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c6 : /tools/invoke, rôles OPSYS, jeton d'appareil, porte d'appareil
+src/gateway/opsys-device-roles.test.ts
+src/gateway/tools-invoke-http.test.ts
+src/gateway/tools-invoke-http.device-identity.test.ts
+src/gateway/tools-invoke-http.opsys-roles.test.ts
+src/gateway/tools-invoke-http.device-token-auth.test.ts
+src/gateway/tools-invoke-http.opsys-device-mcp.test.ts
+src/gateway/tools-invoke-http.opsys-device-revocation.python-http.integration.test.ts
+src/gateway/tools-invoke-http.opsys-m9-dossier.python-http.integration.test.ts
+src/gateway/tools-invoke-http.opsys-m9-dossier.native-gateway-server.python-http.integration.test.ts
+src/gateway/tools-invoke-http.abort.test.ts
+src/gateway/tools-invoke-http.cron-regression.test.ts
+src/gateway/tools-invoke-authorization.test.ts
+src/gateway/http-auth-utils.test.ts
+src/gateway/http-auth-utils.paired-device.test.ts
+src/gateway/http-utils.authorize-request.test.ts
+src/gateway/http-utils.request-context.test.ts
+src/gateway/http-utils.model-override.test.ts
+
+# T1.4-c4 : GATEWAY_CLIENT_IDS.OPSYS_MOBILE (packages/gateway-protocol/src/client-info.ts)
+src/gateway/gateway-misc.test.ts
+packages/gateway-protocol/src/schema/worker-admission.test.ts
+
+# T1.4-c5 : l'app apprend sa personne et son rôle nommés (GET /opsys/identite, src/gateway/opsys-device-identity-http.ts,
+# monté dans server-http.ts par server-http-modules.ts). opsys-device-identity-http : appairage réel (projet
+# gateway-database-workers, test/vitest/vitest.gateway-server-paths.mjs). opsys-mobile-trust : le client
+# `opsys-mobile` est valide et n'entre pas dans la classe « app native » (aucune voie d'approbation silencieuse).
+# server-http.security-headers : voisin d'origine de server-http.ts (une route inconnue reste un 404).
+# opsys-device-roles.test.ts (plus haut) couvre resolveOpsysDeviceIdentity.
+src/gateway/opsys-device-identity-http.test.ts
+# M6.13 : aperçu photo DEVICE ; propriétaire gateway-database-workers, hors test:fast.
+src/gateway/opsys-preuves-photo-http.test.ts
+src/gateway/server-http.opsys-device-identity.test.ts
+src/gateway/opsys-mobile-trust.test.ts
+src/gateway/server-http.security-headers.test.ts
+
+# T0.10 : superviseur du moteur métier Python (src/gateway/opsys-metier-*.ts). Les trois fichiers
+# neufs et les tests d'origine des fichiers modifiés : le sidecar de durée de vie
+# (server-lifetime-sidecars.ts) et l'état exposé par les RPC health et status (server-methods/health.ts).
+src/gateway/opsys-metier-config.test.ts
+src/gateway/opsys-metier-env.test.ts
+src/gateway/opsys-metier-supervisor.test.ts
+src/gateway/server-lifetime-sidecars.test.ts
+src/gateway/server-methods/health.owner-routing.test.ts
+
+# T3.3-suite et T3.3-suite-b : moteur de contexte OPSYS (src/context-engine/opsys-contexte*.ts, enregistré par
+# init.ts). T3.3-suite-b ajoute le garde `before_tool_call` (opsys-contexte-garde.test.ts), l'affaire lue dans la
+# session et le filtre de confidentialité du paquet (config, paquet et moteur).
+# Ces fichiers ne sont pas candidats « unit-fast » (src/context-engine n'est pas dans
+# unitFastCandidatePatterns, seul context-engine.test.ts y est forcé) : `pnpm test <fichier>` les route
+# vers test/vitest/vitest.unit.config.ts (sorte « default »), la même configuration que `test:fast`.
+# Le test voisin d'origine de init.ts, src/context-engine/context-engine.test.ts, tourne déjà dans test:fast.
+src/context-engine/opsys-contexte-config.test.ts
+src/context-engine/opsys-contexte-cible-ticket.test.ts
+src/context-engine/opsys-contexte-paquet.test.ts
+src/context-engine/opsys-contexte-depot.test.ts
+src/context-engine/opsys-contexte-engine.test.ts
+src/context-engine/opsys-contexte.registration.test.ts
+src/context-engine/opsys-contexte-mcp.wire.test.ts
+src/context-engine/opsys-contexte-historique-m9.test.ts
+src/context-engine/opsys-contexte-garde.test.ts
+
+# T4.18-b : la forme d'une affaire (`affaire_id`, un lead ou l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre), commune au
+# core et à M10. `opsys-contexte-affaire.test.ts` rejoue `opsys-contexte.affaires.json`, la liste de cas que M10 rejoue
+# aussi (`departments/m10-memoire/tests/test_affaire.py`). Même projet que les tests voisins (unit, sorte « default »).
+src/context-engine/opsys-contexte-affaire.test.ts
+
+# La greffe du garde dans runBeforeToolCallHook (src/agents/agent-tools.before-tool-call.policy.ts) a ses trois
+# tests d'origine voisins (decision, e2e, embedded-mode) et sa preuve propre, opsys-contexte : le vrai
+# runBeforeToolCallHook, un vrai contexte.json, le vrai magasin d'état. Ils vivent dans src/agents/*.test.ts :
+# `pnpm test <fichier>` les route vers le projet agents-core (test/vitest/vitest.agents-paths.mjs, `core`).
+src/agents/agent-tools.before-tool-call.decision.test.ts
+src/agents/agent-tools.before-tool-call.e2e.test.ts
+src/agents/agent-tools.before-tool-call.embedded-mode.test.ts
+src/agents/agent-tools.before-tool-call.opsys-contexte.test.ts
+
+# Admission des profils configurables : frontière fournisseur et continuations, rang paresseux
+# des candidats, refus d'exposer les outils MCP internes. Le voisin run-entry teste le même raccord.
+# Ces fichiers appartiennent aux projets agents et ne sont pas couverts par test:fast.
+src/agents/agent-tools.before-tool-call.opsys-runtime-deny.test.ts
+src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts
+src/agents/embedded-agent-runner/opsys-runtime-completion-custody.test.ts
+src/agents/embedded-agent-runner/opsys-runtime-admission.python-http.integration.test.ts
+src/agents/embedded-agent-runner/run-entry.admission.integration.test.ts
+src/agents/embedded-agent-runner/run-entry.test.ts
+
+# T0.7 lot 1, interface et locales : la marque visible devient OPSYS et fr-CA s'ajoute aux locales.
+# `test:fast` ne couvre ni `ui/` (projet vitest « ui », jsdom, avec le greffon de locales de Vite) ni `test/`.
+# Les tests `*.e2e.test.ts` et `*.browser.test.ts` du lot (Playwright, Chromium) ne sont pas listés ici : le job
+# n'installe pas de navigateur. Ils sont mis à jour avec les mêmes chaînes.
+ui/src/i18n/lib/registry.test.ts
+ui/src/i18n/test/translate.test.ts
+ui/src/i18n/apps-loading.test.ts
+ui/src/app/vite-config.node.test.ts
+ui/src/app-navigation.test.ts
+ui/src/app/app-host.document-title.test.ts
+ui/src/app/control-ui-environment.test.ts
+ui/src/app/update-overlay-helpers.test.ts
+ui/src/components/assistant-panel.test.ts
+ui/src/components/command-palette.test.ts
+ui/src/components/login-gate.test.ts
+ui/src/components/session-organizer-batch-mutations.test.ts
+ui/src/components/settings-sidebar.test.ts
+ui/src/components/sidebar-attention.test.ts
+ui/src/components/app-sidebar.people.test.ts
+ui/src/lib/sessions/worktree-preservation.test.ts
+# Ouverture de configuration différée : erreurs/chunks/connexions retirées et copie facultative.
+# Ces tests UI ne sont pas couverts par test:fast.
+ui/src/lib/config/config-gateway-operations.test.ts
+ui/src/lib/config/runtime-config-capability.test.ts
+ui/src/lib/config/runtime-config-capability.loading.test.ts
+ui/src/lib/config/runtime-config-capability.schema-access.test.ts
+ui/src/lib/clipboard.test.ts
+# Fixtures d'identité/avatars alignées sur leurs propriétaires réels après typage natif complet.
+ui/src/pages/agents/agents-page.selection.test.ts
+ui/src/pages/agents/identity-actions.test.ts
+ui/src/pages/about/view.test.ts
+ui/src/pages/apps/view.test.ts
+ui/src/pages/chat/chat-model-runtime.test.ts
+ui/src/pages/chat/chat-view.test.ts
+ui/src/pages/config/memory-page.test.ts
+ui/src/pages/config/memory.test.ts
+ui/src/pages/connection/view.render.test.ts
+ui/src/pages/cron/view.test.ts
+ui/src/pages/custodian/custodian-page.channel-onboarding.test.ts
+ui/src/pages/device/device-pages.test.ts
+ui/src/pages/model-providers/profiles-view.test.ts
+ui/src/pages/model-setup/view.test.ts
+ui/src/pages/plugins/catalog-detail.test.ts
+test/scripts/control-ui-performance.test.ts
+test/scripts/openclaw-cross-os-release-checks.test.ts
+
+# T0.7 lot 1, invites système et voix : le modèle s'annonce OPSYS. Ces fichiers figent les phrases des invites et
+# des messages de voix. Ni `src/agents`, `src/gateway`, `src/cli`, `extensions` ni `ui` ne sont dans `test:fast` ;
+# `src/talk`, `src/system-agent` et `src/claws` peuvent être rangés dans les voies « unit-fast » (contenu du test) :
+# on les liste pour être sûr qu'ils tournent quelque part.
+src/agents/system-prompt.test.ts
+src/agents/system-prompt-messaging.test.ts
+src/agents/delegation-guidance.test.ts
+src/agents/realtime-bootstrap-context.test.ts
+src/agents/embedded-agent-runner/system-prompt.test.ts
+src/agents/cli-runner/helpers.system-prompt.test.ts
+src/agents/cli-runner/prepare.test.ts
+src/agents/sessions/sdk.test.ts
+src/gateway/server-methods/update-owner.test.ts
+src/gateway/talk/client-gateway-control.test.ts
+src/gateway/talk/handlers/client-native-actions.test.ts
+src/gateway/talk/handlers/client-native-control.test.ts
+src/gateway/talk/relay/index.test.ts
+src/cli/capability-cli.test.ts
+src/system-agent/assistant.test.ts
+src/system-agent/greeting.test.ts
+src/talk/agent-consult-runtime.test.ts
+src/talk/agent-consult-tool.test.ts
+src/talk/agent-run-control.test.ts
+src/claws/project.test.ts
+extensions/openai/realtime-voice-provider-routing.test.ts
+extensions/voice-call/src/realtime-agent-context.test.ts
+extensions/voice-call/src/realtime-fast-context.test.ts
+extensions/voice-call/src/runtime.test.ts
+extensions/voice-call/src/webhook/realtime-handler.test.ts
+ui/src/pages/chat/talk/consult.test.ts
+ui/src/pages/chat/talk/gateway-relay.test.ts
+ui/src/pages/chat/talk/google-live-control.test.ts
+ui/src/pages/chat/talk/webrtc.test.ts
+
+# T0.7 lot 1, bannière, notifications et pages partagées : la marque visible devient OPSYS. `src/cli`, `src/infra`,
+# `src/gateway`, `extensions`, `test` et `ui` ne sont pas dans `test:fast` ; `src/status` et `src/entry.*` peuvent être
+# rangés dans les voies « unit-fast » (contenu du test) : on les liste pour être sûr qu'ils tournent quelque part.
+# `test/openclaw-launcher.e2e.test.ts` (processus longs, contrôle du runtime Node) reste hors liste : il suit la voie e2e.
+src/cli/banner.test.ts
+src/cli/claw-banner.test.ts
+src/cli/tagline.test.ts
+src/cli/program/help.test.ts
+src/entry.version-fast-path.test.ts
+src/status/status-message.test.ts
+src/infra/openclaw-cli-shim.test.ts
+src/infra/push-apns.test.ts
+src/gateway/approval-web-push.test.ts
+src/gateway/event-web-push.test.ts
+src/gateway/server-methods/push.test.ts
+src/gateway/control-ui-share.http.test.ts
+src/gateway/control-ui-public-session.http.test.ts
+src/gateway/control-ui-public-session-render.test.ts
+src/gateway/server.plugin-http-auth.test.ts
+src/gateway/server-discovery.test.ts
+extensions/crabbox/src/crabbox-worker-node-enrollment.test.ts
+extensions/crabbox/src/crabbox-worker-node-enrollment-replay.test.ts
+extensions/crabbox/src/crabbox-worker-node-enrollment-windows.test.ts
+test/scripts/parallels-runtime-setup.test.ts
+test/scripts/parallels-smoke-model.test.ts
+test/openclaw-launcher-version.e2e.test.ts
+ui/src/app/service-worker-cache.test.ts
+extensions/telegram/src/miniapp/command.test.ts
+extensions/telegram/src/miniapp/page.test.ts
+
+# T0.7 lot 2, une seule commande `opsys` : `opsys metier <commande>` lance le moteur Python par le core
+# (src/cli/opsys-metier-argv.ts, opsys-metier-cli.ts, greffé dans src/entry.ts), les anciens noms des commandes du moteur
+# disent la nouvelle, et le core déclare le binaire `opsys` en plus de `openclaw` (package.json). `src/cli`, `src/infra`,
+# `src/commands` et `src/agents` ne sont pas garantis dans `test:fast` : les tests neufs et les voisins d'origine des
+# fichiers touchés sont listés. opsys-metier-env.test.ts et opsys-metier-config.test.ts (T0.10, plus haut) couvrent
+# `buildOpsysMetierCliEnv` et la clé `commande_cli` documentée dans l'en-tête de opsys-metier-config.ts.
+src/cli/opsys-metier-argv.test.ts
+src/cli/opsys-metier-cli.test.ts
+src/entry.run-main.test.ts
+src/entry.test.ts
+src/infra/exec-control-command-guard.test.ts
+src/agents/bash-tools.exec.script-preflight.test.ts
+src/infra/openclaw-cli-invocation.test.ts
+src/commands/daemon-install-plan.shared.test.ts
+
+# T0.7 lot 3, dossier d'instance `~/.opsys` : l'état du core du profil `opsys` est `~/.opsys/core` (config `opsys.json`,
+# `openclaw.json` toujours lu), l'ancien `~/.openclaw-opsys` reste l'état tant que Doctor ne l'a pas déplacé, et Doctor
+# le déplace de façon sûre (src/config/opsys-instance.ts, cli/profile-utils.ts, cli/profile.ts, config/paths.ts,
+# daemon/paths.ts, infra/state-migrations.opsys-instance.ts, greffé dans infra/state-migrations.state-dir.ts).
+# `src/cli`, `src/infra`, `src/config` et `src/daemon` ne sont pas garantis dans `test:fast` : les tests neufs et les
+# voisins d'origine des fichiers touchés sont listés.
+src/config/opsys-instance.test.ts
+src/config/paths.opsys.test.ts
+src/config/paths.test.ts
+src/cli/profile.opsys.test.ts
+src/cli/profile.test.ts
+src/daemon/paths.opsys.test.ts
+src/daemon/service-env.test.ts
+src/infra/state-migrations.opsys-instance.test.ts
+src/infra/state-migrations.state-dir.test.ts
+
+# M5 : droits CFO accordés par un humain, tickets privés liés au profil et échange HTTP Python réel.
+src/agents/opsys-cfo-grant-ticket.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-cfo-grant-ticket.python-http.integration.test.ts
+
+# M1 : import privé hôte, callback authentifié et transport MCP Python réel.
+# Le job tests-opsys fournit OPSYS_TEST_PYTHON, sans skip implicite.
+src/agents/opsys-runtime-missed-call.test.ts
+src/agents/opsys-runtime-missed-call.python-http.integration.test.ts
+src/plugins/services.missed-call.test.ts
+src/plugins/services.test.ts
+extensions/voice-call/src/config.missed-call-ingress.test.ts
+extensions/voice-call/src/webhook.missed-call.test.ts
+extensions/voice-call/src/webhook.test.ts
+extensions/voice-call/index.test.ts
+
+# Reprise légère : intentions POSTFLIGHT, collecte/remise/ACK M10, lecture opérateur
+# et voisins du cycle attempt. Même lanceur canonique et broker hôte que la qualification locale.
+src/agents/embedded-agent-runner/run/attempt-phase-lifecycle.test.ts
+src/agents/embedded-agent-runner/run/attempt-prompt-submit.test.ts
+src/agents/embedded-agent-runner/run/attempt-prompt-submit.completion-custody.test.ts
+src/agents/harness/context-engine-turn-outbox.test.ts
+src/agents/harness/opsys-postflight-collector.sqlite.test.ts
+src/agents/harness/opsys-postflight-collector.test.ts
+src/agents/harness/opsys-postflight-delivery.python-http.integration.test.ts
+src/agents/harness/opsys-postflight-delivery.test.ts
+src/agents/harness/opsys-postflight-intents.test.ts
+src/agents/harness/opsys-postflight-outbox.test.ts
+src/cli/opsys-postflight-diagnostic.test.ts
+src/cli/program/register.database.import-boundary.test.ts
+src/cli/program/register.database.postflight.test.ts
+
+# Retrait cron et preuves d’autorité : ces voisins ne sont pas garantis par test:fast.
+src/cron/store.test.ts
+src/cron/store/runtime-retirement-store.integration.test.ts
+src/cron/store/runtime-authority-crypto.integration.test.ts
+src/gateway/opsys-cron-reconciler.native.test.ts
+src/gateway/server-cron.test.ts
+
+# GHSA-6qxp-vccf-f47h : issuer OAuth, secrets hérités, persistance et migration.
+src/agents/mcp-oauth-provider.read.test.ts
+src/agents/mcp-oauth-provider.preparation.test.ts
+src/agents/mcp-oauth-refresh-issuer.test.ts
+src/agents/mcp-oauth-refresh.test.ts
+src/agents/mcp-oauth.test.ts
+src/agents/mcp-oauth-store.test.ts
+src/agents/mcp-oauth-writes.test.ts
+src/infra/state-migrations.mcp-oauth.test.ts
+
+# M1 : réception SMS, Source/Host/Gate, adoption et dernier garde avant modèle.
+# Ces régressions et voisins sont exclus de test:fast ; le job tests-opsys les route.
+extensions/sms/src/ingress-spool.test.ts
+extensions/sms/src/webhook.test.ts
+src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts
+src/agents/opsys-runtime-sms-contract.test.ts
+src/channels/message/ingress-drain.adoption-commit.test.ts
+src/channels/message/ingress-native-completion.test.ts
+src/channels/message/ingress-queue.read-only-access.test.ts
+src/channels/message/opsys-sms-source.test.ts
+src/channels/turn/run-channel-turn.finalize.test.ts
+src/channels/turn/run-channel-turn.pipeline.test.ts
+src/config/opsys-sms-ingress.test.ts
+src/gateway/opsys-sms-gate-consumer.test.ts
+src/gateway/opsys-sms-host-authority.test.ts
+src/gateway/opsys-sms-host-claim-adapter.test.ts
+src/gateway/opsys-sms-host-controller.test.ts
+src/gateway/opsys-sms-ingress-capture.test.ts
+src/gateway/opsys-sms-managed-host-bridge.test.ts
+src/gateway/opsys-sms-receipt-gate.test.ts
+src/gateway/server-channels.ownership.test.ts
+src/infra/opsys-sms-task-runtime.test.ts
+src/plugins/opsys-sms-host-bridge.test.ts
+
+# M1 P0 Stage A5 : publication native, parenté du clone, reset/source-only/rollback.
+# La configuration actuelle de test:fast exclut src/config/** et src/secrets/** ;
+# pnpm test <fichiers> route ces sept suites vers leurs projets propriétaires.
+src/config/runtime-snapshot.test.ts
+src/secrets/runtime-state.test.ts
+src/config/runtime-snapshot.preparation.test.ts
+src/config/runtime-snapshot.env.test.ts
+src/config/io.runtime-snapshot-write.test.ts
+src/secrets/runtime-state.clear.test.ts
+src/config/resolution-facts.test.ts
+
+# M1 P0 Stage B10 : owner/tickets négatifs, managed/secrets/recovery/coordinator.
+# À adopter seulement après présence du nouveau test owner et gel/qualification B10.
+# Gateway reste hors test:fast ; nouveaux tests et voisins natifs des bords touchés.
+src/gateway/server-runtime-policy-owner.test.ts
+src/gateway/server-reload-restart.test.ts
+src/gateway/server-aux-handlers.test.ts
+src/gateway/config-reload.test.ts
+src/gateway/config-reload.activation.integration.test.ts
+src/gateway/server-reload-handlers.test.ts
+src/gateway/server-secrets-reload.model-runtime.test.ts
+src/gateway/server-reload-channel-restart.test.ts
+src/gateway/server-runtime-handles.test.ts
+src/gateway/server-reload-hot.cron-lazy.test.ts
+src/gateway/server-reload-hot.cron-cold.test.ts
+
+# B11 : finalisation native vraie/refusée, helper managed-secrets réel.
+src/gateway/server-reload-managed-secrets.test.ts
+
+# R0 : réception native préparée, refus de sources forgées et cycle de vie.
+src/channels/message/opsys-sms-source-receiver.test.ts
+
+# B11 : politiques de rechargement, decisions et statut hot des voisins natifs.
+src/gateway/config-reload.operation-policy.test.ts
+src/gateway/config-reload.decisions.test.ts
+src/gateway/server-reload-handlers.hot-reload-status.test.ts
+
+# M1 C4 : contexte natif, refus legacy et capture au dernier usage.
+# Gateway exclu de test:fast ; cette suite complète est qualifiée dans full25.
+src/gateway/server-request-context.test.ts
+
+# M1 FIRST2 : capture du runtime au constructeur, témoin managed natif et voisins.
+# Le job test:fast lance vitest.unit.config.ts, qui exclut src/channels/** et src/plugins/**.
+# Le test extrait peut être classé unit-fast par pnpm test ; cette voie distincte
+# n'est pas exécutée par la commande test:fast actuelle. Les dix fichiers entiers
+# sont donc explicitement sélectionnés ici, sans doublon ni filtre de noms.
+src/channels/message-access/participant-input.test.ts
+src/plugins/registry-runtime.channel-ingress.test.ts
+src/plugins/registry-runtime.state-coherence.test.ts
+src/plugins/native-session-catalog-registration.test.ts
+src/plugins/registry.runtime-session-ownership.test.ts
+src/plugins/registry.runtime-config.test.ts
+src/plugins/registry-lifecycle.test.ts
+src/plugins/plugin-registry-snapshot.state-migration.test.ts
+src/plugins/loader.config-capture.test.ts
+src/plugins/loader.gateway-bindings.test.ts
+
+# M1 H3 : origine native du Host, contributions courantes et voisins affectes.
+# Les 26 suites entieres comprennent quatre cibles deja presentes ; les 22 autres
+# sont exclues de test:fast et selectionnees ici sans filtre ni doublon.
+src/plugins/registry-runtime.native-host-owner.test.ts
+src/channels/message-access/admission-evidence.test.ts
+src/channels/message-access/operator-authority.test.ts
+src/channels/message-access/telegram-native-owner.test.ts
+src/channels/message-access/telegram-native-acp-owner.test.ts
+src/channels/message-access/discord-native-owner.test.ts
+src/channels/message-access/discord-native-acp-owner.test.ts
+src/auto-reply/reply/commands-allowlist.owner.test.ts
+src/auto-reply/reply/commands-config.owner.test.ts
+src/auto-reply/reply/commands-acp.owner.test.ts
+src/auto-reply/reply/commands-plugin.owner.test.ts
+src/auto-reply/reply/dispatch-acp.test.ts
+src/auto-reply/reply/channel-run-admission.test.ts
+src/auto-reply/reply/queue.media-carrier.test.ts
+src/auto-reply/reply/queue.personal-bootstrap.test.ts
+src/auto-reply/reply/queue.collect.test.ts
+src/auto-reply/reply/commands-acp.test.ts
+src/auto-reply/reply/agent-runner-execution-lifecycle.test.ts
+src/gateway/server-runtime-subscriptions.test.ts
+src/gateway/server-runtime-subscriptions.access.test.ts
+extensions/imessage/src/monitor/inbound-processing.route.test.ts
+extensions/telegram/src/bot-handlers.inbound-authorization.test.ts
+
+# Transports MCP : origines HTTP explicites, redirections HTTPS, capture de configuration
+# et voisins SSRF/OAuth. Ces dix suites ne sont pas couvertes par test:fast ; les suites
+# mcp-oauth et opsys-postflight-delivery.python-http.integration sont déjà sélectionnées.
+src/agents/mcp-http-fetch.test.ts
+src/agents/mcp-transport-config.test.ts
+src/config/mcp-config.test.ts
+src/infra/net/fetch-guard.ssrf.test.ts
+src/agents/mcp-http-transport.test.ts
+src/agents/mcp-oauth-fetch.test.ts
+src/agents/mcp-config-mutation.test.ts
+src/infra/net/fetch-guard.release.test.ts
+src/agents/mcp-transport.test.ts
+src/agents/mcp-connection-resolver.test.ts
+
+# Admission initiale MCP native Codex : origine HTTP explicite, listener loopback canonique
+# et configuration utilisateur asynchrone. Projets agents/gateway absents de test:fast.
+src/agents/codex-mcp-config.test.ts
+src/gateway/mcp-http.test.ts
+src/agents/cli-runner/bundle-mcp.codex.test.ts
+src/agents/cli-runner/bundle-mcp.web-search.test.ts
+src/agents/cli-runner/bundle-mcp-codex.user-config.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-m8-n2.python-http.integration.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-m3-n4-postcommit.python-http.integration.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-m5-ap-postcommit.python-http.integration.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-m6-proof-cause.python-http.integration.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-m6-po-authority.python-http.integration.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-m2-dossier.python-http.integration.test.ts
+src/agents/embedded-agent-runner/run/run-attempt-dispatch.owner.test.ts
+src/agents/private-single-provider-request.test.ts
+src/agents/m9-private-admission-binding.test.ts
+
+# M9 : restriction privee de la source operateur conservee apres la requete.
+src/gateway/m9-private-audit-source.test.ts
+
+# M9 : execution privee du flux prepare et garde des sources possedees.
+src/agents/m9-private-prepared-stream.test.ts
+src/agents/m9-private-completion-lease.test.ts
+src/agents/m9-canonical-private-stream-composition.test.ts

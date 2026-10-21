@@ -1,0 +1,1065 @@
+{
+  "schema": "publication-audit-preparation-v1",
+  "state": "ROOT_ADOPTED_FOR_BRANCH_COMMIT_CI_PENDING",
+  "time_toronto": "2026-10-11T02:17:00.272411-04:00",
+  "product": "PARTIEL",
+  "base_head": "ab2613b0b64200335db6b9fc135577f510de8b6a",
+  "candidate_commit": null,
+  "source_identity": {
+    "sha256": "3ed2e1557bc2ca9e07d8a706b4bc65222b8eda06451de81072246fbba181a0f7",
+    "count": 43836,
+    "bytes": 745655010,
+    "snapshot_before_document_additions": true
+  },
+  "counts": {
+    "listed_paths": 20,
+    "modified_or_new_paths": 19,
+    "identical_retained": 1,
+    "new_files": 5
+  },
+  "rows": [
+    {
+      "path": "core/src/config/runtime-snapshot.ts",
+      "preimage_sha256": "98feda012b1790b3caa776e63734d2df6509f015b73935f37857d9fa99c5b1b9",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "A5 + Root type-only annotations",
+      "disposition": "modified_integrated",
+      "current_sha256": "9cc3f2033bcfa75b7061c05e4fdee54b406b59c766ca567d149bc69bd7600325",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "1c4d5d76e8679387e20767a5f62119423475cef28996bd07c4a4f92cfb76e607",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "A5_historical"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "TS6_erasure": "FULL2_BYTE_IDENTICAL_NO_DECLARATION_CREDIT",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/secrets/runtime-state.ts",
+      "preimage_sha256": "cb2f3d63df49b258f87b7b2f47b3b758bc9d9bc31aa70a93c5cc725cef003d04",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "A5",
+      "disposition": "modified_integrated",
+      "current_sha256": "cf7b30621d66a041c8325cd3ce563838ee836a88f30dd3d171830f92eb29a0f5",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "cf7b30621d66a041c8325cd3ce563838ee836a88f30dd3d171830f92eb29a0f5",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "A5_historical"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/config/runtime-snapshot.test.ts",
+      "preimage_sha256": "e1eb5beafbc38d27699429b7252cbc5f947f4bdfcf902692e123ff9743702459",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "A5",
+      "disposition": "modified_integrated",
+      "current_sha256": "124feedddc66effdd03c4b5cab14949c32fd525759cfcc15f8b3a14293000518",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "124feedddc66effdd03c4b5cab14949c32fd525759cfcc15f8b3a14293000518",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "not claimed as listed input/test executed by typechecker",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "A5_historical"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "NOT_CLAIMED_TEST_OR_METADATA_TYPING",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": 37,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/secrets/runtime-state.test.ts",
+      "preimage_sha256": "300465f494b112b4ee03879f37c544578bae98ebdc91491cacb7d8463762d996",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "A5",
+      "disposition": "modified_integrated",
+      "current_sha256": "fc0f4e67e76f82df5eaa6216e99659041086ef7c581c306a7e4b65f9678ec657",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "fc0f4e67e76f82df5eaa6216e99659041086ef7c581c306a7e4b65f9678ec657",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "not claimed as listed input/test executed by typechecker",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "A5_historical"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "NOT_CLAIMED_TEST_OR_METADATA_TYPING",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": 75,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/config/runtime-publication.ts",
+      "preimage_sha256": null,
+      "mode_git": "100644",
+      "mode_local": 420,
+      "origin": "A5 + Root type-only annotations",
+      "disposition": "new_integrated",
+      "current_sha256": "9368c56e55f4cb123a327ba91a5b592bdafed479510bed618ee49c2c75f71965",
+      "preimage_kind": "absent_new_file",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "8dd52b3b8288643a01f3769339173b6b6ec65733f1d9b809b79df5a8e540aa0e",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "A5_historical"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "TS6_erasure": "FULL2_BYTE_IDENTICAL_NO_DECLARATION_CREDIT",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/channels/message/opsys-sms-source.ts",
+      "preimage_sha256": "24f7aa0b527c83e505a771b6c7ca4272252db598c1f6013375b3d9e32095c16e",
+      "mode_git": "100644",
+      "mode_local": 420,
+      "origin": "R0",
+      "disposition": "modified_integrated",
+      "current_sha256": "0244bb9c8f035039ba2b0647e9df63fa1f7c35c2e465f10ad998cf7b9e33ccb3",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "0244bb9c8f035039ba2b0647e9df63fa1f7c35c2e465f10ad998cf7b9e33ccb3",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "receiver",
+        "historical_origin": null
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/channels/message/opsys-sms-source-receiver.ts",
+      "preimage_sha256": null,
+      "mode_git": "100644",
+      "mode_local": 420,
+      "origin": "R0",
+      "disposition": "new_integrated",
+      "current_sha256": "4a3ca7b9faa1cdaca6b6e90b47667ca50a26899a55d75e952e8176b377782554",
+      "preimage_kind": "absent_new_file",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "4a3ca7b9faa1cdaca6b6e90b47667ca50a26899a55d75e952e8176b377782554",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "receiver",
+        "historical_origin": null
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/channels/message/opsys-sms-source-receiver.test.ts",
+      "preimage_sha256": null,
+      "mode_git": "100644",
+      "mode_local": 420,
+      "origin": "R0",
+      "disposition": "new_integrated",
+      "current_sha256": "e4833d34d3618d023d4593095975a8bbdb6ea6c16f5261800ba88f7c87954b0c",
+      "preimage_kind": "absent_new_file",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "e4833d34d3618d023d4593095975a8bbdb6ea6c16f5261800ba88f7c87954b0c",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "not claimed as listed input/test executed by typechecker",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "receiver",
+        "historical_origin": null
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "NOT_CLAIMED_TEST_OR_METADATA_TYPING",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": 38,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/server-runtime-policy-owner.ts",
+      "preimage_sha256": null,
+      "mode_git": "100644",
+      "mode_local": 420,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "new_integrated",
+      "current_sha256": "e24f69e281548601cac1157d914a5a55996206fc65b50f7d61d3d87e63f4fb8b",
+      "preimage_kind": "absent_new_file",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "e24f69e281548601cac1157d914a5a55996206fc65b50f7d61d3d87e63f4fb8b",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/config-reload.ts",
+      "preimage_sha256": "0a98dde2e9a35617d2715371bc850dd806363178b928114ff7db671bc49cb753",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "modified_integrated",
+      "current_sha256": "57e530a508f6222b87b551a5e156df65d73488369e8579d1be5dbe0e1aed6971",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "57e530a508f6222b87b551a5e156df65d73488369e8579d1be5dbe0e1aed6971",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/server-reload-managed.ts",
+      "preimage_sha256": "ad04a49cc55c94c95e82cbac0a647bcc25430da284dcf2e10d483ed137c6b02b",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "modified_integrated",
+      "current_sha256": "72c8d57d1fd8f34e118284dea3a51b598eaba6eb54603541178e67381551f0d9",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "72c8d57d1fd8f34e118284dea3a51b598eaba6eb54603541178e67381551f0d9",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/server-secrets-reload.ts",
+      "preimage_sha256": "3a03a115e21fd193e2721c517e99dfbace309353b996025e30bebe990ddd9eba",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "modified_integrated",
+      "current_sha256": "6cfebd6e5ecbc259cc8149394040c7e508a8f8b3fd8cef5f8171072730f56152",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "6cfebd6e5ecbc259cc8149394040c7e508a8f8b3fd8cef5f8171072730f56152",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/server-runtime-handles.ts",
+      "preimage_sha256": "b6fcb5a3d5ca42db8877e55e13aafed31e6f07cd14b63870de4db70d1cff0d9f",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "modified_integrated",
+      "current_sha256": "89f8a225b32ae5160636fb62e5024237359a99ce685f997fa749084d73cc88ac",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "89f8a225b32ae5160636fb62e5024237359a99ce685f997fa749084d73cc88ac",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/server-reload-hot.ts",
+      "preimage_sha256": "5ab8deeccab97cbd487c632eb31fe7a3c7c72670d5406e94f96ecfd3971dd5f8",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "modified_integrated",
+      "current_sha256": "6dd76bf501d98e126d5b88e1ac1658882b19608d14507cbada9346a4a74ce97e",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "6dd76bf501d98e126d5b88e1ac1658882b19608d14507cbada9346a4a74ce97e",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/server-reload-restart.ts",
+      "preimage_sha256": "3cac64b082829086096400e63986a8e51376e82a5cee65fec25a0803b3fe8025",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "modified_integrated",
+      "current_sha256": "e4ff40befc09235da0a45031fa8ec08f2673a1227f0a016adeadbaaaaa09d24d",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "e4ff40befc09235da0a45031fa8ec08f2673a1227f0a016adeadbaaaaa09d24d",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/server-runtime-policy-owner.test.ts",
+      "preimage_sha256": null,
+      "mode_git": "100644",
+      "mode_local": 420,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "new_integrated",
+      "current_sha256": "072545339c71354a3497459fd2459283e3a5dc38bfb880f72d9d3f09e855fbcd",
+      "preimage_kind": "absent_new_file",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "072545339c71354a3497459fd2459283e3a5dc38bfb880f72d9d3f09e855fbcd",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "not claimed as listed input/test executed by typechecker",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "NOT_CLAIMED_TEST_OR_METADATA_TYPING",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": 19,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/server-reload-restart.test.ts",
+      "preimage_sha256": "6b0293ef916443293582b32da9eee66fdffa2724164b86b91c9826c414e26e48",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "modified_integrated",
+      "current_sha256": "fe88c992f2dccdb9f564f47a24772d731473f15cb39ce5ec3038ff6fc57a6610",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "fe88c992f2dccdb9f564f47a24772d731473f15cb39ce5ec3038ff6fc57a6610",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "not claimed as listed input/test executed by typechecker",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "NOT_CLAIMED_TEST_OR_METADATA_TYPING",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": 8,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/server-aux-handlers.test.ts",
+      "preimage_sha256": "4ff0efb33ef4c0d1015606bc6b2402eb1c24858c9448e2eb61eb5319db95eaf9",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "identical_retained",
+      "current_sha256": "4ff0efb33ef4c0d1015606bc6b2402eb1c24858c9448e2eb61eb5319db95eaf9",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "IDENTICAL_RETAINED",
+      "historical_0c197_sha256": "4ff0efb33ef4c0d1015606bc6b2402eb1c24858c9448e2eb61eb5319db95eaf9",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "not claimed as listed input/test executed by typechecker",
+        "format": "not_in18",
+        "lint": "not_in18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "NOT_CLAIMED_TEST_OR_METADATA_TYPING",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "NOT_IN_STYLE18_SCOPE",
+        "new_snapshot_lint18": "NOT_IN_STYLE18_SCOPE",
+        "actual_test_file_records": 20,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/src/gateway/server-reload-managed-secrets.ts",
+      "preimage_sha256": "6613288d9e267182eddc278ae9d131928e93b4ab69ae70607f601e00c7fd1443",
+      "mode_git": "100644",
+      "mode_local": 436,
+      "origin": "B11 (origin label historical; current scoped qualifications below)",
+      "disposition": "modified_integrated",
+      "current_sha256": "8127ec74001892789c51cd6674da5c4c0530820e69c95754cbe42891ee730710",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "native Core owner/provenance only; OriginalC/P0/model admission/delivery not global delivered",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "8127ec74001892789c51cd6674da5c4c0530820e69c95754cbe42891ee730710",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "types_required_input",
+        "format": "format18",
+        "lint": "lint18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": "B11_history"
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "PASS_REQUIRED_PRODUCTION_INPUT",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "new_snapshot_format18": "PASS",
+        "new_snapshot_lint18": "PASS",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    },
+    {
+      "path": "core/test/opsys-tests-cibles.txt",
+      "preimage_sha256": "44607735c92ee7720605d92b45b8258f120b0c52d8059f3cab72882341a4d4e5",
+      "mode_git": "100644",
+      "mode_local": 420,
+      "origin": "Root metadata1 + Root CI243 adoption",
+      "disposition": "modified_integrated",
+      "current_sha256": "c682e30b5a3de111eb29610f8dfed53813a1c3f3266ca811c2821c455e7f2b72",
+      "preimage_kind": "Root archived R preimage",
+      "limits": [
+        "selector243: +23/−0 since published220; +3/−0 since historical240, execution proven locally for added neighbors only",
+        "No global P0/provider permission or SMS delivery inferred",
+        "Snapshot3ed2 copy/types/full24/style18/fullCore PASS_SCOPED; new exact-commit CI NOT_RUN. No test typing, provider effect or global P0 inferred."
+      ],
+      "status": "INTEGRATED_QUALIFIED_SCOPED_EXACT_CI_PENDING",
+      "historical_0c197_sha256": "00db7bde92be4a28bc9619aafad90f4b525b6d397fce9acbae49093def2077bf",
+      "historical_0c197_verification": {
+        "physical_copy": "copy",
+        "canonical_TS7": "not claimed as listed input/test executed by typechecker",
+        "format": "not_in18",
+        "lint": "not_in18",
+        "functional_current_R": "PROOF_PENDING_OR_HISTORICAL_SCOPE",
+        "historical_origin": null
+      },
+      "verification": {
+        "identity": "independent row SHA matches Root full3ed2 and current R; before/after readback",
+        "new_snapshot_types": "NOT_CLAIMED_TEST_OR_METADATA_TYPING",
+        "new_snapshot_full24": "PASS_1184_RECORDS_24_FILES_SCOPED_NO_LINE_COVERAGE_CLAIM",
+        "new_snapshot_build": "PASS_CANONICAL_FULL_CORE_ASSEMBLY_NOT_RUNTIME_OR_TEST_TYPING",
+        "new_snapshot_CI": "NOT_RUN",
+        "historical_scope": "see historical_0c197_verification; no retroactive full-snapshot qualification",
+        "selector": "243 unique existing paths, exact Q proposal, +3/-0 since240; no CI execution",
+        "new_snapshot_format18": "NOT_IN_STYLE18_SCOPE",
+        "new_snapshot_lint18": "NOT_IN_STYLE18_SCOPE",
+        "actual_test_file_records": null,
+        "production_coverage_limit": "Suite membership/integration scope does not establish line or branch coverage of every production path.",
+        "new_snapshot_copy": "PASS_FULL_SOURCE_IDENTITY_AND_MODES"
+      }
+    }
+  ],
+  "proofs": {
+    "integration": {
+      "reference_local_Q": "M1-A5-R0-B11-ROOT-INTEGRATION-PREPARATION-20261011-r1/ROOT-LOCAL-INTEGRATION-READBACK-r2.json",
+      "sha256": "247e90ca8e302b9c78e2edc104d44a1887d71075f648c2a06c4891543910cc22",
+      "status": "IDENTITY",
+      "scope": "20 dispositions/19 effective/5 new/1 identical, local integration only",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "copy": {
+      "reference_local_Q": "M1-R-A5-R0-B11-PC1-PREPARATION-20261011-r1/ROOT-COPY-READBACK-r1.json",
+      "sha256": "cf65412b7cfa77121a02830ee10869275502c352088c67d9d8bd15b525fc885d",
+      "status": "PASS_SCOPED",
+      "scope": "PC1 physical copy exact43836 Sources, dependencies and links; no build",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "types": {
+      "reference_local_Q": "M1-R-A5-R0-B11-PC1-PREPARATION-20261011-r1/ROOT-CANONICAL-TS7-READBACK-r1.json",
+      "sha256": "b5366c464702f094188475b1baceebe81c7557afb07a8555e8039ac590ef6e17",
+      "status": "PASS_SCOPED",
+      "scope": "Official TS7 canonical tsconfig.core; 0 diagnostics16306 listed/13 required; not runtime",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "independent": {
+      "reference_local_Q": "M1-R-A5-R0-B11-PC1-INDEPENDENT-REVIEW-20261011-r1/READBACK-r1.json",
+      "sha256": "bd5e208f6ebda4cea81eb5f9f894b8c031a82a70791d292385eda8f2df999825",
+      "status": "PASS_SCOPED",
+      "scope": "Independent exported copy27/types40 evidence readback; no execution",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "receiver": {
+      "reference_local_Q": "M1-INTEGRATED-R-RECEIVER-CANONICAL-QUALIFICATION-20261011-r1/ROOT-RECEIVER-CANONICAL-READBACK-r3.json",
+      "sha256": "064dee6b28fe59b8680874753f422bbbcc126e85988adecdc5620dc83e222c94",
+      "status": "PASS_SCOPED",
+      "scope": "Actual canonical test-projects receiver38; prepared path only",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "format18": {
+      "reference_local_Q": "M1-INTEGRATED-R-RECEIVER-CANONICAL-QUALIFICATION-20261011-r1/results-format18-r1/m1-integrated-r-format18-r1.json",
+      "sha256": "2d508d4bd0ee1f964f5554d3dbf5f7034e0f3af33d323e7ef0f3687fa8a8e0bf",
+      "status": "PASS_SCOPED",
+      "scope": "Read-only strict checks on18 integrated TS paths; no txt selector style credit",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "lint18": {
+      "reference_local_Q": "M1-INTEGRATED-R-RECEIVER-CANONICAL-QUALIFICATION-20261011-r1/results-lint18-r1/m1-integrated-r-lint18-r1.json",
+      "sha256": "1aa295c1d8a816bdce2d8335b797b4f80155529f457910b99701f17ef2549596",
+      "status": "PASS_SCOPED",
+      "scope": "Read-only strict checks on18 integrated TS paths; no txt selector style credit",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "A5_historical": {
+      "reference_local_Q": "M1-P0-NATIVE-PUBLICATION-STAGE-A-20261010-r1/ROOT-SOURCE5-PHASES-READBACK-r1.json",
+      "sha256": "a6e3a2561c57c81c17ba5b64d79f4ed302c0ddfe00e0e1bcb55dc5f65473ba46",
+      "status": "HISTORICAL_SCOPED",
+      "scope": "Historical165 JUnit records/7 suites,157 distinct title pairs; private publication lineage, no whole-current graph claim",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "B11_history": {
+      "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/QUALIFICATION-BOUNDARY-READBACK-r1.json",
+      "sha256": "894e32d2ce83fccf86b7c228ff5520238de9e36b6fb7a8ea459a76d20ae3e971",
+      "status": "HISTORICAL_LIMITED",
+      "scope": "Historical Q47 and config575 PASS; omitted full native runner/plugin semantics; no canonical-full attribution",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "CI_parent": {
+      "reference_local_Q": "CURRENT8-PUBLICATION-PREPARATION-20261010-r1/CI-ab2613b0-FINAL-r1.json",
+      "sha256": "6e61aa10decb36eea4d509f788d8edd5d0df2ed06fa79a3b6c8609d9be41e386",
+      "status": "HISTORICAL_ONLY",
+      "scope": "ab2613b0 only38 success/2 conditional Docker skips; no future candidate credit",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "control4": {
+      "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/INTEGRATED-R-CANONICAL-PREPARATION-r1/CLOSED-READBACK-current4-r1.json",
+      "sha256": "72fe7ce740f84e6bf18edc9097d57bf40837cd16b8d58697ac32aeec1d234285",
+      "status": "PASS4_SCOPED",
+      "scope": "IntegratedR same0c197;4 passed265deselected, not full269 or fullB11",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "build0c197": {
+      "reference_local_Q": "M1-R-A5-R0-B11-PC1-FULL-BUILD-PREPARATION-20261011-r1/BUILD-CLOSED-READBACK-r1/REPORT-r1.md",
+      "sha256": "0591b51e559bd559384985f602621eccc29ef0db068381d8689133488bdb7d26",
+      "diagnostics_ref": "M1-R-A5-R0-B11-PC1-FULL-BUILD-PREPARATION-20261011-r1/BUILD-CLOSED-READBACK-r1/DTS-DIAGNOSTICS-r1.json",
+      "diagnostics_sha256": "c9468f5dca171113205f4275b301790a417893c4e8a5c0eb8945610d63d0830d",
+      "status": "CLOSED_NONQUAL",
+      "scope": "DTS TS6.0.3 emission failed; exit1/84.311s/RSS5021970432; no resourceguard",
+      "attribution": "Historical proof; originating scope retained, not current full3ed2 qualification"
+    },
+    "annotations_ci_adoption": {
+      "reference_local_Q": "M1-R-DTS-TYPEONLY-AND-CI243-ROOT-ADOPTION-20261011-r1/ROOT-ADOPTION-READBACK-r1.json",
+      "sha256": "bef126a3637c90eaee52bfe0be26417ed327e64dc6c3c483e507de475d0c5638",
+      "scope": "Root adopted three type annotations in two modules and three selector entries; no runtime/test execution"
+    },
+    "batch24_current": {
+      "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/INTEGRATED-R-BATCH24-FINAL-PREPARATION-r2/ROOT-BATCH24-READBACK-r1.json",
+      "sha256": "263326db24e61cab335cedbe9ff577c58ff0813c78fc556c6cf9eec340bf839c",
+      "scope": "1184 records24wholefiles/1152distincttitles; 4 owners15/5/2/2; no provider/end-to-end SMS claim",
+      "status": "PASS_SCOPED_SOURCE3ed2"
+    },
+    "style18_current": {
+      "reference_local_Q": "M1-R-DTS-TYPEONLY-AND-CI243-STYLE-QUALIFICATION-20261011-r1/ROOT-STYLE-READBACK-r2.json",
+      "sha256": "097b3303b9f013509de070b5476b8d9b3c4fb0d64f9da990486d29f3431920b5",
+      "scope": "format/lint18 TS Source3ed2 only",
+      "status": "PASS_SCOPED_SOURCE3ed2"
+    },
+    "canonical_types_current": {
+      "reference_local_Q": "M1-R-DTS-CI243-PC1-INDEPENDENT-REVIEW-20261011-r1/READBACK-r1.json",
+      "sha256": "27edf85fa105a7fcc4dfeaaeebd0f02b3c3c498c6622c62dad3f658ee6cb7c27",
+      "status": "PASS_SCOPED_SOURCE3ed2",
+      "scope": "27 copy+40 types closed exports; official TS7 noEmit, no test typing inferred"
+    },
+    "full_build_current": {
+      "reference_local_Q": "M1-R-DTS-CI243-FULL-BUILD-INDEPENDENT-REVIEW-20261011-r1/READBACK-r1.json",
+      "sha256": "53570b09d8e339e31708242ace5720953d9be208326ef09b6eb31e531b5d7732",
+      "status": "PASS_SCOPED_SOURCE3ed2",
+      "scope": "38 exports/full log/census/closed canonical Core full build"
+    }
+  },
+  "proof_pending": {
+    "canonical_types_current": "PASS_SCOPED_CANONICAL_TS7_NOEMIT",
+    "full_build_current": "PASS_SCOPED_CANONICAL_FULL_CORE",
+    "candidate_CI": "NOT_RUN",
+    "publication": "ROOT_ADOPTED_COMMIT_AND_EXACT_CI_PENDING"
+  },
+  "selector": {
+    "unique_targets": 243,
+    "current_sha256": "c682e30b5a3de111eb29610f8dfed53813a1c3f3266ca811c2821c455e7f2b72",
+    "previous_unique_targets": 240,
+    "added": [
+      "src/gateway/config-reload.operation-policy.test.ts",
+      "src/gateway/config-reload.decisions.test.ts",
+      "src/gateway/server-reload-handlers.hot-reload-status.test.ts"
+    ],
+    "removed": [],
+    "does_not_prove_execution": true,
+    "Root_adopted": true
+  },
+  "future_dependencies": [
+    "context3 propagation and copies",
+    "leaf6 last-use guards",
+    "OriginalC native assembly",
+    "allSenders admission/dispatch",
+    "No positive delivery before all required guards/native owners and lifetime checks"
+  ],
+  "excluded_history": {
+    "excluded_proof_references": 104,
+    "full_supplement": "UNAVAILABLE_NOT_REQUALIFIED_NOT_RETIRED",
+    "absent_conversations": "UNKNOWN",
+    "availability_not_inferred": true
+  },
+  "historical_ci": {
+    "head": "ab2613b0b64200335db6b9fc135577f510de8b6a",
+    "run": 38103414550,
+    "success": 38,
+    "conditional_skips": [
+      "installateur / installation-macos-docker",
+      "installateur / installation-windows-docker"
+    ],
+    "socle": {
+      "passes": 5873,
+      "skips": 17,
+      "warnings": 1,
+      "attribution": "Root historical verified CI record; not current candidate"
+    }
+  },
+  "red_history_file": "RED-HISTORY.json",
+  "revision": "ADDITIVE-r8-ROOT",
+  "identity_boundaries": {
+    "historical_qualified_snapshot": "0c197d9329ff1f9834864cca8bbdcc07db6e958950588ec058780ea3fbc134bd",
+    "current_paths_changed_since_historical": [
+      "core/src/config/runtime-publication.ts",
+      "core/src/config/runtime-snapshot.ts",
+      "core/test/opsys-tests-cibles.txt"
+    ],
+    "future_document_adoption_changes_full_identity": true,
+    "no_retroactive_full_identity_or_CI_credit": true,
+    "current_scoped_qualified_snapshot": "3ed2e1557bc2ca9e07d8a706b4bc65222b8eda06451de81072246fbba181a0f7",
+    "document_adoption": "Only these four documentation paths added; all43836 qualified inputs must remain identical. New commit and exact CI tracked in PR623; no self-referential commit hash embedded."
+  },
+  "current_qualified_scopes": {
+    "canonical_full24": {
+      "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/INTEGRATED-R-BATCH24-FINAL-PREPARATION-r2/ROOT-BATCH24-READBACK-r1.json",
+      "sha256": "263326db24e61cab335cedbe9ff577c58ff0813c78fc556c6cf9eec340bf839c",
+      "scope": "1184 records24wholefiles/1152distincttitles; 4 owners15/5/2/2; no provider/end-to-end SMS claim",
+      "status": "PASS_SCOPED_SOURCE3ed2"
+    },
+    "style18": {
+      "reference_local_Q": "M1-R-DTS-TYPEONLY-AND-CI243-STYLE-QUALIFICATION-20261011-r1/ROOT-STYLE-READBACK-r2.json",
+      "sha256": "097b3303b9f013509de070b5476b8d9b3c4fb0d64f9da990486d29f3431920b5",
+      "scope": "format/lint18 TS Source3ed2 only",
+      "status": "PASS_SCOPED_SOURCE3ed2"
+    },
+    "canonical_types_and_copy": {
+      "reference": {
+        "reference_local_Q": "M1-R-DTS-CI243-PC1-INDEPENDENT-REVIEW-20261011-r1/READBACK-r1.json",
+        "sha256": "27edf85fa105a7fcc4dfeaaeebd0f02b3c3c498c6622c62dad3f658ee6cb7c27",
+        "status": "PASS_SCOPED_SOURCE3ed2",
+        "scope": "27 copy+40 types closed exports; official TS7 noEmit, no test typing inferred"
+      },
+      "report": {
+        "reference_local_Q": "M1-R-DTS-CI243-PC1-INDEPENDENT-REVIEW-20261011-r1/RAPPORT-r1.md",
+        "sha256": "a39117c42217ba1d1bdffe37a140640281c5f73a2aa8204bb5a903dde8f4e32c",
+        "status": "PASS_SCOPED_SOURCE3ed2",
+        "scope": "Independent copy/types readback, no execution"
+      },
+      "exit": 0,
+      "diagnostics": 0,
+      "listed_inputs": 16306,
+      "listed_Source": 13112,
+      "listed_dependencies": 3194,
+      "required_production": 13,
+      "seconds": 79.71,
+      "RSS_bytes": 5698412544,
+      "Source": 43836,
+      "dependencies": 93391,
+      "existing_links": 4060,
+      "compiler": "native TS7.0.2 via run-tsgo.mjs/tsconfig.core.json",
+      "policy": "GOMAXPROCS=1 GOGC=30 GOMEMLIMIT=2GiB",
+      "log_sha256": "52115912b01d23da9f91358f11d58c4d40e18454d4a1ec7bf495c668390b269e",
+      "closure_sha256": "60d24e1484bf334962fb3f78a3a151fe6f780f1f1f9110828712ea8aff001317",
+      "limit": "13 required production inputs, not test file type coverage; noEmit did not emit DTS."
+    },
+    "full_core_build": {
+      "reference": {
+        "reference_local_Q": "M1-R-DTS-CI243-FULL-BUILD-INDEPENDENT-REVIEW-20261011-r1/READBACK-r1.json",
+        "sha256": "53570b09d8e339e31708242ace5720953d9be208326ef09b6eb31e531b5d7732",
+        "status": "PASS_SCOPED_SOURCE3ed2",
+        "scope": "38 exports/full log/census/closed canonical Core full build"
+      },
+      "report": {
+        "reference_local_Q": "M1-R-DTS-CI243-FULL-BUILD-INDEPENDENT-REVIEW-20261011-r1/RAPPORT-r1.md",
+        "sha256": "7d0d892a38474d82e3b8be8b123697e2cc2ea6d20a7cb28d184c9767c6afea2e",
+        "status": "PASS_SCOPED_SOURCE3ed2",
+        "scope": "Independent full714line log and data readback; no runtime rerun"
+      },
+      "exit": 0,
+      "seconds": 534.914,
+      "RSS_bytes": 5979484160,
+      "Source_sha256": "3ed2e1557bc2ca9e07d8a706b4bc65222b8eda06451de81072246fbba181a0f7",
+      "DTS_groups": 18,
+      "SDK_groups": 2,
+      "SDK_subpaths": 158,
+      "SDK_declaration_bytes": 4232006,
+      "SDK_limit_bytes": 5315536,
+      "UI_precompressed_assets": 517,
+      "UI_sidecars": 1034,
+      "log_asset_rows": 543,
+      "log_lines": 714,
+      "log_bytes": 86850,
+      "log_sha256": "b77a2832aae96cf3638f97747569a7626c10caa58de4a91d89f90720226c153a",
+      "receipt_sha256": "1cace2c54a7c919023110f76c1dddf3b1823eacb7291a3bffe106e63441ab257",
+      "pre_census_sha256": "2ddeb30de7c71300e9e2a75384e8d148f6ba71fb7ba9bea1a335af4a35aeea5d",
+      "post_census_sha256": "3bd238c924b3df78e335898f8314e5e9293aec7b35effe7791cbf81559d66b0c",
+      "protected_files": 137227,
+      "protected_Source": 43836,
+      "protected_dependencies": 93391,
+      "protected_links": 4060,
+      "added_files": 12342,
+      "added_links": 446,
+      "changes_to_original_files_links": 0,
+      "output_rules": "closed existing OUTPUTS prefixes; no additions outside",
+      "startup_CSS_bytes": 51165,
+      "CSS_hard_ceiling": 51200,
+      "CSS_margin_bytes": 35,
+      "CSS_advisory_warning_threshold": 46080,
+      "startup_JS_bytes": 371182,
+      "JS_enforcement_limit": 371332,
+      "JS_margin_bytes": 150,
+      "stamps_head_commit_null": true,
+      "full_profile": "full/cache0/per-plugin/concurrency1/heap5120MiB/RSS7GiB/900s",
+      "remote_wrapper_strategy": "revalidated_pid",
+      "transport_bootstrap_pidfd_observed": true,
+      "limits": [
+        "sampled RSS/observed descendants only",
+        "No phone/Expo/provider/SQL/RPC/globalP0/OriginalC/allSenders delivery qualification",
+        "No future exact-commit CI credit",
+        "No syscall attribution for physical link relations"
+      ]
+    }
+  },
+  "root_adoption_time_toronto": "2026-10-11T02:21:00.883599-04:00"
+}

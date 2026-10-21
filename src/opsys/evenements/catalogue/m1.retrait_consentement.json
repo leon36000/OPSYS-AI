@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.retrait_consentement",
+  "title": "M1 — Retrait du consentement d'un correspondant (STOP)",
+  "description": "Émis par M1 (departments/m01-front-office/src/m1_front_office/outils.py, PLAN T4.17-c) dans la MÊME transaction que l'inscription du retrait au registre anti-perte, quand un correspondant écrit un mot de retrait (STOP) sur un canal du core. Dit QUELS leads ce correspondant a déjà ouverts, par leur lead_id : l'identifiant que M1, M2, M4 et M7 connaissent tous (M1 le crée, M2 le reprend, le WCT de M4 le porte). Le lien entre le correspondant et son chantier se fait par là, jamais par un contact : ni numéro, ni courriel, ni conversation_id (une empreinte du numéro, qui reste au registre de M1) ne sont portés ici. Un lead ouvert APRÈS le STOP par le même correspondant donne un second événement, pour ce lead seul (le retrait vaut pour ce que le correspondant ouvre ensuite). horodatage et signal_id sont ceux du STOP, jamais une horloge de M1 : c'est l'heure du retrait, même pour un lead ouvert plus tard. Aucun texte libre. evenement_id déterministe (m1-retrait-consentement-<empreinte du signal et des leads>) : une redélivrance ou un message rejoué est un no-op. Consommateur visé : M7 (registre retraits_consentement_marketing : aucun contenu de chantier de ces leads, y compris un paquet déjà exporté) ; ajouter le type à evenements.consomme de M7 et sa fonction dans consommateurs().",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lead_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1},
+      "description": "lead_id des leads que M1 a émis pour ce correspondant (m1.lead_qualifie). Jamais vide : sans lead, il n'y a rien à retirer chez un consommateur, et rien n'est publié."
+    },
+    "canal": {
+      "enum": ["sms", "courriel"],
+      "description": "Canal du core par lequel le correspondant s'est retiré (champ source des lignes de M1)."
+    },
+    "horodatage": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Heure de réception du STOP, RFC 3339 avec fuseau, fournie par la plateforme : jamais une horloge de M1."
+    },
+    "signal_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant du signal du STOP au registre de M1 (canal:identifiant du message), pour retrouver la ligne."
+    }
+  },
+  "required": ["lead_ids", "canal", "horodatage", "signal_id"]
+}

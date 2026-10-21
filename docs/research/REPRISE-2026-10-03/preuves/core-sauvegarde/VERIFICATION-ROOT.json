@@ -1,0 +1,60 @@
+{
+  "ok": true,
+  "native_tests": 7,
+  "failed": 0,
+  "skipped": 0,
+  "format_files": 2,
+  "source_pins": 10326,
+  "source_files": {
+    "core/src/state/secret-state-tables.ts": {
+      "sha256": "922064d0db26ad9315c2be694f195c373e171571e67d5f0ad2d5d3e511d70c89",
+      "bytes": 1226
+    },
+    "core/src/snapshot/git-backup-codec.test.ts": {
+      "sha256": "345b43b1ae8a48a5dadee6b59cfa0298f1f875fdca47f3460f5f5f94401bdf48",
+      "bytes": 22319
+    }
+  },
+  "artifacts": {
+    "native-receipt.json.gz": {
+      "raw_sha256": "c6e3930112e534e3d699a6d95d61e3a10ac7bae346ddbb71c569bd06d087c1de",
+      "gzip_sha256": "5fe8e64ef23913b6480112c0bbf620b4ae2181188a6a7d02e7a6ec32b83240f5",
+      "raw_bytes": 14055,
+      "compressed_bytes": 3312
+    },
+    "native.xml.gz": {
+      "raw_sha256": "1510d2e60ce9435eda25a7ce1f7a10d56748fd73559ca72d3629e150c412233d",
+      "gzip_sha256": "d1a3ffb5c181c511f27e125b79415b99bcc43f0bb82ca3a60a0f58ab04ecaa90",
+      "raw_bytes": 1633,
+      "compressed_bytes": 578
+    },
+    "native.log.gz": {
+      "raw_sha256": "899cfa4140e9f1f785c4bc7fb067acf94dbb1d67bef2b6619473df84dd5cb52d",
+      "gzip_sha256": "876c4affe726267d30ef22e979886b454bc7250fe32f8f7b99c005cdbcc19616",
+      "raw_bytes": 1091,
+      "compressed_bytes": 545
+    },
+    "format-receipt.json.gz": {
+      "raw_sha256": "7c59be33b4c38f450a333a426a98c344ae0ec54604566a35ff409c91dee3ef92",
+      "gzip_sha256": "868126718606d49c839c992ea306b3e78a1a7c66c5331714341f7348f5096fa1",
+      "raw_bytes": 1054,
+      "compressed_bytes": 554
+    },
+    "format.log.gz": {
+      "raw_sha256": "bd0ebf1b4a7d8cda08d8361edcd073b326ddedf67d2f921913912698382bb34f",
+      "gzip_sha256": "d51e3ae069d5ae45b6f64a035489974fc3ff020c96b1a709238c89ceb7b5b58c",
+      "raw_bytes": 110,
+      "compressed_bytes": 107
+    },
+    "dedup-receipt.json.gz": {
+      "raw_sha256": "46f0140f490ed9afa4c8f244bf7fbe31e7bd627b3ff49d745b21481b25d929c7",
+      "gzip_sha256": "9ce5884c55aa57c67c18b0d9479983c0c0162bd4b3b03f9d9e734a769df44f59",
+      "raw_bytes": 3590,
+      "compressed_bytes": 567
+    }
+  },
+  "raw_run_status": false,
+  "raw_run_limit": "Native PASS; combined driver RED because initial memory guard prevented format spawn. Separate guarded formatter PASS, identical pinned sources. No native rerun.",
+  "scope": "Generic Core SQLite secret-excluded Git backup omits cles_chiffrement if present; normal business-DB-to-Core-Git path not proven. Full Python export remains sensitive and includes keys.",
+  "production_validated": false
+}

@@ -1,0 +1,152 @@
+# Calendrier fiscal versionné et sourcé : échéances de production et de paiement de la TPS et de la TVQ
+# (PLAN T4.16, M5.5 « calendrier fiscal vivant »). Même patron que taux_fiscaux.v1.yaml : une année déclarée,
+# ses sources officielles citées (organisme, adresse, date de consultation), une version.
+#
+# RÈGLES DE LECTURE (calendrier_fiscal.py) :
+# - Une année absente de ce fichier est REFUSÉE (REJ-CALENDRIER-ANNEE-NON-DECLAREE), jamais complétée par une
+#   date calculée ou supposée. L'année d'un tableau est celle de la FIN de la période de déclaration : les
+#   périodes qui se terminent en 2026 (échéances de 2026 et du début de 2027) sont dans l'année 2026.
+# - Les dates sont TRANSCRITES des tableaux de Revenu Québec, jamais calculées ici : les jours fériés et la
+#   période des Fêtes déplacent l'échéance (ex. novembre 2026 : 2027-01-05), et la règle de report est celle de
+#   l'administration fiscale, pas la nôtre. `limite_production` est la même date que `limite_paiement`, sauf pour
+#   un particulier en affaires à période annuelle et exercice au 31 décembre (paiement le 30 avril, production
+#   le 15 juin : Revenu Québec, « Périodes de déclaration »), où les deux dates sont écrites.
+# - La FRÉQUENCE de production de l'entreprise (mensuelle, trimestrielle ou annuelle), son mois de fin d'exercice
+#   et son statut de particulier ne sont PAS ici : ce sont des décisions du propriétaire (GATE NATHAN), lues dans
+#   department.yaml (configuration.fiscal). Sans elles, aucune échéance n'est nommée.
+# - Hors de ce fichier, faute de donnée : acomptes provisionnels de TPS/TVQ d'un inscrit à période annuelle
+#   (quatre versements, montants et dates propres à l'entreprise), acomptes provisionnels d'impôt, DAS, T4 et
+#   RL-1, CNESST. Aucune de ces dates n'est supposée ; le CPA les fournit.
+#
+# STATUT : source_officielle_consultee, A VALIDER PAR LE CPA (T3). Aucune date n'est confirmée par un
+# professionnel ; le calendrier propose, il ne dépose rien, ne paie rien et ne remet rien.
+schema_version: 1
+annees:
+  - annee: 2025
+    version: "2025-v1"
+    validation_cpa: "A_VALIDER"
+    sources:
+      - organisme: "Revenu Québec"
+        titre: "Calendriers TVQ et TPS/TVH (dates limites de paiement, périodes mensuelles, trimestrielles et annuelles)"
+        url: "https://www.revenuquebec.ca/fr/calendriers-tvq-et-tpstvh-taxe-sur-les-primes-dassurance-taxe-sur-les-boissons-alcooliques-et-pneus-neufs/"
+        consulte_le: "2026-09-29"
+      - organisme: "Revenu Québec"
+        titre: "Périodes de déclaration (TPS/TVH et TVQ) : un mois après la période pour la fréquence mensuelle ou trimestrielle, trois mois pour l'annuelle, 30 avril et 15 juin pour un particulier en affaires"
+        url: "https://www.revenuquebec.ca/fr/entreprises/taxes/tpstvh-et-tvq/declaration-de-la-tps-et-de-la-tvq/periodes-de-declaration/"
+        consulte_le: "2026-09-29"
+      - organisme: "Agence du revenu du Canada"
+        titre: "Reporting requirements and deadlines, File your GST/HST return (échéance reportée au jour ouvrable suivant un samedi, un dimanche ou un jour férié)"
+        url: "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/file-gst-hst-return/reporting-requirements-deadlines.html"
+        consulte_le: "2026-09-29"
+      - organisme: "Agence du revenu du Canada"
+        titre: "Remit (pay) the GST/HST you collected (la taxe d'une facture incluse dans la déclaration se remet même si elle n'est pas encore payée)"
+        url: "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/remit-pay-gst-hst-collected.html"
+        consulte_le: "2026-09-29"
+    periodes:
+      mensuelle:
+        - {debut: "2025-01-01", fin: "2025-01-31", limite_paiement: "2025-02-28"}
+        - {debut: "2025-02-01", fin: "2025-02-28", limite_paiement: "2025-03-31"}
+        - {debut: "2025-03-01", fin: "2025-03-31", limite_paiement: "2025-04-30"}
+        - {debut: "2025-04-01", fin: "2025-04-30", limite_paiement: "2025-06-02"}
+        - {debut: "2025-05-01", fin: "2025-05-31", limite_paiement: "2025-06-30"}
+        - {debut: "2025-06-01", fin: "2025-06-30", limite_paiement: "2025-07-31"}
+        - {debut: "2025-07-01", fin: "2025-07-31", limite_paiement: "2025-09-02"}
+        - {debut: "2025-08-01", fin: "2025-08-31", limite_paiement: "2025-10-01"}
+        - {debut: "2025-09-01", fin: "2025-09-30", limite_paiement: "2025-10-31"}
+        - {debut: "2025-10-01", fin: "2025-10-31", limite_paiement: "2025-12-01"}
+        - {debut: "2025-11-01", fin: "2025-11-30", limite_paiement: "2026-01-05"}
+        - {debut: "2025-12-01", fin: "2025-12-31", limite_paiement: "2026-02-02"}
+      trimestrielle:
+        - {debut: "2024-11-01", fin: "2025-01-31", limite_paiement: "2025-02-28"}
+        - {debut: "2024-12-01", fin: "2025-02-28", limite_paiement: "2025-03-31"}
+        - {debut: "2025-01-01", fin: "2025-03-31", limite_paiement: "2025-04-30"}
+        - {debut: "2025-02-01", fin: "2025-04-30", limite_paiement: "2025-06-02"}
+        - {debut: "2025-03-01", fin: "2025-05-31", limite_paiement: "2025-06-30"}
+        - {debut: "2025-04-01", fin: "2025-06-30", limite_paiement: "2025-07-31"}
+        - {debut: "2025-05-01", fin: "2025-07-31", limite_paiement: "2025-09-02"}
+        - {debut: "2025-06-01", fin: "2025-08-31", limite_paiement: "2025-10-01"}
+        - {debut: "2025-07-01", fin: "2025-09-30", limite_paiement: "2025-10-31"}
+        - {debut: "2025-08-01", fin: "2025-10-31", limite_paiement: "2025-12-01"}
+        - {debut: "2025-09-01", fin: "2025-11-30", limite_paiement: "2026-01-05"}
+        - {debut: "2025-10-01", fin: "2025-12-31", limite_paiement: "2026-02-02"}
+      annuelle:
+        - {debut: "2024-02-01", fin: "2025-01-31", limite_paiement: "2025-04-30"}
+        - {debut: "2024-03-01", fin: "2025-02-28", limite_paiement: "2025-06-02"}
+        - {debut: "2024-04-01", fin: "2025-03-31", limite_paiement: "2025-06-30"}
+        - {debut: "2024-05-01", fin: "2025-04-30", limite_paiement: "2025-07-31"}
+        - {debut: "2024-06-01", fin: "2025-05-31", limite_paiement: "2025-09-02"}
+        - {debut: "2024-07-01", fin: "2025-06-30", limite_paiement: "2025-10-01"}
+        - {debut: "2024-08-01", fin: "2025-07-31", limite_paiement: "2025-10-31"}
+        - {debut: "2024-09-01", fin: "2025-08-31", limite_paiement: "2025-12-01"}
+        - {debut: "2024-10-01", fin: "2025-09-30", limite_paiement: "2026-01-05"}
+        - {debut: "2024-11-01", fin: "2025-10-31", limite_paiement: "2026-02-02"}
+        - {debut: "2024-12-01", fin: "2025-11-30", limite_paiement: "2026-03-02"}
+        - {debut: "2025-01-01", fin: "2025-12-31", limite_paiement: "2026-03-31"}
+    # Particulier en affaires, période annuelle, exercice au 31 décembre : paiement au 30 avril, production
+    # au 15 juin de l'année suivante (Revenu Québec, « Périodes de déclaration »).
+    annuelle_particulier_decembre:
+      {debut: "2025-01-01", fin: "2025-12-31", limite_paiement: "2026-04-30", limite_production: "2026-06-15"}
+  - annee: 2026
+    version: "2026-v1"
+    validation_cpa: "A_VALIDER"
+    sources:
+      - organisme: "Revenu Québec"
+        titre: "Calendriers TVQ et TPS/TVH (dates limites de paiement, périodes mensuelles, trimestrielles et annuelles)"
+        url: "https://www.revenuquebec.ca/fr/calendriers-tvq-et-tpstvh-taxe-sur-les-primes-dassurance-taxe-sur-les-boissons-alcooliques-et-pneus-neufs/"
+        consulte_le: "2026-09-29"
+      - organisme: "Revenu Québec"
+        titre: "Périodes de déclaration (TPS/TVH et TVQ) : un mois après la période pour la fréquence mensuelle ou trimestrielle, trois mois pour l'annuelle, 30 avril et 15 juin pour un particulier en affaires"
+        url: "https://www.revenuquebec.ca/fr/entreprises/taxes/tpstvh-et-tvq/declaration-de-la-tps-et-de-la-tvq/periodes-de-declaration/"
+        consulte_le: "2026-09-29"
+      - organisme: "Agence du revenu du Canada"
+        titre: "Reporting requirements and deadlines, File your GST/HST return (échéance reportée au jour ouvrable suivant un samedi, un dimanche ou un jour férié)"
+        url: "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/file-gst-hst-return/reporting-requirements-deadlines.html"
+        consulte_le: "2026-09-29"
+      - organisme: "Agence du revenu du Canada"
+        titre: "Remit (pay) the GST/HST you collected (la taxe d'une facture incluse dans la déclaration se remet même si elle n'est pas encore payée)"
+        url: "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/remit-pay-gst-hst-collected.html"
+        consulte_le: "2026-09-29"
+    periodes:
+      mensuelle:
+        - {debut: "2026-01-01", fin: "2026-01-31", limite_paiement: "2026-03-02"}
+        - {debut: "2026-02-01", fin: "2026-02-28", limite_paiement: "2026-03-31"}
+        - {debut: "2026-03-01", fin: "2026-03-31", limite_paiement: "2026-04-30"}
+        - {debut: "2026-04-01", fin: "2026-04-30", limite_paiement: "2026-06-01"}
+        - {debut: "2026-05-01", fin: "2026-05-31", limite_paiement: "2026-06-30"}
+        - {debut: "2026-06-01", fin: "2026-06-30", limite_paiement: "2026-07-31"}
+        - {debut: "2026-07-01", fin: "2026-07-31", limite_paiement: "2026-08-31"}
+        - {debut: "2026-08-01", fin: "2026-08-31", limite_paiement: "2026-10-01"}
+        - {debut: "2026-09-01", fin: "2026-09-30", limite_paiement: "2026-11-02"}
+        - {debut: "2026-10-01", fin: "2026-10-31", limite_paiement: "2026-11-30"}
+        - {debut: "2026-11-01", fin: "2026-11-30", limite_paiement: "2027-01-05"}
+        - {debut: "2026-12-01", fin: "2026-12-31", limite_paiement: "2027-02-01"}
+      trimestrielle:
+        - {debut: "2025-11-01", fin: "2026-01-31", limite_paiement: "2026-03-02"}
+        - {debut: "2025-12-01", fin: "2026-02-28", limite_paiement: "2026-03-31"}
+        - {debut: "2026-01-01", fin: "2026-03-31", limite_paiement: "2026-04-30"}
+        - {debut: "2026-02-01", fin: "2026-04-30", limite_paiement: "2026-06-01"}
+        - {debut: "2026-03-01", fin: "2026-05-31", limite_paiement: "2026-06-30"}
+        - {debut: "2026-04-01", fin: "2026-06-30", limite_paiement: "2026-07-31"}
+        - {debut: "2026-05-01", fin: "2026-07-31", limite_paiement: "2026-08-31"}
+        - {debut: "2026-06-01", fin: "2026-08-31", limite_paiement: "2026-10-01"}
+        - {debut: "2026-07-01", fin: "2026-09-30", limite_paiement: "2026-11-02"}
+        - {debut: "2026-08-01", fin: "2026-10-31", limite_paiement: "2026-11-30"}
+        - {debut: "2026-09-01", fin: "2026-11-30", limite_paiement: "2027-01-05"}
+        - {debut: "2026-10-01", fin: "2026-12-31", limite_paiement: "2027-02-01"}
+      annuelle:
+        - {debut: "2025-02-01", fin: "2026-01-31", limite_paiement: "2026-04-30"}
+        - {debut: "2025-03-01", fin: "2026-02-28", limite_paiement: "2026-06-01"}
+        - {debut: "2025-04-01", fin: "2026-03-31", limite_paiement: "2026-06-30"}
+        - {debut: "2025-05-01", fin: "2026-04-30", limite_paiement: "2026-07-31"}
+        - {debut: "2025-06-01", fin: "2026-05-31", limite_paiement: "2026-08-31"}
+        - {debut: "2025-07-01", fin: "2026-06-30", limite_paiement: "2026-10-01"}
+        - {debut: "2025-08-01", fin: "2026-07-31", limite_paiement: "2026-11-02"}
+        - {debut: "2025-09-01", fin: "2026-08-31", limite_paiement: "2026-11-30"}
+        - {debut: "2025-10-01", fin: "2026-09-30", limite_paiement: "2027-01-05"}
+        - {debut: "2025-11-01", fin: "2026-10-31", limite_paiement: "2027-02-01"}
+        - {debut: "2025-12-01", fin: "2026-11-30", limite_paiement: "2027-03-01"}
+        - {debut: "2026-01-01", fin: "2026-12-31", limite_paiement: "2027-03-31"}
+    # Particulier en affaires, période annuelle, exercice au 31 décembre : paiement au 30 avril, production
+    # au 15 juin de l'année suivante (Revenu Québec, « Périodes de déclaration »).
+    annuelle_particulier_decembre:
+      {debut: "2026-01-01", fin: "2026-12-31", limite_paiement: "2027-04-30", limite_production: "2027-06-15"}

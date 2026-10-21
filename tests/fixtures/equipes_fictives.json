@@ -1,0 +1,38 @@
+{
+  "fictif": true,
+  "avertissement": "Données FICTIVES (T4.12) : équipes, personnes, dépôts, quarts, durées et réglages inventés pour les tests du profil des équipes ; aucune entreprise réelle. Les coordonnées sont approximatives (centres de municipalités de Lanaudière).",
+  "profil": {
+    "liste": [
+      {
+        "id": "equipe-nord",
+        "membres": ["alice.fictif", "bruno.fictif"],
+        "competences": ["gouttieres", "revetement"],
+        "depot": {"id": "depot-nord", "latitude_microdegres": 46015000, "longitude_microdegres": -73445000},
+        "quarts": [
+          {"jour": 0, "debut_min": 480, "fin_min": 1020},
+          {"jour": 1, "debut_min": 480, "fin_min": 1020}
+        ]
+      },
+      {
+        "id": "equipe-sud",
+        "membres": ["chloe.fictif"],
+        "competences": ["gouttieres"],
+        "depot": {"id": "depot-sud", "latitude_microdegres": 45735000, "longitude_microdegres": -73455000},
+        "quarts": [{"jour": 0, "debut_min": 420, "fin_min": 900}]
+      }
+    ],
+    "services": {
+      "gouttieres": {"duree_min": 90, "competences": ["gouttieres"]},
+      "revetement": {"duree_min": 240, "competences": ["revetement"]},
+      "reparation": {"duree_min": 60, "competences": []}
+    },
+    "cedule": {
+      "facteur_detour_milliemes": 1300,
+      "vitesse_moyenne_kmh": 50,
+      "marge_par_trajet_secondes": 600,
+      "iterations": 500,
+      "cout_non_cedule_m": 500000
+    },
+    "fenetre_par_defaut": {"jours": [0, 1], "debut_min": 480, "fin_min": 1020}
+  }
+}

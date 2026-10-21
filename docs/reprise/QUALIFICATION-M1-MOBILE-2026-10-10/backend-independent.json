@@ -1,0 +1,386 @@
+{
+  "state": "QUALIFIED_BOUNDED_EXISTING_EVIDENCE_READBACK",
+  "phases": {
+    "tests": {
+      "exit_code": 0,
+      "wall_seconds": 246.553,
+      "peak_process_tree_rss_bytes": 272023552,
+      "guard_triggered": null,
+      "qualified": true,
+      "source_sha256_before": "5471c29183c68dd5e03413a533eba07bdc605081d86bdb0b5c898c07a041ee5e",
+      "source_sha256_after": "5471c29183c68dd5e03413a533eba07bdc605081d86bdb0b5c898c07a041ee5e",
+      "signal_strategy": "pidfd",
+      "owned_processes_stopped": true,
+      "stdout_eof": true,
+      "output_complete": true,
+      "observed_dead_descendants": [
+        {
+          "pid": 2829709,
+          "parent": 2829700,
+          "group": 2829005,
+          "session": 2829005,
+          "start_time": 35600583,
+          "state": "Z"
+        }
+      ],
+      "limits": [
+        "ownership applies only to observed, pinned descendants; unobserved descendants not qualified",
+        "RSS sampled; disk floor covers cwd/source/evidence filesystems, not arbitrary other mounts",
+        "fixed inventory cannot detect files never listed; stdout copy incomplete unless EOF established",
+        "read-only file mode is not OS immutability against intentional alteration by its owner"
+      ]
+    },
+    "metier": {
+      "exit_code": 0,
+      "wall_seconds": 2.137,
+      "peak_process_tree_rss_bytes": 91586560,
+      "guard_triggered": null,
+      "qualified": true,
+      "source_sha256_before": "5471c29183c68dd5e03413a533eba07bdc605081d86bdb0b5c898c07a041ee5e",
+      "source_sha256_after": "5471c29183c68dd5e03413a533eba07bdc605081d86bdb0b5c898c07a041ee5e",
+      "signal_strategy": "pidfd",
+      "owned_processes_stopped": true,
+      "stdout_eof": true,
+      "output_complete": true,
+      "observed_dead_descendants": [],
+      "limits": [
+        "ownership applies only to observed, pinned descendants; unobserved descendants not qualified",
+        "RSS sampled; disk floor covers cwd/source/evidence filesystems, not arbitrary other mounts",
+        "fixed inventory cannot detect files never listed; stdout copy incomplete unless EOF established",
+        "read-only file mode is not OS immutability against intentional alteration by its owner"
+      ]
+    },
+    "ruff": {
+      "exit_code": 0,
+      "wall_seconds": 0.229,
+      "peak_process_tree_rss_bytes": 15052800,
+      "guard_triggered": null,
+      "qualified": true,
+      "source_sha256_before": "5471c29183c68dd5e03413a533eba07bdc605081d86bdb0b5c898c07a041ee5e",
+      "source_sha256_after": "5471c29183c68dd5e03413a533eba07bdc605081d86bdb0b5c898c07a041ee5e",
+      "signal_strategy": "pidfd",
+      "owned_processes_stopped": true,
+      "stdout_eof": true,
+      "output_complete": true,
+      "observed_dead_descendants": [],
+      "limits": [
+        "ownership applies only to observed, pinned descendants; unobserved descendants not qualified",
+        "RSS sampled; disk floor covers cwd/source/evidence filesystems, not arbitrary other mounts",
+        "fixed inventory cannot detect files never listed; stdout copy incomplete unless EOF established",
+        "read-only file mode is not OS immutability against intentional alteration by its owner"
+      ]
+    }
+  },
+  "JUnit": {
+    "total": 2322,
+    "passed": 2317,
+    "skipped": 5,
+    "errors": 0,
+    "failures": 0,
+    "unique_case_identities": 2322,
+    "files": 52,
+    "per_file": {
+      "departments/m01-front-office/tests/test_adaptateurs.py": {
+        "passed": 5,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_canal_capacites.py": {
+        "passed": 10,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_consentement.py": {
+        "passed": 33,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_contrats.py": {
+        "passed": 48,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_conversation.py": {
+        "passed": 38,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_digest.py": {
+        "passed": 33,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_formulaire_site.py": {
+        "passed": 10,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_garde_fou.py": {
+        "passed": 110,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_garde_fou_avis_legal.py": {
+        "passed": 31,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_garde_lectures_admin.py": {
+        "passed": 35,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_import_appels_durable.py": {
+        "passed": 29,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_module_structure.py": {
+        "passed": 6,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_motifs_lineaires.py": {
+        "passed": 368,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_outils_agent.py": {
+        "passed": 29,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_outils_transfert.py": {
+        "passed": 71,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_phases_voix.py": {
+        "passed": 22,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_plaintes.py": {
+        "passed": 91,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_plaintes_reception.py": {
+        "passed": 38,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_provenance.py": {
+        "passed": 69,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_qualification.py": {
+        "passed": 47,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_qualification_champs.py": {
+        "passed": 26,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_questions_par_service.py": {
+        "passed": 88,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_rappels_appareil.py": {
+        "passed": 54,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_reception.py": {
+        "passed": 90,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_recevoir_message_canal.py": {
+        "passed": 25,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_registre.py": {
+        "passed": 19,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_registre_durable.py": {
+        "passed": 3,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_rejeu_contradictoire_m1_m2.py": {
+        "passed": 3,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_reponse_au_choix_du_service.py": {
+        "passed": 20,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_retrait_publie.py": {
+        "passed": 32,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_score_de_lead.py": {
+        "passed": 24,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_suivi_conversation.py": {
+        "passed": 20,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_suivi_rappels.py": {
+        "passed": 9,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_transferts.py": {
+        "passed": 84,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_utm_formulaire.py": {
+        "passed": 69,
+        "skipped": 0
+      },
+      "departments/m01-front-office/tests/test_voicemail_stt.py": {
+        "passed": 17,
+        "skipped": 0
+      },
+      "departments/m10-memoire/tests/test_documents_affaire_lecture.py": {
+        "passed": 39,
+        "skipped": 0
+      },
+      "tests/test_admission_agents.py": {
+        "passed": 35,
+        "skipped": 5
+      },
+      "tests/test_agents_sms_configuration.py": {
+        "passed": 42,
+        "skipped": 0
+      },
+      "tests/test_canal_sms_bout_en_bout.py": {
+        "passed": 6,
+        "skipped": 0
+      },
+      "tests/test_console_agents_sms.py": {
+        "passed": 13,
+        "skipped": 0
+      },
+      "tests/test_console_reception_digest.py": {
+        "passed": 41,
+        "skipped": 0
+      },
+      "tests/test_documents_affaire_lecture_appareil.py": {
+        "passed": 31,
+        "skipped": 0
+      },
+      "tests/test_documents_affaire_lecture_cap_appareil.py": {
+        "passed": 95,
+        "skipped": 0
+      },
+      "tests/test_documents_affaire_lecture_mcp_appareil.py": {
+        "passed": 29,
+        "skipped": 0
+      },
+      "tests/test_openclaw_canaux.py": {
+        "passed": 32,
+        "skipped": 0
+      },
+      "tests/test_openclaw_sms_profile.py": {
+        "passed": 30,
+        "skipped": 0
+      },
+      "tests/test_reception_sms_codec.py": {
+        "passed": 93,
+        "skipped": 0
+      },
+      "tests/test_reception_sms_receipt.py": {
+        "passed": 53,
+        "skipped": 0
+      },
+      "tests/test_runtime_reception_sms_mcp.py": {
+        "passed": 28,
+        "skipped": 0
+      },
+      "tests/test_runtime_sms_profile_guard.py": {
+        "passed": 20,
+        "skipped": 0
+      },
+      "tests/test_serveur_mcp_http.py": {
+        "passed": 24,
+        "skipped": 0
+      }
+    },
+    "skips": [
+      {
+        "file": "tests/test_admission_agents.py",
+        "test": "test_postgresql_concurrent_agents_ne_depassent_pas_le_plafond_global",
+        "reason": "démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles",
+        "location": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/tests/test_admission_agents.py:384: démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles"
+      },
+      {
+        "file": "tests/test_admission_agents.py",
+        "test": "test_postgresql_admission_conciliation_et_ledger_depassent_32_bits",
+        "reason": "démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles",
+        "location": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/tests/test_admission_agents.py:469: démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles"
+      },
+      {
+        "file": "tests/test_admission_agents.py",
+        "test": "test_postgresql_conciliation_overrun_serialisee_avant_nouvelle_reservation",
+        "reason": "démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles",
+        "location": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/tests/test_admission_agents.py:476: démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles"
+      },
+      {
+        "file": "tests/test_admission_agents.py",
+        "test": "test_postgresql_runtime_cycle_fields_and_unique_cycle",
+        "reason": "démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles",
+        "location": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/tests/test_admission_agents.py:850: démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles"
+      },
+      {
+        "file": "tests/test_admission_agents.py",
+        "test": "test_postgresql_cycle_concurrent_admission_ne_delivre_quun_accord_neuf",
+        "reason": "démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles",
+        "location": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/tests/test_admission_agents.py:910: démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles"
+      }
+    ]
+  },
+  "origins": {
+    "tests": {
+      "origin_report_sha256": "2e251058ac84f67db1760096eecbf371e6c55f80460a47e9f7ea9f05ae120476",
+      "module_entries": 1342,
+      "categories": {
+        "dependency_venv_post_only": {
+          "module_entries": 856,
+          "unique_physical_paths": 854
+        },
+        "protected_source": {
+          "module_entries": 486,
+          "unique_physical_paths": 486
+        }
+      },
+      "all_reported_hashes_rechecked_now": true,
+      "venv_before_window_guarantee": false,
+      "protected_sources_before_after_fixed1548": true,
+      "no_unknown_unprotected_project_origin": true
+    },
+    "metier": {
+      "origin_report_sha256": "d197a31e25cd322d5c1bc1ddb9fc9d0a194638dcd3ec96b7a9cdb08b215b6b1f",
+      "module_entries": 635,
+      "categories": {
+        "dependency_venv_post_only": {
+          "module_entries": 282,
+          "unique_physical_paths": 282
+        },
+        "protected_source": {
+          "module_entries": 353,
+          "unique_physical_paths": 353
+        }
+      },
+      "all_reported_hashes_rechecked_now": true,
+      "venv_before_window_guarantee": false,
+      "protected_sources_before_after_fixed1548": true,
+      "no_unknown_unprotected_project_origin": true
+    }
+  },
+  "fixed_source_count": 1548,
+  "current_sources_equal_fixed": true,
+  "allowed_delta_vs_F22": {
+    "departments/m01-front-office/src/m1_front_office/outils.py": {
+      "historical_F22": "b6a6d8ea22afbaf51abd029c7a6939d0f3d75e823aa05ca1c510fcbe1e8f3379",
+      "current_R": "7794d0f6db7f2379faf347d984080ffdc5d032d9eb9a4a39c049c36205d4d2ae"
+    },
+    "departments/m01-front-office/src/m1_front_office/transferts.py": {
+      "historical_F22": "eef978e529d6fd268ddbc4def70ae073c2c9105673a4888d3cebd85b52bfb41f",
+      "current_R": "a1ccc86d5d1eee4eafd6f4be1e1d8c1b47453892ad9f69eb078ec362061c0d93"
+    },
+    "departments/m01-front-office/tests/test_import_appels_durable.py": {
+      "historical_F22": "58dd37f8d32c95ecd05ce3e1601610f42648d08e40b189f814bf8df2ddf53641",
+      "current_R": "57cc944bb1ef1dacd799ab13b9e01125b54051c520add6bcac2876148875e6c7"
+    },
+    "departments/m01-front-office/tests/test_outils_transfert.py": {
+      "historical_F22": "fbcf52c60dc05ac91cf3b3798be1cd4c36177ca97f565944180a52b4d14b5882",
+      "current_R": "e514348ab9306235f804fd3b4ba22da41347f280396914a4fb272af4e249e8c5"
+    }
+  },
+  "current_GO_pins_equal": true,
+  "historical2292_credited_current": false,
+  "new_runtime_by_reviewer": false
+}

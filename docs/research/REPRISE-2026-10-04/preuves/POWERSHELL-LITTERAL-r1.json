@@ -1,0 +1,77 @@
+{
+  "created_utc": "2026-10-04T01:27:01.673080+00:00",
+  "archive": "POWERSHELL-LITTERAL-r1.tar.xz",
+  "archive_sha256": "5a29f2c55915887ef0cade0c76c70503911e4d6a8a64f069f2b370251dc0cff0",
+  "archive_bytes": 75700,
+  "entries": [
+    {
+      "path": "PUBLICATION-DURCISSEMENT-RESULT-r1.json",
+      "size": 3092,
+      "sha256": "5411852eaa2f718f2b83bdf830f1b09ca378b4101109b4f00656ed4b1d524d9d"
+    },
+    {
+      "path": "guard_helpers_r2.py",
+      "size": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844"
+    },
+    {
+      "path": "qa-r21/execution-r1/pytest.log",
+      "size": 160,
+      "sha256": "be0579b9176083ba8d038fca07565d82f8a7ee7e41a45f98e8a8d37343e5468d"
+    },
+    {
+      "path": "qa-r21/execution-r1/pytest.xml",
+      "size": 15990,
+      "sha256": "6a81f759759efff990477f31b4683465750f84f07d653e49cb05f3c14716b2f2"
+    },
+    {
+      "path": "qa-r21/execution-r1/ruff.log",
+      "size": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "qa-r21/freeze.json",
+      "size": 153193,
+      "sha256": "114c7411b3d553d43cb99010738cc67cfa3a9f08ccb40472cf4b1423d6b0c0c5"
+    },
+    {
+      "path": "qa-r21/receipt.json",
+      "size": 315757,
+      "sha256": "220054e416960fd2dd29153a1afebe4d7a05c22279d2751dbc3f347b540b67fa"
+    },
+    {
+      "path": "qa-r22/execution-r1/gitleaks.log",
+      "size": 131,
+      "sha256": "fd873ecfeb1e2e46472ff369017ffd0ecfb77f7ce4666ec128b08276eef5ed9d"
+    },
+    {
+      "path": "qa-r22/freeze.json",
+      "size": 98,
+      "sha256": "e04a3b2b3b325333fad23e1657116ba9aee481484f23d15352c30da60a981c79"
+    },
+    {
+      "path": "qa-r22/receipt.json",
+      "size": 2585,
+      "sha256": "3ec0592d66fdb0efeffe778b6b718d454855ea12328522d0b14c98e5b8dda0bb"
+    },
+    {
+      "path": "qa-r22/scan.json",
+      "size": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "qa_root_r21.py",
+      "size": 3637,
+      "sha256": "93e304a8a917f4a702327810992f9c5e05a6aba5759d44e0030b52093f526549"
+    },
+    {
+      "path": "qa_root_r22.py",
+      "size": 3181,
+      "sha256": "2d58338d87534b12fe3f95e8620ac2a259af4865fdb566a5b6bb86443cc79a20"
+    }
+  ],
+  "qa_local_linux_passed": 116,
+  "native_powershell_qualified": false,
+  "source_only_scan_raw_ok": true,
+  "all_changed_files_scan": "qa-r20 keeps one unchanged fictional marker alert"
+}

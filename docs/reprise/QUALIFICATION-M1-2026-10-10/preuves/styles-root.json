@@ -1,0 +1,36 @@
+{
+  "time_toronto": "2026-10-10T18:32:19.604449-04:00",
+  "files": 51,
+  "results": [
+    {
+      "phase": "format",
+      "exit": 0,
+      "receipt_sha256": "2333b821bf9415a973831873785ac4ff52a5ff1eaad0c947a7d4d270def9be3f",
+      "log_sha256": "dda82eb6e80f8e3084392e814f5d9cf02f5c8bade386aa5d38853d9f886cf6eb",
+      "source_stable": true,
+      "closed_EOF_PIDFD": true
+    },
+    {
+      "phase": "lint",
+      "exit": 0,
+      "receipt_sha256": "5c80a2cba222f4144bdc16df84b8a1dd5c1b868c188894a6ab7eecdaea3e3a4c",
+      "log_sha256": "c716dfb9541eb565b1838e34caa696e3c7945d0722950fbb73a618072439ca32",
+      "source_stable": true,
+      "closed_EOF_PIDFD": true
+    }
+  ],
+  "warnings": {
+    "count": 6,
+    "kind": "max-lines",
+    "paths": [
+      "extensions/sms/src/ingress-spool.test.ts",
+      "src/channels/message/opsys-sms-source.test.ts",
+      "src/channels/turn/run-channel-turn.pipeline.test.ts",
+      "src/channels/turn/lifecycle.ts",
+      "src/channels/turn/run-channel-turn.finalize.test.ts",
+      "src/config/zod-schema.agent-runtime.ts"
+    ]
+  },
+  "errors": 0,
+  "warnings_suppressed": false
+}

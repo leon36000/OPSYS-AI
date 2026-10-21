@@ -1,0 +1,375 @@
+{
+  "schema": "opsys-private-continuation-registry-v4",
+  "time_toronto": "2026-10-10T01:37:03.080383-04:00",
+  "base": "44d0237fa64f233862baa25a2d3c5c42e3516ba2",
+  "product_status": "PARTIEL",
+  "source_files": 31,
+  "audit_files": 3,
+  "files": [
+    {
+      "path": "departments/m10-memoire/docs/DOCUMENTS-AFFAIRE-LECTURE.md",
+      "sha256": "bcb9b973cab3478afe5e29151891f3bb827c641f12e1bc7c0fef36780a11ef4e",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "departments/m10-memoire/docs/DOCUMENTS-AFFAIRE-RPC-LECTURE.md",
+      "sha256": "9f6c35c35b9f37c50cc90d46d3a71134dbb17b0399904d1784ce98bad80d63ee",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "departments/m10-memoire/src/m10_memoire/documents_affaire.py",
+      "sha256": "d764501a482248d09fb6b48579cac71e7ce1e8a68860530a46d34f3209c1099c",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "ee9bbf151a07e0042dc894ef7cedf156b9146f87dd80de0f66eda6d74f2b0a7d",
+      "preimage_git_blob": "f108d00e6accc389e36952ada86b19531d93e8bf",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "departments/m10-memoire/src/m10_memoire/outils.py",
+      "sha256": "6a966bdabb49a497a6b8761c2cf67fa52dd1d9a110db46fe65f87c9ad8ead83c",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "9ff922a8dd66605fc04dd93fe002900ea285a80e577fed70ff84c43cf6b641f0",
+      "preimage_git_blob": "978db7971e603200e239d8de8a71fe2f958565c3",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "departments/m10-memoire/tests/test_documents_affaire_lecture.py",
+      "sha256": "eda6a87ae01651659ca8ec2c4f682cd88c38a90d0ee027563148ca8ffeac9954",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "departments/m10-memoire/tests/test_outils_documents_affaire_appareil.py",
+      "sha256": "8ee74322c9ca70b5c8313c84d8d47b00c6d3654bee3f4930aa238834991852a9",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "5b860f4ae8cb225547c8e6c5b73cd0425fc277ee7975b2b6c295e13c32a23018",
+      "preimage_git_blob": "5f415fc1528673487a910a3a9d97270ad7255593",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "departments/m10-memoire/tests/test_outils_documents_affaire_lecture_appareil.py",
+      "sha256": "6f7189c6a94521890b86b03e3e4b676b1d625bda5d9d278027f2224f23bbf8d9",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "docs/architecture/M10-LECTURE-DOCUMENTAIRE.md",
+      "sha256": "9e67c5cd14121228ac9ef29e442319210ed43be3bbdbaa67d30d16b1eac62a61",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "docs/architecture/ROLES.md",
+      "sha256": "b4b38567af6c376e8061fa4be2252dd0790a8b20360157fce0c68d78fe272319",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "f43c6c115df6c13b27ddef4bbd86bfd6d6ccb2ddeb29ef7483e984aa13524f34",
+      "preimage_git_blob": "22376db1bfa0b7afca0df872025c03eadf20fce0",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "src/opsys/capacites.py",
+      "sha256": "4dc3ef91a297910aa85b4716d3aee3126b5a349b21e3747659a9200a26144f4a",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "d43e13ba60b7870b8b3ea1029e30eee3b61e8af1d255732e5a3e3848b86c3b01",
+      "preimage_git_blob": "e1bd54b279ee4f7f7a0dd6a83aca66c72200c786",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "src/opsys/documents_affaire_lecture_appareil.py",
+      "sha256": "85339460a7b2445b04f7fedf1685e53725c1355759fdac4de397a4bd3691afe9",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "src/opsys/serveur_mcp.py",
+      "sha256": "ac74a2f5b96bae1007e2d960540071567f11fbbfa596bf7650648c97a46159b2",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "39c5de34302b4ba958c7f74ac482266645bb4c228c624c9d5f289f98feba5690",
+      "preimage_git_blob": "ecf7edc244aa3dbbf107d42ee910119cada37789",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "tests/test_documents_affaire_lecture_appareil.py",
+      "sha256": "ee2878be37a76e01bce041b3a6d7c4a1f82fcfa04116da219b0d8ebe3a280395",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "tests/test_documents_affaire_lecture_cap_appareil.py",
+      "sha256": "6191af1ecf3e70b8ba4261dfdda28983fbbe41cbdde2e06b4f046010894aa277",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "tests/test_documents_affaire_lecture_mcp_appareil.py",
+      "sha256": "3fbc3b9b50315352e11b802bc9fad35cc8899d5fc33b7b7e4dfe2de4d0d0dfa9",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "tests/test_openclaw_contexte.py",
+      "sha256": "daa5036df506e37af5803488cbeb60c7e792d22e120c9fe1de9a94030d66bb7c",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "e890244118c8971c538b06c0064c7d7c6cdf83f7930d85c527d23b6623539c25",
+      "preimage_git_blob": "1ffd23b28996724b5f8dfd836631ac4bd94c0de0",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "tests/test_portees_appareil.py",
+      "sha256": "e2b2e528e42eed6dee795841eb575165f14ddd473a9073f49bc7019a63cf1b56",
+      "origin": "Python17 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "f0fe810511de87f96b1b48fb684b3475eb9a016130f91fab13dd39270e7df1c1",
+      "preimage_git_blob": "cb56b016c3fbcd522f68f2d5c572abbeaff7f2e5",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireControleService.ts",
+      "sha256": "0a67cc64bf7d8d11f36face05fccf1135318de689e80122e072ad7ab5fafcc02",
+      "origin": "UI7 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/admin/DocumentsAffaireM10.tsx",
+      "sha256": "48369757fc040a13ea1c4bc9dd2b7ec9c2251b59cee0dc2a6f1b4e1ff0b32509",
+      "origin": "UI7 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/admin/DocumentsAffaireM10.test.tsx",
+      "sha256": "0ada6b2730fa89d9a90514a6fd1d82f4b7ed7517a1de3d542c0b96308adb20cd",
+      "origin": "UI7 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/app/(admin)/memoire.tsx",
+      "sha256": "d90c303a85df42b0b6f94d99f810e9bbc3d016e644534cbfebd39255583f6fca",
+      "origin": "UI7 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "14b6d018a54ae72584bb4dd5fbd0485f8dbd39410f99936282e49fe8c7fa562e",
+      "preimage_git_blob": "2c1fb5a303831552afdfeb073183f1c6d5a2190f",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/i18n/locales/admin.fr-CA.ts",
+      "sha256": "3ff3e04af994de56dc37188b81fa81479742a04fc7aeee5ef317849bd8890ad0",
+      "origin": "UI7 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "d6032746e27735c74d3628dc9d2736f816ed718e201d1f7f9c4a0eedc762527b",
+      "preimage_git_blob": "10067ea61b1455bbe64e889b6c2d5b83f328c613",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/docs/M10-DOCUMENTS-INTERFACE.md",
+      "sha256": "93f78edeb3214015c88e56d55875b3e57705d9952de4ebc118aafe5e75724081",
+      "origin": "UI7 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/i18n/locales/admin.en-CA.ts",
+      "sha256": "3be8d487c425d83f6021bd1af84b5be6fd8355cdec32158e41488209ef34210a",
+      "origin": "UI7 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": "83e241e0d34ca591f506c479bcb2e90ddd33f3a1854aad6b06ebf66a2ad7ed9e",
+      "preimage_git_blob": "b377f33f0095e0b17fbe5cc51a955edd862cef67",
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireControle.ts",
+      "sha256": "4da5f0ac9694e016e661537f9619cef172b39daa9d5d323847e785931ce5f0ea",
+      "origin": "Root2 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireControle.test.ts",
+      "sha256": "c12797178374232a0b99096f1d09a8efdcd7339f8bcf4e01153c2d8f364625a0",
+      "origin": "Root2 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireLecture.ts",
+      "sha256": "6033a5cbf242131ca28e1a3a1df6e9dfe613eff5fa15ef835fc334ff68f9104e",
+      "origin": "Client5 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireLecture.test.ts",
+      "sha256": "025ef6ac68ba4dacb38eb5534f0591b95f1017cf86d3f3fa3cb41629bc602279",
+      "origin": "Client5 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireLectureService.ts",
+      "sha256": "39514126ef9772357657ca0903cb490cd3e4c5f9534784977e8f373fa5ae8578",
+      "origin": "Client5 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireLectureService.test.ts",
+      "sha256": "03dd573e462816aedfebdb110759e45c68a513e7136e867f4b19679d04c173a6",
+      "origin": "Client5 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    },
+    {
+      "path": "mobile/docs/M10-LECTURES-DOCUMENTAIRES.md",
+      "sha256": "6b0624432678949811997617e6441918ad2147711d2b2999dd04ed544c7d17ad",
+      "origin": "Client5 frozen F17/GEL2 client and GEL3 Rootcontroller",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-documents-interface-20261010",
+      "preimage_sha256": null,
+      "preimage_git_blob": null,
+      "integration_status": "PRIMARY_EXACT_LOCAL_VERIFIED_UNCOMMITTED_NEW_CI_PENDING",
+      "verification": "Primary779P0skip/Ruff0/verifier242150 for Python, unchanged current Python code; currentfullmobile5562P237suites0skip/TSC0/oxlint0 source615sameprimary",
+      "limit": "No new exactCI at capsule time; NativeT0 memoryblocked; no phone/nativeSQLite/PG credit"
+    }
+  ],
+  "dispositions": [
+    {
+      "path": "mobile/node_modules",
+      "kind": "local symlink dependency bridge",
+      "disposition": "Never staged/published; Root lease proves prior absence"
+    },
+    {
+      "count": 104,
+      "kind": "light pack omitted proofs",
+      "disposition": "References preserved; unavailable, not rerun"
+    },
+    {
+      "kind": "full transfer supplement and absent conversations",
+      "disposition": "Unavailable/unknown"
+    },
+    {
+      "kind": "F15 unleased BRIEF divergence",
+      "disposition": "Historical worktree preserved/excluded; origin unknown, not in Source31"
+    }
+  ],
+  "qualification_files_availability": "Local Q exist and SHA rehashed; only audit3/source31 exported to private Git. 104 lightpack proofs remain unavailable.",
+  "primary_python_receipt_sha256": "67988c6d7037e90452bff55d957b8642257be9f8950aa622722a8a7eaed06ce3",
+  "current_mobile_receipt_sha256": "82d59f33dc1025fcabc32c3c582094322d1acabca3a62daec91d374a68a9589e",
+  "Source31_frozen_manifest_sha256": "ae528a9f0ec6d3cbe767ea126de17aac011412666a0b9bb6b1f3cd265c845b8e"
+}

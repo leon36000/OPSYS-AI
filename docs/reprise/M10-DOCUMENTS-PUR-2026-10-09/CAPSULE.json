@@ -1,0 +1,13 @@
+{
+  "archive": "M10-DOCUMENTS-PUR-PUBLIC-FINAL-r3.tar.gz",
+  "sha256": "1e503ce78e806454bcb34282d022b1650d0712e5cbdd5ead69182f5065c4f52c",
+  "regular_safe_members": 63,
+  "manifested": 62,
+  "manifest_sha256": "449cd5f6ddcf5199e455356f12ada81e888364867241de6255c4806327e68064",
+  "Root_roundtrip_receipt_sha256": "118c04f76bcd4d8651e8d9c3f69ce8858ce5bd4a4da07bd173fee5fe485f1e9c",
+  "native_delta_review_readback_sha256": "ef95896a8d5c75a54d3dfdf45a100182cffa62983fa764089a8ce4a9a8dac14b",
+  "location": "Capsule locale hors Git ; aucun téléchargement distant promis",
+  "scope": "Source3 gel3, préimages gel2, rouges/verts récents, oracle erroné et oracle corrigé, mutant UTF8 et dispositions",
+  "older_history": "Gels1/2 et leurs capsules restent conservés séparément par références ; aucun remplacement ni crédit rétroactif",
+  "new_exact_CI": "UNKNOWN"
+}

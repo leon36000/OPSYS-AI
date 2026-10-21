@@ -1,0 +1,11 @@
+{
+  "archive": "capsule-public-r1.tar.gz",
+  "sha256": "7c880d0bb09b0b3d056ab0ab8e213c80adbfc706bca5a5c206237c4f87b08873",
+  "members": 104,
+  "manifested": 103,
+  "manifest_sha256": "ef414fbdf188de648dec7881bf941793385780d1dd915e622a08260f61ae0c20",
+  "Root_roundtrip_all_members": true,
+  "location": "capsule locale hors Git ; aucun téléchargement distant promis",
+  "scope": "4 sources / préimages et qualification contrôlée ; preuves privées exclues",
+  "future_CI": "UNKNOWN"
+}

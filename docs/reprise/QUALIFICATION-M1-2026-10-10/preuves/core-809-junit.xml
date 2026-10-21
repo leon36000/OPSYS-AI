@@ -1,0 +1,1688 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="809" failures="0" errors="0" time="21.478020976">
+    <testsuite name="extensions/sms/src/ingress-spool.test.ts" timestamp="2026-10-10T22:18:17.411Z" hostname="gx10-e526" tests="32" failures="0" errors="0" skipped="0" time="2.292014131">
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; retries acknowledged MMS provider outages before adopting later same-sender messages" time="0.240410504">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; recovers an uncompleted message with a fresh drain instance" time="0.04847052">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; durably admits a handler selected before route shutdown after the pump stops" time="0.051742043">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; does not let a non-cooperative delivery block route replacement shutdown" time="0.051867435">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; keeps a completed MessageSid tombstone from dispatching twice" time="0.063479749">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; accepts the legacy SmsSid event id alias" time="0.050829146">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; accepts the legacy SmsMessageSid event id alias" time="0.044262501">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; uses the canonical sender as the durable lane" time="0.050104986">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; replays with the original webhook receipt timestamp" time="0.063143461">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; preserves the old handler-reload replay guard scenario with a tombstone" time="0.058849233">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; dispatches callbacks bound to the configured Messaging Service" time="0.055399886">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; preserves fromNumber-only RCS compatibility" time="0.047405847">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; preserves Messaging Service RCS identity" time="0.044781845">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; preserves shipped RCS text while ignoring unsupported media fields" time="0.052553212">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; dead-letters a permanent invalid payload failure" time="0.061098419">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; dead-letters a permanent missing account failure" time="0.050484074">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; dead-letters a permanent account mismatch failure" time="0.048471992">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; dead-letters a permanent recipient mismatch failure" time="0.054328206">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; dead-letters a permanent Messaging Service mismatch failure" time="0.051053146">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; dead-letters a permanent missing Messaging Service failure" time="0.054543181">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; dead-letters a permanent fromNumber precedence failure" time="0.063704086">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="createSmsIngressSpool &gt; dead-letters a permanent RCS media-only failure" time="0.046445894">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="selected SMS Gate retention &gt; refuses a fresh selected capture without a Host bridge before any durable append" time="0.04515695">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="selected SMS Gate retention &gt; uses the monitor receipt time and persists the exact sealed v2 rather than a legacy form" time="0.049050249">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="selected SMS replay Gate retention &gt; preserves selected v1 and cancels without inbound, attempts or completing" time="0.155483169">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="selected SMS replay Gate retention &gt; preserves selected malformed and cancels without inbound, attempts or completing" time="0.162433239">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="selected SMS replay Gate retention &gt; preserves v2 after marker removal and cancels without inbound, attempts or completing" time="0.156882579">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="selected SMS replay Gate retention &gt; retains v2 on abort and release failure without terminal fallback" time="0.102524805">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="selected SMS replay Gate retention &gt; never swaps the captured carrier for a replacement or downgrades after cfg mutation" time="0.050531594">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="selected route cancellation &gt; refuses new selected capture after only the route gate signal aborts" time="0.054208221">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="selected route cancellation &gt; preserves legacy durable admission when the separate route gate signal is already aborted" time="0.051792588">
+        </testcase>
+        <testcase classname="extensions/sms/src/ingress-spool.test.ts" name="selected route cancellation &gt; routes a decoded JSON null payload to the Gate without turning it into a permanent error" time="0.104410902">
+        </testcase>
+    </testsuite>
+    <testsuite name="extensions/sms/src/twilio.test.ts" timestamp="2026-10-10T22:18:17.419Z" hostname="gx10-e526" tests="68" failures="0" errors="0" skipped="0" time="0.259998649">
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; parses Twilio form bodies and inbound messages" time="0.010315528">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; parses media-only Twilio MMS callbacks in provider order" time="0.004347572">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; preserves the signed Messaging Service identity on inbound messages" time="0.003464627">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; rejects malformed counts and marks missing Twilio MMS media as unavailable" time="0.00264205">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; bounds inbound downloads without discarding a signed message with more media" time="0.002943379">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; accepts only supported Twilio inbound From address +1 (555) 123-4567" time="0.006154933">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; accepts only supported Twilio inbound From address RcS:+1 (555) 123-4567" time="0.002696818">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; accepts only supported Twilio inbound From address whatsapp:+15551234567" time="0.001724962">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; accepts only supported Twilio inbound From address signal:+15551234567" time="0.002331138">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; verifies Twilio signatures over sorted form fields" time="0.002706082">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; preserves signed form values before signature verification" time="0.002875138">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; sends SMS through Twilio&apos;s Messages API" time="0.011786602">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; opts delivery commits into bounded connection, timeout, and 5xx retries" time="0.003265027">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; accepts an absolute HTTP callback URL" time="0.00255421">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; preserves the query and existing retry policy" time="0.003895219">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; preserves an all-failures policy and configured retry count" time="0.003254691">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; preserves a configured read timeout" time="0.002147938">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; repairs an invalid read timeout" time="0.00255253">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; repairs a disabled retry count without replacing other overrides" time="0.002371522">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; omits the delivery callback when no public webhook URL is configured" time="0.00189533">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; enforces OpenClaw&apos;s defensive 4,000-character status callback cap" time="0.003021938">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a relative public webhook URL" time="0.003270771">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a malformed public webhook URL" time="0.002717234">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a missing authority slashes public webhook URL" time="0.002658274">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a single authority slash public webhook URL" time="0.003139139">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a backslash public webhook URL" time="0.002245906">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a invalid percent escape public webhook URL" time="0.002624322">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a raw query pipe public webhook URL" time="0.003274323">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a raw query caret public webhook URL" time="0.005491044">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a raw query backtick public webhook URL" time="0.003617139">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a raw query braces public webhook URL" time="0.002633843">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a percent-encoded hostname public webhook URL" time="0.00238205">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a invalid hostname public webhook URL" time="0.003519939">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a single-label hostname public webhook URL" time="0.004115283">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a localhost public webhook URL" time="0.003803043">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a IPv4 loopback public webhook URL" time="0.003022035">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a legacy numeric IPv4 loopback public webhook URL" time="0.002766882">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a unspecified IPv4 public webhook URL" time="0.002922995">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a private IPv4 public webhook URL" time="0.002480162">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a carrier-grade NAT IPv4 public webhook URL" time="0.002540386">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a link-local IPv4 public webhook URL" time="0.003089554">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a IPv6 loopback public webhook URL" time="0.005338932">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps text sending available with a private IPv6 public webhook URL" time="0.003073411">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; marks dispatch immediately before the Twilio POST" time="0.003086546">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; does not mark dispatch for an invalid Twilio send" time="0.003177043">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; classifies credential replacement before the first request" time="0.02676119">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; classifies credential replacement before a redirect hop" time="0.003487059">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; sends MMS with repeated MediaUrl fields and no required text body" time="0.003038867">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; rejects outbound MMS requests above Twilio&apos;s media count limit" time="0.002293858">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; enforces Twilio&apos;s provider-owned Message Body limit" time="0.00284933">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; lists Twilio phone-number webhook settings" time="0.002518434">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; lists recent Twilio messages for diagnostics" time="0.003105507">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; retrieves Twilio Messaging Service webhook settings" time="0.003285779">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; can send through a Twilio Messaging Service SID" time="0.002852434">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; prefers an explicit from number when both sender options are resolved" time="0.00278301">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; throws structured Twilio errors from JSON error bodies" time="0.004380756">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; redacts credentials reflected in Twilio error text" time="0.004964948">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; releases guarded Twilio egress on failed send responses" time="0.003310755">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; bounds guarded Twilio errors on complete UTF-8 characters and cancels overflow" time="0.004302627">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; rejects malformed JSON from successful Twilio sends" time="0.003836324">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; releases guarded Twilio egress on malformed successful send responses" time="0.002930946">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; rejects malformed JSON from Twilio Messaging Service lookup" time="0.002574386">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; returns empty list on malformed JSON from Twilio incoming phone number list" time="0.002922867">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; bounds and cancels oversized guarded Twilio success bodies" time="0.003928755">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; requires successful Twilio sends to include a Message SID" time="0.00292669">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; excludes a connection override fragment when adding a request query" time="0.003477859">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; keeps an explicit configured query but excludes its connection override fragment" time="0.003814148">
+        </testcase>
+        <testcase classname="extensions/sms/src/twilio.test.ts" name="Twilio SMS helpers &gt; strips a connection override fragment without reserializing the configured URL" time="0.002310657">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" timestamp="2026-10-10T22:18:17.433Z" hostname="gx10-e526" tests="25" failures="0" errors="0" skipped="0" time="0.760552938">
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; observes terminal stop usage once across async-tool fragments (cacheRead=10000, completion=event)" time="0.249210176">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; observes terminal stop usage once across async-tool fragments (cacheRead=0, completion=event)" time="0.007772406">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; observes terminal toolUse usage once across async-tool fragments (cacheRead=10000, completion=event)" time="0.007736007">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; observes terminal error usage once across async-tool fragments (cacheRead=10000, completion=event)" time="0.006554597">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; observes terminal aborted usage once across async-tool fragments (cacheRead=10000, completion=event)" time="0.004470372">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; observes terminal stop usage once across async-tool fragments (cacheRead=10000, completion=result)" time="0.004407956">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; observes terminal stop usage once across async-tool fragments (cacheRead=0, completion=result)" time="0.007938614">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; observes terminal error usage once across async-tool fragments (cacheRead=10000, completion=result)" time="0.007373558">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; observes terminal output-limit usage once across async-tool fragments (cacheRead=10000, completion=event)" time="0.011275465">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; observes terminal output-limit usage once across async-tool fragments (cacheRead=10000, completion=result)" time="0.008963064">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; fences automatic memory compaction with admission active during summarization" time="0.092266861">
+            <system-err>
+Config warnings: /home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-CURRENT74-INTEGRATED-QUALIFICATION-PREPARATION-20261010-r1/tmp/openclaw-test-home-RNbbJU/.openclaw/openclaw.json: Config unavailable; using environment and default agent directory settings.
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; fences automatic memory compaction with admission replaced during summarization" time="0.041582946">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; fences automatic memory compaction with admission closed during summarization" time="0.041988115">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; fences automatic memory compaction with admission replaced before installation" time="0.0336591">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; fences automatic memory compaction with admission closed before installation" time="0.034854878">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; fences automatic memory compaction with admission cancelled before installation" time="0.036373966">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; checks the native owner active after awaited history immediately before prompting" time="0.002737602">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; checks the native owner closed after awaited history immediately before prompting" time="0.00214125">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; prepares guarded history, stream handling, deadlines, and settlement in order" time="0.005709461">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; publishes the replacement fact and invalidates the skill cache before attempt cleanup throws" time="0.004696084">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; does not start a prompt after external cancellation" time="0.004342995">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; closes the real execution deadline when the provider idle owner aborts locally" time="0.027722072">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; attributes an idle timeout during authoritative compaction to compaction" time="0.002764114">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; disposes after a flushed tool-result flush when history preparation fails" time="0.054171709">
+        </testcase>
+        <testcase classname="src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts" name="runEmbeddedAttemptExecutionPhase &gt; disposes after a rejected tool-result flush when history preparation fails" time="0.053696973">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/agents/opsys-runtime-sms-contract.test.ts" timestamp="2026-10-10T22:18:17.443Z" hostname="gx10-e526" tests="97" failures="0" errors="0" skipped="0" time="0.296644539">
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="pure SMS command codec (fictitious vectors) &gt; matches literal hashes: nfc_recevoir" time="0.033663853">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="pure SMS command codec (fictitious vectors) &gt; matches literal hashes: nfc_lire" time="0.002413426">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="pure SMS command codec (fictitious vectors) &gt; matches literal hashes: nfd_recevoir" time="0.003308515">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="pure SMS command codec (fictitious vectors) &gt; matches literal hashes: newlines" time="0.002808002">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="pure SMS command codec (fictitious vectors) &gt; matches literal hashes: portee_compte" time="0.003151427">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="pure SMS command codec (fictitious vectors) &gt; matches literal hashes: portee_profil" time="0.002638354">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="pure SMS command codec (fictitious vectors) &gt; matches literal hashes: revision" time="0.003688259">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="pure SMS command codec (fictitious vectors) &gt; copies and freezes every scalar container" time="0.003353523">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.revision_profil (fixed error)" time="0.004133972">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.revision_profil (fixed error)" time="0.003532883">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.revision_profil (fixed error)" time="0.003935555">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.revision_profil (fixed error)" time="0.00263653">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.revision_profil (fixed error)" time="0.002590354">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.revision_profil (fixed error)" time="0.003775876">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.revision_profil (fixed error)" time="0.003565683">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.revision_profil (fixed error)" time="0.003051298">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.profil_id (fixed error)" time="0.004142084">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.profil_id (fixed error)" time="0.002730434">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.profil_id (fixed error)" time="0.003006771">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field permission.outil_m1 (fixed error)" time="0.002355202">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.canal (fixed error)" time="0.002930178">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.provider (fixed error)" time="0.002233986">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.compte_id (fixed error)" time="0.00226205">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.compte_id (fixed error)" time="0.002204098">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.compte_id (fixed error)" time="0.002239554">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.compte_id (fixed error)" time="0.003066706">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.compte_id (fixed error)" time="0.003245843">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.compte_id (fixed error)" time="0.003167635">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.compte_id (fixed error)" time="0.001966785">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.compte_id (fixed error)" time="0.002484675">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.account_sid (fixed error)" time="0.001989425">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.account_sid (fixed error)" time="0.002410402">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.account_sid (fixed error)" time="0.002902739">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.message_sid (fixed error)" time="0.002677698">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.message_sid (fixed error)" time="0.002556114">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.expediteur (fixed error)" time="0.002937379">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.expediteur (fixed error)" time="0.00253917">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.expediteur (fixed error)" time="0.002685906">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.destinataire (fixed error)" time="0.003587043">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.session_key (fixed error)" time="0.002178002">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.agent_id (fixed error)" time="0.002853666">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.preuve_sha256 (fixed error)" time="0.002011906">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.preuve_sha256 (fixed error)" time="0.002439442">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.002424866">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.00244797">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.002302034">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.00250821">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.00226837">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.001681858">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.002196258">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.002473522">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.002393234">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.002246066">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.texte (fixed error)" time="0.00251709">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.00235373">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.002551154">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.004042723">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.001838386">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.001483729">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.001189377">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.00226757">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.004311748">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.00230677">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.003353683">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid field commande.recu_le (fixed error)" time="0.002660594">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid version true" time="0.002851874">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid version 2" time="0.00258965">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid version 1" time="0.002673283">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid version null" time="0.002732962">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid version NaN" time="0.002445874">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid version Infinity" time="0.002604834">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid version 1n" time="0.002199746">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid full operation null" time="0.002733682">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid full operation " time="0.002947619">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid full operation opsys_runtime_recevoir_sms " time="0.002184754">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid full operation opsys_m1__m1_recevoir_message_canal" time="0.002141874">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects invalid full operation 1" time="0.002869954">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects getters/proxies without executing at envelope" time="0.003282307">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects getters/proxies without executing at commande" time="0.002500722">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects getters/proxies without executing at permission" time="0.002185602">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects coercion hooks without executing" time="0.001929441">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects non-plain input null" time="0.002208706">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects non-plain input undefined" time="0.002966947">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects non-plain input Sat Oct 10 2026 18:18:03 GMT-0400 (Eastern Daylight Time)" time="0.002726354">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects non-plain input Map {}" time="0.003444723">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects non-plain input json" time="0.003851219">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects non-plain input 1" time="0.002962547">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="rejects non-plain input false" time="0.002648482">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="preserves exact valid UTF-8 text 0" time="0.002351474">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="preserves exact valid UTF-8 text 1" time="0.002882419">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="preserves exact valid UTF-8 text 2" time="0.001982289">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="preserves exact valid UTF-8 text 3" time="0.001120145">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="preserves exact valid UTF-8 text 4" time="0.002149394">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="accepts valid timestamp without freshness claim 2024-02-29T00:00:00.000Z" time="0.002640642">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="accepts valid timestamp without freshness claim 0001-01-01T00:00:00.001Z" time="0.002989059">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="accepts valid timestamp without freshness claim 9999-12-31T23:59:59.999Z" time="0.002672706">
+        </testcase>
+        <testcase classname="src/agents/opsys-runtime-sms-contract.test.ts" name="preserves exact identifier casing and maximum safe revision" time="0.00266309">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-claim-owner.test.ts" timestamp="2026-10-10T22:18:17.480Z" hostname="gx10-e526" tests="9" failures="0" errors="0" skipped="0" time="0.053178333">
+        <testcase classname="src/channels/message/ingress-claim-owner.test.ts" name="ingress claim owner &gt; parses process pid from owner id" time="0.028163224">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-claim-owner.test.ts" name="ingress claim owner &gt; does not treat stale claims with reused pids as live-owned" time="0.003428291">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-claim-owner.test.ts" name="ingress claim owner &gt; does not treat fresh claims with the current pid and a different owner id as foreign" time="0.002822946">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-claim-owner.test.ts" name="ingress claim owner &gt; does not treat a fresh foreign claim as live-owned when its pid is only a thread of this process" time="0.002479714">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-claim-owner.test.ts" name="ingress claim owner &gt; does not treat a fresh foreign claim as live-owned when its pid was reused by an unrelated process" time="0.001528529">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-claim-owner.test.ts" name="ingress claim owner &gt; treats fresh claims with other live process instances as live-owned" time="0.001494626">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-claim-owner.test.ts" name="ingress claim owner &gt; keeps existence-based lease protection for fresh legacy two-part owner ids" time="0.002088225">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-claim-owner.test.ts" name="ingress claim owner &gt; accepts queue claim.ownerId shape" time="0.002650099">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-claim-owner.test.ts" name="ingress claim owner &gt; treats fresh corrupt claims owned by this process as still live" time="0.004051251">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-drain-lanes.test.ts" timestamp="2026-10-10T22:18:17.484Z" hostname="gx10-e526" tests="4" failures="0" errors="0" skipped="0" time="0.305615714">
+        <testcase classname="src/channels/message/ingress-drain-lanes.test.ts" name="channel ingress drain lanes &gt; preserves rejected stored lanes and attempts each snapshot candidate once" time="0.129186429">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain-lanes.test.ts" name="channel ingress drain lanes &gt; starts an eligible lane head while a newer same-lane event waits out its retry backoff" time="0.060253171">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain-lanes.test.ts" name="channel ingress drain lanes &gt; keeps the lane blocked while its oldest pending event is retry-delayed" time="0.054418446">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain-lanes.test.ts" name="channel ingress drain lanes &gt; never claims a retry-delayed event whose lane head settled after the drain snapshot" time="0.057663921">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-drain-lifecycle.test.ts" timestamp="2026-10-10T22:18:17.484Z" hostname="gx10-e526" tests="1" failures="0" errors="0" skipped="0" time="0.03449179">
+        <testcase classname="src/channels/message/ingress-drain-lifecycle.test.ts" name="channel ingress drain lifecycle &gt; binds only the reply-lane ownership surface" time="0.029821401">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-drain-supersede.test.ts" timestamp="2026-10-10T22:18:17.485Z" hostname="gx10-e526" tests="5" failures="0" errors="0" skipped="0" time="0.343151826">
+        <testcase classname="src/channels/message/ingress-drain-supersede.test.ts" name="channel ingress drain supersede &gt; checks prepared policy at cancellation (current=true)" time="0.118134131">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain-supersede.test.ts" name="channel ingress drain supersede &gt; checks prepared policy at cancellation (current=false)" time="0.058042049">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain-supersede.test.ts" name="channel ingress drain supersede &gt; supersedes every released pre-adoption state on one lane" time="0.054720238">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain-supersede.test.ts" name="channel ingress drain supersede &gt; preserves single-owner supersede behavior with default lane holding" time="0.05215302">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain-supersede.test.ts" name="channel ingress drain supersede &gt; keeps the candidate blocked when a current lane owner is not superseded" time="0.054935022">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-drain.adoption-commit.test.ts" timestamp="2026-10-10T22:18:17.487Z" hostname="gx10-e526" tests="10" failures="0" errors="0" skipped="0" time="0.63880089">
+        <testcase classname="src/channels/message/ingress-drain.adoption-commit.test.ts" name="ingress adoption owns its completion outcome &gt; concurrent adoption waits for the real commit and successful repeats do not write again" time="0.127215067">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.adoption-commit.test.ts" name="ingress adoption owns its completion outcome &gt; keeps the exhausted IO rejection without an implicit retry or release" time="0.072547581">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.adoption-commit.test.ts" name="ingress adoption owns its completion outcome &gt; retains real reclaimed-token rejection for every later adoption" time="0.055386158">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.adoption-commit.test.ts" name="ingress adoption owns its completion outcome &gt; rejects first adoption after cancellation without converting pending into completed" time="0.055460223">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.adoption-commit.test.ts" name="ingress adoption owns its completion outcome &gt; does not mistake an in-flight cancellation release for its own completion" time="0.05414075">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.adoption-commit.test.ts" name="ingress adoption owns its completion outcome &gt; installs adoption ownership before a reentrant completion callback" time="0.052125963">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.adoption-commit.test.ts" name="ingress adoption owns its completion outcome &gt; rejects default completion that joined a pending cancellation release" time="0.05842101">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.adoption-commit.test.ts" name="ingress adoption owns its completion outcome &gt; shares the successful default completed fallback with a later explicit adoption" time="0.05228006">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.adoption-commit.test.ts" name="ingress adoption owns its completion outcome &gt; shares the rejected default completed fallback without retrying on a later explicit call" time="0.055205294">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.adoption-commit.test.ts" name="ingress adoption owns its completion outcome &gt; keeps default completion waiting for an explicit adoption still committing" time="0.052576508">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-drain.async-work.test.ts" timestamp="2026-10-10T22:18:17.494Z" hostname="gx10-e526" tests="1" failures="0" errors="0" skipped="0" time="0.103037543">
+        <testcase classname="src/channels/message/ingress-drain.async-work.test.ts" name="channel ingress drain async work ownership &gt; tracks a monitor delivery after its webhook pump closes and a queued followup after delivery settles" time="0.098821236">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-drain.cancellation.test.ts" timestamp="2026-10-10T22:18:17.494Z" hostname="gx10-e526" tests="1" failures="0" errors="0" skipped="0" time="0.13638098">
+        <testcase classname="src/channels/message/ingress-drain.cancellation.test.ts" name="channel ingress drain cancellation &gt; cancels unadopted work without changing its retry facts" time="0.133396577">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-drain.debounce-failure.test.ts" timestamp="2026-10-10T22:18:17.496Z" hostname="gx10-e526" tests="2" failures="0" errors="0" skipped="0" time="0.206981791">
+        <testcase classname="src/channels/message/ingress-drain.debounce-failure.test.ts" name="channel ingress drain debounce failures &gt; retries a pre-admission failure without waiting for the watchdog" time="0.141045112">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.debounce-failure.test.ts" name="channel ingress drain debounce failures &gt; keeps watchdog ownership when retry settlement keeps failing" time="0.061753236">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-drain.test.ts" timestamp="2026-10-10T22:18:17.499Z" hostname="gx10-e526" tests="28" failures="0" errors="0" skipped="0" time="2.501962231">
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; crash-window: lost claim is recovered and dispatched exactly once" time="0.128783627">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; dispatches a resubmitted dead letter exactly once" time="0.061022659">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; complete-at-adoption: adoption tombstones; settle is not required" time="0.050362217">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; deferred holds claim without complete until adopted or abandoned" time="0.049536729">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; keeps the lane owned until a dead-letter write commits" time="0.057397088">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; keeps ownership when every dead-letter write fails" time="0.053079772">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; holds lanes by default and releases only opted-in deferred lanes" time="0.093862717">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; keeps heartbeat and watchdog ownership after releasing a deferred lane" time="0.050489802">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; applies retry, non-retryable, and retry-limit policy to deferred failures" time="0.097518385">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; protects and aborts released deferred claims until disposal" time="0.05107665">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; lets callers await an abandoned claim release" time="0.051081355">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; abandoned reply ownership releases claim with attempt increment" time="0.050752826">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; queued deferral -&gt; admission completes the claim exactly once" time="0.056684047">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; supersede tombstones the superseded claim (never re-dispatches)" time="0.053823292">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; does not supersede without predicate" time="0.048702441">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; dead-letter needs both attempt floor and age (releases when age insufficient)" time="0.058775824">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; keeps retry-accounted abandonment pending beyond the failure threshold" time="0.048257992">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; refreshes active claims on claimLeaseMs/3 while deferred" time="0.052757532">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; throws IngressAdoptionLostError when onAdopted races supersede" time="0.046995639">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; retries tombstone complete failures then commits" time="0.049851929">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; holds claim ownership when tombstone complete keeps failing" time="0.049265865">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; does not steal live peer-drain claims; recovers after owner abort" time="0.05059417">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; throws IngressAdoptionLostError when complete returns false (lease reclaimed)" time="0.049746089">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; exports default adoption stall matching Telegram product default" time="0.002547154">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; tombstone-fail after handler completed keeps ownership and never re-dispatches" time="0.050643322">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; refreshClaim false aborts the handler mid-dispatch (lease reclaimed)" time="0.044369845">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; late supersede predicate does not kill an adopted turn" time="0.149856924">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.test.ts" name="channel ingress drain &gt; continues draining a backlog above SQLite&apos;s bind-variable ceiling" time="0.889919953">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-drain.tombstone-lane.test.ts" timestamp="2026-10-10T22:18:17.515Z" hostname="gx10-e526" tests="6" failures="0" errors="0" skipped="0" time="0.467941323">
+        <testcase classname="src/channels/message/ingress-drain.tombstone-lane.test.ts" name="channel ingress drain restart-recovery tombstone &gt; reports settlement only after the claim write succeeds: {&quot;reclaimed&quot;:false,&quot;terminal&quot;:false}" time="0.128061132">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.tombstone-lane.test.ts" name="channel ingress drain restart-recovery tombstone &gt; reports settlement only after the claim write succeeds: {&quot;reclaimed&quot;:false,&quot;terminal&quot;:true}" time="0.063505446">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.tombstone-lane.test.ts" name="channel ingress drain restart-recovery tombstone &gt; reports settlement only after the claim write succeeds: {&quot;reclaimed&quot;:true,&quot;terminal&quot;:false}" time="0.056804784">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.tombstone-lane.test.ts" name="channel ingress drain restart-recovery tombstone &gt; reports settlement only after the claim write succeeds: {&quot;reclaimed&quot;:true,&quot;terminal&quot;:true}" time="0.052100012">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.tombstone-lane.test.ts" name="channel ingress drain restart-recovery tombstone &gt; retains the failed head and drains its follower without replay (prior retry: false)" time="0.091046301">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.tombstone-lane.test.ts" name="channel ingress drain restart-recovery tombstone &gt; retains the failed head and drains its follower without replay (prior retry: true)" time="0.071313804">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-drain.watchdog.test.ts" timestamp="2026-10-10T22:18:17.524Z" hostname="gx10-e526" tests="15" failures="0" errors="0" skipped="0" time="0.84026442">
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; retries pre-adoption stalls in lane order and fences late adoption" time="0.122227623">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; keeps adoption finalization paused across deferred heartbeats" time="0.063241445">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; adopts a dispatching handler that stays live beyond the stall timeout" time="0.05364099">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; rearms a live deferred wait, then guillotines silence" time="0.052139932">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; preserves retry facts after dispose (heartbeat: none)" time="0.050273418">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; preserves retry facts after dispose (heartbeat: late)" time="0.047999">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; preserves retry facts after dispose (heartbeat: reentrant)" time="0.05444787">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; preserves retry facts after abort (heartbeat: none)" time="0.046348631">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; preserves retry facts after abort (heartbeat: late)" time="0.052053196">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; preserves retry facts after abort (heartbeat: reentrant)" time="0.048323625">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; records a late cancelled outcome after disposal" time="0.049955418">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; records a late abandoned outcome after disposal" time="0.048920089">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; records a late failed outcome after disposal" time="0.049372346">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; keeps a successor claim fenced from retired callbacks" time="0.04761388">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-drain.watchdog.test.ts" name="channel ingress drain watchdog &gt; does not kill healthy long turns after adoption" time="0.048201001">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-queue.read-only-access.test.ts" timestamp="2026-10-10T22:18:17.533Z" hostname="gx10-e526" tests="26" failures="0" errors="0" skipped="0" time="3.470666393">
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="read-only listing access &gt; lists without creating the shared state database" time="2.094835273">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; does not create absent state or adopt an owner that appears later" time="0.056772575">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; returns only four frozen detached fields synchronously with exact id/token/account" time="0.054566222">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; rejects malformed references without executing accessors or poisoning a valid reader" time="0.052329628">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; rejects a outer Proxy without traps, database effects or loss of the healthy reader" time="0.06061637">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; rejects a nested Proxy without traps, database effects or loss of the healthy reader" time="0.056673952">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; rejects a revoked Proxy without traps, database effects or loss of the healthy reader" time="0.056329775">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; does not decode corrupt large payloads or change any tables, rows, attempts or file bytes" time="0.066983224">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; observes real WAL peer refresh and re-claim instead of a prepared snapshot" time="0.055205934">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; refuses a row after a real release and completion" time="0.057126992">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; closes on malformed claimedAt -1" time="0.047998344">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; closes on malformed claimedAt 9007199254740992" time="0.047780839">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; retains the valid claim when the real STRICT schema refuses fractional claimedAt" time="0.050178874">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; does not reopen an existing physical database whose canonical owner is closed" time="0.052007387">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; keeps the original healthy owner when orderly close refuses an active borrower" time="0.052650844">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; joins a real evicted retiring owner on dispose without adopting its successor" time="0.073007581">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; closes when the prepared state-directory symlink is retargeted" time="0.050015178">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; closes permanently while an uncommitted native transaction is active" time="0.048264601">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; closes on missing or replaced file identity and never re-adopts the old path" time="0.045483798">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="prepared current claim identity &gt; closes on pathname inode replacement even when the original handle remains live" time="0.048499144">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="private native OriginalC snapshot &gt; reads exactly eight frozen detached fields from the open canonical claim without writes" time="0.05407059">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="private native OriginalC snapshot &gt; creates no missing state and reopens no closed canonical owner" time="0.051714299">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="private native OriginalC snapshot &gt; refuses unknown queue and claim proxies without traps" time="0.058820241">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="private native OriginalC snapshot &gt; uses actual single and double managed views and closes both on owner disposal" time="0.054298126">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="private native OriginalC snapshot &gt; refuses transactional snapshots and observes real peer replacement of origin" time="0.053513949">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.read-only-access.test.ts" name="private native OriginalC snapshot &gt; bounds actual SQL text by UTF8 bytes, including the exact limit" time="0.065541655">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-queue.test.ts" timestamp="2026-10-10T22:18:17.544Z" hostname="gx10-e526" tests="32" failures="0" errors="0" skipped="0" time="1.739465746">
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; deduplicates pending and completed ingress events" time="0.110535868">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; keeps channel and account queue identities unambiguous" time="0.058043184">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; claims, releases, and skips blocked lanes" time="0.049324521">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; claims next pending row by id when requested" time="0.048766312">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; claims next only from candidate ids when provided" time="0.052491676">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; derives missing lane keys before claiming next" time="0.046398614">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; preserves durable lanes when a channel derives ephemeral claim lanes" time="0.047399176">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; reconciles opted-in persisted lanes before blocking and claiming" time="0.049352329">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; blocks opted-in legacy candidate lanes using their canonical owner" time="0.052428683">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; preserves persisted lanes when an owner rejects their reconciliation" time="0.050196634">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; blocks lanes claimed by candidate rows before claiming later candidates" time="0.046049286">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; requires claim tokens before mutating claimed rows" time="0.049016793">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; refreshes claimed rows only with the active claim token" time="0.047518551">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; does not let old claim tokens refresh recovered and reclaimed rows" time="0.055260414">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; does not recover a claim refreshed after stale recovery snapshots it" time="0.057066591">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; recovers stale claims and prunes completed or failed rows" time="0.05530395">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; skips a pending row with corrupt payload_json in listPending" time="0.053155948">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; applies listPending limits after excluding corrupt payloads" time="0.063041588">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; uses the queue JSON contract when listing deeply nested payloads" time="0.052913387">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; skips corrupt metadata_json in listPending" time="0.055728094">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; skips a claimed row with corrupt payload_json in listClaims" time="0.054442622">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; skips corrupt completed_metadata_json during duplicate detection" time="0.049705993">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; claimNext skips a corrupt first pending row without lane derivation" time="0.047684647">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; makes durable progress when a corrupt prefix fills the claim scan limit" time="0.052888844">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; bounds corrupt reconciliation work per claimNext call" time="0.065493399">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; claim returns null for a corrupt pending row" time="0.060271602">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; handles valid JSON null payload correctly" time="0.050111417">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; tombstones a corrupt pending row on duplicate enqueue" time="0.049217689">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; does not tombstone a corrupt actively claimed row on duplicate enqueue" time="0.050683802">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; tombstones corrupt claimed rows during stale recovery" time="0.0527963">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; tombstones malformed claims regardless of timestamp and keeps them resubmittable" time="0.052744539">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-queue.test.ts" name="channel ingress queue &gt; corrupt JSON resilience &gt; does not bypass recovery policy for a corrupt stale claim" time="0.047074519">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/turn/run-channel-turn.finalize.test.ts" timestamp="2026-10-10T22:18:17.564Z" hostname="gx10-e526" tests="29" failures="0" errors="0" skipped="0" time="0.115788448">
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; drops direct prepared turns with bot-loop protection before record and dispatch" time="0.009684344">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; drops a recorded Discord webhook echo after thread unbind before record and dispatch" time="0.003916291">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; suppresses direct prepared dispatches for observe-only admission" time="0.002475187">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; uses noop delivery for direct assembled observe-only dispatch" time="0.002810354">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; clears pending group history after a successful prepared turn" time="0.028761544">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; clears pending group history when the explicit record session key is invalid" time="0.004426292">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; clears pending group history when transcript-context merge fails" time="0.003823059">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; cleans up pre-created dispatchers when session recording fails" time="0.00223821">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; clears pending group history when dispatch fails" time="0.003632307">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; runs afterRecord only after session recording succeeds and before dispatch" time="0.002771394">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; threads turnAdoptionLifecycle into assembled reply options and fires after recovery persist attempt" time="0.002442866">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; does not run afterRecord when session recording fails" time="0.001664065">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; handles non-turn event classes without dispatch" time="0.002051218">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; stops on preflight admission drops" time="0.00192621">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; records preflight drop history through the turn kernel" time="0.002796658">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; drops repeated bot-pair turns in the core turn kernel before record and dispatch" time="0.003006131">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; runs observe-only preflights through resolve, record, dispatch, and finalize without visible delivery" time="0.002421234">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; degrades private channel admission evidence when routing changes the DM scope" time="0.003778499">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; finalizes failed dispatches before rethrowing" time="0.002135697">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; synchronous dispatch guard &gt; refuses prepared revoked during resolve with one failed finalizer and no record or dispatch" time="0.00169069">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; synchronous dispatch guard &gt; refuses assembled revoked during resolve with one failed finalizer and no record or dispatch" time="0.001779729">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; synchronous dispatch guard &gt; refuses routed revoked during resolve with one failed finalizer and no record or dispatch" time="0.002375474">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; synchronous dispatch guard &gt; composes live owning and turn guards through the prepared shared execution" time="0.00246725">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; synchronous dispatch guard &gt; composes live owning and turn guards through the assembled shared execution" time="0.004713412">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; synchronous dispatch guard &gt; composes live owning and turn guards through the routed shared execution" time="0.002826899">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; synchronous dispatch guard &gt; does not let a live prepared plan replace a revoked host guard" time="0.001575345">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; synchronous dispatch guard &gt; does not let a live assembled plan replace a revoked host guard" time="0.00177469">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; synchronous dispatch guard &gt; does not let a live routed plan replace a revoked host guard" time="0.002715234">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.finalize.test.ts" name="channel turn finalize &gt; synchronous dispatch guard &gt; deduplicates the same host and turn callback at each guard boundary" time="0.00242437">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/turn/run-channel-turn.pipeline.test.ts" timestamp="2026-10-10T22:18:17.586Z" hostname="gx10-e526" tests="40" failures="0" errors="0" skipped="0" time="0.209502301">
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; emits and observes ordinary delivery before buffered dispatch continues" time="0.030011801">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; carries slack route system-event ownership privately into dispatch" time="0.005130404">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; carries discord route system-event ownership privately into dispatch" time="0.004013939">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; does not emit a second failure when a post-send observer throws" time="0.005353861">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; observes early finalization rejection before reporting partial delivery" time="0.007136182">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; preserves deferred partial delivery when dispatch also fails" time="0.005275588">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; prefers a later visible partial error across deferred payloads" time="0.004716724">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; suppresses message_sent when the adapter proves provider dispatch never began" time="0.003926659">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; does not use durable outbound delivery when durable options are omitted" time="0.005292645">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; prepares payloads and observes legacy delivery results" time="0.003447043">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; assembles channel message reply pipeline options inside the turn kernel" time="0.004710436">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; records transform suppression without blocking a later visible channel payload" time="0.010824681">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; records inbound session before dispatching delivery" time="0.00341645">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; can record a target session without changing the command dispatch session" time="0.017434174">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; rejects an empty explicit record session before recording or dispatch" time="0.004680068">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; rejects surrounding whitespace in an explicit record session" time="0.004009171">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; runs prepared dispatches after recording session metadata" time="0.003822179">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; keeps channel message, harness, usage, and model diagnostics in one trace scope" time="0.041532819">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; logs a warning when a visible prepared dispatch queues no payloads" time="0.00306733">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; attributes the zero-count warn line with the dispatch&apos;s processed outcome" time="0.002091154">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; accepts compatibility counters when no …" time="0.001408865">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; keeps a non-visible settled receipt aut…" time="0.001513953">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; does not warn for observed-path deliveries with zero queued counts" time="0.00210525">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; does not warn when an active run accepts deferred steer ownership" time="0.00215117">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; final dispatch revalidation &gt; checks current authority after dispatch (suppressed=false, revoked=false)" time="0.00197869">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; final dispatch revalidation &gt; checks current authority after dispatch (suppressed=false, revoked=true)" time="0.001490305">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; final dispatch revalidation &gt; checks current authority after observeOnly (suppressed=false, revoked=false)" time="0.001461265">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; final dispatch revalidation &gt; checks current authority after observeOnly (suppressed=false, revoked=true)" time="0.001194849">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; final dispatch revalidation &gt; checks current authority after observeOnly (suppressed=true, revoked=false)" time="0.001165313">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; final dispatch revalidation &gt; checks current authority after observeOnly (suppressed=true, revoked=true)" time="0.001563281">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; final dispatch revalidation &gt; refuses the skipped callback if dispatch-start logging revokes authority" time="0.001868546">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; synchronous dispatch guard &gt; blocks actual dispatch after revocation in record and preserves cleanup/history" time="0.001373873">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; synchronous dispatch guard &gt; blocks actual dispatch after revocation in afterRecord and preserves cleanup/history" time="0.001177425">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; synchronous dispatch guard &gt; blocks actual dispatch after revocation in notice and preserves cleanup/history" time="0.001323553">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; synchronous dispatch guard &gt; blocks actual dispatch after revocation in dispatch-log and preserves cleanup/history" time="0.001304433">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; synchronous dispatch guard &gt; blocks actual dispatch after revocation in record-log and preserves cleanup/history" time="0.002029314">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; synchronous dispatch guard &gt; rechecks after transcript merge awaits before recording" time="0.001971314">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; synchronous dispatch guard &gt; observes a rejected native Promise without reading its own then or dispatching" time="0.002034657">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; synchronous dispatch guard &gt; refuses a custom thenable without executing its getter or dispatching" time="0.001919106">
+        </testcase>
+        <testcase classname="src/channels/turn/run-channel-turn.pipeline.test.ts" name="channel turn pipeline &gt; synchronous dispatch guard &gt; refuses a resolved Promise from a guard without awaiting it or recording" time="0.001361281">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/config/opsys-sms-ingress.test.ts" timestamp="2026-10-10T22:18:17.610Z" hostname="gx10-e526" tests="57" failures="0" errors="0" skipped="0" time="0.180082457">
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; preserves selected marker and captured revision 1" time="0.029799353">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; preserves selected marker and captured revision 2" time="0.005158309">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; preserves selected marker and captured revision 9007199254740991" time="0.004078275">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; preserves canonical account a without normalization" time="0.003730515">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; preserves canonical account aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa without normalization" time="0.002641651">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; preserves canonical account m1_sms-42 without normalization" time="0.002097889">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects invalid marker version true" time="0.003914116">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects invalid marker version 0" time="0.004462724">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects invalid marker version 2" time="0.004522307">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects invalid marker version 1" time="0.004196324">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects invalid marker version null" time="0.003071539">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account " time="0.00271693">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account  a" time="0.002476466">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account a " time="0.002878691">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account a
+" time="0.002088785">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account Default" time="0.001922226">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account _default" time="0.00241397">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account défaut" time="0.001835682">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" time="0.001926705">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account __proto__" time="0.001842482">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account prototype" time="0.001842689">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects noncanonical/reserved account constructor" time="0.001594354">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonexact AccountSid ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" time="0.002130065">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonexact AccountSid ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" time="0.002244418">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonexact AccountSid acaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" time="0.002694851">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonexact AccountSid ACgggggggggggggggggggggggggggggggg" time="0.002691794">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonexact AccountSid  ACABcdABcdABcdABcdABcdABcdABcdABcd" time="0.003025043">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonexact AccountSid ACABcdABcdABcdABcdABcdABcdABcdABcd
+" time="0.003296354">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires captured positive safe revision for selected marker undefined" time="0.004104244">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires captured positive safe revision for selected marker null" time="0.003360179">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires captured positive safe revision for selected marker true" time="0.002817442">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires captured positive safe revision for selected marker 0" time="0.003488915">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires captured positive safe revision for selected marker -1" time="0.003891011">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires captured positive safe revision for selected marker 1.5" time="0.002147938">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires captured positive safe revision for selected marker NaN" time="0.001426033">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires captured positive safe revision for selected marker Infinity" time="0.001267809">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires captured positive safe revision for selected marker 9007199254740992" time="0.001450738">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires captured positive safe revision for selected marker 2" time="0.001725857">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires canonical profile for selected marker a" time="0.001501169">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires canonical profile for selected marker A-profile" time="0.002665059">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires canonical profile for selected marker profile
+" time="0.004104867">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires canonical profile for selected marker  profile" time="0.003822883">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires canonical profile for selected marker profile " time="0.003041346">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires canonical profile for selected marker aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" time="0.002976563">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; requires canonical profile for selected marker profilé" time="0.002492034">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonobject, incomplete or extended SMS selection 0" time="0.001871825">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonobject, incomplete or extended SMS selection 1" time="0.001489746">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonobject, incomplete or extended SMS selection 2" time="0.001438209">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonobject, incomplete or extended SMS selection 3" time="0.001415553">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonobject, incomplete or extended SMS selection 4" time="0.001636065">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonobject, incomplete or extended SMS selection 5" time="0.002961331">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonobject, incomplete or extended SMS selection 6" time="0.002015378">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; rejects nonobject, incomplete or extended SMS selection 7" time="0.001602065">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; keeps the admission envelope closed" time="0.001586257">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; preserves existing admission without SMS 0" time="0.00145589">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; preserves existing admission without SMS 1" time="0.001492705">
+        </testcase>
+        <testcase classname="src/config/opsys-sms-ingress.test.ts" name="OPSYS SMS ingress configuration (not host authority) &gt; does not require OPSYS selection for ordinary agent configuration" time="0.001971938">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/context-engine/opsys-contexte-mcp.guarded.test.ts" timestamp="2026-10-10T22:18:17.649Z" hostname="gx10-e526" tests="20" failures="0" errors="0" skipped="0" time="2.761118328">
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; rechecks a revocation after real connection and sends no tools/call" time="0.342725553">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; sends unchanged arguments without business metadata and awaits real child closure" time="0.201759194">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; refuses a Promise returned by the synchronous guard before tools/call" time="0.200762425">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; captures the guard and cleanup policy before the connection await" time="0.184774748">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; contains a rejected Promise from an invalid asynchronous guard" time="0.20425342">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; captures the response quota before the connection await" time="0.216921543">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; checks the signal again when the synchronous guard aborts" time="0.192793731">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; refuses invalid quota 0 before connection" time="0.003723091">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; refuses invalid quota -1 before connection" time="0.004101683">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; refuses invalid quota 1.5 before connection" time="0.003130067">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; refuses invalid quota NaN before connection" time="0.00279373">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; refuses invalid quota Infinity before connection" time="0.003832036">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; refuses invalid quota 9007199254740991 before connection" time="0.003613491">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; refuses invalid quota 16777217 before connection" time="0.003418579">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; accepts the exact UTF-8 byte limit" time="0.211903954">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; rejects one UTF-8 byte over the quota before parsing JSON" time="0.208093024">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; rejects multiple text blocks with a response limit" time="0.192146834">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; keeps legacy multipart parsing when no limit is requested" time="0.176813893">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; does not return an ACK on cleanup uncertain" time="0.203559196">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.guarded.test.ts" name="private MCP request boundary &gt; does not return an ACK on cleanup throw" time="0.19420834">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/context-engine/opsys-contexte-mcp.wire.test.ts" timestamp="2026-10-10T22:18:17.663Z" hostname="gx10-e526" tests="5" failures="0" errors="0" skipped="0" time="0.413577005">
+        <testcase classname="src/context-engine/opsys-contexte-mcp.wire.test.ts" name="callOpsysMcpTool &gt; calls the tool on the configured server and returns the parsed OPSYS answer" time="0.206098894">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.wire.test.ts" name="callOpsysMcpTool &gt; returns a refusal of the tool as an answer, for the engine to judge, instead of throwing" time="0.188302127">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.wire.test.ts" name="callOpsysMcpTool &gt; rejects, naming the entry, when the server is not configured" time="0.002533746">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.wire.test.ts" name="callOpsysMcpTool &gt; rejects with the module&apos;s own error when there is no configuration at all" time="0.001941586">
+        </testcase>
+        <testcase classname="src/context-engine/opsys-contexte-mcp.wire.test.ts" name="callOpsysMcpTool &gt; rejects when the entry cannot be turned into a transport" time="0.009335816">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/gateway/opsys-sms-host-authority.test.ts" timestamp="2026-10-10T22:18:17.666Z" hostname="gx10-e526" tests="89" failures="0" errors="0" skipped="0" time="0.290053731">
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; prepares an explicit base/default without consulting the unpublished task" time="0.010701113">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; accepts an explicitly owned default account" time="0.003794579">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; accepts an explicitly owned support account" time="0.003395427">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; leaves non-SMS and genuinely unselected legacy SMS inert" time="0.004191443">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed account alias with a constant error" time="0.002808482">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed SID coercion with a constant error" time="0.003204003">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed marker extra with a constant error" time="0.003319698">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed bool revision with a constant error" time="0.00198117">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed unsafe revision with a constant error" time="0.002874227">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed wrong agent with a constant error" time="0.003979219">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed disabled with a constant error" time="0.00291261">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed dangerous raw with a constant error" time="0.002476403">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed dangerous resolved with a constant error" time="0.002275985">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed resolved SID with a constant error" time="0.003080355">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed masked credential with a constant error" time="0.003098451">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed homonymous registration with a constant error" time="0.003029554">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed official nonbundled with a constant error" time="0.002741571">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed missing capture with a constant error" time="0.00277349">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed missing binding with a constant error" time="0.003151075">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses selected malformed foreign owner with a constant error" time="0.002889666">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; rejects ENV-only selection and a missing named account before the shared base merge" time="0.003666323">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; rejects a final newline in the complete account identity" time="0.003282963">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; rejects a final newline in the complete profile identity" time="0.003399651">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; rejects a final newline in the complete SID identity" time="0.003155874">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; rejects a resolved SID supplied without a raw selected SID even with configured credentials" time="0.003262179">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; refuses ambiguous selections and roster entries hiding their real ID" time="0.003309123">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; revokes irreversibly after observed owner replacement" time="0.002724098">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; revokes irreversibly after observed task replacement" time="0.002849107">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; revokes irreversibly after observed abort replacement" time="0.003528339">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; revokes irreversibly after observed lease replacement" time="0.00323141">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; revokes irreversibly after observed grant replacement" time="0.003762403">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; revokes irreversibly after observed capture replacement" time="0.002258994">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; revokes irreversibly after observed origin replacement" time="0.00227269">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; revokes irreversibly after observed plugin replacement" time="0.002385826">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; closes on visible selected config change authToken" time="0.003696963">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; closes on visible selected config change fromNumber" time="0.003453619">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; closes on visible selected config change publicWebhookUrl" time="0.003386323">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; closes on visible selected config change textChunkLimit" time="0.003527731">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; closes on visible selected config change allowFrom" time="0.003483667">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; closes on visible selected config change configWrites" time="0.002425618">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; observes mutations of the resolved account, rather than retaining initial facts" time="0.003065411">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; ignores unrelated sibling changes but closes visible selected marker revision" time="0.003670083">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; closes on selected binding removal without adopting a new owner" time="0.002999378">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="private SMS host authority &gt; does not publish without a current task, and revoke is idempotent" time="0.003477699">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable competing default binding undefined before borrowing a grant" time="0.002911235">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable competing default binding &quot;&quot; before borrowing a grant" time="0.002428194">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable competing default binding &quot; &quot; before borrowing a grant" time="0.00285733">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable competing default binding &quot;DEFAULT&quot; before borrowing a grant" time="0.003896292">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable competing default binding &quot;Default&quot; before borrowing a grant" time="0.003510355">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable competing default binding &quot;default\n&quot; before borrowing a grant" time="0.002732898">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable competing default binding &quot;!!!&quot; before borrowing a grant" time="0.00302221">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable competing default binding &quot;*&quot; before borrowing a grant" time="0.002903395">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses a relevant channel alias  SMS " time="0.003156115">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses a relevant channel alias SMS" time="0.002069649">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable named-account competitor sales" time="0.003192691">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable named-account competitor  SALES " time="0.002738978">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses an applicable named-account competitor *" time="0.006433398">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses a higher-priority peer on the same account" time="0.002216162">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; preserves genuinely foreign channels/accounts and ignores their live metadata" time="0.002194913">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; accepts the generator metadata shape without weakening exact account selection" time="0.002084482">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses malformed selected metadata {&quot;comment&quot;:7}" time="0.001988706">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses malformed selected metadata {&quot;session&quot;:&lt;redacted len=4&gt;}" time="0.002762226">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses malformed selected metadata {&quot;session&quot;:&lt;redacted len=2&gt;}" time="0.002397858">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses malformed selected metadata {&quot;session&quot;:&lt;redacted len=18&gt;}" time="0.002846723">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses malformed selected metadata {&quot;session&quot;:&lt;redacted len=43&gt;}" time="0.002723154">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; refuses malformed selected metadata {&quot;extra&quot;:true}" time="0.002608258">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; revokes when selected comment metadata changes live" time="0.002879843">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected SMS binding scope (fictitious config) &gt; revokes when selected session metadata changes live" time="0.002721026">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected configured credential (fictitious env only) &gt; refuses default ENV-only auth even with explicit config SID and a real resolved account" time="0.003116995">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected configured credential (fictitious env only) &gt; keeps an unselected legacy ENV fallback outside this constructor" time="0.002595362">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected configured credential (fictitious env only) &gt; refuses unavailable selected config auth null with a constant error" time="0.003363651">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected configured credential (fictitious env only) &gt; refuses unavailable selected config auth &quot;&quot; with a constant error" time="0.003679155">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected configured credential (fictitious env only) &gt; refuses unavailable selected config auth &quot; &quot; with a constant error" time="0.002857826">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected configured credential (fictitious env only) &gt; refuses unavailable selected config auth {&quot;source&quot;:&quot;env&quot;,&quot;provider&quot;:&quot;default&quot;,&quot;id&quot;:&quot;SMS_FICTIF_TOKEN&quot;} with a constant error" time="0.003408291">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected configured credential (fictitious env only) &gt; refuses unavailable selected config auth &quot;${SMS_FICTIF_TOKEN}&quot; with a constant error" time="0.002092306">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected configured credential (fictitious env only) &gt; keeps a visible SecretRef rotation sticky after publication" time="0.003805955">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected configured credential (fictitious env only) &gt; requires the selected own credential rather than a sibling&apos;s value" time="0.002876306">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="selected configured credential (fictitious env only) &gt; accepts a selected own literal token resolved by the real account owner" time="0.003321619">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; captures frozen original public scalars for default" time="0.003815811">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; captures frozen original public scalars for support" time="0.003313699">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; refuses captureSelection before publish without poisoning later publication" time="0.003554387">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; refuses captureSelection after revoked authority loss" time="0.003914404">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; refuses captureSelection after lifetime authority loss" time="0.003372818">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; refuses captureSelection after task authority loss" time="0.003505059">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; refuses captureSelection after grant authority loss" time="0.003463251">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; refuses captureSelection after abort authority loss" time="0.004616068">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; missing fromNumber only closes captureSelection, preserving historical publication" time="0.003053363">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; missing publicWebhookUrl only closes captureSelection, preserving historical publication" time="0.002977106">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-authority.test.ts" name="captureSelection private seam &gt; does not recapture current P after captureSelection revocation" time="0.003179379">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/gateway/opsys-sms-host-claim-adapter.test.ts" timestamp="2026-10-10T22:18:17.738Z" hostname="gx10-e526" tests="41" failures="0" errors="0" skipped="0" time="2.258302142">
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; exports the private factory" time="0.007828519">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; uses real HMAC/controller and current native CLAIM, with no writes to any native table" time="0.129655788">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; retains READ-absent then RECEIVE with the exact original capsule, timestamp and intent" time="0.072335212">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses wrong token without invoking RPC" time="0.056139791">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses wrong ownerId without invoking RPC" time="0.056643968">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses wrong id without invoking RPC" time="0.054516989">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; uses only its selected native account queue" time="0.058647201">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; lazy missing reader does not create state or silently adopt a later native owner" time="0.051290811">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; does not require original claimedAt equality when native refresh advances the lease" time="0.062465428">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses expired native owner state" time="0.052879468">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses future native owner state" time="0.052182092">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses local-drain-dead native owner state" time="0.049695642">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; sees actual peer WAL reclaim after awaited RPC and sends no new RECEIVE" time="0.053271804">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; rechecks beforeRequest after an await inside actual Gate transport callback" time="0.050975627">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; closes after dispose idempotently" time="0.051257834">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; closes when the captured Host callback refuses without leaking its raw error" time="0.049128746">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses altered locator while preserving the original intention" time="0.052442427">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses altered payload while preserving the original intention" time="0.053838125">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses altered time while preserving the original intention" time="0.058894449">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses hostile extra before any trap/getter executes" time="0.052370748">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses hostile getter before any trap/getter executes" time="0.054421902">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses hostile proxy before any trap/getter executes" time="0.05519611">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses hostile nestedproxy before any trap/getter executes" time="0.054914014">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses hostile prototype before any trap/getter executes" time="0.053454956">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; rechecks host abort after awaited RPC and never accepts that stale ACK" time="0.054985902">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; refuses a lost native database owner after awaited RPC" time="0.055962015">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; capture refusals are constants with no extra callable input executed" time="0.050959994">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; encode refusals are constants with no extra callable input executed" time="0.048363369">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="private Host SMS native CLAIM adapter &gt; memoizes a real reader preparation and disposes a late result after retirement" time="0.050656794">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="refuses another genuinely signed body for the exact native stored claim before any RPC" time="0.053510765">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="refuses real controller default-A composed with native adapter/queue B before any RPC" time="0.04954385">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="joins only the exact received object, with original native command/receipt/destination" time="0.057182015">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="recognizes pure-data passthrough only as original and rejects distinct copied/proxy objects or foreign tuple" time="0.057488784">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="retains a claim-independent Host/destination closure but pre-arm lookup still needs the claim" time="0.057712017">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="closes on actual MCP URL retarget, even when Host authority stays current, without recapturing baseline" time="0.058184848">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="rechecks original payload during T0 await and sends no RECEIVE" time="0.05484907">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="rechecks original time during T0 await and sends no RECEIVE" time="0.050038906">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="rechecks original invalidjson during T0 await and sends no RECEIVE" time="0.048858057">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="refuses stored invalidjson before RPC and changes no table" time="0.050404682">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="refuses stored oversize before RPC and changes no table" time="0.052350635">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-claim-adapter.test.ts" name="held destination callback closes on adapter disposal without SQL or extra RPC" time="0.056866144">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/gateway/opsys-sms-host-controller.test.ts" timestamp="2026-10-10T22:18:17.769Z" hostname="gx10-e526" tests="22" failures="0" errors="0" skipped="0" time="0.100995445">
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; exports the real standalone constructor" time="0.016307918">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; registers a passive locator and resolves only its own canonical live value" time="0.007464934">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; refuses foreign, cloned and revoked Proxy locators with zero traps without poisoning its locator" time="0.00458386">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; preserves passive locator identity through a real managed PluginInstance view" time="0.00489114">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; closes sticky after owner changes" time="0.004073556">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; closes sticky after registry changes" time="0.004382132">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; closes sticky after source changes" time="0.002927218">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; closes sticky after callback changes" time="0.002390866">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; closes sticky after grant changes" time="0.004092436">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; closes sticky after lifetime changes" time="0.002664082">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; closes sticky after task changes" time="0.002711234">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; closes sticky after P changes" time="0.002402194">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; closes sticky after credential changes" time="0.002725826">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; closes sticky after abort changes" time="0.00642055">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; captures callbacks rather than borrowing a replacement getter" time="0.00240285">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; maps a private owner callback fault to the constant without exposing details" time="0.002296642">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; does not erase a replacement context when its old lease is disposed" time="0.001820545">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; disposes its own registration when the real task scope is disposed" time="0.001384498">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; requires an already published authority and does not fall back to legacy" time="0.001405345">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; captures real HMAC and follows strict absent READ then RECEIVE with the same frozen args" time="0.009132664">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; retains unknown and recovers lost receiving ACK by READ without a second receive" time="0.005702948">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-host-controller.test.ts" name="private Host SMS controller &gt; refuses owner withdrawal after an RPC await without claiming received" time="0.002895427">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/gateway/opsys-sms-ingress-capture.test.ts" timestamp="2026-10-10T22:18:17.787Z" hostname="gx10-e526" tests="41" failures="0" errors="0" skipped="0" time="0.130311101">
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; exports the real verifier and preserves both historical public exports" time="0.007138694">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; uses the captured owner for the canonical public loader" time="0.004488659">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; loads a real owner-bound public surface fixture independently of the HMAC test" time="0.010832425">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; copies before mutation, seals one exact v2 and opens the same C/P" time="0.004202691">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; is deterministic after JSON storage and does not change NFC or original time" time="0.002548434">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses forged/foreign handles and contradictory second seal" time="0.002281234">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; rechecks owner closure and never echoes its exception" time="0.002546978">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; makes credential rotation sticky without resigning the old payload" time="0.002095682">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; invalid signature fails without granting or retiring a valid current controller" time="0.002198674">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; closes RCS despite a cryptographically valid signature" time="0.001583425">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; closes wrong SID despite a cryptographically valid signature" time="0.001222529">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; closes conflicting aliases despite a cryptographically valid signature" time="0.001071425">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; closes wrong recipient despite a cryptographically valid signature" time="0.001020833">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; closes media count despite a cryptographically valid signature" time="0.002063394">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; closes media field despite a cryptographically valid signature" time="0.002083234">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; closes blank body despite a cryptographically valid signature" time="0.002256146">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; closes media only despite a cryptographically valid signature" time="0.001584497">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses signed URL substitution https://other-fictif.example/webhooks/sms" time="0.002021986">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses signed URL substitution https://sms-fictif.example/other" time="0.002567602">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses signed URL substitution https://sms-fictif.example/webhooks/sms#fragment" time="0.002381378">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; preserves configured query and strips only configured fragment" time="0.002732306">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; rejects proxy/accessor without executing traps or getters" time="0.003041475">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; rejects unsafe monitor time true" time="0.002254866">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; rejects unsafe monitor time NaN" time="0.002513682">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; rejects unsafe monitor time Infinity" time="0.002524914">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; rejects unsafe monitor time -1" time="0.00236045">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; rejects unsafe monitor time 9007199254740991" time="0.002490114">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; bounds the entire sealed payload at the exact UTF8 byte limit" time="0.011658474">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; rejects malformed strings and exact UTF8 payload bounds" time="0.006127029">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses stored outer-extra without resealing" time="0.00235125">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses stored capsule-extra without resealing" time="0.002002802">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses stored permission-extra without resealing" time="0.001880913">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses stored version without resealing" time="0.001964226">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses stored body without resealing" time="0.001485697">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses stored hash without resealing" time="0.002659875">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses stored permission without resealing" time="0.007760614">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses stored time without resealing" time="0.003018067">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; refuses stored destination without resealing" time="0.002723586">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; binds open to original id" time="0.002650066">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; binds open to original time" time="0.001829906">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-ingress-capture.test.ts" name="SMS ingress capture standalone &gt; binds open to original destination" time="0.001166721">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/gateway/opsys-sms-receipt-gate.test.ts" timestamp="2026-10-10T22:18:17.824Z" hostname="gx10-e526" tests="68" failures="0" errors="0" skipped="0" time="0.243735277">
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="exports the standalone receipt gate without introducing a production stub" time="0.010861673">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; bounds an unresolved RPC and clears its deadline timer" time="0.010151304">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; accepts the actual Python decision DEMANDER_PRECISIONS through T0 only" time="0.004983108">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; accepts the actual Python decision TRANSMETTRE_M2 through T0 only" time="0.005495685">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; accepts the actual Python decision CONVERSATION_DEJA_QUALIFIEE through T0 only" time="0.002903363">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; accepts the actual Python decision RETRAIT_CONSENTEMENT through T0 only" time="0.004257763">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; accepts the actual Python decision ESCALADE_PLAINTE through T0 only" time="0.004155908">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; accepts the actual Python decision ESCALADE_URGENCE through T0 only" time="0.003697411">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; accepts the actual Python decision TRANSFERT_EN_COURS through T0 only" time="0.003690243">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; receives only after proven absence using identical original C/P" time="0.003417635">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; resumes a lost receiving ACK with T0 and no duplicate receive" time="0.004451524">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; does not receive for Python error refus" time="0.003402418">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; does not receive for Python error revision_perimee" time="0.003387459">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; does not receive for Python error conflit" time="0.002959107">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; does not receive for Python error forme_invalide" time="0.003000834">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; does not receive for Python error inconnu" time="0.00241293">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses changed ACK operation" time="0.004189892">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses changed ACK intention_id" time="0.003550771">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses changed ACK commande_sha256" time="0.006111413">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses changed ACK arguments_sha256" time="0.002518226">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses changed ACK permission" time="0.002239106">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses changed ACK extra" time="0.002149714">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses changed ACK recu" time="0.002272338">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field source" time="0.002863314">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field compte_id" time="0.002897203">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field account_sid" time="0.003202226">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field message_sid" time="0.003407907">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field agent_id" time="0.00265989">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field session_key" time="0.002762307">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field signal_id" time="0.002795554">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field signal_ligne_id" time="0.003217731">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field decision" time="0.003460339">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field lead_ligne_id" time="0.002999954">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses invalid receipt field transfert_id" time="0.002904915">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; rechecks host after connection before a mocked send" time="0.002888674">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; rechecks claim after connection before a mocked send" time="0.002614338">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; rechecks destination after connection before a mocked send" time="0.002869507">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; rechecks signal after connection before a mocked send" time="0.003210595">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; does not accept an ACK after live destination changes" time="0.002934754">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; does not accept an ACK after host revocation" time="0.003135091">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; does not accept an ACK after claim revocation" time="0.003654835">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; does not accept an ACK after signal revocation" time="0.002568818">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; enforces conditional references for DEMANDER_PRECISIONS" time="0.00230789">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; enforces conditional references for TRANSMETTRE_M2" time="0.003034578">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; enforces conditional references for CONVERSATION_DEJA_QUALIFIEE" time="0.003044451">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; enforces conditional references for RETRAIT_CONSENTEMENT" time="0.00279325">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; enforces conditional references for ESCALADE_PLAINTE" time="0.003821972">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; enforces conditional references for ESCALADE_URGENCE" time="0.003651651">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; enforces conditional references for TRANSFERT_EN_COURS" time="0.003554787">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses changed durable P before any request" time="0.002934994">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; does not change destination identity on Bearer rotation and uses a frozen target" time="0.003862003">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;command&quot;:&quot;node&quot;}" time="0.002827651">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;transport&quot;:&quot;sse&quot;}" time="0.00318021">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;enabled&quot;:false}" time="0.00399322">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;auth&quot;:&quot;oauth&quot;}" time="0.002696482">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;oauth&quot;:{}}" time="0.002598418">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;authProfileId&quot;:&quot;fictif&quot;}" time="0.002576786">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;sslVerify&quot;:false}" time="0.002717091">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;clientCert&quot;:&quot;fictif&quot;}" time="0.00240509">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;headers&quot;:{&quot;x-secret&quot;:&quot;&lt;redacted len=6&gt;&quot;}}" time="0.003387795">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;url&quot;:&quot;https://u:p@fictif.example/&quot;}" time="0.002715266">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;url&quot;:&quot;https://fictif.example/?x=1&quot;}" time="0.003218627">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses unsupported target {&quot;url&quot;:&quot;https://fictif.example/#frag&quot;}" time="0.002974882">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses receiving absent and oversized decoded answers" time="0.005017236">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses even an empty URL suffix ? before sealing" time="0.003041779">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; refuses even an empty URL suffix # before sealing" time="0.002540706">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="standalone SMS receipt gate &gt; rejects hostile ACK getters and proxies without invoking them" time="0.005530405">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-receipt-gate.test.ts" name="keeps the exact Gate received guard claim-independent, without native binding or adoption credit" time="0.004395204">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/gateway/server-channels.ownership.test.ts" timestamp="2026-10-10T22:18:17.890Z" hostname="gx10-e526" tests="16" failures="0" errors="0" skipped="0" time="0.234822645">
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="channel ownership startup &gt; blocks an unowned account without retrying while its bound sibling stays online" time="0.040152386">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="channel ownership startup &gt; preserves legacy account owner ops across migration and a persisted restart" time="0.055439118">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="channel ownership startup &gt; preserves legacy account owner Ops across migration and a persisted restart" time="0.026853015">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="channel ownership startup &gt; preserves legacy account owner main across migration and a persisted restart" time="0.02837324">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; publishes the actual Host controller before plugin start and revokes it on stop" time="0.011519786">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; rechecks selected configuration after the deferred handoff before starting the plugin" time="0.007716678">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; closes a false publication without running or orphaning the account task" time="0.009213272">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; closes a throw publication without running or orphaning the account task" time="0.005204276">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; keeps a stopped authority closed when a successor account lifetime starts" time="0.007105206">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; revokes a stopped preparation and permits a distinct later grant" time="0.005321269">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; retires parked ingress when successor publication returns false" time="0.011716826">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; retires parked ingress when successor publication returns throw" time="0.006196293">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; installs the selected managed bridge after publication and before plugin entry" time="0.004272739">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; prepares the Task before publication and gives its alias-preserving runtime to the actual plugin" time="0.003844035">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; rejects an abort-ignoring predecessor after public recovery without touching its successor" time="0.005948997">
+        </testcase>
+        <testcase classname="src/gateway/server-channels.ownership.test.ts" name="OPSYS SMS Host lifetime publication &gt; preserves the unselected SMS legacy path" time="0.002628658">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/plugin-sdk/channel-ingress-runtime.test.ts" timestamp="2026-10-10T22:18:17.893Z" hostname="gx10-e526" tests="10" failures="0" errors="0" skipped="0" time="0.055507023">
+        <testcase classname="src/plugin-sdk/channel-ingress-runtime.test.ts" name="plugin-sdk/channel-ingress-runtime &gt; compares typed identifier claims through the public SDK" time="0.020174097">
+        </testcase>
+        <testcase classname="src/plugin-sdk/channel-ingress-runtime.test.ts" name="plugin-sdk/channel-ingress-runtime &gt; fans one logical turn lifecycle across every durable claim" time="0.003869875">
+        </testcase>
+        <testcase classname="src/plugin-sdk/channel-ingress-runtime.test.ts" name="plugin-sdk/channel-ingress-runtime &gt; settles or abandons claims that no reply lane adopted" time="0.002595458">
+        </testcase>
+        <testcase classname="src/plugin-sdk/channel-ingress-runtime.test.ts" name="plugin-sdk/channel-ingress-runtime &gt; cancellation-settles every source in mixed capable and legacy fan-in" time="0.003701299">
+        </testcase>
+        <testcase classname="src/plugin-sdk/channel-ingress-runtime.test.ts" name="plugin-sdk/channel-ingress-runtime &gt; preserves lifecycle receivers while fanning in cancellation" time="0.003322387">
+        </testcase>
+        <testcase classname="src/plugin-sdk/channel-ingress-runtime.test.ts" name="plugin-sdk/channel-ingress-runtime &gt; fans failed settlement into modern failure and legacy abandonment" time="0.003427443">
+        </testcase>
+        <testcase classname="src/plugin-sdk/channel-ingress-runtime.test.ts" name="plugin-sdk/channel-ingress-runtime &gt; settles each claim once when a consumer abandons after a rejected adoption" time="0.00236853">
+        </testcase>
+        <testcase classname="src/plugin-sdk/channel-ingress-runtime.test.ts" name="plugin-sdk/channel-ingress-runtime &gt; releases the claims a rejected adoption never reached" time="0.001937618">
+        </testcase>
+        <testcase classname="src/plugin-sdk/channel-ingress-runtime.test.ts" name="plugin-sdk/channel-ingress-runtime &gt; derives store allowlists, command auth, sender separation, and redaction" time="0.006266613">
+        </testcase>
+        <testcase classname="src/plugin-sdk/channel-ingress-runtime.test.ts" name="plugin-sdk/channel-ingress-runtime &gt; keeps normalized compatibility entries scoped to the intended identifier kind" time="0.003117827">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/plugins/opsys-sms-host-bridge.test.ts" timestamp="2026-10-10T22:18:17.899Z" hostname="gx10-e526" tests="9" failures="0" errors="0" skipped="0" time="0.033075836">
+        <testcase classname="src/plugins/opsys-sms-host-bridge.test.ts" name="SMS public API Host carrier, not authority &gt; exports installation and lookup through the documented SMS API" time="0.006771686">
+        </testcase>
+        <testcase classname="src/plugins/opsys-sms-host-bridge.test.ts" name="SMS public API Host carrier, not authority &gt; leaves the uninstalled named fallback empty" time="0.002291586">
+        </testcase>
+        <testcase classname="src/plugins/opsys-sms-host-bridge.test.ts" name="SMS public API Host carrier, not authority &gt; isolates two real same-id instances and two accounts" time="0.004579828">
+        </testcase>
+        <testcase classname="src/plugins/opsys-sms-host-bridge.test.ts" name="SMS public API Host carrier, not authority &gt; preserves the passive locator but returns an owned callable view, also after await" time="0.00260237">
+        </testcase>
+        <testcase classname="src/plugins/opsys-sms-host-bridge.test.ts" name="SMS public API Host carrier, not authority &gt; captures field identities once rather than adopting mutations of the input entry" time="0.002630594">
+        </testcase>
+        <testcase classname="src/plugins/opsys-sms-host-bridge.test.ts" name="SMS public API Host carrier, not authority &gt; keeps replacement registered when the same entry object is installed twice" time="0.002223202">
+        </testcase>
+        <testcase classname="src/plugins/opsys-sms-host-bridge.test.ts" name="SMS public API Host carrier, not authority &gt; keeps the captured owner of a disposer rather than clearing a second instance" time="0.002564674">
+        </testcase>
+        <testcase classname="src/plugins/opsys-sms-host-bridge.test.ts" name="SMS public API Host carrier, not authority &gt; closes a retained callable view after its actual instance retires" time="0.002421298">
+        </testcase>
+        <testcase classname="src/plugins/opsys-sms-host-bridge.test.ts" name="SMS public API Host carrier, not authority &gt; never overwrites the existing SMS runtime-store slot" time="0.002344705">
+        </testcase>
+    </testsuite>
+</testsuites>

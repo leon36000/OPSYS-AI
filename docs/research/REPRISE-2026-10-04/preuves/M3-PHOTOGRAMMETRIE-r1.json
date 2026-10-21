@@ -1,0 +1,313 @@
+{
+  "archive": "M3-PHOTOGRAMMETRIE-r1.tar.xz",
+  "bytes": 119416,
+  "sha256": "328aa78ae80bcbbe1d145c4163fc96b8f27fed60f8ca3f493a42843839774666",
+  "timestamp_utc": "2026-10-04T10:13:53.523774+00:00",
+  "review": "ROOT verified39manifest entries/tags/licenses; r1 erroneous release attribution preserved and superseded by r2",
+  "research_only": true,
+  "dependencies_adopted": false,
+  "precision_tested": false,
+  "gitleaks_docs_and_source_captures_alerts": 0,
+  "entries": [
+    {
+      "path": "COLMAP-CMakeLists.txt",
+      "bytes": 18894,
+      "sha256": "c2a370c3ec03bf61f5adf6616b19f71807a1d851ef4e525833b4e1f3b7d8a924"
+    },
+    {
+      "path": "COLMAP-FindDependencies.cmake",
+      "bytes": 33557,
+      "sha256": "8d7d805570ba42b54aa55c329bfdc66d2072c578766e32047eb5dc22f9390a84"
+    },
+    {
+      "path": "COLMAP-LICENSE.txt",
+      "bytes": 1968,
+      "sha256": "b427b1780b9c1d5996a641597b35d6c97163316bf6b15f7f7bc27518d3dd8b36"
+    },
+    {
+      "path": "COLMAP-faq.rst",
+      "bytes": 42215,
+      "sha256": "1a241ae643241318d9b47c9b0b543b7d132b99902e4857560d519dda2612e41c"
+    },
+    {
+      "path": "OpenSfM-GCP.md",
+      "bytes": 5070,
+      "sha256": "94643365856eb56ebe17c0fa5551fdc360354ce425498d3318857d948075adab"
+    },
+    {
+      "path": "OpenSfM-LICENSE.txt",
+      "bytes": 1292,
+      "sha256": "541dafb605fb0f23df51c92cd6c8970a4d10d5e7bb7be9e6f91df798d997ec9e"
+    },
+    {
+      "path": "OpenSfM-README.md",
+      "bytes": 8299,
+      "sha256": "fb30502b9aad1d249f9dc62c1f7ff00116a51a89b45b70a65ebcda7c2855b454"
+    },
+    {
+      "path": "OpenSfM-building.md",
+      "bytes": 2156,
+      "sha256": "4381c786b282f5f39ce0c84e10ec1f3d5315b0a778fe052dc2379d8c4995514d"
+    },
+    {
+      "path": "OpenSfM-conda-linux-64.lock",
+      "bytes": 29510,
+      "sha256": "7ba861fcdb553180b50997843b753b7b15238f4c261e0b4a62b8c81d929b2dc4"
+    },
+    {
+      "path": "OpenSfM-dense.md",
+      "bytes": 9750,
+      "sha256": "2de604637eb181ec6ff122e2d166345d858028e04201d5593c05c13a7e3a989c"
+    },
+    {
+      "path": "OpenSfM-georeferencing.md",
+      "bytes": 8992,
+      "sha256": "54057f82065a05287a0240043183d067514c3b8570783cdb2a810574a4bbf8af"
+    },
+    {
+      "path": "OpenSfM-quality-report.md",
+      "bytes": 3301,
+      "sha256": "b45c1047a9c6123a8ac138e95af321622c22200e73a4c6a8a879fa813d880dc0"
+    },
+    {
+      "path": "SOURCES.md",
+      "bytes": 1727,
+      "sha256": "9c54060008358f9d4afc0aa4190c0393364b3877a8fe318f9afb5852e18a1840"
+    },
+    {
+      "path": "additional-fetch-manifest.json",
+      "bytes": 709,
+      "sha256": "11df1a5172e4ac26cdae099ca4908bca9eb4450bdc31f6473bff70926c222e5a"
+    },
+    {
+      "path": "arxiv-2607.24409.xml",
+      "bytes": 3557,
+      "sha256": "86b9b57f87d769bd1e0855b8b7397b0bec9ab0b968053edc5f24cdf29949186e"
+    },
+    {
+      "path": "brief.json",
+      "bytes": 8307,
+      "sha256": "8d54b022b68e2b9792e7b9b37d4c7d837d3d6d4f67494caab5db21e2569873dc"
+    },
+    {
+      "path": "brief.md",
+      "bytes": 4100,
+      "sha256": "c990a4ca685871720f799edab2716de4756eae2dbb820671669e0f691a2c52b0"
+    },
+    {
+      "path": "colmap-commit.json",
+      "bytes": 12555,
+      "sha256": "0ad8a1bb511484ca0ac6d50ce8d11ca8d736504ffc8b32d4e55fe029fc8855cf"
+    },
+    {
+      "path": "colmap-release.json",
+      "bytes": 8738,
+      "sha256": "3be257af9df5d0885f5597f41e482838cec3c13560597c9a7dce65fc25e5f88f"
+    },
+    {
+      "path": "colmap-repo.json",
+      "bytes": 6117,
+      "sha256": "a2af908b0d7b6807e5686d3ab903162b2386a5e2eb5f9d0b1ac43b2dfb7c6b09"
+    },
+    {
+      "path": "fetch-manifest.json",
+      "bytes": 3713,
+      "sha256": "1eb41037cd6d94e20fc9b5d04d78495c9fc8dd929900ba4b31ffabae2cc4c625"
+    },
+    {
+      "path": "gitlab-fetch-manifest.json",
+      "bytes": 1455,
+      "sha256": "2ceb17c41480fbbda637c0cebb0834170aa6f899da9b21b455d306979011d114"
+    },
+    {
+      "path": "gitlab-gigamesh-CMakeLists.txt",
+      "bytes": 4404,
+      "sha256": "0ee87224f78dec6275f8f761a58ac49a28e7cdce73c6f3b08636e06fc88d99a4"
+    },
+    {
+      "path": "gitlab-gigamesh-COPYING.txt",
+      "bytes": 34496,
+      "sha256": "11092bd528feefd0c4f090371ad40c451f9a9e5f7e8e72f2b63f37938db6ba22"
+    },
+    {
+      "path": "gitlab-gigamesh-LICENSE.txt",
+      "bytes": 3314,
+      "sha256": "720d410a00e482ada0cbaa65f1678357c4a3f95aab9e6a032a5cd69cb8620d08"
+    },
+    {
+      "path": "gitlab-gigamesh-README.md",
+      "bytes": 7071,
+      "sha256": "1eaf7bf3dfbd765e05e3ad5af827988dc3e7cfdde8d0b3277290c1268ba2765f"
+    },
+    {
+      "path": "gitlab-gigamesh-commit.json",
+      "bytes": 1166,
+      "sha256": "4c79dfaa1823cd59a19849bab0dc31335615110d2131328aacdb607c899e7097"
+    },
+    {
+      "path": "gitlab-gigamesh-project.json",
+      "bytes": 1473,
+      "sha256": "32642158b33425addd2c36f87178fa1ab356381297f4c532822ac57d3479ca3d"
+    },
+    {
+      "path": "opensfm-commit.json",
+      "bytes": 7612,
+      "sha256": "ebed589b9c37cbc55dfd384f644fea9a2fec77683db76702e23298ec673231fd"
+    },
+    {
+      "path": "opensfm-release.json",
+      "bytes": 4758,
+      "sha256": "e2ec74431e4b9d041837c98016a786d33e3292aa63a6925d50d7a9e6470a2f77"
+    },
+    {
+      "path": "opensfm-repo.json",
+      "bytes": 6187,
+      "sha256": "ee5f3e36c5b9aab2d19fb7ffdc03e3d5c42345efa5696226afb0372eccfa3850"
+    },
+    {
+      "path": "opensfm-tag.json",
+      "bytes": 325,
+      "sha256": "36b9fcaec9afae71c6381da4cd63761b48fa9841fbd98e40694a3da0f0d5da82"
+    },
+    {
+      "path": "r2/COLMAP-CMakeLists-4.2.1.txt",
+      "bytes": 20104,
+      "sha256": "459d7f019162c3ffaa05ff07435d32edc42365335ad301b095299a35238f196e"
+    },
+    {
+      "path": "r2/COLMAP-COPYING-4.2.1.txt",
+      "bytes": 1909,
+      "sha256": "ab30dabb4f0a6731f980108f57aa160cc8f5cebae6984e01a5d109df99669233"
+    },
+    {
+      "path": "r2/COLMAP-FindDependencies-4.2.1.cmake",
+      "bytes": 29016,
+      "sha256": "122fd9156c84ef3c087c76bf0e76c8d67e53fe28a8be5ce3b62f5bec1652d8cc"
+    },
+    {
+      "path": "r2/COLMAP-development-commit.json",
+      "bytes": 12555,
+      "sha256": "0ad8a1bb511484ca0ac6d50ce8d11ca8d736504ffc8b32d4e55fe029fc8855cf"
+    },
+    {
+      "path": "r2/COLMAP-faq-4.2.1.rst",
+      "bytes": 42263,
+      "sha256": "bac9505524a527694899d57b98d3c25d8d47d7aae31b376b63568bbaa9fa0841"
+    },
+    {
+      "path": "r2/SOURCES-r2.md",
+      "bytes": 907,
+      "sha256": "5f2db2f7b73edc8f970468572ad8500b8ac685a048b98d14ea8a196e93cf8b81"
+    },
+    {
+      "path": "r2/brief-r2.json",
+      "bytes": 9159,
+      "sha256": "a1cbc04e29f855b135f643045cf00a48bfdb6a551c7695fb5d25459e6b3577a1"
+    },
+    {
+      "path": "r2/brief-r2.md",
+      "bytes": 1732,
+      "sha256": "3fc65f3ad45ddf7b717cc18e09e3a01cbcead41a5b38a4a2c5501c88c00a8f66"
+    },
+    {
+      "path": "r2/colmap-release-4.2.1.json",
+      "bytes": 8738,
+      "sha256": "72924cb798afdc9db3edae7fd666e277078ccd4f7789d91c16eb391e03f6de6c"
+    },
+    {
+      "path": "r2/colmap-release-commit.json",
+      "bytes": 7106,
+      "sha256": "3dc10f77929c210541596f67f2f429409bc7c6f71099ab16a6f8e03e7948246a"
+    },
+    {
+      "path": "r2/colmap-repo.json",
+      "bytes": 6117,
+      "sha256": "a2af908b0d7b6807e5686d3ab903162b2386a5e2eb5f9d0b1ac43b2dfb7c6b09"
+    },
+    {
+      "path": "r2/colmap-tag-4.2.1.json",
+      "bytes": 329,
+      "sha256": "7c00ee0595effa1f4e8e49e9d2ba31c8e6669201be578bb7ddc5544188d8bde9"
+    },
+    {
+      "path": "r2/manifest.json",
+      "bytes": 2981,
+      "sha256": "102d6d4f176f6c0d34affccd1680bed3828c5da1d70650e0a96316f859d50d75"
+    },
+    {
+      "path": "r2/opensfm-latest-commit.json",
+      "bytes": 7411,
+      "sha256": "9554429517d9cd3fc1cee3997408ce278e849659e50182bab4c005e037af695f"
+    },
+    {
+      "path": "r2/opensfm-release-v1.1.json",
+      "bytes": 4758,
+      "sha256": "e2ec74431e4b9d041837c98016a786d33e3292aa63a6925d50d7a9e6470a2f77"
+    },
+    {
+      "path": "r2/opensfm-repo.json",
+      "bytes": 6187,
+      "sha256": "ee5f3e36c5b9aab2d19fb7ffdc03e3d5c42345efa5696226afb0372eccfa3850"
+    },
+    {
+      "path": "r2/opensfm-tag-v1.1.json",
+      "bytes": 325,
+      "sha256": "36b9fcaec9afae71c6381da4cd63761b48fa9841fbd98e40694a3da0f0d5da82"
+    },
+    {
+      "path": "repository-sources/departments/m03-estimation/src/m3_estimation/mesure_plan.py",
+      "bytes": 20947,
+      "sha256": "c72a6a0548a3ddaa4ab4af310d394a84161cf095728b947e52d67a54a3ffa396"
+    },
+    {
+      "path": "repository-sources/docs/research/INGREDIENTS.md",
+      "bytes": 75014,
+      "sha256": "507f0a987b9dae00f533ee47cce4ffc20810bc2e9103a620b4e2f9288d29ca88"
+    },
+    {
+      "path": "repository-sources/docs/research/REPRISE-2026-10-04/M3-PHOTOGRAMMETRIE-GITHUB-GITLAB.md",
+      "bytes": 6909,
+      "sha256": "3779722b96c2692a2ab9604cd1e06d569f422d66a2db0b3bccf40eeeb42f3f72"
+    },
+    {
+      "path": "root-review-r1/ROOT-VERIFICATION-r1.json",
+      "bytes": 1044,
+      "sha256": "375934a4d5503eac0ba9e8466ec6fa2e25634a221b12f560376816fb2d29c32e"
+    },
+    {
+      "path": "verification/opsys-m3-photogrammetrie-source-scan-r1.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "verification/opsys-m3-photogrammetrie-source-scan-r1.log",
+      "bytes": 83,
+      "sha256": "ef5e981b8e61802005eb731089e08d760ecbfb8b1af518f6ca69505dfa0daecf"
+    },
+    {
+      "path": "verification/qa-r115/execution-r1/gitleaks.log",
+      "bytes": 133,
+      "sha256": "d06d2c527a8cb963915acc56405f4f781c9629d0f9d80e259be9d71528af6afc"
+    },
+    {
+      "path": "verification/qa-r115/freeze.json",
+      "bytes": 247,
+      "sha256": "803a970dfa63b43f47e0b1943a0b6f21fbfdda00890a92c734b0ed340237cb1f"
+    },
+    {
+      "path": "verification/qa-r115/receipt.json",
+      "bytes": 2847,
+      "sha256": "b1a01acd3b59b3383409edaa514fcb333feb828b0df7b299dff206df5d6b4a3d"
+    },
+    {
+      "path": "verification/qa-r115/scan.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "verification/qa_root_r115.py",
+      "bytes": 3230,
+      "sha256": "a9c785d2caf1c512b78776fc4565d4480e9943a3fdee4bb17de6819d84db0043"
+    }
+  ]
+}

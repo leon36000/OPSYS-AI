@@ -1,0 +1,1297 @@
+{
+  "revision_audit_origine": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "revision_courante_du_depot": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "date": "2026-09-30",
+  "source_constats": "docs/research/R16-2026-09-30/audit/CONSTATS-RECENTS.json",
+  "regles_statut": {
+    "CORRIGÉ LOCAL": "La source actuelle et un test de régression concret couvrent le comportement observé, mais cela ne vaut pas validation de production.",
+    "PARTIEL": "Une partie de la condition est traitée ou un parcours local existe, mais une limite explicite empêche la clôture.",
+    "OUVERT": "Aucune correction suffisante n’a été identifiée; le constat reste actif.",
+    "À VÉRIFIER": "La source semble contenir un garde ou des tests proches, mais le cas de régression n’est pas suffisamment prouvé."
+  },
+  "distinction_des_preuves": {
+    "tests_auteur": "Résultats annoncés dans les rapports de lots externes; ils ne sont pas présentés comme des exécutions R17.",
+    "revue_R17": "Revue documentaire et statique des rapports, fichiers et tests pointés; aucune suite n’a été relancée lors de cette passe.",
+    "preuves_root": "Les preuves root liées explicitement à des IDs sont citées avec chemins, dates et SHA-256. Les validations d’auteur restent distinctes. Les suites globales root antérieures ne sont pas attribuées aux parcours non rejoués.",
+    "limites_integrations": "Aucune preuve de déploiement VPS natif, de CI distante ou de build de l’image Docker officielle Core; l’artefact QA distinct ne valide pas cette image. Aucun constat ne signifie module complet ni intégration réelle."
+  },
+  "comptage": {
+    "total": 47,
+    "CORRIGÉ LOCAL": 42,
+    "PARTIEL": 5,
+    "OUVERT": 0,
+    "À VÉRIFIER": 0
+  },
+  "constats": [
+    {
+      "id": "DEP-001",
+      "niveau": "P1",
+      "titre": "Collision de facture et créance masquée",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": null,
+        "fichiers_courants": [
+          "departments/m05-financecore/src/m5_financecore/facturation.py"
+        ],
+        "tests_courants": [
+          "departments/m05-financecore/tests/test_facturation.py::test_collision_facture_id_refuse_sans_modifier_facture_envoyee_ni_ar",
+          "departments/m05-financecore/tests/test_registre_durable.py::test_collision_facture_id_durable_preserve_facture_envoyee_et_ar_apres_relecture"
+        ],
+        "portee_et_limite": "Collision de facture_id pour un autre devis refusée; état ENVOYEE, registre et AR préservés; suites M5 rapportées passantes.",
+        "validation_auteur": "Aucun rapport de correction dédié repéré; le constat est évalué ici à partir des sources/tests actuels et des tests rejoués par R17.",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m05-financecore/tests/test_facturation.py",
+          "departments/m05-financecore/tests/test_registre_durable.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-002",
+      "niveau": "P1",
+      "titre": "Identité de destinataire privé M10 fournie par l’appelant",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": null,
+        "fichiers_courants": [
+          "departments/m10-memoire/src/m10_memoire/outils.py"
+        ],
+        "tests_courants": [
+          "departments/m10-memoire/tests/test_ecritures_humaines.py::test_le_paquet_derive_le_destinataire_du_contexte_et_ignore_une_usurpation"
+        ],
+        "portee_et_limite": "Le destinataire privé est dérivé de l’origine d’appel authentifiée; portée du parcours M10 et de ses tests.",
+        "validation_auteur": "Aucun rapport de correction dédié repéré; le constat est évalué ici à partir des sources/tests actuels et des tests rejoués par R17.",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m10-memoire/tests/test_ecritures_humaines.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-003",
+      "niveau": "P1",
+      "titre": "Ancien chemin M6 : WCT affirmé, mauvaise intervention et rejeu",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/DEP003-DON06-resultat.md",
+        "fichiers_courants": [
+          "departments/m06-material-control/src/m6_material_control/outils.py",
+          "departments/m06-material-control/src/m6_material_control/materiel.py"
+        ],
+        "tests_courants": [
+          "departments/m06-material-control/tests/test_outils_agent.py::test_ancien_contrat_consommation_exige_wct_canonique_intervention_et_idempotence_metier"
+        ],
+        "portee_et_limite": "Le contrat legacy exige le WCT canonique, l’intervention concordante et l’idempotence métier; les refus et le rejeu laissent le stock inchangé. Tests M6 locaux et parcours d’outil fictif; aucune concurrence, M4 réel ou production.",
+        "validation_auteur": "Rapport auteur DEP003-DON06 : suite M6 complète, test rouge antérieur et test de régression décrit.",
+        "validation_independante_R17": "Aucun rejeu indépendant root identifié pour ce constat; le résultat de lot auteur n’est pas présenté comme validation root."
+      }
+    },
+    {
+      "id": "DEP-004",
+      "niveau": "P2",
+      "titre": "Pauses après départ et durée WCT négative sous revue",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/dep004-007-008-012-resultat.md",
+        "fichiers_courants": [
+          "departments/m04-field-ops/src/m4_field_ops/pointage.py",
+          "departments/m04-field-ops/src/m4_field_ops/outbox.py"
+        ],
+        "tests_courants": [
+          "departments/m04-field-ops/tests/test_pointage.py",
+          "departments/m04-field-ops/tests/test_outbox.py"
+        ],
+        "portee_et_limite": "Pause après départ rejetée sans écriture; durée réelle refuse une pause hors des bornes arrivée-départ avant création WCT.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m04-field-ops/tests/test_pointage.py",
+          "departments/m04-field-ops/tests/test_outbox.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-005",
+      "niveau": "P2",
+      "titre": "Retrait marketing antérieur au WCT sans rattachement ultérieur au lead",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/DEP005-011-resultat.md",
+        "fichiers_courants": [
+          "departments/m07-marketing/src/m7_marketing/usine/service.py",
+          "departments/m07-marketing/src/m7_marketing/usine/chantier.py"
+        ],
+        "tests_courants": [
+          "departments/m07-marketing/tests/usine/test_service_usine.py::test_retrait_avant_wct_cree_lien_lead_durable_quand_wct_est_recu"
+        ],
+        "portee_et_limite": "Le retrait pré-WCT garde son maillon et reçoit un lien append-only quand un WCT apporte un lead; redelivery idempotente et effet futur bloqué. Portée locale M7; aucun effet externe.",
+        "validation_auteur": "Rapport auteur DEP005-011 : suite complète M7 et parcours ciblé rapportés passants.",
+        "validation_independante_R17": "Pas de rejeu root dédié identifié pour ce parcours; la suite auteur reste distincte des preuves indépendantes R17."
+      }
+    },
+    {
+      "id": "DEP-006",
+      "niveau": "P2",
+      "titre": "Consolidation journalière ne couvrant pas les événements tardifs",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": null,
+        "fichiers_courants": [
+          "departments/m10-memoire/src/m10_memoire/consolidation.py"
+        ],
+        "tests_courants": [
+          "departments/m10-memoire/tests/test_consolidation.py::test_consolider_affaire_ajoute_les_sources_arrivees_apres_sans_doublonner"
+        ],
+        "portee_et_limite": "La consolidation reprend les événements arrivés après une première consolidation, sans doublons; test ciblé cité par la source actuelle.",
+        "validation_auteur": "Aucun rapport de correction dédié repéré; le constat est évalué ici à partir des sources/tests actuels et des tests rejoués par R17.",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m10-memoire/tests/test_consolidation.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-007",
+      "niveau": "P2",
+      "titre": "Texte nan converti en métrique sans alerte qualité",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/dep004-007-008-012-resultat.md",
+        "fichiers_courants": [
+          "departments/m08-analytics/src/m8_analytics/semantique.py",
+          "departments/m08-analytics/src/m8_analytics/qualite.py",
+          "departments/m08-analytics/src/m8_analytics/outils.py"
+        ],
+        "tests_courants": [
+          "departments/m08-analytics/tests/test_semantique.py",
+          "departments/m08-analytics/tests/test_qualite.py",
+          "departments/m08-analytics/tests/test_outils_agent.py"
+        ],
+        "portee_et_limite": "NaN/chaînes illisibles/types non numériques invalides séparés du manque; rapport public refuse la dernière observation invalide.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m08-analytics/tests/test_semantique.py",
+          "departments/m08-analytics/tests/test_qualite.py",
+          "departments/m08-analytics/tests/test_outils_agent.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-008",
+      "niveau": "P2",
+      "titre": "Contradiction masquée par représentations temporelles équivalentes",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/dep004-007-008-012-resultat.md",
+        "fichiers_courants": [
+          "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/etat_consolide.py"
+        ],
+        "tests_courants": [
+          "departments/m09-strategic-intelligence/tests/test_etat_consolide.py::test_representations_d_un_meme_instant_utc_creent_une_contradiction_et_gardent_les_sources"
+        ],
+        "portee_et_limite": "Les instants équivalents sont groupés en UTC; timestamps sources conservés.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m09-strategic-intelligence/tests/test_etat_consolide.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-009",
+      "niveau": "P2",
+      "titre": "WCT changé dédupliqué sans conflit de contenu",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/m10-dev-resultat.md",
+        "fichiers_courants": [
+          "departments/m10-memoire/src/m10_memoire/wct.py"
+        ],
+        "tests_courants": [
+          "departments/m10-memoire/tests/test_outils_agent.py::test_rejeu_wct_identique_est_noop_et_payload_modifie_est_refuse"
+        ],
+        "portee_et_limite": "L’outil public M10 compare l’empreinte des champs contractuels; contenu identique idempotent, divergent refusé; registre SQLite durable.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m10-memoire/tests/test_outils_agent.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-010",
+      "niveau": "P2",
+      "titre": "Conversation forgée acceptée sans historique canonique",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/m1-produit-resultat.md",
+        "fichiers_courants": [
+          "departments/m01-front-office/src/m1_front_office/phases_voix.py",
+          "departments/m01-front-office/src/m1_front_office/outils.py"
+        ],
+        "tests_courants": [
+          "departments/m01-front-office/tests/test_outils_agent.py::test_transition_publique_refuse_une_conversation_forgee_sans_mutation"
+        ],
+        "portee_et_limite": "État conversation reconstruit et comparé au registre; rejet sans mutation.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m01-front-office/tests/test_outils_agent.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-011",
+      "niveau": "P2",
+      "titre": "Primitive M7 : auteur et contenu approuvés depuis objet mutable",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/DEP005-011-resultat.md",
+        "fichiers_courants": [
+          "departments/m07-marketing/src/m7_marketing/content/approval.py",
+          "departments/m07-marketing/src/m7_marketing/workflows/chantier_social.py"
+        ],
+        "tests_courants": [
+          "departments/m07-marketing/tests/content/test_approval.py",
+          "departments/m07-marketing/tests/workflows/test_chantier_social.py::test_auto_approbation_refusee",
+          "departments/m07-marketing/tests/workflows/test_chantier_social.py::test_adaptateur_n_est_pas_atteint_sans_approbation_humaine"
+        ],
+        "portee_et_limite": "L’approbation legacy vérifie auteur serveur, propriétaire actif, empreinte de proposition et copie profonde; arguments acteur/heure historiques ne font pas autorité. Publication reste une garde sans adaptateur externe.",
+        "validation_auteur": "Rapport auteur DEP005-011 : suite complète M7 et tests approval/workflow rapportés passants.",
+        "validation_independante_R17": "Pas de rejeu root dédié identifié de cette primitive; preuve auteur séparée des preuves indépendantes R17."
+      }
+    },
+    {
+      "id": "DEP-012",
+      "niveau": "P2",
+      "titre": "Script injectable par couleur CSS de configuration locale",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/dep004-007-008-012-resultat.md",
+        "fichiers_courants": [
+          "departments/m07-marketing/src/m7_marketing/site/generator.py",
+          "departments/m07-marketing/src/m7_marketing/site/guardrail.py"
+        ],
+        "tests_courants": [
+          "departments/m07-marketing/tests/test_site_generator.py",
+          "departments/m07-marketing/tests/test_site_guardrail.py"
+        ],
+        "portee_et_limite": "Allow-list hexadécimale des neuf couleurs; script actif refusé, JSON-LD statique autorisé.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m07-marketing/tests/test_site_generator.py",
+          "departments/m07-marketing/tests/test_site_guardrail.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-013",
+      "niveau": "P2",
+      "titre": "Seuil photo NaN permissif au répartiteur Python",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/preuves/m3-numerique-public.xml",
+        "fichiers_courants": [
+          "departments/m03-estimation/src/m3_estimation/qualite_photos.py",
+          "departments/m03-estimation/src/m3_estimation/hierarchie_echelle.py"
+        ],
+        "tests_courants": [
+          "departments/m03-estimation/tests/test_qualite_photos.py::test_seuil_eclairage_non_fini_ou_hors_echelle_est_refuse[nan]",
+          "departments/m03-estimation/tests/test_qualite_photos.py::test_seuil_eclairage_non_fini_ou_hors_echelle_est_refuse[inf]",
+          "departments/m03-estimation/tests/test_qualite_photos.py::test_seuil_eclairage_non_fini_ou_hors_echelle_est_refuse[-1.0]",
+          "departments/m03-estimation/tests/test_qualite_photos.py::test_seuil_eclairage_non_fini_ou_hors_echelle_est_refuse[10.1]"
+        ],
+        "portee_et_limite": "Le test public de seuil refuse explicitement NaN, infini et bornes hors échelle. JUnit M3 indépendant : 172 passés, 0 échec; mutation test : 15/15 mordent et sources restaurées. Cela couvre les cas énumérés, pas toute entrée photo réelle.",
+        "validation_auteur": "Les rapports de correction dédiés ne sont pas utilisés pour ce statut; statut appuyé sur les preuves root datées et la source/test courant.",
+        "validation_independante_R17": "Validation indépendante root : JUnit m3-numerique-public.xml du 2026-09-30 18:06:12 UTC, 172 tests passés; mutation photo 15/15.",
+        "tests_rejoues_par_root_R17": [
+          "départements M3: preuve JUnit m3-numerique-public.xml (172/172); m3-preuves-photos.log (15/15)"
+        ]
+      }
+    },
+    {
+      "id": "DEP-014",
+      "niveau": "P2",
+      "titre": "Exactitude financière dépendante du contexte Decimal ambiant",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": null,
+        "fichiers_courants": [
+          "departments/m05-financecore/src/m5_financecore/facturation.py",
+          "departments/m05-financecore/src/m5_financecore/soldes.py",
+          "departments/m05-financecore/src/m5_financecore/cash_libre.py"
+        ],
+        "tests_courants": [
+          "departments/m05-financecore/tests/test_facturation.py::test_creer_facture_brouillon_est_independante_du_contexte_decimal_appelant",
+          "departments/m05-financecore/tests/test_soldes.py::test_solde_et_provisions_sont_independants_du_contexte_decimal_appelant",
+          "departments/m05-financecore/tests/test_cash_libre.py"
+        ],
+        "portee_et_limite": "Les calculs visés ont des contextes Decimal locaux et tests sous précision basse/traps activés; aucun audit exhaustif des autres calculs M5 n’est revendiqué.",
+        "validation_auteur": "Aucun rapport de correction dédié repéré; le constat est évalué ici à partir des sources/tests actuels et des tests rejoués par R17.",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m05-financecore/tests/test_facturation.py",
+          "departments/m05-financecore/tests/test_soldes.py",
+          "departments/m05-financecore/tests/test_cash_libre.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-015",
+      "niveau": "P3",
+      "titre": "Débordement numérique M3 et exception publique non nommée",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/preuves/m3-numerique-public.xml",
+        "fichiers_courants": [
+          "departments/m03-estimation/src/m3_estimation/monte_carlo.py",
+          "departments/m03-estimation/src/m3_estimation/outils.py"
+        ],
+        "tests_courants": [
+          "departments/m03-estimation/tests/test_monte_carlo.py::test_depassement_numerique_retourne_un_verdict_avant_tirage",
+          "departments/m03-estimation/src/m3_estimation/outils.py::simuler_intervalle"
+        ],
+        "portee_et_limite": "Les dépassements visés renvoient un verdict de contrat invalide avant tirage sur les cas ciblés, et le wrapper public simuler_intervalle transmet le couple de rejet. JUnit M3 indépendant : 172 passés; mutations ciblées 10/10 mordent. Deux mutations de bornage sont empiriquement inertes sur cet échantillon; cela ne prouve pas leur impossibilité générale. Le cas numérique est testé sur la primitive, sans appel direct à l’adaptateur public dans cette preuve.",
+        "validation_auteur": "Les rapports de correction dédiés ne sont pas utilisés pour ce statut; statut appuyé sur les preuves root datées et les tests courants.",
+        "validation_independante_R17": "Validation indépendante root : JUnit m3-numerique-public.xml du 2026-09-30 18:06:12 UTC, 172 tests passés; mutation numérique Monte Carlo 10/10 mordent, deux mutations de bornage sont inertes sur ce harnais seulement.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m03-estimation/tests/test_monte_carlo.py::test_depassement_numerique_retourne_un_verdict_avant_tirage (paramètres 10 et 10**1000)",
+          "/workspace/restructuration-opsys-2026-09-30/m3-preuves-monte-carlo.log (10/10; deux variantes empiriquement inertes)"
+        ]
+      }
+    },
+    {
+      "id": "DEP-016",
+      "niveau": "P3",
+      "titre": "Montant extrême M5 et exception Decimal non nommée",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/m5-cfo-produit-resultat.md",
+        "fichiers_courants": [
+          "departments/m05-financecore/src/m5_financecore/facturation.py"
+        ],
+        "tests_courants": [
+          "departments/m05-financecore/tests/test_facturation.py::test_creer_facture_brouillon_refuse_un_prix_fini_hors_du_domaine_sans_ecrire"
+        ],
+        "portee_et_limite": "Le montant fini extrême est traduit en verdict nommé et refusé avant écriture.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m05-financecore/tests/test_facturation.py"
+        ]
+      }
+    },
+    {
+      "id": "DEP-017",
+      "niveau": "P3",
+      "titre": "Chaîne vide validée malgré ancre extérieure non vide",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/m1-produit-resultat.md",
+        "fichiers_courants": [
+          "departments/m01-front-office/src/m1_front_office/registre.py"
+        ],
+        "tests_courants": [
+          "departments/m01-front-office/tests/test_registre.py::test_chaine_vide_refuse_une_ancre_externe_non_vide"
+        ],
+        "portee_et_limite": "Une chaîne vide ne satisfait plus une ancre externe non vide; verdict REJ-CHAINE-ALTEREE.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "departments/m01-front-office/tests/test_registre.py"
+        ]
+      }
+    },
+    {
+      "id": "DON-01",
+      "niveau": "P1",
+      "titre": "Autorisations et révocation console insuffisantes",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": null,
+        "fichiers_courants": [
+          "src/opsys/console/application.py",
+          "src/opsys/tableau_de_bord.py"
+        ],
+        "tests_courants": [
+          "tests/test_console.py::test_console_administration_refusee_aux_profils_non_administrateurs",
+          "tests/test_console.py::test_console_revalide_les_droits_apres_connexion"
+        ],
+        "portee_et_limite": "Routes d’administration revalidées sur identité/roles en base; tests refusent employé et révocation en session active.",
+        "validation_auteur": "Aucun rapport de correction dédié repéré; le constat est évalué ici à partir des sources/tests actuels et des tests rejoués par R17.",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_console.py"
+        ]
+      }
+    },
+    {
+      "id": "DON-02",
+      "niveau": "P1",
+      "titre": "Restauration échouée sans retour cohérent",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": null,
+        "fichiers_courants": [
+          "src/opsys/exportation.py"
+        ],
+        "tests_courants": [
+          "tests/test_exportation.py::test_echec_pose_deuxieme_fichier_retablit_base_et_reglages"
+        ],
+        "portee_et_limite": "La migration de l’archive est prévalidée sur une copie et une panne à la pose d’un réglage restaure les fichiers précédents; test de rollback présent. Pas d’exercice de panne matérielle, ni preuve d’instance distante.",
+        "validation_auteur": "aucun rapport de correction dédié repéré; sources/tests présents revus",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_exportation.py"
+        ]
+      }
+    },
+    {
+      "id": "DON-03",
+      "niveau": "P1",
+      "titre": "Révision déclarée non comparée à la base réelle",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": null,
+        "fichiers_courants": [
+          "src/opsys/exportation.py"
+        ],
+        "tests_courants": [
+          "tests/test_exportation.py::test_revision_sqlite_differente_du_manifeste_refuse_avant_toucher_instance"
+        ],
+        "portee_et_limite": "La révision effective d’alembic_version est comparée au manifeste avant tout changement de l’instance.",
+        "validation_auteur": "Aucun rapport de correction dédié repéré; le constat est évalué ici à partir des sources/tests actuels et des tests rejoués par R17.",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_exportation.py"
+        ]
+      }
+    },
+    {
+      "id": "DON-04",
+      "niveau": "P2",
+      "titre": "Import historique interrompu non repris automatiquement",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": null,
+        "fichiers_courants": [
+          "src/opsys/etat.py",
+          "src/opsys/stockage/__init__.py"
+        ],
+        "tests_courants": [
+          "tests/test_migration_etat.py::test_import_historique_reprend_apres_crash_sans_perte_ni_doublon",
+          "tests/test_migration_etat.py::test_import_reprend_apres_ancien_rename_avant_commit"
+        ],
+        "portee_et_limite": "Import historique rejouable après interruption simulée avant/après commit; source préservée.",
+        "validation_auteur": "Aucun rapport de correction dédié repéré; le constat est évalué ici à partir des sources/tests actuels et des tests rejoués par R17.",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_migration_etat.py"
+        ]
+      }
+    },
+    {
+      "id": "DON-05",
+      "niveau": "P2",
+      "titre": "Artefact lisible depuis autre département connaissant son ID",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": null,
+        "fichiers_courants": [
+          "src/opsys/jetons.py",
+          "src/opsys/capacites.py"
+        ],
+        "tests_courants": [
+          "tests/test_capacites_jetons.py::test_artefact_ne_se_lit_que_depuis_son_origine_authentifiee"
+        ],
+        "portee_et_limite": "Lecture artefact vérifie désormais l’origine authentifiée; test inter-département.",
+        "validation_auteur": "Aucun rapport de correction dédié repéré; le constat est évalué ici à partir des sources/tests actuels et des tests rejoués par R17.",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_capacites_jetons.py"
+        ]
+      }
+    },
+    {
+      "id": "DON-06",
+      "niveau": "P2",
+      "titre": "Déduplication RAG reclassant fragment et rétention après ajout approuvé",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/DEP003-DON06-resultat.md",
+        "fichiers_courants": [
+          "src/opsys/memoire/store.py",
+          "src/opsys/memoire/outils.py"
+        ],
+        "tests_courants": [
+          "tests/test_memoire_store.py::test_ajout_duplique_separe_profil_et_portee_sans_reclasser_le_fragment",
+          "/workspace/audit-opsys-2026-09-30/donnees/resultat-memoire.json"
+        ],
+        "portee_et_limite": "Même source/hash/département/portée idempotents; une copie d’autre profil/portée garde sa propre identité canonique; l’ajout approuvé ne reclasse pas la copie existante ni ne retire sa rétention. Probe PostgreSQL 17 + pgvector éphémère et tests locaux; données fictives, pas de production ni d’effet externe.",
+        "validation_auteur": "Rapport auteur DEP003-DON06 : 26 tests du store, migration idempotente et probe propriétaire PostgreSQL 17 avec assertions adaptées rapportés passants.",
+        "validation_independante_R17": "Aucun rejeu indépendant root identifié de la suite store ou du probe; résultats auteur explicitement distincts des exécutions root R17."
+      }
+    },
+    {
+      "id": "MOB-01",
+      "niveau": "P1",
+      "titre": "Captures de A transformées et envoyées au nom de B",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/mobile-resultat.md",
+        "fichiers_courants": [
+          "mobile/src/photos/mutation.ts",
+          "mobile/src/fichiers/candidats.ts",
+          "mobile/src/outbox/proprietaire.ts"
+        ],
+        "tests_courants": [
+          "mobile/src/photos/mutation.test.ts",
+          "mobile/src/fichiers/candidats.test.ts",
+          "mobile/src/outbox/proprietaire.test.ts"
+        ],
+        "portee_et_limite": "Filtrage par propriétaire/session aux points de sélection, préparation et écriture des blocs.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "mobile/src/photos/mutation.test.ts",
+          "mobile/src/fichiers/candidats.test.ts",
+          "mobile/src/outbox/proprietaire.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "MOB-02",
+      "niveau": "P1",
+      "titre": "Accusé WCT utile non persisté hors écran",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/mobile-resultat.md",
+        "fichiers_courants": [
+          "mobile/src/outbox/vidangeur.ts",
+          "mobile/src/fichiers/etatEnvoi.ts"
+        ],
+        "tests_courants": [
+          "mobile/src/outbox/vidangeur.test.ts",
+          "mobile/src/fichiers/etatEnvoi.test.ts"
+        ],
+        "portee_et_limite": "Accusé accepté et WCT conservés de façon durable et récupérables hors écran.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "mobile/src/outbox/vidangeur.test.ts",
+          "mobile/src/fichiers/etatEnvoi.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "MOB-03",
+      "niveau": "P2",
+      "titre": "Reprise serveur non réconciliée avec état fichier local",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/mobile-resultat.md",
+        "fichiers_courants": [
+          "mobile/src/fichiers/etatEnvoi.ts",
+          "mobile/src/outbox/vidangeur.ts"
+        ],
+        "tests_courants": [
+          "mobile/src/fichiers/etatEnvoi.test.ts",
+          "mobile/src/outbox/vidangeur.test.ts"
+        ],
+        "portee_et_limite": "État serveur réconcilié avec reçus locaux pendant la reprise; parcours logique testé.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "mobile/src/fichiers/etatEnvoi.test.ts",
+          "mobile/src/outbox/vidangeur.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "MOB-04",
+      "niveau": "P2",
+      "titre": "Enfilage partiel des blocs non réparable",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/mobile-resultat.md",
+        "fichiers_courants": [
+          "mobile/src/fichiers/envoiOrchestrateur.ts"
+        ],
+        "tests_courants": [
+          "mobile/src/fichiers/envoiOrchestrateur.test.ts"
+        ],
+        "portee_et_limite": "Redémarrage retrouve les blocs déjà insérés et met en file les seuls manquants après insertion partielle.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "mobile/src/fichiers/envoiOrchestrateur.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "MOB-05",
+      "niveau": "P2",
+      "titre": "Préparations concurrentes et indices dupliqués",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/mobile-resultat.md",
+        "fichiers_courants": [
+          "mobile/src/fichiers/envoiOrchestrateur.ts"
+        ],
+        "tests_courants": [
+          "mobile/src/fichiers/envoiOrchestrateur.test.ts"
+        ],
+        "portee_et_limite": "Préparations locales sérialisées; test vérifie indices uniques et état complet.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "mobile/src/fichiers/envoiOrchestrateur.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "MOB-06",
+      "niveau": "P2",
+      "titre": "Timeout ne couvrant pas lecture du corps HTTP",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/mobile-resultat.md",
+        "fichiers_courants": [
+          "mobile/src/protocole/client.ts"
+        ],
+        "tests_courants": [
+          "mobile/src/protocole/client.test.ts"
+        ],
+        "portee_et_limite": "Délai couvre fetch et lecture JSON du corps; essai transport Node simulé.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "mobile/src/protocole/client.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "MOB-07",
+      "niveau": "P2",
+      "titre": "Corps HTTP 200 interrompu traité comme échec permanent",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/mobile-resultat.md",
+        "fichiers_courants": [
+          "mobile/src/outbox/vidangeur.ts"
+        ],
+        "tests_courants": [
+          "mobile/src/outbox/vidangeur.test.ts"
+        ],
+        "portee_et_limite": "Rupture JSON après HTTP 200 remise en attente avec clé d’idempotence stable.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "mobile/src/outbox/vidangeur.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "MOB-08",
+      "niveau": "P2",
+      "titre": "Session changée pendant purge non revalidée après attente",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/mobile-resultat.md",
+        "fichiers_courants": [
+          "mobile/src/identite/appliquerLecture.ts"
+        ],
+        "tests_courants": [
+          "mobile/src/identite/appliquerLecture.test.ts"
+        ],
+        "portee_et_limite": "Identité revalidée avant/après opérations async de purge; tests de concurrence de session.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "mobile/src/identite/appliquerLecture.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "MOB-09",
+      "niveau": "P1",
+      "titre": "Accusé métier inconnu accepté",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/mobile-resultat.md",
+        "fichiers_courants": [
+          "mobile/src/fichiers/protocole.ts",
+          "mobile/src/outbox/vidangeur.ts"
+        ],
+        "tests_courants": [
+          "mobile/src/fichiers/protocole.test.ts",
+          "mobile/src/outbox/vidangeur.test.ts"
+        ],
+        "portee_et_limite": "Accusé incomplet/inconnu refusé et gardé en attente; charge complète testée.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "mobile/src/fichiers/protocole.test.ts",
+          "mobile/src/outbox/vidangeur.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "INFRA-R01",
+      "niveau": "P1",
+      "titre": "Noms incompatibles des archives de volumes backup/restore",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/infra-resultat.md",
+        "fichiers_courants": [
+          "deploy/backup.sh",
+          "deploy/restore.sh"
+        ],
+        "tests_courants": [
+          "tests/test_deploy_backup_restore.py::test_restauration_reelle_volumes_docker_qa_jetables"
+        ],
+        "portee_et_limite": "Restauration de cinq volumes Docker QA temporaires réellement vérifiée; fixtures couvrent le mapping Compose.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_deploy_backup_restore.py"
+        ]
+      }
+    },
+    {
+      "id": "INFRA-R02",
+      "niveau": "P1",
+      "titre": "Garde de désinstallation textuelle et chemins physiques protégés",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/infra-resultat.md",
+        "fichiers_courants": [
+          "install/uninstall.sh",
+          "tests/test_installateur_scripts.py"
+        ],
+        "tests_courants": [
+          "tests/test_installateur_scripts.py"
+        ],
+        "portee_et_limite": "Résolution chemins physiques, parent traversé et liens symboliques testés en simulation; aucune donnée réelle supprimée.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_installateur_scripts.py"
+        ]
+      }
+    },
+    {
+      "id": "INFRA-R03",
+      "niveau": "P1",
+      "titre": "Contexte image pouvant inclure sauvegardes et secrets locaux",
+      "preuve_dominante": "lecture-source",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/infra-resultat.md",
+        "fichiers_courants": [
+          ".dockerignore"
+        ],
+        "tests_courants": [
+          "tests/test_deploy_backup_restore.py"
+        ],
+        "portee_et_limite": "Règles d’exclusion secrets/sauvegardes vérifiées par tests; image finale non construite.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_deploy_backup_restore.py"
+        ]
+      }
+    },
+    {
+      "id": "INFRA-R04",
+      "niveau": "P2",
+      "titre": "Backup et restore positifs malgré éléments requis manquants",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/infra-resultat.md",
+        "fichiers_courants": [
+          "deploy/backup.sh",
+          "deploy/restore.sh"
+        ],
+        "tests_courants": [
+          "tests/test_deploy_backup_restore.py"
+        ],
+        "portee_et_limite": "Entrées/archives requises vérifiées fail-closed avant arrêt, restauration ou création de volume.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_deploy_backup_restore.py"
+        ]
+      }
+    },
+    {
+      "id": "INFRA-R05",
+      "niveau": "P2",
+      "titre": "Modèle env VPS requis absent du dépôt",
+      "preuve_dominante": "lecture-source",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "PARTIEL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/installation-native-resultat.md",
+        "fichiers_courants": [
+          "install/install.sh",
+          "install/install.ps1",
+          "src/opsys/instance.py"
+        ],
+        "tests_courants": [
+          "tests/test_installateur_scripts.py",
+          "tests/test_installateur_powershell.py"
+        ],
+        "portee_et_limite": "Installation native locale améliorée; aucun service VPS natif déployé. Build complet Core Docker non validé; artefact QA distinct et antérieur, non substituable au Dockerfile officiel.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Revue statique R17; test de régression non rejoué."
+      }
+    },
+    {
+      "id": "INFRA-R06",
+      "niveau": "P2",
+      "titre": "Permissions des sauvegardes conditionnellement publiques sur hôte",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/infra-resultat.md",
+        "fichiers_courants": [
+          "deploy/backup.sh"
+        ],
+        "tests_courants": [
+          "tests/test_deploy_backup_restore.py"
+        ],
+        "portee_et_limite": "Modes 0700/0600 imposés même sous umask 000; test de script local.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_deploy_backup_restore.py"
+        ]
+      }
+    },
+    {
+      "id": "INFRA-R07",
+      "niveau": "P2",
+      "titre": "Gate Python et absence de CI générale complète au HEAD",
+      "preuve_dominante": "source-et-métadonnées-distantes",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "PARTIEL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/ci-dependances-resultat.md",
+        "fichiers_courants": [
+          ".github/workflows/ci.yml",
+          ".github/workflows/mobile.yml",
+          ".github/workflows/dependency-audit.yml"
+        ],
+        "tests_courants": [
+          "tests/test_installateur_workflow.py"
+        ],
+        "portee_et_limite": "Workflows/gates ajustés et tests locaux; résultats CI distante, déclenchement réel et protections de branche non vérifiés.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Tests ciblés rejoués par R17/root sur l’état courant, commande et résultat consignés dans registre-audit-resultat.md.",
+        "tests_rejoues_par_root_R17": [
+          "tests/test_installateur_workflow.py"
+        ]
+      }
+    },
+    {
+      "id": "INFRA-R08",
+      "niveau": "P2",
+      "titre": "Avis de sécurité npm et absence de scan dans workflows racine",
+      "preuve_dominante": "source-et-métadonnées-distantes",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "PARTIEL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/ci-dependances-resultat.md",
+        "fichiers_courants": [
+          "core/pnpm-workspace.yaml",
+          "core/pnpm-lock.yaml",
+          ".github/workflows/dependency-audit.yml",
+          "mobile/package-lock.json"
+        ],
+        "tests_courants": [
+          "tests/test_installateur_workflow.py"
+        ],
+        "portee_et_limite": "Audit des dépendances Core de production sans avis; dépendances mobile gardent des avis modérés et le seuil automatisé est high. La couverture du scan reste partielle.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Revue statique R17; test de régression non rejoué."
+      }
+    },
+    {
+      "id": "INFRA-R09",
+      "niveau": "P2",
+      "titre": "Installations Python et outils sans verrou reproductible",
+      "preuve_dominante": "lecture-source",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/ci-dependances-resultat.md",
+        "fichiers_courants": [
+          "uv.lock",
+          "requirements-runtime.lock.txt",
+          "deploy/Dockerfile",
+          "install/install.sh",
+          "install/install.ps1"
+        ],
+        "tests_courants": [
+          "tests/test_installateur_workflow.py",
+          "departments/m04-field-ops/tests/test_cedule_tournees.py"
+        ],
+        "portee_et_limite": "Lock et hashes consommés sur les chemins contrôlés; dry-run pip/uv passent; build Docker échoué sur TLS du miroir et pas de test Windows réel.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Revue statique R17; test de régression non rejoué."
+      }
+    },
+    {
+      "id": "C01",
+      "niveau": "P1",
+      "titre": "Frontière CLI humain/agent reposant sur environnement effaçable",
+      "preuve_dominante": "lecture-source-et-contrats",
+      "rapport": "docs-audit/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "PARTIEL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/core-native-profils-cli-resultat.md",
+        "fichiers_courants": [
+          "core/src/infra/exec-control-command-guard.ts",
+          "src/opsys/cli.py"
+        ],
+        "tests_courants": [
+          "core/src/infra/exec-control-command-guard.test.ts"
+        ],
+        "portee_et_limite": "Garde exec et authentification CLI renforcées; l’identité est liée à l’utilisateur local. Un opérateur et un agent partageant le compte OS gardent accès aux mêmes fichiers/base/processus : frontière OS non établie.",
+        "validation_auteur": "Rapport auteur C01 : 15 tests du garde et tests Python ciblés rapportés passants.",
+        "validation_independante_R17": "Revue R17 et suites ciblées du rapport; aucun test indépendant spécifique de séparation OS. La limite OS maintient le statut PARTIEL."
+      }
+    },
+    {
+      "id": "C02",
+      "niveau": "P1",
+      "titre": "Garde contexte non liée à cible des arguments métier",
+      "preuve_dominante": "lecture-source-et-contrats",
+      "rapport": "docs-audit/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "PARTIEL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/core-native-profils-cli-resultat.md",
+        "fichiers_courants": [
+          "core/src/context-engine/opsys-contexte-garde.ts",
+          "core/src/agents/agent-tools.before-tool-call.policy.ts"
+        ],
+        "tests_courants": [
+          "core/src/context-engine/opsys-contexte-garde.test.ts",
+          "core/src/agents/agent-tools.before-tool-call.opsys-runtime-deny.test.ts"
+        ],
+        "portee_et_limite": "La garde refuse la configuration invalide et lie plusieurs appels au contexte/profil; des chemins et arguments métier restent hors liaison complète. C02 est donc partiellement corrigé.",
+        "validation_auteur": "rapport et résultats du lot cités",
+        "validation_independante_R17": "Le lot Core root comporte 244 tests passés, mais ne prouve pas une liaison universelle de chaque cible métier; constat maintenu PARTIEL."
+      }
+    },
+    {
+      "id": "C03",
+      "niveau": "P2",
+      "titre": "Configuration sélectionnée invalide ouvrant la garde",
+      "preuve_dominante": "lecture-source-et-contrats",
+      "rapport": "docs-audit/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/preuves/core-frontieres.json",
+        "fichiers_courants": [
+          "core/src/context-engine/opsys-contexte-config.ts",
+          "core/src/context-engine/opsys-contexte-garde.ts"
+        ],
+        "tests_courants": [
+          "core/src/context-engine/opsys-contexte-config.test.ts",
+          "core/src/context-engine/opsys-contexte-garde.test.ts"
+        ],
+        "portee_et_limite": "Configuration active invalide refuse les appels OPSYS et expose une raison fail-closed; la suite ciblée couvre JSON invalide, lecture impossible, schémas mal formés et garde active invalide. Vérification locale core uniquement.",
+        "validation_auteur": "La correction apparaît dans le diff local; aucun rapport auteur distinct n’est utilisé pour ce statut.",
+        "validation_independante_R17": "Validation root indépendante : core-frontieres.json, 244/244 tests passés le 2026-09-30; les deux suites couvrant configuration et garde sont présentes.",
+        "tests_rejoues_par_root_R17": [
+          "core/src/context-engine/opsys-contexte-config.test.ts (39 tests dans la preuve root)",
+          "core/src/context-engine/opsys-contexte-garde.test.ts (37 tests dans la preuve root)"
+        ]
+      }
+    },
+    {
+      "id": "C04",
+      "niveau": "P2",
+      "titre": "Démarrage long inclus dans durée saine de reprise",
+      "preuve_dominante": "lecture-source-et-contrats",
+      "rapport": "docs-audit/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "/workspace/restructuration-opsys-2026-09-30/preuves/core-frontieres.json",
+        "fichiers_courants": [
+          "core/src/gateway/opsys-metier-supervisor.ts"
+        ],
+        "tests_courants": [
+          "core/src/gateway/opsys-metier-supervisor.test.ts::OPSYS business engine supervisor starts the backoff over once the engine had been healthy for a while",
+          "core/src/gateway/opsys-metier-supervisor.test.ts::OPSYS business engine supervisor does not count a slow startup followed by an immediate crash as stable health"
+        ],
+        "portee_et_limite": "Le délai de stabilité redémarre après disponibilité; un démarrage lent suivi d’un crash immédiat ne compte pas comme période saine. Suite Core locale; pas de supervision d’un déploiement VPS.",
+        "validation_auteur": "La correction apparaît dans le diff local; aucun rapport auteur distinct n’est utilisé pour ce statut.",
+        "validation_independante_R17": "Validation root indépendante : core-frontieres.json, 244/244 tests passés le 2026-09-30; le fichier superviseur contient les deux tests de durée visés.",
+        "tests_rejoues_par_root_R17": [
+          "core/src/gateway/opsys-metier-supervisor.test.ts (20 tests dans la preuve root)"
+        ]
+      }
+    },
+    {
+      "id": "C05",
+      "niveau": "P2",
+      "titre": "Documentation de référence non réconciliée avec architecture",
+      "preuve_dominante": "lecture-source-et-contrats",
+      "rapport": "docs-audit/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": "docs/research/R17-2026-09-30/COHERENCE-DOCUMENTAIRE.md",
+        "fichiers_courants": [
+          "docs/research/INGREDIENTS.md",
+          "docs/architecture/ARCHITECTURE.md",
+          "docs/decisions/ADR-0010-memoire.md",
+          "docs/README.md"
+        ],
+        "tests_courants": [],
+        "portee_et_limite": "Les trois références signalées par C05 décrivent le fork maintenu, Expo, le hook before_tool_call et ses limites; ADR-0010 sépare explicitement état courant et historique. Vérification documentaire ciblée et liens locaux, pas certification de chaque page historique du dépôt.",
+        "validation_auteur": "Réconciliation sources/provenance/architecture et note documentaire par sous-agent; aucun test de code exigé pour ce changement de prose.",
+        "validation_independante_R17": "Root a relu le constat C05 original, les trois documents corrigés et la note; le défaut précis de référence courante est corrigé. Les autres constats partiels et capacités non livrées ne sont pas fermés."
+      }
+    },
+    {
+      "id": "G01",
+      "niveau": "P2",
+      "titre": "CODEOWNERS conserve les anciens chemins",
+      "preuve_dominante": "lecture-source",
+      "rapport": "RAPPORT-CONSOLIDE.md",
+      "source": "/workspace/OPSYS-AI-recent/CODEOWNERS:2",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Attribution automatique dans ce fichier seulement ; exigences serveur main inaccessibles.",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "preuve_R17": {
+        "rapport_lot": null,
+        "fichiers_courants": [
+          "CODEOWNERS",
+          "docs/research/R16-2026-09-30/VERIFICATION-RESTRUCTURATION.json"
+        ],
+        "tests_courants": [],
+        "portee_et_limite": "Correction locale des chemins CODEOWNERS vérifiée dans les preuves R16; règles distantes/protection non publiées ni contrôlées.",
+        "validation_auteur": "aucun rapport de correction dédié repéré; sources/tests présents revus",
+        "validation_independante_R17": "Revue statique R17; test de régression non rejoué."
+      }
+    }
+  ],
+  "branche": "codex/restructuration-2026-09-30",
+  "etat_worktree": "Modifications locales non commitées; revision_courante_du_depot désigne HEAD et non l’ensemble du snapshot de travail.",
+  "ecarts_supplementaires": [
+    {
+      "id": "ECO-001",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "resume": "Installation et génération natives sélectionnent désormais les fournisseurs natifs; LiteLLM exige un choix explicite. Vérifié par rapport auteur installation-native-resultat.md et core-native-profils-cli-resultat.md. Aucun fournisseur externe/VPS n’a été utilisé; secrets et paliers restent des prérequis."
+    },
+    {
+      "id": "MKT-001",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "resume": "La demande d’avis est neutre et dépend du consentement; les parcours acceptent les niveaux de satisfaction sans sélectionner les positifs. Harnais-identite-avis.xml : 49 tests passés le 2026-09-30 17:40:36 UTC, dont cas satisfait, insatisfait et non évalué. Aucun avis externe n’a été sollicité."
+    },
+    {
+      "id": "APR-001",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "resume": "Un verdict métier refusé imbriqué dans une enveloppe ok=true n’est plus journalisé comme exécuté. Preuve root approbations-verdict-integration.xml : 47 tests passés, dont test_approbation_ne_marque_pas_un_verdict_metier_refuse_comme_execute et test_validation_au_depart_ne_marque_pas_un_verdict_metier_refuse_comme_execute, 2026-09-30 17:34:35 UTC. Parcours local/harness seulement, aucune approbation réelle ni effet externe."
+    },
+    {
+      "id": "MEM-DEV-001",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "resume": "Scan M10 corrigé: classification M10, coordonnées Git de sous-arbre, lectures bornées et liens symboliques refusés; secrets JSON structurés masqués. M10 final: 908 tests passés; journal canonique complet reconstruit avant fenêtres d’analyse, limite toujours explicite."
+    },
+    {
+      "id": "MEM-DEV-002",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "resume": "Postflight sans plan conservé et signalé par audit; cibles hors fenêtre distinguées des absentes; CLI/API/console audit authentifiés, lecture seule. Aucun scheduler livré dans ce lot."
+    },
+    {
+      "id": "FIN-COUV-001",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "resume": "Registres vides, brouillons ou événements techniques ne prouvent pas zéro TPS/TVQ: montant inconnu sans pièces utilisables. Calcul sur pièces porte PARTIELLE; console/mobile gardent cet avertissement. M5 final2014 passés et mobile final2607 passés; aucun taux/ordre de paiement nouveau."
+    },
+    {
+      "id": "CI-ADM-001",
+      "etat_preuve": "CORRIGÉ LOCAL",
+      "resume": "Les cinq fichiers tests admission figurent désormais dans les153cibles Core; le job requiert Python3.12/uv locked et OPSYS_TEST_PYTHON. Installations pnpm ignorent scripts tiers/pnpmfile. Validation statique locale et tests ciblés, pas CI distante."
+    }
+  ],
+  "empreintes_sha256_preuves_R17": {
+    "/workspace/restructuration-opsys-2026-09-30/preuves/core-frontieres.json": "e3b36e511c1900a1533db6dc7c00f2f84c868eb6ae97e3e214fd1461ba0b1da0",
+    "/workspace/restructuration-opsys-2026-09-30/preuves/m3-numerique-public.xml": "b795532714fd16c891fad4a4814dac80158f86222042028f5ca12293d04a552e",
+    "/workspace/restructuration-opsys-2026-09-30/m3-preuves-photos.log": "e9e099ac897eb7deb00837d0b14774e86e22495724318492515caf89ce05a217",
+    "/workspace/restructuration-opsys-2026-09-30/m3-preuves-monte-carlo.log": "e651ad92b1b39bf2ac084eb9c9c719579c05f30b1fa63c158ed0dd0fe295a474",
+    "/workspace/restructuration-opsys-2026-09-30/preuves/approbations-verdict-integration.xml": "76597ef1f7a742a427f97588f009bbf2e92bb8c8ad407e1720e4dcaa1f2356d2",
+    "/workspace/restructuration-opsys-2026-09-30/preuves/harnais-identite-avis.xml": "7583a22ac8b0466a9168692faed10f2368403a078616353db42d6107259556e5",
+    "/workspace/restructuration-opsys-2026-09-30/DEP003-DON06-resultat.md": "c8342d18e65cf146110af95756ce8045ed06554064806516f993f766d5a382ff",
+    "/workspace/restructuration-opsys-2026-09-30/DEP005-011-resultat.md": "6b69a991c5da21ece3e5797593a0456522d5fdcb950d761707a22b199f8af69c"
+  }
+}

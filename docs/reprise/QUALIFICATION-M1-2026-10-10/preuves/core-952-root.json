@@ -1,0 +1,46 @@
+{
+  "time_toronto": "2026-10-10T18:31:16.429323-04:00",
+  "qualified": true,
+  "fixed_paths": 36421,
+  "source_manifest_sha256": "ba550362e93a6abf5361c750bacc0f97c2a5240fdd73715466d18d30b3268596",
+  "source_expected_rehash_complete": true,
+  "campaigns": [
+    {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-CURRENT74-INTEGRATED-QUALIFICATION-PREPARATION-20261010-r1",
+      "receipt_sha256": "c50581a67c133a2b8b6cc8aeb8b57cb2b4df76aeff2c9a2bfb4dedf59a137be3",
+      "junit_sha256": "615167c71290fdcc0a3e7aa95a2d14cac1182a831479cccf3199d19c88a81eab",
+      "tests": 809,
+      "suites": 30,
+      "origins_unique": 4000,
+      "origins_records": 4000,
+      "exit_code": 0,
+      "wall_seconds": 98.172,
+      "peak_rss_bytes": 1682411520,
+      "PIDFD": "pidfd",
+      "owned_stopped": true,
+      "stdout_eof": true,
+      "runtime_preparation_stable": true
+    },
+    {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/CURRENT74-M1-SIX-SUITES-PREPARATION-20261010-r1",
+      "receipt_sha256": "b4f47340d78330aaa8e36d504239b9a68ec6585dfc3c85d03820d8580323f3b1",
+      "junit_sha256": "740d84ffa9013d3bf14021eee8c52b85ef87195cbe18c112287adff887ab8780",
+      "tests": 143,
+      "suites": 6,
+      "origins_unique": 3493,
+      "origins_records": 3493,
+      "exit_code": 0,
+      "wall_seconds": 44.028,
+      "peak_rss_bytes": 1785159680,
+      "PIDFD": "pidfd",
+      "owned_stopped": true,
+      "stdout_eof": true,
+      "runtime_preparation_stable": true
+    }
+  ],
+  "disjoint_suites": true,
+  "tests_total": 952,
+  "suites_total": 36,
+  "future_SourceReceiver_included": false,
+  "scope_limits": "Imports prove origins, not complete line coverage. No inheritance from historical777/565/368 totals. GlobalTSC and exactnewcommitCI separate."
+}

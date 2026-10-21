@@ -1,0 +1,15 @@
+OPSYS-CORE
+==========
+
+OPSYS-CORE est dérivé d'OpenClaw (https://github.com/openclaw/openclaw), release v2026.9.6,
+distribué sous licence MIT :
+
+    Copyright (c) 2026 OpenClaw Foundation
+
+Le texte complet de cette licence figure dans le fichier LICENSE de ce dossier et doit accompagner
+toute copie ou partie substantielle du logiciel. Les composants tiers inclus par OpenClaw sont
+listés dans THIRD_PARTY_NOTICES.md.
+
+Modifications apportées par OPSYS-AI depuis l'import : voir PROVENANCE.md et l'historique git du
+dossier core/. « OpenClaw » et ses logos sont des marques de leurs détenteurs ; OPSYS-AI n'est ni
+affilié à OpenClaw ni approuvé par OpenClaw.

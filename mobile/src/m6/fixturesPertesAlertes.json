@@ -1,0 +1,1985 @@
+{
+  "fictif": true,
+  "scope": "Python executer_atomique/SQLite ; pas HTTP/Gateway/DEVICE opaque natif",
+  "provenance": {
+    "repo": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m2-notes-20261008",
+    "head": "6f7dc1819c168ec5660dec83d4bbbe388925899b",
+    "source_sha256": {
+      "departments/m06-material-control/src/m6_material_control/pertes_appareil.py": "91542acd18213c08eefaa3a815b3d8475c08672872a3f0c0c7b07f9e3cb939e4",
+      "departments/m06-material-control/src/m6_material_control/outils.py": "7824f28089ab83a4842911193e0e63d355e71142db537319a4ebf3cd72fead5b",
+      "departments/m06-material-control/tests/test_lectures_pertes_appareil.py": "822e1e1929e12860c7e976a4d2fd8ce69098039580cb8447071856adc28495a5",
+      "departments/m06-material-control/tests/test_garde_variance_chantier.py": "cd0d34174a9074606c3c4493acbf03c29925933a09894bdcdf136ac20bd34a06",
+      "tests/test_portees_appareil.py": "fa162ccbdb2d22429655b671b70b3224d3f94eee5fd2af6d3a23516698cbb4aa",
+      "docs/architecture/ROLES.md": "b06eb6ed6dbdd8104cf1c7f410a5b5228ee6894b647aa6eb5837caeca186c88f",
+      "departments/m06-material-control/docs/LECTURES-PERTES-APPAREIL.md": "b1a3ece5eb91bf713ca9d0c3e1a48f84634a2cf2e1212f8ac537d9eaae59e841"
+    },
+    "sources_owned_inchangees": true,
+    "contrat_dto_r5_sha256": "676e04b07287a9554e9e12189fb240f0b3b0418d32a34353f3f04da6f8e3d362"
+  },
+  "captures": [
+    {
+      "phase": "liste-vide",
+      "request": {
+        "toolName": "m6_lister_wct_pertes_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wcts": [],
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 0,
+            "total": 0,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "couverture": {
+            "wcts": "recus_m6_rapproches_m4",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 284
+        }
+      },
+      "envelope": {
+        "wcts": [],
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 0,
+          "total": 0,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "couverture": {
+          "wcts": "recus_m6_rapproches_m4",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 284
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "refus-wct-inconnu",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8,
+          "wct_id": "WCT-PERTES-FICTIF"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-PERTES-WCT-INCONNU",
+            "detail": "aucune publication M4 canonique ne correspond au WCT demandé"
+          }
+        }
+      },
+      "envelope": {
+        "accepte": false,
+        "verdict": {
+          "code": "REJ-M6-PERTES-WCT-INCONNU",
+          "detail": "aucune publication M4 canonique ne correspond au WCT demandé"
+        }
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "liste-recu-certifie",
+      "request": {
+        "toolName": "m6_lister_wct_pertes_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wcts": [
+            {
+              "wct_id": "WCT-PERTES-FICTIF",
+              "intervention_id": "INT-PERTES-FICTIF",
+              "devis_id": "DEVIS-PERTES-FICTIF",
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "reference_recu": {
+                "registre": "wct_recus",
+                "rang": 0,
+                "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+              },
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-PERTES-FICTIF"
+              }
+            }
+          ],
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "couverture": {
+            "wcts": "recus_m6_rapproches_m4",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 676
+        }
+      },
+      "envelope": {
+        "wcts": [
+          {
+            "wct_id": "WCT-PERTES-FICTIF",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 0,
+              "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "WCT-PERTES-FICTIF"
+            }
+          }
+        ],
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "couverture": {
+          "wcts": "recus_m6_rapproches_m4",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 676
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "declaration-absente",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8,
+          "wct_id": "WCT-PERTES-FICTIF"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "WCT-PERTES-FICTIF",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 0,
+              "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "WCT-PERTES-FICTIF"
+            }
+          },
+          "chantier_id": null,
+          "declaration_presente": false,
+          "pertes_bris": [],
+          "historique_variance": [
+            {
+              "statut": "seuil_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "prevu_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "declaration_absente",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "evaluee",
+              "presente": false,
+              "publication": null
+            }
+          ],
+          "evaluee_terminal": false,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 0,
+            "total": 0,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "couverture": {
+            "mouvements": "PERTE_BRIS_WCT_exact",
+            "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+            "hors_corpus": [
+              "stock_courant",
+              "reapprovisionnement",
+              "couts",
+              "responsables",
+              "preuves_photos",
+              "unites_reelles",
+              "dates_perte_bris"
+            ],
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 1280
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "WCT-PERTES-FICTIF",
+          "intervention_id": "INT-PERTES-FICTIF",
+          "devis_id": "DEVIS-PERTES-FICTIF",
+          "horodatage_completion": "2026-10-08T09:00:00-04:00",
+          "reference_recu": {
+            "registre": "wct_recus",
+            "rang": 0,
+            "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+          },
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "WCT-PERTES-FICTIF"
+          }
+        },
+        "chantier_id": null,
+        "declaration_presente": false,
+        "pertes_bris": [],
+        "historique_variance": [
+          {
+            "statut": "seuil_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "prevu_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "declaration_absente",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "evaluee",
+            "presente": false,
+            "publication": null
+          }
+        ],
+        "evaluee_terminal": false,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 0,
+          "total": 0,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "couverture": {
+          "mouvements": "PERTE_BRIS_WCT_exact",
+          "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+          "hors_corpus": [
+            "stock_courant",
+            "reapprovisionnement",
+            "couts",
+            "responsables",
+            "preuves_photos",
+            "unites_reelles",
+            "dates_perte_bris"
+          ],
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 1280
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "pertes-bris",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8,
+          "wct_id": "WCT-PERTES-FICTIF"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "WCT-PERTES-FICTIF",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 0,
+              "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "WCT-PERTES-FICTIF"
+            }
+          },
+          "chantier_id": "CH-PERTES-FICTIF",
+          "declaration_presente": true,
+          "pertes_bris": [
+            {
+              "type_mouvement": "PERTE",
+              "chantier_id": "CH-PERTES-FICTIF",
+              "materiau_id": "MAT-FICTIF",
+              "quantite_signee": "-1.25",
+              "unite": null,
+              "horodatage": null,
+              "reference": {
+                "registre": "principal",
+                "index": 1,
+                "hash_maillon": "d14c94d5414b188e1cc835f9cf2501f5d5639bf22f4702eb417eabfa67bafa23"
+              }
+            },
+            {
+              "type_mouvement": "BRIS",
+              "chantier_id": "CH-PERTES-FICTIF",
+              "materiau_id": "MAT-FICTIF",
+              "quantite_signee": "-1.25",
+              "unite": null,
+              "horodatage": null,
+              "reference": {
+                "registre": "principal",
+                "index": 2,
+                "hash_maillon": "29782af7e22d69688d5bd32d336a94570609dde39a4aab61f82e0931a252768a"
+              }
+            }
+          ],
+          "historique_variance": [
+            {
+              "statut": "seuil_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "prevu_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "declaration_absente",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "evaluee",
+              "presente": false,
+              "publication": null
+            }
+          ],
+          "evaluee_terminal": false,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 2,
+            "total": 2,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "couverture": {
+            "mouvements": "PERTE_BRIS_WCT_exact",
+            "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+            "hors_corpus": [
+              "stock_courant",
+              "reapprovisionnement",
+              "couts",
+              "responsables",
+              "preuves_photos",
+              "unites_reelles",
+              "dates_perte_bris"
+            ],
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 1874
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "WCT-PERTES-FICTIF",
+          "intervention_id": "INT-PERTES-FICTIF",
+          "devis_id": "DEVIS-PERTES-FICTIF",
+          "horodatage_completion": "2026-10-08T09:00:00-04:00",
+          "reference_recu": {
+            "registre": "wct_recus",
+            "rang": 0,
+            "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+          },
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "WCT-PERTES-FICTIF"
+          }
+        },
+        "chantier_id": "CH-PERTES-FICTIF",
+        "declaration_presente": true,
+        "pertes_bris": [
+          {
+            "type_mouvement": "PERTE",
+            "chantier_id": "CH-PERTES-FICTIF",
+            "materiau_id": "MAT-FICTIF",
+            "quantite_signee": "-1.25",
+            "unite": null,
+            "horodatage": null,
+            "reference": {
+              "registre": "principal",
+              "index": 1,
+              "hash_maillon": "d14c94d5414b188e1cc835f9cf2501f5d5639bf22f4702eb417eabfa67bafa23"
+            }
+          },
+          {
+            "type_mouvement": "BRIS",
+            "chantier_id": "CH-PERTES-FICTIF",
+            "materiau_id": "MAT-FICTIF",
+            "quantite_signee": "-1.25",
+            "unite": null,
+            "horodatage": null,
+            "reference": {
+              "registre": "principal",
+              "index": 2,
+              "hash_maillon": "29782af7e22d69688d5bd32d336a94570609dde39a4aab61f82e0931a252768a"
+            }
+          }
+        ],
+        "historique_variance": [
+          {
+            "statut": "seuil_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "prevu_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "declaration_absente",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "evaluee",
+            "presente": false,
+            "publication": null
+          }
+        ],
+        "evaluee_terminal": false,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 2,
+          "total": 2,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "couverture": {
+          "mouvements": "PERTE_BRIS_WCT_exact",
+          "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+          "hors_corpus": [
+            "stock_courant",
+            "reapprovisionnement",
+            "couts",
+            "responsables",
+            "preuves_photos",
+            "unites_reelles",
+            "dates_perte_bris"
+          ],
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 1874
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "page-premiere",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 1,
+          "wct_id": "WCT-PERTES-FICTIF"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "WCT-PERTES-FICTIF",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 0,
+              "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "WCT-PERTES-FICTIF"
+            }
+          },
+          "chantier_id": "CH-PERTES-FICTIF",
+          "declaration_presente": true,
+          "pertes_bris": [
+            {
+              "type_mouvement": "PERTE",
+              "chantier_id": "CH-PERTES-FICTIF",
+              "materiau_id": "MAT-FICTIF",
+              "quantite_signee": "-1.25",
+              "unite": null,
+              "horodatage": null,
+              "reference": {
+                "registre": "principal",
+                "index": 1,
+                "hash_maillon": "d14c94d5414b188e1cc835f9cf2501f5d5639bf22f4702eb417eabfa67bafa23"
+              }
+            }
+          ],
+          "historique_variance": [
+            {
+              "statut": "seuil_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "prevu_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "declaration_absente",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "evaluee",
+              "presente": false,
+              "publication": null
+            }
+          ],
+          "evaluee_terminal": false,
+          "pagination": {
+            "decalage": 0,
+            "limite": 1,
+            "affichees": 1,
+            "total": 2,
+            "suivant": 1,
+            "reste": 1,
+            "courante": true
+          },
+          "couverture": {
+            "mouvements": "PERTE_BRIS_WCT_exact",
+            "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+            "hors_corpus": [
+              "stock_courant",
+              "reapprovisionnement",
+              "couts",
+              "responsables",
+              "preuves_photos",
+              "unites_reelles",
+              "dates_perte_bris"
+            ],
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 1580
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "WCT-PERTES-FICTIF",
+          "intervention_id": "INT-PERTES-FICTIF",
+          "devis_id": "DEVIS-PERTES-FICTIF",
+          "horodatage_completion": "2026-10-08T09:00:00-04:00",
+          "reference_recu": {
+            "registre": "wct_recus",
+            "rang": 0,
+            "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+          },
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "WCT-PERTES-FICTIF"
+          }
+        },
+        "chantier_id": "CH-PERTES-FICTIF",
+        "declaration_presente": true,
+        "pertes_bris": [
+          {
+            "type_mouvement": "PERTE",
+            "chantier_id": "CH-PERTES-FICTIF",
+            "materiau_id": "MAT-FICTIF",
+            "quantite_signee": "-1.25",
+            "unite": null,
+            "horodatage": null,
+            "reference": {
+              "registre": "principal",
+              "index": 1,
+              "hash_maillon": "d14c94d5414b188e1cc835f9cf2501f5d5639bf22f4702eb417eabfa67bafa23"
+            }
+          }
+        ],
+        "historique_variance": [
+          {
+            "statut": "seuil_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "prevu_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "declaration_absente",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "evaluee",
+            "presente": false,
+            "publication": null
+          }
+        ],
+        "evaluee_terminal": false,
+        "pagination": {
+          "decalage": 0,
+          "limite": 1,
+          "affichees": 1,
+          "total": 2,
+          "suivant": 1,
+          "reste": 1,
+          "courante": true
+        },
+        "couverture": {
+          "mouvements": "PERTE_BRIS_WCT_exact",
+          "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+          "hors_corpus": [
+            "stock_courant",
+            "reapprovisionnement",
+            "couts",
+            "responsables",
+            "preuves_photos",
+            "unites_reelles",
+            "dates_perte_bris"
+          ],
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 1580
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "page-suivante",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 1,
+          "limite": 1,
+          "wct_id": "WCT-PERTES-FICTIF"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "WCT-PERTES-FICTIF",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 0,
+              "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "WCT-PERTES-FICTIF"
+            }
+          },
+          "chantier_id": "CH-PERTES-FICTIF",
+          "declaration_presente": true,
+          "pertes_bris": [
+            {
+              "type_mouvement": "BRIS",
+              "chantier_id": "CH-PERTES-FICTIF",
+              "materiau_id": "MAT-FICTIF",
+              "quantite_signee": "-1.25",
+              "unite": null,
+              "horodatage": null,
+              "reference": {
+                "registre": "principal",
+                "index": 2,
+                "hash_maillon": "29782af7e22d69688d5bd32d336a94570609dde39a4aab61f82e0931a252768a"
+              }
+            }
+          ],
+          "historique_variance": [
+            {
+              "statut": "seuil_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "prevu_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "declaration_absente",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "evaluee",
+              "presente": false,
+              "publication": null
+            }
+          ],
+          "evaluee_terminal": false,
+          "pagination": {
+            "decalage": 1,
+            "limite": 1,
+            "affichees": 1,
+            "total": 2,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "couverture": {
+            "mouvements": "PERTE_BRIS_WCT_exact",
+            "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+            "hors_corpus": [
+              "stock_courant",
+              "reapprovisionnement",
+              "couts",
+              "responsables",
+              "preuves_photos",
+              "unites_reelles",
+              "dates_perte_bris"
+            ],
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 1582
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "WCT-PERTES-FICTIF",
+          "intervention_id": "INT-PERTES-FICTIF",
+          "devis_id": "DEVIS-PERTES-FICTIF",
+          "horodatage_completion": "2026-10-08T09:00:00-04:00",
+          "reference_recu": {
+            "registre": "wct_recus",
+            "rang": 0,
+            "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+          },
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "WCT-PERTES-FICTIF"
+          }
+        },
+        "chantier_id": "CH-PERTES-FICTIF",
+        "declaration_presente": true,
+        "pertes_bris": [
+          {
+            "type_mouvement": "BRIS",
+            "chantier_id": "CH-PERTES-FICTIF",
+            "materiau_id": "MAT-FICTIF",
+            "quantite_signee": "-1.25",
+            "unite": null,
+            "horodatage": null,
+            "reference": {
+              "registre": "principal",
+              "index": 2,
+              "hash_maillon": "29782af7e22d69688d5bd32d336a94570609dde39a4aab61f82e0931a252768a"
+            }
+          }
+        ],
+        "historique_variance": [
+          {
+            "statut": "seuil_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "prevu_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "declaration_absente",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "evaluee",
+            "presente": false,
+            "publication": null
+          }
+        ],
+        "evaluee_terminal": false,
+        "pagination": {
+          "decalage": 1,
+          "limite": 1,
+          "affichees": 1,
+          "total": 2,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "couverture": {
+          "mouvements": "PERTE_BRIS_WCT_exact",
+          "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+          "hors_corpus": [
+            "stock_courant",
+            "reapprovisionnement",
+            "couts",
+            "responsables",
+            "preuves_photos",
+            "unites_reelles",
+            "dates_perte_bris"
+          ],
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 1582
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "historique-quatre-statuts",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8,
+          "wct_id": "WCT-PERTES-FICTIF"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "WCT-PERTES-FICTIF",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 0,
+              "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "WCT-PERTES-FICTIF"
+            }
+          },
+          "chantier_id": "CH-PERTES-FICTIF",
+          "declaration_presente": true,
+          "pertes_bris": [
+            {
+              "type_mouvement": "PERTE",
+              "chantier_id": "CH-PERTES-FICTIF",
+              "materiau_id": "MAT-FICTIF",
+              "quantite_signee": "-1.25",
+              "unite": null,
+              "horodatage": null,
+              "reference": {
+                "registre": "principal",
+                "index": 1,
+                "hash_maillon": "d14c94d5414b188e1cc835f9cf2501f5d5639bf22f4702eb417eabfa67bafa23"
+              }
+            },
+            {
+              "type_mouvement": "BRIS",
+              "chantier_id": "CH-PERTES-FICTIF",
+              "materiau_id": "MAT-FICTIF",
+              "quantite_signee": "-1.25",
+              "unite": null,
+              "horodatage": null,
+              "reference": {
+                "registre": "principal",
+                "index": 2,
+                "hash_maillon": "29782af7e22d69688d5bd32d336a94570609dde39a4aab61f82e0931a252768a"
+              }
+            }
+          ],
+          "historique_variance": [
+            {
+              "statut": "seuil_absent",
+              "presente": true,
+              "publication": {
+                "reference_bus": {
+                  "type": "m6.variance_chantier",
+                  "evenement_id": "m6-variance-WCT-PERTES-FICTIF-seuil_absent"
+                },
+                "chantier_id": "CH-PERTES-FICTIF",
+                "signal_critique": null,
+                "seuil_pourcentage": null,
+                "horodatage_completion": "2026-10-08T09:00:00-04:00",
+                "horodatage_publication": null
+              }
+            },
+            {
+              "statut": "prevu_absent",
+              "presente": true,
+              "publication": {
+                "reference_bus": {
+                  "type": "m6.variance_chantier",
+                  "evenement_id": "m6-variance-WCT-PERTES-FICTIF-prevu_absent"
+                },
+                "chantier_id": "CH-PERTES-FICTIF",
+                "signal_critique": null,
+                "seuil_pourcentage": 0.3,
+                "horodatage_completion": "2026-10-08T09:00:00-04:00",
+                "horodatage_publication": null
+              }
+            },
+            {
+              "statut": "declaration_absente",
+              "presente": true,
+              "publication": {
+                "reference_bus": {
+                  "type": "m6.variance_chantier",
+                  "evenement_id": "m6-variance-WCT-PERTES-FICTIF-declaration_absente"
+                },
+                "chantier_id": "CH-PERTES-FICTIF",
+                "signal_critique": null,
+                "seuil_pourcentage": 0.3,
+                "horodatage_completion": "2026-10-08T09:00:00-04:00",
+                "horodatage_publication": null
+              }
+            },
+            {
+              "statut": "evaluee",
+              "presente": true,
+              "publication": {
+                "reference_bus": {
+                  "type": "m6.variance_chantier",
+                  "evenement_id": "m6-variance-WCT-PERTES-FICTIF-evaluee"
+                },
+                "chantier_id": "CH-PERTES-FICTIF",
+                "signal_critique": false,
+                "seuil_pourcentage": 0.3,
+                "horodatage_completion": "2026-10-08T09:00:00-04:00",
+                "horodatage_publication": null
+              }
+            }
+          ],
+          "evaluee_terminal": true,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 2,
+            "total": 2,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "couverture": {
+            "mouvements": "PERTE_BRIS_WCT_exact",
+            "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+            "hors_corpus": [
+              "stock_courant",
+              "reapprovisionnement",
+              "couts",
+              "responsables",
+              "preuves_photos",
+              "unites_reelles",
+              "dates_perte_bris"
+            ],
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 2997
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "WCT-PERTES-FICTIF",
+          "intervention_id": "INT-PERTES-FICTIF",
+          "devis_id": "DEVIS-PERTES-FICTIF",
+          "horodatage_completion": "2026-10-08T09:00:00-04:00",
+          "reference_recu": {
+            "registre": "wct_recus",
+            "rang": 0,
+            "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+          },
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "WCT-PERTES-FICTIF"
+          }
+        },
+        "chantier_id": "CH-PERTES-FICTIF",
+        "declaration_presente": true,
+        "pertes_bris": [
+          {
+            "type_mouvement": "PERTE",
+            "chantier_id": "CH-PERTES-FICTIF",
+            "materiau_id": "MAT-FICTIF",
+            "quantite_signee": "-1.25",
+            "unite": null,
+            "horodatage": null,
+            "reference": {
+              "registre": "principal",
+              "index": 1,
+              "hash_maillon": "d14c94d5414b188e1cc835f9cf2501f5d5639bf22f4702eb417eabfa67bafa23"
+            }
+          },
+          {
+            "type_mouvement": "BRIS",
+            "chantier_id": "CH-PERTES-FICTIF",
+            "materiau_id": "MAT-FICTIF",
+            "quantite_signee": "-1.25",
+            "unite": null,
+            "horodatage": null,
+            "reference": {
+              "registre": "principal",
+              "index": 2,
+              "hash_maillon": "29782af7e22d69688d5bd32d336a94570609dde39a4aab61f82e0931a252768a"
+            }
+          }
+        ],
+        "historique_variance": [
+          {
+            "statut": "seuil_absent",
+            "presente": true,
+            "publication": {
+              "reference_bus": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-WCT-PERTES-FICTIF-seuil_absent"
+              },
+              "chantier_id": "CH-PERTES-FICTIF",
+              "signal_critique": null,
+              "seuil_pourcentage": null,
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "horodatage_publication": null
+            }
+          },
+          {
+            "statut": "prevu_absent",
+            "presente": true,
+            "publication": {
+              "reference_bus": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-WCT-PERTES-FICTIF-prevu_absent"
+              },
+              "chantier_id": "CH-PERTES-FICTIF",
+              "signal_critique": null,
+              "seuil_pourcentage": 0.3,
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "horodatage_publication": null
+            }
+          },
+          {
+            "statut": "declaration_absente",
+            "presente": true,
+            "publication": {
+              "reference_bus": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-WCT-PERTES-FICTIF-declaration_absente"
+              },
+              "chantier_id": "CH-PERTES-FICTIF",
+              "signal_critique": null,
+              "seuil_pourcentage": 0.3,
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "horodatage_publication": null
+            }
+          },
+          {
+            "statut": "evaluee",
+            "presente": true,
+            "publication": {
+              "reference_bus": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-WCT-PERTES-FICTIF-evaluee"
+              },
+              "chantier_id": "CH-PERTES-FICTIF",
+              "signal_critique": false,
+              "seuil_pourcentage": 0.3,
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "horodatage_publication": null
+            }
+          }
+        ],
+        "evaluee_terminal": true,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 2,
+          "total": 2,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "couverture": {
+          "mouvements": "PERTE_BRIS_WCT_exact",
+          "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+          "hors_corpus": [
+            "stock_courant",
+            "reapprovisionnement",
+            "couts",
+            "responsables",
+            "preuves_photos",
+            "unites_reelles",
+            "dates_perte_bris"
+          ],
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 2997
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "offset-hors-total",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 10000,
+          "limite": 8,
+          "wct_id": "WCT-PERTES-FICTIF"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "WCT-PERTES-FICTIF",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 0,
+              "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "WCT-PERTES-FICTIF"
+            }
+          },
+          "chantier_id": "CH-PERTES-FICTIF",
+          "declaration_presente": true,
+          "pertes_bris": [],
+          "historique_variance": [
+            {
+              "statut": "seuil_absent",
+              "presente": true,
+              "publication": {
+                "reference_bus": {
+                  "type": "m6.variance_chantier",
+                  "evenement_id": "m6-variance-WCT-PERTES-FICTIF-seuil_absent"
+                },
+                "chantier_id": "CH-PERTES-FICTIF",
+                "signal_critique": null,
+                "seuil_pourcentage": null,
+                "horodatage_completion": "2026-10-08T09:00:00-04:00",
+                "horodatage_publication": null
+              }
+            },
+            {
+              "statut": "prevu_absent",
+              "presente": true,
+              "publication": {
+                "reference_bus": {
+                  "type": "m6.variance_chantier",
+                  "evenement_id": "m6-variance-WCT-PERTES-FICTIF-prevu_absent"
+                },
+                "chantier_id": "CH-PERTES-FICTIF",
+                "signal_critique": null,
+                "seuil_pourcentage": 0.3,
+                "horodatage_completion": "2026-10-08T09:00:00-04:00",
+                "horodatage_publication": null
+              }
+            },
+            {
+              "statut": "declaration_absente",
+              "presente": true,
+              "publication": {
+                "reference_bus": {
+                  "type": "m6.variance_chantier",
+                  "evenement_id": "m6-variance-WCT-PERTES-FICTIF-declaration_absente"
+                },
+                "chantier_id": "CH-PERTES-FICTIF",
+                "signal_critique": null,
+                "seuil_pourcentage": 0.3,
+                "horodatage_completion": "2026-10-08T09:00:00-04:00",
+                "horodatage_publication": null
+              }
+            },
+            {
+              "statut": "evaluee",
+              "presente": true,
+              "publication": {
+                "reference_bus": {
+                  "type": "m6.variance_chantier",
+                  "evenement_id": "m6-variance-WCT-PERTES-FICTIF-evaluee"
+                },
+                "chantier_id": "CH-PERTES-FICTIF",
+                "signal_critique": false,
+                "seuil_pourcentage": 0.3,
+                "horodatage_completion": "2026-10-08T09:00:00-04:00",
+                "horodatage_publication": null
+              }
+            }
+          ],
+          "evaluee_terminal": true,
+          "pagination": {
+            "decalage": 10000,
+            "limite": 8,
+            "affichees": 0,
+            "total": 2,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "couverture": {
+            "mouvements": "PERTE_BRIS_WCT_exact",
+            "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+            "hors_corpus": [
+              "stock_courant",
+              "reapprovisionnement",
+              "couts",
+              "responsables",
+              "preuves_photos",
+              "unites_reelles",
+              "dates_perte_bris"
+            ],
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 2420
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "WCT-PERTES-FICTIF",
+          "intervention_id": "INT-PERTES-FICTIF",
+          "devis_id": "DEVIS-PERTES-FICTIF",
+          "horodatage_completion": "2026-10-08T09:00:00-04:00",
+          "reference_recu": {
+            "registre": "wct_recus",
+            "rang": 0,
+            "empreinte_contenu": "6476c7049fe14e1a3fc5661bc705e56a83c3337098bb97dfa4fa8006195867fc"
+          },
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "WCT-PERTES-FICTIF"
+          }
+        },
+        "chantier_id": "CH-PERTES-FICTIF",
+        "declaration_presente": true,
+        "pertes_bris": [],
+        "historique_variance": [
+          {
+            "statut": "seuil_absent",
+            "presente": true,
+            "publication": {
+              "reference_bus": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-WCT-PERTES-FICTIF-seuil_absent"
+              },
+              "chantier_id": "CH-PERTES-FICTIF",
+              "signal_critique": null,
+              "seuil_pourcentage": null,
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "horodatage_publication": null
+            }
+          },
+          {
+            "statut": "prevu_absent",
+            "presente": true,
+            "publication": {
+              "reference_bus": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-WCT-PERTES-FICTIF-prevu_absent"
+              },
+              "chantier_id": "CH-PERTES-FICTIF",
+              "signal_critique": null,
+              "seuil_pourcentage": 0.3,
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "horodatage_publication": null
+            }
+          },
+          {
+            "statut": "declaration_absente",
+            "presente": true,
+            "publication": {
+              "reference_bus": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-WCT-PERTES-FICTIF-declaration_absente"
+              },
+              "chantier_id": "CH-PERTES-FICTIF",
+              "signal_critique": null,
+              "seuil_pourcentage": 0.3,
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "horodatage_publication": null
+            }
+          },
+          {
+            "statut": "evaluee",
+            "presente": true,
+            "publication": {
+              "reference_bus": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-WCT-PERTES-FICTIF-evaluee"
+              },
+              "chantier_id": "CH-PERTES-FICTIF",
+              "signal_critique": false,
+              "seuil_pourcentage": 0.3,
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "horodatage_publication": null
+            }
+          }
+        ],
+        "evaluee_terminal": true,
+        "pagination": {
+          "decalage": 10000,
+          "limite": 8,
+          "affichees": 0,
+          "total": 2,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "couverture": {
+          "mouvements": "PERTE_BRIS_WCT_exact",
+          "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+          "hors_corpus": [
+            "stock_courant",
+            "reapprovisionnement",
+            "couts",
+            "responsables",
+            "preuves_photos",
+            "unites_reelles",
+            "dates_perte_bris"
+          ],
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 2420
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "refus-limite",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 9,
+          "wct_id": "WCT-PERTES-FICTIF"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-PERTES-ARGUMENTS-INVALIDES",
+            "detail": "les arguments sortent du contrat de lecture M6 appareil"
+          }
+        }
+      },
+      "envelope": {
+        "accepte": false,
+        "verdict": {
+          "code": "REJ-M6-PERTES-ARGUMENTS-INVALIDES",
+          "detail": "les arguments sortent du contrat de lecture M6 appareil"
+        }
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "wct256-refvariance300",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8,
+          "wct_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 1,
+              "empreinte_contenu": "b857ad344a04d393c5a9d7eaf85f21e756442bb621196ad26f379a8d560451a5"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+            }
+          },
+          "chantier_id": "CH-PERTES-FICTIF",
+          "declaration_presente": true,
+          "pertes_bris": [],
+          "historique_variance": [
+            {
+              "statut": "seuil_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "prevu_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "declaration_absente",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "evaluee",
+              "presente": true,
+              "publication": {
+                "reference_bus": {
+                  "type": "m6.variance_chantier",
+                  "evenement_id": "m6-variance-WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-evaluee"
+                },
+                "chantier_id": "CH-PERTES-FICTIF",
+                "signal_critique": false,
+                "seuil_pourcentage": 0.3,
+                "horodatage_completion": "2026-10-08T09:00:00-04:00",
+                "horodatage_publication": null
+              }
+            }
+          ],
+          "evaluee_terminal": true,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 0,
+            "total": 0,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "couverture": {
+            "mouvements": "PERTE_BRIS_WCT_exact",
+            "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+            "hors_corpus": [
+              "stock_courant",
+              "reapprovisionnement",
+              "couts",
+              "responsables",
+              "preuves_photos",
+              "unites_reelles",
+              "dates_perte_bris"
+            ],
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 2285
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+          "intervention_id": "INT-PERTES-FICTIF",
+          "devis_id": "DEVIS-PERTES-FICTIF",
+          "horodatage_completion": "2026-10-08T09:00:00-04:00",
+          "reference_recu": {
+            "registre": "wct_recus",
+            "rang": 1,
+            "empreinte_contenu": "b857ad344a04d393c5a9d7eaf85f21e756442bb621196ad26f379a8d560451a5"
+          },
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+          }
+        },
+        "chantier_id": "CH-PERTES-FICTIF",
+        "declaration_presente": true,
+        "pertes_bris": [],
+        "historique_variance": [
+          {
+            "statut": "seuil_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "prevu_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "declaration_absente",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "evaluee",
+            "presente": true,
+            "publication": {
+              "reference_bus": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-evaluee"
+              },
+              "chantier_id": "CH-PERTES-FICTIF",
+              "signal_critique": false,
+              "seuil_pourcentage": 0.3,
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "horodatage_publication": null
+            }
+          }
+        ],
+        "evaluee_terminal": true,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 0,
+          "total": 0,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "couverture": {
+          "mouvements": "PERTE_BRIS_WCT_exact",
+          "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+          "hors_corpus": [
+            "stock_courant",
+            "reapprovisionnement",
+            "couts",
+            "responsables",
+            "preuves_photos",
+            "unites_reelles",
+            "dates_perte_bris"
+          ],
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 2285
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "liste-page-courante",
+      "request": {
+        "toolName": "m6_lister_wct_pertes_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 1
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wcts": [
+            {
+              "wct_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "intervention_id": "INT-PERTES-FICTIF",
+              "devis_id": "DEVIS-PERTES-FICTIF",
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "reference_recu": {
+                "registre": "wct_recus",
+                "rang": 1,
+                "empreinte_contenu": "b857ad344a04d393c5a9d7eaf85f21e756442bb621196ad26f379a8d560451a5"
+              },
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+              }
+            }
+          ],
+          "pagination": {
+            "decalage": 0,
+            "limite": 1,
+            "affichees": 1,
+            "total": 2,
+            "suivant": 1,
+            "reste": 1,
+            "courante": true
+          },
+          "couverture": {
+            "wcts": "recus_m6_rapproches_m4",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 1152
+        }
+      },
+      "envelope": {
+        "wcts": [
+          {
+            "wct_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 1,
+              "empreinte_contenu": "b857ad344a04d393c5a9d7eaf85f21e756442bb621196ad26f379a8d560451a5"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+            }
+          }
+        ],
+        "pagination": {
+          "decalage": 0,
+          "limite": 1,
+          "affichees": 1,
+          "total": 2,
+          "suivant": 1,
+          "reste": 1,
+          "courante": true
+        },
+        "couverture": {
+          "wcts": "recus_m6_rapproches_m4",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 1152
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "id-feff-verbatim",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8,
+          "wct_id": "﻿"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "﻿",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 2,
+              "empreinte_contenu": "d05fdbae4dacd5b07b3ca7ce4ea093c40ad7be6fea793cec7e0edc3102239fa4"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "﻿"
+            }
+          },
+          "chantier_id": null,
+          "declaration_presente": false,
+          "pertes_bris": [],
+          "historique_variance": [
+            {
+              "statut": "seuil_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "prevu_absent",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "declaration_absente",
+              "presente": false,
+              "publication": null
+            },
+            {
+              "statut": "evaluee",
+              "presente": false,
+              "publication": null
+            }
+          ],
+          "evaluee_terminal": false,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 0,
+            "total": 0,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "couverture": {
+            "mouvements": "PERTE_BRIS_WCT_exact",
+            "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+            "hors_corpus": [
+              "stock_courant",
+              "reapprovisionnement",
+              "couts",
+              "responsables",
+              "preuves_photos",
+              "unites_reelles",
+              "dates_perte_bris"
+            ],
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 1248
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "﻿",
+          "intervention_id": "INT-PERTES-FICTIF",
+          "devis_id": "DEVIS-PERTES-FICTIF",
+          "horodatage_completion": "2026-10-08T09:00:00-04:00",
+          "reference_recu": {
+            "registre": "wct_recus",
+            "rang": 2,
+            "empreinte_contenu": "d05fdbae4dacd5b07b3ca7ce4ea093c40ad7be6fea793cec7e0edc3102239fa4"
+          },
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "﻿"
+          }
+        },
+        "chantier_id": null,
+        "declaration_presente": false,
+        "pertes_bris": [],
+        "historique_variance": [
+          {
+            "statut": "seuil_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "prevu_absent",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "declaration_absente",
+            "presente": false,
+            "publication": null
+          },
+          {
+            "statut": "evaluee",
+            "presente": false,
+            "publication": null
+          }
+        ],
+        "evaluee_terminal": false,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 0,
+          "total": 0,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "couverture": {
+          "mouvements": "PERTE_BRIS_WCT_exact",
+          "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+          "hors_corpus": [
+            "stock_courant",
+            "reapprovisionnement",
+            "couts",
+            "responsables",
+            "preuves_photos",
+            "unites_reelles",
+            "dates_perte_bris"
+          ],
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 1248
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "liste-feff-verbatim",
+      "request": {
+        "toolName": "m6_lister_wct_pertes_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 1
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wcts": [
+            {
+              "wct_id": "﻿",
+              "intervention_id": "INT-PERTES-FICTIF",
+              "devis_id": "DEVIS-PERTES-FICTIF",
+              "horodatage_completion": "2026-10-08T09:00:00-04:00",
+              "reference_recu": {
+                "registre": "wct_recus",
+                "rang": 2,
+                "empreinte_contenu": "d05fdbae4dacd5b07b3ca7ce4ea093c40ad7be6fea793cec7e0edc3102239fa4"
+              },
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "﻿"
+              }
+            }
+          ],
+          "pagination": {
+            "decalage": 0,
+            "limite": 1,
+            "affichees": 1,
+            "total": 3,
+            "suivant": 1,
+            "reste": 2,
+            "courante": true
+          },
+          "couverture": {
+            "wcts": "recus_m6_rapproches_m4",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "taille_caracteres": 641
+        }
+      },
+      "envelope": {
+        "wcts": [
+          {
+            "wct_id": "﻿",
+            "intervention_id": "INT-PERTES-FICTIF",
+            "devis_id": "DEVIS-PERTES-FICTIF",
+            "horodatage_completion": "2026-10-08T09:00:00-04:00",
+            "reference_recu": {
+              "registre": "wct_recus",
+              "rang": 2,
+              "empreinte_contenu": "d05fdbae4dacd5b07b3ca7ce4ea093c40ad7be6fea793cec7e0edc3102239fa4"
+            },
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "﻿"
+            }
+          }
+        ],
+        "pagination": {
+          "decalage": 0,
+          "limite": 1,
+          "affichees": 1,
+          "total": 3,
+          "suivant": 1,
+          "reste": 2,
+          "courante": true
+        },
+        "couverture": {
+          "wcts": "recus_m6_rapproches_m4",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "taille_caracteres": 641
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "refus-seuil-WCT-SEUIL-53-FICTIF",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8,
+          "wct_id": "WCT-SEUIL-53-FICTIF"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-PERTES-SOURCE-INVALIDE",
+            "detail": "une publication ou une source reçue ne satisfait pas le contrat"
+          }
+        }
+      },
+      "envelope": {
+        "accepte": false,
+        "verdict": {
+          "code": "REJ-M6-PERTES-SOURCE-INVALIDE",
+          "detail": "une publication ou une source reçue ne satisfait pas le contrat"
+        }
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "refus-seuil-WCT-SEUIL-20-FICTIF",
+      "request": {
+        "toolName": "m6_lire_pertes_alertes_wct_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8,
+          "wct_id": "WCT-SEUIL-20-FICTIF"
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-PERTES-SOURCE-INVALIDE",
+            "detail": "une publication ou une source reçue ne satisfait pas le contrat"
+          }
+        }
+      },
+      "envelope": {
+        "accepte": false,
+        "verdict": {
+          "code": "REJ-M6-PERTES-SOURCE-INVALIDE",
+          "detail": "une publication ou une source reçue ne satisfait pas le contrat"
+        }
+      },
+      "tables_integrales_inchangees": 49
+    }
+  ]
+}

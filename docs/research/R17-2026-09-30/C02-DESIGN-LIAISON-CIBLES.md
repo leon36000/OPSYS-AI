@@ -1,0 +1,66 @@
+# C02 — conception de la liaison atomique des cibles
+
+**Proposition à revoir avant implémentation.** Elle complète l’inventaire [C02-LIAISON-CIBLES-RESTANTES](C02-LIAISON-CIBLES-RESTANTES.md). Audit statique du code de la branche locale, sans exécuter de test, changer de source, ni accéder à une instance distante.
+
+## Périmètre proposé
+
+Réduire le blocage C02 seulement pour les mutations unitaires M2 résolues par `lead_id` et les mutations M3 résolues par `devis_id`; ajouter une révocation humaine de liaison de session M10. Garder les imports/créations dont plusieurs IDs doivent concorder, les actions à double cible, les batchs, les agrégats et les autres cibles à l’état inconnu/bloqué.
+
+| Type | Outils inclus | Correspondance attendue |
+|---|---|---|
+| M2, lead unique | `m2_transitionner_statut`, `m2_reassigner_lead`, `m2_enregistrer_interaction`, `m2_preparer_relance`, `m2_enregistrer_consentement_contact`, `m2_marquer_chantier_termine` | `lead_id` exact → lead M2 connu → affaire M10 de type lead avec le même ID. |
+| M3, devis unique | `m3_marquer_devis_accepte`, `m3_demander_envoi_devis` | `devis_id` → état courant M3 du devis → `lead_id` et, s’il existe, chantier provenant de ce record → lead M2 canonique → affaire M10 correspondante. Pour une affaire-opportunité, n’accepter que son lien canonique explicite au WCT; ne jamais comparer le préfixe du lead seul. |
+| M10, révocation | nouvelle commande humaine dédiée à la liaison courante | Tombstone append-only qui vise la session et le `ligne_id` d’association courant attendus; un changement intervenu entre lecture et révocation produit un refus sans écriture. |
+
+`m2_ingerer_lead` crée le dossier; `m2_signaler_doublon` possède deux leads; `m2_arbitrer_doublon` résout un signalement indirect; `m2_republier_assignations` est batch; ils restent bloqués. `m3_creer_devis` exige que `lead_id` et `chantier_id` concordent et reste bloqué. La détection M3 multi-devis et tous les outils hors liste restent bloqués. `m3_estimer_projet` conserve sa liaison directe déjà présente.
+
+## Chemin d’appel observé et contraintes
+
+1. Le contexte est assemblé par `OpsysContextEngine` au début du tour. Pour les agents configurés en mode session, le core demande l’affaire courante via `m10_affaire_de_la_session`; puis il demande le paquet par la voie `/mcp/contexte/<agent>`. Cette voie fixe le département d’origine par la route et utilise le secret dédié (les profils d’agent sont ramenés à leur département dans l’URL), refuse le jeton MCP public et n’expose actuellement que `m10_paquet_contexte_affaire` (`core/src/context-engine/opsys-contexte-engine.ts`, `src/opsys/openclaw.py`, `src/opsys/serveur_mcp.py`). Le garde en mémoire de session le résultat du preflight pour `before_tool_call`.
+2. `runBeforeToolCallHook` est asynchrone, mais `checkOpsysContexteToolCall` est actuellement une décision synchrone sur cette mémoire; le hook reçoit l’agent, la clé de session, l’outil et les arguments proposés. Il revérifie aussi les paramètres ajustés par les politiques avant de laisser passer (`core/src/agents/agent-tools.before-tool-call.policy.ts`). Aujourd’hui, il vérifie les liens de cible directs uniquement; le lookup du contexte n’est pas une autorisation persistante attachée à l’exécution.
+3. L’outil part ensuite au serveur MCP ordinaire du département. Le serveur fixe son origine de département depuis `/mcp/<id>`, lit `_meta` pour idempotence/identité d’appareil, puis `Capacites` applique budget/approbation et `executer_atomique` ouvre la transaction des registres métier (`core/src/agents/agent-bundle-mcp-runtime.ts`, `src/opsys/serveur_mcp.py`, `src/opsys/capacites.py`, `src/opsys/outils.py`). L’identité d’appareil est déjà un exemple de données hors arguments modèle; elle ne porte toutefois pas l’agent/session du tour.
+
+Les faits persistants M2, M3 et M10 sont des maillons durables lus dans la transaction courante (`m2_revenue_crm.outils._obtenir_registre`, `m3_estimation.outils.registre_devis_production`, registres M10). La ligne d’acceptation M3, le changement de devis et l’événement M3 sont écrits dans la même transaction; le répartiteur M2 valide ensuite le `devis_id` et `lead_id` reçus, refuse un lead absent ou incompatible et ne convertit pas un lead qualifié par un autre devis (`m3_estimation/devis_durable.py`, `m3_estimation/outils.py`, `m2_revenue_crm/outils.py`). Ce sont les résolveurs et registres à réutiliser, pas une seconde base.
+
+## Comparaison des points de contrôle
+
+| Option | Avantage | Limite qui empêche une fermeture à elle seule |
+|---|---|---|
+| **Résolution privée Core → Python au preflight** | Réutilise `contextServers`, le jeton privé, le serveur lié à l’origine et le hook asynchrone; peut lire M10/M2/M3 sans ajouter de champ d’autorité aux arguments visibles du modèle. Bon point de refus anticipé et de diagnostic. | Entre la lecture et l’écriture, un lead, un devis ou la liaison de session peut changer (TOCTOU). L’ID accepté par le garde est une photographie en mémoire, pas la relation validée au moment de muter. Ajouter seulement une lecture M10 ne suffit pas non plus à vérifier M2/M3, qui sont les sources de ces relations. Ne pas la compter comme preuve finale d’autorisation. |
+| **Validation au dispatcher, dans la transaction métier** | Le résolveur relit les registres canoniques immédiatement avant l’écriture; vérifie dans le même point de sauvegarde affaire active, références croisées et signalement de révocation. Pas de fenêtre TOCTOU entre le check et l’écriture. Réutilise le stockage transactionnel déjà commun. | Python ne reçoit actuellement ni la clé de session du core, ni une assertion d’affaire liée au tour. La route MCP fixe le département, pas la session. Il faut donc un petit contexte d’exécution authentifié hors arguments modèle, transmis par la voie MCP et vérifié par le serveur. Il faut aussi couvrir l’approbation différée et les rejeux. |
+
+## Direction recommandée
+
+Faire de la résolution transactionnelle Python l’autorité finale; garder éventuellement un appel privé au preflight comme refus rapide, jamais comme preuve suffisante. Introduire un **contexte d’exécution privé**, absent du JSON d’arguments outil : le hook core, après l’évaluation du contexte courant, lie une assertion à l’agent, à la session, à l’affaire exacte, au nom de l’outil, à l’empreinte des arguments finaux et à un identifiant/rejeu de l’appel. Le transport la transmet dans `_meta` ou un contexte équivalent géré par l’adaptateur, jamais depuis les arguments générés par le modèle. Le service MCP vérifie son origine/intégrité avant de fixer un contexte d’appel Python.
+
+Le dispatcher consomme ce contexte et, dans la transaction de mutation, relit le lien session-affaire courant dans M10 (pour les agents `affaire: session`), puis les registres M2/M3. Il compare les résolutions exactes, vérifie toutes les relations incluses dans le record cible, et appelle l’outil seulement si tout concorde. Une session liée par la requête (`affaire: demande`) conserve sa provenance Core vérifiée; un texte client ne peut pas fournir cette assertion. Un contexte absent, mal signé, lié à d’autres arguments/outils/agent, périmé, déjà consommé ou dont le lien a été révoqué refuse sans écriture. Il ne contient pas de champ que l’outil métier pourrait lire comme une décision.
+
+La remise au serveur doit rester liée au call lui-même : le hook peut changer les paramètres via des politiques trusted, puis il les revérifie; le contexte privé doit couvrir ces paramètres finaux. Il ne faut pas prendre `toolCallId` seul pour une identité de confiance. L’assertion doit être courte, attachée au `toolName`, au hash canonique des arguments et à une origine d’agent vérifiée par Core; une preuve rejouée ne doit jamais créer un second effet.
+
+**Approbation différée :** si `Capacites` rend `en_attente_approbation`, le contrôle n’a pas encore eu lieu au point d’écriture. La requête d’approbation doit conserver uniquement la liaison privée non falsifiable (ou son identifiant de preuve), et `approbations.decider` doit revalider la liaison et les cibles dans sa propre transaction juste avant l’exécution. Une révocation, une réattribution, un changement du devis ou une demande modifiée invalide l’approbation d’origine pour cette exécution. Sans cela, laisser les M3/M2 concernés inconnus/bloqués dans les modes où l’action est différée.
+
+### Sémantique des cas M2/M3
+
+- Pour M2, l’identité `lead` accepte uniquement l’ID exact d’un lead M2 existant et le même ID d’affaire M10. Une opportunité M10 (`<lead>~opp~<wct>`) n’est jamais autorisée par le seul lead parent. Une relation absente, ambiguë ou inconnue refuse.
+- Pour M3, `devis_id` est résolu dans `devis_durable.lire_devis`/`_etat_devis`; le champ `lead_id` du record, pas une valeur adjacente dans l’appel, est confronté à un vrai lead M2 et à l’affaire évaluée. Pour un devis associé à un chantier/WCT, le lien au même dossier doit être prouvé par les records canoniques correspondants. Toute redondance divergente (`devis_id` lié à un autre lead/chantier, référence M2 déjà convertie par un autre devis, devis inexistant ou relation opportunité non explicite) refuse avant transition/publication. Le consommateur M2 garde ses contrôles actuels en défense en profondeur.
+- Un contexte Core périmé n’autorise rien : refaire une vérification fraîche au point dispatcher; si la session n’est plus liée à la même affaire, refuser. L’âge maximal de 15 minutes du store core est une limite de détection, pas une preuve transactionnelle.
+
+### Révocation humaine de session
+
+Étendre le journal append-only `liaison.py` avec un événement de retrait humain qui neutralise uniquement le `ligne_id` actuellement en vigueur pour cette clé. Exiger le lien attendu et la version/ligne courante comme précondition compare-and-set; si un autre opérateur vient de relier une nouvelle affaire, la révocation obsolète est refusée. L’acteur, rôle, source et motif suivent `humain.py`; l’heure vient du serveur. Ajouter une action M10 séparée à une surface admin protégée (rôle approprié et piste d’approbation), pas à un outil que le modèle peut appeler. Ne pas effacer ni modifier les anciennes associations.
+
+Le prochain preflight doit lire `lie: false`, puis marquer le contexte indisponible. Surtout, le dispatcher transactionnel consulte le dernier état du lien avant toute écriture, ce qui rend sans effet une ancienne évaluation Core même avant son expiration. Le garde Core peut être invalidé en accélération si un canal fiable existe, mais cette invalidation ne remplace pas la vérification au dispatcher.
+
+## Fichiers proposés et frontières de propriété
+
+| Fichier/surface | Rôle proposé | Propriétaire à confirmer |
+|---|---|---|
+| `core/src/agents/agent-tools.before-tool-call.policy.ts`, `agent-tool-definition-adapter.ts`, `agent-bundle-mcp-runtime.ts` | Produire et garder le contexte privé de l’appel final; le joindre au MCP `_meta` via une seam trusted. | Core/runtime; modification nécessaire car la garde seule ne peut pas attacher une preuve. |
+| `core/src/context-engine/opsys-contexte-engine.ts`, `opsys-contexte-mcp.ts`, `opsys-contexte-config.ts`, `opsys-contexte-garde.ts` | Réutiliser l’origine/contextServer existant, lire la liaison live, exposer la décision de contexte courant à l’adaptateur et garder `inconnue` bloquant. | Core contexte. Ne pas conserver `Map` périmée comme preuve d’exécution. |
+| `src/opsys/serveur_mcp.py`, `src/opsys/contexte.py`, `src/opsys/capacites.py`, `src/opsys/idempotence.py` | Accepter/valider uniquement le champ `_meta` privé de contexte; fixer un `ContextVar` authentifié; contrôler la transaction et le rejeu à un point d’entrée unique. | Socle OPSYS. Aucun nouvel argument dans les schémas d’outils publics. |
+| `departments/m02-revenue-crm/src/m2_revenue_crm/outils.py` (+ `statuts.py`, `assignation.py`, `interactions.py`, `consentements.py`, `suggestions.py` si nécessaire) | Résoudre les six `lead_id` à partir du registre durable courant et exposer la relation exacte au dispatcher sans reconstituer une base parallèle. | M2. Les règles métier restent dans M2. |
+| `departments/m03-estimation/src/m3_estimation/outils.py`, `devis_durable.py` | Résoudre devis→lead/chantier à partir du registre durable dans la transaction; confronter au lead M2/affaire M10 avant acceptation ou envoi. | M3, avec lectures M2/M10 via API interne stable. |
+| `departments/m10-memoire/src/m10_memoire/liaison.py`, `outils.py`, tests de liaison | Définir l’événement append-only de révocation et le calcul du lien actif; commande humaine signée. | M10. Toute migration/approbation nécessaire est à faire valider avant d’élargir. |
+| `src/opsys/approbations.py` et migration existante seulement si une liaison privée doit survivre à `en_attente_approbation` | Préserver l’assertion de liaison de manière non publique puis la revalider avant l’action approuvée. | Socle/approbations. Éviter de persister les arguments ou clés de session supplémentaires si un identifiant opaque suffit. |
+
+Les tests candidats figurent dans le plan associé. Les manifestes/catalogues restent fermés : aucun outil hors du périmètre ci-dessus ne devient global ou autorisé par cette proposition.

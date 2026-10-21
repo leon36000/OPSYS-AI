@@ -1,0 +1,595 @@
+{
+  "fictif": true,
+  "origine": "Cap actuel B + vrais producteurs M4/M6/SQLite, identités confirmées injectées, aucun HTTP/Gateway",
+  "creation": {
+    "outil": "m4_resoudre_revue_completion_sources",
+    "arguments": {
+      "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+      "decision": "verifiee",
+      "horodatage": "2026-10-09T12:00:00+00:00",
+      "motif": "FICTIF : jonction Cap",
+      "sources": {
+        "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+        "chantier_id": "CH-M3-FICTIF",
+        "completion_ligne_id": "af69d85fb94b69ca5b415ac82ed29ea0935098e985c858b8578a7187c9b08f32",
+        "transition_attendue_ligne_id": "af69d85fb94b69ca5b415ac82ed29ea0935098e985c858b8578a7187c9b08f32",
+        "reference_variance": {
+          "type": "m6.variance_chantier",
+          "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+          "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+        },
+        "classements": [
+          {
+            "position_ligne": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF",
+            "reference": {
+              "registre": "classements_variance",
+              "index": 0,
+              "hash_maillon": "1ac1e98dc0f338c0de06428c79e0b60f4f9a09517b277484278201134f09de24"
+            }
+          }
+        ]
+      }
+    },
+    "meta": {
+      "appareil_id": "APP-P-CAP-FICTIF",
+      "intention_uuid": "P-CACHE-FICTIF",
+      "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00"
+    },
+    "reponse": {
+      "ok": true,
+      "statut": "en_attente_approbation",
+      "demande_id": "f5af9f9f6c7e",
+      "details": "Demande N4 créée par un appareil humain authentifié. Le propriétaire doit l'approuver avant toute exécution.",
+      "version_schema": 1,
+      "preuve_proposition": {
+        "demande_id": "f5af9f9f6c7e",
+        "departement": "m04-field-ops",
+        "outil": "m4_resoudre_revue_completion_sources",
+        "niveau": "N4",
+        "empreinte_arguments": "2622812775e808093e3992d117aed342a1d63bf483fcacaaa0744b91f2e6f513",
+        "proposant": {
+          "personne": "admin.contexte.fictif",
+          "role": "admin",
+          "appareil_id": "APP-P-CAP-FICTIF",
+          "intention_uuid": "P-CACHE-FICTIF"
+        }
+      },
+      "rejoue": false
+    }
+  },
+  "decision": {
+    "outil": "m9_decider_demande_approbation",
+    "arguments": {
+      "demande_id": "f5af9f9f6c7e",
+      "decision": "approuver"
+    },
+    "meta": {
+      "appareil_id": "APP-D-CAP-FICTIF",
+      "intention_uuid": "D-CACHE-FICTIF",
+      "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00"
+    },
+    "auteur_sql": "owner-cache-fictif",
+    "reponse": {
+      "ok": true,
+      "resultat": {
+        "accepte": true,
+        "resultat": {
+          "demande_id": "f5af9f9f6c7e",
+          "decision": "approuver",
+          "statut": "executee",
+          "outil": "m4_resoudre_revue_completion_sources",
+          "departement": "m04-field-ops",
+          "niveau": "N4",
+          "decide_par": "owner-cache-fictif",
+          "role": "nathan_owner",
+          "decide_le": "2026-10-09T09:51:11+00:00",
+          "issue": {
+            "ok": true,
+            "accepte": true
+          },
+          "preuve_completion": {
+            "version_schema": 2,
+            "demande_approbation_id": "f5af9f9f6c7e",
+            "association_decision": {
+              "appareil_id": "APP-D-CAP-FICTIF",
+              "intention_uuid": "D-CACHE-FICTIF",
+              "empreinte_arguments": "f79d215fbef6016fa81794d1aea755ae33b730382877d2d54a3e40e3aa1bc4b1",
+              "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00"
+            },
+            "empreinte_arguments_proposition": "2622812775e808093e3992d117aed342a1d63bf483fcacaaa0744b91f2e6f513",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "chantier_id": "CH-M3-FICTIF",
+            "statut": "completed_verified",
+            "decision": "verifiee",
+            "ligne_id": "2d38a07e01816e82552c9e541513ce2e139a29c486bed0b9af07fbe5e38fb038",
+            "tete_chaine": "2d38a07e01816e82552c9e541513ce2e139a29c486bed0b9af07fbe5e38fb038",
+            "sources": {
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "chantier_id": "CH-M3-FICTIF",
+              "completion_ligne_id": "af69d85fb94b69ca5b415ac82ed29ea0935098e985c858b8578a7187c9b08f32",
+              "transition_attendue_ligne_id": "af69d85fb94b69ca5b415ac82ed29ea0935098e985c858b8578a7187c9b08f32",
+              "reference_variance": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+              },
+              "classements": [
+                {
+                  "position_ligne": 0,
+                  "materiau_id": "MAT-CONTEXTE-FICTIF",
+                  "reference": {
+                    "registre": "classements_variance",
+                    "index": 0,
+                    "hash_maillon": "1ac1e98dc0f338c0de06428c79e0b60f4f9a09517b277484278201134f09de24"
+                  }
+                }
+              ]
+            },
+            "approuve_par": "owner-cache-fictif",
+            "role_approbateur": "nathan_owner",
+            "horodatage_decision_serveur": "2026-10-09T09:51:11+00:00"
+          }
+        }
+      },
+      "rejoue": false
+    }
+  },
+  "lectures": [
+    {
+      "outil": "m4_lire_dossier_revue_completion_appareil",
+      "arguments": {
+        "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+        "demande_id": null
+      },
+      "reponse": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "version_schema": 1,
+            "lecture": "courante",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "statut": "completed_verified",
+            "wct": {
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+              "chantier_id": "CH-M3-FICTIF"
+            },
+            "reference_completion": {
+              "ligne_id": "af69d85fb94b69ca5b415ac82ed29ea0935098e985c858b8578a7187c9b08f32",
+              "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8"
+            },
+            "reference_transition": {
+              "ligne_id": "2d38a07e01816e82552c9e541513ce2e139a29c486bed0b9af07fbe5e38fb038"
+            },
+            "source_variance": {
+              "type": "m6.variance_chantier",
+              "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+              "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84",
+              "statut_variance": "evaluee",
+              "horodatage_completion": "2025-06-02T11:30:00+00:00",
+              "signal_critique": true,
+              "seuil_pourcentage": 0.3
+            },
+            "lignes_critiques": [
+              {
+                "selection": {
+                  "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+                  "reference_variance": {
+                    "type": "m6.variance_chantier",
+                    "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                    "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+                  },
+                  "position_ligne": 0,
+                  "materiau_id": "MAT-CONTEXTE-FICTIF"
+                },
+                "source_ligne": {
+                  "materiau": "MAT-CONTEXTE-FICTIF",
+                  "unite": "pi",
+                  "quantite_prevue": "40.0",
+                  "quantite_reelle": "2.0",
+                  "ecart_pourcentage": "0.95",
+                  "critique": true
+                },
+                "classement_courant": {
+                  "reference": {
+                    "registre": "classements_variance",
+                    "index": 0,
+                    "hash_maillon": "1ac1e98dc0f338c0de06428c79e0b60f4f9a09517b277484278201134f09de24"
+                  },
+                  "selection": {
+                    "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+                    "reference_variance": {
+                      "type": "m6.variance_chantier",
+                      "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                      "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+                    },
+                    "position_ligne": 0,
+                    "materiau_id": "MAT-CONTEXTE-FICTIF"
+                  },
+                  "cause": "waste",
+                  "motif": "FICTIF : cause choisie par admin",
+                  "reference_precedente": null,
+                  "auteur": {
+                    "personne": "admin.contexte.fictif",
+                    "role": "admin",
+                    "source": "appareil"
+                  },
+                  "appareil_id": "APP-CLASSEMENT-FICTIF",
+                  "classe_le": "2026-10-08T17:00:00+00:00",
+                  "horodatage_appareil_declare": "2026-10-08T17:00:00+00:00",
+                  "references_pieces": [],
+                  "version_schema": 2,
+                  "intention": {
+                    "appareil_id": "APP-CLASSEMENT-FICTIF",
+                    "intention_uuid": "ff93b62b-fbad-4d6d-9e0c-fe995a3f9cd9",
+                    "empreinte_arguments": "9a7a1f75423c72e39db22f4287f8697b2a41ce2dcf7c4cac5797331555aca6f4"
+                  }
+                }
+              }
+            ],
+            "sources": {
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "chantier_id": "CH-M3-FICTIF",
+              "completion_ligne_id": "af69d85fb94b69ca5b415ac82ed29ea0935098e985c858b8578a7187c9b08f32",
+              "transition_attendue_ligne_id": "2d38a07e01816e82552c9e541513ce2e139a29c486bed0b9af07fbe5e38fb038",
+              "reference_variance": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+              },
+              "classements": [
+                {
+                  "position_ligne": 0,
+                  "materiau_id": "MAT-CONTEXTE-FICTIF",
+                  "reference": {
+                    "registre": "classements_variance",
+                    "index": 0,
+                    "hash_maillon": "1ac1e98dc0f338c0de06428c79e0b60f4f9a09517b277484278201134f09de24"
+                  }
+                }
+              ]
+            },
+            "couverture": {
+              "positions_critiques": [
+                0
+              ],
+              "positions_sans_classement": []
+            },
+            "bornes": {
+              "limite_arguments_caracteres": 1500,
+              "limite_enveloppe_caracteres": 5400
+            }
+          }
+        }
+      },
+      "tables_avant": {
+        "agents_configurables": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_configurables_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_configurables_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_cron_retraits": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_intentions": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_remises": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_grants_cfo": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_grants_cfo_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_politique_entreprise": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_reservations": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_reservations_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_tickets_cfo": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "alembic_version": "7b5a37887ca191d1ea91bd0118894af2fa2d9d30f9989f0ecc433fb9881747d2",
+        "appareils": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "approbations": "4c040e93b35ffb316702fe0d65daf6b5b29b9d51177b19319f070a9c971a6819",
+        "artefacts": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "cles_chiffrement": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_diagnostics": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evenements_recus": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evenements_sortants": "52cf1984dd0fc8787d5fa2f3a88a69ec2ceae13f8cb417283a6ea9e89064b503",
+        "fichiers": "ccf3a396d099d60b2270bf4c96224b1df27201c63c58b1afd98027e949d963ad",
+        "fichiers_blocs": "52e097ea15fb16cacc9287f829e780c8c822a9f9d47d3ecf2cae5e9282a0064c",
+        "fusion_ap_brouillons": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_ocr_sources": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_saisies": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_lignes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_lots": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_lots": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_ocr_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_ocr_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "fusion_pdf_ocr_runs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "fusion_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "journal": "6be5d5b83d642a6f152b65ed561b0d388bc056ff34d6d6c7b94e66c9de0ed94f",
+        "liaisons_tickets": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "modes_departements": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "mutations_appliquees": "8bc6b5ef3b921416660171fe39383855e01a19e816d242208a5e8d5b0f77e38f",
+        "opsys_instance": "be3884ac13476caae3e2a212d052783721357d77e018129dadc9deb169d0166b",
+        "personnes": "42bcd518285f48daa094139cabf9169eb3df01f54ac4981c2e4da0582a7fc72b",
+        "registres_maillons": "eb13013d4fa024fcafd1201f348b8b0c8ba70ec1a381c17451ded02b121a1637",
+        "roles": "d69417a5276d10a1c8fe0e084aa3bd68c6c41cd7f151dcb9a69960ff231da378",
+        "usage_tokens": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "tables_apres": {
+        "agents_configurables": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_configurables_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_configurables_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_cron_retraits": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_intentions": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_remises": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_grants_cfo": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_grants_cfo_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_politique_entreprise": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_reservations": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_reservations_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_tickets_cfo": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "alembic_version": "7b5a37887ca191d1ea91bd0118894af2fa2d9d30f9989f0ecc433fb9881747d2",
+        "appareils": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "approbations": "4c040e93b35ffb316702fe0d65daf6b5b29b9d51177b19319f070a9c971a6819",
+        "artefacts": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "cles_chiffrement": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_diagnostics": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evenements_recus": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evenements_sortants": "52cf1984dd0fc8787d5fa2f3a88a69ec2ceae13f8cb417283a6ea9e89064b503",
+        "fichiers": "ccf3a396d099d60b2270bf4c96224b1df27201c63c58b1afd98027e949d963ad",
+        "fichiers_blocs": "52e097ea15fb16cacc9287f829e780c8c822a9f9d47d3ecf2cae5e9282a0064c",
+        "fusion_ap_brouillons": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_ocr_sources": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_saisies": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_lignes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_lots": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_lots": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_ocr_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_ocr_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "fusion_pdf_ocr_runs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "fusion_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "journal": "6be5d5b83d642a6f152b65ed561b0d388bc056ff34d6d6c7b94e66c9de0ed94f",
+        "liaisons_tickets": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "modes_departements": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "mutations_appliquees": "8bc6b5ef3b921416660171fe39383855e01a19e816d242208a5e8d5b0f77e38f",
+        "opsys_instance": "be3884ac13476caae3e2a212d052783721357d77e018129dadc9deb169d0166b",
+        "personnes": "42bcd518285f48daa094139cabf9169eb3df01f54ac4981c2e4da0582a7fc72b",
+        "registres_maillons": "eb13013d4fa024fcafd1201f348b8b0c8ba70ec1a381c17451ded02b121a1637",
+        "roles": "d69417a5276d10a1c8fe0e084aa3bd68c6c41cd7f151dcb9a69960ff231da378",
+        "usage_tokens": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    {
+      "outil": "m4_lire_dossier_revue_completion_appareil",
+      "arguments": {
+        "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+        "demande_id": "f5af9f9f6c7e"
+      },
+      "reponse": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "version_schema": 1,
+            "lecture": "historique",
+            "demande": {
+              "id": "f5af9f9f6c7e",
+              "cree_le": "2026-10-09T09:51:11+00:00",
+              "departement": "m04-field-ops",
+              "outil": "m4_resoudre_revue_completion_sources",
+              "niveau": "N4",
+              "arguments": {
+                "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+                "decision": "verifiee",
+                "horodatage": "2026-10-09T12:00:00+00:00",
+                "motif": "FICTIF : jonction Cap",
+                "sources": {
+                  "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+                  "chantier_id": "CH-M3-FICTIF",
+                  "completion_ligne_id": "af69d85fb94b69ca5b415ac82ed29ea0935098e985c858b8578a7187c9b08f32",
+                  "transition_attendue_ligne_id": "af69d85fb94b69ca5b415ac82ed29ea0935098e985c858b8578a7187c9b08f32",
+                  "reference_variance": {
+                    "type": "m6.variance_chantier",
+                    "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                    "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+                  },
+                  "classements": [
+                    {
+                      "position_ligne": 0,
+                      "materiau_id": "MAT-CONTEXTE-FICTIF",
+                      "reference": {
+                        "registre": "classements_variance",
+                        "index": 0,
+                        "hash_maillon": "1ac1e98dc0f338c0de06428c79e0b60f4f9a09517b277484278201134f09de24"
+                      }
+                    }
+                  ]
+                }
+              },
+              "statut": "executee",
+              "decide_par": "owner-cache-fictif",
+              "decide_role": "nathan_owner",
+              "decide_le": "2026-10-09T09:51:11+00:00",
+              "motif_decision": ""
+            },
+            "proposition": {
+              "demande_id": "f5af9f9f6c7e",
+              "departement": "m04-field-ops",
+              "outil": "m4_resoudre_revue_completion_sources",
+              "niveau": "N4",
+              "empreinte_arguments": "2622812775e808093e3992d117aed342a1d63bf483fcacaaa0744b91f2e6f513",
+              "proposant": {
+                "personne": "admin.contexte.fictif",
+                "role": "admin",
+                "appareil_id": "APP-P-CAP-FICTIF",
+                "intention_uuid": "P-CACHE-FICTIF"
+              }
+            },
+            "issue": {
+              "ok": true,
+              "accepte": true
+            },
+            "preuve_completion": {
+              "version_schema": 2,
+              "demande_approbation_id": "f5af9f9f6c7e",
+              "association_decision": {
+                "appareil_id": "APP-D-CAP-FICTIF",
+                "intention_uuid": "D-CACHE-FICTIF",
+                "empreinte_arguments": "f79d215fbef6016fa81794d1aea755ae33b730382877d2d54a3e40e3aa1bc4b1",
+                "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00"
+              },
+              "empreinte_arguments_proposition": "2622812775e808093e3992d117aed342a1d63bf483fcacaaa0744b91f2e6f513",
+              "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "chantier_id": "CH-M3-FICTIF",
+              "statut": "completed_verified",
+              "decision": "verifiee",
+              "ligne_id": "2d38a07e01816e82552c9e541513ce2e139a29c486bed0b9af07fbe5e38fb038",
+              "tete_chaine": "2d38a07e01816e82552c9e541513ce2e139a29c486bed0b9af07fbe5e38fb038",
+              "sources": {
+                "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+                "chantier_id": "CH-M3-FICTIF",
+                "completion_ligne_id": "af69d85fb94b69ca5b415ac82ed29ea0935098e985c858b8578a7187c9b08f32",
+                "transition_attendue_ligne_id": "af69d85fb94b69ca5b415ac82ed29ea0935098e985c858b8578a7187c9b08f32",
+                "reference_variance": {
+                  "type": "m6.variance_chantier",
+                  "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                  "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+                },
+                "classements": [
+                  {
+                    "position_ligne": 0,
+                    "materiau_id": "MAT-CONTEXTE-FICTIF",
+                    "reference": {
+                      "registre": "classements_variance",
+                      "index": 0,
+                      "hash_maillon": "1ac1e98dc0f338c0de06428c79e0b60f4f9a09517b277484278201134f09de24"
+                    }
+                  }
+                ]
+              },
+              "approuve_par": "owner-cache-fictif",
+              "role_approbateur": "nathan_owner",
+              "horodatage_decision_serveur": "2026-10-09T09:51:11+00:00"
+            },
+            "bornes": {
+              "limite_arguments_caracteres": 1500,
+              "limite_enveloppe_caracteres": 5400
+            }
+          }
+        }
+      },
+      "tables_avant": {
+        "agents_configurables": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_configurables_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_configurables_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_cron_retraits": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_intentions": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_remises": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_grants_cfo": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_grants_cfo_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_politique_entreprise": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_reservations": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_reservations_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_tickets_cfo": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "alembic_version": "7b5a37887ca191d1ea91bd0118894af2fa2d9d30f9989f0ecc433fb9881747d2",
+        "appareils": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "approbations": "4c040e93b35ffb316702fe0d65daf6b5b29b9d51177b19319f070a9c971a6819",
+        "artefacts": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "cles_chiffrement": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_diagnostics": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evenements_recus": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evenements_sortants": "52cf1984dd0fc8787d5fa2f3a88a69ec2ceae13f8cb417283a6ea9e89064b503",
+        "fichiers": "ccf3a396d099d60b2270bf4c96224b1df27201c63c58b1afd98027e949d963ad",
+        "fichiers_blocs": "52e097ea15fb16cacc9287f829e780c8c822a9f9d47d3ecf2cae5e9282a0064c",
+        "fusion_ap_brouillons": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_ocr_sources": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_saisies": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_lignes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_lots": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_lots": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_ocr_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_ocr_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "fusion_pdf_ocr_runs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "fusion_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "journal": "6be5d5b83d642a6f152b65ed561b0d388bc056ff34d6d6c7b94e66c9de0ed94f",
+        "liaisons_tickets": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "modes_departements": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "mutations_appliquees": "8bc6b5ef3b921416660171fe39383855e01a19e816d242208a5e8d5b0f77e38f",
+        "opsys_instance": "be3884ac13476caae3e2a212d052783721357d77e018129dadc9deb169d0166b",
+        "personnes": "42bcd518285f48daa094139cabf9169eb3df01f54ac4981c2e4da0582a7fc72b",
+        "registres_maillons": "eb13013d4fa024fcafd1201f348b8b0c8ba70ec1a381c17451ded02b121a1637",
+        "roles": "d69417a5276d10a1c8fe0e084aa3bd68c6c41cd7f151dcb9a69960ff231da378",
+        "usage_tokens": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "tables_apres": {
+        "agents_configurables": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_configurables_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_configurables_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_cron_retraits": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_intentions": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_declencheurs_remises": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_grants_cfo": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_grants_cfo_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_politique_entreprise": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_reservations": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_reservations_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "agents_tickets_cfo": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "alembic_version": "7b5a37887ca191d1ea91bd0118894af2fa2d9d30f9989f0ecc433fb9881747d2",
+        "appareils": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "approbations": "4c040e93b35ffb316702fe0d65daf6b5b29b9d51177b19319f070a9c971a6819",
+        "artefacts": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "cles_chiffrement": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_diagnostics": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "connecteurs_stt_historique": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evenements_recus": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evenements_sortants": "52cf1984dd0fc8787d5fa2f3a88a69ec2ceae13f8cb417283a6ea9e89064b503",
+        "fichiers": "ccf3a396d099d60b2270bf4c96224b1df27201c63c58b1afd98027e949d963ad",
+        "fichiers_blocs": "52e097ea15fb16cacc9287f829e780c8c822a9f9d47d3ecf2cae5e9282a0064c",
+        "fusion_ap_brouillons": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_ocr_sources": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_ap_saisies": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_lignes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_lots": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_lots": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_ocr_commandes": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_ocr_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "fusion_pdf_ocr_runs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "fusion_pdf_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "fusion_quota": "21c7e30459d5023955ac3a41c8088d363c412830991c1a320cec4894e1fea4e4",
+        "journal": "6be5d5b83d642a6f152b65ed561b0d388bc056ff34d6d6c7b94e66c9de0ed94f",
+        "liaisons_tickets": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "modes_departements": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "mutations_appliquees": "8bc6b5ef3b921416660171fe39383855e01a19e816d242208a5e8d5b0f77e38f",
+        "opsys_instance": "be3884ac13476caae3e2a212d052783721357d77e018129dadc9deb169d0166b",
+        "personnes": "42bcd518285f48daa094139cabf9169eb3df01f54ac4981c2e4da0582a7fc72b",
+        "registres_maillons": "eb13013d4fa024fcafd1201f348b8b0c8ba70ec1a381c17451ded02b121a1637",
+        "roles": "d69417a5276d10a1c8fe0e084aa3bd68c6c41cd7f151dcb9a69960ff231da378",
+        "usage_tokens": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    }
+  ]
+}

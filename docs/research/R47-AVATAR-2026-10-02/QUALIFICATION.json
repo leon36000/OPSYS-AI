@@ -1,0 +1,45 @@
+{
+  "r1_loopback": {
+    "exit_code": 130,
+    "status": "interrupted before JUnit; not counted",
+    "xml_bytes": 0
+  },
+  "r2": {
+    "cgroup_oom_delta": {
+      "high": 0,
+      "low": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_group_kill": 0,
+      "oom_kill": 0
+    },
+    "elapsed_seconds": 51.465,
+    "min_headroom_bytes": 1297182720,
+    "peak_rss_bytes": 1567760384,
+    "scope": "real HTTP loopback and native bearer/SQLite authority; no full gateway bootstrap or browser rendering",
+    "source_pins": 39,
+    "survivors": [],
+    "tests": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 10
+    }
+  },
+  "r6": {
+    "group_rss_guard_bytes": 1610612736,
+    "scope": "direct avatar resource/handler suite; measured peak not present in receipt",
+    "tests": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 22
+    }
+  },
+  "r6_control_ui_http": {
+    "status": "interrupted by RSS guard; no verdict",
+    "xml_bytes": 0
+  },
+  "schema": "opsys.r47-qualification/v1",
+  "summary": "ROOT R6: 22 direct avatar resource/handler tests passed. ROOT R2: 10 real local HTTP loopback tests passed with bearer/SQLite authority. These suites are separate and total 32 green test cases only for their named scopes. No complete Gateway bootstrap/browser qualification. R6 control-ui.http was interrupted by RSS guard with empty XML; R1 loopback attempt was interrupted before JUnit and is not counted."
+}

@@ -1,0 +1,899 @@
+# Audits ciblés externes; aucune correction produit et aucun rejeu des suites inconnues.
+name: audit-focused-frontiers-fixed-f0b89cc
+'on':
+  push:
+    branches:
+    - codex/restructuration-2026-09-30
+    paths:
+    - .github/workflows/audit-focused-frontiers-fixed-f0b89cc.yml
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: audit-focused-frontiers-fixed-f0b89cc
+  cancel-in-progress: false
+env:
+  EXPECTED_HEAD: f0b89ccf86d6f6e50eb134de3257af91860e8091
+  EXPECTED_TREE: 03dd91d0a6c749d06dbd502b3b9fe2cb8f576bdb
+  EXPECTED_SOURCE_SHA: ce8def70e470baced49f09a849fa75eee295e7e0f9613a49135dc5637f079349
+  EXPECTED_PACKAGE_MANAGER: pnpm@12.4.0+sha512.37536c26ed40ab4134b6511e09f6b27f3ebb45687468f2406ca3805279a4e5ca158c1931350ad9774d6ab2108d71b3dbaeb39943159294375e4d053e8e05685c
+  NODE_OPTIONS: --max-old-space-size=4096
+  AUDIT_NONCE: major-frontiers-5ed284f7e6ae44dbb5369e6c0863fd41
+defaults:
+  run:
+    shell: bash
+jobs:
+  mobile-destination:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+    - name: Destinations externes uniques
+      env:
+        ROOT_TEMP: ${{ runner.temp }}
+      run: |
+        set -euo pipefail
+        output="$ROOT_TEMP/audit-frontier-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-mobile"
+        mkdir -p "$output"
+        echo "AUDIT_OUTPUT=$output" >> "$GITHUB_ENV"
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      with:
+        ref: f0b89ccf86d6f6e50eb134de3257af91860e8091
+        fetch-depth: 1
+        persist-credentials: false
+        submodules: false
+    - name: Identité complète avant acquisition
+      id: identity
+      env:
+        IDENTITY_PHASE: before
+      timeout-minutes: 5
+      run: |
+        python3 -I -B - <<'PY_IDENTITY'
+        import hashlib, json, os, pathlib, re, subprocess
+        root = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(root), *args])
+        head = git('rev-parse', 'HEAD').decode().strip()
+        tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
+        assert head == os.environ['EXPECTED_HEAD'], 'HEAD_DIFFERENT'
+        assert tree == os.environ['EXPECTED_TREE'], 'TREE_DIFFERENT'
+        paths = sorted(p.decode('utf-8') for p in git('ls-files', '-z').split(bytes([0])) if p)
+        assert len(paths) == 43996 and len(set(paths)) == 43996, 'TRACKED_FILE_COUNT'
+        aggregate = hashlib.sha256()
+        for name in paths:
+            file = root / name
+            assert file.is_file() and not file.is_symlink(), 'TRACKED_FILE_KIND'
+            content = hashlib.sha256()
+            with file.open('rb') as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    content.update(block)
+            aggregate.update(name.encode('utf-8'))
+            aggregate.update(bytes([0]))
+            aggregate.update(content.digest())
+        assert aggregate.hexdigest() == os.environ['EXPECTED_SOURCE_SHA'], 'SOURCE_BYTES_DIFFERENT'
+        package = json.loads((root / 'core/package.json').read_text())
+        assert package['packageManager'] == os.environ['EXPECTED_PACKAGE_MANAGER'], 'PACKAGE_MANAGER_DIFFERENT'
+        shards = (root / 'core/test/vitest/vitest.test-shards.mjs').read_text().split('export const fullSuiteVitestShards = [', 1)[1]
+        groups = re.findall('config: "([^"]+)",.*?name: "([^"]+)"', shards, re.S)
+        assert len(groups) == 12 and len({g[0] for g in groups}) == 12, 'CANONICAL_GROUP_COUNT'
+        receipt = {'head':head, 'tree':tree, 'tracked_files':len(paths), 'SourceSHA':aggregate.hexdigest(),
+                   'packageManager':package['packageManager'], 'canonical_groups':[{'config':c,'name':n} for c,n in groups],
+                   'scope':'identity and bytes only; not test/runtime qualification'}
+        output = pathlib.Path(os.environ['AUDIT_OUTPUT'])
+        output.mkdir(parents=True, exist_ok=True)
+        (output / ('identity-' + os.environ['IDENTITY_PHASE'] + '.json')).write_text(json.dumps(receipt, indent=2) + chr(10))
+        print(json.dumps(receipt))
+        PY_IDENTITY
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      with:
+        node-version: 22.x
+    - name: Versions et acquisition npm verrouillée, comme mobile.yml
+      timeout-minutes: 8
+      working-directory: mobile
+      run: |-
+        set -euo pipefail
+        { node --version; npm --version; } | tee "$AUDIT_OUTPUT/toolchain.log"
+        npm ci 2>&1 | tee "$AUDIT_OUTPUT/install.log"
+    - name: Déposer le seul oracle externe, sans modifier les fichiers suivis
+      run: |
+        set -euo pipefail
+        test ! -e mobile/src/outbox/audit-destination-instance.cmd001.test.ts
+        cat > mobile/src/outbox/audit-destination-instance.cmd001.test.ts <<'AUDIT_FILE_e68185e48ca0416a9cd64e6b5e63c3ce'
+        // External audit candidate. All data, tokens, hosts and keys below are fictitious.
+        // Projected location in an admitted disposable snapshot ONLY:
+        // mobile/src/outbox/audit-destination-instance.cmd001.test.ts
+        /// <reference types="node" />
+
+        import { Buffer } from "node:buffer";
+        import { appairerAppareil } from "../appairage/client";
+        import { creerIdentiteDepuisGraine } from "../appairage/identite";
+        import type { SocketAppairageLike, TrameRequete } from "../appairage/types";
+        import { lireIdentiteServeur } from "../identite/client";
+        import { synchroniserPersonneConfirmee } from "../identite/sessionEnvoi";
+        import { creerMutationNote } from "../m2/interaction";
+        import { invoquerOutil } from "../protocole/client";
+        import {
+          capturerSessionLecture,
+          definirConfigurationAppel,
+          definirPersonneConfirmee,
+          obtenirSessionEnvoi,
+        } from "../protocole/configuration";
+        import type { ConfigurationAppel } from "../protocole/configuration";
+        import type { RequeteOutilsInvoke } from "../protocole/types";
+        import { creerDeclencheurVidange } from "./declenchement";
+        import { DepotOutboxMemoire } from "./depot";
+        import { DESCRIPTEURS_MUTATION } from "./descripteurs";
+        import { avecProprietaire } from "./proprietaire";
+        import { creerVidangeur } from "./vidangeur";
+
+        const FICTIF = {
+          fictif: true,
+          personne: "jdupont",
+          leadA: "LEAD-A-FICTIF-NE-JAMAIS-TRANSFERER",
+          noteA: "[fictif:true] Note privee de Gateway A : rappel chantier A seulement.",
+          mutationId: "8d9ac875-6087-4fd0-a1a9-4eb115c845c2",
+          jetonA: "jeton-fictif-gateway-A-avant-rotation",
+          jetonB: "jeton-fictif-gateway-B-apres-appairage",
+          jetonARenouvele: "jeton-fictif-gateway-A-apres-rotation",
+        } as const;
+        const GATEWAY_A = {
+          ws: "wss://grs.exemple.ca:8787",
+          http: "https://grs.exemple.ca:8787",
+        } as const;
+        const GATEWAY_B = {
+          ws: "wss://autre-grs.exemple.ca:8787",
+          http: "https://autre-grs.exemple.ca:8787",
+        } as const;
+        const HORLOGE = {
+          maintenant: new Date("2026-09-29T12:00:00.000Z"),
+          decalageMinutesUTC: -240,
+        };
+        // Same deterministic seed and port as appairage/client.test.ts; real Ed25519 code runs.
+        const IDENTITE = creerIdentiteDepuisGraine(Uint8Array.from({ length: 32 }, (_, i) => i + 1));
+        const CLIENT_INFO = { id: "opsys-mobile", version: "0.1.0", platform: "ios", mode: "ui" };
+
+        function reponseHttp(status: number, corps: unknown): Response {
+          // Same minimal Response seam as outbox/suiviDuJeton.test.ts.
+          return { ok: status >= 200 && status < 300, status, json: async () => corps } as unknown as Response;
+        }
+
+        interface AppelObserve {
+          readonly url: string;
+          readonly methode: string | undefined;
+          readonly autorisation: string | undefined;
+          readonly corps: RequeteOutilsInvoke;
+        }
+
+        /** Real pairing client and signer; only the WebSocket wire peer is scripted.
+         * The microtask challenge/reply pattern is reused from appairage/client.test.ts.
+         * No network socket is opened and no destination decision is replaced. */
+        async function appairerEtConfirmer(
+          gateway: { readonly ws: string; readonly http: string },
+          jeton: string,
+          avantConfirmation?: () => Promise<void>,
+        ): Promise<ConfigurationAppel> {
+          const trames: TrameRequete[] = [];
+          const urlsSocket: string[] = [];
+          let fermee = false;
+          const creerSocket = (url: string): SocketAppairageLike => {
+            urlsSocket.push(url);
+            const socket: SocketAppairageLike = {
+              onopen: null, onmessage: null, onerror: null, onclose: null,
+              send(donnees: string) {
+                const requete = JSON.parse(donnees) as TrameRequete;
+                trames.push(requete);
+                if (requete.type === "req" && requete.method === "connect") {
+                  queueMicrotask(() => socket.onmessage?.({ data: JSON.stringify({
+                    type: "res", id: requete.id, ok: true,
+                    payload: { type: "hello-ok", auth: {
+                      deviceToken: jeton, role: "operator", scopes: ["operator.read", "operator.write"],
+                    } },
+                  }) }));
+                }
+              },
+              close() { fermee = true; },
+            };
+            queueMicrotask(() => socket.onmessage?.({ data: JSON.stringify({
+              type: "event", event: "connect.challenge",
+              payload: { nonce: "nonce-fictif-neuf-" + jeton, ts: 1_000 },
+            }) }));
+            return socket;
+          };
+          const code = "oc-pair://" + Buffer.from(JSON.stringify({
+            url: gateway.ws, bootstrapToken: "amorce-fictive-" + jeton,
+          })).toString("base64url");
+          let tempsAppairage = 1_000_000;
+          const resultat = await appairerAppareil({
+            code, identite: IDENTITE, clientInfo: CLIENT_INFO, creerSocket,
+            // Existing test seam: queued wire microtasks win against a next-macrotask expiry.
+            attendre: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
+            // Advancing injected clock also bounds a malformed scripted handshake's retries.
+            maintenant: () => new Date(tempsAppairage++), budgetMs: 100,
+            genererId: () => "requete-fictive-" + jeton,
+          });
+          expect(resultat).toMatchObject({ ok: true, urlBase: gateway.http, jeton, appareilId: IDENTITE.deviceId });
+          if (!resultat.ok) throw new Error("SETUP_APPAIRAGE_FICTIF_REFUSE: " + resultat.motif);
+          expect(urlsSocket).toEqual([gateway.ws]);
+          expect(fermee).toBe(true);
+          expect(trames).toHaveLength(1);
+          expect(trames[0]).toMatchObject({ type: "req", method: "connect", params: {
+            auth: { bootstrapToken: "amorce-fictive-" + jeton },
+            device: { id: IDENTITE.deviceId, nonce: "nonce-fictif-neuf-" + jeton, signature: expect.any(String) },
+          } });
+
+          const configuration: ConfigurationAppel = {
+            urlBase: resultat.urlBase, jeton: resultat.jeton, appareilId: resultat.appareilId,
+          };
+          // Same production transitions as app/pairing/index.tsx and identity/sessionEnvoi.ts.
+          definirConfigurationAppel(configuration);
+          synchroniserPersonneConfirmee({ genre: "en_lecture" }, configuration);
+          expect(obtenirSessionEnvoi()).toBeNull();
+          if (avantConfirmation) await avantConfirmation();
+
+          const appelsIdentite: { url: string; autorisation: string | undefined }[] = [];
+          const fetchIdentite: typeof fetch = async (input, init) => {
+            const headers = init?.headers as Record<string, string> | undefined;
+            appelsIdentite.push({ url: String(input), autorisation: headers?.authorization });
+            return reponseHttp(200, { ok: true, identite: {
+              appareilId: IDENTITE.deviceId, personne: FICTIF.personne, role: "seller",
+            } });
+          };
+          // Actual HTTP identity reader and response validation, not an invented confirmed session.
+          const lecture = await lireIdentiteServeur({ ...configuration, fetchImpl: fetchIdentite });
+          expect(appelsIdentite).toEqual([{ url: gateway.http + "/opsys/identite", autorisation: "Bearer " + jeton }]);
+          expect(lecture.genre).toBe("confirmee");
+          if (lecture.genre !== "confirmee") throw new Error("SETUP_IDENTITE_FICTIVE_NON_CONFIRMEE");
+          synchroniserPersonneConfirmee(lecture, configuration);
+          expect(obtenirSessionEnvoi()).toEqual({ ...configuration, personne: FICTIF.personne });
+          return configuration;
+        }
+
+        function creerBanc() {
+          const base = new DepotOutboxMemoire();
+          const depot = avecProprietaire(base, () => obtenirSessionEnvoi()?.personne ?? null);
+          const appelsRpc: AppelObserve[] = [];
+          let horsLigne = true;
+          let maintenant = HORLOGE.maintenant;
+          const fetchRpc: typeof fetch = async (input, init) => {
+            if (typeof init?.body !== "string") throw new Error("SETUP_CORPS_RPC_NON_JSON");
+            const headers = init.headers as Record<string, string> | undefined;
+            appelsRpc.push({
+              url: String(input), methode: init.method, autorisation: headers?.authorization,
+              corps: JSON.parse(init.body) as RequeteOutilsInvoke,
+            });
+            if (horsLigne) throw new TypeError("Network request failed (fictif)");
+            // Independent valid business ACK fixture. The oracle concerns the outbound request,
+            // not whether a real second server would accept the data.
+            return reponseHttp(200, { ok: true, result: {
+              ok: true, resultat: { accepte: true, resultat: {
+                lead_id: FICTIF.leadA, ligne_id: "INTERACTION-FICTIVE", horodatage: "2026-09-29T12:01:00Z",
+              } }, rejoue: false,
+            } });
+          };
+          const vidangeur = creerVidangeur({
+            depot, descripteurs: DESCRIPTEURS_MUTATION,
+            appelerOutil: invoquerOutil, fetchImpl: fetchRpc, session: obtenirSessionEnvoi,
+            capturerGardeSession: () => capturerSessionLecture().courante,
+            maintenant: () => maintenant,
+          });
+          const declencher = creerDeclencheurVidange({
+            sessionDisponible: () => obtenirSessionEnvoi() !== null,
+            obtenirVidangeur: async () => vidangeur,
+          });
+          return {
+            base, depot, appelsRpc, declencher,
+            revenirEnLigne() {
+              horsLigne = false;
+              maintenant = new Date(HORLOGE.maintenant.getTime() + 60_000);
+            },
+          };
+        }
+
+        async function creerNoteAEtRendreLaReprisePossible(
+          destination: { readonly ws: string; readonly http: string },
+          nouveauJeton: string,
+        ) {
+          // One drainer survives BOTH pairings, like the production singleton in service.ts.
+          const banc = creerBanc();
+          await appairerEtConfirmer(GATEWAY_A, FICTIF.jetonA);
+          const intention = await banc.depot.inserer(creerMutationNote(
+            FICTIF.leadA, FICTIF.noteA, () => FICTIF.mutationId, HORLOGE,
+          ));
+          expect(intention.proprietaire).toBe(FICTIF.personne);
+          const offline = await banc.declencher();
+          expect(offline?.remisesEnAttente).toEqual([FICTIF.mutationId]);
+          expect(banc.appelsRpc).toHaveLength(1);
+          expect(banc.appelsRpc[0]).toMatchObject({
+            url: GATEWAY_A.http + "/tools/invoke", autorisation: "Bearer " + FICTIF.jetonA,
+            corps: { tool: "m2_enregistrer_interaction", idempotencyKey: FICTIF.mutationId,
+              args: { lead_id: FICTIF.leadA, resume: FICTIF.noteA } },
+          });
+          const avant = await banc.base.obtenir(FICTIF.mutationId);
+          expect(avant?.statut).toBe("en_attente");
+          expect(avant?.payload).toMatchObject({ lead_id: FICTIF.leadA, resume: FICTIF.noteA });
+          banc.revenirEnLigne();
+          await appairerEtConfirmer(destination, nouveauJeton, async () => {
+            // A mere replacement of config is insufficient: the new token is not yet confirmed.
+            await expect(banc.declencher()).resolves.toBeNull();
+            expect(banc.appelsRpc).toHaveLength(1);
+          });
+          const debutReprise = banc.appelsRpc.length;
+          const rapport = await banc.declencher();
+          return { ...banc, avant, rapport, appelsReprise: banc.appelsRpc.slice(debutReprise) };
+        }
+
+        beforeEach(() => {
+          definirConfigurationAppel(null);
+          definirPersonneConfirmee(null);
+        });
+        afterEach(() => {
+          definirConfigurationAppel(null);
+          definirPersonneConfirmee(null);
+        });
+
+        describe("CMD-001 — destination durable d’une intention mobile (fictif)", () => {
+          test("une note de A ne quitte pas l’app vers B après appairage complet de la même personne", async () => {
+            const resultat = await creerNoteAEtRendreLaReprisePossible(GATEWAY_B, FICTIF.jetonB);
+            // Independent requirement: re-pairing does not transfer authority to send A's data to B.
+            // A RED diff here exposes the actual URL + authorization + original business data.
+            const fuiteVersB = resultat.appelsReprise.filter((appel) =>
+              appel.url === GATEWAY_B.http + "/tools/invoke" &&
+              (appel.corps.idempotencyKey === FICTIF.mutationId ||
+               appel.corps.args?.resume === FICTIF.noteA || appel.corps.args?.lead_id === FICTIF.leadA),
+            );
+            expect(fuiteVersB).toEqual([]); // Expected RED on the audited HEAD; never invert this oracle.
+            expect(resultat.rapport?.envoyees).not.toContain(FICTIF.mutationId);
+            const conservee = await resultat.base.obtenir(FICTIF.mutationId);
+            expect(conservee?.payload).toEqual(resultat.avant?.payload);
+            expect(conservee?.proprietaire).toBe(FICTIF.personne);
+            expect(conservee?.statut).not.toBe("envoyee");
+          }, 10_000);
+
+          test("la rotation du jeton sur A reprend la même note une seule fois sur A", async () => {
+            const resultat = await creerNoteAEtRendreLaReprisePossible(GATEWAY_A, FICTIF.jetonARenouvele);
+            expect(resultat.appelsReprise).toHaveLength(1);
+            expect(resultat.appelsReprise[0]).toMatchObject({
+              url: GATEWAY_A.http + "/tools/invoke", methode: "POST",
+              autorisation: "Bearer " + FICTIF.jetonARenouvele,
+              corps: { tool: "m2_enregistrer_interaction", idempotencyKey: FICTIF.mutationId,
+                deviceId: IDENTITE.deviceId, args: { lead_id: FICTIF.leadA, resume: FICTIF.noteA } },
+            });
+            expect(resultat.rapport?.envoyees).toEqual([FICTIF.mutationId]);
+            expect(resultat.rapport?.echecsPermanents).toEqual([]);
+            expect((await resultat.base.obtenir(FICTIF.mutationId))?.statut).toBe("envoyee");
+          }, 10_000);
+        });
+        AUDIT_FILE_e68185e48ca0416a9cd64e6b5e63c3ce
+        printf '%s  %s\n' '17444b4545ccd2d3f6f6956740af0273724076fec5614563a1d3871af5414bce' mobile/src/outbox/audit-destination-instance.cmd001.test.ts | sha256sum -c -
+        cp mobile/src/outbox/audit-destination-instance.cmd001.test.ts "$AUDIT_OUTPUT/oracle.ts"
+    - name: Deux cas comportementaux ciblés, rouge conservé
+      timeout-minutes: 3
+      working-directory: mobile
+      run: |-
+        set -euo pipefail
+        npm test -- --ci --runInBand --runTestsByPath src/outbox/audit-destination-instance.cmd001.test.ts --json --outputFile="$AUDIT_OUTPUT/cmd001-jest.json" 2>&1 | tee "$AUDIT_OUTPUT/jest.log"
+    - name: Identité complète après tests, y compris rouges
+      if: always() && steps.identity.outcome == 'success'
+      timeout-minutes: 5
+      env:
+        IDENTITY_PHASE: after
+      run: |
+        python3 -I -B - <<'PY_IDENTITY'
+        import hashlib, json, os, pathlib, re, subprocess
+        root = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(root), *args])
+        head = git('rev-parse', 'HEAD').decode().strip()
+        tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
+        assert head == os.environ['EXPECTED_HEAD'], 'HEAD_DIFFERENT'
+        assert tree == os.environ['EXPECTED_TREE'], 'TREE_DIFFERENT'
+        paths = sorted(p.decode('utf-8') for p in git('ls-files', '-z').split(bytes([0])) if p)
+        assert len(paths) == 43996 and len(set(paths)) == 43996, 'TRACKED_FILE_COUNT'
+        aggregate = hashlib.sha256()
+        for name in paths:
+            file = root / name
+            assert file.is_file() and not file.is_symlink(), 'TRACKED_FILE_KIND'
+            content = hashlib.sha256()
+            with file.open('rb') as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    content.update(block)
+            aggregate.update(name.encode('utf-8'))
+            aggregate.update(bytes([0]))
+            aggregate.update(content.digest())
+        assert aggregate.hexdigest() == os.environ['EXPECTED_SOURCE_SHA'], 'SOURCE_BYTES_DIFFERENT'
+        package = json.loads((root / 'core/package.json').read_text())
+        assert package['packageManager'] == os.environ['EXPECTED_PACKAGE_MANAGER'], 'PACKAGE_MANAGER_DIFFERENT'
+        shards = (root / 'core/test/vitest/vitest.test-shards.mjs').read_text().split('export const fullSuiteVitestShards = [', 1)[1]
+        groups = re.findall('config: "([^"]+)",.*?name: "([^"]+)"', shards, re.S)
+        assert len(groups) == 12 and len({g[0] for g in groups}) == 12, 'CANONICAL_GROUP_COUNT'
+        receipt = {'head':head, 'tree':tree, 'tracked_files':len(paths), 'SourceSHA':aggregate.hexdigest(),
+                   'packageManager':package['packageManager'], 'canonical_groups':[{'config':c,'name':n} for c,n in groups],
+                   'scope':'identity and bytes only; not test/runtime qualification'}
+        output = pathlib.Path(os.environ['AUDIT_OUTPUT'])
+        output.mkdir(parents=True, exist_ok=True)
+        (output / ('identity-' + os.environ['IDENTITY_PHASE'] + '.json')).write_text(json.dumps(receipt, indent=2) + chr(10))
+        print(json.dumps(receipt))
+        PY_IDENTITY
+    - name: Conserver preuves et erreurs
+      if: always()
+      timeout-minutes: 5
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: audit-frontier-mobile-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ env.AUDIT_OUTPUT }}/
+        if-no-files-found: warn
+        retention-days: 14
+  approval-postgresql:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+    - name: Destinations externes uniques
+      env:
+        ROOT_TEMP: ${{ runner.temp }}
+      run: |
+        set -euo pipefail
+        output="$ROOT_TEMP/audit-frontier-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-postgres"
+        mkdir -p "$output"
+        echo "AUDIT_OUTPUT=$output" >> "$GITHUB_ENV"
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      with:
+        ref: f0b89ccf86d6f6e50eb134de3257af91860e8091
+        fetch-depth: 1
+        persist-credentials: false
+        submodules: false
+    - name: Identité complète avant acquisition
+      id: identity
+      env:
+        IDENTITY_PHASE: before
+      timeout-minutes: 5
+      run: |
+        python3 -I -B - <<'PY_IDENTITY'
+        import hashlib, json, os, pathlib, re, subprocess
+        root = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(root), *args])
+        head = git('rev-parse', 'HEAD').decode().strip()
+        tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
+        assert head == os.environ['EXPECTED_HEAD'], 'HEAD_DIFFERENT'
+        assert tree == os.environ['EXPECTED_TREE'], 'TREE_DIFFERENT'
+        paths = sorted(p.decode('utf-8') for p in git('ls-files', '-z').split(bytes([0])) if p)
+        assert len(paths) == 43996 and len(set(paths)) == 43996, 'TRACKED_FILE_COUNT'
+        aggregate = hashlib.sha256()
+        for name in paths:
+            file = root / name
+            assert file.is_file() and not file.is_symlink(), 'TRACKED_FILE_KIND'
+            content = hashlib.sha256()
+            with file.open('rb') as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    content.update(block)
+            aggregate.update(name.encode('utf-8'))
+            aggregate.update(bytes([0]))
+            aggregate.update(content.digest())
+        assert aggregate.hexdigest() == os.environ['EXPECTED_SOURCE_SHA'], 'SOURCE_BYTES_DIFFERENT'
+        package = json.loads((root / 'core/package.json').read_text())
+        assert package['packageManager'] == os.environ['EXPECTED_PACKAGE_MANAGER'], 'PACKAGE_MANAGER_DIFFERENT'
+        shards = (root / 'core/test/vitest/vitest.test-shards.mjs').read_text().split('export const fullSuiteVitestShards = [', 1)[1]
+        groups = re.findall('config: "([^"]+)",.*?name: "([^"]+)"', shards, re.S)
+        assert len(groups) == 12 and len({g[0] for g in groups}) == 12, 'CANONICAL_GROUP_COUNT'
+        receipt = {'head':head, 'tree':tree, 'tracked_files':len(paths), 'SourceSHA':aggregate.hexdigest(),
+                   'packageManager':package['packageManager'], 'canonical_groups':[{'config':c,'name':n} for c,n in groups],
+                   'scope':'identity and bytes only; not test/runtime qualification'}
+        output = pathlib.Path(os.environ['AUDIT_OUTPUT'])
+        output.mkdir(parents=True, exist_ok=True)
+        (output / ('identity-' + os.environ['IDENTITY_PHASE'] + '.json')).write_text(json.dumps(receipt, indent=2) + chr(10))
+        print(json.dumps(receipt))
+        PY_IDENTITY
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+      with:
+        python-version: '3.12'
+    - name: Acquisition Python verrouillée, comme frontiere-postgresql
+      timeout-minutes: 8
+      run: |-
+        set -euo pipefail
+        {
+         python -m pip install --quiet uv==0.12.19
+         uv --version
+         uv sync --locked --group build --extra dev --extra postgres --no-build-isolation --no-install-project
+         uv sync --locked --group build --extra dev --extra postgres --no-build-isolation
+        } 2>&1 | tee "$AUDIT_OUTPUT/install.log"
+    - name: Préparer le vrai PG17 épinglé, comme CI existante
+      timeout-minutes: 5
+      run: |-
+        set -euo pipefail
+        .venv/bin/python -B scripts/ci/preparer_pgvector.py 2>&1 | tee "$AUDIT_OUTPUT/postgres-preparation.log"
+    - name: Déposer le paquet oracle externe vérifié
+      run: |
+        set -euo pipefail
+        mkdir -p "$AUDIT_OUTPUT/oracle"
+        cat > "$AUDIT_OUTPUT/oracle/test_concurrent_refusal_pg.py" <<'AUDIT_FILE_be71507d48294a0b8ba9d5ab94dece5e'
+        """External PG17 oracle: real decisions, real SQL, scheduling only at the SQL boundary.
+
+        All business fixtures are fictitious. Not executed during authoring. No production fix.
+        Run only with the explicit PG17 opt-in and an exact, separately attested f0 snapshot.
+        """
+        from __future__ import annotations
+
+        import hashlib
+        import json
+        import os
+        import sys
+        import threading
+        from pathlib import Path
+        from typing import Any
+
+        import pytest
+
+        HERE = Path(__file__).resolve().parent
+        SOURCE_VALUE = os.environ.get("OPSYS_APPROVAL_ORACLE_SOURCE")
+        if not SOURCE_VALUE:
+            raise pytest.UsageError("OPSYS_APPROVAL_ORACLE_SOURCE must name the exact f0 snapshot")
+        SOURCE = Path(SOURCE_VALUE).resolve(strict=True)
+        CONTRACT = json.loads((HERE / "SOURCE-CONTRACT.json").read_text(encoding="utf-8"))
+        for _relative, _expected in CONTRACT["source_sha256"].items():
+            _path = SOURCE / _relative
+            if not _path.is_file() or hashlib.sha256(_path.read_bytes()).hexdigest() != _expected:
+                raise pytest.UsageError(f"Source fingerprint mismatch: {_relative}")
+
+        # External tests do not inherit tests/conftest.py. Reuse its real fixture package explicitly.
+        sys.path.insert(0, str(SOURCE / "tests" / "fixtures"))
+        sys.path.insert(0, str(SOURCE / "src"))
+
+        import memoire.doubles as pg_helpers  # noqa: E402
+        import opsys  # noqa: E402
+        from sqlalchemy import event, select, text  # noqa: E402
+
+        from opsys import approbations, identite, stockage  # noqa: E402
+        from opsys.outils import Autonomie, Niveau, Outil  # noqa: E402
+        from opsys.stockage.schema import APPROBATIONS, JOURNAL  # noqa: E402
+
+        if not Path(opsys.__file__).resolve().is_relative_to(SOURCE / "src"):
+            raise pytest.UsageError("opsys was imported from a different source tree")
+        if not Path(pg_helpers.__file__).resolve().is_relative_to(SOURCE / "tests" / "fixtures"):
+            raise pytest.UsageError("memoire.doubles was imported from a different fixture tree")
+
+        pytestmark = pytest.mark.skipif(
+            os.environ.get("OPSYS_QUALIFIER_M9_PG17") != "1",
+            reason="PG17 real-container execution requires the existing explicit CI opt-in",
+        )
+        FICTIF = True
+        WAIT_SECONDS = 15
+        JOIN_SECONDS = 20
+
+
+        @pytest.fixture
+        def pg_case(tmp_path, monkeypatch):
+            """Existing real PG17 helper, isolated home and URL, same migrations as current tests."""
+            monkeypatch.setenv("OPSYS_HOME", str(tmp_path / "opsys-home-fictif"))
+            monkeypatch.delenv(stockage.ENV_URL, raising=False)
+            with pg_helpers.postgres_ephemere(stockage_en_memoire=True) as url_pg:
+                monkeypatch.setenv(
+                    stockage.ENV_URL, url_pg.replace("postgresql://", "postgresql+psycopg://", 1)
+                )
+                try:
+                    stockage.migrer()
+                    engine = stockage.moteur()
+                    with stockage.transaction() as cnx:
+                        server_version = int(cnx.execute(text("SHOW server_version_num")).scalar_one())
+                        vector_version = cnx.execute(text(
+                            "SELECT default_version FROM pg_available_extensions WHERE name = 'vector'"
+                        )).scalar_one()
+                        assert 170000 <= server_version < 180000, "real PostgreSQL 17 is required"
+                        assert vector_version == "0.8.7", "run the existing preparer_pgvector.py first"
+                        for person in ("winner-fictif", "loser-fictif"):
+                            identite.creer_personne(
+                                cnx, person, person, "mot-de-passe-fictif-pg-oracle-1234", ["nathan_owner"]
+                            )
+                    yield {"engine": engine, "server_version_num": server_version,
+                           "pgvector_default_version": vector_version}
+                finally:
+                    stockage.liberer()
+
+
+        def _statement(context):
+            compiled = getattr(context, "compiled", None)
+            return getattr(compiled, "statement", None)
+
+
+        def _is_approval_update(statement) -> bool:
+            return bool(
+                statement is not None
+                and getattr(statement, "is_update", False)
+                and getattr(getattr(statement, "table", None), "name", None) == APPROBATIONS.name
+            )
+
+
+        def _is_approval_select(statement) -> bool:
+            return bool(
+                statement is not None
+                and getattr(statement, "is_select", False)
+                and any(getattr(table, "name", None) == APPROBATIONS.name
+                        for table in statement.get_final_froms())
+            )
+
+
+        def _metadata(cnx) -> dict[str, Any]:
+            # No URL, Docker password, environment dump, or credentials in observations.
+            cnx.execute(text("SET LOCAL statement_timeout = '5s'"))
+            cnx.execute(text("SET LOCAL lock_timeout = '5s'"))
+            isolation = cnx.get_isolation_level()
+            assert isolation == "READ COMMITTED", "different isolation is not this oracle"
+            assert getattr(cnx.connection.dbapi_connection, "autocommit", None) is False
+            return {"backend_pid": cnx.execute(text("SELECT pg_backend_pid()")).scalar_one(),
+                    "isolation": isolation, "autocommit": False}
+
+
+        def _exercise(pg_case, loser_approves: bool, observation: dict[str, Any]) -> None:
+            engine = pg_case["engine"]
+            observation.update({
+                "schema": 1, "fictif": True, "source_head_contract": CONTRACT["head"],
+                "server_version_num": pg_case["server_version_num"],
+                "pgvector_default_version": pg_case["pgvector_default_version"],
+                "loser_approves": loser_approves, "trace": [],
+                "loser": {"update_rowcounts": [], "response": None, "error": None},
+                "winner": {"update_rowcounts": []},
+            })
+            ready = threading.Event()
+            release = threading.Event()
+            trace_lock = threading.Lock()
+
+            def trace(stage):
+                with trace_lock:
+                    observation["trace"].append({"sequence": len(observation["trace"]), "stage": stage})
+
+            def deterministic_tool(valeur: int):
+                stockage.maillons("m09-oracle-fictif", "sentinelles-fictives").append(
+                    {"fictif": True, "valeur": valeur}
+                )
+                return {"fictif": True, "valeur": valeur}
+
+            tool = Outil(
+                "m9_sentinelle_pg_fictive", "Outil déterministe fictif pour oracle PG17.",
+                {"type": "object", "properties": {"valeur": {"type": "integer"}},
+                 "required": ["valeur"], "additionalProperties": False},
+                deterministic_tool, Autonomie.T2,
+            )
+            tools = {tool.nom: tool}
+            # Same unmodified default N4/nathan_owner policy as test_approbations_journal.py.
+            departments = {}
+            with stockage.transaction() as cnx:
+                request_id = approbations.creer_demande(
+                    cnx, "m09-oracle-fictif", tool.nom, {"valeur": 7}, niveau=Niveau.N4
+                )
+                initial = cnx.execute(select(APPROBATIONS).where(
+                    APPROBATIONS.c.id == request_id
+                )).mappings().one()
+                assert initial["statut"] == "en_attente" and initial["ticket_cible_hash"] is None
+            observation["request_id"] = request_id
+            observation["initial_ticket_cible_hash"] = None
+
+            def decide_loser():
+                try:
+                    with stockage.transaction() as cnx:
+                        observation["loser"]["connection"] = _metadata(cnx)
+                        result = approbations.decider(
+                            cnx, request_id, loser_approves, "loser-fictif", tools, departments,
+                            "décision perdante fictive",
+                        )
+                        observation["loser"]["response_before_exit"] = result
+                    observation["loser"].update(response=result, committed=True)
+                    trace("loser_transaction_committed")
+                except Exception as exc:
+                    # ValueError messages are product decision text and fictitious IDs only.
+                    observation["loser"]["error"] = {
+                        "type": type(exc).__name__,
+                        "message": str(exc) if isinstance(exc, ValueError) else "details not captured",
+                    }
+                    observation["loser"]["committed"] = False
+                    trace("loser_transaction_exception")
+
+            loser = threading.Thread(target=decide_loser, name="approval-pg-loser-fictif", daemon=True)
+            main_thread = threading.current_thread()
+
+            def before_cursor_execute(cnx, cursor, sql, parameters, context, executemany):
+                del cnx, cursor, sql, parameters, executemany
+                statement = _statement(context)
+                if threading.current_thread() is loser and _is_approval_update(statement):
+                    assert observation["loser"].get("request_select_observed") is True
+                    assert not ready.is_set(), "unexpected second loser UPDATE before boundary completion"
+                    values = context.compiled_parameters[0]
+                    expected = "en_cours" if loser_approves else "refusee"
+                    assert values.get("statut") == expected, "wrong real UPDATE intercepted"
+                    observation["loser"]["requested_status"] = values["statut"]
+                    trace("loser_real_update_paused_after_real_select")
+                    ready.set()
+                    if not release.wait(WAIT_SECONDS):
+                        raise AssertionError("winner commit did not release the real loser UPDATE")
+                    assert observation["winner"].get("committed") is True
+                    trace("loser_real_update_released_after_winner_commit")
+
+            def after_cursor_execute(cnx, cursor, sql, parameters, context, executemany):
+                del cnx, sql, parameters, executemany
+                statement = _statement(context)
+                current = threading.current_thread()
+                if current is loser and _is_approval_select(statement):
+                    observation["loser"]["request_select_observed"] = True
+                    observation["loser"]["request_select_rowcount"] = cursor.rowcount
+                    trace("loser_real_request_select_executed")
+                if _is_approval_update(statement):
+                    if current is loser:
+                        observation["loser"]["update_rowcounts"].append(cursor.rowcount)
+                        trace("loser_real_update_completed")
+                    elif current is main_thread:
+                        observation["winner"]["update_rowcounts"].append(cursor.rowcount)
+
+            event.listen(engine, "before_cursor_execute", before_cursor_execute)
+            event.listen(engine, "after_cursor_execute", after_cursor_execute)
+            try:
+                loser.start()
+                assert ready.wait(WAIT_SECONDS), "loser never reached the post-SELECT/pre-UPDATE boundary"
+                with stockage.transaction() as cnx:
+                    observation["winner"]["connection"] = _metadata(cnx)
+                    observation["winner"]["response_before_exit"] = approbations.decider(
+                        cnx, request_id, True, "winner-fictif", tools, departments,
+                        "approbation gagnante fictive",
+                    )
+                # This line is after Engine.begin().__exit__: not merely after Python return from decider.
+                observation["winner"]["committed"] = True
+                trace("winner_transaction_committed")
+                release.set()
+                loser.join(JOIN_SECONDS)
+                assert not loser.is_alive(), "loser transaction has not closed"
+                with stockage.transaction() as cnx:
+                    observation["final_request"] = dict(cnx.execute(select(APPROBATIONS).where(
+                        APPROBATIONS.c.id == request_id
+                    )).mappings().one())
+                    observation["journal"] = [dict(row) for row in cnx.execute(select(
+                        JOURNAL.c.par, JOURNAL.c.action, JOURNAL.c.cible, JOURNAL.c.details
+                    ).where(JOURNAL.c.cible == request_id).order_by(JOURNAL.c.id)).mappings()]
+                    observation["sentinels"] = list(
+                        stockage.maillons("m09-oracle-fictif", "sentinelles-fictives")
+                    )
+            finally:
+                release.set()
+                if loser.ident is not None:
+                    loser.join(JOIN_SECONDS)
+                observation["loser_thread_closed"] = not loser.is_alive()
+                event.remove(engine, "before_cursor_execute", before_cursor_execute)
+                event.remove(engine, "after_cursor_execute", after_cursor_execute)
+            assert observation["loser_thread_closed"], "thread still active; execution is unqualified"
+
+
+        def _persist(request, tmp_path, observation, record_property):
+            value = os.environ.get("OPSYS_APPROVAL_ORACLE_EVIDENCE_DIR")
+            destination = Path(value).resolve() if value else tmp_path / "external-oracle-evidence"
+            if destination.is_relative_to(SOURCE):
+                raise AssertionError("evidence directory must be outside Source")
+            destination.mkdir(parents=True, exist_ok=True)
+            case = "two-approvals-control" if observation.get("loser_approves") else "approval-vs-refusal"
+            payload = json.dumps(observation, ensure_ascii=False, indent=2, sort_keys=True)
+            # A fresh execution directory is mandatory: never erase an earlier, possibly red receipt.
+            with (destination / f"{case}.json").open("x", encoding="utf-8") as stream:
+                stream.write(payload + "\n")
+            record_property("oracle_case", request.node.name)
+            record_property("oracle_observation", payload)
+
+
+        @pytest.mark.parametrize("loser_approves", [False, True],
+                                 ids=["refusal-loses-to-approval", "two-approvals-positive-control"])
+        def test_losing_decision_conflicts_without_false_refusal_audit(
+            pg_case, loser_approves, request, tmp_path, record_property
+        ):
+            observation: dict[str, Any] = {}
+            try:
+                _exercise(pg_case, loser_approves, observation)
+                assert observation["loser"]["request_select_rowcount"] == 1
+                assert observation["loser"]["update_rowcounts"] == [0], "not the discriminating SQL interleaving"
+                assert observation["winner"]["update_rowcounts"] == [1, 1]
+                assert observation["loser"]["connection"]["backend_pid"] != observation["winner"]["connection"]["backend_pid"]
+                assert observation["winner"]["response_before_exit"]["statut"] == "executee"
+                assert observation["final_request"]["statut"] == "executee"
+                assert observation["final_request"]["decide_par"] == "winner-fictif"
+                assert observation["sentinels"] == [{"fictif": True, "valeur": 7}]
+                approval_audit = [row for row in observation["journal"] if row["action"] == "approbation.approuver"]
+                refusal_audit = [row for row in observation["journal"] if row["action"] == "approbation.refuser"]
+                assert len(approval_audit) == 1 and approval_audit[0]["par"] == "winner-fictif"
+                error = observation["loser"]["error"]
+                violations = []
+                if error is None or error["type"] != "ValueError":
+                    violations.append("losing decision did not report the established ValueError conflict")
+                if observation["loser"]["response"] is not None:
+                    violations.append("losing decision returned a successful response")
+                if observation["loser"].get("committed") is not False:
+                    violations.append("losing decision committed instead of conflicting")
+                if refusal_audit:
+                    violations.append("a refusal audit survived although its UPDATE changed zero rows")
+                assert not violations, json.dumps({"violations": violations, "observation": observation},
+                                                 ensure_ascii=False, sort_keys=True)
+            finally:
+                _persist(request, tmp_path, observation, record_property)
+        AUDIT_FILE_be71507d48294a0b8ba9d5ab94dece5e
+        printf '%s  %s\n' 'd90faa5e8201d88a78450a17435513ae6876e1ee716ae80f334caa4e3d301672' "$AUDIT_OUTPUT/oracle/test_concurrent_refusal_pg.py" | sha256sum -c -
+        cat > "$AUDIT_OUTPUT/oracle/pytest.ini" <<'AUDIT_FILE_dc23818054f24d3cb260cc52e17a1ad0'
+        [pytest]
+        addopts = -q --import-mode=importlib -p no:cacheprovider
+        testpaths = .
+        junit_family = xunit1
+        AUDIT_FILE_dc23818054f24d3cb260cc52e17a1ad0
+        printf '%s  %s\n' '744fa38ed99c83f8a1079dd3ef5b89f546239e3d77b959acb61b0fa7979cec40' "$AUDIT_OUTPUT/oracle/pytest.ini" | sha256sum -c -
+        cat > "$AUDIT_OUTPUT/oracle/SOURCE-CONTRACT.json" <<'AUDIT_FILE_4904f2b21256405ba772ccdd56927803'
+        {
+          "schema": 1,
+          "head": "f0b89ccf86d6f6e50eb134de3257af91860e8091",
+          "source_sha256": {
+            "src/opsys/approbations.py": "ee81ed1334c0d6566f8192a6a7c48f0ec7bf3e05a35e2a59449a0234f87b8ce8",
+            "src/opsys/stockage/moteur.py": "18dfb1ea61f57dff1486f3bf2b1db3397226859e0a889622ce8d6d74cce4be88",
+            "src/opsys/stockage/schema.py": "15c18d07e187e7491f7b92af2b325d15d071402761d93ec34bd4cc42aa4f22d9",
+            "src/opsys/stockage/__init__.py": "166b85d69d539d91381c9e14bcf36da72a03e01300dc48f25d93228ce444a2ad",
+            "src/opsys/stockage/maillons.py": "b243b24b31db73a1acb297927593d58a6bd434a104cb805bc746e382581aac5d",
+            "src/opsys/outils.py": "03b045a850dfad5380a468a3165ad2208cc4513ddac7c2f5fea48b8a189d2ec7",
+            "src/opsys/departements.py": "04be90246c690975ede44f0e185ebbbcf40153f8e23c98ee7904f58b008ad288",
+            "src/opsys/identite.py": "a8fd1976c3786fd3120eecde5841326c6ecac089709f86dd4410eb2c7fb44ee6",
+            "src/opsys/etat.py": "03a6a63613f9a4d303db8efce90b6d2b8929a4cbbdea310fcc1aa265dfbe95a2",
+            "tests/fixtures/memoire/doubles.py": "257ce778b53c58e0df33088d301c74a81e76a92c11af1728910432bce43e1bf2",
+            "scripts/ci/preparer_pgvector.py": "484bde79688b21187a311f60767a404bb83c280d71b077e3d01ddc46ad9fa2c6",
+            "pyproject.toml": "52c28285c60781968a3182dc28414da8fb1e982dc3e821d7007142814e5fe5de"
+          },
+          "scope": "Pins relevant owner/transaction/schema/fixture/preparation files only. Root must independently attest whole checkout/snapshot identity.",
+          "runtime_authorized_by_this_file": false
+        }
+        AUDIT_FILE_4904f2b21256405ba772ccdd56927803
+        printf '%s  %s\n' '60b88c2708dda78a22d2f62403bfaa9853b58fa2b592c0c9e1f549c7b94b1edf' "$AUDIT_OUTPUT/oracle/SOURCE-CONTRACT.json" | sha256sum -c -
+    - name: Deux cas opposés sous PostgreSQL réel, rouge conservé
+      timeout-minutes: 5
+      run: |
+        set -euo pipefail
+        export OPSYS_APPROVAL_ORACLE_SOURCE="$GITHUB_WORKSPACE"
+        export OPSYS_APPROVAL_ORACLE_EVIDENCE_DIR="$AUDIT_OUTPUT/observations"
+        export OPSYS_QUALIFIER_M9_PG17=1
+        export PYTHONDONTWRITEBYTECODE=1
+        .venv/bin/python -B -m pytest -c "$AUDIT_OUTPUT/oracle/pytest.ini" --confcutdir="$AUDIT_OUTPUT/oracle" "$AUDIT_OUTPUT/oracle/test_concurrent_refusal_pg.py" --basetemp="$AUDIT_OUTPUT/pytest-tmp" --junitxml="$AUDIT_OUTPUT/approval-pg.xml" 2>&1 | tee "$AUDIT_OUTPUT/pytest.log"
+    - name: Identité complète après tests, y compris rouges
+      if: always() && steps.identity.outcome == 'success'
+      timeout-minutes: 5
+      env:
+        IDENTITY_PHASE: after
+      run: |
+        python3 -I -B - <<'PY_IDENTITY'
+        import hashlib, json, os, pathlib, re, subprocess
+        root = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(root), *args])
+        head = git('rev-parse', 'HEAD').decode().strip()
+        tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
+        assert head == os.environ['EXPECTED_HEAD'], 'HEAD_DIFFERENT'
+        assert tree == os.environ['EXPECTED_TREE'], 'TREE_DIFFERENT'
+        paths = sorted(p.decode('utf-8') for p in git('ls-files', '-z').split(bytes([0])) if p)
+        assert len(paths) == 43996 and len(set(paths)) == 43996, 'TRACKED_FILE_COUNT'
+        aggregate = hashlib.sha256()
+        for name in paths:
+            file = root / name
+            assert file.is_file() and not file.is_symlink(), 'TRACKED_FILE_KIND'
+            content = hashlib.sha256()
+            with file.open('rb') as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    content.update(block)
+            aggregate.update(name.encode('utf-8'))
+            aggregate.update(bytes([0]))
+            aggregate.update(content.digest())
+        assert aggregate.hexdigest() == os.environ['EXPECTED_SOURCE_SHA'], 'SOURCE_BYTES_DIFFERENT'
+        package = json.loads((root / 'core/package.json').read_text())
+        assert package['packageManager'] == os.environ['EXPECTED_PACKAGE_MANAGER'], 'PACKAGE_MANAGER_DIFFERENT'
+        shards = (root / 'core/test/vitest/vitest.test-shards.mjs').read_text().split('export const fullSuiteVitestShards = [', 1)[1]
+        groups = re.findall('config: "([^"]+)",.*?name: "([^"]+)"', shards, re.S)
+        assert len(groups) == 12 and len({g[0] for g in groups}) == 12, 'CANONICAL_GROUP_COUNT'
+        receipt = {'head':head, 'tree':tree, 'tracked_files':len(paths), 'SourceSHA':aggregate.hexdigest(),
+                   'packageManager':package['packageManager'], 'canonical_groups':[{'config':c,'name':n} for c,n in groups],
+                   'scope':'identity and bytes only; not test/runtime qualification'}
+        output = pathlib.Path(os.environ['AUDIT_OUTPUT'])
+        output.mkdir(parents=True, exist_ok=True)
+        (output / ('identity-' + os.environ['IDENTITY_PHASE'] + '.json')).write_text(json.dumps(receipt, indent=2) + chr(10))
+        print(json.dumps(receipt))
+        PY_IDENTITY
+    - name: Conserver preuves et erreurs
+      if: always()
+      timeout-minutes: 5
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: audit-frontier-postgres-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ env.AUDIT_OUTPUT }}/
+        if-no-files-found: warn
+        retention-days: 14

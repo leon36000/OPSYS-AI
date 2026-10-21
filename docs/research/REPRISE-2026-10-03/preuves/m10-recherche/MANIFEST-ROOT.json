@@ -1,0 +1,30 @@
+{
+  "files": [
+    {
+      "source": "/dev/shm/opsys-m10-reuse-research-20261003-r1/NOTE.md",
+      "sha256": "12a3e912dc9e0f2e31ab7db5ed58fd776e2e7cb92f939db04c3dd4cd15163008",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/M10-BRIQUES-RECHERCHE-ROOT-r1/NOTE.md.gz",
+      "qualified": "ROOT lecture only; research metadata"
+    },
+    {
+      "source": "/dev/shm/opsys-m10-reuse-research-20261003-r1/PINS.json",
+      "sha256": "24f65ae6b8dde53242548b81ef0d80f3c500c2e8254d53ee5f3b0153fade2938",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/M10-BRIQUES-RECHERCHE-ROOT-r1/PINS.json.gz",
+      "qualified": "ROOT lecture only; research metadata"
+    },
+    {
+      "source": "/dev/shm/opsys-m10-reuse-research-20261003-r1/NOTE-r2.md",
+      "sha256": "8e1c8b2c415f2064e5c1da39e249fcd19296d6993c62fd6ac64ce21baa528981",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/M10-BRIQUES-RECHERCHE-ROOT-r1/NOTE-r2.md.gz",
+      "qualified": "ROOT lecture only; research metadata"
+    },
+    {
+      "source": "/dev/shm/opsys-m10-reuse-research-20261003-r1/PINS-r2.json",
+      "sha256": "86bcdbd5b18593095fb031e14a7877b5db9af3b427f543552efc98ee005e9a7d",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/M10-BRIQUES-RECHERCHE-ROOT-r1/PINS-r2.json.gz",
+      "qualified": "ROOT lecture only; research metadata"
+    }
+  ],
+  "status": "r2 reviewed; r1 historical",
+  "no_software_execution": true
+}

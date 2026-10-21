@@ -1,0 +1,666 @@
+{
+  "fictif": true,
+  "scope": "actual Cap/current backend SQLite, injected identity; no HTTP/Gateway/phone",
+  "source_sha256": {
+    "departments/m01-front-office/src/m1_front_office/rappels_appareil.py": "82140879c8a78229595dd6809b7ff9dc9a80daa8f403976fb419195601faf4a4",
+    "departments/m01-front-office/tests/test_rappels_appareil.py": "25248cfb5cf488c8debf18fa009d05e9f0d516b814456ea8405d1f6ac7ea464f",
+    "departments/m01-front-office/src/m1_front_office/outils.py": "5b2c19a933c64f524eaecee30a293f55cc1b34946eb5da750fa61948b7ea3dd1",
+    "src/opsys/capacites.py": "fd7aa2d74d683330d194a5fc9da07966c325e7ffc1246d38e3e677ac7cb31e90"
+  },
+  "private_removed": true,
+  "sources_unchanged": true,
+  "phase_count": 16,
+  "phases": [
+    {
+      "name": "liste-vide",
+      "tool": "m1_lister_rappels_appareil",
+      "arguments": {
+        "apres_transfert_id": null,
+        "taille_page": 8
+      },
+      "mutation_uuid": null,
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "rappels": [],
+            "page": {
+              "apres_transfert_id": null,
+              "taille_page": 8,
+              "total": 0,
+              "retournes": 0,
+              "reste": 0,
+              "apres_suivant": null
+            }
+          }
+        }
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"rappels\": [], \"page\": {\"apres_transfert_id\": null, \"taille_page\": 8, \"total\": 0, \"retournes\": 0, \"reste\": 0, \"apres_suivant\": null}}}}",
+      "response_sha256": "592b0c7f9e7a627fe58b65ebdfdfd6853372040d91227d59e62b9c06516ef508",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "liste-courante",
+      "tool": "m1_lister_rappels_appareil",
+      "arguments": {
+        "apres_transfert_id": null,
+        "taille_page": 8
+      },
+      "mutation_uuid": null,
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "rappels": [
+              {
+                "transfert_id": "tr-36a01a2cd15c41f9204b",
+                "conversation_id": "sms-539b520fc3bc542c964719db",
+                "lead_id": null,
+                "canal": "telephone",
+                "ouvert_le": "2026-10-08T17:00:00+00:00",
+                "nombre_sources": 1,
+                "derniere_source": {
+                  "ligne_id": "17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca",
+                  "statut": "voicemail",
+                  "recu_le": "2026-10-08T17:00:00+00:00"
+                },
+                "suivi_rappel": {
+                  "snapshot_suivi": "e4af859753af07e13db9b1279c34295d53ca9f089badc194d66e100085229861",
+                  "responsable": null,
+                  "role": null,
+                  "pris_en_charge_le": null,
+                  "tentatives_sans_contact": 0,
+                  "derniere_tentative_le": null,
+                  "prochaine_tentative_le": null
+                }
+              },
+              {
+                "transfert_id": "tr-aa5df6b758f742bfc47c",
+                "conversation_id": "sms-34a09d43c6b3b0a80685a601",
+                "lead_id": null,
+                "canal": "telephone",
+                "ouvert_le": "2026-10-08T17:00:00+00:00",
+                "nombre_sources": 1,
+                "derniere_source": {
+                  "ligne_id": "005c17e7a8eaeb332b8f7439accd0db434a9cd0bad3c93c6fb31384d133401fb",
+                  "statut": "manque",
+                  "recu_le": "2026-10-08T17:00:00+00:00"
+                },
+                "suivi_rappel": {
+                  "snapshot_suivi": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2",
+                  "responsable": null,
+                  "role": null,
+                  "pris_en_charge_le": null,
+                  "tentatives_sans_contact": 0,
+                  "derniere_tentative_le": null,
+                  "prochaine_tentative_le": null
+                }
+              }
+            ],
+            "page": {
+              "apres_transfert_id": null,
+              "taille_page": 8,
+              "total": 2,
+              "retournes": 2,
+              "reste": 0,
+              "apres_suivant": null
+            }
+          }
+        }
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"rappels\": [{\"transfert_id\": \"tr-36a01a2cd15c41f9204b\", \"conversation_id\": \"sms-539b520fc3bc542c964719db\", \"lead_id\": null, \"canal\": \"telephone\", \"ouvert_le\": \"2026-10-08T17:00:00+00:00\", \"nombre_sources\": 1, \"derniere_source\": {\"ligne_id\": \"17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca\", \"statut\": \"voicemail\", \"recu_le\": \"2026-10-08T17:00:00+00:00\"}, \"suivi_rappel\": {\"snapshot_suivi\": \"e4af859753af07e13db9b1279c34295d53ca9f089badc194d66e100085229861\", \"responsable\": null, \"role\": null, \"pris_en_charge_le\": null, \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}, {\"transfert_id\": \"tr-aa5df6b758f742bfc47c\", \"conversation_id\": \"sms-34a09d43c6b3b0a80685a601\", \"lead_id\": null, \"canal\": \"telephone\", \"ouvert_le\": \"2026-10-08T17:00:00+00:00\", \"nombre_sources\": 1, \"derniere_source\": {\"ligne_id\": \"005c17e7a8eaeb332b8f7439accd0db434a9cd0bad3c93c6fb31384d133401fb\", \"statut\": \"manque\", \"recu_le\": \"2026-10-08T17:00:00+00:00\"}, \"suivi_rappel\": {\"snapshot_suivi\": \"a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2\", \"responsable\": null, \"role\": null, \"pris_en_charge_le\": null, \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}], \"page\": {\"apres_transfert_id\": null, \"taille_page\": 8, \"total\": 2, \"retournes\": 2, \"reste\": 0, \"apres_suivant\": null}}}}",
+      "response_sha256": "c075fb0f055e2da2903ac835b3ce6fcf526dcd989408d164364da3143e557a74",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "liste-keyset-page1",
+      "tool": "m1_lister_rappels_appareil",
+      "arguments": {
+        "apres_transfert_id": null,
+        "taille_page": 1
+      },
+      "mutation_uuid": null,
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "rappels": [
+              {
+                "transfert_id": "tr-36a01a2cd15c41f9204b",
+                "conversation_id": "sms-539b520fc3bc542c964719db",
+                "lead_id": null,
+                "canal": "telephone",
+                "ouvert_le": "2026-10-08T17:00:00+00:00",
+                "nombre_sources": 1,
+                "derniere_source": {
+                  "ligne_id": "17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca",
+                  "statut": "voicemail",
+                  "recu_le": "2026-10-08T17:00:00+00:00"
+                },
+                "suivi_rappel": {
+                  "snapshot_suivi": "e4af859753af07e13db9b1279c34295d53ca9f089badc194d66e100085229861",
+                  "responsable": null,
+                  "role": null,
+                  "pris_en_charge_le": null,
+                  "tentatives_sans_contact": 0,
+                  "derniere_tentative_le": null,
+                  "prochaine_tentative_le": null
+                }
+              }
+            ],
+            "page": {
+              "apres_transfert_id": null,
+              "taille_page": 1,
+              "total": 2,
+              "retournes": 1,
+              "reste": 1,
+              "apres_suivant": "tr-36a01a2cd15c41f9204b"
+            }
+          }
+        }
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"rappels\": [{\"transfert_id\": \"tr-36a01a2cd15c41f9204b\", \"conversation_id\": \"sms-539b520fc3bc542c964719db\", \"lead_id\": null, \"canal\": \"telephone\", \"ouvert_le\": \"2026-10-08T17:00:00+00:00\", \"nombre_sources\": 1, \"derniere_source\": {\"ligne_id\": \"17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca\", \"statut\": \"voicemail\", \"recu_le\": \"2026-10-08T17:00:00+00:00\"}, \"suivi_rappel\": {\"snapshot_suivi\": \"e4af859753af07e13db9b1279c34295d53ca9f089badc194d66e100085229861\", \"responsable\": null, \"role\": null, \"pris_en_charge_le\": null, \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}], \"page\": {\"apres_transfert_id\": null, \"taille_page\": 1, \"total\": 2, \"retournes\": 1, \"reste\": 1, \"apres_suivant\": \"tr-36a01a2cd15c41f9204b\"}}}}",
+      "response_sha256": "465b97c79305ceb4befa7957d709b4bac0d8a66f7c6134d5ce074c3e8ba139b7",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "liste-keyset-page2",
+      "tool": "m1_lister_rappels_appareil",
+      "arguments": {
+        "apres_transfert_id": "tr-36a01a2cd15c41f9204b",
+        "taille_page": 1
+      },
+      "mutation_uuid": null,
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "rappels": [
+              {
+                "transfert_id": "tr-aa5df6b758f742bfc47c",
+                "conversation_id": "sms-34a09d43c6b3b0a80685a601",
+                "lead_id": null,
+                "canal": "telephone",
+                "ouvert_le": "2026-10-08T17:00:00+00:00",
+                "nombre_sources": 1,
+                "derniere_source": {
+                  "ligne_id": "005c17e7a8eaeb332b8f7439accd0db434a9cd0bad3c93c6fb31384d133401fb",
+                  "statut": "manque",
+                  "recu_le": "2026-10-08T17:00:00+00:00"
+                },
+                "suivi_rappel": {
+                  "snapshot_suivi": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2",
+                  "responsable": null,
+                  "role": null,
+                  "pris_en_charge_le": null,
+                  "tentatives_sans_contact": 0,
+                  "derniere_tentative_le": null,
+                  "prochaine_tentative_le": null
+                }
+              }
+            ],
+            "page": {
+              "apres_transfert_id": "tr-36a01a2cd15c41f9204b",
+              "taille_page": 1,
+              "total": 2,
+              "retournes": 1,
+              "reste": 0,
+              "apres_suivant": null
+            }
+          }
+        }
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"rappels\": [{\"transfert_id\": \"tr-aa5df6b758f742bfc47c\", \"conversation_id\": \"sms-34a09d43c6b3b0a80685a601\", \"lead_id\": null, \"canal\": \"telephone\", \"ouvert_le\": \"2026-10-08T17:00:00+00:00\", \"nombre_sources\": 1, \"derniere_source\": {\"ligne_id\": \"005c17e7a8eaeb332b8f7439accd0db434a9cd0bad3c93c6fb31384d133401fb\", \"statut\": \"manque\", \"recu_le\": \"2026-10-08T17:00:00+00:00\"}, \"suivi_rappel\": {\"snapshot_suivi\": \"a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2\", \"responsable\": null, \"role\": null, \"pris_en_charge_le\": null, \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}], \"page\": {\"apres_transfert_id\": \"tr-36a01a2cd15c41f9204b\", \"taille_page\": 1, \"total\": 2, \"retournes\": 1, \"reste\": 0, \"apres_suivant\": null}}}}",
+      "response_sha256": "5125ac2b51111942f810956b00fa0b3a87e463873b55047d0312780218b62d25",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "lecture-meta-refuse",
+      "tool": "m1_lister_rappels_appareil",
+      "arguments": {},
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+      "response": {
+        "ok": false,
+        "erreur": "idempotence_hors_portee_lecture",
+        "details": "Cette lecture pure n’admet aucune enveloppe de mutation."
+      },
+      "response_utf8": "{\"ok\": false, \"erreur\": \"idempotence_hors_portee_lecture\", \"details\": \"Cette lecture pure n’admet aucune enveloppe de mutation.\"}",
+      "response_sha256": "32fb1b3cc75ba4519df0e73deade0d8d129b7d66528c5cd85bc99df15ea3557f",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "prise-acceptee",
+      "tool": "m1_prendre_en_charge_rappel_appareil",
+      "arguments": {
+        "transfert_id": "tr-aa5df6b758f742bfc47c",
+        "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2"
+      },
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "version": 1,
+            "transfert_id": "tr-aa5df6b758f742bfc47c",
+            "action": "prise_en_charge",
+            "ligne_id": "4a11a9cd6f0c5fc10b9407378d3847b42e1feecb78d12e5b389a15a82af857ae",
+            "precedent_ligne_id": "17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca",
+            "index": 8,
+            "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2",
+            "par": "admin-rappel-fictif",
+            "role": "admin",
+            "voie": "appareil",
+            "appareil": "APP-RAPPEL-FICTIF",
+            "intention_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+            "recu_le_serveur": "2026-10-09T05:18:47.044064+00:00",
+            "horodatage_appareil": "2026-10-09T04:00:00+00:00",
+            "suivi_rappel": {
+              "snapshot_suivi": "fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314",
+              "responsable": "admin-rappel-fictif",
+              "role": "admin",
+              "pris_en_charge_le": "2026-10-09T05:18:47.044064+00:00",
+              "tentatives_sans_contact": 0,
+              "derniere_tentative_le": null,
+              "prochaine_tentative_le": null
+            }
+          }
+        },
+        "rejoue": false
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"version\": 1, \"transfert_id\": \"tr-aa5df6b758f742bfc47c\", \"action\": \"prise_en_charge\", \"ligne_id\": \"4a11a9cd6f0c5fc10b9407378d3847b42e1feecb78d12e5b389a15a82af857ae\", \"precedent_ligne_id\": \"17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca\", \"index\": 8, \"snapshot_attendu\": \"a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2\", \"par\": \"admin-rappel-fictif\", \"role\": \"admin\", \"voie\": \"appareil\", \"appareil\": \"APP-RAPPEL-FICTIF\", \"intention_uuid\": \"b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41\", \"recu_le_serveur\": \"2026-10-09T05:18:47.044064+00:00\", \"horodatage_appareil\": \"2026-10-09T04:00:00+00:00\", \"suivi_rappel\": {\"snapshot_suivi\": \"fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314\", \"responsable\": \"admin-rappel-fictif\", \"role\": \"admin\", \"pris_en_charge_le\": \"2026-10-09T05:18:47.044064+00:00\", \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}}, \"rejoue\": false}",
+      "response_sha256": "94ce7d5912191608e27b1c5121c3a339c4f89ba1b7349842d7acae14cf82e2e8",
+      "tables": 49,
+      "changed_tables": [
+        "mutations_appliquees",
+        "registres_maillons"
+      ],
+      "all_tables_unchanged": false
+    },
+    {
+      "name": "liste-attribuee",
+      "tool": "m1_lister_rappels_appareil",
+      "arguments": {
+        "apres_transfert_id": null,
+        "taille_page": 8
+      },
+      "mutation_uuid": null,
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "rappels": [
+              {
+                "transfert_id": "tr-36a01a2cd15c41f9204b",
+                "conversation_id": "sms-539b520fc3bc542c964719db",
+                "lead_id": null,
+                "canal": "telephone",
+                "ouvert_le": "2026-10-08T17:00:00+00:00",
+                "nombre_sources": 1,
+                "derniere_source": {
+                  "ligne_id": "17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca",
+                  "statut": "voicemail",
+                  "recu_le": "2026-10-08T17:00:00+00:00"
+                },
+                "suivi_rappel": {
+                  "snapshot_suivi": "e4af859753af07e13db9b1279c34295d53ca9f089badc194d66e100085229861",
+                  "responsable": null,
+                  "role": null,
+                  "pris_en_charge_le": null,
+                  "tentatives_sans_contact": 0,
+                  "derniere_tentative_le": null,
+                  "prochaine_tentative_le": null
+                }
+              },
+              {
+                "transfert_id": "tr-aa5df6b758f742bfc47c",
+                "conversation_id": "sms-34a09d43c6b3b0a80685a601",
+                "lead_id": null,
+                "canal": "telephone",
+                "ouvert_le": "2026-10-08T17:00:00+00:00",
+                "nombre_sources": 1,
+                "derniere_source": {
+                  "ligne_id": "005c17e7a8eaeb332b8f7439accd0db434a9cd0bad3c93c6fb31384d133401fb",
+                  "statut": "manque",
+                  "recu_le": "2026-10-08T17:00:00+00:00"
+                },
+                "suivi_rappel": {
+                  "snapshot_suivi": "fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314",
+                  "responsable": "admin-rappel-fictif",
+                  "role": "admin",
+                  "pris_en_charge_le": "2026-10-09T05:18:47.044064+00:00",
+                  "tentatives_sans_contact": 0,
+                  "derniere_tentative_le": null,
+                  "prochaine_tentative_le": null
+                }
+              }
+            ],
+            "page": {
+              "apres_transfert_id": null,
+              "taille_page": 8,
+              "total": 2,
+              "retournes": 2,
+              "reste": 0,
+              "apres_suivant": null
+            }
+          }
+        }
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"rappels\": [{\"transfert_id\": \"tr-36a01a2cd15c41f9204b\", \"conversation_id\": \"sms-539b520fc3bc542c964719db\", \"lead_id\": null, \"canal\": \"telephone\", \"ouvert_le\": \"2026-10-08T17:00:00+00:00\", \"nombre_sources\": 1, \"derniere_source\": {\"ligne_id\": \"17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca\", \"statut\": \"voicemail\", \"recu_le\": \"2026-10-08T17:00:00+00:00\"}, \"suivi_rappel\": {\"snapshot_suivi\": \"e4af859753af07e13db9b1279c34295d53ca9f089badc194d66e100085229861\", \"responsable\": null, \"role\": null, \"pris_en_charge_le\": null, \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}, {\"transfert_id\": \"tr-aa5df6b758f742bfc47c\", \"conversation_id\": \"sms-34a09d43c6b3b0a80685a601\", \"lead_id\": null, \"canal\": \"telephone\", \"ouvert_le\": \"2026-10-08T17:00:00+00:00\", \"nombre_sources\": 1, \"derniere_source\": {\"ligne_id\": \"005c17e7a8eaeb332b8f7439accd0db434a9cd0bad3c93c6fb31384d133401fb\", \"statut\": \"manque\", \"recu_le\": \"2026-10-08T17:00:00+00:00\"}, \"suivi_rappel\": {\"snapshot_suivi\": \"fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314\", \"responsable\": \"admin-rappel-fictif\", \"role\": \"admin\", \"pris_en_charge_le\": \"2026-10-09T05:18:47.044064+00:00\", \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}], \"page\": {\"apres_transfert_id\": null, \"taille_page\": 8, \"total\": 2, \"retournes\": 2, \"reste\": 0, \"apres_suivant\": null}}}}",
+      "response_sha256": "a564015a9f5072b9f7d79fc05101e4ae88b08ef49c8ae03a80772024a90e1492",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "prise-cache-propre",
+      "tool": "m1_prendre_en_charge_rappel_appareil",
+      "arguments": {
+        "transfert_id": "tr-aa5df6b758f742bfc47c",
+        "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2"
+      },
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "version": 1,
+            "transfert_id": "tr-aa5df6b758f742bfc47c",
+            "action": "prise_en_charge",
+            "ligne_id": "4a11a9cd6f0c5fc10b9407378d3847b42e1feecb78d12e5b389a15a82af857ae",
+            "precedent_ligne_id": "17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca",
+            "index": 8,
+            "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2",
+            "par": "admin-rappel-fictif",
+            "role": "admin",
+            "voie": "appareil",
+            "appareil": "APP-RAPPEL-FICTIF",
+            "intention_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+            "recu_le_serveur": "2026-10-09T05:18:47.044064+00:00",
+            "horodatage_appareil": "2026-10-09T04:00:00+00:00",
+            "suivi_rappel": {
+              "snapshot_suivi": "fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314",
+              "responsable": "admin-rappel-fictif",
+              "role": "admin",
+              "pris_en_charge_le": "2026-10-09T05:18:47.044064+00:00",
+              "tentatives_sans_contact": 0,
+              "derniere_tentative_le": null,
+              "prochaine_tentative_le": null
+            }
+          }
+        },
+        "rejoue": true
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"version\": 1, \"transfert_id\": \"tr-aa5df6b758f742bfc47c\", \"action\": \"prise_en_charge\", \"ligne_id\": \"4a11a9cd6f0c5fc10b9407378d3847b42e1feecb78d12e5b389a15a82af857ae\", \"precedent_ligne_id\": \"17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca\", \"index\": 8, \"snapshot_attendu\": \"a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2\", \"par\": \"admin-rappel-fictif\", \"role\": \"admin\", \"voie\": \"appareil\", \"appareil\": \"APP-RAPPEL-FICTIF\", \"intention_uuid\": \"b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41\", \"recu_le_serveur\": \"2026-10-09T05:18:47.044064+00:00\", \"horodatage_appareil\": \"2026-10-09T04:00:00+00:00\", \"suivi_rappel\": {\"snapshot_suivi\": \"fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314\", \"responsable\": \"admin-rappel-fictif\", \"role\": \"admin\", \"pris_en_charge_le\": \"2026-10-09T05:18:47.044064+00:00\", \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}}, \"rejoue\": true}",
+      "response_sha256": "c595aac8f1099a6d4a2c118eb36116f9993917084e6de6e1290e4f0a5aeb6509",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "role-retire-cache-inconnu",
+      "tool": "m1_prendre_en_charge_rappel_appareil",
+      "arguments": {
+        "transfert_id": "tr-aa5df6b758f742bfc47c",
+        "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2"
+      },
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+      "response": {
+        "ok": false,
+        "erreur": "REJ-M1-RAPPEL-IDENTITE-INVALIDE",
+        "issue": "inconnue",
+        "details": "La confirmation actuelle est indisponible ; conserver la même clé et ses arguments."
+      },
+      "response_utf8": "{\"ok\": false, \"erreur\": \"REJ-M1-RAPPEL-IDENTITE-INVALIDE\", \"issue\": \"inconnue\", \"details\": \"La confirmation actuelle est indisponible ; conserver la même clé et ses arguments.\"}",
+      "response_sha256": "6d093fb0d6ddf4ea25e1d32eec68c7e620c15bcc51ca3e1c9ae43736271610cd",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "role-retabli-cache-propre",
+      "tool": "m1_prendre_en_charge_rappel_appareil",
+      "arguments": {
+        "transfert_id": "tr-aa5df6b758f742bfc47c",
+        "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2"
+      },
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "version": 1,
+            "transfert_id": "tr-aa5df6b758f742bfc47c",
+            "action": "prise_en_charge",
+            "ligne_id": "4a11a9cd6f0c5fc10b9407378d3847b42e1feecb78d12e5b389a15a82af857ae",
+            "precedent_ligne_id": "17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca",
+            "index": 8,
+            "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2",
+            "par": "admin-rappel-fictif",
+            "role": "admin",
+            "voie": "appareil",
+            "appareil": "APP-RAPPEL-FICTIF",
+            "intention_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+            "recu_le_serveur": "2026-10-09T05:18:47.044064+00:00",
+            "horodatage_appareil": "2026-10-09T04:00:00+00:00",
+            "suivi_rappel": {
+              "snapshot_suivi": "fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314",
+              "responsable": "admin-rappel-fictif",
+              "role": "admin",
+              "pris_en_charge_le": "2026-10-09T05:18:47.044064+00:00",
+              "tentatives_sans_contact": 0,
+              "derniere_tentative_le": null,
+              "prochaine_tentative_le": null
+            }
+          }
+        },
+        "rejoue": true
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"version\": 1, \"transfert_id\": \"tr-aa5df6b758f742bfc47c\", \"action\": \"prise_en_charge\", \"ligne_id\": \"4a11a9cd6f0c5fc10b9407378d3847b42e1feecb78d12e5b389a15a82af857ae\", \"precedent_ligne_id\": \"17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca\", \"index\": 8, \"snapshot_attendu\": \"a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2\", \"par\": \"admin-rappel-fictif\", \"role\": \"admin\", \"voie\": \"appareil\", \"appareil\": \"APP-RAPPEL-FICTIF\", \"intention_uuid\": \"b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41\", \"recu_le_serveur\": \"2026-10-09T05:18:47.044064+00:00\", \"horodatage_appareil\": \"2026-10-09T04:00:00+00:00\", \"suivi_rappel\": {\"snapshot_suivi\": \"fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314\", \"responsable\": \"admin-rappel-fictif\", \"role\": \"admin\", \"pris_en_charge_le\": \"2026-10-09T05:18:47.044064+00:00\", \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}}, \"rejoue\": true}",
+      "response_sha256": "c595aac8f1099a6d4a2c118eb36116f9993917084e6de6e1290e4f0a5aeb6509",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "quota-cache800-inconnu",
+      "tool": "m1_prendre_en_charge_rappel_appareil",
+      "arguments": {
+        "transfert_id": "tr-aa5df6b758f742bfc47c",
+        "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2"
+      },
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+      "response": {
+        "ok": false,
+        "erreur": "REJ-M1-RAPPEL-SORTIE-TROP-VOLUMINEUSE",
+        "issue": "inconnue",
+        "details": "La confirmation actuelle est indisponible ; conserver la même clé et ses arguments."
+      },
+      "response_utf8": "{\"ok\": false, \"erreur\": \"REJ-M1-RAPPEL-SORTIE-TROP-VOLUMINEUSE\", \"issue\": \"inconnue\", \"details\": \"La confirmation actuelle est indisponible ; conserver la même clé et ses arguments.\"}",
+      "response_sha256": "af41a4bc51007f1e2709aac087a607ce2276188092f1566afca94c1a6a87bf29",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "quota-retabli-cache-propre",
+      "tool": "m1_prendre_en_charge_rappel_appareil",
+      "arguments": {
+        "transfert_id": "tr-aa5df6b758f742bfc47c",
+        "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2"
+      },
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "version": 1,
+            "transfert_id": "tr-aa5df6b758f742bfc47c",
+            "action": "prise_en_charge",
+            "ligne_id": "4a11a9cd6f0c5fc10b9407378d3847b42e1feecb78d12e5b389a15a82af857ae",
+            "precedent_ligne_id": "17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca",
+            "index": 8,
+            "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2",
+            "par": "admin-rappel-fictif",
+            "role": "admin",
+            "voie": "appareil",
+            "appareil": "APP-RAPPEL-FICTIF",
+            "intention_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+            "recu_le_serveur": "2026-10-09T05:18:47.044064+00:00",
+            "horodatage_appareil": "2026-10-09T04:00:00+00:00",
+            "suivi_rappel": {
+              "snapshot_suivi": "fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314",
+              "responsable": "admin-rappel-fictif",
+              "role": "admin",
+              "pris_en_charge_le": "2026-10-09T05:18:47.044064+00:00",
+              "tentatives_sans_contact": 0,
+              "derniere_tentative_le": null,
+              "prochaine_tentative_le": null
+            }
+          }
+        },
+        "rejoue": true
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"version\": 1, \"transfert_id\": \"tr-aa5df6b758f742bfc47c\", \"action\": \"prise_en_charge\", \"ligne_id\": \"4a11a9cd6f0c5fc10b9407378d3847b42e1feecb78d12e5b389a15a82af857ae\", \"precedent_ligne_id\": \"17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca\", \"index\": 8, \"snapshot_attendu\": \"a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2\", \"par\": \"admin-rappel-fictif\", \"role\": \"admin\", \"voie\": \"appareil\", \"appareil\": \"APP-RAPPEL-FICTIF\", \"intention_uuid\": \"b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41\", \"recu_le_serveur\": \"2026-10-09T05:18:47.044064+00:00\", \"horodatage_appareil\": \"2026-10-09T04:00:00+00:00\", \"suivi_rappel\": {\"snapshot_suivi\": \"fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314\", \"responsable\": \"admin-rappel-fictif\", \"role\": \"admin\", \"pris_en_charge_le\": \"2026-10-09T05:18:47.044064+00:00\", \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}}, \"rejoue\": true}",
+      "response_sha256": "c595aac8f1099a6d4a2c118eb36116f9993917084e6de6e1290e4f0a5aeb6509",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "autre-corps-meme-UUID",
+      "tool": "m1_prendre_en_charge_rappel_appareil",
+      "arguments": {
+        "transfert_id": "tr-aa5df6b758f742bfc47c",
+        "snapshot_attendu": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+      "response": {
+        "ok": false,
+        "erreur": "mutation_conflit",
+        "details": "clé 'b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41' de l'appareil 'APP-RAPPEL-FICTIF' déjà utilisée pour d'autres arguments ('m1_prendre_en_charge_rappel_appareil')"
+      },
+      "response_utf8": "{\"ok\": false, \"erreur\": \"mutation_conflit\", \"details\": \"clé 'b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41' de l'appareil 'APP-RAPPEL-FICTIF' déjà utilisée pour d'autres arguments ('m1_prendre_en_charge_rappel_appareil')\"}",
+      "response_sha256": "00c0617af50666ab2033818dc9c9452e0ec5bedb3d64991e2972e5fdc3a7f0b4",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "refus-frais-certain",
+      "tool": "m1_prendre_en_charge_rappel_appareil",
+      "arguments": {
+        "transfert_id": "tr-aa5df6b758f742bfc47c",
+        "snapshot_attendu": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a42",
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M1-RAPPEL-SNAPSHOT-PERIME",
+            "detail": "Dossier de rappel indisponible pour cette opération ; relire sous une autorité actuelle."
+          }
+        },
+        "rejoue": false
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": false, \"verdict\": {\"code\": \"REJ-M1-RAPPEL-SNAPSHOT-PERIME\", \"detail\": \"Dossier de rappel indisponible pour cette opération ; relire sous une autorité actuelle.\"}}, \"rejoue\": false}",
+      "response_sha256": "9bc1e3c4b82a8c90ad77e915dc13c315207a082d1e979cf3dca065c5ff9a0126",
+      "tables": 49,
+      "changed_tables": [
+        "mutations_appliquees"
+      ],
+      "all_tables_unchanged": false
+    },
+    {
+      "name": "restart-refus-cache-exact",
+      "tool": "m1_prendre_en_charge_rappel_appareil",
+      "arguments": {
+        "transfert_id": "tr-aa5df6b758f742bfc47c",
+        "snapshot_attendu": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a42",
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M1-RAPPEL-SNAPSHOT-PERIME",
+            "detail": "Dossier de rappel indisponible pour cette opération ; relire sous une autorité actuelle."
+          }
+        },
+        "rejoue": true
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": false, \"verdict\": {\"code\": \"REJ-M1-RAPPEL-SNAPSHOT-PERIME\", \"detail\": \"Dossier de rappel indisponible pour cette opération ; relire sous une autorité actuelle.\"}}, \"rejoue\": true}",
+      "response_sha256": "a2ba00869fe288c15b581c7ab32d33dc7112aa4212f751d1b4068635bf448588",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    },
+    {
+      "name": "restart-succes-cache-exact",
+      "tool": "m1_prendre_en_charge_rappel_appareil",
+      "arguments": {
+        "transfert_id": "tr-aa5df6b758f742bfc47c",
+        "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2"
+      },
+      "mutation_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "version": 1,
+            "transfert_id": "tr-aa5df6b758f742bfc47c",
+            "action": "prise_en_charge",
+            "ligne_id": "4a11a9cd6f0c5fc10b9407378d3847b42e1feecb78d12e5b389a15a82af857ae",
+            "precedent_ligne_id": "17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca",
+            "index": 8,
+            "snapshot_attendu": "a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2",
+            "par": "admin-rappel-fictif",
+            "role": "admin",
+            "voie": "appareil",
+            "appareil": "APP-RAPPEL-FICTIF",
+            "intention_uuid": "b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41",
+            "recu_le_serveur": "2026-10-09T05:18:47.044064+00:00",
+            "horodatage_appareil": "2026-10-09T04:00:00+00:00",
+            "suivi_rappel": {
+              "snapshot_suivi": "fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314",
+              "responsable": "admin-rappel-fictif",
+              "role": "admin",
+              "pris_en_charge_le": "2026-10-09T05:18:47.044064+00:00",
+              "tentatives_sans_contact": 0,
+              "derniere_tentative_le": null,
+              "prochaine_tentative_le": null
+            }
+          }
+        },
+        "rejoue": true
+      },
+      "response_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"version\": 1, \"transfert_id\": \"tr-aa5df6b758f742bfc47c\", \"action\": \"prise_en_charge\", \"ligne_id\": \"4a11a9cd6f0c5fc10b9407378d3847b42e1feecb78d12e5b389a15a82af857ae\", \"precedent_ligne_id\": \"17bdb085bc87c00285fc66f647f42cf1f974bfcb3de61670ca292ba30c2348ca\", \"index\": 8, \"snapshot_attendu\": \"a21abec93aeb4fe92282a07198f01e8f0bf3f01d155b72112f02214ddabc7ba2\", \"par\": \"admin-rappel-fictif\", \"role\": \"admin\", \"voie\": \"appareil\", \"appareil\": \"APP-RAPPEL-FICTIF\", \"intention_uuid\": \"b64c9d50-8fb5-4ad6-88b5-c54bb46b9a41\", \"recu_le_serveur\": \"2026-10-09T05:18:47.044064+00:00\", \"horodatage_appareil\": \"2026-10-09T04:00:00+00:00\", \"suivi_rappel\": {\"snapshot_suivi\": \"fd8877af2b9eba19bb97044347fa14209828fe58c52c3a14334d81f2c549e314\", \"responsable\": \"admin-rappel-fictif\", \"role\": \"admin\", \"pris_en_charge_le\": \"2026-10-09T05:18:47.044064+00:00\", \"tentatives_sans_contact\": 0, \"derniere_tentative_le\": null, \"prochaine_tentative_le\": null}}}, \"rejoue\": true}",
+      "response_sha256": "c595aac8f1099a6d4a2c118eb36116f9993917084e6de6e1290e4f0a5aeb6509",
+      "tables": 49,
+      "changed_tables": [],
+      "all_tables_unchanged": true
+    }
+  ]
+}

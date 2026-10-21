@@ -1,0 +1,103 @@
+{
+  "Jest_shards": [
+    {
+      "Jest_sha256": "b10149bcd494da34f7f0b096c826773fc7b810533aab0039d4bde8a28258f16e",
+      "shard": "full-shard1-r2",
+      "suites": 60,
+      "tests": 1465
+    },
+    {
+      "Jest_sha256": "d2404038d7f7f87f1b446c2082d433f3797f9b2ae4808f1b0d4d349db4d12a2f",
+      "shard": "full-shard2-r2",
+      "suites": 59,
+      "tests": 1161
+    },
+    {
+      "Jest_sha256": "f01a91ebe428735d843ae23cd1f6b2626d735fd317bdca4076ccf93d78b5f676",
+      "shard": "full-shard3-r2",
+      "suites": 59,
+      "tests": 1371
+    },
+    {
+      "Jest_sha256": "73009b28046f5bbe17ef1e3729d7c8873db5f10459a728933b999391b1d63e18",
+      "shard": "full-shard4-r2",
+      "suites": 59,
+      "tests": 1579
+    }
+  ],
+  "Jest_wall_seconds": 47.75,
+  "Source14_final_sha256": "810ca99fb1de830e1de7f71489da417dc04c9ca38562b4ca6feb416902d544f6",
+  "TSC_JSON_program_inputs": 27,
+  "TSC_actual_inputs": 1346,
+  "TSC_dependency_inputs_after_only": 813,
+  "TSC_project_inputs_fixed": 533,
+  "TSC_unknown_inputs": [],
+  "all_EOF_PIDFD_observed_owners_closed": true,
+  "all_live_named_pins_rehashed": true,
+  "disjoint_suite_lists": true,
+  "external_pins": 2,
+  "failures": 0,
+  "fixed_relative_count": 636,
+  "fixed_sha256": "972025a848e9d0c1248402f98f7192cf87b23c7bb508603c74c24163dba8f0d7",
+  "limits": [
+    "SQLite file/reopen same process; not Expo/device/process restart",
+    "Transport/bytes/digest fixtures; no server commit/financial finality",
+    "Only named critical tools/deps protected before-after; 813 compiler dependency inputs hashed afterward",
+    "Historic5574 not added to new5576",
+    "No new JUnit validity claim; primary four Jest JSON counts used",
+    "Root first readback wrongly filtered listFiles to TS extensions and excluded 27 JSON; refused before certificate; parser now includes actual program inputs",
+    "Core build PC1 snapshot earlier mobile; currentCore identical and qualified separately"
+  ],
+  "max_RSS_bytes": 925925376,
+  "observed_imports": 464,
+  "outer_session_closed": 99405,
+  "receipts": [
+    {
+      "RSS_bytes": 755351552,
+      "exit": 0,
+      "phase": "full-shard1-r2",
+      "sha256": "43c20e074c5a84eb705c375e33910d6a7ed67596f0a6ffa0879edbf5525d5e62",
+      "wall_seconds": 13.238
+    },
+    {
+      "RSS_bytes": 606707712,
+      "exit": 0,
+      "phase": "full-shard2-r2",
+      "sha256": "f1846e718de060c7e5c3a840dbede9b585362812d0f089504fc19356cf7a0b85",
+      "wall_seconds": 11.284
+    },
+    {
+      "RSS_bytes": 769687552,
+      "exit": 0,
+      "phase": "full-shard3-r2",
+      "sha256": "2b9a2e4b130e00982c38aee6ff00785eac9bf6ebe14aff5d73462aa9039e472a",
+      "wall_seconds": 12.409
+    },
+    {
+      "RSS_bytes": 775032832,
+      "exit": 0,
+      "phase": "full-shard4-r2",
+      "sha256": "e2319c26a6b5c1954df04d69966c365e5b4063b505e0b9e9b48f7d1f4a26440b",
+      "wall_seconds": 10.819
+    },
+    {
+      "RSS_bytes": 925925376,
+      "exit": 0,
+      "phase": "tsc-r2",
+      "sha256": "2e288746888123e5ecd51f38bfb83c1225d01ee7d7252a899916a99e876595a0",
+      "wall_seconds": 4.023
+    },
+    {
+      "RSS_bytes": 150429696,
+      "exit": 0,
+      "phase": "lint14-r2",
+      "sha256": "88e291e76fb511bf34ff1c175197c5e537d072b6d5281739a9c8e54d46f7dde1",
+      "wall_seconds": 0.22
+    }
+  ],
+  "skips": 0,
+  "state": "ROOT_FRESH_SOURCE14_OWNERSHIP_FULL_QUALIFIED",
+  "suites": 237,
+  "tests": 5576,
+  "utc": "2026-10-11T00:27:16.112532+00:00"
+}

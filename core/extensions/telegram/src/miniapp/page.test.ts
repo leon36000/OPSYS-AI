@@ -1,0 +1,27 @@
+import { describe, expect, it } from "vitest";
+import { renderTelegramMiniAppPage } from "./page.js";
+
+describe("renderTelegramMiniAppPage", () => {
+  it("builds the dashboard redirect from the authenticated payload", () => {
+    const html = renderTelegramMiniAppPage({ accountId: "ops", scriptNonce: "nonce" });
+
+    expect(html).toContain('const accountId = "ops";');
+    expect(html).toContain('new URLSearchParams(location.hash.slice(1)).get("launchTicket")');
+    expect(html).toContain("new URL(payload.controlUiUrl)");
+    expect(html).not.toContain("const controlUiUrl =");
+  });
+
+  it("shows the OPSYS brand in the page title and heading", () => {
+    const html = renderTelegramMiniAppPage({ accountId: "ops", scriptNonce: "nonce" });
+
+    expect(html).toContain("<title>OPSYS</title>");
+    expect(html).toContain("<h1>OPSYS</h1>");
+    expect(html).not.toContain("OpenClaw");
+  });
+
+  it("escapes the nonce for its quoted HTML attribute", () => {
+    const html = renderTelegramMiniAppPage({ accountId: "ops", scriptNonce: `&<>"'` });
+
+    expect(html).toContain('nonce="&amp;&lt;&gt;&quot;&#39;"');
+  });
+});

@@ -1,0 +1,47 @@
+{
+  "status": "26_PASS_0_FAILURE_ERROR_SKIP_RUFF3_PASS",
+  "raw_driver_status": "RED preserved: erroneous expected total 22 ignored four parametrized expansions. No product/test failure.",
+  "oracle_correction": "Independent ROOT AST counts each explicit test function and literal parametrize lists; all exact base test names/frequencies match JUnit, unique full case IDs, 14 old payroll +12 private calendar. No rerun or evidence overwrite.",
+  "cases_by_file": {
+    "tests.test_console_paie": 14,
+    "tests.test_console_paie_obligations": 12
+  },
+  "source_count": 576,
+  "source_delta": {},
+  "oom_before": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "oom_after": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "peak_group_rss_bytes": 180269056,
+  "minimum_room_bytes": 1257259008,
+  "evidence": [
+    {
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/M5-OBLIGATIONS-PRIVEES-ROOT-r1/execution-r2-verifie/receipt.json.gz",
+      "raw_sha256": "5408f5032d617aa9effce8e4d03aa8e234591634210d779579f90cfb96be415e"
+    },
+    {
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/M5-OBLIGATIONS-PRIVEES-ROOT-r1/execution-r2-verifie/pytest.xml.gz",
+      "raw_sha256": "0ce74a197aa328f65610b97da2c0cafe379d423dcd78bfa14f92c80dd854f17d"
+    },
+    {
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/M5-OBLIGATIONS-PRIVEES-ROOT-r1/execution-r2-verifie/pytest.log.gz",
+      "raw_sha256": "873606e086801ed19aee0207349fda1b4909799962273db0c9c85263256479a9"
+    },
+    {
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/M5-OBLIGATIONS-PRIVEES-ROOT-r1/execution-r2-verifie/ruff.log.gz",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    }
+  ],
+  "limits": [
+    "Actual canonical SQLite/HTTP/AES; synthetic business records.",
+    "No official payroll or DAS source validation.",
+    "No CFO/forecast shared snapshot yet.",
+    "Full Python export contains ciphertext and decryption keys; must remain private and encrypted externally."
+  ]
+}

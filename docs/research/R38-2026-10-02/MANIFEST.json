@@ -1,0 +1,934 @@
+{
+  "archives": [
+    {
+      "archive": "sources-r38/OPSYS-AI-recent--deploy--backup.sh--05a3f04a2184c9ec0b4a81fb10297af1aaed84aeb8060e8a03799a923f3b1edc.gz",
+      "origine": "/workspace/OPSYS-AI-recent/deploy/backup.sh",
+      "sha256_archive": "323fa0c8dc853e1a4d7eb8a6e5f8b60d6df2cbdac5060972e7b6fbeedbc83056",
+      "sha256_original": "05a3f04a2184c9ec0b4a81fb10297af1aaed84aeb8060e8a03799a923f3b1edc",
+      "taille_archive": 4991,
+      "taille_originale": 14499
+    },
+    {
+      "archive": "sources-r38/OPSYS-AI-recent--deploy--restore.sh--28e0282b5432897e66e31c69a72ffdd6c4e501eb921b7e93124020e40e87daf9.gz",
+      "origine": "/workspace/OPSYS-AI-recent/deploy/restore.sh",
+      "sha256_archive": "184072973676ef0457f571879a6f3caa7a357765c1480cb6d68685825f2e56b6",
+      "sha256_original": "28e0282b5432897e66e31c69a72ffdd6c4e501eb921b7e93124020e40e87daf9",
+      "taille_archive": 4925,
+      "taille_originale": 16844
+    },
+    {
+      "archive": "preuves/OPSYS-AI-recent--docs--research--R34-2026-10-02--MANIFEST.json--c30a12ef175141d9e6a32b317cb8f5878291dcf34dc2da8e3beb2acafa592215.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R34-2026-10-02/MANIFEST.json",
+      "sha256_archive": "274868ccf6a86ce62684a4b09562c851ca1fbc2235409773c9fcd0d87dd3e41f",
+      "sha256_original": "c30a12ef175141d9e6a32b317cb8f5878291dcf34dc2da8e3beb2acafa592215",
+      "taille_archive": 6507,
+      "taille_originale": 27463
+    },
+    {
+      "archive": "preuves/OPSYS-AI-recent--docs--research--R34-2026-10-02--POST-CHECK.json--9193a83f526289f0a30df83c0a4418899efe5a226087ced2b5a9f9ebbbe17f25.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R34-2026-10-02/POST-CHECK.json",
+      "sha256_archive": "935d99d85badab04d8d7a06d3e31f223322c6c6dc2f31b327ee3bd1750b816d4",
+      "sha256_original": "9193a83f526289f0a30df83c0a4418899efe5a226087ced2b5a9f9ebbbe17f25",
+      "taille_archive": 232,
+      "taille_originale": 320
+    },
+    {
+      "archive": "preuves/OPSYS-AI-recent--docs--research--R34-2026-10-02--QUALIFICATION.json--510005dbaf9e4b712c936c188cc80c73f7d55a2c451436edc737bcdae26cb557.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R34-2026-10-02/QUALIFICATION.json",
+      "sha256_archive": "bb3bb1ecca9e855208e8447a9090e9be3a34baf274ca70a518ada03e7089ac59",
+      "sha256_original": "510005dbaf9e4b712c936c188cc80c73f7d55a2c451436edc737bcdae26cb557",
+      "taille_archive": 2260,
+      "taille_originale": 6975
+    },
+    {
+      "archive": "preuves/OPSYS-AI-recent--docs--research--R34-2026-10-02--README.md--9a674a278596f9d80ed58022883ad5092ad9a357910377555d1ccff569c624b3.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R34-2026-10-02/README.md",
+      "sha256_archive": "194fda85d66d4435316521ff4b39ec4f8277ad455eb0041976e1717d95d522ae",
+      "sha256_original": "9a674a278596f9d80ed58022883ad5092ad9a357910377555d1ccff569c624b3",
+      "taille_archive": 877,
+      "taille_originale": 1475
+    },
+    {
+      "archive": "preuves/OPSYS-AI-recent--docs--research--R34-2026-10-02--SOURCES-FINALES.json--a6f9bcf83d19bd357a9e8a6ae6fc73dfaa86c2d964871246b466d883ea542fae.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R34-2026-10-02/SOURCES-FINALES.json",
+      "sha256_archive": "ea43ce034f5c13ad54f5a187372a2c2a5e78dc4998c6810d140950e41bcaf598",
+      "sha256_original": "a6f9bcf83d19bd357a9e8a6ae6fc73dfaa86c2d964871246b466d883ea542fae",
+      "taille_archive": 671,
+      "taille_originale": 1046
+    },
+    {
+      "archive": "sources-r38/OPSYS-AI-recent--tests--test_deploy_backup_restore.py--5e2dde4afa90779d5a9fec85b57af7258267c33eb60e439510f05c18499feaf2.gz",
+      "origine": "/workspace/OPSYS-AI-recent/tests/test_deploy_backup_restore.py",
+      "sha256_archive": "566e0c0a9714445cabbc1ba491f849bce0f4c3ffcd9d704c1539abc97bb79045",
+      "sha256_original": "5e2dde4afa90779d5a9fec85b57af7258267c33eb60e439510f05c18499feaf2",
+      "taille_archive": 9895,
+      "taille_originale": 52285
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R34-preparation--SCELLEMENT-ROOT-r2.json--ac384484b089c1f9447d4e027fab23db5f9e703ecff1ef0c61cdc96a11508512.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R34-preparation/SCELLEMENT-ROOT-r2.json",
+      "sha256_archive": "db697413d0395d37b80dec2a588e3bfb06aad4202f71e93cd9096a942f1d4304",
+      "sha256_original": "ac384484b089c1f9447d4e027fab23db5f9e703ecff1ef0c61cdc96a11508512",
+      "taille_archive": 558,
+      "taille_originale": 795
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--EXPLOITATION.md-delta-r1.patch--1624573bf6801aa2dcf74c0a3e03e58c7368adb95be7771931dbb242cb5d3bd3.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/EXPLOITATION.md-delta-r1.patch",
+      "sha256_archive": "4a96b908594945761a41efa3927e56c2234884cb2060972aa1032926ddeeef28",
+      "sha256_original": "1624573bf6801aa2dcf74c0a3e03e58c7368adb95be7771931dbb242cb5d3bd3",
+      "taille_archive": 3526,
+      "taille_originale": 7363
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--INVENTAIRE-r1.json--f793a0f960fdd7497fad10fcbb398b875909967ad197d9ba9c68a357f0ea85eb.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/INVENTAIRE-r1.json",
+      "sha256_archive": "8229b5cc3b45578177b224154d47b3b9638d7db619d361d3c6792d298e33d5f8",
+      "sha256_original": "f793a0f960fdd7497fad10fcbb398b875909967ad197d9ba9c68a357f0ea85eb",
+      "taille_archive": 1632,
+      "taille_originale": 4285
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--PREIMAGES-r1.json--c2787ab8cd791f9a949452cbf8edd9023821802ba6620452356128927eed46a2.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/PREIMAGES-r1.json",
+      "sha256_archive": "0379d092638cdcb8388f00f76cbf656612deba0954ede6cc348cd76d388266f9",
+      "sha256_original": "c2787ab8cd791f9a949452cbf8edd9023821802ba6620452356128927eed46a2",
+      "taille_archive": 5491,
+      "taille_originale": 13286
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--PREPARATION-ERREUR-r1.json--36e528794025c09e6338b02dd63739d3aa388099a6fc0025d1d9939603028911.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/PREPARATION-ERREUR-r1.json",
+      "sha256_archive": "a8e0a508eecc085cc333fee0e4ea8df2cae7a5fd4cd240b829f0030ca53c50c5",
+      "sha256_original": "36e528794025c09e6338b02dd63739d3aa388099a6fc0025d1d9939603028911",
+      "taille_archive": 182,
+      "taille_originale": 220
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--SECRETS-CONTROLE-r1.json--59d6d077864e9e6ce01e00141fa14f4d0235eb3a849b9747dc119ed0c4ec3078.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/SECRETS-CONTROLE-r1.json",
+      "sha256_archive": "8a30f818c292ce15e3320deae5b7a0c92dc1a06bfeefa2f85093fe723bf53dfc",
+      "sha256_original": "59d6d077864e9e6ce01e00141fa14f4d0235eb3a849b9747dc119ed0c4ec3078",
+      "taille_archive": 367,
+      "taille_originale": 553
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--SOURCES-FINALES-r1.json--66dbcd59a10c62e8541b7ab4d12c45f216b3d86bf8563993734f5b62acf4affa.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/SOURCES-FINALES-r1.json",
+      "sha256_archive": "7cd5147e3a3a83ebf01ce50c9b618c7c81d95f00a015aad3fe272c419ccf3708",
+      "sha256_original": "66dbcd59a10c62e8541b7ab4d12c45f216b3d86bf8563993734f5b62acf4affa",
+      "taille_archive": 651,
+      "taille_originale": 1360
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--preimages--deploy--restore.sh--a5259f3ae047ce32ad1a4513ff08aad46515d71d95e0e545c0a21b608395e126.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/preimages/deploy/restore.sh",
+      "sha256_archive": "c05d2a902e711b2a9be3d87555dbc206236edd1bdd3e8f32d7444adb1fd970a9",
+      "sha256_original": "a5259f3ae047ce32ad1a4513ff08aad46515d71d95e0e545c0a21b608395e126",
+      "taille_archive": 4262,
+      "taille_originale": 14698
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--preimages--docs--ops--EXPLOITATION.md--77948b52700e8d8d1c408659e741be5a7c703126845a3d6c422527b6c6f12b2e.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/preimages/docs/ops/EXPLOITATION.md",
+      "sha256_archive": "e1d0de2d1f0f344b99b9908c07504df8af8e9a0d336bd49c7ce2bc340dc4272a",
+      "sha256_original": "77948b52700e8d8d1c408659e741be5a7c703126845a3d6c422527b6c6f12b2e",
+      "taille_archive": 7081,
+      "taille_originale": 16404
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--preimages--tests--test_deploy_backup_restore.py--be96641cde6a58e10a12108127f8d6792c400f4148966c86bac1929de01cc6aa.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/preimages/tests/test_deploy_backup_restore.py",
+      "sha256_archive": "cf94d51d01d05e7f561f55888f4c2b79dcce9a74b08123d82b6661bcc55e8605",
+      "sha256_original": "be96641cde6a58e10a12108127f8d6792c400f4148966c86bac1929de01cc6aa",
+      "taille_archive": 7618,
+      "taille_originale": 36891
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--qualite-r1-resultat.json--880ce63ac5bac31c16691575e883a0278153252a0e966d714b44b19e40e360ac.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/qualite-r1-resultat.json",
+      "sha256_archive": "a6c7a5325a6b7ce41f5d15fdc485ccff2e795e1df7d234de4edf6c0efe13541f",
+      "sha256_original": "880ce63ac5bac31c16691575e883a0278153252a0e966d714b44b19e40e360ac",
+      "taille_archive": 721,
+      "taille_originale": 1752
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--qualite-r1.log--a8f7c4ef16c7ecb31793127c27bb0ad86c2bcc9e7f7c5226c68d461201404b33.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/qualite-r1.log",
+      "sha256_archive": "744a0f8c0b8d426fb9d2f7fd4162f7b3403923b8f021992bc5443044a32fde33",
+      "sha256_original": "a8f7c4ef16c7ecb31793127c27bb0ad86c2bcc9e7f7c5226c68d461201404b33",
+      "taille_archive": 220,
+      "taille_originale": 345
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--rapport-r1.md--c3baabba4c5b1c90f13060c2994eb4c392823e9ab0d7c56edb57be4a9d10f726.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/rapport-r1.md",
+      "sha256_archive": "0f082f656490b85cca85bdbd1bbedd372889b8bdb9245ac1f9a6f64586a10dcf",
+      "sha256_original": "c3baabba4c5b1c90f13060c2994eb4c392823e9ab0d7c56edb57be4a9d10f726",
+      "taille_archive": 3760,
+      "taille_originale": 8180
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-green-r1-resultat.json--df99bb4b49f7b3a0a5ac20eb21b082c2ba8d2a210e7b957150d6d8ada6b6f4d1.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/restore-pgdata-green-r1-resultat.json",
+      "sha256_archive": "471d3a9d83fd6b738ec599ce6cd081ff7094b67b169b2042a7c88d6dd6193375",
+      "sha256_original": "df99bb4b49f7b3a0a5ac20eb21b082c2ba8d2a210e7b957150d6d8ada6b6f4d1",
+      "taille_archive": 651,
+      "taille_originale": 1491
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-green-r1.log--d48b933c8899b4be035ad15ca4c175a2c43d23f7f8094c3dbef9f11997fd45c4.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/restore-pgdata-green-r1.log",
+      "sha256_archive": "0befdcaff51c48b607d053b809fea38d4539af452eb2187dd1a1a64ed870c039",
+      "sha256_original": "d48b933c8899b4be035ad15ca4c175a2c43d23f7f8094c3dbef9f11997fd45c4",
+      "taille_archive": 41,
+      "taille_originale": 88
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-green-r1.xml--e1f94b9a69fe490733dcdba3c904e13a441aefde855e0433b931760344e547e9.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/restore-pgdata-green-r1.xml",
+      "sha256_archive": "9d939fff67ae30531c866ed1c18315949e1d56fa3682f149d6af9829c3c173d4",
+      "sha256_original": "e1f94b9a69fe490733dcdba3c904e13a441aefde855e0433b931760344e547e9",
+      "taille_archive": 1133,
+      "taille_originale": 6070
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-melange-red-r2-resultat.json--ac9d26227ddf123b4ff9f40cbe96c1b4fe0008d9b3d3bd52a1de2fc2f7799fe5.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/restore-pgdata-melange-red-r2-resultat.json",
+      "sha256_archive": "2f4874a9f60d7c61da4f2260512b199ce921af9c7c0c887e56e54ee0b9858718",
+      "sha256_original": "ac9d26227ddf123b4ff9f40cbe96c1b4fe0008d9b3d3bd52a1de2fc2f7799fe5",
+      "taille_archive": 663,
+      "taille_originale": 1521
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-melange-red-r2.log--72a0975a0f72235e8413f3d44fff8468904f38d5b59ba5302dd9c30485efb5c0.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/restore-pgdata-melange-red-r2.log",
+      "sha256_archive": "1aea3d70897c75f257c0befab6d143e28aa047573427999d83b5a3747d92870f",
+      "sha256_original": "72a0975a0f72235e8413f3d44fff8468904f38d5b59ba5302dd9c30485efb5c0",
+      "taille_archive": 1139,
+      "taille_originale": 5662
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-melange-red-r2.xml--d2e691e0eef15fc9b98f87fd94838ec427a18f8a3c9a3b0f3b90622b18320074.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/restore-pgdata-melange-red-r2.xml",
+      "sha256_archive": "2015e57e9353644f67883d9e436e0af5c276088bdfeb0c753c0f68618b1f2e46",
+      "sha256_original": "d2e691e0eef15fc9b98f87fd94838ec427a18f8a3c9a3b0f3b90622b18320074",
+      "taille_archive": 1287,
+      "taille_originale": 7366
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-red-r1-resultat.json--75002435c7e1e611ea52966bfc24c51530cd4f72c63ee1e3ba3f6ff9383a15b9.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/restore-pgdata-red-r1-resultat.json",
+      "sha256_archive": "bd6b506ff524f01bd392ab60c85e5504103c8c6f2cba0994f1929d961f8ebbfa",
+      "sha256_original": "75002435c7e1e611ea52966bfc24c51530cd4f72c63ee1e3ba3f6ff9383a15b9",
+      "taille_archive": 736,
+      "taille_originale": 1667
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-red-r1.log--448e832719cb94c35054f5771b397ec9c05a774ace8f2b667f5c166081967f89.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/restore-pgdata-red-r1.log",
+      "sha256_archive": "c0fa4cd0103eac7a7497df638cc37dac0727f45ae5d0156c81db3050535ded66",
+      "sha256_original": "448e832719cb94c35054f5771b397ec9c05a774ace8f2b667f5c166081967f89",
+      "taille_archive": 2154,
+      "taille_originale": 15646
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-red-r1.xml--c4b53e22affcdcbcce723618ea19a758f0b743a2c4bca9cbf1d7b316956b542e.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/restore-pgdata-red-r1.xml",
+      "sha256_archive": "acf9613863c1c8051eef88f00592e24386574361f8cc1930df9e0ec0deeae5e2",
+      "sha256_original": "c4b53e22affcdcbcce723618ea19a758f0b743a2c4bca9cbf1d7b316956b542e",
+      "taille_archive": 2481,
+      "taille_originale": 19342
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore.sh-delta-r1.patch--90a9bcb1e1116ed788a0ca25ca350386469fa610fe86b4f9f5407eb0fd9d6273.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/restore.sh-delta-r1.patch",
+      "sha256_archive": "fd5556c15a071872132f3ba449c696b598b3fdff3b196e4164209e4b804da732",
+      "sha256_original": "90a9bcb1e1116ed788a0ca25ca350386469fa610fe86b4f9f5407eb0fd9d6273",
+      "taille_archive": 1784,
+      "taille_originale": 5068
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--test_deploy_backup_restore.py-delta-r1.patch--cf457af1f85e1d68df53337307818f9124365c4fa2bc16fe09e129a1e0e54d54.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/test_deploy_backup_restore.py-delta-r1.patch",
+      "sha256_archive": "0afb7daa94d4d724c404aba398ccaff28e83bbbaaacebbc83027faa17527dc2c",
+      "sha256_original": "cf457af1f85e1d68df53337307818f9124365c4fa2bc16fe09e129a1e0e54d54",
+      "taille_archive": 2343,
+      "taille_originale": 9726
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--PREFLIGHT-CREATE-r1.json--3ea4f9893b379dbd27eb3947d3b2f45eeef0831e10d6a81691f7d3e7d4a34795.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/PREFLIGHT-CREATE-r1.json",
+      "sha256_archive": "92bda4fb961cc21ba79eac46bc61df9c0b5e7083776c0d587b07717252f97cf9",
+      "sha256_original": "3ea4f9893b379dbd27eb3947d3b2f45eeef0831e10d6a81691f7d3e7d4a34795",
+      "taille_archive": 1237,
+      "taille_originale": 4867
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--RESULTAT-r1.json--2ca9f4e2cc4e42956728993c14483c4db38cc4e430bad6996406550a5624757b.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/RESULTAT-r1.json",
+      "sha256_archive": "a849e5f9b55cde75187b49705fb38407fe1f7d98bbe488640d5bfebefef19f1b",
+      "sha256_original": "2ca9f4e2cc4e42956728993c14483c4db38cc4e430bad6996406550a5624757b",
+      "taille_archive": 2513,
+      "taille_originale": 10525
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--commands-r1.jsonl--a75d0c42d53b42ab1c60ec73a542a4d85f777ada0394f764f324dd62c27a6651.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/commands-r1.jsonl",
+      "sha256_archive": "8d4f5834cf13a51826a3ba8815b0f389f25125cef60875c7f9b0cac1346f477c",
+      "sha256_original": "a75d0c42d53b42ab1c60ec73a542a4d85f777ada0394f764f324dd62c27a6651",
+      "taille_archive": 3867,
+      "taille_originale": 26343
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--COMPOSE-CONTRATS-REELS-r1.json--4ce486f7a533e5b93299d8622a44e7df8d6ce9378f0a05f5fd5b8d25a784ea54.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/COMPOSE-CONTRATS-REELS-r1.json",
+      "sha256_archive": "41bf544eaf80ad9276f94bd8c0eb4dcde46f9b634a2d949560105ababb16654a",
+      "sha256_original": "4ce486f7a533e5b93299d8622a44e7df8d6ce9378f0a05f5fd5b8d25a784ea54",
+      "taille_archive": 427,
+      "taille_originale": 1569
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--INVENTAIRE-source-r3.json--afbd856b435f289cfd128d742dcdba83c9733c1018c81d88b00f76ed5038a2e1.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/INVENTAIRE-source-r3.json",
+      "sha256_archive": "99de70531ee483d4d3395e32c870ad672d5356960e05ec17a7c2ef89b4145bae",
+      "sha256_original": "afbd856b435f289cfd128d742dcdba83c9733c1018c81d88b00f76ed5038a2e1",
+      "taille_archive": 1749,
+      "taille_originale": 6497
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--PREIMAGES-r3.json--ef82bf13efea170f1c826bb2b9b0a2028952f96858a28cf67d30f90b27114da1.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/PREIMAGES-r3.json",
+      "sha256_archive": "dcb96a5416089ac9ab23cd3f71edd16e27e14401d275ad9ce51933c42b48c028",
+      "sha256_original": "ef82bf13efea170f1c826bb2b9b0a2028952f96858a28cf67d30f90b27114da1",
+      "taille_archive": 457,
+      "taille_originale": 1154
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--QUALITE-r3.json--4eaa30d257905ff8ce8fd10458f03c766094127b2926c493380fb5db82f37a8d.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/QUALITE-r3.json",
+      "sha256_archive": "e0bb75fb803e6c6869ddf57eb1aba823ec310afac9b0645d8a8b2e51f2fc6faa",
+      "sha256_original": "4eaa30d257905ff8ce8fd10458f03c766094127b2926c493380fb5db82f37a8d",
+      "taille_archive": 289,
+      "taille_originale": 805
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--RUFF-final-r4.json--a2f92d77e358ca1ac16ff434f05c840669846832d99a4fc158b483f1ee5ffbea.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/RUFF-final-r4.json",
+      "sha256_archive": "0380b21b727d725da367f0740299c96d7441f7ea1a1981b035cc50e0372087d6",
+      "sha256_original": "a2f92d77e358ca1ac16ff434f05c840669846832d99a4fc158b483f1ee5ffbea",
+      "taille_archive": 184,
+      "taille_originale": 238
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--SOURCES-GELEES-r4.json--c567952a37483123c4b39ccafa3eb567dfd3a36e15bdeff965be20a9177a2a8d.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/SOURCES-GELEES-r4.json",
+      "sha256_archive": "a6c8d69a9105fee238724766452d31b749a612a5dc83621420ddd7078ab9124f",
+      "sha256_original": "c567952a37483123c4b39ccafa3eb567dfd3a36e15bdeff965be20a9177a2a8d",
+      "taille_archive": 673,
+      "taille_originale": 1423
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--backup.sh-delta-r3.patch--204a4ec5c2321c3de78daf248c002f822d214bcf2623f252dab4cab729331b28.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/backup.sh-delta-r3.patch",
+      "sha256_archive": "2d3917eb02c7a0e1d2b942975e173375d8927c59c8f4985165bebe04dd249497",
+      "sha256_original": "204a4ec5c2321c3de78daf248c002f822d214bcf2623f252dab4cab729331b28",
+      "taille_archive": 1397,
+      "taille_originale": 3864
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--preimages--deploy--backup.sh--0cee00f4f2f1d36f2f747cfad02a3a3746ffe4dffb580b1411b31b229f21a0c2.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/preimages/deploy/backup.sh",
+      "sha256_archive": "49e661f72d5688d9390eb9f4e383476b19c9811aeb4f64c6b773d3d113354d7d",
+      "sha256_original": "0cee00f4f2f1d36f2f747cfad02a3a3746ffe4dffb580b1411b31b229f21a0c2",
+      "taille_archive": 4694,
+      "taille_originale": 13496
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--preimages--deploy--restore.sh--6c9ae0ced1f8769c4250818a878a5212280e41943db14d12fc1522220df7c9ae.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/preimages/deploy/restore.sh",
+      "sha256_archive": "90adc0ca1419904eed8275044fc5d810ef9617392c6ced2f9eb6662099da762b",
+      "sha256_original": "6c9ae0ced1f8769c4250818a878a5212280e41943db14d12fc1522220df7c9ae",
+      "taille_archive": 4844,
+      "taille_originale": 16570
+    },
+    {
+      "archive": "doc-historique/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--preimages--docs--ops--EXPLOITATION.md--15f93d15f0564e908cd6e8810f95a79bc23779c078b35a41b3804e9deeec4ffc.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/preimages/docs/ops/EXPLOITATION.md",
+      "sha256_archive": "b91f80729f5217bf0925b53039243de909de551ea9e7a1af7c0effe02903b883",
+      "sha256_original": "15f93d15f0564e908cd6e8810f95a79bc23779c078b35a41b3804e9deeec4ffc",
+      "taille_archive": 7678,
+      "taille_originale": 18024
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--preimages--tests--test_deploy_backup_restore.py--9bff574941e9b50a21ae3a40a1a50099982a6a54a0b9b788ef9ee5981da00fe5.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/preimages/tests/test_deploy_backup_restore.py",
+      "sha256_archive": "8b34fd2d7477fa144c89649be436ed58794c3d16192651000bfa43b4c7b6a981",
+      "sha256_original": "9bff574941e9b50a21ae3a40a1a50099982a6a54a0b9b788ef9ee5981da00fe5",
+      "taille_archive": 8591,
+      "taille_originale": 44254
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--rapport-source-r3.md--fc8dadb545b5cee4e6bd4d894eac60c95f80cfc3b1dcdf06ee858bc61e71ef8f.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/rapport-source-r3.md",
+      "sha256_archive": "9094d4491bd60a80ccae6ad1e2558f3deee7185c357662a8be76736fc8723636",
+      "sha256_original": "fc8dadb545b5cee4e6bd4d894eac60c95f80cfc3b1dcdf06ee858bc61e71ef8f",
+      "taille_archive": 1944,
+      "taille_originale": 3842
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--restore.sh-delta-r3.patch--c6f3a3e6b52d30b5cb67b6c7b892d76366ac53c8df2070a0e6427ec797fb92f5.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/restore.sh-delta-r3.patch",
+      "sha256_archive": "d84444b29add5478e1e86e93f239e0700585d2da80bc6ed44e1885638a9aa519",
+      "sha256_original": "c6f3a3e6b52d30b5cb67b6c7b892d76366ac53c8df2070a0e6427ec797fb92f5",
+      "taille_archive": 394,
+      "taille_originale": 738
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-final-r4-resultat.json--5ea30cf1a10fd58b02d8880ca74013f90277d930a585b8d2ce4fda8618baf287.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/source-compose-green-final-r4-resultat.json",
+      "sha256_archive": "59507f35c9fe544c8e22e86957d80ce9a64787fad8fa3a58080bd14b1310f012",
+      "sha256_original": "5ea30cf1a10fd58b02d8880ca74013f90277d930a585b8d2ce4fda8618baf287",
+      "taille_archive": 641,
+      "taille_originale": 1477
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-final-r4.log--d68463e4457d232708e06f22dc9ec932fea3a1872e8d9b2c8ebbf17a6674cb2d.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/source-compose-green-final-r4.log",
+      "sha256_archive": "6eae88f370a25832bedf1b8bf896280e456fe42fdbe5f3b6f9e08b427b274ff2",
+      "sha256_original": "d68463e4457d232708e06f22dc9ec932fea3a1872e8d9b2c8ebbf17a6674cb2d",
+      "taille_archive": 41,
+      "taille_originale": 88
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-final-r4.xml--0a2e2a3f7e25e534295d6357cf41e96ec836684c63263286913bec20bc25dcbc.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/source-compose-green-final-r4.xml",
+      "sha256_archive": "113e0c4c4c3b65642ea917245a97fa40711f8f9f9f45a4967bc4a492a12f7e0e",
+      "sha256_original": "0a2e2a3f7e25e534295d6357cf41e96ec836684c63263286913bec20bc25dcbc",
+      "taille_archive": 1330,
+      "taille_originale": 7478
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-r3-resultat.json--2727b20c12b033ae2fef13fa45db2813a0072353550442a33a51007ca4ed392e.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/source-compose-green-r3-resultat.json",
+      "sha256_archive": "88c764cd54add112baf104039f49639c74b7443a5182758857be6cba85bbbbf5",
+      "sha256_original": "2727b20c12b033ae2fef13fa45db2813a0072353550442a33a51007ca4ed392e",
+      "taille_archive": 637,
+      "taille_originale": 1471
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-r3.log--ea392e153a398396b94234d3e587cb0ba0fae7ba341d5ab4f1559d270a4b8ecb.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/source-compose-green-r3.log",
+      "sha256_archive": "50c48e70fb70b9d126a7516d358cc2333a4c456e0861abc585530b7e9b1fcfaf",
+      "sha256_original": "ea392e153a398396b94234d3e587cb0ba0fae7ba341d5ab4f1559d270a4b8ecb",
+      "taille_archive": 41,
+      "taille_originale": 88
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-r3.xml--70963478ab74626b832585a58baf4927168cc46d73a67221ec83e5ef890a014d.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/source-compose-green-r3.xml",
+      "sha256_archive": "47520cede810664f1c16dd94deaf1d1e6809dcbf1c01a0a8344f136c240e677a",
+      "sha256_original": "70963478ab74626b832585a58baf4927168cc46d73a67221ec83e5ef890a014d",
+      "taille_archive": 1289,
+      "taille_originale": 7345
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-red-r3-resultat.json--816c7dc4119ddc15ecdef21a8d7283fc86472e817853eb2da1009725dacfc8c9.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/source-compose-red-r3-resultat.json",
+      "sha256_archive": "7c99a46da687823c1250bfe41a63d956fe9e2d2af312deb8721165b0f2579d54",
+      "sha256_original": "816c7dc4119ddc15ecdef21a8d7283fc86472e817853eb2da1009725dacfc8c9",
+      "taille_archive": 690,
+      "taille_originale": 1564
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-red-r3.log--82381ea125dc56adae24d46c3ad276848ac0e4479663a09ce6bea97d317a0620.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/source-compose-red-r3.log",
+      "sha256_archive": "3fe15e1075ab89b3986f7f4fd927c5acdd34cf58655cf968d15b18223725409b",
+      "sha256_original": "82381ea125dc56adae24d46c3ad276848ac0e4479663a09ce6bea97d317a0620",
+      "taille_archive": 2402,
+      "taille_originale": 15921
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-red-r3.xml--d317f26cc994c14180b96c9c468cc1de21b22b08e1d7e7085dffc0eb2ab866b2.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/source-compose-red-r3.xml",
+      "sha256_archive": "2c0566376b7f8dfa3bd81eb4008a6223d8120df02fbd818a46e86085c188531d",
+      "sha256_original": "d317f26cc994c14180b96c9c468cc1de21b22b08e1d7e7085dffc0eb2ab866b2",
+      "taille_archive": 2689,
+      "taille_originale": 20472
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--test_deploy_backup_restore.py-delta-r3.patch--6a0927b17b5086f5f3ede3d5329ff4b35317bc8aa9c16f416162116f5c6e450a.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/test_deploy_backup_restore.py-delta-r3.patch",
+      "sha256_archive": "08ef93f07350f1e75b79177c048407e503dd7f434bbd256d478e4f138285fb34",
+      "sha256_original": "6a0927b17b5086f5f3ede3d5329ff4b35317bc8aa9c16f416162116f5c6e450a",
+      "taille_archive": 2931,
+      "taille_originale": 10802
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--docker-compose.yml--d0fdb66b085fa347ee3c025f6ad846e4639b40927ffd7fa99d2bcae486a02688.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/docker-compose.yml",
+      "sha256_archive": "da6579afb6d5df0bd3a49571986a35533d4c8698f83fed93d705aa0bfbc25750",
+      "sha256_original": "d0fdb66b085fa347ee3c025f6ad846e4639b40927ffd7fa99d2bcae486a02688",
+      "taille_archive": 853,
+      "taille_originale": 3693
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--ENTREES-ARCHIVE-R38-r1.json--d8e41d3e65d96c87965198ccf4030f502c46aef91a8fbe6dbccd3c5774a83eaa.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/preparation-archive-r1/ENTREES-ARCHIVE-R38-r1.json",
+      "sha256_archive": "b84e1309f34cc8bb061f459b51e57a73bdd9123ce16deeb49ddd10a04470b96a",
+      "sha256_original": "d8e41d3e65d96c87965198ccf4030f502c46aef91a8fbe6dbccd3c5774a83eaa",
+      "taille_archive": 11601,
+      "taille_originale": 42709
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--EXPLOITATION-derive-observee-r1.patch--1bcc3a64ec54d8497284e1d2deae4a16edf981bbf6b0b858a3117be7d1853560.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/preparation-archive-r1/EXPLOITATION-derive-observee-r1.patch",
+      "sha256_archive": "39f68236d687f949a1e52ed6b4d0ff7bfcb5ffd05602174a4a893879d12870a7",
+      "sha256_original": "1bcc3a64ec54d8497284e1d2deae4a16edf981bbf6b0b858a3117be7d1853560",
+      "taille_archive": 1004,
+      "taille_originale": 1613
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--PREFLIGHT-RED-r1.json--588d39960be792780ef07d5ad1150b307e3a90514dd32c3c69a7391fd0ad4bd8.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/preparation-archive-r1/PREFLIGHT-RED-r1.json",
+      "sha256_archive": "3b4c9020390dfb07fe701717c6a826b38498914284c095d0bcf487ed8d24468b",
+      "sha256_original": "588d39960be792780ef07d5ad1150b307e3a90514dd32c3c69a7391fd0ad4bd8",
+      "taille_archive": 1388,
+      "taille_originale": 2841
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--PREFLIGHT-RED-r1.log--3f208dd09e8ec974fd08c1fe1f7f250471151e37c734ca0382f3fea427792417.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/preparation-archive-r1/PREFLIGHT-RED-r1.log",
+      "sha256_archive": "69eed1a71e84c58c3c6703fb027928db71e28bd619362f08bbd90a27711ee0bb",
+      "sha256_original": "3f208dd09e8ec974fd08c1fe1f7f250471151e37c734ca0382f3fea427792417",
+      "taille_archive": 400,
+      "taille_originale": 747
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--archiver-r38-r1.py--8177e94c98ddcbd479bef2d73499ea682c8bb1dd247f862d6fb5478a5db9756f.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/preparation-archive-r1/archiver-r38-r1.py",
+      "sha256_archive": "096bff9cd448a52897aa395485e2c5d0946bc67ac2325ff90df25d95a3507c21",
+      "sha256_original": "8177e94c98ddcbd479bef2d73499ea682c8bb1dd247f862d6fb5478a5db9756f",
+      "taille_archive": 6217,
+      "taille_originale": 18012
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r2--CONTEXTE-HISTORIQUE-r2.md--f77a16e68ccb903e0fa0d5445054aa1192bba4296a1dce345e83c94277922490.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/preparation-archive-r2/CONTEXTE-HISTORIQUE-r2.md",
+      "sha256_archive": "622794361d63f12656bf266e231b01ad2df977dc4d294842c16a1c7209f39003",
+      "sha256_original": "f77a16e68ccb903e0fa0d5445054aa1192bba4296a1dce345e83c94277922490",
+      "taille_archive": 1012,
+      "taille_originale": 1965
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r2--ENTREES-ARCHIVE-R38-r2.json--c9a58f8e9f371e299b7d2c3495556bd6127bc633687bd6debba3ea2ba5d24e9a.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/preparation-archive-r2/ENTREES-ARCHIVE-R38-r2.json",
+      "sha256_archive": "7e5b03b368f5e799c2ac31acef1f7d48378622cdc7c0f7fa2c289e2425ca73b5",
+      "sha256_original": "c9a58f8e9f371e299b7d2c3495556bd6127bc633687bd6debba3ea2ba5d24e9a",
+      "taille_archive": 11921,
+      "taille_originale": 43631
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r2--archiver-r38-r2.py--a3dad6bc6c8afc9103eccd6609774ac1dc248ae4ba9652c2680e57bfc5a54e0b.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/preparation-archive-r2/archiver-r38-r2.py",
+      "sha256_archive": "86deabdf80f41c0ca5870c0d020e9cb3921f1847c21c558fa9f8285528a0aee2",
+      "sha256_original": "a3dad6bc6c8afc9103eccd6609774ac1dc248ae4ba9652c2680e57bfc5a54e0b",
+      "taille_archive": 6466,
+      "taille_originale": 19082
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--qualifier-r38-r1.py--e72956746363a36d28b475462a227f03d0424b73fd561f19abf42c228b010b14.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/qualifier-r38-r1.py",
+      "sha256_archive": "322b3d761d190021ba228cbb74818a7b18e7f0f5f7a1615b8d19ff2aaa55eab4",
+      "sha256_original": "e72956746363a36d28b475462a227f03d0424b73fd561f19abf42c228b010b14",
+      "taille_archive": 7644,
+      "taille_originale": 21926
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--PREFLIGHT-SOURCES-r2.json--3c23674630303b42361a3ff9809b97dd2970cb5793517e004da3b1d83bfee258.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r2/PREFLIGHT-SOURCES-r2.json",
+      "sha256_archive": "fdb79b4fa6a01652704341dd00b8a97c41148193e93295f364e2765a45781596",
+      "sha256_original": "3c23674630303b42361a3ff9809b97dd2970cb5793517e004da3b1d83bfee258",
+      "taille_archive": 457,
+      "taille_originale": 750
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--RESULTAT-r2.json--90e48efba1eeb714ef1d7afdbe248974033118365546065815a5b83c7ee8c3d7.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r2/RESULTAT-r2.json",
+      "sha256_archive": "2f04626589350101b8943e1f83f872d628c7552b3bf05cb95060b790f190250a",
+      "sha256_original": "90e48efba1eeb714ef1d7afdbe248974033118365546065815a5b83c7ee8c3d7",
+      "taille_archive": 2928,
+      "taille_originale": 12866
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--adapter-r2.jsonl--660524f6eda4435e0ea89ca44bcbae5197232f318c3c064b42903d742fb04c43.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r2/adapter-r2.jsonl",
+      "sha256_archive": "fa99f8af6f4af10a61a9bb34e4af6a7df7865283b4111091a452d5b94e4aa617",
+      "sha256_original": "660524f6eda4435e0ea89ca44bcbae5197232f318c3c064b42903d742fb04c43",
+      "taille_archive": 617,
+      "taille_originale": 5501
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--backup.sh-1790940266108049984.log--c83924533f9655795e439471eb5b80279f3809e802efb9c20c4a21da96c4fdb2.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r2/backup.sh-1790940266108049984.log",
+      "sha256_archive": "8980cc4eb996a14b39a714ed4ed0d111da86e027f9c4ae148fb038007e54fe84",
+      "sha256_original": "c83924533f9655795e439471eb5b80279f3809e802efb9c20c4a21da96c4fdb2",
+      "taille_archive": 450,
+      "taille_originale": 1478
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--commands-r2.jsonl--df9ca69dd8c096b6b79ceba6d833708164a86236af366f1ee539181cbf44c0fe.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r2/commands-r2.jsonl",
+      "sha256_archive": "6e678304525efce33cc50968d24fd92c6ee80ba9970f78df4d54fb49f04f5703",
+      "sha256_original": "df9ca69dd8c096b6b79ceba6d833708164a86236af366f1ee539181cbf44c0fe",
+      "taille_archive": 4464,
+      "taille_originale": 31727
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--delta-harnais-r2.patch--0b8dd8476923facd41b64d8bc019c92e9e985b3c5b6a49f733039a317c7e6b8e.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r2/delta-harnais-r2.patch",
+      "sha256_archive": "efc144dbe1556f3eebdf3fc478814dd63f88c616a32ecf3a89af8376302182ed",
+      "sha256_original": "0b8dd8476923facd41b64d8bc019c92e9e985b3c5b6a49f733039a317c7e6b8e",
+      "taille_archive": 2551,
+      "taille_originale": 6667
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--docker-compose.yml--1f13defeb8465d06bec1c667e85f0ef1f64c915a1f175cd7cc6f7a13431fe6e1.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r2/docker-compose.yml",
+      "sha256_archive": "0b447c3cf301716982cec788b02225cff17a011b046fdee82a7b55fc5965c88d",
+      "sha256_original": "1f13defeb8465d06bec1c667e85f0ef1f64c915a1f175cd7cc6f7a13431fe6e1",
+      "taille_archive": 853,
+      "taille_originale": 3693
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--qualifier-r38-r2.py--e2042f16fb13e1655a0dda643ea284bf492948aaa1043026c924af4fa5362e1d.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r2/qualifier-r38-r2.py",
+      "sha256_archive": "ffb0f7625747fd942541fd13c3375dc8a6c7266b3a238661b6195d527aab8c09",
+      "sha256_original": "e2042f16fb13e1655a0dda643ea284bf492948aaa1043026c924af4fa5362e1d",
+      "taille_archive": 7650,
+      "taille_originale": 21935
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--CONTROLE-APRES-r3.json--87aec8a7ee8f06d61eac6f65cfb6ff68d4b1a1c29cce4eb583257b04f73be537.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/CONTROLE-APRES-r3.json",
+      "sha256_archive": "0270c9e806d0787a9b0ca792e2c9e70a3df0b46a4ae4ef7b109d58d0264ca813",
+      "sha256_original": "87aec8a7ee8f06d61eac6f65cfb6ff68d4b1a1c29cce4eb583257b04f73be537",
+      "taille_archive": 593,
+      "taille_originale": 979
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--PREFLIGHT-HARNAIS-r3.json--5c21165b6e98bcb1c17138b678bfa2ea3cba94d0ba4cb8fa699d8f2d89a3f4f6.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/PREFLIGHT-HARNAIS-r3.json",
+      "sha256_archive": "8b75e0078dc688f0862faa43aab26b12f7ab91190a28d3346497f3f12bd16bdd",
+      "sha256_original": "5c21165b6e98bcb1c17138b678bfa2ea3cba94d0ba4cb8fa699d8f2d89a3f4f6",
+      "taille_archive": 639,
+      "taille_originale": 1081
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--PREFLIGHT-SOURCES-r3.json--3399d368ca6edcf0706c0c871f7e82debc3732d8159ec5be61c5f06ae6ccfe4c.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/PREFLIGHT-SOURCES-r3.json",
+      "sha256_archive": "504d936d6802a9ff978568aa23ceec9c953862aa630ddb6bd9ecdfb15648e725",
+      "sha256_original": "3399d368ca6edcf0706c0c871f7e82debc3732d8159ec5be61c5f06ae6ccfe4c",
+      "taille_archive": 948,
+      "taille_originale": 1935
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--RESSOURCES-r3.jsonl--4700c6cdd704f0e66875c9aad8a8e09ddd18f742488fca4b57518614124d1795.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/RESSOURCES-r3.jsonl",
+      "sha256_archive": "fe88dae86bf0a36a18dfc986487b7d1d268aa4ee79792d2a2865d7720f2cdd73",
+      "sha256_original": "4700c6cdd704f0e66875c9aad8a8e09ddd18f742488fca4b57518614124d1795",
+      "taille_archive": 299,
+      "taille_originale": 502
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--RESULTAT-r3.json--0b7690536b06d7c4468b26f792cc1db9ce88a9b52fc809ea7aae7c77d0d8ee1f.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/RESULTAT-r3.json",
+      "sha256_archive": "7ed9bf11a66588ab0ec690236d7d920e099550d49d37fd65f093d8bfc12d6ff9",
+      "sha256_original": "0b7690536b06d7c4468b26f792cc1db9ce88a9b52fc809ea7aae7c77d0d8ee1f",
+      "taille_archive": 4561,
+      "taille_originale": 26751
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--VERIFICATION-ROOT-r1.json--7a0a095d434d9249dc1ade87120dd5fde791bba1549492c8344ebc8af14adbda.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/VERIFICATION-ROOT-r1.json",
+      "sha256_archive": "240232a910c6d8809834dce75b93fc4e0a183156a43cd94fd53edacf636113de",
+      "sha256_original": "7a0a095d434d9249dc1ade87120dd5fde791bba1549492c8344ebc8af14adbda",
+      "taille_archive": 825,
+      "taille_originale": 2008
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--VERIFICATION-SAUVEGARDES-RAM-r3.json--3efe16155b109cdf5ad296a172a60bca7608c3ff03275f5d5880fc024f458dc5.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/VERIFICATION-SAUVEGARDES-RAM-r3.json",
+      "sha256_archive": "1e93362d84338473f1d62dcaaca92c5b1b4f1314487cd343dc8c5bc078d00d3d",
+      "sha256_original": "3efe16155b109cdf5ad296a172a60bca7608c3ff03275f5d5880fc024f458dc5",
+      "taille_archive": 1113,
+      "taille_originale": 6526
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--adapter-r3.jsonl--a9bb7cd935359540e347d11787b97431853a0187b0cba635afb95529fd8a1234.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/adapter-r3.jsonl",
+      "sha256_archive": "9a5dadc4d5fd511052873255455f55864f4c1079f7b15996d76a157619d4143c",
+      "sha256_original": "a9bb7cd935359540e347d11787b97431853a0187b0cba635afb95529fd8a1234",
+      "taille_archive": 2186,
+      "taille_originale": 31491
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--backup.sh-1790941997565604948.log--70c3ee775744b9d7f4e5f7b7cc2055707658afc97c30b65757378085ebee2465.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/backup.sh-1790941997565604948.log",
+      "sha256_archive": "0a43700cc10a2717237bb264a78103476e1637ebf66fa20089985b09b8127caa",
+      "sha256_original": "70c3ee775744b9d7f4e5f7b7cc2055707658afc97c30b65757378085ebee2465",
+      "taille_archive": 480,
+      "taille_originale": 1858
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--backup.sh-1790942031258049109.log--63bcee7d2c71023392b7575da50e269c7f2c6e527c3e54a10590f81f90422b35.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/backup.sh-1790942031258049109.log",
+      "sha256_archive": "97d09cabf83e1427befe3d56f22ea87a08e260c4a0e5b760cfc49d7dbf0df2ea",
+      "sha256_original": "63bcee7d2c71023392b7575da50e269c7f2c6e527c3e54a10590f81f90422b35",
+      "taille_archive": 388,
+      "taille_originale": 1473
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--commands-r3.jsonl--869dec1830808ae65c4755afd0d00cd8799a8ad17385d06ebc354b53e812597d.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/commands-r3.jsonl",
+      "sha256_archive": "e65392c2e6400aabff01cf641460b909b55f45278c69c08f95603ee030cd5e98",
+      "sha256_original": "869dec1830808ae65c4755afd0d00cd8799a8ad17385d06ebc354b53e812597d",
+      "taille_archive": 6299,
+      "taille_originale": 55086
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--delta-harnais-r3.patch--9e29d958128c328612650e229610c7a8b0849d48d612656d292b8e983186c3fa.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/delta-harnais-r3.patch",
+      "sha256_archive": "f46efc7f9e31716d1fe40b272d39bfeae06196970a11f8038cd92aba6fcf55dc",
+      "sha256_original": "9e29d958128c328612650e229610c7a8b0849d48d612656d292b8e983186c3fa",
+      "taille_archive": 3284,
+      "taille_originale": 9493
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--docker-compose.yml--ea99b7463b193555dc69704ccbf09e9499e4a474e120c7a3a198d756e66b99a5.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/docker-compose.yml",
+      "sha256_archive": "653cea172a008c486659fc2b50710eeae1253a1317018f2cff587d4ad414afe1",
+      "sha256_original": "ea99b7463b193555dc69704ccbf09e9499e4a474e120c7a3a198d756e66b99a5",
+      "taille_archive": 856,
+      "taille_originale": 3693
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--qualifier-r38-r3.py--0190158c77293c4359c3c602b96bb6503f01c2638fcfec4f9b4805927f05fbf6.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/qualifier-r38-r3.py",
+      "sha256_archive": "ca2d8acf841bf2d2ba3009ac6151fe471303f02c955242a0e8c09556ee51525d",
+      "sha256_original": "0190158c77293c4359c3c602b96bb6503f01c2638fcfec4f9b4805927f05fbf6",
+      "taille_archive": 7651,
+      "taille_originale": 21942
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--restore.sh-1790941998449352070.log--e268d730e126957f8cd0c874c0a03c3d45e3a8a9ddd02c65db94510acd3badc4.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/restore.sh-1790941998449352070.log",
+      "sha256_archive": "56816f2bf7a24dacd75fdf9e0fd47f84140e9036858469fe9290515250993acb",
+      "sha256_original": "e268d730e126957f8cd0c874c0a03c3d45e3a8a9ddd02c65db94510acd3badc4",
+      "taille_archive": 465,
+      "taille_originale": 1259
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--restore.sh-1790942016448481509.log--804a8b013edee1e37395c73b1fa4d5bfc0fb6de51122c87ede817e1ad4d3e800.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/restore.sh-1790942016448481509.log",
+      "sha256_archive": "45cf0250b530c5347ef0ef6984f077c4201f475f29a7f505f79ececc7ed7924b",
+      "sha256_original": "804a8b013edee1e37395c73b1fa4d5bfc0fb6de51122c87ede817e1ad4d3e800",
+      "taille_archive": 623,
+      "taille_originale": 2818
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--restore.sh-1790942050304901683.log--2b54150b06721260bb26c4fd26d8ee64d4f35a1dd1e32395f4894838fe7ca3b6.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/restore.sh-1790942050304901683.log",
+      "sha256_archive": "b11bb747b86d73009294720ca6bf1cae08ed5450dbf81e26fe64b51cabb01aed",
+      "sha256_original": "2b54150b06721260bb26c4fd26d8ee64d4f35a1dd1e32395f4894838fe7ca3b6",
+      "taille_archive": 761,
+      "taille_originale": 3248
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--rapport-r38-r3.md--bbaf4a0e18d1cbe165db864c6cde18eefb2d8173bbc7185b702d05c3b735c919.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/rapport-r38-r3.md",
+      "sha256_archive": "ae3c1cbd677342a593abdc7959e9d8f66d00126048c9218d684d901afcc6607e",
+      "sha256_original": "bbaf4a0e18d1cbe165db864c6cde18eefb2d8173bbc7185b702d05c3b735c919",
+      "taille_archive": 4764,
+      "taille_originale": 9908
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-r27--archiver-r27-r1.py--c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-r27/archiver-r27-r1.py",
+      "sha256_archive": "7d09d0e5e5b79550b1464666e8a42a43125be8e52aced766e9ef8e6d307f1d2b",
+      "sha256_original": "c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b",
+      "taille_archive": 6014,
+      "taille_originale": 16286
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--archiver-r30-r1.py--5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/archiver-r30-r1.py",
+      "sha256_archive": "fbab2810f80f547ad85eba7f483cbf68dc245ffecd35c725a0dd5e40fd690ed6",
+      "sha256_original": "5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5",
+      "taille_archive": 4531,
+      "taille_originale": 11816
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--memoire-r25--archiver-r25-r1.py--d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/archiver-r25-r1.py",
+      "sha256_archive": "9f67ca4ae89f2a37134cbf335c16b1d33507c8a0957546120dbb9803610294c5",
+      "sha256_original": "d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213",
+      "taille_archive": 10059,
+      "taille_originale": 31543
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--memoire-r26--archiver-r26-r1.py--066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r26/archiver-r26-r1.py",
+      "sha256_archive": "a66e0e0bfd3187e241d5aec25a491d3b6e769d1d866c1f7ddfd001974c0afb9c",
+      "sha256_original": "066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4",
+      "taille_archive": 6484,
+      "taille_originale": 18142
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-qualite-root-r4-2026-10-02-apres.json--7d848476cb468c0826cfd13e4852ebd7726bf8e364fb9eb7e4b58f8c894514de.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/backup-compose-qualite-root-r4-2026-10-02-apres.json",
+      "sha256_archive": "07c489b18bad3d57233c82e0bf593fdfa5014ae7b90ee6ddfb5bc73acd349ca4",
+      "sha256_original": "7d848476cb468c0826cfd13e4852ebd7726bf8e364fb9eb7e4b58f8c894514de",
+      "taille_archive": 53968,
+      "taille_originale": 143877
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-qualite-root-r4-2026-10-02-avant.json--56d66457f75872b4e2cea5a7eab87555a5e3853026ee57b3590b476485439596.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/backup-compose-qualite-root-r4-2026-10-02-avant.json",
+      "sha256_archive": "f67c7061d3477795bdde0353633f6625e482ba2270a82ce61f3579f00205b02c",
+      "sha256_original": "56d66457f75872b4e2cea5a7eab87555a5e3853026ee57b3590b476485439596",
+      "taille_archive": 53970,
+      "taille_originale": 143877
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-qualite-root-r4-2026-10-02-resultat.json--1c3955c38271e8c37a5d42950494131eadc8d4b4b694a6c1b3a2c57752617ac3.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/backup-compose-qualite-root-r4-2026-10-02-resultat.json",
+      "sha256_archive": "916fcc8262c3c8d17cc7244726d0c41334fb928a9b6f8c535a2b94c7635db773",
+      "sha256_original": "1c3955c38271e8c37a5d42950494131eadc8d4b4b694a6c1b3a2c57752617ac3",
+      "taille_archive": 382,
+      "taille_originale": 657
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-qualite-root-r4-2026-10-02.log--82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/backup-compose-qualite-root-r4-2026-10-02.log",
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_archive": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02-apres.json--0b668c70c6703dea1e3fc224778eb49cec141f2c843c5143db3178485d3e42ba.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/backup-compose-root-r4-2026-10-02-apres.json",
+      "sha256_archive": "2dab16923c62cf1c73ba3d30d4c63677cb4bb1b8df66619424954168ecb82787",
+      "sha256_original": "0b668c70c6703dea1e3fc224778eb49cec141f2c843c5143db3178485d3e42ba",
+      "taille_archive": 53969,
+      "taille_originale": 143877
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02-avant.json--61b1582be52844aec80fa218f8bcb181e52e927475629b231c8c836c85ee60ac.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/backup-compose-root-r4-2026-10-02-avant.json",
+      "sha256_archive": "c11e70f0004d3615f0e90e6d423930a2cfbacdbab2e409d257c44fd70dea6ede",
+      "sha256_original": "61b1582be52844aec80fa218f8bcb181e52e927475629b231c8c836c85ee60ac",
+      "taille_archive": 53969,
+      "taille_originale": 143877
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02-resultat.json--70cc1c821eabfe55248d8a14eeb17aabe01f4cad4a8a82b9ba4d717575e3acac.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/backup-compose-root-r4-2026-10-02-resultat.json",
+      "sha256_archive": "f45d0470d6689da884b2d1a2c5aea1b7ee0016443713453d1c4db1b7f643c155",
+      "sha256_original": "70cc1c821eabfe55248d8a14eeb17aabe01f4cad4a8a82b9ba4d717575e3acac",
+      "taille_archive": 511,
+      "taille_originale": 951
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02.log--9bf95a7465101b916311c2e4cdeea3a2e43fbbe8678cdcc2a2f1fcc08e0c6814.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/backup-compose-root-r4-2026-10-02.log",
+      "sha256_archive": "b39cce669184a57a69170db903e5b0b4c4e0e57e105afd655e0c1ab0887d3696",
+      "sha256_original": "9bf95a7465101b916311c2e4cdeea3a2e43fbbe8678cdcc2a2f1fcc08e0c6814",
+      "taille_archive": 34,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02.xml--b46b317fb74c0155d73d536f7ad07d3aa833f724d7dfdbe8a0e92f1cd92f5547.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/backup-compose-root-r4-2026-10-02.xml",
+      "sha256_archive": "55365b478bd84200767f6ea5e75d68f7fbb23baf094b80f0eb83fc6e731925dc",
+      "sha256_original": "b46b317fb74c0155d73d536f7ad07d3aa833f724d7dfdbe8a0e92f1cd92f5547",
+      "taille_archive": 1463,
+      "taille_originale": 7807
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-qualite-root-r1-2026-10-02-apres.json--6bef4d6e44b76ca2761482c52e3c252369968080d5f407496540d217efa646b0.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/restore-pgdata-qualite-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "556237150a18648ce56f387bd0e627bc20d4182e2c03eb3021eccb9e7be4cb49",
+      "sha256_original": "6bef4d6e44b76ca2761482c52e3c252369968080d5f407496540d217efa646b0",
+      "taille_archive": 53588,
+      "taille_originale": 142899
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-qualite-root-r1-2026-10-02-avant.json--9115a4b977c9068e1f041c888bee1ed04a4a6500a913f3d0c71ec89f6146e230.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/restore-pgdata-qualite-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "153f85725494f72cc64074e41022edfd32c91818aaf398f4df17bf816970e8cb",
+      "sha256_original": "9115a4b977c9068e1f041c888bee1ed04a4a6500a913f3d0c71ec89f6146e230",
+      "taille_archive": 53588,
+      "taille_originale": 142899
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-qualite-root-r1-2026-10-02-resultat.json--1663bd27bbb873d15418205d849cd201d4760eaa88cf6c0eddc2c9bef8c57282.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/restore-pgdata-qualite-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "b0e868adb5e0da97bf3dca17e475f8720601c7b1e0a9d75ff5e0ed2ac0a4547a",
+      "sha256_original": "1663bd27bbb873d15418205d849cd201d4760eaa88cf6c0eddc2c9bef8c57282",
+      "taille_archive": 526,
+      "taille_originale": 928
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-qualite-root-r1-2026-10-02.log--942fe6b7059113d26932af626de9665f0dfecd7ab4a77abcc661c6247ce90e4a.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/restore-pgdata-qualite-root-r1-2026-10-02.log",
+      "sha256_archive": "cbec7123226398fff5a53345b521601e6c947c636c64f655f4426c9d59e120bc",
+      "sha256_original": "942fe6b7059113d26932af626de9665f0dfecd7ab4a77abcc661c6247ce90e4a",
+      "taille_archive": 57,
+      "taille_originale": 40
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-root-r1-2026-10-02-apres.json--78e02543af589325a033d89fe06d4e906d3f3c23480db28ee73814c5f9228f9e.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/restore-pgdata-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "384c59fc9a38b49f3a776cbb9cb023ba54d3f5228d6f56047b6b4d0db95c1d74",
+      "sha256_original": "78e02543af589325a033d89fe06d4e906d3f3c23480db28ee73814c5f9228f9e",
+      "taille_archive": 53588,
+      "taille_originale": 142899
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-root-r1-2026-10-02-avant.json--119291c60f434d746c70989cb6d6a0fabef5beefbbef6fe5bc2c5457f306b0a3.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/restore-pgdata-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "a93c9a7e6a7c84f6a37f0d7d29acd0bc8160eff62591b17accb27ea6dc184365",
+      "sha256_original": "119291c60f434d746c70989cb6d6a0fabef5beefbbef6fe5bc2c5457f306b0a3",
+      "taille_archive": 53589,
+      "taille_originale": 142899
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-root-r1-2026-10-02-resultat.json--a5a079672beb07d6575723e1f5485c9d1c97aed1b97e6e8a728a05e7d674f0bf.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/restore-pgdata-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "6072e453f9c11bdb25db636c5805e8a2858abc9fd8d09c31c054cae541807477",
+      "sha256_original": "a5a079672beb07d6575723e1f5485c9d1c97aed1b97e6e8a728a05e7d674f0bf",
+      "taille_archive": 526,
+      "taille_originale": 992
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-root-r1-2026-10-02.log--07c2eef926162e0090994bc913805aa08a8b2cbb5b21d2c933b937a10300713f.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/restore-pgdata-root-r1-2026-10-02.log",
+      "sha256_archive": "2cc46392769ab2ba07f7f33de7a51ede0313e94a7dbbc0200d5c2cd112d4c421",
+      "sha256_original": "07c2eef926162e0090994bc913805aa08a8b2cbb5b21d2c933b937a10300713f",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-root-r1-2026-10-02.xml--730ff67fa26360a0eecc5fb83f3d10962e5968248a10bca683715d5252d7bb47.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/restore-pgdata-root-r1-2026-10-02.xml",
+      "sha256_archive": "fe61dffb3289b49319cc6629f8a0c5be6b525a8dc9ad8ef139bdc786e27aa60b",
+      "sha256_original": "730ff67fa26360a0eecc5fb83f3d10962e5968248a10bca683715d5252d7bb47",
+      "taille_archive": 1128,
+      "taille_originale": 6070
+    }
+  ],
+  "limites": "ROOT : 49 passés, 1 Docker explicitement sauté (50 cas JUnit), 0 échec/erreur, 64,195 s. 1122 sources surveillées stables pendant tests et qualité, aucun contrôle global courant revendiqué. Runtime QA séparé : 21 assertions réelles PG17.11/Compose/volumes fictifs ; physique puis SQL logique, cleanup78,808s, baseline intacte. Ces nombres ne sont pas additionnés. R1/r2 runtime rouges, rouges R36/source et préimages conservés ; R34 immuable. Préflight archive r1 refusé sur Compose produit changé ; document EXPLOITATION15f historique, version produit R41 actuelle et Compose produit hors qualification R38. Clôture courante trois sources code seulement. Backups bruts uniquement RAM volatile, reçus/manifestes/SHA durables, aucun PGDATA/SQLite brut dans capsule. Services métier absents ; pas VPS, installation OPSYS, sandbox agent/rootless, TLS ni sauvegarde entreprise. Flock même inode uniquement ; pas copies/remplacement atomique/restauration parallèle ni rollback automatique.",
+  "schema": "opsys.r38-manifest/v1"
+}

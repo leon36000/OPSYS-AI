@@ -1,0 +1,9 @@
+{
+  "archives": 30,
+  "liens_locaux_verifies": 9,
+  "qualification_sha256": "e6f5b8487442481697b71e42c328715387d559d67269dc36c81939091dd68d77",
+  "roundtrip": "gzip mtime0 vérifié en mémoire",
+  "schema": "opsys.r42-post-check/v1",
+  "sources_root_stables": true,
+  "tests_lances": false
+}

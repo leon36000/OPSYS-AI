@@ -1,0 +1,38 @@
+{
+  "utc": "2026-10-03T08:33:45.201660+00:00",
+  "qualified": true,
+  "original_receipt": "/dev/shm/opsys-cron-limite16-root-r1/execution-r1/receipt.json",
+  "tests": {},
+  "scope_sha256_current": {
+    "src/opsys/agents_cron_autorite.py": "b5bd72745274259cf10ac73d2a089babf9302af2ebb1978680c4d13ee90ba554",
+    "tests/test_agents_cron_autorite.py": "2488ed883eebd08a56bc03edfe2607f1977bc9cc97e90461d185bc2e6ca636aa",
+    "tests/test_cron_operateur_http.py": "3d398ea5d9e53c9c7e12cb370df379bc781da8c23132c91a8d8d20b4d3769e95"
+  },
+  "files": [
+    {
+      "source": "/dev/shm/opsys-cron-limite16-root-r1/execution-r1/receipt.json",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-LIMITE16-ROOT-r1/execution-verifiee-r1/receipt.json.gz",
+      "sha256": "fef929d5119019f8e2ff3c9bc9aa767048fc8c3f9d2bdd99cc41fd934243e760",
+      "bytes": 459135
+    },
+    {
+      "source": "/dev/shm/opsys-cron-limite16-root-r1/execution-r1/pytest.xml",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-LIMITE16-ROOT-r1/execution-verifiee-r1/pytest.xml.gz",
+      "sha256": "d594a57166e829db7157f2b2f67b76766ba31b2c3a48831144f0e4f7ef5fb8ca",
+      "bytes": 24057
+    },
+    {
+      "source": "/dev/shm/opsys-cron-limite16-root-r1/execution-r1/pytest.log",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-LIMITE16-ROOT-r1/execution-verifiee-r1/pytest.log.gz",
+      "sha256": "dcb4fe7e0c44a2120a77f2e128c86a3bba1ed084cd2819f5de1e4197c4ac30d9",
+      "bytes": 261
+    },
+    {
+      "source": "/dev/shm/opsys-cron-limite16-root-r1/execution-r1/ruff.log",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-LIMITE16-ROOT-r1/execution-verifiee-r1/ruff.log.gz",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    }
+  ],
+  "limitations": "Synthetic test data; no external provider, production deployment or official payroll/tax action"
+}

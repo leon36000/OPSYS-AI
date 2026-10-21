@@ -1,0 +1,360 @@
+name: core
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Les appels automatiques sont sérialisés par ci.yml ; le dispatch manuel reste indépendant.
+
+defaults:
+  run:
+    working-directory: core
+
+jobs:
+  # Construit OPSYS-CORE, fork dur d'OpenClaw v2026.9.6 (ADR-0008, core/PROVENANCE.md).
+  # Cette preuve CI complète les vérifications locales ciblées décrites dans core/AGENTS.md.
+  construction:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - name: pnpm (version fixée par packageManager)
+        run: corepack enable && pnpm --version
+      - name: Installation
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Construction
+        env:
+          OPENCLAW_BUILD_DTS_PARTITION: per-plugin
+          OPENCLAW_BUILD_UNIFIED_CONCURRENCY: "1"
+        run: pnpm build
+      - name: Vérifier les budgets du Control UI construit
+        # La construction imprime aussi les dépassements, mais ne les fait pas échouer.
+        # Ce contrôle applique les mêmes seuils canoniques sans les relever.
+        run: node --import ./scripts/tsx.mjs scripts/check-control-ui-performance.mts
+      - name: Profil mémoire de l'extension vocale après construction
+        env:
+          OPENCLAW_LOCAL_CHECK: "0"
+        run: node --import tsx scripts/profile-extension-memory.mts --extension voice-call --skip-combined --concurrency 1
+
+  # Tests unitaires rapides, découpés en six morceaux : sur un seul runner, la suite
+  # dépasse une heure (la CI d'origine la découpe en 6 à 12 morceaux sur 16 cœurs). Le lanceur
+  # construit lui-même les prérequis des rares tests qui lisent le dist.
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        morceau: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - name: pnpm (version fixée par packageManager)
+        run: corepack enable && pnpm --version
+      - name: Installation
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Tests unitaires rapides (morceau ${{ matrix.morceau }}/6)
+        # Un seul worker et 4 Gio de tas par isolate limitent la pression mémoire
+        # sur le runner privé. Les six morceaux et les assertions restent identiques.
+        # Le reporter observe le pool effectif ; logHeapUsage ne mesure pas le RSS total.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          OPENCLAW_VITEST_MAX_WORKERS: "1"
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm test:fast --shard=${{ matrix.morceau }}/6 --logHeapUsage --reporter=verbose --reporter=github-actions --reporter=./scripts/lib/vitest-resource-reporter.mts 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+      - name: Tests en échec (résumé en fin de journal)
+        if: failure()
+        shell: bash
+        # La liste compacte finit le journal : on la lit sans télécharger le journal complet.
+        run: |
+          sed -E 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/vitest.log" > "$RUNNER_TEMP/vitest.txt"
+          echo "== fichiers en échec"
+          grep -E "^ *FAIL " "$RUNNER_TEMP/vitest.txt" | sed -E 's/ > .*//; s/ +\[.*//' | sort -u | head -150 || true
+          echo "== tests en échec"
+          grep -E "^ *(FAIL|×) .* > " "$RUNNER_TEMP/vitest.txt" | sed -E 's/ [0-9]+ms$//' | sort -u | head -150 || true
+          echo "== erreurs hors test"
+          grep -E "^(Error|TypeError|ReferenceError|SyntaxError): " "$RUNNER_TEMP/vitest.txt" | sort | uniq -c | sort -rn | head -20 || true
+          echo "== détail des échecs (message d'assertion et ligne du test)"
+          sed -n '/Failed Tests [0-9]/,/Test Files/p' "$RUNNER_TEMP/vitest.txt" | grep -vE "^ *$" | head -250 || true
+          grep -E "Test Files|Tests  " "$RUNNER_TEMP/vitest.txt" | tail -4 || true
+
+  # Tests des zones du core modifiées par OPSYS. `test:fast` exclut src/gateway, src/agents et
+  # packages/gateway-protocol (d'autres projets vitest) : sans ce job, les tests de T1.4-c1, c2
+  # et c4 ne tourneraient jamais. `pnpm test <fichiers>` route chaque fichier vers son projet et
+  # échoue si une cible ne correspond à rien. Liste : core/test/opsys-tests-cibles.txt.
+  tests-opsys:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        morceau: [1, 2]
+    env:
+      OPSYS_TEST_SHARD_NAME: opsys-targeted-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.morceau }}
+      OPSYS_TEST_PARTITIONS: >-
+        [
+          [
+            "test/vitest/vitest.unit.config.ts",
+            "test/vitest/vitest.gateway.config.ts",
+            "test/vitest/vitest.gateway-client.config.ts",
+            "test/vitest/vitest.daemon.config.ts",
+            "test/vitest/vitest.secrets.config.ts",
+            "test/vitest/vitest.auto-reply.config.ts",
+            "test/vitest/vitest.ui-isolated.config.ts",
+            "test/vitest/vitest.e2e.config.ts",
+            "test/vitest/vitest.extension-imessage.config.ts",
+            "test/vitest/vitest.extension-database-workers.config.ts",
+            "test/vitest/vitest.extension-telegram.config.ts",
+            "test/vitest/vitest.extension-voice-call.config.ts",
+            "test/vitest/vitest.extension-provider-openai.config.ts",
+            "test/vitest/vitest.channels.config.ts"
+          ],
+          [
+            "test/vitest/vitest.unit-fast.config.ts",
+            "test/vitest/vitest.unit-fast-isolated.config.ts",
+            "test/vitest/vitest.tooling.config.ts",
+            "test/vitest/vitest.infra.config.ts",
+            "test/vitest/vitest.runtime-config.config.ts",
+            "test/vitest/vitest.cron.config.ts",
+            "test/vitest/vitest.cli.config.ts",
+            "test/vitest/vitest.commands.config.ts",
+            "test/vitest/vitest.agents-core.config.ts",
+            "test/vitest/vitest.agents-embedded-agent.config.ts",
+            "test/vitest/vitest.agents-embedded-agent-run.config.ts",
+            "test/vitest/vitest.agents-support.config.ts",
+            "test/vitest/vitest.agents-core-isolated.config.ts",
+            "test/vitest/vitest.plugins.config.ts",
+            "test/vitest/vitest.ui.config.ts",
+            "test/vitest/vitest.extensions.config.ts"
+          ]
+        ]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: uv (version verrouillée du projet Python)
+        working-directory: ${{ github.workspace }}
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: Dépendances OPSYS Python verrouillées pour le test d'interopérabilité
+        working-directory: ${{ github.workspace }}
+        run: |
+          uv sync --project . --locked --group build --extra dev --no-build-isolation --no-install-project
+          uv sync --project . --locked --group build --extra dev --no-build-isolation
+      - name: Image PostgreSQL17 épinglée pour la composition Core vers M5
+        if: matrix.morceau == 2
+        working-directory: ${{ github.workspace }}
+        timeout-minutes: 18
+        # Runner hébergé dédié uniquement : cet outil configure et redémarre son démon Docker.
+        run: .venv/bin/python scripts/ci/preparer_pgvector.py
+      - name: pnpm (version fixée par packageManager)
+        run: corepack enable && pnpm --version
+      - name: Installation
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Analyse typée du test de composition Core vers Native
+        if: matrix.morceau == 1
+        timeout-minutes: 3
+        env:
+          NODE_OPTIONS: --max-old-space-size=512
+          GOMAXPROCS: "1"
+          GOMEMLIMIT: 512MiB
+          GOGC: "20"
+        # Le lanceur canonique active --type-aware ; ce contrôle ciblé complète
+        # les tests exécutés ci-dessous, sans prétendre vérifier tout le graphe TS.
+        run: node scripts/run-oxlint.mjs --tsconfig config/tsconfig/oxlint.core.json --threads=1 src/gateway/opsys-sms-gate-consumer.test.ts
+      - name: Fixture Discord externe épinglé (données de test uniquement)
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          python -I -B scripts/materialize-external-discord-test-fixture.py \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/opsys-discord-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${{ matrix.morceau }}"
+      - name: Répertoire de preuve unique du morceau
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/$OPSYS_TEST_SHARD_NAME"
+          echo "OPSYS_TEST_SHARD_DIR=$RUNNER_TEMP/$OPSYS_TEST_SHARD_NAME" >> "$GITHUB_ENV"
+      - name: Régressions du routage et des sélections natives vides
+        if: matrix.morceau == 1
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          OPENCLAW_VITEST_MAX_WORKERS: "2"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OPSYS_TEST_SHARD_DIR"
+          pnpm test test/scripts/test-projects-routing.test.ts test/scripts/test-projects-empty-native.test.ts 2>&1 | tee "$OPSYS_TEST_SHARD_DIR/routing.log"
+      - name: Tests ciblés OPSYS (projets gateway, agents, gateway-protocol)
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          OPENCLAW_VITEST_MAX_WORKERS: "2"
+          OPSYS_TEST_PYTHON: ${{ github.workspace }}/.venv/bin/python
+          OPENCLAW_TEST_DISCORD_PLUGIN_ROOT: ${{ runner.temp }}/opsys-discord-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.morceau }}/discord-2026.9.6
+          OPENCLAW_TEST_DISCORD_PLUGIN_INVENTORY: ${{ runner.temp }}/opsys-discord-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.morceau }}/inventory.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OPSYS_TEST_SHARD_DIR"
+          # Run the selector directly: process substitution would hide its failure.
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          import { createHash } from "node:crypto";
+          import { selectVitestTargetPartition } from "./scripts/test-projects.test-support.mts";
+          const source = fs.readFileSync("test/opsys-tests-cibles.txt", "utf8");
+          const targets = source.split(/\r?\n/u).filter((line) => !/^\s*(#|$)/u.test(line));
+          const selection = selectVitestTargetPartition(
+            targets,
+            JSON.parse(process.env.OPSYS_TEST_PARTITIONS),
+            ${{ matrix.morceau }},
+            { baseEnv: process.env },
+          );
+          const directory = process.env.OPSYS_TEST_SHARD_DIR;
+          fs.writeFileSync(path.join(directory, "selection.json"), JSON.stringify({
+            ...selection,
+            targetListSha256: createHash("sha256").update(source).digest("hex"),
+          }, null, 2) + "\n");
+          fs.writeFileSync(path.join(directory, "targets.txt"), selection.targets.join("\n") + "\n");
+          NODE
+          test -s "$OPSYS_TEST_SHARD_DIR/targets.txt"
+          mapfile -t cibles < "$OPSYS_TEST_SHARD_DIR/targets.txt"
+          test "${#cibles[@]}" -gt 0
+          echo "${#cibles[@]} fichiers ciblés (morceau ${{ matrix.morceau }}/2)"
+          pnpm test "${cibles[@]}" 2>&1 | tee "$OPSYS_TEST_SHARD_DIR/vitest.log"
+      - name: Décision M5 périmée via Core HTTP sur PostgreSQL17 réel
+        if: matrix.morceau == 2
+        timeout-minutes: 8
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          OPENCLAW_VITEST_MAX_WORKERS: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          export OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR="$RUNNER_TEMP/opsys-m5-pg17-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "$OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR"
+          "$GITHUB_WORKSPACE/.venv/bin/python" test/opsys-m5-ap-pg17-runner.py 2>&1 | tee "$OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR/vitest.log"
+      - name: Preuve PostgreSQL17 dédiée (liste fermée, sans fichier URL)
+        if: always() && matrix.morceau == 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: opsys-m5-pg17-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/opsys-m5-pg17-${{ github.run_id }}-${{ github.run_attempt }}/vitest.log
+            ${{ runner.temp }}/opsys-m5-pg17-${{ github.run_id }}-${{ github.run_attempt }}/junit.xml
+          if-no-files-found: warn
+      # Cas distinct : ACK M9 perdu après commit, redémarrage applicatif et manager Core, copies PG jetables.
+      # Même lanceur possédé, mode explicite ; aucun nouveau service, ni redémarrage PostgreSQL.
+      - name: ACK M9 perdu et redémarrage Core via HTTP sur PostgreSQL17 réel
+        if: matrix.morceau == 2
+        timeout-minutes: 8
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          OPENCLAW_VITEST_MAX_WORKERS: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          export OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR="$RUNNER_TEMP/opsys-m5-pg17-ack-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "$OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR"
+          "$GITHUB_WORKSPACE/.venv/bin/python" test/opsys-m5-ap-pg17-runner.py --mode lost-ack 2>&1 | tee "$OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR/vitest.log"
+      - name: Preuve PostgreSQL17 ACK perdu dédiée (liste fermée, sans fichier URL)
+        if: always() && matrix.morceau == 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: opsys-m5-pg17-ack-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/opsys-m5-pg17-ack-${{ github.run_id }}-${{ github.run_attempt }}/vitest.log
+            ${{ runner.temp }}/opsys-m5-pg17-ack-${{ github.run_id }}-${{ github.run_attempt }}/junit.xml
+          if-no-files-found: warn
+      - name: Tests en échec (résumé en fin de journal)
+        if: failure()
+        shell: bash
+        run: |
+          if [[ ! -f "$OPSYS_TEST_SHARD_DIR/vitest.log" ]]; then
+            echo "Aucun lancement Vitest : voir le refus de sélection ou de prérequis ci-dessus."
+            exit 0
+          fi
+          sed -E 's/\x1b\[[0-9;]*m//g' "$OPSYS_TEST_SHARD_DIR/vitest.log" > "$OPSYS_TEST_SHARD_DIR/vitest.txt"
+          echo "== fichiers en échec"
+          grep -E "^ *FAIL " "$OPSYS_TEST_SHARD_DIR/vitest.txt" | sed -E 's/ > .*//; s/ +\[.*//' | sort -u | head -150 || true
+          echo "== détail des échecs (message d'assertion et ligne du test)"
+          sed -n '/Failed Tests [0-9]/,/Test Files/p' "$OPSYS_TEST_SHARD_DIR/vitest.txt" | grep -vE "^ *$" | head -250 || true
+          echo "== fin du journal"
+          tail -60 "$OPSYS_TEST_SHARD_DIR/vitest.txt"
+
+      - name: Conserver la sélection et le journal du morceau OPSYS
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2, MIT
+        with:
+          name: opsys-targeted-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.morceau }}
+          # Allowlist: no native state, databases, backups or external fixture contents.
+          path: |
+            ${{ env.OPSYS_TEST_SHARD_DIR }}/selection.json
+            ${{ env.OPSYS_TEST_SHARD_DIR }}/targets.txt
+            ${{ env.OPSYS_TEST_SHARD_DIR }}/vitest.log
+            ${{ env.OPSYS_TEST_SHARD_DIR }}/vitest.txt
+            ${{ env.OPSYS_TEST_SHARD_DIR }}/routing.log
+          if-no-files-found: warn
+          retention-days: 30
+          overwrite: false
+
+  # La verticale dispose d'un budget propre après les tests ciblés : leur durée peut
+  # consommer les 55 minutes du job précédent avant les 40 phases HTTP/restauration.
+  verticale-core:
+    needs: tests-opsys
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.x"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: uv (version verrouillée du projet Python)
+        working-directory: ${{ github.workspace }}
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: Dépendances OPSYS Python verrouillées pour le test d'interopérabilité
+        working-directory: ${{ github.workspace }}
+        run: |
+          uv sync --project . --locked --group build --extra dev --no-build-isolation --no-install-project
+          uv sync --project . --locked --group build --extra dev --no-build-isolation
+      - name: pnpm (version fixée par packageManager)
+        run: corepack enable && pnpm --version
+      - name: Installation
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Verticale Core HTTP M8/M10 et corpus/restauration (40 phases)
+        working-directory: ${{ github.workspace }}
+        timeout-minutes: 7
+        run: |
+          .venv/bin/python tests/fixtures/qualifier_verticale_core.py \
+            --preuve-dir "$RUNNER_TEMP/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Conserver les preuves de la verticale, y compris les échecs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2, MIT
+        with:
+          name: verticale-core-${{ github.run_id }}-${{ github.run_attempt }}
+          # Deliberate allowlist: no native backups, databases, generated Core state or input manifests.
+          path: |
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/*.log
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/junit.xml
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/profil.json
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/memoire.json
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/dev.json
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/restauration.json
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/restauration-parent.json
+          if-no-files-found: warn
+          retention-days: 30
+          overwrite: false

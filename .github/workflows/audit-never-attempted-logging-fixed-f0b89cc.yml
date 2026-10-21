@@ -1,0 +1,257 @@
+# Une feuille positivement sans tentative Vitest dans le plan parent. Aucun rejeu291/430/433.
+name: audit-never-attempted-logging-fixed-f0b89cc
+'on':
+  push:
+    branches:
+    - codex/restructuration-2026-09-30
+    paths:
+    - .github/workflows/audit-never-attempted-logging-fixed-f0b89cc.yml
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: audit-never-attempted-logging-fixed-f0b89cc
+  cancel-in-progress: false
+env:
+  NODE_OPTIONS: --max-old-space-size=4096
+  EXPECTED_HEAD: f0b89ccf86d6f6e50eb134de3257af91860e8091
+  EXPECTED_TREE: 03dd91d0a6c749d06dbd502b3b9fe2cb8f576bdb
+  EXPECTED_SOURCE_SHA: ce8def70e470baced49f09a849fa75eee295e7e0f9613a49135dc5637f079349
+  EXPECTED_PACKAGE_MANAGER: pnpm@12.4.0+sha512.37536c26ed40ab4134b6511e09f6b27f3ebb45687468f2406ca3805279a4e5ca158c1931350ad9774d6ab2108d71b3dbaeb39943159294375e4d053e8e05685c
+  AUDIT_NONCE: audit-never-attempted-logging-0f8e654e7b524f84a6c3a65b718d41fb
+defaults:
+  run:
+    shell: bash
+    working-directory: core
+jobs:
+  logging435:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      OPENCLAW_TEST_PROJECTS_PARALLEL: '1'
+      OPENCLAW_TEST_PROJECTS_LEAF_SHARDS: '1'
+      OPENCLAW_VITEST_MAX_WORKERS: '1'
+      OPENCLAW_VITEST_NO_OUTPUT_RETRY: '0'
+    steps:
+    - name: Initialiser les destinations uniques hors checkout
+      timeout-minutes: 1
+      working-directory: ${{ github.workspace }}
+      env:
+        AUDIT_TEMP_ROOT: ${{ runner.temp }}
+      run: |
+        set -euo pipefail
+        output="$AUDIT_TEMP_ROOT/logging-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-inv435"
+        mkdir -p "$output"
+        echo "AUDIT_OUTPUT=$output" >> "$GITHUB_ENV"
+        echo "OPENCLAW_TEST_PROJECTS_TIMINGS_PATH=$output/vitest-shard-timings.json" >> "$GITHUB_ENV"
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      with:
+        ref: f0b89ccf86d6f6e50eb134de3257af91860e8091
+        fetch-depth: 1
+        persist-credentials: false
+        submodules: false
+    - name: Identité et octets du snapshot avant acquisition
+      id: identity
+      timeout-minutes: 5
+      working-directory: ${{ github.workspace }}
+      env:
+        IDENTITY_PHASE: before
+      run: |
+        python3 -I -B - <<'PY_IDENTITY'
+        import hashlib, json, os, pathlib, re, subprocess
+        root = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(root), *args])
+        head = git('rev-parse', 'HEAD').decode().strip()
+        tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
+        assert head == os.environ['EXPECTED_HEAD'], 'HEAD_DIFFERENT'
+        assert tree == os.environ['EXPECTED_TREE'], 'TREE_DIFFERENT'
+        paths = sorted(p.decode('utf-8') for p in git('ls-files', '-z').split(bytes([0])) if p)
+        assert len(paths) == 43996 and len(set(paths)) == 43996, 'TRACKED_FILE_COUNT'
+        aggregate = hashlib.sha256()
+        for name in paths:
+            file = root / name
+            assert file.is_file() and not file.is_symlink(), 'TRACKED_FILE_KIND'
+            content = hashlib.sha256()
+            with file.open('rb') as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    content.update(block)
+            aggregate.update(name.encode('utf-8'))
+            aggregate.update(bytes([0]))
+            aggregate.update(content.digest())
+        assert aggregate.hexdigest() == os.environ['EXPECTED_SOURCE_SHA'], 'SOURCE_BYTES_DIFFERENT'
+        package = json.loads((root / 'core/package.json').read_text())
+        assert package['packageManager'] == os.environ['EXPECTED_PACKAGE_MANAGER'], 'PACKAGE_MANAGER_DIFFERENT'
+        shards = (root / 'core/test/vitest/vitest.test-shards.mjs').read_text().split('export const fullSuiteVitestShards = [', 1)[1]
+        groups = re.findall('config: "([^"]+)",.*?name: "([^"]+)"', shards, re.S)
+        assert len(groups) == 12 and len({g[0] for g in groups}) == 12, 'CANONICAL_GROUP_COUNT'
+        receipt = {'head':head, 'tree':tree, 'tracked_files':len(paths), 'SourceSHA':aggregate.hexdigest(),
+                   'packageManager':package['packageManager'], 'canonical_groups':[{'config':c,'name':n} for c,n in groups],
+                   'scope':'identity and bytes only; not test/runtime qualification'}
+        output = pathlib.Path(os.environ['AUDIT_OUTPUT'])
+        output.mkdir(parents=True, exist_ok=True)
+        (output / ('identity-' + os.environ['IDENTITY_PHASE'] + '.json')).write_text(json.dumps(receipt, indent=2) + chr(10))
+        print(json.dumps(receipt))
+        PY_IDENTITY
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      with:
+        node-version: 24.x
+    - name: pnpm exact du packageManager et versions observées
+      timeout-minutes: 3
+      run: |
+        set -euo pipefail
+        corepack enable
+        test "$(pnpm --version)" = "12.4.0"
+        { node --version; pnpm --version; uname -a; } | tee "$AUDIT_OUTPUT/toolchain.log"
+    - name: Acquisition verrouillée sans scripts implicites
+      id: acquire
+      timeout-minutes: 12
+      run: |
+        set -euo pipefail
+        pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile 2>&1 | tee "$AUDIT_OUTPUT/install.log"
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+      with:
+        python-version: '3.12'
+    - name: Dépendances Python verrouillées des fixtures Core, comme core.yml
+      timeout-minutes: 12
+      working-directory: ${{ github.workspace }}
+      run: |
+        set -euo pipefail
+        {
+          python -m pip install --quiet uv==0.12.19
+          uv --version
+          uv sync --project . --locked --group build --extra dev --no-build-isolation --no-install-project
+          uv sync --project . --locked --group build --extra dev --no-build-isolation
+        } 2>&1 | tee "$AUDIT_OUTPUT/python-install.log"
+    - name: Fixture externe Discord épinglée, comme core.yml
+      timeout-minutes: 3
+      env:
+        OPENCLAW_TEST_DISCORD_PLUGIN_ROOT: ${{ runner.temp }}/full-core-discord-${{ github.run_id }}-${{ github.run_attempt
+          }}/discord-2026.9.6
+        OPENCLAW_TEST_DISCORD_PLUGIN_INVENTORY: ${{ runner.temp }}/full-core-discord-${{ github.run_id }}-${{ github.run_attempt
+          }}/inventory.json
+      run: |
+        set -euo pipefail
+        python -I -B scripts/materialize-external-discord-test-fixture.py             --repo-root "$GITHUB_WORKSPACE"             --output "$RUNNER_TEMP/full-core-discord-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"             2>&1 | tee "$AUDIT_OUTPUT/fixture.log"
+    - name: Mission distincte435, aucune reprise de291/430/433
+      timeout-minutes: 1
+      run: |
+        set -euo pipefail
+        cat > "$AUDIT_OUTPUT/command-manifest.json" <<'AUDIT_MANIFEST'
+        {
+          "Root_nonce": "audit-never-attempted-logging-0f8e654e7b524f84a6c3a65b718d41fb",
+          "parent_terminal_run": 39511932793,
+          "parent_attempt": 1,
+          "parent_artifactSHA": "210c2313e3339a82f8de12e2ef28db8717dbcc7f0b37975e0a9021e30549c263",
+          "parent_invocation": 435,
+          "parent_original_state": "unstarted",
+          "never_crossed_report_owned_Vitest_attempt_boundary": true,
+          "global_parent_preparation_had_run": true,
+          "selected_config": "test/vitest/vitest.logging.config.ts",
+          "selected_full_leaf_not_case_replay": true,
+          "excluded_interrupted_invocation": 291,
+          "excluded_interrupted_leaves_no_replay": [
+            291,
+            430,
+            433
+          ],
+          "argv_template": [
+            "pnpm",
+            "test",
+            "test/vitest/vitest.logging.config.ts",
+            "--",
+            "--logHeapUsage",
+            "--reporter=verbose",
+            "--reporter=json",
+            "--outputFile.json=$AUDIT_OUTPUT/vitest.json",
+            "--reporter=$GITHUB_WORKSPACE/core/scripts/lib/vitest-report-capture.mts"
+          ],
+          "no_nooutput_retry": true,
+          "not_yet_executed": true,
+          "predecessor434_terminal_certificateSHA": "731c14c6bb3a67a06b5401b9927b7057507f72ec4dcc783d70cfc58e1a40939f"
+        }
+        AUDIT_MANIFEST
+        printf '%s  %s\n' 'd29aeee3759c924f0e4a4162c48424227cc56a857e3573210c9f45e27c7262f2' "$AUDIT_OUTPUT/command-manifest.json" | sha256sum -c -
+    - name: Feuille logging435 jamais tentée, propriétaire canonique et capture native
+      timeout-minutes: 45
+      env:
+        OPSYS_TEST_PYTHON: ${{ github.workspace }}/.venv/bin/python
+        OPENCLAW_TEST_DISCORD_PLUGIN_ROOT: ${{ runner.temp }}/full-core-discord-${{ github.run_id }}-${{ github.run_attempt
+          }}/discord-2026.9.6
+        OPENCLAW_TEST_DISCORD_PLUGIN_INVENTORY: ${{ runner.temp }}/full-core-discord-${{ github.run_id }}-${{ github.run_attempt
+          }}/inventory.json
+      run: |
+        set -euo pipefail
+        # Cible positionnelle reconnue : exactement une feuille, aucun filtre de cas.
+        # Capture existante réservée aux projets Node nommés ; logging est Node/threads.
+        pnpm test test/vitest/vitest.logging.config.ts -- \
+          --logHeapUsage --reporter=verbose --reporter=json \
+          --outputFile.json="$AUDIT_OUTPUT/vitest.json" \
+          --reporter="$GITHUB_WORKSPACE/core/scripts/lib/vitest-report-capture.mts" \
+          2>&1 | tee "$AUDIT_OUTPUT/vitest.log"
+      id: logging
+    - name: Conserver le verdict du pas sans convertir un rouge en vert
+      if: always()
+      timeout-minutes: 1
+      env:
+        INFRA_STEP_OUTCOME: ${{ steps.logging.outcome }}
+      run: |
+        python3 -I -B - <<'PY_OUTCOME'
+        import json,os,pathlib
+        out=pathlib.Path(os.environ['AUDIT_OUTPUT'])
+        (out/'outcome.json').write_text(json.dumps({'step_outcome':os.environ['INFRA_STEP_OUTCOME'],'no_retry':True,'not_test_case_counts':True})+'\n')
+        PY_OUTCOME
+    - name: Vérifier que les octets suivis sont restés identiques
+      if: always() && steps.identity.outcome == 'success'
+      timeout-minutes: 5
+      working-directory: ${{ github.workspace }}
+      env:
+        IDENTITY_PHASE: after
+      run: |
+        python3 -I -B - <<'PY_IDENTITY'
+        import hashlib, json, os, pathlib, re, subprocess
+        root = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(root), *args])
+        head = git('rev-parse', 'HEAD').decode().strip()
+        tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
+        assert head == os.environ['EXPECTED_HEAD'], 'HEAD_DIFFERENT'
+        assert tree == os.environ['EXPECTED_TREE'], 'TREE_DIFFERENT'
+        paths = sorted(p.decode('utf-8') for p in git('ls-files', '-z').split(bytes([0])) if p)
+        assert len(paths) == 43996 and len(set(paths)) == 43996, 'TRACKED_FILE_COUNT'
+        aggregate = hashlib.sha256()
+        for name in paths:
+            file = root / name
+            assert file.is_file() and not file.is_symlink(), 'TRACKED_FILE_KIND'
+            content = hashlib.sha256()
+            with file.open('rb') as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    content.update(block)
+            aggregate.update(name.encode('utf-8'))
+            aggregate.update(bytes([0]))
+            aggregate.update(content.digest())
+        assert aggregate.hexdigest() == os.environ['EXPECTED_SOURCE_SHA'], 'SOURCE_BYTES_DIFFERENT'
+        package = json.loads((root / 'core/package.json').read_text())
+        assert package['packageManager'] == os.environ['EXPECTED_PACKAGE_MANAGER'], 'PACKAGE_MANAGER_DIFFERENT'
+        shards = (root / 'core/test/vitest/vitest.test-shards.mjs').read_text().split('export const fullSuiteVitestShards = [', 1)[1]
+        groups = re.findall('config: "([^"]+)",.*?name: "([^"]+)"', shards, re.S)
+        assert len(groups) == 12 and len({g[0] for g in groups}) == 12, 'CANONICAL_GROUP_COUNT'
+        receipt = {'head':head, 'tree':tree, 'tracked_files':len(paths), 'SourceSHA':aggregate.hexdigest(),
+                   'packageManager':package['packageManager'], 'canonical_groups':[{'config':c,'name':n} for c,n in groups],
+                   'scope':'identity and bytes only; not test/runtime qualification'}
+        output = pathlib.Path(os.environ['AUDIT_OUTPUT'])
+        output.mkdir(parents=True, exist_ok=True)
+        (output / ('identity-' + os.environ['IDENTITY_PHASE'] + '.json')).write_text(json.dumps(receipt, indent=2) + chr(10))
+        print(json.dumps(receipt))
+        PY_IDENTITY
+    - name: Conserver les seules preuves d’audit, y compris les échecs
+      if: always()
+      timeout-minutes: 5
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: audit-never-attempted-logging-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ env.AUDIT_OUTPUT }}/
+        if-no-files-found: warn
+        retention-days: 14
+        overwrite: false
+    name: logging435, campagne distincte bornée

@@ -1,0 +1,176 @@
+{
+  "commande": [
+    "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_deploy_backup_restore.py",
+    "--import-mode=importlib",
+    "-k",
+    "not restauration_reelle",
+    "--junitxml=/workspace/poursuite-opsys-2026-10-02-r1/vps-env-r1/backup-restore-root-r1.xml",
+    "-q",
+    "-p",
+    "no:cacheprovider"
+  ],
+  "couverture_unique": 30,
+  "docker_reel_lance": false,
+  "erreurs": [],
+  "identites": [
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_concurrent_refuse_meme_avec_autre_sortie"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_etat_transitoire_refuse_avant_stop_et_archive[dead]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_etat_transitoire_refuse_avant_stop_et_archive[paused]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_etat_transitoire_refuse_avant_stop_et_archive[restarting]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_force_permissions_privees_meme_sous_umask_permissif"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_litellm_declare_et_dump_seulement_les_bases_actives"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_natif_postgres_dump_la_base_sans_archiver_le_cluster_actif"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_quiescence_reprend_seulement_services_initialement_actifs[archive]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_quiescence_reprend_seulement_services_initialement_actifs[aucune]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_quiescence_reprend_seulement_services_initialement_actifs[start]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_quiescence_reprend_seulement_services_initialement_actifs[stop-no-effect]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_quiescence_reprend_seulement_services_initialement_actifs[stop-timeout]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_quiescence_reprend_seulement_services_initialement_actifs[stop]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_quiescence_reprend_seulement_services_initialement_actifs[timeout]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_signal_reprend_services_et_reste_non_zero"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_sqlite_ecrivain_reel_arrete_puis_repris_par_orchestration_factice"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_then_restore_roundtrips_five_effective_volumes[False]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_then_restore_roundtrips_five_effective_volumes[True]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_backup_volume_manquant_est_non_zero"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_dockerignore_exclut_secrets_et_backups_du_contexte_et_garde_le_code"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_legacy_archive_mapping_uses_source_project_manifest"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_restore_archive_manquante_refuse_avant_toute_modification[volume-caddy_data.tar.gz]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_restore_archive_manquante_refuse_avant_toute_modification[volume-opsys_data.tar.gz]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_restore_format_v2_exige_encore_deux_dumps_et_cinq_volumes[False]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_restore_format_v2_exige_encore_deux_dumps_et_cinq_volumes[True]"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_restore_interrompue_signale_absence_de_rollback_et_services_arretes"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_restore_v3_refuse_archive_optionnelle_declaree_mais_absente"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_restore_v3_refuse_changement_backend_sqlite_postgres_avant_arret"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_restore_v3_refuse_changement_de_profil_avant_arret"
+    ],
+    [
+      "tests.test_deploy_backup_restore",
+      "test_restore_v3_refuse_manifeste_sans_volume_requis_avant_arret"
+    ]
+  ],
+  "index_historique_r30_sha256": {
+    "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/MANIFEST.json": "2685dd4e20b7e288ff47ddb9fd62af07e50f7781e284cf2c58790784aa2d99ae",
+    "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/POST-CHECK.json": "1d3a6e5305adf5b5f031d3e32bd537eff0c4350d42f9cccf6151f46d20ce6c5c",
+    "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/QUALIFICATION.json": "9d377c616e769a79653d8024a4a020ef374db2be8d767241ff61d98b1490eb35",
+    "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/README.md": "74d091c45617570851c5952a965f51d142059f7e51b986704810fa6cf1d7fe43"
+  },
+  "index_sha256": {
+    "MANIFEST.json": "c30a12ef175141d9e6a32b317cb8f5878291dcf34dc2da8e3beb2acafa592215",
+    "README.md": "9a674a278596f9d80ed58022883ad5092ad9a357910377555d1ccff569c624b3",
+    "SOURCES-FINALES.json": "a6f9bcf83d19bd357a9e8a6ae6fc73dfaa86c2d964871246b466d883ea542fae"
+  },
+  "junit_secondes": 36.701,
+  "limites": "ROOT : 30 cas uniques, zéro échec/erreur/skip, 36,701s; Docker réel explicitement désélectionné. 1110 sources sélectionnées stables pendant les tests; 1111 lors du contrôle qualité distinct, aucun cumul. Contrôle courant des seules sources/docs/configs déclarées. Rouges/préimages/exception env conservés. Bash/faux Docker stateful et SQLite WAL réel : orchestration locale, pas SQL PostgreSQL réel, image serveur, sandbox rootless, edge/TLS ni installation VPS. Flock : même inode du même script seulement; pas copies/remplacement atomique/restauration parallèle.",
+  "modules": {
+    "test_deploy_backup_restore": 30
+  },
+  "qualite_receipt_sha256": "3a916222f1ad185c93e3ba54d4515ad69f31f7aef9d8a6613ca4c0445741f566",
+  "receipt_sha256": "7d4bdf6d399a29983ef7f2736c465df780290dc3e8bb1943a8a75d77ae9f35bf",
+  "root": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 30
+  },
+  "schema": "opsys.r34-qualification/v1",
+  "sources": {
+    ".gitignore": "c8436f665566550dc11c37b49c638399e29cd01607e3827eaaea1e9fc8a8a609",
+    "deploy/.env.example": "a0fa39253c6b7c8c2f497eb37611dd3ebd464194dbb875438f69200117d36ebc",
+    "deploy/backup.sh": "0cee00f4f2f1d36f2f747cfad02a3a3746ffe4dffb580b1411b31b229f21a0c2",
+    "deploy/restore.sh": "a5259f3ae047ce32ad1a4513ff08aad46515d71d95e0e545c0a21b608395e126",
+    "tests/test_deploy_backup_restore.py": "be96641cde6a58e10a12108127f8d6792c400f4148966c86bac1929de01cc6aa"
+  },
+  "sources_surveillees_campagne": 1110,
+  "sources_surveillees_qualite": 1111,
+  "tests_lances": false,
+  "vps_qualifie": false
+}

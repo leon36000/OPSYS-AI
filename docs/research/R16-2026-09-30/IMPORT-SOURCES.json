@@ -1,0 +1,332 @@
+{
+  "date": "2026-09-30",
+  "code_importe": false,
+  "description": "Rapports et métadonnées uniquement ; licences/commits/URL de sources et preuves datées. Liens source OPSYS rendus relatifs ; archive complète hors dépôt. Aucun candidat installé.",
+  "fichiers": [
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/recherche-core.md",
+      "source_sha256": "f661bf647943baf37969a0d2f95b8f456b979e225b702022dc3f4cb1c9245185",
+      "copie": "docs/research/R16-2026-09-30/recherche-core.md"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/recherche-m1.md",
+      "source_sha256": "d2421e9b36394fc172900cc31012264473257daab7a26536a297dab16b8846cd",
+      "copie": "docs/research/R16-2026-09-30/recherche-m1.md"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/recherche-m5.md",
+      "source_sha256": "6fcc3ddf1fe58f57f53b1a044c089fee2fe6d061557550676991c7a0bf5c0ba9",
+      "copie": "docs/research/R16-2026-09-30/recherche-m5.md"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/recherche-m7.md",
+      "source_sha256": "e82456769dc72331b0bcea1dd02734bc42dfd0d3de0151f02f9c21a3998cc93d",
+      "copie": "docs/research/R16-2026-09-30/recherche-m7.md"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/recherche-m10.md",
+      "source_sha256": "b5875886f18be6d30486988d91334e382a8f23c72247d7e66cdaec5cbf6825d6",
+      "copie": "docs/research/R16-2026-09-30/recherche-m10.md"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/hermes-notes.md",
+      "source_sha256": "16a72fe27cab5f72b4543d03cbde141ae6e89fd00a37b39fc92c154d2607bc9a",
+      "copie": "docs/research/R16-2026-09-30/hermes-notes.md"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/m5-preuves.json",
+      "source_sha256": "1c359beabb749c3469e3899ed3f6f31a4fec235a2f0f8ff9e472eb998ef79aa9",
+      "copie": "docs/research/R16-2026-09-30/m5-preuves.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/m5-outils-actuels.json",
+      "source_sha256": "fb18c91ec7094de0f84f55ba1123f048a7824252ee1303459493b7299a22e8f2",
+      "copie": "docs/research/R16-2026-09-30/m5-outils-actuels.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/m5-sources-actuelles.json",
+      "source_sha256": "49f09ff3080575dce56177c6c39c79e11cd214736e7c422dde52cd078f92ebfe",
+      "copie": "docs/research/R16-2026-09-30/m5-sources-actuelles.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/recherche-m7-preuves.json",
+      "source_sha256": "804d2f1e19961801a290824e2ba8d39cb392efb62fc70044bde4a527b4321441",
+      "copie": "docs/research/R16-2026-09-30/recherche-m7-preuves.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/m7-primary-evidence.json",
+      "source_sha256": "077c82fb2b85deb09b6b27a0d251f235a9a6c371b645f355f1fa9391368805d0",
+      "copie": "docs/research/R16-2026-09-30/m7-primary-evidence.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-core/index.json",
+      "source_sha256": "d54d6534bb4e06c8b935e8606c17b5d3442baa68c836782afd5cecfc6849a89e",
+      "copie": "docs/research/R16-2026-09-30/preuves-core/index.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-core/candidats.json",
+      "source_sha256": "1aa408953358fd2e10d72deb0cc4f54b1bcdfcf185884b8e0e7e45e439809680",
+      "copie": "docs/research/R16-2026-09-30/preuves-core/candidats.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-core/fichiers-index.json",
+      "source_sha256": "e029e37b46ff0aab9211e8e6cb4be51ee78d50e6d1895959a9527a5263f315b7",
+      "copie": "docs/research/R16-2026-09-30/preuves-core/fichiers-index.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-core/recherches-exa.json",
+      "source_sha256": "2c3958fe92f7d505a2b15be829089673e6d6d8af3abd05bbd606ac749677ffbc",
+      "copie": "docs/research/R16-2026-09-30/preuves-core/recherches-exa.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-core/gitlab-primary.json",
+      "source_sha256": "83c8ad4287be7239ff48ecd41ceb8bab0d40432a02566d76cd3cdd677e14b4ea",
+      "copie": "docs/research/R16-2026-09-30/preuves-core/gitlab-primary.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-core/openclaw2-recherche-github.json",
+      "source_sha256": "1d77b9187dbcc6660cf6e88ef77055ad2c4c361bfe0b5e4b12457a93ef2f5670",
+      "copie": "docs/research/R16-2026-09-30/preuves-core/openclaw2-recherche-github.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-core/verification.json",
+      "source_sha256": "3dd3b633b86d20c335b086163c0c8cada0bbe64850e1f62f5f55aedbb0287dbf",
+      "copie": "docs/research/R16-2026-09-30/preuves-core/verification.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-core/gitlab__LICENSE",
+      "source_sha256": "62dfe4bdd76e08992c09cf335b2374b3e6acd4f2b959b4971760727d9b785ab4",
+      "copie": "docs/research/R16-2026-09-30/preuves-core/gitlab__LICENSE"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-hermes/source-manifest.json",
+      "source_sha256": "6dab53cb4c772441fc150343786b25e7d415f8a29e61e0ebf9ab7931c69b1a23",
+      "copie": "docs/research/R16-2026-09-30/preuves-hermes/source-manifest.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-hermes/acquisition.json",
+      "source_sha256": "693a4ddbfaae8df8a6fdbe94444f82e43d92afca573279345cf4919ab07f0e56",
+      "copie": "docs/research/R16-2026-09-30/preuves-hermes/acquisition.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-hermes/repository.json",
+      "source_sha256": "956aefdbf28740cfeb6d1c0bcc5620d5bbd0c614642196aa5e898610c9dd5c25",
+      "copie": "docs/research/R16-2026-09-30/preuves-hermes/repository.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-hermes/commit.json",
+      "source_sha256": "08b9188538cd9d6052a2ab8bec09964bfaf077e796b3acaaa0bb8225b0b459cc",
+      "copie": "docs/research/R16-2026-09-30/preuves-hermes/commit.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-hermes/tree.json",
+      "source_sha256": "038f973813a2f81fab94cb60b6068f35b1efee28db005318cac7d3bd00584a88",
+      "copie": "docs/research/R16-2026-09-30/preuves-hermes/tree.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-hermes/releases.json",
+      "source_sha256": "00f56288c30df5bcc26bd96063f5016b448c1c10ab75234314449afa8f05bdce",
+      "copie": "docs/research/R16-2026-09-30/preuves-hermes/releases.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-hermes/comparison-2026-09-27.json",
+      "source_sha256": "92051f03255dff7b2e4b51542583893591dcf8fa174939dbb5d8f8d8c5c7f048",
+      "copie": "docs/research/R16-2026-09-30/preuves-hermes/comparison-2026-09-27.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-hermes/verification.json",
+      "source_sha256": "cffd1018a233f40f0c2c57169d7730bcda75d622c49a32e98e4d6068aa22d4ed",
+      "copie": "docs/research/R16-2026-09-30/preuves-hermes/verification.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-m10/depots-licences-commits.json",
+      "source_sha256": "73682003a78d5ff87227deebb51272b51d18364359bc1898397ba3b59a82d254",
+      "copie": "docs/research/R16-2026-09-30/preuves-m10/depots-licences-commits.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-m10/complements-sources.json",
+      "source_sha256": "c69af5cdd8c64d0acc17ef260ec4ae4f2705fe425f240ef301be7101b02d5c31",
+      "copie": "docs/research/R16-2026-09-30/preuves-m10/complements-sources.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-m10/synthese-preuves.json",
+      "source_sha256": "587b3d163bed82118638c4d0b52d0d8764b752e11038a31cafac3e59f1818074",
+      "copie": "docs/research/R16-2026-09-30/preuves-m10/synthese-preuves.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/index.json",
+      "source_sha256": "63a9c2ebc0c0ea30a947b322e15230208d7788123ef3650a9f800e5d718f1bb0",
+      "copie": "docs/research/R16-2026-09-30/preuves-m5/index.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/recommendations.json",
+      "source_sha256": "7c57290be2bb1f90ce25d78fd6a9afc4aa141d87eafcf1d661714c9bc37b5e8d",
+      "copie": "docs/research/R16-2026-09-30/preuves/m1/recommendations.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/code-index.json",
+      "source_sha256": "9d75bbda015acb5064e2fea6a2dba2d6df190c805c0a8322ab26fe4ec82f1d88",
+      "copie": "docs/research/R16-2026-09-30/preuves/m1/code-index.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/web-source-index.json",
+      "source_sha256": "21f2945102991ac7492b427a1c7bf7fff755860edbedf2c40058b38de8614198",
+      "copie": "docs/research/R16-2026-09-30/preuves/m1/web-source-index.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/m1/verification-report.json",
+      "source_sha256": "8b19eccd88fa70cc3554905b69f4a23ab13208c40394471cc3603b3782ab7fb1",
+      "copie": "docs/research/R16-2026-09-30/preuves/m1/verification-report.json"
+    },
+    {
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves-transversales/index.json",
+      "source_sha256": "dd45d4b735ec07dd71dd2ee83a040c97df6e52d58cc6f4b5483c850ad6ab4e34",
+      "copie": "docs/research/R16-2026-09-30/preuves-transversales/index.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/CONSTATS-RECENTS.json",
+      "source_sha256": "1be554508a538f7e107a1a9317520c0d8872196a3c516f974262f39981e381b0",
+      "copie": "docs/research/R16-2026-09-30/audit/CONSTATS-RECENTS.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/VERIFICATION-FINALE.json",
+      "source_sha256": "712e45b9e81af06316ff5302313514dfbbe30b7b2f1e0cf3c32a93b54d1b3713",
+      "copie": "docs/research/R16-2026-09-30/audit/VERIFICATION-AUDIT.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/PREUVES-SHA256.json",
+      "source_sha256": "8f64a05f6c9b49b1069f1c2cae8f4173d96bb433d7d7ca302b3ceade800df7a2",
+      "copie": "docs/research/R16-2026-09-30/audit/PREUVES-SHA256.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/docs-audit/recent/rapport.md",
+      "source_sha256": "2e3e7c8e24248bc6ec366bc20177da41089ee25654e0cc022732ca5805281511",
+      "copie": "docs/research/R16-2026-09-30/audit/core.md"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/donnees/rapport.md",
+      "source_sha256": "576479bf03280ad09b1f6e0cbb4206f1723eeff61bbc1f4fce5344a9e207f970",
+      "copie": "docs/research/R16-2026-09-30/audit/donnees.md"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/departements-rapport.md",
+      "source_sha256": "fb4d3b4462143f7013af91ffde82f39ae445947ec68fe4da9bf1651785d3287b",
+      "copie": "docs/research/R16-2026-09-30/audit/departements.md"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/rapport-mobile.md",
+      "source_sha256": "9c329d405663499e5ba46c888afa736e7455334451c45b72368a8f379f52db5c",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile.md"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/infra/recent/rapport.md",
+      "source_sha256": "7c1199dd84b214dcb8cec63d1f9094ba4d8773d0757bee82b595139645beac83",
+      "copie": "docs/research/R16-2026-09-30/audit/infra.md"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/confirmation-frontieres.json",
+      "source_sha256": "e830950ce1ff945103e3d50e296ebc909d6e0ec07618a86e99917feee98cfc41",
+      "copie": "docs/research/R16-2026-09-30/audit/confirmation-frontieres.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/execution/m07-marketing.result.json",
+      "source_sha256": "5aab114ccfd488ff4ad2b72fa218ea209921c3703e7757827e5d795706cbfcbb",
+      "copie": "docs/research/R16-2026-09-30/audit/m07-marketing.result.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/execution/m07-marketing.log",
+      "source_sha256": "8dae9a7ffb9597ef35c3a424e4d28b4ece727eafff59e439c2162b145417a3f7",
+      "copie": "docs/research/R16-2026-09-30/audit/m07-marketing.log"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/docs-audit/recent/changes.txt",
+      "source_sha256": "8e624c5d9c31b981a9cce9a30b67e0ad0eaba80c764eb3642db1849f641db7a3",
+      "copie": "docs/research/R16-2026-09-30/audit/changes.txt"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/docs-audit/recent/lectures.json",
+      "source_sha256": "a3cf9c5b6cbcaf2ff1ae762b96deb12435a546a7452d19eae746f87e774beab2",
+      "copie": "docs/research/R16-2026-09-30/audit/lectures.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/docs-audit/recent/preuves/arbres-et-volumes.json",
+      "source_sha256": "726f35cfe818b384ae4bc3f9998e2c88aff473413ca33dc2181672cc95145816",
+      "copie": "docs/research/R16-2026-09-30/audit/preuves/arbres-et-volumes.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/docs-audit/recent/preuves/ci-core-run.json",
+      "source_sha256": "6277435fda842a5766401600136a74864c810e02e9f873bf30719b6b0032c670",
+      "copie": "docs/research/R16-2026-09-30/audit/preuves/ci-core-run.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/docs-audit/recent/preuves/ci-core-jobs.json",
+      "source_sha256": "fe7715638e50e87e5a5a5b9a13d85a36251b57efc49882bda58bc9454c9555c8",
+      "copie": "docs/research/R16-2026-09-30/audit/preuves/ci-core-jobs.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/docs-audit/recent/preuves/limite-journaux-ci.txt",
+      "source_sha256": "c224c5681f522d1135c4d01a0f415ad73a8b9e222238bfd72b63012316248784",
+      "copie": "docs/research/R16-2026-09-30/audit/preuves/limite-journaux-ci.txt"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/docs-audit/recent/preuves/temoin-variable-shell.txt",
+      "source_sha256": "4f31005ecf368cc90e4adbbfa725686a187a054b5c1a6356381f0e9f983d8c8a",
+      "copie": "docs/research/R16-2026-09-30/audit/preuves/temoin-variable-shell.txt"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-inventory.json",
+      "source_sha256": "db223f353ad101dca922ad115792ad2cf3bc58b15dba8cfc5126435452c88827",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-inventory.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-source-hashes.json",
+      "source_sha256": "e2f4549f57f9736d8f6957965a5dec23bd710fe1dd0422015d7d7ac21fcb0958",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-source-hashes.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-npm-ci.log",
+      "source_sha256": "c157d1e4de09dbd5a95a7663fec25dd348435866709ddf14ebba6f28e0b3e6fb",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-npm-ci.log"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-typecheck.log",
+      "source_sha256": "8111087e92cb5a47fda610344b457f3b808a3a637625368acc03b77a29a37f3a",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-typecheck.log"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-jest.log",
+      "source_sha256": "a162955a315123aa21a22016dae84dabfa3a0612318b9719f8129d4453b137a4",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-jest.log"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-repro-results.json",
+      "source_sha256": "0549ab8668f578b06339ff98a4823ee3224f930fe3e0bbf27e470f42365dd9d5",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-repro-results.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-repro.log",
+      "source_sha256": "4ef2afd7feaf16ac8211bcb420a426d31d4c39d284cfb05c2a1b312e00dea304",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-repro.log"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-checks.json",
+      "source_sha256": "477caa11776d4045e98c8ed7d1de43872f3643bae683c0bdcdad1e0b9887ddd9",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-checks.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-ci-run.json",
+      "source_sha256": "ef58f3fbc00e754101da06b4d83eaaa4c4eb6df05dcddaa0afd8cba9ceee7204",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-ci-run.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-ci-jobs.json",
+      "source_sha256": "8bbc05e6ce956bcc79f01c4870d7ec8a8d90412609c43b1b6c1578b6b266fc0c",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-ci-jobs.json"
+    },
+    {
+      "source": "/workspace/audit-opsys-2026-09-30/proof/recent/mobile-coverage-summary.json",
+      "source_sha256": "a2b44e2b028ffcd10ff740a5317ac6261547c579db034c18d689007e7932866c",
+      "copie": "docs/research/R16-2026-09-30/audit/mobile-coverage-summary.json"
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+schema: opsys.departement/v1
+id: m03-estimation
+code: M3
+nom: Estimation
+mission: >-
+  Produire des estimations justes et défendables à partir des demandes qualifiées par M2,
+  sans jamais inventer de précision : pas de référence d'échelle ou photos insuffisantes,
+  alors pas de prix, seulement la liste de ce qui manque.
+outils: m3_estimation.outils
+mode: ombre
+# Lecture d'apprentissage T0 admin : prix/cout M5 et mesures de fait M8, via leurs outils bornés.
+dependances: [m02-revenue-crm, m04-field-ops, m05-financecore, m06-material-control, m08-analytics]
+modeles:
+  defaut: standard
+  extraction: rapide
+skills: [estimer-un-projet]
+planifications:
+  - nom: digest-estimations
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes les estimations de la veille : nombre, prix bloqués et pourquoi,
+      alertes de plancher. Aucune estimation nouvelle.
+  - nom: relance-devis-sans-reponse
+    cron: "0 8 * * 1"
+    consigne: >-
+      Appelle m3_detecter_devis_sans_reponse avec l'horodatage courant et le délai de relance (en
+      jours) que Nathan a fixé pour l'entreprise ; ne choisis et n'invente jamais ce délai
+      toi-même, demande-le s'il n'est pas déjà connu. Ne transmets rien au client : ce contrôle
+      publie seulement le fait m3.devis_sans_reponse vers M2.
+budget:
+  tokens_jour: 300000
+  tokens_mois: 4000000
+  alerte_pct: 80
+memoire:
+  lecture: [clients, chantiers, estimations, baremes, procedures]
+  ecriture: [estimations]
+kpis:
+  - id: ecart_estime_reel_pct
+    description: Écart moyen entre prix estimé et coût réel des chantiers terminés (M4).
+  - id: taux_prix_bloques
+    description: Part des demandes dont le prix est bloqué faute d'entrées suffisantes.
+evenements:
+  consomme: [m4.travaux_termines, m6.variance_chantier]  # PLAN T1.2-d, estimé vs réel en second ordre
+  # PLAN T2.3 : relance vers M2 ; T2.3-e : besoins matériaux vers M6 ; T4.7 : m3.devis_envoye, l'envoi approuvé
+  # par le propriétaire (sans montant ; M2 en fera partir la relance, T4.9)
+  publie: [m3.devis_accepte, m3.devis_sans_reponse, m3.besoins_materiaux, m3.devis_envoye]
+approbations:                      # ADR-0009 §5, PLAN T4.7
+  # N4 : l'envoi d'un devis au client (m3_demander_envoi_devis) est un engagement, décidé par le seul
+  # propriétaire. C'est aussi le défaut du socle (fail-closed) ; il est écrit ici pour qu'un élargissement soit un
+  # geste visible en revue, jamais un oubli. Un `admin` qui n'est pas `nathan_owner` ne décide pas : la file lui
+  # est lisible, sans les arguments (approbations_appareil).
+  n4: [nathan_owner]
+configuration:
+  # Politique initiale d'évaluation de calibrations de durée. Valeurs explicites préenregistrées,
+  # conservatrices et non qualifiées empiriquement; elles ne modifient aucune estimation avant
+  # activation N4. Une cohorte trop petite ou non concluante reste inactive.
+  calibration_temps:
+    version: m3-time-promotion-policy/1
+    minimum_chantiers_train: 30
+    minimum_chantiers_holdout: 30
+    couverture_minimale: "0.90"
+    amelioration_relative_minimale: "0.10"
+    amelioration_minutes_minimale: "1"
+    borne_confiance: "0.95"
+    replications_bootstrap: 10000
+    p80_regression_maximale: "0.05"
+    resolution_mesure_minutes: 1
+    qualification_empirique: non_qualifiee_empiriquement
+  # Seuils de la revue d'un devis avant son envoi (PLAN T4.7, DEFINITION-PRODUIT §7 M3.14 : « validation humaine
+  # obligatoire si… »). VIDES à dessein : aucun seuil n'est inventé, chacun est une décision de Nathan. Un seuil
+  # vide ou invalide rend son critère « seuil à configurer » dans la revue (revue_devis.py), jamais une valeur
+  # par défaut ; la revue sert à éclairer le propriétaire, elle ne bloque rien. Montants en dollars canadiens,
+  # avant taxes, comparés au prix total du devis ; marge en taux décimal (0.25 pour 25 %).
+  revue_devis:
+    confiance_minimale: null       # REFERENCE_ECHELLE, MULTI_VUES ou MONO_VUE_BORNES_LARGES : en dessous, revue
+    montant_maximal_cad: null      # prix total au-dessus duquel le propriétaire relit (> 0)
+    marge_minimale: null           # taux de marge sous lequel le propriétaire relit (0 ou plus)
+    distance_maximale_km: null     # chantier plus loin que ça : revue (> 0)
+    minimum_rentable_cad: null     # prix total sous lequel le devis n'est pas rentable : ALERTE ROUGE (> 0) ;
+                                   # aussi le minimum que confrontent les trois scénarios de prix (T4.11)
+  # Taux de marge des trois scénarios de prix (PLAN T4.11, DEFINITION-PRODUIT §7 M3.11 : prudent, normal,
+  # agressif), lus par m3_estimer_projet. VIDES à dessein, comme les seuils ci-dessus : aucun taux n'est inventé,
+  # chacun est une décision de Nathan. Un taux vide est un taux à déclarer : le scénario n'a alors aucun prix et un
+  # verdict dit où le déclarer (scenarios.py) ; l'argument taux_marge_scenarios de l'outil l'emporte, scénario par
+  # scénario. Taux décimal, zéro ou plus (0.25 pour 25 %) : prix = coût x (1 + taux), le coût étant P80 pour le
+  # prudent et P50 pour les deux autres. Jamais négatif : vendre sous le coût n'est pas un scénario.
+  scenarios_prix:
+    taux_marge:
+      prudent: null
+      normal: null
+      agressif: null

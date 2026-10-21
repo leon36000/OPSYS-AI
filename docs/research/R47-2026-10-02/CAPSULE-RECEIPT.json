@@ -1,0 +1,20 @@
+{
+  "archive": "R47-2026-10-02.tar.gz",
+  "archive_bytes": 313549,
+  "archive_sha256": "b65becb56327a55eb7f181b5495fb807f8819f6db27bfcbde6cb663e56fdd37c",
+  "created_utc": "2026-10-02T15:42:29.164047+00:00",
+  "gzip_crc_tar_members_and_sha_verified": true,
+  "lot": "R47-2026-10-02",
+  "members": 36,
+  "root_receipt_summary": {
+    "junit": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 69
+    },
+    "peak_process_tree_rss_bytes": 964911104,
+    "scope": "69 targeted Node tests; no browser, typegraph or fullCore suite",
+    "sources_stable": true
+  }
+}

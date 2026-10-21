@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="143" failures="0" errors="0" time="6.53176351">
+    <testsuite name="extensions/sms/src/webhook.test.ts" timestamp="2026-10-10T22:23:39.984Z" hostname="gx10-e526" tests="35" failures="0" errors="0" skipped="0" time="0.282730241">
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; rechecks the owner after parsing and before authentication or durable admission" time="0.009602905">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; validates a fragmentless signature before enqueuing the raw Twilio form" time="0.003649587">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; rethrows unexpected request read failures for Gateway-owned retry responses" time="0.0037445">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; rethrows a closed request body for Gateway-owned retry responses" time="0.002787602">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; persists signed delivery callbacks without dispatching them as inbound messages" time="0.008726568">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; accepts legacy SmsSid and SmsStatus delivery callbacks" time="0.002453282">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; keeps legacy inbound SmsStatus=receiving on the durable ingress path" time="0.002244386">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; keeps legacy inbound SmsStatus=received on the durable ingress path" time="0.001392977">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; rejects an invalid signature before delivery persistence" time="0.002570562">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; does not acknowledge a delivery callback until durable persistence succeeds" time="0.003508964">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; waits for the durable delivery commit before returning HTTP 200" time="0.055298738">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; acknowledges but does not store a signed delivery callback for another account" time="0.002850915">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; acknowledges but does not store a delivery callback with missing AccountSid" time="0.003785539">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; acknowledges but does not store a delivery callback with empty AccountSid" time="0.003992596">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; acknowledges but does not store a delivery callback with whitespace AccountSid" time="0.003761139">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; acknowledges but does not store a delivery callback with padded AccountSid" time="0.002697843">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; does not acknowledge when the durable enqueue fails" time="0.00209813">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; acknowledges only after the durable enqueue resolves" time="0.053989441">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; still acks durable when the enqueue reports a replayed duplicate" time="0.002430642">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; rejects a signed webhook without a stable MessageSid" time="0.001371297">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; accepts the legacy SmsMessageSid event id alias" time="0.003395315">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; validates the raw RCS form before canonicalizing its sender" time="0.001731554">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; durably accepts a signed account mismatch for non-retryable drain classification" time="0.001244993">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; does not let unsigned proxy traffic consume the same client&apos;s signed webhook rate limit" time="0.025256919">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; scopes signed webhook rate limits to one SMS account and route" time="0.004199508">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; meters inbound dispatch per sender without throttling signed delivery callbacks" time="0.004496356">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; bounds aggregate inbound fan-out without throttling signed delivery callbacks" time="0.023249845">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; restores a rate limited sender after the fixed dispatch window expires" time="0.006086566">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; shares one quota for invalid signed senders without throttling a valid sender" time="0.004227508">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; keeps validation-disabled webhook dispatches on the stricter callback budget" time="0.004957412">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="createSmsWebhookHandler &gt; rate limits unsigned delivery callbacks by client address before persistence" time="0.005466885">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="selected SMS webhook capture &gt; forwards the exact verified form, signature and signature URL" time="0.002944339">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="selected SMS webhook capture &gt; never acknowledges a selected capture rejected by the Host" time="0.003299843">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="selected SMS webhook capture &gt; refuses duplicate selected fields without changing the legacy decoder" time="0.004039156">
+        </testcase>
+        <testcase classname="extensions/sms/src/webhook.test.ts" name="selected SMS webhook capture &gt; never treats disabled signature validation as selected capture proof" time="0.005877989">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/ingress-native-completion.test.ts" timestamp="2026-10-10T22:23:39.992Z" hostname="gx10-e526" tests="8" failures="0" errors="0" skipped="0" time="0.424728612">
+        <testcase classname="src/channels/message/ingress-native-completion.test.ts" name="private native completion evidence &gt; wraps a non-SMS callable without opening a state database" time="0.018993777">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-native-completion.test.ts" name="private native completion evidence &gt; does not execute malformed reference getters or Proxy traps" time="0.080631258">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-native-completion.test.ts" name="private native completion evidence &gt; refuses fake queues and clones even when a real native claim exists" time="0.058100165">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-native-completion.test.ts" name="private native completion evidence &gt; uses the captured writer and consumes only the same own committed receipt" time="0.055247458">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-native-completion.test.ts" name="private native completion evidence &gt; fences a changed SQL owner without changing the legacy token contract" time="0.05255776">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-native-completion.test.ts" name="private native completion evidence &gt; rejects a pre-existing transaction before selected completion writes" time="0.047998139">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-native-completion.test.ts" name="private native completion evidence &gt; rolls the actual private UPDATE back on SQL failure without a receipt" time="0.051413503">
+        </testcase>
+        <testcase classname="src/channels/message/ingress-native-completion.test.ts" name="private native completion evidence &gt; never returns a receipt from an awaited write rejected after actual COMMIT" time="0.053300448">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/channels/message/opsys-sms-source.test.ts" timestamp="2026-10-10T22:23:39.994Z" hostname="gx10-e526" tests="49" failures="0" errors="0" skipped="0" time="4.652382835">
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; refuses inner revoked view owner before SQL and keeps that loss terminal" time="0.218117015">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; refuses inner disposed view owner before SQL and keeps that loss terminal" time="0.054411425">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; refuses inner aborted view owner before SQL and keeps that loss terminal" time="0.062503705">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; refuses inner replaced view owner before SQL and keeps that loss terminal" time="0.052433311">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; refuses outer revoked view owner before SQL and keeps that loss terminal" time="0.057183731">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; refuses outer disposed view owner before SQL and keeps that loss terminal" time="0.054032178">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; refuses outer aborted view owner before SQL and keeps that loss terminal" time="0.05734706">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; refuses outer replaced view owner before SQL and keeps that loss terminal" time="0.050630718">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; closes an ADOPTED assertion when the inner owner is retired without reading a claim" time="0.059053509">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; closes an ADOPTED assertion when the outer owner is retired without reading a claim" time="0.05048691">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; retains native queue identity through 1 actual PluginInstance membranes" time="0.049312717">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; retains native queue identity through 2 actual PluginInstance membranes" time="0.055167538">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; does not let an ADOPTED assertion pass after Host guard disposes reentrantly" time="0.049648925">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; does not return ARMED scope after claim guard disposes reentrantly" time="0.045497482">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; rejects unknown Gate binding without changing any native table" time="0.052280543">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; rejects foreign_receipt Gate binding without changing any native table" time="0.046688667">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; rejects command_hash Gate binding without changing any native table" time="0.052667791">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; rejects time Gate binding without changing any native table" time="0.047236587">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; rejects decision Gate binding without changing any native table" time="0.047083179">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; rejects getter Gate binding without changing any native table" time="0.046626746">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; coalesces reentrant adoption during the real UPDATE and changes exactly one native table" time="0.050354638">
+            <system-out>
+native-source-census [33m105[39m tables; changed exactly channel_ingress_events
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; does not adopt when its await joins a pending real release" time="0.050229918">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; adopts through the default completed result only after the same native writer succeeds" time="0.049559677">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; does not promote Source when own completion rejects after actual SQL COMMIT" time="1.057999025">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; checks current Host again on retry and holds the unchanged claim after loss" time="1.058125154">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; revokes a captured native permit on dispose before SQL" time="0.049167996">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; revokes a captured native permit on abort before SQL" time="0.054802498">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; rechecks the captured host authority at use after the permit was read" time="0.04425524">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; rechecks the captured claim authority at use after the permit was read" time="0.047159947">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; rejects a consistent command/receipt/scope B against the private native account A" time="0.046381786">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; rechecks revocation after the native clock callback and before SQL" time="0.048671852">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; allows current ARMED scope but grants only after its native own awaited commit" time="0.054742962">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="private SMS Source prebind and own adoption &gt; cannot arm a Source from a clone even while the real SQLite claim is current" time="0.049504045">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; refuses missing registration without listeners or native table changes" time="0.044752312">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; refuses invalid registration without listeners or native table changes" time="0.048953645">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; refuses fake_brand registration without listeners or native table changes" time="0.048834012">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; refuses proxy registration without listeners or native table changes" time="0.05078075">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; refuses aborted registration without listeners or native table changes" time="0.048213724">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; closes a registered lifecycle before arm and removes its native listener" time="0.0487199">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; rechecks native abort from the host guard before returning scope" time="0.046001962">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; rechecks native abort from the claim guard before returning scope" time="0.049653341">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; rechecks native abort from the actual completion clock before SQL" time="0.055493891">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; detaches only the native signal after real adoption and still obeys Host abort" time="0.048574796">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; ignores native abort only after consuming its own real commit receipt" time="0.046595898">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; keeps Source refused on native abort after_commit without denying the real SQL commit" time="0.045008505">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; keeps Source refused on native abort after_consume without denying the real SQL commit" time="0.046291594">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; never falls back to legacy completion after a real failed arm" time="0.051759407">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; preserves late completed legacy only when never armed: selected=false" time="0.047259611">
+        </testcase>
+        <testcase classname="src/channels/message/opsys-sms-source.test.ts" name="native pre-adoption signal is separate from Host authority &gt; preserves late completed legacy only when never armed: selected=true" time="0.049415149">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/gateway/opsys-sms-gate-consumer.test.ts" timestamp="2026-10-10T22:23:40.007Z" hostname="gx10-e526" tests="2" failures="0" errors="0" skipped="0" time="0.504438316">
+        <testcase classname="src/gateway/opsys-sms-gate-consumer.test.ts" name="real instance SMS consumer to private Host Gate &gt; seals at monitor admission time and checks the native claim through the real Gate before deferral" time="0.183122855">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-gate-consumer.test.ts" name="real instance SMS consumer to private Host Gate &gt; retains unknown, revoked and selected legacy entries without changing the original capsule or entering inbound" time="0.315142704">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/gateway/opsys-sms-managed-host-bridge.test.ts" timestamp="2026-10-10T22:23:40.008Z" hostname="gx10-e526" tests="13" failures="0" errors="0" skipped="0" time="0.48550006">
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; exports the private installer" time="0.073235379">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; installs an actual controller/adapter in the ordinary managed API slot only" time="0.012708444">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; refuses library fallback before installing or granting a controller" time="0.004550676">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; refuses an API owned by another real same-id instance" time="0.004228628">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; closes sticky on exact owner replacement and retains no borrowed replacement grant" time="0.004913877">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; retires its own resources on abort and makes old disposal harmless after reinstall" time="0.005343925">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; cleans controller/adapter even when a managed carrier disposer throws" time="0.004647044">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; retires its carrier when the captured runtime context registry is replaced" time="0.003837363">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; installs into the donor slot across a real double membrane instead of the prepared local slot" time="0.005082533">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; retires the carrier when its donor owner is revoked without lifecycle shutdown" time="0.005020325">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; retires the carrier when its outer owner is revoked without lifecycle shutdown" time="0.004682612">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; rejects a prepared-local API when the exact effective record is borrowed donor" time="0.003457715">
+        </testcase>
+        <testcase classname="src/gateway/opsys-sms-managed-host-bridge.test.ts" name="private managed SMS Host installer &gt; uses the real public loader with a tiny physical exact-copy carrier fixture" time="0.349580271">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/infra/opsys-sms-task-runtime.test.ts" timestamp="2026-10-10T22:23:40.012Z" hostname="gx10-e526" tests="36" failures="0" errors="0" skipped="0" time="0.181983446">
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="captures Task references without consulting unpublished Host authority" time="0.018384145">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="does not launder existing Host evidence or resolver into a mutated scope" time="0.005683157">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="closes after a native guard throws and cannot be revived" time="0.0047169">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="checks original Host before a callback that could affect a successor" time="0.003504643">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="does not consult accessors while capturing the runtime" time="0.002383491">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="rejects a prepared accessor without executing it or native record" time="0.003723539">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="rechecks after a reentrant prior guard before native record" time="0.0048629">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="uses the real canonical builder and prepared kernel without granting Source" time="0.012932476">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="retains the native resolver before an await and fences stale results" time="0.00384234">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="rejects unknown Proxy input without any traps" time="0.002434178">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="traverses actual managed runtime and context views without unwrapping" time="0.006811558">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="captures a real async builder result only while the original Task is current" time="0.002741715">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="does not turn another Task context into a current requirement" time="0.002926483">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="keeps abort closed without invoking native work" time="0.001361089">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="keeps dispose closed without invoking native work" time="0.001541025">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="keeps method replacement closed without invoking native work" time="0.001815298">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="rejects foreign public channel/account without native record" time="0.002077346">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="rejects foreign public channel/account without native record" time="0.003078627">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="captures adapter getters before ingest and does not execute them" time="0.003137026">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="preserves top and plan guards, callbacks captured before await and canonical finalization" time="0.008903353">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="retains native failed finalization after a plan guard rejects" time="0.003370163">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="runs the actual prepared branch with a private Task requirement" time="0.00677215">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="runs the actual routed branch with a private Task requirement" time="0.01085289">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="runs the actual assembled branch with a private Task requirement" time="0.007454743">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="stamps dispatch and refuses a stale Task before native dispatch" time="0.006230693">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="stamps dispatchReply and refuses a stale Task before native dispatch" time="0.005301157">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="leaves nonselected webform context and ordinary runtime aliases unchanged" time="0.001316225">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="rejects a context getter without reading its body or recording the turn" time="0.001796354">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="rechecks Task liveness after a reentrant native guard" time="0.001559585">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="preserves Task1 requirement under public Host finalize rebind to Task2 (unchanged)" time="0.00368826">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="preserves Task1 requirement under public Host finalize rebind to Task2 (retarget)" time="0.012163515">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="cannot reset the same Task&apos;s changed-scope poison through the public Host builder" time="0.003395123">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="does not clear a target Task requirement when ordinary participant evidence is copied onto it" time="0.003820404">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="keeps fresh public Host finalize contexts and nonselected webform controls ordinary" time="0.004957316">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="retains exact-context Task denial after public configurable-symbol deletion (prepared)" time="0.003323363">
+        </testcase>
+        <testcase classname="src/infra/opsys-sms-task-runtime.test.ts" name="retains exact-context Task denial after public configurable-symbol deletion (public builder)" time="0.004275204">
+        </testcase>
+    </testsuite>
+</testsuites>

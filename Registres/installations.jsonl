@@ -1,1 +1,0 @@
-{"ts": "2026-07-24T02:22:57.591481+00:00", "acteur": "humain+modele:orchestrateur", "action": "PROOF_INIT", "cible": "/media/pc1/Storage/Repo/OPSYS-AI", "preuve": {"commande": "proof_init.sh", "artefact": ".proof"}, "hash_precedent": "GENESIS"}

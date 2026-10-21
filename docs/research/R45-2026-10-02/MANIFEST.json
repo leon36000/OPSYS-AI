@@ -1,0 +1,614 @@
+{
+  "archives": [
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r2--SCELLEMENT-ROOT-r1.json--4ab9f47314f5f89eeca8857dc0eee751e84db9698bbe3587a26c99aa02a2539d.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/preparation-archive-r2/SCELLEMENT-ROOT-r1.json",
+      "sha256_archive": "8156a532f92df07d17a34d065a12e4043ebebea364fffbeb9741838be0b65ac8",
+      "sha256_original": "4ab9f47314f5f89eeca8857dc0eee751e84db9698bbe3587a26c99aa02a2539d",
+      "taille_archive": 474,
+      "taille_originale": 676
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--CAPSULE-PROPOSITION-r1.json--da09ae75bcfcf02ee18536bbef37c69a1094becc8e9e3edb3221950d9f803672.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/CAPSULE-PROPOSITION-r1.json",
+      "sha256_archive": "c1ab7d9538f6b62143b904ea66c4afab3f81b9cb563126e319c62da7ea1e795b",
+      "sha256_original": "da09ae75bcfcf02ee18536bbef37c69a1094becc8e9e3edb3221950d9f803672",
+      "taille_archive": 3429,
+      "taille_originale": 9619
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--CONTEXTE-POINTS-r3.json--81e60fe71d4110f04db12d514141bfc752579861a4d81a9fb776496a1ce303f0.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/CONTEXTE-POINTS-r3.json",
+      "sha256_archive": "9a4356f32f74b7816594adf6558b2e6d575fd22a8da422179d005d201da56a73",
+      "sha256_original": "81e60fe71d4110f04db12d514141bfc752579861a4d81a9fb776496a1ce303f0",
+      "taille_archive": 511,
+      "taille_originale": 827
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--DELTA-r3.patch--90d25f551c6478b89f8f87b47015b34f143707b0c2a0d2637266237c25048918.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/DELTA-r3.patch",
+      "sha256_archive": "9423d592796263d4642c193687b8a02a659ef27ed353da5823dfe09e39568b75",
+      "sha256_original": "90d25f551c6478b89f8f87b47015b34f143707b0c2a0d2637266237c25048918",
+      "taille_archive": 9966,
+      "taille_originale": 31798
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--GEL-r3.json--5d255e591e47595555fa5bbcdcde1a0ae8d1c48d724e5813db44d693b146d04c.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/GEL-r3.json",
+      "sha256_archive": "1f293aa3e3be27b820aab4f4d8abb584a6457c14b0b37ac716d169087cee4d3b",
+      "sha256_original": "5d255e591e47595555fa5bbcdcde1a0ae8d1c48d724e5813db44d693b146d04c",
+      "taille_archive": 1489,
+      "taille_originale": 3720
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--PREIMAGES-r1.json--b689060755c643f1c84f8c4894fdd92d6d595b78a2af17e22195a2dd53ae02d8.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/PREIMAGES-r1.json",
+      "sha256_archive": "a0ef8619412a58e0bbc6dabf89ababf7c26c72035fe56a431d3b382df4a4dbcd",
+      "sha256_original": "b689060755c643f1c84f8c4894fdd92d6d595b78a2af17e22195a2dd53ae02d8",
+      "taille_archive": 451,
+      "taille_originale": 740
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--PREIMAGES-r2.json--673362f564e55ee6b5c9ee9834c400594457715b5d25c935426d75cf9966afe4.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/PREIMAGES-r2.json",
+      "sha256_archive": "e3efb61eb31a56f75823438da49bd3e58b1bc5bae8da74f7f0384ebeeda2fcec",
+      "sha256_original": "673362f564e55ee6b5c9ee9834c400594457715b5d25c935426d75cf9966afe4",
+      "taille_archive": 327,
+      "taille_originale": 464
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--QUALITE-r1.json--8b370788aed39cc700834edd2917c71c3f1eafa532cba6cd54e7b8f7e6bdb824.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/QUALITE-r1.json",
+      "sha256_archive": "1c98402b8788972f1bfa8e3cc63f58a95bfce47fb5571871e6839518548da95d",
+      "sha256_original": "8b370788aed39cc700834edd2917c71c3f1eafa532cba6cd54e7b8f7e6bdb824",
+      "taille_archive": 547,
+      "taille_originale": 1569
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--QUALITE-r3.json--119b74f763f48b32668ed4ced03e144aa164a5b495a6f07c6693b111f0e27523.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/QUALITE-r3.json",
+      "sha256_archive": "7b6f32d269b20e5c19e60bc8de208538b2735eeba86cf6ecdc0f60717c4d9831",
+      "sha256_original": "119b74f763f48b32668ed4ced03e144aa164a5b495a6f07c6693b111f0e27523",
+      "taille_archive": 546,
+      "taille_originale": 1569
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--REFUS-HARNAIS-READINESS-r1.json--d0dba45da56642da56a4b828bbc3d9cfacae53f7c6d39c381ab9866f78330014.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/REFUS-HARNAIS-READINESS-r1.json",
+      "sha256_archive": "549419c648eeb778cac4869c4e06772bf4db37f2667808c3957710c6b8ddbe37",
+      "sha256_original": "d0dba45da56642da56a4b828bbc3d9cfacae53f7c6d39c381ab9866f78330014",
+      "taille_archive": 494,
+      "taille_originale": 700
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--REFUS-HARNAIS-READINESS-r2.json--02fa24d6a18ca3cdb76279fa39f6a02f312c21b6b23062258e28e0171365ce75.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/REFUS-HARNAIS-READINESS-r2.json",
+      "sha256_archive": "c17d78ff6087b3d12355f7a2021c20b2c1f58caa678589793a0636eccfe59455",
+      "sha256_original": "02fa24d6a18ca3cdb76279fa39f6a02f312c21b6b23062258e28e0171365ce75",
+      "taille_archive": 283,
+      "taille_originale": 386
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--REPRO-ENV-VIDE-r1.json--3fb9186232f23169bcd821113b6a0ef0bd78b8fe5d9d9cc1cb19058df2ea9585.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/REPRO-ENV-VIDE-r1.json",
+      "sha256_archive": "5cfdae1763f1940dd3b0901e12540598e8f0930af1536c8a44cf6021b22a07dc",
+      "sha256_original": "3fb9186232f23169bcd821113b6a0ef0bd78b8fe5d9d9cc1cb19058df2ea9585",
+      "taille_archive": 694,
+      "taille_originale": 1292
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--REPRO-INSTALL-HEALTH-r1.json--23493d0bc63049460ccf885660aa3401f11c38b83369d1a87053bda69aac7105.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/REPRO-INSTALL-HEALTH-r1.json",
+      "sha256_archive": "3583f8ee277916aa451e1748db068ff1f3ab1319f567382f1dbf623a4eda3e43",
+      "sha256_original": "23493d0bc63049460ccf885660aa3401f11c38b83369d1a87053bda69aac7105",
+      "taille_archive": 520,
+      "taille_originale": 1164
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--REPRO-READINESS-EMBEDDINGS-r3.json--34748c4db548aa2575b66d20d31b62113134aa5d419993dd1d752d7ca89674d5.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/REPRO-READINESS-EMBEDDINGS-r3.json",
+      "sha256_archive": "e3c629b18bd8533f65a8e4f401066a2a7aff723207af59e3b797fc373189afba",
+      "sha256_original": "34748c4db548aa2575b66d20d31b62113134aa5d419993dd1d752d7ca89674d5",
+      "taille_archive": 834,
+      "taille_originale": 1724
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--REPRO-READINESS-EMBEDDINGS-r4.json--460ad0244243dcaf558409dc277bf7b9e831a490943d8fd344aa90fc66687bcd.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/REPRO-READINESS-EMBEDDINGS-r4.json",
+      "sha256_archive": "acf009bcd489e2d5ccf11879634ad8ffc47422b6aa1bebb4be6f7bcacf648bb0",
+      "sha256_original": "460ad0244243dcaf558409dc277bf7b9e831a490943d8fd344aa90fc66687bcd",
+      "taille_archive": 820,
+      "taille_originale": 1682
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--ROUGE-r1.json--afa1deb90d607a4f5cc2d8c6ec29837db65a0be58706eb42b74b1387fef5765c.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/ROUGE-r1.json",
+      "sha256_archive": "f444f094541d3e5dbd6d460c02bb997a305f1b101e2aa0faeddf3dfa372a86c7",
+      "sha256_original": "afa1deb90d607a4f5cc2d8c6ec29837db65a0be58706eb42b74b1387fef5765c",
+      "taille_archive": 538,
+      "taille_originale": 880
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--ROUGE-r3.json--05064f908d49dec9c4780d9c454df84dce4e7f5ed2ff74ffc8a18b4738cfea7a.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/ROUGE-r3.json",
+      "sha256_archive": "b69acb28120138070f0a02e14b1ead0a654477ea421f8b02a512d1f2fe315fb2",
+      "sha256_original": "05064f908d49dec9c4780d9c454df84dce4e7f5ed2ff74ffc8a18b4738cfea7a",
+      "taille_archive": 523,
+      "taille_originale": 953
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--VERT-r1.json--e5abda977ab5d1936f73702e2790db68b13f719977e908b48e2c6d32230acad2.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/VERT-r1.json",
+      "sha256_archive": "df63c1a4c7a2467702de28398aeb0011f7ab8f30bd8c651a044a513dc7689167",
+      "sha256_original": "e5abda977ab5d1936f73702e2790db68b13f719977e908b48e2c6d32230acad2",
+      "taille_archive": 509,
+      "taille_originale": 847
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--VERT-r2.json--056af4dc24bcd204771ab5f08b2dd977efa74c64dc5f43a90f5348404b6abeba.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/VERT-r2.json",
+      "sha256_archive": "c01be2eb089dc62e9ea365c3910add62543c12df1a5375350d95a16ac25874ec",
+      "sha256_original": "056af4dc24bcd204771ab5f08b2dd977efa74c64dc5f43a90f5348404b6abeba",
+      "taille_archive": 824,
+      "taille_originale": 1925
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--VERT-r3.json--65b89726b6b167bf1f1d35d8e45d5cf3633ba90863959ceda3ae19a2b15e7e8a.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/VERT-r3.json",
+      "sha256_archive": "ea5d3ac8bebf127e59bb99d17243002693b7c94bdb2e32735e5d397480e3eec8",
+      "sha256_original": "65b89726b6b167bf1f1d35d8e45d5cf3633ba90863959ceda3ae19a2b15e7e8a",
+      "taille_archive": 816,
+      "taille_originale": 1914
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--inventory.json--3439d602b4866992d975ee07a6f3d927d6b96c5b6aa07a74537a948267b85399.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/inventory.json",
+      "sha256_archive": "a20deed73854babc4d38c945bd7d35dc33be4a528c3c60a16cc153d62ad15e95",
+      "sha256_original": "3439d602b4866992d975ee07a6f3d927d6b96c5b6aa07a74537a948267b85399",
+      "taille_archive": 3179,
+      "taille_originale": 17110
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--inventory.md--b5971bc73fccaf985c902ff510699af99f3610d14a94eae0ade9512ff9702c78.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/inventory.md",
+      "sha256_archive": "89d535231778eaa8540fd3390869aecdb71d542d7b1b2c565c840c690e394a20",
+      "sha256_original": "b5971bc73fccaf985c902ff510699af99f3610d14a94eae0ade9512ff9702c78",
+      "taille_archive": 2542,
+      "taille_originale": 5378
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--preimages--deploy--install.sh--a663af92667986882976ed6434b498c86f1bb8e684d2e36c2c91a32b2a3d083b.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/preimages/deploy/install.sh",
+      "sha256_archive": "1e96e3981fc6e9d11ac0246fb596d6a7422c92d1384f6dfc56d3e171d3a803ee",
+      "sha256_original": "a663af92667986882976ed6434b498c86f1bb8e684d2e36c2c91a32b2a3d083b",
+      "taille_archive": 5256,
+      "taille_originale": 14533
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--preimages--deploy--readiness.py--4e681d55c105c4267dfcd30fcbce0d965cb759f4c41b5e78fee6272df56e562d.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/preimages/deploy/readiness.py",
+      "sha256_archive": "16e1c92a32afb672420f5df5987646883b168c73d703c7bd506d5bcc7dea0f73",
+      "sha256_original": "4e681d55c105c4267dfcd30fcbce0d965cb759f4c41b5e78fee6272df56e562d",
+      "taille_archive": 1552,
+      "taille_originale": 4564
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--preimages--docs--ops--INSTALLATION-VPS.md--37a08f1929dc433932006238bc9d6beac98ccfe80fb3c351501a691cf7d75c94.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/preimages/docs/ops/INSTALLATION-VPS.md",
+      "sha256_archive": "e75ce54371032d4e5d454ac0896e279b51a7d88a3dde6462b1c0227f45e955b0",
+      "sha256_original": "37a08f1929dc433932006238bc9d6beac98ccfe80fb3c351501a691cf7d75c94",
+      "taille_archive": 3921,
+      "taille_originale": 8377
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--preimages-r2--deploy--readiness.py--6a9a982cc5495a14010a1707ed246adf42a7f151894811e30e7c1347da7e171e.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/preimages-r2/deploy/readiness.py",
+      "sha256_archive": "66e4cbb8300d45c1b61bffd246a2105838ed94290943bc38438aa0e1b1acd157",
+      "sha256_original": "6a9a982cc5495a14010a1707ed246adf42a7f151894811e30e7c1347da7e171e",
+      "taille_archive": 2022,
+      "taille_originale": 6397
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--preimages-r2--tests--test_deploy_install_readiness.py--1bd3d3b0155aed845ff1233bccfbfc40fcef0a99424319baf7afa7e48dbf13a6.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/preimages-r2/tests/test_deploy_install_readiness.py",
+      "sha256_archive": "8af0a67f1b95b95d61fe49abc4ffe8783fcb1ed502749c1e04735b89201dc3cc",
+      "sha256_original": "1bd3d3b0155aed845ff1233bccfbfc40fcef0a99424319baf7afa7e48dbf13a6",
+      "taille_archive": 4082,
+      "taille_originale": 12533
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--preparation-archive-r1--COMPLEMENT-ROOT-r1.md--585eb73fce9309e46b8d48631cfe1b03ae873d146da23cf21414e3edc908fc67.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/preparation-archive-r1/COMPLEMENT-ROOT-r1.md",
+      "sha256_archive": "447e9c7a5234be224a12c4221a3f85492f258f6548b8ddf596e7e4b9a38c9726",
+      "sha256_original": "585eb73fce9309e46b8d48631cfe1b03ae873d146da23cf21414e3edc908fc67",
+      "taille_archive": 948,
+      "taille_originale": 1577
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--preparation-archive-r1--ENTREES-ARCHIVE-R45-r1.json--c7ca83f367f5990dd920caa174d1770ff1c326725c161066e1d1f1c4b7ff43b5.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/preparation-archive-r1/ENTREES-ARCHIVE-R45-r1.json",
+      "sha256_archive": "1ba71a2dbbc64ec2a8903de73717da4fb002dd1f1997c99bfaea5b5d3ab61893",
+      "sha256_original": "c7ca83f367f5990dd920caa174d1770ff1c326725c161066e1d1f1c4b7ff43b5",
+      "taille_archive": 16267,
+      "taille_originale": 59100
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--preparation-archive-r1--archiver-r45-r1.py--58d619d19c56f7a037c4b4874f9cfafeb2c20cccb4d154ae312fd9059ba7fc90.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/preparation-archive-r1/archiver-r45-r1.py",
+      "sha256_archive": "4525c10d80be89b3fcb21c1db6f8172a144860c088c8e0ffe9e1a4ed06eca811",
+      "sha256_original": "58d619d19c56f7a037c4b4874f9cfafeb2c20cccb4d154ae312fd9059ba7fc90",
+      "taille_archive": 6157,
+      "taille_originale": 17408
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--qualite-r1.log--82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/qualite-r1.log",
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_archive": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--qualite-r3.log--82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/qualite-r3.log",
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_archive": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--rapport.md--6a9d3d9e51c1df94e5d596f76888e36815b42b9151c2d3d6f981284f81381b39.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/rapport.md",
+      "sha256_archive": "01b5011d30cc2966879375ee803d393bd69f2474606fb4211969f2d71db7bec2",
+      "sha256_original": "6a9d3d9e51c1df94e5d596f76888e36815b42b9151c2d3d6f981284f81381b39",
+      "taille_archive": 5464,
+      "taille_originale": 12346
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-env-vide-r1.log--e991b66aeb93b94f2ab0813cfef672a396da8da1251288b80944db0c87e7470a.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-env-vide-r1.log",
+      "sha256_archive": "e783ccde741e45211508eafbfec30760ebbeb075ace1e4d2f4964673d48185ad",
+      "sha256_original": "e991b66aeb93b94f2ab0813cfef672a396da8da1251288b80944db0c87e7470a",
+      "taille_archive": 146,
+      "taille_originale": 139
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-env-vide-r1.sh--27bac70b97f2ab2f39e25798330f36b92a57b480cd5d18badc658ed85a5d7215.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-env-vide-r1.sh",
+      "sha256_archive": "c1bd255a86ead179b836d10080844b55f386d121d5a0ae162d110c2c333c9586",
+      "sha256_original": "27bac70b97f2ab2f39e25798330f36b92a57b480cd5d18badc658ed85a5d7215",
+      "taille_archive": 1165,
+      "taille_originale": 2830
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-install-health-r1-0.stderr.log--1956e73fbcebfb18f27d1fcf8cd3350311633bb9b4d27d5cdc325f6344f74370.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-install-health-r1-0.stderr.log",
+      "sha256_archive": "b39b17edffc4679d658bc8321717e5982702d13c55d6702f0d6d5182c19b2d68",
+      "sha256_original": "1956e73fbcebfb18f27d1fcf8cd3350311633bb9b4d27d5cdc325f6344f74370",
+      "taille_archive": 279,
+      "taille_originale": 362
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-install-health-r1-0.stdout.log--5a42cad38dd7163d05d813e9dde85195112ec8d20b57687d875a1ac3e952385b.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-install-health-r1-0.stdout.log",
+      "sha256_archive": "2995562a2c84c81d6579a4f7e6690fc1cf65f5edfc0baae31af608f5043afeb5",
+      "sha256_original": "5a42cad38dd7163d05d813e9dde85195112ec8d20b57687d875a1ac3e952385b",
+      "taille_archive": 1245,
+      "taille_originale": 2468
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-install-health-r1-1.stderr.log--bc6dd7a7f680d2a6c748ed3f27ada4a7104df0c06fe949d7aea8e40c6a06931e.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-install-health-r1-1.stderr.log",
+      "sha256_archive": "7d079816e73a6439c911f7a27eae90e6d7dd9958b3fdae2a47bfa479b878cb74",
+      "sha256_original": "bc6dd7a7f680d2a6c748ed3f27ada4a7104df0c06fe949d7aea8e40c6a06931e",
+      "taille_archive": 279,
+      "taille_originale": 386
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-install-health-r1-1.stdout.log--82f87f78609fa4bf2d756c1587995f638313c4498d8e8ede96e8d2881dd9aa2a.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-install-health-r1-1.stdout.log",
+      "sha256_archive": "26291feee86a4191655a1f807c7bd6a5ff8eaedefd1c8fbc92efb2e6e5923e49",
+      "sha256_original": "82f87f78609fa4bf2d756c1587995f638313c4498d8e8ede96e8d2881dd9aa2a",
+      "taille_archive": 1279,
+      "taille_originale": 2636
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-install-health-r1.sh--1adff1b2cfbe4aaa220ccf77ca23e48d02fc8d8184d57a2d05e11bd1470db5b6.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-install-health-r1.sh",
+      "sha256_archive": "fbd5b0725cd9d460dbc22e0c287e78e197e57c4f409453e9f7dbb538635962d4",
+      "sha256_original": "1adff1b2cfbe4aaa220ccf77ca23e48d02fc8d8184d57a2d05e11bd1470db5b6",
+      "taille_archive": 1834,
+      "taille_originale": 3891
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-readiness-embeddings-r1.py--2f8873b2488b5c10dd0771327405361f36fc24274fbad11c52327da4d951ed7a.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-readiness-embeddings-r1.py",
+      "sha256_archive": "bb3be637e8a2bc91d50bf1b314386ed444d54ec295584f4e6eeba4f7ae19d023",
+      "sha256_original": "2f8873b2488b5c10dd0771327405361f36fc24274fbad11c52327da4d951ed7a",
+      "taille_archive": 1806,
+      "taille_originale": 3666
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-readiness-embeddings-r2.log--1b6b820a8052f159ae711cf491e62781d27d8404ea86b9c06e2aadf6c69ecd46.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-readiness-embeddings-r2.log",
+      "sha256_archive": "a827f46930a8e3e5313b1cee71d93c40a22b4e27684fc6511e3e46f2e098501d",
+      "sha256_original": "1b6b820a8052f159ae711cf491e62781d27d8404ea86b9c06e2aadf6c69ecd46",
+      "taille_archive": 267,
+      "taille_originale": 424
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-readiness-embeddings-r2.py--e5abd29a64e0a19568385439e04b2cc8ec8444ff15e556b2c8e439792e4c5947.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-readiness-embeddings-r2.py",
+      "sha256_archive": "83554c46b569edbf81f4e70f32c1fca2d7c8abb3c1ae0bf5662668e40c333a4e",
+      "sha256_original": "e5abd29a64e0a19568385439e04b2cc8ec8444ff15e556b2c8e439792e4c5947",
+      "taille_archive": 1851,
+      "taille_originale": 3773
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-readiness-embeddings-r3.log--b33f6e57da70fab8f1cefa506c2f8c6e723bb33dfcc989a6898c69fc44b91e85.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-readiness-embeddings-r3.log",
+      "sha256_archive": "5203c7bfa7489a8b3d7dba42dacac78cb253337362ed919e62cb49b4e1689c6e",
+      "sha256_original": "b33f6e57da70fab8f1cefa506c2f8c6e723bb33dfcc989a6898c69fc44b91e85",
+      "taille_archive": 991,
+      "taille_originale": 2032
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-readiness-embeddings-r3.py--a33da6e28eebf31ab4014714f1f7b27ab12d5bf57ee56f350099871a55be472a.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-readiness-embeddings-r3.py",
+      "sha256_archive": "a4bd0a767671300bc69ea4ee0afcdfad872aaacead72559c95d92a821798f02b",
+      "sha256_original": "a33da6e28eebf31ab4014714f1f7b27ab12d5bf57ee56f350099871a55be472a",
+      "taille_archive": 1859,
+      "taille_originale": 3783
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-readiness-embeddings-r4.log--f9d2785925569a2fab5682ad0d65cd59a466078bd6fd29db57ac00147f110829.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-readiness-embeddings-r4.log",
+      "sha256_archive": "51c7f4525547a396a90f5c3aa5cc7ec1edafef1c070c7eaa62e73383298710a5",
+      "sha256_original": "f9d2785925569a2fab5682ad0d65cd59a466078bd6fd29db57ac00147f110829",
+      "taille_archive": 802,
+      "taille_originale": 1566
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--repro-readiness-embeddings-r4.py--7c0f4feecc218288a91c0f8b5cdb1e42fb3cf05e36aed191d0e7c5073846a972.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/repro-readiness-embeddings-r4.py",
+      "sha256_archive": "d60375262e60c422c39de7ad31b35521ba92fb0efa6561fcc06629ec9bd2a57b",
+      "sha256_original": "7c0f4feecc218288a91c0f8b5cdb1e42fb3cf05e36aed191d0e7c5073846a972",
+      "taille_archive": 1859,
+      "taille_originale": 3783
+    },
+    {
+      "archive": "sources-r45/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--sources-gel-r3--deploy--install.sh--bcf912b5d9b9c4f9cb072d28751ac0ca5eaa2ba671eb5b60edd7368a819b5b27.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/sources-gel-r3/deploy/install.sh",
+      "sha256_archive": "a24ed21823d8a245acacb830417bc0d69caed47e391a27ee49d0697c6ef8b354",
+      "sha256_original": "bcf912b5d9b9c4f9cb072d28751ac0ca5eaa2ba671eb5b60edd7368a819b5b27",
+      "taille_archive": 5538,
+      "taille_originale": 15396
+    },
+    {
+      "archive": "sources-r45/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--sources-gel-r3--deploy--readiness.py--0128b11a9a0ca5b78cc448562afdcae62776e2b7c0a1b46d0df4a87e08123a77.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/sources-gel-r3/deploy/readiness.py",
+      "sha256_archive": "88a26f1d421d054e851fb8527c9d610d9192f64215569a993062eab55fda7916",
+      "sha256_original": "0128b11a9a0ca5b78cc448562afdcae62776e2b7c0a1b46d0df4a87e08123a77",
+      "taille_archive": 2360,
+      "taille_originale": 7489
+    },
+    {
+      "archive": "sources-r45/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--sources-gel-r3--docs--ops--INSTALLATION-VPS.md--8916c03fb7d40f5d53eb2ac1d5d39312ee7f1beef8165a760ceff53b8561399f.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/sources-gel-r3/docs/ops/INSTALLATION-VPS.md",
+      "sha256_archive": "1ab17792f86122b8a8dee079986c5ac2bc90623465be85bb57131b30961b6cb2",
+      "sha256_original": "8916c03fb7d40f5d53eb2ac1d5d39312ee7f1beef8165a760ceff53b8561399f",
+      "taille_archive": 5103,
+      "taille_originale": 11492
+    },
+    {
+      "archive": "sources-r45/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--sources-gel-r3--tests--test_deploy_install_readiness.py--cefb8764020a7a365b33533f82c42c8fad94d77f9c72ab9eac6051df33903d34.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/sources-gel-r3/tests/test_deploy_install_readiness.py",
+      "sha256_archive": "21977422a78666d836dd8bb0094bb9ffef4e2922a6f92de1a5762307e04acd74",
+      "sha256_original": "cefb8764020a7a365b33533f82c42c8fad94d77f9c72ab9eac6051df33903d34",
+      "taille_archive": 4291,
+      "taille_originale": 13830
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-ROUGE-r1.log--539f0573856a5c6e17684f2dbeca0386c3355eafa29951e50d11fecb9f4b952a.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-ROUGE-r1.log",
+      "sha256_archive": "bc099240627d3590bc2b5c14ac75e3fae8c60c539d4d16393b586fd3e75e8a10",
+      "sha256_original": "539f0573856a5c6e17684f2dbeca0386c3355eafa29951e50d11fecb9f4b952a",
+      "taille_archive": 3006,
+      "taille_originale": 26965
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-ROUGE-r1.py--47027efd216023c71a440800965cc3265e6ceae36058549199ba0a3dbd4b8bd0.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-ROUGE-r1.py",
+      "sha256_archive": "d5ad943cac9aa7a89dca92dc448d57078c5c750926e6fa97afb5e0d282ec56fe",
+      "sha256_original": "47027efd216023c71a440800965cc3265e6ceae36058549199ba0a3dbd4b8bd0",
+      "taille_archive": 3877,
+      "taille_originale": 11484
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-ROUGE-r1.xml--44293dbfad6a59f1f241268d28f6a29c4843edf6d99f9bfd423f7a6f6ff72e95.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-ROUGE-r1.xml",
+      "sha256_archive": "4de7428ab0e5b3bb92950aec2f600cadd3feb34bd9d67b592e4187124e11ddd0",
+      "sha256_original": "44293dbfad6a59f1f241268d28f6a29c4843edf6d99f9bfd423f7a6f6ff72e95",
+      "taille_archive": 3216,
+      "taille_originale": 29675
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-ROUGE-r3.log--660192f3b43ee2ca7ab12f5f093b82da7ca5480aee85510bcea54df90261ad01.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-ROUGE-r3.log",
+      "sha256_archive": "0270b89c0cfd6458bb4d0baedba7acf3100d60c8bb3bb3b994f85ce11ad38dc8",
+      "sha256_original": "660192f3b43ee2ca7ab12f5f093b82da7ca5480aee85510bcea54df90261ad01",
+      "taille_archive": 1033,
+      "taille_originale": 5367
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-ROUGE-r3.xml--32794ccd29f597f18df4ca050b9fef08bdb95983648bb6c047c38175c6b8d13b.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-ROUGE-r3.xml",
+      "sha256_archive": "e942b55006be76880e4253beff036bf4a2f3ecc2f282c906c398e0af4a50f3ec",
+      "sha256_original": "32794ccd29f597f18df4ca050b9fef08bdb95983648bb6c047c38175c6b8d13b",
+      "taille_archive": 1087,
+      "taille_originale": 5134
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-VERT-r1.log--c6ce8518a2cc113cc5560b3731e234ed6d559e746221ae903ce01599dfe7e797.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-VERT-r1.log",
+      "sha256_archive": "d4ae7d59fd108c3fa31e140cf4994f29e2d3869206c09bc87c027360f4493f3a",
+      "sha256_original": "c6ce8518a2cc113cc5560b3731e234ed6d559e746221ae903ce01599dfe7e797",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-VERT-r1.xml--0763b4e2f1af22384aa9882628500c0ddf0921e91bacab013312f13c0c98ad47.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-VERT-r1.xml",
+      "sha256_archive": "332041491efcf64bbd8189fae7d8a2982a52d8c8514ef728e07cfeef35f0acf9",
+      "sha256_original": "0763b4e2f1af22384aa9882628500c0ddf0921e91bacab013312f13c0c98ad47",
+      "taille_archive": 862,
+      "taille_originale": 3773
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-VERT-r2.log--1b8f208de3636df279448e40805982570c4351601ce5723301928feea7d343cf.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-VERT-r2.log",
+      "sha256_archive": "139237a01e0896cc3e74fac96516389331fc6de53a68fa6e89e67f386af5d425",
+      "sha256_original": "1b8f208de3636df279448e40805982570c4351601ce5723301928feea7d343cf",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-VERT-r2.xml--8fab656ec00be1eff2d6f47056af71683db25a610573bf95f652e0ce3cba1ae5.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-VERT-r2.xml",
+      "sha256_archive": "4295e4961547d654efd22a29ecde5e299b6401f9f7bf38e28261329bc8c44743",
+      "sha256_original": "8fab656ec00be1eff2d6f47056af71683db25a610573bf95f652e0ce3cba1ae5",
+      "taille_archive": 1002,
+      "taille_originale": 4599
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-VERT-r3.log--12a9a4a8915fb8d2bb5b4227220247cde267c1a0620203589fe47280d5be4a7f.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-VERT-r3.log",
+      "sha256_archive": "5d16c27efc72782512213a7161f283c32bb201c95eaf908c38f44b5a26db2712",
+      "sha256_original": "12a9a4a8915fb8d2bb5b4227220247cde267c1a0620203589fe47280d5be4a7f",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R45-installation-lecture-seule--tests-VERT-r3.xml--2f9fb0504f9452a17fddb8c5f629cf5b315dfe029adf7d3ccf96d8187b7c62dc.gz",
+      "origine": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/tests-VERT-r3.xml",
+      "sha256_archive": "e963121c15b5b7a0561c3ade67d6f96c19a51aa6e48e7591a3f1a2cb046732eb",
+      "sha256_original": "2f9fb0504f9452a17fddb8c5f629cf5b315dfe029adf7d3ccf96d8187b7c62dc",
+      "taille_archive": 1115,
+      "taille_originale": 5342
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--R44-R45-supplement-root-r1.json--99d82588ef05aa2068e2bd4bca02c8bd410fe2eab29cba323fd86a2ff4067075.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R44-R45-supplement-root-r1.json",
+      "sha256_archive": "a9b0b53e640470420fc232715fe1c3da0dde5fbbf339cba9dcc24423acc20e4a",
+      "sha256_original": "99d82588ef05aa2068e2bd4bca02c8bd410fe2eab29cba323fd86a2ff4067075",
+      "taille_archive": 272,
+      "taille_originale": 679
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-r27--archiver-r27-r1.py--c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-r27/archiver-r27-r1.py",
+      "sha256_archive": "7d09d0e5e5b79550b1464666e8a42a43125be8e52aced766e9ef8e6d307f1d2b",
+      "sha256_original": "c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b",
+      "taille_archive": 6014,
+      "taille_originale": 16286
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--archiver-r30-r1.py--5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/archiver-r30-r1.py",
+      "sha256_archive": "fbab2810f80f547ad85eba7f483cbf68dc245ffecd35c725a0dd5e40fd690ed6",
+      "sha256_original": "5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5",
+      "taille_archive": 4531,
+      "taille_originale": 11816
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--memoire-r25--archiver-r25-r1.py--d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/archiver-r25-r1.py",
+      "sha256_archive": "9f67ca4ae89f2a37134cbf335c16b1d33507c8a0957546120dbb9803610294c5",
+      "sha256_original": "d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213",
+      "taille_archive": 10059,
+      "taille_originale": 31543
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--memoire-r26--archiver-r26-r1.py--066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r26/archiver-r26-r1.py",
+      "sha256_archive": "a66e0e0bfd3187e241d5aec25a491d3b6e769d1d866c1f7ddfd001974c0afb9c",
+      "sha256_original": "066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4",
+      "taille_archive": 6484,
+      "taille_originale": 18142
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--marketing-installation-qualite-root-r1-2026-10-02-apres.json--13c6b1d34f5a29540f8eede74094225391c3943de7711539d26839c58ec46438.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-qualite-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "152f59b4c39cfa4ec14b0e59b89ccd2afbe6cb1bf037fc51a18808f333bc37af",
+      "sha256_original": "13c6b1d34f5a29540f8eede74094225391c3943de7711539d26839c58ec46438",
+      "taille_archive": 54081,
+      "taille_originale": 144192
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--marketing-installation-qualite-root-r1-2026-10-02-avant.json--72e1716e785d77e71232fca7ccbd4ed28b4d04534900ec7860c3ca00a5c8457f.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-qualite-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "7e2ace0e816cd1528c9fbeab6c96a98c4680d9fbd55218fb0e2383a55009301f",
+      "sha256_original": "72e1716e785d77e71232fca7ccbd4ed28b4d04534900ec7860c3ca00a5c8457f",
+      "taille_archive": 54081,
+      "taille_originale": 144192
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--marketing-installation-qualite-root-r1-2026-10-02-resultat.json--3b75e71e393828b86b1f1722f7273af13678c776726c0ba980284972cd855dee.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-qualite-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "1f70d6305eea2b5aab6eb25046d966d7b1409e630b1e810d89b8c2c73ed647e8",
+      "sha256_original": "3b75e71e393828b86b1f1722f7273af13678c776726c0ba980284972cd855dee",
+      "taille_archive": 625,
+      "taille_originale": 1080
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--marketing-installation-qualite-root-r1-2026-10-02.log--808853d59724e311e00d1c34858ee1c20dda0458d5651547a929e7fb264a2bdc.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-qualite-root-r1-2026-10-02.log",
+      "sha256_archive": "cfcc7ed78489630587d797ef1326d4b3e964d3fe8846b8c924ee187461156124",
+      "sha256_original": "808853d59724e311e00d1c34858ee1c20dda0458d5651547a929e7fb264a2bdc",
+      "taille_archive": 57,
+      "taille_originale": 40
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--marketing-installation-root-r1-2026-10-02-apres.json--a51a81694aff9c21a2c8c1dd016824bb62da8cce0a56cbf67f62c4dd81f66bce.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "db6f96caca05c9185ecdd2bc46001d5cda440d220f12688369bd0e0d717c43c0",
+      "sha256_original": "a51a81694aff9c21a2c8c1dd016824bb62da8cce0a56cbf67f62c4dd81f66bce",
+      "taille_archive": 54081,
+      "taille_originale": 144192
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--marketing-installation-root-r1-2026-10-02-avant.json--b20c9d7f69b484c78b761cdfe2e6a6bdcbb894c5152ca9954ea1bbeb4eaef19f.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "d0b06a33d04e3e072c122eb346b3a2a24b888f44c77cbeeea0a6fb1009eb9b23",
+      "sha256_original": "b20c9d7f69b484c78b761cdfe2e6a6bdcbb894c5152ca9954ea1bbeb4eaef19f",
+      "taille_archive": 54081,
+      "taille_originale": 144192
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--marketing-installation-root-r1-2026-10-02-resultat.json--c6d0083653b1c80b1dbb305dfc6afae3466aa596186d52c06205f8bc6bbb22df.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "6dcf7ef7818d5c1326782a67b9a21142c306f903e43c8c6582b8e35faa2a5783",
+      "sha256_original": "c6d0083653b1c80b1dbb305dfc6afae3466aa596186d52c06205f8bc6bbb22df",
+      "taille_archive": 667,
+      "taille_originale": 1474
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--marketing-installation-root-r1-2026-10-02.log--688def24cde2753dabdb1b22993e912bb824f0b39c027540ebf3191d82f48bb8.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02.log",
+      "sha256_archive": "c97ff3de3e540e174ba524109ac592815abb77125b842d5f40e2eda5e4879de4",
+      "sha256_original": "688def24cde2753dabdb1b22993e912bb824f0b39c027540ebf3191d82f48bb8",
+      "taille_archive": 123,
+      "taille_originale": 1382
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--marketing-installation-root-r1-2026-10-02.xml--7b5c74dd09948fb32079248fabf34486566d3f15370961180ebae7367dd8b0eb.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02.xml",
+      "sha256_archive": "7caf0d62e10d7ac4eeadd7f116e5c441c57a2ae07414a42589f7158f79a02b18",
+      "sha256_original": "7b5c74dd09948fb32079248fabf34486566d3f15370961180ebae7367dd8b0eb",
+      "taille_archive": 21178,
+      "taille_originale": 205932
+    }
+  ],
+  "limites": "R45 : 36 IDs uniques verts inclus dans la campagne ROOT combinée1172, zéro échec/erreur/skip, 59,687s ; les1136 autres cas sont du contexte M7/R44. Auteurs et historiques non additionnés. 1124 sources surveillées stables pendant tests et qualité ; clôture actuelle quatre sources R45 seulement. Vraies générations des dix départements, migrations/SQLite/fichiers/Bash ; HTTP/CLI Docker doubles. Préimages, rouges initiaux et rouges revue ROOT conservés, R38 historique immuable. Aucun Docker réel, build, image, modèle/ONNX/fournisseur, port public ou VPS lancé/qualifié. Sandbox base, pile complète, TLS public restent ouverts ; backend embeddings local opt-in ou distant déclaré. Surfaces R41 non éditées. qa-*/.env/base/workspaces exclus. Aucun secret réel fournisseur inclus.",
+  "schema": "opsys.r45-manifest/v1"
+}

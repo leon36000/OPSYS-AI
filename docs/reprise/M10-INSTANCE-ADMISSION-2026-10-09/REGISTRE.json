@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "base": "146c71859ac00e77ea272e918100327c056cfbfc",
+  "date_toronto": "2026-10-09T19:59:02.953697-04:00",
+  "source_files": [
+    {
+      "path": "src/opsys/documents_affaire_instance.py",
+      "sha256": "12833cd9661cb1ab4dd20f1fdc301686a32d7652a870c6fbcce62cd6c429730f",
+      "preimage_sha256": null,
+      "origin": "F11 reader lease2",
+      "status": "reviewed locally, candidate342P, primary checks pending",
+      "verification": "canonicalSQLite reader or pureadmission; exact scope see AUDIT",
+      "limit": "No writer/claim/APPJ/RPC/authority/PG execution delivery"
+    },
+    {
+      "path": "tests/test_documents_affaire_instance.py",
+      "sha256": "c299d078a89fef0502bb916640b606d0c5dc8a562dd36b02f3ffac35027d6143",
+      "preimage_sha256": null,
+      "origin": "F11 reader lease2",
+      "status": "reviewed locally, candidate342P, primary checks pending",
+      "verification": "canonicalSQLite reader or pureadmission; exact scope see AUDIT",
+      "limit": "No writer/claim/APPJ/RPC/authority/PG execution delivery"
+    },
+    {
+      "path": "departments/m10-memoire/src/m10_memoire/documents_affaire.py",
+      "sha256": "ee9bbf151a07e0042dc894ef7cedf156b9146f87dd80de0f66eda6d74f2b0a7d",
+      "preimage_sha256": "45cabe7c3992515766da6ff40469fc923cdf6c7e67c5b8f615189ade6138f414",
+      "origin": "F12 Root pure admission lease3",
+      "status": "reviewed locally, candidate342P, primary checks pending",
+      "verification": "canonicalSQLite reader or pureadmission; exact scope see AUDIT",
+      "limit": "No writer/claim/APPJ/RPC/authority/PG execution delivery"
+    },
+    {
+      "path": "departments/m10-memoire/tests/test_documents_affaire_admission.py",
+      "sha256": "d74d611c9c88ef76831d056cedc883cc6ad88916fdc59cad163c87283abd281b",
+      "preimage_sha256": null,
+      "origin": "F12 Root pure admission lease3",
+      "status": "reviewed locally, candidate342P, primary checks pending",
+      "verification": "canonicalSQLite reader or pureadmission; exact scope see AUDIT",
+      "limit": "No writer/claim/APPJ/RPC/authority/PG execution delivery"
+    },
+    {
+      "path": "departments/m10-memoire/docs/DOCUMENTS-AFFAIRE.md",
+      "sha256": "115728a5c8f861c1b27a26e1824b19b09a52416a3f9636acd67c1598278d1227",
+      "preimage_sha256": "ad59f4d17642773d46afda16dc47724a6dc2ebd573cf160e9d7b324e7d9adee4",
+      "origin": "F12 Root pure admission lease3",
+      "status": "reviewed locally, candidate342P, primary checks pending",
+      "verification": "canonicalSQLite reader or pureadmission; exact scope see AUDIT",
+      "limit": "No writer/claim/APPJ/RPC/authority/PG execution delivery"
+    }
+  ],
+  "support_files": [
+    {
+      "path": "docs/reprise/M10-INSTANCE-ADMISSION-2026-10-09/AUDIT.md",
+      "origin": "Root audit based on hashed receipts",
+      "status": "new reviewable support",
+      "sha256_location": "external manifest-eight-paths-r1.json and exact commit Git blobs; self references not fabricated",
+      "verification": "source register and qualification coherence",
+      "limit": "No product or runtime proof from prose"
+    },
+    {
+      "path": "docs/reprise/M10-INSTANCE-ADMISSION-2026-10-09/REGISTRE.json",
+      "origin": "Root audit based on hashed receipts",
+      "status": "new reviewable support",
+      "sha256_location": "external manifest-eight-paths-r1.json and exact commit Git blobs; self references not fabricated",
+      "verification": "source register and qualification coherence",
+      "limit": "No product or runtime proof from prose"
+    },
+    {
+      "path": "docs/reprise/M10-INSTANCE-ADMISSION-2026-10-09/CAPSULE.json",
+      "origin": "Root audit based on hashed receipts",
+      "status": "new reviewable support",
+      "sha256_location": "external manifest-eight-paths-r1.json and exact commit Git blobs; self references not fabricated",
+      "verification": "source register and qualification coherence",
+      "limit": "No product or runtime proof from prose"
+    }
+  ],
+  "omissions": [
+    {
+      "item": "104 historical proofs/full supplement/absent chats",
+      "disposition": "unavailable; no claimed reexecution"
+    },
+    {
+      "item": "PG runtime/newM10writers/APPJ/claim/DEVICE/RPC",
+      "disposition": "explicit future qualification, not delivered"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "recorded_toronto": "2026-10-08T21:55:53.060848-04:00",
+  "parent": "c7be76bdad87292b5002042a7a633125049d868f",
+  "product": "PARTIEL",
+  "source_files": [
+    {
+      "path": "mobile/src/m6/materiauxAvecPreuves.ts",
+      "sha256": "dc6cc1cb003a6bc1f46d1e7caefe8dcb2689aeef2421de20474d39b522556233",
+      "preimage_sha256": "88131c900d5c6730e88738fdfd3dd36ca97b28afd5e458d745e8f70a0f5d795d",
+      "status": "modified_preimage_verified",
+      "origin": "c7be76bdad87292b5002042a7a633125049d868f"
+    },
+    {
+      "path": "mobile/src/m6/materiauxAvecPreuves.test.ts",
+      "sha256": "f0b558e63d357a760342c5869295cebc45d4fa3a1e96a848bb81291aaebe1d93",
+      "preimage_sha256": "6d83d89af65d67551ecce2d0640f23492d21c8ffaf915c406dc3bdccf898499e",
+      "status": "modified_preimage_verified",
+      "origin": "c7be76bdad87292b5002042a7a633125049d868f"
+    },
+    {
+      "path": "mobile/src/m6/fixturesRefusPreuvesSQL.json",
+      "sha256": "28c44eb7bd6c21412416527f55843e0dc4735843d8f58f9ae75c0ce85f231838",
+      "preimage_sha256": null,
+      "status": "new_fixture_real_producer",
+      "origin": "c7be76bdad87292b5002042a7a633125049d868f"
+    }
+  ],
+  "parent_CI": {
+    "run": 37865159071,
+    "verdict": "PASS_EXACT_RUN",
+    "jobs": {
+      "total": 40,
+      "conclusions": {
+        "success": 38,
+        "failure": 0,
+        "skipped": 2,
+        "cancelled": 0,
+        "timed_out": 0
+      }
+    }
+  },
+  "capsule": {
+    "path": "PREUVES-REFUS-PREUVES-M6-2026-10-08-r1.tar.xz",
+    "sha256": "eba9b800a70828ad54992914031fa96218f1d6baa5e9d08b8914c8487969f15c",
+    "members": 167
+  },
+  "local": {
+    "mobile_passed": 4941,
+    "suites": 212,
+    "types_exit": 0,
+    "targeted": "127P/4suites"
+  },
+  "dispositions": {
+    "original_red": "5 product failures preserved after corrected SDK test oracle",
+    "known_rejection": "fresh DECLARATION-DEJA-SOUMISE underCap800, not quota size proof",
+    "root_invocation_red": "wrongseparator +noncanonical pnpm lock archived; npmci restorescanonical",
+    "harness": "v2 observedowners/EOF/source stability,15fictive tests+Root Gitinventory smoke",
+    "classification_design": "expectedrevision onlyfresh; replay ownref afterlaterrevision; proposalonly"
+  },
+  "limits": [
+    "newexactcommitCI required",
+    "no new opaqueDEVICE/Gateway/realnetworkloss/phone evidence",
+    "no duplicate server effect established, nextUUID attempt reproduced",
+    "104 transferred proof references absent; full supplement/conversations unknown",
+    "M4N4,classificationtools,M10ingestion remain separate",
+    "neverobserved processes/SIGKILL/intentional tamper beyondharness guarantee"
+  ]
+}

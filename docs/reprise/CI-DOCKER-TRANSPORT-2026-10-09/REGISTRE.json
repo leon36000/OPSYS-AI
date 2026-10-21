@@ -1,0 +1,70 @@
+{
+  "parent": "88db30de493d54380a1731190844ec0331ca671d",
+  "snapshot_toronto": "2026-10-09T17:51:12.127531-04:00",
+  "product_status": "PARTIEL",
+  "source_files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "b7e8ab93f2f7deb5fbe61849f12d1cd2181c5996f69cd6ff7ae6bf398efceb89",
+      "preimage_sha256": "fce089df5a2bf38592c60ca87b2ab028de821285b2481e1a106156fd2d9cbd90",
+      "origin": "checkout isolé + base Git88db",
+      "integration_status": "préparé pour intégration après préimage conforme ; readback de publication séparé",
+      "verification": "42 ciblés / 58 Root / Ruff global; runtime Docker/PG future",
+      "limit": "runner exact commit not yet qualified"
+    },
+    {
+      "path": ".github/workflows/installateur.yml",
+      "sha256": "3bbfee479751be30a525bbb69af6d578db16f0d2c7c5bb9ae7aea4b593c7e31b",
+      "preimage_sha256": "af1657fd8bb44493a10ca6ad58696da956bf8c40563f8fd5402202ff4142df68",
+      "origin": "checkout isolé + base Git88db",
+      "integration_status": "préparé pour intégration après préimage conforme ; readback de publication séparé",
+      "verification": "42 ciblés / 58 Root / Ruff global; runtime Docker/PG future",
+      "limit": "runner exact commit not yet qualified"
+    },
+    {
+      "path": "scripts/ci/preparer_pgvector.py",
+      "sha256": "484bde79688b21187a311f60767a404bb83c280d71b077e3d01ddc46ad9fa2c6",
+      "preimage_sha256": null,
+      "origin": "checkout isolé + base Git88db",
+      "integration_status": "préparé pour intégration après préimage conforme ; readback de publication séparé",
+      "verification": "42 ciblés / 58 Root / Ruff global; runtime Docker/PG future",
+      "limit": "runner exact commit not yet qualified"
+    },
+    {
+      "path": "tests/test_ci_departements.py",
+      "sha256": "e5ab15da668ec46b8f4498da08d9181bf665a1948eb2937ef2a1a51a9551e98f",
+      "preimage_sha256": "e3fc0a02d98abb9496aa18d6239eec5d37dc2a1a58765c7692b4605f6b39775f",
+      "origin": "checkout isolé + base Git88db",
+      "integration_status": "préparé pour intégration après préimage conforme ; readback de publication séparé",
+      "verification": "42 ciblés / 58 Root / Ruff global; runtime Docker/PG future",
+      "limit": "runner exact commit not yet qualified"
+    }
+  ],
+  "historical_missing_proofs": 104,
+  "missing_supplement": true,
+  "omissions": [
+    {
+      "scope": "Core, fixtures, dependencies, other installer profiles",
+      "disposition": "unchanged and checked in isolated source scope"
+    },
+    {
+      "scope": "Docker runtime, PG, installer E2E",
+      "disposition": "requires runner checks; not locally executed"
+    },
+    {
+      "scope": "two full suite supervisor attempts",
+      "disposition": "retained NON QUALIFIED; direct Root checks separate"
+    }
+  ],
+  "parent_CI": {
+    "run": 37991252523,
+    "attempt": 1,
+    "conclusion": "failure",
+    "jobs": 40,
+    "success": 33,
+    "failure": 5,
+    "skipped": 2,
+    "Core_artifact": 11647027455,
+    "Core_scope": "40 phases separately qualified, not global green"
+  }
+}

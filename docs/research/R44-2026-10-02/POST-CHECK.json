@@ -1,0 +1,11 @@
+{
+  "archives": 94,
+  "entrees_stables": true,
+  "liens": 12,
+  "qualification_sha256": "261853f9650ae7ab4e3efb1f9c185a8e65180c622bf1f0de49157e07cb1af546",
+  "roundtrip_integral": true,
+  "schema": "opsys.r44-post-check/v1",
+  "services_lances_par_collecteur": false,
+  "sources_courantes_controlees": 11,
+  "tests_lances_par_collecteur": false
+}

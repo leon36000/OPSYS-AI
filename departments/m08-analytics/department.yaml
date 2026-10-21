@@ -1,0 +1,129 @@
+schema: opsys.departement/v1
+id: m08-analytics
+code: M8
+nom: Analytics
+mission: >-
+  Produire la vérité chiffrée unique de l'entreprise à partir des snapshots que chaque module
+  lui rapporte : compiler le dictionnaire canonique de métriques, dériver leur valeur avec
+  provenance complète (version, fraîcheur, n), détecter les signaux XmR hors limites
+  naturelles et assembler des rapports filtrés par rôle — sans jamais calculer un chiffre par
+  LLM, ni inventer une métrique pour un module qui n'en déclare aucune. À « travaux terminés »,
+  mesure le chantier (temps réel contre prévu, marge prévue contre réelle, écart de matériaux,
+  écart de temps par technicien pour l'admin) avec des métriques gouvernées : une donnée absente
+  donne « non calculable, manque X », jamais une valeur inventée ; un seuil franchi propose une
+  alerte à M9, qui lit sans décider. Mesure aussi l'entonnoir commercial (leads, devis envoyés,
+  acceptés et sans réponse, taux d'acceptation, délai, carnet signé) d'après les faits de M2 et de
+  M3, et remet au propriétaire une vue exécutive : entonnoir, marge réelle que M5 a publiée, stock
+  à commander que M6 publie, cash libre que M5 a constaté (le dernier constat, tel quel, avec son âge) ou ce qui
+  en manque — sans jamais recalculer un montant de M5.
+  Mesure enfin, par contenu exporté par M7 (clé utm_content), les leads de M1 puis les devis de M3 qu'il a amenés ;
+  impressions et clics : aucune source aujourd'hui, « non calculable », jamais un zéro.
+outils: m8_analytics.outils
+mode: ombre
+dependances: [m01-front-office, m02-revenue-crm, m03-estimation, m04-field-ops, m05-financecore, m06-material-control, m07-marketing]
+modeles:
+  defaut: standard
+  digest: rapide
+skills: [rapport-analytique-quotidien]
+planifications:
+  - nom: digest-analytics
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Assemble le digest quotidien à partir des signaux XmR et des alertes de qualité déjà
+      calculés la veille : nombre de signaux actifs, liste des signaux hors limites, alertes
+      proposées sourcées (une journée sans alerte le dit explicitement). N'ingère aucun nouveau
+      snapshot, ne calcule aucun chiffre de tête.
+budget:
+  tokens_jour: 300000
+  tokens_mois: 4000000
+  alerte_pct: 80
+memoire:
+  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre]
+  ecriture: [snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre]
+evenements:
+  # PLAN T1.5-d : le WCT (durée réelle, technicien), le devis accepté (prix, coût, durée estimée si
+  # M3 la fournit), la variance de matériaux de M6 (verdict repris sans recalcul) et la marge réelle de
+  # M5 (reprise sans recalcul ; absente tant que le coût réel de M5 est partiel). Catalogue :
+  # src/opsys/evenements/catalogue/*.json.
+  # PLAN T4.19 : l'entonnoir commercial. M2 publie le lead reçu (`m2.client_associe`) et qualifié
+  # (`m2.lead_assigne`) ; M3 le devis envoyé (`m3.devis_envoye`, approuvé par le propriétaire), accepté
+  # (`m3.devis_accepte`, déjà consommé ci-dessus pour la mesure d'un chantier) et sans réponse
+  # (`m3.devis_sans_reponse`). Identifiants et instants seulement, plus le prix total d'un devis accepté :
+  # jamais un contact, le propriétaire d'un lead, ni un coût (Loi 25).
+  # PLAN T4.17-e : la mesure par contenu. M7 publie le contenu exporté (`m7.contenu_exporte` : clé utm_content, chantier, canal)
+  # et M1 le lead qualifié (`m1.lead_qualifie`, dont M8 ne garde que le lead_id, la clé utm_content et l'instant : ni le contact,
+  # ni la ville, ni le service). Les devis par contenu se lisent dans les faits de l'entonnoir ci-dessus.
+  # PLAN T4.19-b : le cash libre que M5 a constaté (`m5.cash_libre_constate`, à la demande de l'admin) : les montants
+  # tels que le calcul de M5 les rend, chaque composante avec sa source et sa fraîcheur, ou « non calculable, manque X ».
+  # M8 range chaque constat (`faits_cash_libre`, un fait par événement) et la vue exécutive montre le dernier, tel quel,
+  # avec son âge ; il ne recalcule rien.
+  consomme:
+    - m4.travaux_termines
+    - m3.devis_accepte
+    - m6.variance_chantier
+    - m5.rentabilite_chantier
+    - m2.client_associe
+    - m2.lead_assigne
+    - m3.devis_envoye
+    - m3.devis_sans_reponse
+    - m7.contenu_exporte
+    - m1.lead_qualifie
+    - m5.cash_libre_constate
+  publie: [m8.alerte_proposee, m8.snapshot_chantier]
+configuration:
+  # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11
+  # « seuils non chiffrés : chaque département doit les définir »). VIDES à dessein : aucun seuil
+  # n'est inventé. Tant qu'une métrique n'a pas de seuil valide, M8 ne l'alerte pas et publie le
+  # signal « seuil à configurer » (MESURE-SEUIL-A-CONFIGURER, visible dans le briefing de M9).
+  # Forme, par métrique surveillée (m8_ecart_duree_pct, m8_ecart_marge_pct,
+  # m8_ecart_materiaux_max_pct) :
+  #   m8_ecart_duree_pct: {sens: au_dessus, valeur: <nombre, en %>}   # atteint ou dépasse
+  #   m8_ecart_marge_pct: {sens: au_dessous, valeur: <nombre, en %>}  # atteint ou passe sous
+  # La valeur est dans l'unité de la métrique (pourcentage). Sens : au_dessus ou au_dessous.
+  seuils_alerte: {}
+  # Écart de temps par technicien (m8_performance_equipe) : nombre minimal de chantiers mesurés
+  # pour que l'écart d'un technicien soit dit suffisant. Absent : `suffisant` reste nul. Jamais une
+  # alerte ni un classement, quel que soit ce nombre.
+  performance_equipe: {}
+  # Seuils de l'entonnoir commercial (PLAN T4.19, GATE NATHAN : DEFINITION-PRODUIT.md §13 point 11). VIDES à
+  # dessein : aucun seuil n'est inventé. Tant qu'une métrique surveillée n'a pas de seuil valide, la vue exécutive
+  # (m8_lire_vue_executive) la dit « seuil à configurer » et ne signale aucun franchissement. Même forme que
+  # `seuils_alerte`, pour les quatre métriques surveillées :
+  #   m8_taux_acceptation_pct: {sens: au_dessous, valeur: <nombre, en %>}          # atteint ou passe sous
+  #   m8_delai_lead_acceptation_jours: {sens: au_dessus, valeur: <nombre, en jours>}
+  #   m8_devis_sans_reponse: {sens: au_dessus, valeur: <nombre de devis>}
+  #   m8_carnet_signe_cad: {sens: au_dessous, valeur: <nombre, en CAD avant taxes>}
+  # Les comptages cumulés (leads, devis envoyés ou acceptés) ne se surveillent pas : ils ne font que croître. Une
+  # clé qui n'est pas l'une de ces quatre métriques est dite `ignores` dans la vue, jamais ignorée en silence.
+  seuils_entonnoir: {}
+kpis:
+  - id: taux_snapshots_rejetes
+    description: Part des snapshots reçus rejetés par la validation d'entrée (structure, devise, valeurs non texte).
+  - id: nb_signaux_actifs_digest
+    description: Nombre de signaux XmR actifs (hors DONNEES_INSUFFISANTES) dans le dernier digest quotidien.
+  - id: fraicheur_moyenne_metriques
+    description: Âge moyen, en jours, des métriques dérivées et citées dans les rapports du jour.
+  - id: nb_alertes_qualite_proposees
+    description: >-
+      Nombre d'alertes de qualité (donnée absente, périmée, hors plage, doublon d'observation ou
+      incohérence entre séries) proposées par m8_evaluer_qualite_metrique sur la période —
+      jamais exécutées, seulement proposées.
+  - id: taux_metriques_chantier_non_calculables
+    description: >-
+      Part des mesures de chantier terminé rendues « non calculable » (durée estimée, marge réelle
+      ou variance de matériaux absentes) sur la période : mesure la complétude des sources, jamais
+      remplie par une valeur inventée.
+  - id: nb_alertes_mesure_proposees
+    description: >-
+      Nombre d'alertes de mesure de chantier proposées à M9 (seuil franchi, ou seuil à configurer)
+      sur la période — jamais exécutées, seulement proposées.
+  - id: nb_metriques_entonnoir_non_calculables
+    description: >-
+      Nombre de métriques de l'entonnoir rendues « non calculable » (aucun fait reçu de M2 ou de M3, rapport sans
+      dénominateur, prix illisible) dans la dernière vue exécutive : mesure la complétude des sources, jamais
+      remplie par une valeur inventée.
+  - id: nb_metriques_contenus_non_calculables
+    description: >-
+      Nombre de métriques par contenu rendues « non calculable » dans la dernière lecture (aucun contenu exporté reçu de M7,
+      aucun lead reçu de M1, source des impressions et des clics absente) : mesure la complétude des sources, jamais remplie
+      par une valeur inventée.

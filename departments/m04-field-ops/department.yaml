@@ -1,0 +1,68 @@
+schema: opsys.departement/v1
+id: m04-field-ops
+code: M4
+nom: Field Ops
+mission: >-
+  Planifier, cédules et suivre les interventions terrain — états de chantier, pointage
+  horodaté et géolocalisé, écarts arbitrés, Work Completion Trigger — sans jamais porter
+  de prix, de date ferme imposée par le client ou de scoring des techniciens. Reçoit le devis
+  accepté (une intervention à planifier) et dit, volet par volet, ce qui manque avant de la cédule.
+  Lit pour le propriétaire, sans rien écrire : la météo du créneau d'une intervention, ses retards et
+  incidents (le retard sur la cédule n'est pas mesurable : il le dit) et sa liste par pages.
+outils: m4_field_ops.outils
+# PLAN T4.27-a : trois lectures pures (T0), réservées à l'admin sauf la liste (aussi celle de l'employé, qui ne voit que
+# ses interventions) : `m4_lister_interventions` par pages (clés sœurs `curseur` et `taille_page`, contrat v1 gelé),
+# `m4_lire_meteo_intervention` (le créneau du dernier plan appliqué, sans `plan_id`, même évaluation que T4.13) et
+# `m4_lire_retards_incidents` (reports en cours et demandes de revue ouvertes, avec leur âge). Voir le README.
+mode: ombre
+# m01-front-office : M4 relit à la source du bus le `m1.lead_qualifie` du lead d'un devis accepté (service, ville,
+# urgence du chantier) ; m03-estimation : il consomme `m3.devis_accepte` ; m06-material-control : il consomme
+# `m6.materiel_pret` (volet « matériel » de la préparation, PLAN T4.14-b). Aucun import d'un autre département.
+dependances: [m01-front-office, m03-estimation, m06-material-control]
+modeles:
+  defaut: standard
+  extraction: rapide
+skills: [gerer-une-intervention, arbitrer-un-ecart, localiser-un-chantier, optimiser-la-cedule]
+planifications:
+  - nom: digest-field-ops
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes la journée de la veille : interventions terminées, interventions
+      en revue, volumétrie de la file d'attente, et les demandes bloquées plus de 24h.
+      Aucune nouvelle intervention, aucune résolution de revue.
+budget:
+  tokens_jour: 300000
+  tokens_mois: 4000000
+  alerte_pct: 80
+memoire:
+  lecture: [clients, chantiers, techniciens]
+  ecriture: [interventions]
+kpis:
+  - id: taux_anomalies_pointage
+    description: Part des pointages produisant une anomalie de cohérence GPS (CA-M4-08).
+  - id: delai_moyen_resolution_revue
+    description: Délai moyen entre l'ouverture d'une demande de revue et sa résolution.
+evenements:                        # ADR-0009 §3, PLAN T1.2-b
+  publie: [m4.travaux_termines]    # même transaction que le WCT (outbox.completer_intervention)
+  # m6.variance_chantier : confirme completed_verified (outbox.confirmer_verification).
+  # m3.devis_accepte (PLAN T4.10-b, DEFINITION-PRODUIT §6 « soumission acceptée -> M4 planifie », M4.5) : une
+  # intervention a_planifier naît du devis ; service, ville et urgence sont relus à la source du bus
+  # (m1.lead_qualifie), jamais recopiés ; un fait absent lève (réessais, puis quarantaine) — voir
+  # _recevoir_devis_accepte dans outils.py. Catalogue : src/opsys/evenements/catalogue/m3.devis_accepte.json.
+  #
+  # m6.materiel_pret (PLAN T4.14-b, DEFINITION-PRODUIT §7 M6 « fournit à M4 : matériel prêt ou à commander », M4.6) : M6
+  # publie une révision par changement de la réservation d'un devis accepté ; M4 retient, par devis_id, la charge de plus
+  # grande révision (robuste à un ordre inversé) et le volet « matériel » de `preparation.py` la lit : `ok` seulement si
+  # M6 dit pret ET que la réservation est active ET qu'aucune ligne ne manque, sinon partiel ou a_commander avec les lignes
+  # manquantes ; aucune charge : « non vérifiable ». chantier_id (nullable) n'est pas lu — voir _recevoir_materiel_pret
+  # dans outils.py. Catalogue : src/opsys/evenements/catalogue/m6.materiel_pret.json.
+  consomme: [m6.variance_chantier, m3.devis_accepte, m6.materiel_pret]
+approbations:                      # ADR-0009 §5, PLAN T1.3-b : rôles autorisés à décider N3/N4.
+  # N3 : écritures internes courantes du terrain (pointer, compléter, arbitrer un écart) — le
+  # manager ou l'admin de Field Ops n'a pas besoin du propriétaire pour ça au quotidien.
+  n3: [manager, admin, nathan_owner]
+  # N4 : revue humaine d'une complétion completed_pending_review (m4_resoudre_revue_completion,
+  # écriture finale, ADR-0009 §4). admin explicitement inclus : DEFINITION-PRODUIT §6/§9.7 décrit
+  # l'écart matériaux critique comme une « alerte sur le mobile de l'admin ». employee, seller,
+  # client, finance, system_agent restent exclus (fail-closed, DEFAUT_ROLES_NIVEAU sinon).
+  n4: [manager, admin, nathan_owner]

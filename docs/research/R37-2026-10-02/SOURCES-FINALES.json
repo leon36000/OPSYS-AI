@@ -1,0 +1,68 @@
+{
+  "bilan_courant_sha256": "e4910e340a43cff92c96189e0cb63489208e0752083066c0a769f99023a7bebb",
+  "preimages_r2": [
+    "3dee4592bc4f7348100ff324a686be6c76d39d0f0dafda0a6bdb0ee36e2eee24",
+    "a71323c9744f9876386283d243da9dbb85269f888fffbacdc451b12277155d14"
+  ],
+  "recuperations_r28_apres_edition": [
+    {
+      "path": "src/opsys/console/application.py",
+      "sha256": "b57c57506e26815e8d0ce9ea0455d3e9cc0bb26407d18302e7fc9b8ee27e2452",
+      "sha256_archive_r28": "a6feb1c28bf8a2a4c168eddd11411a284162296f937fa7563acce8e9343e3670"
+    },
+    {
+      "path": "src/opsys/console/fusion_pdf_ui.py",
+      "sha256": "e22c63df6a8ff0dd64db4ea2274d33267464e64fa11d0009bd3c064b65e7061d",
+      "sha256_archive_r28": "c4a0083f09440a3a722eb8acb539ce3ccd50473f1c94922f0e0631fec97bd69b"
+    }
+  ],
+  "references_non_dupliquees": {
+    "/workspace/OPSYS-AI-recent/docs/research/R26-2026-10-02/MANIFEST.json": {
+      "octets": 109800,
+      "sha256": "9ae52566007eb6eaf082b8e2153a5450ce93f14c4f14da03304648966334f3f3"
+    },
+    "/workspace/OPSYS-AI-recent/docs/research/R26-2026-10-02/SOURCES-FINALES.json": {
+      "octets": 587711,
+      "sha256": "fd44d2eead4cc3e2f2d77cea7dad5ca740baf7b5fa05220241940030ac00631d"
+    },
+    "/workspace/OPSYS-AI-recent/docs/research/R28-2026-10-02/MANIFEST.json": {
+      "octets": 87411,
+      "sha256": "14129a875d35b282933b64a43e37002764f451dbdd51e16ecde4ce1df7c54d2b"
+    },
+    "/workspace/OPSYS-AI-recent/docs/research/R28-2026-10-02/SOURCES-FINALES.json": {
+      "octets": 1946,
+      "sha256": "fd5ad0cafcfa5e52a492a96f995e4708f8f5660d0751b191dabb3398629b55e8"
+    },
+    "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/MANIFEST.json": {
+      "octets": 21858,
+      "sha256": "2685dd4e20b7e288ff47ddb9fd62af07e50f7781e284cf2c58790784aa2d99ae"
+    },
+    "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/QUALIFICATION.json": {
+      "octets": 457002,
+      "sha256": "9d377c616e769a79653d8024a4a020ef374db2be8d767241ff61d98b1490eb35"
+    },
+    "/workspace/OPSYS-AI-recent/docs/research/R32-2026-10-02/MANIFEST.json": {
+      "octets": 27862,
+      "sha256": "c87b6e99f3d2f817c0d506ac565c9f69f9b1396d83aa1354881a96830798a75a"
+    },
+    "/workspace/OPSYS-AI-recent/docs/research/R32-2026-10-02/QUALIFICATION.json": {
+      "octets": 14354,
+      "sha256": "40611f38f450a201ef6306a580cb2fd8219626e72d47ecd93dabbad3033dd671"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/../calibration-suite/archiver-r30-r1.py": {
+      "octets": 11816,
+      "sha256": "5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/../calibration-suite/archiver-r32-r1.py": {
+      "octets": 13915,
+      "sha256": "a90434f856563253a007e51b0e4abb912e4506c5f434f2e0147801be07669fd1"
+    }
+  },
+  "schema": "opsys.r37-sources/v1",
+  "sources_r37": {
+    "src/opsys/console/application.py": "7c99c96cf2f1daad81231a09a222eb9949adddbb0a2c716eaed8f00d60ffc2a7",
+    "src/opsys/console/fusion_pdf_ui.py": "1c7a330152022f9fbcf8a91e77bc16f13cd87dc6b62749bf72df27cc47b4876a",
+    "src/opsys/console/fusion_synthese.py": "42e5c85c79e8ea1087fc4361f22939d2b95ab9576ed4591b2bb4d85b1176ef26",
+    "tests/test_console_fusion_synthese.py": "4100931904a36317bf2466f03c55570229dd6bdd3b2b52e43bd021af0aa9216a"
+  }
+}

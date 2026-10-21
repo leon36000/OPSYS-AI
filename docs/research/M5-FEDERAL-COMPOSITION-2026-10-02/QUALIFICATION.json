@@ -1,0 +1,173 @@
+{
+  "executor": "ROOT",
+  "archive_sha256": "2037fd27a8692b7e5d7b2f72010929ceecdffa002d2e9bee1807af2eb4732b3c",
+  "archive_bytes": 129809,
+  "archive_members": 81,
+  "all_80_manifest_entries_verified": true,
+  "junit": {
+    "errors": 0,
+    "failures": 0,
+    "ruff_exit_code": 0,
+    "skipped": 0,
+    "tests": 79
+  },
+  "source_copies": 12,
+  "historical_snapshots": {
+    "ROOT101": 9,
+    "ROOT33": 9
+  },
+  "RRQ_capsule_referenced_sha256": "50905214d624dd11c1cda50f349fa5132038b58a2a478d595b154ab1f6ddc3c0",
+  "source_lot_before_after": {
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/docs/m54g-paie-qc-preparatoire-2026.md": {
+      "after_sha256": "158a2fc46368408c8853b715c1c198b5dbfca9dcca5e12c2bf332c3a57e4ef2d",
+      "before_sha256": "158a2fc46368408c8853b715c1c198b5dbfca9dcca5e12c2bf332c3a57e4ef2d"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/docs/m54h-impot-federal-qc-regulier-preparatoire.md": {
+      "after_sha256": "03c5197f18f532f44b86e64ccaa6d0907f1270a4f0c4996bf7d57f975e293036",
+      "before_sha256": "03c5197f18f532f44b86e64ccaa6d0907f1270a4f0c4996bf7d57f975e293036"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/src/m5_financecore/cotisations_rqap_ae_2026.py": {
+      "after_sha256": "449ccd75f42b8b72188a0cea6a0eb623439a7d4cfe8f412bfc98bdff64e047ed",
+      "before_sha256": "449ccd75f42b8b72188a0cea6a0eb623439a7d4cfe8f412bfc98bdff64e047ed"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/src/m5_financecore/cotisations_rrq_regulieres.py": {
+      "after_sha256": "77aa4ccc2f87226a6ad8810068ee4432edcc434375cf5b5ef08c3eb4019c6863",
+      "before_sha256": "77aa4ccc2f87226a6ad8810068ee4432edcc434375cf5b5ef08c3eb4019c6863"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/src/m5_financecore/impot_federal_qc_2026.py": {
+      "after_sha256": "c70069d969c3e7e66568f15c51924c1b98c2dcb3ad10bda8757c47c79a6b206e",
+      "before_sha256": "c70069d969c3e7e66568f15c51924c1b98c2dcb3ad10bda8757c47c79a6b206e"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/src/m5_financecore/impot_quebec_regulier.py": {
+      "after_sha256": "3cdf26b79745f01155b6b7335702d6b57c1f3097162c8eef82e743688da8993b",
+      "before_sha256": "3cdf26b79745f01155b6b7335702d6b57c1f3097162c8eef82e743688da8993b"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/src/m5_financecore/paie_qc_preparatoire.py": {
+      "after_sha256": "8ee5aeaf60c37af2053d2c38ad7051826987c1734ef4045b6c1b4f9e9a712583",
+      "before_sha256": "8ee5aeaf60c37af2053d2c38ad7051826987c1734ef4045b6c1b4f9e9a712583"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/src/m5_financecore/validation.py": {
+      "after_sha256": "11a45f1a5fe460a73bd28dc1eb3b179e0b708899330e012511b8ddb674c18a4c",
+      "before_sha256": "11a45f1a5fe460a73bd28dc1eb3b179e0b708899330e012511b8ddb674c18a4c"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/tests/test_cotisations_rrq_regulieres.py": {
+      "after_sha256": "6b0b7e1e4900582fc1c5f270ad09801d0371f3632da9e95bb10c8b5eb161c51c",
+      "before_sha256": "6b0b7e1e4900582fc1c5f270ad09801d0371f3632da9e95bb10c8b5eb161c51c"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/tests/test_impot_federal_qc_2026.py": {
+      "after_sha256": "3066f786ec4ee6a131a5f7b827c3f6c3c4016314bf4e7793ebe3cae22266df35",
+      "before_sha256": "3066f786ec4ee6a131a5f7b827c3f6c3c4016314bf4e7793ebe3cae22266df35"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/tests/test_impot_quebec_regulier.py": {
+      "after_sha256": "2d2a6300b559035e2e3b09ba554b423db1ccc08699430a69f016e4ac198a22ce",
+      "before_sha256": "2d2a6300b559035e2e3b09ba554b423db1ccc08699430a69f016e4ac198a22ce"
+    },
+    "/workspace/OPSYS-AI-recent/departments/m05-financecore/tests/test_paie_qc_preparatoire.py": {
+      "after_sha256": "702971fc72b896638e300a6e9c502b4941a746e327948045f615daf53741b5a6",
+      "before_sha256": "702971fc72b896638e300a6e9c502b4941a746e327948045f615daf53741b5a6"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-FEDERAL-COMPOSITION-ROOT-r1/PLAN-ROOT-r1.json": {
+      "after_sha256": "cdd69c97ca071c4d5ed72cec6101f4cb09b0fdfebe26611e16b15776833de58d",
+      "before_sha256": "cdd69c97ca071c4d5ed72cec6101f4cb09b0fdfebe26611e16b15776833de58d"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-FEDERAL-COMPOSITION-ROOT-r1/VERIFICATION-ROOT.json": {
+      "after_sha256": "360a644f08ea67e7f85c8131cd4414aab4272a3a433662300fd5da124a8d28be",
+      "before_sha256": "360a644f08ea67e7f85c8131cd4414aab4272a3a433662300fd5da124a8d28be"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-FEDERAL-COMPOSITION-ROOT-r1/conducteur-root-r1.py": {
+      "after_sha256": "d8cf8a1200541bfc738cb7e1fa4bbdf5694b3c03ab7a273ecd96f4537913482c",
+      "before_sha256": "d8cf8a1200541bfc738cb7e1fa4bbdf5694b3c03ab7a273ecd96f4537913482c"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-FEDERAL-COMPOSITION-ROOT-r1/pytest.xml": {
+      "after_sha256": "64792ad92ccf010ba578db94999811095f903107a9e9ba034b808b8f1627f31c",
+      "before_sha256": "64792ad92ccf010ba578db94999811095f903107a9e9ba034b808b8f1627f31c"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-FEDERAL-COMPOSITION-ROOT-r1/qualification.log": {
+      "after_sha256": "4fdf601c1ec993c652ccd2f816cc4aad74b612d85722b600c7957cfe69466b8f",
+      "before_sha256": "4fdf601c1ec993c652ccd2f816cc4aad74b612d85722b600c7957cfe69466b8f"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-FEDERAL-COMPOSITION-ROOT-r1/receipt.json": {
+      "after_sha256": "9d1a2e8bbd3063c5ce9fa332969cae1ddb9d67e6212d9666416a9aee538fd8ec",
+      "before_sha256": "9d1a2e8bbd3063c5ce9fa332969cae1ddb9d67e6212d9666416a9aee538fd8ec"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r1/PLAN-ROOT-r1.json": {
+      "after_sha256": "bc6414dd947944ed9d210a988b52b775ae590fa4f156be3ffe728b1ff18b272c",
+      "before_sha256": "bc6414dd947944ed9d210a988b52b775ae590fa4f156be3ffe728b1ff18b272c"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r1/VERIFICATION-ROOT-r1.json": {
+      "after_sha256": "a7d34ff631ebf4e30da06de9908c30be10dc0a4a1c143059daf29d4f20011ddf",
+      "before_sha256": "a7d34ff631ebf4e30da06de9908c30be10dc0a4a1c143059daf29d4f20011ddf"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r1/conducteur-root-r1.py": {
+      "after_sha256": "4efbb48eff14ec40f1698dcd3f0da847d74275341754994d6138c95f4cb15c98",
+      "before_sha256": "4efbb48eff14ec40f1698dcd3f0da847d74275341754994d6138c95f4cb15c98"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r1/pytest.xml": {
+      "after_sha256": "d2f7a86dcbe8594fbf7a75e6b707fead10edf357e656bfe7651637f028484577",
+      "before_sha256": "d2f7a86dcbe8594fbf7a75e6b707fead10edf357e656bfe7651637f028484577"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r1/qualification.log": {
+      "after_sha256": "8bae469575bc663baa1233d94c7392453b0dc77d6934202944f0ca820914d252",
+      "before_sha256": "8bae469575bc663baa1233d94c7392453b0dc77d6934202944f0ca820914d252"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r1/receipt.json": {
+      "after_sha256": "1fcc54c639c36911792941ba0f4cb4d53b793ba8e097ba36948169661a45adba",
+      "before_sha256": "1fcc54c639c36911792941ba0f4cb4d53b793ba8e097ba36948169661a45adba"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r2/PLAN-ROOT-r2.json": {
+      "after_sha256": "05001c9699560ac720225fd6f55e16656448c80e61d74b335b52d51c415a8bf5",
+      "before_sha256": "05001c9699560ac720225fd6f55e16656448c80e61d74b335b52d51c415a8bf5"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r2/VERIFICATION-ROOT-r2.json": {
+      "after_sha256": "6292279871cbdf3f0ccbec0f28824bad84982c517bafb066f1bbd9f18798f4f1",
+      "before_sha256": "6292279871cbdf3f0ccbec0f28824bad84982c517bafb066f1bbd9f18798f4f1"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r2/conducteur-root-r2.py": {
+      "after_sha256": "073c5aee71c85353fbf562032f5850a58e8b2fddafa66b3b99a67e138aac2552",
+      "before_sha256": "073c5aee71c85353fbf562032f5850a58e8b2fddafa66b3b99a67e138aac2552"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r2/pytest.xml": {
+      "after_sha256": "518109f5db2f3bc89de182b7022d9c17670e9a48ee588288b064b8182a0d6ad1",
+      "before_sha256": "518109f5db2f3bc89de182b7022d9c17670e9a48ee588288b064b8182a0d6ad1"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r2/qualification.log": {
+      "after_sha256": "5a02b299a18415986fc732df459fb5f6df283c241824bfa31f39a99e17654bdc",
+      "before_sha256": "5a02b299a18415986fc732df459fb5f6df283c241824bfa31f39a99e17654bdc"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-PAIE-COMPOSITION-ROOT-r2/receipt.json": {
+      "after_sha256": "f2cfdca59cd554f68755684721097c0937f8c0fb7686012321cef244e87463e6",
+      "before_sha256": "f2cfdca59cd554f68755684721097c0937f8c0fb7686012321cef244e87463e6"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-RRQ-ROOT-r1/PLAN-ROOT-r1.json": {
+      "after_sha256": "620c8dee9ddd0003349e7a8ef193459f7f2af3558aacb9f6a8720ffc281b222a",
+      "before_sha256": "620c8dee9ddd0003349e7a8ef193459f7f2af3558aacb9f6a8720ffc281b222a"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-RRQ-ROOT-r1/VERIFICATION-ROOT-r1.json": {
+      "after_sha256": "e5e3e5302bef2e42239361dc5ca2f8daf0092b7e866ff18ffcd9470b6b3fd6a6",
+      "before_sha256": "e5e3e5302bef2e42239361dc5ca2f8daf0092b7e866ff18ffcd9470b6b3fd6a6"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-RRQ-ROOT-r1/conducteur-root-r1.py": {
+      "after_sha256": "ff9aad8af11aabceb52aeb005abbb0c5205f723989a4485ae8bf8f98999f583a",
+      "before_sha256": "ff9aad8af11aabceb52aeb005abbb0c5205f723989a4485ae8bf8f98999f583a"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-RRQ-ROOT-r1/pytest.xml": {
+      "after_sha256": "fb6b2a90bc82081ef7488ab3c476371674bb591445260f9bacf638af1ae2d976",
+      "before_sha256": "fb6b2a90bc82081ef7488ab3c476371674bb591445260f9bacf638af1ae2d976"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-RRQ-ROOT-r1/qualification.log": {
+      "after_sha256": "3d0140624299e1253d7ac5ed13acd77e03699615cda7e64849a6b0ec79b62a15",
+      "before_sha256": "3d0140624299e1253d7ac5ed13acd77e03699615cda7e64849a6b0ec79b62a15"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/M5-RRQ-ROOT-r1/receipt.json": {
+      "after_sha256": "accd827a7bd2a181faa7d6c52a2e6eeb5b55771d81385dc755b09e2276d50b39",
+      "before_sha256": "accd827a7bd2a181faa7d6c52a2e6eeb5b55771d81385dc755b09e2276d50b39"
+    },
+    "RRQ capsule reference": {
+      "after_sha256": "50905214d624dd11c1cda50f349fa5132038b58a2a478d595b154ab1f6ddc3c0",
+      "before_sha256": "50905214d624dd11c1cda50f349fa5132038b58a2a478d595b154ab1f6ddc3c0"
+    }
+  },
+  "global_payroll_qualified": false,
+  "net_pay_qualified": false,
+  "runtime_reexecuted_by_archiver": false
+}

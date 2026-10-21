@@ -1,0 +1,121 @@
+{
+  "date_toronto": "2026-10-07T21:15:28.227383-04:00",
+  "parent": "a3853e8ae126f0d3fc5a00850e0fa1349f01e042",
+  "product": "PARTIEL",
+  "files": [
+    {
+      "path": "departments/m07-marketing/src/m7_marketing/usine/service.py",
+      "preimage_sha256": "0386e12ab0bf8de06ec3d97598c59d9adb872e2b03f360db1ec7cce98bbc161a",
+      "sha256": "af26ddc4bd7268304e6988a42049c50c702ec39cab549e13de8bae5ac0fb056e",
+      "origin": "correctif local de régression CI M7",
+      "integration": "préimage exacte vérifiée, copie du candidat gelé",
+      "verification": "164tests candidats + Ruff; qualification principale à obtenir",
+      "limit": "nouveau commit exact CI requise"
+    },
+    {
+      "path": "tests/test_console_calendrier_marketing.py",
+      "preimage_sha256": "22702bd25c49b94b8af1b705b39ff561a11eea4be5cc2d24b496f05483371688",
+      "sha256": "a12fe3770ae14dfd7b9aa0e5d1f84f9d6c32df26811f330e2eafd2683a12ffb7",
+      "origin": "correctif local de régression CI M7",
+      "integration": "préimage exacte vérifiée, copie du candidat gelé",
+      "verification": "164tests candidats + Ruff; qualification principale à obtenir",
+      "limit": "nouveau commit exact CI requise"
+    }
+  ],
+  "CI_red": {
+    "head": "a3853e8ae126f0d3fc5a00850e0fa1349f01e042",
+    "archive": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/outputs/PREUVES-CI-MARKETING-M7-2026-10-07-a3853e8a-ROUGE-r1.tar.xz",
+    "sha256": "0c202a9e6f48f0a4e08dd6eb2aa8cede3b674fd11fa4d3e48e62d1c08d75caa7",
+    "members": 759,
+    "PR_updated": true,
+    "status": "RED"
+  },
+  "red_reproduced": {
+    "five_marketing_console_files": 59,
+    "omitted_ci_media_file": 18,
+    "exact_ci_failures_reproduced": 77,
+    "regression": "owner console actif rôle réel refusé avant correction"
+  },
+  "transfer_inherited_registry": "REGISTRE-MARKETING-M7-2026-10-07-r2.json",
+  "transfer_invariants": {
+    "contents": 426,
+    "sources": 302,
+    "supports": 124,
+    "excluded_proofs": 104,
+    "generated_supplement": "absent"
+  },
+  "status": "correctif intégré et vérifié localement; nouvelle CI exacte à obtenir",
+  "integrated_checks": [
+    {
+      "label": "m7-console-main-integrated-r1",
+      "command": [
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_console_calendrier_marketing.py",
+        "tests/test_console_m73a_medias.py",
+        "tests/test_console_marketing_edition_textes.py",
+        "tests/test_console_marketing_marque_usine.py",
+        "tests/test_console_couts_marketing.py",
+        "tests/test_console_performance_marketing.py",
+        "departments/m07-marketing/tests/test_garde_lectures_admin.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-08T01:15:28.249636+00:00",
+      "completed_utc": "2026-10-08T01:16:07.478412+00:00",
+      "exit_code": 0,
+      "wall_seconds": 38.368,
+      "peak_process_tree_rss_bytes": 180117504,
+      "guard_triggered": null,
+      "source_sha256_before": "e9fcd5468d63812117fe657653a196208cee4c7fa3425fc4d7c92343cd983b28",
+      "source_sha256_after": "e9fcd5468d63812117fe657653a196208cee4c7fa3425fc4d7c92343cd983b28",
+      "sources_unchanged": true,
+      "log_sha256": "cfdee3a183e09a4d48b953a0e6668069a3dca9b7dd85a0a056dfffdc3077c3f9"
+    },
+    {
+      "label": "m7-console-main-ruff-r1",
+      "command": [
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "src",
+        "tests",
+        "departments/m07-marketing/src",
+        "departments/m07-marketing/tests"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-08T01:15:50.658573+00:00",
+      "completed_utc": "2026-10-08T01:15:52.913129+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.394,
+      "peak_process_tree_rss_bytes": 14528512,
+      "guard_triggered": null,
+      "source_sha256_before": "e9fcd5468d63812117fe657653a196208cee4c7fa3425fc4d7c92343cd983b28",
+      "source_sha256_after": "e9fcd5468d63812117fe657653a196208cee4c7fa3425fc4d7c92343cd983b28",
+      "sources_unchanged": true,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "label": "m7-console-main-verifier-r1",
+      "command": [
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/.venv/bin/python",
+        "-m",
+        "opsys.cli",
+        "verifier"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-08T01:15:50.675104+00:00",
+      "completed_utc": "2026-10-08T01:15:53.952962+00:00",
+      "exit_code": 0,
+      "wall_seconds": 2.425,
+      "peak_process_tree_rss_bytes": 87678976,
+      "guard_triggered": null,
+      "source_sha256_before": "e9fcd5468d63812117fe657653a196208cee4c7fa3425fc4d7c92343cd983b28",
+      "source_sha256_after": "e9fcd5468d63812117fe657653a196208cee4c7fa3425fc4d7c92343cd983b28",
+      "sources_unchanged": true,
+      "log_sha256": "474c156de198e68f60fd508b3b3d5a7be826fbb3c3bc90bb4bb93269fb7a7cea"
+    }
+  ]
+}

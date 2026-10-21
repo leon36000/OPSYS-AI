@@ -1,0 +1,73 @@
+{
+  "state": "SOURCE3_FROZEN_RELEASED_TARGETED_GREEN_FINAL_QUALIFICATION_INACTIVE",
+  "released": true,
+  "no_further_Source_edits": true,
+  "source3": {
+    "mobile/src/fichiers/envoiOrchestrateur.test.ts": "e850c7c293e35913f689ccf1e7e6e3c02b4f0a1650d9f9a91f5e946eebcbb93f",
+    "mobile/src/outbox/vidangeur.test.ts": "778d87db868ba06ef3f25d946461650613f68b21f9f301d5130c50f5c8f068f1",
+    "mobile/src/outbox/vidangeur.ts": "a2c387245bf41a904cb95d82f4ceaaccff0214921d16572e938f1b22706ac917"
+  },
+  "source3_freeze_sha256": "7fe2b8f229cc9f40c769ca698ea01db42235d797f394241089319af80c8972ae",
+  "source14_final_sha256": "810ca99fb1de830e1de7f71489da417dc04c9ca38562b4ca6feb416902d544f6",
+  "patch_sha256": "610d1ec6a4111448d620a3cf2205d2ee9caddb9244f34d947c1e3aa8ff3c5a50",
+  "qualification": {
+    "red-r1": {
+      "passed": 0,
+      "failed": 2,
+      "not_selected": 57,
+      "suites": 2,
+      "exit_code": 1,
+      "wrapper_qualified": false,
+      "resource_and_source_closure": true,
+      "wall_seconds": 2.259,
+      "peak_rss_bytes": 434405376,
+      "fixed_count": 625,
+      "actual_mobile_imports": 47,
+      "wrapper_receipt_sha256": "9bc726fe29cd9e74b0073a4c9592839147d6fb2e9ed29c4ef310212ca6553605",
+      "jest_json_sha256": "7e9f7001dcacc97b1994bae39ce57d82294fd9006eadeafd5afe793ea1c1f78c",
+      "JUnit_derived_from_closed_JSON": true
+    },
+    "green-r1": {
+      "passed": 59,
+      "failed": 0,
+      "not_selected": 0,
+      "suites": 2,
+      "exit_code": 0,
+      "wrapper_qualified": true,
+      "resource_and_source_closure": true,
+      "wall_seconds": 2.464,
+      "peak_rss_bytes": 443953152,
+      "fixed_count": 625,
+      "actual_mobile_imports": 47,
+      "wrapper_receipt_sha256": "6cb2affa88cc40f6470a44cb7f2ae400636e586c90084e97d2300bcc67a4d78d",
+      "jest_json_sha256": "402539f5782f5af06ff329e68483e00ef0ec811990bae0974e8191cf1811ba5a",
+      "JUnit_derived_from_closed_JSON": true,
+      "limits": "Deux fichiers complets seulement ; pas de full mobile/TSC/lint exécuté sur ce gel."
+    }
+  },
+  "production_exact_branch_only": true,
+  "mobile613_before_after_checked": true,
+  "only3_changed": [
+    "OPSYS-AI/mobile/src/fichiers/envoiOrchestrateur.test.ts",
+    "OPSYS-AI/mobile/src/outbox/vidangeur.ts",
+    "OPSYS-AI/mobile/src/outbox/vidangeur.test.ts"
+  ],
+  "Core4_unchanged": {
+    "OPSYS-AI/core/src/gateway/opsys-sms-host-authority.ts": "9cdcdf22a05575e38c63d4d490efcb5723075a48729cc15db870f7e69804dc0a",
+    "OPSYS-AI/core/src/gateway/opsys-sms-host-claim-adapter.ts": "983f6cee0e3d3465df9c4bbeefdb9de429bccdacad2cbeec770d7d1f609a198b",
+    "OPSYS-AI/core/src/gateway/server-channels.ts": "f49c3bbf316407611c81db59af476b435cecb2fb01179801b0ca8821f46a6fae",
+    "OPSYS-AI/core/src/infra/opsys-sms-task-runtime.ts": "9229118aaa7e9435084de7d87f48137f3e8ba8331afba48e99641b82bc361233"
+  },
+  "ROOT_lease_sha256": "4d93db71c0a50e600e7965db5259b267cf08c48022fa52e21e95fecdf6bccd6e",
+  "primary_addendum_sha256": "fd9c84c42aa16cd2b26f349a9998754f337ba62d05a2fb41a11550deea0bf64d",
+  "final_protocol_sha256": "ada82bed58bbf2ef8d70f791de92f9d784c116b02771420159ab543371edf03a",
+  "final_phases_executed": 0,
+  "limits": [
+    "two injectable owners; production singleton reachability not asserted",
+    "network/digest/bytes fictitious",
+    "node:sqlite real file/reopen same process only",
+    "no inherited historical14 fullgreen",
+    "no Expo/Native/phone/server/multiprocess/exactlyonce claim",
+    "no Source outside3; SourceCore4 unchanged; no Git/deps/model/PC1"
+  ]
+}

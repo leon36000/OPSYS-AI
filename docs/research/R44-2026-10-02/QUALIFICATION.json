@@ -1,0 +1,178 @@
+{
+  "campagnes": [
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-o",
+        "addopts=",
+        "-p",
+        "no:cacheprovider",
+        "--import-mode=importlib",
+        "departments/m07-marketing/tests",
+        "tests/test_marketing_marque_snapshot.py",
+        "tests/test_console_marketing_marque_usine.py",
+        "tests/test_console_brand.py",
+        "tests/test_console_calendrier_marketing.py",
+        "tests/test_console_metier.py",
+        "tests/test_deploy_install_readiness.py",
+        "tests/test_bootstrap_serveur.py::test_installateur_valide_avant_lancement_et_garde_readiness",
+        "tests/test_bootstrap_serveur.py::test_bootstrap_frais_reference_auth_et_generation_reelle",
+        "--junitxml=/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02.xml"
+      ],
+      "compteurs": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 1172
+      },
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 1172
+      },
+      "debut_utc": "2026-10-02T13:08:48.220694+00:00",
+      "exit_code": 0,
+      "fin_utc": "2026-10-02T13:09:48.591832+00:00",
+      "prefix": "marketing-installation-root-r1-2026-10-02",
+      "receipt_sha256": "c6d0083653b1c80b1dbb305dfc6afae3466aa596186d52c06205f8bc6bbb22df",
+      "sources_count": 1124
+    },
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-B",
+        "-c",
+        "import json,subprocess; from pathlib import Path; r=Path(\"/workspace/OPSYS-AI-recent\"); s=json.loads(Path(\"/workspace/poursuite-opsys-2026-10-02-r1/R44-R45-supplement-root-r1.json\").read_text()); py=[p for p in s if p.endswith(\".py\")]+[\"tests/test_deploy_install_readiness.py\"]; cmds=[[\"/workspace/audit-opsys-2026-09-30/venv/bin/ruff\",\"check\",\"--no-cache\",*py],[\"bash\",\"-n\",\"deploy/install.sh\"],[\"git\",\"diff\",\"--check\",\"--\",*s]]; results=[subprocess.run(c,cwd=r).returncode for c in cmds]; print(json.dumps({\"codes\":results})); raise SystemExit(max(results))"
+      ],
+      "compteurs": null,
+      "counts": null,
+      "debut_utc": "2026-10-02T13:10:45.878489+00:00",
+      "exit_code": 0,
+      "fin_utc": "2026-10-02T13:10:45.942976+00:00",
+      "prefix": "marketing-installation-qualite-root-r1-2026-10-02",
+      "receipt_sha256": "3b75e71e393828b86b1f1722f7273af13678c776726c0ba980284972cd855dee",
+      "sources_count": 1124
+    }
+  ],
+  "compteurs_junit_historique": {
+    "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 1172
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/combined-r1.xml": {
+      "errors": 0,
+      "failures": 2,
+      "skipped": 0,
+      "tests": 15
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/contrats-r2.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 39
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-r1.xml": {
+      "errors": 0,
+      "failures": 5,
+      "skipped": 0,
+      "tests": 1136
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-r2.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 1136
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/http-contrats-r1.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 12
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/http-red-r1.xml": {
+      "errors": 0,
+      "failures": 4,
+      "skipped": 0,
+      "tests": 4
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/nom-vide-red-r1.xml": {
+      "errors": 0,
+      "failures": 2,
+      "skipped": 0,
+      "tests": 2
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reader-green-r1.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 11
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reader-red-r1.xml": {
+      "errors": 1,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 1
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reader-red-r2.xml": {
+      "errors": 0,
+      "failures": 11,
+      "skipped": 0,
+      "tests": 11
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/regressions-r1.xml": {
+      "errors": 0,
+      "failures": 55,
+      "skipped": 0,
+      "tests": 405
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/regressions-r2.xml": {
+      "errors": 3,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 3
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/regressions-r3.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 405
+    },
+    "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reputation-correction-r2.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 5
+    }
+  },
+  "index_sha256": {
+    "MANIFEST.json": "af0c252d4e643b6cde33a8f462add8acaa3f0c0deeeea1a2ff56b7447de6b971",
+    "README.md": "fabf89d4410c6300e8e74eb97f70784479fafafd80a980c69a0781c6dc4cd318",
+    "SOURCES-FINALES.json": "e4979a696cfc08a6e71477120aaa906c0771f297d8a7061b049e3b2827e0a8e5"
+  },
+  "limites": "R44a : profil canonique → usine existante, preuve de marque et fraîcheur console/service, révision explicite. ROOT combinée1172=1136M7+36R45 disjoints ; 39 nouveaux cas inclus1136. Aucun total entre campagnes. ROOT1124 sources stables ; contrôle courant limité aux11 capsules R44. Premier complet local1131P5F fixture import interne ; correction import direct sans changer35 assertions. Rouges de collecte et métier préservés ; anciens résultats non réattribués au gel. SQLite/HTTP TestClient réels, WCT/personnes/marque fictifs ; pas PG atomique, OAuth/publication, modèle ou VPS. MCP générique peut rejouer un reçu historique avant service ; fraîcheur universelle non prouvée. R44b édition humaine des textes reste distincte. Collecteur sans test/service ; publication ROOT après revue.",
+  "schema": "opsys.r44-qualification/v1",
+  "services_lances_par_collecteur": false,
+  "sources": {
+    "departments/m07-marketing/src/m7_marketing/brand/registre.py": "f62bae289358888d1e3e11c73b1f45c31239c4aa6f960d75f085a6396a60be23",
+    "departments/m07-marketing/src/m7_marketing/usine/chantier.py": "1403470af6629d57ba6c6c200db2829a266680457c3f3a639a3b6ff5b0a9313e",
+    "departments/m07-marketing/src/m7_marketing/usine/registre.py": "7bd3067afa2ae86582417c2f5bc411d534c473dae2c0dd9f68c2ae419887ac3a",
+    "departments/m07-marketing/src/m7_marketing/usine/service.py": "ab3eaef1446643560a17ed8be851a6b771661fe884689f6829c95934767e3f25",
+    "departments/m07-marketing/tests/reputation/test_inbox_durable.py": "825f3cb85cc1dcf24659e5836442ff92d3aa6d66a179cfa1b0a9496240f38c8b",
+    "docs/grs/marketing/M7-MARQUE-USINE-R44A.md": "446da30bbad14a6c609730c771345f324ec7d2a0b07d2c903e97a95366d7f331",
+    "src/opsys/console/brand_ui.py": "8e62b2aa95139d766556d00f5e3ae836694e0ad220d0a1f89cde03f8433f34e8",
+    "src/opsys/console/calendrier_marketing_ui.py": "8d495d4542d5044d228059733101ce46fd4e74c6eeabe4b8c628f40ed8e4fcf9",
+    "src/opsys/console/metier.py": "fc35dd4d04f0cc14a92f764695f5f86bcbd569fc7a48743d28791621e8f6d9bc",
+    "tests/test_console_marketing_marque_usine.py": "db24519accc8a429f814db6acfeb9ad0ba0244529301e925c3c418f8c2c08750",
+    "tests/test_marketing_marque_snapshot.py": "8fc99361811fd163fa2e549985b70a4b81e838464663e49aa91e7d925a2ab7d0"
+  },
+  "tests_lances_par_collecteur": false
+}

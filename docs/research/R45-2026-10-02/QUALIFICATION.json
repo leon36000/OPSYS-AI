@@ -1,0 +1,368 @@
+{
+  "autres_cas_contexte_m7_r44": 1136,
+  "docker_lance_par_archivage": false,
+  "erreurs": [],
+  "historique_r38_fichiers_sha256": {
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/MANIFEST.json": "c658a4f7e6e0102ba9803f131cc186b9fa081ae43dccd4f5379e629bbb0ce318",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/POST-CHECK.json": "ef056acb5f860351ba5bca78e038793f9f8aa9b4a6c13b1b80574116c99df5ea",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/QUALIFICATION.json": "010bea9794d3a4f1dcd0fbb7b126be149c848b5fe5c4ff36d412ae5e5262a88f",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/README.md": "6544e99cff6421045ba66ae4b1dd4938726e9a6c8b9b4e064903331a1b2fecf1",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/SOURCES-FINALES.json": "51a5bba457510f28cf25d084d5ad235562ad8d50f65f7c8a6c9b46a470acd97b",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/doc-historique/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--preimages--docs--ops--EXPLOITATION.md--15f93d15f0564e908cd6e8810f95a79bc23779c078b35a41b3804e9deeec4ffc.gz": "b91f80729f5217bf0925b53039243de909de551ea9e7a1af7c0effe02903b883",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/OPSYS-AI-recent--docs--research--R34-2026-10-02--MANIFEST.json--c30a12ef175141d9e6a32b317cb8f5878291dcf34dc2da8e3beb2acafa592215.gz": "274868ccf6a86ce62684a4b09562c851ca1fbc2235409773c9fcd0d87dd3e41f",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/OPSYS-AI-recent--docs--research--R34-2026-10-02--POST-CHECK.json--9193a83f526289f0a30df83c0a4418899efe5a226087ced2b5a9f9ebbbe17f25.gz": "935d99d85badab04d8d7a06d3e31f223322c6c6dc2f31b327ee3bd1750b816d4",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/OPSYS-AI-recent--docs--research--R34-2026-10-02--QUALIFICATION.json--510005dbaf9e4b712c936c188cc80c73f7d55a2c451436edc737bcdae26cb557.gz": "bb3bb1ecca9e855208e8447a9090e9be3a34baf274ca70a518ada03e7089ac59",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/OPSYS-AI-recent--docs--research--R34-2026-10-02--README.md--9a674a278596f9d80ed58022883ad5092ad9a357910377555d1ccff569c624b3.gz": "194fda85d66d4435316521ff4b39ec4f8277ad455eb0041976e1717d95d522ae",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/OPSYS-AI-recent--docs--research--R34-2026-10-02--SOURCES-FINALES.json--a6f9bcf83d19bd357a9e8a6ae6fc73dfaa86c2d964871246b466d883ea542fae.gz": "ea43ce034f5c13ad54f5a187372a2c2a5e78dc4998c6810d140950e41bcaf598",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R34-preparation--SCELLEMENT-ROOT-r2.json--ac384484b089c1f9447d4e027fab23db5f9e703ecff1ef0c61cdc96a11508512.gz": "db697413d0395d37b80dec2a588e3bfb06aad4202f71e93cd9096a942f1d4304",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--EXPLOITATION.md-delta-r1.patch--1624573bf6801aa2dcf74c0a3e03e58c7368adb95be7771931dbb242cb5d3bd3.gz": "4a96b908594945761a41efa3927e56c2234884cb2060972aa1032926ddeeef28",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--INVENTAIRE-r1.json--f793a0f960fdd7497fad10fcbb398b875909967ad197d9ba9c68a357f0ea85eb.gz": "8229b5cc3b45578177b224154d47b3b9638d7db619d361d3c6792d298e33d5f8",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--PREIMAGES-r1.json--c2787ab8cd791f9a949452cbf8edd9023821802ba6620452356128927eed46a2.gz": "0379d092638cdcb8388f00f76cbf656612deba0954ede6cc348cd76d388266f9",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--PREPARATION-ERREUR-r1.json--36e528794025c09e6338b02dd63739d3aa388099a6fc0025d1d9939603028911.gz": "a8e0a508eecc085cc333fee0e4ea8df2cae7a5fd4cd240b829f0030ca53c50c5",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--SECRETS-CONTROLE-r1.json--59d6d077864e9e6ce01e00141fa14f4d0235eb3a849b9747dc119ed0c4ec3078.gz": "8a30f818c292ce15e3320deae5b7a0c92dc1a06bfeefa2f85093fe723bf53dfc",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--SOURCES-FINALES-r1.json--66dbcd59a10c62e8541b7ab4d12c45f216b3d86bf8563993734f5b62acf4affa.gz": "7cd5147e3a3a83ebf01ce50c9b618c7c81d95f00a015aad3fe272c419ccf3708",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--preimages--deploy--restore.sh--a5259f3ae047ce32ad1a4513ff08aad46515d71d95e0e545c0a21b608395e126.gz": "c05d2a902e711b2a9be3d87555dbc206236edd1bdd3e8f32d7444adb1fd970a9",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--preimages--docs--ops--EXPLOITATION.md--77948b52700e8d8d1c408659e741be5a7c703126845a3d6c422527b6c6f12b2e.gz": "e1d0de2d1f0f344b99b9908c07504df8af8e9a0d336bd49c7ce2bc340dc4272a",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--preimages--tests--test_deploy_backup_restore.py--be96641cde6a58e10a12108127f8d6792c400f4148966c86bac1929de01cc6aa.gz": "cf94d51d01d05e7f561f55888f4c2b79dcce9a74b08123d82b6661bcc55e8605",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--qualite-r1-resultat.json--880ce63ac5bac31c16691575e883a0278153252a0e966d714b44b19e40e360ac.gz": "a6c7a5325a6b7ce41f5d15fdc485ccff2e795e1df7d234de4edf6c0efe13541f",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--qualite-r1.log--a8f7c4ef16c7ecb31793127c27bb0ad86c2bcc9e7f7c5226c68d461201404b33.gz": "744a0f8c0b8d426fb9d2f7fd4162f7b3403923b8f021992bc5443044a32fde33",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--rapport-r1.md--c3baabba4c5b1c90f13060c2994eb4c392823e9ab0d7c56edb57be4a9d10f726.gz": "0f082f656490b85cca85bdbd1bbedd372889b8bdb9245ac1f9a6f64586a10dcf",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-green-r1-resultat.json--df99bb4b49f7b3a0a5ac20eb21b082c2ba8d2a210e7b957150d6d8ada6b6f4d1.gz": "471d3a9d83fd6b738ec599ce6cd081ff7094b67b169b2042a7c88d6dd6193375",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-green-r1.log--d48b933c8899b4be035ad15ca4c175a2c43d23f7f8094c3dbef9f11997fd45c4.gz": "0befdcaff51c48b607d053b809fea38d4539af452eb2187dd1a1a64ed870c039",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-green-r1.xml--e1f94b9a69fe490733dcdba3c904e13a441aefde855e0433b931760344e547e9.gz": "9d939fff67ae30531c866ed1c18315949e1d56fa3682f149d6af9829c3c173d4",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-melange-red-r2-resultat.json--ac9d26227ddf123b4ff9f40cbe96c1b4fe0008d9b3d3bd52a1de2fc2f7799fe5.gz": "2f4874a9f60d7c61da4f2260512b199ce921af9c7c0c887e56e54ee0b9858718",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-melange-red-r2.log--72a0975a0f72235e8413f3d44fff8468904f38d5b59ba5302dd9c30485efb5c0.gz": "1aea3d70897c75f257c0befab6d143e28aa047573427999d83b5a3747d92870f",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-melange-red-r2.xml--d2e691e0eef15fc9b98f87fd94838ec427a18f8a3c9a3b0f3b90622b18320074.gz": "2015e57e9353644f67883d9e436e0af5c276088bdfeb0c753c0f68618b1f2e46",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-red-r1-resultat.json--75002435c7e1e611ea52966bfc24c51530cd4f72c63ee1e3ba3f6ff9383a15b9.gz": "bd6b506ff524f01bd392ab60c85e5504103c8c6f2cba0994f1929d961f8ebbfa",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-red-r1.log--448e832719cb94c35054f5771b397ec9c05a774ace8f2b667f5c166081967f89.gz": "c0fa4cd0103eac7a7497df638cc37dac0727f45ae5d0156c81db3050535ded66",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore-pgdata-red-r1.xml--c4b53e22affcdcbcce723618ea19a758f0b743a2c4bca9cbf1d7b316956b542e.gz": "acf9613863c1c8051eef88f00592e24386574361f8cc1930df9e0ec0deeae5e2",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--restore.sh-delta-r1.patch--90a9bcb1e1116ed788a0ca25ca350386469fa610fe86b4f9f5407eb0fd9d6273.gz": "fd5556c15a071872132f3ba449c696b598b3fdff3b196e4164209e4b804da732",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R36-postgres-physique--test_deploy_backup_restore.py-delta-r1.patch--cf457af1f85e1d68df53337307818f9124365c4fa2bc16fe09e129a1e0e54d54.gz": "0afb7daa94d4d724c404aba398ccaff28e83bbbaaacebbc83027faa17527dc2c",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--PREFLIGHT-CREATE-r1.json--3ea4f9893b379dbd27eb3947d3b2f45eeef0831e10d6a81691f7d3e7d4a34795.gz": "92bda4fb961cc21ba79eac46bc61df9c0b5e7083776c0d587b07717252f97cf9",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--RESULTAT-r1.json--2ca9f4e2cc4e42956728993c14483c4db38cc4e430bad6996406550a5624757b.gz": "a849e5f9b55cde75187b49705fb38407fe1f7d98bbe488640d5bfebefef19f1b",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--commands-r1.jsonl--a75d0c42d53b42ab1c60ec73a542a4d85f777ada0394f764f324dd62c27a6651.gz": "8d4f5834cf13a51826a3ba8815b0f389f25125cef60875c7f9b0cac1346f477c",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--COMPOSE-CONTRATS-REELS-r1.json--4ce486f7a533e5b93299d8622a44e7df8d6ce9378f0a05f5fd5b8d25a784ea54.gz": "41bf544eaf80ad9276f94bd8c0eb4dcde46f9b634a2d949560105ababb16654a",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--INVENTAIRE-source-r3.json--afbd856b435f289cfd128d742dcdba83c9733c1018c81d88b00f76ed5038a2e1.gz": "99de70531ee483d4d3395e32c870ad672d5356960e05ec17a7c2ef89b4145bae",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--PREIMAGES-r3.json--ef82bf13efea170f1c826bb2b9b0a2028952f96858a28cf67d30f90b27114da1.gz": "dcb96a5416089ac9ab23cd3f71edd16e27e14401d275ad9ce51933c42b48c028",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--QUALITE-r3.json--4eaa30d257905ff8ce8fd10458f03c766094127b2926c493380fb5db82f37a8d.gz": "e0bb75fb803e6c6869ddf57eb1aba823ec310afac9b0645d8a8b2e51f2fc6faa",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--RUFF-final-r4.json--a2f92d77e358ca1ac16ff434f05c840669846832d99a4fc158b483f1ee5ffbea.gz": "0380b21b727d725da367f0740299c96d7441f7ea1a1981b035cc50e0372087d6",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--SOURCES-GELEES-r4.json--c567952a37483123c4b39ccafa3eb567dfd3a36e15bdeff965be20a9177a2a8d.gz": "a6c8d69a9105fee238724766452d31b749a612a5dc83621420ddd7078ab9124f",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--backup.sh-delta-r3.patch--204a4ec5c2321c3de78daf248c002f822d214bcf2623f252dab4cab729331b28.gz": "2d3917eb02c7a0e1d2b942975e173375d8927c59c8f4985165bebe04dd249497",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--preimages--deploy--backup.sh--0cee00f4f2f1d36f2f747cfad02a3a3746ffe4dffb580b1411b31b229f21a0c2.gz": "49e661f72d5688d9390eb9f4e383476b19c9811aeb4f64c6b773d3d113354d7d",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--preimages--deploy--restore.sh--6c9ae0ced1f8769c4250818a878a5212280e41943db14d12fc1522220df7c9ae.gz": "90adc0ca1419904eed8275044fc5d810ef9617392c6ced2f9eb6662099da762b",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--preimages--tests--test_deploy_backup_restore.py--9bff574941e9b50a21ae3a40a1a50099982a6a54a0b9b788ef9ee5981da00fe5.gz": "8b34fd2d7477fa144c89649be436ed58794c3d16192651000bfa43b4c7b6a981",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--rapport-source-r3.md--fc8dadb545b5cee4e6bd4d894eac60c95f80cfc3b1dcdf06ee858bc61e71ef8f.gz": "9094d4491bd60a80ccae6ad1e2558f3deee7185c357662a8be76736fc8723636",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--restore.sh-delta-r3.patch--c6f3a3e6b52d30b5cb67b6c7b892d76366ac53c8df2070a0e6427ec797fb92f5.gz": "d84444b29add5478e1e86e93f239e0700585d2da80bc6ed44e1885638a9aa519",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-final-r4-resultat.json--5ea30cf1a10fd58b02d8880ca74013f90277d930a585b8d2ce4fda8618baf287.gz": "59507f35c9fe544c8e22e86957d80ce9a64787fad8fa3a58080bd14b1310f012",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-final-r4.log--d68463e4457d232708e06f22dc9ec932fea3a1872e8d9b2c8ebbf17a6674cb2d.gz": "6eae88f370a25832bedf1b8bf896280e456fe42fdbe5f3b6f9e08b427b274ff2",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-final-r4.xml--0a2e2a3f7e25e534295d6357cf41e96ec836684c63263286913bec20bc25dcbc.gz": "113e0c4c4c3b65642ea917245a97fa40711f8f9f9f45a4967bc4a492a12f7e0e",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-r3-resultat.json--2727b20c12b033ae2fef13fa45db2813a0072353550442a33a51007ca4ed392e.gz": "88c764cd54add112baf104039f49639c74b7443a5182758857be6cba85bbbbf5",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-r3.log--ea392e153a398396b94234d3e587cb0ba0fae7ba341d5ab4f1559d270a4b8ecb.gz": "50c48e70fb70b9d126a7516d358cc2333a4c456e0861abc585530b7e9b1fcfaf",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-green-r3.xml--70963478ab74626b832585a58baf4927168cc46d73a67221ec83e5ef890a014d.gz": "47520cede810664f1c16dd94deaf1d1e6809dcbf1c01a0a8344f136c240e677a",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-red-r3-resultat.json--816c7dc4119ddc15ecdef21a8d7283fc86472e817853eb2da1009725dacfc8c9.gz": "7c99a46da687823c1250bfe41a63d956fe9e2d2af312deb8721165b0f2579d54",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-red-r3.log--82381ea125dc56adae24d46c3ad276848ac0e4479663a09ce6bea97d317a0620.gz": "3fe15e1075ab89b3986f7f4fd927c5acdd34cf58655cf968d15b18223725409b",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--source-compose-red-r3.xml--d317f26cc994c14180b96c9c468cc1de21b22b08e1d7e7085dffc0eb2ab866b2.gz": "2c0566376b7f8dfa3bd81eb4008a6223d8120df02fbd818a46e86085c188531d",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--test_deploy_backup_restore.py-delta-r3.patch--6a0927b17b5086f5f3ede3d5329ff4b35317bc8aa9c16f416162116f5c6e450a.gz": "08ef93f07350f1e75b79177c048407e503dd7f434bbd256d478e4f138285fb34",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--docker-compose.yml--d0fdb66b085fa347ee3c025f6ad846e4639b40927ffd7fa99d2bcae486a02688.gz": "da6579afb6d5df0bd3a49571986a35533d4c8698f83fed93d705aa0bfbc25750",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--ENTREES-ARCHIVE-R38-r1.json--d8e41d3e65d96c87965198ccf4030f502c46aef91a8fbe6dbccd3c5774a83eaa.gz": "b84e1309f34cc8bb061f459b51e57a73bdd9123ce16deeb49ddd10a04470b96a",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--EXPLOITATION-derive-observee-r1.patch--1bcc3a64ec54d8497284e1d2deae4a16edf981bbf6b0b858a3117be7d1853560.gz": "39f68236d687f949a1e52ed6b4d0ff7bfcb5ffd05602174a4a893879d12870a7",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--PREFLIGHT-RED-r1.json--588d39960be792780ef07d5ad1150b307e3a90514dd32c3c69a7391fd0ad4bd8.gz": "3b4c9020390dfb07fe701717c6a826b38498914284c095d0bcf487ed8d24468b",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--PREFLIGHT-RED-r1.log--3f208dd09e8ec974fd08c1fe1f7f250471151e37c734ca0382f3fea427792417.gz": "69eed1a71e84c58c3c6703fb027928db71e28bd619362f08bbd90a27711ee0bb",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--archiver-r38-r1.py--8177e94c98ddcbd479bef2d73499ea682c8bb1dd247f862d6fb5478a5db9756f.gz": "096bff9cd448a52897aa395485e2c5d0946bc67ac2325ff90df25d95a3507c21",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r2--CONTEXTE-HISTORIQUE-r2.md--f77a16e68ccb903e0fa0d5445054aa1192bba4296a1dce345e83c94277922490.gz": "622794361d63f12656bf266e231b01ad2df977dc4d294842c16a1c7209f39003",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r2--ENTREES-ARCHIVE-R38-r2.json--c9a58f8e9f371e299b7d2c3495556bd6127bc633687bd6debba3ea2ba5d24e9a.gz": "7e5b03b368f5e799c2ac31acef1f7d48378622cdc7c0f7fa2c289e2425ca73b5",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r2--archiver-r38-r2.py--a3dad6bc6c8afc9103eccd6609774ac1dc248ae4ba9652c2680e57bfc5a54e0b.gz": "86deabdf80f41c0ca5870c0d020e9cb3921f1847c21c558fa9f8285528a0aee2",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--qualifier-r38-r1.py--e72956746363a36d28b475462a227f03d0424b73fd561f19abf42c228b010b14.gz": "322b3d761d190021ba228cbb74818a7b18e7f0f5f7a1615b8d19ff2aaa55eab4",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--PREFLIGHT-SOURCES-r2.json--3c23674630303b42361a3ff9809b97dd2970cb5793517e004da3b1d83bfee258.gz": "fdb79b4fa6a01652704341dd00b8a97c41148193e93295f364e2765a45781596",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--RESULTAT-r2.json--90e48efba1eeb714ef1d7afdbe248974033118365546065815a5b83c7ee8c3d7.gz": "2f04626589350101b8943e1f83f872d628c7552b3bf05cb95060b790f190250a",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--adapter-r2.jsonl--660524f6eda4435e0ea89ca44bcbae5197232f318c3c064b42903d742fb04c43.gz": "fa99f8af6f4af10a61a9bb34e4af6a7df7865283b4111091a452d5b94e4aa617",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--backup.sh-1790940266108049984.log--c83924533f9655795e439471eb5b80279f3809e802efb9c20c4a21da96c4fdb2.gz": "8980cc4eb996a14b39a714ed4ed0d111da86e027f9c4ae148fb038007e54fe84",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--commands-r2.jsonl--df9ca69dd8c096b6b79ceba6d833708164a86236af366f1ee539181cbf44c0fe.gz": "6e678304525efce33cc50968d24fd92c6ee80ba9970f78df4d54fb49f04f5703",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--delta-harnais-r2.patch--0b8dd8476923facd41b64d8bc019c92e9e985b3c5b6a49f733039a317c7e6b8e.gz": "efc144dbe1556f3eebdf3fc478814dd63f88c616a32ecf3a89af8376302182ed",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--docker-compose.yml--1f13defeb8465d06bec1c667e85f0ef1f64c915a1f175cd7cc6f7a13431fe6e1.gz": "0b447c3cf301716982cec788b02225cff17a011b046fdee82a7b55fc5965c88d",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--qualifier-r38-r2.py--e2042f16fb13e1655a0dda643ea284bf492948aaa1043026c924af4fa5362e1d.gz": "ffb0f7625747fd942541fd13c3375dc8a6c7266b3a238661b6195d527aab8c09",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--CONTROLE-APRES-r3.json--87aec8a7ee8f06d61eac6f65cfb6ff68d4b1a1c29cce4eb583257b04f73be537.gz": "0270c9e806d0787a9b0ca792e2c9e70a3df0b46a4ae4ef7b109d58d0264ca813",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--PREFLIGHT-HARNAIS-r3.json--5c21165b6e98bcb1c17138b678bfa2ea3cba94d0ba4cb8fa699d8f2d89a3f4f6.gz": "8b75e0078dc688f0862faa43aab26b12f7ab91190a28d3346497f3f12bd16bdd",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--PREFLIGHT-SOURCES-r3.json--3399d368ca6edcf0706c0c871f7e82debc3732d8159ec5be61c5f06ae6ccfe4c.gz": "504d936d6802a9ff978568aa23ceec9c953862aa630ddb6bd9ecdfb15648e725",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--RESSOURCES-r3.jsonl--4700c6cdd704f0e66875c9aad8a8e09ddd18f742488fca4b57518614124d1795.gz": "fe88dae86bf0a36a18dfc986487b7d1d268aa4ee79792d2a2865d7720f2cdd73",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--RESULTAT-r3.json--0b7690536b06d7c4468b26f792cc1db9ce88a9b52fc809ea7aae7c77d0d8ee1f.gz": "7ed9bf11a66588ab0ec690236d7d920e099550d49d37fd65f093d8bfc12d6ff9",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--VERIFICATION-ROOT-r1.json--7a0a095d434d9249dc1ade87120dd5fde791bba1549492c8344ebc8af14adbda.gz": "240232a910c6d8809834dce75b93fc4e0a183156a43cd94fd53edacf636113de",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--VERIFICATION-SAUVEGARDES-RAM-r3.json--3efe16155b109cdf5ad296a172a60bca7608c3ff03275f5d5880fc024f458dc5.gz": "1e93362d84338473f1d62dcaaca92c5b1b4f1314487cd343dc8c5bc078d00d3d",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--adapter-r3.jsonl--a9bb7cd935359540e347d11787b97431853a0187b0cba635afb95529fd8a1234.gz": "9a5dadc4d5fd511052873255455f55864f4c1079f7b15996d76a157619d4143c",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--backup.sh-1790941997565604948.log--70c3ee775744b9d7f4e5f7b7cc2055707658afc97c30b65757378085ebee2465.gz": "0a43700cc10a2717237bb264a78103476e1637ebf66fa20089985b09b8127caa",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--backup.sh-1790942031258049109.log--63bcee7d2c71023392b7575da50e269c7f2c6e527c3e54a10590f81f90422b35.gz": "97d09cabf83e1427befe3d56f22ea87a08e260c4a0e5b760cfc49d7dbf0df2ea",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--commands-r3.jsonl--869dec1830808ae65c4755afd0d00cd8799a8ad17385d06ebc354b53e812597d.gz": "e65392c2e6400aabff01cf641460b909b55f45278c69c08f95603ee030cd5e98",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--delta-harnais-r3.patch--9e29d958128c328612650e229610c7a8b0849d48d612656d292b8e983186c3fa.gz": "f46efc7f9e31716d1fe40b272d39bfeae06196970a11f8038cd92aba6fcf55dc",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--docker-compose.yml--ea99b7463b193555dc69704ccbf09e9499e4a474e120c7a3a198d756e66b99a5.gz": "653cea172a008c486659fc2b50710eeae1253a1317018f2cff587d4ad414afe1",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--qualifier-r38-r3.py--0190158c77293c4359c3c602b96bb6503f01c2638fcfec4f9b4805927f05fbf6.gz": "ca2d8acf841bf2d2ba3009ac6151fe471303f02c955242a0e8c09556ee51525d",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--restore.sh-1790941998449352070.log--e268d730e126957f8cd0c874c0a03c3d45e3a8a9ddd02c65db94510acd3badc4.gz": "56816f2bf7a24dacd75fdf9e0fd47f84140e9036858469fe9290515250993acb",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--restore.sh-1790942016448481509.log--804a8b013edee1e37395c73b1fa4d5bfc0fb6de51122c87ede817e1ad4d3e800.gz": "45cf0250b530c5347ef0ef6984f077c4201f475f29a7f505f79ececc7ed7924b",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--restore.sh-1790942050304901683.log--2b54150b06721260bb26c4fd26d8ee64d4f35a1dd1e32395f4894838fe7ca3b6.gz": "b11bb747b86d73009294720ca6bf1cae08ed5450dbf81e26fe64b51cabb01aed",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--rapport-r38-r3.md--bbaf4a0e18d1cbe165db864c6cde18eefb2d8173bbc7185b702d05c3b735c919.gz": "ae3c1cbd677342a593abdc7959e9d8f66d00126048c9218d684d901afcc6607e",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/poursuite-opsys-2026-10-02-r1--calibration-r27--archiver-r27-r1.py--c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b.gz": "7d09d0e5e5b79550b1464666e8a42a43125be8e52aced766e9ef8e6d307f1d2b",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--archiver-r30-r1.py--5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5.gz": "fbab2810f80f547ad85eba7f483cbf68dc245ffecd35c725a0dd5e40fd690ed6",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/poursuite-opsys-2026-10-02-r1--memoire-r25--archiver-r25-r1.py--d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213.gz": "9f67ca4ae89f2a37134cbf335c16b1d33507c8a0957546120dbb9803610294c5",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/poursuite-opsys-2026-10-02-r1--memoire-r26--archiver-r26-r1.py--066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4.gz": "a66e0e0bfd3187e241d5aec25a491d3b6e769d1d866c1f7ddfd001974c0afb9c",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-qualite-root-r4-2026-10-02-apres.json--7d848476cb468c0826cfd13e4852ebd7726bf8e364fb9eb7e4b58f8c894514de.gz": "07c489b18bad3d57233c82e0bf593fdfa5014ae7b90ee6ddfb5bc73acd349ca4",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-qualite-root-r4-2026-10-02-avant.json--56d66457f75872b4e2cea5a7eab87555a5e3853026ee57b3590b476485439596.gz": "f67c7061d3477795bdde0353633f6625e482ba2270a82ce61f3579f00205b02c",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-qualite-root-r4-2026-10-02-resultat.json--1c3955c38271e8c37a5d42950494131eadc8d4b4b694a6c1b3a2c57752617ac3.gz": "916fcc8262c3c8d17cc7244726d0c41334fb928a9b6f8c535a2b94c7635db773",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-qualite-root-r4-2026-10-02.log--82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02-apres.json--0b668c70c6703dea1e3fc224778eb49cec141f2c843c5143db3178485d3e42ba.gz": "2dab16923c62cf1c73ba3d30d4c63677cb4bb1b8df66619424954168ecb82787",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02-avant.json--61b1582be52844aec80fa218f8bcb181e52e927475629b231c8c836c85ee60ac.gz": "c11e70f0004d3615f0e90e6d423930a2cfbacdbab2e409d257c44fd70dea6ede",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02-resultat.json--70cc1c821eabfe55248d8a14eeb17aabe01f4cad4a8a82b9ba4d717575e3acac.gz": "f45d0470d6689da884b2d1a2c5aea1b7ee0016443713453d1c4db1b7f643c155",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02.log--9bf95a7465101b916311c2e4cdeea3a2e43fbbe8678cdcc2a2f1fcc08e0c6814.gz": "b39cce669184a57a69170db903e5b0b4c4e0e57e105afd655e0c1ab0887d3696",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02.xml--b46b317fb74c0155d73d536f7ad07d3aa833f724d7dfdbe8a0e92f1cd92f5547.gz": "55365b478bd84200767f6ea5e75d68f7fbb23baf094b80f0eb83fc6e731925dc",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-qualite-root-r1-2026-10-02-apres.json--6bef4d6e44b76ca2761482c52e3c252369968080d5f407496540d217efa646b0.gz": "556237150a18648ce56f387bd0e627bc20d4182e2c03eb3021eccb9e7be4cb49",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-qualite-root-r1-2026-10-02-avant.json--9115a4b977c9068e1f041c888bee1ed04a4a6500a913f3d0c71ec89f6146e230.gz": "153f85725494f72cc64074e41022edfd32c91818aaf398f4df17bf816970e8cb",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-qualite-root-r1-2026-10-02-resultat.json--1663bd27bbb873d15418205d849cd201d4760eaa88cf6c0eddc2c9bef8c57282.gz": "b0e868adb5e0da97bf3dca17e475f8720601c7b1e0a9d75ff5e0ed2ac0a4547a",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-qualite-root-r1-2026-10-02.log--942fe6b7059113d26932af626de9665f0dfecd7ab4a77abcc661c6247ce90e4a.gz": "cbec7123226398fff5a53345b521601e6c947c636c64f655f4426c9d59e120bc",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-root-r1-2026-10-02-apres.json--78e02543af589325a033d89fe06d4e906d3f3c23480db28ee73814c5f9228f9e.gz": "384c59fc9a38b49f3a776cbb9cb023ba54d3f5228d6f56047b6b4d0db95c1d74",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-root-r1-2026-10-02-avant.json--119291c60f434d746c70989cb6d6a0fabef5beefbbef6fe5bc2c5457f306b0a3.gz": "a93c9a7e6a7c84f6a37f0d7d29acd0bc8160eff62591b17accb27ea6dc184365",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-root-r1-2026-10-02-resultat.json--a5a079672beb07d6575723e1f5485c9d1c97aed1b97e6e8a728a05e7d674f0bf.gz": "6072e453f9c11bdb25db636c5805e8a2858abc9fd8d09c31c054cae541807477",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-root-r1-2026-10-02.log--07c2eef926162e0090994bc913805aa08a8b2cbb5b21d2c933b937a10300713f.gz": "2cc46392769ab2ba07f7f33de7a51ede0313e94a7dbbc0200d5c2cd112d4c421",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/preuves/restructuration-opsys-2026-09-30--preuves--restore-pgdata-root-r1-2026-10-02.xml--730ff67fa26360a0eecc5fb83f3d10962e5968248a10bca683715d5252d7bb47.gz": "fe61dffb3289b49319cc6629f8a0c5be6b525a8dc9ad8ef139bdc786e27aa60b",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/sources-r38/OPSYS-AI-recent--deploy--backup.sh--05a3f04a2184c9ec0b4a81fb10297af1aaed84aeb8060e8a03799a923f3b1edc.gz": "323fa0c8dc853e1a4d7eb8a6e5f8b60d6df2cbdac5060972e7b6fbeedbc83056",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/sources-r38/OPSYS-AI-recent--deploy--restore.sh--28e0282b5432897e66e31c69a72ffdd6c4e501eb921b7e93124020e40e87daf9.gz": "184072973676ef0457f571879a6f3caa7a357765c1480cb6d68685825f2e56b6",
+    "/workspace/OPSYS-AI-recent/docs/research/R38-2026-10-02/sources-r38/OPSYS-AI-recent--tests--test_deploy_backup_restore.py--5e2dde4afa90779d5a9fec85b57af7258267c33eb60e439510f05c18499feaf2.gz": "566e0c0a9714445cabbc1ba491f849bce0f4c3ffcd9d704c1539abc97bb79045"
+  },
+  "identites_r45": [
+    [
+      "tests.test_bootstrap_serveur",
+      "test_bootstrap_frais_reference_auth_et_generation_reelle"
+    ],
+    [
+      "tests.test_bootstrap_serveur",
+      "test_installateur_valide_avant_lancement_et_garde_readiness[0-False-0]"
+    ],
+    [
+      "tests.test_bootstrap_serveur",
+      "test_installateur_valide_avant_lancement_et_garde_readiness[1-False-0]"
+    ],
+    [
+      "tests.test_bootstrap_serveur",
+      "test_installateur_valide_avant_lancement_et_garde_readiness[1-True-1]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_bilan_reussi_et_texte_ne_lancent_pas_commande"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_catalogue_obsolete_ou_cle_litterale_refuse[apiKey-secret-fictif-R45-ne-jamais-afficher]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_catalogue_obsolete_ou_cle_litterale_refuse[baseUrl-http://endpoint-obsolete.example.test/v1]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_catalogue_obsolete_ou_cle_litterale_refuse[models-valeur1]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_configuration_absente_est_attente_explicite_sans_gateway"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_echec_bootstrap_ou_build_reste_refuse[0-1]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_echec_bootstrap_ou_build_reste_refuse[1-0]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_edge_indisponible_ne_devient_pas_attente"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_embeddings_invalides_sont_erreur_et_pas_attente[OPSYS_EMBEDDINGS_TAILLE_LOT-0]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_embeddings_invalides_sont_erreur_et_pas_attente[OPSYS_EMBEDDINGS_URL-file:///config-fictive]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_embeddings_retires_refusent_anciens_fragments"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_erreur_runtime_ne_devient_pas_attente[console]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_erreur_runtime_ne_devient_pas_attente[revision]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_exception_memoire_inattendue_prime_sur_variables_absentes[RuntimeError]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_exception_memoire_inattendue_prime_sur_variables_absentes[ValueError]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_health_obligatoire_ne_termine_pas_avec_succes[healthy-unhealthy]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_health_obligatoire_ne_termine_pas_avec_succes[unhealthy-healthy]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_memoire_perimee_refusee[fichier-absent]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_memoire_perimee_refusee[json-invalide]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_memoire_perimee_refusee[url-changee]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_modele_embeddings_absent_est_configuration_en_attente"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_opsys_non_sain_hors_absence_configuration_est_erreur[0]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_opsys_non_sain_hors_absence_configuration_est_erreur[125]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_opsys_non_sain_hors_absence_configuration_est_erreur[1]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_paliers_absents_avec_schema_et_console_valides_est_attente"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_projection_litellm_reelle_preservee"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_projection_reelle_valide_est_ready[custom]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_projection_reelle_valide_est_ready[ollama]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_reference_secrete_custom_preservee_et_absence_diagnostiquee"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_url_invalide_prime_sur_modele_absent[file:///URL-privee-R45]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_url_invalide_prime_sur_modele_absent[http://[hote-invalide-R45]"
+    ],
+    [
+      "tests.test_deploy_install_readiness",
+      "test_yaml_paliers_malforme_prime_sur_embeddings_absents"
+    ]
+  ],
+  "index_sha256": {
+    "MANIFEST.json": "ded1336947f26a0ee82067b186f3ad8ab6276e0ad913991e2d252a85c00af17f",
+    "README.md": "3592699040e289758d0da31989fe7ef382d264a90aa7b649f5f087d716f03ab2",
+    "SOURCES-FINALES.json": "d73464ad2e2942db76fa2d27bd9d0de49fdf0fbe740ce9fcdf68ef803d648e6e"
+  },
+  "limites": "R45 : 36 IDs uniques verts inclus dans la campagne ROOT combinée1172, zéro échec/erreur/skip, 59,687s ; les1136 autres cas sont du contexte M7/R44. Auteurs et historiques non additionnés. 1124 sources surveillées stables pendant tests et qualité ; clôture actuelle quatre sources R45 seulement. Vraies générations des dix départements, migrations/SQLite/fichiers/Bash ; HTTP/CLI Docker doubles. Préimages, rouges initiaux et rouges revue ROOT conservés, R38 historique immuable. Aucun Docker réel, build, image, modèle/ONNX/fournisseur, port public ou VPS lancé/qualifié. Sandbox base, pile complète, TLS public restent ouverts ; backend embeddings local opt-in ou distant déclaré. Surfaces R41 non éditées. qa-*/.env/base/workspaces exclus. Aucun secret réel fournisseur inclus.",
+  "modeles_appeles": false,
+  "modules_junit": {
+    "test_ads_intelligence": 14,
+    "test_aeo_artifacts": 6,
+    "test_aeo_rules": 26,
+    "test_approval": 18,
+    "test_attribution": 9,
+    "test_bootstrap_serveur": 4,
+    "test_brand_e2e": 12,
+    "test_brand_growth_local": 1,
+    "test_brand_profil_client": 9,
+    "test_brand_schema": 17,
+    "test_calendrier_durable": 3,
+    "test_campagne_saisonniere": 9,
+    "test_chantier": 38,
+    "test_chantier_social": 25,
+    "test_console_brand": 10,
+    "test_console_calendrier_marketing": 13,
+    "test_console_marketing_marque_usine": 17,
+    "test_console_metier": 8,
+    "test_contenu_public": 16,
+    "test_contract_consumer": 2,
+    "test_contract_provider": 4,
+    "test_contract_sha": 3,
+    "test_controle_texte": 83,
+    "test_demande_avis": 31,
+    "test_deploy_install_readiness": 32,
+    "test_detection": 6,
+    "test_evenements_travaux_termines": 18,
+    "test_factory": 8,
+    "test_fixtures_integrite": 2,
+    "test_floutage": 9,
+    "test_gabarits_plateformes": 35,
+    "test_growth_lecture": 28,
+    "test_image": 11,
+    "test_inbox_durable": 5,
+    "test_lister_demandes_avis": 14,
+    "test_loader": 6,
+    "test_m7_medias": 7,
+    "test_marketing_marque_snapshot": 22,
+    "test_mesure": 50,
+    "test_metrics_knowledge": 10,
+    "test_outils_agent": 28,
+    "test_outils_contenu_public": 15,
+    "test_paquet": 22,
+    "test_performance_campagnes": 15,
+    "test_postiz_adapter": 10,
+    "test_reputation_classifier": 25,
+    "test_reputation_ingestion": 9,
+    "test_reputation_metrics": 24,
+    "test_reputation_response": 19,
+    "test_retrait_du_bus": 21,
+    "test_retrait_registre_decision": 22,
+    "test_roi": 16,
+    "test_rules": 25,
+    "test_seo_audit": 10,
+    "test_service_usine": 93,
+    "test_site_generator": 9,
+    "test_site_guardrail": 43,
+    "test_site_static": 13,
+    "test_utm_contrat_regles": 37,
+    "test_utm_generateur": 27,
+    "test_utm_integration": 12,
+    "test_validation": 36
+  },
+  "pile_complete_qualifiee": false,
+  "qa_privates_inclus": false,
+  "root_campagne_combinee_junit": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 1172
+  },
+  "root_junit_secondes": 59.687,
+  "root_qualite_receipt_sha256": "3b75e71e393828b86b1f1722f7273af13678c776726c0ba980284972cd855dee",
+  "root_r45_inclus_uniques": 36,
+  "sandbox_runtime_qualifie": false,
+  "schema": "opsys.r45-qualification/v1",
+  "sources": {
+    "deploy/install.sh": "bcf912b5d9b9c4f9cb072d28751ac0ca5eaa2ba671eb5b60edd7368a819b5b27",
+    "deploy/readiness.py": "0128b11a9a0ca5b78cc448562afdcae62776e2b7c0a1b46d0df4a87e08123a77",
+    "docs/ops/INSTALLATION-VPS.md": "8916c03fb7d40f5d53eb2ac1d5d39312ee7f1beef8165a760ceff53b8561399f",
+    "tests/test_deploy_install_readiness.py": "cefb8764020a7a365b33533f82c42c8fad94d77f9c72ab9eac6051df33903d34"
+  },
+  "sources_surveillees_campagnes": 1124,
+  "tests_lances_par_archivage": false,
+  "tls_public_qualifie": false,
+  "vps_qualifie": false
+}

@@ -1,0 +1,136 @@
+{
+  "date_toronto": "2026-10-10T02:54:51.251334-04:00",
+  "base": "8470fad8a43906e29ee1fa66033f8ec9c5ef63cd",
+  "product": "PARTIEL",
+  "state": "SOURCE7_INTEGRATED_PRIMARY_LOCAL_VERIFIED_NEW_COMMIT_CI_PENDING",
+  "files": [
+    {
+      "path": "departments/m05-financecore/docs/M5.3-a-CSV-AR.md",
+      "sha256": "bfed981a7c6b2852a3a5cfa3a420063ff17c8c8c2e3823229f58710e6bbbd872",
+      "origin": "Authorized M5 local continuation from immutable8470",
+      "preimage_git_oid": "c4221956dcb3d429ca65746174fd84d4a14500c6",
+      "status": "MODIFIED_LOCAL",
+      "integration": "PRIMARY_LOCAL_VERIFIED_PUBLICATION_PENDING",
+      "verification": [
+        "Docbehavior andcurrent27 proofscopes; old104 excluded proofreferences availabilitynotinferred; allremainingdeepM5capacities open",
+        "Fresh primary69P0skip3warnings; globalRuff0;metier10/242/150;422actualRimports;Source1271unchanged"
+      ],
+      "limits": [
+        "No exact commit CI for M5 yet",
+        "No production/payment/bank/native phone"
+      ],
+      "preimage_sha256": "b60e37243621d7ed1d1fb312573336e446d4de3276cac163141b7352c1ec1165"
+    },
+    {
+      "path": "departments/m05-financecore/src/m5_financecore/reconciliation_bancaire_csv.py",
+      "sha256": "f8569ea765d4c9f89bc64d429a255824c2dfba9f22f8ef099e2bb4ad5f5cd7d4",
+      "origin": "Authorized M5 local continuation from immutable8470",
+      "preimage_git_oid": "3a38f935ccbcacfbf678a7e709838ae50e51636f",
+      "status": "MODIFIED_LOCAL",
+      "integration": "PRIMARY_LOCAL_VERIFIED_PUBLICATION_PENDING",
+      "verification": [
+        "Root pure receipt readback27members;35P included in2474affected;8legacybyteequal",
+        "Fresh primary69P0skip3warnings; globalRuff0;metier10/242/150;422actualRimports;Source1271unchanged"
+      ],
+      "limits": [
+        "No exact commit CI for M5 yet",
+        "No production/payment/bank/native phone"
+      ],
+      "preimage_sha256": "160b19bb7c57a0f6d9e0849c66fab23817b1753d7f5a39a40dcca7e83db9aa57"
+    },
+    {
+      "path": "departments/m05-financecore/tests/test_reconciliation_bancaire_csv.py",
+      "sha256": "9a218e86c5df5539fec76719405bc00a90f4ba6f47b856d4f3ee10ff69902f1e",
+      "origin": "Authorized M5 local continuation from immutable8470",
+      "preimage_git_oid": "6492a2033df81cd88e43b3c9578e10be797c28c0",
+      "status": "MODIFIED_LOCAL",
+      "integration": "PRIMARY_LOCAL_VERIFIED_PUBLICATION_PENDING",
+      "verification": [
+        "Root pure receipt readback27members;35P included in2474affected;8legacybyteequal",
+        "Fresh primary69P0skip3warnings; globalRuff0;metier10/242/150;422actualRimports;Source1271unchanged"
+      ],
+      "limits": [
+        "No exact commit CI for M5 yet",
+        "No production/payment/bank/native phone"
+      ],
+      "preimage_sha256": "65f7f83cd735c3e22f157216dfcd25edfa69e88ba3f85cb40eeef7e783738cd9"
+    },
+    {
+      "path": "src/opsys/console/banque_ui.py",
+      "sha256": "030ec7b4993d41178f1257d3d29f20622838cac1420e7fdf119bb9ec4079968f",
+      "origin": "Authorized M5 local continuation from immutable8470",
+      "preimage_git_oid": "e086bccab3569a0c21f0fcd66d6d1ef3d20d4cf7",
+      "status": "MODIFIED_LOCAL",
+      "integration": "PRIMARY_LOCAL_VERIFIED_PUBLICATION_PENDING",
+      "verification": [
+        "Current27P final console, truelegacyarchive/table49/lateruntimefailure/samekeyretry, supported and unsupportedHTML/legacycells; old2474/26 separate archived scopes",
+        "Fresh primary69P0skip3warnings; globalRuff0;metier10/242/150;422actualRimports;Source1271unchanged"
+      ],
+      "limits": [
+        "No exact commit CI for M5 yet",
+        "No production/payment/bank/native phone"
+      ],
+      "preimage_sha256": "b07bf3a8529f7e74e41bc4a32ed9c0f074b6a9caa5e25cbc3a327148b935a0c1"
+    },
+    {
+      "path": "tests/e2e/test_verticale_affaire_durable.py",
+      "sha256": "d8f0ce84c4fe814c9c6a5ec2f8b0c323aa2a427ff49c245dea794188b16877c5",
+      "origin": "Authorized M5 local continuation from immutable8470",
+      "preimage_git_oid": "c53bf4f6d91377fb22472da1aca8c511a8f1febd",
+      "status": "MODIFIED_LOCAL",
+      "integration": "PRIMARY_LOCAL_VERIFIED_PUBLICATION_PENDING",
+      "verification": [
+        "Root actualJUnit7P and49tables, parent+childPIDFDclosed, sameaffaire689.85/10.00, zeroeffectreplay/revocation",
+        "Fresh primary69P0skip3warnings; globalRuff0;metier10/242/150;422actualRimports;Source1271unchanged"
+      ],
+      "limits": [
+        "No exact commit CI for M5 yet",
+        "No production/payment/bank/native phone"
+      ],
+      "preimage_sha256": "02a69739c0263626d8b8afdfe9c6d393d66f76e70357484cd931a505ce34e53a"
+    },
+    {
+      "path": "tests/fixtures/m5-partiel-legacy-accepte.json",
+      "sha256": "5c66e5d6d0bb76fc818dbcbed3393424fe6000d24e3fabd807f763222bdc4051",
+      "origin": "Actual legacy capture bytes, fictif",
+      "preimage_git_oid": null,
+      "status": "NEW_LOCAL",
+      "integration": "PRIMARY_LOCAL_VERIFIED_PUBLICATION_PENDING",
+      "verification": [
+        "Exact SHA5c66e5d6... copied reallegacycapture, nativeSQLitebytes restored and historicreceipt+archive unchanged",
+        "Fresh primary69P0skip3warnings; globalRuff0;metier10/242/150;422actualRimports;Source1271unchanged"
+      ],
+      "limits": [
+        "No exact commit CI for M5 yet",
+        "No production/payment/bank/native phone"
+      ],
+      "preimage_sha256": null
+    },
+    {
+      "path": "tests/test_console_rapprochement_bancaire.py",
+      "sha256": "842398efde73c2dba688fb4f19d10a32b0e05af667bfe67bba6026cb336e104a",
+      "origin": "Authorized M5 local continuation from immutable8470",
+      "preimage_git_oid": "ed470e3b62f363397a01adc28421d2d7db43b476",
+      "status": "MODIFIED_LOCAL",
+      "integration": "PRIMARY_LOCAL_VERIFIED_PUBLICATION_PENDING",
+      "verification": [
+        "Current27P final console, truelegacyarchive/table49/lateruntimefailure/samekeyretry, supported and unsupportedHTML/legacycells; old2474/26 separate archived scopes",
+        "Fresh primary69P0skip3warnings; globalRuff0;metier10/242/150;422actualRimports;Source1271unchanged"
+      ],
+      "limits": [
+        "No exact commit CI for M5 yet",
+        "No production/payment/bank/native phone"
+      ],
+      "preimage_sha256": "a0abec7ad5953df1c282246949600ec583c8b779d180f0c23a13f5e52b27e5f0"
+    }
+  ],
+  "dispositions": [
+    "Source7 integrated exactly from F18r3 into primaryR; current69P passed; preceding8470CI read lease released; newM5publication and exact CI pending",
+    "104 excluded transfer proofs absent; fullsupplement absent; no absentconversations inferred",
+    "M5.3 remains partial: splits, multiplepartialrows, fees, providerbanks, paymentapplication, currentbalances unimplemented",
+    "2localPGtests skipped Dockeraccess, no PostgreSQLbankingqualification",
+    "InheritedM5documentation historical references retained with availability warning",
+    "NativeT0 preppedonly localmemory threshold; mobileandCore8470qual separate from newM5",
+    "Rootauxstatic-r1 original import supplement overwritten; loss explicit, runlogs/receipts/sourcefixed untouched; currentr2 supplemental pinned, no fabricatedoriginal"
+  ]
+}

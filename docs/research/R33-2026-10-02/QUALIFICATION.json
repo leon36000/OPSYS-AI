@@ -1,0 +1,2088 @@
+{
+  "campagnes": [
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--import-mode=importlib",
+        "tests/test_memoire_autorite.py",
+        "tests/test_memoire_autorite_postgres.py",
+        "tests/test_serveur_mcp_http.py::test_outil_emission_ticket_est_prive_au_catalogue_contexte",
+        "--junitxml=/workspace/restructuration-opsys-2026-09-30/preuves/memoire-autorite-root-r1-2026-10-02.xml"
+      ],
+      "compteurs_lus": {
+        "errors": 0,
+        "failures": 2,
+        "skipped": 0,
+        "tests": 24
+      },
+      "counts": {
+        "errors": 0,
+        "failures": 2,
+        "skipped": 0,
+        "tests": 24
+      },
+      "debut_utc": "2026-10-02T11:03:49.007891+00:00",
+      "exit_code": 1,
+      "fin_utc": "2026-10-02T11:03:56.419453+00:00",
+      "identites": [
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_client_sans_ticket_refuse_avant_recherche",
+          "ordinal_xml": 1
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_ancienne_route_client_ne_devient_pas_globale",
+          "ordinal_xml": 2
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_projection_absente_ne_devient_pas_globale",
+          "ordinal_xml": 3
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_appareil_memoire_reste_ferme",
+          "ordinal_xml": 4
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_global_departement_autorise_conserve_sa_lecture",
+          "ordinal_xml": 5
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_omission_force_le_client_m2_sans_inventer_client_lead",
+          "ordinal_xml": 6
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_autre_client_et_arguments_changes_refusent_avant_embedding",
+          "ordinal_xml": 7
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_reference_client_absente_refuse_sans_ticket",
+          "ordinal_xml": 8
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_retrait_liaison_avant_ou_pendant_lecture_ne_retourne_pas_resultat[False]",
+          "ordinal_xml": 9
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_retrait_liaison_avant_ou_pendant_lecture_ne_retourne_pas_resultat[True]",
+          "ordinal_xml": 10
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_liaison_remplacee_et_classification_modifiee_annulent_ticket",
+          "ordinal_xml": 11
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_ticket_expire_refuse_avant_embedding",
+          "ordinal_xml": 12
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_revalidation_emission_retire_ticket_si_classification_change",
+          "ordinal_xml": 13
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_procedures_globales_seules_bornees_sans_affaire",
+          "ordinal_xml": 14
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_http_ancien_et_v1_refusent_client_sans_ticket_et_issuer_est_prive",
+          "ordinal_xml": 15
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_fragment_relu_borne_et_malforme_refuse",
+          "ordinal_xml": 16
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_generateur_classe_client_session_et_departement_global_explicitement",
+          "ordinal_xml": 17
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_client_exclut_autres_multi_sujets_et_non_etiquetes",
+          "ordinal_xml": 18
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_procedures_seules_ne_servent_aucun_fragment_client_ou_personnel",
+          "ordinal_xml": 19
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_departement_global_conserve_lectures_multi_client_autorisees",
+          "ordinal_xml": 20
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_citation_procedure_admise_reste_liee_a_version_source",
+          "ordinal_xml": 21
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_lecture_reelle_revalide_apres_sql[False]",
+          "ordinal_xml": 22
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_lecture_reelle_revalide_apres_sql[True]",
+          "ordinal_xml": 23
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_outil_emission_ticket_est_prive_au_catalogue_contexte",
+          "ordinal_xml": 24
+        }
+      ],
+      "junit": {
+        "cas_effectifs": 24,
+        "errors": 0.0,
+        "failures": 2.0,
+        "skipped": 0.0,
+        "tests": 24.0,
+        "time": 6.787
+      },
+      "prefix": "memoire-autorite-root-r1-2026-10-02",
+      "qualification": "historique importlib rouge",
+      "receipt_sha256": "4711475448295ca28ae7117e71f581bd2b53b276310c588f2ec8b068c082b9e2",
+      "sources_surveillees": 1115
+    },
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--import-mode=importlib",
+        "tests/test_memoire_autorite.py",
+        "tests/test_memoire_autorite_postgres.py",
+        "tests/test_memoire_outils.py",
+        "tests/test_liaison_cibles.py",
+        "tests/test_agent_cfo_grants.py",
+        "tests/test_serveur_mcp_http.py",
+        "tests/test_openclaw_contexte.py",
+        "tests/test_openclaw_memoire.py",
+        "tests/test_openclaw_profils.py",
+        "--junitxml=/workspace/restructuration-opsys-2026-09-30/preuves/memoire-autorite-integree-root-r2-2026-10-02.xml"
+      ],
+      "compteurs_lus": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 192
+      },
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 192
+      },
+      "debut_utc": "2026-10-02T11:10:10.559808+00:00",
+      "exit_code": 0,
+      "fin_utc": "2026-10-02T11:10:40.221344+00:00",
+      "identites": [
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_client_sans_ticket_refuse_avant_recherche",
+          "ordinal_xml": 1
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_ancienne_route_client_ne_devient_pas_globale",
+          "ordinal_xml": 2
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_projection_absente_ne_devient_pas_globale",
+          "ordinal_xml": 3
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_appareil_memoire_reste_ferme",
+          "ordinal_xml": 4
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_global_departement_autorise_conserve_sa_lecture",
+          "ordinal_xml": 5
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_omission_force_le_client_m2_sans_inventer_client_lead",
+          "ordinal_xml": 6
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_autre_client_et_arguments_changes_refusent_avant_embedding",
+          "ordinal_xml": 7
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_reference_client_absente_refuse_sans_ticket",
+          "ordinal_xml": 8
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_retrait_liaison_avant_ou_pendant_lecture_ne_retourne_pas_resultat[False]",
+          "ordinal_xml": 9
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_retrait_liaison_avant_ou_pendant_lecture_ne_retourne_pas_resultat[True]",
+          "ordinal_xml": 10
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_liaison_remplacee_et_classification_modifiee_annulent_ticket",
+          "ordinal_xml": 11
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_ticket_expire_refuse_avant_embedding",
+          "ordinal_xml": 12
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_revalidation_emission_retire_ticket_si_classification_change",
+          "ordinal_xml": 13
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_procedures_globales_seules_bornees_sans_affaire",
+          "ordinal_xml": 14
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_http_ancien_et_v1_refusent_client_sans_ticket_et_issuer_est_prive",
+          "ordinal_xml": 15
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_fragment_relu_borne_et_malforme_refuse",
+          "ordinal_xml": 16
+        },
+        {
+          "classname": "tests.test_memoire_autorite",
+          "name": "test_generateur_classe_client_session_et_departement_global_explicitement",
+          "ordinal_xml": 17
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_client_exclut_autres_multi_sujets_et_non_etiquetes",
+          "ordinal_xml": 18
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_procedures_seules_ne_servent_aucun_fragment_client_ou_personnel",
+          "ordinal_xml": 19
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_departement_global_conserve_lectures_multi_client_autorisees",
+          "ordinal_xml": 20
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_citation_procedure_admise_reste_liee_a_version_source",
+          "ordinal_xml": 21
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_lecture_reelle_revalide_apres_sql[False]",
+          "ordinal_xml": 22
+        },
+        {
+          "classname": "tests.test_memoire_autorite_postgres",
+          "name": "test_pg_lecture_reelle_revalide_apres_sql[True]",
+          "ordinal_xml": 23
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_sortie_rend_citation_typee_et_signale_troncature_sans_attributs_libres",
+          "ordinal_xml": 24
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_catalogue_trois_outils_avec_autonomie_et_schemas_stricts",
+          "ordinal_xml": 25
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_sans_url_de_base_refus_explicite",
+          "ordinal_xml": 26
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_sans_departement_appelant_refus_explicite",
+          "ordinal_xml": 27
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_base_injoignable_refus_explicite",
+          "ordinal_xml": 28
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_ajouter_puis_rechercher_en_mode_hybride",
+          "ordinal_xml": 29
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_portees_bornees_par_le_manifeste_du_departement_appelant",
+          "ordinal_xml": 30
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_m03_lit_procedures_en_plein_texte_sans_appel_embeddings_et_ne_peut_pas_ecrire",
+          "ordinal_xml": 31
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_citation_m03_borne_json_et_sections_sans_perdre_la_reference",
+          "ordinal_xml": 32
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_departement_appelant_fixe_par_le_serveur_prime_sur_l_environnement",
+          "ordinal_xml": 33
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_mode_plein_texte_explicite_sans_embeddings_ou_en_panne",
+          "ordinal_xml": 34
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_donnee_personnelle_jamais_envoyee_a_un_endpoint_hors_vps",
+          "ordinal_xml": 35
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_texte_trop_long_refuse_avant_tout_appel_d_embeddings",
+          "ordinal_xml": 36
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_oublier_par_sujet_puis_plus_rien",
+          "ordinal_xml": 37
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_sortie_de_recherche_tient_dans_le_budget_de_tokens",
+          "ordinal_xml": 38
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_cli_sans_url_refuse_avec_code_2",
+          "ordinal_xml": 39
+        },
+        {
+          "classname": "tests.test_memoire_outils",
+          "name": "test_cli_migrer_etat_purger",
+          "ordinal_xml": 40
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_le_parseur_ne_lit_que_le_meta_mcp_et_ignore_la_cle_absente",
+          "ordinal_xml": 41
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_le_parseur_rend_le_ticket_opaque_sans_le_normaliser",
+          "ordinal_xml": 42
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_le_meta_ticket_present_invalide_echoue_sans_reveler_sa_valeur[None]",
+          "ordinal_xml": 43
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_le_meta_ticket_present_invalide_echoue_sans_reveler_sa_valeur[]",
+          "ordinal_xml": 44
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_le_meta_ticket_present_invalide_echoue_sans_reveler_sa_valeur[  ]",
+          "ordinal_xml": 45
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_le_meta_ticket_present_invalide_echoue_sans_reveler_sa_valeur[123]",
+          "ordinal_xml": 46
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_le_meta_ticket_present_invalide_echoue_sans_reveler_sa_valeur[valeur4]",
+          "ordinal_xml": 47
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_le_meta_ticket_present_invalide_echoue_sans_reveler_sa_valeur[valeur5]",
+          "ordinal_xml": 48
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_le_meta_ticket_present_invalide_echoue_sans_reveler_sa_valeur[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+          "ordinal_xml": 49
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_la_resolution_m2_exige_un_seul_lead_canonique_et_refuse_les_ids_contradictoires",
+          "ordinal_xml": 50
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_la_resolution_m3_passe_par_un_devis_unique_pas_par_un_lead_fourni_par_le_modele",
+          "ordinal_xml": 51
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_la_creation_m3_lie_le_devis_neuf_au_lead_et_refuse_les_cibles_secondaires",
+          "ordinal_xml": 52
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_le_ticket_de_creation_m3_est_emis_sans_creer_le_devis_et_revalide_lead_et_collision",
+          "ordinal_xml": 53
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_refuse_une_chaine_m2_corrompue_sans_ticket_ni_brouillon[m3_creer_devis-m03-estimation-arguments0]",
+          "ordinal_xml": 54
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_refuse_une_chaine_m2_corrompue_sans_ticket_ni_brouillon[m2_enregistrer_interaction-m02-revenue-crm-arguments1]",
+          "ordinal_xml": 55
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_refuse_une_chaine_m10_corrompue_sans_ticket_ni_brouillon",
+          "ordinal_xml": 56
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_de_creation_m3_scelle_le_n3_et_ne_cree_le_brouillon_quapres_approbation",
+          "ordinal_xml": 57
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_de_creation_m3_refuse_apres_revocation_avant_toute_ecriture",
+          "ordinal_xml": 58
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_migration_cree_le_stockage_meme_base_du_ticket_et_son_lien_approbation",
+          "ordinal_xml": 59
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_upgrade_0012_preserve_une_approbation_existante",
+          "ordinal_xml": 60
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_empreinte_ticket_approbation_n_est_pas_exposee_dans_les_lectures_publiques",
+          "ordinal_xml": 61
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_lie_un_lead_m2_canonique_a_la_liaison_m10_active",
+          "ordinal_xml": 62
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_refuse_expiration_arguments_modifies_et_rejeu_repond_sans_reexecuter",
+          "ordinal_xml": 63
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_m3_resout_le_devis_vers_le_lead_reel_et_stocke_le_genre_affaire_m10",
+          "ordinal_xml": 64
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_m3_refuse_un_chantier_devis_sans_liaison_canonique_concordante",
+          "ordinal_xml": 65
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_m3_refuse_de_convertir_un_lead_deja_rattache_a_un_autre_devis",
+          "ordinal_xml": 66
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_m3_revalide_le_devis_apres_emission_avant_toute_demande_ou_evenement",
+          "ordinal_xml": 67
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_approbation_m3_refuse_si_un_autre_devis_convertit_le_lead_avant_le_clic",
+          "ordinal_xml": 68
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_une_mutation_n3_sans_ticket_exige_appareil_actif_et_portee_de_role",
+          "ordinal_xml": 69
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_retrait_role_entre_precontrole_et_transaction_n_emet_ni_recu_ni_mutation",
+          "ordinal_xml": 70
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_un_appel_humain_n4_de_vendeur_cree_une_demande_meme_en_mode_autonome",
+          "ordinal_xml": 71
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_un_appel_humain_n4_refuse_le_role_retire_dans_la_transaction",
+          "ordinal_xml": 72
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_ticket_scelle_est_revalide_apres_retrait_m10_avant_approbation",
+          "ordinal_xml": 73
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_approbation_execute_un_ticket_scelle_valide_une_fois_et_rejoue_la_reponse",
+          "ordinal_xml": 74
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_cli_revoquer_n_accepte_pas_identite_en_argument_et_authentifie_l_admin",
+          "ordinal_xml": 75
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_cli_refuse_role_retrait_et_ne_cree_aucun_maillon",
+          "ordinal_xml": 76
+        },
+        {
+          "classname": "tests.test_liaison_cibles",
+          "name": "test_cli_refuse_un_cas_perime_apres_une_nouvelle_liaison_sans_effet",
+          "ordinal_xml": 77
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_owner_grant_route_bound_ticket_and_one_use",
+          "ordinal_xml": 78
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_absence_mauvais_tool_instance_et_arguments_refusent",
+          "ordinal_xml": 79
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_grant_empty_allowlist_stale_version_and_dates_are_closed",
+          "ordinal_xml": 80
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_ticket_does_not_outlive_grant",
+          "ordinal_xml": 81
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_ticket_refuse_si_le_createur_du_grant_est_inactif",
+          "ordinal_xml": 82
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_revisions_profil_perimee_refuse_avant_lecture_financiere",
+          "ordinal_xml": 83
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_revocation_profile_revision_and_grantor_role_revocation_kill_ticket",
+          "ordinal_xml": 84
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_expiry_quota_and_allowed_report_date_are_independent",
+          "ordinal_xml": 85
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_cfo_handler_requires_ticket_before_snapshot_and_reads_with_valid_ticket",
+          "ordinal_xml": 86
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_agent_capital_read_reuses_cfo_chain_validation_before_calculation",
+          "ordinal_xml": 87
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_mcp_http_private_issuer_and_business_ticket_transport",
+          "ordinal_xml": 88
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_generated_runtime_profile_includes_persisted_revision",
+          "ordinal_xml": 89
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_migration_depuis_0013_est_idempotente_et_instance_survit_au_restart_restore",
+          "ordinal_xml": 90
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_restore_preserves_live_cfo_grant_ticket_and_history",
+          "ordinal_xml": 91
+        },
+        {
+          "classname": "tests.test_agent_cfo_grants",
+          "name": "test_backend_non_sqlite_refuse_les_grants_et_linterface_explique_la_limite",
+          "ordinal_xml": 92
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_sante_sans_jeton_repond_ok_sans_donnee_metier[un_point_d_acces]",
+          "ordinal_xml": 93
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_sante_sans_jeton_repond_ok_sans_donnee_metier[un_point_par_departement]",
+          "ordinal_xml": 94
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_sante_head_sans_corps[un_point_d_acces]",
+          "ordinal_xml": 95
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_sante_head_sans_corps[un_point_par_departement]",
+          "ordinal_xml": 96
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_sante_refuse_les_ecritures_sans_jeton[un_point_d_acces]",
+          "ordinal_xml": 97
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_sante_refuse_les_ecritures_sans_jeton[un_point_par_departement]",
+          "ordinal_xml": 98
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_seul_le_chemin_exact_de_sante_echappe_au_jeton[un_point_d_acces-/sante/]",
+          "ordinal_xml": 99
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_seul_le_chemin_exact_de_sante_echappe_au_jeton[un_point_d_acces-/sante/x]",
+          "ordinal_xml": 100
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_seul_le_chemin_exact_de_sante_echappe_au_jeton[un_point_d_acces-/SANTE]",
+          "ordinal_xml": 101
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_seul_le_chemin_exact_de_sante_echappe_au_jeton[un_point_d_acces-/mcp]",
+          "ordinal_xml": 102
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_seul_le_chemin_exact_de_sante_echappe_au_jeton[un_point_d_acces-/]",
+          "ordinal_xml": 103
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_seul_le_chemin_exact_de_sante_echappe_au_jeton[un_point_par_departement-/sante/]",
+          "ordinal_xml": 104
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_seul_le_chemin_exact_de_sante_echappe_au_jeton[un_point_par_departement-/sante/x]",
+          "ordinal_xml": 105
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_seul_le_chemin_exact_de_sante_echappe_au_jeton[un_point_par_departement-/SANTE]",
+          "ordinal_xml": 106
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_seul_le_chemin_exact_de_sante_echappe_au_jeton[un_point_par_departement-/mcp]",
+          "ordinal_xml": 107
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_seul_le_chemin_exact_de_sante_echappe_au_jeton[un_point_par_departement-/]",
+          "ordinal_xml": 108
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_journal_d_acces_ignore_seulement_les_sondes_de_sante",
+          "ordinal_xml": 109
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_sans_jeton_401",
+          "ordinal_xml": 110
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_jeton_trop_court_refuse",
+          "ordinal_xml": 111
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_aller_retour_mcp_http",
+          "ordinal_xml": 112
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_route_admission_privee_est_liee_au_profil_et_au_jeton",
+          "ordinal_xml": 113
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_outil_emission_ticket_est_prive_au_catalogue_contexte",
+          "ordinal_xml": 114
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_revalidation_profile_au_dispatch_refuse_revision_modifiee_apres_verification",
+          "ordinal_xml": 115
+        },
+        {
+          "classname": "tests.test_serveur_mcp_http",
+          "name": "test_ticket_cfo_stale_profile_est_refuse_avant_consommation",
+          "ordinal_xml": 116
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_desactive_par_defaut_aucun_moteur_choisi_et_contexte_inactif",
+          "ordinal_xml": 117
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_un_dictionnaire_vide_est_le_meme_que_l_absence_d_argument",
+          "ordinal_xml": 118
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_squelette_openclaw_json_n_inclut_pas_contexte_json",
+          "ordinal_xml": 119
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_active_ecrit_contexte_json_et_le_choix_du_moteur_ensemble",
+          "ordinal_xml": 120
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_regenerer_sans_l_option_desactive_les_deux_fichiers",
+          "ordinal_xml": 121
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_agents_tries_outils_dedoubles_et_paquet_seul_possible",
+          "ordinal_xml": 122
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_serveur_de_contexte_est_lie_a_l_agent_et_au_jeton_interne",
+          "ordinal_xml": 123
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_les_deux_outils_appeles_existent_avec_les_niveaux_que_le_core_suppose",
+          "ordinal_xml": 124
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_un_agent_ou_un_outil_incoherent_sans_rien_ecrire[contexte0-agent inconnu]",
+          "ordinal_xml": 125
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_un_agent_ou_un_outil_incoherent_sans_rien_ecrire[contexte1-n'est pas un outil du d\\xe9partement m03-estimation]",
+          "ordinal_xml": 126
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_un_agent_ou_un_outil_incoherent_sans_rien_ecrire[contexte2-n'est pas un outil du d\\xe9partement m03-estimation]",
+          "ordinal_xml": 127
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_un_agent_ou_un_outil_incoherent_sans_rien_ecrire[contexte3-n'est pas un outil du d\\xe9partement m03-estimation]",
+          "ordinal_xml": 128
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_sans_le_departement_memoire",
+          "ordinal_xml": 129
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_si_un_des_deux_outils_de_m10_manque",
+          "ordinal_xml": 130
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_si_le_depot_exigerait_une_approbation",
+          "ordinal_xml": 131
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_si_la_lecture_du_paquet_n_est_plus_une_lecture",
+          "ordinal_xml": 132
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_niveaux_donne_le_niveau_effectif_de_chaque_outil_des_departements",
+          "ordinal_xml": 133
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_cibles_ticket_declarent_exactement_les_neuf_mutations_resolues_par_python",
+          "ordinal_xml": 134
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_cibles_explicitent_l_affaire_m3_et_refusent_les_contrats_non_declares",
+          "ordinal_xml": 135
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_chaque_agent_contexte_a_un_serveur_mcp_origin_bound",
+          "ordinal_xml": 136
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_les_outils_qui_engagent_l_entreprise_sont_au_niveau_n3_ou_plus_dans_la_configuration",
+          "ordinal_xml": 137
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_niveau_ecrit_suit_le_niveau_de_l_outil_pas_une_liste_figee",
+          "ordinal_xml": 138
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_l_affaire_vient_de_la_session_pour_les_seuls_agents_nommes",
+          "ordinal_xml": 139
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_la_lecture_de_l_affaire_de_la_session_est_une_lecture_de_m10_fermee_aux_appareils",
+          "ordinal_xml": 140
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_de_lire_l_affaire_dans_la_session_pour_un_agent_sans_moteur_de_contexte",
+          "ordinal_xml": 141
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_l_affaire_par_session_si_m10_ne_sait_pas_la_lire",
+          "ordinal_xml": 142
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_refuse_l_affaire_par_session_si_la_lecture_n_est_plus_une_lecture",
+          "ordinal_xml": 143
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_sans_affaire_par_session_l_outil_de_lecture_n_est_pas_exige",
+          "ordinal_xml": 144
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_la_commande_sans_option_laisse_le_moteur_desactive",
+          "ordinal_xml": 145
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_la_commande_active_le_moteur_pour_les_agents_nommes",
+          "ordinal_xml": 146
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_la_commande_lit_l_affaire_dans_la_session_pour_les_agents_nommes",
+          "ordinal_xml": 147
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_la_commande_refuse_une_affaire_par_session_sans_moteur_de_contexte_pour_l_agent",
+          "ordinal_xml": 148
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_la_commande_refuse_un_agent_sans_nom",
+          "ordinal_xml": 149
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_core_choisit_le_moteur_sous_l_identifiant_que_python_ecrit",
+          "ordinal_xml": 150
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_core_lit_les_cles_que_python_ecrit_dans_contexte_json",
+          "ordinal_xml": 151
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_core_attend_les_quatre_couches_de_m10_dans_le_meme_ordre",
+          "ordinal_xml": 152
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_core_lit_les_champs_du_paquet_que_m10_produit",
+          "ordinal_xml": 153
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_core_envoie_les_champs_que_m10_accepte_au_depot",
+          "ordinal_xml": 154
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_la_forme_d_un_code_est_la_meme_des_deux_cotes",
+          "ordinal_xml": 155
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_la_taille_de_lot_du_core_est_celle_que_m10_accepte",
+          "ordinal_xml": 156
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_marqueur_d_indisponibilite_est_dans_le_contexte_du_tour",
+          "ordinal_xml": 157
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_les_niveaux_de_confidentialite_qu_un_paquet_peut_porter_sont_ceux_de_m10",
+          "ordinal_xml": 158
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_les_etats_d_un_signal_sont_ceux_de_m10_dans_le_meme_ordre",
+          "ordinal_xml": 159
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_core_dit_les_verdicts_sur_l_affaire_avec_les_codes_de_m10",
+          "ordinal_xml": 160
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_core_borne_la_liste_des_jours_a_consolider_comme_m10",
+          "ordinal_xml": 161
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_ce_que_m10_ecrit_dans_les_blocs_de_l_affaire_passe_les_motifs_du_core",
+          "ordinal_xml": 162
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_les_niveaux_n_du_core_sont_l_echelle_de_python_dans_l_ordre",
+          "ordinal_xml": 163
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_seuil_du_garde_est_n3_le_premier_niveau_qui_exige_une_validation_humaine",
+          "ordinal_xml": 164
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_les_noms_d_outils_que_le_core_accepte_sont_ceux_des_outils_des_departements",
+          "ordinal_xml": 165
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_core_resout_le_contexte_depuis_le_serveur_origine_et_sans_identite_en_arguments",
+          "ordinal_xml": 166
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_la_forme_d_une_affaire_est_la_meme_pour_le_core_et_pour_m10",
+          "ordinal_xml": 167
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_le_core_et_m10_rejouent_la_meme_liste_de_cas_d_affaires",
+          "ordinal_xml": 168
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_les_paquets_de_test_du_core_sont_la_sortie_reelle_de_m10",
+          "ordinal_xml": 169
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_les_paquets_de_test_du_core_sont_exactement_la_sortie_de_m10_cle_par_cle",
+          "ordinal_xml": 170
+        },
+        {
+          "classname": "tests.test_openclaw_contexte",
+          "name": "test_les_fixtures_disent_chacune_des_formes_de_l_affaire",
+          "ordinal_xml": 171
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_partage_entre_agents_desactive",
+          "ordinal_xml": 172
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_visibilite_sessions_restreinte",
+          "ordinal_xml": 173
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_racine_inclut_les_nouveaux_fragments",
+          "ordinal_xml": 174
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_visibilite_tree_est_la_plus_restrictive_sans_casser_les_sous_agents",
+          "ordinal_xml": 175
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_configuration_memoire_presente",
+          "ordinal_xml": 176
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_cle_embeddings_omise_si_non_fournie",
+          "ordinal_xml": 177
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_dreaming_configure_et_aligne_sur_le_fuseau",
+          "ordinal_xml": 178
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_provenance_non_inventee",
+          "ordinal_xml": 179
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_fail_closed_generer_sans_url_embeddings",
+          "ordinal_xml": 180
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_fail_closed_configuration_memoire_sans_url",
+          "ordinal_xml": 181
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_fail_closed_url_presente_mais_modele_absent",
+          "ordinal_xml": 182
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_fail_closed_url_malformee",
+          "ordinal_xml": 183
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_cle_agent_to_agent_existe_dans_le_schema_du_fork",
+          "ordinal_xml": 184
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_cle_sessions_visibility_existe_dans_le_schema_du_fork",
+          "ordinal_xml": 185
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_cles_memory_search_existent_dans_le_schema_du_fork",
+          "ordinal_xml": 186
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_valeur_openai_compatible_verifiee_dans_le_fork_pas_seulement_dans_ladr",
+          "ordinal_xml": 187
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_cles_racine_tools_memory_plugins_existent_dans_le_schema_du_fork",
+          "ordinal_xml": 188
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_plugin_entry_config_existe_dans_le_schema_du_fork",
+          "ordinal_xml": 189
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_dreaming_genere_valide_contre_le_configschema_du_plugin",
+          "ordinal_xml": 190
+        },
+        {
+          "classname": "tests.test_openclaw_memoire",
+          "name": "test_configschema_memory_core_ne_declare_aucune_propriete_provenance",
+          "ordinal_xml": 191
+        },
+        {
+          "classname": "tests.test_openclaw_profils",
+          "name": "test_genere_les_profils_actifs_avec_admission_durable",
+          "ordinal_xml": 192
+        }
+      ],
+      "junit": {
+        "cas_effectifs": 192,
+        "errors": 0.0,
+        "failures": 0.0,
+        "skipped": 0.0,
+        "tests": 192.0,
+        "time": 29.049
+      },
+      "prefix": "memoire-autorite-integree-root-r2-2026-10-02",
+      "qualification": "qualification Python actuelle",
+      "receipt_sha256": "2f9a175221932aac415fcab2ef8573b759bcc0e2bc66f0bbc5ebc871f1d4b127",
+      "sources_surveillees": 1116
+    },
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-c",
+        "import subprocess; raise SystemExit(subprocess.call([\"node\",\"node_modules/vitest/vitest.mjs\",\"run\",\"--config\",\"test/vitest/vitest.agents-core.config.ts\",\"src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts\",\"src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts\",\"src/agents/opsys-memoire-lecture-ticket.test.ts\",\"src/agents/opsys-cfo-grant-ticket.test.ts\",\"--reporter=default\",\"--reporter=junit\",\"--outputFile=/workspace/restructuration-opsys-2026-09-30/preuves/memoire-autorite-core-root-r1-2026-10-02.xml\"],cwd=\"core\"))"
+      ],
+      "compteurs_lus": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 39
+      },
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 39
+      },
+      "debut_utc": "2026-10-02T11:08:54.153478+00:00",
+      "exit_code": 0,
+      "fin_utc": "2026-10-02T11:09:01.745958+00:00",
+      "identites": [
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > issues against the canonical case and attaches the opaque ticket only to business _meta",
+          "ordinal_xml": 1
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > does not dispatch the business tool when the private ticket authority refuses",
+          "ordinal_xml": 2
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > rejects tool/server mismatch before issuing a private ticket or dispatching",
+          "ordinal_xml": 3
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > preserves a host-authenticated device call for Python's live identity and role checks",
+          "ordinal_xml": 4
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > refuses incomplete purported device metadata before either MCP call",
+          "ordinal_xml": 5
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > replaces caller metadata with the private grant and keeps the final argument snapshot",
+          "ordinal_xml": 6
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > refuses a missing classification before private issuance or business dispatch",
+          "ordinal_xml": 7
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > does not replace an issuer refusal with a global read",
+          "ordinal_xml": 8
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > preserves explicitly global department reads and strips any caller ticket",
+          "ordinal_xml": 9
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > keeps memory closed for the authenticated device envelope",
+          "ordinal_xml": 10
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > issues a profile-revision-bound private ticket before m5_preparer_dossier_decision_cfo",
+          "ordinal_xml": 11
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > issues a profile-revision-bound private ticket before m5_preparer_decision_capital",
+          "ordinal_xml": 12
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > does not issue for any tool outside the two CFO read tools",
+          "ordinal_xml": 13
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > requires the exact M5 business server before contacting the issuer",
+          "ordinal_xml": 14
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses legacy profileId-only configuration before requesting a ticket",
+          "ordinal_xml": 15
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses profile binding mismatch before requesting a ticket",
+          "ordinal_xml": 16
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses a human or non-OPSYS agent session instead of minting a profile ticket",
+          "ordinal_xml": 17
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses an absent issuer ticket",
+          "ordinal_xml": 18
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses an expired issuer ticket",
+          "ordinal_xml": 19
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses an overlong issuer ticket",
+          "ordinal_xml": 20
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > accepts legacy admission profile IDs but requires a positive optional persisted revision",
+          "ordinal_xml": 21
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > seals the final argument snapshot using the actual session, without model-nominated case or client",
+          "ordinal_xml": 22
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > keeps an explicitly global department read without a client grant",
+          "ordinal_xml": 23
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > keeps the separate procedure-only SQL gate without requiring a case",
+          "ordinal_xml": 24
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 25
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 26
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 27
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 28
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses an absent or unrelated session undefined",
+          "ordinal_xml": 29
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses an absent or unrelated session agent:autre:direct:fictif-A",
+          "ordinal_xml": 30
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses an absent or unrelated session main",
+          "ordinal_xml": 31
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses a mismatched business server",
+          "ordinal_xml": 32
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses a client policy with no private context route",
+          "ordinal_xml": 33
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses invalid or expired grants",
+          "ordinal_xml": 34
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses invalid or expired grants",
+          "ordinal_xml": 35
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses invalid or expired grants",
+          "ordinal_xml": 36
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > does not issue a read grant for one of the existing nine mutations",
+          "ordinal_xml": 37
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses malformed classification values",
+          "ordinal_xml": 38
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses malformed classification values",
+          "ordinal_xml": 39
+        }
+      ],
+      "junit": {
+        "cas_effectifs": 39,
+        "errors": 0.0,
+        "failures": 0.0,
+        "skipped": 0.0,
+        "tests": 39.0,
+        "time": 5.153517495
+      },
+      "prefix": "memoire-autorite-core-root-r1-2026-10-02",
+      "qualification": "historique avant format et validation R4",
+      "receipt_sha256": "e74def4c79e0193366c671f36fa8116b7ba8e729ae39e84b96b9513506251312",
+      "sources_surveillees": 1116
+    },
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-c",
+        "import subprocess; raise SystemExit(subprocess.call([\"node\",\"node_modules/vitest/vitest.mjs\",\"run\",\"--config\",\"test/vitest/vitest.agents-core.config.ts\",\"src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts\",\"src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts\",\"src/agents/opsys-memoire-lecture-ticket.test.ts\",\"src/agents/opsys-cfo-grant-ticket.test.ts\",\"--reporter=default\",\"--reporter=junit\",\"--outputFile=/workspace/restructuration-opsys-2026-09-30/preuves/memoire-autorite-core-root-r3-2026-10-02.xml\"],cwd=\"core\"))"
+      ],
+      "compteurs_lus": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 39
+      },
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 39
+      },
+      "debut_utc": "2026-10-02T11:28:18.255531+00:00",
+      "exit_code": 0,
+      "fin_utc": "2026-10-02T11:28:25.743006+00:00",
+      "identites": [
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > issues against the canonical case and attaches the opaque ticket only to business _meta",
+          "ordinal_xml": 1
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > does not dispatch the business tool when the private ticket authority refuses",
+          "ordinal_xml": 2
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > rejects tool/server mismatch before issuing a private ticket or dispatching",
+          "ordinal_xml": 3
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > preserves a host-authenticated device call for Python's live identity and role checks",
+          "ordinal_xml": 4
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > refuses incomplete purported device metadata before either MCP call",
+          "ordinal_xml": 5
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > replaces caller metadata with the private grant and keeps the final argument snapshot",
+          "ordinal_xml": 6
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > refuses a missing classification before private issuance or business dispatch",
+          "ordinal_xml": 7
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > does not replace an issuer refusal with a global read",
+          "ordinal_xml": 8
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > preserves explicitly global department reads and strips any caller ticket",
+          "ordinal_xml": 9
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > keeps memory closed for the authenticated device envelope",
+          "ordinal_xml": 10
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > issues a profile-revision-bound private ticket before m5_preparer_dossier_decision_cfo",
+          "ordinal_xml": 11
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > issues a profile-revision-bound private ticket before m5_preparer_decision_capital",
+          "ordinal_xml": 12
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > does not issue for any tool outside the two CFO read tools",
+          "ordinal_xml": 13
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > requires the exact M5 business server before contacting the issuer",
+          "ordinal_xml": 14
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses legacy profileId-only configuration before requesting a ticket",
+          "ordinal_xml": 15
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses profile binding mismatch before requesting a ticket",
+          "ordinal_xml": 16
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses a human or non-OPSYS agent session instead of minting a profile ticket",
+          "ordinal_xml": 17
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses an absent issuer ticket",
+          "ordinal_xml": 18
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses an expired issuer ticket",
+          "ordinal_xml": 19
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses an overlong issuer ticket",
+          "ordinal_xml": 20
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > accepts legacy admission profile IDs but requires a positive optional persisted revision",
+          "ordinal_xml": 21
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > seals the final argument snapshot using the actual session, without model-nominated case or client",
+          "ordinal_xml": 22
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > keeps an explicitly global department read without a client grant",
+          "ordinal_xml": 23
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > keeps the separate procedure-only SQL gate without requiring a case",
+          "ordinal_xml": 24
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 25
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 26
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 27
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 28
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses an absent or unrelated session undefined",
+          "ordinal_xml": 29
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses an absent or unrelated session agent:autre:direct:fictif-A",
+          "ordinal_xml": 30
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses an absent or unrelated session main",
+          "ordinal_xml": 31
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses a mismatched business server",
+          "ordinal_xml": 32
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses a client policy with no private context route",
+          "ordinal_xml": 33
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses invalid or expired grants",
+          "ordinal_xml": 34
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses invalid or expired grants",
+          "ordinal_xml": 35
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses invalid or expired grants",
+          "ordinal_xml": 36
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > does not issue a read grant for one of the existing nine mutations",
+          "ordinal_xml": 37
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses malformed classification values",
+          "ordinal_xml": 38
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses malformed classification values",
+          "ordinal_xml": 39
+        }
+      ],
+      "junit": {
+        "cas_effectifs": 39,
+        "errors": 0.0,
+        "failures": 0.0,
+        "skipped": 0.0,
+        "tests": 39.0,
+        "time": 5.187383065
+      },
+      "prefix": "memoire-autorite-core-root-r3-2026-10-02",
+      "qualification": "historique apres format avant validation R4",
+      "receipt_sha256": "12cd662b9246933e421001da25ace4229529e3e25f7b5d4e04c8394a928df7b1",
+      "sources_surveillees": 1116
+    },
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-"
+      ],
+      "compteurs_lus": null,
+      "counts": null,
+      "debut_utc": "2026-10-02T11:30:46.357840+00:00",
+      "exit_code": 1,
+      "fin_utc": "2026-10-02T11:30:46.980998+00:00",
+      "identites": null,
+      "junit": null,
+      "prefix": "memoire-autorite-core-qualite-root-r3-2026-10-02",
+      "qualification": "historique Oxlint rouge",
+      "receipt_sha256": "cbe65741ce99410ef8ee1c79bedce757675ab51e5646a3458952d12925cc28dd",
+      "sources_surveillees": 1117
+    },
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-c",
+        "import subprocess; raise SystemExit(subprocess.call([\"node\",\"node_modules/vitest/vitest.mjs\",\"run\",\"--config\",\"test/vitest/vitest.agents-core.config.ts\",\"src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts\",\"src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts\",\"src/agents/opsys-memoire-lecture-ticket.test.ts\",\"src/agents/opsys-cfo-grant-ticket.test.ts\",\"--reporter=default\",\"--reporter=junit\",\"--outputFile=/workspace/restructuration-opsys-2026-09-30/preuves/memoire-autorite-core-root-r4-2026-10-02.xml\"],cwd=\"core\"))"
+      ],
+      "compteurs_lus": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 42
+      },
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 42
+      },
+      "debut_utc": "2026-10-02T11:39:21.775381+00:00",
+      "exit_code": 0,
+      "fin_utc": "2026-10-02T11:39:29.737201+00:00",
+      "identites": [
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > issues against the canonical case and attaches the opaque ticket only to business _meta",
+          "ordinal_xml": 1
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > does not dispatch the business tool when the private ticket authority refuses",
+          "ordinal_xml": 2
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > rejects tool/server mismatch before issuing a private ticket or dispatching",
+          "ordinal_xml": 3
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > preserves a host-authenticated device call for Python's live identity and role checks",
+          "ordinal_xml": 4
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts",
+          "name": "OPSYS target tickets on the final MCP call boundary > refuses incomplete purported device metadata before either MCP call",
+          "ordinal_xml": 5
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > replaces caller metadata with the private grant and keeps the final argument snapshot",
+          "ordinal_xml": 6
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > refuses a missing classification before private issuance or business dispatch",
+          "ordinal_xml": 7
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > does not replace an issuer refusal with a global read",
+          "ordinal_xml": 8
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > preserves explicitly global department reads and strips any caller ticket",
+          "ordinal_xml": 9
+        },
+        {
+          "classname": "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+          "name": "OPSYS memory authority on native final MCP transport > keeps memory closed for the authenticated device envelope",
+          "ordinal_xml": 10
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > issues a profile-revision-bound private ticket before m5_preparer_dossier_decision_cfo",
+          "ordinal_xml": 11
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > issues a profile-revision-bound private ticket before m5_preparer_decision_capital",
+          "ordinal_xml": 12
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > does not issue for any tool outside the two CFO read tools",
+          "ordinal_xml": 13
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > requires the exact M5 business server before contacting the issuer",
+          "ordinal_xml": 14
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses legacy profileId-only configuration before requesting a ticket",
+          "ordinal_xml": 15
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses profile binding mismatch before requesting a ticket",
+          "ordinal_xml": 16
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses a human or non-OPSYS agent session instead of minting a profile ticket",
+          "ordinal_xml": 17
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses an absent issuer ticket",
+          "ordinal_xml": 18
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses an expired issuer ticket",
+          "ordinal_xml": 19
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > refuses an overlong issuer ticket",
+          "ordinal_xml": 20
+        },
+        {
+          "classname": "src/agents/opsys-cfo-grant-ticket.test.ts",
+          "name": "OPSYS CFO grant ticket client > accepts legacy admission profile IDs but requires a positive optional persisted revision",
+          "ordinal_xml": 21
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses cycle final arguments before contacting the private issuer",
+          "ordinal_xml": 22
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses bigint final arguments before contacting the private issuer",
+          "ordinal_xml": 23
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses toJSON-array final arguments before contacting the private issuer",
+          "ordinal_xml": 24
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > seals the final argument snapshot using the actual session, without model-nominated case or client",
+          "ordinal_xml": 25
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > keeps an explicitly global department read without a client grant",
+          "ordinal_xml": 26
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > keeps the separate procedure-only SQL gate without requiring a case",
+          "ordinal_xml": 27
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 28
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 29
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 30
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses absent or unclassified policy before contacting the issuer",
+          "ordinal_xml": 31
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses an absent or unrelated session undefined",
+          "ordinal_xml": 32
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses an absent or unrelated session agent:autre:direct:fictif-A",
+          "ordinal_xml": 33
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses an absent or unrelated session main",
+          "ordinal_xml": 34
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses a mismatched business server",
+          "ordinal_xml": 35
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses a client policy with no private context route",
+          "ordinal_xml": 36
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses invalid or expired grants",
+          "ordinal_xml": 37
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses invalid or expired grants",
+          "ordinal_xml": 38
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses invalid or expired grants",
+          "ordinal_xml": 39
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > does not issue a read grant for one of the existing nine mutations",
+          "ordinal_xml": 40
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses malformed classification values",
+          "ordinal_xml": 41
+        },
+        {
+          "classname": "src/agents/opsys-memoire-lecture-ticket.test.ts",
+          "name": "OPSYS server memory read authority > refuses malformed classification values",
+          "ordinal_xml": 42
+        }
+      ],
+      "junit": {
+        "cas_effectifs": 42,
+        "errors": 0.0,
+        "failures": 0.0,
+        "skipped": 0.0,
+        "tests": 42.0,
+        "time": 5.272253802
+      },
+      "prefix": "memoire-autorite-core-root-r4-2026-10-02",
+      "qualification": "qualification Core actuelle",
+      "receipt_sha256": "0db18eb4ca1a68bd0086b1d7b86e04f6aa69220f2bcc8e6e11b6a09a1b943c60",
+      "sources_surveillees": 1121
+    },
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-"
+      ],
+      "compteurs_lus": null,
+      "counts": null,
+      "debut_utc": "2026-10-02T11:43:12.350434+00:00",
+      "exit_code": 0,
+      "fin_utc": "2026-10-02T11:43:12.841026+00:00",
+      "identites": null,
+      "junit": null,
+      "prefix": "memoire-autorite-core-qualite-root-r4-2026-10-02",
+      "qualification": "qualification style actuelle",
+      "receipt_sha256": "56b54c627b818b1c13c3a8fb74dfe72715a15a07b67edd037c177412579e1893",
+      "sources_surveillees": 1121
+    }
+  ],
+  "compteurs_junit_historique": {
+    "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-autorite-core-root-r1-2026-10-02.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 39
+    },
+    "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-autorite-core-root-r3-2026-10-02.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 39
+    },
+    "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-autorite-core-root-r4-2026-10-02.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 42
+    },
+    "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-autorite-integree-root-r2-2026-10-02.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 192
+    },
+    "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-autorite-root-r1-2026-10-02.xml": {
+      "errors": 0,
+      "failures": 2,
+      "skipped": 0,
+      "tests": 24
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/core-final-r1.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 39
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/core-unit-r1.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 29
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/core-wire-r1.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 39
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/green-python-r1.xml": {
+      "errors": 0,
+      "failures": 1,
+      "skipped": 0,
+      "tests": 5
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/green-python-r2.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 5
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/green-python-r3.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 13
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/green-python-r4.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 15
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/python-final-r1.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 24
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/python-pg-r1.xml": {
+      "errors": 5,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 21
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/python-pg-r2.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 21
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/python-regressions-r1.xml": {
+      "errors": 0,
+      "failures": 2,
+      "skipped": 0,
+      "tests": 185
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r1/red-python-r1.xml": {
+      "errors": 0,
+      "failures": 4,
+      "skipped": 0,
+      "tests": 5
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r2/python-importlib-r2.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 24
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/core-green-r4-final.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 42
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/core-green-r4.xml": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "tests": 42
+    },
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/core-snapshot-red-r4.xml": {
+      "errors": 0,
+      "failures": 3,
+      "skipped": 0,
+      "tests": 21
+    }
+  },
+  "erreurs": [],
+  "index_historique_externe_r1_sha256": {
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-archive-r1/MANIFEST.json": "e741a17d2c7f6da9e3b8eee3330d7e8965e624b34151dd881a46d0a36f953812",
+    "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-archive-r1/README.md": "4f328e2c694e58f2c4d5b1a24acf099052b454d061f4a8cb8f081a78900dbd16"
+  },
+  "index_sha256": {
+    "MANIFEST.json": "66d274372ef9c84c27ecbc27fe448a761e1189edf105aac3f837b332d17a65d0",
+    "README.md": "df67a2e46726bcbd7c3145b2dbb1299f5e819b089cca80cae62b81fff409a389",
+    "SOURCES-FINALES.json": "cd1e0378ea1208044a2e9dfdfb2a20f2e0d79f4f608e4ac65650d6c875a3af42"
+  },
+  "limites": "R33 actif : ROOT Python192 (29,049 s JUnit), ROOT Core42 R4 (5,272253802 s JUnit) et Oxfmt/Oxlint quatre fichiers exit0. Campagnes distinctes, jamais additionnées. 1116 sources surveillées pendant ROOT Python ; 1121 pendant Core/style R4, snapshots stables. Contrôle courant limité aux 15 chemins R33 copiés dans la capsule. Client session explicite, liaison M10/M2 canonique, ticket opaque dédié, arguments JSON finaux, filtre SQL obligatoire et revalidation ; les lectures globales des départements restent autorisées. Autorité canonique SQLite et recherche PostgreSQL/pgvector réel jetable, données/clefs fictives. Modes hérités par département ; pas atomicité distribuée SQLite/PG/fichier ni isolation SaaS. MCP HTTP ASGI et Core stdio natif synthétique : pas Gateway/provider/modèle réel ou VPS. Typegraph exit137 interrompu non qualifié. Rouge importlib22P2F, régressions183P2F, validation JSON18P3F et Oxlint16 erreurs conservés, sans les réattribuer au gel courant.",
+  "schema": "opsys.r33-qualification/v1",
+  "services_lances_par_collecteur": false,
+  "sources": {
+    "core/src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts": "4a41fc5c903db6da757eacee003f492ff00c88990544b79a9691606672d0cfdc",
+    "core/src/agents/agent-bundle-mcp-runtime.ts": "bc578b092e9370f7c87dc484c47dd9f174eb7d1287aebac1a75921ee6849a6f9",
+    "core/src/agents/opsys-memoire-lecture-ticket.test.ts": "8755e6abe066e928876407d76ab870b4cc470fdece658085b697939204e5972c",
+    "core/src/agents/opsys-memoire-lecture-ticket.ts": "e411f8b36c3d9ddb305a7e262eac072d2b534671015f73dc1b47faa20a20309d",
+    "docs/memory/AUTORITE-LECTURE-CLIENT.md": "8868f8d54156e5d301c3077e151b80fbeadebede98a534bd646418b679cd8ee7",
+    "src/opsys/capacites.py": "f25cc417cd5c4c86da890e80bbe5c682dae7e0760f0a8f0f5a9433148bfb689e",
+    "src/opsys/memoire/autorite.py": "49c5f844803c25d90889abb876d9ff39d6f4e56de220d963359fef71def42c83",
+    "src/opsys/memoire/outils.py": "ebfbdbb129ffe30ab1b5f7a3b2d8708534f73018234f3fcd985490e46f7346d4",
+    "src/opsys/memoire/store.py": "bcf523dfe50ce51b22f160d119ccb22e12d94ad09d615ed791d9df6aee3fb74e",
+    "src/opsys/openclaw.py": "9a8dfcdb26d4491e146671537fe0027622d9c1f4209ec94dee408e3d5d2335ab",
+    "src/opsys/serveur_mcp.py": "8803060081592fb69ee716bd1131750b15da24bb4ed3ee59883a5bf57d8897fa",
+    "tests/fixtures/memoire/autorite.py": "740c294b51a0e5e955a4859e3ab35ee3334ca6ebc856503e7f51bd8faf299b30",
+    "tests/test_memoire_autorite.py": "f39597b4c893fd02232d94c7047d91166e7afdeff506d6cd7cb9f8643ec57894",
+    "tests/test_memoire_autorite_postgres.py": "86848c653262cba29f390b8922e60e3b596d39949a37c77791cd0fb5bb8fd9cc",
+    "tests/test_serveur_mcp_http.py": "c9f9348db4358e6073b5544cafbdbfdb7c0ad405e5c147af237471a17714a38c"
+  },
+  "tests_lances_par_collecteur": false,
+  "typecheck_qualifie": false,
+  "vps_qualifie": false
+}

@@ -1,0 +1,17 @@
+# GABARIT versionné du profil de marque — PLAN T4.3 (M7-audit.md §2.1 « Marque — donnée réelle
+# absente », §4-Phase1.1). Tant que `name` porte le repère ci-dessous (== `PLACEHOLDER_NOM` de
+# m7_marketing.brand.profil_client), `profil_client.charger_profil_client` refuse ce profil
+# (fail-closed, verdict nommé) : aucun contenu public ni contenu client n'est jamais composé sous
+# ce gabarit. Le nom commercial exact (docs/programme/PLAN.md « Décisions attendues de Nathan » —
+# ex. « Gouttières et Revêtements Synergy ») est une décision de Nathan (GATE) : ne jamais le
+# deviner ici, seulement lui réserver sa place. tagline/tone/colors/mentions sont pareillement à
+# fournir par/pour le client réel — aucune valeur ci-dessous n'est une donnée du client, et
+# surtout plus jamais celle d'OPSYS-AI (SOUL.md : « jamais OPSYS-AI, jamais une autre marque »).
+name: "À CONFIGURER (GATE NATHAN)"
+tagline: "À CONFIGURER — promesse/accroche du client, fournie par le client"
+tone: "à confirmer avec le client (ex. chaleureux, direct, technique)"
+colors: ["#000000", "#FFFFFF"]  # neutre, à remplacer par la palette réelle du client
+langue: "fr"
+# Mentions de marque/légales (licences, garanties, zones desservies...) : vide tant qu'aucune
+# n'est fournie — jamais une mention inventée (ex. un numéro de licence RBQ fictif).
+mentions: []

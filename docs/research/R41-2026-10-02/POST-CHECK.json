@@ -1,0 +1,8 @@
+{
+  "archive_count": 66,
+  "deterministic_gzip_mtime_zero": true,
+  "manifest_sha256": "d71097fcd2cb48202211a1a9d529013669f7ca5f2ad20f332efe4c39fdb2f9e0",
+  "qualification_sha256": "8e4cd9fdea6417aea8dfc82f8c96cc59a0755fda3f40f903cf7535c2dd07d997",
+  "roundtrip_verified": true,
+  "schema": "opsys.r41-archive-postcheck/v1"
+}

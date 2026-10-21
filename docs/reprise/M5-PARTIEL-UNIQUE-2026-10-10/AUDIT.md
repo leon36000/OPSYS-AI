@@ -1,0 +1,21 @@
+# M5 — candidat de versement partiel unique
+
+Audit local avant publication, Toronto 2026-10-10T02:54:51.251334-04:00. **OPSYS-AI reste PARTIEL.** Les sept chemins sont intégrés et vérifiés dans le dépôt principal sur la base `8470fad8` ; leur publication et la CI de leur nouveau commit restent à obtenir.
+
+Le CSV CAD d’une seule ligne valide et d’une référence exacte peut proposer `PROPOSE_PARTIEL` lorsque son montant déclaré est positif et inférieur au dû de la vue M5 complète. Le dû reste inchangé. Aucun paiement, encaissement, frais, provenance bancaire ou solde restant n’est confirmé. Le calcul et l’identité versionnée sont déterministes ; seuls les lots partiels portent `m5.3-partiel-unique/v1`.
+
+L’archive et son reçu historiques sont conservés : même clé restitue le résultat original, nouvelle clé crée le candidat courant, nouvelle clé sur le même lot ne duplique pas la proposition. La console montre une facture candidate, les limites et l’avertissement historique.
+
+Preuves locales : noyau 35 cas dont le garde qui refuse l’enregistrement financier partiel ; campagne M5/consommateurs 2 474 réussites et 2 skips PostgreSQL avant le complément de texte/test ; fichier console courant 27 réussites avec panne après maillon et audit, rollback intégral et reprise de la même clé ; verticale 7 réussites, dû réel de 689,85 CAD issu de la même affaire, candidat de 10,00 CAD, 49 tables comparées et rejeu dans un nouveau Python sans mutation. Ces sélections se recoupent et ne sont pas additionnées. Ruff global et vérificateur métier sont verts : 10 départements, 242 outils, 150 outils appareil.
+
+Revue indépendante fermée sans P1/P2, puis revue du delta fermée. Le conseil Claude baseline a effectivement utilisé Opus 5.5, deux Sonnet 5.5 et Haiku 5.5 ; niveaux HIGH/HIGH/HIGH/MAX configurés, non attestés par le SDK. Les dépassements de consignes de longueur sont conservés. Les conseils ne prouvent pas le produit ; leurs dispositions et les tests réels sont séparés. La contre-revue du code courant Source7r2 a clôturé, avec lecture directe des sources critiques par Opus. Root a lu les quatre avis complets, puis confirmé et corrigé une petite ambiguïté d’affichage par RED2F et GREEN27P : seules les propositions exactes/partielles remplissent la colonne de facture candidate ; références et archives restent intactes. Le delta Source7r3 a sa preuve et sa revue séparées.
+
+Une qualification fraîche dans le dépôt principal a obtenu **69 réussites, aucun skip et 3 avertissements pytest** (`record_property`/xunit2). La propriété réelle a néanmoins été lue : 49 tables, trois ajouts de lignes autorisés, nouveau PID Python et rejeu/révocation sans mutation. Les 422 imports proviennent du dépôt principal, les 1 271 sources fixes sont inchangées, Ruff global et le vérificateur métier passent. Les 69 cas incluent le noyau, la console et la verticale ; ils ne s’ajoutent pas aux nombres précédents.
+
+La CI applicable du futur commit reste à obtenir. La CI M10 de `8470fad8` est vérifiée verte : 38 jobs réussis, 2 skips Docker conditionnels, gates réussis ; elle ne qualifie pas automatiquement ce nouveau changement M5. Docker local inaccessible explique les deux skips ; concurrence bancaire PostgreSQL, banque réelle, téléphone et production restent hors preuve. Les 104 fichiers exclus du pack léger, le supplément complet et les conversations absentes ne sont pas réputés disponibles.
+
+Les partiels multi-lignes, splits, frais, intégrations bancaires, application de paiements, comptabilité complète et capacités CFO profondes restent ouverts avec leurs critères dans le périmètre du produit. La suite conserve les dix départements, les identifiants de l’affaire commune et les permissions humaines sur les actions financières.
+
+Les empreintes et préimages des sept chemins sont dans REGISTRE.json ; CAPSULE.json rattache les preuves et leurs limites. Aucun force-push, fusion ni déploiement de production.
+
+Incident de conservation auxiliaire : un nom de rapport d’imports runtime r1 a été réutilisé par la vérification r2 ; ses anciens octets ne sont plus disponibles et ne sont pas reconstruits. Les journaux, reçus d’exécution et inventaires restent conservés. Le résultat courant r2 a été copié sous un nom unique et épinglé ; la disposition détaillée figure dans CAPSULE.json.

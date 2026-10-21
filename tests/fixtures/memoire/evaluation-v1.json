@@ -1,0 +1,99 @@
+{
+  "fictif": true,
+  "jeu_id": "memoire-retrieval-v1",
+  "version": 1,
+  "proprietaire": "OPSYS, jeu synthétique interne",
+  "autorisation": "créé exclusivement pour tests; aucun document ni identifiant réel",
+  "corpus": {
+    "chemin": "tests/fixtures/memoire/jeu_or_fr.json",
+    "sha256": "d3720fe1b3d66b4c93fd48271b59d595fb760d50d3db4324f80b973fe325165c"
+  },
+  "sources": [
+    "bareme-peinture",
+    "bareme-toiture",
+    "chantier-017",
+    "chantier-022",
+    "chantier-031",
+    "client-0042",
+    "client-0077",
+    "conditions-paiement",
+    "estimation-031",
+    "garantie-fondation",
+    "garanties-main-oeuvre",
+    "procedure-soumission"
+  ],
+  "questions": [
+    {
+      "qid": "q-infiltration",
+      "famille": "chantier-017",
+      "split": "development",
+      "question": "infiltrasion deau au sousol",
+      "pertinents": [{"source_id": "chantier-017", "grade": 2}],
+      "interdits": ["chantier-022", "chantier-031"]
+    },
+    {
+      "qid": "q-garantie-toiture",
+      "famille": "garantie-toiture",
+      "split": "development",
+      "question": "garantie toiture combien d'annees",
+      "pertinents": [{"source_id": "garanties-main-oeuvre", "grade": 2}],
+      "interdits": ["garantie-fondation", "procedure-soumission"]
+    },
+    {
+      "qid": "q-isolation-combles",
+      "famille": "chantier-022",
+      "split": "holdout",
+      "question": "isolation grenier cellulose",
+      "pertinents": [{"source_id": "chantier-022", "grade": 2}],
+      "interdits": ["chantier-017", "chantier-031"]
+    },
+    {
+      "qid": "q-fenetres-prix",
+      "famille": "estimation-fenetres",
+      "split": "holdout",
+      "question": "fenetre coulisante prix",
+      "pertinents": [{"source_id": "estimation-031", "grade": 2}],
+      "interdits": ["bareme-toiture", "bareme-peinture"]
+    },
+    {
+      "qid": "q-garantie-fondation",
+      "famille": "garantie-fondation",
+      "split": "development",
+      "question": "impermeabilisassion fondasion garanti",
+      "pertinents": [{"source_id": "garantie-fondation", "grade": 2}],
+      "interdits": ["garanties-main-oeuvre", "chantier-031"]
+    },
+    {
+      "qid": "q-facture-etapes",
+      "famille": "client-0077",
+      "split": "development",
+      "question": "facture detaillee par etape",
+      "pertinents": [{"source_id": "client-0077", "grade": 2}],
+      "interdits": ["conditions-paiement", "client-0042"]
+    },
+    {
+      "qid": "q-fissure-fondation",
+      "famille": "chantier-017",
+      "split": "development",
+      "question": "fisure fondasion colmatage",
+      "pertinents": [{"source_id": "chantier-017", "grade": 2}],
+      "interdits": ["chantier-022", "chantier-031"]
+    },
+    {
+      "qid": "q-bardeau-prix",
+      "famille": "bareme-toiture",
+      "split": "holdout",
+      "question": "bardo dasphalte prix",
+      "pertinents": [{"source_id": "bareme-toiture", "grade": 2}],
+      "interdits": ["bareme-peinture", "estimation-031"]
+    },
+    {
+      "qid": "q-versements-client",
+      "famille": "client-0077",
+      "split": "development",
+      "question": "paimen en 3 versemen",
+      "pertinents": [{"source_id": "client-0077", "grade": 2}],
+      "interdits": ["conditions-paiement", "client-0042"]
+    }
+  ]
+}

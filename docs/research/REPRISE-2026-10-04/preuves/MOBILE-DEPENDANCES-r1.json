@@ -1,0 +1,1005 @@
+{
+  "archive": "MOBILE-DEPENDANCES-r1.tar.xz",
+  "sha256": "dc2726b059eda28cc07cb007389cc9a6375d8adc77bd92396fe9028d694408d6",
+  "bytes": 704352,
+  "head_observed": "d943c5d16c4736b73bdb3c3cd543f9460ba04e9c",
+  "qualification": "Local Node22 install/typecheck/2607 Jest/17 consumer tests pass; npm high/critical0 moderate13; upstream Forge829+4pending, braces940; native mobile next head pending",
+  "gitleaks": "2 raw upstream noncredential alerts, classification retained; no baseline changes",
+  "entries": [
+    {
+      "path": "drivers-or-review/braces-adaptation-r2.json",
+      "bytes": 524,
+      "sha256": "85718709e6650354365012e316e42d0e6118e5ac8b7d0d9e226fce0963496d62"
+    },
+    {
+      "path": "drivers-or-review/braces-comparison-r1.json",
+      "bytes": 1496,
+      "sha256": "56c4a1272cbcf1a45d012474a9a940b36ccd0b2786efc2c62eff6be93ec1d0ec"
+    },
+    {
+      "path": "drivers-or-review/braces.patch",
+      "bytes": 7206,
+      "sha256": "69f8d689123e050b742cd7e9c63ff7de17ef7cc458a36e21c81d55f03021fefc"
+    },
+    {
+      "path": "drivers-or-review/forge-rsa.patch",
+      "bytes": 1100,
+      "sha256": "f4ab98b30a7b6997e80c810a8f2fd90dad534c734228ad9273199b382d5fbda2"
+    },
+    {
+      "path": "drivers-or-review/mobile-lock-comparison-r1.json",
+      "bytes": 761,
+      "sha256": "a0c3f462e6438551c69164dc43a4f2cb8298aa8b5fcaca8600cda23f9ed3cc0a"
+    },
+    {
+      "path": "drivers-or-review/node22-download-r1.py",
+      "bytes": 967,
+      "sha256": "2ccd1a9fe69b2e10d6b9bace4b8a478c5327d9832c61dd3f1e67b859b024cab6"
+    },
+    {
+      "path": "drivers-or-review/node22-provenance-r1.json",
+      "bytes": 216,
+      "sha256": "029eb9bbb7ddb4fe6d408103a9a47bd1e7139ee7b884af3c4428c7a4f39cbb98"
+    },
+    {
+      "path": "drivers-or-review/qa-braces-node22-r1.py",
+      "bytes": 2848,
+      "sha256": "625c43d0536f268e0ae0a711f8b85bccf660aac2af1ea28d7c5c8f7f0fdd6e9c"
+    },
+    {
+      "path": "drivers-or-review/qa-braces-r1.py",
+      "bytes": 2720,
+      "sha256": "81a24060c33728461e8fced447083355a720968071f594087592b57e983298b3"
+    },
+    {
+      "path": "drivers-or-review/qa-braces-r2.py",
+      "bytes": 2849,
+      "sha256": "a1736767e9fb218c617a51980f7b8f6ff65a50a92b6af453d179f00f7693267f"
+    },
+    {
+      "path": "drivers-or-review/qa-forge-node22-r1.py",
+      "bytes": 2925,
+      "sha256": "0ccc60750653632ceef8532cdb7da5a72499ce82eadd86a1b978d12e26aa310b"
+    },
+    {
+      "path": "drivers-or-review/qa-forge-r1.py",
+      "bytes": 2367,
+      "sha256": "d9ba3149ec9a36217307dc3345e1e8c66066988f75c3aee81188254eacccbc53"
+    },
+    {
+      "path": "drivers-or-review/qa-forge-r2.py",
+      "bytes": 2383,
+      "sha256": "9b90e2c48197d4a70694b437711239504dc19cbc6d40d4531cb323a883f10919"
+    },
+    {
+      "path": "drivers-or-review/qa-forge-r3.py",
+      "bytes": 2452,
+      "sha256": "0e7658b01e91e2eea6ab7f2d34666b47f8e6399dcd51717426835a17482c855f"
+    },
+    {
+      "path": "drivers-or-review/qa-forge-r4.py",
+      "bytes": 2711,
+      "sha256": "91d0dbef322585d09f87afaeb00625f2395d925d84315ae738f7d36a7a8ae010"
+    },
+    {
+      "path": "drivers-or-review/qa-forge-r5.py",
+      "bytes": 2926,
+      "sha256": "8187ee679fc5f9879ccf5464a4726e086fb624cb9ac2cc6ec55d24a4604c3429"
+    },
+    {
+      "path": "drivers-or-review/qa-mobile-r1.py",
+      "bytes": 3115,
+      "sha256": "ac8bed0904613e17a595765839f1114f16acebaf605b2a59ef970631bdfcfa54"
+    },
+    {
+      "path": "drivers-or-review/qa-mobile-r2.py",
+      "bytes": 3332,
+      "sha256": "a9ae7fa01cc275885cce09946e598b52c244eec476358d2ff24d4822eaabd34f"
+    },
+    {
+      "path": "drivers-or-review/qa-mobile-r3.py",
+      "bytes": 3387,
+      "sha256": "9e68350fe5718a2be2e70932b2de796d24f2dc872ece2bfe96392620b0bacf5f"
+    },
+    {
+      "path": "drivers-or-review/qa-mobile-r4.py",
+      "bytes": 3474,
+      "sha256": "bcdd61e9a172e3e16133a0a777af41e13aecaebfdfe36a4bcb2195228ed404c3"
+    },
+    {
+      "path": "drivers-or-review/qa-mobile-r5.py",
+      "bytes": 3854,
+      "sha256": "2ae7762f6742842f4cadd8cb410e5a1dfb0dc33f9adfa5e7a0df8b7570ae2405"
+    },
+    {
+      "path": "drivers-or-review/qa-reporter-r2.cjs",
+      "bytes": 418,
+      "sha256": "802a759aff08b7125f35de045aa48e0dd8321ade2df060cd7a300041b5d6c960"
+    },
+    {
+      "path": "drivers-or-review/qa-reporter.cjs",
+      "bytes": 405,
+      "sha256": "c61d26f7ceea39ce986d7911d522889d3a945ee17f0bb1ebc7032c3b8cfe67a1"
+    },
+    {
+      "path": "drivers-or-review/test-corpus-adaptation-r1.json",
+      "bytes": 395,
+      "sha256": "a8f94793737b6d19f7a7798ced4fecd6663b8ee5bf00f3936c74c754504b0d2c"
+    },
+    {
+      "path": "native/PUBLICATION-RESULT-r1.json",
+      "bytes": 1414,
+      "sha256": "549c704c77bd1394aac5dcdc16339069d6fe54241f384d470b6dc5d11bbab237"
+    },
+    {
+      "path": "native/native-ci13-summary-r1.json",
+      "bytes": 2184,
+      "sha256": "34906fe6361f7e6ade4a19a35d7c72b86044a0cb68396c8ff6e4f7b6b66d13e6"
+    },
+    {
+      "path": "qa/drivers/guard_helpers_r2.py",
+      "bytes": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844"
+    },
+    {
+      "path": "qa/drivers/qa_root_r71.py",
+      "bytes": 3446,
+      "sha256": "393c1080ee13bda9729db68ea31977eca8c010a79edb2fd289c62c7932233deb"
+    },
+    {
+      "path": "qa/drivers/qa_root_r98.py",
+      "bytes": 3608,
+      "sha256": "80dc9734c4dd9d4b45b45a7b0d03d764324ccf3212e9756da1d3b45885724f5f"
+    },
+    {
+      "path": "qa/mobile/qa-r72/execution-r1/mocha.log",
+      "bytes": 634,
+      "sha256": "d6643c8cf35ff6b1d777da610f32092785db439ae527a3f3a8ea3fedaeab72ab"
+    },
+    {
+      "path": "qa/mobile/qa-r72/freeze.json",
+      "bytes": 12536,
+      "sha256": "5350cd45209184160f1d5b4d63699521f05b94c876aec953574ac43240789695"
+    },
+    {
+      "path": "qa/mobile/qa-r72/receipt.json",
+      "bytes": 28215,
+      "sha256": "ddec401a66532273b1f33d3f5463602d2aa97c85160ea23fa0e8bc3366ce5cb8"
+    },
+    {
+      "path": "qa/mobile/qa-r73/execution-r1/mocha.log",
+      "bytes": 359,
+      "sha256": "f90eaa0cf3f7b4e6122a67a336ee524ca3451d378d371f696a178b819912c05f"
+    },
+    {
+      "path": "qa/mobile/qa-r73/freeze.json",
+      "bytes": 12536,
+      "sha256": "33f61bf217cce67590f64716cb2b2157bc0801fa36fbdd472160cbc095007bc8"
+    },
+    {
+      "path": "qa/mobile/qa-r73/receipt.json",
+      "bytes": 27893,
+      "sha256": "5b21e20219c9483a1aa0397b2580ef376e40d609304e84208c0a540f8567610e"
+    },
+    {
+      "path": "qa/mobile/qa-r74/QUALIFICATION-r1.json",
+      "bytes": 236,
+      "sha256": "fcf5177c4505ab07babf314c0fb6bff6ff5e73cc27d3a24a66cd7d81e93c2117"
+    },
+    {
+      "path": "qa/mobile/qa-r74/execution-r1/mocha.log",
+      "bytes": 1156,
+      "sha256": "8dc0079e72ca979bb36549c5d617e4e8bc0fe3848baa37029a72ac7fcb08dee0"
+    },
+    {
+      "path": "qa/mobile/qa-r74/freeze.json",
+      "bytes": 12536,
+      "sha256": "33f61bf217cce67590f64716cb2b2157bc0801fa36fbdd472160cbc095007bc8"
+    },
+    {
+      "path": "qa/mobile/qa-r74/receipt.json",
+      "bytes": 28860,
+      "sha256": "b09c8fe2e8332e9d44024d937aa06882e45a24578b513f2577cb497813e74ee5"
+    },
+    {
+      "path": "qa/mobile/qa-r75/QUALIFICATION-r1.json",
+      "bytes": 201,
+      "sha256": "564962d4f522af07fb2a12d454207b843ad4c6d8824d9d3a0740636128301ec6"
+    },
+    {
+      "path": "qa/mobile/qa-r75/execution-r1/mocha.log",
+      "bytes": 2389,
+      "sha256": "299be40588284564adf1e255814a6ff5e7a3d3be01be79d842a00d00a1e75c9b"
+    },
+    {
+      "path": "qa/mobile/qa-r75/freeze.json",
+      "bytes": 12536,
+      "sha256": "33f61bf217cce67590f64716cb2b2157bc0801fa36fbdd472160cbc095007bc8"
+    },
+    {
+      "path": "qa/mobile/qa-r76/execution-r1/mocha.log",
+      "bytes": 158620,
+      "sha256": "099e3527b687d8e563d6ecf678eae0595df2a27567da6911d0e50136238fb686"
+    },
+    {
+      "path": "qa/mobile/qa-r76/freeze.json",
+      "bytes": 12536,
+      "sha256": "f9d3e447a5466d94f367a3a669ab1261ab36756fb644a23ff17af7dedaa23ca6"
+    },
+    {
+      "path": "qa/mobile/qa-r76/receipt.json",
+      "bytes": 27372,
+      "sha256": "ac36d349cc7d88c1ed2a48a34bb557bf59b10f499db2fed29ed8d3e3638a9148"
+    },
+    {
+      "path": "qa/mobile/qa-r77/execution-r1/mocha.log",
+      "bytes": 158625,
+      "sha256": "0266e49b2d811407a49514d316d53e696d4240458edbf8e5fb5927a81d74a92d"
+    },
+    {
+      "path": "qa/mobile/qa-r77/freeze.json",
+      "bytes": 12536,
+      "sha256": "f9d3e447a5466d94f367a3a669ab1261ab36756fb644a23ff17af7dedaa23ca6"
+    },
+    {
+      "path": "qa/mobile/qa-r77/receipt.json",
+      "bytes": 230853,
+      "sha256": "f3b9484ce67f93a093877fdb51bd7245f1913e423948f8fea92807002dfe6d19"
+    },
+    {
+      "path": "qa/mobile/qa-r78/execution-r1/mocha.log",
+      "bytes": 591,
+      "sha256": "ca4a810c0747fded100b37c912738ce9589146d5af42c68cda7bba86b3be4730"
+    },
+    {
+      "path": "qa/mobile/qa-r78/freeze.json",
+      "bytes": 2204,
+      "sha256": "7dc386d61b1efc4888d539d8250d8ec987b725d2ca53d2e37c686aa1219a61cb"
+    },
+    {
+      "path": "qa/mobile/qa-r78/receipt.json",
+      "bytes": 7097,
+      "sha256": "e388551bc02e1eee9066f1fd532b26684b7f4eec6df690347a11a32f6abefb93"
+    },
+    {
+      "path": "qa/mobile/qa-r79/execution-r1/mocha.log",
+      "bytes": 194748,
+      "sha256": "c50503f38e7d9dc84c04e0dc5090ed61543fb9a8954769493fc4e080b8447e62"
+    },
+    {
+      "path": "qa/mobile/qa-r79/freeze.json",
+      "bytes": 2305,
+      "sha256": "489bb27ac4272985a6b3937232285c5c8a81f8119c1b746a88117d7868913def"
+    },
+    {
+      "path": "qa/mobile/qa-r79/receipt.json",
+      "bytes": 252897,
+      "sha256": "e8a348fb8b0bf335db91492de22da64451d1f16c53e63f6dc2dfcfabf091acd5"
+    },
+    {
+      "path": "qa/mobile/qa-r80/execution-r1/mocha.log",
+      "bytes": 186949,
+      "sha256": "9519f7843af4f701c608d0759cc377fb6803f5a2c24b5c3045b2ece697c01aef"
+    },
+    {
+      "path": "qa/mobile/qa-r80/freeze.json",
+      "bytes": 12536,
+      "sha256": "f9d3e447a5466d94f367a3a669ab1261ab36756fb644a23ff17af7dedaa23ca6"
+    },
+    {
+      "path": "qa/mobile/qa-r80/receipt.json",
+      "bytes": 267925,
+      "sha256": "8a0005656434dcc4168e009fce8d5a6242d23d6ac252ccd6ac3d8810e0713e32"
+    },
+    {
+      "path": "qa/mobile/qa-r81/execution-r1/mocha.log",
+      "bytes": 213875,
+      "sha256": "6da10ecea0c4b147d57ba856005c816a3fcc8ec1f9df0bbf0c4e2d1bfe1727fb"
+    },
+    {
+      "path": "qa/mobile/qa-r81/freeze.json",
+      "bytes": 2204,
+      "sha256": "7dc386d61b1efc4888d539d8250d8ec987b725d2ca53d2e37c686aa1219a61cb"
+    },
+    {
+      "path": "qa/mobile/qa-r81/receipt.json",
+      "bytes": 279499,
+      "sha256": "e323c90d0908357acc1c2e7d7848b27e9e73e0d350b80015cc0c9397c86f58f0"
+    },
+    {
+      "path": "qa/mobile/qa-r82/execution-r1/mocha.log",
+      "bytes": 226708,
+      "sha256": "a934056fafad3c379a09c9cf6faa07d98262aa5f0c39ecee91a685ce67665116"
+    },
+    {
+      "path": "qa/mobile/qa-r82/freeze.json",
+      "bytes": 2305,
+      "sha256": "489bb27ac4272985a6b3937232285c5c8a81f8119c1b746a88117d7868913def"
+    },
+    {
+      "path": "qa/mobile/qa-r82/receipt.json",
+      "bytes": 294678,
+      "sha256": "a8cb3ac72849b558f523c49ed9b0871f4a2bb1120edaed4e491614f6cfba9749"
+    },
+    {
+      "path": "qa/mobile/qa-r83/execution-r1/mocha.log",
+      "bytes": 206184,
+      "sha256": "e53f75a269bd73b5656b4ea44299dd8308fc72084fbcdb202b217aeced95f1f5"
+    },
+    {
+      "path": "qa/mobile/qa-r83/freeze.json",
+      "bytes": 2305,
+      "sha256": "7e483f389a01e4b2a10d8812d11f222e283ba3b344cf81d1586e4a4401f5569b"
+    },
+    {
+      "path": "qa/mobile/qa-r83/receipt.json",
+      "bytes": 273311,
+      "sha256": "010123d084c0bf2f09d25ef47e1ce55ea81db00fcbb0a02dc43c3d31fbe742a3"
+    },
+    {
+      "path": "qa/mobile/qa-r84/execution-r1/lock.log",
+      "bytes": 21,
+      "sha256": "873b66c364370da5d2f44042df752e240b3daad1ec81805a06c6bd00c61b1741"
+    },
+    {
+      "path": "qa/mobile/qa-r84/freeze.json",
+      "bytes": 36087,
+      "sha256": "6480d4511c062d77b5d8026d25b373602bb467f02e528c55c3e27e1fb86053d9"
+    },
+    {
+      "path": "qa/mobile/qa-r84/receipt.json",
+      "bytes": 75680,
+      "sha256": "4f7b9787884afcfa9febc5eb4874e2d8edd33740ab11635335425b5a745d9fba"
+    },
+    {
+      "path": "qa/mobile/qa-r85/execution-r1/audit.log",
+      "bytes": 7505,
+      "sha256": "92e7487804b5792c0fb92967c9a7121b3d8198e2c4c0ca071819ccff2308cddb"
+    },
+    {
+      "path": "qa/mobile/qa-r85/freeze.json",
+      "bytes": 36178,
+      "sha256": "4347ca993235597857ee725f6a880be0d9a77e8f98565033f6c6b18a8a515594"
+    },
+    {
+      "path": "qa/mobile/qa-r85/receipt.json",
+      "bytes": 75995,
+      "sha256": "af20782af296296da125a0ab426cf764cf003a59f04cf4d9788b5dad359c79d0"
+    },
+    {
+      "path": "qa/mobile/qa-r86/execution-r1/install.log",
+      "bytes": 1894,
+      "sha256": "c157d1e4de09dbd5a95a7663fec25dd348435866709ddf14ebba6f28e0b3e6fb"
+    },
+    {
+      "path": "qa/mobile/qa-r86/freeze.json",
+      "bytes": 36178,
+      "sha256": "4347ca993235597857ee725f6a880be0d9a77e8f98565033f6c6b18a8a515594"
+    },
+    {
+      "path": "qa/mobile/qa-r86/receipt.json",
+      "bytes": 75841,
+      "sha256": "331af74dd6a6a251f1986daef3c704b8bdb2051ce61b665c8da8f70600c294b0"
+    },
+    {
+      "path": "qa/mobile/qa-r87/execution-r1/mocha.log",
+      "bytes": 186950,
+      "sha256": "7688fa2e6e47673c3b16ba483dab448de7a5911678d825f84cb67a3d8a7c05b8"
+    },
+    {
+      "path": "qa/mobile/qa-r87/freeze.json",
+      "bytes": 12536,
+      "sha256": "f9d3e447a5466d94f367a3a669ab1261ab36756fb644a23ff17af7dedaa23ca6"
+    },
+    {
+      "path": "qa/mobile/qa-r87/receipt.json",
+      "bytes": 267935,
+      "sha256": "7e488484dc5ffda7f82ae30a5b5b01673a402068e088c466bd4a7032b20aa344"
+    },
+    {
+      "path": "qa/mobile/qa-r88/execution-r1/mocha.log",
+      "bytes": 206184,
+      "sha256": "fd021262535bfd100b65ee9f03f418e889bdcebc155020fbb26f6541c89b66e0"
+    },
+    {
+      "path": "qa/mobile/qa-r88/freeze.json",
+      "bytes": 2305,
+      "sha256": "7e483f389a01e4b2a10d8812d11f222e283ba3b344cf81d1586e4a4401f5569b"
+    },
+    {
+      "path": "qa/mobile/qa-r88/receipt.json",
+      "bytes": 273316,
+      "sha256": "ddcf5bed0da9f8d58d313c0b2cbf84a86b15d9587ba86abfd6ae461bb56e3339"
+    },
+    {
+      "path": "qa/mobile/qa-r89/execution-r1/types.log",
+      "bytes": 48,
+      "sha256": "8111087e92cb5a47fda610344b457f3b808a3a637625368acc03b77a29a37f3a"
+    },
+    {
+      "path": "qa/mobile/qa-r89/freeze.json",
+      "bytes": 36178,
+      "sha256": "4347ca993235597857ee725f6a880be0d9a77e8f98565033f6c6b18a8a515594"
+    },
+    {
+      "path": "qa/mobile/qa-r89/receipt.json",
+      "bytes": 76063,
+      "sha256": "10ea33d4927f062a20fb43aaba1aeb8e933e77b66d016cdc8c668e8b199fab54"
+    },
+    {
+      "path": "qa/mobile/qa-r90/execution-r1/jest.log",
+      "bytes": 4582,
+      "sha256": "6e218cab994f36b7c96e479486af44d7eda4aecfd544a951dd0a1e1253a2ad17"
+    },
+    {
+      "path": "qa/mobile/qa-r90/freeze.json",
+      "bytes": 36178,
+      "sha256": "4347ca993235597857ee725f6a880be0d9a77e8f98565033f6c6b18a8a515594"
+    },
+    {
+      "path": "qa/mobile/qa-r90/jest.json",
+      "bytes": 1141877,
+      "sha256": "8678905c6cdcf1a708483b6feae4ee1fbb49f44dad4328d7b20e4bda3ac0c5e8"
+    },
+    {
+      "path": "qa/mobile/qa-r90/receipt.json",
+      "bytes": 76125,
+      "sha256": "8e6859c7d0e186ba94df2593a8a95824cc6ef39da89164ea41af3f9ad507f6a8"
+    },
+    {
+      "path": "qa/mobile/qa-r91/execution-r1/types.log",
+      "bytes": 48,
+      "sha256": "8111087e92cb5a47fda610344b457f3b808a3a637625368acc03b77a29a37f3a"
+    },
+    {
+      "path": "qa/mobile/qa-r91/freeze.json",
+      "bytes": 36178,
+      "sha256": "4347ca993235597857ee725f6a880be0d9a77e8f98565033f6c6b18a8a515594"
+    },
+    {
+      "path": "qa/mobile/qa-r91/receipt.json",
+      "bytes": 75874,
+      "sha256": "fb2de193df1521881c9080a374f529ef568b5e270e62013fa1f52e70e0ad0b5e"
+    },
+    {
+      "path": "qa/mobile/qa-r92/execution-r1/native-install.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "qa/mobile/qa-r92/freeze.json",
+      "bytes": 36274,
+      "sha256": "f7d0ca7f11c5fb36eae34e54aae1fc53cfb0b03745e6e470005774bca90a6fa0"
+    },
+    {
+      "path": "qa/mobile/qa-r92/receipt.json",
+      "bytes": 76449,
+      "sha256": "3424c427f41619397e60f85e73585423918ddf4f0abb66eba17e8d51d2c94389"
+    },
+    {
+      "path": "qa/mobile/qa-r93/execution-r1/native-install.log",
+      "bytes": 1893,
+      "sha256": "81c11f270fa4ba4ba1c6b4c326618ff627461a7bfee92634836931bff31f16b4"
+    },
+    {
+      "path": "qa/mobile/qa-r93/freeze.json",
+      "bytes": 36386,
+      "sha256": "9d3f8faabfd3ce019fd7efc058032c7e4a1e38fb2a853c28238d39158693af09"
+    },
+    {
+      "path": "qa/mobile/qa-r93/receipt.json",
+      "bytes": 76346,
+      "sha256": "e366733b707af023cf83dbc8403efbd5a4f26fc293b71d1ee6241f930d637fcb"
+    },
+    {
+      "path": "qa/mobile/qa-r94/execution-r1/consumer.log",
+      "bytes": 4532,
+      "sha256": "24e5dac90786cae7802ac9bd8e7942165e691f002ada6ad34079b7d069ef580d"
+    },
+    {
+      "path": "qa/mobile/qa-r94/freeze.json",
+      "bytes": 36386,
+      "sha256": "9d3f8faabfd3ce019fd7efc058032c7e4a1e38fb2a853c28238d39158693af09"
+    },
+    {
+      "path": "qa/mobile/qa-r94/receipt.json",
+      "bytes": 76320,
+      "sha256": "ec6528bbb8641a6f0c95f6371b68b3c56b29db2f37f0d4eef50102caa158d48e"
+    },
+    {
+      "path": "qa/mobile/qa-r95/execution-r1/consumer.log",
+      "bytes": 3602,
+      "sha256": "6cb05c3b063ff8b5ce03e6d0389cff7667153802ad7e88ac651e1e24b368970d"
+    },
+    {
+      "path": "qa/mobile/qa-r95/freeze.json",
+      "bytes": 36386,
+      "sha256": "61b9dd357b0a3ee314d9512e30a394ccfe25c7c15b5ac6aa6da7dd7ce59ea84e"
+    },
+    {
+      "path": "qa/mobile/qa-r95/receipt.json",
+      "bytes": 76446,
+      "sha256": "a2d40422770ee0147718a23bbcfee9c053b351d27ea90551b9f32c04df7117bd"
+    },
+    {
+      "path": "qa/mobile/qa-r96/execution-r1/types.log",
+      "bytes": 48,
+      "sha256": "8111087e92cb5a47fda610344b457f3b808a3a637625368acc03b77a29a37f3a"
+    },
+    {
+      "path": "qa/mobile/qa-r96/freeze.json",
+      "bytes": 36386,
+      "sha256": "61b9dd357b0a3ee314d9512e30a394ccfe25c7c15b5ac6aa6da7dd7ce59ea84e"
+    },
+    {
+      "path": "qa/mobile/qa-r96/receipt.json",
+      "bytes": 76297,
+      "sha256": "0464e666122954c8a8833f339594bc2350f98bdcdb74683b0bd066f85d3ad546"
+    },
+    {
+      "path": "qa/mobile/qa-r97/execution-r1/jest.log",
+      "bytes": 4582,
+      "sha256": "27a6912fe1344f53c725f9975b20f792f0f4325db9a44bc769c3130064e1a5d8"
+    },
+    {
+      "path": "qa/mobile/qa-r97/freeze.json",
+      "bytes": 36386,
+      "sha256": "61b9dd357b0a3ee314d9512e30a394ccfe25c7c15b5ac6aa6da7dd7ce59ea84e"
+    },
+    {
+      "path": "qa/mobile/qa-r97/jest.json",
+      "bytes": 1141873,
+      "sha256": "aa2eb214746c3019fcf544b7073e74d47d3529d83c6594ef0a989649a7f574ad"
+    },
+    {
+      "path": "qa/mobile/qa-r97/receipt.json",
+      "bytes": 76625,
+      "sha256": "41056bf506d404736d29a0e3d08d7757f9b4ddf28b662024930e8cf1321ef305"
+    },
+    {
+      "path": "qa/mobile/qa-r99/execution-r1/consumer.log",
+      "bytes": 3607,
+      "sha256": "4f32787dc9e38fd9e4b02926c32aa2a0bb465f773655e917e3f01397e84e735e"
+    },
+    {
+      "path": "qa/mobile/qa-r99/freeze.json",
+      "bytes": 36386,
+      "sha256": "954be56ffb1a2bdb310121552fd970ba7129e5e0f11eab1ced91a020b8a03cbc"
+    },
+    {
+      "path": "qa/mobile/qa-r99/receipt.json",
+      "bytes": 76446,
+      "sha256": "3b2fd0bf90044f5ae3e969aaefd9209a77e7a83d0348c66ba8c3b5c2dc284521"
+    },
+    {
+      "path": "qa/socle/qa-r71/execution-r1/pytest.log",
+      "bytes": 80,
+      "sha256": "475bcfb56b286d857c4310602373e306e2cb722ad6df6053d0e1aff939c18220"
+    },
+    {
+      "path": "qa/socle/qa-r71/execution-r1/pytest.xml",
+      "bytes": 4345,
+      "sha256": "b1e46b81b1b5abd4154314bc2a7495e792eeaf6a65271042fa14f6bc5804d23a"
+    },
+    {
+      "path": "qa/socle/qa-r71/freeze.json",
+      "bytes": 153301,
+      "sha256": "178bb4dca28bff81b074b43850f26b7a806976268b72571aaa894f1d469df2e8"
+    },
+    {
+      "path": "qa/socle/qa-r71/receipt.json",
+      "bytes": 314398,
+      "sha256": "64443f2864d085792bf5b61ca4ff75cefb002ac831fee6879a30523de68fd13f"
+    },
+    {
+      "path": "qa/socle/qa-r98/classification-r1.json",
+      "bytes": 1014,
+      "sha256": "e5aa18922babae21d5004bc3624696b750cd38eaebc3fa0b5ded498b624e687f"
+    },
+    {
+      "path": "qa/socle/qa-r98/execution-r1/actionlint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "qa/socle/qa-r98/execution-r1/gitleaks.log",
+      "bytes": 131,
+      "sha256": "a9ab1cef5f018e8641d422b3981db26afed0e4c45df6f1501f79a400ee0d02ca"
+    },
+    {
+      "path": "qa/socle/qa-r98/freeze.json",
+      "bytes": 7721,
+      "sha256": "92a4faa45a3858ed1940d69fda8643b16bc01d559ea9304da3080f947a0dad2c"
+    },
+    {
+      "path": "qa/socle/qa-r98/receipt.json",
+      "bytes": 19479,
+      "sha256": "c5fc04f2d9a34bb63092ce51f02fbdfc09cdebeb3e77b44a1fd50c4dc60b9b2d"
+    },
+    {
+      "path": "qa/socle/qa-r98/scan.json",
+      "bytes": 1321,
+      "sha256": "124822936a28dcf0b7c681fd1b0b12b287ae27db166d21a69c0c6b8560460f02"
+    },
+    {
+      "path": "source/.github/workflows/mobile.yml",
+      "bytes": 1437,
+      "sha256": "9ddb46eec3e1158a255539a65e40d7e4ee39fdec9df32fe322454ce65c8a30c6"
+    },
+    {
+      "path": "source/docs/research/INGREDIENTS.md",
+      "bytes": 74291,
+      "sha256": "48f30c05df4af9c31af3a137c0e185bd8ebec0902f88f85ad2d6f93b5722b12b"
+    },
+    {
+      "path": "source/docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md",
+      "bytes": 8884,
+      "sha256": "0ab0fb0d05b5052d26c27b5e0384680e9c4c908a50382d1086bf63cd076bb9c3"
+    },
+    {
+      "path": "source/docs/research/REPRISE-2026-10-04/MOBILE-DEPENDANCES-FORKS.md",
+      "bytes": 7891,
+      "sha256": "456e08e45e96bf078de3a312e436f7c890fff450ea49b4ec2669e0c19b772f5b"
+    },
+    {
+      "path": "source/mobile/package-lock.json",
+      "bytes": 407454,
+      "sha256": "03af7d4f63e502a0e919af9ee5bb474af31f2ed24fd3de77b64f720359c3fa5e"
+    },
+    {
+      "path": "source/mobile/package.json",
+      "bytes": 1699,
+      "sha256": "133a6beda05779904e0ede095d3b62befeaff5ef83a69bc9d1edb3eb034d9e25"
+    },
+    {
+      "path": "source/mobile/scripts/security-dependencies.test.cjs",
+      "bytes": 5587,
+      "sha256": "c30a3209a1e641e1e2e840b56d863df6fae6f69132d109615b733822cf6faa83"
+    },
+    {
+      "path": "source/mobile/vendor/PROVENANCE.json",
+      "bytes": 7445,
+      "sha256": "f611585b22aafc737cd281ee10521c52fcb5fd2983677c1e574840540d0360bd"
+    },
+    {
+      "path": "source/mobile/vendor/braces/LICENSE",
+      "bytes": 1091,
+      "sha256": "35bdd8a44339719441900fb50fbefc5e2dca1ca662cbaed7a687de842c8b70f2"
+    },
+    {
+      "path": "source/mobile/vendor/braces/README.md",
+      "bytes": 21505,
+      "sha256": "947b0fc3cc12eaaa070207126213fbdf9ab2bf8cd13dcc6e4007b36b79309866"
+    },
+    {
+      "path": "source/mobile/vendor/braces/index.js",
+      "bytes": 4380,
+      "sha256": "332ea07c7b006361aad12aa994ca75dc1db8e8382b884909e2f38f10b85c88a4"
+    },
+    {
+      "path": "source/mobile/vendor/braces/lib/compile.js",
+      "bytes": 1864,
+      "sha256": "b651f7715e6db8942ce61d3394357b4d81c8ece88240aa31a458ea1165edd195"
+    },
+    {
+      "path": "source/mobile/vendor/braces/lib/constants.js",
+      "bytes": 1607,
+      "sha256": "f9fb688959232eee3e6ad7906a5b0e3234815db49ee857ef86983d65b917dc7c"
+    },
+    {
+      "path": "source/mobile/vendor/braces/lib/expand.js",
+      "bytes": 3268,
+      "sha256": "7ea3e14c2b2b256ef244fd3d83b8fcaa20aa2232b4e6d768c3bb6ab567f66cf5"
+    },
+    {
+      "path": "source/mobile/vendor/braces/lib/parse.js",
+      "bytes": 7852,
+      "sha256": "b1bf766fba6a62035f78ecbda8a5fd94e921aa1c1ec0cdf3f467e9c836abed55"
+    },
+    {
+      "path": "source/mobile/vendor/braces/lib/stringify.js",
+      "bytes": 1081,
+      "sha256": "49dc2d8bafa74f34715a18a845bcb82ce66caaf3bab4cf117998e06b1f9a50a9"
+    },
+    {
+      "path": "source/mobile/vendor/braces/lib/utils.js",
+      "bytes": 2518,
+      "sha256": "b5a7596aa67730412b3c029ef09e84e6b67b8e445cffd35d1d295549c89066c7"
+    },
+    {
+      "path": "source/mobile/vendor/braces/package.json",
+      "bytes": 1568,
+      "sha256": "ee37b378cff5ab03b25afa50cad78a79aa2da8a23c7c01b8885d27ed0caa6632"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/LICENSE",
+      "bytes": 17972,
+      "sha256": "f63ff0e4e239244aa79280da2dd4811a0469e5e201caf5cbc0d97c3a1dff8e82"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/README.md",
+      "bytes": 59605,
+      "sha256": "4ea0e2db410fd5d87c3c9b21912b9ed3fe6c57b3107fa92e2c90b1e618121a49"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/aes.js",
+      "bytes": 39025,
+      "sha256": "be13b617cfff1d583f616c0ce97147cebd9bf101cf893f027cc18c3a54bd3a2f"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/aesCipherSuites.js",
+      "bytes": 9112,
+      "sha256": "bdc5762c0d6edee74e469a59e0157555463d7abeadf34c4377121673dacc2360"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/asn1-validator.js",
+      "bytes": 2295,
+      "sha256": "6f206656ab557712c2a09f3b8bba69004dd41b2b37cee0cb836d44ea8034004b"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/asn1.js",
+      "bytes": 45406,
+      "sha256": "271047be6eab614060ef361cce2c8a92abf066c40fb329f44cfac3269214b912"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/baseN.js",
+      "bytes": 5068,
+      "sha256": "08175e677127132340002bdb63dd19ba41c0baae546936032c7d6a6335e219b6"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/cipher.js",
+      "bytes": 6668,
+      "sha256": "67e3547ac39aaa8862d9519f55571dc0deef6e1d3d6a48ea6d6b653fb7a35a3f"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/cipherModes.js",
+      "bytes": 28917,
+      "sha256": "79d74191887706cd5e14bbbcd1ff49472aa1f2baa9154e45f7578c17c3ffefbb"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/des.js",
+      "bytes": 20445,
+      "sha256": "cb0ae63c8477e61be95c3948bf52f1b7ed02d8522791d9ed1704b6b8b8517734"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/ed25519.js",
+      "bytes": 25349,
+      "sha256": "b0d15f1e11168a3a6de9914cdff9bf1be0c5c2fc313499e44dfeb164f5202849"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/forge.js",
+      "bytes": 200,
+      "sha256": "4300955cc75f3cb5b71287b0fa37ec07d3a6bb721a9f6f8b7db19328801046bf"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/form.js",
+      "bytes": 3880,
+      "sha256": "a2f6e0fbab87d5acb02e08c8f92ea8269445f9f35ee1706fb82246ba8f5aba12"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/hmac.js",
+      "bytes": 3833,
+      "sha256": "bab6d0f322458186f6d123cfdd208ab1298a64ab6925b478968a0dfb446a8fa9"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/http.js",
+      "bytes": 39070,
+      "sha256": "3ad8ec7eb451c173b5980265f30f7b3d84268a1cc9b3e0e86337bc55facbc658"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/index.all.js",
+      "bytes": 366,
+      "sha256": "48fa7454923f3baa3dd5a5bf9475892aa5f272c4cc8b5a0ec4f3d6c2370ac631"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/index.js",
+      "bytes": 640,
+      "sha256": "c231851a9d065df1fae045d6e6fb17cf5688b260f9ee0db4965fe1ef3c0607ab"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/jsbn.js",
+      "bytes": 36893,
+      "sha256": "9d2cd4ad90eadf84b0110d9e1fc02512fc89e7ad64d0fee2d578fa51af28e48d"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/kem.js",
+      "bytes": 5217,
+      "sha256": "6552b048e05b92278f70b2810317e1505d521ee9e2ec5496047d927f5f7d1f70"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/log.js",
+      "bytes": 9264,
+      "sha256": "9453eeba574a617225c8f54cfd2c11f1bade2e6a39f73d6e1a9da142db1afaeb"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/md.all.js",
+      "bytes": 251,
+      "sha256": "6a10918cc8f727cc8cec20fee5e13f55c11e30b3f03b8800108cabb299211d4d"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/md.js",
+      "bytes": 253,
+      "sha256": "ebfc33ed52d3c8cf2d584310fe0f45b23d911f532deef8044844bf2271b04402"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/md5.js",
+      "bytes": 7983,
+      "sha256": "ed58ce89d124a276a083280bd7003b09c294c4063e6925d83fe422664a51f810"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/mgf.js",
+      "bytes": 274,
+      "sha256": "2d6d851d6791d0cc1697342edf275993e745fd8c33ef13ad7201026d8a0eea54"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/mgf1.js",
+      "bytes": 1645,
+      "sha256": "9a4acd26ee423034995a811c357e69a6c2368480664b62862982f5c404cfcc0e"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/oids.js",
+      "bytes": 6874,
+      "sha256": "13e31fe08ccb431fefe44f9d2285891b846e65b17b24329bf14eed04de584015"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/pbe.js",
+      "bytes": 30999,
+      "sha256": "2b5c931e1549f5b98478a5b7b014fd3b62260a20db0704f72612dbe64540e25c"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/pbkdf2.js",
+      "bytes": 5809,
+      "sha256": "1cd2f133c60cf860f23d05313a39a5dc060389adcca8423c2143ee904db9f627"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/pem.js",
+      "bytes": 6693,
+      "sha256": "c6509f3aae5ad5e9286da727ea4cbf3b748ad7deff407e76b226f7a6a3b6a120"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/pkcs1.js",
+      "bytes": 8375,
+      "sha256": "c43cf348520a3f6adc4769a3c3410cde502a6bc7a768d5a71a575fa72d19acc7"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/pkcs12.js",
+      "bytes": 33596,
+      "sha256": "d0f9693ff8b6e755031566139f0e23a762c9a7af6a1b08a27d522810019906d3"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/pkcs7.js",
+      "bytes": 39869,
+      "sha256": "f5cc5a89b093262cdcf8f7e01615dddcdb87907228a1c56b5fe73db8cc4160a2"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/pkcs7asn1.js",
+      "bytes": 11484,
+      "sha256": "9a00faef7bff964e3c983eb4a435e8218bdd631b0f0217807b1b2bff895ab76a"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/pki.js",
+      "bytes": 2651,
+      "sha256": "43f1b98dbd39a0c8277b7c0d44325a851712ce5434146ca2a2587a2a7ae1bb1e"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/prime.js",
+      "bytes": 8776,
+      "sha256": "5c63550c13aa4351c210b0766a8ad4a1f23101e1968c6244be7aad8f008e4073"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/prime.worker.js",
+      "bytes": 4805,
+      "sha256": "c2fc7777c7a07c7bc3909d400f9f65dabd6c484a11840e1ef71b2b67236ffd9d"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/prng.js",
+      "bytes": 12326,
+      "sha256": "fc70051ea878498be4d7473ba6b0982f3e2522962e3deee558b393ac4fb18cf9"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/pss.js",
+      "bytes": 7854,
+      "sha256": "c9e83c50451bd90735030cf3fe3d2a68403f678853a6d300cfa3e59b813e7f9b"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/random.js",
+      "bytes": 5438,
+      "sha256": "13daf47db350648ebb98cc0d694f246ae7be508aa03a0d7b9c9f2dbdf127add0"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/rc2.js",
+      "bytes": 11949,
+      "sha256": "d2eb78b77441d9784f5edfced1ad2f49cb35c2a956687ce9d754cf40bbd1b3c3"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/rsa.js",
+      "bytes": 61199,
+      "sha256": "acc22e5d36e27832c34e02dd3933aad7977d45b047eead5016520735efedc9c5"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/sha1.js",
+      "bytes": 9089,
+      "sha256": "0792cc13fa342fd9d8c213c4ffd0d697fc019144258e383dd0ac985bd717564c"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/sha256.js",
+      "bytes": 9574,
+      "sha256": "54b2f4c0ee9d4a561b6d18b1713fddeb815ea1c9d50537f7cbb4fc4474ab732d"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/sha512.js",
+      "bytes": 17133,
+      "sha256": "d600f189d7bd22630b9301a5dea0fd49bb0ac3687f2c8feb7ecdcccd3d21c092"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/socket.js",
+      "bytes": 8329,
+      "sha256": "689715cdeeba3274d6763ab92716a8a3dc1d24a684ea88fee9e2aca72e2dade0"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/ssh.js",
+      "bytes": 7163,
+      "sha256": "6f27454e3fc028c8a6b1c02ae98969aace558ee0c1b6784e8fb12d4419e46d24"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/tls.js",
+      "bytes": 132975,
+      "sha256": "ceee226d32c623bbae290d76b5950be0c06880310ec26dc289f66bd631de4916"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/tlssocket.js",
+      "bytes": 6967,
+      "sha256": "99728e72301548ee5233c16bc0417f07892022d24fd178dfb9c0a40aff541a47"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/util.js",
+      "bytes": 69861,
+      "sha256": "a05620c922303dd687e9447754ebde42878f37e51c390a9a3aedb592434795bc"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/x509.js",
+      "bytes": 102130,
+      "sha256": "cce5b00838c8c08486964c1f62cb8ae3491365509b26a27cfe1917f73dee3be9"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/lib/xhr.js",
+      "bytes": 22117,
+      "sha256": "d9abf523180b6d03b2cc99909eef3488a6b4bc1f822d7fb9d1e945abf555cb42"
+    },
+    {
+      "path": "source/mobile/vendor/node-forge/package.json",
+      "bytes": 1541,
+      "sha256": "9b4845d5aff033bc9300749e03421592b81325534a9a7ce3434b8b83bd1424ec"
+    },
+    {
+      "path": "upstream/braces/npm-vs-upstream-review.md",
+      "bytes": 4182,
+      "sha256": "62cea3ebf40862a9e37fe91f2148e7c0417d8bb3dd0c5803916570745b68bacd"
+    },
+    {
+      "path": "upstream/braces/pr72-full.diff",
+      "bytes": 18781,
+      "sha256": "debc34b5b3e6d9f218a0a9cf0567b6408e3bce5278dd54f2dbc6410bab88a2d3"
+    },
+    {
+      "path": "upstream/braces/review.md",
+      "bytes": 5019,
+      "sha256": "a6a6ed217d4cae20629931d2b679db8f0accae35a9686e4001f465059166d393"
+    },
+    {
+      "path": "upstream/braces/upstream-vs-npm-lib.diff",
+      "bytes": 2033,
+      "sha256": "09b406f22ba62814fcf8fd56f4a1394a1cde7357e66761a4ed6d336ec7d76230"
+    },
+    {
+      "path": "upstream/forge/metadata.txt",
+      "bytes": 533,
+      "sha256": "0b58632cff341eeee7c9684fc0953c076f9af119040a1ace6460eb8d7949d6d4"
+    },
+    {
+      "path": "upstream/forge/review.txt",
+      "bytes": 2502,
+      "sha256": "9882ba04ee86ed6b579305e847369c893ef059c62e1b1443abcf3f3234ea388b"
+    }
+  ]
+}

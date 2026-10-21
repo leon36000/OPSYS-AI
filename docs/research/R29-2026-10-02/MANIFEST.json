@@ -1,0 +1,431 @@
+{
+  "archives": [
+    {
+      "archive": "preuves/implementation--c72a6a0548a3ddaa4ab4af310d394a84161cf095728b947e52d67a54a3ffa396.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/OPSYS-AI-recent/departments/m03-estimation/src/m3_estimation/mesure_plan.py",
+      "sha256_archive": "b734229af91f4aa10b9a2200081f9f2948de1b2ad625b45203427952e8745de2",
+      "sha256_original": "c72a6a0548a3ddaa4ab4af310d394a84161cf095728b947e52d67a54a3ffa396",
+      "taille_archive": 5544,
+      "taille_originale": 20947
+    },
+    {
+      "archive": "preuves/test--6dca13d76fa0531ce5787689ebf1cdc0a41b6ef4a92521dd92be946ba388667b.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/OPSYS-AI-recent/departments/m03-estimation/tests/test_mesure_plan.py",
+      "sha256_archive": "deb181c30efffdf7a21c326d6c2b7545a3dc46a92b94432e89c2277da7730ec4",
+      "sha256_original": "6dca13d76fa0531ce5787689ebf1cdc0a41b6ef4a92521dd92be946ba388667b",
+      "taille_archive": 2849,
+      "taille_originale": 10631
+    },
+    {
+      "archive": "preuves/architecture--cd880673abd7175176822a49ed559432e42f2f86427e0809f1e0bd2640706dec.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/OPSYS-AI-recent/docs/architecture/MESURE-GEOMETRIQUE-PLANE.md",
+      "sha256_archive": "c9c449a348dff21d3c8de513d4d5d3bac97c5734c644de28323f52847279ab0c",
+      "sha256_original": "cd880673abd7175176822a49ed559432e42f2f86427e0809f1e0bd2640706dec",
+      "taille_archive": 2462,
+      "taille_originale": 5212
+    },
+    {
+      "archive": "preuves/lot--af823cf03c0b1a343cd581452fa5d36693a0ba2f9a4e0d1ade1a2a6a5939b08e.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/LOT-MESURE-PLAN-SYNTHETIQUE.md",
+      "sha256_archive": "6c50225d67df93cd714259d31c82d2836cf1d33899476249df441688448f17a9",
+      "sha256_original": "af823cf03c0b1a343cd581452fa5d36693a0ba2f9a4e0d1ade1a2a6a5939b08e",
+      "taille_archive": 2522,
+      "taille_originale": 5321
+    },
+    {
+      "archive": "preuves/source-test-absence-r1--b07834be160b22af759f295156debd0df5d0ab0ecf8956121e58654f8ce34f30.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/preimages-r1/PREIMAGES.json",
+      "sha256_archive": "4079159ff0ddb429b88f9de0fc859ca2dc23eddaba2b92c1a75baa47d8e35c4f",
+      "sha256_original": "b07834be160b22af759f295156debd0df5d0ab0ecf8956121e58654f8ce34f30",
+      "taille_archive": 354,
+      "taille_originale": 640
+    },
+    {
+      "archive": "preuves/test-preimage-before-optional-r2--da4c5d8ef033021cae41dc4e01d2a04518313a5c17bdc2981ce92c8c66f09c8c.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/preimages-r2/PREIMAGES.json",
+      "sha256_archive": "1db48d39262e5e450c7225e5566173bc1b5fffc3e76b08d7f1069106b71e1caa",
+      "sha256_original": "da4c5d8ef033021cae41dc4e01d2a04518313a5c17bdc2981ce92c8c66f09c8c",
+      "taille_archive": 365,
+      "taille_originale": 472
+    },
+    {
+      "archive": "preuves/docs-absence-before-r29--f2b04040f9cea315508c2c1bbd64bc8ceb37e8761cad20b694878621a3874fd3.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/PREIMAGES-R29-DOCS.json",
+      "sha256_archive": "f06e05718ad6d7912f68c91cca7a8666023e006f7eb8891ad6b500cffe802a79",
+      "sha256_original": "f2b04040f9cea315508c2c1bbd64bc8ceb37e8761cad20b694878621a3874fd3",
+      "taille_archive": 288,
+      "taille_originale": 427
+    },
+    {
+      "archive": "preuves/docs-before-root-r2-update--abe6fea3af8a4598aa116f50b1a2fd6f1c06ba4ae76a627afc68efcea970b96b.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/PREIMAGES-R29-UPDATE-R2.json",
+      "sha256_archive": "fb5c75e0d126902f9be3ee9e37726d5b64f73ab2d0e48ea00bc6a3d3ee4673d6",
+      "sha256_original": "abe6fea3af8a4598aa116f50b1a2fd6f1c06ba4ae76a627afc68efcea970b96b",
+      "taille_archive": 414,
+      "taille_originale": 649
+    },
+    {
+      "archive": "preuves/r2-driver-before-create--a8c649f58b5576304c8a0a0467c767f4046eeded5f450db001d7b210d645ac1d.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/PREIMAGES-ARCHIVE-R29-R2.json",
+      "sha256_archive": "2552c869cb8dd86508a3c8ed518aa343219d63c4ac1e43ac64872028cb964c18",
+      "sha256_original": "a8c649f58b5576304c8a0a0467c767f4046eeded5f450db001d7b210d645ac1d",
+      "taille_archive": 430,
+      "taille_originale": 927
+    },
+    {
+      "archive": "preuves/r3-driver-before-create--dd1394f696edf673a4a499115b433eebf03191d619a9774bed8b148fab2748e5.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/PREIMAGES-ARCHIVE-R29-R3.json",
+      "sha256_archive": "592d890cf1bfb757a41c64f64b96ba6614244f22266fc019513321e33c8a707d",
+      "sha256_original": "dd1394f696edf673a4a499115b433eebf03191d619a9774bed8b148fab2748e5",
+      "taille_archive": 445,
+      "taille_originale": 950
+    },
+    {
+      "archive": "preuves/r3-driver-before-correction--884dbb639dc8de991ac2a9ce2c1e20b584a74bd51b6a9963371dc9fdfa8699c5.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/PREIMAGES-ARCHIVE-R29-R3-REVISION.json",
+      "sha256_archive": "9fad7b3a816ab26192fc99d8569d38a547d5e24fe404fd65387a642f3f77ec05",
+      "sha256_original": "884dbb639dc8de991ac2a9ce2c1e20b584a74bd51b6a9963371dc9fdfa8699c5",
+      "taille_archive": 411,
+      "taille_originale": 675
+    },
+    {
+      "archive": "preuves/r1-before--ff1a32a42f54c1b3293177d8b46698ac7be0f10d0cce0ae4aacbb4b7a3dc4830.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/mesure-plan-synthetique-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "4727076c503e3f7deaa9dac1e74393894b95989e94f5e9e3c90f4f361d106a80",
+      "sha256_original": "ff1a32a42f54c1b3293177d8b46698ac7be0f10d0cce0ae4aacbb4b7a3dc4830",
+      "taille_archive": 53296,
+      "taille_originale": 142163
+    },
+    {
+      "archive": "preuves/r1-after--98371d80e0612527af180478048319427d10896b6724a07a86971a18ae5a5e7a.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/mesure-plan-synthetique-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "42817d36712431f129238519dff45a59edf99b5d8b9223aa9bcc77add989bc66",
+      "sha256_original": "98371d80e0612527af180478048319427d10896b6724a07a86971a18ae5a5e7a",
+      "taille_archive": 53295,
+      "taille_originale": 142163
+    },
+    {
+      "archive": "preuves/r1-result--aa39a4934581e1270f9bface89fdc2257aa44e52afef749bc04ed2bd6d191188.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/mesure-plan-synthetique-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "f306cc1477a2f163d7f0f3bf8da71eda6cd90d4caa29531093fdfba7afbddc64",
+      "sha256_original": "aa39a4934581e1270f9bface89fdc2257aa44e52afef749bc04ed2bd6d191188",
+      "taille_archive": 585,
+      "taille_originale": 1025
+    },
+    {
+      "archive": "preuves/r1-console-log--585ba42829657b9e2d56f8614be6c3365a8405474eed008559511ab50f2ffcfb.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/mesure-plan-synthetique-root-r1-2026-10-02.log",
+      "sha256_archive": "4604d3408b496bba6fb009cf4a3387d3ab3e581a2d1300e4e1d252708932509d",
+      "sha256_original": "585ba42829657b9e2d56f8614be6c3365a8405474eed008559511ab50f2ffcfb",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/r1-junit--212af2c9c3fb7ed8a69f5d321a5e1e3fe216531ce2756bd81878f55838c790e3.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/mesure-plan-root-r1.xml",
+      "sha256_archive": "c3d2928b44a623b45e3695a644c1107cba6167aa482a93bac76a31a62ad7a6da",
+      "sha256_original": "212af2c9c3fb7ed8a69f5d321a5e1e3fe216531ce2756bd81878f55838c790e3",
+      "taille_archive": 541,
+      "taille_originale": 1650
+    },
+    {
+      "archive": "preuves/r2-before--fd61f6ecd9cd0a6fdd9f37a080f3d190fc1a5adef8ef62296ea03abc0dc2ec70.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/mesure-plan-synthetique-root-r2-2026-10-02-avant.json",
+      "sha256_archive": "8978481245bafd8fcb97da4bc0832a3fe7a9d2224b33b94e3b9ab78357c4df36",
+      "sha256_original": "fd61f6ecd9cd0a6fdd9f37a080f3d190fc1a5adef8ef62296ea03abc0dc2ec70",
+      "taille_archive": 53529,
+      "taille_originale": 142713
+    },
+    {
+      "archive": "preuves/r2-after--5782dbbec1f6f1defa1a0d03a6f13e9bc640e49a5a676f7abc8c6087d8132faa.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/mesure-plan-synthetique-root-r2-2026-10-02-apres.json",
+      "sha256_archive": "de0bb69010d1bf86226e6ac7fa121ffcb5a65a38bf67c56db94bcc6779b777de",
+      "sha256_original": "5782dbbec1f6f1defa1a0d03a6f13e9bc640e49a5a676f7abc8c6087d8132faa",
+      "taille_archive": 53529,
+      "taille_originale": 142713
+    },
+    {
+      "archive": "preuves/r2-result--3ddd33166c4a1b2b4ef660ca24f69e9a351b22ac4b4ba4fbac0760a79585439a.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/mesure-plan-synthetique-root-r2-2026-10-02-resultat.json",
+      "sha256_archive": "23dec5665dfc75affe4476a64e811173fb7ef460904cb7f04662538707f23f69",
+      "sha256_original": "3ddd33166c4a1b2b4ef660ca24f69e9a351b22ac4b4ba4fbac0760a79585439a",
+      "taille_archive": 587,
+      "taille_originale": 1025
+    },
+    {
+      "archive": "preuves/r2-console-log--585ba42829657b9e2d56f8614be6c3365a8405474eed008559511ab50f2ffcfb.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/mesure-plan-synthetique-root-r2-2026-10-02.log",
+      "sha256_archive": "4604d3408b496bba6fb009cf4a3387d3ab3e581a2d1300e4e1d252708932509d",
+      "sha256_original": "585ba42829657b9e2d56f8614be6c3365a8405474eed008559511ab50f2ffcfb",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/r2-junit--98b7f3fb942fda7ed7adc9e90aafbb6cbe58eee0b8e6dcce60c561f9f099bb8f.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/mesure-plan-root-r2.xml",
+      "sha256_archive": "e649d630a7f2b4031c23bb4189cee423aec498b850e8238b4e2b28ebb1b97f53",
+      "sha256_original": "98b7f3fb942fda7ed7adc9e90aafbb6cbe58eee0b8e6dcce60c561f9f099bb8f",
+      "taille_archive": 518,
+      "taille_originale": 1622
+    },
+    {
+      "archive": "preuves/r2-wheel-junit--1d214aa248e54c611ef82946f8cbf20eb50ccfcd166d3af2408bbeeefc974ea7.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/evidence-r2/test-mesure-r2-wheel.xml",
+      "sha256_archive": "247061b7fd6f8f1a65ef67b95ccd42528e23cba8ab4ce7b8bc709d36b67e8ea6",
+      "sha256_original": "1d214aa248e54c611ef82946f8cbf20eb50ccfcd166d3af2408bbeeefc974ea7",
+      "taille_archive": 519,
+      "taille_originale": 1622
+    },
+    {
+      "archive": "preuves/r2-wheel-log--585ba42829657b9e2d56f8614be6c3365a8405474eed008559511ab50f2ffcfb.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/evidence-r2/test-mesure-r2-wheel.log",
+      "sha256_archive": "4604d3408b496bba6fb009cf4a3387d3ab3e581a2d1300e4e1d252708932509d",
+      "sha256_original": "585ba42829657b9e2d56f8614be6c3365a8405474eed008559511ab50f2ffcfb",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/r2-no-extra-junit-nonqualifying--b373ecaf5da764c35f420ad6cff1be32fe2575cc54dd1bf8d8e0db5267b12f27.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/evidence-r2/test-mesure-r2-noextra.xml",
+      "sha256_archive": "fde30e256c8d434144f1612aa80c4ca7451ea59d241f1a21a802341f871104aa",
+      "sha256_original": "b373ecaf5da764c35f420ad6cff1be32fe2575cc54dd1bf8d8e0db5267b12f27",
+      "taille_archive": 706,
+      "taille_originale": 3918
+    },
+    {
+      "archive": "preuves/r2-no-extra-log-nonqualifying--63a7147c43bc4eda511cb41281e77d27b99936196270a25cc9b8998966e26956.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/evidence-r2/test-mesure-r2-noextra.log",
+      "sha256_archive": "b318f9c09600cb3c6d0b22d0df5336db6a1d682142ac51f1029db14612d84c59",
+      "sha256_original": "63a7147c43bc4eda511cb41281e77d27b99936196270a25cc9b8998966e26956",
+      "taille_archive": 34,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/r2-freeze-receipt--5012cd23ef079b312834995c33a12c919bfd792fef6f569223310a8d9ae1cd16.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/FREEZE-r2.json",
+      "sha256_archive": "40fc2e31f10d206c6067a849595409d511300cab5ccf98114555b621125eba04",
+      "sha256_original": "5012cd23ef079b312834995c33a12c919bfd792fef6f569223310a8d9ae1cd16",
+      "taille_archive": 850,
+      "taille_originale": 1995
+    },
+    {
+      "archive": "preuves/r2-report--0b3e6fa65a011c06f42cda9907d2adc6fd63f065089a43d7c9bbcb91d914afdd.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/REPORT-R2.md",
+      "sha256_archive": "8b1d2bedec7b6c079c025077bae4e22a6b640944a8fb035067a4b99b85008f8a",
+      "sha256_original": "0b3e6fa65a011c06f42cda9907d2adc6fd63f065089a43d7c9bbcb91d914afdd",
+      "taille_archive": 862,
+      "taille_originale": 1504
+    },
+    {
+      "archive": "preuves/ram-wheel-and-licenses-receipt--3f0144af9ec2014ece229ef2edfd5ff65921515c05144c010a6fc02979866a52.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/evidence-r1/WHEEL-LICENSE-RECEIPT.json",
+      "sha256_archive": "d1a8a2f43c7133d9de28fd2b4f92e04b0923f75e696603cf4d2b2c278790d29a",
+      "sha256_original": "3f0144af9ec2014ece229ef2edfd5ff65921515c05144c010a6fc02979866a52",
+      "taille_archive": 1342,
+      "taille_originale": 3410
+    },
+    {
+      "archive": "preuves/vision-extra-proposal-not-adopted--106c9c33d244bfea779463b1b06700821e582aa80e1ddee1ad6b9e19fe2c5867.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/EXTRA-VISION-PROPOSITION-r1.md",
+      "sha256_archive": "853aafaba42e073cda32ffeba8292da94f881faba32744c8528324308f36c4cc",
+      "sha256_original": "106c9c33d244bfea779463b1b06700821e582aa80e1ddee1ad6b9e19fe2c5867",
+      "taille_archive": 1476,
+      "taille_originale": 2479
+    },
+    {
+      "archive": "preuves/root-preflight-red-json--7868a4a4b0b2979378b09f07fcc3135f83c1fb107327a2fc8c2f33ee181d4a20.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/archive-preflight-root-red-r1.json",
+      "sha256_archive": "fbedafb1c14504a97f3621cb5487ab47b94b4def74341a0b8ee16ec29a365df6",
+      "sha256_original": "7868a4a4b0b2979378b09f07fcc3135f83c1fb107327a2fc8c2f33ee181d4a20",
+      "taille_archive": 178,
+      "taille_originale": 210
+    },
+    {
+      "archive": "preuves/root-preflight-red-log--39bae85daf808e92a12fd3d42cccb3a4766ef90dd361de0af1ed4e32b1a45f3c.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/archive-preflight-root-red-r1.log",
+      "sha256_archive": "9611634f024805d62dea6e5507b467140d5a460f80a19b699d6ad80c287abed5",
+      "sha256_original": "39bae85daf808e92a12fd3d42cccb3a4766ef90dd361de0af1ed4e32b1a45f3c",
+      "taille_archive": 378,
+      "taille_originale": 898
+    },
+    {
+      "archive": "preuves/r1-failed-driver--457ed50923a4a3ffc7d3e3acca9b518fe61ddc37655274b70c32e23438947eb5.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/archiver-r29-r1.py",
+      "sha256_archive": "5ef8e0c2fa8effa1a96c715654a8edc94b6b855c64e188400719d54bcf37b231",
+      "sha256_original": "457ed50923a4a3ffc7d3e3acca9b518fe61ddc37655274b70c32e23438947eb5",
+      "taille_archive": 8196,
+      "taille_originale": 25341
+    },
+    {
+      "archive": "preuves/r1-failed-inventory--57387d367e75bc5c8923e9784c73c23e3d8d0a28038703c809823a281f102af1.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/INVENTAIRE-GELE-R29-r1.json",
+      "sha256_archive": "050bb5d5d8d595ea4050f1babd2387af01492298925bac22a1234e7411b5e76d",
+      "sha256_original": "57387d367e75bc5c8923e9784c73c23e3d8d0a28038703c809823a281f102af1",
+      "taille_archive": 3269,
+      "taille_originale": 11641
+    },
+    {
+      "archive": "preuves/r2-unexecuted-driver--9d0e73cd7aad7c33f4723eda3b5cf458ae7b510b2675da9351ec799e392c2799.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/archiver-r29-r2.py",
+      "sha256_archive": "e0eb9310959c5fc679d0a41885c4508f5adbd0301d41054199459dc6e2742698",
+      "sha256_original": "9d0e73cd7aad7c33f4723eda3b5cf458ae7b510b2675da9351ec799e392c2799",
+      "taille_archive": 8688,
+      "taille_originale": 27673
+    },
+    {
+      "archive": "preuves/r2-unexecuted-inventory--5e897a4069a34325ebf83a9ff0d638f6252a3d240fd2f553cfe5d621694c9c29.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/INVENTAIRE-GELE-R29-r2.json",
+      "sha256_archive": "e2fd5a5e4a4c60091b8bcc3b24156496d811f2208cec2d776b16ac112a7a77be",
+      "sha256_original": "5e897a4069a34325ebf83a9ff0d638f6252a3d240fd2f553cfe5d621694c9c29",
+      "taille_archive": 3696,
+      "taille_originale": 13656
+    },
+    {
+      "archive": "preuves/MANIFEST.json--2685dd4e20b7e288ff47ddb9fd62af07e50f7781e284cf2c58790784aa2d99ae.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/MANIFEST.json",
+      "sha256_archive": "d37b5b4e9e9a2ee00b22a76a3062d7b857f2a438d56ca06ee053a163c40d36e2",
+      "sha256_original": "2685dd4e20b7e288ff47ddb9fd62af07e50f7781e284cf2c58790784aa2d99ae",
+      "taille_archive": 5008,
+      "taille_originale": 21858
+    },
+    {
+      "archive": "preuves/README.md--74d091c45617570851c5952a965f51d142059f7e51b986704810fa6cf1d7fe43.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/README.md",
+      "sha256_archive": "db31f0b888472441bad2b3479ff48ca152e1cd8525e7b4b46dfe5991312bb5fd",
+      "sha256_original": "74d091c45617570851c5952a965f51d142059f7e51b986704810fa6cf1d7fe43",
+      "taille_archive": 664,
+      "taille_originale": 1115
+    },
+    {
+      "archive": "preuves/SOURCES-FINALES.json--26f9338fa63d89e10aea564c33d59ac931d9f63bce758cf0f7a55bf04272a25d.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/SOURCES-FINALES.json",
+      "sha256_archive": "a43a3732c3d707fe3aaa44b4a53362f0c9f6416ff03c19d0414ce5957c631119",
+      "sha256_original": "26f9338fa63d89e10aea564c33d59ac931d9f63bce758cf0f7a55bf04272a25d",
+      "taille_archive": 480,
+      "taille_originale": 735
+    },
+    {
+      "archive": "preuves/QUALIFICATION.json--9d377c616e769a79653d8024a4a020ef374db2be8d767241ff61d98b1490eb35.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/QUALIFICATION.json",
+      "sha256_archive": "9bb4b7b02f877e9bf695785838e1422a1ea4ef1f6a8b5a7d3633fd659a69497c",
+      "sha256_original": "9d377c616e769a79653d8024a4a020ef374db2be8d767241ff61d98b1490eb35",
+      "taille_archive": 154002,
+      "taille_originale": 457002
+    },
+    {
+      "archive": "preuves/POST-CHECK.json--1d3a6e5305adf5b5f031d3e32bd537eff0c4350d42f9cccf6151f46d20ce6c5c.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/OPSYS-AI-recent/docs/research/R30-2026-10-02/POST-CHECK.json",
+      "sha256_archive": "dd56a1477d2072600cb4790f6cf7a13624ceab28a5c7a87d54428d3c2247bdb2",
+      "sha256_original": "1d3a6e5305adf5b5f031d3e32bd537eff0c4350d42f9cccf6151f46d20ce6c5c",
+      "taille_archive": 215,
+      "taille_originale": 270
+    },
+    {
+      "archive": "preuves/archiver-r30-pattern--5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/archiver-r30-r1.py",
+      "sha256_archive": "f2eee593a0bfb90641150f9bd72cbf789d5de4e644c3b56c2226804c566f5519",
+      "sha256_original": "5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5",
+      "taille_archive": 4531,
+      "taille_originale": 11816
+    },
+    {
+      "archive": "preuves/archiver-r27-helper-chain--c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-r27/archiver-r27-r1.py",
+      "sha256_archive": "b00ada41394d8b832d21f3dca816e3fe036bf697472710564928737305f83c42",
+      "sha256_original": "c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b",
+      "taille_archive": 6014,
+      "taille_originale": 16286
+    },
+    {
+      "archive": "preuves/archive-driver-r29--74c1f8346e6c4eebb92b2dcbbe46cc6c33594248e64261e6b23922f3c4c1ef6d.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/archiver-r29-r3.py",
+      "sha256_archive": "d8f6132219dc381d2130c06f357b9cd5ff13ab943ce52e7389393193f1d66e3c",
+      "sha256_original": "74c1f8346e6c4eebb92b2dcbbe46cc6c33594248e64261e6b23922f3c4c1ef6d",
+      "taille_archive": 9094,
+      "taille_originale": 29559
+    },
+    {
+      "archive": "preuves/inventaire-gele-r29--85d649e49da70d731f810ae211f5c481683f157d449275eca8265d0102ea3de9.gz",
+      "gzip_mtime": 0,
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/geospatial/INVENTAIRE-GELE-R29-r3.json",
+      "sha256_archive": "1c1ae99e5628f0ad8f4a76718ce038fe652c5c9a208adb42e9faf9df2fa1e7dd",
+      "sha256_original": "85d649e49da70d731f810ae211f5c481683f157d449275eca8265d0102ea3de9",
+      "taille_archive": 3962,
+      "taille_originale": 14829
+    }
+  ],
+  "created_at_utc": "2026-10-02T10:38:09.880878+00:00",
+  "historique": {
+    "R30_archives": 36,
+    "R30_expanded_bytes_checked": 1044621,
+    "R30_qualification_sha256": "9d377c616e769a79653d8024a4a020ef374db2be8d767241ff61d98b1490eb35",
+    "historical_files_R19_R27": 2774,
+    "lots": [
+      "R19-2026-09-30",
+      "R20-2026-10-01",
+      "R21-2026-10-02",
+      "R22-2026-10-02",
+      "R23-2026-10-02",
+      "R24-2026-10-02",
+      "R25-2026-10-02",
+      "R26-2026-10-02",
+      "R27-2026-10-02",
+      "R30-2026-10-02"
+    ]
+  },
+  "liens_locaux_verifies": 1,
+  "qualite": {
+    "license_receipt": true,
+    "no_extra_qualification": false,
+    "no_extra_skipped": 8,
+    "no_extra_tests": 9,
+    "wheel_sha256": "0525a3d2c0b46c611e2130b5fdebc94cf404845d8fa64d2f3a3b679572a5bd22",
+    "wheel_skipped": 0,
+    "wheel_tests": 9
+  },
+  "resume": "R1 et R2 ROOT: chacun neuf cas synthétiques, zéro échec/erreur/skip. R2 a surveillé 1112 fichiers stables, delta vide. Le JUnit sans extra exécute un cas de refus photo et saute explicitement huit cas géométriques; il ne qualifie pas le calcul. Le wheel OpenCV headless 4.13.0.92 et les notices de licences ont été vérifiés en RAM; aucun wheel ou répertoire cv2 n’est inclus. Aucun extra n’est adopté, aucune photo réelle/mesure terrain n’est qualifiée, aucun prix ou devis n’est produit. Les octets des anciens documents ne sont pas disponibles : seules leurs empreintes SHA-256 et tailles historiques déclarées sont conservées, sans reconstitution ni revalidation des octets.",
+  "schema": "opsys.r29-manifest/v1"
+}

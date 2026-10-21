@@ -1,0 +1,41 @@
+{
+  "time_toronto": "2026-10-10T17:17:16.261675-04:00",
+  "status": "SCOPED_A1_ACCEPTED",
+  "report_receipt_API_full_read": true,
+  "source3_diff_and_full_current_source_read": true,
+  "public_expected_rehash": {
+    "layout": "files-hashes",
+    "members_rehashed": 49,
+    "write_operations": 0
+  },
+  "fixed_current_expected_rehash": {
+    "layout": "files-hashes",
+    "members_rehashed": 3942,
+    "write_operations": 0
+  },
+  "actual_imports_rehashed": {
+    "same-case": 498,
+    "affected": 3460
+  },
+  "XML_actual": {
+    "same-case": {
+      "testcases": 34,
+      "failures": 0,
+      "errors": 0,
+      "skips": 33
+    },
+    "affected": {
+      "testcases": 249,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    }
+  },
+  "same_case_not_aggregate_with_affected": true,
+  "phase_receipts_rehashed_closed": 4,
+  "style_warning": "max-lines1 kept; no suppression",
+  "independent_reviewer": "Codex6.1 Sol HIGH no new P1/P2; immutable preimage structural-refusal limitation retained",
+  "early_phase_order_preserved": true,
+  "no_SourceReceiver_or_positive_SMS_model_or_types_build_CI_delivery": true,
+  "proofs_absent104_preserved": true
+}

@@ -1,0 +1,2731 @@
+{
+  "archive": {
+    "bytes": 1151984,
+    "compresslevel": 9,
+    "gzip_mtime": 0,
+    "members": 340,
+    "name": "capsule.tar.gz",
+    "sha256": "2056642fe7eeb2a28a0c497dd62bd51c67c993eeff5a7986fa7b33c9d0bbd69b",
+    "tar_bytes": 4669440
+  },
+  "entries": [
+    {
+      "bytes": 61490,
+      "kind": "préparation historique r1",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-capsule-preparation-r1/ENTREES-r1.json",
+      "relative": "ENTREES-r1.json",
+      "sha256": "df63335d257f5b3aa9493b840ac132905a8d42a2e53ba7f5669ff9f6221a0172",
+      "tar_member": "ENTREES-r1.json"
+    },
+    {
+      "bytes": 62155,
+      "kind": "préparation historique r1",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-capsule-preparation-r1/GEL-PREPARATION-r1.json",
+      "relative": "GEL-PREPARATION-r1.json",
+      "sha256": "a64dd1a03dcbe754ffbc01fa093408b1501ad4d8bea1aa4e9e481df994579d1c",
+      "tar_member": "GEL-PREPARATION-r1.json"
+    },
+    {
+      "bytes": 4252,
+      "kind": "préparation historique r1",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-capsule-preparation-r1/README-r1.md",
+      "relative": "README-r1.md",
+      "sha256": "af0283902a368e25d789a1bbb05d6528d055eaff3357affb80c61259436ce0d5",
+      "tar_member": "README-r1.md"
+    },
+    {
+      "bytes": 5467,
+      "kind": "synthèse qualifiée r2",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-capsule-preparation-r1/README-r2.md",
+      "relative": "README-r2.md",
+      "sha256": "0d9dec43245ff7c0c709519aebc91d11c7e0d86b3156ab05ce40be2b44c293f5",
+      "tar_member": "README-r2.md"
+    },
+    {
+      "bytes": 526,
+      "kind": "vérification indépendante des hashes/logs",
+      "origin": "nouveau reçu auteur lecture seule des sources",
+      "relative": "VERIFICATION-AUTEUR-r1.json",
+      "sha256": "68a3f01d81c3d1f713e7821eb867bfdcbadc666e9f2e9b4e23da82563e515a9f",
+      "tar_member": "VERIFICATION-AUTEUR-r1.json"
+    },
+    {
+      "bytes": 3897,
+      "kind": "synthèse qualifiée r2",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-capsule-preparation-r1/VERIFICATION-AUTEUR-r2.json",
+      "relative": "VERIFICATION-AUTEUR-r2.json",
+      "sha256": "c4bfbf9c650498fca23966c908b0ae50b1c08cff76ce5bbd7e9cc142687bf74c",
+      "tar_member": "VERIFICATION-AUTEUR-r2.json"
+    },
+    {
+      "bytes": 16421,
+      "kind": "conducteur externe ROOT",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/CONTRAT-r1.json",
+      "relative": "conductor/CONTRAT-r1.json",
+      "sha256": "ef141eeda530b9ec63c1520545ec5d4b9db2924d7ee87fe5d569087d17edc230",
+      "tar_member": "conductor/CONTRAT-r1.json"
+    },
+    {
+      "bytes": 716,
+      "kind": "conducteur externe ROOT",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/GEL-PREPARATION-r1.json",
+      "relative": "conductor/GEL-PREPARATION-r1.json",
+      "sha256": "7854de32b372180eedf4b25d191b73174a27f889181f7cfbc5873a67fa33a24e",
+      "tar_member": "conductor/GEL-PREPARATION-r1.json"
+    },
+    {
+      "bytes": 3241,
+      "kind": "conducteur externe ROOT",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/PLAN-r1.md",
+      "relative": "conductor/PLAN-r1.md",
+      "sha256": "9f3e9baa3974d7736ce426056cb4d3c15b8575367fbbb1c75adb34c5f49424f3",
+      "tar_member": "conductor/PLAN-r1.md"
+    },
+    {
+      "bytes": 18633,
+      "kind": "conducteur externe ROOT",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/conducteur-native-r1.py",
+      "relative": "conductor/conducteur-native-r1.py",
+      "sha256": "1f6c677e9ec1e503ba89080225eca72285dfc6a79cf5d5376e9b497a23434670",
+      "tar_member": "conductor/conducteur-native-r1.py"
+    },
+    {
+      "bytes": 7654,
+      "kind": "conducteur externe ROOT",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/probe-native-r1.py",
+      "relative": "conductor/probe-native-r1.py",
+      "sha256": "6d09b9c5838bdb0a90415712ff1fdcb7563a4f0ded9702bb3909e177398ee443",
+      "tar_member": "conductor/probe-native-r1.py"
+    },
+    {
+      "bytes": 1063,
+      "kind": "preuve auteur géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/GEL-r4.json",
+      "relative": "geometry-r4/GEL-r4.json",
+      "sha256": "81a8f0848d8bb8ae876837b2c28104d069d522dc7b65e303d46ad257ba5d0d1d",
+      "tar_member": "geometry-r4/GEL-r4.json"
+    },
+    {
+      "bytes": 1017,
+      "kind": "preuve auteur géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/PREIMAGES-r4.json",
+      "relative": "geometry-r4/PREIMAGES-r4.json",
+      "sha256": "7739a7ab021539f08214706c1e5794a24726ed4c0d9a9da66bf8a81cda02b00a",
+      "tar_member": "geometry-r4/PREIMAGES-r4.json"
+    },
+    {
+      "bytes": 2722,
+      "kind": "preuve auteur géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/RAPPORT-r4.md",
+      "relative": "geometry-r4/RAPPORT-r4.md",
+      "sha256": "c81727286263ae11bbdc51a5c20bfc87faf1aedc256f18fb0a8fc08b3a12176b",
+      "tar_member": "geometry-r4/RAPPORT-r4.md"
+    },
+    {
+      "bytes": 1106,
+      "kind": "preuve auteur géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/RESULTATS-r4.json",
+      "relative": "geometry-r4/RESULTATS-r4.json",
+      "sha256": "a3729611e8f1d1a5a11532fe2fd732d698c75129baf7489a7fbce2809f500ed4",
+      "tar_member": "geometry-r4/RESULTATS-r4.json"
+    },
+    {
+      "bytes": 37949,
+      "kind": "préimage géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/preimages/src/opsys/fusion_csv.py",
+      "relative": "geometry-r4/preimages/src/opsys/fusion_csv.py",
+      "sha256": "311d253b2304ed349b7cf1bf749cdbd45cd921656f46b4581a934e1c5d118566",
+      "tar_member": "geometry-r4/preimages/src/opsys/fusion_csv.py"
+    },
+    {
+      "bytes": 22054,
+      "kind": "préimage géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/preimages/src/opsys/fusion_pdf.py",
+      "relative": "geometry-r4/preimages/src/opsys/fusion_pdf.py",
+      "sha256": "32bccef06c41b67942fe1f7c9ae5a2ba56bf798d717027d252679f35b50798df",
+      "tar_member": "geometry-r4/preimages/src/opsys/fusion_pdf.py"
+    },
+    {
+      "bytes": 18005,
+      "kind": "préimage géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/preimages/tests/test_ingestion_pdf_natif.py",
+      "relative": "geometry-r4/preimages/tests/test_ingestion_pdf_natif.py",
+      "sha256": "3c525174155cac2dc42baf030d7610ae697f6811217db4e11fafc5aa1e585ed1",
+      "tar_member": "geometry-r4/preimages/tests/test_ingestion_pdf_natif.py"
+    },
+    {
+      "bytes": 1798,
+      "kind": "rouge discriminant",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/rouge-r4/RESULTAT.json",
+      "relative": "geometry-r4/rouge-r4/RESULTAT.json",
+      "sha256": "ca0b5d412e8d0e020d5af56df387b6e374c2d5f82943b2442545a455bd11ce3a",
+      "tar_member": "geometry-r4/rouge-r4/RESULTAT.json"
+    },
+    {
+      "bytes": 1763,
+      "kind": "rouge discriminant",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/rouge-r4/tests.log",
+      "relative": "geometry-r4/rouge-r4/tests.log",
+      "sha256": "1fa6fc035456193f470304d230cc02cb22f66d2345be0c502b7da6ee5be44d80",
+      "tar_member": "geometry-r4/rouge-r4/tests.log"
+    },
+    {
+      "bytes": 1776,
+      "kind": "rouge discriminant",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/rouge-r4/tests.xml",
+      "relative": "geometry-r4/rouge-r4/tests.xml",
+      "sha256": "f8909a3f8e2fde25ffbb5a192b44b798a470cc9944d5245303f54ebfff0cad4d",
+      "tar_member": "geometry-r4/rouge-r4/tests.xml"
+    },
+    {
+      "bytes": 2468,
+      "kind": "preuve auteur géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/runner-r4.py",
+      "relative": "geometry-r4/runner-r4.py",
+      "sha256": "f8ce038b8d68703ae17880967619f726c30be4fa8de71f1e0e3e582af7e29381",
+      "tar_member": "geometry-r4/runner-r4.py"
+    },
+    {
+      "bytes": 1864,
+      "kind": "tests auteur",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/smoke-r4/RESULTAT.json",
+      "relative": "geometry-r4/smoke-r4/RESULTAT.json",
+      "sha256": "80161f4a0e6ff18aa6c9e9f80b76044bb7178c163797304ebb76b3ab6841793c",
+      "tar_member": "geometry-r4/smoke-r4/RESULTAT.json"
+    },
+    {
+      "bytes": 113,
+      "kind": "tests auteur",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/smoke-r4/tests.log",
+      "relative": "geometry-r4/smoke-r4/tests.log",
+      "sha256": "027aa1b8523f903c24458edefedab5ddae31bc9d761242544328a1621f8dc0c4",
+      "tar_member": "geometry-r4/smoke-r4/tests.log"
+    },
+    {
+      "bytes": 584,
+      "kind": "tests auteur",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/smoke-r4/tests.xml",
+      "relative": "geometry-r4/smoke-r4/tests.xml",
+      "sha256": "5af669898aca8ae0e4e7065124ad25267cd4c90850c540445385989dc6641518",
+      "tar_member": "geometry-r4/smoke-r4/tests.xml"
+    },
+    {
+      "bytes": 999,
+      "kind": "diff géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/src__opsys__fusion_csv.py.diff",
+      "relative": "geometry-r4/src__opsys__fusion_csv.py.diff",
+      "sha256": "f221b31bd33613220a35ad25921c161c776c0d89347ed3834ccddfe81a33aacb",
+      "tar_member": "geometry-r4/src__opsys__fusion_csv.py.diff"
+    },
+    {
+      "bytes": 2815,
+      "kind": "diff géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/src__opsys__fusion_pdf.py.diff",
+      "relative": "geometry-r4/src__opsys__fusion_pdf.py.diff",
+      "sha256": "f604af6c00515e29aab4946b908051bf092397bc92205f9c87a7ab7945ddce57",
+      "tar_member": "geometry-r4/src__opsys__fusion_pdf.py.diff"
+    },
+    {
+      "bytes": 3559,
+      "kind": "diff géométrie",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/tests__test_ingestion_pdf_natif.py.diff",
+      "relative": "geometry-r4/tests__test_ingestion_pdf_natif.py.diff",
+      "sha256": "e342288bc9e21d3d034991aac988a1437989fd8026f1e6aac285c4a88cc5c878",
+      "tar_member": "geometry-r4/tests__test_ingestion_pdf_natif.py.diff"
+    },
+    {
+      "bytes": 1760,
+      "kind": "tests auteur",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/vert-r4/RESULTAT.json",
+      "relative": "geometry-r4/vert-r4/RESULTAT.json",
+      "sha256": "53be69d81da743e77267225d1598d8abb95d3ff6770a11d2721e41de282c158f",
+      "tar_member": "geometry-r4/vert-r4/RESULTAT.json"
+    },
+    {
+      "bytes": 100,
+      "kind": "tests auteur",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/vert-r4/tests.log",
+      "relative": "geometry-r4/vert-r4/tests.log",
+      "sha256": "140691993c1ddc58e4a22ed3fc15bc2796139def9d8c9c7f2a6117657935021b",
+      "tar_member": "geometry-r4/vert-r4/tests.log"
+    },
+    {
+      "bytes": 7827,
+      "kind": "tests auteur",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-geometry-r4/vert-r4/tests.xml",
+      "relative": "geometry-r4/vert-r4/tests.xml",
+      "sha256": "7cd3f455d328f62094f293d7da946388c72020fc7ef8fddab0f530febaf53cbc",
+      "tar_member": "geometry-r4/vert-r4/tests.xml"
+    },
+    {
+      "bytes": 2344,
+      "kind": "préparation historique r1",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-capsule-preparation-r1/preflight-capsule-r1.py",
+      "relative": "preflight-capsule-r1.py",
+      "sha256": "4a1121ff9b759ec64c9853027046738e66344ceaaa4b62faaf0481b84e06cd7f",
+      "tar_member": "preflight-capsule-r1.py"
+    },
+    {
+      "bytes": 15676,
+      "kind": "preuve indépendante ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/PLAN-ROOT-r1.json",
+      "relative": "root-units/PLAN-ROOT-r1.json",
+      "sha256": "c29ca593dc8dc8f332a56f727592bb76daa76fb540d489b73d74cf6d57cb99ab",
+      "tar_member": "root-units/PLAN-ROOT-r1.json"
+    },
+    {
+      "bytes": 320,
+      "kind": "preuve indépendante ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/VERIFICATION-ROOT.json",
+      "relative": "root-units/VERIFICATION-ROOT.json",
+      "sha256": "5c9355b1ca934becf349b9705f71477a5ce9709de09b920028bc3c19f58a1e9c",
+      "tar_member": "root-units/VERIFICATION-ROOT.json"
+    },
+    {
+      "bytes": 26976,
+      "kind": "preuve indépendante ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/conducteur-root-r1.py",
+      "relative": "root-units/conducteur-root-r1.py",
+      "sha256": "cb7e55dc6dfebcfc8cf43e2791a2c407cfa317ab8c70a0a28bb21c103597de4f",
+      "tar_member": "root-units/conducteur-root-r1.py"
+    },
+    {
+      "bytes": 8163,
+      "kind": "preuve indépendante ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/pytest.xml",
+      "relative": "root-units/pytest.xml",
+      "sha256": "dbd15fe931a49a1dae6688e993efa54158c748f63c67b9bb0ee4a93fe263a115",
+      "tar_member": "root-units/pytest.xml"
+    },
+    {
+      "bytes": 119,
+      "kind": "preuve indépendante ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/qualification.log",
+      "relative": "root-units/qualification.log",
+      "sha256": "286054efa6b4e023b03659ff2832047a86d16ce3a209659e823e6062e139dbc2",
+      "tar_member": "root-units/qualification.log"
+    },
+    {
+      "bytes": 32986,
+      "kind": "preuve indépendante ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/receipt.json",
+      "relative": "root-units/receipt.json",
+      "sha256": "989ca0cc1cc914650ea6af2451f86e6767df32d08a06413f9c51bc67b77e985c",
+      "tar_member": "root-units/receipt.json"
+    },
+    {
+      "bytes": 2518,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/departments/m01-front-office/department.yaml",
+      "relative": "root-units/tested-sources/departments/m01-front-office/department.yaml",
+      "sha256": "e4ffb1cffa7c166b84d1a2880693ad497f21cb4c16f895fc8737bef5ddcbfcb1",
+      "tar_member": "root-units/tested-sources/departments/m01-front-office/department.yaml"
+    },
+    {
+      "bytes": 8475,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/departments/m02-revenue-crm/department.yaml",
+      "relative": "root-units/tested-sources/departments/m02-revenue-crm/department.yaml",
+      "sha256": "76272e7cc2fabec23b7016fb4e4ee4933f809dc7036b823a419d835b58115caa",
+      "tar_member": "root-units/tested-sources/departments/m02-revenue-crm/department.yaml"
+    },
+    {
+      "bytes": 5143,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/departments/m03-estimation/department.yaml",
+      "relative": "root-units/tested-sources/departments/m03-estimation/department.yaml",
+      "sha256": "c5708fc826dca4577d4abb8e9f8eb1ed7422506463aaa927101a78c8185b986b",
+      "tar_member": "root-units/tested-sources/departments/m03-estimation/department.yaml"
+    },
+    {
+      "bytes": 4709,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/departments/m04-field-ops/department.yaml",
+      "relative": "root-units/tested-sources/departments/m04-field-ops/department.yaml",
+      "sha256": "d32f89bec85de9f03598155b8364aff7e3415193830b9f070215a76b3bb0e2b5",
+      "tar_member": "root-units/tested-sources/departments/m04-field-ops/department.yaml"
+    },
+    {
+      "bytes": 9134,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/departments/m05-financecore/department.yaml",
+      "relative": "root-units/tested-sources/departments/m05-financecore/department.yaml",
+      "sha256": "f7e18a1c80aa9f44b9345d06af682f00523938553fc08abba81d99db4f2c57f9",
+      "tar_member": "root-units/tested-sources/departments/m05-financecore/department.yaml"
+    },
+    {
+      "bytes": 6335,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/departments/m06-material-control/department.yaml",
+      "relative": "root-units/tested-sources/departments/m06-material-control/department.yaml",
+      "sha256": "5778e128da7bc1ae278793342d3f51b220079e51826cd64367c023050540b178",
+      "tar_member": "root-units/tested-sources/departments/m06-material-control/department.yaml"
+    },
+    {
+      "bytes": 3201,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/departments/m07-marketing/department.yaml",
+      "relative": "root-units/tested-sources/departments/m07-marketing/department.yaml",
+      "sha256": "3e8b4b8782161417da083ae1698733d8e8a8a94a30c18cc3800f04b0d5895f3a",
+      "tar_member": "root-units/tested-sources/departments/m07-marketing/department.yaml"
+    },
+    {
+      "bytes": 8633,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/departments/m08-analytics/department.yaml",
+      "relative": "root-units/tested-sources/departments/m08-analytics/department.yaml",
+      "sha256": "f5481bc666aa8783606bb5d1cb09d3429a268bd179e25b8fa262c2b8bbd3099d",
+      "tar_member": "root-units/tested-sources/departments/m08-analytics/department.yaml"
+    },
+    {
+      "bytes": 3133,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/departments/m09-strategic-intelligence/department.yaml",
+      "relative": "root-units/tested-sources/departments/m09-strategic-intelligence/department.yaml",
+      "sha256": "362742734ed3f804794cb0ed6ff8deb2521185bed5daec7d80bf9506170f1d3a",
+      "tar_member": "root-units/tested-sources/departments/m09-strategic-intelligence/department.yaml"
+    },
+    {
+      "bytes": 4605,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/departments/m10-memoire/department.yaml",
+      "relative": "root-units/tested-sources/departments/m10-memoire/department.yaml",
+      "sha256": "6ac8b7eddbb757523c8361f261adce173e5c339a7079ac02f40c580f65933ae0",
+      "tar_member": "root-units/tested-sources/departments/m10-memoire/department.yaml"
+    },
+    {
+      "bytes": 3840,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/deploy/readiness_pdf.py",
+      "relative": "root-units/tested-sources/deploy/readiness_pdf.py",
+      "sha256": "bb5c1a9fcf9446f6e721e9b98841a2d0deaad164fc9f245111b4bdb43744b308",
+      "tar_member": "root-units/tested-sources/deploy/readiness_pdf.py"
+    },
+    {
+      "bytes": 5071,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/docs/grs/configuration/DECLENCHEURS-CRON-PROFILS.md",
+      "relative": "root-units/tested-sources/docs/grs/configuration/DECLENCHEURS-CRON-PROFILS.md",
+      "sha256": "d3b9b10f77c98422ce322c1543f66192ae683fa63d082cc5d527afe715229a59",
+      "tar_member": "root-units/tested-sources/docs/grs/configuration/DECLENCHEURS-CRON-PROFILS.md"
+    },
+    {
+      "bytes": 46764,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/install/install.sh",
+      "relative": "root-units/tested-sources/install/install.sh",
+      "sha256": "11429f973fb73f360aa385475984af5c8368dfe9bc9f9d0b7ecedd6a0fdadcd7",
+      "tar_member": "root-units/tested-sources/install/install.sh"
+    },
+    {
+      "bytes": 4518,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/pyproject.toml",
+      "relative": "root-units/tested-sources/pyproject.toml",
+      "sha256": "08b2737348df0d2ad3a05def846a4388d9f9bfe14393a8f013475ffb9f280ef4",
+      "tar_member": "root-units/tested-sources/pyproject.toml"
+    },
+    {
+      "bytes": 309,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/__init__.py",
+      "relative": "root-units/tested-sources/src/opsys/__init__.py",
+      "sha256": "459f4b7649d5ef4ea8c6314e0836698b5974c637eae3f0d6b6bd1b98e8c4ad73",
+      "tar_member": "root-units/tested-sources/src/opsys/__init__.py"
+    },
+    {
+      "bytes": 36600,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/admission_agents.py",
+      "relative": "root-units/tested-sources/src/opsys/admission_agents.py",
+      "sha256": "3ef8b6e128411ef7f18119d51f1c7fb69d86176b4f3e4771b7a6a0792285be22",
+      "tar_member": "root-units/tested-sources/src/opsys/admission_agents.py"
+    },
+    {
+      "bytes": 14953,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/agent_cfo_grants.py",
+      "relative": "root-units/tested-sources/src/opsys/agent_cfo_grants.py",
+      "sha256": "0271b5408837ed875c7be40de8080ce29867d49eae1b2c44e9a493b0d0129187",
+      "tar_member": "root-units/tested-sources/src/opsys/agent_cfo_grants.py"
+    },
+    {
+      "bytes": 14788,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/agents.py",
+      "relative": "root-units/tested-sources/src/opsys/agents.py",
+      "sha256": "eb7516f3a853bb443ac6f5f26fa3dbf19314119091d496c82e4b9f9be2ddf883",
+      "tar_member": "root-units/tested-sources/src/opsys/agents.py"
+    },
+    {
+      "bytes": 18989,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/agents_declencheurs.py",
+      "relative": "root-units/tested-sources/src/opsys/agents_declencheurs.py",
+      "sha256": "8a2961bfbeb3f11e8daa7c7f017ef9d876deade0cee6b2415c1b84f9a120e0df",
+      "tar_member": "root-units/tested-sources/src/opsys/agents_declencheurs.py"
+    },
+    {
+      "bytes": 6452,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/appareils.py",
+      "relative": "root-units/tested-sources/src/opsys/appareils.py",
+      "sha256": "ba07f9eb057931af26cac679243a5849ff0993cddcfc34ec4289973ea1133162",
+      "tar_member": "root-units/tested-sources/src/opsys/appareils.py"
+    },
+    {
+      "bytes": 31687,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/approbations.py",
+      "relative": "root-units/tested-sources/src/opsys/approbations.py",
+      "sha256": "b5eef97145a66b4d2a08c7a0531c9ff5a9507f15ab76e3cd5818d8c3e07a321b",
+      "tar_member": "root-units/tested-sources/src/opsys/approbations.py"
+    },
+    {
+      "bytes": 25911,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/approbations_appareil.py",
+      "relative": "root-units/tested-sources/src/opsys/approbations_appareil.py",
+      "sha256": "a3d23d226f9359e114ac2e369d3e0adce6c4e68f04c5cf01736b2263c6b7a3d2",
+      "tar_member": "root-units/tested-sources/src/opsys/approbations_appareil.py"
+    },
+    {
+      "bytes": 15885,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/canaux.py",
+      "relative": "root-units/tested-sources/src/opsys/canaux.py",
+      "sha256": "e81b8da2fd00db9c9aaab9ab662e1d5e0ffc101a7526830a6dbc3ecd89213534",
+      "tar_member": "root-units/tested-sources/src/opsys/canaux.py"
+    },
+    {
+      "bytes": 33265,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/capacites.py",
+      "relative": "root-units/tested-sources/src/opsys/capacites.py",
+      "sha256": "f25cc417cd5c4c86da890e80bbe5c682dae7e0760f0a8f0f5a9433148bfb689e",
+      "tar_member": "root-units/tested-sources/src/opsys/capacites.py"
+    },
+    {
+      "bytes": 4181,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/cles_chiffrement.py",
+      "relative": "root-units/tested-sources/src/opsys/cles_chiffrement.py",
+      "sha256": "6b0a81fd38530216eeec177fbe5078bbb8bdbba9a551386af87b1242f9f807f6",
+      "tar_member": "root-units/tested-sources/src/opsys/cles_chiffrement.py"
+    },
+    {
+      "bytes": 39609,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/cli.py",
+      "relative": "root-units/tested-sources/src/opsys/cli.py",
+      "sha256": "657adcaad4b144417bc704cfe311953f758e3bc7b714f3329609e924f203f75e",
+      "tar_member": "root-units/tested-sources/src/opsys/cli.py"
+    },
+    {
+      "bytes": 11549,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/connecteurs.py",
+      "relative": "root-units/tested-sources/src/opsys/connecteurs.py",
+      "sha256": "37103cf4bd8e0d891027363dbfb4e33f6b6da1a3e9e54fd53523881f1ed03a21",
+      "tar_member": "root-units/tested-sources/src/opsys/connecteurs.py"
+    },
+    {
+      "bytes": 690,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/__init__.py",
+      "relative": "root-units/tested-sources/src/opsys/console/__init__.py",
+      "sha256": "6c1d86576ffc2e2c5b990473dc85f02363746b09948effc8179b74f70ece9054",
+      "tar_member": "root-units/tested-sources/src/opsys/console/__init__.py"
+    },
+    {
+      "bytes": 17195,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/agents_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/agents_ui.py",
+      "sha256": "d7e1ce78d8d417683cdb3fa2af8d30ae1d3b30bbd6c80be599d2f4abbf58ac6e",
+      "tar_member": "root-units/tested-sources/src/opsys/console/agents_ui.py"
+    },
+    {
+      "bytes": 48528,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/application.py",
+      "relative": "root-units/tested-sources/src/opsys/console/application.py",
+      "sha256": "f4696dc6caf260efcc9386767befe38b1b271a49c92f6ed2780c18766b8a4985",
+      "tar_member": "root-units/tested-sources/src/opsys/console/application.py"
+    },
+    {
+      "bytes": 11433,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/banque_metier.py",
+      "relative": "root-units/tested-sources/src/opsys/console/banque_metier.py",
+      "sha256": "d1cca8ca248fa3cd21412440ef0d2f1ce92329596257e76e235de2ce8cd874eb",
+      "tar_member": "root-units/tested-sources/src/opsys/console/banque_metier.py"
+    },
+    {
+      "bytes": 11089,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/banque_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/banque_ui.py",
+      "sha256": "b07bf3a8529f7e74e41bc4a32ed9c0f074b6a9caa5e25cbc3a327148b935a0c1",
+      "tar_member": "root-units/tested-sources/src/opsys/console/banque_ui.py"
+    },
+    {
+      "bytes": 17467,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/brand_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/brand_ui.py",
+      "sha256": "8e62b2aa95139d766556d00f5e3ae836694e0ad220d0a1f89cde03f8433f34e8",
+      "tar_member": "root-units/tested-sources/src/opsys/console/brand_ui.py"
+    },
+    {
+      "bytes": 44981,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/calendrier_marketing_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/calendrier_marketing_ui.py",
+      "sha256": "1238de76d074eb8020cd2b6cd401ba22fea34a33aa8e015a5755e3f398b09424",
+      "tar_member": "root-units/tested-sources/src/opsys/console/calendrier_marketing_ui.py"
+    },
+    {
+      "bytes": 9709,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/cfo_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/cfo_ui.py",
+      "sha256": "e3ab2540d572027fbd33d6101214acbaa8525e1faa7acf076d99f748eff3e8a3",
+      "tar_member": "root-units/tested-sources/src/opsys/console/cfo_ui.py"
+    },
+    {
+      "bytes": 9966,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/configuration_lecture.py",
+      "relative": "root-units/tested-sources/src/opsys/console/configuration_lecture.py",
+      "sha256": "75dd4a9c68fec0025fbc7d33baeac814c384f991d2c60ad46d164c45b271d2e0",
+      "tar_member": "root-units/tested-sources/src/opsys/console/configuration_lecture.py"
+    },
+    {
+      "bytes": 26518,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/connecteurs_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/connecteurs_ui.py",
+      "sha256": "7494a0742edd52e8bcd7f6f6da4111343b0c58eddd13b78dbbe5c89abe0c1835",
+      "tar_member": "root-units/tested-sources/src/opsys/console/connecteurs_ui.py"
+    },
+    {
+      "bytes": 19474,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/couts_marketing.py",
+      "relative": "root-units/tested-sources/src/opsys/console/couts_marketing.py",
+      "sha256": "0ccebd8147fc50d53ca542097b1db90c9908a4a2d6d7a4d29393a7537ef33f77",
+      "tar_member": "root-units/tested-sources/src/opsys/console/couts_marketing.py"
+    },
+    {
+      "bytes": 24487,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/finance_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/finance_ui.py",
+      "sha256": "6d2e63c093a23e6356ce01fbbb505079578ef8c7e105a025862c946fd2d89173",
+      "tar_member": "root-units/tested-sources/src/opsys/console/finance_ui.py"
+    },
+    {
+      "bytes": 30543,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/frontoffice_marketing.py",
+      "relative": "root-units/tested-sources/src/opsys/console/frontoffice_marketing.py",
+      "sha256": "67865fc01b79dbeeb02e6567011ae1ef7bd6967152d170127148aa569ede1bc5",
+      "tar_member": "root-units/tested-sources/src/opsys/console/frontoffice_marketing.py"
+    },
+    {
+      "bytes": 22194,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/fusion_pdf_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/fusion_pdf_ui.py",
+      "sha256": "1c7a330152022f9fbcf8a91e77bc16f13cd87dc6b62749bf72df27cc47b4876a",
+      "tar_member": "root-units/tested-sources/src/opsys/console/fusion_pdf_ui.py"
+    },
+    {
+      "bytes": 12851,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/fusion_synthese.py",
+      "relative": "root-units/tested-sources/src/opsys/console/fusion_synthese.py",
+      "sha256": "42e5c85c79e8ea1087fc4361f22939d2b95ab9576ed4591b2bb4d85b1176ef26",
+      "tar_member": "root-units/tested-sources/src/opsys/console/fusion_synthese.py"
+    },
+    {
+      "bytes": 28897,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/fusion_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/fusion_ui.py",
+      "sha256": "c018ddcfd4c1fb2b57523f4a7ae8c1443e07898f505626f6f996636494010c6e",
+      "tar_member": "root-units/tested-sources/src/opsys/console/fusion_ui.py"
+    },
+    {
+      "bytes": 21273,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/marketing_cmo_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/marketing_cmo_ui.py",
+      "sha256": "91470033ebff05a5cd9a47d96b98c1529c7738f8ea626542ea8b8e8e450ed1d3",
+      "tar_member": "root-units/tested-sources/src/opsys/console/marketing_cmo_ui.py"
+    },
+    {
+      "bytes": 8433,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/marketing_growth_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/marketing_growth_ui.py",
+      "sha256": "6ebed20ab294ddcbea84cf7fc60a0e7effb634c3ced9e00a67db5e6dd9982ab0",
+      "tar_member": "root-units/tested-sources/src/opsys/console/marketing_growth_ui.py"
+    },
+    {
+      "bytes": 10110,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/marketing_performance_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/marketing_performance_ui.py",
+      "sha256": "dfe633fd8ec925f3b205098721e5a9b225015e8c6b83fb2c36b506218e6f4b3f",
+      "tar_member": "root-units/tested-sources/src/opsys/console/marketing_performance_ui.py"
+    },
+    {
+      "bytes": 17893,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/marketing_rapport.py",
+      "relative": "root-units/tested-sources/src/opsys/console/marketing_rapport.py",
+      "sha256": "9731e9cd6f990e2fde5f65cb0cb6aa7934f024a902e06684149628a570da494d",
+      "tar_member": "root-units/tested-sources/src/opsys/console/marketing_rapport.py"
+    },
+    {
+      "bytes": 19577,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/memoire_api.py",
+      "relative": "root-units/tested-sources/src/opsys/console/memoire_api.py",
+      "sha256": "3b87edc6dc91835b849ed2ee6a647a3aa7e01674b3f1ef3670d9f22f813fda20",
+      "tar_member": "root-units/tested-sources/src/opsys/console/memoire_api.py"
+    },
+    {
+      "bytes": 13105,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/memoire_apprentissage_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/memoire_apprentissage_ui.py",
+      "sha256": "cdeb3b007ea638794d1cfad5e93dae579f857b9acd2e984ae0502cf24f19362a",
+      "tar_member": "root-units/tested-sources/src/opsys/console/memoire_apprentissage_ui.py"
+    },
+    {
+      "bytes": 22654,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/memoire_ingestion_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/memoire_ingestion_ui.py",
+      "sha256": "8e3248928f0e2c2618badf855331087ca2c0e1d056ccf09d98b57f6ad3887ae6",
+      "tar_member": "root-units/tested-sources/src/opsys/console/memoire_ingestion_ui.py"
+    },
+    {
+      "bytes": 21403,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/memoire_jobs_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/memoire_jobs_ui.py",
+      "sha256": "e3b15147ce0f3424ab90424d86dd4013bc1151228a5b59a23c4d097673323243",
+      "tar_member": "root-units/tested-sources/src/opsys/console/memoire_jobs_ui.py"
+    },
+    {
+      "bytes": 5882,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/memoire_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/memoire_ui.py",
+      "sha256": "cf8f3b4e702c78058457a9d25bf3366195ce370ab6e7c2ed8703a71336a13631",
+      "tar_member": "root-units/tested-sources/src/opsys/console/memoire_ui.py"
+    },
+    {
+      "bytes": 19803,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/metier.py",
+      "relative": "root-units/tested-sources/src/opsys/console/metier.py",
+      "sha256": "48721723c575341f6e85f8f76fb7cc49264011fa47c2078a1b2e1cf88628b541",
+      "tar_member": "root-units/tested-sources/src/opsys/console/metier.py"
+    },
+    {
+      "bytes": 22399,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/pages.py",
+      "relative": "root-units/tested-sources/src/opsys/console/pages.py",
+      "sha256": "dbf86ab77e7e006b937e09c48481c374ea6d5356243dd508e46e94631676dd9a",
+      "tar_member": "root-units/tested-sources/src/opsys/console/pages.py"
+    },
+    {
+      "bytes": 24597,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/paie_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/paie_ui.py",
+      "sha256": "3376817e45f9fa90c6cba71aaa9fd12b82c314d01821c60adb8d8bca33d4f536",
+      "tar_member": "root-units/tested-sources/src/opsys/console/paie_ui.py"
+    },
+    {
+      "bytes": 6762,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/ressources.py",
+      "relative": "root-units/tested-sources/src/opsys/console/ressources.py",
+      "sha256": "18c2fe4be1dab89fcc932e653eac848886d496e9733759a9c15deb1aa8ac0213",
+      "tar_member": "root-units/tested-sources/src/opsys/console/ressources.py"
+    },
+    {
+      "bytes": 6507,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/securite.py",
+      "relative": "root-units/tested-sources/src/opsys/console/securite.py",
+      "sha256": "6d4e253dde1842e6e9bd7170571f82aaff7bbe46175707d4abe706fbaaf434db",
+      "tar_member": "root-units/tested-sources/src/opsys/console/securite.py"
+    },
+    {
+      "bytes": 13398,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/console/voicemail_ui.py",
+      "relative": "root-units/tested-sources/src/opsys/console/voicemail_ui.py",
+      "sha256": "d1a80b6d1fb00005f62bb3bbadf53cf96792ee2cd40ab876ef6908c5ec4c6d52",
+      "tar_member": "root-units/tested-sources/src/opsys/console/voicemail_ui.py"
+    },
+    {
+      "bytes": 10141,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/contexte.py",
+      "relative": "root-units/tested-sources/src/opsys/contexte.py",
+      "sha256": "7fad7319323caea05e12a28ec0096915121c800c46118b726b7956496d19f0d2",
+      "tar_member": "root-units/tested-sources/src/opsys/contexte.py"
+    },
+    {
+      "bytes": 20531,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/departements.py",
+      "relative": "root-units/tested-sources/src/opsys/departements.py",
+      "sha256": "04be90246c690975ede44f0e185ebbbcf40153f8e23c98ee7904f58b008ad288",
+      "tar_member": "root-units/tested-sources/src/opsys/departements.py"
+    },
+    {
+      "bytes": 23466,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/equipes.py",
+      "relative": "root-units/tested-sources/src/opsys/equipes.py",
+      "sha256": "33d69f05b49fd0319c0d96739119e10e61e3179f74503889f3c7ead21a05914c",
+      "tar_member": "root-units/tested-sources/src/opsys/equipes.py"
+    },
+    {
+      "bytes": 5490,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/etat.py",
+      "relative": "root-units/tested-sources/src/opsys/etat.py",
+      "sha256": "e48a18cf657b398f35cb186b18f91de681cc412d5d36915888eeadf3246876f7",
+      "tar_member": "root-units/tested-sources/src/opsys/etat.py"
+    },
+    {
+      "bytes": 1834,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/evenements/__init__.py",
+      "relative": "root-units/tested-sources/src/opsys/evenements/__init__.py",
+      "sha256": "d7f249380659096b759c85eb73c2a12dc1cdbede234fe662ef001d3484f581fa",
+      "tar_member": "root-units/tested-sources/src/opsys/evenements/__init__.py"
+    },
+    {
+      "bytes": 5200,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/evenements/bus.py",
+      "relative": "root-units/tested-sources/src/opsys/evenements/bus.py",
+      "sha256": "4128d0b391eb68cd01f814d176b5f6739960650dc44ebedc4623a245af9828c1",
+      "tar_member": "root-units/tested-sources/src/opsys/evenements/bus.py"
+    },
+    {
+      "bytes": 11724,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/evenements/repartiteur.py",
+      "relative": "root-units/tested-sources/src/opsys/evenements/repartiteur.py",
+      "sha256": "a9a489f117aa16bb596fa97036a2824287e3e18409e2ce35f96cfbba6be5ba53",
+      "tar_member": "root-units/tested-sources/src/opsys/evenements/repartiteur.py"
+    },
+    {
+      "bytes": 3655,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/evenements/schemas.py",
+      "relative": "root-units/tested-sources/src/opsys/evenements/schemas.py",
+      "sha256": "84eab753d13d576467dd9b8a70031b1ad8c23944c0e89cbe66386b8320f986f8",
+      "tar_member": "root-units/tested-sources/src/opsys/evenements/schemas.py"
+    },
+    {
+      "bytes": 21550,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/exportation.py",
+      "relative": "root-units/tested-sources/src/opsys/exportation.py",
+      "sha256": "e9c04ba01f3698bf3a7b697855710a7f0e3c7816e6a6b16a52a4b9cce19f8f82",
+      "tar_member": "root-units/tested-sources/src/opsys/exportation.py"
+    },
+    {
+      "bytes": 20436,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/fichiers.py",
+      "relative": "root-units/tested-sources/src/opsys/fichiers.py",
+      "sha256": "7b4324556a79341d3c23dba62206020d497b99f9a6830f8353809a67712d50db",
+      "tar_member": "root-units/tested-sources/src/opsys/fichiers.py"
+    },
+    {
+      "bytes": 38468,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/fusion_csv.py",
+      "relative": "root-units/tested-sources/src/opsys/fusion_csv.py",
+      "sha256": "5b5ec2d66fda98d2337d0806b08ff83c80c489526782d6f55672c0021193cb62",
+      "tar_member": "root-units/tested-sources/src/opsys/fusion_csv.py"
+    },
+    {
+      "bytes": 22452,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/fusion_pdf.py",
+      "relative": "root-units/tested-sources/src/opsys/fusion_pdf.py",
+      "sha256": "2459fd53547277eb7e9c2838f6baed56e17f2e0c9adbb570a89cffab29527d94",
+      "tar_member": "root-units/tested-sources/src/opsys/fusion_pdf.py"
+    },
+    {
+      "bytes": 8233,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/fusion_pdf_worker.py",
+      "relative": "root-units/tested-sources/src/opsys/fusion_pdf_worker.py",
+      "sha256": "c171dcd08c469944d0301796abbac58f7976c558e4183cdedb683873eea193d1",
+      "tar_member": "root-units/tested-sources/src/opsys/fusion_pdf_worker.py"
+    },
+    {
+      "bytes": 11553,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/garde_fou_texte/__init__.py",
+      "relative": "root-units/tested-sources/src/opsys/garde_fou_texte/__init__.py",
+      "sha256": "67cf9d4e1e699cb75e2145b745cc274f42d82e5e7aba7d064d59f6424e2f39aa",
+      "tar_member": "root-units/tested-sources/src/opsys/garde_fou_texte/__init__.py"
+    },
+    {
+      "bytes": 5960,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/garde_fou_texte/_types.py",
+      "relative": "root-units/tested-sources/src/opsys/garde_fou_texte/_types.py",
+      "sha256": "f20fb203b70938427d68c1ddc2b7deefdc6431e5b100587386a2ef7712fd4ccc",
+      "tar_member": "root-units/tested-sources/src/opsys/garde_fou_texte/_types.py"
+    },
+    {
+      "bytes": 4933,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/garde_fou_texte/confidentialite.py",
+      "relative": "root-units/tested-sources/src/opsys/garde_fou_texte/confidentialite.py",
+      "sha256": "a3b70ca2efacd134bcbb6859205a05d6a1ff9102c41ce0226283fe7e295024c8",
+      "tar_member": "root-units/tested-sources/src/opsys/garde_fou_texte/confidentialite.py"
+    },
+    {
+      "bytes": 1755,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/garde_fou_texte/droit.py",
+      "relative": "root-units/tested-sources/src/opsys/garde_fou_texte/droit.py",
+      "sha256": "afe803025e9cac37234018cdc42f621ce5d5e4dcb9556ad4530c9a0dbed69247",
+      "tar_member": "root-units/tested-sources/src/opsys/garde_fou_texte/droit.py"
+    },
+    {
+      "bytes": 13507,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/garde_fou_texte/engagements.py",
+      "relative": "root-units/tested-sources/src/opsys/garde_fou_texte/engagements.py",
+      "sha256": "03d489f3a044c7d49f1af783c321bd4fcab9dd8c57f6182d3219b38bda261880",
+      "tar_member": "root-units/tested-sources/src/opsys/garde_fou_texte/engagements.py"
+    },
+    {
+      "bytes": 4867,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/garde_fou_texte/promesses.py",
+      "relative": "root-units/tested-sources/src/opsys/garde_fou_texte/promesses.py",
+      "sha256": "caba99ba16e712069234b046035d9cf1890054a7a1c9fa173ccf06fe078c5d83",
+      "tar_member": "root-units/tested-sources/src/opsys/garde_fou_texte/promesses.py"
+    },
+    {
+      "bytes": 3968,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/hermes_plugin.py",
+      "relative": "root-units/tested-sources/src/opsys/hermes_plugin.py",
+      "sha256": "04cc5b47e54dd528eed4594be4143e364efcdca9dbc379f9c54a5a6fffe15935",
+      "tar_member": "root-units/tested-sources/src/opsys/hermes_plugin.py"
+    },
+    {
+      "bytes": 8548,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/idempotence.py",
+      "relative": "root-units/tested-sources/src/opsys/idempotence.py",
+      "sha256": "b12862a11e048dcca0275facef79c39a65b81ae7488ce155939c80c44367a075",
+      "tar_member": "root-units/tested-sources/src/opsys/idempotence.py"
+    },
+    {
+      "bytes": 9490,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/identite.py",
+      "relative": "root-units/tested-sources/src/opsys/identite.py",
+      "sha256": "a8fd1976c3786fd3120eecde5841326c6ecac089709f86dd4410eb2c7fb44ee6",
+      "tar_member": "root-units/tested-sources/src/opsys/identite.py"
+    },
+    {
+      "bytes": 37271,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/instance.py",
+      "relative": "root-units/tested-sources/src/opsys/instance.py",
+      "sha256": "373f6482f62ad186f0ad62661cb17c04d6b51ff30a2e45efecb6a79b7939b3d8",
+      "tar_member": "root-units/tested-sources/src/opsys/instance.py"
+    },
+    {
+      "bytes": 9501,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/jetons.py",
+      "relative": "root-units/tested-sources/src/opsys/jetons.py",
+      "sha256": "14db1614e16b898304b726f76d2450fcf1d9cc9fbb22da2aa26f21cfd9906842",
+      "tar_member": "root-units/tested-sources/src/opsys/jetons.py"
+    },
+    {
+      "bytes": 20255,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/liaison_cibles.py",
+      "relative": "root-units/tested-sources/src/opsys/liaison_cibles.py",
+      "sha256": "48afecf8051f5614f120c3277c7063efd30dbf4488a6e07d305974b83cbf7395",
+      "tar_member": "root-units/tested-sources/src/opsys/liaison_cibles.py"
+    },
+    {
+      "bytes": 802,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire/__init__.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire/__init__.py",
+      "sha256": "b3b10b676c2c66dfdd92385356b81ee48689f96fdc33dd7001ba5f0bea6132ab",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire/__init__.py"
+    },
+    {
+      "bytes": 3770,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire/__main__.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire/__main__.py",
+      "sha256": "72b0ca7d3d7ae3f978d6faae0cc28e17f0b29ae5b6134ad438ae35e1c0ccfce3",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire/__main__.py"
+    },
+    {
+      "bytes": 10655,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire/autorite.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire/autorite.py",
+      "sha256": "49c5f844803c25d90889abb876d9ff39d6f4e56de220d963359fef71def42c83",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire/autorite.py"
+    },
+    {
+      "bytes": 14772,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire/embeddings.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire/embeddings.py",
+      "sha256": "5343611a5be80565641029fcd938897cda994de0956f6a286e7f1ce3a78da75e",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire/embeddings.py"
+    },
+    {
+      "bytes": 10540,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire/evaluation.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire/evaluation.py",
+      "sha256": "fb88eb20cffc69a8dc2f62320043e83abd566f95fb7a1769325c80738ded4f69",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire/evaluation.py"
+    },
+    {
+      "bytes": 6304,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire/ingestion_procedures.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire/ingestion_procedures.py",
+      "sha256": "4001d5f0b212aeabf50cf66bc3313929b8ecc96e45bc71a307dc4dd6edfdbae8",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire/ingestion_procedures.py"
+    },
+    {
+      "bytes": 15943,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire/outils.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire/outils.py",
+      "sha256": "10dc00914e82cf4b090cdf2f3503803189ec7dfb55052c7d8ee15ffc16de1ec2",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire/outils.py"
+    },
+    {
+      "bytes": 1379,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire/profil_embeddings_local.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire/profil_embeddings_local.py",
+      "sha256": "50a1339b882f2e722dfdf95d3b30ff48c4b84ec9bc74ff58dc57cfd2920ece6f",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire/profil_embeddings_local.py"
+    },
+    {
+      "bytes": 21103,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire/serveur_embeddings_local.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire/serveur_embeddings_local.py",
+      "sha256": "12ee8afa10fd3397e015d0233075e2a7c87a6d40075cf6b25c4f63496178c08e",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire/serveur_embeddings_local.py"
+    },
+    {
+      "bytes": 64684,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire/store.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire/store.py",
+      "sha256": "9aad587d2e58fc405ac29f71ca67dc1572482368ba92f83aee20c0cb9e43445c",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire/store.py"
+    },
+    {
+      "bytes": 2070,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire_consolidation.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire_consolidation.py",
+      "sha256": "8fc9097b43da775640014b4c9e09ca8b889ec10ebf62636309d6388a6485d9f5",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire_consolidation.py"
+    },
+    {
+      "bytes": 11846,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire_developpement_cli.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire_developpement_cli.py",
+      "sha256": "01034fbef988c32fcea96fae6679b0cbfd5dde5c7afb2f1ecaa18485f2c87174",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire_developpement_cli.py"
+    },
+    {
+      "bytes": 2940,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/memoire_liaison.py",
+      "relative": "root-units/tested-sources/src/opsys/memoire_liaison.py",
+      "sha256": "cd01f8aa0b7e6c0703ba3af2329d6105f5b3d465b57fbef955efe752b67bda55",
+      "tar_member": "root-units/tested-sources/src/opsys/memoire_liaison.py"
+    },
+    {
+      "bytes": 21082,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/meteo.py",
+      "relative": "root-units/tested-sources/src/opsys/meteo.py",
+      "sha256": "db2be9e6499843cfc88c8b9fc5539eaf44804436a5cf5393e361986e4f63aeb5",
+      "tar_member": "root-units/tested-sources/src/opsys/meteo.py"
+    },
+    {
+      "bytes": 5684,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/modeles.py",
+      "relative": "root-units/tested-sources/src/opsys/modeles.py",
+      "sha256": "b9256c8ec606986a8b68d03fe8d962ad11eaa3048fb37f7a8c4726f9b1edfbe3",
+      "tar_member": "root-units/tested-sources/src/opsys/modeles.py"
+    },
+    {
+      "bytes": 56854,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/openclaw.py",
+      "relative": "root-units/tested-sources/src/opsys/openclaw.py",
+      "sha256": "9a8dfcdb26d4491e146671537fe0027622d9c1f4209ec94dee408e3d5d2335ab",
+      "tar_member": "root-units/tested-sources/src/opsys/openclaw.py"
+    },
+    {
+      "bytes": 13433,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/outils.py",
+      "relative": "root-units/tested-sources/src/opsys/outils.py",
+      "sha256": "03b045a850dfad5380a468a3165ad2208cc4513ddac7c2f5fea48b8a189d2ec7",
+      "tar_member": "root-units/tested-sources/src/opsys/outils.py"
+    },
+    {
+      "bytes": 8168,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/passerelle.py",
+      "relative": "root-units/tested-sources/src/opsys/passerelle.py",
+      "sha256": "0a97df646c4226522612be1c931b7bfda2b2c7add877a3731bf211a585433be9",
+      "tar_member": "root-units/tested-sources/src/opsys/passerelle.py"
+    },
+    {
+      "bytes": 3973,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/politiques.py",
+      "relative": "root-units/tested-sources/src/opsys/politiques.py",
+      "sha256": "d6240f7228dae214add89d80303b7a0c543dc4c1d9e4796e61a59267ce6ce132",
+      "tar_member": "root-units/tested-sources/src/opsys/politiques.py"
+    },
+    {
+      "bytes": 4453,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/profils.py",
+      "relative": "root-units/tested-sources/src/opsys/profils.py",
+      "sha256": "ec63f32bbd2d12eb96f3aae0316a0d1101dc1430b3fd91c170c1b4430bbf57c2",
+      "tar_member": "root-units/tested-sources/src/opsys/profils.py"
+    },
+    {
+      "bytes": 6183,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/serveur_bootstrap.py",
+      "relative": "root-units/tested-sources/src/opsys/serveur_bootstrap.py",
+      "sha256": "7f9b1e48fec7bc42d485509c88cf470144dc1a7470ab26725535122f5f99f3d2",
+      "tar_member": "root-units/tested-sources/src/opsys/serveur_bootstrap.py"
+    },
+    {
+      "bytes": 27811,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/serveur_mcp.py",
+      "relative": "root-units/tested-sources/src/opsys/serveur_mcp.py",
+      "sha256": "8803060081592fb69ee716bd1131750b15da24bb4ed3ee59883a5bf57d8897fa",
+      "tar_member": "root-units/tested-sources/src/opsys/serveur_mcp.py"
+    },
+    {
+      "bytes": 2382,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/__init__.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/__init__.py",
+      "sha256": "166b85d69d539d91381c9e14bcf36da72a03e01300dc48f25d93228ce444a2ad",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/__init__.py"
+    },
+    {
+      "bytes": 3720,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/codec.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/codec.py",
+      "sha256": "0841068a882b9b4b316a5704de889ba5fd104e67b6a6aa5f61227666ec76b8de",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/codec.py"
+    },
+    {
+      "bytes": 4328,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/maillons.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/maillons.py",
+      "sha256": "8a6ba53b83ca92940ade6886f8ad00d345a735d8e9c823165824b9d37416c0f5",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/maillons.py"
+    },
+    {
+      "bytes": 51,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/__init__.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/__init__.py",
+      "sha256": "81bb117daff017c24fbfbd8474a932f2150d3652a7cddc593e85277aa245e3ad",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/__init__.py"
+    },
+    {
+      "bytes": 562,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/env.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/env.py",
+      "sha256": "b1400bbf75128217bd2742a734103d06fdb3b0323b85571b02121c1175ac98a3",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/env.py"
+    },
+    {
+      "bytes": 892,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0001_registres.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0001_registres.py",
+      "sha256": "2e2d41202044520fb259a3539520b5542c43c52494a589dca7749db6d8f9d5fb",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0001_registres.py"
+    },
+    {
+      "bytes": 3752,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0002_plan_de_controle.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0002_plan_de_controle.py",
+      "sha256": "56191ef793caa4d3ccdb4cfca597955d0cf7d50809d42111aa0ce5b608083178",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0002_plan_de_controle.py"
+    },
+    {
+      "bytes": 2007,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0003_evenements.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0003_evenements.py",
+      "sha256": "0685ed073d19b964d2574bd23db087d2c54c6928819fd4771133c5fd6573957a",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0003_evenements.py"
+    },
+    {
+      "bytes": 1290,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0004_mutations_appliquees.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0004_mutations_appliquees.py",
+      "sha256": "f07f3181bd866dd20102090777cd4a1bacc1249eec533bd33c01953bc3d7014d",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0004_mutations_appliquees.py"
+    },
+    {
+      "bytes": 2071,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0005_identite.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0005_identite.py",
+      "sha256": "3afdc187c0a29e19bcab92b4657b508f519deaac52b84ba665af7c6bc660187b",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0005_identite.py"
+    },
+    {
+      "bytes": 1168,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0006_appareils.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0006_appareils.py",
+      "sha256": "7148e53f8261eb072ddaca275ac91dcfe6ba261507c95a7f6ea86548a4f0769d",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0006_appareils.py"
+    },
+    {
+      "bytes": 1363,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0007_cles_chiffrement.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0007_cles_chiffrement.py",
+      "sha256": "7900f5ded911583781547b207cf683be04b5d92b95b7bffa40de714e36a91d20",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0007_cles_chiffrement.py"
+    },
+    {
+      "bytes": 2283,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0008_fichiers.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0008_fichiers.py",
+      "sha256": "76fd02178c32b0c2a6f6f39652242d545775ffbe1863a80420d8a06ef407f560",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0008_fichiers.py"
+    },
+    {
+      "bytes": 570,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0009_portee_artefacts.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0009_portee_artefacts.py",
+      "sha256": "f29836f136b497ba9ac7918d634d06ed1ebd368bd622959c377b93d70795c7e8",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0009_portee_artefacts.py"
+    },
+    {
+      "bytes": 3263,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0010_agents_configurables.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0010_agents_configurables.py",
+      "sha256": "a413fa7c9fb1a8a63dd60ab22cc497a21dfb49165d22d500fc3f19c8e0c921fa",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0010_agents_configurables.py"
+    },
+    {
+      "bytes": 3675,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0011_admission_agents.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0011_admission_agents.py",
+      "sha256": "1224081245a936ea82dfe603fa9eb5e01b2907fc20a23149ca7a50410c3eaf7b",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0011_admission_agents.py"
+    },
+    {
+      "bytes": 1171,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0012_admission_runtime_cycles.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0012_admission_runtime_cycles.py",
+      "sha256": "c56ea85ad28e07fd8c9f815812bc394254075b03d0b362905a2c303809b229bb",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0012_admission_runtime_cycles.py"
+    },
+    {
+      "bytes": 1999,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0013_liaisons_tickets_cibles.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0013_liaisons_tickets_cibles.py",
+      "sha256": "cabf382547cf28ebb2dc5347e7f19d9a4f50d1e93c708d9ff777490e579243ca",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0013_liaisons_tickets_cibles.py"
+    },
+    {
+      "bytes": 4501,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0014_grants_lecture_cfo_agents.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0014_grants_lecture_cfo_agents.py",
+      "sha256": "111329b10fd1f7690148d64f4b4862a834649f8e6faa489e26e9a3f920f49d8d",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0014_grants_lecture_cfo_agents.py"
+    },
+    {
+      "bytes": 1262,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0015_compteurs_tokens_64_bits.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0015_compteurs_tokens_64_bits.py",
+      "sha256": "856da32645e90087aa3a8bdf3b915aae2b51575ef8dc16219b491f9e5c38b801",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0015_compteurs_tokens_64_bits.py"
+    },
+    {
+      "bytes": 2149,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0016_connecteurs_stt_persistants.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0016_connecteurs_stt_persistants.py",
+      "sha256": "39b6dfb14b525643213264779fa0dfcc86aacf753f6b424448cb720e1cbbd80e",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0016_connecteurs_stt_persistants.py"
+    },
+    {
+      "bytes": 5146,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0017_fusion_lots_csv.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0017_fusion_lots_csv.py",
+      "sha256": "2911eed2af47d86ec8f3050bf03cd45f6cf3d10459b342d8123118b2a96362b5",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0017_fusion_lots_csv.py"
+    },
+    {
+      "bytes": 4669,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0018_fusion_pdf_natif.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0018_fusion_pdf_natif.py",
+      "sha256": "7b6cee4722507467ce8d3d66ac195dbea2c2985bbfeb4f129939732170a9f212",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0018_fusion_pdf_natif.py"
+    },
+    {
+      "bytes": 2258,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/0019_agents_declencheurs_cron.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0019_agents_declencheurs_cron.py",
+      "sha256": "783b5166508f2dc71ad3de8361adf5fba0e11b95527edc817e7f1a90beae8949",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/0019_agents_declencheurs_cron.py"
+    },
+    {
+      "bytes": 59,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/migrations/versions/__init__.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/migrations/versions/__init__.py",
+      "sha256": "937ad8fceee3757b72fe362df44bc4ec7a0835a9dacac5b0043c7fe15acf5626",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/migrations/versions/__init__.py"
+    },
+    {
+      "bytes": 3798,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/moteur.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/moteur.py",
+      "sha256": "93122a053358f430361e354b85f68b46cbd3c00d823100c943ee541c8313a805",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/moteur.py"
+    },
+    {
+      "bytes": 35569,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/stockage/schema.py",
+      "relative": "root-units/tested-sources/src/opsys/stockage/schema.py",
+      "sha256": "9e458c41f5208601587339c41f873adc16913a07bcdd5f85f2a96a1217974de6",
+      "tar_member": "root-units/tested-sources/src/opsys/stockage/schema.py"
+    },
+    {
+      "bytes": 10325,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/tableau_de_bord.py",
+      "relative": "root-units/tested-sources/src/opsys/tableau_de_bord.py",
+      "sha256": "de82fa83a8762b9e48ff3505cb64024acdd99d6fe5d57f0ee96ed4b08e0531f0",
+      "tar_member": "root-units/tested-sources/src/opsys/tableau_de_bord.py"
+    },
+    {
+      "bytes": 49788,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/src/opsys/taxonomie.py",
+      "relative": "root-units/tested-sources/src/opsys/taxonomie.py",
+      "sha256": "206ead7a97076c2892df8d65f38f46eda0abaa7a71ad5daa0645042fe781a765",
+      "tar_member": "root-units/tested-sources/src/opsys/taxonomie.py"
+    },
+    {
+      "bytes": 1296,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/tests/conftest.py",
+      "relative": "root-units/tested-sources/tests/conftest.py",
+      "sha256": "de42150d82a17311539542a0a9ec03cae25c3899f520ed491019ed6ea729c312",
+      "tar_member": "root-units/tested-sources/tests/conftest.py"
+    },
+    {
+      "bytes": 30196,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/tests/test_agents_declencheurs.py",
+      "relative": "root-units/tested-sources/tests/test_agents_declencheurs.py",
+      "sha256": "5e43be31b52388735480a048f7a1891244c71509ce41304b1c9eef8d4e7b501f",
+      "tar_member": "root-units/tested-sources/tests/test_agents_declencheurs.py"
+    },
+    {
+      "bytes": 33048,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/tests/test_fusion_pdf.py",
+      "relative": "root-units/tested-sources/tests/test_fusion_pdf.py",
+      "sha256": "cef8321d46379f7928f0c1e24dfe7e74400449560d0793860443ce617fa7d7df",
+      "tar_member": "root-units/tested-sources/tests/test_fusion_pdf.py"
+    },
+    {
+      "bytes": 21099,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/tests/test_ingestion_pdf_natif.py",
+      "relative": "root-units/tested-sources/tests/test_ingestion_pdf_natif.py",
+      "sha256": "5f1db898ce021386415df82426ce8d41678aaea8945ba2a243e20a29081fa049",
+      "tar_member": "root-units/tested-sources/tests/test_ingestion_pdf_natif.py"
+    },
+    {
+      "bytes": 10520,
+      "kind": "copies exactes unités ROOT",
+      "origin": "/workspace/poursuite-opsys-2026-10-02-r1/NATIF-PDF-GEOMETRY-ROOT-r1/tested-sources/tests/test_stockage.py",
+      "relative": "root-units/tested-sources/tests/test_stockage.py",
+      "sha256": "bf846cb29f355fd030055b07c8f1393c61297aef83866ea166bc0d7c7d4e739e",
+      "tar_member": "root-units/tested-sources/tests/test_stockage.py"
+    },
+    {
+      "bytes": 1143,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/AVANT.json",
+      "relative": "runtime/AVANT.json",
+      "sha256": "c80cfa904583e4b95bc8b2ffe9b1c16595565a584b68bb3b239b904621bb71a9",
+      "tar_member": "runtime/AVANT.json"
+    },
+    {
+      "bytes": 8024,
+      "kind": "résultat ROOT réel",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/RESULTAT-r1.json",
+      "relative": "runtime/RESULTAT-r1.json",
+      "sha256": "a085042b3a3ab9155663e8007e17e01a459a793c74304a74b7db474cc8ace116",
+      "tar_member": "runtime/RESULTAT-r1.json"
+    },
+    {
+      "bytes": 7533,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/missing-key/OBSERVATION.json",
+      "relative": "runtime/missing-key/OBSERVATION.json",
+      "sha256": "a41ad5481911991c9b06801cae8da1d729079c01f947d301bafae88ed29a6ff6",
+      "tar_member": "runtime/missing-key/OBSERVATION.json"
+    },
+    {
+      "bytes": 237,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/missing-key/owned-processes.jsonl",
+      "relative": "runtime/missing-key/owned-processes.jsonl",
+      "sha256": "59590643492d8ed9e3dee93f06ebae9085db25de24861980dbc85186c420a10e",
+      "tar_member": "runtime/missing-key/owned-processes.jsonl"
+    },
+    {
+      "bytes": 68,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/missing-key/stderr.log",
+      "relative": "runtime/missing-key/stderr.log",
+      "sha256": "b156a10dd4d94cb9f53acc96c74b5619bad8c7690aa00676c74edd158ef17872",
+      "tar_member": "runtime/missing-key/stderr.log"
+    },
+    {
+      "bytes": 0,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/missing-key/stdout.log",
+      "relative": "runtime/missing-key/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tar_member": "runtime/missing-key/stdout.log"
+    },
+    {
+      "bytes": 0,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/missing-key/worker-stderr.log",
+      "relative": "runtime/missing-key/worker-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tar_member": "runtime/missing-key/worker-stderr.log"
+    },
+    {
+      "bytes": 39,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/missing-key/worker-stdout.log",
+      "relative": "runtime/missing-key/worker-stdout.log",
+      "sha256": "22f2bd1f1de1f6d44b76cdab86fa48365ea2b33e52886bbd752b3829744f5d67",
+      "tar_member": "runtime/missing-key/worker-stdout.log"
+    },
+    {
+      "bytes": 7203,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/unsafe-permissions/OBSERVATION.json",
+      "relative": "runtime/unsafe-permissions/OBSERVATION.json",
+      "sha256": "dfe2109a3f561bf7c80623bbb4944abaf663bbd59bdbceef41d894c02574fe37",
+      "tar_member": "runtime/unsafe-permissions/OBSERVATION.json"
+    },
+    {
+      "bytes": 0,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/unsafe-permissions/owned-processes.jsonl",
+      "relative": "runtime/unsafe-permissions/owned-processes.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tar_member": "runtime/unsafe-permissions/owned-processes.jsonl"
+    },
+    {
+      "bytes": 63,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/unsafe-permissions/stderr.log",
+      "relative": "runtime/unsafe-permissions/stderr.log",
+      "sha256": "6860cc87d23be7b79d18be419d4fabe43d53caeb50d8dd44111e56065e0d6329",
+      "tar_member": "runtime/unsafe-permissions/stderr.log"
+    },
+    {
+      "bytes": 0,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/unsafe-permissions/stdout.log",
+      "relative": "runtime/unsafe-permissions/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tar_member": "runtime/unsafe-permissions/stdout.log"
+    },
+    {
+      "bytes": 0,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/unsafe-permissions/worker-stderr.log",
+      "relative": "runtime/unsafe-permissions/worker-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tar_member": "runtime/unsafe-permissions/worker-stderr.log"
+    },
+    {
+      "bytes": 0,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/unsafe-permissions/worker-stdout.log",
+      "relative": "runtime/unsafe-permissions/worker-stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tar_member": "runtime/unsafe-permissions/worker-stdout.log"
+    },
+    {
+      "bytes": 7534,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/valid-key/OBSERVATION.json",
+      "relative": "runtime/valid-key/OBSERVATION.json",
+      "sha256": "d3807db018004e92f185d65af9aa90ab0868d74c6aca2562ba14094de6350f2d",
+      "tar_member": "runtime/valid-key/OBSERVATION.json"
+    },
+    {
+      "bytes": 237,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/valid-key/owned-processes.jsonl",
+      "relative": "runtime/valid-key/owned-processes.jsonl",
+      "sha256": "d030c04ef1d9230279997ce53ab8fbdab738697298d6a3be0d41f4be87a9a17d",
+      "tar_member": "runtime/valid-key/owned-processes.jsonl"
+    },
+    {
+      "bytes": 0,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/valid-key/stderr.log",
+      "relative": "runtime/valid-key/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tar_member": "runtime/valid-key/stderr.log"
+    },
+    {
+      "bytes": 61,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/valid-key/stdout.log",
+      "relative": "runtime/valid-key/stdout.log",
+      "sha256": "62866b6b921d3cefd9d71a417ad08cbea93ce3eb5e64c713d8dd0ea0412f3cd4",
+      "tar_member": "runtime/valid-key/stdout.log"
+    },
+    {
+      "bytes": 0,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/valid-key/worker-stderr.log",
+      "relative": "runtime/valid-key/worker-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tar_member": "runtime/valid-key/worker-stderr.log"
+    },
+    {
+      "bytes": 39,
+      "kind": "runtime natif réel fixture publique",
+      "origin": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/pdf-natif-qualification-preparation-r1/execution-408f36269f414069bbeb040c6cac7f5f/valid-key/worker-stdout.log",
+      "relative": "runtime/valid-key/worker-stdout.log",
+      "sha256": "22f2bd1f1de1f6d44b76cdab86fa48365ea2b33e52886bbd752b3829744f5d67",
+      "tar_member": "runtime/valid-key/worker-stdout.log"
+    },
+    {
+      "bytes": 7489,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/deploy/readiness.py",
+      "relative": "source141/deploy/readiness.py",
+      "sha256": "0128b11a9a0ca5b78cc448562afdcae62776e2b7c0a1b46d0df4a87e08123a77",
+      "tar_member": "source141/deploy/readiness.py"
+    },
+    {
+      "bytes": 3840,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/deploy/readiness_pdf.py",
+      "relative": "source141/deploy/readiness_pdf.py",
+      "sha256": "bb5c1a9fcf9446f6e721e9b98841a2d0deaad164fc9f245111b4bdb43744b308",
+      "tar_member": "source141/deploy/readiness_pdf.py"
+    },
+    {
+      "bytes": 46764,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/install/install.sh",
+      "relative": "source141/install/install.sh",
+      "sha256": "11429f973fb73f360aa385475984af5c8368dfe9bc9f9d0b7ecedd6a0fdadcd7",
+      "tar_member": "source141/install/install.sh"
+    },
+    {
+      "bytes": 4518,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/pyproject.toml",
+      "relative": "source141/pyproject.toml",
+      "sha256": "08b2737348df0d2ad3a05def846a4388d9f9bfe14393a8f013475ffb9f280ef4",
+      "tar_member": "source141/pyproject.toml"
+    },
+    {
+      "bytes": 125647,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/requirements-ingestion-pdf.lock.txt",
+      "relative": "source141/requirements-ingestion-pdf.lock.txt",
+      "sha256": "9cc680aec95492ddb3fc8d80cf4059f707434eae2ec499453d9537cc477bac3e",
+      "tar_member": "source141/requirements-ingestion-pdf.lock.txt"
+    },
+    {
+      "bytes": 125321,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/requirements-runtime.lock.txt",
+      "relative": "source141/requirements-runtime.lock.txt",
+      "sha256": "cec29f3ac3aa1453f9d1e9ddc85a542944654f36b4d13dadc03f651de3d73e04",
+      "tar_member": "source141/requirements-runtime.lock.txt"
+    },
+    {
+      "bytes": 309,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/__init__.py",
+      "relative": "source141/src/opsys/__init__.py",
+      "sha256": "459f4b7649d5ef4ea8c6314e0836698b5974c637eae3f0d6b6bd1b98e8c4ad73",
+      "tar_member": "source141/src/opsys/__init__.py"
+    },
+    {
+      "bytes": 36600,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/admission_agents.py",
+      "relative": "source141/src/opsys/admission_agents.py",
+      "sha256": "3ef8b6e128411ef7f18119d51f1c7fb69d86176b4f3e4771b7a6a0792285be22",
+      "tar_member": "source141/src/opsys/admission_agents.py"
+    },
+    {
+      "bytes": 14953,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/agent_cfo_grants.py",
+      "relative": "source141/src/opsys/agent_cfo_grants.py",
+      "sha256": "0271b5408837ed875c7be40de8080ce29867d49eae1b2c44e9a493b0d0129187",
+      "tar_member": "source141/src/opsys/agent_cfo_grants.py"
+    },
+    {
+      "bytes": 14788,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/agents.py",
+      "relative": "source141/src/opsys/agents.py",
+      "sha256": "eb7516f3a853bb443ac6f5f26fa3dbf19314119091d496c82e4b9f9be2ddf883",
+      "tar_member": "source141/src/opsys/agents.py"
+    },
+    {
+      "bytes": 6452,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/appareils.py",
+      "relative": "source141/src/opsys/appareils.py",
+      "sha256": "ba07f9eb057931af26cac679243a5849ff0993cddcfc34ec4289973ea1133162",
+      "tar_member": "source141/src/opsys/appareils.py"
+    },
+    {
+      "bytes": 31687,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/approbations.py",
+      "relative": "source141/src/opsys/approbations.py",
+      "sha256": "b5eef97145a66b4d2a08c7a0531c9ff5a9507f15ab76e3cd5818d8c3e07a321b",
+      "tar_member": "source141/src/opsys/approbations.py"
+    },
+    {
+      "bytes": 25911,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/approbations_appareil.py",
+      "relative": "source141/src/opsys/approbations_appareil.py",
+      "sha256": "a3d23d226f9359e114ac2e369d3e0adce6c4e68f04c5cf01736b2263c6b7a3d2",
+      "tar_member": "source141/src/opsys/approbations_appareil.py"
+    },
+    {
+      "bytes": 15885,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/canaux.py",
+      "relative": "source141/src/opsys/canaux.py",
+      "sha256": "e81b8da2fd00db9c9aaab9ab662e1d5e0ffc101a7526830a6dbc3ecd89213534",
+      "tar_member": "source141/src/opsys/canaux.py"
+    },
+    {
+      "bytes": 33265,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/capacites.py",
+      "relative": "source141/src/opsys/capacites.py",
+      "sha256": "f25cc417cd5c4c86da890e80bbe5c682dae7e0760f0a8f0f5a9433148bfb689e",
+      "tar_member": "source141/src/opsys/capacites.py"
+    },
+    {
+      "bytes": 4181,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/cles_chiffrement.py",
+      "relative": "source141/src/opsys/cles_chiffrement.py",
+      "sha256": "6b0a81fd38530216eeec177fbe5078bbb8bdbba9a551386af87b1242f9f807f6",
+      "tar_member": "source141/src/opsys/cles_chiffrement.py"
+    },
+    {
+      "bytes": 39609,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/cli.py",
+      "relative": "source141/src/opsys/cli.py",
+      "sha256": "657adcaad4b144417bc704cfe311953f758e3bc7b714f3329609e924f203f75e",
+      "tar_member": "source141/src/opsys/cli.py"
+    },
+    {
+      "bytes": 11549,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/connecteurs.py",
+      "relative": "source141/src/opsys/connecteurs.py",
+      "sha256": "37103cf4bd8e0d891027363dbfb4e33f6b6da1a3e9e54fd53523881f1ed03a21",
+      "tar_member": "source141/src/opsys/connecteurs.py"
+    },
+    {
+      "bytes": 690,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/__init__.py",
+      "relative": "source141/src/opsys/console/__init__.py",
+      "sha256": "6c1d86576ffc2e2c5b990473dc85f02363746b09948effc8179b74f70ece9054",
+      "tar_member": "source141/src/opsys/console/__init__.py"
+    },
+    {
+      "bytes": 17195,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/agents_ui.py",
+      "relative": "source141/src/opsys/console/agents_ui.py",
+      "sha256": "d7e1ce78d8d417683cdb3fa2af8d30ae1d3b30bbd6c80be599d2f4abbf58ac6e",
+      "tar_member": "source141/src/opsys/console/agents_ui.py"
+    },
+    {
+      "bytes": 48528,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/application.py",
+      "relative": "source141/src/opsys/console/application.py",
+      "sha256": "f4696dc6caf260efcc9386767befe38b1b271a49c92f6ed2780c18766b8a4985",
+      "tar_member": "source141/src/opsys/console/application.py"
+    },
+    {
+      "bytes": 11433,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/banque_metier.py",
+      "relative": "source141/src/opsys/console/banque_metier.py",
+      "sha256": "d1cca8ca248fa3cd21412440ef0d2f1ce92329596257e76e235de2ce8cd874eb",
+      "tar_member": "source141/src/opsys/console/banque_metier.py"
+    },
+    {
+      "bytes": 11089,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/banque_ui.py",
+      "relative": "source141/src/opsys/console/banque_ui.py",
+      "sha256": "b07bf3a8529f7e74e41bc4a32ed9c0f074b6a9caa5e25cbc3a327148b935a0c1",
+      "tar_member": "source141/src/opsys/console/banque_ui.py"
+    },
+    {
+      "bytes": 17467,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/brand_ui.py",
+      "relative": "source141/src/opsys/console/brand_ui.py",
+      "sha256": "8e62b2aa95139d766556d00f5e3ae836694e0ad220d0a1f89cde03f8433f34e8",
+      "tar_member": "source141/src/opsys/console/brand_ui.py"
+    },
+    {
+      "bytes": 44981,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/calendrier_marketing_ui.py",
+      "relative": "source141/src/opsys/console/calendrier_marketing_ui.py",
+      "sha256": "1238de76d074eb8020cd2b6cd401ba22fea34a33aa8e015a5755e3f398b09424",
+      "tar_member": "source141/src/opsys/console/calendrier_marketing_ui.py"
+    },
+    {
+      "bytes": 9709,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/cfo_ui.py",
+      "relative": "source141/src/opsys/console/cfo_ui.py",
+      "sha256": "e3ab2540d572027fbd33d6101214acbaa8525e1faa7acf076d99f748eff3e8a3",
+      "tar_member": "source141/src/opsys/console/cfo_ui.py"
+    },
+    {
+      "bytes": 26518,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/connecteurs_ui.py",
+      "relative": "source141/src/opsys/console/connecteurs_ui.py",
+      "sha256": "7494a0742edd52e8bcd7f6f6da4111343b0c58eddd13b78dbbe5c89abe0c1835",
+      "tar_member": "source141/src/opsys/console/connecteurs_ui.py"
+    },
+    {
+      "bytes": 19474,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/couts_marketing.py",
+      "relative": "source141/src/opsys/console/couts_marketing.py",
+      "sha256": "0ccebd8147fc50d53ca542097b1db90c9908a4a2d6d7a4d29393a7537ef33f77",
+      "tar_member": "source141/src/opsys/console/couts_marketing.py"
+    },
+    {
+      "bytes": 24487,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/finance_ui.py",
+      "relative": "source141/src/opsys/console/finance_ui.py",
+      "sha256": "6d2e63c093a23e6356ce01fbbb505079578ef8c7e105a025862c946fd2d89173",
+      "tar_member": "source141/src/opsys/console/finance_ui.py"
+    },
+    {
+      "bytes": 30543,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/frontoffice_marketing.py",
+      "relative": "source141/src/opsys/console/frontoffice_marketing.py",
+      "sha256": "67865fc01b79dbeeb02e6567011ae1ef7bd6967152d170127148aa569ede1bc5",
+      "tar_member": "source141/src/opsys/console/frontoffice_marketing.py"
+    },
+    {
+      "bytes": 22194,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/fusion_pdf_ui.py",
+      "relative": "source141/src/opsys/console/fusion_pdf_ui.py",
+      "sha256": "1c7a330152022f9fbcf8a91e77bc16f13cd87dc6b62749bf72df27cc47b4876a",
+      "tar_member": "source141/src/opsys/console/fusion_pdf_ui.py"
+    },
+    {
+      "bytes": 12851,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/fusion_synthese.py",
+      "relative": "source141/src/opsys/console/fusion_synthese.py",
+      "sha256": "42e5c85c79e8ea1087fc4361f22939d2b95ab9576ed4591b2bb4d85b1176ef26",
+      "tar_member": "source141/src/opsys/console/fusion_synthese.py"
+    },
+    {
+      "bytes": 28897,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/fusion_ui.py",
+      "relative": "source141/src/opsys/console/fusion_ui.py",
+      "sha256": "c018ddcfd4c1fb2b57523f4a7ae8c1443e07898f505626f6f996636494010c6e",
+      "tar_member": "source141/src/opsys/console/fusion_ui.py"
+    },
+    {
+      "bytes": 21273,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/marketing_cmo_ui.py",
+      "relative": "source141/src/opsys/console/marketing_cmo_ui.py",
+      "sha256": "91470033ebff05a5cd9a47d96b98c1529c7738f8ea626542ea8b8e8e450ed1d3",
+      "tar_member": "source141/src/opsys/console/marketing_cmo_ui.py"
+    },
+    {
+      "bytes": 8433,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/marketing_growth_ui.py",
+      "relative": "source141/src/opsys/console/marketing_growth_ui.py",
+      "sha256": "6ebed20ab294ddcbea84cf7fc60a0e7effb634c3ced9e00a67db5e6dd9982ab0",
+      "tar_member": "source141/src/opsys/console/marketing_growth_ui.py"
+    },
+    {
+      "bytes": 10110,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/marketing_performance_ui.py",
+      "relative": "source141/src/opsys/console/marketing_performance_ui.py",
+      "sha256": "dfe633fd8ec925f3b205098721e5a9b225015e8c6b83fb2c36b506218e6f4b3f",
+      "tar_member": "source141/src/opsys/console/marketing_performance_ui.py"
+    },
+    {
+      "bytes": 17893,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/marketing_rapport.py",
+      "relative": "source141/src/opsys/console/marketing_rapport.py",
+      "sha256": "9731e9cd6f990e2fde5f65cb0cb6aa7934f024a902e06684149628a570da494d",
+      "tar_member": "source141/src/opsys/console/marketing_rapport.py"
+    },
+    {
+      "bytes": 19577,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/memoire_api.py",
+      "relative": "source141/src/opsys/console/memoire_api.py",
+      "sha256": "3b87edc6dc91835b849ed2ee6a647a3aa7e01674b3f1ef3670d9f22f813fda20",
+      "tar_member": "source141/src/opsys/console/memoire_api.py"
+    },
+    {
+      "bytes": 22654,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/memoire_ingestion_ui.py",
+      "relative": "source141/src/opsys/console/memoire_ingestion_ui.py",
+      "sha256": "8e3248928f0e2c2618badf855331087ca2c0e1d056ccf09d98b57f6ad3887ae6",
+      "tar_member": "source141/src/opsys/console/memoire_ingestion_ui.py"
+    },
+    {
+      "bytes": 21403,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/memoire_jobs_ui.py",
+      "relative": "source141/src/opsys/console/memoire_jobs_ui.py",
+      "sha256": "e3b15147ce0f3424ab90424d86dd4013bc1151228a5b59a23c4d097673323243",
+      "tar_member": "source141/src/opsys/console/memoire_jobs_ui.py"
+    },
+    {
+      "bytes": 5882,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/memoire_ui.py",
+      "relative": "source141/src/opsys/console/memoire_ui.py",
+      "sha256": "cf8f3b4e702c78058457a9d25bf3366195ce370ab6e7c2ed8703a71336a13631",
+      "tar_member": "source141/src/opsys/console/memoire_ui.py"
+    },
+    {
+      "bytes": 19803,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/metier.py",
+      "relative": "source141/src/opsys/console/metier.py",
+      "sha256": "48721723c575341f6e85f8f76fb7cc49264011fa47c2078a1b2e1cf88628b541",
+      "tar_member": "source141/src/opsys/console/metier.py"
+    },
+    {
+      "bytes": 22399,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/pages.py",
+      "relative": "source141/src/opsys/console/pages.py",
+      "sha256": "dbf86ab77e7e006b937e09c48481c374ea6d5356243dd508e46e94631676dd9a",
+      "tar_member": "source141/src/opsys/console/pages.py"
+    },
+    {
+      "bytes": 24597,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/paie_ui.py",
+      "relative": "source141/src/opsys/console/paie_ui.py",
+      "sha256": "3376817e45f9fa90c6cba71aaa9fd12b82c314d01821c60adb8d8bca33d4f536",
+      "tar_member": "source141/src/opsys/console/paie_ui.py"
+    },
+    {
+      "bytes": 6762,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/ressources.py",
+      "relative": "source141/src/opsys/console/ressources.py",
+      "sha256": "18c2fe4be1dab89fcc932e653eac848886d496e9733759a9c15deb1aa8ac0213",
+      "tar_member": "source141/src/opsys/console/ressources.py"
+    },
+    {
+      "bytes": 6507,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/securite.py",
+      "relative": "source141/src/opsys/console/securite.py",
+      "sha256": "6d4e253dde1842e6e9bd7170571f82aaff7bbe46175707d4abe706fbaaf434db",
+      "tar_member": "source141/src/opsys/console/securite.py"
+    },
+    {
+      "bytes": 13398,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/console/voicemail_ui.py",
+      "relative": "source141/src/opsys/console/voicemail_ui.py",
+      "sha256": "d1a80b6d1fb00005f62bb3bbadf53cf96792ee2cd40ab876ef6908c5ec4c6d52",
+      "tar_member": "source141/src/opsys/console/voicemail_ui.py"
+    },
+    {
+      "bytes": 10141,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/contexte.py",
+      "relative": "source141/src/opsys/contexte.py",
+      "sha256": "7fad7319323caea05e12a28ec0096915121c800c46118b726b7956496d19f0d2",
+      "tar_member": "source141/src/opsys/contexte.py"
+    },
+    {
+      "bytes": 20531,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/departements.py",
+      "relative": "source141/src/opsys/departements.py",
+      "sha256": "04be90246c690975ede44f0e185ebbbcf40153f8e23c98ee7904f58b008ad288",
+      "tar_member": "source141/src/opsys/departements.py"
+    },
+    {
+      "bytes": 23466,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/equipes.py",
+      "relative": "source141/src/opsys/equipes.py",
+      "sha256": "33d69f05b49fd0319c0d96739119e10e61e3179f74503889f3c7ead21a05914c",
+      "tar_member": "source141/src/opsys/equipes.py"
+    },
+    {
+      "bytes": 5490,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/etat.py",
+      "relative": "source141/src/opsys/etat.py",
+      "sha256": "e48a18cf657b398f35cb186b18f91de681cc412d5d36915888eeadf3246876f7",
+      "tar_member": "source141/src/opsys/etat.py"
+    },
+    {
+      "bytes": 1834,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/__init__.py",
+      "relative": "source141/src/opsys/evenements/__init__.py",
+      "sha256": "d7f249380659096b759c85eb73c2a12dc1cdbede234fe662ef001d3484f581fa",
+      "tar_member": "source141/src/opsys/evenements/__init__.py"
+    },
+    {
+      "bytes": 5200,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/bus.py",
+      "relative": "source141/src/opsys/evenements/bus.py",
+      "sha256": "4128d0b391eb68cd01f814d176b5f6739960650dc44ebedc4623a245af9828c1",
+      "tar_member": "source141/src/opsys/evenements/bus.py"
+    },
+    {
+      "bytes": 3413,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m1.lead_qualifie.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m1.lead_qualifie.json",
+      "sha256": "09f65c5737dabb6f27957b3964a431b072ac32292106f07aec755e978aeae2c0",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m1.lead_qualifie.json"
+    },
+    {
+      "bytes": 2578,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m1.retrait_consentement.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m1.retrait_consentement.json",
+      "sha256": "9899bb0a8153ef6788a6ac5093696f777459705ff175631f39e211a8d81e2221",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m1.retrait_consentement.json"
+    },
+    {
+      "bytes": 1586,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m2.client_associe.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m2.client_associe.json",
+      "sha256": "4cf6c428753d45a179f09b689eb2de65a5ccef7e73a574f54ee2ffa0817792b3",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m2.client_associe.json"
+    },
+    {
+      "bytes": 3399,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m2.lead_assigne.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m2.lead_assigne.json",
+      "sha256": "a4fcc1ade9fba4b5209705c8a7012b7ee1c5a9215b95a066059c504faadab316",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m2.lead_assigne.json"
+    },
+    {
+      "bytes": 5219,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m3.besoins_materiaux.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m3.besoins_materiaux.json",
+      "sha256": "416bfb378af6c7b4b2d8d1e88abc6353eda240d1d28445e51301cd354c4d8316",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m3.besoins_materiaux.json"
+    },
+    {
+      "bytes": 5871,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m3.devis_accepte.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m3.devis_accepte.json",
+      "sha256": "0346a8da0e0b1a30779359a953de408cc4affe7f8b32ddeac34cdd4cd3e65aa3",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m3.devis_accepte.json"
+    },
+    {
+      "bytes": 2220,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m3.devis_envoye.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m3.devis_envoye.json",
+      "sha256": "d6f628d29d50eed38710c655de130f567b747ec635cf8cf4c5202bb045470386",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m3.devis_envoye.json"
+    },
+    {
+      "bytes": 2570,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m3.devis_sans_reponse.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m3.devis_sans_reponse.json",
+      "sha256": "f3483a8ec8e433e65806fa78117e2af824dec126e4b4125c885399545189f472",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m3.devis_sans_reponse.json"
+    },
+    {
+      "bytes": 7676,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m4.travaux_termines.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m4.travaux_termines.json",
+      "sha256": "3563010e71823c51a218e962e87666d8ec56de03c7e733a968a049f95475d8a7",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m4.travaux_termines.json"
+    },
+    {
+      "bytes": 15001,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m5.cash_libre_constate.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m5.cash_libre_constate.json",
+      "sha256": "a85ee5cc8a18b60812db8a4f6b56b532f3d2a29b27df74900fd14bec607e89fc",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m5.cash_libre_constate.json"
+    },
+    {
+      "bytes": 8176,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m5.rentabilite_chantier.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m5.rentabilite_chantier.json",
+      "sha256": "4485f070a06f0dc70e97118e6e5dc68691f6a680544dcb392bad46853c9f816e",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m5.rentabilite_chantier.json"
+    },
+    {
+      "bytes": 7625,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m6.materiel_pret.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m6.materiel_pret.json",
+      "sha256": "321eae4ae842075d2e2e2c3092088b225cec2b46ce455f072896ed391abae855",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m6.materiel_pret.json"
+    },
+    {
+      "bytes": 8548,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m6.reception_enregistree.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m6.reception_enregistree.json",
+      "sha256": "6b911f9b7b5b523393aa27e61969fd20a1a1c86459b85d641e3e0968fbdfca8a",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m6.reception_enregistree.json"
+    },
+    {
+      "bytes": 7078,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m6.variance_chantier.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m6.variance_chantier.json",
+      "sha256": "790d69dc9a1bddb7a4875fe262acfc3d41f0d9dfc55328fd5d1bfba858e3225e",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m6.variance_chantier.json"
+    },
+    {
+      "bytes": 3474,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m7.contenu_exporte.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m7.contenu_exporte.json",
+      "sha256": "e1e9df93599910ce223a6c8d8086247cbf34a0e26bbbd7ffc1f42b00de919195",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m7.contenu_exporte.json"
+    },
+    {
+      "bytes": 8564,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/m8.alerte_proposee.json",
+      "relative": "source141/src/opsys/evenements/catalogue/m8.alerte_proposee.json",
+      "sha256": "6e7b5490b9491ff39264358b40b6ac0b6c043f78a60970a88304cc2095895e39",
+      "tar_member": "source141/src/opsys/evenements/catalogue/m8.alerte_proposee.json"
+    },
+    {
+      "bytes": 553,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/catalogue/opsys.demo_complete.json",
+      "relative": "source141/src/opsys/evenements/catalogue/opsys.demo_complete.json",
+      "sha256": "3dff90854512e915bac73f1e6f0482da62e3bcd95049f5d96ec3a20d1fbe9eb1",
+      "tar_member": "source141/src/opsys/evenements/catalogue/opsys.demo_complete.json"
+    },
+    {
+      "bytes": 11724,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/repartiteur.py",
+      "relative": "source141/src/opsys/evenements/repartiteur.py",
+      "sha256": "a9a489f117aa16bb596fa97036a2824287e3e18409e2ce35f96cfbba6be5ba53",
+      "tar_member": "source141/src/opsys/evenements/repartiteur.py"
+    },
+    {
+      "bytes": 3655,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/evenements/schemas.py",
+      "relative": "source141/src/opsys/evenements/schemas.py",
+      "sha256": "84eab753d13d576467dd9b8a70031b1ad8c23944c0e89cbe66386b8320f986f8",
+      "tar_member": "source141/src/opsys/evenements/schemas.py"
+    },
+    {
+      "bytes": 21550,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/exportation.py",
+      "relative": "source141/src/opsys/exportation.py",
+      "sha256": "e9c04ba01f3698bf3a7b697855710a7f0e3c7816e6a6b16a52a4b9cce19f8f82",
+      "tar_member": "source141/src/opsys/exportation.py"
+    },
+    {
+      "bytes": 20436,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/fichiers.py",
+      "relative": "source141/src/opsys/fichiers.py",
+      "sha256": "7b4324556a79341d3c23dba62206020d497b99f9a6830f8353809a67712d50db",
+      "tar_member": "source141/src/opsys/fichiers.py"
+    },
+    {
+      "bytes": 38468,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/fusion_csv.py",
+      "relative": "source141/src/opsys/fusion_csv.py",
+      "sha256": "5b5ec2d66fda98d2337d0806b08ff83c80c489526782d6f55672c0021193cb62",
+      "tar_member": "source141/src/opsys/fusion_csv.py"
+    },
+    {
+      "bytes": 22452,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/fusion_pdf.py",
+      "relative": "source141/src/opsys/fusion_pdf.py",
+      "sha256": "2459fd53547277eb7e9c2838f6baed56e17f2e0c9adbb570a89cffab29527d94",
+      "tar_member": "source141/src/opsys/fusion_pdf.py"
+    },
+    {
+      "bytes": 8233,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/fusion_pdf_worker.py",
+      "relative": "source141/src/opsys/fusion_pdf_worker.py",
+      "sha256": "c171dcd08c469944d0301796abbac58f7976c558e4183cdedb683873eea193d1",
+      "tar_member": "source141/src/opsys/fusion_pdf_worker.py"
+    },
+    {
+      "bytes": 11553,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/garde_fou_texte/__init__.py",
+      "relative": "source141/src/opsys/garde_fou_texte/__init__.py",
+      "sha256": "67cf9d4e1e699cb75e2145b745cc274f42d82e5e7aba7d064d59f6424e2f39aa",
+      "tar_member": "source141/src/opsys/garde_fou_texte/__init__.py"
+    },
+    {
+      "bytes": 5960,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/garde_fou_texte/_types.py",
+      "relative": "source141/src/opsys/garde_fou_texte/_types.py",
+      "sha256": "f20fb203b70938427d68c1ddc2b7deefdc6431e5b100587386a2ef7712fd4ccc",
+      "tar_member": "source141/src/opsys/garde_fou_texte/_types.py"
+    },
+    {
+      "bytes": 4933,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/garde_fou_texte/confidentialite.py",
+      "relative": "source141/src/opsys/garde_fou_texte/confidentialite.py",
+      "sha256": "a3b70ca2efacd134bcbb6859205a05d6a1ff9102c41ce0226283fe7e295024c8",
+      "tar_member": "source141/src/opsys/garde_fou_texte/confidentialite.py"
+    },
+    {
+      "bytes": 1755,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/garde_fou_texte/droit.py",
+      "relative": "source141/src/opsys/garde_fou_texte/droit.py",
+      "sha256": "afe803025e9cac37234018cdc42f621ce5d5e4dcb9556ad4530c9a0dbed69247",
+      "tar_member": "source141/src/opsys/garde_fou_texte/droit.py"
+    },
+    {
+      "bytes": 13507,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/garde_fou_texte/engagements.py",
+      "relative": "source141/src/opsys/garde_fou_texte/engagements.py",
+      "sha256": "03d489f3a044c7d49f1af783c321bd4fcab9dd8c57f6182d3219b38bda261880",
+      "tar_member": "source141/src/opsys/garde_fou_texte/engagements.py"
+    },
+    {
+      "bytes": 4867,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/garde_fou_texte/promesses.py",
+      "relative": "source141/src/opsys/garde_fou_texte/promesses.py",
+      "sha256": "caba99ba16e712069234b046035d9cf1890054a7a1c9fa173ccf06fe078c5d83",
+      "tar_member": "source141/src/opsys/garde_fou_texte/promesses.py"
+    },
+    {
+      "bytes": 3968,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/hermes_plugin.py",
+      "relative": "source141/src/opsys/hermes_plugin.py",
+      "sha256": "04cc5b47e54dd528eed4594be4143e364efcdca9dbc379f9c54a5a6fffe15935",
+      "tar_member": "source141/src/opsys/hermes_plugin.py"
+    },
+    {
+      "bytes": 8548,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/idempotence.py",
+      "relative": "source141/src/opsys/idempotence.py",
+      "sha256": "b12862a11e048dcca0275facef79c39a65b81ae7488ce155939c80c44367a075",
+      "tar_member": "source141/src/opsys/idempotence.py"
+    },
+    {
+      "bytes": 9490,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/identite.py",
+      "relative": "source141/src/opsys/identite.py",
+      "sha256": "a8fd1976c3786fd3120eecde5841326c6ecac089709f86dd4410eb2c7fb44ee6",
+      "tar_member": "source141/src/opsys/identite.py"
+    },
+    {
+      "bytes": 37271,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/instance.py",
+      "relative": "source141/src/opsys/instance.py",
+      "sha256": "373f6482f62ad186f0ad62661cb17c04d6b51ff30a2e45efecb6a79b7939b3d8",
+      "tar_member": "source141/src/opsys/instance.py"
+    },
+    {
+      "bytes": 9501,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/jetons.py",
+      "relative": "source141/src/opsys/jetons.py",
+      "sha256": "14db1614e16b898304b726f76d2450fcf1d9cc9fbb22da2aa26f21cfd9906842",
+      "tar_member": "source141/src/opsys/jetons.py"
+    },
+    {
+      "bytes": 20255,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/liaison_cibles.py",
+      "relative": "source141/src/opsys/liaison_cibles.py",
+      "sha256": "48afecf8051f5614f120c3277c7063efd30dbf4488a6e07d305974b83cbf7395",
+      "tar_member": "source141/src/opsys/liaison_cibles.py"
+    },
+    {
+      "bytes": 802,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/__init__.py",
+      "relative": "source141/src/opsys/memoire/__init__.py",
+      "sha256": "b3b10b676c2c66dfdd92385356b81ee48689f96fdc33dd7001ba5f0bea6132ab",
+      "tar_member": "source141/src/opsys/memoire/__init__.py"
+    },
+    {
+      "bytes": 3770,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/__main__.py",
+      "relative": "source141/src/opsys/memoire/__main__.py",
+      "sha256": "72b0ca7d3d7ae3f978d6faae0cc28e17f0b29ae5b6134ad438ae35e1c0ccfce3",
+      "tar_member": "source141/src/opsys/memoire/__main__.py"
+    },
+    {
+      "bytes": 10655,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/autorite.py",
+      "relative": "source141/src/opsys/memoire/autorite.py",
+      "sha256": "49c5f844803c25d90889abb876d9ff39d6f4e56de220d963359fef71def42c83",
+      "tar_member": "source141/src/opsys/memoire/autorite.py"
+    },
+    {
+      "bytes": 14772,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/embeddings.py",
+      "relative": "source141/src/opsys/memoire/embeddings.py",
+      "sha256": "5343611a5be80565641029fcd938897cda994de0956f6a286e7f1ce3a78da75e",
+      "tar_member": "source141/src/opsys/memoire/embeddings.py"
+    },
+    {
+      "bytes": 10540,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/evaluation.py",
+      "relative": "source141/src/opsys/memoire/evaluation.py",
+      "sha256": "fb88eb20cffc69a8dc2f62320043e83abd566f95fb7a1769325c80738ded4f69",
+      "tar_member": "source141/src/opsys/memoire/evaluation.py"
+    },
+    {
+      "bytes": 6304,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/ingestion_procedures.py",
+      "relative": "source141/src/opsys/memoire/ingestion_procedures.py",
+      "sha256": "4001d5f0b212aeabf50cf66bc3313929b8ecc96e45bc71a307dc4dd6edfdbae8",
+      "tar_member": "source141/src/opsys/memoire/ingestion_procedures.py"
+    },
+    {
+      "bytes": 15943,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/outils.py",
+      "relative": "source141/src/opsys/memoire/outils.py",
+      "sha256": "10dc00914e82cf4b090cdf2f3503803189ec7dfb55052c7d8ee15ffc16de1ec2",
+      "tar_member": "source141/src/opsys/memoire/outils.py"
+    },
+    {
+      "bytes": 1379,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/profil_embeddings_local.py",
+      "relative": "source141/src/opsys/memoire/profil_embeddings_local.py",
+      "sha256": "50a1339b882f2e722dfdf95d3b30ff48c4b84ec9bc74ff58dc57cfd2920ece6f",
+      "tar_member": "source141/src/opsys/memoire/profil_embeddings_local.py"
+    },
+    {
+      "bytes": 10495,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/schema.sql",
+      "relative": "source141/src/opsys/memoire/schema.sql",
+      "sha256": "5f1bc9d607a92a5a10f7b9e822ab3476d65cbaa36ed5e389725d96751fdca636",
+      "tar_member": "source141/src/opsys/memoire/schema.sql"
+    },
+    {
+      "bytes": 21103,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/serveur_embeddings_local.py",
+      "relative": "source141/src/opsys/memoire/serveur_embeddings_local.py",
+      "sha256": "12ee8afa10fd3397e015d0233075e2a7c87a6d40075cf6b25c4f63496178c08e",
+      "tar_member": "source141/src/opsys/memoire/serveur_embeddings_local.py"
+    },
+    {
+      "bytes": 64684,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire/store.py",
+      "relative": "source141/src/opsys/memoire/store.py",
+      "sha256": "9aad587d2e58fc405ac29f71ca67dc1572482368ba92f83aee20c0cb9e43445c",
+      "tar_member": "source141/src/opsys/memoire/store.py"
+    },
+    {
+      "bytes": 2070,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire_consolidation.py",
+      "relative": "source141/src/opsys/memoire_consolidation.py",
+      "sha256": "8fc9097b43da775640014b4c9e09ca8b889ec10ebf62636309d6388a6485d9f5",
+      "tar_member": "source141/src/opsys/memoire_consolidation.py"
+    },
+    {
+      "bytes": 11846,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire_developpement_cli.py",
+      "relative": "source141/src/opsys/memoire_developpement_cli.py",
+      "sha256": "01034fbef988c32fcea96fae6679b0cbfd5dde5c7afb2f1ecaa18485f2c87174",
+      "tar_member": "source141/src/opsys/memoire_developpement_cli.py"
+    },
+    {
+      "bytes": 2940,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/memoire_liaison.py",
+      "relative": "source141/src/opsys/memoire_liaison.py",
+      "sha256": "cd01f8aa0b7e6c0703ba3af2329d6105f5b3d465b57fbef955efe752b67bda55",
+      "tar_member": "source141/src/opsys/memoire_liaison.py"
+    },
+    {
+      "bytes": 21082,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/meteo.py",
+      "relative": "source141/src/opsys/meteo.py",
+      "sha256": "db2be9e6499843cfc88c8b9fc5539eaf44804436a5cf5393e361986e4f63aeb5",
+      "tar_member": "source141/src/opsys/meteo.py"
+    },
+    {
+      "bytes": 5684,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/modeles.py",
+      "relative": "source141/src/opsys/modeles.py",
+      "sha256": "b9256c8ec606986a8b68d03fe8d962ad11eaa3048fb37f7a8c4726f9b1edfbe3",
+      "tar_member": "source141/src/opsys/modeles.py"
+    },
+    {
+      "bytes": 56854,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/openclaw.py",
+      "relative": "source141/src/opsys/openclaw.py",
+      "sha256": "9a8dfcdb26d4491e146671537fe0027622d9c1f4209ec94dee408e3d5d2335ab",
+      "tar_member": "source141/src/opsys/openclaw.py"
+    },
+    {
+      "bytes": 13433,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/outils.py",
+      "relative": "source141/src/opsys/outils.py",
+      "sha256": "03b045a850dfad5380a468a3165ad2208cc4513ddac7c2f5fea48b8a189d2ec7",
+      "tar_member": "source141/src/opsys/outils.py"
+    },
+    {
+      "bytes": 8168,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/passerelle.py",
+      "relative": "source141/src/opsys/passerelle.py",
+      "sha256": "0a97df646c4226522612be1c931b7bfda2b2c7add877a3731bf211a585433be9",
+      "tar_member": "source141/src/opsys/passerelle.py"
+    },
+    {
+      "bytes": 3973,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/politiques.py",
+      "relative": "source141/src/opsys/politiques.py",
+      "sha256": "d6240f7228dae214add89d80303b7a0c543dc4c1d9e4796e61a59267ce6ce132",
+      "tar_member": "source141/src/opsys/politiques.py"
+    },
+    {
+      "bytes": 4453,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/profils.py",
+      "relative": "source141/src/opsys/profils.py",
+      "sha256": "ec63f32bbd2d12eb96f3aae0316a0d1101dc1430b3fd91c170c1b4430bbf57c2",
+      "tar_member": "source141/src/opsys/profils.py"
+    },
+    {
+      "bytes": 6183,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/serveur_bootstrap.py",
+      "relative": "source141/src/opsys/serveur_bootstrap.py",
+      "sha256": "7f9b1e48fec7bc42d485509c88cf470144dc1a7470ab26725535122f5f99f3d2",
+      "tar_member": "source141/src/opsys/serveur_bootstrap.py"
+    },
+    {
+      "bytes": 27811,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/serveur_mcp.py",
+      "relative": "source141/src/opsys/serveur_mcp.py",
+      "sha256": "8803060081592fb69ee716bd1131750b15da24bb4ed3ee59883a5bf57d8897fa",
+      "tar_member": "source141/src/opsys/serveur_mcp.py"
+    },
+    {
+      "bytes": 2382,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/__init__.py",
+      "relative": "source141/src/opsys/stockage/__init__.py",
+      "sha256": "166b85d69d539d91381c9e14bcf36da72a03e01300dc48f25d93228ce444a2ad",
+      "tar_member": "source141/src/opsys/stockage/__init__.py"
+    },
+    {
+      "bytes": 3720,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/codec.py",
+      "relative": "source141/src/opsys/stockage/codec.py",
+      "sha256": "0841068a882b9b4b316a5704de889ba5fd104e67b6a6aa5f61227666ec76b8de",
+      "tar_member": "source141/src/opsys/stockage/codec.py"
+    },
+    {
+      "bytes": 4328,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/maillons.py",
+      "relative": "source141/src/opsys/stockage/maillons.py",
+      "sha256": "8a6ba53b83ca92940ade6886f8ad00d345a735d8e9c823165824b9d37416c0f5",
+      "tar_member": "source141/src/opsys/stockage/maillons.py"
+    },
+    {
+      "bytes": 51,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/__init__.py",
+      "relative": "source141/src/opsys/stockage/migrations/__init__.py",
+      "sha256": "81bb117daff017c24fbfbd8474a932f2150d3652a7cddc593e85277aa245e3ad",
+      "tar_member": "source141/src/opsys/stockage/migrations/__init__.py"
+    },
+    {
+      "bytes": 562,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/env.py",
+      "relative": "source141/src/opsys/stockage/migrations/env.py",
+      "sha256": "b1400bbf75128217bd2742a734103d06fdb3b0323b85571b02121c1175ac98a3",
+      "tar_member": "source141/src/opsys/stockage/migrations/env.py"
+    },
+    {
+      "bytes": 892,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0001_registres.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0001_registres.py",
+      "sha256": "2e2d41202044520fb259a3539520b5542c43c52494a589dca7749db6d8f9d5fb",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0001_registres.py"
+    },
+    {
+      "bytes": 3752,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0002_plan_de_controle.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0002_plan_de_controle.py",
+      "sha256": "56191ef793caa4d3ccdb4cfca597955d0cf7d50809d42111aa0ce5b608083178",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0002_plan_de_controle.py"
+    },
+    {
+      "bytes": 2007,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0003_evenements.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0003_evenements.py",
+      "sha256": "0685ed073d19b964d2574bd23db087d2c54c6928819fd4771133c5fd6573957a",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0003_evenements.py"
+    },
+    {
+      "bytes": 1290,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0004_mutations_appliquees.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0004_mutations_appliquees.py",
+      "sha256": "f07f3181bd866dd20102090777cd4a1bacc1249eec533bd33c01953bc3d7014d",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0004_mutations_appliquees.py"
+    },
+    {
+      "bytes": 2071,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0005_identite.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0005_identite.py",
+      "sha256": "3afdc187c0a29e19bcab92b4657b508f519deaac52b84ba665af7c6bc660187b",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0005_identite.py"
+    },
+    {
+      "bytes": 1168,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0006_appareils.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0006_appareils.py",
+      "sha256": "7148e53f8261eb072ddaca275ac91dcfe6ba261507c95a7f6ea86548a4f0769d",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0006_appareils.py"
+    },
+    {
+      "bytes": 1363,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0007_cles_chiffrement.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0007_cles_chiffrement.py",
+      "sha256": "7900f5ded911583781547b207cf683be04b5d92b95b7bffa40de714e36a91d20",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0007_cles_chiffrement.py"
+    },
+    {
+      "bytes": 2283,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0008_fichiers.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0008_fichiers.py",
+      "sha256": "76fd02178c32b0c2a6f6f39652242d545775ffbe1863a80420d8a06ef407f560",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0008_fichiers.py"
+    },
+    {
+      "bytes": 570,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0009_portee_artefacts.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0009_portee_artefacts.py",
+      "sha256": "f29836f136b497ba9ac7918d634d06ed1ebd368bd622959c377b93d70795c7e8",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0009_portee_artefacts.py"
+    },
+    {
+      "bytes": 3263,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0010_agents_configurables.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0010_agents_configurables.py",
+      "sha256": "a413fa7c9fb1a8a63dd60ab22cc497a21dfb49165d22d500fc3f19c8e0c921fa",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0010_agents_configurables.py"
+    },
+    {
+      "bytes": 3675,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0011_admission_agents.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0011_admission_agents.py",
+      "sha256": "1224081245a936ea82dfe603fa9eb5e01b2907fc20a23149ca7a50410c3eaf7b",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0011_admission_agents.py"
+    },
+    {
+      "bytes": 1171,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0012_admission_runtime_cycles.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0012_admission_runtime_cycles.py",
+      "sha256": "c56ea85ad28e07fd8c9f815812bc394254075b03d0b362905a2c303809b229bb",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0012_admission_runtime_cycles.py"
+    },
+    {
+      "bytes": 1999,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0013_liaisons_tickets_cibles.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0013_liaisons_tickets_cibles.py",
+      "sha256": "cabf382547cf28ebb2dc5347e7f19d9a4f50d1e93c708d9ff777490e579243ca",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0013_liaisons_tickets_cibles.py"
+    },
+    {
+      "bytes": 4501,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0014_grants_lecture_cfo_agents.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0014_grants_lecture_cfo_agents.py",
+      "sha256": "111329b10fd1f7690148d64f4b4862a834649f8e6faa489e26e9a3f920f49d8d",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0014_grants_lecture_cfo_agents.py"
+    },
+    {
+      "bytes": 1262,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0015_compteurs_tokens_64_bits.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0015_compteurs_tokens_64_bits.py",
+      "sha256": "856da32645e90087aa3a8bdf3b915aae2b51575ef8dc16219b491f9e5c38b801",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0015_compteurs_tokens_64_bits.py"
+    },
+    {
+      "bytes": 2149,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0016_connecteurs_stt_persistants.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0016_connecteurs_stt_persistants.py",
+      "sha256": "39b6dfb14b525643213264779fa0dfcc86aacf753f6b424448cb720e1cbbd80e",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0016_connecteurs_stt_persistants.py"
+    },
+    {
+      "bytes": 5146,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0017_fusion_lots_csv.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0017_fusion_lots_csv.py",
+      "sha256": "2911eed2af47d86ec8f3050bf03cd45f6cf3d10459b342d8123118b2a96362b5",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0017_fusion_lots_csv.py"
+    },
+    {
+      "bytes": 4669,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/0018_fusion_pdf_natif.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/0018_fusion_pdf_natif.py",
+      "sha256": "7b6cee4722507467ce8d3d66ac195dbea2c2985bbfeb4f129939732170a9f212",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/0018_fusion_pdf_natif.py"
+    },
+    {
+      "bytes": 59,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/migrations/versions/__init__.py",
+      "relative": "source141/src/opsys/stockage/migrations/versions/__init__.py",
+      "sha256": "937ad8fceee3757b72fe362df44bc4ec7a0835a9dacac5b0043c7fe15acf5626",
+      "tar_member": "source141/src/opsys/stockage/migrations/versions/__init__.py"
+    },
+    {
+      "bytes": 3798,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/moteur.py",
+      "relative": "source141/src/opsys/stockage/moteur.py",
+      "sha256": "93122a053358f430361e354b85f68b46cbd3c00d823100c943ee541c8313a805",
+      "tar_member": "source141/src/opsys/stockage/moteur.py"
+    },
+    {
+      "bytes": 35569,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/stockage/schema.py",
+      "relative": "source141/src/opsys/stockage/schema.py",
+      "sha256": "9e458c41f5208601587339c41f873adc16913a07bcdd5f85f2a96a1217974de6",
+      "tar_member": "source141/src/opsys/stockage/schema.py"
+    },
+    {
+      "bytes": 10325,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/tableau_de_bord.py",
+      "relative": "source141/src/opsys/tableau_de_bord.py",
+      "sha256": "de82fa83a8762b9e48ff3505cb64024acdd99d6fe5d57f0ee96ed4b08e0531f0",
+      "tar_member": "source141/src/opsys/tableau_de_bord.py"
+    },
+    {
+      "bytes": 49788,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/src/opsys/taxonomie.py",
+      "relative": "source141/src/opsys/taxonomie.py",
+      "sha256": "206ead7a97076c2892df8d65f38f46eda0abaa7a71ad5daa0645042fe781a765",
+      "tar_member": "source141/src/opsys/taxonomie.py"
+    },
+    {
+      "bytes": 21099,
+      "kind": "source testée courant exact",
+      "origin": "/workspace/OPSYS-AI-recent/tests/test_ingestion_pdf_natif.py",
+      "relative": "source141/tests/test_ingestion_pdf_natif.py",
+      "sha256": "5f1db898ce021386415df82426ce8d41678aaea8945ba2a243e20a29081fa049",
+      "tar_member": "source141/tests/test_ingestion_pdf_natif.py"
+    }
+  ],
+  "inventory_sha256": "351ad9776c19ffa83bed069908b256a6ad143effa83d145bb6f89cb3bf3ccd69",
+  "preparation_entries": [
+    {
+      "bytes": 119992,
+      "sha256": "351ad9776c19ffa83bed069908b256a6ad143effa83d145bb6f89cb3bf3ccd69",
+      "tar_member": "preparation/ENTREES-r2.json"
+    },
+    {
+      "bytes": 21054,
+      "sha256": "64d995accfe7fff4ed23dd4e2d9fbe5aabb1d09fb99da2278e9ce0132ad458d2",
+      "tar_member": "preparation/archiver-native-r2.py"
+    }
+  ],
+  "schema": "opsys.pdf-native-manifest/v2"
+}

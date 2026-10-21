@@ -1,0 +1,54 @@
+{
+  "time_toronto": "2026-10-10T18:32:19.604449-04:00",
+  "qualified_full_build": true,
+  "evidence_manifest_sha256": "b797ba292d6dfe1122fa9d78e9c2e9cfa9674724fffbbab70121c4efe78df4d0",
+  "expected_received_members_verified": 37,
+  "source_manifest_sha256": "5a47f2712de93e1f5d819de0872958ab6d9f9bfc5595a6a3f34f02b76cc8a4cf",
+  "Source43785_individual_hashes_match_post": true,
+  "run": {
+    "exit_code": 0,
+    "wall_seconds": 521.868,
+    "peak_process_tree_rss_bytes": 6022696960,
+    "guard_triggered": null,
+    "signal_strategy": "revalidated_pid",
+    "owned_processes_stopped": true,
+    "stdout_eof": true,
+    "output_complete": true,
+    "sources_unchanged": true
+  },
+  "stage": {
+    "files": 149509,
+    "historical_evidence_preserved": true,
+    "links": 4506,
+    "mode": "post",
+    "ok": true,
+    "origin_preserved": true,
+    "original_files_preserved": 137176,
+    "original_links_preserved": 4060,
+    "phase": "build",
+    "prior_generated_changed_or_removed": 189,
+    "source_files_preserved": 43785,
+    "stamps_c864_preserved": true
+  },
+  "log": {
+    "sha256": "963249ca753493bc48a45dc3e598ecba82282bf4aee49381a43213eaa2956292",
+    "bytes": 86722,
+    "full_diagnostics_non_asset_file": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-PC1-CURRENT-CANDIDATE-PHASES-20261010-r1/build-transport-r2/ROOT-LOG-NON-ASSET-READABLE-r1.txt",
+    "human_read_non_asset_lines": 169,
+    "asset_rows_543_independent_inventory_review_pending": true,
+    "warnings_preserved": [
+      "playwright/tree-sitter eval",
+      "2 node:path browser externalizations",
+      "CSS51200limit51165measured35Bheadroom/advisory46080",
+      "Mermaiddeferred951.7KiB960limit"
+    ]
+  },
+  "reasoned_change": "5120MiB tsdown heap, same7GiB RSS900s48MiB/per-plugin/concurrency1 fullbuild; prior4352OOMretained",
+  "limits": [
+    "physicalold73Source43785; currentR74deltaonlycore/test/opsys-tests-cibles.txt metadata",
+    "globalcanonicalTSC3GiB RSSstillNONQUAL; separate reasonedcontinuationprepared",
+    "SDKpackageboundarydist0; no preparedSMSglobaltypeclaim",
+    "SourceReceiverfuture3 excluded",
+    "no exactnewcommitCI or nativeSMSmodelpermissionqualification"
+  ]
+}

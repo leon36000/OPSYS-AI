@@ -1,0 +1,36 @@
+{
+  "status": "conception_only_not_runtime_integration",
+  "reports": [
+    {
+      "path": "docs/research/REPRISE-2026-10-05/conceptions/LOT5-COLLECTEUR-CONCEPTION-r1.md",
+      "source": "/dev/shm/opsys-lot5-collector-design-r1/REPORT.md",
+      "sha256": "a0838bffdf30e974f0439fef15753205906b1fc967af08cdbbf85fa1678c0df1",
+      "source_hashes_verified": {
+        "core/src/agents/embedded-agent-runner/opsys-runtime-admission.ts": "cae5c085a07c53f10daaef70b35de4b57014fb4d27202e9d27d70388e1ad2a8c",
+        "core/src/agents/embedded-agent-runner/run/attempt-prompt-submit.ts": "17a7123fc7984dc6aa2eea21f0313338927af0ea65983fa62a63812bdaea3c9c",
+        "core/src/agents/agent-bundle-mcp-materialize.ts": "93254b9d7c7deac6ee2fc488b20a5df00bd7354a8d0097b12f155cf6e6eba29a",
+        "core/src/agents/agent-bundle-mcp-runtime.ts": "d2a33ba0ca6294eba40f03bbcdbcc05233aa6abff9c9b2a206f96676ee9f7356",
+        "core/src/context-engine/opsys-contexte-cible-ticket.ts": "58df5e0f8f881c90702ad50666e06651fc1893d5a36327e74aed82c9ee90d605",
+        "core/src/context-engine/opsys-contexte-engine.ts": "e5c2c2d6d9013d92eda66665932aa584ddb258d6093c706c5ef6f7a2355dac8f",
+        "core/src/context-engine/opsys-contexte-depot.ts": "68ee9b5b0e15b3f5595973cef4926399b6162ce918d0d44936f4ef31fc7a6359",
+        "core/src/agents/harness/context-engine-lifecycle.ts": "d717ef83c78543cb64ec43165c77f6df4031ba8836f2f2e45f68007b14ed0f79",
+        "core/src/agents/harness/opsys-postflight-outbox.ts": "38e5b3e4241cd4581dd6df246d4f0682e5ccc5d5c59e834d8643c6c49c8e6525"
+      }
+    },
+    {
+      "path": "docs/research/REPRISE-2026-10-05/conceptions/LOT5-COLLECTEUR-CONCEPTION-r2.md",
+      "source": "/dev/shm/opsys-lot5-collector-design-r2/REPORT.md",
+      "sha256": "3a213a06c289ed979f380bf8079b0163c0df0cffda5436558ef67e75e0603c87",
+      "source_hashes_verified": {
+        "departments/m10-memoire/src/m10_memoire/faits_candidats.py": "c3fec43a473dbfc53c7264f01ea599e09d950be50be77c26a4e5a4c612b4f901",
+        "departments/m10-memoire/src/m10_memoire/outils.py": "ff4e9a79889a37617ebe24c79cdba8fc388f645ce1f1d4ba5ca80d9cbf7f947c",
+        "core/src/context-engine/opsys-contexte-depot.ts": "68ee9b5b0e15b3f5595973cef4926399b6162ce918d0d44936f4ef31fc7a6359",
+        "core/src/agents/harness/opsys-postflight-outbox.worker.ts": "910c6a544a20b105968a7a6593d82a7b040fc7072a0e0953b52d1d007fc6a668",
+        "core/src/agents/harness/opsys-postflight-outbox.ts": "38e5b3e4241cd4581dd6df246d4f0682e5ccc5d5c59e834d8643c6c49c8e6525",
+        "core/src/agents/embedded-agent-runner/opsys-runtime-admission.ts": "cae5c085a07c53f10daaef70b35de4b57014fb4d27202e9d27d70388e1ad2a8c",
+        "core/src/agents/agent-bundle-mcp-materialize.ts": "93254b9d7c7deac6ee2fc488b20a5df00bd7354a8d0097b12f155cf6e6eba29a",
+        "core/src/context-engine/opsys-contexte-cible-ticket.ts": "58df5e0f8f881c90702ad50666e06651fc1893d5a36327e74aed82c9ee90d605"
+      }
+    }
+  ]
+}

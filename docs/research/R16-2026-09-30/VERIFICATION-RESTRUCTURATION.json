@@ -1,0 +1,2696 @@
+{
+  "date_utc": "2026-09-30T12:53:24.066042+00:00",
+  "scope": "DOCS_REGLES_METADATA_RECHERCHE_SEULEMENT",
+  "branch": "codex/restructuration-2026-09-30",
+  "base_commit": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "status": "PASS",
+  "changed_files_checked": 114,
+  "markdown_files_checked": 50,
+  "local_links_checked": 399,
+  "json_files_checked": 47,
+  "perimeter": {
+    "M1": {
+      "expected": 20,
+      "present": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "M5": {
+      "expected": 20,
+      "present": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "M7": {
+      "expected": 15,
+      "present": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ]
+    },
+    "M10": {
+      "expected": 15,
+      "present": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ]
+    }
+  },
+  "historical_findings_preserved": 47,
+  "historical_severities": {
+    "P1": 14,
+    "P2": 30,
+    "P3": 3
+  },
+  "codeowners_targets": [
+    {
+      "pattern": "/AGENTS.md",
+      "exists": true
+    },
+    {
+      "pattern": "/CLAUDE.md",
+      "exists": true
+    },
+    {
+      "pattern": "/00-DIGEST.md",
+      "exists": true
+    },
+    {
+      "pattern": "/src/opsys/",
+      "exists": true
+    },
+    {
+      "pattern": "/departments/",
+      "exists": true
+    },
+    {
+      "pattern": "/core/",
+      "exists": true
+    },
+    {
+      "pattern": "/mobile/",
+      "exists": true
+    },
+    {
+      "pattern": "/install/",
+      "exists": true
+    },
+    {
+      "pattern": "/deploy/",
+      "exists": true
+    },
+    {
+      "pattern": "/docs/produit/",
+      "exists": true
+    },
+    {
+      "pattern": "/docs/decisions/",
+      "exists": true
+    },
+    {
+      "pattern": "/docs/programme/",
+      "exists": true
+    }
+  ],
+  "research_import_sources_sha256_verified": 65,
+  "repository_observations": 123,
+  "repository_hosts": {
+    "github": 110,
+    "gitlab": 13
+  },
+  "toml_parsed": true,
+  "project_only_description_changed": true,
+  "diff_check_exit_code": 0,
+  "fresh_targeted_test": {
+    "command": "PYTHONPATH=src /workspace/audit-opsys-2026-09-30/venv/bin/python -m pytest tests/test_taxonomie_plaintes.py -q -p no:cacheprovider",
+    "passed": 38,
+    "exit_code": 0,
+    "scope": "test de garde des taxonomies communes existantes ; exécution observée pendant ce lot, pas validation des nouvelles capacités"
+  },
+  "not_claimed": [
+    "nouveaux modules implémentés",
+    "installation VPS exécutée",
+    "benchmarks candidats",
+    "core exécuté localement",
+    "CI du diff lancée",
+    "ingestion M10",
+    "push/merge/deploy"
+  ],
+  "errors": [],
+  "file_sha256": {
+    "00-DIGEST.md": "7249c94a15956aace88c4dc554558c18a12911d4ab1b5c83ffe3a3c5adc25d5a",
+    "AGENTS.md": "fc695c98744a0cdfdeb2e661bbcc5fc92eadb54a33409b8e3e2d8442656376f0",
+    "CLAUDE.md": "2fdaa7b61d60e78895df427acc7e14c56671b1b60d5b297f0b6abf3fc7df28ba",
+    "CODEOWNERS": "6af217429b45dd7be843973cac0f33030eacaafd30d7d0059ad84aaad6322aec",
+    "README.md": "1066b210a2205297e788024ae90b150f355b5b1bc4565361e8fcefdee585d4ab",
+    "core/AGENTS.md": "3d6493ba6f703f3479506aa66d6e14a4e443c86bcb2140762c1c3b914d1dc847",
+    "departments/m04-field-ops/docs/bmad/03-ARCHITECTURE.md": "713f7d3a3718d565b606f58c787c6682c8e02eba05717eec8c7f97b4df6bcf35",
+    "departments/m05-financecore/README.md": "c0c90e8d418fe0af7841ae205dad9791364a32d2f4ac9fb0680a7dcd32f117f6",
+    "departments/m07-marketing/stories/M7-S000-story-pilote.md": "2c1df3268f948bf55201439427006de3ba1fd3782ff11370c4aabe5d59f1ddd8",
+    "docs/README.md": "d83e16dc91497552062dc0c2ebfd5f3bd57fb1be2eecebbc52352d1d8879ce3e",
+    "docs/architecture/ARCHITECTURE.md": "fb8909135a4a15968899bd55f3532f2f9e6d24c3f04deff98d78019580aa116e",
+    "docs/architecture/ECONOMIE-TOKENS.md": "3f8c0559305bfc28599982b580cb490390757e2f72386e7622a555cef3258a9b",
+    "docs/architecture/IDEMPOTENCE.md": "9d2537112faac320d5f0bffd64f7d95037ba36247d3bd178d9807659b9adb336",
+    "docs/architecture/MOBILE.md": "67ab4f5aa1764125dc736142e3ee3da021a12601a7e97b7ebccd2d766f9e743f",
+    "docs/decisions/ADR-0011-canaux-reception-envoi.md": "9476ce8ad65d6bc365684a5558dafde8c523b625696fd2d761c0b14203399d23",
+    "docs/decisions/ADR-0012-reutilisation-profondeur-productivite.md": "93bb213141bf0f88ed56520da7def231ed8c28a07e061277a6704159f64ee0bb",
+    "docs/decisions/README.md": "c7d40ed1aa8e91e7bbd6fb56a00cb6f2425223544a2cdb3c7477ebe46104ddd9",
+    "docs/departements/M1-audit.md": "35dca9f6cbe42813004af36d74f55212d6dfbb89adf4f8e5ff634d3b5a439c64",
+    "docs/departements/M10-audit.md": "5b206c2bd3230021ad82457b3ca1e883167c740f078de390b38743c847befdf8",
+    "docs/departements/M2-audit.md": "ff088e31eb3db08bb49815b341b6400bc04c2450baffed762aceeb864c9435b3",
+    "docs/departements/M3-audit.md": "73f36b8ee4c1334627867df56801602befbbf16ceb5277d6c5060ee913bb74e6",
+    "docs/departements/M4-audit.md": "4f880e62546c87214db9c6e569a4d5b9ad741ae90a332529d0f5d75738ecc04b",
+    "docs/departements/M5-audit.md": "3069ed8afce0a107694c548e4423b1c1616a736531e14a4a8efbac5c6ee1351c",
+    "docs/departements/M6-audit.md": "2f7316c88e7d05d4e64a48947aa36a80b996c6e06c56f23d4ae04b8b00a65d27",
+    "docs/departements/M7-audit.md": "2e196240276f3e3c8a96013fab4973787a0104f3a5bd647491f40f247f86cad4",
+    "docs/departements/M8-audit.md": "9ac6b936d7af0c83d5709e71eb8d6fb34b56b97f7f65648074ad06c9f3ef28de",
+    "docs/departements/M9-audit.md": "c793eaab7c7834c9ae87028ea847e78c8e65e9b744f01645e9ae213d6b542854",
+    "docs/exploitation/INSTALLATION.md": "2998c5e1b7ec1bd17bf01faf8f4b92e9103f63b111fe022a54b51003ff86d7f3",
+    "docs/ops/INSTALLATION-VPS.md": "99ba63c12df8f36b86d0fc480190867a43cdf80d2e4aeb561e6cdfc5ba1bfd6c",
+    "docs/produit/DEFINITION-PRODUIT.md": "4e1cae69f50b9f7469c071c4dade6c336995c6b068d7a565109741256cb3d8df",
+    "docs/produit/DIRECTIVES-NATHAN.md": "afdf05ec75b0ef634a7d69447493acbe5df00feaa762d47f853d9570cf8d9d71",
+    "docs/produit/PERIMETRE-MODULES.md": "27b0369454b60be59922f8f15ae85b9b661d6e57b5ab074aff602b2d8a9daf15",
+    "docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md": "d769d388cfc3cbcdc8d652fca875885d8bd0aca8f99922bd10bfef8d166fe606",
+    "docs/programme/BOUCLE.md": "baafecd846d21986b60eb78cf657f920b42a32c3da76000b04aa8c82a3615197",
+    "docs/programme/PLAN.md": "542b4e77cdae16c296f6992e886841a7fa9a4baf924da80a4e169e39dc5bd9b0",
+    "docs/programme/REGISTRE-AUDIT-2026-09-30.md": "7c51cf32badffbf5705e6feaa214b61936e5382dbf9cd85859eaefa3078a7d50",
+    "docs/programme/RESTRUCTURATION-2026-09-30.md": "3e81ee2009ab64429df47644d3dfeb1057258f452d1e1e8a8ee004e4cf6c392f",
+    "docs/research/INGREDIENTS.md": "24ac2fa4e6484f9fb6f5fc81ece857eae8509b77208df32692c4cf5a8aca5e53",
+    "docs/research/R16-2026-09-30/IMPORT-SOURCES.json": "85f01711ee247edc793ed6125cb1dc393996ba5792dae84dc598c7ac4e8d8985",
+    "docs/research/R16-2026-09-30/README.md": "c9fc94692b8106516d8dd5f6868e95d9fb44eb692d998530591f472cc880616a",
+    "docs/research/R16-2026-09-30/SOURCES.json": "bd2106e6f8a1588ea17d5fd80aeab7c0628e1c639ae40d2973ee6fc1ab835ec8",
+    "docs/research/R16-2026-09-30/audit/CONSTATS-RECENTS.json": "1be554508a538f7e107a1a9317520c0d8872196a3c516f974262f39981e381b0",
+    "docs/research/R16-2026-09-30/audit/PREUVES-SHA256.json": "8f64a05f6c9b49b1069f1c2cae8f4173d96bb433d7d7ca302b3ceade800df7a2",
+    "docs/research/R16-2026-09-30/audit/VERIFICATION-AUDIT.json": "712e45b9e81af06316ff5302313514dfbbe30b7b2f1e0cf3c32a93b54d1b3713",
+    "docs/research/R16-2026-09-30/audit/changes.txt": "8e624c5d9c31b981a9cce9a30b67e0ad0eaba80c764eb3642db1849f641db7a3",
+    "docs/research/R16-2026-09-30/audit/confirmation-frontieres.json": "e830950ce1ff945103e3d50e296ebc909d6e0ec07618a86e99917feee98cfc41",
+    "docs/research/R16-2026-09-30/audit/core.md": "ae09fdbf2698014b2ea245d692c192c7350a404e38d08faa0f805e1720b56896",
+    "docs/research/R16-2026-09-30/audit/departements.md": "1a32f4f25bc0bfadd36a59f57b2d8f455dc1319a6a9075bf56538d7021fe7f89",
+    "docs/research/R16-2026-09-30/audit/donnees.md": "576479bf03280ad09b1f6e0cbb4206f1723eeff61bbc1f4fce5344a9e207f970",
+    "docs/research/R16-2026-09-30/audit/infra.md": "9decb5c56ac69600c3ee406ce738fec2cddebf3f319165d2b15ac33210f7de4c",
+    "docs/research/R16-2026-09-30/audit/lectures.json": "a3cf9c5b6cbcaf2ff1ae762b96deb12435a546a7452d19eae746f87e774beab2",
+    "docs/research/R16-2026-09-30/audit/m07-marketing.log": "8dae9a7ffb9597ef35c3a424e4d28b4ece727eafff59e439c2162b145417a3f7",
+    "docs/research/R16-2026-09-30/audit/m07-marketing.result.json": "5aab114ccfd488ff4ad2b72fa218ea209921c3703e7757827e5d795706cbfcbb",
+    "docs/research/R16-2026-09-30/audit/mobile-checks.json": "477caa11776d4045e98c8ed7d1de43872f3643bae683c0bdcdad1e0b9887ddd9",
+    "docs/research/R16-2026-09-30/audit/mobile-ci-jobs.json": "8bbc05e6ce956bcc79f01c4870d7ec8a8d90412609c43b1b6c1578b6b266fc0c",
+    "docs/research/R16-2026-09-30/audit/mobile-ci-run.json": "ef58f3fbc00e754101da06b4d83eaaa4c4eb6df05dcddaa0afd8cba9ceee7204",
+    "docs/research/R16-2026-09-30/audit/mobile-coverage-summary.json": "a2b44e2b028ffcd10ff740a5317ac6261547c579db034c18d689007e7932866c",
+    "docs/research/R16-2026-09-30/audit/mobile-inventory.json": "db223f353ad101dca922ad115792ad2cf3bc58b15dba8cfc5126435452c88827",
+    "docs/research/R16-2026-09-30/audit/mobile-jest.log": "a162955a315123aa21a22016dae84dabfa3a0612318b9719f8129d4453b137a4",
+    "docs/research/R16-2026-09-30/audit/mobile-npm-ci.log": "c157d1e4de09dbd5a95a7663fec25dd348435866709ddf14ebba6f28e0b3e6fb",
+    "docs/research/R16-2026-09-30/audit/mobile-repro-results.json": "0549ab8668f578b06339ff98a4823ee3224f930fe3e0bbf27e470f42365dd9d5",
+    "docs/research/R16-2026-09-30/audit/mobile-repro.log": "4ef2afd7feaf16ac8211bcb420a426d31d4c39d284cfb05c2a1b312e00dea304",
+    "docs/research/R16-2026-09-30/audit/mobile-source-hashes.json": "e2f4549f57f9736d8f6957965a5dec23bd710fe1dd0422015d7d7ac21fcb0958",
+    "docs/research/R16-2026-09-30/audit/mobile-typecheck.log": "8111087e92cb5a47fda610344b457f3b808a3a637625368acc03b77a29a37f3a",
+    "docs/research/R16-2026-09-30/audit/mobile.md": "186cb33189478986688bc022602bdaa3b922f5a75f09ad1b91b4e512ce21a5e1",
+    "docs/research/R16-2026-09-30/audit/preuves/arbres-et-volumes.json": "726f35cfe818b384ae4bc3f9998e2c88aff473413ca33dc2181672cc95145816",
+    "docs/research/R16-2026-09-30/audit/preuves/ci-core-jobs.json": "fe7715638e50e87e5a5a5b9a13d85a36251b57efc49882bda58bc9454c9555c8",
+    "docs/research/R16-2026-09-30/audit/preuves/ci-core-run.json": "6277435fda842a5766401600136a74864c810e02e9f873bf30719b6b0032c670",
+    "docs/research/R16-2026-09-30/audit/preuves/limite-journaux-ci.txt": "c224c5681f522d1135c4d01a0f415ad73a8b9e222238bfd72b63012316248784",
+    "docs/research/R16-2026-09-30/audit/preuves/temoin-variable-shell.txt": "4f31005ecf368cc90e4adbbfa725686a187a054b5c1a6356381f0e9f983d8c8a",
+    "docs/research/R16-2026-09-30/hermes-notes.md": "f2bff7243240508059113b2b9fc85c3b54d9eba8f3444f105228d94753e7f3f8",
+    "docs/research/R16-2026-09-30/m5-outils-actuels.json": "fb18c91ec7094de0f84f55ba1123f048a7824252ee1303459493b7299a22e8f2",
+    "docs/research/R16-2026-09-30/m5-preuves.json": "1c359beabb749c3469e3899ed3f6f31a4fec235a2f0f8ff9e472eb998ef79aa9",
+    "docs/research/R16-2026-09-30/m5-sources-actuelles.json": "49f09ff3080575dce56177c6c39c79e11cd214736e7c422dde52cd078f92ebfe",
+    "docs/research/R16-2026-09-30/m7-primary-evidence.json": "077c82fb2b85deb09b6b27a0d251f235a9a6c371b645f355f1fa9391368805d0",
+    "docs/research/R16-2026-09-30/preuves/m1/code-index.json": "9d75bbda015acb5064e2fea6a2dba2d6df190c805c0a8322ab26fe4ec82f1d88",
+    "docs/research/R16-2026-09-30/preuves/m1/recommendations.json": "7c57290be2bb1f90ce25d78fd6a9afc4aa141d87eafcf1d661714c9bc37b5e8d",
+    "docs/research/R16-2026-09-30/preuves/m1/verification-report.json": "8b19eccd88fa70cc3554905b69f4a23ab13208c40394471cc3603b3782ab7fb1",
+    "docs/research/R16-2026-09-30/preuves/m1/web-source-index.json": "21f2945102991ac7492b427a1c7bf7fff755860edbedf2c40058b38de8614198",
+    "docs/research/R16-2026-09-30/preuves-core/candidats.json": "1aa408953358fd2e10d72deb0cc4f54b1bcdfcf185884b8e0e7e45e439809680",
+    "docs/research/R16-2026-09-30/preuves-core/fichiers-index.json": "e029e37b46ff0aab9211e8e6cb4be51ee78d50e6d1895959a9527a5263f315b7",
+    "docs/research/R16-2026-09-30/preuves-core/gitlab-primary.json": "83c8ad4287be7239ff48ecd41ceb8bab0d40432a02566d76cd3cdd677e14b4ea",
+    "docs/research/R16-2026-09-30/preuves-core/gitlab__LICENSE": "62dfe4bdd76e08992c09cf335b2374b3e6acd4f2b959b4971760727d9b785ab4",
+    "docs/research/R16-2026-09-30/preuves-core/index.json": "d54d6534bb4e06c8b935e8606c17b5d3442baa68c836782afd5cecfc6849a89e",
+    "docs/research/R16-2026-09-30/preuves-core/openclaw2-recherche-github.json": "1d77b9187dbcc6660cf6e88ef77055ad2c4c361bfe0b5e4b12457a93ef2f5670",
+    "docs/research/R16-2026-09-30/preuves-core/recherches-exa.json": "2c3958fe92f7d505a2b15be829089673e6d6d8af3abd05bbd606ac749677ffbc",
+    "docs/research/R16-2026-09-30/preuves-core/verification.json": "3dd3b633b86d20c335b086163c0c8cada0bbe64850e1f62f5f55aedbb0287dbf",
+    "docs/research/R16-2026-09-30/preuves-hermes/acquisition.json": "693a4ddbfaae8df8a6fdbe94444f82e43d92afca573279345cf4919ab07f0e56",
+    "docs/research/R16-2026-09-30/preuves-hermes/commit.json": "08b9188538cd9d6052a2ab8bec09964bfaf077e796b3acaaa0bb8225b0b459cc",
+    "docs/research/R16-2026-09-30/preuves-hermes/comparison-2026-09-27.json": "92051f03255dff7b2e4b51542583893591dcf8fa174939dbb5d8f8d8c5c7f048",
+    "docs/research/R16-2026-09-30/preuves-hermes/releases.json": "00f56288c30df5bcc26bd96063f5016b448c1c10ab75234314449afa8f05bdce",
+    "docs/research/R16-2026-09-30/preuves-hermes/repository.json": "956aefdbf28740cfeb6d1c0bcc5620d5bbd0c614642196aa5e898610c9dd5c25",
+    "docs/research/R16-2026-09-30/preuves-hermes/source-manifest.json": "6dab53cb4c772441fc150343786b25e7d415f8a29e61e0ebf9ab7931c69b1a23",
+    "docs/research/R16-2026-09-30/preuves-hermes/tree.json": "038f973813a2f81fab94cb60b6068f35b1efee28db005318cac7d3bd00584a88",
+    "docs/research/R16-2026-09-30/preuves-hermes/verification.json": "cffd1018a233f40f0c2c57169d7730bcda75d622c49a32e98e4d6068aa22d4ed",
+    "docs/research/R16-2026-09-30/preuves-m10/complements-sources.json": "c69af5cdd8c64d0acc17ef260ec4ae4f2705fe425f240ef301be7101b02d5c31",
+    "docs/research/R16-2026-09-30/preuves-m10/depots-licences-commits.json": "73682003a78d5ff87227deebb51272b51d18364359bc1898397ba3b59a82d254",
+    "docs/research/R16-2026-09-30/preuves-m10/synthese-preuves.json": "587b3d163bed82118638c4d0b52d0d8764b752e11038a31cafac3e59f1818074",
+    "docs/research/R16-2026-09-30/preuves-m5/index.json": "63a9c2ebc0c0ea30a947b322e15230208d7788123ef3650a9f800e5d718f1bb0",
+    "docs/research/R16-2026-09-30/preuves-transversales/duckdb__duckdb__LICENSE": "075c33400ffcb0c586dd106a029d3e733e9da3693f8fcb9cebfc651c8a2f14e3",
+    "docs/research/R16-2026-09-30/preuves-transversales/google__or-tools__LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "docs/research/R16-2026-09-30/preuves-transversales/graphviz__graphviz__LICENSE": "0becf16567beb77fa252b7664631dd177c8f9a1889e48995b45379c7130e5303",
+    "docs/research/R16-2026-09-30/preuves-transversales/index.json": "dd45d4b735ec07dd71dd2ee83a040c97df6e52d58cc6f4b5483c850ad6ab4e34",
+    "docs/research/R16-2026-09-30/preuves-transversales/inventree__InvenTree__LICENSE": "70f21a7a9bb007581b06860ad76d623c95d5c92663a2326b5fa79a198aed55e0",
+    "docs/research/R16-2026-09-30/preuves-transversales/networkx__networkx__LICENSE": "6025f323ea29dc2f0ee0abd9523bf910186f55b0e148e6ebf646c55566278e2e",
+    "docs/research/R16-2026-09-30/preuves-transversales/team-simpy__simpy__LICENSE": "5f09a7bdf08f239271b15df1cbe2ba7f62649f8b497988274626f48638b84802",
+    "docs/research/R16-2026-09-30/recherche-core.md": "d5c1c17701f0915bd9372da20bc5943b4fc2736fe4be27a0f6891c7e75b4b73e",
+    "docs/research/R16-2026-09-30/recherche-m1.md": "79c80b730d456a0ab97ea3615cc2b61a946606fa66113822d1a469c90f2001d1",
+    "docs/research/R16-2026-09-30/recherche-m10.md": "8259b19eda8d2eb73fe01748e30cb0df8ea2f82695432afa480e8d08d1802673",
+    "docs/research/R16-2026-09-30/recherche-m5.md": "db0e9251b3d955a3568f3768705a455fd189641f207fb66920ccb40115500b3b",
+    "docs/research/R16-2026-09-30/recherche-m7-preuves.json": "804d2f1e19961801a290824e2ba8d39cb392efb62fc70044bde4a527b4321441",
+    "docs/research/R16-2026-09-30/recherche-m7.md": "a32e6b4f8e1df38096a4a2046aaea108754940d4c1f966a75b523547b232c432",
+    "docs/research/R16-2026-09-30/recherche-transversale.md": "88540ce44397f0ef8488fdbee37c8ee9e1649f6d72350ca64d9729049d74ec23",
+    "pyproject.toml": "954e082cfe2476ce4febd4631cef73905de40665ce88bde2f00fc92e52a32123"
+  },
+  "local_links": [
+    {
+      "file": "AGENTS.md",
+      "line": 5,
+      "target": "docs/produit/DIRECTIVES-NATHAN.md",
+      "exists": true
+    },
+    {
+      "file": "AGENTS.md",
+      "line": 13,
+      "target": "docs/produit/DEFINITION-PRODUIT.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 14,
+      "target": "docs/produit/PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 26,
+      "target": "docs/produit/DIRECTIVES-NATHAN.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 27,
+      "target": "docs/research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 28,
+      "target": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 29,
+      "target": "docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 37,
+      "target": "docs/exploitation/INSTALLATION.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 40,
+      "target": "docs/exploitation/INSTALLATION.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 42,
+      "target": "docs/ops/INSTALLATION-VPS.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 49,
+      "target": "docs/architecture/ARCHITECTURE.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 50,
+      "target": "docs/decisions/README.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 51,
+      "target": "docs/decisions/ADR-0012-reutilisation-profondeur-productivite.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 51,
+      "target": "docs/architecture/MOBILE.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 52,
+      "target": "docs/history/README.md",
+      "exists": true
+    },
+    {
+      "file": "README.md",
+      "line": 52,
+      "target": "AGENTS.md",
+      "exists": true
+    },
+    {
+      "file": "departments/m05-financecore/README.md",
+      "line": 8,
+      "target": "../../docs/produit/PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "departments/m05-financecore/README.md",
+      "line": 9,
+      "target": "../../docs/research/R16-2026-09-30/recherche-m5.md",
+      "exists": true
+    },
+    {
+      "file": "departments/m07-marketing/stories/M7-S000-story-pilote.md",
+      "line": 4,
+      "target": "../../../docs/produit/PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 8,
+      "target": "produit/DIRECTIVES-NATHAN.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 9,
+      "target": "produit/DEFINITION-PRODUIT.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 10,
+      "target": "produit/PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 11,
+      "target": "decisions/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 12,
+      "target": "architecture/ARCHITECTURE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 13,
+      "target": "architecture/ECONOMIE-TOKENS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 14,
+      "target": "architecture/DEPARTEMENTS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 14,
+      "target": "architecture/TAXONOMIE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 15,
+      "target": "architecture/MOBILE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 16,
+      "target": "research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 17,
+      "target": "research/INGREDIENTS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 18,
+      "target": "programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 18,
+      "target": "programme/BOUCLE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 19,
+      "target": "programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 20,
+      "target": "programme/PLAN.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 21,
+      "target": "memory/RAG-PREMIUM.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 22,
+      "target": "exploitation/INSTALLATION.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 23,
+      "target": "ops/INSTALLATION-VPS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 23,
+      "target": "ops/EXPLOITATION.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 24,
+      "target": "compliance/politiques/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 24,
+      "target": "compliance/efvp/GABARIT-EFVP.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 25,
+      "target": "../core/PROVENANCE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 25,
+      "target": "../core/NOTICE",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 26,
+      "target": "../AGENTS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 26,
+      "target": "../CLAUDE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 26,
+      "target": "../00-DIGEST.md",
+      "exists": true
+    },
+    {
+      "file": "docs/README.md",
+      "line": 27,
+      "target": "history/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ARCHITECTURE.md",
+      "line": 3,
+      "target": "../produit/DEFINITION-PRODUIT.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ARCHITECTURE.md",
+      "line": 4,
+      "target": "../decisions/ADR-0008-fork-openclaw-opsys-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ARCHITECTURE.md",
+      "line": 5,
+      "target": "../research/",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ARCHITECTURE.md",
+      "line": 31,
+      "target": "../decisions/ADR-0012-reutilisation-profondeur-productivite.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ARCHITECTURE.md",
+      "line": 32,
+      "target": "../produit/PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ARCHITECTURE.md",
+      "line": 33,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ARCHITECTURE.md",
+      "line": 77,
+      "target": "../exploitation/INSTALLATION.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ARCHITECTURE.md",
+      "line": 135,
+      "target": "ECONOMIE-TOKENS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ECONOMIE-TOKENS.md",
+      "line": 4,
+      "target": "../research/R16-2026-09-30/recherche-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ECONOMIE-TOKENS.md",
+      "line": 5,
+      "target": "../decisions/ADR-0008-fork-openclaw-opsys-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/ECONOMIE-TOKENS.md",
+      "line": 6,
+      "target": "../decisions/ADR-0012-reutilisation-profondeur-productivite.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/IDEMPOTENCE.md",
+      "line": 3,
+      "target": "ARCHITECTURE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/IDEMPOTENCE.md",
+      "line": 4,
+      "target": "../decisions/ADR-0009-socle-metier.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/IDEMPOTENCE.md",
+      "line": 6,
+      "target": "../research/R12-app-mobile.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/IDEMPOTENCE.md",
+      "line": 240,
+      "target": "MOBILE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/IDEMPOTENCE.md",
+      "line": 248,
+      "target": "ROLES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 6,
+      "target": "../decisions/ADR-0008-fork-openclaw-opsys-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 7,
+      "target": "../research/R12-app-mobile.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 41,
+      "target": "IDEMPOTENCE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 1272,
+      "target": "ROLES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 1327,
+      "target": "ROLES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 1377,
+      "target": "IDEMPOTENCE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 1392,
+      "target": "IDEMPOTENCE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 1508,
+      "target": "IDEMPOTENCE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 1512,
+      "target": "ROLES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 1536,
+      "target": "IDEMPOTENCE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 1572,
+      "target": "ROLES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 1622,
+      "target": "ROLES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/architecture/MOBILE.md",
+      "line": 1723,
+      "target": "../../mobile/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/ADR-0011-canaux-reception-envoi.md",
+      "line": 11,
+      "target": "ADR-0008-fork-openclaw-opsys-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/ADR-0011-canaux-reception-envoi.md",
+      "line": 12,
+      "target": "ADR-0009-socle-metier.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/ADR-0011-canaux-reception-envoi.md",
+      "line": 12,
+      "target": "ADR-0010-memoire.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/ADR-0011-canaux-reception-envoi.md",
+      "line": 13,
+      "target": "../departements/M1-canaux.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/ADR-0011-canaux-reception-envoi.md",
+      "line": 15,
+      "target": "../produit/DEFINITION-PRODUIT.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/ADR-0011-canaux-reception-envoi.md",
+      "line": 17,
+      "target": "../compliance/politiques/POLITIQUE-consentement-sms.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/ADR-0012-reutilisation-profondeur-productivite.md",
+      "line": 6,
+      "target": "../produit/DIRECTIVES-NATHAN.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 9,
+      "target": "ADR-0001-adoption-squelette.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 10,
+      "target": "ADR-0002-continuite-opsys-ai.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 11,
+      "target": "ADR-0003-RATIFICATION.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 12,
+      "target": "ADR-0004-independent-agent-ownership.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 13,
+      "target": "ADR-0005-fragment-github-control-non-executable.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 14,
+      "target": "ADR-0006-restructuration-v2-core-hermes.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 14,
+      "target": "../architecture/ECONOMIE-TOKENS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 14,
+      "target": "../research/INGREDIENTS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 15,
+      "target": "ADR-0007-core-openclaw.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 15,
+      "target": "../architecture/MOBILE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 16,
+      "target": "ADR-0008-fork-openclaw-opsys-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 17,
+      "target": "ADR-0009-socle-metier.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 18,
+      "target": "ADR-0010-memoire.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 19,
+      "target": "ADR-0011-canaux-reception-envoi.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 20,
+      "target": "ADR-0012-reutilisation-profondeur-productivite.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 24,
+      "target": "../produit/DIRECTIVES-NATHAN.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 25,
+      "target": "../produit/DEFINITION-PRODUIT.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 25,
+      "target": "../produit/PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/decisions/README.md",
+      "line": 34,
+      "target": "../history/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M1-audit.md",
+      "line": 4,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M1-audit.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M10-audit.md",
+      "line": 4,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M10-audit.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M2-audit.md",
+      "line": 4,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M2-audit.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M3-audit.md",
+      "line": 4,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M3-audit.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M4-audit.md",
+      "line": 4,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M4-audit.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M5-audit.md",
+      "line": 4,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M5-audit.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M6-audit.md",
+      "line": 4,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M6-audit.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M7-audit.md",
+      "line": 4,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M7-audit.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M8-audit.md",
+      "line": 4,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M8-audit.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M9-audit.md",
+      "line": 4,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/departements/M9-audit.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/exploitation/INSTALLATION.md",
+      "line": 6,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/exploitation/INSTALLATION.md",
+      "line": 10,
+      "target": "../ops/INSTALLATION-VPS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/exploitation/INSTALLATION.md",
+      "line": 19,
+      "target": "../ops/EXPLOITATION.md",
+      "exists": true
+    },
+    {
+      "file": "docs/exploitation/INSTALLATION.md",
+      "line": 310,
+      "target": "../ops/EXPLOITATION.md#loi-25--hébergement",
+      "exists": true
+    },
+    {
+      "file": "docs/ops/INSTALLATION-VPS.md",
+      "line": 6,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/ops/INSTALLATION-VPS.md",
+      "line": 10,
+      "target": "../architecture/ARCHITECTURE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/ops/INSTALLATION-VPS.md",
+      "line": 11,
+      "target": "../decisions/ADR-0007-core-openclaw.md",
+      "exists": true
+    },
+    {
+      "file": "docs/ops/INSTALLATION-VPS.md",
+      "line": 12,
+      "target": "../decisions/ADR-0008-fork-openclaw-opsys-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/ops/INSTALLATION-VPS.md",
+      "line": 13,
+      "target": "../../core/PROVENANCE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/ops/INSTALLATION-VPS.md",
+      "line": 15,
+      "target": "../exploitation/INSTALLATION.md",
+      "exists": true
+    },
+    {
+      "file": "docs/ops/INSTALLATION-VPS.md",
+      "line": 38,
+      "target": "EXPLOITATION.md#loi-25--hébergement",
+      "exists": true
+    },
+    {
+      "file": "docs/ops/INSTALLATION-VPS.md",
+      "line": 143,
+      "target": "EXPLOITATION.md",
+      "exists": true
+    },
+    {
+      "file": "docs/ops/INSTALLATION-VPS.md",
+      "line": 145,
+      "target": "EXPLOITATION.md#validation-de-premier-déploiement",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 4,
+      "target": "../decisions/ADR-0008-fork-openclaw-opsys-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 7,
+      "target": "DIRECTIVES-NATHAN.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 7,
+      "target": "PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 8,
+      "target": "../decisions/ADR-0012-reutilisation-profondeur-productivite.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 86,
+      "target": "../decisions/ADR-0008-fork-openclaw-opsys-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 88,
+      "target": "../decisions/ADR-0012-reutilisation-profondeur-productivite.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 499,
+      "target": "../research/R16-2026-09-30/recherche-m5.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 679,
+      "target": "PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 686,
+      "target": "../research/R16-2026-09-30/recherche-m10.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 826,
+      "target": "../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DEFINITION-PRODUIT.md",
+      "line": 859,
+      "target": "../decisions/ADR-0012-reutilisation-profondeur-productivite.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DIRECTIVES-NATHAN.md",
+      "line": 78,
+      "target": "PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/DIRECTIVES-NATHAN.md",
+      "line": 79,
+      "target": "../decisions/ADR-0012-reutilisation-profondeur-productivite.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/PERIMETRE-MODULES.md",
+      "line": 3,
+      "target": "DIRECTIVES-NATHAN.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/PERIMETRE-MODULES.md",
+      "line": 4,
+      "target": "DEFINITION-PRODUIT.md",
+      "exists": true
+    },
+    {
+      "file": "docs/produit/PERIMETRE-MODULES.md",
+      "line": 5,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "line": 10,
+      "target": "../produit/DIRECTIVES-NATHAN.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "line": 13,
+      "target": "../decisions/ADR-0012-reutilisation-profondeur-productivite.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "line": 28,
+      "target": "../produit/PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "line": 47,
+      "target": "../research/R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "line": 78,
+      "target": "../research/R16-2026-09-30/VERIFICATION-RESTRUCTURATION.json",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "line": 91,
+      "target": "RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/BOUCLE.md",
+      "line": 6,
+      "target": "../produit/DIRECTIVES-NATHAN.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/PLAN.md",
+      "line": 4,
+      "target": "RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/PLAN.md",
+      "line": 9,
+      "target": "../produit/DEFINITION-PRODUIT.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/PLAN.md",
+      "line": 10,
+      "target": "../decisions/ADR-0008-fork-openclaw-opsys-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/PLAN.md",
+      "line": 10,
+      "target": "BOUCLE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/REGISTRE-AUDIT-2026-09-30.md",
+      "line": 8,
+      "target": "../research/R16-2026-09-30/audit/CONSTATS-RECENTS.json",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/REGISTRE-AUDIT-2026-09-30.md",
+      "line": 9,
+      "target": "../research/R16-2026-09-30/audit/core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/REGISTRE-AUDIT-2026-09-30.md",
+      "line": 10,
+      "target": "../research/R16-2026-09-30/audit/departements.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/REGISTRE-AUDIT-2026-09-30.md",
+      "line": 11,
+      "target": "../research/R16-2026-09-30/audit/donnees.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/REGISTRE-AUDIT-2026-09-30.md",
+      "line": 12,
+      "target": "../research/R16-2026-09-30/audit/infra.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/REGISTRE-AUDIT-2026-09-30.md",
+      "line": 13,
+      "target": "../research/R16-2026-09-30/audit/mobile.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/REGISTRE-AUDIT-2026-09-30.md",
+      "line": 68,
+      "target": "../research/R16-2026-09-30/VERIFICATION-RESTRUCTURATION.json",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "line": 9,
+      "target": "../produit/DIRECTIVES-NATHAN.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "line": 10,
+      "target": "../produit/PERIMETRE-MODULES.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "line": 10,
+      "target": "PLAN.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "line": 30,
+      "target": "REGISTRE-AUDIT-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "line": 53,
+      "target": "../research/R16-2026-09-30/VERIFICATION-RESTRUCTURATION.json",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "line": 57,
+      "target": "BILAN-RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "line": 163,
+      "target": "../research/R16-2026-09-30/recherche-m10.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "line": 176,
+      "target": "../research/R16-2026-09-30/recherche-m1.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "line": 191,
+      "target": "../research/R16-2026-09-30/recherche-m7.md",
+      "exists": true
+    },
+    {
+      "file": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "line": 207,
+      "target": "../research/R16-2026-09-30/recherche-m5.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/INGREDIENTS.md",
+      "line": 3,
+      "target": "R1-core-openclaw.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/INGREDIENTS.md",
+      "line": 4,
+      "target": "R10-m9-capabilities.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/INGREDIENTS.md",
+      "line": 4,
+      "target": "00-BRIEF.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/INGREDIENTS.md",
+      "line": 13,
+      "target": "R16-2026-09-30/README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/INGREDIENTS.md",
+      "line": 57,
+      "target": "../architecture/ECONOMIE-TOKENS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/INGREDIENTS.md",
+      "line": 119,
+      "target": "../architecture/MOBILE.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/INGREDIENTS.md",
+      "line": 120,
+      "target": "R12-app-mobile.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/INGREDIENTS.md",
+      "line": 374,
+      "target": "../decisions/ADR-0007-core-openclaw.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 11,
+      "target": "recherche-core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 11,
+      "target": "hermes-notes.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 12,
+      "target": "recherche-m1.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 13,
+      "target": "recherche-m5.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 14,
+      "target": "recherche-m7.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 15,
+      "target": "recherche-m10.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 16,
+      "target": "recherche-transversale.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 61,
+      "target": "SOURCES.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 63,
+      "target": "IMPORT-SOURCES.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 70,
+      "target": "audit/PREUVES-SHA256.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 73,
+      "target": "audit/CONSTATS-RECENTS.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 74,
+      "target": "audit/VERIFICATION-AUDIT.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 78,
+      "target": "../../programme/RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/README.md",
+      "line": 79,
+      "target": "../../programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 11,
+      "target": "changes.txt",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 11,
+      "target": "lectures.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 30,
+      "target": "preuves/arbres-et-volumes.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 34,
+      "target": "preuves/ci-core-run.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 34,
+      "target": "preuves/ci-core-jobs.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 40,
+      "target": "preuves/limite-journaux-ci.txt",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 54,
+      "target": "../../../../core/src/cli/opsys-metier-cli.ts#L197",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 54,
+      "target": "../../../../core/src/agents/bash-tools.exec-runtime.ts#L664",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 54,
+      "target": "preuves/temoin-variable-shell.txt",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 56,
+      "target": "../../../../core/src/infra/exec-control-command-guard.test.ts#L40",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 58,
+      "target": "../../../../src/opsys/cli.py#L195",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 58,
+      "target": "../../../../src/opsys/approbations.py#L200",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 58,
+      "target": "../../../../src/opsys/approbations.py#L392",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 70,
+      "target": "../../../../core/src/context-engine/opsys-contexte-engine.ts#L372",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 70,
+      "target": "../../../../core/src/agents/agent-tools.before-tool-call.policy.ts#L174",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 70,
+      "target": "../../../../core/src/context-engine/opsys-contexte-garde.ts#L128",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 72,
+      "target": "../../../../departments/m03-estimation/src/m3_estimation/outils.py#L957",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 72,
+      "target": "../../../../departments/m03-estimation/src/m3_estimation/outils.py#L420",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 78,
+      "target": "../../../../core/src/context-engine/opsys-contexte-engine.ts#L445",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 84,
+      "target": "../../../../core/src/context-engine/opsys-contexte-config.ts#L202",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 84,
+      "target": "../../../../core/src/context-engine/opsys-contexte-engine.ts#L330",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 84,
+      "target": "../../../../core/src/context-engine/opsys-contexte-garde.ts#L136",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 94,
+      "target": "../../../../core/src/gateway/opsys-metier-supervisor.ts#L194",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 104,
+      "target": "../../INGREDIENTS.md#L23",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 106,
+      "target": "../../../decisions/ADR-0010-memoire.md#L185",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/core.md",
+      "line": 106,
+      "target": "../../../architecture/ARCHITECTURE.md#L106",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 9,
+      "target": "../../../../AGENTS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 9,
+      "target": "../../../produit/DEFINITION-PRODUIT.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 17,
+      "target": "confirmation-frontieres.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 19,
+      "target": "../../../../src/opsys/capacites.py#L190",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 19,
+      "target": "../../../../src/opsys/outils.py#L216",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 19,
+      "target": "../../../../src/opsys/outils.py#L152",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 27,
+      "target": "../../../../departments/m05-financecore/src/m5_financecore/facturation.py#L192",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 27,
+      "target": "../../../../departments/m05-financecore/src/m5_financecore/facturation.py#L316",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 27,
+      "target": "../../../../departments/m05-financecore/src/m5_financecore/outils.py#L569",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 27,
+      "target": "../../../../departments/m05-financecore/src/m5_financecore/outils.py#L2029",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 37,
+      "target": "../../../../departments/m10-memoire/src/m10_memoire/outils.py#L397",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 37,
+      "target": "../../../../departments/m10-memoire/src/m10_memoire/outils.py#L691",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 37,
+      "target": "../../../../departments/m10-memoire/src/m10_memoire/confidentialite.py#L63",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 47,
+      "target": "../../../../departments/m06-material-control/src/m6_material_control/materiel.py#L35",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 47,
+      "target": "../../../../departments/m06-material-control/src/m6_material_control/outils.py#L1026",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 47,
+      "target": "../../../../departments/m06-material-control/src/m6_material_control/outils.py#L1567",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 55,
+      "target": "../../../../departments/m06-material-control/src/m6_material_control/outils.py#L1090",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 55,
+      "target": "../../../../departments/m06-material-control/src/m6_material_control/materiel.py#L162",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 61,
+      "target": "../../../../departments/m04-field-ops/src/m4_field_ops/pointage.py#L185",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 61,
+      "target": "../../../../departments/m04-field-ops/src/m4_field_ops/outbox.py#L176",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 61,
+      "target": "../../../../departments/m04-field-ops/src/m4_field_ops/outbox.py#L293",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 61,
+      "target": "../../../../departments/m04-field-ops/src/m4_field_ops/outils.py#L791",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 69,
+      "target": "../../../../departments/m07-marketing/src/m7_marketing/usine/service.py#L462",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 69,
+      "target": "../../../../departments/m07-marketing/src/m7_marketing/usine/retrait.py#L117",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 69,
+      "target": "../../../../departments/m07-marketing/src/m7_marketing/outils.py#L941",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 77,
+      "target": "../../../../departments/m10-memoire/src/m10_memoire/consolidation.py#L42",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 77,
+      "target": "../../../../departments/m10-memoire/src/m10_memoire/consolidation.py#L118",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 77,
+      "target": "../../../../departments/m10-memoire/src/m10_memoire/outils.py#L411",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 85,
+      "target": "../../../../departments/m08-analytics/src/m8_analytics/semantique.py#L32",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 85,
+      "target": "../../../../departments/m08-analytics/src/m8_analytics/qualite.py#L38",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 85,
+      "target": "../../../../departments/m08-analytics/src/m8_analytics/qualite.py#L70",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 85,
+      "target": "../../../../departments/m08-analytics/src/m8_analytics/outils.py#L777",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 93,
+      "target": "../../../../departments/m09-strategic-intelligence/src/m9_strategic_intelligence/etat_consolide.py#L37",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 93,
+      "target": "../../../../departments/m09-strategic-intelligence/src/m9_strategic_intelligence/etat_consolide.py#L41",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 93,
+      "target": "../../../../departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py#L164",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 101,
+      "target": "../../../../departments/m10-memoire/src/m10_memoire/wct.py#L45",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 101,
+      "target": "../../../../departments/m10-memoire/src/m10_memoire/outils.py#L198",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 101,
+      "target": "../../../../departments/m10-memoire/src/m10_memoire/outils.py#L590",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 109,
+      "target": "../../../../departments/m01-front-office/src/m1_front_office/phases_voix.py#L62",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 109,
+      "target": "../../../../departments/m01-front-office/src/m1_front_office/outils.py#L367",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 109,
+      "target": "../../../../departments/m01-front-office/src/m1_front_office/outils.py#L1494",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 117,
+      "target": "../../../../departments/m07-marketing/src/m7_marketing/content/approval.py#L35",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 117,
+      "target": "../../../../departments/m07-marketing/src/m7_marketing/content/approval.py#L47",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 121,
+      "target": "../../../../departments/m07-marketing/src/m7_marketing/workflows/chantier_social.py#L174",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 125,
+      "target": "../../../../departments/m07-marketing/src/m7_marketing/site/generator.py#L46",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 125,
+      "target": "../../../../departments/m07-marketing/src/m7_marketing/site/guardrail.py#L422",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 133,
+      "target": "../../../../departments/m03-estimation/src/m3_estimation/qualite_photos.py#L33",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 133,
+      "target": "../../../../departments/m03-estimation/src/m3_estimation/qualite_photos.py#L154",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 133,
+      "target": "../../../../departments/m03-estimation/src/m3_estimation/outils.py#L1010",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 141,
+      "target": "../../../../departments/m05-financecore/src/m5_financecore/soldes.py#L9",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 149,
+      "target": "../../../../departments/m03-estimation/src/m3_estimation/monte_carlo.py#L100",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 149,
+      "target": "../../../../departments/m03-estimation/src/m3_estimation/outils.py#L368",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 153,
+      "target": "../../../../departments/m05-financecore/src/m5_financecore/facturation.py#L152",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 153,
+      "target": "../../../../departments/m05-financecore/src/m5_financecore/taxes.py#L60",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 157,
+      "target": "../../../../departments/m01-front-office/src/m1_front_office/registre.py#L112",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 163,
+      "target": "../../../../departments/m06-material-control/src/m6_material_control/materiel.py#L126",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 163,
+      "target": "../../../../departments/m06-material-control/docs/bmad/02-PRD-PM.md#L414",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/departements.md",
+      "line": 165,
+      "target": "../../../../departments/m06-material-control/src/m6_material_control/outils.py#L1147",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 7,
+      "target": "../../../../AGENTS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 7,
+      "target": "../../../../core/AGENTS.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 13,
+      "target": "../../../../deploy/backup.sh#L59",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 13,
+      "target": "../../../../deploy/backup.sh#L74",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 13,
+      "target": "../../../../deploy/restore.sh#L78",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 23,
+      "target": "../../../../install/uninstall.sh#L123",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 23,
+      "target": "../../../../install/uninstall.sh#L149",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 29,
+      "target": "../../../../install/uninstall.ps1#L112",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 33,
+      "target": "../../../../deploy/Dockerfile#L37",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 33,
+      "target": "../../../../.dockerignore#L10",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 35,
+      "target": "../../../../deploy/backup.sh#L15",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 35,
+      "target": "../../../../deploy/docker-compose.yml#L102",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 43,
+      "target": "../../../../deploy/backup.sh#L61",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 45,
+      "target": "../../../../deploy/restore.sh#L59",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 45,
+      "target": "../../../../deploy/restore.sh#L79",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 49,
+      "target": "../../../../deploy/backup.sh#L111",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 53,
+      "target": "../../../../deploy/install.sh#L109",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 53,
+      "target": "../../../../deploy/install.sh#L262",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 53,
+      "target": "../../../ops/INSTALLATION-VPS.md#L45",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 57,
+      "target": "../../../../.gitignore#L18",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 61,
+      "target": "../../../../deploy/backup.sh#L38",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 69,
+      "target": "../../../../.github/workflows/ci.yml#L172",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 69,
+      "target": "../../../../.github/workflows/mobile.yml#L24",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 71,
+      "target": "../../../../.github/workflows/ci.yml#L22",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 88,
+      "target": "../../../../core/pnpm-lock.yaml#L179",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 88,
+      "target": "../../../../core/pnpm-workspace.yaml#L67",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 98,
+      "target": "../../../../pyproject.toml#L11",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 98,
+      "target": "../../../../install/install.sh#L411",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 98,
+      "target": "../../../../install/install.ps1#L420",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 98,
+      "target": "../../../../deploy/Dockerfile#L48",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 98,
+      "target": "../../../../.github/workflows/installateur.yml#L148",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 121,
+      "target": "../../../../.github/workflows/installateur.yml#L89",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 130,
+      "target": "../../../../deploy/docker-compose.yml#L221",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 130,
+      "target": "../../../ops/INSTALLATION-VPS.md#L7",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 130,
+      "target": "../../../exploitation/INSTALLATION.md#L16",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 132,
+      "target": "../../../exploitation/INSTALLATION.md#L34",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 132,
+      "target": "../../../../install/install.sh#L658",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/infra.md",
+      "line": 132,
+      "target": "../../../../install/install.ps1#L683",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 3,
+      "target": "mobile-inventory.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 3,
+      "target": "mobile-source-hashes.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 123,
+      "target": "mobile-npm-ci.log",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 124,
+      "target": "mobile-typecheck.log",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 125,
+      "target": "mobile-jest.log",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 126,
+      "target": "mobile-repro-results.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 126,
+      "target": "mobile-repro.log",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 127,
+      "target": "mobile-checks.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 131,
+      "target": "mobile-ci-run.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 131,
+      "target": "mobile-ci-jobs.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/audit/mobile.md",
+      "line": 135,
+      "target": "mobile-coverage-summary.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 12,
+      "target": "preuves-hermes/acquisition.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 12,
+      "target": "preuves-hermes/repository.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 12,
+      "target": "preuves-hermes/commit.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 12,
+      "target": "preuves-hermes/tree.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 12,
+      "target": "preuves-hermes/releases.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 12,
+      "target": "preuves-hermes/source-manifest.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 14,
+      "target": "../../../core/PROVENANCE.md#L3",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 18,
+      "target": "../R2-core-hermes.md#L1",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 27,
+      "target": "preuves-hermes/comparison-2026-09-27.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 101,
+      "target": "../../../core/src/context-engine/types.ts#L353",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/hermes-notes.md",
+      "line": 101,
+      "target": "../../../core/src/context-engine/opsys-contexte-engine.ts#L120",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 7,
+      "target": "preuves-core/index.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 7,
+      "target": "preuves-core/fichiers-index.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 7,
+      "target": "preuves-core/recherches-exa.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 7,
+      "target": "preuves-core/gitlab-primary.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 7,
+      "target": "preuves-hermes/source-manifest.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 10,
+      "target": "README.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 17,
+      "target": "preuves-core/openclaw2-recherche-github.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 23,
+      "target": "audit/core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 36,
+      "target": "hermes-notes.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 47,
+      "target": "preuves-hermes/comparison-2026-09-27.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-core.md",
+      "line": 79,
+      "target": "preuves-core/gitlab__LICENSE",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m1.md",
+      "line": 14,
+      "target": "../../departements/M1-canaux.md#L1",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m1.md",
+      "line": 14,
+      "target": "../../../departments/m01-front-office/department.yaml#L1",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m1.md",
+      "line": 14,
+      "target": "../../produit/DIRECTIVES-NATHAN.md#L1",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m1.md",
+      "line": 14,
+      "target": "../../decisions/ADR-0012-reutilisation-profondeur-productivite.md#L1",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m1.md",
+      "line": 170,
+      "target": "audit/mobile.md#L1",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 3,
+      "target": "preuves-m10/depots-licences-commits.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 3,
+      "target": "preuves-m10/complements-sources.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 11,
+      "target": "../../../departments/m10-memoire/src/m10_memoire/registre.py#L39",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 11,
+      "target": "../../../departments/m10-memoire/src/m10_memoire/paquets.py#L273",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 11,
+      "target": "../../../departments/m10-memoire/src/m10_memoire/faits_candidats.py#L106",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 11,
+      "target": "../../../departments/m10-memoire/src/m10_memoire/outils.py#L442",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 13,
+      "target": "../../../core/src/context-engine/opsys-contexte-engine.ts#L319",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 15,
+      "target": "../../../src/opsys/memoire/schema.sql#L26",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 15,
+      "target": "../../../src/opsys/memoire/store.py#L264",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 15,
+      "target": "audit/donnees.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 17,
+      "target": "../../../core/src/memory-host-sdk/event-store.ts#L10",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 17,
+      "target": "../../../core/src/memory/memory-artifact-provenance.ts#L10",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 19,
+      "target": "../../../core/src/context-engine/opsys-contexte-engine.ts#L485",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 19,
+      "target": "../../../departments/m10-memoire/src/m10_memoire/audit.py#L59",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 23,
+      "target": "audit/CONSTATS-RECENTS.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 23,
+      "target": "audit/departements.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 23,
+      "target": "audit/core.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 23,
+      "target": "audit/donnees.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m10.md",
+      "line": 148,
+      "target": "preuves-m10/synthese-preuves.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m5.md",
+      "line": 11,
+      "target": "m5-outils-actuels.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m5.md",
+      "line": 13,
+      "target": "../../../departments/m05-financecore/src/m5_financecore/registre.py#L43",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m5.md",
+      "line": 15,
+      "target": "../../../departments/m05-financecore/src/m5_financecore/comptes_a_payer.py#L1267",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m5.md",
+      "line": 15,
+      "target": "../../../departments/m05-financecore/src/m5_financecore/cash_libre.py#L443",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m5.md",
+      "line": 17,
+      "target": "../../../departments/m05-financecore/src/m5_financecore/prevision.py#L18",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m5.md",
+      "line": 50,
+      "target": "preuves-m5/index.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m5.md",
+      "line": 86,
+      "target": "audit/confirmation-frontieres.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m5.md",
+      "line": 108,
+      "target": "m5-sources-actuelles.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m5.md",
+      "line": 108,
+      "target": "m5-outils-actuels.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m5.md",
+      "line": 108,
+      "target": "m5-preuves.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m7.md",
+      "line": 26,
+      "target": "audit/m07-marketing.result.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m7.md",
+      "line": 26,
+      "target": "audit/m07-marketing.log",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m7.md",
+      "line": 28,
+      "target": "../../departements/M7-audit.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m7.md",
+      "line": 52,
+      "target": "../../../departments/m07-marketing/src/m7_marketing/social/postiz_adapter.py#L96",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m7.md",
+      "line": 54,
+      "target": "../../../departments/m07-marketing/src/m7_marketing/reputation/demande_avis.py#L80",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m7.md",
+      "line": 56,
+      "target": "../../../departments/m07-marketing/src/m7_marketing/outils.py#L192",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m7.md",
+      "line": 97,
+      "target": "recherche-m7-preuves.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-m7.md",
+      "line": 97,
+      "target": "m7-primary-evidence.json",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-transversale.md",
+      "line": 4,
+      "target": "../../produit/DEFINITION-PRODUIT.md",
+      "exists": true
+    },
+    {
+      "file": "docs/research/R16-2026-09-30/recherche-transversale.md",
+      "line": 16,
+      "target": "preuves-transversales/index.json",
+      "exists": true
+    }
+  ]
+}

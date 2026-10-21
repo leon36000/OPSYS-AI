@@ -1,0 +1,12 @@
+{
+  "acquired_utc": "2026-09-30T11:47:24.793530+00:00",
+  "source_repository": "NousResearch/hermes-agent",
+  "pinned_commit": "f42f579cf8bac4918ac9599bece71618afadd846",
+  "opsys_commit": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "opsys_status_porcelain": "",
+  "tree_entries": 18083,
+  "tree_truncated": false,
+  "downloaded_primary_files": 34,
+  "repository_code_executed": false,
+  "installation_performed": false
+}

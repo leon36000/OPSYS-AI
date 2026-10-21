@@ -1,0 +1,400 @@
+{
+ "fictif": true,
+ "appels": {
+  "sans_rien_declare": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "8a18f972f94e83b1177ed1730e50bab38a30f4e58da7d6bd468837a4462b7730"
+   }
+  },
+  "profils_illisibles": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "8a18f972f94e83b1177ed1730e50bab38a30f4e58da7d6bd468837a4462b7730"
+   }
+  },
+  "reglages_incomplets": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "8a18f972f94e83b1177ed1730e50bab38a30f4e58da7d6bd468837a4462b7730"
+   }
+  },
+  "aucune_equipe_admissible": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "8a18f972f94e83b1177ed1730e50bab38a30f4e58da7d6bd468837a4462b7730"
+   }
+  },
+  "lead_v1_profils_complets": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "07a15a565fb731988992e560a551d0fc5d6a2fc2c2fdd10ad23468ec7005a822"
+   }
+  },
+  "materiel_sans_charge": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "06f70420ffa41c63aeebc3dc0e20e7459209fe6a83c8cc0a5dae66af2e183b18"
+   }
+  }
+ },
+ "reponses": {
+  "sans_rien_declare": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "intervention_id": "8a18f972f94e83b1177ed1730e50bab38a30f4e58da7d6bd468837a4462b7730",
+     "statut_intervention": "planifiee",
+     "statut": "bloque",
+     "pret": false,
+     "volets": {
+      "soumission": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "devis accepté DEVIS-MQ-P-fictif"
+      },
+      "adresse": {
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée.",
+       "detail": "REJ-COORDONNEES-A-CONFIRMER"
+      },
+      "equipe": {
+       "statut": "manque",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé",
+       "detail": "REJ-EQUIPES-NON-CONFIGUREES"
+      },
+      "materiel": {
+       "statut": "manque",
+       "manque": "matériel a_commander selon M6 (révision 1) : gouttiere-alu-5po-fictif : 40 pi manquantes sur 40 ; M6 ne crée aucun bon de commande seul (l'admin le demande à M6)",
+       "detail": "a_commander"
+      },
+      "meteo": {
+       "statut": "manque",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)",
+       "detail": "REJ-METEO-NON-CONFIGUREE"
+      }
+     },
+     "a_fournir": [
+      {
+       "volet": "adresse",
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée."
+      },
+      {
+       "volet": "equipe",
+       "statut": "manque",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé"
+      },
+      {
+       "volet": "materiel",
+       "statut": "manque",
+       "manque": "matériel a_commander selon M6 (révision 1) : gouttiere-alu-5po-fictif : 40 pi manquantes sur 40 ; M6 ne crée aucun bon de commande seul (l'admin le demande à M6)"
+      },
+      {
+       "volet": "meteo",
+       "statut": "manque",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
+      }
+     ],
+     "empreinte": "b2b84ada8e8bbe983b1505f02ad15e44959b25798171e91990f95635ce2918d3"
+    }
+   }
+  },
+  "profils_illisibles": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "intervention_id": "8a18f972f94e83b1177ed1730e50bab38a30f4e58da7d6bd468837a4462b7730",
+     "statut_intervention": "planifiee",
+     "statut": "bloque",
+     "pret": false,
+     "volets": {
+      "soumission": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "devis accepté DEVIS-MQ-P-fictif"
+      },
+      "adresse": {
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée.",
+       "detail": "REJ-COORDONNEES-A-CONFIRMER"
+      },
+      "equipe": {
+       "statut": "manque",
+       "manque": "profil d'entreprise invalide : /srv/opsys/entreprise.yaml : 'equipes' doit être un objet (clés : liste, services, cedule, fenetre_par_defaut)",
+       "detail": "REJ-PROFIL-INVALIDE"
+      },
+      "materiel": {
+       "statut": "manque",
+       "manque": "matériel partiel selon M6 (révision 2) : gouttiere-alu-5po-fictif : 20 pi manquantes sur 40 ; M6 ne crée aucun bon de commande seul (l'admin le demande à M6)",
+       "detail": "partiel"
+      },
+      "meteo": {
+       "statut": "manque",
+       "manque": "profil d'entreprise invalide : /srv/opsys/entreprise.yaml : 'meteo' doit être un objet (clés : fuseau, fournisseur, open_meteo, services)",
+       "detail": "REJ-PROFIL-INVALIDE"
+      }
+     },
+     "a_fournir": [
+      {
+       "volet": "adresse",
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée."
+      },
+      {
+       "volet": "equipe",
+       "statut": "manque",
+       "manque": "profil d'entreprise invalide : /srv/opsys/entreprise.yaml : 'equipes' doit être un objet (clés : liste, services, cedule, fenetre_par_defaut)"
+      },
+      {
+       "volet": "materiel",
+       "statut": "manque",
+       "manque": "matériel partiel selon M6 (révision 2) : gouttiere-alu-5po-fictif : 20 pi manquantes sur 40 ; M6 ne crée aucun bon de commande seul (l'admin le demande à M6)"
+      },
+      {
+       "volet": "meteo",
+       "statut": "manque",
+       "manque": "profil d'entreprise invalide : /srv/opsys/entreprise.yaml : 'meteo' doit être un objet (clés : fuseau, fournisseur, open_meteo, services)"
+      }
+     ],
+     "empreinte": "d5362bd0038ba21028115ea232e4743f1afaac102aca718fd35b3f04a9aec766"
+    }
+   }
+  },
+  "reglages_incomplets": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "intervention_id": "8a18f972f94e83b1177ed1730e50bab38a30f4e58da7d6bd468837a4462b7730",
+     "statut_intervention": "planifiee",
+     "statut": "bloque",
+     "pret": false,
+     "volets": {
+      "soumission": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "devis accepté DEVIS-MQ-P-fictif"
+      },
+      "adresse": {
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée.",
+       "detail": "REJ-COORDONNEES-A-CONFIRMER"
+      },
+      "equipe": {
+       "statut": "manque",
+       "manque": "durée et compétences par service non déclarées : les déclarer dans le profil des équipes (clé equipes.services, `opsys-metier equipes declarer`)",
+       "detail": "REJ-CHAMP-MANQUANT"
+      },
+      "materiel": {
+       "statut": "manque",
+       "manque": "matériel partiel selon M6 (révision 2) : gouttiere-alu-5po-fictif : 20 pi manquantes sur 40 ; M6 ne crée aucun bon de commande seul (l'admin le demande à M6)",
+       "detail": "partiel"
+      },
+      "meteo": {
+       "statut": "manque",
+       "manque": "seuil à configurer pour le service 'gouttieres' : pluie, gel, verglas, chaleur (un seuil par risque jugé, ou le risque déclaré sans objet : `opsys-metier meteo declarer`) ; aucun seuil n'est jamais inventé",
+       "detail": "REJ-CHAMP-MANQUANT"
+      }
+     },
+     "a_fournir": [
+      {
+       "volet": "adresse",
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée."
+      },
+      {
+       "volet": "equipe",
+       "statut": "manque",
+       "manque": "durée et compétences par service non déclarées : les déclarer dans le profil des équipes (clé equipes.services, `opsys-metier equipes declarer`)"
+      },
+      {
+       "volet": "materiel",
+       "statut": "manque",
+       "manque": "matériel partiel selon M6 (révision 2) : gouttiere-alu-5po-fictif : 20 pi manquantes sur 40 ; M6 ne crée aucun bon de commande seul (l'admin le demande à M6)"
+      },
+      {
+       "volet": "meteo",
+       "statut": "manque",
+       "manque": "seuil à configurer pour le service 'gouttieres' : pluie, gel, verglas, chaleur (un seuil par risque jugé, ou le risque déclaré sans objet : `opsys-metier meteo declarer`) ; aucun seuil n'est jamais inventé"
+      }
+     ],
+     "empreinte": "fa5ee7cad615333114ea39dfaa9a471d272cbf40b9886d8af950f7e99a0b6f28"
+    }
+   }
+  },
+  "aucune_equipe_admissible": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "intervention_id": "8a18f972f94e83b1177ed1730e50bab38a30f4e58da7d6bd468837a4462b7730",
+     "statut_intervention": "planifiee",
+     "statut": "bloque",
+     "pret": false,
+     "volets": {
+      "soumission": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "devis accepté DEVIS-MQ-P-fictif"
+      },
+      "adresse": {
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée.",
+       "detail": "REJ-COORDONNEES-A-CONFIRMER"
+      },
+      "equipe": {
+       "statut": "manque",
+       "manque": "aucune équipe admissible pour le service 'gouttieres' (eq-nord : compétence manquante : gouttieres) : ajuster les équipes, leurs compétences ou leurs quarts dans le profil (`opsys-metier equipes declarer`)",
+       "detail": null
+      },
+      "materiel": {
+       "statut": "manque",
+       "manque": "matériel partiel selon M6 (révision 2) : gouttiere-alu-5po-fictif : 20 pi manquantes sur 40 ; M6 ne crée aucun bon de commande seul (l'admin le demande à M6)",
+       "detail": "partiel"
+      },
+      "meteo": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "règles météo déclarées pour gouttieres : mesures jugées vent_kmh, pluie_mm_h, gel_c, verglas ; risques sans objet chaleur ; la prévision d'un créneau se juge par m4_verifier_meteo_creneau, la préparation n'a pas de date"
+      }
+     },
+     "a_fournir": [
+      {
+       "volet": "adresse",
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée."
+      },
+      {
+       "volet": "equipe",
+       "statut": "manque",
+       "manque": "aucune équipe admissible pour le service 'gouttieres' (eq-nord : compétence manquante : gouttieres) : ajuster les équipes, leurs compétences ou leurs quarts dans le profil (`opsys-metier equipes declarer`)"
+      },
+      {
+       "volet": "materiel",
+       "statut": "manque",
+       "manque": "matériel partiel selon M6 (révision 2) : gouttiere-alu-5po-fictif : 20 pi manquantes sur 40 ; M6 ne crée aucun bon de commande seul (l'admin le demande à M6)"
+      }
+     ],
+     "empreinte": "37088231080653a675d7df05b03a3b2b3c11c62ecac8d772e6fe65d76095e34f"
+    }
+   }
+  },
+  "lead_v1_profils_complets": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "intervention_id": "07a15a565fb731988992e560a551d0fc5d6a2fc2c2fdd10ad23468ec7005a822",
+     "statut_intervention": "planifiee",
+     "statut": "bloque",
+     "pret": false,
+     "volets": {
+      "soumission": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "devis accepté DEVIS-MQ-Q-fictif"
+      },
+      "adresse": {
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée.",
+       "detail": "REJ-COORDONNEES-A-CONFIRMER"
+      },
+      "equipe": {
+       "statut": "non_verifiable",
+       "manque": "intervention issue d'un lead v1 (type_travaux 'renovation_totale') : le profil des équipes est par service, l'admissibilité d'une équipe ne se calcule pas pour un type de travaux",
+       "detail": null
+      },
+      "materiel": {
+       "statut": "non_verifiable",
+       "manque": "matériel : M4 n'a reçu aucun état « matériel prêt » (m6.materiel_pret) pour le devis DEVIS-MQ-Q-fictif ; M6 ne dit rien d'un prévu vide, et un matériel que personne n'a vérifié n'est pas prêt",
+       "detail": null
+      },
+      "meteo": {
+       "statut": "non_verifiable",
+       "manque": "intervention issue d'un lead v1 (type_travaux 'renovation_totale') : les règles météo sont par service, aucune ne s'applique à un type de travaux",
+       "detail": null
+      }
+     },
+     "a_fournir": [
+      {
+       "volet": "adresse",
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée."
+      },
+      {
+       "volet": "equipe",
+       "statut": "non_verifiable",
+       "manque": "intervention issue d'un lead v1 (type_travaux 'renovation_totale') : le profil des équipes est par service, l'admissibilité d'une équipe ne se calcule pas pour un type de travaux"
+      },
+      {
+       "volet": "materiel",
+       "statut": "non_verifiable",
+       "manque": "matériel : M4 n'a reçu aucun état « matériel prêt » (m6.materiel_pret) pour le devis DEVIS-MQ-Q-fictif ; M6 ne dit rien d'un prévu vide, et un matériel que personne n'a vérifié n'est pas prêt"
+      },
+      {
+       "volet": "meteo",
+       "statut": "non_verifiable",
+       "manque": "intervention issue d'un lead v1 (type_travaux 'renovation_totale') : les règles météo sont par service, aucune ne s'applique à un type de travaux"
+      }
+     ],
+     "empreinte": "9574cdd26cac820069399574834261198baca764cf9d0fe065ab9b651c034c07"
+    }
+   }
+  },
+  "materiel_sans_charge": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "intervention_id": "06f70420ffa41c63aeebc3dc0e20e7459209fe6a83c8cc0a5dae66af2e183b18",
+     "statut_intervention": "a_planifier",
+     "statut": "bloque",
+     "pret": false,
+     "volets": {
+      "soumission": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "devis accepté DEVIS-MQ-R-fictif"
+      },
+      "adresse": {
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée.",
+       "detail": "REJ-COORDONNEES-A-CONFIRMER"
+      },
+      "equipe": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "équipes admissibles pour gouttieres : eq-nord"
+      },
+      "materiel": {
+       "statut": "non_verifiable",
+       "manque": "matériel : M4 n'a reçu aucun état « matériel prêt » (m6.materiel_pret) pour le devis DEVIS-MQ-R-fictif ; M6 ne dit rien d'un prévu vide, et un matériel que personne n'a vérifié n'est pas prêt",
+       "detail": null
+      },
+      "meteo": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "règles météo déclarées pour gouttieres : mesures jugées vent_kmh, pluie_mm_h, gel_c, verglas ; risques sans objet chaleur ; la prévision d'un créneau se juge par m4_verifier_meteo_creneau, la préparation n'a pas de date"
+      }
+     },
+     "a_fournir": [
+      {
+       "volet": "adresse",
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée."
+      },
+      {
+       "volet": "materiel",
+       "statut": "non_verifiable",
+       "manque": "matériel : M4 n'a reçu aucun état « matériel prêt » (m6.materiel_pret) pour le devis DEVIS-MQ-R-fictif ; M6 ne dit rien d'un prévu vide, et un matériel que personne n'a vérifié n'est pas prêt"
+      }
+     ],
+     "empreinte": "826499de908871a9b00bbd13210c67e247a78e48f3e81f40000301cddbde5edf"
+    }
+   }
+  }
+ }
+}

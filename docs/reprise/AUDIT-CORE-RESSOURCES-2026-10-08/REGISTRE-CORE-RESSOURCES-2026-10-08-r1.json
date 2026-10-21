@@ -1,0 +1,111 @@
+{
+  "recorded_toronto": "2026-10-08T20:30:23.817414-04:00",
+  "parent": "e041f3802f34890da76649225a5798464d9db5fd",
+  "source_files": [
+    {
+      "path": ".github/workflows/core.yml",
+      "origin": "e041f3802f34890da76649225a5798464d9db5fd",
+      "status": "modified_preimage_verified",
+      "preimage_sha256": "1468be997de26d8969b456d3360ca3da6bef7cb82468aa1a46323ea3b3895a49",
+      "sha256": "4913d0d8c2f6f46210aaa084bfba82042ed4c8dc4174d43bbffae9ccd72e3352"
+    },
+    {
+      "path": "tests/test_ci_verticale_core.py",
+      "origin": "e041f3802f34890da76649225a5798464d9db5fd",
+      "status": "modified_preimage_verified",
+      "preimage_sha256": "5738e487e0613e8dcbc2e75431c8c1ff5807154df1b9e000dc309c02212c3dd1",
+      "sha256": "2fb0a1d58e828aa191e94d7db2553eecdd52b44d2ccf9f282603a65c2f9b7f3d"
+    }
+  ],
+  "capsule": {
+    "path": "PREUVES-CORE-RESSOURCES-2026-10-08-r1.tar.xz",
+    "sha256": "fdef966b3bf170fac7f0c5688acca0d86e713056c546e5f0bb59c84b8b02bce4",
+    "members": 60
+  },
+  "local_results": {
+    "audit-core-shard5-baseline-8192-workers2-r1": {
+      "exit_code": -15,
+      "wall_seconds": 96.97,
+      "peak_process_tree_rss_bytes": 7553040384,
+      "guard_triggered": "rss_limit",
+      "log_sha256": "49dff9540f705d2204d05c58a87b8e1b6f4801d5492a69e73eca70f806c1076b"
+    },
+    "audit-core-shard5-candidate-4096-workers1-r1": {
+      "exit_code": 0,
+      "wall_seconds": 172.402,
+      "peak_process_tree_rss_bytes": 4620288000,
+      "guard_triggered": null,
+      "log_sha256": "30a57925968db78d472b58276c3668e76afb8ce4f5705cece4c7a83c543d47a6"
+    },
+    "audit-core-resource-reporter-smoke-r1": {
+      "exit_code": -15,
+      "wall_seconds": 4.67,
+      "peak_process_tree_rss_bytes": 3380187136,
+      "guard_triggered": "rss_limit",
+      "log_sha256": "19b0da49570ab61e66fbc124bbc1e4ccaff0c6e543d336161c417c768418d736"
+    },
+    "audit-core-resource-reporter-smoke-r2": {
+      "exit_code": 0,
+      "wall_seconds": 16.293,
+      "peak_process_tree_rss_bytes": 3980468224,
+      "guard_triggered": null,
+      "log_sha256": "f6e37295d5bdfaa37a6d052acb8432b03f002a869c9224c5dd1413612a831098"
+    },
+    "audit-core-resource-reporters-complete-r1": {
+      "exit_code": 0,
+      "wall_seconds": 14.701,
+      "peak_process_tree_rss_bytes": 4164825088,
+      "guard_triggered": null,
+      "log_sha256": "cd35a691edf1ff8f95ac54c5c9e0f3c1e8915d0fd7c4170666c05f8361465ec7"
+    },
+    "audit-core-resource-config-red-r1": {
+      "exit_code": 1,
+      "wall_seconds": 1.415,
+      "peak_process_tree_rss_bytes": 19075072,
+      "guard_triggered": null,
+      "log_sha256": "d8ec7b042a6ab8ec6a35d5788e75e2fa22722a9b0ef23e73ae28c34ae1265114"
+    },
+    "audit-core-resource-config-green-r1": {
+      "exit_code": 0,
+      "wall_seconds": 4.695,
+      "peak_process_tree_rss_bytes": 74448896,
+      "guard_triggered": null,
+      "log_sha256": "0b5cd69628ee6871d2a6144def4422c8fddbb273d7e84e7a4561b1530b41f949"
+    },
+    "audit-core-resource-lint-r1": {
+      "exit_code": 0,
+      "wall_seconds": 1.405,
+      "peak_process_tree_rss_bytes": 0,
+      "guard_triggered": null,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "audit-core-resource-actionlint-r1": {
+      "exit_code": 0,
+      "wall_seconds": 1.405,
+      "peak_process_tree_rss_bytes": 0,
+      "guard_triggered": null,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "dispositions": {
+    "CI137": "preserved, probable signal termination, origin unknown",
+    "local_baseline": "controlled RSS stop under7GiB, not GitHub OOM",
+    "baseline_log": "original hash-exact499934byteprefix recovered;88latebytes/full raw retained; initial preparation hash guard failed correctly",
+    "reporter_smoke_r1": "compiler exceeded deliberately tight3GiB guard, harness red",
+    "config_red": "expected old8192 budget rejection",
+    "candidate": "qualified locally167files2731pass1skip"
+  },
+  "limits": [
+    "new exact commit CI still required",
+    "original e041 CI interrupted137; no confirmed OOM",
+    "local LinuxARM Node24.16 differs from runner Linuxx64 Node24.21",
+    "heap cap is per isolate and does not cap total RSS",
+    "local wrapper samples summed process RSS every0.5s; shared pages may be counted more than once",
+    "baseline log has88lateclosurebytes; hash-exact sealed499934byteprefix recovered; full raw retained in addendum",
+    "one-worker duration on all six runners still to qualify",
+    "full shard candidate used logHeapUsage alone; three-reporters combination qualified on one file",
+    "same2732total and167files, skip difference not attributed to an unproven cause",
+    "tests-opsys resource profile retained; only test:fast shards changed",
+    "104 transfer proof references absent; product remains PARTIEL"
+  ]
+}

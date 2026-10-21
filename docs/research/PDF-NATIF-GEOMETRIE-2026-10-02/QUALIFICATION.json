@@ -1,0 +1,273 @@
+{
+  "common_source_paths": 120,
+  "current_sources_checked": {
+    "deploy/readiness_pdf.py": "bb5c1a9fcf9446f6e721e9b98841a2d0deaad164fc9f245111b4bdb43744b308",
+    "install/install.sh": "11429f973fb73f360aa385475984af5c8368dfe9bc9f9d0b7ecedd6a0fdadcd7",
+    "src/opsys/fusion_csv.py": "5b5ec2d66fda98d2337d0806b08ff83c80c489526782d6f55672c0021193cb62",
+    "src/opsys/fusion_pdf.py": "2459fd53547277eb7e9c2838f6baed56e17f2e0c9adbb570a89cffab29527d94",
+    "tests/test_ingestion_pdf_natif.py": "5f1db898ce021386415df82426ce8d41678aaea8945ba2a243e20a29081fa049"
+  },
+  "deployed_VPS_qualified": false,
+  "distinct_source_paths": 160,
+  "index_sha256": {
+    "MANIFEST.json": "bfa3829849e1c21e24fc279449bf8d4640c13a1f642481e21f4ee2be3e409125",
+    "README.md": "0d9dec43245ff7c0c709519aebc91d11c7e0d86b3156ab05ce40be2b44c293f5"
+  },
+  "keys_databases_models_runtime_cache_included": false,
+  "limits": "Sonde publique zéro page et gate natif cloud ; pas installation intégrale, services métier, TLS, VPS ou image produit. Docker R3 reste refusé, cause syscall/errno inconnue.",
+  "native_cloud_gate_qualified": true,
+  "product_Docker_qualified": false,
+  "public_fixture_logs_whitelisted": 12,
+  "root_identities": [
+    [
+      "tests.test_fusion_pdf",
+      "test_mount_prefixe_non_qualifie_bloque[/]"
+    ],
+    [
+      "tests.test_fusion_pdf",
+      "test_mount_prefixe_non_qualifie_bloque[/etc]"
+    ],
+    [
+      "tests.test_fusion_pdf",
+      "test_mount_prefixe_non_qualifie_bloque[/workspace]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_cipher_ancien_conserve_avec_reference_historique"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_cle_env_historique_sans_optin_inchange"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_cle_privee_dans_venv_refuse_avant_os_open"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_cle_refuse_geometrie_partagee_usr_lib_worker_sans_lecture[lib]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_cle_refuse_geometrie_partagee_usr_lib_worker_sans_lecture[prefix]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_cle_refuse_geometrie_partagee_usr_lib_worker_sans_lecture[usr]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_cle_refuse_geometrie_partagee_usr_lib_worker_sans_lecture[worker]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_cli_inconnue_refuse_avant_worker"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_cli_reelle_pdf_seul_sans_docker_et_sans_worker_reel"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_commande_reutilise_geometrie_sans_spawn"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_conflit_env_fichier_refuse_sans_rotation"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_fichier_absent_pending_uniquement_apres_worker"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_fichier_non_prive_refuse_sans_secret[directory]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_fichier_non_prive_refuse_sans_secret[huge]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_fichier_non_prive_refuse_sans_secret[mode]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_fichier_non_prive_refuse_sans_secret[owner]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_fichier_non_prive_refuse_sans_secret[parent]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_fichier_non_prive_refuse_sans_secret[relative]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_fichier_non_prive_refuse_sans_secret[symlink]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_fichier_optin_hors_linux_refuse"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_fichier_supprime_pendant_lecture_ne_devient_pas_absent"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_format_refs_et_cles_etrangeres_refuses[OPENAI_API_KEY=SECRET_FICTIF\\n]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_format_refs_et_cles_etrangeres_refuses[OPSYS_INGESTION_CLE=CLE_INVALIDE_FICTIVE\\n]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_format_refs_et_cles_etrangeres_refuses[OPSYS_INGESTION_CLE=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=\\nOPSYS_INGESTION_CLE=YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI=\\n]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_format_refs_et_cles_etrangeres_refuses[OPSYS_INGESTION_CLE=eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA==\\n]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_format_refs_et_cles_etrangeres_refuses[OPSYS_INGESTION_CLES_HISTORIQUES=OPSYS_CLE_INGESTION_FICTIVE_V1,OPSYS_CLE_INGESTION_FICTIVE_V1\\n]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_format_refs_et_cles_etrangeres_refuses[OPSYS_INGESTION_CLES_HISTORIQUES=OPSYS_CLE_INGESTION_FICTIVE_V1\\n]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_format_refs_et_cles_etrangeres_refuses[OPSYS_INGESTION_CLE_REFERENCE=OPENCLAW_GATEWAY_TOKEN\\nOPENCLAW_GATEWAY_TOKEN=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=\\n]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_format_refs_et_cles_etrangeres_refuses[OPSYS_INGESTION_CLE_REFERENCE=OPSYS_CLE_INGESTION_FICTIVE_V1\\nOPSYS_CLE_INGESTION_FICTIVE_V1=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=\\nOPSYS_CLE_INGESTION_FICTIVE_V2=YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI=\\n]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_format_refs_et_cles_etrangeres_refuses[ligne_sans_affectation\\n]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_echec_journal_prime_sur_succes_ou_attente[0]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_echec_journal_prime_sur_succes_ou_attente[3]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_json_atomic_preserve_et_refuse_structure"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_json_atomic_refuse_et_preserve_writer_independant[fsync]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_json_atomic_refuse_et_preserve_writer_independant[replace]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_json_atomic_refuse_et_preserve_writer_independant[structure]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_json_atomic_refuse_et_preserve_writer_independant[writer]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_pdf_optin_persistant_desactivation_et_path_seul"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_pdf_propage_gate_rc_sans_faux_succes[1]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_pdf_propage_gate_rc_sans_faux_succes[3]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_pdf_refuse_prerequis_avant_sync[bwrap]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_pdf_refuse_prerequis_avant_sync[flags_conflict]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_pdf_refuse_prerequis_avant_sync[macos]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_pdf_refuse_prerequis_avant_sync[path_without_optin]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_pdf_refuse_prerequis_avant_sync[root]"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_pending_absence_cle_persistante"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_install_refuse_cle_globale_avant_core"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_melange_file_absent_cle_env_ne_devient_pas_pending"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_pdf_seul_n_appelle_pas_readiness_compose"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_reference_actuelle_et_historique_sans_export_env"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_reference_non_declaree_ne_lit_pas_env_etranger"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_refus_worker_prime_sur_fichier_absent"
+    ],
+    [
+      "tests.test_ingestion_pdf_natif",
+      "test_remplacement_pendant_lecture_refuse"
+    ]
+  ],
+  "root_junit": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 56
+  },
+  "root_junit_sha256": "dbd15fe931a49a1dae6688e993efa54158c748f63c67b9bb0ee4a93fe263a115",
+  "root_rss_and_margin": {
+    "minimum_memory_room_bytes": 1720344576,
+    "peak_group_rss_bytes": 164990976
+  },
+  "root_ruff_exit_code": 0,
+  "root_source_copies": 139,
+  "root_unit_receipt_sha256": "989ca0cc1cc914650ea6af2451f86e6767df32d08a06413f9c51bc67b77e985c",
+  "root_unit_seconds_including_ruff": 27.954226292000385,
+  "runtime_gate_codes": [
+    0,
+    3,
+    1
+  ],
+  "runtime_modules_loaded_each_case": 29,
+  "runtime_receipt_sha256": "a085042b3a3ab9155663e8007e17e01a459a793c74304a74b7db474cc8ace116",
+  "runtime_seconds": 3.061683433013968,
+  "runtime_source_copies": 141,
+  "schema": "opsys.pdf-native-qualification/v2",
+  "tests_worker_Node_Docker_started_by_archiver": false
+}

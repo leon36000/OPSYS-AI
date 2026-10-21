@@ -1,0 +1,182 @@
+{
+  "date": "2026-09-30",
+  "sources_reviewed_requested": 35,
+  "searches": [
+    {
+      "sequence": 1,
+      "requested_results": 6,
+      "items": [
+        {
+          "title": "Suggestions for Memory v2: Associative Traversal, Salience Weighting, and Access-Based Forgetting",
+          "url": "https://github.com/openclaw/openclaw/issues/28930"
+        },
+        {
+          "title": "forks",
+          "url": "https://github.com/openclaw/openclaw/forks"
+        },
+        {
+          "title": "yoloshii/ClawMem",
+          "url": "https://github.com/yoloshii/ClawMem"
+        },
+        {
+          "title": "openclaw/openclaw vs NousResearch/hermes-agent — GitHub Comparison | OSSInsight",
+          "url": "https://ossinsight.io/compare/openclaw/openclaw/NousResearch/hermes-agent"
+        },
+        {
+          "title": "monasprox/openclaw-memory",
+          "url": "https://github.com/monasprox/openclaw-memory"
+        },
+        {
+          "title": "opensourceclaw/claw-mem",
+          "url": "https://github.com/opensourceclaw/claw-mem"
+        }
+      ]
+    },
+    {
+      "sequence": 2,
+      "requested_results": 8,
+      "items": [
+        {
+          "title": "jukrap/ai-agent-playbook",
+          "url": "https://github.com/jukrap/ai-agent-playbook"
+        },
+        {
+          "title": "genieincodebottle/agentic-memory",
+          "url": "https://github.com/genieincodebottle/agentic-memory"
+        },
+        {
+          "title": "matebenyovszky/agentplaybooks",
+          "url": "https://github.com/matebenyovszky/agentplaybooks"
+        },
+        {
+          "title": "mseep-ai/AgentRecall-MCP",
+          "url": "https://github.com/mseep-ai/AgentRecall-MCP"
+        },
+        {
+          "title": "TsinghuaC3I/Awesome-Memory-for-Agents",
+          "url": "https://github.com/TsinghuaC3I/Awesome-Memory-for-Agents"
+        },
+        {
+          "title": "danielsimonjr/memory-mcp",
+          "url": "https://github.com/danielsimonjr/memory-mcp/"
+        },
+        {
+          "title": "keystone-mcp v0.2.0",
+          "url": "https://pypi.org/project/keystone-mcp/"
+        },
+        {
+          "title": "Inferensys/contextful",
+          "url": "https://github.com/Inferensys/contextful"
+        }
+      ]
+    },
+    {
+      "sequence": 3,
+      "requested_results": 6,
+      "items": [
+        {
+          "title": "tensorzero/tensorzero",
+          "url": "https://github.com/TensorZero/tensorzero"
+        },
+        {
+          "title": "docs/comparison/litellm.mdx",
+          "url": "https://github.com/tensorzero/tensorzero/blob/main/docs/comparison/litellm.mdx"
+        },
+        {
+          "title": "maximhq/bifrost",
+          "url": "https://www.github.com/maximhq/bifrost"
+        },
+        {
+          "title": "adibirzu/multillm",
+          "url": "https://github.com/adibirzu/multillm"
+        },
+        {
+          "title": "GitHub - llm0ai/llm0: Self-hosted spend firewall and gateway for LLM ( OpenAI / Anthropic / Gemini ). Hard per-user & per-project budget caps that block runaway costs before the API call, plus cost-per-customer tracking, semantic caching, and failover. One line of code, single Go binary. · GitHub",
+          "url": "https://github.laiyagushi.com/llm0ai/llm0"
+        },
+        {
+          "title": "BerriAI/litellm",
+          "url": "https://github.com/BerriAI/litellm"
+        }
+      ]
+    },
+    {
+      "sequence": 4,
+      "requested_results": 5,
+      "items": [
+        {
+          "title": "docs/architecture.md",
+          "url": "https://github.com/Martian-Engineering/lossless-claw/blob/HEAD/docs/architecture.md"
+        },
+        {
+          "title": "Martian-Engineering/lossless-claw",
+          "url": "https://github.com/Martian-Engineering/Lossless-Claw"
+        },
+        {
+          "title": "README.md",
+          "url": "https://github.com/Martian-Engineering/lossless-claw/blob/main/README.md"
+        },
+        {
+          "title": "docs/guides/lossless-context-management.md",
+          "url": "https://github.com/joshuaswarren/openclaw-engram/blob/main/docs/guides/lossless-context-management.md"
+        },
+        {
+          "title": "content/en/docs/openclaw/lossless-claw.md",
+          "url": "https://github.com/derekleeds/guides/blob/main/content/en/docs/openclaw/lossless-claw.md"
+        }
+      ]
+    },
+    {
+      "sequence": 5,
+      "requested_results": 5,
+      "items": [
+        {
+          "title": "agentgateway/agentgateway",
+          "url": "https://github.com/mcp-proxy/mcp-proxy"
+        },
+        {
+          "title": "docs/docs/concepts/mcp-gateway.md at main · obot-platform/obot",
+          "url": "https://github.com/obot-platform/obot/blob/main/docs/docs/concepts/mcp-gateway.md"
+        },
+        {
+          "title": "GitHub - obot-platform/obot at a1baff99fe4eb4d626361d7b87a6e7d050142469 · GitHub",
+          "url": "https://github.com/obot-platform/obot/tree/a1baff99fe4eb4d626361d7b87a6e7d050142469"
+        },
+        {
+          "title": "Obot-ai-gateway/mcp-oauth-proxy",
+          "url": "https://github.com/Obot-ai-gateway/mcp-oauth-proxy"
+        },
+        {
+          "title": "docs/versioned_docs/version-v0.19.0/overview.md at main · obot-platform/obot",
+          "url": "https://github.com/obot-platform/obot/blob/main/docs/versioned_docs/version-v0.19.0/overview.md"
+        }
+      ]
+    },
+    {
+      "sequence": 6,
+      "requested_results": 5,
+      "items": [
+        {
+          "title": "GitLab MCP server | GitLab Docs",
+          "url": "https://docs.gitlab.com/user/model_context_protocol/mcp_server/"
+        },
+        {
+          "title": "MCP servers in the AI Catalog | GitLab Docs",
+          "url": "https://docs.gitlab.com/user/gitlab_duo/model_context_protocol/ai_catalog_mcp_servers/"
+        },
+        {
+          "title": "doc/user/gitlab_duo/model_context_protocol/mcp_clients.md · 589777-retry-failed-reassignment-service · GitLab.org / GitLab · GitLab",
+          "url": "https://gitlab.com/gitlab-org/gitlab/-/blob/589777-retry-failed-reassignment-service/doc/user/gitlab_duo/model_context_protocol/mcp_clients.md"
+        },
+        {
+          "title": "Architecture | GitLab MCP Server",
+          "url": "https://jmrplens.github.io/gitlab-mcp-server/architecture/"
+        },
+        {
+          "title": "@modelcontextprotocol/server-gitlab",
+          "url": "https://www.npmjs.com/package/@modelcontextprotocol/server-gitlab"
+        }
+      ]
+    }
+  ]
+}

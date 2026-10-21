@@ -1,0 +1,10 @@
+{
+  "archive_octets": 446227,
+  "archives": 44,
+  "liens_locaux_verifies": 1,
+  "qualification_sha256": "8e84719c7301f78efc2f35aaa5516955102b5bac948b27469e54ac3467ce810f",
+  "roundtrip_integral": true,
+  "schema": "opsys.r29-post-check/v1",
+  "sources_docs_historique_stables": true,
+  "tests_lances": false
+}

@@ -1,0 +1,502 @@
+Je veux que tu marche dans les trace de Claude Code OPUS 5.5 et je ne peux m'empêcher de me dire que sur github doit ce cacher des veritable pépite plus ou moins connue de ce qu'on vont je veux que dans ta memoire sois graver ceci si nous pouvous construire a partir ou ce baser sur des briques existant ou utiliser des briques pour construire nos logiciel qui demande que de l'adaptation et de faire lever gateau ses la premiere vois que nous devons regarder il y a des veritable perle et du code mature et des centaine d'heure de travaille potentiellement sauver donc de grosse economie de ressources de temps et d'argent et pour cela je me suis mis a la recherche de briques pouvant nous sauver énormément de temps bien sur ce sont des suggestions tu es le chef de projets et tu dois toi meme rechercher des dépôt sur github et gitlab pouvant venir sauver du temps ou enrichir et améliorer OPSYS-AI et pour openclaw2 j'avais suggérer a claude de d’utiliser entre openclaw2 et hermes agents pour le core car et de lourdement modifier leur code source nous avons plus besoin de leur mise a jours et de préserver le core car c’est nous qui allons faire ses futures mise a jours ses agents ont énormément de fonctionnalités rechercher pour le core et opsys-ai et je veux aussi que tu n’oublie pas la profondeur de chaque module m et comme j'avais mentionnés a claude code nous devions entamer une restructuration un ménage et un toute remettre a jours et sur les rails et meme les règlement contre productif que je te demande de modifier comme valider une fusion avec 3 models différent et enormement de règles qui sont contre productif corriger la docs osbolete et les règles le depot dans sont ensemble tu dois livrer un travaille qualitatif bien sur mais d'attendre la vérification dun modeles extérieur et etc est contre productif et tu te dois detre productif aussi donc tout cela doit etre restructurer et je ne veux pas que tu oublie la profondeur des modules M et l'ambition du projets je vais tenvoyer 3 vieux prompt des modules M tu dois l’adapter a la nouvelles realiter mais il te dise ce que doit etre chaque module et opsys-ai et l'ambition de opsys-ai voici 3 prompt de module M si cela differe du chemin si la doc en dit autrement je vais tous te les envoyer 
+
+PROMPT MAÎTRE — ARCHITECTURE QUADRUPLE A
+
+GRS M7 — DÉPARTEMENT MARKETING & CROISSANCE IA COMPLET
+
+Version: 2026-06-08+
+
+Objectif: transformer M7 Marketing/SEO STUB en vrai département CMO IA complet
+
+Tu es un architecte logiciel senior, architecte IA, expert marketing numérique, expert growth, expert CRM, expert automatisation PME, expert social media, expert SEO local, expert publicité, expert analytics, expert conformité API et expert produit SaaS.
+
+Tu travailles dans le repo Forge/GRS/Andromeda existant. Tu ne dois pas reconstruire ce qui fonctionne déjà. Tu dois analyser l’état réel du projet, respecter la Constitution Forge/GRS, respecter la matrice de complétion existante, puis créer un plan d’implémentation complet et l’exécuter par étapes contrôlées.
+
+Le but est de transformer le module actuel "M7 Marketing/SEO" en un vrai département:
+
+M7 Marketing & Croissance IA
+
+Ce département doit agir comme un CMO IA complet pour une PME de construction/rénovation extérieure, capable de soutenir la croissance de l’entreprise par tous les canaux marketing légitimes: réseaux sociaux, visibilité locale, notoriété, SEO, PPC, branding, réputation, contenu, campagnes, stratégie, analyse concurrentielle, relances, conversion, marketing physique/local et recommandations de croissance.
+
+IMPORTANT: ce module ne doit PAS être limité à SEO/PPC. SEO/PPC est seulement une sous-partie. Le vrai objectif est de construire un département marketing IA complet, branché sur les données réelles de l’entreprise.
+
+Règles absolues
+
+Ne jamais prétendre que M7 est terminé tant que tous les critères de sortie ne sont pas prouvés par tests, routes, données, UI et documentation.
+
+Ne jamais reconstruire le CRM existant. Le CRM est un pilier déjà avancé. Seulement s’y connecter proprement.
+
+Ne jamais reconstruire la comptabilité existante. La compta est un pilier déjà avancé. Seulement consommer ses données pour ROI marketing.
+
+Ne jamais déclencher de dépenses publicitaires, modification de budget, campagne payante, publication publique sensible, réponse à avis négatif sensible ou envoi massif sans validation humaine.
+
+Ne jamais utiliser de bots, faux likes, faux abonnés, faux commentaires, spam, scraping interdit, contournement de limites API ou tactiques qui violent les conditions des plateformes.
+
+Toute croissance doit être organique, conforme, durable et mesurable.
+
+Le système doit préférer les intégrations officielles. Si une API officielle ne permet pas une action, créer un workflow manuel assisté avec validation humaine.
+
+Toujours distinguer:
+
+ce qui est automatisable maintenant;
+ce qui nécessite OAuth/API credentials;
+ce qui nécessite validation Nathan;
+ce qui nécessite approbation plateforme;
+ce qui doit rester manuel.
+Chaque action doit produire une trace: qui, quoi, pourquoi, source, modèle utilisé, confiance, coût, risque, statut.
+
+Toute recommandation marketing doit être liée à une donnée ou explicitement marquée comme hypothèse.
+
+Toute sortie IA destinée au public doit passer par un système de qualité: ton, exactitude, conformité, style de marque, risque, validation.
+
+Langage par défaut: français québécois professionnel, clair, crédible, adapté aux PME de construction/rénovation extérieure.
+
+Exactitude > vitesse. Stabilité > magie. Produit réel > démo impressionnante.
+
+Ne pas faire de “marketing bullshit”. Chaque fonctionnalité doit aider à obtenir plus de visibilité, plus de leads, meilleure conversion, meilleure réputation ou meilleure rentabilité.
+
+Contexte projet à respecter
+L’état connu du projet indique:
+
+Forge est l’usine d’infrastructure IA.
+GRS est le système d’exploitation IA de l’entreprise.
+Le produit global n’est pas encore à 100 %.
+CRM et comptabilité sont les piliers les plus avancés.
+GRS API existe déjà.
+App mobile existe déjà avec profils admin, employé, client, vendeur.
+Des départements virtuels existent déjà, dont Marketing.
+M7 Marketing/SEO est actuellement STUB et trop limité.
+M8 Analytics est partiel.
+M10 Mémoire est STUB.
+Matomo et SerpBear sont déjà présents dans l’infrastructure.
+n8n est déjà présent.
+Langfuse est présent.
+Qdrant/TEI/RAG sont présents.
+LiteLLM/vLLM/modèles locaux sont présents.
+Les gates Nathan incluent notamment Google Ads OAuth, QuickBooks/CCube, actions financières/légales, dépenses cloud, etc.
+Tu dois donc construire M7 en t’appuyant sur ce qui existe, pas repartir à zéro.
+
+Définition officielle de M7
+Renommer conceptuellement:
+
+Ancien:
+"M7 Marketing/SEO"
+
+Nouveau:
+"M7 Marketing & Croissance IA"
+
+Définition:
+
+M7 est le département marketing IA complet de GRS. Il agit comme un CMO IA, une équipe social media, un stratège growth, un analyste publicitaire, un expert SEO local, un gestionnaire de réputation, un créateur de contenu, un planificateur de campagnes, un analyste concurrentiel et un conseiller marketing global.
+
+Son objectif n’est pas seulement de générer du contenu. Son objectif est de soutenir la croissance réelle de l’entreprise.
+
+M7 doit optimiser:
+
+visibilité;
+notoriété;
+crédibilité;
+abonnés;
+likes;
+commentaires;
+partages;
+leads;
+taux de conversion;
+coût par lead;
+coût par vente;
+réputation;
+avis clients;
+SEO local;
+performance publicitaire;
+rentabilité marketing;
+qualité des suivis;
+récurrence;
+bouche-à-oreille;
+image de marque.
+Sous-modules obligatoires
+Implémenter M7 en sous-domaines. Chaque sous-module doit avoir modèles de données, service, routes API, tests, docs et statut matrice.
+
+M7.1 Brand Core / Identité de marque
+
+Objectif:
+Créer la base de marque de l’entreprise.
+
+Fonctions:
+
+profil de marque;
+ton de voix;
+services principaux;
+promesse client;
+avantages concurrentiels;
+zones desservies;
+valeurs;
+objections clients fréquentes;
+arguments de vente;
+garanties;
+preuve sociale;
+messages interdits;
+mots à éviter;
+style photo/vidéo;
+style Facebook/Instagram/TikTok/LinkedIn/Google Business.
+À coder:
+
+"brand_profile.py"
+"brand_voice.py"
+"brand_rules.py"
+"brand_guardrails.py"
+endpoints:
+"GET /api/marketing/brand/profile"
+"PUT /api/marketing/brand/profile"
+"POST /api/marketing/brand/audit-content"
+"POST /api/marketing/brand/generate-guidelines"
+Sorties:
+
+brand book JSON;
+guide de ton;
+règles de validation;
+score de conformité de contenu.
+M7.2 Social Media Command Center
+
+Objectif:
+Gérer tous les réseaux sociaux depuis GRS.
+
+Plateformes cibles:
+
+Facebook;
+Instagram;
+TikTok;
+YouTube;
+YouTube Shorts;
+LinkedIn;
+Google Business Profile;
+éventuellement Pinterest;
+éventuellement Threads;
+éventuellement plateformes locales.
+Fonctions:
+
+calendrier éditorial;
+planification de posts;
+brouillons;
+publication assistée;
+suivi de performance;
+idées de contenu;
+transformation chantier → contenu;
+gestion des hashtags;
+CTA;
+variations par plateforme;
+repurposing;
+banque de contenu;
+statut d’approbation;
+historique de publication.
+À coder:
+
+"social_accounts.py"
+"social_calendar.py"
+"social_post.py"
+"social_scheduler.py"
+"social_platform_adapters/"
+"base.py"
+"facebook_adapter.py"
+"instagram_adapter.py"
+"tiktok_adapter.py"
+"youtube_adapter.py"
+"linkedin_adapter.py"
+"google_business_profile_adapter.py"
+"manual_export_adapter.py"
+endpoints:
+"GET /api/marketing/social/accounts"
+"POST /api/marketing/social/accounts/connect"
+"GET /api/marketing/social/calendar"
+"POST /api/marketing/social/posts/draft"
+"POST /api/marketing/social/posts/approve"
+"POST /api/marketing/social/posts/schedule"
+"POST /api/marketing/social/posts/publish"
+"GET /api/marketing/social/posts/{id}"
+"GET /api/marketing/social/performance"
+Règle:
+Si l’API officielle ne permet pas la publication directe, générer un package manuel:
+
+texte;
+hashtags;
+image/vidéo;
+miniature;
+heure recommandée;
+instructions de publication;
+checklist.
+M7.3 Content Factory
+
+Objectif:
+Transformer les données de l’entreprise et des chantiers en contenu marketing.
+
+Sources:
+
+CRM;
+photos avant/après;
+notes de chantier;
+services vendus;
+ville/secteur;
+témoignages;
+avis Google;
+FAQ clients;
+objections;
+matériaux utilisés;
+saison;
+météo;
+promotions;
+réalisations;
+vidéos courtes.
+Types de contenu:
+
+post Facebook;
+carousel Instagram;
+Reel;
+TikTok;
+YouTube Short;
+post Google Business;
+article SEO;
+page locale;
+email;
+SMS;
+brochure;
+flyer;
+script vidéo;
+script appel;
+script vendeur;
+description avant/après;
+étude de cas;
+campagne saisonnière.
+À coder:
+
+"content_factory.py"
+"content_briefs.py"
+"content_generator.py"
+"content_repurposer.py"
+"content_quality_gate.py"
+"content_asset_library.py"
+"content_templates/"
+endpoints:
+"POST /api/marketing/content/brief"
+"POST /api/marketing/content/generate"
+"POST /api/marketing/content/repurpose"
+"POST /api/marketing/content/audit"
+"GET /api/marketing/content/library"
+"POST /api/marketing/content/from-job"
+Workflow chantier → contenu:
+
+détecter chantier terminé;
+récupérer service, ville, photos, notes, client satisfait ou non;
+créer angle marketing;
+générer variantes multi-plateformes;
+vérifier conformité marque;
+vérifier risque confidentialité;
+créer brouillon;
+envoyer à validation;
+publier ou exporter;
+mesurer performance;
+apprendre.
+M7.4 Growth Engine
+
+Objectif:
+Augmenter audience, visibilité et engagement de façon légitime.
+
+Fonctions:
+
+analyse croissance abonnés;
+analyse likes/commentaires/partages;
+détection formats gagnants;
+recommandation heures de publication;
+calendrier de croissance;
+suggestions de collaborations locales;
+idées de concours conformes;
+campagnes de notoriété;
+stratégie de hashtags;
+stratégie de séries de contenu;
+analyse de rétention vidéo;
+recommandations par plateforme.
+À coder:
+
+"growth_engine.py"
+"audience_growth.py"
+"engagement_analyzer.py"
+"posting_time_optimizer.py"
+"hashtag_strategy.py"
+"series_strategy.py"
+endpoints:
+"GET /api/marketing/growth/dashboard"
+"POST /api/marketing/growth/recommendations"
+"GET /api/marketing/growth/audience"
+"GET /api/marketing/growth/engagement"
+"POST /api/marketing/growth/plan-30-days"
+Interdit:
+
+achat de followers;
+faux likes;
+pods d’engagement;
+spam commentaires;
+DMs massifs non sollicités;
+automation agressive contre ToS.
+M7.5 Reputation Engine
+
+Objectif:
+Gérer la réputation locale et transformer la satisfaction client en croissance.
+
+Fonctions:
+
+suivi avis Google;
+demande d’avis après chantier;
+brouillons de réponse aux avis;
+alerte avis négatif;
+détection client satisfait;
+détection client à risque;
+extraction témoignages;
+transformation témoignages en contenu;
+suivi note moyenne;
+recommandations réputation.
+À coder:
+
+"reputation_engine.py"
+"review_monitor.py"
+"review_reply_generator.py"
+"review_request_workflow.py"
+"sentiment_analyzer.py"
+endpoints:
+"GET /api/marketing/reputation/dashboard"
+"GET /api/marketing/reputation/reviews"
+"POST /api/marketing/reputation/reviews/{id}/draft-reply"
+"POST /api/marketing/reputation/review-request"
+"POST /api/marketing/reputation/testimonial/from-review"
+Validation:
+
+avis négatif = validation humaine obligatoire;
+réponse publique = validation humaine obligatoire au départ;
+demande d’avis peut devenir semi-automatique seulement si chantier marqué satisfait.
+M7.6 SEO Local & Content SEO
+
+Objectif:
+Être visible sur Google pour services + villes + saison + besoins clients.
+
+Fonctions:
+
+suivi Search Console;
+suivi SerpBear;
+suivi positions;
+pages locales;
+articles;
+FAQ;
+optimisation titres/meta;
+maillage interne;
+analyse cannibalisation;
+suggestions de pages;
+surveillance baisse de trafic;
+recommandations SEO local;
+intégration Google Business Profile.
+À coder:
+
+"seo_engine.py"
+"search_console_connector.py"
+"serpbear_connector.py"
+"local_pages_generator.py"
+"keyword_clusterer.py"
+"seo_audit.py"
+endpoints:
+"GET /api/marketing/seo/dashboard"
+"GET /api/marketing/seo/keywords"
+"POST /api/marketing/seo/audit-page"
+"POST /api/marketing/seo/generate-local-page"
+"POST /api/marketing/seo/content-plan"
+"GET /api/marketing/seo/serpbear/status"
+"GET /api/marketing/seo/search-console/status"
+M7.7 Paid Media / Ads Intelligence
+
+Objectif:
+Aider à optimiser les campagnes payantes sans dépenser automatiquement.
+
+Canaux:
+
+Google Ads;
+Performance Max;
+Search Ads;
+Meta Ads;
+TikTok Ads si accessible;
+YouTube Ads;
+retargeting;
+campagnes locales.
+Fonctions:
+
+lecture campagnes;
+coût par lead;
+coût par vente;
+suggestions budgets;
+suggestions mots-clés négatifs;
+analyse annonces;
+analyse landing pages;
+recommandations créatifs;
+scoring qualité lead;
+attribution CRM;
+alerte gaspillage.
+À coder:
+
+"ads_intelligence.py"
+"google_ads_connector.py"
+"meta_ads_connector.py"
+"campaign_analyzer.py"
+"budget_recommender.py"
+"creative_analyzer.py"
+"lead_quality_attribution.py"
+endpoints:
+"GET /api/marketing/ads/dashboard"
+"GET /api/marketing/ads/campaigns"
+"POST /api/marketing/ads/recommendations"
+"POST /api/marketing/ads/budget-simulation"
+"POST /api/marketing/ads/creative-audit"
+"POST /api/marketing/ads/apply-change-request"
+Règle:
+Toute modification réelle de campagne, budget, enchère, dépense ou pause doit générer une "MarketingApprovalRequest" et attendre validation Nathan/admin.
+
+M7.8 Marketing ROI & Attribution
+
+Objectif:
+Relier marketing → leads → ventes → profit.
+
+Sources:
+
+CRM;
+comptabilité;
+factures;
+pipeline;
+campagnes;
+Search Console;
+Ads;
+Matomo;
+réseaux sociaux;
+formulaires;
+appels;
+Google Business Profile;
+UTM.
+Fonctions:
+
+attribution source lead;
+coût par lead;
+coût par vente;
+marge estimée par service;
+ROI par canal;
+valeur moyenne client;
+villes rentables;
+services rentables;
+campagnes à couper;
+campagnes à augmenter;
+recommandations business.
+À coder:
+
+"marketing_roi.py"
+"attribution_model.py"
+"utm_tracker.py"
+"lead_source_normalizer.py"
+"channel_profitability.py"
+endpoints:
+"GET /api/marketing/roi/dashboard"
+"GET /api/marketing/roi/channels"
+"GET /api/marketing/roi/services"
+"GET /api/marketing/roi/cities"
+"POST /api/marketing/roi/recommendations"
+"POST /api/marketing/roi/export-report"

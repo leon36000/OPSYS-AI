@@ -1,0 +1,88 @@
+{
+  "capsule": {
+    "date_utc": "2026-10-02T13:13:31.965743+00:00",
+    "files": [
+      {
+        "bytes": 11520,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/departments/m07-marketing/src/m7_marketing/brand/registre.py",
+        "path": "departments/m07-marketing/src/m7_marketing/brand/registre.py",
+        "sha256": "f62bae289358888d1e3e11c73b1f45c31239c4aa6f960d75f085a6396a60be23"
+      },
+      {
+        "bytes": 81723,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/departments/m07-marketing/src/m7_marketing/usine/service.py",
+        "path": "departments/m07-marketing/src/m7_marketing/usine/service.py",
+        "sha256": "ab3eaef1446643560a17ed8be851a6b771661fe884689f6829c95934767e3f25"
+      },
+      {
+        "bytes": 17802,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/departments/m07-marketing/src/m7_marketing/usine/chantier.py",
+        "path": "departments/m07-marketing/src/m7_marketing/usine/chantier.py",
+        "sha256": "1403470af6629d57ba6c6c200db2829a266680457c3f3a639a3b6ff5b0a9313e"
+      },
+      {
+        "bytes": 14147,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/departments/m07-marketing/src/m7_marketing/usine/registre.py",
+        "path": "departments/m07-marketing/src/m7_marketing/usine/registre.py",
+        "sha256": "7bd3067afa2ae86582417c2f5bc411d534c473dae2c0dd9f68c2ae419887ac3a"
+      },
+      {
+        "bytes": 17467,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/src/opsys/console/brand_ui.py",
+        "path": "src/opsys/console/brand_ui.py",
+        "sha256": "8e62b2aa95139d766556d00f5e3ae836694e0ad220d0a1f89cde03f8433f34e8"
+      },
+      {
+        "bytes": 41987,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/src/opsys/console/calendrier_marketing_ui.py",
+        "path": "src/opsys/console/calendrier_marketing_ui.py",
+        "sha256": "8d495d4542d5044d228059733101ce46fd4e74c6eeabe4b8c628f40ed8e4fcf9"
+      },
+      {
+        "bytes": 15979,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/src/opsys/console/metier.py",
+        "path": "src/opsys/console/metier.py",
+        "sha256": "fc35dd4d04f0cc14a92f764695f5f86bcbd569fc7a48743d28791621e8f6d9bc"
+      },
+      {
+        "bytes": 8392,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/departments/m07-marketing/tests/reputation/test_inbox_durable.py",
+        "path": "departments/m07-marketing/tests/reputation/test_inbox_durable.py",
+        "sha256": "825f3cb85cc1dcf24659e5836442ff92d3aa6d66a179cfa1b0a9496240f38c8b"
+      },
+      {
+        "bytes": 6943,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/tests/test_marketing_marque_snapshot.py",
+        "path": "tests/test_marketing_marque_snapshot.py",
+        "sha256": "8fc99361811fd163fa2e549985b70a4b81e838464663e49aa91e7d925a2ab7d0"
+      },
+      {
+        "bytes": 19768,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/tests/test_console_marketing_marque_usine.py",
+        "path": "tests/test_console_marketing_marque_usine.py",
+        "sha256": "db24519accc8a429f814db6acfeb9ad0ba0244529301e925c3c418f8c2c08750"
+      },
+      {
+        "bytes": 5332,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/docs/grs/marketing/M7-MARQUE-USINE-R44A.md",
+        "path": "docs/grs/marketing/M7-MARQUE-USINE-R44A.md",
+        "sha256": "446da30bbad14a6c609730c771345f324ec7d2a0b07d2c903e97a95366d7f331"
+      }
+    ],
+    "sources_count": 11
+  },
+  "inventaire_sha256": "18e5d5dddf1b79602977b80d2e0a34b4a8ad2e945c90ca372bb4aaea2ceb63cb",
+  "sources": {
+    "departments/m07-marketing/src/m7_marketing/brand/registre.py": "f62bae289358888d1e3e11c73b1f45c31239c4aa6f960d75f085a6396a60be23",
+    "departments/m07-marketing/src/m7_marketing/usine/chantier.py": "1403470af6629d57ba6c6c200db2829a266680457c3f3a639a3b6ff5b0a9313e",
+    "departments/m07-marketing/src/m7_marketing/usine/registre.py": "7bd3067afa2ae86582417c2f5bc411d534c473dae2c0dd9f68c2ae419887ac3a",
+    "departments/m07-marketing/src/m7_marketing/usine/service.py": "ab3eaef1446643560a17ed8be851a6b771661fe884689f6829c95934767e3f25",
+    "departments/m07-marketing/tests/reputation/test_inbox_durable.py": "825f3cb85cc1dcf24659e5836442ff92d3aa6d66a179cfa1b0a9496240f38c8b",
+    "docs/grs/marketing/M7-MARQUE-USINE-R44A.md": "446da30bbad14a6c609730c771345f324ec7d2a0b07d2c903e97a95366d7f331",
+    "src/opsys/console/brand_ui.py": "8e62b2aa95139d766556d00f5e3ae836694e0ad220d0a1f89cde03f8433f34e8",
+    "src/opsys/console/calendrier_marketing_ui.py": "8d495d4542d5044d228059733101ce46fd4e74c6eeabe4b8c628f40ed8e4fcf9",
+    "src/opsys/console/metier.py": "fc35dd4d04f0cc14a92f764695f5f86bcbd569fc7a48743d28791621e8f6d9bc",
+    "tests/test_console_marketing_marque_usine.py": "db24519accc8a429f814db6acfeb9ad0ba0244529301e925c3c418f8c2c08750",
+    "tests/test_marketing_marque_snapshot.py": "8fc99361811fd163fa2e549985b70a4b81e838464663e49aa91e7d925a2ab7d0"
+  }
+}

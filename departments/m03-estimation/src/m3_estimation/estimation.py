@@ -1,0 +1,569 @@
+"""Orchestrateur d'estimation de M3 (PLAN T2.3, `docs/departements/M3-audit.md` §0/§4 phase 1).
+
+`m3_estimer_projet` (``outils.py``) n'assemblait que 6 des 15 modules du paquet
+(``blocage_prix, contrats, hierarchie_echelle, monte_carlo, plancher, qualite_photos``) : jamais
+``validation.py`` (S001), jamais ``devis.py`` (S007, ``devis_id`` + contrat gelé ``EstimationV1``),
+jamais ``registre.py`` (S008). Ce module compose les 15 modules dans l'ordre déjà prouvé par leurs
+tests unitaires respectifs — AUCUNE nouvelle règle métier, seulement le câblage documenté par
+``docs/bmad/03-ARCHITECTURE.md`` §1 (qui nomme déjà ce fichier, absent du dépôt jusqu'ici) :
+
+    validation -> qualite_photos -> hierarchie_echelle -> blocage_prix
+      -> [monte_carlo -> plancher -> alerte REFERENCE_ECHELLE_ABSENTE -> durée main-d'œuvre]
+      -> devis.deriver_devis_id -> registre_cible.ajouter (hash-chaîné) -> devis.assembler_estimation
+
+Chaque étape qui échoue rend ``{"etape": <nom>, "accepte": False, "verdict": <verdict nommé>}`` —
+jamais une exception, jamais une valeur inventée. Une fois la décision de blocage obtenue
+STRUCTURELLEMENT (qu'elle bloque le prix ou non), l'orchestrateur produit TOUJOURS une estimation
+complète (``accepte: True``) : ``prix_bloque`` est un état métier normal du contrat de sortie, pas
+un échec technique — exactement le comportement déjà rendu par l'ancien ``estimer_projet`` ad hoc.
+
+Module pur (ADR-0009, même règle que ``devis_durable.py``/``estime_vs_reel.py``) : aucun import
+``opsys``, aucune horloge interne, aucun accès réseau, aucun aléa non ensemencé (Monte Carlo reste
+seedé par ``graine``, jamais par une source d'ambiance). ``registre_cible`` est un
+``registre.Registre`` DÉJÀ CONSTRUIT, reçu en paramètre (protocole objet, cf. ``registre.py``) :
+une instance en mémoire dans les tests unitaires, ``outils.registre_production()`` (durable) en
+production — c'est ``outils.py``, seul, qui choisit ce support, jamais ce module.
+
+``niveau_confiance`` — DIVERGENCE MESURÉE, PAS RÉPARÉE ICI (à consigner) : le contrat gelé rendu
+par ``devis.assembler_estimation``/le catalogue de ``registre.py`` valide ``niveau_confiance``
+comme un NOMBRE fini (``devis._est_nombre_fini``, éprouvé par 100+ tests verts de
+``test_devis.py``/``test_registre.py`` avec la fixture ``0.9``), alors que
+``docs/bmad/03-ARCHITECTURE.md``/le PRD le documentent comme la chaîne ``NiveauConfiance``
+(REFERENCE_ECHELLE|MULTI_VUES|MONO_VUE_BORNES_LARGES|INDETERMINE). Réparer cette divergence
+toucherait deux modules mutés indépendamment (``devis.py``, `registre.py`) et leurs fixtures dans
+6 fichiers de tests hors du périmètre de cette tranche — un travail de correction délibéré, pas un
+effet de bord du câblage. Ce module respecte donc le contrat RÉELLEMENT VALIDÉ par le code
+existant : ``niveau_confiance`` porte le NIVEAU STATISTIQUE du Monte Carlo (0.90/0.95/0.99, cf.
+``NIVEAUX_STATISTIQUES_PAR_CONFIANCE`` — le nominal ``blocage_prix.NIVEAU_CONFIANCE_NOMINAL`` sur
+la voie bloquée, exactement la convention déjà appliquée par ``blocage_prix.decider_blocage`` au
+champ ``intervalle_confiance.niveau`` dans la même situation). La classification HIÉRARCHIQUE
+(chaîne ``REFERENCE_ECHELLE``/``MULTI_VUES``/``MONO_VUE_BORNES_LARGES``/``INDETERMINE``), tout
+aussi utile, est rendue à part par l'orchestrateur sous la clé ``niveau_confiance_hierarchie`` —
+jamais mêlée au champ gelé pour ne pas lui faire porter deux sens incompatibles.
+
+Durée de main-d'œuvre (PLAN T2.3, relevé T1.2-f : « M3 n'a aucune durée estimée de main-d'œuvre
+(``duree_estimee_minutes``) ») — FORMULE :
+
+    duree_estimee_minutes = quantite × duree_minutes_par_unite
+
+``duree_minutes_par_unite`` est un TAUX FOURNI PAR L'APPELANT, jamais codé en dur (même discipline
+que ``taux_marge``/``plancher_rentable`` ailleurs dans ce département) : une clé OPTIONNELLE du
+poste du barème (``bareme["postes"][type_travaux]["duree_minutes_par_unite"]``), à la place d'un
+nouveau paramètre séparé — cohérent avec ``cout_unitaire_min``/``cout_unitaire_max`` déjà logés au
+même niveau. ABSENTE : aucune durée n'est calculée (``duree_estimee_minutes`` reste ``None``, RIEN
+n'est écrit au registre) — un barème existant sans cette clé continue de produire une estimation de
+PRIX inchangée ; c'est ``estime_vs_reel.py`` (T1.2-d, déjà déployé) qui rapportera fidèlement
+``REJ-ECART-ESTIMATION-ORIGINE-ABSENTE`` le jour où quelqu'un comparera estimé et réel pour CE
+devis — jamais un chiffre inventé pour combler l'absence. PRÉSENTE mais invalide (non numérique,
+non finie, non strictement positive) : un verdict NOMMÉ (``REJ-ECART-DUREE-ESTIMEE-INVALIDE``,
+catalogue existant de T1.2-d, même code que la comparaison estimé-vs-réel réutilise pour la même
+notion) — un TAUX fourni de travers est signalé, jamais silencieusement ignoré. Calculée
+SEULEMENT sur la voie NON bloquée (même quantité que le Monte Carlo réellement exécuté) : une durée
+sans prix associé n'aurait pas de socle. Déposée comme clé SUPPLÉMENTAIRE de la charge du registre
+"principal" — jamais dans le contrat gelé ``EstimationV1`` (``contrats.CHAMPS_ESTIMATION_V1``,
+12 clés, INCHANGÉ) : ``registre.py`` accepte une charge PLUS RICHE que ses six clés requises
+(``_CLES_CHARGE_REQUISES.issubset(charge)``, jamais un ensemble fermé), et
+``estime_vs_reel._estimation_origine`` la retrouve par ``devis_id`` sans qu'aucun contrat gelé
+n'ait à s'ouvrir. Le registre n'accepte que des types JSON canoniques
+(``registre._normaliser`` : aucun ``Decimal``) : la valeur est donc déposée en TEXTE décimal,
+jamais en ``Decimal`` ni en ``float`` (mêmes arrondis Decimal-depuis-texte que le reste du
+département, jamais l'arrondi binaire implicite d'un float).
+
+``REFERENCE_ECHELLE_ABSENTE`` (alerte NON bloquante, `docs/departements/M3-audit.md` §0/§4-3) :
+ajoutée aux verdicts CANDIDATS de ``devis.assembler_estimation`` quand ``niveau_confiance``
+(hiérarchie) vaut ``MULTI_VUES`` ou ``MONO_VUE_BORNES_LARGES`` ET qu'aucune photo ne porte de
+référence d'échelle CERTIFIÉE (``motifs["photos_avec_reference"] == 0`` — le compteur QUALIFIANT
+de ``hierarchie_echelle._compter_motifs``, jamais recalculé ici). Jamais sur ``REFERENCE_ECHELLE``
+(une référence existe, par construction de la hiérarchie) ni sur la voie bloquée (la qualité
+insuffisante ou l'indétermination priment déjà via ``_PRIORITE_VERDICTS`` de ``devis.py`` — l'ajout
+au tuple des candidats ne change alors rien puisque ce verdict n'y figure jamais dans ce cas).
+L'assembleur choisit seul, par priorité déjà éprouvée (``devis._PRIORITE_VERDICTS``), le verdict le
+plus fort parmi les candidats ; ``alerte_plancher``/``prix_bloque`` restent des booléens EXACTS,
+indépendants du verdict affiché en tête.
+
+Signal de relance M2 (PLAN T2.3, ``signaux.py``, ``docs/departements/M3-audit.md`` §2.3/§4 point 4
+— « le signal ... est écrit et testé mais ... jamais appelé ») : câblé UNIQUEMENT quand
+``decision["verdict_estimation"] == QUALITE_ENTREE_INSUFFISANTE`` — jamais sur la voie INDETERMINE
+seule, dont ``qualification["elements_manquants"]`` peut être vide (photos structurellement
+acceptables, classification hiérarchique quand même indéterminée) : ``signaux.
+construire_signal_relance`` refuse fail-closed une liste vide (``REJ-SIGNAL-INVALIDE``), et cette
+voie ne le garantit pas. La voie QUALITE_ENTREE_INSUFFISANTE, elle, le garantit TOUJOURS
+(``qualite_photos.qualifier_photos`` ne retourne ce verdict que lorsque ``elements_manquants`` est
+déjà non vide) : ``lead_id``/``devis_id`` sont eux aussi déjà validés à ce point de l'orchestrateur,
+donc cet appel ne peut jamais échouer en pratique — le verdict éventuel reste géré (jamais une
+exception qui s'échappe), fidèle au reste du fichier. Rendu sous la clé ``signal_relance_m2``,
+``None`` quand aucun signal n'est dû — jamais un effet de bord inventé (l'ORCHESTRATEUR ne publie
+rien lui-même ; c'est un futur consommateur de M2, hors périmètre de cette tranche, qui agira sur ce
+signal rendu).
+
+Prix recommandé (PLAN T2.3, reste de T2.3-b — « séparer coût et prix ... le mot "prix" de
+l'interface désigne en réalité un coût », ``docs/departements/M3-audit.md`` §2.1) : le barème
+(``BaremeCouts``) est un barème de COÛT, et ``intervalle_confiance`` (dans ``EstimationV1``, champ
+GELÉ, INCHANGÉ) reste donc un intervalle de coût. ``prix_recommande`` est une clé SUPPLÉMENTAIRE de
+la réponse de l'orchestrateur — jamais dans ``EstimationV1`` (même choix que
+``duree_estimee_minutes`` ci-dessus : un contrat gelé ne se modifie pas en place, P5) — dérivée de
+``intervalle_confiance`` par un ``taux_marge`` FOURNI PAR L'APPELANT (jamais codé en dur, même
+discipline que ``plancher_rentable``/``bareme``), en réutilisant TELLES QUELLES les fonctions de
+prix de ``devis_durable.py`` (``texte_vers_taux_marge``, ``prix_depuis_cout`` — même formule,
+même arrondi ``ROUND_HALF_UP`` au cent, jamais dupliquée). Calculé SEULEMENT sur la voie NON
+bloquée (un prix sans coût produit n'aurait pas de socle, même raisonnement que la durée de
+main-d'œuvre). Trois issues, jamais une quatrième inventée :
+  - ``taux_marge`` ABSENT (``None``) : ``prix_recommande`` reste ``None`` — PAS une erreur, le
+    coût seul reste exploitable. Le fait est noté dans ``elements_manquants`` (qui vaut alors
+    cette seule note, la voie n'étant pas bloquée par les photos) pour que l'appelant sache
+    explicitement pourquoi aucun prix n'a été calculé.
+  - ``taux_marge`` PRÉSENT mais invalide (texte non décimal, ``<= -1``) : un verdict NOMMÉ
+    (``REJ-DEVIS-TAUX-MARGE-INVALIDE``, catalogue déjà existant de ``devis_durable.py`` — jamais
+    dupliqué), l'orchestrateur entier rejette (étape ``prix_recommande``) — même discipline que
+    ``plancher_rentable``/``duree_minutes_par_unite`` invalides ailleurs dans ce fichier : une
+    donnée fournie DE TRAVERS est signalée, jamais silencieusement ignorée.
+  - ``taux_marge`` valide : ``prix_recommande = {borne_basse, borne_haute}``, chaque borne dérivée
+    de la borne de COÛT correspondante par ``devis_durable.prix_depuis_cout``.
+
+P50, P80, facteurs dominants et scénarios de prix (PLAN T4.11, ``scenarios.py``, DEFINITION-PRODUIT §7 M3.11 et
+M3.12) : trois clés SŒURS de la réponse, ``distribution_cout``, ``facteurs_dominants`` et ``scenarios_prix`` — jamais
+dans ``EstimationV1`` (gelé : mêmes douze clés, mêmes valeurs, mêmes empreintes, que des scénarios soient demandés ou
+non). Calculées sur la voie NON bloquée seulement, comme le prix recommandé : des photos faibles ne donnent ni P50, ni
+prix. Elles ne dépendent que du barème, de la quantité et de la graine effective, donc des MÊMES tirages que
+l'intervalle (``monte_carlo.simuler_quantiles``), et ne touchent ni la charge du registre ni son ``hash_maillon`` : les
+taux de marge des scénarios sont rejoués à chaque appel, jamais figés dans la version d'une estimation. Les taux
+viennent de l'appelant (``taux_scenarios``) ou de la configuration (``taux_scenarios_configures``), le minimum rentable
+de la configuration de la revue (``seuils_revue``) : ce module ne lit aucun fichier, ``outils.py`` les lui passe. Sans
+taux : aucun prix et un verdict par scénario qui dit où le déclarer (``elements_manquants`` reste celui d'avant).
+``taux_scenarios`` mal formé : rejet nommé (étape ``scenarios``) AVANT toute écriture au registre ; un taux invalide,
+lui, ne donne pas de prix et n'empêche pas l'estimation. Voir ``scenarios.py`` pour les règles de calcul.
+
+Besoins matériaux vers M6 (PLAN T2.3-e, ``besoins_materiaux.py`` : contrat ``BesoinsMateriauxM3``) :
+quand le poste du barème porte une liste OPTIONNELLE ``materiaux`` (quantité de matériau par unité
+d'ouvrage, ``facteur_perte`` facultatif), la voie NON bloquée en tire les besoins (quantité x
+quantité par unité, Decimal, calculée par le code) et les dépose sous deux formes, jamais dans
+``EstimationV1`` (gelé) : (1) dans la charge du registre, clé ``besoins_materiaux`` — le
+``hash_maillon`` qui en résulte couvre donc les quantités et sert de ``estimation_id`` (la VERSION de
+l'estimation) ; (2) dans la réponse, clé sœur ``besoins_materiaux`` (le contrat complet, prêt à
+publier — ``outils.py``, seul, publie ``m3.besoins_materiaux``). ``None`` sur la voie bloquée (des
+photos faibles ne donnent pas de quantités défendables) et quand le poste ne porte pas de
+``materiaux`` : aucune nomenclature n'est inventée. Un bloc ``materiaux`` malformé est un rejet nommé
+(étape ``besoins_materiaux``), AVANT toute écriture au registre : le contrat est assemblé une première
+fois à blanc (empreinte et rang fictifs) pour que sa validation stricte précède l'inscription. Un
+``facteur_perte`` absent du barème reste absent du contrat et est signalé (``facteurs_perte_absents``,
+et une note dans ``elements_manquants``), jamais inventé.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal, InvalidOperation, localcontext
+from typing import Any
+
+from . import (
+    besoins_materiaux,
+    blocage_prix,
+    contrats,
+    devis,
+    devis_durable,
+    hierarchie_echelle,
+    monte_carlo,
+    plancher,
+    qualite_photos,
+    scenarios,
+    signaux,
+    trace_calibration_temps,
+    validation,
+    verdicts,
+)
+
+__all__ = [
+    "NIVEAUX_STATISTIQUES_PAR_CONFIANCE",
+    "arrondir_au_cent",
+    "graine_stable",
+    "orchestrer_estimation",
+]
+
+# Niveau statistique (couverture du Monte Carlo — PRD §5 : "niveau : float, ex. 0.90 pour 90 %,
+# configurable par l'appelant") retenu par rang de FIABILITÉ DE MESURE dans la hiérarchie ratifiée
+# (hierarchie_echelle.NIVEAUX_CONFIANCE, ordre épinglé). Politique ÉNONCÉE, pas une mesure —
+# REFERENCE_ECHELLE (rang 0, objet de dimensions CERTIFIÉES visible dans le cadre) reprend SANS
+# changement le niveau nominal déclaré par l'architecture (blocage_prix.NIVEAU_CONFIANCE_NOMINAL =
+# 0.90). Chaque cran de MOINS de fiabilité de mesure élève la couverture statistique demandée :
+# MULTI_VUES ("précision moindre") puis MONO_VUE_BORNES_LARGES ("bornes LARGES" dès son nom).
+# INDETERMINE n'atteint jamais cette table : le prix y est bloqué en amont par
+# blocage_prix.decider_blocage, avant tout calcul d'intervalle. (Reprise telle quelle de l'ancien
+# outils.py::estimer_projet — aucune règle nouvelle, seul le fichier hôte change.)
+NIVEAUX_STATISTIQUES_PAR_CONFIANCE = {
+    hierarchie_echelle.NIVEAUX_CONFIANCE[0]: blocage_prix.NIVEAU_CONFIANCE_NOMINAL,  # REFERENCE_ECHELLE : 0.90
+    hierarchie_echelle.NIVEAUX_CONFIANCE[1]: 0.95,  # MULTI_VUES
+    hierarchie_echelle.NIVEAUX_CONFIANCE[2]: 0.99,  # MONO_VUE_BORNES_LARGES
+}
+
+# Niveaux hiérarchiques où l'absence de référence d'échelle est SIGNALÉE (non bloquante) : jamais
+# REFERENCE_ECHELLE (une référence existe déjà, par construction), jamais sur la voie bloquée.
+_NIVEAUX_SANS_REFERENCE_ALERTABLES = (
+    hierarchie_echelle.NIVEAUX_CONFIANCE[1],  # MULTI_VUES
+    hierarchie_echelle.NIVEAUX_CONFIANCE[2],  # MONO_VUE_BORNES_LARGES
+)
+
+_CENT = Decimal("0.01")
+
+# Empreinte fictive de la première assemblée « à blanc » du contrat de besoins (voir docstring).
+_EMPREINTE_A_BLANC = "0" * 64
+
+
+def arrondir_au_cent(valeur: float) -> float:
+    """Arrondit un montant CAD au cent le plus proche via Decimal.
+
+    ``Decimal(str(valeur))`` (jamais ``Decimal(valeur)``) : convertir depuis la représentation
+    DÉCIMALE du float évite de figer les artefacts de son codage binaire. Le résultat reste un
+    float — le contrat gelé EstimationV1 (PRD §5) type ``borne_basse``/``borne_haute`` en
+    ``float`` — mais chaque cent est déterminé par un calcul décimal exact, jamais par l'arrondi
+    binaire implicite du float. (Reprise inchangée de l'ancien ``outils.py::arrondir_au_cent``.)
+    """
+    return float(Decimal(str(valeur)).quantize(_CENT, rounding=ROUND_HALF_UP))
+
+
+def graine_stable(bareme: dict[str, Any], type_travaux: str, quantite: float) -> int:
+    """Graine reproductible dérivée des entrées : même demande, même intervalle. (Reprise
+    inchangée de l'ancien ``outils.py::graine_stable``.)"""
+    empreinte = json.dumps([bareme.get("version"), type_travaux, quantite], sort_keys=True)
+    return int(hashlib.sha256(empreinte.encode("utf-8")).hexdigest()[:8], 16)
+
+
+def _duree_estimee_minutes_texte(
+    quantite: Any, bareme: dict[str, Any], type_travaux: str
+) -> tuple[str | None, Decimal | None, dict | None]:
+    """``duree_estimee_minutes = quantite x duree_minutes_par_unite`` (Decimal, texte) — voir la
+    docstring du module pour le choix de dépôt (charge du registre, jamais EstimationV1) et pour
+    la distinction ABSENTE (silencieux, ``(None, None, None)``) contre INVALIDE (verdict nommé)."""
+    poste = bareme.get("postes", {}).get(type_travaux) if isinstance(bareme, dict) else None
+    if not isinstance(poste, dict) or "duree_minutes_par_unite" not in poste:
+        return None, None, None  # non fournie : aucune durée calculée, jamais une durée inventée
+
+    brute = poste["duree_minutes_par_unite"]
+    if isinstance(brute, bool) or not isinstance(brute, (int, float, Decimal)):
+        return None, None, verdicts.construire_verdict(
+            "REJ-ECART-DUREE-ESTIMEE-INVALIDE",
+            detail=f"duree_minutes_par_unite doit être numérique (reçu {type(brute).__name__})",
+        )
+    try:
+        taux_decimal = brute if isinstance(brute, Decimal) else Decimal(str(brute))
+        quantite_decimale = Decimal(str(quantite))
+    except InvalidOperation:
+        return None, None, verdicts.construire_verdict(
+            "REJ-ECART-DUREE-ESTIMEE-INVALIDE",
+            detail="duree_minutes_par_unite ou quantite non convertible en Decimal",
+        )
+    if not taux_decimal.is_finite() or taux_decimal <= 0:
+        return None, None, verdicts.construire_verdict(
+            "REJ-ECART-DUREE-ESTIMEE-INVALIDE",
+            detail=f"duree_minutes_par_unite doit être strictement positive et finie (reçu {brute!r})",
+        )
+    return str(quantite_decimale * taux_decimal), taux_decimal, None
+
+
+def _prix_recommande_depuis_intervalle(
+    intervalle_confiance: dict[str, Any], taux_marge: str | None
+) -> tuple[dict[str, float] | None, dict | None]:
+    """Dérive ``prix_recommande`` (``{borne_basse, borne_haute}``) depuis l'intervalle de COÛT
+    Monte Carlo et un ``taux_marge`` FOURNI — voir la docstring du module pour la justification
+    complète. Réutilise ``devis_durable.texte_vers_taux_marge``/``prix_depuis_cout`` telles
+    quelles, jamais une seconde copie de la formule de prix.
+
+    ``taux_marge is None`` : ``(None, None)`` — absent n'est PAS une erreur ici (à la différence de
+    ``creer_devis``, où le taux est obligatoire) : l'appelant (ci-dessous) note le fait dans
+    ``elements_manquants``, jamais un rejet. ``taux_marge`` invalide : ``(None, verdict)``, un rejet
+    NOMMÉ qui fait échouer l'orchestrateur entier — même discipline que ``plancher_rentable``/
+    ``duree_minutes_par_unite``."""
+    if taux_marge is None:
+        return None, None
+    taux, verdict = devis_durable.texte_vers_taux_marge(taux_marge)
+    if verdict is not None:
+        return None, verdict
+    borne_basse_cout = Decimal(str(intervalle_confiance["borne_basse"]))
+    borne_haute_cout = Decimal(str(intervalle_confiance["borne_haute"]))
+    return {
+        "borne_basse": float(devis_durable.prix_depuis_cout(borne_basse_cout, taux)),
+        "borne_haute": float(devis_durable.prix_depuis_cout(borne_haute_cout, taux)),
+    }, None
+
+
+def orchestrer_estimation(
+    contrat: dict[str, Any],
+    marqueur: dict[str, Any],
+    photos: list[dict[str, Any]],
+    seuils: dict[str, Any],
+    bareme: dict[str, Any],
+    quantite: float,
+    plancher_rentable: float,
+    registre_cible: Any,
+    graine: int | None = None,
+    taux_marge: str | None = None,
+    taux_scenarios: dict[str, Any] | None = None,
+    taux_scenarios_configures: dict[str, Any] | None = None,
+    seuils_revue: Any = None,
+    calibration_candidate: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Compose la chaîne complète d'estimation M3 — voir la docstring du module pour l'ordre et
+    les décisions de conception. Chaque étape qui échoue rend un verdict NOMMÉ qui dit quoi
+    demander ; jamais une exception, jamais une valeur inventée.
+
+    ``taux_scenarios`` (``{prudent, normal, agressif}`` : texte décimal, ou ``None``), ``taux_scenarios_configures``
+    (même forme, lue dans ``department.yaml`` par ``outils.py``) et ``seuils_revue`` (``configuration.revue_devis``,
+    pour le minimum rentable) alimentent ``scenarios_prix`` ; voir ``scenarios.py``."""
+    accuse, verdict = validation.valider_entrees(contrat, marqueur, photos)
+    if verdict is not None:
+        return {"etape": "validation", "accepte": False, "verdict": verdict}
+
+    lead_id = accuse["lead_id"]
+    # Lead v2 : `service` (taxonomie du socle, validé par `valider_entrees`) ; lead v1 : `type_travaux`.
+    # Dans les deux cas c'est la clé du poste du barème : une clé absente du barème BLOQUE l'estimation
+    # (« barème du service X absent : à fournir »), jamais un repli sur un autre poste.
+    est_lead_v2 = "service" in accuse
+    type_travaux = accuse["service"] if est_lead_v2 else accuse["type_travaux"]
+    empreinte_marqueur_m2 = accuse["empreinte_marqueur_m2"]
+
+    qualification, verdict = qualite_photos.qualifier_photos(photos, seuils)
+    if verdict is not None:
+        return {"etape": "qualite_photos", "accepte": False, "verdict": verdict}
+    elements_manquants = qualification["elements_manquants"]
+
+    niveau_hierarchie, motifs = hierarchie_echelle.classifier_niveau_confiance(photos, seuils)
+    if niveau_hierarchie is None:
+        return {"etape": "niveau_confiance", "accepte": False, "verdict": motifs}
+
+    decision, verdict = blocage_prix.decider_blocage(niveau_hierarchie, qualification)
+    if verdict is not None:
+        return {"etape": "blocage", "accepte": False, "verdict": verdict}
+
+    try:
+        devis_id = devis.deriver_devis_id(lead_id, empreinte_marqueur_m2)
+    except ValueError as exc:
+        return {
+            "etape": "devis_id",
+            "accepte": False,
+            "verdict": verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)),
+        }
+
+    prix_bloque = decision["prix_bloque"]
+    verdicts_candidats = [decision["verdict_estimation"]]
+    intervalle_confiance = decision["intervalle_confiance"]
+    raison_blocage = decision["raison_blocage"]
+    bareme_version: str | None = None
+    alerte_plancher = False
+    duree_estimee_minutes: str | None = None
+    taux_duree_minutes_par_unite: Decimal | None = None
+    prix_recommande: dict[str, float] | None = None
+    elements_manquants_prix: list[str] = []
+    signal_relance_m2: dict[str, Any] | None = None
+    besoins_calcules: dict[str, Any] | None = None
+    # Clés sœurs de PLAN T4.11 : toutes à None (voie bloquée), jamais un montant sans intervalle qui le porte.
+    incertitude: dict[str, Any] = dict.fromkeys(scenarios.CHAMPS_SOEURS_ESTIMATION)
+    niveau_confiance_numerique = NIVEAUX_STATISTIQUES_PAR_CONFIANCE.get(
+        niveau_hierarchie, blocage_prix.NIVEAU_CONFIANCE_NOMINAL
+    )
+    graine_effective = graine if graine is not None else graine_stable(bareme, type_travaux, quantite)
+
+    # Signal de relance M2 (voir la docstring du module) : UNIQUEMENT sur la qualité photo
+    # insuffisante, jamais sur INDETERMINE seul (elements_manquants y serait parfois vide).
+    if decision["verdict_estimation"] == contrats.VERDICT_QUALITE_ENTREE_INSUFFISANTE:
+        signal_relance_m2, verdict_signal = signaux.construire_signal_relance(
+            lead_id, devis_id, elements_manquants
+        )
+        if verdict_signal is not None:
+            return {"etape": "signal_relance", "accepte": False, "verdict": verdict_signal}
+
+    if not prix_bloque:
+        niveau_statistique = NIVEAUX_STATISTIQUES_PAR_CONFIANCE[niveau_hierarchie]
+        intervalle, verdict = monte_carlo.simuler_intervalle(
+            bareme, type_travaux, quantite, graine_effective, niveau_statistique,
+            services=(type_travaux,) if est_lead_v2 else (),
+        )
+        if verdict is not None:
+            return {"etape": "intervalle", "accepte": False, "verdict": verdict}
+        intervalle_confiance = {
+            "borne_basse": arrondir_au_cent(intervalle["borne_basse"]),
+            "borne_haute": arrondir_au_cent(intervalle["borne_haute"]),
+            "niveau": intervalle["niveau"],
+        }
+        bareme_version = bareme.get("version") if isinstance(bareme, dict) else None
+
+        constat, verdict = plancher.confronter_au_plancher(intervalle_confiance, plancher_rentable)
+        if verdict is not None:
+            return {"etape": "plancher", "accepte": False, "verdict": verdict}
+        alerte_plancher = constat["alerte_plancher"]
+        verdicts_candidats.append(constat["verdict_estimation"])
+
+        if (
+            niveau_hierarchie in _NIVEAUX_SANS_REFERENCE_ALERTABLES
+            and motifs["photos_avec_reference"] == 0
+        ):
+            verdicts_candidats.append(contrats.VERDICT_REFERENCE_ECHELLE_ABSENTE)
+
+        duree_estimee_minutes, taux_duree_minutes_par_unite, verdict = _duree_estimee_minutes_texte(
+            quantite, bareme, type_travaux
+        )
+        if verdict is not None:
+            return {"etape": "duree_main_doeuvre", "accepte": False, "verdict": verdict}
+        taux_duree_source = taux_duree_minutes_par_unite
+        if calibration_candidate is not None:
+            try:
+                scope = calibration_candidate["scope"]
+                empreinte_bareme_courante = trace_calibration_temps.empreinte_bareme(bareme)
+                quantite_demandee = Decimal(str(quantite))
+                quantite_scope = Decimal(scope["quantite_exacte"])
+                taux_scope = Decimal(scope["taux_minutes_par_unite_reference"])
+                concorde = (
+                    taux_duree_source is not None
+                    and scope["type_service"] == type_travaux
+                    and scope["unite_quantite"] == bareme.get("unite")
+                    and scope["bareme_version"] == bareme.get("version")
+                    and scope["empreinte_bareme"] == empreinte_bareme_courante
+                    and quantite_scope.is_finite() and quantite_scope == quantite_demandee
+                    and taux_scope.is_finite() and taux_scope == taux_duree_source
+                )
+                taux_candidat = Decimal(calibration_candidate["taux_minutes_par_unite_candidat"])
+                if not concorde or not taux_candidat.is_finite() or taux_candidat <= 0:
+                    return {"etape": "calibration_active", "accepte": False,
+                            "raisons": ["scope_calibration_active_incompatible"]}
+                taux_duree_minutes_par_unite = taux_candidat
+                with localcontext() as contexte_decimal:
+                    contexte_decimal.prec = 64
+                    contexte_decimal.rounding = ROUND_HALF_EVEN
+                    duree_estimee_minutes = format(Decimal(str(quantite)) * taux_candidat, "f")
+            except (ArithmeticError, KeyError, TypeError, ValueError):
+                return {"etape": "calibration_active", "accepte": False,
+                        "raisons": ["calibration_active_invalide"]}
+
+        prix_recommande, verdict = _prix_recommande_depuis_intervalle(intervalle_confiance, taux_marge)
+        if verdict is not None:
+            return {"etape": "prix_recommande", "accepte": False, "verdict": verdict}
+        if prix_recommande is None:
+            # taux_marge ABSENT (pas invalide : ce cas a déjà rejeté ci-dessus) : pas une erreur,
+            # mais l'appelant doit savoir explicitement pourquoi aucun prix n'a été calculé.
+            elements_manquants_prix.append(
+                "taux_marge non fourni : aucun prix recommandé calculé (coût seulement disponible)"
+            )
+
+        # P50, P80, facteurs dominants et scénarios de prix (PLAN T4.11) : voie NON bloquée seulement, sur les MÊMES
+        # tirages que l'intervalle, et AVANT le registre (un refus n'a rien écrit). Un taux invalide n'est pas un
+        # refus : le scénario n'a pas de prix et le dit ; seule une demande mal formée l'est.
+        incertitude, verdict = scenarios.evaluer(
+            bareme, type_travaux, quantite, graine_effective, devis_id, taux_scenarios,
+            taux_scenarios_configures, seuils_revue, services=(type_travaux,) if est_lead_v2 else (),
+        )
+        if verdict is not None:
+            return {"etape": "scenarios", "accepte": False, "verdict": verdict}
+
+        # Besoins matériaux (PLAN T2.3-e) : voie NON bloquée seulement, comme la durée et le prix.
+        # Le contrat est assemblé une première fois à blanc, AVANT le registre : sa validation
+        # stricte ne doit jamais suivre une écriture qu'elle aurait dû empêcher.
+        besoins_calcules, verdict = besoins_materiaux.calculer_lignes(bareme, type_travaux, quantite)
+        if verdict is not None:
+            return {"etape": "besoins_materiaux", "accepte": False, "verdict": verdict}
+        if besoins_calcules is not None:
+            _, verdict = besoins_materiaux.assembler_besoins_materiaux(
+                devis_id, lead_id, _EMPREINTE_A_BLANC, 0, bareme_version, niveau_confiance_numerique,
+                besoins_calcules["lignes"], besoins_calcules["facteurs_perte_absents"],
+            )
+            if verdict is not None:
+                return {"etape": "besoins_materiaux", "accepte": False, "verdict": verdict}
+            if besoins_calcules["facteurs_perte_absents"]:
+                elements_manquants_prix.append(
+                    "facteur_perte non fourni par le barème pour : "
+                    + ", ".join(besoins_calcules["facteurs_perte_absents"])
+                    + " (besoins publiés sans majoration de perte)"
+                )
+
+    # Assemble une seule fois les faits validés; le hash définitif est lié après l'ajout.
+    estimation, verdict = devis.assembler_estimation(
+        lead_id=lead_id,
+        empreinte_marqueur_m2=empreinte_marqueur_m2,
+        niveau_confiance=niveau_confiance_numerique,
+        verdicts_estimation=tuple(verdicts_candidats),
+        bareme_version=bareme_version,
+        prix_bloque=prix_bloque,
+        intervalle_confiance=intervalle_confiance,
+        alerte_plancher=alerte_plancher,
+        raison_blocage=raison_blocage,
+        graine_monte_carlo=graine_effective,
+        hash_maillon=_EMPREINTE_A_BLANC,
+    )
+    if verdict is not None:
+        return {"etape": "assemblage", "accepte": False, "verdict": verdict}
+
+    charge: dict[str, Any] = {
+        "devis_id": devis_id,
+        "lead_id": lead_id,
+        "empreinte_marqueur_m2": empreinte_marqueur_m2,
+        "niveau_confiance": niveau_confiance_numerique,
+        "bareme_version": bareme_version,
+        "graine_monte_carlo": graine_effective,
+        "faits_revue": {
+            "version": "m3.faits-revue/v1",
+            "prix_bloque": estimation["prix_bloque"],
+            "verdict_estimation": estimation["verdict_estimation"],
+            "niveau_confiance_hierarchie": niveau_hierarchie,
+            "alerte_plancher": estimation["alerte_plancher"],
+        },
+    }
+    if duree_estimee_minutes is not None:
+        charge["duree_estimee_minutes"] = duree_estimee_minutes
+        trace_temps, verdict = trace_calibration_temps.construire_trace(
+            bareme=bareme,
+            type_service=type_travaux,
+            quantite=quantite,
+            taux_minutes_par_unite=taux_duree_minutes_par_unite,
+            duree_estimee_minutes=duree_estimee_minutes,
+            taux_minutes_par_unite_source=taux_duree_source if calibration_candidate is not None else None,
+            calibration_version_id=calibration_candidate.get("candidate_id") if calibration_candidate else None,
+        )
+        if verdict is not None:
+            return {"etape": "trace_calibration_temps", "accepte": False, "verdict": verdict}
+        charge["trace_calibration_temps"] = trace_temps
+    if besoins_calcules is not None:
+        charge["besoins_materiaux"] = besoins_calcules
+
+    maillon, verdict = registre_cible.ajouter(charge)
+    if verdict is not None:
+        return {"etape": "registre", "accepte": False, "verdict": verdict}
+
+    estimation["hash_maillon"] = maillon["hash_maillon"]
+
+    contrat_besoins: dict[str, Any] | None = None
+    if besoins_calcules is not None:
+        contrat_besoins, verdict = besoins_materiaux.assembler_besoins_materiaux(
+            devis_id, lead_id, maillon["hash_maillon"], maillon["rang"], bareme_version,
+            niveau_confiance_numerique, besoins_calcules["lignes"], besoins_calcules["facteurs_perte_absents"],
+        )
+        if verdict is not None:
+            return {"etape": "besoins_materiaux", "accepte": False, "verdict": verdict}
+
+    return {
+        "etape": "complet",
+        "accepte": True,
+        "estimation": estimation,
+        "niveau_confiance_hierarchie": niveau_hierarchie,
+        "motifs_confiance": motifs,
+        "duree_estimee_minutes": duree_estimee_minutes,
+        # SOUL.md : « quand le prix est bloqué, tu expliques simplement au client ce qui manque »
+        # — liste EXPLICITE (jamais seulement la phrase composée de raison_blocage) sur la voie
+        # bloquée (reprise directe de qualite_photos.qualifier_photos, jamais recalculée ici) ;
+        # sur la voie NON bloquée, ne porte que les notes d'incomplétude (taux_marge absent,
+        # facteur_perte absent du barème) — jamais mêlées à la liste de blocage : ces causes sont
+        # mutuellement exclusives par construction (voir _prix_recommande_depuis_intervalle).
+        "elements_manquants": elements_manquants if prix_bloque else elements_manquants_prix,
+        # Séparation coût/prix (PLAN T2.3, reste de T2.3-b) : dérivé de intervalle_confiance par
+        # taux_marge, jamais dans EstimationV1 (champ gelé, inchangé). None sur la voie bloquée ou
+        # quand taux_marge est absent — voir la docstring du module.
+        "prix_recommande": prix_recommande,
+        # Signal de relance M2 (signaux.py, DEMANDE_ENTREES_VISUELLES) : None sauf sur la qualité
+        # photo insuffisante — voir la docstring du module pour la justification du câblage exact.
+        "signal_relance_m2": signal_relance_m2,
+        # Besoins matériaux vers M6 (BesoinsMateriauxM3, besoins_materiaux.py) : le contrat complet,
+        # ``estimation_id`` = hash_maillon du maillon qui porte ces quantités. None sur la voie
+        # bloquée ou quand le poste du barème ne porte pas de ``materiaux`` — voir la docstring du
+        # module. ``outils.py`` le publie sur le bus ; ce module reste pur.
+        "besoins_materiaux": contrat_besoins,
+        # P50/P80 du coût, facteurs dominants, trois scénarios de prix (scenarios.py, PLAN T4.11) : clés sœurs, jamais
+        # dans EstimationV1, toutes None sur la voie bloquée.
+        **incertitude,
+    }

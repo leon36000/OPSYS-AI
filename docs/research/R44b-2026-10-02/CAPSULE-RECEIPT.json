@@ -1,0 +1,9 @@
+{
+  "archive": "R44b-2026-10-02.tar.gz",
+  "archive_bytes": 240042,
+  "archive_sha256": "2180ad8e7e8aea0ee881d9895a936d23de033200bd6642810211d093aacdbe67",
+  "created_utc": "2026-10-02T15:32:03.313369+00:00",
+  "lot": "R44b-2026-10-02",
+  "members": 26,
+  "verified_gzip_crc_tar_member_set_and_payloads": true
+}

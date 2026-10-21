@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "recorded_toronto": "2026-10-09T11:15:56.137824-04:00",
+  "status": "FINAL_REVIEWABLE_PENDING_ROOT",
+  "authorization_ROOT": false,
+  "parent": "532a4ee11ecbab984c99bc90d0cd41bbd0279e2b",
+  "archive": {
+    "path": "EVIDENCE-FINAL-r1.tar.gz",
+    "sha256": "71052b403354e5216481a75c0ffbf0ed0d0e35de70e107b3700a45bf5bb98f76",
+    "members": 894,
+    "roundtrip_verified": true
+  },
+  "manifest": {
+    "path": "SHA256-final-r1.json",
+    "sha256": "397bf4add8b5991920d4c378677c415c5d66cf7847271d285ffa23248c1eb2a6",
+    "self_excluded": true
+  },
+  "scanner": {
+    "path": "scanner-final-r1.json",
+    "sha256": "49ecd580ba0c752414d00e5fba444db11762d5aef0a8630561bb997242e98702",
+    "status": "CLEAN",
+    "scope": "explicit public selected bytes patterns only; Native known8 values scanned separately before deletion"
+  },
+  "sources": {
+    "current": 31,
+    "preimages": 14,
+    "new_absent": 17
+  },
+  "Native_exterior_closed": true,
+  "CI_parent_scope": "532aA2 exact composite only; future M5 CI pending",
+  "docs_excluded_from_archive": true,
+  "private_exclusions": [
+    {
+      "disposition": "never read/copied by this assembler; destroyed Native auth state certified externally",
+      "scope": "PRIVATE/auth/DB/config/cache/headers/generated credentials/transcripts/node_modules"
+    },
+    {
+      "disposition": "excluded heavy or private payloads; public SHA/source/CI projections preserve provenance",
+      "scope": "Android bundles/maps/assets and Core artifact ZIP/raw CI logs"
+    },
+    {
+      "disposition": "remain local; only explicitly hashed inputs selected; no recursive history copy",
+      "scope": "older unpublished proof files outside selected capsules or Root list"
+    },
+    {
+      "disposition": "absent, never recreated; missing conversations unknown",
+      "scope": "104 proof references and full transfer supplement"
+    },
+    {
+      "disposition": "not delivered by current preparatory slice; past red remains distinct",
+      "scope": "Normal Gateway Runtime5 M4, provider/phone/PG/Hermes/CPA/whole M5/M6/backlog"
+    },
+    {
+      "disposition": "original source origins preserved; Root matrixr3 and exterior Native closure authoritative for present status",
+      "scope": "qualification-matrix draft/r2 and historical pending source31 limits"
+    }
+  ],
+  "limits": [
+    "T4.16-b.a.1 seule : registre préparatoire séparé, pas T4.16-b ni départementM5 complet",
+    "Pas de calcul fiscal légal, paie officielle, déclaration/remise, banque/paiement/fournisseur/client réel",
+    "Aucune activation YAML propriétaire/cash/CFO/calendrier existant depuis ce registre",
+    "Gateway minimal/VITEST/auth-store-readonly seulement ; boot normal/heartbeat/provider non qualifiés ; ancien Runtime5M4 réseau rouge distinct",
+    "Pas de téléphone/Hermes/APK/ExpoSQLite/Postgres/N5/CPA qualifié",
+    "Identité DEVICE technique attribuée, sans preuve de personne physique devant écran",
+    "Known-token scan Native et scan de motifs du paquet limité ; aucune absence universelle ni isolation OS/machine",
+    "Dépendances restaurées sur lock npm exact ; parité byte de tout ancien arbre inconnue",
+    "104 références de preuve absentes et supplément intégral absent ; conversations manquantes inconnues",
+    "Toutes ambitions profondes des dix départements/M5/M6/backlog restent partielles",
+    "CI532a A2 couvre le parent seulement ; intégration, smokes R, publication et CI du futur commit M5 restent à faire par Root"
+  ]
+}

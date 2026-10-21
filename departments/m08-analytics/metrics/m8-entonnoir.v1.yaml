@@ -1,0 +1,82 @@
+# metrics-as-code v1 : les métriques de l'ENTONNOIR COMMERCIAL que M8 calcule lui-même (PLAN T4.19,
+# DEFINITION-PRODUIT.md §6 « flux principal » : M1 capte, M2 structure, M3 estime, M2 suit la soumission ; §7 M8.6
+# « tableau de bord exécutif »). Compilé par `m8_analytics.dictionnaire.compiler_fichier` (garde de devise CAD comprise) ;
+# `m8_analytics.entonnoir` refuse de calculer une métrique absente d'ici. Chaque métrique a un calcul déterministe dans le
+# code : le LLM ne calcule jamais. Une entrée absente donne « non calculable, manque X », jamais une valeur inventée.
+#
+# Les faits viennent du bus (M2 et M3, événements du catalogue) : M8 mesure ce que les départements ont publié, il ne
+# refait ni leur décision ni leur date. Aucune fenêtre de période dans cette version : tous les faits reçus comptent.
+#
+# `proprietaires` (clé sœur additive du contrat v1, qui reste celui de `CHAMPS_DEFINITION_METRIQUE`) : le département
+# qui tient la vérité de la donnée source (DEFINITION-PRODUIT.md §8). `entonnoir.charger_definitions` refuse une
+# métrique sans propriétaire, ou un propriétaire qui n'est pas un département connu : une métrique n'est gouvernée
+# que si quelqu'un en répond.
+schema_version: 1
+module: m08-analytics
+owner_calcul: "M8 (le LLM ne calcule jamais)"
+proprietaires:
+  m8_leads_recus: m02-revenue-crm
+  m8_leads_qualifies: m02-revenue-crm
+  m8_devis_envoyes: m03-estimation
+  m8_devis_acceptes: m03-estimation
+  m8_devis_sans_reponse: m03-estimation
+  m8_taux_acceptation_pct: m03-estimation
+  m8_delai_lead_acceptation_jours: m02-revenue-crm
+  m8_carnet_signe_cad: m03-estimation
+metrics:
+  - id: m8_leads_recus
+    nom: "Leads reçus"
+    definition: "Nombre de leads distincts (lead_id) que M2 a ouverts et associés à un client, un fait par lead ingéré, y compris l'opportunité que M2 ouvre à la fin d'un chantier pour un client déjà connu. Tous les faits reçus par M8, sans fenêtre de période. Sans aucun fait de l'entonnoir, non calculable : un zéro n'est jamais supposé."
+    unite: "leads"
+    source_donnees: "M2 m2.client_associe (lead_id, horodatage_association)"
+    frequence: "à chaque lead ingéré"
+    consommateur: "tableau de bord exécutif (m8_lire_vue_executive), M9"
+  - id: m8_leads_qualifies
+    nom: "Leads qualifiés"
+    definition: "Nombre de leads distincts que M2 a qualifiés : passage du statut nouveau à qualifié, avec un propriétaire et une prochaine action. Tous les faits reçus par M8, sans fenêtre de période. Sans aucun fait de l'entonnoir, non calculable."
+    unite: "leads"
+    source_donnees: "M2 m2.lead_assigne (lead_id, horodatage_assignation)"
+    frequence: "à chaque lead qualifié"
+    consommateur: "tableau de bord exécutif (m8_lire_vue_executive), M9"
+  - id: m8_devis_envoyes
+    nom: "Devis envoyés"
+    definition: "Nombre de devis distincts dont le propriétaire a approuvé l'envoi. La date est celle de l'approbation, pas celle de la livraison au client : la livraison n'est pas encore un fait du bus. Sans aucun fait de l'entonnoir, non calculable."
+    unite: "devis"
+    source_donnees: "M3 m3.devis_envoye (devis_id, lead_id, horodatage_envoi)"
+    frequence: "à chaque envoi approuvé"
+    consommateur: "tableau de bord exécutif (m8_lire_vue_executive), M9"
+  - id: m8_devis_acceptes
+    nom: "Devis acceptés"
+    definition: "Nombre de devis distincts qu'un humain a marqués acceptés. Sans aucun fait de l'entonnoir, non calculable."
+    unite: "devis"
+    source_donnees: "M3 m3.devis_accepte (devis_id, lead_id, prix_total, horodatage_acceptation)"
+    frequence: "à chaque devis accepté"
+    consommateur: "tableau de bord exécutif (m8_lire_vue_executive), M9"
+  - id: m8_devis_sans_reponse
+    nom: "Devis sans réponse"
+    definition: "Nombre de devis envoyés que M3 a constatés sans réponse du client, passé son délai de relance (statut envoyé), et qui n'ont pas été acceptés depuis. M8 reprend le constat de M3 sans recalculer ni le délai ni la date. Un brouillon jamais envoyé n'est pas sans réponse : il est compté à part (brouillons_en_retard). Sans aucun fait de l'entonnoir, non calculable."
+    unite: "devis"
+    source_donnees: "M3 m3.devis_sans_reponse (devis_id, statut, horodatage_devis) ; M3 m3.devis_accepte (devis_id)"
+    frequence: "à chaque constat de M3"
+    consommateur: "tableau de bord exécutif (m8_lire_vue_executive), M9"
+  - id: m8_taux_acceptation_pct
+    nom: "Taux d'acceptation des devis"
+    definition: "Part des devis envoyés qui ont été acceptés : (devis à la fois envoyés et acceptés) divisé par (devis envoyés), fois 100. Un devis accepté sans envoi reçu n'entre ni au numérateur ni au dénominateur : il est compté à part. Les devis encore en attente restent au dénominateur. Non calculable sans devis envoyé."
+    unite: "pourcentage"
+    source_donnees: "M3 m3.devis_envoye (devis_id) ; M3 m3.devis_accepte (devis_id)"
+    frequence: "à chaque devis envoyé ou accepté"
+    consommateur: "tableau de bord exécutif (m8_lire_vue_executive), alerte M8 si un seuil est configuré"
+  - id: m8_delai_lead_acceptation_jours
+    nom: "Délai du lead à l'acceptation"
+    definition: "Médiane, en jours, du temps écoulé entre l'arrivée du lead (M2) et l'acceptation de son devis (M3), sur les devis acceptés dont le lead est connu et dont les deux instants sont lisibles. Les autres sont comptés (sans arrivée connue, instant illisible, délai négatif), jamais ignorés en silence. Non calculable sans devis accepté mesurable."
+    unite: "jours"
+    source_donnees: "M2 m2.client_associe (lead_id, horodatage_association) ; M3 m3.devis_accepte (lead_id, horodatage_acceptation)"
+    frequence: "à chaque devis accepté"
+    consommateur: "tableau de bord exécutif (m8_lire_vue_executive), alerte M8 si un seuil est configuré"
+  - id: m8_carnet_signe_cad
+    nom: "Carnet signé"
+    definition: "Somme des prix totaux, avant taxes, que M3 a arrêtés pour les devis acceptés dont le chantier n'est pas terminé (aucun m4.travaux_termines reçu portant ce devis). M8 ne recalcule aucun prix. Non calculable si un devis du carnet n'a pas de prix lisible : une somme partielle n'est jamais un total. Un chantier terminé sans devis relié ne se déduit d'aucun devis : il est compté à part."
+    unite: "CAD"
+    source_donnees: "M3 m3.devis_accepte (devis_id, prix_total) ; M4 m4.travaux_termines (devis_id)"
+    frequence: "à chaque devis accepté ou chantier terminé"
+    consommateur: "tableau de bord exécutif (m8_lire_vue_executive), alerte M8 si un seuil est configuré"

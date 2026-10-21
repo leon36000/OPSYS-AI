@@ -1,0 +1,19 @@
+# Résumé M9 — correction candidate avant intégration
+
+Daté à Toronto : 2026-10-09T16:50:03.420956-04:00. Parent exact : `d840cf3e5fd6b54362c24c6cc8adca24d43cfc83`. Document préparatoire pour la PR privée, avant intégration et publication par Root.
+
+Le résumé M9 disait « rien à lire » lorsque le corpus retenu contenait seulement des métriques dont le seuil reste à configurer ou des alertes de qualité. Le correctif décrit maintenant l'absence de seuil franchi parmi les alertes réellement reçues par M9, filtrées selon leur date de référence, et ajoute les comptes de manques déjà calculés. Il ne relit pas la qualité, ne déduit aucune absence globale et ne prend aucune décision. Le DTO reste inchangé, avec `decision.prise_par_m9:false`, les mêmes manques et la même pagination bornée. Le gabarit positif sans manque est conservé.
+
+La production est limitée à `_resume` et à son appel unique. Le deuxième fichier contient les régressions : manque seul, qualité seule, mélange, positif, métriques distinctes, période, pages, DTO et bornes. La revue indépendante ne trouve aucun P1/P2 matériel et confirme l'identité du reste du module après normalisation AST. Les répétitions partielles de la matrice de tests sont documentées ; elles ne constituent ni un défaut produit ni des preuves additionnables.
+
+Root a obtenu RED **22 échecs / 40 réussites**, puis GREEN **62 réussites** du pur. La qualification suivante couvre **129 tests Python dans quatre fichiers**, Ruff sur les deux fichiers et **148 tests Jest dans quatre suites** existantes. Les 62 tests du pur sont inclus dans les 129 : ils ne sont pas additionnés. Les sources fixes, EOF et l'arrêt des processus possédés observés sont établis dans les reçus. RSS et ownership gardent leurs limites de mesure.
+
+Les avis publics Opus 5.5 et deux Sonnet 5.5 sont des opinions statiques et des candidats de tests. Le reçu r2 initial `STATIC_REVIEW_NOT_QUALIFIED` est conservé. L'observation r3 a reconnu l'alias de requête `sonnet` en exigeant toujours le modèle réellement observé `claude-sonnet-5-5`. Elle analyse le même run clos, sans relance ni réécriture du rejet initial. Les avis ne constituent aucune qualification produit et les flux init/auth/account/transcript restent exclus.
+
+Les anciennes fixtures mobiles restent intactes et historiques. Les quatre suites Jest démontrent la compatibilité des consommateurs existants ; elles ne démontrent pas une nouvelle réponse HTTP authentifiée, un parcours Gateway, un téléphone ou une migration. Aucun nouveau build Core, suite complète, installation ou test n'a été lancé pour cet assemblage.
+
+La continuité du parent inclut [la provenance M5→M8](../PROVENANCE-M5-M8-2026-10-09/AUDIT.md) et [les obligations préparatoires M5](../OBLIGATIONS-M5-2026-10-09/AUDIT.md). La CI M8 exacte au parent d840 est **non terminale au moment de cette préparation**. La future CI du commit M9 demeure inconnue ; aucun vert n'est hérité. La capsule ne constitue pas une autorisation de commit, push, fusion, déploiement ou action financière.
+
+Le produit et les dix départements profonds restent **PARTIELS**. Les 104 références absentes de la transmission et les conversations non reçues ne sont pas reconstruites. Cette correction de texte ne clôt pas M9, la qualité, la profondeur financière ni le backlog métier. `PLAN.md` reste inchangé.
+
+La capsule publique contient seulement les deux sources exactes, leurs préimages d840 et les preuves sélectionnées. Archive : `capsule-public-r1.tar.gz`, SHA-256 `8683c9fa40dcef278aa6dd62a86e34342221d6d9457e8c5fcd33f8de4beb4c58` ; 61 fichiers réguliers uniques, roundtrip exact, scanner lexical CLEAN. Le scanner est borné aux motifs documentés et n'est pas une garantie exhaustive contre tout secret. Ces trois documents sont exclus de l'archive pour éviter un cycle d'empreintes. Les chemins, omissions et statuts historiques sont tracés dans `SELECTION-r1.json` et le registre.

@@ -1,0 +1,1 @@
+gh run view 36628215473 --job 109610537339 --log a retourné un flux vide. La récupération des journaux par API GitHub a échoué (Forbidden lors du téléchargement). Seules les métadonnées run/jobs sont utilisées comme preuve. Aucun décompte de tests ou détail des assertions exécutées n’est déduit.

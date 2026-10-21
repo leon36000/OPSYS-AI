@@ -1,0 +1,19 @@
+{
+  "report_sha256": "d2421e9b36394fc172900cc31012264473257daab7a26536a297dab16b8846cd",
+  "bytes": 50385,
+  "local_links": 5,
+  "missing_local_links": [],
+  "upstream_code_count": 32,
+  "code_download_errors": [],
+  "github_valid_repos": 23,
+  "github_failed": [
+    "saghul/aiortc"
+  ],
+  "json_files": 38,
+  "json_parse_errors": [],
+  "m1_function_rows": 13,
+  "four_mobile_profiles": true,
+  "end_marker": "**PREUVE \u2014 recherche et mapping documentaire r\u00e9alis\u00e9s, sources et limites tra\u00e7ables ; int\u00e9gration M1 de production non revendiqu\u00e9e.**",
+  "fresh_m1_test_execution": false,
+  "core_execution": false
+}

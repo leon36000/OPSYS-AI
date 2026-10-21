@@ -1,0 +1,82 @@
+{
+  "recorded_toronto": "2026-10-09T18:59:38.078374-04:00",
+  "status": "PARTIEL",
+  "parent": "8be8d79988e88c854e2d92bfe26e50657b626fa0",
+  "source_files": [
+    {
+      "path": "departments/m10-memoire/src/m10_memoire/documents_affaire.py",
+      "sha256": "45cabe7c3992515766da6ff40469fc923cdf6c7e67c5b8f615189ade6138f414",
+      "preimage_sha256": null,
+      "origin": "M10 pure phase1 gel3, source lease3",
+      "qualification": "233 passed/0skipped on Source gel3; not SQL, RPC, DEVICE or new exact CI",
+      "status": "REVIEWED_PREPARED_NEW_FILE; integration and exact new CI pending"
+    },
+    {
+      "path": "departments/m10-memoire/tests/test_documents_affaire.py",
+      "sha256": "ceb9ad69a7493ca0c3c908ed5fe48dd136e10df8a9467955eae15a5c8becfdf2",
+      "preimage_sha256": null,
+      "origin": "M10 pure phase1 gel3, source lease3",
+      "qualification": "233 passed/0skipped on Source gel3; not SQL, RPC, DEVICE or new exact CI",
+      "status": "REVIEWED_PREPARED_NEW_FILE; integration and exact new CI pending"
+    },
+    {
+      "path": "departments/m10-memoire/docs/DOCUMENTS-AFFAIRE.md",
+      "sha256": "ad59f4d17642773d46afda16dc47724a6dc2ebd573cf160e9d7b324e7d9adee4",
+      "preimage_sha256": null,
+      "origin": "M10 pure phase1 gel3, source lease3",
+      "qualification": "233 passed/0skipped on Source gel3; not SQL, RPC, DEVICE or new exact CI",
+      "status": "REVIEWED_PREPARED_NEW_FILE; integration and exact new CI pending"
+    }
+  ],
+  "auxiliary_new_docs": [
+    "docs/reprise/M10-DOCUMENTS-PUR-2026-10-09/AUDIT.md",
+    "docs/reprise/M10-DOCUMENTS-PUR-2026-10-09/REGISTRE.json",
+    "docs/reprise/M10-DOCUMENTS-PUR-2026-10-09/CAPSULE.json"
+  ],
+  "six_path_hash_manifest": "Manifeste local de publication hors Git, pour éviter une empreinte autoréférente",
+  "parent_CI": {
+    "run_id": 37996394127,
+    "attempt": 1,
+    "head": "8be8d79988e88c854e2d92bfe26e50657b626fa0",
+    "conclusion": "success",
+    "jobs": 40,
+    "success": 38,
+    "conditional_skips": 2,
+    "fresh_readback_sha256": "54c1c21a192adedc5602f5f256036200df251556ec7016ec5efd3f1f250955ea"
+  },
+  "qualification": {
+    "pure_current": 233,
+    "own": 81,
+    "neighbors": 152,
+    "skipped": 0,
+    "Ruff": "PASS",
+    "fixed_inventory": 78,
+    "PIDFD_EOF_sources_stable": true,
+    "Root_readback_sha256": "118c04f76bcd4d8651e8d9c3f69ce8858ce5bd4a4da07bd173fee5fe485f1e9c"
+  },
+  "history_dispositions": {
+    "gel2_217P": "Historical83b7 only; not credited to gel3",
+    "red13": "12 failures of mechanisms/contract plus one oracle byte-count error",
+    "golden": "r3 had11bytes incorrectly; r4 corrected10bytes and passed unchanged83b7 before product patch",
+    "green16": "Fresh targeted correction tests on gel3",
+    "UTF8_mutant": "Historical65tests let replace survive; new manual boundary tests kill it2F1P; current decoder strict unchanged",
+    "Claude": "Static Opus5.5 plus twoSonnet5.5 opinions on83b7; Root reproduced material findings and native reviewed final delta",
+    "source_attestation_parent": "155 immutable local Git objects verified by OID/tree/hash; failed API source GET retained causeUNKNOWN, not replaced by an API qualification"
+  },
+  "missing_transfer": {
+    "excluded_proofs": 104,
+    "status": "UNAVAILABLE",
+    "supplement": "ABSENT",
+    "missing_conversations": "UNKNOWN"
+  },
+  "remaining": [
+    "canonical instance durable writer and snapshot/rank concurrency",
+    "current SQL/DEVICE authority and scope before claim/read/replay",
+    "claim, documentary register, APP/J and separate linkage rollback",
+    "whole-frame quotas before/after trace and unknown intention retention",
+    "process restart and replay, SQLite and instance PostgreSQL",
+    "HTTP/Core Native, exact new CI, mobile consumer"
+  ],
+  "Core_Git_TREE": "4ad1a927b4286039c23f7b93cbf43c2d02b61c7e",
+  "new_exact_CI": "UNKNOWN"
+}

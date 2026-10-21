@@ -1,0 +1,40 @@
+# dépendances
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Natif (générés par `expo prebuild`, jamais commités dans un projet géré)
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+/ios
+/android
+
+# Metro
+.metro-health-check*
+
+# Jest
+coverage/
+
+# journaux
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# secrets locaux
+.env*.local
+
+# TypeScript
+*.tsbuildinfo

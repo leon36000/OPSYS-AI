@@ -1,0 +1,93 @@
+schema: opsys.departement/v1
+id: m06-material-control
+code: M6
+nom: Material Control
+mission: >-
+  Tenir la vérité unique des quantités de matériaux — réception de commande,
+  consommation terrain, inventaire — sans jamais fixer de prix de vente, planifier
+  une date, payer un fournisseur ou désigner un responsable d'écart : variance
+  toujours neutre, réapprovisionnement suggéré, jamais exécuté.
+outils: m6_material_control.outils
+mode: ombre
+dependances: [m04-field-ops]
+approbations:                                        # ADR-0009 §5, PLAN T2.5 point 3
+  # Les rôles M6 nommés par DEFINITION-PRODUIT.md §7 (« inventory_manager », « field_employee »)
+  # ne figurent PAS dans l'ensemble FERMÉ des 8 rôles du socle (ADR-0009 §5, P8) ; ce bloc ne peut
+  # référencer que ces 8 rôles (src/opsys/identite.py::Role). « inventory_manager » du produit
+  # correspond au rôle générique « manager » du socle — même fonction (tenir l'inventaire/les
+  # achats au quotidien), nom différent selon la couche.
+  # N3 (interne, réversible avant tout contact fournisseur) : brouillon de PO, approbation
+  # interne, génération du corps de courriel.
+  n3: [manager, admin, nathan_owner]
+  # N4 (m6_marquer_po_envoye — engagement externe, « envoi sensible » ADR-0009 §4) : l'admin qui
+  # gère les achats au quotidien (§9.5, « PO à approuver » sur son tableau de bord), plus le
+  # propriétaire. Pas « manager » seul : envoyer une commande réelle à un fournisseur engage
+  # l'entreprise, au-delà de la tenue d'inventaire.
+  n4: [admin, nathan_owner]
+modeles:
+  defaut: standard
+  extraction: rapide
+skills: [receptionner-une-commande, consommer-du-materiel-terrain, compter-l-inventaire]
+planifications:
+  - nom: digest-materiel
+    cron: "0 7 * * 1-5"
+    consigne: >-
+      Résume en 5 lignes les variances d'inventaire et les suggestions de
+      réapprovisionnement de la veille. Aucun mouvement nouveau.
+budget:
+  tokens_jour: 200000
+  tokens_mois: 3000000
+  alerte_pct: 80
+memoire:
+  lecture: [chantiers, materiaux, catalogue]
+  ecriture: [mouvements_stock]
+kpis:
+  - id: taux_reception_conforme
+    description: Part des réceptions dont le verdict est CONFORME (quantité reçue = quantité demandée sur chaque ligne).
+  - id: taux_prix_indetermine
+    description: Part des lignes reçues dont le prix reste INDETERMINE (ni catalogue fourni ni historique du registre).
+evenements:                        # ADR-0009 §3, PLAN T1.2-b/T1.2-d
+  consomme: [m4.travaux_termines, m3.devis_accepte, m3.besoins_materiaux]  # le réel (WCT), le prévu définitif (devis accepté) et provisoire (estimation, T2.3-e)
+  # PLAN T4.15 : m6.reception_enregistree (M6.16) : ce qui est arrivé d'un PO persisté, dans la transaction de la
+  # réception ; M5 en tire ce qu'il doit attendre de payer. Aucun montant calculé, aucune unité convertie.
+  # PLAN T4.14 : m6.materiel_pret (M6.4, M6.8) : la réservation du matériel d'un devis accepté change (elle naît, se
+  # complète, cède du stock, est libérée) ; `pret`, `partiel` ou `a_commander`, avec les lignes manquantes. M4 le lit
+  # (`preparation.py`). Publié dans la transaction du fait de réservation ; jamais pour un prévu vide, jamais un bon de
+  # commande.
+  publie: [m6.variance_chantier, m6.reception_enregistree, m6.materiel_pret]   # types au catalogue, M6 en est propriétaire
+configuration:
+  # Seuil de criticité de la variance de CHANTIER (m6.variance_chantier, distinct du seuil de
+  # variance d'INVENTAIRE physique qui reste fourni par l'appelant de m6_soumettre_comptage).
+  # Configuration EXPLICITE du département (comme budget/modeles ci-dessus), jamais un nombre
+  # codé en dur dans variance_chantier.py ni dans outils.py (AGENTS.md) : le seul endroit qu'un
+  # non-développeur peut déjà éditer pour ce département, sans toucher au socle (src/opsys/,
+  # hors périmètre de cette tranche) ni à variance_chantier.py, qui reste pur (aucun import
+  # opsys). Absente ou invalide, m6.variance_chantier porte statut_variance=seuil_absent
+  # (fail-closed) plutôt qu'une valeur par défaut inventée. 0.30 reprend le seuil déjà utilisé
+  # par les tests existants de m6_evaluer_variance_chantier (test_outils_agent.py) pour l'écart
+  # « important » cité en exemple par DEFINITION-PRODUIT.md §7 M6 (« ex. 40 % de plus que
+  # prévu ») : 0.30 déclenche bien sur 0.40.
+  seuil_variance_chantier_pourcentage: 0.30
+  # Seuil de criticité de l'ÉCART DE PRIX à la réception (M6.7, PLAN T2.5 point 4) : « un prix
+  # réel qui s'écarte du prévu au-delà du seuil crée une alerte admin et un signal à M5 et M8 ».
+  # Configuration EXPLICITE (même raisonnement que seuil_variance_chantier_pourcentage
+  # ci-dessus), jamais un nombre codé en dur dans bons_commande.py/outils.py. Absente ou
+  # invalide, m6_receptionner_commande rend une liste de signaux vide (fail-closed) plutôt qu'un
+  # seuil deviné. 0.15 (15 %) est un point de départ raisonnable pour un écart de prix matériaux
+  # (aucun exemple chiffré dans DEFINITION-PRODUIT.md §7 M6.7, contrairement au 40 % de M6.12) —
+  # à ajuster par Nathan/l'admin sans toucher au code.
+  seuil_ecart_prix_reception_pourcentage: 0.15
+  # Réapprovisionnement par article (M6.15, PLAN T1.5-d) : à « travaux terminés », M6 compare le stock
+  # théorique de chaque article touché à SON seuil ; sous le seuil, il signale un besoin de commande
+  # (quantité cible - stock) à l'admin, jamais un bon de commande. Un article absent de cette liste, ou aux
+  # paramètres invalides, est signalé « seuil non configuré » : M6 ne devine jamais un seuil. Liste vide à
+  # dessein : aucun article n'a de seuil tant que Nathan ou l'admin n'en a pas décidé. Clé = le `materiau_id`
+  # des lignes de matériaux (SKU du catalogue, sinon désignation de M3). Quantités dans l'unité de l'article.
+  # Exemple (à recopier sous `articles:`, avec de vraies valeurs) :
+  #   articles:
+  #     <materiau_id>:
+  #       seuil_reapprovisionnement: <stock sous lequel on signale un besoin de commande, > 0>
+  #       quantite_cible: <stock à atteindre en commandant, >= seuil>
+  # Quand le catalogue M6.1 sera persisté, ces deux champs iront dans la fiche de l'article (un seul endroit).
+  reapprovisionnement:
+    articles: {}
