@@ -59,6 +59,14 @@ describe("avecProprietaire : chaque mutation insérée porte sa personne", () =>
     expect(persistee.proprietaire).toBe("jdupont");
   });
 
+  test("une destination héritée explicitement inconnue n'est jamais liée à la passerelle courante", async () => {
+    const depot = avecProprietaire(new DepotOutboxMemoire(), () => "jdupont", () => "https://a.fictif.invalid");
+    const legacy = await depot.inserer({ ...brouillon(), proprietaire: "jdupont", destination: null });
+    expect(legacy.destination).toBeNull();
+    const nouvelle = await depot.inserer(brouillon());
+    expect(nouvelle.destination).toBe("https://a.fictif.invalid");
+  });
+
   test("changer de statut ne change pas le propriétaire", async () => {
     const depot = avecProprietaire(new DepotOutboxMemoire(), () => "jdupont");
     const persistee = await depot.inserer(brouillon());

@@ -58,7 +58,7 @@ function confirmerIdentite(configuration: ConfigurationAppel, personne: string):
 function creerBanc() {
   let maintenant = HORLOGE.maintenant;
   const base = new DepotOutboxMemoire();
-  const depot = avecProprietaire(base, () => obtenirSessionEnvoi()?.personne ?? null);
+  const depot = avecProprietaire(base, () => obtenirSessionEnvoi()?.personne ?? null, () => obtenirSessionEnvoi()?.urlBase ?? null);
   const fetchImpl = jest.fn();
   const vidangeur = creerVidangeur({
     depot,
@@ -247,7 +247,7 @@ describe("le câblage réel de service.ts, SQLite simulé pour le comportement",
           expect(signal).not.toHaveBeenCalled();
           configuration.definirPersonneConfirmee({ jeton: "jeton-fictif", appareilId: APPAREIL,
             personne: "personne.fictive", role: "employee" });
-          const m = await avecProprietaire(base, () => "personne.fictive").inserer(soumettreMutation(creerMutation({
+          const m = await avecProprietaire(base, () => "personne.fictive", () => URL_BASE).inserer(soumettreMutation(creerMutation({
             type: "punch_in", chantierId: "chantier-fictif", payload: { action: "arrivee" },
           }, idDeterministe, HORLOGE)));
           expect((await service.declencherVidange())?.arret).toMatchObject({ genre: "appareil_refuse", mutationId: m.id });

@@ -21,9 +21,9 @@ describe("fichier_bloc ACK lié au dépôt et au SDK", () => {
     const depot = new DepotOutboxMemoire();
     const m = await depot.inserer({ ...soumettreMutation(creerMutation({ type: "fichier_bloc", chantierId: "INTERV-FICTIVE",
       payload: { empreinte_sha256: "a".repeat(64), taille_octets: 262147, type_mime: "image/jpeg",
-        index_bloc: 1, nombre_blocs: 2, bloc_base64: "QUJD" } }, () => "UUID-BLOC-FICTIF", horloge)), proprietaire: "PERSONNE-FICTIVE" });
+        index_bloc: 1, nombre_blocs: 2, bloc_base64: "QUJD" } }, () => "UUID-BLOC-FICTIF", horloge)), destination: "https://fictif.invalid", proprietaire: "PERSONNE-FICTIVE" });
     const suite = await depot.inserer({ ...soumettreMutation(creerMutation({ type: "job_completion", chantierId: "INTERV-FICTIVE",
-      payload: { intervention_id: "INTERV-FICTIVE" }, dependsOn: m.id }, () => "UUID-SUITE-FICTIVE", horloge)), proprietaire: "PERSONNE-FICTIVE" });
+      payload: { intervention_id: "INTERV-FICTIVE" }, dependsOn: m.id }, () => "UUID-SUITE-FICTIVE", horloge)), destination: "https://fictif.invalid", proprietaire: "PERSONNE-FICTIVE" });
     let maintenant = horloge.maintenant;
     let reponse = brut;
     const fetchImpl = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
@@ -114,7 +114,7 @@ describe("fichier_bloc ACK lié au dépôt et au SDK", () => {
 const fichierFictif = { ...soumettreMutation(creerMutation({ type: "fichier_bloc", chantierId: "INTERV-FICTIVE",
   payload: { empreinte_sha256: "a".repeat(64), taille_octets: 262147, type_mime: "image/jpeg",
     index_bloc: 1, nombre_blocs: 2, bloc_base64: "QUJD" } }, () => "UUID-FICTIF",
-  { maintenant: new Date("2026-10-08T12:00:00Z"), decalageMinutesUTC: -240 })), proprietaire: "PERSONNE-FICTIVE" };
+  { maintenant: new Date("2026-10-08T12:00:00Z"), decalageMinutesUTC: -240 })), destination: "https://fictif.invalid", proprietaire: "PERSONNE-FICTIVE" };
 describe("DESCRIPTEURS_MUTATION", () => {
   test("punch_in/punch_out -> m4_pointer", () => {
     expect(DESCRIPTEURS_MUTATION.get("punch_in")?.tool).toBe("m4_pointer");
@@ -245,7 +245,7 @@ describe("DESCRIPTEURS_MUTATION", () => {
       };
       const mutation = { ...soumettreMutation(creerMutation({ type: "job_completion", chantierId: "I1",
         payload: { intervention_id: "I1" } }, () => "UUID-COMPLETION-FICTIF",
-        { maintenant: new Date("2026-10-08T12:00:00Z"), decalageMinutesUTC: -240 })), proprietaire: "PERSONNE-FICTIVE" };
+        { maintenant: new Date("2026-10-08T12:00:00Z"), decalageMinutesUTC: -240 })), destination: "https://fictif.invalid", proprietaire: "PERSONNE-FICTIVE" };
       const resultat = interpreter({ ok: true, resultat: { accepte: true, resultat: accuse } }, mutation);
       expect(resultat).toEqual({ accepte: true, resume: accuse });
     });
@@ -275,7 +275,7 @@ describe("DESCRIPTEURS_MUTATION", () => {
       const formulaire = { wct_id: "WCT-FICTIF", intervention_id: "INTERVENTION-FICTIVE", chantier_id: "CHANTIER-FICTIF", lignes_materiaux: lignes };
       const mutation = { ...soumettreMutation(creerMutation({ type: "materials_submit", chantierId: formulaire.intervention_id,
         payload: { wct_id: formulaire.wct_id, formulaire } }, () => "UUID-FICTIF",
-        { maintenant: new Date("2026-10-08T12:00:00Z"), decalageMinutesUTC: -240 })), proprietaire: "PERSONNE-FICTIVE", sequence: 1 };
+        { maintenant: new Date("2026-10-08T12:00:00Z"), decalageMinutesUTC: -240 })), destination: "https://fictif.invalid", proprietaire: "PERSONNE-FICTIVE", sequence: 1 };
       // Trois champs exacts de contrats_sortie.py ; aucun écho WCT/personne/UUID inventé.
       const confirmation = { intervention_id: formulaire.intervention_id, chantier_id: formulaire.chantier_id, lignes_declarees: lignes };
       const resultat = interpreter({ ok: true, resultat: { accepte: true, resultat: confirmation,
@@ -332,7 +332,7 @@ describe("approval_decision conserve une confirmation inconnue", () => {
   async function preparer(reponse: Response) {
     const depot = new DepotOutboxMemoire();
     const creer = (id: string) => ({ ...soumettreMutation(creerMutation({ type: "approval_decision", chantierId: "approbations",
-      payload: { demande_id: "DEMANDE-FICTIVE", decision: "approuver", motif: "Vu, fictif." } }, () => id, horloge)), proprietaire: session.personne });
+      payload: { demande_id: "DEMANDE-FICTIVE", decision: "approuver", motif: "Vu, fictif." } }, () => id, horloge)), destination: session.urlBase, proprietaire: session.personne });
     const premiere = await depot.inserer(creer("UUID-D-FICTIF-1")), suite = await depot.inserer(creer("UUID-D-FICTIF-2"));
     let maintenant = horloge.maintenant;
     const fetchImpl = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => reponse);
@@ -353,7 +353,7 @@ describe("approval_decision conserve une confirmation inconnue", () => {
     expect(r.echecsPermanents).toEqual([]); expect(r.resultatsAcceptes).toEqual([]);
     expect(c.fetchImpl).toHaveBeenCalledTimes(1);
     expect(await c.depot.obtenir(c.premiere.id)).toMatchObject({ id: c.premiere.id, payload: c.premiere.payload,
-      proprietaire: session.personne, createdAtLocal: c.premiere.createdAtLocal, statut: "en_attente" });
+      destination: session.urlBase, proprietaire: session.personne, createdAtLocal: c.premiere.createdAtLocal, statut: "en_attente" });
     expect((await c.depot.obtenir(c.suite.id))?.statut).toBe("en_attente");
   });
   test.each([401, 403, 400, 404])("HTTP%s après dispatch reste inconnu et bloque la suite", async status => {
@@ -409,7 +409,7 @@ describe("FILE_ACK_BOUND —17 dépôts SQL via vrai SDK/descripteur/vidangeur",
     const depot = new DepotOutboxMemoire();
     const m = await depot.inserer({ ...soumettreMutation(creerMutation({ type: "fichier_bloc",
       chantierId: "INTERVENTION-LOCALE-FICTIVE-NON-ECHO", payload: c.request.args }, () => meta.idempotencyKey,
-      { maintenant: new Date(meta.horodatage_appareil), decalageMinutesUTC: -240 })), proprietaire: c.caller.personne });
+      { maintenant: new Date(meta.horodatage_appareil), decalageMinutesUTC: -240 })), destination: "https://fictif.invalid", proprietaire: c.caller.personne });
     expect(m.id).toBe(meta.idempotencyKey); expect(m.createdAtLocal).toBe(meta.horodatage_appareil);
     const v = creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil: invoquerOutil, fetchImpl,
       session: () => ({ urlBase: "https://fictif.invalid", jeton: "JETON-FICTIF", appareilId: meta.appareil, personne: c.caller.personne }),

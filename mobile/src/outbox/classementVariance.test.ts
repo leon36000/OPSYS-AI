@@ -13,7 +13,7 @@ const session = { urlBase: "https://fictif.invalid", jeton: "JETON-FICTIF", appa
 test("un refus HTTP de portée après effet possible conserve l'intention opt-in et bloque la suivante", async () => {
   const depot = new DepotOutboxMemoire();
   const m = await depot.inserer({ ...soumettreMutation(creerMutation({ type: TYPE, chantierId: "variance:WCT-FICTIF",
-    payload: cap("classement_v1").request.arguments }, () => "20f884dc-80ef-4f13-aab1-b2a7bd73d64d", horloge)), proprietaire: session.personne });
+    payload: cap("classement_v1").request.arguments }, () => "20f884dc-80ef-4f13-aab1-b2a7bd73d64d", horloge)), destination: session.urlBase, proprietaire: session.personne });
   const next = await depot.inserer({ ...m, id: "a180c7ad-75a5-484d-bd47-332b4d271d40", sequence: null });
   const interpreter = jest.fn(() => { throw new Error("aucune réponse métier dans ce refus HTTP"); });
   const descripteur = { tool: "m6_classer_cause_variance_appareil", serialiserParChantier: true,
@@ -31,7 +31,7 @@ test("un refus HTTP de portée après effet possible conserve l'intention opt-in
 test("les types sans opt-in gardent leur refus HTTP permanent existant", async () => {
   const depot = new DepotOutboxMemoire();
   const m = await depot.inserer({ ...soumettreMutation(creerMutation({ type: "lead_note", chantierId: "lead:FICTIF",
-    payload: {} }, () => "3cce6c84-7648-4f0e-b9b1-aaf394b80a8e", horloge)), proprietaire: session.personne });
+    payload: {} }, () => "3cce6c84-7648-4f0e-b9b1-aaf394b80a8e", horloge)), destination: session.urlBase, proprietaire: session.personne });
   const fetchImpl = jest.fn(async () => new Response('{}', { status: 404 }));
   const v = creerVidangeur({ depot, descripteurs: new Map([["lead_note", { tool: "m2_enregistrer_interaction",
     interpreterResultat: () => ({ accepte: false, verdict: { code: "FICTIF", detail: "" } }) }]]), appelerOutil: invoquerOutil,

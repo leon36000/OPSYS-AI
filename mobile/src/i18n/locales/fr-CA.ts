@@ -517,8 +517,8 @@ const frCA: RessourcesCommunes = {
       connecte: "{{personne}} — {{role}}",
       aReconfirmer: "À reconfirmer : identité gardée de la dernière connexion, le serveur n'a pas pu être joint.",
       quarantaine:
-        "{{nombre}} envoi(s) en attente appartiennent à une autre personne : conservés, ils ne partiront jamais " +
-        "sous votre identité.",
+        "{{nombre}} envoi(s) en attente ont une personne ou une passerelle différente ou inconnue : conservés " +
+        "jusqu’à vérification de leur destination.",
     },
     roles: {
       admin: "Administrateur",

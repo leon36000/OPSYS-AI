@@ -128,6 +128,12 @@ Téléphone, Expo SQLite, Hermes et la CI du nouveau commit restent des qualific
 - **Écritures par la file sortante** (`src/outbox/`) : l'id de la mutation, créé sur l'appareil, est la clé d'idempotence.
   Un renvoi rend la réponse enregistrée, sans second effet. Un refus du serveur est un échec permanent dont le verdict est
   montré.
+- **Destination durable** : chaque nouvelle intention garde la personne et l’URL exacte de sa passerelle,
+  sans conserver le jeton. Une rotation du jeton sur cette URL reprend la même clé ; un appairage vers une
+  autre URL met l’intention en quarantaine visible et conserve corps, clé et état jusqu’au retour à la
+  destination d’origine. La migration ajoute `destination` nullable sans deviner les anciennes destinations :
+  ces lignes restent conservées en quarantaine et nécessitent une récupération explicite après vérification.
+  Aucun rapprochement automatique des alias, URL renommées ou anciennes lignes n’est fourni.
 - **Vues par rôle appliquées deux fois** : le serveur, puis l'app (elle ne garde pas ce qu'un rôle ne doit pas voir).
 - **Refus ou panne : une seule règle** (`src/protocole/echec.ts`, `enveloppeOutil.ts`), la même pour les trois profils. Une
   panne (réseau, délai, 408, 429, 5xx, réponse qui n'est pas celle du core) peut montrer un cache marqué. Un refus (401, 403,

@@ -19,7 +19,7 @@ const cap = (phase: string) => captures.find(c => c.phase === phase)!;
 const horloge = { maintenant: new Date("2026-10-08T17:00:00Z"), decalageMinutesUTC: 0 };
 const session = { urlBase: "https://fictif.invalid", jeton: "JETON-FICTIF", appareilId: "APP-CLASSEMENT-FICTIF", personne: "admin.contexte.fictif" };
 function mutation(c: Capture) {
-  return { ...creerMutationClassementVariance(c.request.arguments as unknown as ArgumentsClassementVarianceM6, () => c.request.meta_cap!.cle, horloge, session), proprietaire: session.personne };
+  return { ...creerMutationClassementVariance(c.request.arguments as unknown as ArgumentsClassementVarianceM6, () => c.request.meta_cap!.cle, horloge, session), destination: session.urlBase, proprietaire: session.personne };
 }
 // Producteur Cap/SQLite et captures réels fictifs ; ici fetch, dépôt mémoire et pertes de réponses sont fictifs.
 test.each(captures.map(c => [c.phase, c] as const))("les octets Cap %s sont consommés sans DTO inventé", (_phase, c) => {
@@ -118,7 +118,7 @@ function mutationIntention(c: CaptureIntention) {
   const meta = c.meta!;
   return { ...creerMutationClassementVariance(c.arguments as unknown as ArgumentsClassementVarianceM6, () => meta.cle,
     { maintenant: new Date(meta.horodatage_appareil), decalageMinutesUTC: 0 }, { ...session, appareilId: meta.appareil }),
-    createdAtLocal: meta.horodatage_appareil, proprietaire: session.personne };
+    createdAtLocal: meta.horodatage_appareil, destination: session.urlBase, proprietaire: session.personne };
 }
 test("la nouvelle fixture est la copie byte-exact des 20 captures Cap/SQLite ROOT, sans HTTP revendiqué", () => {
   const octets = readFileSync(join(__dirname, "fixturesClassementIntentionCapSQL.json"));

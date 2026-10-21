@@ -59,7 +59,7 @@ function colonnes(brute: DatabaseSync): string[] {
 }
 
 /** La table telle qu'elle existait AVANT PLAN T1.4-l : sans `proprietaire`. */
-const DDL_AVANT_T1_4_L = DDL_OUTBOX.replace(",\n  proprietaire TEXT,\n  resume_accepte TEXT", "");
+const DDL_AVANT_T1_4_L = DDL_OUTBOX.replace(",\n  proprietaire TEXT,\n  resume_accepte TEXT,\n  destination TEXT", "");
 
 describe("initialiserSchemaOutbox : la colonne proprietaire", () => {
   test("base neuve : la table naît avec la colonne proprietaire", async () => {
@@ -295,7 +295,7 @@ test("CF037 — reprise fichier d'une intention inconnue, quarantaine et série 
       const { base, brute } = baseReelle(fichier);
       try {
         await initialiserSchemaOutbox(base);
-        const depot = avecProprietaire(creerDepotOutboxSqlite(base), () => personne);
+        const depot = avecProprietaire(creerDepotOutboxSqlite(base), () => personne, () => sessionInitiale.urlBase);
         for (const id of [idA, idSuivant, idB]) await depot.inserer(originale(id));
         const appels: unknown[] = [];
         const fetchFictif: typeof fetch = async (url, init) => {

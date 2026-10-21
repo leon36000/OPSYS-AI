@@ -111,7 +111,7 @@ describe("la note par la file sortante, avec sa clé d'idempotence", () => {
     personne: "vendeur.fictif",
   });
   const deposer = (depot: DepotOutboxMemoire, mutation: MutationOutbox) =>
-    depot.inserer({ ...mutation, proprietaire: "vendeur.fictif" });
+    depot.inserer({ ...mutation, destination: session().urlBase, proprietaire: "vendeur.fictif" });
   const vidangeurDe = (depot: DepotOutboxMemoire, fetchImpl: jest.Mock, maintenant: () => Date = () => HORLOGE.maintenant) =>
     creerVidangeur({
       depot,

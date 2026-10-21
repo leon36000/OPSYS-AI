@@ -148,7 +148,7 @@ describe("ordre dans la file sortante", () => {
 
 function intentionGpsFictive(action: "donne" | "retire" = "retire"): MutationOutbox {
   return { ...soumettreMutation(creerMutationConsentementGps({ technicienId: "marc.fictif", action }, () => "mutation-fictive", HORLOGE)),
-    proprietaire: "marc.fictif" };
+    destination: "https://gps.fictif.invalid", proprietaire: "marc.fictif" };
 }
 
 describe("descripteur de la file sortante", () => {
@@ -244,7 +244,7 @@ test.each<[string, unknown]>([
   ["retrait encore actif", coupleGpsFictif({ ...ACK_RETRAIT_FICTIF, actif: true })],
 ])("CF025 — %s conserve le retrait inconnu puis accepte son accusé lié sans changer l'identité", async (_nom, brut) => {
   const session = { urlBase: "https://gps.fictif.invalid", jeton: "jeton-fictif", appareilId: "appareil-fictif", personne: "marc.fictif" };
-  const depot = avecProprietaire(new DepotOutboxMemoire(), () => session.personne);
+  const depot = avecProprietaire(new DepotOutboxMemoire(), () => session.personne, () => session.urlBase);
   const intention = await depot.inserer(soumettreMutation(creerMutationConsentementGps(
     { technicienId: session.personne, action: "retire" }, () => "00000000-0000-4000-8000-000000000001", HORLOGE)));
   let reponse = brut;

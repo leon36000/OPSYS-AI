@@ -34,7 +34,7 @@ beforeEach(() => {
   mockEpoch++; mockAdmin = true; mockSession.mockReturnValue(session);
   mockInvoquer.mockReset(); mockDepotLocal.mockReset(); mockDepotOutbox.mockReset(); mockVidanger.mockReset();
   outbox = new DepotOutboxMemoire(); cache = new DepotCleValeurMemoire(); arbitree = false;
-  const depot = avecProprietaire(outbox, () => mockSession()?.personne ?? null);
+  const depot = avecProprietaire(outbox, () => mockSession()?.personne ?? null, () => mockSession()?.urlBase ?? null);
   mockDepotLocal.mockResolvedValue(cache); mockDepotOutbox.mockResolvedValue(depot);
   const vidangeur = creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, fetchImpl: jest.fn(),
     appelerOutil: p => mockInvoquer(p), session: () => mockSession(), maintenant: () => new Date(),

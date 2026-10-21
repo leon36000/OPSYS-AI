@@ -1,3 +1,4 @@
+import { avecProprietaire } from "../outbox/proprietaire";
 import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -49,7 +50,7 @@ function creerConfig(
   overrides: Partial<ConfigurationEnvoiFichier> = {},
 ): ConfigurationEnvoiFichier {
   return {
-    depot,
+    depot: avecProprietaire(depot, () => "jdupont", () => "https://cf037.invalid"),
     lireOctets: jest.fn().mockResolvedValue(octetsSurDisque),
     digest: digestFixe,
     genererId: idDeterministe,
@@ -254,7 +255,7 @@ describe("preparerEnvoiFichier — refus fail-closed, jamais d'envoi", () => {
       tentatives: 3,
       createdAtLocal: "2026-09-28T08:00:00-04:00",
       prochaineTentativeA: null,
-      proprietaire: "jdupont",
+      destination: "https://cf037.invalid", proprietaire: "jdupont",
     };
 
     await depot.inserer(mutationEnEchec);

@@ -15,7 +15,7 @@ const prise = captures.captures.find(c => c.phase === "prise_v1")!, replay = cap
 const meta = prise.request.meta!, args = prise.request.arguments as ArgumentsPriseRappelM1;
 const session = { personne: "admin-rappel-fictif", appareilId: meta.appareil, urlBase: "https://fictif.invalid", jeton: "JETON-FICTIF" };
 const horloge = { maintenant: new Date(meta.horodatage_appareil), decalageMinutesUTC: 0 };
-const m = (id = meta.cle) => ({ ...creerMutationPriseRappelM1(args, () => id, horloge, session), proprietaire: session.personne });
+const m = (id = meta.cle) => ({ ...creerMutationPriseRappelM1(args, () => id, horloge, session), destination: session.urlBase, proprietaire: session.personne });
 function monde(fetchImpl: typeof fetch) {
   const depot = new DepotOutboxMemoire(); let now = horloge.maintenant;
   const creer = () => creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil: invoquerOutil, fetchImpl,
@@ -90,7 +90,7 @@ test("perte fictive puis rôle/quota Cap réels : la suivante reste bloquée jus
   for (const name of ["role-retire-cache-inconnu", "quota-cache800-inconnu", "restart-succes-cache-exact"])
     fetchImpl.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, result: phase(name).response }), { status: 200 }));
   const h = monde(fetchImpl), first = await h.depot.inserer({ ...creerMutationPriseRappelM1(primaire.arguments as ArgumentsPriseRappelM1,
-    () => primaire.mutation_uuid!, horloge, session), proprietaire: session.personne });
+    () => primaire.mutation_uuid!, horloge, session), destination: session.urlBase, proprietaire: session.personne });
   const next = await h.depot.inserer({ ...first, id: "2b151e59-c5eb-4af3-957d-a72c4ab65404", sequence: null });
   for (let i = 0; i < 3; i++) {
     expect((await h.creer().vidangerFileSortante()).remisesEnAttente).toEqual([first.id]);
@@ -106,7 +106,7 @@ test("refus certain perdu : même UUID puis cache Cap exact devient refus défin
   const fetchImpl = jest.fn().mockRejectedValueOnce(new Error("FICTIF : refus certain perdu"))
     .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, result: cache.response }), { status: 200 }));
   const h = monde(fetchImpl), first = await h.depot.inserer({ ...creerMutationPriseRappelM1(primaire.arguments as ArgumentsPriseRappelM1,
-    () => primaire.mutation_uuid!, horloge, session), proprietaire: session.personne });
+    () => primaire.mutation_uuid!, horloge, session), destination: session.urlBase, proprietaire: session.personne });
   expect((await h.creer().vidangerFileSortante()).remisesEnAttente).toEqual([first.id]); h.avancer();
   const r = await h.creer().vidangerFileSortante(); expect(r.envoyees).toEqual([]);
   expect(r.echecsPermanents).toMatchObject([{ id: first.id, verdict: { code: "REJ-M1-RAPPEL-SNAPSHOT-PERIME" } }]);

@@ -37,7 +37,7 @@ const enCA: RessourcesCommunes = {
       connecte: "{{personne}} — {{role}}",
       aReconfirmer: "To be reconfirmed: identity kept from the last connection, the server could not be reached.",
       quarantaine:
-        "{{nombre}} pending send(s) belong to another person: kept, they will never be sent under your identity.",
+        "{{nombre}} pending send(s) have another or unknown person or gateway: kept until their destination is verified.",
     },
     roles: {
       admin: "Administrator",

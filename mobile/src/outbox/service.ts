@@ -40,7 +40,8 @@ export function obtenirDepot(): Promise<DepotOutbox> {
     depotPromesse = (async () => {
       const base = await SQLite.openDatabaseAsync(NOM_BASE);
       await initialiserSchemaOutbox(base);
-      return avecProprietaire(creerDepotOutboxSqlite(base), () => obtenirSessionEnvoi()?.personne ?? null);
+      return avecProprietaire(creerDepotOutboxSqlite(base), () => obtenirSessionEnvoi()?.personne ?? null,
+        () => obtenirSessionEnvoi()?.urlBase ?? null);
     })().catch((erreur: unknown) => {
       // Une ouverture qui échoue ne reste pas mémoïsée : la prochaine tentative rouvre la base.
       depotPromesse = null;

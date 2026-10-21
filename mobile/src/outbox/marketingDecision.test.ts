@@ -18,7 +18,7 @@ const id = () => `00000000-0000-4000-8000-${String(++compteur).padStart(12, "0")
 beforeEach(() => { compteur = 0; });
 
 async function intention(depot: DepotOutboxMemoire, contenu = "contenu-fictif") {
-  return avecProprietaire(depot, () => session.personne).inserer(soumettreMutation(creerMutation({
+  return avecProprietaire(depot, () => session.personne, () => session.urlBase).inserer(soumettreMutation(creerMutation({
     type: "marketing_decision", chantierId: `marketing:${contenu}`,
     payload: { contenu_id: contenu, decision: "approuver", _marketing_local: { plateforme: "instagram" } },
   }, id, horloge)));
@@ -67,7 +67,7 @@ const contenu = (contenu_id = "contenu-fictif"): LigneContenuM7 => ({
   consentement: { recueilli_par: "owner.fictif", recueilli_le: "2026-10-07T12:00:00Z", version_texte: "v1-fictif" },
 });
 async function decisionPersistee(depot: DepotOutboxMemoire, contenu_id = "contenu-fictif", personne = session.personne) {
-  return avecProprietaire(depot, () => personne).inserer(creerMutationDecisionMarketing(contenu(contenu_id), "approuver", "", id, horloge));
+  return avecProprietaire(depot, () => personne, () => session.urlBase).inserer(creerMutationDecisionMarketing(contenu(contenu_id), "approuver", "", id, horloge));
 }
 function ack(contenu_id = "contenu-fictif", par = session.personne) {
   return { contenu_id, plateforme: "instagram", approval_status: "APPROVED", par, source: "appareil",
@@ -294,7 +294,7 @@ test("service natif simulé : garde avant SQLite, rôle changé au bootstrap, si
 
 test("garde optionnelle sur type historique : reçu terminal pendant stockage conservé", async () => {
   const depot = new DepotOutboxMemoire();
-  const m = await avecProprietaire(depot, () => session.personne).inserer(soumettreMutation(creerMutation({
+  const m = await avecProprietaire(depot, () => session.personne, () => session.urlBase).inserer(soumettreMutation(creerMutation({
     type: "punch_in", chantierId: "chantier-fictif", payload: {},
   }, id, horloge)));
   let generation = 1;

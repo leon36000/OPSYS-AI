@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { obtenirDepot } from "./service";
 import { resumerQuarantaine, type ResumeQuarantaine } from "./proprietaire";
+import { obtenirSessionEnvoi } from "../protocole/configuration";
 import { identiteDepuisEtat } from "../identite/etat";
 import { useEtatIdentite } from "../roles/contexte";
 
@@ -26,7 +27,7 @@ export function useQuarantaine(): ResumeQuarantaine | null {
     void (async () => {
       try {
         const depot = await obtenirDepot();
-        const resumeLu = resumerQuarantaine(await depot.lister(), personne);
+        const resumeLu = resumerQuarantaine(await depot.lister(), personne, obtenirSessionEnvoi()?.urlBase ?? null);
         if (!abandonne) {
           definirResume(resumeLu.nombre > 0 ? resumeLu : null);
         }

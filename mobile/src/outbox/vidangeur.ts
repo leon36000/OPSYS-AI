@@ -7,7 +7,7 @@ import {
   remettreEnAttenteSansFaute,
 } from "./mutation";
 import { identifierMutationsBloqueesParEchecPermanent, selectionnerProchainesEnvoyables } from "./planification";
-import { identifierEnQuarantaine } from "./proprietaire";
+import { appartientADestination, identifierEnQuarantaine } from "./proprietaire";
 import { capturerMutationOutbox, memeIntentionOutbox } from "./depot";
 import type { DepotOutbox, InstantaneMutationOutbox } from "./depot";
 import type { MutationOutbox, TypeMutation } from "./types";
@@ -310,7 +310,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     // autre. Si la session a changé depuis la sélection, la mutation redevient `en_attente`, intacte.
     const session = config.session();
     if (!courante()) return arreterGardeSession(enEnvoi, attendueEnvoi);
-    if (session === null || session.personne !== mutation.proprietaire) {
+    if (session === null || session.personne !== mutation.proprietaire || !appartientADestination(enEnvoi, session.urlBase)) {
       return arreterGardeSession(enEnvoi, attendueEnvoi);
     }
 
@@ -393,10 +393,10 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
 
     const toutes = await config.depot.lister();
     // La sélection regarde TOUTE la file (l'ordre et les parents `dependsOn` n'ont de sens que sur
-    // l'ensemble) ; seules les mutations de la personne de la session partent. Les autres attendent :
+    // l'ensemble) ; seules les mutations de la personne et de la passerelle de la session partent. Les autres attendent :
     // c'est la quarantaine, comptée plus bas.
     const envoyables = selectionnerProchainesEnvoyables(toutes, config.maintenant()).filter(
-      (m) => m.proprietaire === sessionDebut.personne,
+      (m) => m.proprietaire === sessionDebut.personne && appartientADestination(m, sessionDebut.urlBase),
     );
 
     const envoyees: string[] = [];
@@ -447,8 +447,8 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     const serieEncoreBloquee = [...bloqueesSerie].filter(id => toutesApres.some(m => m.id === id &&
       !terminaliteVerifiee(m, config.descripteurs.get(m.type))));
     const bloquees = [...new Set([...identifierMutationsBloqueesParEchecPermanent(toutesApres).map(m => m.id), ...serieEncoreBloquee])];
-    const personneFin = config.session()?.personne ?? sessionDebut.personne;
-    const quarantaine = identifierEnQuarantaine(toutesApres, personneFin).map((m) => m.id);
+    const sessionFin = config.session() ?? sessionDebut;
+    const quarantaine = identifierEnQuarantaine(toutesApres, sessionFin.personne, sessionFin.urlBase).map((m) => m.id);
 
     return {
       envoyees,

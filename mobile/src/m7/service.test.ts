@@ -88,7 +88,7 @@ beforeEach(() => {
   mockDeclencherVidange.mockReset();
   mockGenerationSession++;
   depot = new DepotOutboxMemoire();
-  const proprietaire = avecProprietaire(depot, () => mockObtenirSessionEnvoi()?.personne ?? null);
+  const proprietaire = avecProprietaire(depot, () => mockObtenirSessionEnvoi()?.personne ?? null, () => mockObtenirSessionEnvoi()?.urlBase ?? null);
   mockObtenirDepot.mockResolvedValue(proprietaire);
   const vidangeur = creerVidangeur({ depot: proprietaire, descripteurs: DESCRIPTEURS_MUTATION,
     fetchImpl: jest.fn(), session: () => mockObtenirSessionEnvoi(), maintenant: () => new Date(),

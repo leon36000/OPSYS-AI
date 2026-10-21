@@ -18,7 +18,7 @@ function nominal(intervention = "INTERVENTION-FICTIVE") {
     registre: { taille: 3, hash_tete: "a".repeat(64) } } };
 }
 async function inserer(depot: DepotOutboxMemoire, id: string, intervention = "INTERVENTION-FICTIVE", dependsOn: string | null = null) {
-  return depot.inserer({ ...soumettreMutation(creerMutation({ type: "materials_submit", chantierId: intervention, payload: payload(intervention), dependsOn }, () => id, HORLOGE)), proprietaire: "PERSONNE-FICTIVE" });
+  return depot.inserer({ ...soumettreMutation(creerMutation({ type: "materials_submit", chantierId: intervention, payload: payload(intervention), dependsOn }, () => id, HORLOGE)), destination: "https://fictif.invalid", proprietaire: "PERSONNE-FICTIVE" });
 }
 function config(depot: DepotOutboxMemoire, body: unknown) {
   const fetchImpl = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ ok: true, result: body }), { status: 200 }));
@@ -171,9 +171,9 @@ describe("M6 ACK — cinq réponses SQL réelles ROOT, transport rejoué en mém
     const id = capture.idempotencyKey ?? "UUID-FICTIF-OUTIL-DIRECT-SANS-CAP";
     const depot = new DepotOutboxMemoire();
     const m = await depot.inserer({ ...soumettreMutation(creerMutation({ type: "materials_submit",
-      chantierId: capture.request.formulaire.intervention_id, payload: { ...capture.request } }, () => id, HORLOGE)), proprietaire: "PERSONNE-FICTIVE" });
+      chantierId: capture.request.formulaire.intervention_id, payload: { ...capture.request } }, () => id, HORLOGE)), destination: "https://fictif.invalid", proprietaire: "PERSONNE-FICTIVE" });
     const suivante = await depot.inserer({ ...soumettreMutation(creerMutation({ type: "materials_submit", chantierId: m.chantierId,
-      payload: { ...capture.request } }, () => `${id}-SUIVANTE-FICTIVE`, HORLOGE)), proprietaire: "PERSONNE-FICTIVE" });
+      payload: { ...capture.request } }, () => `${id}-SUIVANTE-FICTIVE`, HORLOGE)), destination: "https://fictif.invalid", proprietaire: "PERSONNE-FICTIVE" });
     const c = config(depot, capture.response), rapport = await c.vidangeur.vidangerFileSortante();
     expect(c.fetchImpl).toHaveBeenCalledTimes(1);
     const requete = JSON.parse(String(c.fetchImpl.mock.calls[0][1]?.body)); expect(requete.args).toEqual(capture.request); expect(requete.idempotencyKey).toBe(id);

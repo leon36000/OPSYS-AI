@@ -39,7 +39,7 @@ async function inserer(
   proprietaire: string | null = PERSONNE,
 ): Promise<MutationOutbox> {
   const mutation = soumettreMutation(creerMutation(params, idDeterministe, HORLOGE));
-  return depot.inserer({ ...mutation, proprietaire });
+  return depot.inserer({ ...mutation, proprietaire, destination: URL_BASE });
 }
 
 function creerConfig(
@@ -152,7 +152,7 @@ describe("vidangeur — idempotence du socle", () => {
   test("reprise au démarrage (statut envoi retrouvé en base) : renvoyée avec la MÊME id, jamais recréée", async () => {
     const depot = new DepotOutboxMemoire();
     const brouillon = creerMutation({ type: "punch_in", chantierId: "interv-1", payload: { action: "arrivee" } }, idDeterministe, HORLOGE);
-    const persistee = await depot.inserer({ ...brouillon, proprietaire: PERSONNE });
+    const persistee = await depot.inserer({ ...brouillon, proprietaire: PERSONNE, destination: URL_BASE });
     // Simule une ligne retrouvée `envoi` après un crash en plein envoi (jamais via marquerEnvoi
     // ici : c'est l'état trouvé tel quel dans le dépôt au démarrage, pas une transition qu'on
     // rejoue nous-mêmes).

@@ -293,10 +293,12 @@ export function lireMutationsFichiers(v: unknown): MutationOutbox[] | null {
       !(m.statut === "brouillon" || m.statut === "en_attente" || m.statut === "envoi" || m.statut === "envoyee" || m.statut === "echec_permanent") ||
       !entierBorne(m.tentatives,0,Number.MAX_SAFE_INTEGER) || typeof m.createdAtLocal !== "string" ||
       !(m.prochaineTentativeA === null || typeof m.prochaineTentativeA === "string") ||
-      !(m.proprietaire === null || typeof m.proprietaire === "string")) return null;
+      !(m.proprietaire === null || typeof m.proprietaire === "string") ||
+      !(m.destination === undefined || m.destination === null || typeof m.destination === "string")) return null;
     sortie.push({id:m.id,sequence:m.sequence,type:m.type,chantierId:m.chantierId,payload:m.payload,
       dependsOn:m.dependsOn,statut:m.statut,tentatives:m.tentatives,createdAtLocal:m.createdAtLocal,
       prochaineTentativeA:m.prochaineTentativeA,proprietaire:m.proprietaire,
+      ...(Object.hasOwn(m,"destination") ? {destination:m.destination as string | null} : {}),
       ...(Object.hasOwn(m,"resumeAccepte") ? {resumeAccepte:m.resumeAccepte} : {})});
   }
   return sortie;

@@ -73,7 +73,7 @@ export function creerMutationDocumentM10(op: OperationDocumentM10, commande: unk
   if(!operation(op) || !argumentsValides(op,a) || !destination(locale) || !Number.isFinite(horloge.maintenant.getTime()) || !Number.isInteger(horloge.decalageMinutesUTC) || Math.abs(horloge.decalageMinutesUTC)>=1440) throw new Error("Intention documentaire invalide.");
   const m=creerMutation({type:TYPES[op],chantierId:`document-m10:${a.affaire_id}`,payload:{commande:a,[LOCAL]:locale}},genererId,horloge);
   if(!uuid(m.id) || !hora(m.createdAtLocal)) throw new Error("UUID ou heure documentaire invalide.");
-  return {...soumettreMutation(m),proprietaire:locale.personne};
+  return {...soumettreMutation(m),destination:locale.url_base,proprietaire:locale.personne};
 }
 function charge(mutation: unknown): {op:OperationDocumentM10;args:CommandeDocumentM10;locale:Locale;id:string;heure:string} | null {
   const m=copierJsonLecture(mutation);

@@ -104,6 +104,8 @@ export interface MutationOutbox {
    * encore insérée) — même traitement, fail-closed : jamais envoyée.
    */
   readonly proprietaire: string | null;
+  /** Gateway URL captured at insertion, independent of the renewable token. Missing legacy values stay quarantined. */
+  readonly destination?: string | null;
   /** Accusé métier conservé avec le statut terminal pour permettre la reprise hors écran. */
   readonly resumeAccepte?: unknown | null;
 }

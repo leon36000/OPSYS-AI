@@ -173,7 +173,7 @@ describe("la décision passe par la file sortante, avec sa clé d'idempotence", 
   const accepte = () => reponseHttp({ ok: true, result: { ok: true, resultat: { accepte: true, resultat: ACCUSE }, rejoue: false } });
 
   /** Les décisions sont créées sous la personne confirmée de l'appareil (PLAN T1.4-l) : la file ne les envoie que pour elle. */
-  const deposer = (depot: DepotOutboxMemoire, mutation: MutationOutbox) => depot.inserer({ ...mutation, proprietaire: "proprio.fictif" });
+  const deposer = (depot: DepotOutboxMemoire, mutation: MutationOutbox) => depot.inserer({ ...mutation, proprietaire: "proprio.fictif", destination: "https://grs.exemple.ca" });
 
   function vidangeurDe(depot: DepotOutboxMemoire, fetchImpl: jest.Mock, maintenant: () => Date = () => HORLOGE.maintenant) {
     return creerVidangeur({

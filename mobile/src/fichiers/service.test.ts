@@ -1,3 +1,4 @@
+import { avecProprietaire } from "../outbox/proprietaire";
 import type { NetInfoState } from "@react-native-community/netinfo";
 import NetInfo, { NetInfoStateType } from "@react-native-community/netinfo";
 import { File } from "expo-file-system";
@@ -38,9 +39,9 @@ function session() {
 function digest(octets:Uint8Array<ArrayBuffer>):Promise<ArrayBuffer> {return Promise.resolve(Uint8Array.from(createHash("sha256").update(Buffer.from(octets)).digest()).buffer);}
 afterEach(()=>{definirConfigurationAppel(null);definirPersonneConfirmee(null);});
 async function preparer(phase="complete-state") {
-  session();const depot=new DepotOutboxMemoire();
+  session();const depot=avecProprietaire(new DepotOutboxMemoire(),()=>PERSONNE,()=>"https://fictif.invalid");
   const photo=await depot.inserer({...creerMutation({type:"photo_upload",chantierId:"INTERV-FICTIVE",payload:{nature:"apres",uri:URI,
-    sha256:capturesSQL.image_provenance.image_sha256,taille_octets:capturesSQL.image_provenance.bytes}},()=>"CAPTURE-FICTIVE",HORLOGE),proprietaire:PERSONNE});
+    sha256:capturesSQL.image_provenance.image_sha256,taille_octets:capturesSQL.image_provenance.bytes}},()=>"CAPTURE-FICTIVE",HORLOGE),destination:"https://fictif.invalid",proprietaire:PERSONNE});
   let ligne=true,epoch=0;const fermer=jest.fn();
   const corps=capture(phase).row.response_utf8;
   const fetchImpl=jest.fn(async (_input:RequestInfo|URL,_init?:RequestInit)=>new Response(`{"ok":true,"result":${corps}}`,{status:200}));
@@ -78,7 +79,7 @@ describe("B1 fichiers readiness — composants réels, transport/FS/natifs ficti
   });
   test.each(["role-removed-state","unknown-state"])("%s ne produit ni prêt ni nouvelle clé legacy",async phase=>{
     const c=await preparer(phase);
-    const legacy=await c.depot.inserer({...soumettreMutation(creerMutation({type:"fichier_bloc",chantierId:"INTERV-FICTIVE",payload:derniers.data.request.args},()=>"UUID-LEGACY-FICTIF",HORLOGE)),proprietaire:PERSONNE});
+    const legacy=await c.depot.inserer({...soumettreMutation(creerMutation({type:"fichier_bloc",chantierId:"INTERV-FICTIVE",payload:derniers.data.request.args},()=>"UUID-LEGACY-FICTIF",HORLOGE)),destination:"https://fictif.invalid",proprietaire:PERSONNE});
     await c.depot.mettreAJour({...legacy,statut:"envoyee",resumeAccepte:null});
     const r=await creerServiceEnvoiFichiers(c.d).envoyer("INTERV-FICTIVE");expect(r[0].resultat.pret).toBe(false);
     expect((await c.depot.lister()).map(m=>m.id)).toEqual([c.photo.id,legacy.id]);expect((await c.depot.obtenir(legacy.id))?.resumeAccepte).toBeNull();
@@ -208,7 +209,7 @@ test("deux CAS : un état inconnu empêche la déclaration puis reprise même UU
  });
  const fichiers=[{capture_id:c.photo.id,empreinte_sha256:hashA,taille_octets:307899,type_mime:"image/png" as const},{capture_id:photoB.id,empreinte_sha256:hashB,taille_octets:307899,type_mime:"image/png" as const}];
  const form={wct_id:"W-MULTI-FICTIF",intervention_id:"INTERV-FICTIVE",chantier_id:"C-FICTIF",lignes_materiaux:[{type_ligne:"perte" as const,materiau_id:"SKU-FICTIF",quantite:1,unite:"pi"}]};
- const m=await c.depot.inserer({...soumettreMutation(creerMutation({type:"materials_submit_with_proofs",chantierId:"INTERV-FICTIVE",payload:{wct_id:form.wct_id,formulaire:form,preuves_lignes:[{position_ligne:0,note:"FICTIF",photos:fichiers.map(f=>`fichier:sha256:${f.empreinte_sha256}`)}],_fichiers_locaux:fichiers}},()=>"M-MULTI-FICTIF",HORLOGE)),proprietaire:PERSONNE});
+ const m=await c.depot.inserer({...soumettreMutation(creerMutation({type:"materials_submit_with_proofs",chantierId:"INTERV-FICTIVE",payload:{wct_id:form.wct_id,formulaire:form,preuves_lignes:[{position_ligne:0,note:"FICTIF",photos:fichiers.map(f=>`fichier:sha256:${f.empreinte_sha256}`)}],_fichiers_locaux:fichiers}},()=>"M-MULTI-FICTIF",HORLOGE)),destination:"https://fictif.invalid",proprietaire:PERSONNE});
  const service=creerServiceEnvoiFichiers(c.d);
  const sender=creerVidangeur({depot:c.depot,descripteurs:DESCRIPTEURS_MUTATION,appelerOutil:invoquerOutil,fetchImpl:c.fetchImpl,session:()=>({urlBase:"https://fictif.invalid",jeton:JETON,appareilId:APPAREIL,personne:PERSONNE}),maintenant:()=>new Date("2099-01-01T00:00:00Z"),verifierAvantEnvoi:async(_m,_s,garde)=>{
    const r=await service.envoyerSelection("INTERV-FICTIVE",fichiers,garde);return r.length===2&&r.every(f=>f.resultat.pret);

@@ -9,9 +9,9 @@ const horloge = { maintenant: new Date("2026-10-09T12:00:00Z"), decalageMinutesU
 const destinationP = { personne: cap.creation.reponse.preuve_proposition.proposant.personne,
   appareilId: cap.creation.meta.appareil_id, urlBase: "https://fictif.invalid" };
 const destinationD = { personne: cap.decision.auteur_sql, appareilId: cap.decision.meta.appareil_id, urlBase: "https://fictif.invalid" };
-function p() { return { ...api().creerMutationPropositionRevueCompletion(cap.creation.arguments, () => cap.creation.meta.intention_uuid, horloge, destinationP), proprietaire: destinationP.personne }; }
+function p() { return { ...api().creerMutationPropositionRevueCompletion(cap.creation.arguments, () => cap.creation.meta.intention_uuid, horloge, destinationP), destination: destinationP.urlBase, proprietaire: destinationP.personne }; }
 function d() { return { ...api().creerMutationDecisionRevueCompletion(cap.decision.arguments,
-  cap.lectures[1].reponse, cap.lectures[1].arguments, () => cap.decision.meta.intention_uuid, horloge, destinationD), proprietaire: destinationD.personne }; }
+  cap.lectures[1].reponse, cap.lectures[1].arguments, () => cap.decision.meta.intention_uuid, horloge, destinationD), destination: destinationD.urlBase, proprietaire: destinationD.personne }; }
 test("P et D RPC gardent leurs vrais args ; destination/UUID restent locaux", () => {
   const m = p(), n = d();
   expect(api().argumentsRpcRevueCompletion(m)).toEqual(cap.creation.arguments);
@@ -53,7 +53,7 @@ test.each(mauvaisD)("D sans preuve propre demeure inconnue, même quand son stat
 test("SDK/dépôt/vidangeur : D inconnue bloque la generic suivante et reprise exacte après restart", async () => {
   const depot = new DepotOutboxMemoire(), m = await depot.inserer(d());
   const next = await depot.inserer({ ...soumettreMutation(creerMutation({ type: "approval_decision", chantierId: "approbations",
-    payload: { demande_id: "APP-SUITE-FICTIVE", decision: "approuver" } }, () => "UUID-SUITE-FICTIF", horloge)), proprietaire: destinationD.personne });
+    payload: { demande_id: "APP-SUITE-FICTIVE", decision: "approuver" } }, () => "UUID-SUITE-FICTIF", horloge)), destination: destinationD.urlBase, proprietaire: destinationD.personne });
   let date = horloge.maintenant, response: unknown = {};
   const fetchImpl = jest.fn(async () => new Response(JSON.stringify({ ok: true, result: response }), { status: 200 }));
   const config = { depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil: invoquerOutil, fetchImpl,
@@ -87,7 +87,7 @@ test.each([400, 401, 403, 404, 500])("HTTP %s après dispatch ne libère pas une
 test("générique inconnue devant D bloque aussi la même série ; anciens ACK génériques inchangés", async () => {
   const depot = new DepotOutboxMemoire();
   await depot.inserer({ ...soumettreMutation(creerMutation({ type: "approval_decision", chantierId: "approbations",
-    payload: { demande_id: "APP-AVANT-FICTIVE", decision: "approuver" } }, () => "UUID-AVANT-FICTIF", horloge)), proprietaire: destinationD.personne });
+    payload: { demande_id: "APP-AVANT-FICTIVE", decision: "approuver" } }, () => "UUID-AVANT-FICTIF", horloge)), destination: destinationD.urlBase, proprietaire: destinationD.personne });
   const m = await depot.inserer(d()), f = jest.fn(async () => new Response(JSON.stringify({ ok: true, result: {} }), { status: 200 }));
   await creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil: invoquerOutil, fetchImpl: f,
     session: () => ({ ...destinationD, jeton: "JETON-FICTIF" }), maintenant: () => horloge.maintenant,
@@ -122,7 +122,7 @@ test.each(["P", "D"])("reçu %s persisté mais altéré bloque la suivante sans 
   if (!i.accepte) throw new Error("ACK SQL attendu");
   await depot.inserer({ ...m, statut: "envoyee", resumeAccepte: i.resume, id: "UUID-ALTERE-FICTIF" });
   await depot.inserer({ ...soumettreMutation(creerMutation({ type: "approval_decision", chantierId: "approbations",
-    payload: { demande_id: "SUITE-FICTIVE", decision: "approuver" } }, () => "UUID-SUITE-FICTIF", horloge)), proprietaire: m.proprietaire });
+    payload: { demande_id: "SUITE-FICTIVE", decision: "approuver" } }, () => "UUID-SUITE-FICTIF", horloge)), destination: m.destination, proprietaire: m.proprietaire });
   const f = jest.fn(async () => new Response("{}", { status: 200 }));
   const r = await creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil: invoquerOutil, fetchImpl: f,
     session: () => ({ ...(type === "P" ? destinationP : destinationD), jeton: "JETON-FICTIF" }),

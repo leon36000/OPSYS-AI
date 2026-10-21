@@ -54,7 +54,7 @@ const texte = () => JSON.stringify(arbre!.toJSON());
 const appuyer = async (cle: string) => { const b = arbre!.root.findAllByProps({accessibilityLabel:cle}).find(x=>typeof x.props.onPress==="function"); expect(b).toBeDefined(); expect(b!.props.disabled).not.toBe(true); await act(async () => b!.props.onPress()); };
 beforeEach(async () => {
   jest.clearAllMocks(); mockConnected=true; mockUUID=0; mockId=capture.request.args.intervention_id;
-  mockKV=new DepotCleValeurMemoire(); mockOutbox=avecProprietaire(new DepotOutboxMemoire(),()=>obtenirSessionEnvoi()?.personne??null);
+  mockKV=new DepotCleValeurMemoire(); mockOutbox=avecProprietaire(new DepotOutboxMemoire(),()=>obtenirSessionEnvoi()?.personne??null,()=>obtenirSessionEnvoi()?.urlBase??null);
   definirConfigurationAppel(configuration); definirPersonneConfirmee({ ...configuration, personne:"EMPLOYEE-FICTIF",role:"employee" });
   await ecrireWctIdCompletion(mockKV,mockId,capture.request.args.wct_id);
   mockCharger.mockImplementation(async (i:string,w:string,d:number) => { const args={intervention_id:i,wct_id:w,decalage:d,limite:8}; const lu=lireContexteMateriaux(capture.response,args); if (!lu.ok) return {source:"aucune",raison:{code:lu.code,detail:lu.detail}}; return {source:"serveur",valeur:lu.value}; });

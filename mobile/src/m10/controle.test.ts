@@ -36,7 +36,7 @@ function valeur<T>(r: { ok: true; value: T } | { ok: false; detail: string }): T
 function harness(options: { depot?: DepotOutbox; cache?: boolean; fetch?: typeof fetch;
   obtenirDepot?: () => Promise<DepotOutbox>; dossier?: () => Promise<ResultatSection<DossierRevisionM10> | null> } = {}) {
   let courante: SessionEnvoi | null = session, epoch = 0, status: ChoixArbitrageMemoire = "en_attente", index = 0;
-  const base = options.depot ?? new DepotOutboxMemoire(), depot = avecProprietaire(base, () => courante?.personne ?? null);
+  const base = options.depot ?? new DepotOutboxMemoire(), depot = avecProprietaire(base, () => courante?.personne ?? null, () => courante?.urlBase ?? null);
   const captures = () => { const e = epoch, s = courante; return { session: s, courante: () => s !== null && courante !== null && e === epoch }; };
   const calls: string[] = [];
   const fetchImpl = options.fetch ?? jest.fn(async () => { status = "distincts_confirmes"; return new Response(JSON.stringify({ ok: true, result: f.arbitrage_accepte.enveloppe.ok ? { ok: true, resultat: { accepte: true, resultat: ack } } : null })); });

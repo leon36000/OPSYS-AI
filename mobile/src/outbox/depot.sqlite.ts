@@ -19,6 +19,8 @@ import type { MutationOutbox, StatutMutation, TypeMutation } from "./types";
  * concurrentes.
  * `prochaine_tentative_a` : instant UTC avant lequel un renvoi ne doit pas être tenté (`NULL` =
  * due immédiatement) — posé par `marquerEchecReessayable` (src/outbox/mutation.ts).
+ * `destination` : URL exacte du Gateway à l’insertion, sans jeton ; NULL pour les anciennes lignes,
+ * conservées en quarantaine sans rattachement implicite au Gateway courant.
  * `proprietaire` (PLAN T1.4-l) : la personne sous laquelle la mutation a été créée, posée à l'insertion
  * et jamais réécrite ; `NULL` pour une ligne d'avant cette colonne (voir `initialiserSchemaOutbox`).
  */
@@ -35,7 +37,8 @@ CREATE TABLE IF NOT EXISTS outbox (
   created_at_local TEXT NOT NULL,
   prochaine_tentative_a TEXT,
   proprietaire TEXT,
-  resume_accepte TEXT
+  resume_accepte TEXT,
+  destination TEXT
 );
 `.trim();
 
@@ -50,6 +53,10 @@ export async function initialiserSchemaOutbox(db: SQLiteDatabase): Promise<void>
   const colonnes = await db.getAllAsync<{ name: string }>("PRAGMA table_info(outbox)");
   if (!colonnes.some((colonne) => colonne.name === "proprietaire")) {
     await db.execAsync("ALTER TABLE outbox ADD COLUMN proprietaire TEXT");
+  }
+  // No inferred backfill: a person alone cannot identify a legacy gateway.
+  if (!colonnes.some((colonne) => colonne.name === "destination")) {
+    await db.execAsync("ALTER TABLE outbox ADD COLUMN destination TEXT");
   }
   if (!colonnes.some((colonne) => colonne.name === "resume_accepte")) {
     await db.execAsync("ALTER TABLE outbox ADD COLUMN resume_accepte TEXT");
@@ -69,6 +76,7 @@ interface LigneOutboxBrute {
   prochaine_tentative_a: string | null;
   proprietaire: string | null;
   resume_accepte: string | null;
+  destination: string | null;
 }
 
 function versMutation(ligne: LigneOutboxBrute): MutationOutbox {
@@ -84,6 +92,7 @@ function versMutation(ligne: LigneOutboxBrute): MutationOutbox {
     createdAtLocal: ligne.created_at_local,
     prochaineTentativeA: ligne.prochaine_tentative_a,
     proprietaire: ligne.proprietaire,
+    destination: ligne.destination,
     resumeAccepte: ligne.resume_accepte === null ? null : JSON.parse(ligne.resume_accepte) as unknown,
   };
 }
@@ -116,9 +125,9 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
       const ligne = await db.getFirstAsync<{ sequence: number }>(
         `INSERT INTO outbox
            (id, sequence, type, chantier_id, payload, depends_on, statut, tentatives, created_at_local,
-            prochaine_tentative_a, proprietaire, resume_accepte)
+            prochaine_tentative_a, proprietaire, resume_accepte, destination)
          VALUES
-           (?, (SELECT COALESCE(MAX(sequence), 0) + 1 FROM outbox), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           (?, (SELECT COALESCE(MAX(sequence), 0) + 1 FROM outbox), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          RETURNING sequence`,
         [
           mutation.id,
@@ -132,12 +141,13 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
           mutation.prochaineTentativeA,
           mutation.proprietaire,
           mutation.resumeAccepte == null ? null : JSON.stringify(mutation.resumeAccepte),
+          mutation.destination ?? null,
         ],
       );
       if (!ligne) {
         throw new Error(`échec d'insertion dans outbox, aucune séquence retournée : ${mutation.id}`);
       }
-      return { ...mutation, sequence: ligne.sequence };
+      return { ...mutation, destination: mutation.destination ?? null, sequence: ligne.sequence };
     },
 
     async mettreAJourSiInchangee(attendue, suivante) {
@@ -148,18 +158,18 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
       const ligne = await db.getFirstAsync<{ id: string }>(
         `UPDATE outbox SET statut = ?, tentatives = ?, prochaine_tentative_a = ?, resume_accepte = ?
          WHERE id IS ? AND sequence IS ? AND type IS ? AND chantier_id IS ? AND payload IS ?
-           AND depends_on IS ? AND created_at_local IS ? AND proprietaire IS ? AND statut IS ?
+           AND depends_on IS ? AND created_at_local IS ? AND proprietaire IS ? AND destination IS ? AND statut IS ?
            AND tentatives IS ? AND prochaine_tentative_a IS ? AND resume_accepte IS ? RETURNING id`,
         [cible.statut, cible.tentatives, cible.prochaineTentativeA, cible.resumeAccepte,
           attendue.id, attendue.sequence, attendue.type, attendue.chantierId, attendue.payload,
-          attendue.dependsOn, attendue.createdAtLocal, attendue.proprietaire, attendue.statut,
+          attendue.dependsOn, attendue.createdAtLocal, attendue.proprietaire, attendue.destination, attendue.statut,
           attendue.tentatives, attendue.prochaineTentativeA, attendue.resumeAccepte],
       );
       return ligne !== null;
     },
 
     async mettreAJour(mutation) {
-      // `sequence` et `proprietaire` ne sont jamais réécrites ici : assignées une fois à l'insertion,
+      // `sequence`, `proprietaire` et `destination` ne sont jamais réécrites ici : assignées une fois à l'insertion,
       // immuables ensuite (un statut qui change ne change pas à qui appartient la mutation).
       await db.runAsync(
         `UPDATE outbox

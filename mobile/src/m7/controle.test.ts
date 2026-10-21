@@ -49,7 +49,7 @@ function harness(options: { owner?: boolean; list?: () => Promise<unknown>; deci
   }
   const horloge = () => ({ maintenant: new Date("2026-10-04T12:00:00.000Z"), decalageMinutesUTC: 0 });
   const base = options.depot ?? new DepotOutboxMemoire();
-  const depot = avecProprietaire(base, () => current()?.personne ?? null);
+  const depot = avecProprietaire(base, () => current()?.personne ?? null, () => current()?.urlBase ?? null);
   const appeler: AppelM7 = async (tool, args, mutation) => {
     enregistrer(tool, args, mutation);
     if (tool === "m9_lister_demandes_approbation") return acc(ownerResult(options.owner ?? true));

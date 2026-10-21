@@ -17,7 +17,7 @@ const session = { urlBase: "https://fictif.local", jeton: "jeton-fictif", appare
 const horloge = { maintenant: new Date("2026-09-16T15:10:00Z"), decalageMinutesUTC: -240 };
 let compteur = 0;
 async function intention(depot: DepotOutboxMemoire, revisionId: string = ack.revision_ligne_id, owner: string = ack.par) {
-  return avecProprietaire(depot, () => owner).inserer(creerMutationArbitrageMemoire(revisionId, "distincts_confirmes", () => `uuid-fictif-${++compteur}`, horloge));
+  return avecProprietaire(depot, () => owner, () => session.urlBase).inserer(creerMutationArbitrageMemoire(revisionId, "distincts_confirmes", () => `uuid-fictif-${++compteur}`, horloge));
 }
 const couple = (v: unknown) => ({ ok: true, resultat: { accepte: true, resultat: v } });
 const http = (result: unknown, status = 200) => new Response(JSON.stringify({ ok: true, result }), { status });

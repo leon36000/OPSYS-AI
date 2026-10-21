@@ -26,7 +26,7 @@ export interface DepotOutbox {
 export function capturerMutationOutbox(mutation: MutationOutbox) {
   return Object.freeze({ id: mutation.id, sequence: mutation.sequence, type: mutation.type,
     chantierId: mutation.chantierId, payload: JSON.stringify(mutation.payload), dependsOn: mutation.dependsOn,
-    createdAtLocal: mutation.createdAtLocal, proprietaire: mutation.proprietaire,
+    createdAtLocal: mutation.createdAtLocal, proprietaire: mutation.proprietaire, destination: mutation.destination ?? null,
     statut: mutation.statut, tentatives: mutation.tentatives, prochaineTentativeA: mutation.prochaineTentativeA,
     resumeAccepte: mutation.resumeAccepte == null ? null : JSON.stringify(mutation.resumeAccepte) });
 }
@@ -35,7 +35,7 @@ export type InstantaneMutationOutbox = ReturnType<typeof capturerMutationOutbox>
 /** Les transitions CAS ne peuvent changer ni la clé, ni la charge, ni son propriétaire. */
 export function memeIntentionOutbox(a: InstantaneMutationOutbox, b: InstantaneMutationOutbox): boolean {
   return a.id === b.id && a.sequence === b.sequence && a.type === b.type && a.chantierId === b.chantierId &&
-    a.payload === b.payload && a.dependsOn === b.dependsOn && a.createdAtLocal === b.createdAtLocal && a.proprietaire === b.proprietaire;
+    a.payload === b.payload && a.dependsOn === b.dependsOn && a.createdAtLocal === b.createdAtLocal && a.proprietaire === b.proprietaire && a.destination === b.destination;
 }
 
 /** Implémentation mémoire de `DepotOutbox`, utilisée par les tests. */

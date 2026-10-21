@@ -210,7 +210,7 @@ export function creerMutationObligationPreparee(args: ArgumentsDeclarationObliga
   if (!a || !destination(local) || !Number.isFinite(horloge.maintenant.getTime()) || !Number.isInteger(horloge.decalageMinutesUTC) || Math.abs(horloge.decalageMinutesUTC) >= 1440) throw new Error("Intention d’obligation invalide.");
   const m = creerMutation({ type: "obligation_preparee", chantierId: `obligation-m5:${a.categorie}`, payload: { ...a, [LOCAL]: local } }, genererId, horloge);
   if (!uuid(m.id) || !horodatageM10Valide(m.createdAtLocal)) throw new Error("UUID ou heure d’intention invalide.");
-  return { ...soumettreMutation(m), proprietaire: local.personne };
+  return { ...soumettreMutation(m), destination: local.url_base, proprietaire: local.personne };
 }
 function charge(mutation: MutationOutbox): { args: ArgumentsDeclarationObligation; locale: Locale; meta: MetaLocaleObligation } | null {
   const c = copierJsonLecture(mutation); if (!objet(c) || c.type !== "obligation_preparee" || !objet(c.payload) || !uuid(c.id) || !horodatageM10Valide(c.createdAtLocal)) return null;
