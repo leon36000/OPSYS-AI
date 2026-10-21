@@ -10,6 +10,7 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import hashlib
+import ipaddress
 import json
 import math
 import os
@@ -71,7 +72,16 @@ class _RefuserRedirection(urllib.request.HTTPRedirectHandler):
 
 
 def _ouvrir(requete: urllib.request.Request, delai_s: float):
-    return urllib.request.build_opener(_RefuserRedirection()).open(requete, timeout=delai_s)
+    handlers: list[Any] = [_RefuserRedirection()]
+    hote = urllib.parse.urlsplit(requete.full_url).hostname
+    try:
+        boucle_locale = ipaddress.ip_address(hote or "").is_loopback
+    except ValueError:
+        boucle_locale = False
+    if boucle_locale:
+        # Un proxy issu de l'environnement ne doit pas transformer un appel local en transfert.
+        handlers.append(urllib.request.ProxyHandler({}))
+    return urllib.request.build_opener(*handlers).open(requete, timeout=delai_s)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -100,6 +110,20 @@ class ConfigurationSTT:
             raise ErreurVoicemail("REJ-STT-CONFIG", f"{ENV_URL} doit être une URL http(s) sans identifiants")
         if not self.local and parties.scheme != "https":
             raise ErreurVoicemail("REJ-STT-CONFIG", "un endpoint hors machine doit utiliser HTTPS")
+        if self.local:
+            # La déclaration administrateur ne suffit pas à dispenser du consentement externe.
+            # Fixer localhost évite aussi de déléguer cette frontière à une résolution DNS.
+            hote = parties.hostname
+            if hote == "localhost":
+                hote = "127.0.0.1"
+                autorite = hote + (f":{parties.port}" if parties.port is not None else "")
+                url = urllib.parse.urlunsplit(parties._replace(netloc=autorite))
+            try:
+                boucle_locale = ipaddress.ip_address(hote).is_loopback
+            except ValueError:
+                boucle_locale = False
+            if not boucle_locale:
+                raise ErreurVoicemail("REJ-STT-CONFIG", "un endpoint déclaré local doit utiliser la boucle locale")
         if not self.modele.strip():
             raise ErreurVoicemail("REJ-STT-CONFIG", f"{ENV_MODELE} doit nommer le modèle STT")
         if (
