@@ -46,6 +46,10 @@ jest.mock("@/outbox/service", () => ({ obtenirDepot: async () => mockOutbox, dec
 jest.mock("@/protocole/configuration", () => jest.requireActual("../protocole/configuration"), { virtual: true });
 jest.mock("@/stockage/service", () => ({ obtenirDepotLocal: async () => mockKV }), { virtual: true });
 jest.mock("@/roles/contexte", () => ({ useSessionAppareil: () => ({ presente: true, role: "employee" }) }), { virtual: true });
+// Les exports React Native sont paresseux : les résoudre avant les cas évite de compter
+// leur compilation Babel froide dans le budget de la première interaction testée.
+const natifsRendu = jest.requireActual("react-native");
+for (const nom of ["ActivityIndicator", "Pressable", "ScrollView", "Text", "TextInput", "View"]) Reflect.get(natifsRendu, nom);
 const Ecran = require("../../app/(employee)/job/[id]/materials").default;
 const capture = captures.captures.find(c => c.phase === "m3-devis-accepte-texte-verifie")!;
 const configuration = { urlBase: "http://127.0.0.1:0", jeton: "JETON-FICTIF", appareilId: "APPAREIL-FICTIF" };
