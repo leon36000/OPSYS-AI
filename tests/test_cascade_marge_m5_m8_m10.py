@@ -352,7 +352,7 @@ def _m3_ecrire_estimation(devis_id: str, lead_id: str, duree_estimee_minutes: st
 def _m6_prix_au_livre(m6, prix: float = 8.0) -> None:
     r = executer_atomique(m6["m6_enregistrer_prix"], {
         "materiau_id": MATERIAU_ID, "fournisseur_id": "gentek-fictif", "prix_unitaire": prix, "devise": "CAD",
-        "date_effet": "2026-09-01", "source_document": None})
+        "date_effet": "2026-09-01", "source_document": None, "unite": "pi"})
     assert r["ok"] and r["resultat"]["accepte"], r
 
 

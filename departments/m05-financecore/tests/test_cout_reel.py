@@ -45,7 +45,7 @@ def _signal(lignes=_PAR_DEFAUT, statut="evaluee", **surcharges):
 
 def _prix(materiau=MATERIAU, fournisseur="gentek-fictif", prix=8.0, devise="CAD", **surcharges):
     base = {"materiau_id": materiau, "fournisseur_id": fournisseur, "prix_unitaire": prix, "devise": devise,
-            "date_effet": "2026-09-01", "source_document": None}
+            "date_effet": "2026-09-01", "source_document": None, "unite": "pi"}
     return {**base, **surcharges}
 
 
@@ -397,10 +397,11 @@ def test_wct_recu_avant_t1_5_d_sans_la_cle_duree_est_dit_sans_temps_pointe():
     assert _codes(_cout(wct=wct)) == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
 
 
-def test_aucun_wct_recu_donne_le_manque_de_temps():
+def test_aucun_wct_recu_donne_le_manque_de_temps_et_de_date_pour_les_tarifs():
     cout = cout_reel.calculer_cout_reel(None, _signal(), [_prix()], "50.00")
 
-    assert _codes(cout) == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert _codes(cout) == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert cout["cout_total"] is None and cout["cout_total_connu"] == Decimal("0")
 
 
 def test_temps_et_taux_absents_ensemble_les_deux_manques_sont_listes():
@@ -598,5 +599,5 @@ def test_le_module_est_pur_aucun_opsys_aucun_autre_departement_aucune_horloge():
         elif isinstance(noeud, ast.ImportFrom) and noeud.level == 0 and noeud.module:
             importes.add(noeud.module.split(".")[0])
 
-    assert importes <= {"__future__", "collections", "decimal", "typing"}
+    assert importes <= {"__future__", "collections", "datetime", "decimal", "typing"}
     assert not any(nom.startswith("m") and nom[1:2].isdigit() for nom in importes)

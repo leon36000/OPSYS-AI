@@ -65,7 +65,7 @@ def _signal(reelle="42.0", statut="evaluee"):
 
 def _prix(prix=8.0):
     return {"materiau_id": MATERIAU, "fournisseur_id": FOURNISSEUR, "prix_unitaire": prix, "devise": "CAD",
-            "date_effet": "2026-09-01", "source_document": None}
+            "date_effet": "2026-09-01", "source_document": None, "unite": "pi"}
 
 
 def _facture(montant="600.00", statut="BROUILLON"):
@@ -330,7 +330,7 @@ def _prix_au_livre_m6(prix=8.0):
     with stockage.transaction():
         stockage.maillons(_M6, "livre_prix").append({
             "materiau_id": MATERIAU, "fournisseur_id": FOURNISSEUR, "prix_unitaire": prix, "devise": "CAD",
-            "date_effet": "2026-09-01", "source_document": None})
+            "date_effet": "2026-09-01", "source_document": None, "unite": "pi"})
 
 
 def _traces(devis_id="DEVIS-1"):

@@ -80,6 +80,18 @@ ni les factures ne sont touchés. Les comptes à recevoir sont une vue des factu
 (`facturation.comptes_a_recevoir`). L'admin lit le tout par `m5_lire_rentabilite_chantier` et
 `m5_lire_comptes_a_recevoir` (portée `admin` seulement, même règle d'accès que `m5_etat_tresorerie`).
 
+Garde des tarifs historiques (audit du 21 octobre 2026) : un coût matériel complet exige une `unite`
+explicite du tarif identique à celle de la consommation (espaces externes ignorés, aucune conversion
+implicite). Les entrées M6 historiques ne portent pas cette unité : elles donnent désormais un coût
+partiel, `REJ-COUT-PRIX-NON-DISPONIBLE`, avec demande de confirmation ; la facture brouillon reste créée.
+Le calcul retient seulement les `date_effet` civiles ISO au plus tard à la date civile du WCT dans sa
+zone déclarée. Le dernier maillon écrit par fournisseur parmi ces tarifs éligibles conserve la priorité
+M6 ; une date manquante/illisible bloque, sans repli sur une ancienne révision. Un horodatage WCT sans
+zone ne permet pas de conclure. Un tarif futur ne modifie ni le coût ni la version d'un chantier passé.
+La valorisation reste celle du livre M6 ; elle ne prouve pas le coût d'acquisition du lot consommé.
+L’outil `m6_enregistrer_prix` accepte désormais cette unité explicite optionnelle pour ses nouveaux tarifs ;
+son absence reste inconnue et aucune entrée historique n’est réécrite.
+
 PLAN T4.15 (comptes à payer, M5.2 « comptes à payer » et M6.16 « pont finance », `comptes_a_payer.py`) : M5 sait maintenant
 ce que l'entreprise doit à ses fournisseurs. Un registre DÉDIÉ, `comptes_a_payer`, garde deux choses. (1) Chaque réception
 que M6 publie (`m6.reception_enregistree`, consommée par `outils._recevoir_reception_enregistree`) : quantité reçue x prix

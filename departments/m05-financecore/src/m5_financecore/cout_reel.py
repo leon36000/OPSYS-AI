@@ -46,6 +46,7 @@ coût PARTIEL ne porte JAMAIS de marge : ni réelle, ni écart ; ce que M5 chiff
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
@@ -88,8 +89,8 @@ _ARRONDI = (
 
 # Ce que le calcul suppose sans pouvoir le vérifier : dit à voix haute dans chaque résultat (P2).
 _HYPOTHESES = (
-    "le prix unitaire du livre de prix M6 est exprimé dans l'unité déclarée du matériau "
-    "(le livre ne porte pas d'unité)",
+    "les matériaux sont valorisés au tarif M6 éligible à la date civile de complétion du WCT "
+    "(dans sa zone déclarée), avec unité identique confirmée ; ce tarif ne prouve pas le coût du lot acheté",
     "la main-d'oeuvre est la durée pointée sur site du WCT (pauses déduites) multipliée par le taux horaire "
     "configuré ; le WCT ne porte pas l'effectif : ce taux est celui de l'équipe intervenante, par heure sur site",
     "le coût réel ne compte que les matériaux et la main-d'oeuvre sur site : ni déplacements, ni frais généraux",
@@ -162,25 +163,64 @@ def valider_taux_horaire(brut: Any) -> tuple[Decimal | None, dict[str, Any] | No
 
 
 # --------------------------------------------------------------------------------- matériaux
-def _resoudre_prix(materiau: str, livre_de_prix: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+def _date_tarif(brute: Any) -> date | None:
+    """Date civile ISO explicite ; aucune date inventée ni horloge pour compléter une pièce."""
+    if not isinstance(brute, str) or len(brute) != 10 or brute[4:5] != "-" or brute[7:8] != "-":
+        return None
+    try:
+        return date.fromisoformat(brute)
+    except ValueError:
+        return None
+
+
+def _date_completion(wct_recu: Mapping[str, Any] | None) -> date | None:
+    brute = wct_recu.get("horodatage_completion") if wct_recu is not None else None
+    if not isinstance(brute, str):
+        return None
+    try:
+        completion = datetime.fromisoformat(brute)
+    except ValueError:
+        return None
+    return completion.date() if completion.tzinfo is not None else None
+
+
+def _resoudre_prix(
+    materiau: str, unite: str, livre_de_prix: Iterable[Mapping[str, Any]], date_completion: date | None,
+) -> dict[str, Any]:
     """Le prix unitaire du livre de prix M6 pour ce matériau, ou pourquoi il n'y en a pas.
 
-    Pour chaque fournisseur, le DERNIER maillon écrit fait foi (l'ordre d'écriture, comme
-    `livre_prix.prix_en_vigueur` de M6 : aucune comparaison de dates). Une entrée dont le prix est illisible ou
+    Pour chaque fournisseur, le DERNIER maillon écrit ÉLIGIBLE à la date du WCT fait foi : les tarifs
+    futurs sont exclus, puis la priorité append-only de M6 est conservée entre les révisions éligibles.
+    Une date illisible ou une unité inconnue/incompatible empêche de conclure, sans repli silencieux.
+    Une entrée dont le prix est illisible ou
     non strictement positif, ou dont la devise n'est pas CAD, est écartée et dite. Plusieurs fournisseurs au même
     prix : ce prix. Prix différents : ambigu."""
+    if date_completion is None:
+        return {"statut": _STATUT_PRIX_NON_DISPONIBLE, "prix_unitaire": None, "sources": [],
+                "detail": "horodatage de complétion du WCT absent ou illisible (date et zone requises)"}
     derniere: dict[str, Mapping[str, Any]] = {}
     for entree in livre_de_prix:
         if isinstance(entree, Mapping) and entree.get("materiau_id") == materiau:
+            effet = _date_tarif(entree.get("date_effet"))
+            if effet is not None and effet > date_completion:
+                continue
             derniere[str(entree.get("fournisseur_id"))] = entree
     if not derniere:
         return {"statut": _STATUT_PRIX_NON_DISPONIBLE, "prix_unitaire": None, "sources": [],
-                "detail": "aucune entrée pour ce matériau dans le livre de prix M6"}
+                "detail": "aucune entrée pour ce matériau au livre de prix M6 à la date du WCT"}
 
     utilisables: dict[str, tuple[Decimal, Mapping[str, Any]]] = {}
     ecartees: list[str] = []
     for fournisseur in sorted(derniere):
         entree = derniere[fournisseur]
+        if _date_tarif(entree.get("date_effet")) is None:
+            return {"statut": _STATUT_PRIX_NON_DISPONIBLE, "prix_unitaire": None, "sources": [],
+                    "detail": f"{fournisseur} : date_effet absente ou illisible ; demander une date civile ISO"}
+        unite_prix = entree.get("unite")
+        if not isinstance(unite_prix, str) or not unite_prix.strip() or unite_prix.strip() != unite.strip():
+            return {"statut": _STATUT_PRIX_NON_DISPONIBLE, "prix_unitaire": None, "sources": [],
+                    "detail": f"{fournisseur} : unité du prix absente ou incompatible ; "
+                              f"confirmer le tarif dans l'unité déclarée {unite!r}"}
         prix = _en_decimal(entree.get("prix_unitaire"), autoriser_nombre=True)
         devise = entree.get("devise")
         if prix is None or prix <= 0:
@@ -196,7 +236,7 @@ def _resoudre_prix(materiau: str, livre_de_prix: Iterable[Mapping[str, Any]]) ->
     distincts = {prix for prix, _ in utilisables.values()}
     sources = [
         {"fournisseur_id": fournisseur, "date_effet": entree.get("date_effet"),
-         "source_document": entree.get("source_document")}
+         "source_document": entree.get("source_document"), "unite": entree.get("unite")}
         for fournisseur, (_, entree) in sorted(utilisables.items())
     ]
     if len(distincts) > 1:
@@ -208,7 +248,9 @@ def _resoudre_prix(materiau: str, livre_de_prix: Iterable[Mapping[str, Any]]) ->
     return {"statut": _STATUT_PRIX_LIVRE, "prix_unitaire": prix_unique, "sources": sources, "detail": ""}
 
 
-def _ligne_materiau(brute: Any, livre_de_prix: Iterable[Mapping[str, Any]]) -> tuple[dict[str, Any], dict | None]:
+def _ligne_materiau(
+    brute: Any, livre_de_prix: Iterable[Mapping[str, Any]], date_completion: date | None,
+) -> tuple[dict[str, Any], dict | None]:
     """Une ligne du signal de variance -> une ligne de coût, et le manque qu'elle porte (ou `None`)."""
     materiau = brute.get("materiau") if isinstance(brute, Mapping) else None
     if not isinstance(materiau, str) or not materiau.strip():
@@ -231,7 +273,7 @@ def _ligne_materiau(brute: Any, livre_de_prix: Iterable[Mapping[str, Any]]) -> t
             "REJ-COUT-LIGNE-INDETERMINEE", "quantité réelle illisible ou négative", materiau=materiau
         )
 
-    prix = _resoudre_prix(materiau, livre_de_prix)
+    prix = _resoudre_prix(materiau, unite, livre_de_prix, date_completion)
     ligne["statut"] = prix["statut"]
     ligne["sources_prix"] = prix["sources"]
     if prix["statut"] == _STATUT_PRIX_LIVRE:
@@ -248,7 +290,9 @@ def _ligne_materiau(brute: Any, livre_de_prix: Iterable[Mapping[str, Any]]) -> t
     return ligne, _manque(code, prix["detail"], materiau=materiau)
 
 
-def _materiaux(signal: Mapping[str, Any] | None, livre_de_prix: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+def _materiaux(
+    signal: Mapping[str, Any] | None, livre_de_prix: Iterable[Mapping[str, Any]], date_completion: date | None,
+) -> dict[str, Any]:
     zero = Decimal("0")
     vide = {"statut": "non_disponible", "lignes": [], "cout_connu": zero, "source_quantites": None, "manque": []}
     if signal is None:
@@ -280,7 +324,7 @@ def _materiaux(signal: Mapping[str, Any] | None, livre_de_prix: Iterable[Mapping
     manques: list[dict[str, Any]] = []
     cout_connu = zero
     for brute in lignes_brutes:
-        ligne, manque = _ligne_materiau(brute, livre)
+        ligne, manque = _ligne_materiau(brute, livre, date_completion)
         lignes.append(ligne)
         if manque is not None:
             manques.append(manque)
@@ -335,7 +379,7 @@ def calculer_cout_reel(
     dit partiel (`REJ-COUT-PLUSIEURS-WCT`) plutôt que présenté comme le total d'un chantier plus long."""
     livre = list(livre_de_prix)
     autres = sorted({str(identifiant) for identifiant in autres_wct})
-    materiaux = _materiaux(signal_variance, livre)
+    materiaux = _materiaux(signal_variance, livre, _date_completion(wct_recu))
     main_d_oeuvre = _main_d_oeuvre(wct_recu, taux_horaire)
     manque = [*materiaux["manque"], *main_d_oeuvre["manque"]]
     if autres:
@@ -351,6 +395,7 @@ def calculer_cout_reel(
     entrees = {
         "wct": {
             "wct_id": wct_recu.get("wct_id") if wct_recu is not None else None,
+            "horodatage_completion": wct_recu.get("horodatage_completion") if wct_recu is not None else None,
             "duree_reelle_minutes": main_d_oeuvre["minutes"],
         },
         "variance": {

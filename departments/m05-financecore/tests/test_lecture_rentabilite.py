@@ -104,7 +104,7 @@ def _prix_au_livre(prix=8.0, fournisseur="gentek-fictif"):
     with stockage.transaction():
         stockage.maillons("m06-material-control", "livre_prix").append({
             "materiau_id": MATERIAU, "fournisseur_id": fournisseur, "prix_unitaire": prix, "devise": "CAD",
-            "date_effet": "2026-09-01", "source_document": None})
+            "date_effet": "2026-09-01", "source_document": None, "unite": "pi"})
 
 
 @pytest.fixture

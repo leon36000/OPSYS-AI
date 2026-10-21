@@ -1314,11 +1314,12 @@ def enregistrer_prix(
     date_effet: str,
     source_document: str | None = None,
     livre_prix_historique: list[dict[str, Any]] | None = None,
+    unite: str | None = None,
 ) -> dict[str, Any]:
     registre_cible = _livre_prix_de_l_appel(livre_prix_historique)
     resultat, verdict = livre_prix.enregistrer_prix(
         materiau_id, fournisseur_id, prix_unitaire, devise, date_effet, registre_cible,
-        source_document=source_document,
+        source_document=source_document, unite=unite,
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
@@ -2716,7 +2717,8 @@ def outils() -> tuple[Outil, ...]:
                 "matériau et un fournisseur donnés, daté (date_effet). Append-only et versionné : "
                 "n'écrase jamais une entrée antérieure, chaque hausse ou correction est une "
                 "nouvelle entrée. source_document (facture ou PO d'origine) optionnel : sans référence, "
-                "marquage_source=FALLBACK_PRICE_BOOK; une référence est SOURCE_DECLAREE, jamais authentifiée ici."
+                "marquage_source=FALLBACK_PRICE_BOOK; une référence est SOURCE_DECLAREE, jamais authentifiée ici. "
+                "unite du tarif optionnelle, fournie explicitement : aucune unité inférée si elle est absente."
             ),
             parametres={
                 "type": "object",
@@ -2727,6 +2729,7 @@ def outils() -> tuple[Outil, ...]:
                     "devise": {"type": "string"},
                     "date_effet": {"type": "string"},
                     "source_document": {"type": ["string", "null"]},
+                    "unite": {"type": ["string", "null"]},
                     "livre_prix_historique": _LIVRE_PRIX_HISTORIQUE,
                 },
                 "required": ["materiau_id", "fournisseur_id", "prix_unitaire", "devise", "date_effet"],

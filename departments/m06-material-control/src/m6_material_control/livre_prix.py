@@ -55,13 +55,16 @@ def enregistrer_prix(
     date_effet: Any,
     registre_cible: Any,
     source_document: Any = None,
+    unite: Any = None,
 ) -> tuple[dict[str, Any] | None, dict | None]:
     """Ajoute une NOUVELLE entrée de prix (jamais une modification d'une entrée existante :
     append-only, PLAN T2.4 « versionnés »). Fail-closed : ``prix_unitaire`` doit être un nombre
     fini strictement positif fourni par l'appelant (jamais un défaut inventé) ; ``materiau_id``/
     ``fournisseur_id``/``devise``/``date_effet`` des chaînes non vides. ``source_document`` est
     optionnel (``None`` si absent — jamais fabriqué : référence une facture ou un PO d'origine
-    quand elle existe, M6.3 « factures et PO liés »)."""
+    quand elle existe, M6.3 « factures et PO liés »). ``unite`` est optionnelle pour préserver
+    les anciens appels : fournie, elle doit être une chaîne non vide ; absente, aucune unité
+    n'est inférée ni ajoutée au registre (M5 garde alors la valorisation matérielle partielle)."""
     entree = {
         "materiau_id": materiau_id,
         "fournisseur_id": fournisseur_id,
@@ -70,6 +73,8 @@ def enregistrer_prix(
         "date_effet": date_effet,
         "source_document": source_document,
     }
+    if unite is not None:
+        entree["unite"] = unite
     ok, code = frontieres.verifier_frontieres(entree)
     if not ok:
         return None, verdicts.construire_verdict(code)
@@ -82,6 +87,10 @@ def enregistrer_prix(
     if source_document is not None and not _texte_non_vide(source_document):
         return None, verdicts.construire_verdict(
             "REJ-PRIX-STRUCTURE-INVALIDE", detail="source_document doit être une chaîne non vide ou None"
+        )
+    if unite is not None and not _texte_non_vide(unite):
+        return None, verdicts.construire_verdict(
+            "REJ-PRIX-STRUCTURE-INVALIDE", detail="unite doit être une chaîne non vide ou None"
         )
     if isinstance(prix_unitaire, bool) or not isinstance(prix_unitaire, (int, float)):
         return None, verdicts.construire_verdict("REJ-PRIX-INVALIDE", detail="prix_unitaire doit être un nombre")

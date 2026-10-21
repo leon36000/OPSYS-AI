@@ -132,7 +132,7 @@ CHAMPS_FOURNISSEUR_OPTIONNELS = frozenset(
 # facture/un PO d'origine (M6.3, « factures et PO liés ») quand elle existe, None pour un prix
 # fourni directement (ex. grille tarifaire du fournisseur).
 CHAMPS_ENTREE_PRIX_REQUIS = frozenset({"materiau_id", "fournisseur_id", "prix_unitaire", "devise", "date_effet"})
-CHAMPS_ENTREE_PRIX_OPTIONNELS = frozenset({"source_document"})
+CHAMPS_ENTREE_PRIX_OPTIONNELS = frozenset({"source_document", "unite"})
 
 # PLAN T2.5 point 3 — ligne d'un PO à la création (matériau + quantité demandée) : mêmes DEUX
 # clés que CHAMPS_LIGNE_DEMANDEE (reception.py) par cohérence de vocabulaire, mais contrat

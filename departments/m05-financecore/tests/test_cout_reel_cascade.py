@@ -113,12 +113,15 @@ def _livrer(instant="2026-09-25T17:00:00-04:00"):
     assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
 
 
-def _prix_au_livre_m6(prix=8.0, fournisseur="gentek-fictif", materiau=MATERIAU, devise="CAD"):
-    """Une entrée du livre de prix de M6, au format de `m6_material_control.livre_prix.enregistrer_prix`."""
+def _prix_au_livre_m6(
+    prix=8.0, fournisseur="gentek-fictif", materiau=MATERIAU, devise="CAD",
+    unite="pi", date_effet="2026-09-01",
+):
+    """Tarif fictif enrichi avec une unité confirmée ; le producteur M6 historique ne la porte pas."""
     with stockage.transaction():
         stockage.maillons(_M6, "livre_prix").append({
             "materiau_id": materiau, "fournisseur_id": fournisseur, "prix_unitaire": prix, "devise": devise,
-            "date_effet": "2026-09-01", "source_document": None})
+            "date_effet": date_effet, "source_document": None, "unite": unite})
 
 
 def _traces(devis_id="DEVIS-1"):
@@ -373,6 +376,38 @@ def test_un_signal_delirant_ne_bloque_jamais_la_facture_brouillon(base_durable, 
 # =========================================================================================
 # 3. L'état suit ses entrées : un prix, une facture envoyée, jamais une réécriture
 # =========================================================================================
+def test_un_tarif_futur_ne_change_ni_la_trace_ni_la_marge_historique(base_durable, taux_configure):
+    _prix_au_livre_m6()
+    for piece in ("devis", "wct", "variance"):
+        _publier(piece)
+    _livrer()
+    avant = _traces()
+
+    _prix_au_livre_m6(prix=80, date_effet="2027-01-01")
+
+    assert _essayer() == {"statut": "deja_tracee"}
+    assert _traces() == avant
+    with stockage.transaction():
+        r = outils_mod._etat_chantier("DEVIS-1")["rentabilite"]
+    assert r["cout_reel"]["cout_total"] == Decimal("486.00")
+    assert r["marge_reelle"] == Decimal("114.00")
+
+
+def test_un_tarif_m6_sans_unite_garde_la_cascade_partielle_sans_marge(base_durable, taux_configure):
+    _prix_au_livre_m6(unite=None)
+    for piece in ("devis", "wct", "variance"):
+        _publier(piece)
+    _livrer()
+
+    trace = _traces()[-1]
+    assert trace["verdict"] == "PARTIELLE"
+    assert _codes(trace) == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+    r = trace["rentabilite"]
+    assert r["marge_reelle"] is None
+    assert r["cout_reel"]["cout_total"] is None
+    assert r["cout_reel"]["cout_total_connu"] == Decimal("150.00")
+
+
 def test_un_prix_ajoute_au_livre_apres_coup_ajoute_une_trace_sans_effacer_la_precedente(base_durable, taux_configure):
     for piece in ("devis", "wct", "variance"):
         _publier(piece)
