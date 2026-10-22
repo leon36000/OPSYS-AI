@@ -12,6 +12,10 @@ from opsys import stockage
 from opsys.evenements import bus
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, META
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 FICTIF = True
 TYPE = "opsys.demo_complete"
@@ -206,7 +210,7 @@ def test_json_sql_profond_reel_devient_erreur_copie_constante(base, cible):
 
     def tables_reelles(cnx):
         noms = inspect(cnx).get_table_names()
-        assert len(noms) == 49
+        assert set(noms) == TABLES_SQLITE
         return {nom: sorted(repr(tuple(ligne)) for ligne in cnx.execute(text(
             'SELECT * FROM "' + nom.replace('"', '""') + '"',
         ))) for nom in noms}

@@ -13,6 +13,10 @@ from m6_material_control import outils
 
 from opsys import contexte, fichiers, stockage
 from opsys.outils import Autonomie, Niveau, executer_atomique
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 NOM = "m6_declarer_materiaux_avec_preuves_appareil"
 LECTURE = "m6_lire_preuves_pertes_wct_appareil"
@@ -122,7 +126,7 @@ def test_deux_pertes_identiques_references_reelles_distinctes(monde):
         assert ref["reference_mouvement"]["hash_maillon"] == mov[ref["reference_mouvement"]["index"]]["hash_maillon"]
         assert ref["reference_preuve"]["hash_maillon"] == proofs[k]["hash_maillon"]
     after = fx._tables()
-    assert len(before) == len(after) == 49 and after["artefacts"] == []
+    assert set(before) == set(after) == TABLES_SQLITE and after["artefacts"] == []
     assert "cout_unitaire" not in str(ack) and "Personne" not in str(ack)
 
 
@@ -141,7 +145,7 @@ def lire(a, actor=ADMIN, **page):
     before = fx._tables()
     with contexte.appele_par_appareil(actor):
         r = executer_atomique(outil(LECTURE), {"wct_id": a["wct_id"], "decalage": 0, "limite": 8, **page})
-    assert before == fx._tables() and len(before) == 49
+    assert before == fx._tables() and set(before) == TABLES_SQLITE
     return r
 
 

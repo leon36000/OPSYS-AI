@@ -16,6 +16,10 @@ from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.evenements import bus
 from opsys.outils import Autonomie, Niveau
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 module_maillons = importlib.import_module("opsys.stockage.maillons")
 
@@ -36,7 +40,7 @@ def _cap_garde(limite=5400):
 
 def _tables(cnx):
     noms = inspect(cnx).get_table_names()
-    assert len(noms) == 49  # Aucun DDL ajouté par ce diagnostic.
+    assert set(noms) == TABLES_SQLITE  # Aucun DDL ajouté par ce diagnostic.
     return {nom: sorted(map(tuple, cnx.execute(text(
         'SELECT * FROM "' + nom.replace('"', '""') + '"',
     )).all()), key=repr) for nom in noms}

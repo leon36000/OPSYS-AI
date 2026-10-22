@@ -14,6 +14,10 @@ from m6_material_control import classement_variance_appareil as c
 
 from opsys import contexte, idempotence
 from opsys.outils import Autonomie, Niveau
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 p = Path(__file__).with_name("test_outbox.py")
 spec = importlib.util.spec_from_file_location("fixture_revue_sources_m4", p)
@@ -294,7 +298,7 @@ def test_SQL_courant_publications_reelles_et_tables_inchangees(monde):
     assert dto["lignes_critiques"][0]["classement_courant"] == class_ack["resultat"]
     assert dto["reference_completion"]["ligne_id"] != dto["reference_completion"]["hash_maillon"]
     assert dto["couverture"]["positions_sans_classement"] == []
-    assert len(before) == 49 and before == sqlfx.fx.fx._tables()
+    assert set(before) == TABLES_SQLITE and before == sqlfx.fx.fx._tables()
     assert "cout_unitaire" not in str(dto) and "fix_gps" not in str(dto)
 
 
@@ -512,7 +516,7 @@ def test_SQL_historique_propre_creation_P_et_decision_SQL_sans_Cap_Device(monde)
     dto = historical["resultat"]["resultat"]
     assert dto["preuve_completion"]["association_decision"]["intention_uuid"] == meta_d.cle
     assert dto["preuve_completion"] == result["reponse"]["resultat"]["resultat"]
-    assert before == sqlfx.fx.fx._tables() and len(before) == 49
+    assert before == sqlfx.fx.fx._tables() and set(before) == TABLES_SQLITE
 
 
 def test_interface_socle_de_variance_delegue_aux_contrats_canoniques_m6():

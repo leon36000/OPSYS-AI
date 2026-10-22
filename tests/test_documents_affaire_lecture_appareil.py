@@ -13,7 +13,11 @@ import pytest
 from sqlalchemy import create_engine, event, update
 
 from opsys import approbations, contexte, idempotence, identite, stockage
+from opsys.stockage.schema import META as SCHEMA_META
 from opsys.stockage.schema import REGISTRES
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 FICTIF = True
 _SPEC = importlib.util.spec_from_file_location(
@@ -60,7 +64,7 @@ def test_affaire_connue_index_vide_couple_entier_sans_rejoue_et49tables(monde):
             "version_schema": 1, "affaire_id": AFFAIRE, "decalage": 0, "limite": 1,
             "total_versions": 0, "suivant_decalage": None, "versions": [],
         }}}
-        assert len(avant) == 49 and tables(cnx) == avant
+        assert set(avant) == TABLES_SQLITE and tables(cnx) == avant
 
 
 def test_index_et_detail_octets_originaux_sans_trace_claim_ou_publication(monde):
@@ -76,7 +80,7 @@ def test_index_et_detail_octets_originaux_sans_trace_claim_ou_publication(monde)
         assert len(row) == 16 and "corps" not in row and "intention" not in row
         assert row["document_ref"] == ack["document_ref"] and row["version_source"] == ack["version_source"]
         assert precise["corps"] == _FX.CORPS and len(precise) == 14
-        assert tables(cnx) == avant and len(avant) == 49
+        assert tables(cnx) == avant and set(avant) == TABLES_SQLITE
         precise["auteur"]["personne"] = "autre-fictif"
         assert lire(cnx, "lire", detail(ack))["resultat"]["resultat"]["auteur"]["personne"] == ACTEUR.personne
 

@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from opsys import approbations, stockage
 from opsys.outils import Niveau
 from opsys.stockage.schema import (
+    EFFACEMENTS_CLES,
     FUSION_AP_OCR_SOURCES,
     FUSION_AP_SAISIES,
     FUSION_PDF_OCR_COMMANDES,
@@ -41,9 +42,10 @@ def _migration(revision: str, *, descendre: bool = False):
 def _anciennes():
     # Ce scénario compare les tables antérieures à 0024, y compris lors du
     # retour à 0023. Les compartiments OCR/AP OCR ajoutés après 0024 ont des
-    # scénarios distincts de conservation et de rollback.
+    # scénarios distincts de conservation et de rollback. La file de nettoyage
+    # 0027 est également absente du schéma historique 0023.
     nouvelles = {t.name for t in (
-        FUSION_AP_SAISIES, FUSION_AP_OCR_SOURCES,
+        FUSION_AP_SAISIES, FUSION_AP_OCR_SOURCES, EFFACEMENTS_CLES,
         FUSION_PDF_OCR_RUNS, FUSION_PDF_OCR_COMMANDES, FUSION_PDF_OCR_QUOTA,
     )}
     with stockage.transaction() as cnx:
