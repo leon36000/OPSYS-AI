@@ -193,6 +193,9 @@ def rechercher(requete: str, portees: list[str] | None = None, k: int = K_DEFAUT
                     )
                 else:
                     avertissement = f"procédures : provider local/profil indisponible ({exc}); recherche plein texte"
+    elif client is not None and not client.local:
+        avertissement = ("requête non classifiée : aucun texte envoyé à un endpoint "
+                         "d'embeddings non local")
     elif client is not None:
         try:
             vecteur = client.plonger([requete])[0]

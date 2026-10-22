@@ -235,6 +235,7 @@ def test_mode_plein_texte_explicite_sans_embeddings_ou_en_panne(base):
     assert len(sans["resultats"]) == 1
     base.setenv("OPSYS_EMBEDDINGS_URL", f"http://127.0.0.1:{port_ferme()}/v1")
     base.setenv("OPSYS_EMBEDDINGS_MODELE", "BAAI/bge-m3")
+    base.setenv("OPSYS_EMBEDDINGS_LOCAL", "1")  # ce contrôle vise une panne, pas le refus de sortie cloud
     panne = _appel("opsys_memoire_rechercher", requete="toiture bardeaux")["resultat"]
     assert panne["mode"] == "plein_texte" and "indisponibles" in panne["avertissement"]
     assert len(panne["resultats"]) == 1
