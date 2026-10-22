@@ -505,3 +505,117 @@ def test_purge_par_manager_seul_refusee_rien_execute(base_durable):
             "ligne_id": ligne_id, "accede_par": "audit-1", "horodatage": "2026-01-01T00:00:01+00:00",
         })
     assert lecture["resultat"]["accepte"] is True
+
+
+# F4 — la réponse signée atteste le retrait logique et un travail d'effacement initial,
+# jamais une disparition physique avant commit. Toutes les personnes/données sont fictives.
+def _demande_purge_differee(par_nom, *, personne="owner-f4", role="nathan_owner"):
+    from opsys import cles_chiffrement
+    dep = _dep_m4()
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, personne, "Personne QA fictive", "mot-de-passe-fictif-f4-1234", [role])
+        ident = approbations.creer_demande(
+            cnx, "m04-field-ops", "m4_purger_retention_gps",
+            {"technicien_id": "T1", "fin_contrat_travail": "2024-01-01T00:00:00+00:00",
+             "horodatage": "2026-06-02T09:00:01+00:00", "motif": "Rétention QA fictive échue."},
+            niveau=Niveau.N5,
+        )
+        cle = cles_chiffrement.lire(cnx, "m04-field-ops/gps", "T1")
+    return dep, ident, cle
+
+
+def _f4_attestation():
+    return {"nom": "Me Personne Fictive", "profession": "avocate", "reference_document": "F4-QA-fictif"}
+
+
+def _f4_fichiers(path, key):
+    return {suffix: key in target.read_bytes() or key.hex().encode() in target.read_bytes()
+            for suffix in ("", "-wal", "-shm", "-journal")
+            if (target := Path(str(path) + suffix)).exists()}
+
+
+def test_effacement_differe_approbation_initiale_puis_reprise_et_historique(base_durable):
+    import sqlite3
+
+    from opsys import cles_chiffrement
+    par_nom = {o.nom: o for o in outils()}
+    _, ligne_id = _pointer_geo_trace(par_nom, lead_id="F4-QA-fictif")
+    dep, ident, key = _demande_purge_differee(par_nom)
+    assert key is not None
+    path = Path(base_durable.removeprefix("sqlite:///"))
+    reader = sqlite3.connect(path, isolation_level=None)
+    try:
+        reader.execute("BEGIN")
+        assert reader.execute("SELECT count(*) FROM cles_chiffrement").fetchone()[0] > 0
+        with stockage.transaction() as cnx:
+            before = next(m for m in _reg_durable().lire() if m.get("ligne_id") == ligne_id)
+            decision = approbations.decider(cnx, ident, True, "owner-f4", par_nom,
+                {"m04-field-ops": dep}, attestation=_f4_attestation())
+            assert decision["statut"] == "executee", decision
+            initial = decision["reponse"]["resultat"]["resultat"]
+            assert initial["etat_fichiers"] == "en_attente"
+            assert initial["cle_detruite"] is True  # logique, pas une attestation disque
+            purge_id = initial["purge_id"]
+            job = cles_chiffrement.lire_effacement(cnx, purge_id)
+            assert job["demande_id"] == ident
+            assert job["etat_fichiers"] == "en_attente"
+            assert cles_chiffrement.lire(cnx, "m04-field-ops/gps", "T1") is None
+            audit = _reg_durable().lire()[-1]
+            assert audit["purge_id"] == purge_id and audit["etat_fichiers"] == "en_attente"
+            assert next(m for m in _reg_durable().lire() if m.get("ligne_id") == ligne_id) == before
+        with stockage.transaction() as cnx:
+            assert cles_chiffrement.lire_effacement(cnx, purge_id)["etat_fichiers"] == "en_attente"
+            saved = approbations.lire(cnx, ident)["resultat"]
+        assert any(_f4_fichiers(path, key).values())
+    finally:
+        reader.rollback()
+        reader.close()
+    final = cles_chiffrement.finaliser_effacement(purge_id, base_durable)
+    assert final["etat_fichiers"] == "termine"
+    assert not any(_f4_fichiers(path, key).values())
+    with stockage.transaction() as cnx:
+        assert approbations.lire(cnx, ident)["resultat"] == saved
+        assert cles_chiffrement.lire_effacement(cnx, purge_id)["etat_fichiers"] == "termine"
+        assert _reg_durable().lire()[-1]["etat_fichiers"] == "en_attente"
+        assert _reg_durable().valider_chaine()
+
+
+def test_effacement_differe_rollback_exterieur_annule_demande_et_audit(base_durable):
+    from opsys import cles_chiffrement
+    par_nom = {o.nom: o for o in outils()}
+    _pointer_geo_trace(par_nom, lead_id="F4-QA-rollback-fictif")
+    dep, ident, key = _demande_purge_differee(par_nom)
+    assert key is not None
+    with stockage.transaction() as cnx:
+        audit_before = _reg_durable().lire()
+    with pytest.raises(RuntimeError, match="F4_ROLLBACK_QA"), stockage.transaction() as cnx:
+        decision = approbations.decider(cnx, ident, True, "owner-f4", par_nom,
+            {"m04-field-ops": dep}, attestation=_f4_attestation())
+        assert decision["statut"] == "executee", decision
+        purge_id = decision["reponse"]["resultat"]["resultat"]["purge_id"]
+        assert cles_chiffrement.lire_effacement(cnx, purge_id) is not None
+        raise RuntimeError("F4_ROLLBACK_QA")
+    with stockage.transaction() as cnx:
+        assert cles_chiffrement.lire(cnx, "m04-field-ops/gps", "T1") == key
+        assert cles_chiffrement.lire_effacement(cnx, purge_id) is None
+        assert approbations.lire(cnx, ident)["statut"] == "en_attente"
+        assert _reg_durable().lire() == audit_before
+
+
+def test_effacement_differe_refus_n5_sans_attestation_ne_cree_pas_de_job(base_durable):
+    from sqlalchemy import text
+
+    from opsys import cles_chiffrement
+    par_nom = {o.nom: o for o in outils()}
+    _pointer_geo_trace(par_nom, lead_id="F4-QA-refus-fictif")
+    dep, ident, key = _demande_purge_differee(par_nom)
+    assert key is not None
+    with stockage.transaction() as cnx:
+        before = _reg_durable().lire()
+        with pytest.raises(ValueError, match="attestation"):
+            approbations.decider(cnx, ident, True, "owner-f4", par_nom, {"m04-field-ops": dep})
+        assert cles_chiffrement.lire(cnx, "m04-field-ops/gps", "T1") == key
+        assert approbations.lire(cnx, ident)["statut"] == "en_attente"
+        assert _reg_durable().lire() == before
+        # Le nom de table est fixé par le propriétaire du candidat avant cette exécution.
+        assert cnx.execute(text("SELECT count(*) FROM effacements_cles")).scalar() == 0

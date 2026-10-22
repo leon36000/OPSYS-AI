@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 from collections.abc import Callable, Iterator
@@ -29,6 +30,8 @@ ENV_URL = "OPSYS_BASE_URL"
 
 _CONNEXION: ContextVar[Connection | None] = ContextVar("opsys_connexion", default=None)
 _MOTEURS: dict[str, Engine] = {}
+_APRES_VALIDATION: ContextVar[list[Callable[[], None]] | None] = ContextVar("opsys_apres_validation", default=None)
+_LOG = logging.getLogger(__name__)
 _VERROU = threading.Lock()
 
 
@@ -77,21 +80,47 @@ def connexion_courante() -> Connection | None:
     return _CONNEXION.get()
 
 
+def apres_validation(rappel: Callable[[], None]) -> bool:
+    """Réveil borné après le vrai commit extérieur ; une file durable reste nécessaire."""
+    rappels = _APRES_VALIDATION.get()
+    if rappels is None or len(rappels) >= 4:
+        return False
+    rappels.append(rappel)
+    return True
+
+
 @contextmanager
 def transaction(url: str | None = None) -> Iterator[Connection]:
     courante = _CONNEXION.get()
     if courante is not None:
         if url is not None and make_url(url or url_base()) != courante.engine.url:
             raise ValueError("transaction imbriquée vers une autre base explicitement demandée")
-        with courante.begin_nested():
-            yield courante
+        parent = _APRES_VALIDATION.get()
+        rappels: list[Callable[[], None]] = []
+        jeton_rappels = _APRES_VALIDATION.set(rappels)
+        try:
+            with courante.begin_nested():
+                yield courante
+            if parent is not None:
+                parent.extend(rappels[:max(0, 4 - len(parent))])
+        finally:
+            _APRES_VALIDATION.reset(jeton_rappels)
         return
+    rappels = []
     with moteur(url).begin() as connexion:
         jeton = _CONNEXION.set(connexion)
+        jeton_rappels = _APRES_VALIDATION.set(rappels)
         try:
             yield connexion
         finally:
+            _APRES_VALIDATION.reset(jeton_rappels)
             _CONNEXION.reset(jeton)
+    # Hors transaction ET contexte : une panne ne peut plus annuler le commit acquis.
+    for rappel in rappels:
+        try:
+            rappel()
+        except Exception:  # noqa: BLE001 — la file durable reste en attente, sans faux rollback
+            _LOG.warning("maintenance après commit non terminée ; reprise durable requise")
 
 
 def liberer() -> None:
