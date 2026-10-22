@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 
 from opsys import agent_cfo_grants, agents, contexte, departements, identite
 
@@ -580,6 +581,7 @@ def test_generated_runtime_profile_includes_persisted_revision(finance_profile, 
     from opsys import openclaw
 
     deps = departements.charger_departements(Path(__file__).parents[1] / "departments")
+    provisionner_base_qa(session, deps)
     files = openclaw.generer(
         deps,
         tmp_path / "core-config",

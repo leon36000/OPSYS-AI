@@ -434,7 +434,15 @@ export function requiresOpsysRuntimeAdmission(
   config: OpenClawConfig | undefined,
   agentId: string,
 ): boolean {
-  return admissionProfile(config, agentId) !== undefined;
+  // Earlier generated department entries had isolation but no durable admission binding.
+  // Keep those installed entries fail-closed during explicit profile provisioning; do not
+  // turn a missing migration choice into a free provider path. Generic Core agents retain
+  // their existing contract.
+  const departmentEntry = config?.agents?.entries?.[agentId];
+  return (
+    admissionProfile(config, agentId) !== undefined ||
+    (canonicalDepartment(agentId) && departmentEntry?.opsysIsolation?.exec === "sandbox-required")
+  );
 }
 
 /** Generic compaction owns a separate provider path, so profiled runs refuse it until gated. */
@@ -656,7 +664,10 @@ export async function verifyOpsysRuntimeToolCall(params: {
   if (!profileId) {
     return;
   }
-  const mcpTool = /^(opsys_m(?:[1-9]|10))__((?:m[1-9]|m10)_[a-z0-9_]+)$/.exec(params.toolName);
+  const mcpTool =
+    /^(opsys_m(?:[1-9]|10))__((?:m[1-9]|m10)_[a-z0-9_]+|opsys_(?:lire_artefact|etat_budget|demandes_approbation|memoire_rechercher|memoire_ajouter|memoire_oublier))$/.exec(
+      params.toolName,
+    );
   if (!mcpTool) {
     return;
   }

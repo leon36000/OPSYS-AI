@@ -5,6 +5,7 @@ import datetime as dt
 from types import SimpleNamespace
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 from memoire.autorite import emettre_ticket as _ticket
 from memoire.autorite import lier_affaire as _lier
 
@@ -304,7 +305,7 @@ def test_fragment_relu_borne_et_malforme_refuse(tmp_path):
         autorite.lire_politique(tmp_path)
 
 
-def test_generateur_classe_client_session_et_departement_global_explicitement(tmp_path):
+def test_generateur_classe_client_session_et_departement_global_explicitement(tmp_path, session):
     import json
 
     from opsys import openclaw
@@ -314,10 +315,11 @@ def test_generateur_classe_client_session_et_departement_global_explicitement(tm
         "standard": {"provider": "anthropic", "model": "claude-sonnet-5"},
         "fort": {"provider": "anthropic", "model": "claude-sonnet-5"},
         "local": {"provider": "custom", "model": "qwen3:8b", "base_url": "http://ollama:11434/v1"}}
+    provisionner_base_qa(session, deps)
     fichiers = openclaw.generer(deps, tmp_path, paliers,
         environ={"OPSYS_EMBEDDINGS_URL": "http://embeddings-fictif:11434/v1", "OPSYS_EMBEDDINGS_MODELE": "bge-m3"},
         contexte_entreprise={"m01-front-office": [], "m03-estimation": ["m3_estimer_projet"]},
-        affaire_par_session=["m01-front-office"])
+        affaire_par_session=["m01-front-office"], cnx_factory=session)
     policy = autorite.lire_politique(tmp_path)
     assert policy["departements"]["m01-front-office"] == "client_session"
     assert policy["departements"]["m03-estimation"] == "global"

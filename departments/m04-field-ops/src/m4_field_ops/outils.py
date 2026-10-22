@@ -675,6 +675,16 @@ def outils(
         # Le v1 reste pur/historique à la console, jamais promu en décision DEVICE liée.
         if contexte.identite_appelante() is not None and contexte.identite_appelante().source == "appareil":
             return {"accepte": False, "verdict": revue_completion_sources.verdict("LEGACY-DEVICE-INTERDIT")}
+        # N4 seul ne force pas la file en mode autonome. La revue reste humaine :
+        # l'adaptateur durable exige la demande exacte réservée par decider et son
+        # signataire SQL encore actif. Le registre injecté garde son usage pur de test.
+        if registre_cible is None and approbations.approbateur_en_cours(
+            stockage.connexion_courante(), "m4_resoudre_revue_completion", _DEPARTEMENT,
+        ) is None:
+            return {"accepte": False, "verdict": {
+                "code": "REJ-HUMAIN-REQUIS",
+                "detail": "La revue de complétion exige une demande approuvée par un humain, même en mode autonome.",
+            }}
         if contexte.demande_approuvee_en_cours() is not None:
             from opsys.approbations_completion_m4 import autoriser_legacy
 

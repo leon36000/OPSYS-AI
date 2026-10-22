@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import LargeBinary, cast, func, insert, select, update
 from sqlalchemy.engine import make_url
 
-from . import admission_agents, agents, identite, stockage
+from . import admission_agents, agents, agents_base, identite, stockage
 from .agent_cfo_grants import instance_id
 from .departements import Departement
 from .etat import journaliser
@@ -169,10 +169,11 @@ def _memoire(profil):
     except ValueError as exc:
         raise DeclencheurRefuse("CRON-CLASSIFICATION-MEMOIRE-INDISPONIBLE") from exc
     attendu = {"departement": profil["departement"], "mode": "global"}
-    if politique["agents"].get("opsys-agent-" + profil["id"]) != attendu:
+    agent_id = agents_base.agent_core_id(profil)
+    if politique["agents"].get(agent_id) != attendu:
         raise DeclencheurRefuse("CRON-CONTEXTE-MEMOIRE-REQUIS")
     # Les ajouts sans rapport à d'autres profils ne révoquent pas cette intention.
-    return _hash({"version": politique["version"], "agent": "opsys-agent-" + profil["id"], "binding": attendu})
+    return _hash({"version": politique["version"], "agent": agent_id, "binding": attendu})
 
 
 def _outils(cnx, deps, profil):
@@ -338,7 +339,7 @@ def _declaration(row, profil, decl, outils):
     message = f"Exécute le mandat interne canonique du profil {profil['id']}, révision {profil['revision']}."
     params = {
         "name": "OPSYS profil " + profil["id"], "declarationKey": row["declaration_key"],
-        "agentId": "opsys-agent-" + profil["id"], "sessionTarget": "isolated", "wakeMode": "now",
+        "agentId": agents_base.agent_core_id(profil), "sessionTarget": "isolated", "wakeMode": "now",
         "schedule": {"kind": "cron", "expr": decl["expression"], "tz": row["fuseau"]},
         "payload": {"kind": "agentTurn", "message": message, "timeoutSeconds": 120, "toolsAllow": outils},
         "delivery": {"mode": "none"},

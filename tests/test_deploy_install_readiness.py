@@ -11,6 +11,7 @@ import urllib.error
 from pathlib import Path
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 from sqlalchemy import text
 
 from opsys import departements, modeles, openclaw, serveur_bootstrap, stockage
@@ -39,6 +40,7 @@ def configuration(opsys_home, tmp_path, monkeypatch):
     monkeypatch.setenv("OPENCLAW_CONFIG_DIR", str(dossier))
     stockage.migrer()
     deps = departements.charger_departements()
+    provisionner_base_qa(stockage.transaction, deps)
     serveur_bootstrap.preparer(dossier, "r45.example.test")
     spec = importlib.util.spec_from_file_location("readiness_r45", RACINE / "deploy/readiness.py")
     module = importlib.util.module_from_spec(spec)
@@ -78,7 +80,8 @@ def configuration(opsys_home, tmp_path, monkeypatch):
             monkeypatch.setenv("LITELLM_MASTER_KEY", SECRET_FICTIF)
             for dep in deps.values():
                 monkeypatch.setenv(f"OPSYS_CLE_{dep.code}", SECRET_FICTIF)
-        openclaw.generer(deps, dossier, paliers, mode_fournisseur=mode, url_passerelle=url_passerelle)
+        openclaw.generer(deps, dossier, paliers,
+            mode_fournisseur=mode, url_passerelle=url_passerelle, cnx_factory=stockage.transaction)
         return paliers
 
     yield module, dossier, generer, deps, appels
@@ -112,7 +115,7 @@ def test_embeddings_retires_refusent_anciens_fragments(configuration, monkeypatc
     avant = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in dossier.rglob("*.json")}
     monkeypatch.delenv("OPSYS_EMBEDDINGS_URL")
     with pytest.raises(ValueError, match="OPSYS_EMBEDDINGS_URL"):
-        openclaw.generer(deps, dossier, paliers)
+        openclaw.generer(deps, dossier, paliers, cnx_factory=stockage.transaction)
     assert avant == {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in dossier.rglob("*.json")}
     assert module.main() == 3
     assert "OPSYS_EMBEDDINGS_URL" in capsys.readouterr().err

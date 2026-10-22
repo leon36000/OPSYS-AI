@@ -1,5 +1,17 @@
 # INGREDIENTS — Catalogue des briques open source retenues pour OPSYS-AI
 
+## Bêta-tests par agents — 22 octobre 2026
+
+Réutilisation initiale de **Playwright 1.63.0**, déjà installé/verrouillé dans le Core
+(Apache-2.0), pour les parcours de la console serveur. Les
+[agents officiels planner/generator](https://playwright.dev/docs/test-agents) ciblent Claude Code
+et Codex. Les corrections automatiques de tests ne doivent pas masquer un défaut métier.
+Licences, autres candidates (Schemathesis, Inspect AI, browser-use), recherche GitLab,
+limites et décision d'intégration sont décrites dans le
+[programme de bêta-tests](../programme/BETA-TESTS-SERVEUR-2026-10-22.md).
+Ces autres candidates ne sont ni installées ni déclarées qualifiées par leur seule présence
+dans cette recherche. Aucun paquet ou lockfile produit n'est modifié pour cette sélection.
+
 ## Correctifs ciblés de sécurité du 21 octobre 2026
 
 Les dépendances existantes sont corrigées sans renouvellement global. Le contrôle de production

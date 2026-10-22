@@ -11,6 +11,9 @@ et [ADR-0012](../decisions/ADR-0012-reutilisation-profondeur-productivite.md).
 API par département, assimilation documentaire et calibration :
 [vision d'entreprise apprenante](VISION-ENTREPRISE-APPRENANTE.md).
 **Lecteur principal :** Claude Code et tout agent qui travaille sur OPSYS-AI
+**Priorité de réalisation précisée le 21 octobre 2026 (Montréal) :** grandes exigences OPSYS
+sur serveur Linux d'abord, application mobile en dernière phase. Les ambitions fonctionnelles
+restent intégrales ; voir les [directives durables](DIRECTIVES-NATHAN.md).
 **Sources :** prompts maîtres des départements (8–9 juin 2026, et 23 juin 2026 pour M6), plan maître v1.2 (juillet–août 2026), directives de Nathan (septembre 2026). Détail en annexe A.
 
 ---
@@ -225,9 +228,12 @@ Français québécois professionnel, clair et crédible ; bilingue si le client 
 
 Voir la section 8.
 
-### P14 — Le mobile d'abord
+### P14 — Le mobile reste un pilier ; réalisation en dernière phase
 
 L'app mobile est un pilier du produit : inventaire, punch, vendeurs, terrain, approbations du propriétaire, suivi client. Chaque département définit ses écrans mobiles par profil, et les critères de complétion de la plupart d'entre eux (M1, M2, M3, M4, M5, M6, M8, M9, M10) incluent leurs écrans ou hooks mobiles. Le terrain fonctionne **hors ligne d'abord**. Détail en section 9.
+
+La directive du 21 octobre 2026 de Nathan reporte sa réalisation à la fin, après les grandes
+exigences OPSYS serveur. Cela change l'ordre du travail, pas les capacités attendues.
 
 ---
 

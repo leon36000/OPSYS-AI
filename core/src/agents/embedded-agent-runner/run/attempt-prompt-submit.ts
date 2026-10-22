@@ -14,7 +14,10 @@ import {
 import type { AgentSession } from "../../sessions/index.js";
 import { withSessionManagerWrite } from "../../sessions/session-manager-write-admission.js";
 import { ackPendingAgentSteeringItems } from "../../subagents/registry/subagent-registry.js";
-import { createOpsysRuntimeAdmissionStreamFn } from "../opsys-runtime-admission.js";
+import {
+  createOpsysRuntimeAdmissionStreamFn,
+  requiresOpsysRuntimeAdmission,
+} from "../opsys-runtime-admission.js";
 import { recordAggregateTruncation } from "../prompt-cache-observability.js";
 import { updateActiveEmbeddedRunSnapshot } from "../runs.js";
 import {
@@ -129,8 +132,9 @@ export async function submitEmbeddedAttemptPrompt(input: {
   const installProviderPromptHistoryTransform = (): (() => void) => {
     const baseStreamFn = activeSession.agent.streamFn;
     const agentId = input.attempt.agentId ?? input.attempt.contextEngineAgentId;
-    const entry = agentId ? input.attempt.config?.agents?.entries?.[agentId] : undefined;
-    const admission = entry?.opsysRuntimeAdmission;
+    const admission = agentId
+      ? requiresOpsysRuntimeAdmission(input.attempt.config, agentId)
+      : false;
     const scheduledStreamFn: StreamFn = async (model, context, options) => {
       const signal = options?.signal ?? input.attempt.abortSignal ?? new AbortController().signal;
       await input.attempt.opsysPostflightCollector?.prepareBeforeProviderDispatch(signal);

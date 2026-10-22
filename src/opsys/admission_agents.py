@@ -623,7 +623,10 @@ def verifier_outil_runtime(
     if not outil.startswith(prefixe):
         raise AdmissionRefusee("outil refusé : serveur hors du département du profil")
     nom_outil = outil[len(prefixe) :]
-    if not nom_outil or nom_outil not in json.loads(profil["outils"]):
+    from . import agents_base
+
+    partage_base = agents_base.est_base(profil) and nom_outil in agents_base.OUTILS_PARTAGES_RUNTIME
+    if not nom_outil or (nom_outil not in json.loads(profil["outils"]) and not partage_base):
         raise AdmissionRefusee("outil refusé : capacité absente de la politique courante")
     return {"autorise": True, "revision_profil": profil["revision"]}
 

@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 
 from opsys import openclaw
 from opsys.memoire.embeddings import ENV_CLE, ENV_MODELE, ENV_URL, ErreurEmbeddings
@@ -31,14 +32,16 @@ ENVIRON_EMBEDDINGS = {ENV_URL: "http://embeddings-test:11434/v1", ENV_MODELE: "b
 # --- 1. Cloisonnement (tools.json) -----------------------------------------------------------
 
 
-def test_partage_entre_agents_desactive(departements_demo, tmp_path):
-    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS)
+def test_partage_entre_agents_desactive(departements_demo, tmp_path, session):
+    provisionner_base_qa(session, departements_demo)
+    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
     outils = json.loads(fichiers["tools"].read_text(encoding="utf-8"))
     assert outils["agentToAgent"] == {"enabled": False}
 
 
-def test_visibilite_sessions_restreinte(departements_demo, tmp_path):
-    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS)
+def test_visibilite_sessions_restreinte(departements_demo, tmp_path, session):
+    provisionner_base_qa(session, departements_demo)
+    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
     outils = json.loads(fichiers["tools"].read_text(encoding="utf-8"))
     # "tree" (pas "self") : voir openclaw._configuration_outils.__doc__ et
     # test_visibilite_tree_est_la_plus_restrictive_sans_casser_les_sous_agents ci-dessous.
@@ -75,9 +78,10 @@ def test_visibilite_tree_est_la_plus_restrictive_sans_casser_les_sous_agents():
 # --- 2. Mémoire native Couche A (memory.json, plugins.json) ----------------------------------
 
 
-def test_configuration_memoire_presente(departements_demo, tmp_path):
+def test_configuration_memoire_presente(departements_demo, tmp_path, session):
     environ = {**ENVIRON_EMBEDDINGS, ENV_CLE: "secret-test"}
-    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=environ)
+    provisionner_base_qa(session, departements_demo)
+    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=environ, cnx_factory=session)
     recherche = json.loads(fichiers["memory"].read_text(encoding="utf-8"))["search"]
     assert recherche["provider"] == "openai-compatible"
     assert recherche["model"] == "bge-m3"
@@ -85,26 +89,29 @@ def test_configuration_memoire_presente(departements_demo, tmp_path):
     assert recherche["remote"]["apiKey"] == f"${{{ENV_CLE}}}"  # jamais la clé en clair
 
 
-def test_cle_embeddings_omise_si_non_fournie(departements_demo, tmp_path):
-    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS)
+def test_cle_embeddings_omise_si_non_fournie(departements_demo, tmp_path, session):
+    provisionner_base_qa(session, departements_demo)
+    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
     recherche = json.loads(fichiers["memory"].read_text(encoding="utf-8"))["search"]
     assert "apiKey" not in recherche["remote"]
 
 
-def test_dreaming_configure_et_aligne_sur_le_fuseau(departements_demo, tmp_path):
+def test_dreaming_configure_et_aligne_sur_le_fuseau(departements_demo, tmp_path, session):
+    provisionner_base_qa(session, departements_demo)
     fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, fuseau="America/Toronto",
-                                 environ=ENVIRON_EMBEDDINGS)
+                                 environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
     plugins = json.loads(fichiers["plugins"].read_text(encoding="utf-8"))
     dreaming = plugins["entries"]["memory-core"]["config"]["dreaming"]
     assert dreaming == {"enabled": True, "timezone": "America/Toronto"}
 
 
-def test_provenance_non_inventee(departements_demo, tmp_path):
+def test_provenance_non_inventee(departements_demo, tmp_path, session):
     """La provenance (owner/agent/untrusted/system) est structurelle à `memory-core`, pas une
     clé de configSchema (voir openclaw._configuration_memoire.__doc__) : aucun fragment généré
     ne doit prétendre la configurer.
     """
-    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS)
+    provisionner_base_qa(session, departements_demo)
+    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
     for cle in ("memory", "plugins", "tools"):
         assert "provenance" not in fichiers[cle].read_text(encoding="utf-8")
 
@@ -112,9 +119,10 @@ def test_provenance_non_inventee(departements_demo, tmp_path):
 # --- Fail-closed : variable d'embeddings manquante --------------------------------------------
 
 
-def test_fail_closed_generer_sans_url_embeddings(departements_demo, tmp_path):
+def test_fail_closed_generer_sans_url_embeddings(departements_demo, tmp_path, session):
+    provisionner_base_qa(session, departements_demo)
     with pytest.raises(ValueError, match=ENV_URL):
-        openclaw.generer(departements_demo, tmp_path, PALIERS, environ={})
+        openclaw.generer(departements_demo, tmp_path, PALIERS, environ={}, cnx_factory=session)
 
 
 def test_fail_closed_configuration_memoire_sans_url(monkeypatch):
