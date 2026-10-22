@@ -29,6 +29,7 @@ export const OPSYS_METIER_MOVED_COMMANDS: readonly string[] = [
   "departements",
   "verifier",
   "profils",
+  "agents-base",
   "approbations",
   "personnes",
   "base",

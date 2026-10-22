@@ -297,12 +297,29 @@ class Bac:
         """Les dossiers d'état que le faux core a reçus, un par appel."""
         return {appel["etat"] for appel in self.etats_du_core()}
 
-    def preparer_decisions(self) -> None:
-        """Les décisions que l'installateur n'invente pas : un palier de modèles et le service d'embeddings."""
+    def preparer_decisions(self, *, profils_base: bool = True) -> None:
+        """Choix QA explicites : modèles, embeddings et profils/budgets durables."""
         self.home.mkdir(parents=True, mode=0o700, exist_ok=True)
         (self.home / "paliers.yaml").write_text(
             "paliers: {standard: {provider: anthropic, model: claude-sonnet-5}}\n", encoding="utf-8")
         self.env_supplementaire.update(EMBEDDINGS)
+        if profils_base:
+            # Instance fictive seulement : l'installateur de production ne provisionne rien.
+            env = self.env()
+            env["PYTHONPATH"] = os.pathsep.join((str(RACINE / "tests" / "fixtures"), env["PYTHONPATH"]))
+            resultat = subprocess.run(
+                [sys.executable, "-c", (
+                    "from agents_base_qa import provisionner_base_qa; "
+                    "from opsys import stockage; "
+                    "from opsys.departements import charger_departements; "
+                    "stockage.migrer(); "
+                    "deps = charger_departements(); "
+                    "profils = provisionner_base_qa(stockage.transaction, deps); "
+                    "assert set(profils) == set(deps) and profils; "
+                    "stockage.liberer()"
+                )], env=env, capture_output=True, text=True, timeout=30, check=False,
+            )
+            assert resultat.returncode == 0, resultat.stdout + resultat.stderr
 
     def secrets(self, dossier: Path | None = None) -> list[str]:
         env = ((dossier or self.etat_core) / ".env").read_text(encoding="utf-8")
@@ -585,6 +602,20 @@ def test_les_commandes_installees_portent_l_instance_et_lisent_env_sans_l_evalue
 
 
 # -- fail-closed : décision manquante, étape en échec, fichier étranger --------------------------------------
+def test_sans_profils_base_les_paliers_et_embeddings_ne_suffisent_pas(bac):
+    bac.preparer_decisions(profils_base=False)
+
+    resultat = bac.installer()
+
+    assert resultat.returncode == 3, _sortie(resultat)
+    assert "profils de base" in resultat.stderr
+    assert "agents-base provisionner" in resultat.stderr
+    assert not (bac.etat_core / "opsys.json").exists()
+    assert not (bac.etat_core / "opsys" / "metier.json").exists()
+    assert f"openclaw {PROFIL} config validate" not in bac.appels()
+    assert not any("gateway install" in appel for appel in bac.appels())
+
+
 def test_sans_paliers_ni_embeddings_l_installation_s_arrete_en_attente_avec_le_code_3(bac):
     resultat = bac.installer()
 

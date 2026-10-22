@@ -277,6 +277,22 @@ def preparer_configuration(instance: Instance, pile: contextlib.ExitStack) -> No
     """Les vraies commandes du socle, puis les deux réglages du core que le socle n'écrit pas, puis le seuil de M6.
     `pile` rétablit ce que cette étape a remplacé dans ce processus."""
     opsys(instance, "base", "migrer")
+    opsys(instance, "personnes", "creer", PERSONNE, "--nom", NOM_PERSONNE, "--role", ROLE)
+    opsys(instance, "personnes", "creer", PROPRIETAIRE, "--nom", NOM_PROPRIETAIRE, "--role", "nathan_owner",
+          "--role", ROLE_PROPRIETAIRE)
+    # Seeding QA explicite : la CLI opérateur reste réservée à une saisie personnelle sur TTY.
+    from opsys import agents_base, identite, stockage
+    from opsys.departements import charger_departements
+
+    stockage.migrer(instance.env["OPSYS_BASE_URL"])
+    pile.callback(stockage.liberer)
+    with stockage.transaction() as cnx:
+        humain = identite.authentifier(cnx, PROPRIETAIRE, MOT_DE_PASSE)
+        exiger(humain is not None and "admin" in humain.roles, "propriétaire QA authentifié requis")
+        agents_base.provisionner(
+            cnx, charger_departements(), par=PROPRIETAIRE, limite_tours=8, limite_reessais=2,
+            limite_concurrence=1, budget_entreprise_jour=10_000_000, budget_entreprise_mois=100_000_000,
+        )
     opsys(instance, "paliers", "definir", "standard", "--provider", "anthropic", "--model", "claude-sonnet-5")
     opsys(instance, "openclaw", "configurer", "--config-dir", str(instance.dossier_core), "--url-mcp", instance.url_mcp,
           "--autoriser-origine-http-mcp", f"http://127.0.0.1:{instance.port_moteur}")
@@ -324,10 +340,6 @@ def preparer_configuration(instance: Instance, pile: contextlib.ExitStack) -> No
             "delai_pret_ms": 180_000,
         }
         (instance.dossier_opsys / "metier.json").write_text(json.dumps(metier, indent=2) + "\n", encoding="utf-8")
-
-    opsys(instance, "personnes", "creer", PERSONNE, "--nom", NOM_PERSONNE, "--role", ROLE)
-    opsys(instance, "personnes", "creer", PROPRIETAIRE, "--nom", NOM_PROPRIETAIRE, "--role", "nathan_owner",
-          "--role", ROLE_PROPRIETAIRE)
 
 
 # -- 2. la donnée --------------------------------------------------------------------------------------------------
