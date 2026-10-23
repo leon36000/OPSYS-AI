@@ -4,6 +4,7 @@ import type { AssistantMessage, Context } from "openclaw/plugin-sdk/llm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import type { callOpsysMcpTool } from "../../context-engine/opsys-contexte-mcp.js";
+import { isRecordedModelFallbackStop } from "../model-fallback-stop.js";
 import { makeProviderModelFixture } from "../test-helpers/provider-model-fixture.js";
 import { createZeroUsageFixture } from "../test-helpers/usage-fixtures.js";
 import * as owner from "./opsys-runtime-admission.js";
@@ -585,9 +586,19 @@ describe("OPSYS private completion custody owner contract", () => {
     const stream = await fixture.open();
     const pending = stream.result();
     expect(stream.result()).toBe(pending);
-    await expect(pending).rejects.toBe(failure);
-    await expect(stream.result()).rejects.toBe(failure);
+    const terminal = await pending.catch((error: unknown) => error);
+    expect(terminal).toBeInstanceOf(Error);
+    if (!(terminal instanceof Error)) {
+      throw new Error("FICTIONAL_RECONCILIATION_TERMINAL_MISSING");
+    }
+    expect(terminal).not.toBe(failure);
+    expect(terminal.cause).toBe(failure);
+    expect(isRecordedModelFallbackStop(terminal)).toBe(true);
+    expect(isRecordedModelFallbackStop(failure)).toBe(false);
+    await expect(stream.result()).rejects.toBe(terminal);
+    expect(fixture.provider).toHaveBeenCalledOnce();
     expect(result).toHaveBeenCalledOnce();
+    expect(reconciliations()).toHaveLength(1);
     expect(api.consume(handle)).toBeUndefined();
     expect(api.consume(handle)).toBeUndefined();
   });
