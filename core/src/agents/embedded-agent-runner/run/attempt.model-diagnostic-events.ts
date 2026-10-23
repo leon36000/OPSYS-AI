@@ -194,8 +194,20 @@ function observeModelCallStream(
       ...(observedResult ? { result: observedResult } : {}),
     };
   }
+  // Later host decorators must be able to delegate to these diagnostic methods.
+  const decoratedMembers = new Set<PropertyKey>();
   return new Proxy(stream, {
+    defineProperty(target, property, attributes) {
+      const defined = Reflect.defineProperty(target, property, attributes);
+      if (defined && (property === "result" || property === Symbol.asyncIterator)) {
+        decoratedMembers.add(property);
+      }
+      return defined;
+    },
     get(target, property, receiver) {
+      if (decoratedMembers.has(property)) {
+        return Reflect.get(target, property, receiver);
+      }
       if (property === Symbol.asyncIterator) {
         return observedIterator;
       }
