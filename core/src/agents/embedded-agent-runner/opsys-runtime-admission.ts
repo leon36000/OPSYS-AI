@@ -3,6 +3,7 @@ import { types } from "node:util";
 import type { StreamFn } from "openclaw/plugin-sdk/agent-core";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { callOpsysMcpTool } from "../../context-engine/opsys-contexte-mcp.js";
+import { recordModelFallbackStop } from "../model-fallback-stop.js";
 import type { AgentMessage } from "../runtime/index.js";
 import { createFreshLlmBoundaryTokenEstimator } from "../sessions/context-token-pressure.js";
 
@@ -845,10 +846,21 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
               "provider returned no reliable token usage; OPSYS reservation remains open",
             );
           }
-          await reconcileCapturedOpsysRuntimeAdmission({
-            capture,
-            tokensReels,
-          });
+          try {
+            await reconcileCapturedOpsysRuntimeAdmission({
+              capture,
+              tokensReels,
+            });
+          } catch (cause) {
+            // The provider already returned reliable usage; replay cannot repair local accounting.
+            // Keep the original transport error reusable outside this terminal attempt.
+            const error = new Error(
+              "OPSYS runtime reconciliation failed after known provider usage; fallback is unsafe",
+              { cause },
+            );
+            recordModelFallbackStop(error);
+            throw error;
+          }
           sealOpsysRuntimeCompletion(message, capture, tokensReels);
           captureOpsysRuntimeCompletionCustody(completionCustody, message, capture);
           return message;

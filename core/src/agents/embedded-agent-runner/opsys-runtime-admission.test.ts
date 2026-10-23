@@ -3,6 +3,8 @@ import type { StreamFn } from "openclaw/plugin-sdk/agent-core";
 import type { AssistantMessage, Context } from "openclaw/plugin-sdk/llm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
+import { hasModelFallbackStop, resolveModelFallbackError } from "../failover-error.js";
+import { isRecordedModelFallbackStop } from "../model-fallback-stop.js";
 import { makeProviderModelFixture } from "../test-helpers/provider-model-fixture.js";
 import { createZeroUsageFixture } from "../test-helpers/usage-fixtures.js";
 import * as runtimeAdmission from "./opsys-runtime-admission.js";
@@ -269,7 +271,12 @@ describe("OPSYS runtime provider admission", () => {
       { contextWindow: 64, maxTokens: 16 } as never,
       { messages: [] } as never,
     );
-    await expect(stream.result()).rejects.toThrow("could not verify the reconciled provider usage");
+    await expect(stream.result()).rejects.toMatchObject({
+      message: "OPSYS runtime reconciliation failed after known provider usage; fallback is unsafe",
+      cause: expect.objectContaining({
+        message: "OPSYS runtime admission could not verify the reconciled provider usage",
+      }),
+    });
     expect(provider).toHaveBeenCalledOnce();
     expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(2);
   });
@@ -1096,6 +1103,7 @@ describe("OPSYS host-owned completion receipt contract", () => {
   it.each(["rpc failure", "wrong tuple"])(
     "reconciliation %s leaves no completion and is never retried",
     async (cause) => {
+      const transportFailure = new Error("fictional reconciliation outcome UNKNOWN");
       installRuntimeReplies([reservationA]);
       const original = mocks.callOpsysMcpTool.getMockImplementation()!;
       mocks.callOpsysMcpTool.mockImplementation(async (request: RuntimeRequest) => {
@@ -1104,7 +1112,7 @@ describe("OPSYS host-owned completion receipt contract", () => {
           return reply;
         }
         if (cause === "rpc failure") {
-          throw new Error("fictional reconciliation outcome UNKNOWN");
+          throw transportFailure;
         }
         return { ...reply, resultat: { ...reply.resultat, agent_id: "other-profile" } };
       });
@@ -1114,7 +1122,21 @@ describe("OPSYS host-owned completion receipt contract", () => {
       const results = await Promise.allSettled([stream.result(), stream.result()]);
       expect(results[0].status).toBe("rejected");
       expect(results[1]).toEqual(results[0]);
-      await expect(stream.result()).rejects.toThrow();
+      const rejected = results[0];
+      if (rejected.status !== "rejected" || !(rejected.reason instanceof Error)) {
+        throw new Error("Expected the terminal reconciliation wrapper");
+      }
+      const terminal = rejected.reason;
+      expect(isRecordedModelFallbackStop(terminal)).toBe(true);
+      expect(resolveModelFallbackError(terminal).kind).toBe("terminal");
+      expect(hasModelFallbackStop(new Error("outer caller", { cause: terminal }))).toBe(true);
+      if (cause === "rpc failure") {
+        expect(terminal).not.toBe(transportFailure);
+        expect(terminal.cause).toBe(transportFailure);
+        expect(isRecordedModelFallbackStop(transportFailure)).toBe(false);
+        expect(hasModelFallbackStop(transportFailure)).toBe(false);
+      }
+      await expect(stream.result()).rejects.toBe(terminal);
       expect(getCompletion(message, expected())).toBeUndefined();
       expect(fixture.originalResult).toHaveBeenCalledOnce();
       expect(fixture.provider).toHaveBeenCalledOnce();
