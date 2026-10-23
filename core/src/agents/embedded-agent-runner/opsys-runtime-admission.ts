@@ -690,7 +690,6 @@ export async function verifyOpsysRuntimeToolCall(params: {
 async function reconcileCapturedOpsysRuntimeAdmission(params: {
   capture: RuntimeReservationCapture;
   tokensReels: number;
-  signal: AbortSignal;
 }): Promise<void> {
   if (integer(params.tokensReels) === undefined) {
     throw new Error("invalid provider usage for OPSYS admission");
@@ -701,7 +700,8 @@ async function reconcileCapturedOpsysRuntimeAdmission(params: {
     tool: "opsys_runtime_concilier",
     args: { reservation_id: params.capture.reservationId, tokens_reels: params.tokensReels },
     timeoutMs: TIMEOUT_MS,
-    signal: params.signal,
+    // Known provider usage must be accounted for even after delivery is cancelled.
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   throwRefusal(value);
   const reservation = resultObject(value);
@@ -848,7 +848,6 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
           await reconcileCapturedOpsysRuntimeAdmission({
             capture,
             tokensReels,
-            signal,
           });
           sealOpsysRuntimeCompletion(message, capture, tokensReels);
           captureOpsysRuntimeCompletionCustody(completionCustody, message, capture);
