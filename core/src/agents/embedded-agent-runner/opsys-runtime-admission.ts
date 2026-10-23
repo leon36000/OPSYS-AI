@@ -833,41 +833,62 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
     const stream = await params.streamFn(model, context, options);
     const originalResult = stream.result.bind(stream);
     let resultPromise: ReturnType<typeof originalResult> | undefined;
+    const finalizeResult = () => {
+      // Assign the promise before invoking provider code, including synchronous throws/reentrancy.
+      resultPromise ??= Promise.resolve().then(async () => {
+        const message = await originalResult();
+        const usage = message.usage;
+        const tokensReels = usage?.totalTokens;
+        if (tokensReels === undefined || !Number.isSafeInteger(tokensReels) || tokensReels <= 0) {
+          throw new Error(
+            "provider returned no reliable token usage; OPSYS reservation remains open",
+          );
+        }
+        try {
+          await reconcileCapturedOpsysRuntimeAdmission({
+            capture,
+            tokensReels,
+          });
+        } catch (cause) {
+          // The provider already returned reliable usage; replay cannot repair local accounting.
+          // Keep the original transport error reusable outside this terminal attempt.
+          const error = new Error(
+            "OPSYS runtime reconciliation failed after known provider usage; fallback is unsafe",
+            { cause },
+          );
+          recordModelFallbackStop(error);
+          throw error;
+        }
+        sealOpsysRuntimeCompletion(message, capture, tokensReels);
+        captureOpsysRuntimeCompletionCustody(completionCustody, message, capture);
+        return message;
+      });
+      return resultPromise;
+    };
     Object.defineProperty(stream, "result", {
       configurable: true,
-      value: () => {
-        // Assign the promise before invoking provider code, including synchronous throws/reentrancy.
-        resultPromise ??= Promise.resolve().then(async () => {
-          const message = await originalResult();
-          const usage = message.usage;
-          const tokensReels = usage?.totalTokens;
-          if (tokensReels === undefined || !Number.isSafeInteger(tokensReels) || tokensReels <= 0) {
-            throw new Error(
-              "provider returned no reliable token usage; OPSYS reservation remains open",
-            );
-          }
-          try {
-            await reconcileCapturedOpsysRuntimeAdmission({
-              capture,
-              tokensReels,
-            });
-          } catch (cause) {
-            // The provider already returned reliable usage; replay cannot repair local accounting.
-            // Keep the original transport error reusable outside this terminal attempt.
-            const error = new Error(
-              "OPSYS runtime reconciliation failed after known provider usage; fallback is unsafe",
-              { cause },
-            );
-            recordModelFallbackStop(error);
-            throw error;
-          }
-          sealOpsysRuntimeCompletion(message, capture, tokensReels);
-          captureOpsysRuntimeCompletionCustody(completionCustody, message, capture);
-          return message;
-        });
-        return resultPromise;
-      },
+      value: finalizeResult,
     });
+    if (typeof stream[Symbol.asyncIterator] === "function") {
+      const originalIterator = stream[Symbol.asyncIterator].bind(stream);
+      Object.defineProperty(stream, Symbol.asyncIterator, {
+        configurable: true,
+        async *value() {
+          for await (const event of { [Symbol.asyncIterator]: originalIterator }) {
+            const errorUsage = event.type === "error" ? event.error.usage?.totalTokens : undefined;
+            if (
+              event.type === "done" ||
+              (errorUsage !== undefined && Number.isSafeInteger(errorUsage) && errorUsage > 0)
+            ) {
+              // Event-only consumers must not publish a terminal before canonical accounting.
+              // Reuse the same memoized finalizer as result(), including F1/F2 and custody.
+              await finalizeResult();
+            }
+            yield event;
+          }
+        },
+      });
+    }
     return stream;
   };
 }
