@@ -1,7 +1,9 @@
 """Fixtures FICTIVES : l'identité documentaire n'est pas une validation fiscale."""
 
+import json
 from copy import deepcopy
 from hashlib import sha256
+from pathlib import Path
 
 import pytest
 
@@ -223,3 +225,98 @@ def test_pont_lie_snapshot_reel_au_lieu_du_hash_fourni_dans_configuration(tmp_pa
     assert resultat["qualification_regles"] == "NON_QUALIFIEE_POUR_PAIE"
     assert resultat["actions_financieres_bloquees"] is True
     assert resultat["autorisation_outil_ou_acteur"] is False
+
+
+def _configuration_serveur(tmp_path):
+    from m5_financecore import impot_federal_qc_2026 as federal
+
+    noms = ("__init__.py", "contrats.py", "validation.py", "cotisations_rrq_regulieres.py",
+            "cotisations_rqap_ae_2026.py", "impot_quebec_regulier.py", "paie_qc_preparatoire.py",
+            "impot_federal_qc_2026.py")
+    racine = Path(federal.__file__).parent
+    fichiers = {n: sha256((racine / n).read_bytes()).hexdigest() for n in noms}
+    generation = sha256(json.dumps(fichiers, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    capacite = _configuration(tmp_path)
+    for fenetre, jour, periode in zip(capacite["fenetres"],
+                                     ("2026-01-16", "2026-01-30", "2026-10-23"), (1, 2, 22), strict=True):
+        snapshot, refus = federal.obtenir_snapshot_retenue_federale_qc_preparatoire(
+            contexte=_contexte(date_paie=jour, periode_annuelle=periode),
+        )
+        assert refus is None
+        fenetre["calculateur_sha256"] = generation
+        fenetre["parametres_sha256"] = snapshot["hash_parametres"]
+    return {"schema": "opsys.admission-paie-serveur/v1",
+            "generation": {"fichiers": fichiers, "sha256": generation}, "capacite": capacite}
+
+
+def test_serveur_epingle_generation_reelle_et_snapshot_sans_accorder_autorite(tmp_path):
+    from m5_financecore.admission_paie_preparatoire import verifier_admission_serveur_preparatoire
+
+    config = tmp_path / "configuration.json"
+    config.write_text(json.dumps(_configuration_serveur(tmp_path)))
+    resultat = verifier_admission_serveur_preparatoire(
+        chemin_configuration=config, racine_captures=tmp_path, contexte=_contexte(),
+    )
+    assert resultat["admissible"] is True  # captures FICTIVES : identité seulement
+    assert resultat["qualification_regles"] == "NON_QUALIFIEE_POUR_PAIE"
+    assert resultat["actions_financieres_bloquees"] is True
+    assert resultat["autorisation_outil_ou_acteur"] is False
+
+
+@pytest.mark.parametrize("changement", ["absente", "duplicata", "generation", "lien", "origine", "taille", "profond"])
+def test_serveur_refuse_config_generation_ou_origine_avant_snapshot(tmp_path, monkeypatch, changement):
+    from m5_financecore import impot_federal_qc_2026 as federal
+    from m5_financecore.admission_paie_preparatoire import verifier_admission_serveur_preparatoire
+
+    config = tmp_path / "configuration.json"
+    donnees = _configuration_serveur(tmp_path)
+    if changement == "generation":
+        donnees["generation"]["fichiers"]["contrats.py"] = "f" * 64
+    config.write_text(json.dumps(donnees))
+    if changement == "absente":
+        config.unlink()
+    elif changement == "duplicata":
+        config.write_text('{"schema":"fictif","schema":"double"}')
+    elif changement == "lien":
+        cible = tmp_path / "autre.json"
+        config.rename(cible)
+        config.symlink_to(cible)
+    elif changement == "origine":
+        monkeypatch.setattr(federal, "__file__", str(tmp_path / "federal-etranger.py"))
+    elif changement == "taille":
+        config.write_text(" " * (64 * 1024 + 1))
+    elif changement == "profond":
+        config.write_text("[" * 20000 + "0" + "]" * 20000)
+
+    def interdit(**_arguments):
+        pytest.fail("Snapshot appelé avant validation de la configuration/génération serveur")
+
+    monkeypatch.setattr(federal, "obtenir_snapshot_retenue_federale_qc_preparatoire", interdit)
+    resultat = verifier_admission_serveur_preparatoire(
+        chemin_configuration=config, racine_captures=tmp_path, contexte=_contexte(),
+    )
+    assert resultat["admissible"] is False
+    assert resultat["motifs"]
+
+
+def test_serveur_refuse_remplacement_config_meme_octets_pendant_controle(tmp_path, monkeypatch):
+    from m5_financecore import admission_paie_preparatoire as admission
+
+    config = tmp_path / "configuration.json"
+    config.write_text(json.dumps(_configuration_serveur(tmp_path)))
+    original = admission.verifier_admission_federale_preparatoire
+
+    def remplacer(**arguments):
+        resultat = original(**arguments)
+        assert resultat["admissible"] is True  # identité documentaire FICTIVE seulement
+        remplacement = tmp_path / "remplacement.json"
+        remplacement.write_bytes(config.read_bytes())
+        remplacement.replace(config)
+        return resultat
+
+    monkeypatch.setattr(admission, "verifier_admission_federale_preparatoire", remplacer)
+    resultat = admission.verifier_admission_serveur_preparatoire(
+        chemin_configuration=config, racine_captures=tmp_path, contexte=_contexte(),
+    )
+    assert resultat["admissible"] is False
+    assert resultat["motifs"] == ["CONFIGURATION_OU_GENERATION_SERVEUR_INDISPONIBLE"]

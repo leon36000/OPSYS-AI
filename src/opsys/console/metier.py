@@ -33,6 +33,7 @@ LECTURES = {
     "m5_preparer_dossier_decision_cfo": "m05-financecore",
     "m5_preparer_brut_regulier": "m05-financecore",
     "m5_preparer_dossier_webras": "m05-financecore",
+    "m5_verifier_admission_paie_preparatoire": "m05-financecore",
     "m7_lister_contenus_chantier": "m07-marketing",
     "m7_lister_calendrier": "m07-marketing",
     "m7_lire_performance_campagnes": "m07-marketing",

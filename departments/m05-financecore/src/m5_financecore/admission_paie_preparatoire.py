@@ -10,9 +10,11 @@ Il ne modifie pas le catalogue documentaire ou les statuts de qualification fisc
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import stat
+import sys
 from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -26,6 +28,11 @@ _FENETRES = frozenset({
     ("2026-01-01", "2026-06-30", 1, 1, "P1"),
     ("2026-01-01", "2026-06-30", 2, 26, "YTD"),
     ("2026-07-01", "2026-12-31", 2, 26, "YTD"),
+})
+_GENERATION_FICHIERS = frozenset({
+    "__init__.py", "contrats.py", "validation.py", "cotisations_rrq_regulieres.py",
+    "cotisations_rqap_ae_2026.py", "impot_quebec_regulier.py", "paie_qc_preparatoire.py",
+    "impot_federal_qc_2026.py",
 })
 
 
@@ -190,3 +197,102 @@ def verifier_admission_federale_preparatoire(
         racine_captures=racine_captures, capacite=capacite, contexte=contexte,
         empreinte_calculateur=empreinte_calculateur, empreinte_parametres=empreinte_parametres,
     )
+
+
+def _lire_fichier_serveur(racine: Path, nom: str, maximum: int) -> tuple[bytes, tuple[int, ...]]:
+    """Noms fixes serveur, fichiers réguliers bornés, sans suivre de lien final."""
+    fd_racine = os.open(racine, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        fd = os.open(nom, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd_racine)
+        try:
+            avant = os.fstat(fd)
+            if not stat.S_ISREG(avant.st_mode) or not 0 < avant.st_size <= maximum:
+                raise ValueError("fichier serveur hors borne")
+            blocs, taille = [], 0
+            while bloc := os.read(fd, 65536):
+                taille += len(bloc)
+                if taille > maximum:
+                    raise ValueError("fichier serveur hors borne")
+                blocs.append(bloc)
+            apres = os.fstat(fd)
+            attributs = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+            identite = tuple(getattr(avant, cle) for cle in attributs)
+            if taille != avant.st_size or identite != tuple(getattr(apres, cle) for cle in attributs):
+                raise ValueError("fichier serveur modifié pendant lecture")
+            return b"".join(blocs), identite
+        finally:
+            os.close(fd)
+    finally:
+        os.close(fd_racine)
+
+
+def _generation_serveur(racine: Path) -> tuple[dict[str, str], dict[str, tuple[int, ...]]]:
+    empreintes, identites = {}, {}
+    for nom in sorted(_GENERATION_FICHIERS):
+        contenu, identite = _lire_fichier_serveur(racine, nom, 2 * 1024 * 1024)
+        empreintes[nom] = hashlib.sha256(contenu).hexdigest()
+        identites[nom] = identite
+        module = "m5_financecore" if nom == "__init__.py" else "m5_financecore." + nom[:-3]
+        charge = sys.modules.get(module)
+        if charge is not None and getattr(charge, "__file__", None) != str(racine / nom):
+            raise ValueError("origine de module différente de la génération serveur")
+    return empreintes, identites
+
+
+def _objet_json_unique(paires: list[tuple[str, Any]]) -> dict[str, Any]:
+    resultat: dict[str, Any] = {}
+    for cle, valeur in paires:
+        if cle in resultat:
+            raise ValueError("clé de configuration répétée")
+        resultat[cle] = valeur
+    return resultat
+
+
+def verifier_admission_serveur_preparatoire(
+    *, chemin_configuration: Path, racine_captures: Path, contexte: object,
+) -> dict[str, Any]:
+    """Entrée serveur : configuration fixe, jamais chemin ou empreinte d'une requête.
+
+    Lie les huit fichiers Source sur disque au manifeste approuvé et vérifie leur
+    stabilité avant/après le contrôle documentaire. L'origine des modules chargés
+    doit concorder. Cela n'atteste pas une mémoire Python inviolable ou un montage
+    OS immuable ; l'exécution du serveur demeure une frontière de confiance.
+    """
+    refus = verifier_admission_preparatoire(
+        racine_captures=racine_captures, capacite=None, contexte=contexte,
+        empreinte_calculateur="", empreinte_parametres="",
+    )
+    try:
+        brut, identite_config = _lire_fichier_serveur(chemin_configuration.parent, chemin_configuration.name, 65536)
+        config = json.loads(brut, object_pairs_hook=_objet_json_unique)
+        if type(config) is not dict or set(config) != {"schema", "generation", "capacite"}:
+            raise ValueError("configuration serveur invalide")
+        if config["schema"] != "opsys.admission-paie-serveur/v1" or not _capacite_valide(config["capacite"]):
+            raise ValueError("capacité serveur invalide")
+        generation = config["generation"]
+        if type(generation) is not dict or set(generation) != {"fichiers", "sha256"}:
+            raise ValueError("génération non déclarée")
+        fichiers = generation["fichiers"]
+        if (type(fichiers) is not dict or set(fichiers) != _GENERATION_FICHIERS
+                or not all(_sha_valide(v) for v in fichiers.values())):
+            raise ValueError("fermeture Source invalide")
+        racine_code = Path(__file__).resolve().parent
+        observes, identites = _generation_serveur(racine_code)
+        empreinte = hashlib.sha256(json.dumps(observes, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        if observes != fichiers or empreinte != generation["sha256"]:
+            raise ValueError("génération Source incompatible")
+        resultat = verifier_admission_federale_preparatoire(
+            racine_captures=racine_captures, capacite=config["capacite"], contexte=contexte,
+            empreinte_calculateur=empreinte,
+        )
+        apres, identites_apres = _generation_serveur(racine_code)
+        config_apres, identite_apres = _lire_fichier_serveur(
+            chemin_configuration.parent, chemin_configuration.name, 65536,
+        )
+        if (apres != observes or identites_apres != identites
+                or config_apres != brut or identite_apres != identite_config):
+            raise ValueError("génération ou configuration modifiée pendant contrôle")
+        return resultat
+    except (OSError, ValueError, UnicodeError, RecursionError):
+        refus["motifs"] = ["CONFIGURATION_OU_GENERATION_SERVEUR_INDISPONIBLE"]
+        return refus
