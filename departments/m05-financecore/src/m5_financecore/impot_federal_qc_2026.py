@@ -155,6 +155,42 @@ def _refus(code: str, detail: str) -> tuple[None, dict[str, str]]:
     return None, validation.construire_verdict(code, detail=detail)
 
 
+def obtenir_snapshot_retenue_federale_qc_preparatoire(
+    *, contexte: object,
+) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+    """Expose les paramètres du propriétaire, sans lancer les calculateurs de paie.
+
+    Le contexte ne certifie ni emploi, TD1, assiettes ni authenticité des preuves.
+    Cette métadonnée ne confère aucune qualification fiscale ou autorisation.
+    """
+    attendus = {"annee", "date_paie", "juridiction", "frequence", "periode_annuelle", "pm"}
+    valide = type(contexte) is dict and set(contexte) == attendus
+    if valide:
+        fixes = {"annee": 2026, "juridiction": "QC", "frequence": "bihebdomadaire", "pm": 12}
+        valide = all(type(contexte[k]) is type(v) and contexte[k] == v for k, v in fixes.items())
+        valide = valide and type(contexte["periode_annuelle"]) is int and 1 <= contexte["periode_annuelle"] <= 26
+        jour = contexte["date_paie"]
+        valide = valide and isinstance(jour, str)
+        if valide:
+            try:
+                date_paie = date.fromisoformat(jour)
+                valide = date_paie.isoformat() == jour and date(2026, 1, 1) <= date_paie <= date(2026, 12, 31)
+                valide = valide and (contexte["periode_annuelle"] != 1 or date_paie <= date(2026, 6, 30))
+            except ValueError:
+                valide = False
+    if not valide:
+        return _refus("REJ-PAIE-ASSIETTE-INVALIDE", "contexte documentaire fédéral hors périmètre")
+    parametres = _parametres_pour_demande(contexte)
+    empreinte = hashlib.sha256(
+        json.dumps(parametres, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return {
+        "parametres": parametres, "hash_parametres": empreinte,
+        "qualification_regles": "NON_QUALIFIEE_POUR_PAIE", "actions_financieres_bloquees": True,
+        "autorisation_outil_ou_acteur": False,
+    }, None
+
+
 def _decimal(valeur: object) -> Decimal | None:
     if not isinstance(valeur, str) or len(valeur) > 15 or _MONTANT.fullmatch(valeur) is None:
         return None
