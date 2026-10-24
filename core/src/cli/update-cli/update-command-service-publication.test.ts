@@ -8,10 +8,17 @@ import {
   createMockGatewayService,
   mockSystemAccountHome,
 } from "../../daemon/service.test-helpers.js";
+import {
+  OPSYS_METIER_CONFIG_FILENAME,
+  resolveOpsysDir,
+} from "../../gateway/opsys-metier-config.js";
 import * as gatewayLocks from "../../infra/gateway-lock.js";
 import * as portProbe from "../../infra/ports-probe.js";
 import { tryAcquireExclusiveSqliteCoordinator } from "../../infra/sqlite-coordinator.js";
-import { acquireGatewayLifecycleCoordinator } from "../../infra/state-database-coordinator.js";
+import {
+  acquireGatewayLifecycleCoordinator,
+  withStateDatabaseCoordinatorRuntimeDirectory,
+} from "../../infra/state-database-coordinator.js";
 import * as openClawTmp from "../../infra/tmp-openclaw-dir.js";
 import * as updateCheck from "../../infra/update-check.js";
 import { withPluginLifecycleLease } from "../../plugins/plugin-lifecycle-lease.js";
@@ -49,7 +56,7 @@ async function withServiceHome(run: (home: string) => Promise<void>): Promise<vo
       OPENCLAW_SERVICE_MARKER: undefined,
       OPENCLAW_SERVICE_KIND: undefined,
     },
-    () => run(home),
+    () => withStateDatabaseCoordinatorRuntimeDirectory(home, () => run(home)),
   );
 }
 
@@ -340,6 +347,147 @@ it.each([
       other?.release();
     }
   }),
+);
+
+it("refuses shared Python publication during pre-listen Gateway custody despite disjoint Core roots", () =>
+  withRuntimePublicationFixture(async ({ home, root, env, service, coordinatorPath }) => {
+    // Core A serves this profile; Core B is the physically separate publication root.
+    const servingRoot = path.join(home, "releases", "serving");
+    await fs.mkdir(path.join(servingRoot, "dist"), { recursive: true });
+    await fs.writeFile(
+      path.join(servingRoot, "package.json"),
+      JSON.stringify({ name: "openclaw" }),
+    );
+    await fs.writeFile(path.join(servingRoot, "dist", "entry.js"), "export {};\n");
+    expect(path.relative(await fs.realpath(root), await fs.realpath(servingRoot))).toBe(
+      path.join("..", "releases", "serving"),
+    );
+    vi.mocked(service.readCommand).mockResolvedValue({
+      programArguments: [process.execPath, path.join(servingRoot, "dist", "entry.js"), "gateway"],
+    });
+    // These diagnostic answers model the window before HTTP listens, not custody.
+    vi.mocked(service.readRuntime).mockResolvedValue({
+      status: "stopped",
+      systemd: { managerUid: 2001 },
+    });
+    vi.mocked(portProbe.probePortUsage).mockResolvedValue("free");
+
+    const softwareRoot = path.join(home, "logiciel");
+    const previous = path.join(softwareRoot, "generations", "previous");
+    const candidate = path.join(softwareRoot, "generations", "candidate");
+    for (const generation of [previous, candidate]) {
+      const interpreter = path.join(generation, "venv", "bin", "python");
+      await fs.mkdir(path.dirname(interpreter), { recursive: true });
+      await fs.writeFile(interpreter, "fictif: true\n");
+      await fs.chmod(interpreter, 0o700);
+    }
+    const engineSource = path.join(home, "source-metier-fictif");
+    await fs.mkdir(engineSource);
+    const config = path.join(resolveOpsysDir(env), OPSYS_METIER_CONFIG_FILENAME);
+    await fs.mkdir(path.dirname(config), { recursive: true });
+    await fs.writeFile(
+      config,
+      JSON.stringify({
+        fictif: true,
+        actif: true,
+        dossier: engineSource,
+        hote: "127.0.0.1",
+        port: 18765,
+        commande: [
+          path.join(previous, "venv", "bin", "python"),
+          "-m",
+          "opsys.serveur_mcp",
+          "--http",
+          "--hote",
+          "127.0.0.1",
+          "--port",
+          "18765",
+        ],
+      }),
+    );
+    const selectedGeneration = path.join(softwareRoot, "selected-generation.txt");
+    await fs.writeFile(selectedGeneration, "previous\n");
+    // A variable keeps this additive proposed API structurally valid before implementation.
+    const params = {
+      root,
+      env,
+      timeoutMs: 200,
+      assertCurrent() {},
+      python: { softwareRoot, candidate },
+    };
+    const blockedPublish = vi.fn(async (assertPublicationCurrent: () => Promise<void>) => {
+      await assertPublicationCurrent();
+      await fs.writeFile(selectedGeneration, "candidate\n");
+      return "published";
+    });
+    // Real SQLite exclusion on the same lifecycle path; no mocked custody or Gateway process.
+    const holder = tryAcquireExclusiveSqliteCoordinator(coordinatorPath);
+    expect(holder).not.toBeNull();
+    if (!holder) {
+      throw new Error("fictitious Gateway lifecycle fixture did not acquire its coordinator");
+    }
+    try {
+      let refusal: unknown;
+      try {
+        await withGatewayRuntimeArtifactPublication(params, blockedPublish);
+      } catch (error) {
+        refusal = error;
+      }
+      // Soft assertions preserve all negative observations and the non-vacuous release phase.
+      expect.soft(blockedPublish).not.toHaveBeenCalled();
+      expect.soft(await fs.readFile(selectedGeneration, "utf8")).toBe("previous\n");
+      expect.soft(refusal).toBeInstanceOf(Error);
+      expect.soft(refusal).toMatchObject({ message: expect.stringMatching(/affected Gateway/) });
+    } finally {
+      holder.release();
+    }
+
+    const afterReleasePublish = vi.fn(async (assertPublicationCurrent: () => Promise<void>) => {
+      await assertPublicationCurrent();
+      await fs.writeFile(selectedGeneration, "candidate\n");
+      return "published";
+    });
+    await expect(withGatewayRuntimeArtifactPublication(params, afterReleasePublish)).resolves.toBe(
+      "published",
+    );
+    expect(afterReleasePublish).toHaveBeenCalledTimes(1);
+    expect(await fs.readFile(selectedGeneration, "utf8")).toBe("candidate\n");
+  }));
+
+it.each(["outside generation", "symlink escape", "replaced generation"])(
+  "refuses an invalidated Python physical publication target: %s",
+  (scenario) =>
+    withRuntimePublicationFixture(async ({ home, root, env }) => {
+      const softwareRoot = path.join(home, "logiciel");
+      const prepared = path.join(softwareRoot, "generations", "candidate");
+      const outside = path.join(home, "outside-generation");
+      await fs.mkdir(prepared, { recursive: true });
+      await fs.mkdir(outside);
+      let candidate = prepared;
+      if (scenario === "outside generation") {
+        candidate = outside;
+      } else if (scenario === "symlink escape") {
+        candidate = path.join(softwareRoot, "candidate-alias");
+        await fs.symlink(outside, candidate, "junction");
+      }
+      const publishedMarker = path.join(softwareRoot, "published.txt");
+      const publish = vi.fn(async (assertPublicationCurrent: () => Promise<void>) => {
+        if (scenario === "replaced generation") {
+          await fs.rename(prepared, `${prepared}.previous`);
+          await fs.mkdir(prepared);
+        }
+        await assertPublicationCurrent();
+        await fs.writeFile(publishedMarker, "fictif: true\n");
+      });
+      await expect(
+        withGatewayRuntimeArtifactPublication(
+          { root, env, timeoutMs: 200, assertCurrent() {}, python: { softwareRoot, candidate } },
+          publish,
+        ),
+      ).rejects.toThrow(/affected Gateway/);
+      expect(publish).toHaveBeenCalledTimes(scenario === "replaced generation" ? 1 : 0);
+      await expect(fs.readFile(publishedMarker)).rejects.toMatchObject({ code: "ENOENT" });
+    }),
 );
 
 it.each(["inspection", "publication"])(
