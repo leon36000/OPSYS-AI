@@ -67,17 +67,22 @@ def deriver_disponibilite(materiaux_ids, mouvements, hors_main, reserve) -> dict
     return disponibilite
 
 
-def deriver_stock_theorique(chantier_id, materiau_id, registre) -> float:
+def _deriver_stock_theorique_decimal(chantier_id, materiau_id, registre) -> Decimal:
     return sum(
         (
-            mouvement["quantite"]
+            Decimal(str(mouvement["quantite"]))
             for mouvement in registre.lire()
             if mouvement.get("type_mouvement") in _TYPES_STOCK_THEORIQUE
             and mouvement.get("chantier_id") == chantier_id
             and mouvement.get("materiau_id") == materiau_id
         ),
-        0.0,
+        Decimal(0),
     )
+
+
+def deriver_stock_theorique(chantier_id, materiau_id, registre) -> float:
+    """Somme décimale des mouvements ; conserve le nombre JSON du contrat historique."""
+    return float(_deriver_stock_theorique_decimal(chantier_id, materiau_id, registre))
 
 
 def verifier_disponibilite_consommation(
@@ -89,13 +94,15 @@ def verifier_disponibilite_consommation(
     quantites_par_materiau = {}
     for ligne in lignes_consommees:
         materiau_id = ligne["materiau_id"]
-        quantites_par_materiau[materiau_id] = (
-            quantites_par_materiau.get(materiau_id, 0.0)
-            + ligne["quantite"]
-        )
+        # Même convention que deriver_stock_articles : les quantités saisies sont
+        # décimales. Comparer avant toute conversion en float, sans epsilon qui
+        # autoriserait une sortie réellement supérieure au stock disponible.
+        quantites_par_materiau[materiau_id] = quantites_par_materiau.get(
+            materiau_id, Decimal(0)
+        ) + Decimal(str(ligne["quantite"]))
 
     for materiau_id, quantite_demandee in quantites_par_materiau.items():
-        stock_theorique = deriver_stock_theorique(
+        stock_theorique = _deriver_stock_theorique_decimal(
             chantier_id,
             materiau_id,
             registre,

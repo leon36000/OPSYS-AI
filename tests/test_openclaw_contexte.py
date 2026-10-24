@@ -15,6 +15,7 @@ import re
 from pathlib import Path
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 from m10_memoire import (
     affaire,
     amont,
@@ -55,7 +56,9 @@ def departements():
 
 
 def _generer(departements, dossier, **options):
-    return openclaw.generer(departements, dossier, PALIERS, environ=ENVIRON, **options)
+    cnx_factory = options.pop("cnx_factory")
+    provisionner_base_qa(cnx_factory, departements)
+    return openclaw.generer(departements, dossier, PALIERS, environ=ENVIRON, cnx_factory=cnx_factory, **options)
 
 
 def _lire(fichiers, cle):
@@ -65,15 +68,15 @@ def _lire(fichiers, cle):
 # -- Désactivé par défaut ----------------------------------------------------------------------
 
 
-def test_desactive_par_defaut_aucun_moteur_choisi_et_contexte_inactif(departements, tmp_path):
-    fichiers = _generer(departements, tmp_path)
+def test_desactive_par_defaut_aucun_moteur_choisi_et_contexte_inactif(departements, tmp_path, session):
+    fichiers = _generer(departements, tmp_path, cnx_factory=session)
 
     assert _lire(fichiers, "contexte") == {"actif": False}
     assert "slots" not in _lire(fichiers, "plugins")
 
 
-def test_un_dictionnaire_vide_est_le_meme_que_l_absence_d_argument(departements, tmp_path):
-    fichiers = _generer(departements, tmp_path, contexte_entreprise={})
+def test_un_dictionnaire_vide_est_le_meme_que_l_absence_d_argument(departements, tmp_path, session):
+    fichiers = _generer(departements, tmp_path, contexte_entreprise={}, cnx_factory=session)
 
     assert _lire(fichiers, "contexte") == {"actif": False}
     assert "slots" not in _lire(fichiers, "plugins")
@@ -90,8 +93,8 @@ def test_le_squelette_openclaw_json_n_inclut_pas_contexte_json(tmp_path):
 # -- Activé : un seul interrupteur, deux fichiers d'accord --------------------------------------
 
 
-def test_active_ecrit_contexte_json_et_le_choix_du_moteur_ensemble(departements, tmp_path):
-    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
+def test_active_ecrit_contexte_json_et_le_choix_du_moteur_ensemble(departements, tmp_path, session):
+    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
 
     contexte = _lire(fichiers, "contexte")
     niveaux = contexte.pop("niveaux")  # vérifié à part : un niveau par outil des départements
@@ -123,16 +126,16 @@ def test_active_ecrit_contexte_json_et_le_choix_du_moteur_ensemble(departements,
     assert plugins["entries"]["memory-core"]["config"]["dreaming"]["enabled"] is True  # inchangé
 
 
-def test_regenerer_sans_l_option_desactive_les_deux_fichiers(departements, tmp_path):
-    _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
+def test_regenerer_sans_l_option_desactive_les_deux_fichiers(departements, tmp_path, session):
+    _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
 
-    fichiers = _generer(departements, tmp_path)
+    fichiers = _generer(departements, tmp_path, cnx_factory=session)
 
     assert _lire(fichiers, "contexte") == {"actif": False}
     assert "slots" not in _lire(fichiers, "plugins")
 
 
-def test_agents_tries_outils_dedoubles_et_paquet_seul_possible(departements, tmp_path):
+def test_agents_tries_outils_dedoubles_et_paquet_seul_possible(departements, tmp_path, session):
     fichiers = _generer(
         departements,
         tmp_path,
@@ -140,7 +143,7 @@ def test_agents_tries_outils_dedoubles_et_paquet_seul_possible(departements, tmp
             "m04-field-ops": [],
             "m03-estimation": ["m3_qualifier_photos", "m3_estimer_projet", "m3_qualifier_photos"],
         },
-    )
+    cnx_factory=session, )
 
     agents = _lire(fichiers, "contexte")["agents"]
     assert list(agents) == ["m03-estimation", "m04-field-ops"]
@@ -158,9 +161,9 @@ def test_agents_tries_outils_dedoubles_et_paquet_seul_possible(departements, tmp
     }
 
 
-def test_le_serveur_de_contexte_est_lie_a_l_agent_et_au_jeton_interne(departements, tmp_path):
+def test_le_serveur_de_contexte_est_lie_a_l_agent_et_au_jeton_interne(departements, tmp_path, session):
     """Chaque agent nommé reçoit un endpoint M10 origin-bound et un bearer distinct."""
-    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
+    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
 
     serveur = _lire(fichiers, "mcp")["servers"]["opsys_context_m03-estimation"]
     assert serveur["url"].endswith("/mcp/contexte/m03-estimation")
@@ -194,23 +197,23 @@ def _rien_ecrit(dossier):
         ({"m03-estimation": ["opsys_etat_budget"]}, "n'est pas un outil du département m03-estimation"),
     ],
 )
-def test_refuse_un_agent_ou_un_outil_incoherent_sans_rien_ecrire(departements, tmp_path, contexte, message):
+def test_refuse_un_agent_ou_un_outil_incoherent_sans_rien_ecrire(departements, tmp_path, contexte, message, session):
     with pytest.raises(ValueError, match=re.escape(message)):
-        _generer(departements, tmp_path, contexte_entreprise=contexte)
+        _generer(departements, tmp_path, contexte_entreprise=contexte, cnx_factory=session)
 
     assert _rien_ecrit(tmp_path)
 
 
-def test_refuse_sans_le_departement_memoire(departements, tmp_path):
+def test_refuse_sans_le_departement_memoire(departements, tmp_path, session):
     sans_memoire = {ident: dep for ident, dep in departements.items() if ident != "m10-memoire"}
 
     with pytest.raises(ValueError, match="le département m10-memoire est absent"):
-        _generer(sans_memoire, tmp_path, contexte_entreprise=ESTIMATION)
+        _generer(sans_memoire, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
 
     assert _rien_ecrit(tmp_path)
 
 
-def test_refuse_si_un_des_deux_outils_de_m10_manque(departements, tmp_path, monkeypatch):
+def test_refuse_si_un_des_deux_outils_de_m10_manque(departements, tmp_path, monkeypatch, session):
     reels = openclaw.tous_les_outils
 
     def sans_depot(deps):
@@ -221,12 +224,12 @@ def test_refuse_si_un_des_deux_outils_de_m10_manque(departements, tmp_path, monk
     monkeypatch.setattr(openclaw, "tous_les_outils", sans_depot)
 
     with pytest.raises(ValueError, match=f"l'outil {openclaw.OUTIL_DEPOT_FAITS} manque"):
-        _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
+        _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
 
     assert _rien_ecrit(tmp_path)
 
 
-def test_refuse_si_le_depot_exigerait_une_approbation(departements, tmp_path, monkeypatch):
+def test_refuse_si_le_depot_exigerait_une_approbation(departements, tmp_path, monkeypatch, session):
     """En N3, le mode ombre de M10 mettrait chaque dépôt en attente : le core n'écrirait jamais rien."""
     reels = openclaw.tous_les_outils
 
@@ -239,12 +242,12 @@ def test_refuse_si_le_depot_exigerait_une_approbation(departements, tmp_path, mo
     monkeypatch.setattr(openclaw, "tous_les_outils", depot_n3)
 
     with pytest.raises(ValueError, match="exigerait une approbation en mode ombre"):
-        _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
+        _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
 
     assert _rien_ecrit(tmp_path)
 
 
-def test_refuse_si_la_lecture_du_paquet_n_est_plus_une_lecture(departements, tmp_path, monkeypatch):
+def test_refuse_si_la_lecture_du_paquet_n_est_plus_une_lecture(departements, tmp_path, monkeypatch, session):
     reels = openclaw.tous_les_outils
 
     def lecture_t1(deps):
@@ -256,7 +259,7 @@ def test_refuse_si_la_lecture_du_paquet_n_est_plus_une_lecture(departements, tmp
     monkeypatch.setattr(openclaw, "tous_les_outils", lecture_t1)
 
     with pytest.raises(ValueError, match="doit être une lecture"):
-        _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
+        _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
 
     assert _rien_ecrit(tmp_path)
 
@@ -264,8 +267,8 @@ def test_refuse_si_la_lecture_du_paquet_n_est_plus_une_lecture(departements, tmp
 # -- PLAN T3.3-suite-b : les niveaux des outils et l'affaire lue dans la session -------------------------
 
 
-def test_niveaux_donne_le_niveau_effectif_de_chaque_outil_des_departements(departements, tmp_path):
-    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
+def test_niveaux_donne_le_niveau_effectif_de_chaque_outil_des_departements(departements, tmp_path, session):
+    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
 
     niveaux = _lire(fichiers, "contexte")["niveaux"]
 
@@ -275,8 +278,8 @@ def test_niveaux_donne_le_niveau_effectif_de_chaque_outil_des_departements(depar
     assert len(niveaux) == sum(len(dep.charger_outils()) for dep in departements.values())
 
 
-def test_cibles_ticket_declarent_exactement_les_dix_mutations_resolues_par_python(departements, tmp_path):
-    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
+def test_cibles_ticket_declarent_exactement_les_dix_mutations_resolues_par_python(departements, tmp_path, session):
+    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
     cibles = _lire(fichiers, "contexte")["cibles"]
     attendues = {
         "m2_transitionner_statut", "m2_reassigner_lead", "m2_enregistrer_interaction",
@@ -290,8 +293,8 @@ def test_cibles_ticket_declarent_exactement_les_dix_mutations_resolues_par_pytho
     assert cibles["m5_enregistrer_mouvement"] == {"type": "inconnue"}
 
 
-def test_cibles_explicitent_l_affaire_m3_et_refusent_les_contrats_non_declares(departements, tmp_path):
-    contexte = _lire(_generer(departements, tmp_path, contexte_entreprise=ESTIMATION), "contexte")
+def test_cibles_explicitent_l_affaire_m3_et_refusent_les_contrats_non_declares(departements, tmp_path, session):
+    contexte = _lire(_generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session), "contexte")
 
     assert contexte["version"] == 2
     assert contexte["cibles"]["m3_estimer_projet"] == {
@@ -319,12 +322,12 @@ def test_cibles_explicitent_l_affaire_m3_et_refusent_les_contrats_non_declares(d
     assert all(contexte["niveaux"][nom] in {"N3", "N4", "N5"} for nom in contexte["cibles"])
 
 
-def test_chaque_agent_contexte_a_un_serveur_mcp_origin_bound(departements, tmp_path):
+def test_chaque_agent_contexte_a_un_serveur_mcp_origin_bound(departements, tmp_path, session):
     fichiers = _generer(
         departements,
         tmp_path,
         contexte_entreprise={"m03-estimation": ["m3_estimer_projet"]},
-    )
+    cnx_factory=session, )
     contexte = _lire(fichiers, "contexte")
     mcp = _lire(fichiers, "mcp")["servers"]
     agents = _lire(fichiers, "agents")["entries"]
@@ -340,8 +343,12 @@ def test_chaque_agent_contexte_a_un_serveur_mcp_origin_bound(departements, tmp_p
     assert "opsys_context_*__*" in tools["deny"]
 
 
-def test_les_outils_qui_engagent_l_entreprise_sont_au_niveau_n3_ou_plus_dans_la_configuration(departements, tmp_path):
-    niveaux = _lire(_generer(departements, tmp_path, contexte_entreprise=ESTIMATION), "contexte")["niveaux"]
+def test_les_outils_qui_engagent_l_entreprise_sont_au_niveau_n3_ou_plus_dans_la_configuration(
+    departements, tmp_path, session,
+):
+    niveaux = _lire(_generer(departements, tmp_path, contexte_entreprise=ESTIMATION,
+        cnx_factory=session,
+    ), "contexte")["niveaux"]
 
     assert niveaux["m3_estimer_projet"] == "N3"
     assert niveaux["m3_creer_devis"] == "N3"
@@ -356,7 +363,7 @@ def test_les_outils_qui_engagent_l_entreprise_sont_au_niveau_n3_ou_plus_dans_la_
     assert niveaux["m10_deposer_faits_candidats"] == "N2"
 
 
-def test_le_niveau_ecrit_suit_le_niveau_de_l_outil_pas_une_liste_figee(departements, tmp_path, monkeypatch):
+def test_le_niveau_ecrit_suit_le_niveau_de_l_outil_pas_une_liste_figee(departements, tmp_path, monkeypatch, session):
     reels = openclaw.tous_les_outils
 
     def estimer_en_n4(deps):
@@ -367,18 +374,20 @@ def test_le_niveau_ecrit_suit_le_niveau_de_l_outil_pas_une_liste_figee(departeme
 
     monkeypatch.setattr(openclaw, "tous_les_outils", estimer_en_n4)
 
-    niveaux = _lire(_generer(departements, tmp_path, contexte_entreprise=ESTIMATION), "contexte")["niveaux"]
+    niveaux = _lire(_generer(departements, tmp_path, contexte_entreprise=ESTIMATION,
+        cnx_factory=session,
+    ), "contexte")["niveaux"]
 
     assert niveaux["m3_estimer_projet"] == "N4"
 
 
-def test_l_affaire_vient_de_la_session_pour_les_seuls_agents_nommes(departements, tmp_path):
+def test_l_affaire_vient_de_la_session_pour_les_seuls_agents_nommes(departements, tmp_path, session):
     fichiers = _generer(
         departements,
         tmp_path,
         contexte_entreprise={"m01-front-office": [], "m03-estimation": ["m3_estimer_projet"]},
         affaire_par_session=["m01-front-office"],
-    )
+    cnx_factory=session, )
 
     agents = _lire(fichiers, "contexte")["agents"]
     assert agents["m01-front-office"] == {
@@ -401,14 +410,18 @@ def test_la_lecture_de_l_affaire_de_la_session_est_une_lecture_de_m10_fermee_aux
     assert not lecture.roles_appareil  # appelée par le core seulement
 
 
-def test_refuse_de_lire_l_affaire_dans_la_session_pour_un_agent_sans_moteur_de_contexte(departements, tmp_path):
+def test_refuse_de_lire_l_affaire_dans_la_session_pour_un_agent_sans_moteur_de_contexte(
+    departements, tmp_path, session,
+):
     with pytest.raises(ValueError, match="n'active pas le moteur de contexte"):
-        _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, affaire_par_session=["m01-front-office"])
+        _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, affaire_par_session=["m01-front-office"],
+            cnx_factory=session,
+        )
 
     assert _rien_ecrit(tmp_path)
 
 
-def test_refuse_l_affaire_par_session_si_m10_ne_sait_pas_la_lire(departements, tmp_path, monkeypatch):
+def test_refuse_l_affaire_par_session_si_m10_ne_sait_pas_la_lire(departements, tmp_path, monkeypatch, session):
     reels = openclaw.tous_les_outils
 
     def sans_lecture(deps):
@@ -420,12 +433,14 @@ def test_refuse_l_affaire_par_session_si_m10_ne_sait_pas_la_lire(departements, t
 
     with pytest.raises(ValueError, match=f"l'outil {openclaw.OUTIL_AFFAIRE_SESSION} manque"):
         _generer(departements, tmp_path, contexte_entreprise={"m01-front-office": []},
-                 affaire_par_session=["m01-front-office"])
+                 affaire_par_session=["m01-front-office"], cnx_factory=session)
 
     assert _rien_ecrit(tmp_path)
 
 
-def test_refuse_l_affaire_par_session_si_la_lecture_n_est_plus_une_lecture(departements, tmp_path, monkeypatch):
+def test_refuse_l_affaire_par_session_si_la_lecture_n_est_plus_une_lecture(
+    departements, tmp_path, monkeypatch, session,
+):
     reels = openclaw.tous_les_outils
 
     def lecture_t1(deps):
@@ -438,12 +453,12 @@ def test_refuse_l_affaire_par_session_si_la_lecture_n_est_plus_une_lecture(depar
 
     with pytest.raises(ValueError, match="doit être une lecture"):
         _generer(departements, tmp_path, contexte_entreprise={"m01-front-office": []},
-                 affaire_par_session=["m01-front-office"])
+                 affaire_par_session=["m01-front-office"], cnx_factory=session)
 
     assert _rien_ecrit(tmp_path)
 
 
-def test_sans_affaire_par_session_l_outil_de_lecture_n_est_pas_exige(departements, tmp_path, monkeypatch):
+def test_sans_affaire_par_session_l_outil_de_lecture_n_est_pas_exige(departements, tmp_path, monkeypatch, session):
     reels = openclaw.tous_les_outils
 
     def sans_lecture(deps):
@@ -453,7 +468,7 @@ def test_sans_affaire_par_session_l_outil_de_lecture_n_est_pas_exige(departement
 
     monkeypatch.setattr(openclaw, "tous_les_outils", sans_lecture)
 
-    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
+    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
 
     assert _lire(fichiers, "contexte")["agents"]["m03-estimation"]["affaire"] == "demande"
 
@@ -467,10 +482,11 @@ def _preparer_commande(monkeypatch):
     modeles.enregistrer_paliers(PALIERS)
 
 
-def test_la_commande_sans_option_laisse_le_moteur_desactive(tmp_path, monkeypatch, capsys):
+def test_la_commande_sans_option_laisse_le_moteur_desactive(tmp_path, monkeypatch, capsys, session):
     _preparer_commande(monkeypatch)
     config = tmp_path / "oc"
 
+    provisionner_base_qa(session, charger_departements())
     assert cli.main(["openclaw", "configurer", "--config-dir", str(config)]) == 0
 
     capsys.readouterr()
@@ -478,10 +494,11 @@ def test_la_commande_sans_option_laisse_le_moteur_desactive(tmp_path, monkeypatc
     assert "slots" not in json.loads((config / "opsys" / "plugins.json").read_text(encoding="utf-8"))
 
 
-def test_la_commande_active_le_moteur_pour_les_agents_nommes(tmp_path, monkeypatch, capsys):
+def test_la_commande_active_le_moteur_pour_les_agents_nommes(tmp_path, monkeypatch, capsys, session):
     _preparer_commande(monkeypatch)
     config = tmp_path / "oc"
 
+    provisionner_base_qa(session, charger_departements())
     code = cli.main([
         "openclaw", "configurer", "--config-dir", str(config),
         "--contexte-entreprise", "m03-estimation:m3_estimer_projet",
@@ -510,10 +527,11 @@ def test_la_commande_active_le_moteur_pour_les_agents_nommes(tmp_path, monkeypat
     assert plugins["slots"] == {"contextEngine": "opsys"}
 
 
-def test_la_commande_lit_l_affaire_dans_la_session_pour_les_agents_nommes(tmp_path, monkeypatch, capsys):
+def test_la_commande_lit_l_affaire_dans_la_session_pour_les_agents_nommes(tmp_path, monkeypatch, capsys, session):
     _preparer_commande(monkeypatch)
     config = tmp_path / "oc"
 
+    provisionner_base_qa(session, charger_departements())
     code = cli.main([
         "openclaw", "configurer", "--config-dir", str(config),
         "--contexte-entreprise", "m01-front-office",
@@ -529,15 +547,15 @@ def test_la_commande_lit_l_affaire_dans_la_session_pour_les_agents_nommes(tmp_pa
 
 
 def test_la_commande_refuse_une_affaire_par_session_sans_moteur_de_contexte_pour_l_agent(
-    tmp_path, monkeypatch, capsys
+    tmp_path, monkeypatch, capsys, session
 ):
     _preparer_commande(monkeypatch)
 
-    with pytest.raises(ValueError, match="n'active pas le moteur de contexte"):
-        cli.main(["openclaw", "configurer", "--config-dir", str(tmp_path / "oc"),
-                  "--contexte-entreprise", "m03-estimation", "--affaire-par-session", "m01-front-office"])
+    provisionner_base_qa(session, charger_departements())
+    assert cli.main(["openclaw", "configurer", "--config-dir", str(tmp_path / "oc"),
+                     "--contexte-entreprise", "m03-estimation", "--affaire-par-session", "m01-front-office"]) == 2
 
-    capsys.readouterr()
+    assert "n'active pas le moteur de contexte" in capsys.readouterr().err
     assert _rien_ecrit(tmp_path / "oc")
 
 

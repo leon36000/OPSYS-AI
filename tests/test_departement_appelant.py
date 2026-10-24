@@ -10,6 +10,7 @@ import time
 import anyio
 import pytest
 import uvicorn
+from agents_base_qa import provisionner_base_qa
 from mcp.client.session import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared._httpx_utils import create_mcp_http_client
@@ -109,16 +110,20 @@ def test_appelant_inconnu_refuse(departements_demo, session):
         Capacites(departements_demo, session, appelant="m05-absent")
 
 
-def test_isolation_des_agents_openclaw(tmp_path):
+def test_isolation_des_agents_openclaw(tmp_path, session):
     deps = charger_departements()
     paliers = {p: {"provider": "anthropic", "model": "claude-sonnet-5"} for p in ("rapide", "standard", "fort")}
     paliers["local"] = {"provider": "custom", "model": "qwen3:8b", "base_url": "http://ollama:11434/v1"}
     # ADR-0010 : mémoire Couche A fail-closed, cf. tests/test_openclaw_memoire.py.
     environ = {"OPSYS_EMBEDDINGS_URL": "http://embeddings-test:11434/v1", "OPSYS_EMBEDDINGS_MODELE": "bge-m3"}
-    fichiers = openclaw.generer(deps, tmp_path, paliers, environ=environ)
+    provisionner_base_qa(session, deps)
+    fichiers = openclaw.generer(deps, tmp_path, paliers, environ=environ, cnx_factory=session)
     agents = json.loads(fichiers["agents"].read_text(encoding="utf-8"))["entries"]
     serveurs = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
-    assert len(agents) == len(serveurs) == 10
+    assert len(agents) == 10
+    assert set(serveurs) == ({openclaw.serveur_mcp(dep) for dep in deps.values()}
+                             | {f"opsys_runtime_base-{dep.id}" for dep in deps.values()})
+    assert len(serveurs) == 20
     refus_m3 = agents["m03-estimation"]["tools"]["deny"]
     assert "opsys_m3__*" not in refus_m3 and "opsys_m5__*" in refus_m3
     assert "opsys_context_*__*" in refus_m3

@@ -3,6 +3,7 @@ import { types } from "node:util";
 import type { StreamFn } from "openclaw/plugin-sdk/agent-core";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { callOpsysMcpTool } from "../../context-engine/opsys-contexte-mcp.js";
+import { recordModelFallbackStop } from "../model-fallback-stop.js";
 import type { AgentMessage } from "../runtime/index.js";
 import { createFreshLlmBoundaryTokenEstimator } from "../sessions/context-token-pressure.js";
 
@@ -434,7 +435,15 @@ export function requiresOpsysRuntimeAdmission(
   config: OpenClawConfig | undefined,
   agentId: string,
 ): boolean {
-  return admissionProfile(config, agentId) !== undefined;
+  // Earlier generated department entries had isolation but no durable admission binding.
+  // Keep those installed entries fail-closed during explicit profile provisioning; do not
+  // turn a missing migration choice into a free provider path. Generic Core agents retain
+  // their existing contract.
+  const departmentEntry = config?.agents?.entries?.[agentId];
+  return (
+    admissionProfile(config, agentId) !== undefined ||
+    (canonicalDepartment(agentId) && departmentEntry?.opsysIsolation?.exec === "sandbox-required")
+  );
 }
 
 /** Generic compaction owns a separate provider path, so profiled runs refuse it until gated. */
@@ -656,7 +665,10 @@ export async function verifyOpsysRuntimeToolCall(params: {
   if (!profileId) {
     return;
   }
-  const mcpTool = /^(opsys_m(?:[1-9]|10))__((?:m[1-9]|m10)_[a-z0-9_]+)$/.exec(params.toolName);
+  const mcpTool =
+    /^(opsys_m(?:[1-9]|10))__((?:m[1-9]|m10)_[a-z0-9_]+|opsys_(?:lire_artefact|etat_budget|demandes_approbation|memoire_rechercher|memoire_ajouter|memoire_oublier))$/.exec(
+      params.toolName,
+    );
   if (!mcpTool) {
     return;
   }
@@ -679,7 +691,6 @@ export async function verifyOpsysRuntimeToolCall(params: {
 async function reconcileCapturedOpsysRuntimeAdmission(params: {
   capture: RuntimeReservationCapture;
   tokensReels: number;
-  signal: AbortSignal;
 }): Promise<void> {
   if (integer(params.tokensReels) === undefined) {
     throw new Error("invalid provider usage for OPSYS admission");
@@ -690,7 +701,8 @@ async function reconcileCapturedOpsysRuntimeAdmission(params: {
     tool: "opsys_runtime_concilier",
     args: { reservation_id: params.capture.reservationId, tokens_reels: params.tokensReels },
     timeoutMs: TIMEOUT_MS,
-    signal: params.signal,
+    // Known provider usage must be accounted for even after delivery is cancelled.
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   throwRefusal(value);
   const reservation = resultObject(value);
@@ -821,31 +833,62 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
     const stream = await params.streamFn(model, context, options);
     const originalResult = stream.result.bind(stream);
     let resultPromise: ReturnType<typeof originalResult> | undefined;
-    Object.defineProperty(stream, "result", {
-      configurable: true,
-      value: () => {
-        // Assign the promise before invoking provider code, including synchronous throws/reentrancy.
-        resultPromise ??= Promise.resolve().then(async () => {
-          const message = await originalResult();
-          const usage = message.usage;
-          const tokensReels = usage?.totalTokens;
-          if (tokensReels === undefined || !Number.isSafeInteger(tokensReels) || tokensReels <= 0) {
-            throw new Error(
-              "provider returned no reliable token usage; OPSYS reservation remains open",
-            );
-          }
+    const finalizeResult = () => {
+      // Assign the promise before invoking provider code, including synchronous throws/reentrancy.
+      resultPromise ??= Promise.resolve().then(async () => {
+        const message = await originalResult();
+        const usage = message.usage;
+        const tokensReels = usage?.totalTokens;
+        if (tokensReels === undefined || !Number.isSafeInteger(tokensReels) || tokensReels <= 0) {
+          throw new Error(
+            "provider returned no reliable token usage; OPSYS reservation remains open",
+          );
+        }
+        try {
           await reconcileCapturedOpsysRuntimeAdmission({
             capture,
             tokensReels,
-            signal,
           });
-          sealOpsysRuntimeCompletion(message, capture, tokensReels);
-          captureOpsysRuntimeCompletionCustody(completionCustody, message, capture);
-          return message;
-        });
-        return resultPromise;
-      },
+        } catch (cause) {
+          // The provider already returned reliable usage; replay cannot repair local accounting.
+          // Keep the original transport error reusable outside this terminal attempt.
+          const error = new Error(
+            "OPSYS runtime reconciliation failed after known provider usage; fallback is unsafe",
+            { cause },
+          );
+          recordModelFallbackStop(error);
+          throw error;
+        }
+        sealOpsysRuntimeCompletion(message, capture, tokensReels);
+        captureOpsysRuntimeCompletionCustody(completionCustody, message, capture);
+        return message;
+      });
+      return resultPromise;
+    };
+    Object.defineProperty(stream, "result", {
+      configurable: true,
+      value: finalizeResult,
     });
+    if (typeof stream[Symbol.asyncIterator] === "function") {
+      const originalIterator = stream[Symbol.asyncIterator].bind(stream);
+      Object.defineProperty(stream, Symbol.asyncIterator, {
+        configurable: true,
+        async *value() {
+          for await (const event of { [Symbol.asyncIterator]: originalIterator }) {
+            const errorUsage = event.type === "error" ? event.error.usage?.totalTokens : undefined;
+            if (
+              event.type === "done" ||
+              (errorUsage !== undefined && Number.isSafeInteger(errorUsage) && errorUsage > 0)
+            ) {
+              // Event-only consumers must not publish a terminal before canonical accounting.
+              // Reuse the same memoized finalizer as result(), including F1/F2 and custody.
+              await finalizeResult();
+            }
+            yield event;
+          }
+        },
+      });
+    }
     return stream;
   };
 }

@@ -106,8 +106,11 @@ src/agents/agent-tools.before-tool-call.opsys-contexte.test.ts
 # Ces fichiers appartiennent aux projets agents et ne sont pas couverts par test:fast.
 src/agents/agent-tools.before-tool-call.opsys-runtime-deny.test.ts
 src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts
+src/agents/embedded-agent-runner/opsys-base-runtime-admission.test.ts
+src/agents/embedded-agent-runner/opsys-common-runtime-admission.test.ts
 src/agents/embedded-agent-runner/opsys-runtime-completion-custody.test.ts
 src/agents/embedded-agent-runner/opsys-runtime-admission.python-http.integration.test.ts
+src/agents/embedded-agent-runner/opsys-base-runtime-admission.python-http.integration.test.ts
 src/agents/embedded-agent-runner/run-entry.admission.integration.test.ts
 src/agents/embedded-agent-runner/run-entry.test.ts
 

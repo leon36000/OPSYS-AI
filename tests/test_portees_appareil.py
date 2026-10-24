@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 
 from opsys import appareils, cli, modeles, openclaw
 from opsys.departements import charger_departements, tous_les_outils, verifier_portees
@@ -368,7 +369,9 @@ def test_les_declarations_reelles_passent_opsys_verifier(departements_reels):
     assert verifier_portees(departements_reels) == []
 
 
-def test_opsys_openclaw_configurer_ecrit_le_fragment_roles_json_reel(tmp_path, monkeypatch, capsys):
+def test_opsys_openclaw_configurer_ecrit_le_fragment_roles_json_reel(
+    session, departements_reels, tmp_path, monkeypatch, capsys
+):
     """La commande réelle, sur les départements réels : `roles.json` est `roles_outils`, sans T3."""
     monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", "http://embeddings-test:11434/v1")
     monkeypatch.setenv("OPSYS_EMBEDDINGS_MODELE", "bge-m3")
@@ -378,6 +381,7 @@ def test_opsys_openclaw_configurer_ecrit_le_fragment_roles_json_reel(tmp_path, m
         "fort": {"provider": "anthropic", "model": "claude-sonnet-5"},
         "local": {"provider": "custom", "model": "qwen3:8b", "base_url": "http://ollama:11434/v1"},
     })
+    provisionner_base_qa(session, departements_reels)
     config = tmp_path / "oc"
 
     assert cli.main(["openclaw", "configurer", "--config-dir", str(config)]) == 0

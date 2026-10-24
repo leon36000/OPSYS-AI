@@ -25,10 +25,10 @@ Pourquoi le chiffrement, et pas un autre mécanisme (étude demandée par PLAN T
          du registre append-only, dans un support qui autorise une vraie suppression. Choisi ICI :
          le maillon chaîné ne change JAMAIS après écriture (intégrité et empreinte intactes pour
          toujours) ; la position reste lisible tant que la clé existe (droit d'accès, §7) ; une
-         purge de rétention (§5) DÉTRUIT la clé — un DELETE réel, hors du registre — rendant la
-         position irrécupérable sans toucher un seul octet de la chaîne. C'est l'« effacement
-         cryptographique » (crypto-shredding), une pratique reconnue précisément pour ce cas : un
-         journal immuable qui doit pouvoir honorer un calendrier de destruction.
+         purge de rétention (§5) retire la clé du coffre logique sans toucher à la chaîne.
+         Le nettoyage des fichiers SQLite courants est ensuite suivi par purge_id après commit ;
+         en_attente ne constitue pas une attestation de nettoyage. Sauvegardes, snapshots et
+         supports externes exigent leur propre gestion des clés et restent distincts.
     HMAC-SHA256 en mode compteur (bibliothèque standard ``hmac``/``hashlib`` uniquement, même
     parti pris que ``cedule.py`` §4 de l'architecture M4 : « aucune cryptographie exotique ») :
     un flux de clé est dérivé par blocs HMAC(clé, contexte‖nonce‖compteur), puis XORé avec le
@@ -223,11 +223,17 @@ def construire_maillon_acces(technicien_id, ligne_id_position, accede_par, horod
     }
 
 
-def construire_maillon_purge(technicien_id, fin_contrat_travail, horodatage_arg, motif, cle_detruite):
-    """Maillon d'audit d'une purge (§5) : preuve qu'une destruction a eu lieu (ou a été rejouée
-    sans effet, ``cle_detruite=False``, si la clé n'existait déjà plus), jamais la position
-    détruite elle-même — qui n'apparaît JAMAIS ici, y compris chiffrée."""
-    return {
+def construire_maillon_purge(
+    technicien_id, fin_contrat_travail, horodatage_arg, motif, cle_detruite,
+    *, purge_id: str | None = None, etat_fichiers: str | None = None,
+):
+    """Audit historique du retrait logique de la clé et, si fourni, du travail d'effacement.
+
+    ``cle_detruite`` décrit le retrait du coffre logique, jamais les fichiers physiques. L'état
+    enregistré est INITIAL ; le suivi courant se lit par ``purge_id`` sans réécrire ce maillon.
+    La position elle-même n'apparaît JAMAIS ici, y compris chiffrée.
+    """
+    maillon = {
         "type_entree": TYPE_PURGE,
         "technicien_id": technicien_id,
         "fin_contrat_travail": fin_contrat_travail,
@@ -235,3 +241,8 @@ def construire_maillon_purge(technicien_id, fin_contrat_travail, horodatage_arg,
         "motif": motif,
         "cle_detruite": cle_detruite,
     }
+    if purge_id is not None:
+        maillon["purge_id"] = purge_id
+    if etat_fichiers is not None:
+        maillon["etat_fichiers"] = etat_fichiers
+    return maillon

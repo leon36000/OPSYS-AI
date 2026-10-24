@@ -7,6 +7,7 @@ import json
 import os
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 from sqlalchemy import MetaData, Table, select, update
 from sqlalchemy.exc import IntegrityError
 
@@ -67,6 +68,7 @@ def _spec(ident="m01-sms-projection", compte="default", sid=SID):
 @pytest.fixture
 def monde(session):
     deps = departements.charger_departements()
+    provisionner_base_qa(session, deps)
     with session() as cnx:
         identite.creer_personne(cnx, ADMIN, "Admin fictif", "mot-de-passe-projection-fictif", ["admin"])
     return session, deps

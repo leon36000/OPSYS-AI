@@ -160,12 +160,29 @@ class Poste:
         for commande in (["init", "-q", "-b", "main"], ["add", "-A"], ["commit", "-q", "-m", "premier"]):
             subprocess.run([*git, *commande], env=env, check=True, capture_output=True)
 
-    def preparer_decisions(self) -> None:
-        """Les décisions que l'installateur n'invente pas : un palier de modèles et le service d'embeddings."""
+    def preparer_decisions(self, *, profils_base: bool = True) -> None:
+        """Choix QA explicites : modèles, embeddings et profils/budgets durables."""
         self.home.mkdir(parents=True, exist_ok=True)
         (self.home / "paliers.yaml").write_text(
             "paliers: {standard: {provider: anthropic, model: claude-sonnet-5}}\n", encoding="utf-8")
         self.env_supplementaire.update(EMBEDDINGS)
+        if profils_base:
+            # Instance fictive seulement : l'installateur de production ne provisionne rien.
+            env = self.env()
+            env["PYTHONPATH"] = os.pathsep.join((str(RACINE / "tests" / "fixtures"), env["PYTHONPATH"]))
+            resultat = subprocess.run(
+                [sys.executable, "-c", (
+                    "from agents_base_qa import provisionner_base_qa; "
+                    "from opsys import stockage; "
+                    "from opsys.departements import charger_departements; "
+                    "stockage.migrer(); "
+                    "deps = charger_departements(); "
+                    "profils = provisionner_base_qa(stockage.transaction, deps); "
+                    "assert set(profils) == set(deps) and profils; "
+                    "stockage.liberer()"
+                )], env=env, capture_output=True, text=True, timeout=30, check=False,
+            )
+            assert resultat.returncode == 0, resultat.stdout + resultat.stderr
 
     def env(self, **supplement: str) -> dict[str, str]:
         env = {cle: valeur for cle, valeur in os.environ.items()
@@ -466,6 +483,19 @@ def test_les_ports_de_la_derniere_installation_sont_repris_sans_qu_on_les_redonn
     assert relance.returncode == 0, _sortie(relance)
     assert pret.enregistrement()["PORT_GATEWAY"] == str(pret.port_gateway)
     assert pret.enregistrement()["PORT_MOTEUR"] == str(pret.port_moteur)
+
+
+def test_sans_profils_base_les_paliers_et_embeddings_ne_suffisent_pas(poste):
+    poste.preparer_decisions(profils_base=False)
+
+    resultat = poste.installer("-SansService")
+
+    assert resultat.returncode == 3, _sortie(resultat)
+    assert "profils de base" in _sortie(resultat)
+    assert "agents-base provisionner" in _sortie(resultat)
+    assert not (poste.etat_core / "opsys.json").exists()
+    assert not (poste.etat_core / "opsys" / "metier.json").exists()
+    assert not any("gateway install" in appel for appel in poste.appels())
 
 
 def test_sans_decision_l_installateur_sort_en_3_et_dit_quoi_fournir(poste):

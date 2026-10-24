@@ -7,6 +7,7 @@ import uuid
 
 import pytest
 from alembic import command, op
+from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, literal_column, select, text
 from sqlalchemy.exc import IntegrityError
 
@@ -23,6 +24,10 @@ from opsys.stockage.schema import (
 
 _RESERVATION_MAX = 262_160
 FICTIF = True
+
+
+def _revision_tete():
+    return ScriptDirectory.from_config(stockage._config()).get_current_head()
 
 
 @pytest.fixture
@@ -128,7 +133,7 @@ def test_migration_0025_0026_preserve_native_ap_default_et_linkage(base_ocr):
         draft = _brouillon_ap_fictif()
         cnx.execute(FUSION_AP_BROUILLONS.insert().values(**draft))
     _migration("head")
-    assert stockage.revision_courante(base_ocr) == "0026"
+    assert stockage.revision_courante(base_ocr) == _revision_tete()
     with stockage.moteur().begin() as cnx:
         after = dict(cnx.execute(select(FUSION_AP_BROUILLONS)).mappings().one())
         assert {key: after[key] for key in draft} == draft
@@ -194,7 +199,7 @@ def test_downgrade_0026_refuse_lien_ocr_conserve(base_ocr):
         cnx.execute(FUSION_AP_OCR_SOURCES.delete().where(FUSION_AP_OCR_SOURCES.c.lot_id == lot_id))
     with pytest.raises(RuntimeError, match="références OCR"):
         _migration("0025", descendre=True)
-    assert stockage.revision_courante(base_ocr) == "0026"
+    assert stockage.revision_courante(base_ocr) == _revision_tete()
     with stockage.moteur().begin() as cnx:
         assert dict(cnx.execute(select(FUSION_AP_OCR_SOURCES)).mappings().one()) == source
 
@@ -337,7 +342,7 @@ def test_downgrade_refuse_runs_commandes_et_reservations_sans_perte(base_ocr):
         ))
     with pytest.raises(RuntimeError, match="rétrogradation refusée"):
         _migration("0024", descendre=True)
-    assert stockage.revision_courante(base_ocr) == "0026"
+    assert stockage.revision_courante(base_ocr) == _revision_tete()
     with stockage.moteur().begin() as cnx:
         assert cnx.execute(select(FUSION_PDF_OCR_RUNS)).mappings().one()["ocr_run_id"] == run["ocr_run_id"]
         assert cnx.execute(select(FUSION_PDF_OCR_COMMANDES)).scalar_one()
@@ -353,7 +358,7 @@ def test_downgrade_refuse_compteur_quota_non_nul_sans_run(base_ocr, compteur):
         ))
     with pytest.raises(RuntimeError, match="rétrogradation refusée"):
         _migration("0024", descendre=True)
-    assert stockage.revision_courante(base_ocr) == "0026"
+    assert stockage.revision_courante(base_ocr) == _revision_tete()
     with stockage.moteur().begin() as cnx:
         assert cnx.execute(select(FUSION_PDF_OCR_RUNS)).all() == []
         assert cnx.execute(select(FUSION_PDF_OCR_COMMANDES)).all() == []
@@ -370,7 +375,7 @@ def test_downgrade_vide_puis_reupgrade_est_autorise(base_ocr):
         assert FUSION_PDF_OCR_COMMANDES.name not in tables
         assert FUSION_PDF_OCR_QUOTA.name not in tables
     _migration("head")
-    assert stockage.revision_courante(base_ocr) == "0026"
+    assert stockage.revision_courante(base_ocr) == _revision_tete()
     with stockage.moteur().begin() as cnx:
         assert tuple(cnx.execute(select(FUSION_PDF_OCR_QUOTA)).one()) == (1, 0, 0)
         assert FUSION_AP_OCR_SOURCES.name in inspect(cnx).get_table_names()

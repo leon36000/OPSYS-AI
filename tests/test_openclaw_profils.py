@@ -4,6 +4,8 @@ import json
 import subprocess
 from pathlib import Path
 
+from agents_base_qa import provisionner_base_qa
+
 from opsys import agents, identite, openclaw
 from opsys.departements import charger_departements
 
@@ -27,6 +29,7 @@ def _spec(deps, ident: str) -> dict:
 
 def test_genere_les_profils_actifs_avec_admission_durable(session, tmp_path):
     deps = charger_departements()
+    provisionner_base_qa(session, deps)
     # Le registre valide chaque profil contre le manifeste réel du département.
     with session() as cnx:
         identite.creer_personne(cnx, "profil-admin", "Admin", "test-password-admin-1234", ["admin"])
@@ -109,7 +112,8 @@ def test_genere_les_profils_actifs_avec_admission_durable(session, tmp_path):
             "if (!parsed.success) { process.stderr.write(JSON.stringify(parsed.error.issues)); process.exit(1); }\n",
             encoding="utf-8",
         )
-        subprocess.run(
+        validation = subprocess.run(
             [str(tsx), str(validator), str(files["agents"])],
-            cwd=root / "core", check=True, capture_output=True, text=True,
+            cwd=root / "core", check=False, capture_output=True, text=True,
         )
+        assert validation.returncode == 0, validation.stderr

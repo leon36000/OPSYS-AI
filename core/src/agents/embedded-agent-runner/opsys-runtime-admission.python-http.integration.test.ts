@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -9,9 +10,12 @@ import type { AssistantMessage, Context, Model } from "openclaw/plugin-sdk/llm";
 import { afterEach, describe, expect, it } from "vitest";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { runBeforeToolCallHook } from "../agent-tools.before-tool-call.policy.js";
+import { hasModelFallbackStop } from "../failover-error.js";
+import { runWithModelFallback } from "../model-fallback-runner.js";
 import { makeProviderModelFixture } from "../test-helpers/provider-model-fixture.js";
 import { createZeroUsageFixture } from "../test-helpers/usage-fixtures.js";
 import { createOpsysRuntimeAdmissionStreamFn } from "./opsys-runtime-admission.js";
+import { startReconciliationProxy } from "./opsys-runtime-reconciliation-loss.test-support.js";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const FIXTURE = resolve(REPO, "core/test/opsys-runtime-admission-fixture.py");
@@ -78,9 +82,16 @@ function requiredPython(): string {
 }
 
 function isolatedEnvironment(home: string): NodeJS.ProcessEnv {
+  for (const name of ["config", "data", "cache", "tmp"]) {
+    mkdirSync(resolve(home, name), { recursive: true, mode: 0o700 });
+  }
   return {
     HOME: home,
     OPSYS_HOME: home,
+    XDG_CONFIG_HOME: resolve(home, "config"),
+    XDG_DATA_HOME: resolve(home, "data"),
+    XDG_CACHE_HOME: resolve(home, "cache"),
+    TMPDIR: resolve(home, "tmp"),
     OPSYS_CONTEXT_MCP_JETON: PRIVATE_TOKEN,
     OPSYS_MCP_JETON: PUBLIC_TOKEN,
     OPSYS_EVENEMENTS_REPARTITEUR: "0",
@@ -201,7 +212,10 @@ function runtimeConfig(
   } as OpenClawConfig;
 }
 
-function fakeProvider(counter: { calls: number }): StreamFn {
+function fakeProvider(
+  counter: { calls: number },
+  onResult?: (message: AssistantMessage) => void,
+): StreamFn {
   return async (_model: Model, _context: Context) => {
     counter.calls += 1;
     const message: AssistantMessage = {
@@ -215,7 +229,10 @@ function fakeProvider(counter: { calls: number }): StreamFn {
       timestamp: 1,
     };
     return {
-      result: async () => message,
+      result: async () => {
+        onResult?.(message);
+        return message;
+      },
       async *[Symbol.asyncIterator]() {},
     };
   };
@@ -378,6 +395,69 @@ describe("OPSYS runtime admission against the real Python MCP CLI", () => {
     expect(inspected.usage_tokens).toBe(3);
   }, 30_000);
 
+  it("reconciles known provider usage after the run is aborted at the response boundary", async () => {
+    const python = requiredPython();
+    const home = await mkdtemp(resolve(tmpdir(), "opsys-runtime-known-usage-abort-it-"));
+    tempDirs.push(home);
+    const env = isolatedEnvironment(home);
+    await runPython(python, [FIXTURE, "prepare"], env);
+
+    const port = await reserveEphemeralPort();
+    const server = spawn(
+      python,
+      ["-m", "opsys.serveur_mcp", "--http", "--hote", "127.0.0.1", "--port", String(port)],
+      { cwd: REPO, env, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    children.push(server);
+    await waitUntilListening(server);
+
+    const controller = new AbortController();
+    const providerCalls = { calls: 0 };
+    let providerResults = 0;
+    const gate = createOpsysRuntimeAdmissionStreamFn({
+      config: runtimeConfig(port, "it-runtime-ok"),
+      agentId: "opsys-agent-it-runtime-ok",
+      runId: "integration-known-usage-abort-run-001",
+      getCandidateIndex: () => 0,
+      signal: controller.signal,
+      streamFn: fakeProvider(providerCalls, (message) => {
+        providerResults += 1;
+        expect(message.usage?.totalTokens).toBe(3);
+        controller.abort(new Error("synthetic cancellation after known provider response"));
+      }),
+    });
+    const model = makeProviderModelFixture({
+      id: "integration-fake",
+      provider: "openai",
+      api: "openai-completions",
+      baseUrl: "http://127.0.0.1:1/fictif-no-provider-network",
+      contextWindow: 64,
+      maxTokens: 16,
+    });
+    const stream = await gate(model, { messages: [] }, { signal: controller.signal });
+    const message = await stream.result();
+
+    expect(controller.signal.aborted).toBe(true);
+    expect(providerCalls.calls).toBe(1);
+    expect(providerResults).toBe(1);
+    expect(message.usage?.totalTokens).toBe(3);
+
+    await stopChild(server);
+    const inspected: unknown = JSON.parse(await runPython(python, [FIXTURE, "inspect"], env));
+    expect(inspected).toEqual({
+      reservations: [
+        expect.objectContaining({
+          agent_id: "it-runtime-ok",
+          execution_id: "integration-known-usage-abort-run-001",
+          cycle_id: "integration-known-usage-abort-run-001:0:0",
+          statut: "conciliee",
+          tokens_reels: 3,
+        }),
+      ],
+      usage_tokens: 3,
+    });
+  }, 30_000);
+
   it("blocks a configured tool revoked after the host loaded its older profile revision", async () => {
     const python = requiredPython();
     const home = await mkdtemp(resolve(tmpdir(), "opsys-runtime-revision-it-"));
@@ -509,4 +589,137 @@ describe("OPSYS runtime admission against the real Python MCP CLI", () => {
     });
     expect(unprofiled.blocked).toBe(false);
   }, 30_000);
+
+  for (const loseResponse of [false, true]) {
+    it(
+      loseResponse
+        ? "does not dispatch a fallback after known usage and a lost real reconciliation response"
+        : "returns the first candidate after real fallback-gate reconciliation",
+      async () => {
+        const python = requiredPython();
+        const home = await mkdtemp(resolve(tmpdir(), "opsys-runtime-fallback-known-usage-it-"));
+        tempDirs.push(home);
+        const env = isolatedEnvironment(home);
+        await runPython(python, [FIXTURE, "prepare"], env);
+        const port = await reserveEphemeralPort();
+        const server = spawn(
+          python,
+          ["-m", "opsys.serveur_mcp", "--http", "--hote", "127.0.0.1", "--port", String(port)],
+          { cwd: REPO, env, stdio: ["ignore", "pipe", "pipe"] },
+        );
+        children.push(server);
+        await waitUntilListening(server);
+        const proxy = await startReconciliationProxy(port, loseResponse);
+        let primary: unknown;
+        let cleanupError: unknown;
+        try {
+          let providerCalls = 0;
+          let providerResults = 0;
+          let candidateCalls = 0;
+          let resultError: unknown;
+          let returnedTokens: number | undefined;
+          const runId = `integration-known-usage-fallback-${loseResponse ? "loss" : "nominal"}`;
+          try {
+            const result = await runWithModelFallback<AssistantMessage>({
+              cfg: undefined,
+              provider: "fixture-primary",
+              model: "fixture-model",
+              manifestPlugins: [],
+              fallbacksOverride: ["fixture-next/fixture-model"],
+              skipAuthProfileRuntime: true,
+              run: async (providerName, modelName) => {
+                const index = candidateCalls++;
+                if (index > 1) {
+                  throw new Error("Unexpected third candidate in bounded integration fixture");
+                }
+                const model = makeProviderModelFixture({
+                  id: modelName,
+                  provider: providerName,
+                  api: "openai-completions",
+                  baseUrl: "http://127.0.0.1:1/fictif-no-provider-network",
+                  contextWindow: 64,
+                  maxTokens: 16,
+                });
+                const provider: StreamFn = async () => {
+                  providerCalls += 1;
+                  const message: AssistantMessage = {
+                    role: "assistant",
+                    content: [],
+                    api: "openai-completions",
+                    provider: providerName,
+                    model: modelName,
+                    usage: { ...createZeroUsageFixture(), output: 3, totalTokens: 3 },
+                    stopReason: "stop",
+                    timestamp: 1,
+                  };
+                  return {
+                    result: async () => {
+                      providerResults += 1;
+                      return message;
+                    },
+                    async *[Symbol.asyncIterator]() {},
+                  };
+                };
+                const gate = createOpsysRuntimeAdmissionStreamFn({
+                  config: runtimeConfig(proxy.port, "it-runtime-ok"),
+                  agentId: "opsys-agent-it-runtime-ok",
+                  runId,
+                  getCandidateIndex: () => index,
+                  streamFn: provider,
+                });
+                return await (await gate(model, { messages: [] }, { maxTokens: 16 })).result();
+              },
+            });
+            returnedTokens = result.result.usage?.totalTokens;
+          } catch (error) {
+            resultError = error;
+          }
+          await stopChild(server);
+          const inspected: unknown = JSON.parse(await runPython(python, [FIXTURE, "inspect"], env));
+          expect(proxy.errors).toEqual([]);
+          expect(proxy.droppedResponses()).toBe(loseResponse ? 1 : 0);
+          expect(candidateCalls).toBe(1);
+          expect(providerCalls).toBe(1);
+          expect(providerResults).toBe(1);
+          if (loseResponse && resultError !== undefined) {
+            expect(hasModelFallbackStop(resultError)).toBe(true);
+          } else {
+            expect(resultError).toBeUndefined();
+            expect(returnedTokens).toBe(3);
+          }
+          expect(inspected).toEqual({
+            reservations: [
+              expect.objectContaining({
+                agent_id: "it-runtime-ok",
+                execution_id: runId,
+                cycle_id: `${runId}:0:0`,
+                statut: "conciliee",
+                tokens_reels: 3,
+              }),
+            ],
+            usage_tokens: 3,
+          });
+        } catch (error) {
+          primary = error;
+        } finally {
+          try {
+            await proxy.close();
+          } catch (error) {
+            cleanupError = error;
+          }
+        }
+        if (primary !== undefined) {
+          throw primary instanceof Error
+            ? primary
+            : new Error("QA fallback integration failed", { cause: primary });
+        }
+        if (cleanupError !== undefined) {
+          throw cleanupError instanceof Error
+            ? cleanupError
+            : new Error("QA reconciliation proxy cleanup failed", { cause: cleanupError });
+        }
+      },
+      60_000,
+    );
+  }
 });

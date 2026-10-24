@@ -15,7 +15,11 @@ from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.outils import Autonomie, Niveau
 from opsys.stockage import codec
+from opsys.stockage.schema import META as SCHEMA_META
 from opsys.stockage.schema import MUTATIONS_APPLIQUEES, PERSONNES
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 fixture = Path(__file__).parent / "test_documents_affaire_transactions.py"
 spec = importlib.util.spec_from_file_location("fixture_cap_documents_fictifs", fixture)
@@ -159,7 +163,7 @@ def test_positive_sql_sans_double_claim_trace_frame_ni_generic(monde, monkeypatc
     assert ack["auteur"] == {"personne": fx.ACTEUR.personne, "role": "admin", "source": "appareil"}
     assert ack["horodatage_appareil_declare"] == fx.HORA
     after = tables()
-    assert len(before) == 49 and {n for n in before if before[n] != after[n]} == {
+    assert set(before) == TABLES_SQLITE and {n for n in before if before[n] != after[n]} == {
         "registres_maillons",
         "mutations_appliquees",
         "approbations",

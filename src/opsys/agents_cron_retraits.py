@@ -11,6 +11,7 @@ from collections.abc import Callable
 
 from sqlalchemy import LargeBinary, cast, func, insert, select, update
 
+from . import agents, agents_base
 from . import agents_cron_autorite as autorite
 from . import agents_declencheurs as intentions
 from .etat import journaliser
@@ -129,9 +130,12 @@ class ProprietaireRetraitCron:
         kind, revision = autorite._revision_native(revision)
         if kind != "sha256":
             raise DeclencheurRefuse("CRON-RETRAIT-PREUVE-NATIVE-REQUISE")
+        profil = agents.obtenir(cnx, row["agent_id"], inclure_supprime=True)
+        if profil is None:
+            raise DeclencheurRefuse("CRON-RETRAIT-ANCRAGE-DIVERGENT")
         if (intentions._hash(declaration) != grant["declaration_hash"]
                 or declaration.get("declarationKey") != row["declaration_key"]
-                or declaration.get("agentId") != "opsys-agent-" + row["agent_id"]
+                or declaration.get("agentId") != agents_base.agent_core_id(profil)
                 or grant["native_job_id"] is not None and grant["native_job_id"] != job_id):
             raise DeclencheurRefuse("CRON-RETRAIT-ANCRAGE-DIVERGENT")
         self._operateur()

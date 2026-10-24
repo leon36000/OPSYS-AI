@@ -15,6 +15,10 @@ from opsys.departements import charger_departements
 from opsys.outils import Autonomie, executer_atomique
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, REGISTRES
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 FICTIF = True
 NOM = "m8_lire_provenance_m5_appareil"
@@ -61,7 +65,7 @@ def _fixture_historique(nom):
 
 
 def _snapshot(cnx):
-    # META contient48tables ; alembic_version donne la49e réelle, également observée.
+    # Inventaire courant déclaré, avec la table de version Alembic également observée.
     names = inspect_sql(cnx).get_table_names()
     metadata = MetaData()
     return {
@@ -108,7 +112,7 @@ def test_vrai_bus_sql_cash_id_receipt_et_fait_aucune_table_modifiee(base):
     with stockage.transaction() as cnx:
         avant = _snapshot(cnx)
         reponse = _lire()
-        assert _snapshot(cnx) == avant and len(avant) == 49
+        assert _snapshot(cnx) == avant and set(avant) == TABLES_SQLITE
     assert set(reponse) == {"ok", "resultat"} and reponse["ok"] is True
     couple = reponse["resultat"]
     assert set(couple) == {"accepte", "resultat"} and couple["accepte"] is True
@@ -271,7 +275,7 @@ def test_fait_sql_meme_valeur_python_type_json_distinct_diagnostic_divergent(bas
         )
         avant = _snapshot(cnx)
         r = _lire()
-        assert _snapshot(cnx) == avant and len(avant) == 49
+        assert _snapshot(cnx) == avant and set(avant) == TABLES_SQLITE
     assert r["resultat"]["resultat"]["publications"][0]["rapprochement"]["etat"] == "FAITS_DIVERGENTS"
 
 
@@ -294,7 +298,7 @@ def test_vrai_bus_legacy_puis_nouveau_fait_fort_ne_bloquent_pas_courant(base):
     with stockage.transaction() as cnx:
         avant = _snapshot(cnx)
         r = _lire({"perimetre": "rentabilite_wct", "wct_id": c["wct_id"], "decalage": 0, "limite": 1})
-        assert _snapshot(cnx) == avant and len(avant) == 49
+        assert _snapshot(cnx) == avant and set(avant) == TABLES_SQLITE
     dto = r["resultat"]["resultat"]
     assert dto["selection"]["publication_courante_id"] == c["evenement_id"]
     assert dto["publications"][0]["rapprochement"]["etat"] == "CORRESPONDANCE_DE_PROJECTION"
@@ -324,7 +328,7 @@ def test_budget_source_refuse_avant_transfert_driver_et_decodage(base, monkeypat
         assert reponse["resultat"]["verdict"]["code"] == "REJ-M8-PROVENANCE-BUDGET-SOURCE-DEPASSE"
         assert not transferts, f"{len(transferts)} payloads métier transférés avant refus"
         assert not decodages, f"{len(decodages)} décodages métier avant refus"
-        assert _snapshot(cnx) == avant and len(avant) == 49
+        assert _snapshot(cnx) == avant and set(avant) == TABLES_SQLITE
 
 
 def _publication_utf8_bornee(ident, octets):
@@ -419,7 +423,7 @@ def test_cohorte_preserve_scope_hash_raw_date_null_sans_erreur_privee(base):
         nouveau_bus, nouveaux_faits = copier_cohorte_provenance_m5_m8(cnx, type_evenement="m5.cash_libre_constate")
         assert nouveau_bus == ancien_bus and nouveaux_faits == anciens_faits
         assert nouveau_bus.recus[0].resultat is None
-        assert _snapshot(cnx) == avant and len(avant) == 49
+        assert _snapshot(cnx) == avant and set(avant) == TABLES_SQLITE
 
 
 def test_requete_cohorte_dialectes_byte_count_et_union_datetime_null():
@@ -503,7 +507,7 @@ def test_metadonnees_sql_integer_corrompues_refusent_avant_transfert_et_decoder(
         assert not transferts, "métadonnée métier TEXT transférée depuis une colonne INTEGER"
         assert not decodages
         assert reponse["resultat"]["verdict"]["code"] == "REJ-M8-PROVENANCE-" + code
-        assert _snapshot(cnx) == avant and len(avant) == 49
+        assert _snapshot(cnx) == avant and set(avant) == TABLES_SQLITE
 
 
 def test_date_sql_malformee_refuse_secure_sans_faux_code_registre(base, monkeypatch):
@@ -532,4 +536,4 @@ def test_date_sql_malformee_refuse_secure_sans_faux_code_registre(base, monkeypa
         # Le processeur DateTime SQLAlchemy refuse avant les decoders métier ; payload déjà borné.
         # On ne prétend pas préserver REGISTRE-INVALIDE pour ce format SQL malformé.
         assert not decodages and "Q-M8-DATE" not in str(reponse)
-        assert brut() == avant and len(noms) == 49
+        assert brut() == avant and set(noms) == TABLES_SQLITE

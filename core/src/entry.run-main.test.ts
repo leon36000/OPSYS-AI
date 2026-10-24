@@ -1,10 +1,14 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { ExpectedCliError } from "./cli/failure-output.js";
-import { runOpsysMetierCli } from "./cli/opsys-metier-cli.js";
+import { runOpsysMetierCliWithPublication } from "./cli/opsys-metier-cli.js";
 import { runMainOrRootHelp } from "./entry.js";
 
 // The engine launcher is proven in opsys-metier-cli.test.ts; here only the dispatch is.
-vi.mock("./cli/opsys-metier-cli.js", () => ({ runOpsysMetierCli: vi.fn(() => 7) }));
+vi.mock("./cli/opsys-metier-cli.js", () => ({
+  runOpsysMetierCliWithPublication: vi.fn(async () => 7),
+}));
 
 describe("entry run-main boundary", () => {
   it("retains JSON console routing through process finalization", async () => {
@@ -23,28 +27,35 @@ describe("entry run-main boundary", () => {
 
   it("hands `metier` and the retired engine commands to the launcher, never to Commander", async () => {
     const previousExitCode = process.exitCode;
+    const installRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
     const runCli = vi.fn(async () => undefined);
-    vi.mocked(runOpsysMetierCli).mockClear();
+    vi.mocked(runOpsysMetierCliWithPublication).mockClear();
     process.exitCode = undefined;
     try {
       await runMainOrRootHelp(["node", "openclaw", "metier", "verifier", "--help"], {
         loadRunCli: async () => ({ runCli }),
       });
-      expect(runOpsysMetierCli).toHaveBeenLastCalledWith({
-        kind: "metier",
-        args: ["verifier", "--help"],
-      });
+      expect(runOpsysMetierCliWithPublication).toHaveBeenLastCalledWith(
+        {
+          kind: "metier",
+          args: ["verifier", "--help"],
+        },
+        { root: installRoot },
+      );
       expect(process.exitCode).toBe(7);
 
       await runMainOrRootHelp(["node", "openclaw", "personnes", "creer", "alice.fictive"], {
         loadRunCli: async () => ({ runCli }),
       });
-      expect(runOpsysMetierCli).toHaveBeenLastCalledWith({
-        kind: "moved",
-        command: "personnes",
-        args: ["creer", "alice.fictive"],
-      });
-      expect(runOpsysMetierCli).toHaveBeenCalledTimes(2);
+      expect(runOpsysMetierCliWithPublication).toHaveBeenLastCalledWith(
+        {
+          kind: "moved",
+          command: "personnes",
+          args: ["creer", "alice.fictive"],
+        },
+        { root: installRoot },
+      );
+      expect(runOpsysMetierCliWithPublication).toHaveBeenCalledTimes(2);
       expect(runCli).not.toHaveBeenCalled();
     } finally {
       process.exitCode = previousExitCode;

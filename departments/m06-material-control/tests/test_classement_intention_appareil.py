@@ -15,6 +15,10 @@ from m6_material_control import outils
 
 from opsys import contexte, idempotence, stockage
 from opsys.outils import executer_atomique
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 spec = importlib.util.spec_from_file_location(
     "fixture_intention_classement", Path(__file__).with_name("test_classement_variance_appareil.py")
@@ -66,7 +70,7 @@ def test_succes_v2_scelle_exacte_intention_hash_et_49tables(monde):
     assert lines[-1]["intention"] == result["intention"]
     c.valider_classements(lines)
     after = fx.fx.fx._tables()
-    assert len(after) == 49
+    assert set(after) == TABLES_SQLITE
     assert {n for n in before if before[n] != after[n]} == {"registres_maillons"}
     replay(args, first)
     assert after == fx.fx.fx._tables()
@@ -90,7 +94,7 @@ def test_vrai_refus_v2_scelle_preuve_auteur_heure_et_replay(monde):
     assert len(proof) == 1 and proof[0]["intention"] == r["intention"]
     assert proof[0]["hash_maillon"] == r["preuve_refus"]["hash_maillon"]
     after = fx.fx.fx._tables()
-    assert len(after) == 49 and {n for n in before if before[n] != after[n]} == {"registres_maillons"}
+    assert set(after) == TABLES_SQLITE and {n for n in before if before[n] != after[n]} == {"registres_maillons"}
     stockage.liberer()
     replay(args, refused, second)
     assert after == fx.fx.fx._tables()

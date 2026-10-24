@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from agents_base_qa import provisionner_base_qa
 
 from opsys import appareils, cli, identite, modeles, openclaw
 from opsys.departements import Budget, Departement, charger_departements, verifier_portees
@@ -185,9 +186,10 @@ def test_cli_verifier_accepte_des_declarations_valides(racine_demo, tmp_path, mo
 # -- Le fragment roles.json généré --------------------------------------------------------------
 
 
-def test_roles_ecrit_par_generer(departements_demo, tmp_path):
+def test_roles_ecrit_par_generer(departements_demo, tmp_path, session):
+    provisionner_base_qa(session, departements_demo)
     fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, fuseau="America/Toronto",
-                                 environ=ENVIRON_EMBEDDINGS)
+                                 environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
     fragment = json.loads(fichiers["roles"].read_text(encoding="utf-8"))
     assert fragment["roles"] == {role: list(outils) for role, outils in
                                  openclaw.roles_outils(departements_demo).items()}
@@ -197,9 +199,10 @@ def test_roles_ecrit_par_generer(departements_demo, tmp_path):
     assert "roles" not in json.loads(racine.read_text(encoding="utf-8"))
 
 
-def test_generer_ecrit_la_table_declaree_dans_roles_json(racine_demo, tmp_path):
+def test_generer_ecrit_la_table_declaree_dans_roles_json(racine_demo, tmp_path, session):
     deps = charger_departements(_racine_avec_outils(racine_demo, tmp_path / "src", "demo_outils_portee_valide"))
-    fichiers = openclaw.generer(deps, tmp_path / "oc", PALIERS, environ=ENVIRON_EMBEDDINGS)
+    provisionner_base_qa(session, deps)
+    fichiers = openclaw.generer(deps, tmp_path / "oc", PALIERS, environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
 
     fragment = json.loads(fichiers["roles"].read_text(encoding="utf-8"))
     assert fragment == {
@@ -230,7 +233,7 @@ def test_generer_refuse_une_portee_invalide_et_n_ecrit_rien(racine_demo, tmp_pat
     assert not (sortie / "opsys").exists()
 
 
-def test_cli_openclaw_configurer_ecrit_roles_json(racine_demo, tmp_path, monkeypatch, capsys):
+def test_cli_openclaw_configurer_ecrit_roles_json(racine_demo, tmp_path, monkeypatch, capsys, session):
     """`opsys-metier openclaw configurer` (la commande réelle) produit le fragment lu par le core."""
     cible = _racine_avec_outils(racine_demo, tmp_path / "src", "demo_outils_portee_valide")
     monkeypatch.setenv("OPSYS_DEPARTMENTS", str(cible))
@@ -239,6 +242,7 @@ def test_cli_openclaw_configurer_ecrit_roles_json(racine_demo, tmp_path, monkeyp
     modeles.enregistrer_paliers(PALIERS)
     config = tmp_path / "oc"
 
+    provisionner_base_qa(session, charger_departements(cible))
     assert cli.main(["openclaw", "configurer", "--config-dir", str(config)]) == 0
 
     capsys.readouterr()
@@ -247,7 +251,7 @@ def test_cli_openclaw_configurer_ecrit_roles_json(racine_demo, tmp_path, monkeyp
     assert set(fragment["roles"]) == appareils.ROLES_APPAREIL
 
 
-def test_cli_openclaw_configurer_refuse_une_portee_invalide(racine_demo, tmp_path, monkeypatch):
+def test_cli_openclaw_configurer_refuse_une_portee_invalide(racine_demo, tmp_path, monkeypatch, capsys, session):
     cible = _racine_avec_outils(racine_demo, tmp_path / "src", "demo_outils_portee_invalide")
     monkeypatch.setenv("OPSYS_DEPARTMENTS", str(cible))
     monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_URL"])
@@ -255,8 +259,9 @@ def test_cli_openclaw_configurer_refuse_une_portee_invalide(racine_demo, tmp_pat
     modeles.enregistrer_paliers(PALIERS)
     config = tmp_path / "oc"
 
-    with pytest.raises(ValueError, match="portée d'appareil invalide"):
-        cli.main(["openclaw", "configurer", "--config-dir", str(config)])
+    provisionner_base_qa(session, charger_departements(cible))
+    assert cli.main(["openclaw", "configurer", "--config-dir", str(config)]) == 2
+    assert "portée d'appareil invalide" in capsys.readouterr().err
 
     assert not (config / "opsys").exists()
 
@@ -293,11 +298,12 @@ def test_serveurs_outils_vide_sans_declaration(departements_demo):
     assert openclaw.serveurs_outils(departements_demo) == {}
 
 
-def test_le_serveur_d_un_outil_est_une_cle_de_mcp_json(racine_demo, tmp_path):
+def test_le_serveur_d_un_outil_est_une_cle_de_mcp_json(racine_demo, tmp_path, session):
     """Le nom de serveur écrit dans `roles.json` est bien celui de `mcp.servers` : le core ne peut
     pas viser un serveur que sa propre configuration ne déclare pas."""
     deps = charger_departements(_racine_avec_outils(racine_demo, tmp_path / "src", "demo_outils_portee_valide"))
-    fichiers = openclaw.generer(deps, tmp_path / "oc", PALIERS, environ=ENVIRON_EMBEDDINGS)
+    provisionner_base_qa(session, deps)
+    fichiers = openclaw.generer(deps, tmp_path / "oc", PALIERS, environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
 
     serveurs = json.loads(fichiers["roles"].read_text(encoding="utf-8"))["serveurs"]
     declares = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
@@ -358,8 +364,9 @@ def test_mcp_tls_http_personnalise_sans_declaration_refuse_avant_ecriture(
     assert "HTTP" in str(erreur).upper()
 
 
-def test_mcp_tls_topologie_docker_declare_origine_http_exacte(departements_demo, tmp_path):
-    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS)
+def test_mcp_tls_topologie_docker_declare_origine_http_exacte(departements_demo, tmp_path, session):
+    provisionner_base_qa(session, departements_demo)
+    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
     serveurs = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
 
     assert serveurs
@@ -370,11 +377,12 @@ def test_mcp_tls_topologie_docker_declare_origine_http_exacte(departements_demo,
         assert serveur["headers"] == {"Authorization": "Bearer ${OPSYS_MCP_JETON}"}
 
 
-def test_mcp_tls_https_personnalise_fonctionne_sans_accord_http(departements_demo, tmp_path):
+def test_mcp_tls_https_personnalise_fonctionne_sans_accord_http(departements_demo, tmp_path, session):
     base = "https://mcp.fictif.invalid:9443/mcp"
+    provisionner_base_qa(session, departements_demo)
     fichiers = openclaw.generer(
         departements_demo, tmp_path, PALIERS, url_mcp=base, environ=ENVIRON_EMBEDDINGS,
-    )
+    cnx_factory=session, )
     serveurs = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
 
     assert serveurs
@@ -394,11 +402,12 @@ def test_mcp_tls_https_personnalise_fonctionne_sans_accord_http(departements_dem
 ])
 def test_mcp_tls_accord_http_explicite_projette_uniquement_origine_exacte(
     departements_demo, tmp_path, url, origine,
-):
+session, ):
+    provisionner_base_qa(session, departements_demo)
     fichiers = openclaw.generer(
         departements_demo, tmp_path, PALIERS, url_mcp=url, origine_http_mcp_autorisee=origine,
         environ=ENVIRON_EMBEDDINGS,
-    )
+    cnx_factory=session, )
     serveurs = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
     assert serveurs
     for dep in departements_demo.values():
@@ -482,7 +491,7 @@ def test_mcp_tls_cli_http_sans_accord_refuse_avant_configuration_et_etat(tmp_pat
 ])
 def test_mcp_tls_cli_choix_explicite_ou_defaut_gere_genere_la_bonne_policy(
     tmp_path, monkeypatch, capsys, url, origine,
-):
+session, ):
     for nom, valeur in ENVIRON_EMBEDDINGS.items():
         monkeypatch.setenv(nom, valeur)
     modeles.enregistrer_paliers(PALIERS)
@@ -493,6 +502,7 @@ def test_mcp_tls_cli_choix_explicite_ou_defaut_gere_genere_la_bonne_policy(
     if origine is not None:
         commande += ["--autoriser-origine-http-mcp", origine]
 
+    provisionner_base_qa(session, charger_departements())
     assert cli.main(commande) == 0
     capsys.readouterr()
     serveurs = json.loads((sortie / "opsys" / "mcp.json").read_text(encoding="utf-8"))["servers"]

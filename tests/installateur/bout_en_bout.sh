@@ -290,11 +290,12 @@ etat_nomme_par_le_service() { # contenu sans espaces, dossier d'état
 }
 
 installer() { # journal de sortie, options...
-    local sortie="$1"
+    local sortie="$1" code=0 attendu="${OPSYS_CODE_INSTALLATION_ATTENDU:-0}"
     shift
-    if ! bash "$RACINE/install/install.sh" "$@" >"$sortie" 2>&1; then
+    bash "$RACINE/install/install.sh" "$@" >"$sortie" 2>&1 || code=$?
+    if [ "$code" -ne "$attendu" ]; then
         cat "$sortie"
-        echec "install.sh a échoué (code non nul)"
+        echec "install.sh : code $code, attendu $attendu"
     fi
     masquer_les_secrets
     exiger_sans_secret "sortie de l'installateur" "$sortie" "$OPSYS_LOGICIEL/journaux/installation.log"
@@ -526,6 +527,20 @@ printf 'paliers:\n  standard: {provider: anthropic, model: claude-sonnet-5}\n' >
 
 # -- 1. Installation sans service ----------------------------------------------------------------------------------------
 etape "1. Installation (sans service) : Node, pnpm, uv, construction du core, moteur, instance, configuration"
+OPSYS_CODE_INSTALLATION_ATTENDU=3 installer "$TRAVAIL/installation-preparation.log" --sans-service
+# Choix opérateur QA explicites. Le logiciel est installé, mais aucun service/agent ne doit
+# devenir prêt avant le provisionnement humain des profils et des limites.
+[ ! -f "$ETAT_CORE/opsys/agents.json" ] || echec "agents exportés avant choix des limites"
+"$OPSYS_LOGICIEL/venv/bin/python" - <<'PYTHON'
+from opsys import agents_base, identite, stockage
+from opsys.departements import charger_departements
+with stockage.transaction() as cnx:
+    identite.creer_personne(cnx, "install-admin-fictif", "Admin fictif installateur",
+                           "mot-de-passe-fictif-installeur-1234", ["admin"])
+    agents_base.provisionner(cnx, charger_departements(), par="install-admin-fictif",
+        limite_tours=8, limite_reessais=2, limite_concurrence=1,
+        budget_entreprise_jour=10_000_000, budget_entreprise_mois=100_000_000)
+PYTHON
 installer "$TRAVAIL/installation-1.log" --sans-service
 for commande in openclaw opsys opsys-metier; do
     [ -x "$OPSYS_BIN/$commande" ] || echec "la commande $commande n'est pas installée dans $OPSYS_BIN"

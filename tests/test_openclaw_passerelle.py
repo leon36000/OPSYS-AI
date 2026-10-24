@@ -7,6 +7,7 @@ import threading
 from pathlib import Path
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 
 from opsys import modeles as modeles_config
 from opsys import openclaw, passerelle
@@ -23,9 +24,10 @@ ENVIRON_EMBEDDINGS = {"OPSYS_EMBEDDINGS_URL": "http://embeddings-test:11434/v1",
                       "OPSYS_EMBEDDINGS_MODELE": "bge-m3"}
 
 
-def test_fragments_openclaw(departements_demo, tmp_path):
+def test_fragments_openclaw(departements_demo, tmp_path, session):
+    provisionner_base_qa(session, departements_demo)
     fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, fuseau="America/Toronto",
-                                 environ=ENVIRON_EMBEDDINGS)
+                                 environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
     catalog = json.loads(fichiers["models"].read_text(encoding="utf-8"))
     assert catalog["mode"] == "merge"
     assert catalog["providers"]["anthropic"]["apiKey"] == "${ANTHROPIC_API_KEY}"
@@ -53,6 +55,8 @@ def test_fragments_openclaw(departements_demo, tmp_path):
         "model": "anthropic/claude-sonnet-5",
         "opsysIsolation": {"exec": "sandbox-required"},
         "tools": {"deny": ["opsys_context_*__*", "opsys_runtime_*__*"]},
+        "runtime": {"type": "embedded"},
+        "opsysRuntimeAdmission": {"profileId": "base-m09-demo", "profileRevision": 2},
     }
 
     mcp = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]["opsys_m9"]
@@ -70,7 +74,8 @@ def test_fragments_openclaw(departements_demo, tmp_path):
     assert (espace / "skills" / "procedure-demo" / "SKILL.md").is_file()
 
 
-def test_litellm_est_un_mode_de_compatibilite_explicite(departements_demo, tmp_path):
+def test_litellm_est_un_mode_de_compatibilite_explicite(departements_demo, tmp_path, session):
+    provisionner_base_qa(session, departements_demo)
     fichiers = openclaw.generer(
         departements_demo,
         tmp_path,
@@ -78,7 +83,7 @@ def test_litellm_est_un_mode_de_compatibilite_explicite(departements_demo, tmp_p
         mode_fournisseur="litellm",
         url_passerelle="http://litellm-test:4000/v1",
         environ=ENVIRON_EMBEDDINGS,
-    )
+    cnx_factory=session, )
 
     catalog = json.loads(fichiers["models"].read_text(encoding="utf-8"))
     assert "opsys-m9" in catalog["providers"]
@@ -88,13 +93,14 @@ def test_litellm_est_un_mode_de_compatibilite_explicite(departements_demo, tmp_p
     )
 
 
-def test_paliers_emettent_des_replis_valides_sans_modeles_alias_inventes(departements_demo, tmp_path):
+def test_paliers_emettent_des_replis_valides_sans_modeles_alias_inventes(departements_demo, tmp_path, session):
     paliers = {
         **PALIERS,
         "standard": {**PALIERS["standard"], "fallbacks": ["rapide"]},
         "local": {**PALIERS["local"], "api_key_env": "OPSYS_TEST_LLM_KEY"},
     }
-    fichiers = openclaw.generer(departements_demo, tmp_path, paliers, environ=ENVIRON_EMBEDDINGS)
+    provisionner_base_qa(session, departements_demo)
+    fichiers = openclaw.generer(departements_demo, tmp_path, paliers, environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
     agent = json.loads(fichiers["agents"].read_text(encoding="utf-8"))["entries"]["m09-demo"]
     providers = json.loads(fichiers["models"].read_text(encoding="utf-8"))["providers"]
 
@@ -106,7 +112,7 @@ def test_paliers_emettent_des_replis_valides_sans_modeles_alias_inventes(departe
     assert all("opsys-standard" not in model["id"] for entry in providers.values() for model in entry["models"])
 
 
-def test_configuration_native_est_projetee_depuis_le_fichier_paliers_du_dashboard(departements_demo, tmp_path):
+def test_configuration_native_est_projetee_depuis_le_fichier_paliers_du_dashboard(departements_demo, tmp_path, session):
     fichier_paliers = tmp_path / "paliers.yaml"
     modeles_config.enregistrer_paliers({
         "standard": {"provider": "anthropic", "model": "claude-sonnet-4-6"},
@@ -121,7 +127,8 @@ def test_configuration_native_est_projetee_depuis_le_fichier_paliers_du_dashboar
     paliers_lus = modeles_config.charger_paliers(fichier_paliers)
     env = {**ENVIRON_EMBEDDINGS, "ANTHROPIC_API_KEY": "secret-fixture-must-not-be-written"}
 
-    fichiers = openclaw.generer(departements_demo, tmp_path / "oc", paliers_lus, environ=env)
+    provisionner_base_qa(session, departements_demo)
+    fichiers = openclaw.generer(departements_demo, tmp_path / "oc", paliers_lus, environ=env, cnx_factory=session)
     catalog = json.loads(fichiers["models"].read_text(encoding="utf-8"))
 
     assert catalog["providers"]["anthropic"]["models"] == [
@@ -169,9 +176,10 @@ def test_refuse_paliers_de_repli_absents_ou_cycliques(departements_demo, tmp_pat
         openclaw.generer(departements_demo, tmp_path, paliers_cycle, environ=ENVIRON_EMBEDDINGS)
 
 
-def test_palier_par_defaut_manquant(departements_demo, tmp_path):
+def test_palier_par_defaut_manquant(departements_demo, tmp_path, session):
+    provisionner_base_qa(session, departements_demo)
     with pytest.raises(ValueError, match="palier par défaut 'standard' non configuré"):
-        openclaw.generer(departements_demo, tmp_path, {"rapide": PALIERS["rapide"]})
+        openclaw.generer(departements_demo, tmp_path, {"rapide": PALIERS["rapide"]}, cnx_factory=session)
 
 
 def test_racine_creee_une_seule_fois(tmp_path):
@@ -308,9 +316,12 @@ def test_synchronisation_usage_depuis_litellm(departements_demo, session):
     assert all("tags=m09-demo" in chemin for chemin in _FauxActivite.vus)
 
 
-def test_regenerer_ne_supprime_jamais_ce_que_le_core_a_ecrit_dans_l_espace_de_travail(departements_demo, tmp_path):
+def test_regenerer_ne_supprime_jamais_ce_que_le_core_a_ecrit_dans_l_espace_de_travail(
+    departements_demo, tmp_path, session,
+):
     # Le core écrit la mémoire d'un agent dans son espace de travail ; `generer` est rejouée à chaque mise à jour.
-    openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS)
+    provisionner_base_qa(session, departements_demo)
+    openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
     espace = tmp_path / "opsys" / "espaces" / "m09-demo"
     (espace / "MEMORY.md").write_text("mémoire de l'agent (fictif)\n", encoding="utf-8")
     (espace / "memory").mkdir()
@@ -319,7 +330,8 @@ def test_regenerer_ne_supprime_jamais_ce_que_le_core_a_ecrit_dans_l_espace_de_tr
     (espace / "skills" / "procedure-retiree").mkdir()
     (espace / "skills" / "procedure-retiree" / "SKILL.md").write_text("ancien skill\n", encoding="utf-8")
 
-    openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS)
+    provisionner_base_qa(session, departements_demo)
+    openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS, cnx_factory=session)
 
     assert (espace / "MEMORY.md").read_text(encoding="utf-8") == "mémoire de l'agent (fictif)\n"
     assert (espace / "memory" / "2026-09-29.md").read_text(encoding="utf-8") == "note du jour (fictif)\n"

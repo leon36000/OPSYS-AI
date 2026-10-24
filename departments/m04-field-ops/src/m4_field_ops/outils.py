@@ -641,10 +641,22 @@ def outils(
             # détruirait rien en silence.
             return {"accepte": False, "verdict": verdicts.construire_verdict(
                 "REJ-CONTRAT-INVALIDE", detail="aucune connexion durable : purge refusée")}
-        cle_detruite = cles_chiffrement.detruire(cnx, _PORTEE_CLES_GPS, technicien_id)
+        effacement = cles_chiffrement.demander_effacement(
+            cnx, _PORTEE_CLES_GPS, technicien_id, horodatage,
+            demande_id=contexte.demande_approuvee_en_cours(),
+        )
+        # La réponse signée et le maillon restent historiques : le booléen décrit le retrait
+        # logique, tandis que le nettoyage des fichiers ne peut être attesté avant le commit.
+        initial = {
+            "purge_id": effacement["purge_id"],
+            "etat_fichiers": effacement["etat_fichiers"],
+            "cle_detruite": effacement["cle_detruite"],
+        }
         reg.ajouter(retention.construire_maillon_purge(
-            technicien_id, fin_contrat_travail, horodatage, motif, cle_detruite))
-        return {"accepte": True, "resultat": {**accuse_eligibilite, "motif": motif, "cle_detruite": cle_detruite}}
+            technicien_id, fin_contrat_travail, horodatage, motif, initial["cle_detruite"],
+            purge_id=initial["purge_id"], etat_fichiers=initial["etat_fichiers"],
+        ))
+        return {"accepte": True, "resultat": {**accuse_eligibilite, "motif": motif, **initial}}
 
     def creer_demande_ecart(
         intervention_id: str, version_prevue: dict[str, Any], version_declaree: dict[str, Any], horodatage: str,
@@ -675,6 +687,16 @@ def outils(
         # Le v1 reste pur/historique à la console, jamais promu en décision DEVICE liée.
         if contexte.identite_appelante() is not None and contexte.identite_appelante().source == "appareil":
             return {"accepte": False, "verdict": revue_completion_sources.verdict("LEGACY-DEVICE-INTERDIT")}
+        # N4 seul ne force pas la file en mode autonome. La revue reste humaine :
+        # l'adaptateur durable exige la demande exacte réservée par decider et son
+        # signataire SQL encore actif. Le registre injecté garde son usage pur de test.
+        if registre_cible is None and approbations.approbateur_en_cours(
+            stockage.connexion_courante(), "m4_resoudre_revue_completion", _DEPARTEMENT,
+        ) is None:
+            return {"accepte": False, "verdict": {
+                "code": "REJ-HUMAIN-REQUIS",
+                "detail": "La revue de complétion exige une demande approuvée par un humain, même en mode autonome.",
+            }}
         if contexte.demande_approuvee_en_cours() is not None:
             from opsys.approbations_completion_m4 import autoriser_legacy
 
@@ -1985,14 +2007,16 @@ def outils(
         Outil(
             nom="m4_purger_retention_gps",
             description=(
-                "Détruit la clé de chiffrement des fixes GPS d'un technicien une fois l'échéance "
+                "Retire la clé GPS du coffre logique et demande le nettoyage des fichiers une fois l'échéance "
                 "de rétention atteinte (POLITIQUE-geolocalisation.md §5 : 12 mois après la fin du "
                 "contrat de travail ou le dernier punch, selon la plus longue des deux périodes — "
                 "fail-closed si fin_contrat_travail est inconnue, ou si l'échéance n'est pas "
                 "atteinte : aucune destruction). Suppression DÉFINITIVE d'une donnée personnelle "
                 "(AGENTS.md, frontière T3) : cet outil ne fait que PROPOSER — seul nathan_owner, "
                 "avec l'attestation du professionnel concerné (ADR-0009 §5, Niveau N5), peut "
-                "l'exécuter. Écrit toujours un maillon d'audit (jamais la position détruite)."
+                "l'exécuter. La réponse et l'audit portent un purge_id et l'état INITIAL des fichiers : "
+                "en_attente ne signifie pas un nettoyage déjà terminé. cle_detruite décrit uniquement "
+                "le retrait logique. Écrit toujours un maillon d'audit (jamais la position détruite)."
             ),
             parametres={
                 "type": "object",

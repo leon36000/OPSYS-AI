@@ -80,7 +80,8 @@ PASSAVANT_PREFIXES_CLI = ("LC_", "LITELLM_", "OPSYS_", "PYTHON", "UV_", "XDG_")
 # Les anciennes commandes du moteur (core/src/cli/opsys-metier-argv.ts : OPSYS_METIER_MOVED_COMMANDS) ;
 # tests/test_commande_metier.py confronte cette liste à celle du core et au parseur du moteur.
 COMMANDES_DEPLACEES = (
-    "departements", "verifier", "profils", "approbations", "personnes", "base", "evenements", "mode", "budgets",
+    "departements", "verifier", "profils", "agents-base", "approbations", "personnes", "base", "evenements", "mode",
+    "budgets",
     "services", "equipes", "meteo", "paliers", "openclaw", "appareils", "instance", "passerelle",
     "memoire-developpement",
 )

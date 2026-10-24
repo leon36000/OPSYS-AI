@@ -241,8 +241,9 @@ JOURNAL = Table(
 # cryptographique (crypto-shredding) pour une donnée personnelle qu'un registre append-only ne
 # peut ni modifier ni supprimer une fois écrite (REGISTRES ci-dessus, INSERT seul). Un maillon
 # chiffré avec la clé (portee, identifiant) reste dans la chaîne pour toujours, intact ; DÉTRUIRE
-# la ligne ici (vrai DELETE, contrairement à REGISTRES) rend ce maillon irrécupérable sans jamais
-# toucher au registre ni à son empreinte. `portee` namespace l'usage (ex. "m04-field-ops/gps") ;
+# la ligne ici retire la clé de l'API sans toucher au registre ni à son empreinte. Le nettoyage
+# des fichiers courants est suivi séparément dans EFFACEMENTS_CLES.
+# `portee` namespace l'usage (ex. "m04-field-ops/gps") ;
 # `identifiant` est la clé métier dans cette portée (ex. un technicien_id) — une seule clé par
 # (portee, identifiant), jamais de rotation en v1 (voir `opsys.cles_chiffrement`).
 CLES_CHIFFREMENT = Table(
@@ -252,6 +253,20 @@ CLES_CHIFFREMENT = Table(
     Column("identifiant", String(128), primary_key=True),
     Column("cle", Text, nullable=False),
     Column("cree_le", Text, nullable=False),
+)
+
+# État distinct du DELETE logique ; aucune clé ni empreinte de clé dans cette file.
+EFFACEMENTS_CLES = Table(
+    "effacements_cles", META,
+    Column("purge_id", String(32), primary_key=True),
+    Column("portee", String(128), nullable=False),
+    Column("identifiant", String(128), nullable=False),
+    Column("demande_id", Text, nullable=True),
+    Column("cree_le", Text, nullable=False),
+    Column("cle_detruite", Boolean, nullable=False),
+    Column("etat_fichiers", String(24), nullable=False),
+    Column("motif", String(40), nullable=True),
+    CheckConstraint("etat_fichiers IN ('en_attente','termine','non_qualifie')", name="etat_fichiers_valide"),
 )
 
 MODES_DEPARTEMENTS = Table(

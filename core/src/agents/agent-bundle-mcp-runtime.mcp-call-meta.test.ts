@@ -109,6 +109,79 @@ async function callEchoMeta(
 }
 
 describe("agent-bundle-mcp-runtime callTool OPSYS _meta", () => {
+  it("propagates the canonical base department profile on the real MCP wire", async () => {
+    const received = await callEchoMeta({
+      serverName: "opsys_m3",
+      sessionKey: "agent:m03-estimation:qa-base-common",
+      profile: { agentId: "m03-estimation", profileId: "base-m03-estimation", profileRevision: 2 },
+    });
+    expect(received.meta).toMatchObject({
+      "opsys/runtimeProfileId": "base-m03-estimation",
+      "opsys/runtimeProfileRevision": "2",
+      "opsys/runtimeServer": "opsys_m3",
+    });
+  });
+
+  it("refuses a mismatched canonical base profile before any MCP tools/call", async () => {
+    let emitted: boolean | undefined;
+    await expect(
+      callEchoMeta({
+        serverName: "opsys_m3",
+        sessionKey: "agent:m03-estimation:qa-base-common",
+        profile: { agentId: "m03-estimation", profileId: "base-m04-field-ops", profileRevision: 2 },
+        observeEmission: (value) => {
+          emitted = value;
+        },
+      }),
+    ).rejects.toThrow("OPSYS runtime profile binding is missing or stale");
+    expect(emitted).toBe(false);
+  });
+
+  it("retains a custom profile on the real MCP wire", async () => {
+    const received = await callEchoMeta({
+      serverName: "opsys_m3",
+      sessionKey: "agent:opsys-agent-qa-custom:qa-base-common",
+      profile: { agentId: "opsys-agent-qa-custom", profileId: "qa-custom", profileRevision: 2 },
+    });
+    expect(received.meta?.["opsys/runtimeProfileId"]).toBe("qa-custom");
+  });
+
+  it.each([
+    {
+      agentId: "m03-estimation",
+      profileId: "base-m03-estimation",
+      profileRevision: 2,
+      serverName: "opsys_m4",
+    },
+    {
+      agentId: "m03-estimation",
+      profileId: "base-m03-estimation",
+      profileRevision: 0,
+      serverName: "opsys_m3",
+    },
+    {
+      agentId: "opsys-agent-base-m03-estimation",
+      profileId: "base-m03-estimation",
+      profileRevision: 2,
+      serverName: "opsys_m3",
+    },
+  ])(
+    "rejects wrong base server/revision/alias before wire emission: $agentId/$serverName/$profileRevision",
+    async (fixture) => {
+      let emitted: boolean | undefined;
+      await expect(
+        callEchoMeta({
+          serverName: fixture.serverName,
+          sessionKey: `agent:${fixture.agentId}:qa-base-common`,
+          profile: fixture,
+          observeEmission: (value) => {
+            emitted = value;
+          },
+        }),
+      ).rejects.toThrow("OPSYS runtime profile binding is missing or stale");
+      expect(emitted).toBe(false);
+    },
+  );
   it("does not back off a healthy server after repeated host authorization refusals", async () => {
     const meta = { "opsys/personne": "person.synthetic", "opsys/role": "owner" };
     const refusal = new ToolAuthorizationError("Synthetic caller revoked");

@@ -9,8 +9,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 
 from opsys import cli, instance, modeles, openclaw, stockage
+from opsys.departements import charger_departements
 
 FICTIF = True
 RACINE = Path(__file__).resolve().parents[1]
@@ -44,6 +46,7 @@ def _bootstrap(dossier, domaine=DOMAINE):
 
 
 def test_bootstrap_frais_reference_auth_et_generation_reelle(environnement, tmp_path, capsys):
+    profils = provisionner_base_qa(stockage.transaction, charger_departements())
     dossier = tmp_path / "config"
     assert _bootstrap(dossier) == 0
     contenu = (dossier / "openclaw.json").read_bytes()
@@ -57,11 +60,24 @@ def test_bootstrap_frais_reference_auth_et_generation_reelle(environnement, tmp_
     assert JETON_FICTIF.encode() not in contenu
     assert cli.main(["openclaw", "configurer", "--config-dir", str(dossier)]) == 0
     assert (dossier / "openclaw.json").read_bytes() == contenu
-    assert len(json.loads((dossier / "opsys/mcp.json").read_text())["servers"]) == 10
+    serveurs = json.loads((dossier / "opsys/mcp.json").read_text())["servers"]
+    assert set(serveurs) == {f"opsys_m{numero}" for numero in range(1, 11)} | {
+        f"opsys_runtime_{profil['id']}" for profil in profils.values()
+    }
     assert _bootstrap(dossier) == 0
     assert (dossier / "openclaw.json").read_bytes() == contenu
     sorties = capsys.readouterr()
     assert JETON_FICTIF not in sorties.out + sorties.err
+
+
+def test_configurer_sans_profils_base_refuse_sans_fragment(environnement, tmp_path, capsys):
+    dossier = tmp_path / "config"
+    assert _bootstrap(dossier) == 0
+    avant = (dossier / "openclaw.json").read_bytes()
+    assert cli.main(["openclaw", "configurer", "--config-dir", str(dossier)]) == 2
+    assert "profils de base" in capsys.readouterr().err
+    assert (dossier / "openclaw.json").read_bytes() == avant
+    assert not (dossier / "opsys/mcp.json").exists()
 
 
 @pytest.mark.parametrize("domaine", ["https://opsys.example.test", "a/b", "a;id", "a@b", "a\nb", "", "-a.test"])
@@ -202,6 +218,7 @@ def test_core_schema_resolution_env_et_garde_native(environnement, tmp_path, mon
     core = RACINE / "core"
     if not shutil.which("node") or not (core / "node_modules/tsx").exists():
         pytest.skip("validation native Core : Node et les dépendances Core sont nécessaires")
+    provisionner_base_qa(stockage.transaction, charger_departements())
     dossier = tmp_path / "serveur"
     assert _bootstrap(dossier) == 0
     assert cli.main(["openclaw", "configurer", "--config-dir", str(dossier)]) == 0

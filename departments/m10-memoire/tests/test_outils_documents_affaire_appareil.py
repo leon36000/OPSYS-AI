@@ -12,6 +12,10 @@ from sqlalchemy import inspect, select, text, update
 from opsys import contexte, idempotence, identite, stockage
 from opsys.outils import Autonomie, Niveau
 from opsys.stockage.schema import APPROBATIONS, MUTATIONS_APPLIQUEES
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 FICTIF = True
 NOMS = (
@@ -154,7 +158,7 @@ def test_handler_sql_nominal_exact_sans_double_trace_claim_wrapper(monde):
         }
         assert ack["horodatage_appareil_declare"] == HORA and ARGS["corps"] not in json.dumps(response)
         apres = _tables(cnx)
-        assert len(avant) == 49 and {n for n in avant if avant[n] != apres[n]} == {
+        assert set(avant) == TABLES_SQLITE and {n for n in avant if avant[n] != apres[n]} == {
             "registres_maillons",
             "mutations_appliquees",
             "approbations",

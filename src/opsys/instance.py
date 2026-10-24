@@ -765,6 +765,18 @@ def initialiser(
     env = lire_env(chemin)
 
     manque, paliers = _ce_qui_manque(deps, env)
+    from . import agents_base
+
+    try:
+        with stockage.transaction() as cnx:
+            agents_base.lire(cnx, deps)
+    except ValueError as erreur:
+        manque.append(
+            f"{erreur}; créer d'abord une personne admin avec `opsys-metier personnes creer`, puis "
+            "`opsys-metier agents-base provisionner --par <admin> --limite-tours <N> "
+            "--limite-reessais <N> --limite-concurrence <N> --budget-entreprise-jour <tokens> "
+            "--budget-entreprise-mois <tokens>` et relancer `opsys-metier instance initialiser`"
+        )
     port_effectif_moteur = port_moteur or PORT_MOTEUR_DEFAUT
     fichiers = {"env": str(chemin)}
     if manque:
@@ -780,7 +792,7 @@ def initialiser(
             f"http://{HOTE_LOCAL}" + (f":{port_effectif_moteur}" if port_effectif_moteur != 80 else "")
         ),
         url_passerelle=(passerelle_fournie or passerelle_existante) if mode_effectif == "litellm" else None,
-        mode_fournisseur=mode_effectif, environ=env,
+        mode_fournisseur=mode_effectif, environ=env, cnx_factory=stockage.transaction,
     )
     openclaw.racine_si_absente(etat_core, nom_creation=NOM_CONFIG)
     _, port_effectif_gateway = completer_racine(etat_core, port_gateway)

@@ -13,6 +13,10 @@ from sqlalchemy import event
 
 from opsys import contexte, stockage
 from opsys.outils import Autonomie, Niveau
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 FICTIF = True
 _SPEC = importlib.util.spec_from_file_location(
@@ -71,7 +75,7 @@ def test_handlers_SQL_wholeframe_index_detail_49tables_sans_Meta(monde):
         assert set(first) == set(body) == {"ok", "resultat"}
         assert first["resultat"]["resultat"]["versions"][0]["version_source"] == ack["version_source"]
         assert body["resultat"]["resultat"]["corps"] == _FX.ARGS["corps"]
-        assert len(before) == 49 and _FX.tables(cnx) == before
+        assert set(before) == TABLES_SQLITE and _FX.tables(cnx) == before
 
 
 def test_absence_invocation_refuse_avant_source_SQL(monde):

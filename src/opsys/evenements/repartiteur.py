@@ -23,7 +23,7 @@ import datetime as dt
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from sqlalchemy import Connection, func, insert, select, update
+from sqlalchemy import Connection, and_, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from ..departements import Departement
@@ -57,34 +57,65 @@ def _consommateurs_par_type(departements: Mapping[str, Departement]) -> dict[str
 def _candidats(
     par_type: Mapping[str, list[tuple[str, Callable]]], maintenant_dt: dt.datetime, limite: int
 ) -> list[tuple[Mapping[str, Any], str, Callable]]:
-    """Paires (événement, consommateur) sans reçu clos, dues maintenant, dans l'ordre de publication."""
-    with transaction() as cnx:
-        evenements = cnx.execute(
-            select(EVENEMENTS_SORTANTS)
-            .where(EVENEMENTS_SORTANTS.c.type_evenement.in_(list(par_type)))
-            .order_by(EVENEMENTS_SORTANTS.c.cree_le, EVENEMENTS_SORTANTS.c.evenement_id)
-        ).mappings().all()
-        if not evenements:
-            return []
-        ids = [ligne["evenement_id"] for ligne in evenements]
-        recus = cnx.execute(
-            select(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id.in_(ids))
-        ).mappings().all()
-    recus_index = {(r["evenement_id"], r["consommateur"]): r for r in recus}
+    """Paires dues dans l'ordre publié, sans charger l'historique complet en mémoire.
+
+    Les reçus clos sont exclus par paire en SQL. Les autres échéances restent
+    comparées en Python : leurs offsets ISO ne s'ordonnent pas comme du texte.
+    Le curseur borne chaque lecture à 100 événements ; un historique futur peut
+    encore demander plusieurs pages, sans gonfler la liste des paramètres SQL.
+    """
+    ouverts_par_type = []
+    consommateurs = set()
+    for type_evenement, abonnes in par_type.items():
+        ouverts = []
+        for consommateur, _ in abonnes:
+            consommateurs.add(consommateur)
+            recu_clos = select(1).where(
+                (EVENEMENTS_RECUS.c.evenement_id == EVENEMENTS_SORTANTS.c.evenement_id)
+                & (EVENEMENTS_RECUS.c.consommateur == consommateur)
+                & EVENEMENTS_RECUS.c.statut.in_(_STATUTS_CLOS)
+            ).correlate(EVENEMENTS_SORTANTS).exists()
+            ouverts.append(~recu_clos)
+        if ouverts:
+            ouverts_par_type.append(and_(EVENEMENTS_SORTANTS.c.type_evenement == type_evenement, or_(*ouverts)))
+    if not ouverts_par_type:
+        return []
     candidats: list[tuple[Mapping[str, Any], str, Callable]] = []
-    for evenement in evenements:
-        for consommateur, fonction in par_type.get(evenement["type_evenement"], ()):
-            recu = recus_index.get((evenement["evenement_id"], consommateur))
-            if recu is not None:
-                if recu["statut"] in _STATUTS_CLOS:
-                    continue
-                prochaine = recu["prochaine_tentative"]
-                if prochaine and dt.datetime.fromisoformat(prochaine) > maintenant_dt:
-                    continue
-            candidats.append((evenement, consommateur, fonction))
-            if len(candidats) >= limite:
+    curseur: tuple[str, str] | None = None
+    with transaction() as cnx:
+        while True:
+            requete = select(EVENEMENTS_SORTANTS).where(or_(*ouverts_par_type))
+            if curseur is not None:
+                cree_le, ident = curseur
+                requete = requete.where(or_(
+                    EVENEMENTS_SORTANTS.c.cree_le > cree_le,
+                    and_(EVENEMENTS_SORTANTS.c.cree_le == cree_le, EVENEMENTS_SORTANTS.c.evenement_id > ident),
+                ))
+            evenements = cnx.execute(requete.order_by(
+                EVENEMENTS_SORTANTS.c.cree_le, EVENEMENTS_SORTANTS.c.evenement_id
+            ).limit(100)).mappings().all()
+            if not evenements:
                 return candidats
-    return candidats
+            ids = [ligne["evenement_id"] for ligne in evenements]
+            recus = cnx.execute(select(EVENEMENTS_RECUS).where(
+                EVENEMENTS_RECUS.c.evenement_id.in_(ids)
+                & EVENEMENTS_RECUS.c.consommateur.in_(sorted(consommateurs))
+            )).mappings().all()
+            recus_index = {(r["evenement_id"], r["consommateur"]): r for r in recus}
+            for evenement in evenements:
+                for consommateur, fonction in par_type.get(evenement["type_evenement"], ()):
+                    recu = recus_index.get((evenement["evenement_id"], consommateur))
+                    if recu is not None:
+                        if recu["statut"] in _STATUTS_CLOS:
+                            continue
+                        prochaine = recu["prochaine_tentative"]
+                        if prochaine and dt.datetime.fromisoformat(prochaine) > maintenant_dt:
+                            continue
+                    candidats.append((evenement, consommateur, fonction))
+                    if len(candidats) >= limite:
+                        return candidats
+            dernier = evenements[-1]
+            curseur = (dernier["cree_le"], dernier["evenement_id"])
 
 
 def _backoff(tentatives: int, depuis: dt.datetime) -> str:
