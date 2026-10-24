@@ -1,0 +1,2578 @@
+{
+  "genere_par": "scripts/evidence_index.py",
+  "ne_pas_editer_a_la_main": true,
+  "issue": "https://github.com/leon36000/OPSYS-AI/issues/593",
+  "mesure_a_commit": "8977555977bc9c422d7eb8c87ae4f0657fd3eb2a",
+  "perimetre": {
+    "inclus": [
+      "evidence/**",
+      "registries/**",
+      "Registres/**"
+    ],
+    "exclus": [
+      {
+        "chemin": "evidence/tasks/EXT-AUD-001-A1-R12-CANDIDATE/**",
+        "raison": "territoire actif de la PR #566, laissé intact"
+      },
+      {
+        "chemin": "reviews/**",
+        "raison": "reviews/** : exclu de ce lot, cf. #591, en attente de décision Nathan."
+      }
+    ]
+  },
+  "granularite": "un fichier versionné (git ls-files) = une entrée",
+  "vocabulaire_liaison_code": [
+    "base",
+    "reviewed_commit",
+    "reviewed_tree",
+    "base_tree",
+    "branche",
+    "branch",
+    "code_diff_sha256",
+    "preuves_jointes"
+  ],
+  "vocabulaire_exclu_du_scan_prose": [
+    "payload.evenement (registries/ledger/*.jsonl) et tout autre champ de texte libre"
+  ],
+  "stats": {
+    "total_entrees": 114,
+    "prouve": 9,
+    "non_prouve": 105,
+    "par_racine": {
+      "evidence": {
+        "total": 43,
+        "prouve": 9,
+        "non_prouve": 34
+      },
+      "registries": {
+        "total": 69,
+        "prouve": 0,
+        "non_prouve": 69
+      },
+      "Registres": {
+        "total": 2,
+        "prouve": 0,
+        "non_prouve": 2
+      }
+    }
+  },
+  "entrees": [
+    {
+      "chemin": "Registres/SCHEMA.md",
+      "sha256_fichier": "747492c156c3ae50711049fc253c529dba04fc3ea8cf3fb20c3a5116753fb9d7",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "Registres/installations.jsonl",
+      "sha256_fichier": "4c9302dda72ca83444547356e9e9fbb0b38863201ce64c14af1419aa19938912",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-002/evidence.json",
+      "sha256_fichier": "cce073f77caea39d63e86c190c418a3a7b2b66217a7ff8114fc22453bb2bc368",
+      "liaisons": [
+        {
+          "champ": "base",
+          "type": "commit",
+          "valeur": "22b6beb39e8c84a376bb25492853d4e5380db6ba",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "branche",
+          "type": "ref",
+          "valeur": "claude/aud-ci-002-pin-setup-python",
+          "methode": "champ-explicite",
+          "verifie": true,
+          "resolu_vers": "8977555977bc9c422d7eb8c87ae4f0657fd3eb2a"
+        },
+        {
+          "champ": "preuves_jointes.prompt.txt",
+          "type": "export:prompt",
+          "valeur": "61ea2004f580b4f4b24f31f159399a6ac9636cd55099f7967df7910709fd8f80",
+          "methode": "champ-explicite:export-recalcule",
+          "verifie": true,
+          "detail": "sha256(prompt.txt) recalculé et comparé à la valeur déclarée"
+        },
+        {
+          "champ": "preuves_jointes.full.diff",
+          "type": "diff",
+          "valeur": "944ea105220fecfcb9cb92f65ee8f59ebad6144bb69d0d7dd6974a3a09d1c8d6",
+          "methode": "champ-explicite:export-recalcule",
+          "verifie": true,
+          "detail": "sha256(full.diff) recalculé et comparé à la valeur déclarée"
+        }
+      ],
+      "statut": "PROUVE",
+      "commit_introducteur": {
+        "hash": "737b3d042710afba23c695fb9af6db6740ba0c6d",
+        "date": "2026-08-27",
+        "sujet": "proof(AUD-CI-002): bundle d'evidence scellé, trois vendors distincts APPROVE"
+      }
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-002/full.diff",
+      "sha256_fichier": "944ea105220fecfcb9cb92f65ee8f59ebad6144bb69d0d7dd6974a3a09d1c8d6",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "737b3d042710afba23c695fb9af6db6740ba0c6d",
+        "date": "2026-08-27",
+        "sujet": "proof(AUD-CI-002): bundle d'evidence scellé, trois vendors distincts APPROVE"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 737b3d042710 (2026-08-27) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-002/prompt.txt",
+      "sha256_fichier": "61ea2004f580b4f4b24f31f159399a6ac9636cd55099f7967df7910709fd8f80",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "737b3d042710afba23c695fb9af6db6740ba0c6d",
+        "date": "2026-08-27",
+        "sujet": "proof(AUD-CI-002): bundle d'evidence scellé, trois vendors distincts APPROVE"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 737b3d042710 (2026-08-27) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-002/reviews/DeepSeek-V4-Pro-0813.json",
+      "sha256_fichier": "521ae80096c828e2f3b7bd84ba8e30bd56aed88873c8c309542b27f317fab62c",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "737b3d042710afba23c695fb9af6db6740ba0c6d",
+        "date": "2026-08-27",
+        "sujet": "proof(AUD-CI-002): bundle d'evidence scellé, trois vendors distincts APPROVE"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 737b3d042710 (2026-08-27) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-002/reviews/Gemini-3.7-Flash.json",
+      "sha256_fichier": "cccfc63eb86e34be7510a846ed820108134b6739ca023fc8ef8d47be1291adf3",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "737b3d042710afba23c695fb9af6db6740ba0c6d",
+        "date": "2026-08-27",
+        "sujet": "proof(AUD-CI-002): bundle d'evidence scellé, trois vendors distincts APPROVE"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 737b3d042710 (2026-08-27) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-002/reviews/Muse-Spark-1.2-Contributor.json",
+      "sha256_fichier": "c9381d63198f20edcf20828d3d2791bd20e3e7a78a2a881e4f69e9b77a72f36c",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "737b3d042710afba23c695fb9af6db6740ba0c6d",
+        "date": "2026-08-27",
+        "sujet": "proof(AUD-CI-002): bundle d'evidence scellé, trois vendors distincts APPROVE"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 737b3d042710 (2026-08-27) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-003-004/evidence.json",
+      "sha256_fichier": "728d34843fab13ca8b7c6539d84a786782439b5a9f3c4d077ed5efb00e2e46bb",
+      "liaisons": [
+        {
+          "champ": "base",
+          "type": "commit",
+          "valeur": "5a155f98b004b39915cdacce7eabb3b77849ff0a",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "branche",
+          "type": "ref",
+          "valeur": "claude/aud-ci-003-004-gating-bloquant",
+          "methode": "champ-explicite",
+          "verifie": true,
+          "resolu_vers": "a526da10cd5146282e9f7b455a34984435405995"
+        },
+        {
+          "champ": "preuves_jointes.prompt.txt",
+          "type": "export:prompt",
+          "valeur": "f1c223e47c7115918c84c403964088df1a5984a5a9d8a4af4c2ae127947cb0a2",
+          "methode": "champ-explicite:export-recalcule",
+          "verifie": true,
+          "detail": "sha256(prompt.txt) recalculé et comparé à la valeur déclarée"
+        },
+        {
+          "champ": "preuves_jointes.full.diff",
+          "type": "diff",
+          "valeur": "115388ae247ea9fd2cc712a183c910de347541d89e34d7c06c13d2d9b544f22c",
+          "methode": "champ-explicite:export-recalcule",
+          "verifie": true,
+          "detail": "sha256(full.diff) recalculé et comparé à la valeur déclarée"
+        },
+        {
+          "champ": "message-commit-introducteur(3e4426281c85)",
+          "type": "commit",
+          "valeur": "5a155f98b004",
+          "methode": "commit-introducteur",
+          "verifie": true,
+          "detail": "cité dans le message du commit introducteur 3e4426281c85 (2026-08-26, commit dédié à ce bundle)"
+        }
+      ],
+      "statut": "PROUVE",
+      "commit_introducteur": {
+        "hash": "3e4426281c85b5dd3d2333ae085f7ab5b0078731",
+        "date": "2026-08-26",
+        "sujet": "proof(AUD-CI-003+004): sceller la revue aveugle 3 vendors, proof-sealed passe au vert"
+      }
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-003-004/full.diff",
+      "sha256_fichier": "115388ae247ea9fd2cc712a183c910de347541d89e34d7c06c13d2d9b544f22c",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "a526da10cd5146282e9f7b455a34984435405995",
+        "date": "2026-08-27",
+        "sujet": "proof(AUD-CI-003+004): committer le préimage du sceau et corriger trois affirmations trop larges"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur a526da10cd51 (2026-08-27) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-003-004/prompt.txt",
+      "sha256_fichier": "f1c223e47c7115918c84c403964088df1a5984a5a9d8a4af4c2ae127947cb0a2",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "a526da10cd5146282e9f7b455a34984435405995",
+        "date": "2026-08-27",
+        "sujet": "proof(AUD-CI-003+004): committer le préimage du sceau et corriger trois affirmations trop larges"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur a526da10cd51 (2026-08-27) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-003-004/reviews-context/Kimi-2.7.ANCIEN-SCEAU.json",
+      "sha256_fichier": "ee0f6c3506a0d5da9caae2afe2da2cc116668605b18443973cd4b41994b2f851",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(3e4426281c85)",
+          "type": "commit",
+          "valeur": "5a155f98b004",
+          "methode": "commit-introducteur",
+          "verifie": true,
+          "detail": "cité dans le message du commit introducteur 3e4426281c85 (2026-08-26, commit dédié à ce bundle)"
+        }
+      ],
+      "statut": "PROUVE",
+      "commit_introducteur": {
+        "hash": "3e4426281c85b5dd3d2333ae085f7ab5b0078731",
+        "date": "2026-08-26",
+        "sujet": "proof(AUD-CI-003+004): sceller la revue aveugle 3 vendors, proof-sealed passe au vert"
+      }
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-003-004/reviews-context/README.md",
+      "sha256_fichier": "46925d39c104931048d362ed3c8e852136dd578c6db3f981b9dea0628edf0377",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "e6319f03ad1bbac7a802d02a6866e652d042b54f",
+        "date": "2026-08-26",
+        "sujet": "proof(AUD-CI-003+004): resceller sur le diff complet, trois voix, deux mineures retenues"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur e6319f03ad1b (2026-08-26) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-003-004/reviews/Gemini-3.7-Flash.json",
+      "sha256_fichier": "2b6c5a4e0c8ca09ce05157fd51f51bf3e31c9ce50c9e566b85fb0820e2e0f29b",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(3e4426281c85)",
+          "type": "commit",
+          "valeur": "5a155f98b004",
+          "methode": "commit-introducteur",
+          "verifie": true,
+          "detail": "cité dans le message du commit introducteur 3e4426281c85 (2026-08-26, commit dédié à ce bundle)"
+        }
+      ],
+      "statut": "PROUVE",
+      "commit_introducteur": {
+        "hash": "3e4426281c85b5dd3d2333ae085f7ab5b0078731",
+        "date": "2026-08-26",
+        "sujet": "proof(AUD-CI-003+004): sceller la revue aveugle 3 vendors, proof-sealed passe au vert"
+      }
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-003-004/reviews/Muse-Spark-1.2-Contributor.json",
+      "sha256_fichier": "aadeb2bfee62ddaa26f0c49e141b7bc4c78cfe3489cfc679a3a6b30fbf2d90dd",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(3e4426281c85)",
+          "type": "commit",
+          "valeur": "5a155f98b004",
+          "methode": "commit-introducteur",
+          "verifie": true,
+          "detail": "cité dans le message du commit introducteur 3e4426281c85 (2026-08-26, commit dédié à ce bundle)"
+        }
+      ],
+      "statut": "PROUVE",
+      "commit_introducteur": {
+        "hash": "3e4426281c85b5dd3d2333ae085f7ab5b0078731",
+        "date": "2026-08-26",
+        "sujet": "proof(AUD-CI-003+004): sceller la revue aveugle 3 vendors, proof-sealed passe au vert"
+      }
+    },
+    {
+      "chemin": "evidence/tasks/AUD-CI-003-004/reviews/claude-opus-5-native-architecte.json",
+      "sha256_fichier": "2c4eb3297cf27f0e947eb3b276609312bd65d8bc1a8ce57cad72cd8f2fadcbef",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "e6319f03ad1bbac7a802d02a6866e652d042b54f",
+        "date": "2026-08-26",
+        "sujet": "proof(AUD-CI-003+004): resceller sur le diff complet, trois voix, deux mineures retenues"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur e6319f03ad1b (2026-08-26) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/CI-HARDENING-001/evidence.json",
+      "sha256_fichier": "3a40334a3038c60dbb501e3cb5d8959d6274189a6c53c76df1f0119abf20bbff",
+      "liaisons": [
+        {
+          "champ": "base",
+          "type": "commit",
+          "valeur": "092a1367dddc32e4b774c712535383c3598e2af7",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "branche",
+          "type": "ref",
+          "valeur": "opsys-core/chore/ci-hardening-gates-reels",
+          "methode": "champ-explicite",
+          "verifie": true,
+          "resolu_vers": "9e12a4edd40e051d6b8524672bc11a8c0bf6fb2c"
+        },
+        {
+          "champ": "code_diff_sha256",
+          "type": "diff-declare-non-recalculable",
+          "valeur": "e28f426fdbb3f3d92e35058455d4b4a28fc4c90a82554291a6fc493e53ca8532",
+          "methode": "champ-explicite",
+          "verifie": false,
+          "detail": "aucun export diff committé sous preuves_jointes ne recoupe cette valeur dans ce lot ; pathspec scellé non reproduit ici (core/scripts/verify_proof_sealed.py est hors périmètre de ce script)"
+        }
+      ],
+      "statut": "PROUVE",
+      "commit_introducteur": {
+        "hash": "701ec236a64c4dc41651b678b0c48e7de1cb1799",
+        "date": "2026-08-11",
+        "sujet": "chore(ci-hardening): mécanismes réels pour security/pack-validation/proof-sealed + CodeQL local (#516)"
+      }
+    },
+    {
+      "chemin": "evidence/tasks/CI-HARDENING-001/reviews-context/GPT-5.6-Terra-Pro.json",
+      "sha256_fichier": "d76dac9844b5c5dba40337da62837c438073cfae8b00700e6f8e4a432ce04ef6",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "701ec236a64c4dc41651b678b0c48e7de1cb1799",
+        "date": "2026-08-11",
+        "sujet": "chore(ci-hardening): mécanismes réels pour security/pack-validation/proof-sealed + CodeQL local (#516)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 701ec236a64c (2026-08-11) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/CI-HARDENING-001/reviews/Claude-Opus-5-native-architecte.json",
+      "sha256_fichier": "34809482336d1d635c256c36cd00151de80deba9d0cec31b47ce4be2734e3b48",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "701ec236a64c4dc41651b678b0c48e7de1cb1799",
+        "date": "2026-08-11",
+        "sujet": "chore(ci-hardening): mécanismes réels pour security/pack-validation/proof-sealed + CodeQL local (#516)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 701ec236a64c (2026-08-11) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/CI-HARDENING-001/reviews/Muse-Spark-1.2.json",
+      "sha256_fichier": "9b72cfda21e614dcda6560fbda5545f70844ef0c1ad7d026f8df030d1c785c6e",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "701ec236a64c4dc41651b678b0c48e7de1cb1799",
+        "date": "2026-08-11",
+        "sujet": "chore(ci-hardening): mécanismes réels pour security/pack-validation/proof-sealed + CodeQL local (#516)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 701ec236a64c (2026-08-11) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/CI-HARDENING-001/reviews/Qwen3.8-Max.json",
+      "sha256_fichier": "fde6ba2b360b14eda4e985b2c70f38f801a797a0a6ce8b8b935ceda38dda255b",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "701ec236a64c4dc41651b678b0c48e7de1cb1799",
+        "date": "2026-08-11",
+        "sujet": "chore(ci-hardening): mécanismes réels pour security/pack-validation/proof-sealed + CodeQL local (#516)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 701ec236a64c (2026-08-11) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/evidence.json",
+      "sha256_fichier": "fbdc8c04c45e6f75e334da2f47d1e96121faf742cfe2b1c9ad4faf226d517dac",
+      "liaisons": [
+        {
+          "champ": "base",
+          "type": "commit",
+          "valeur": "b9ced941ea7afe302f9c0056f9656de8f995e248",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "reviewed_commit",
+          "type": "commit",
+          "valeur": "80d528d645d10b2d6bb7197e55f714f91ea96eeb",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "reviewed_tree",
+          "type": "tree",
+          "valeur": "1a527eb8100b97a885aa1339d476196d9960e2e1",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "branche",
+          "type": "ref",
+          "valeur": "codex/issue-572-codeql-baseline-20260827",
+          "methode": "champ-explicite",
+          "verifie": true,
+          "resolu_vers": "27c7993bc751deff9dc21b2bb2a10ed0975b58a9"
+        },
+        {
+          "champ": "code_diff_sha256",
+          "type": "diff-declare-non-recalculable",
+          "valeur": "4d9c57d1d097c50124dc92b1be49e5bbdefff6cb97f6335a40c5a67c2042bb23",
+          "methode": "champ-explicite",
+          "verifie": false,
+          "detail": "aucun export diff committé sous preuves_jointes ne recoupe cette valeur dans ce lot ; pathspec scellé non reproduit ici (core/scripts/verify_proof_sealed.py est hors périmètre de ce script)"
+        },
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      }
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r3-rejected/DeepSeek-V4-Pro-0813.verdict.json",
+      "sha256_fichier": "49edcdd13a59695af100a5d6ec119f8a6c868093c65a1807ae440cf0bcfd0b77",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r3-rejected/Gemini-3.7-Flash.verdict.json",
+      "sha256_fichier": "a8a8dff7656e3d32d40e9f1f2960e02101637af6990fb76e9b2ef0e231f6ee04",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r3-rejected/Muse-Spark-1.2-Contributor.verdict.json",
+      "sha256_fichier": "c9601fef290b0805cfce9b6967092f9cd06d9896d162a7b9d0ac807293632295",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r4-cbe5af7-approved/DeepSeek-V4-Pro-0813.verdict.json",
+      "sha256_fichier": "b3699f24c1fbcbde9148f292f85af1c9a3f73b5feefe16d1a95f18ef8cfc8c1a",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r4-cbe5af7-approved/Gemini-3.7-Flash.verdict.json",
+      "sha256_fichier": "107598ca9f12df5641c2b11aadf1703df6e1a9163d9832c34b973f15f99b709c",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r4-cbe5af7-approved/Muse-Spark-1.2-Contributor.verdict.json",
+      "sha256_fichier": "6531049579097d876ad6bc63bdc88524f1048d72c2a7d058126657abd48681b7",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r5-e9a640b-approved/DeepSeek-V4-Pro-0813.verdict.json",
+      "sha256_fichier": "1026ccedcc56f03976df244ad5c194de97d4846152a830a4f69d8c1754570c6f",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r5-e9a640b-approved/Gemini-3.7-Flash.verdict.json",
+      "sha256_fichier": "b6051119f118674ff20165788c2e19a8942f95a56ada3491be270be8ca16270c",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r5-e9a640b-approved/Muse-Spark-1.2-Contributor.verdict.json",
+      "sha256_fichier": "430526b5219532f2113b8ef6a36750350ab4ab5c77cfa92a117eeab99b5339fc",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r6-rejected-missing-tally-context/DeepSeek-V4-Pro-0813.verdict.json",
+      "sha256_fichier": "9ff2fa02056503eb1df11fb4ad43c1819a29f8a2d18ed5afaa92412ac67bf9c9",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(27c7993bc751)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 27c7993bc751 (2026-08-27) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "27c7993bc751deff9dc21b2bb2a10ed0975b58a9",
+        "date": "2026-08-27",
+        "sujet": "test(proof): renew CodeQL evidence after rebase"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 27c7993bc751 (2026-08-27) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r6-rejected-missing-tally-context/Gemini-3.7-Flash.verdict.json",
+      "sha256_fichier": "2410ac1319d4d710921b80c1eb4719c6152de7cf9c7051e9831473e549009037",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews-context/r6-rejected-missing-tally-context/Muse-Spark-1.2-Contributor.verdict.json",
+      "sha256_fichier": "b654ea4002dd34cf0ff5d410aa87d5b20fa6f2a673e3c58defd362ccc953f48a",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews/DeepSeek-V4-Pro-0813.verdict.json",
+      "sha256_fichier": "e006ae5aaeec1c623e31c02f995058a4680c3163e1427adafde0320f45ccfaf7",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews/Gemini-3.7-Flash.verdict.json",
+      "sha256_fichier": "bd1bf0c7e2ba4a56e29a780c4a1405969a1fe01c74dac8da649d39ede19f896c",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CODEQL-BASELINE-572/reviews/Muse-Spark-1.2-Contributor.verdict.json",
+      "sha256_fichier": "50dcfff02acf6c255b0f2b8b9ec7bd337aa03d0ee767bfa6e24cafca4ba2b5c3",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CORE-CAS-CONCURRENCY-584/evidence.json",
+      "sha256_fichier": "6721a1b9ac35dab3f8bf784d421a9733d64fdffcbfeba43cebff7ae9c0e5fffc",
+      "liaisons": [
+        {
+          "champ": "base",
+          "type": "commit",
+          "valeur": "22b6beb39e8c84a376bb25492853d4e5380db6ba",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "reviewed_commit",
+          "type": "commit",
+          "valeur": "0a0d8be044b23963f8e4108c2cdf341dd7dc83d1",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "reviewed_tree",
+          "type": "tree",
+          "valeur": "78f93a05f8f5d23b047c518bfe4ff2463b7d194a",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "base_tree",
+          "type": "tree",
+          "valeur": "528acf2dee198e8e3211d3c9737767395ee7facf",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "branche",
+          "type": "ref",
+          "valeur": "codex/issue-584-cas-concurrency-20260827",
+          "methode": "champ-explicite",
+          "verifie": true,
+          "resolu_vers": "7e86d363338b8d326321c3f775e084b3db2596ea"
+        },
+        {
+          "champ": "code_diff_sha256",
+          "type": "diff-declare-non-recalculable",
+          "valeur": "06b5930ccb930a00b66ebb400f6dbdd2de1d197f9e8488fc1e30c15f3412fc84",
+          "methode": "champ-explicite",
+          "verifie": false,
+          "detail": "aucun export diff committé sous preuves_jointes ne recoupe cette valeur dans ce lot ; pathspec scellé non reproduit ici (core/scripts/verify_proof_sealed.py est hors périmètre de ce script)"
+        },
+        {
+          "champ": "message-commit-introducteur(151c713ba1d0)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 151c713ba1d0 (2026-08-27) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "PROUVE",
+      "commit_introducteur": {
+        "hash": "151c713ba1d09cd73a7a5132f7f0d0f8692baa79",
+        "date": "2026-08-27",
+        "sujet": "fix(core): reject invalid capability evidence hashes (#583)"
+      }
+    },
+    {
+      "chemin": "evidence/tasks/CORE-CAS-CONCURRENCY-584/reviews/DeepSeek-V4-Pro-0813.verdict.json",
+      "sha256_fichier": "ea4a7dd214d3826733126c1e431da33ad283e54acc693c9acbc13d031eb0c617",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CORE-CAS-CONCURRENCY-584/reviews/Gemini-3.7-Flash.verdict.json",
+      "sha256_fichier": "e4c5d096b818281041f3ca154811b5043cc7c0a76b14fb3d78548f4585e883c9",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CORE-CAS-CONCURRENCY-584/reviews/Muse-Spark-1.2-Contributor.verdict.json",
+      "sha256_fichier": "397e3217e33088ad4a783d75098a3b7b7e524e257a7688639d73a93086b44978",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CORE-STATUS-EVIDENCE-583/evidence.json",
+      "sha256_fichier": "d2b27e70d97d127b48fb4e084c638bfe58843cac4c201e4875dec6825da0774c",
+      "liaisons": [
+        {
+          "champ": "base",
+          "type": "commit",
+          "valeur": "62b9d49a7ebb6ec4d9de138eae10ad1c839762bf",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "reviewed_commit",
+          "type": "commit",
+          "valeur": "eaf313ddaeeada2f320d067b820bc1dfb34327e3",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "reviewed_tree",
+          "type": "tree",
+          "valeur": "86f634bc0ac96b63d0a974231537c9de2df3e58d",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "base_tree",
+          "type": "tree",
+          "valeur": "12af0f1adfdb191f6060bc04709ae49c1c68860c",
+          "methode": "champ-explicite",
+          "verifie": true
+        },
+        {
+          "champ": "branche",
+          "type": "ref",
+          "valeur": "codex/issue-583-status-evidence-20260827",
+          "methode": "champ-explicite",
+          "verifie": true,
+          "resolu_vers": "151c713ba1d09cd73a7a5132f7f0d0f8692baa79"
+        },
+        {
+          "champ": "code_diff_sha256",
+          "type": "diff-declare-non-recalculable",
+          "valeur": "e5bb32a2d51eadc5916fe65b5050b44182ec1b31dac03c3468832a43c4287cac",
+          "methode": "champ-explicite",
+          "verifie": false,
+          "detail": "aucun export diff committé sous preuves_jointes ne recoupe cette valeur dans ce lot ; pathspec scellé non reproduit ici (core/scripts/verify_proof_sealed.py est hors périmètre de ce script)"
+        }
+      ],
+      "statut": "PROUVE",
+      "commit_introducteur": {
+        "hash": "151c713ba1d09cd73a7a5132f7f0d0f8692baa79",
+        "date": "2026-08-27",
+        "sujet": "fix(core): reject invalid capability evidence hashes (#583)"
+      }
+    },
+    {
+      "chemin": "evidence/tasks/CORE-STATUS-EVIDENCE-583/reviews/DeepSeek-V4-Pro-0813.verdict.json",
+      "sha256_fichier": "834c4b62b437a70598681943e3da1000b102f0d7829b65c2869d8850eb738b57",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CORE-STATUS-EVIDENCE-583/reviews/Gemini-3.7-Flash.verdict.json",
+      "sha256_fichier": "96d2876283cdb83bf633442128fef5aa49910bd0e5ba4266aa5aa3a3834a9c22",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "evidence/tasks/CORE-STATUS-EVIDENCE-583/reviews/Muse-Spark-1.2-Contributor.verdict.json",
+      "sha256_fichier": "e59cb0db704ad43381a3825cbab5aa70f2fc3a0614310374f585435fcbfbbc7f",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(5d5396970361)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur 5d5396970361 (2026-08-26) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "5d5396970361d94c54f948684cfd782951627ad0",
+        "date": "2026-08-26",
+        "sujet": "test(proof): seal CodeQL baseline evidence"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur 5d5396970361 (2026-08-26) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/frameworks.yaml",
+      "sha256_fichier": "ee9c294d8625d33acb231753166960bf2ce8794db1b33ee9b8203083b0070e1c",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/ledger/.gitkeep",
+      "sha256_fichier": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/ledger/decisions.jsonl",
+      "sha256_fichier": "77957ac97a0d06758b39ea037260934680e013f5c340a1beac92584857b70dd8",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/ledger/executions.jsonl",
+      "sha256_fichier": "3e788abd852ec521ad6ce609a895e70288d40b7feee8b7900b8964cde71182b6",
+      "liaisons": [],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "b614eb75a93efb6dd70c9cee02a5080ccfc6f221",
+        "date": "2026-07-23",
+        "sujet": "chore: CALIBRATION + Phase C mock (PREUVE) + BLOCKED phase C live + verdicts P0-1"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur b614eb75a93e (2026-07-23) : aucune référence Git résoluble dans son message (hors son propre hash)."
+    },
+    {
+      "chemin": "registries/ledger/preuves.jsonl",
+      "sha256_fichier": "1bbae48eda19b6fc3761bf64d4019fdc526bbe5754643b63438a8ef4e80e8938",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/modules.yaml",
+      "sha256_fichier": "eb75d4eb3e6132b0145a61c69f9b148be23605cab1c0518a341d5723aec63613",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/.gitkeep",
+      "sha256_fichier": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/Composer-2.5.json",
+      "sha256_fichier": "c3981c126d8b4966136167469daaafb3a21c99d89ed3e45ede68dce1b1297617",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/DeepSeek-V4-Pro.json",
+      "sha256_fichier": "47c76bb969b6be01a2fd06cbac0213ccaac2cd71ac713810c0132780dcd4cf68",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/GLM-5.2.json",
+      "sha256_fichier": "11817ae1fde6a61b79f29b3a11f6f2b476fcbe34c3b142c0e09f9e4ea180bded",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/Gemini-3.1-Pro.json",
+      "sha256_fichier": "51b9343efa7d13c045245e5868de061b3eac51ae0e9d361af6707a2b654de8ac",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/Kimi-K3.json",
+      "sha256_fichier": "3de662ecd5a8a54bf7c4c675de7d217a6275b1df6b1515115c871af8f331410e",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/MiMo-Pro-V2.json",
+      "sha256_fichier": "1e4b76a459e9732985cba50150f7ec587a5cbb9369dd8067cec6d27d9cfe4299",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/MiniMax-M3.json",
+      "sha256_fichier": "752f899bb66b42af2d6fa6195022a8b933cf778fffaebd5fb9d88b78cd1f8f59",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/Qwen3.7-Max.json",
+      "sha256_fichier": "00d51a4f6753a5f3235262505e4cc55d5e7fca45fbf314c5528149d631282bc6",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/TRAITEMENT-TOUR-2.md",
+      "sha256_fichier": "7ca98e637a47b6be66a5e26c59fee5891798702072342e3524a1db1bad0d2d86",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/raw/Composer-2.5.txt",
+      "sha256_fichier": "83ec010fba698391d4bbcdf409ab65c1f9c710be4259028ec523fd043970b42d",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/raw/DeepSeek-V4-Pro.txt",
+      "sha256_fichier": "78d74f7e9ef0d475816ff9e9fb6dd1a0a7c69be48960627adefe627f193e5717",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/raw/GLM-5.2.txt",
+      "sha256_fichier": "2c4270f166220f007128ebd8928543599f3e9cb34e7a23def89d957f7ec7e2c2",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/raw/Gemini-3.1-Pro.txt",
+      "sha256_fichier": "be2b4bb45732e966bedc4d621a93f71bbd24d280638f752530952802e4d95115",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/raw/Kimi-K3.txt",
+      "sha256_fichier": "857770cd35cdfeda68980b143496a3d6438d0e43babbcd709bf8688f86ee1497",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/raw/MiMo-Pro-V2.txt",
+      "sha256_fichier": "3b7ad81903e9a138329d2cff8400fd98060d8f80c4eed04b389d0ddad2df1c6b",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/raw/MiniMax-M3.txt",
+      "sha256_fichier": "dcc05ac77c8e6ab7c88c50e064ef47c36903c8f9af35546b01215d8341356754",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage-tour2/raw/Qwen3.7-Max.txt",
+      "sha256_fichier": "5d268206746ad37677f679093b46f6bf3bde94e56adf645cb2798806960af157",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/Composer-2.5.verdict.json",
+      "sha256_fichier": "061bc7c10420e2e6ac2ecc67616cbde99e7b5210fb77165277ae6cfa390dd1d2",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/DeepSeek-V4-Pro.verdict.json",
+      "sha256_fichier": "1df98def80d34d96e64d2c728b1e38d542ccee8fcfa85805d8f46337f6caea68",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/GLM-5.2.verdict.json",
+      "sha256_fichier": "4c09d2064b474e4934775923cd41007965e09c1be7bcc1835a9b6a4188f093b2",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/Gemini-3.1-Pro.verdict.json",
+      "sha256_fichier": "a7922895c7d13391fa458f3272c86dd8bd667f2afb6d1549c12c3eefd83f49cb",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/Kimi-K3.verdict.json",
+      "sha256_fichier": "678379b3dc8346798caaddb105499b41c44766ce9217f98aaae4bb0c90a50bc6",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/MiMo-Pro-V2.verdict.json",
+      "sha256_fichier": "1d049c32a01179bc83c7656f373ae2d28168075d3d87d34341cf0f04604c70c0",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/MiniMax-M3.verdict.json",
+      "sha256_fichier": "5ef0ad83d4ccaed040a38a8a3173e466838021280bf60e442bdf0b73ca29130d",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/Qwen3.7-Max.verdict.json",
+      "sha256_fichier": "86010d552c1a443ff41edb8d2dfae41210ce66381b15858497010f1965db0acf",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/TRAITEMENT-TOUR-1.md",
+      "sha256_fichier": "ff69b79be451c8c0cd100f264774071b21e715855b5a82c4496f7bd1697a9121",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/raw/Composer-2.5.brut.verdict.json",
+      "sha256_fichier": "2eb08006765b253cc0211dfcd2fe00d6ff37af89e7dc6324a2cba56492ad08ff",
+      "liaisons": [
+        {
+          "champ": "sha256_du_texte~texte",
+          "type": "export:raw-response",
+          "valeur": "bab1dcf57f756a16ea19f402d0b09e92de78e67ca0872245f2852582a6f8ea1e",
+          "methode": "champ-explicite:auto-coherence-interne",
+          "verifie": true,
+          "detail": "scelle une réponse brute de modèle, pas un lien au code (cf. #591 sur prompt_sha256)"
+        },
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/raw/DeepSeek-V4-Pro.brut.verdict.json",
+      "sha256_fichier": "7ad048737e888b21d91f63c131b1b7f663d4bcd1bc5c3518e46f843399be52a9",
+      "liaisons": [
+        {
+          "champ": "sha256_du_texte~texte",
+          "type": "export:raw-response",
+          "valeur": "e16d34e31729e748d9a6fcff1b5f1e1452029da02123f12e32c95632275ff5d8",
+          "methode": "champ-explicite:auto-coherence-interne",
+          "verifie": true,
+          "detail": "scelle une réponse brute de modèle, pas un lien au code (cf. #591 sur prompt_sha256)"
+        },
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/raw/GLM-5.2.brut.verdict.json",
+      "sha256_fichier": "e31d5afd3f979cb6bbdce5cf6ce9bb5880bede8765ae15e6783c6aa9c2548c04",
+      "liaisons": [
+        {
+          "champ": "sha256_du_texte~texte",
+          "type": "export:raw-response",
+          "valeur": "1958e3fcdc138d7b748619b45ff1c72f87b3406bc209e4123fa531febe0ab964",
+          "methode": "champ-explicite:auto-coherence-interne",
+          "verifie": true,
+          "detail": "scelle une réponse brute de modèle, pas un lien au code (cf. #591 sur prompt_sha256)"
+        },
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/raw/Gemini-3.1-Pro.brut.verdict.json",
+      "sha256_fichier": "cd74e2e6940b2befc677c61d88a892998c6c640ac662da8b787f5a0440449375",
+      "liaisons": [
+        {
+          "champ": "sha256_du_texte~texte",
+          "type": "export:raw-response",
+          "valeur": "0bfeeb98848f503e352f72cdcb891552d2d7640af25234f702d4eb544cee43fa",
+          "methode": "champ-explicite:auto-coherence-interne",
+          "verifie": true,
+          "detail": "scelle une réponse brute de modèle, pas un lien au code (cf. #591 sur prompt_sha256)"
+        },
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/raw/Kimi-2.7.brut.verdict.json",
+      "sha256_fichier": "f4831096fb967bb219f28173141ce6da74aaff9bc91971ca3d759c2c21a37e2a",
+      "liaisons": [
+        {
+          "champ": "sha256_du_texte~texte",
+          "type": "export:raw-response",
+          "valeur": "0738a32a65a36b8e475019e82eda8fc5a9733f712581d61471307d4c264c4ad1",
+          "methode": "champ-explicite:auto-coherence-interne",
+          "verifie": true,
+          "detail": "scelle une réponse brute de modèle, pas un lien au code (cf. #591 sur prompt_sha256)"
+        },
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/raw/Kimi-K3.brut.verdict.json",
+      "sha256_fichier": "67ad80246cb2ed1dbd57ec32f3eb70a0594af789dafd34415947f26a30c813a2",
+      "liaisons": [
+        {
+          "champ": "sha256_du_texte~texte",
+          "type": "export:raw-response",
+          "valeur": "4a6936071ca8ff6e2810f865906a87acdae3abeb6b7233c8babc913f69b44a37",
+          "methode": "champ-explicite:auto-coherence-interne",
+          "verifie": true,
+          "detail": "scelle une réponse brute de modèle, pas un lien au code (cf. #591 sur prompt_sha256)"
+        },
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/raw/MiMo-Pro-V2.brut.verdict.json",
+      "sha256_fichier": "482c6ccd7cbdfba0a622251e973270a2008fec763dad73c3fdab3d48e354f542",
+      "liaisons": [
+        {
+          "champ": "sha256_du_texte~texte",
+          "type": "export:raw-response",
+          "valeur": "da9c18990e75ebea4568d5495f552a0dcf64c9a8cf018754ac91a6579282acab",
+          "methode": "champ-explicite:auto-coherence-interne",
+          "verifie": true,
+          "detail": "scelle une réponse brute de modèle, pas un lien au code (cf. #591 sur prompt_sha256)"
+        },
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/raw/MiniMax-M3.brut.verdict.json",
+      "sha256_fichier": "9a1c3ec9bae69f1adeca45fe1e4549e661685b07d5508224469dcfb92f0641c2",
+      "liaisons": [
+        {
+          "champ": "sha256_du_texte~texte",
+          "type": "export:raw-response",
+          "valeur": "9e9a2bcec4101e0ec989305be82f636cc25f436bd51b2542df145f1f2d2dc9b3",
+          "methode": "champ-explicite:auto-coherence-interne",
+          "verifie": true,
+          "detail": "scelle une réponse brute de modèle, pas un lien au code (cf. #591 sur prompt_sha256)"
+        },
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/audit-000-cadrage/raw/Qwen3.7-Max.brut.verdict.json",
+      "sha256_fichier": "f7d379a4a444787a620e90e2022d7500bdb386f6a372ef00597da8e2865272bc",
+      "liaisons": [
+        {
+          "champ": "sha256_du_texte~texte",
+          "type": "export:raw-response",
+          "valeur": "baa206478ac3da2c4e327b1c10dbf3b6398d76dc474fa12aa776cb9da4300343",
+          "methode": "champ-explicite:auto-coherence-interne",
+          "verifie": true,
+          "detail": "scelle une réponse brute de modèle, pas un lien au code (cf. #591 sur prompt_sha256)"
+        },
+        {
+          "champ": "message-commit-introducteur(fbe2c813b87f)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur fbe2c813b87f (2026-08-05) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "fbe2c813b87f421776fed4242a0d28ae75d586e1",
+        "date": "2026-08-05",
+        "sujet": "audit(AUDIT-000): cadrage BMAD révisé sur consensus 8 vendors — faux vert de la batterie corrigé (#278)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur fbe2c813b87f (2026-08-05) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/mock-phaseC/gemini-3.1-pro.json",
+      "sha256_fichier": "7f457a7fbbd7b6b72ad0ddf4fe86da36b90306c8153d7ef3c82716e9c4bdd168",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/mock-phaseC/glm-5.2.json",
+      "sha256_fichier": "6a57e5ff3b2887f2f0df36d4e58c6323c159466a60f7e488661f48f15fc08d97",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/mock-phaseC/longcat-2.0.json",
+      "sha256_fichier": "a86d9e2e6e9c6800aee2ca409c955a3ea61ec4431beeae46815bce4d29ae9593",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d3c76aceab74)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d3c76aceab74 (2026-07-23) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d3c76aceab748c798c96e6ac6fa4877b096a7771",
+        "date": "2026-07-23",
+        "sujet": "P0-1: installation kit GRS v1.0 + adaptation OPSYS-AI (ADR-0002)"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d3c76aceab74 (2026-07-23) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/Composer-2.5.json",
+      "sha256_fichier": "1f9a69c560db0151f7ead225569187448224c1c38bee5a3150f665150b171d30",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/DeepSeek-V4-Pro.json",
+      "sha256_fichier": "c5ff36a8a6db4f1c733e1fd607040e63efbd6d0fd258cd0d056c2324b811c162",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/GLM-5.2.json",
+      "sha256_fichier": "19f8ed145725d1cf5375e9a3f79018250aa10aea2792f681cda375f0a7990a07",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/Gemini-3.1-Pro.json",
+      "sha256_fichier": "7098a8e9b1f3c452bda74b37c96563bc7456fb3d376a9b886c9e6d98554493c1",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/Gemini-3.6-Flash.json",
+      "sha256_fichier": "f97e0cc8facdae17be7789b4e53c2a002a700dd707425d8d07af55b0b4167c2f",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/Grok-4.5.json",
+      "sha256_fichier": "b5ebe86ef390f657f8d51e6f578251e63a80f2d0aa60eaa3371fb2dfbbda6f99",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/Kimi-2.7.json",
+      "sha256_fichier": "d7ce0ddc40fc89237c35ae446404303083fc8ebfde2c384569f346b02549fa9b",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/LongCat-2.0.json",
+      "sha256_fichier": "f8370c9445862d22343d35706a9f7de9eb16b993eb59963d80d7a31db20de100",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/MiMo-Pro-V2.json",
+      "sha256_fichier": "299c4680862b007a31ca85e615e018e3b1153f6a0a84a6703b1f6d99592d79d3",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/MiniMax-M3.json",
+      "sha256_fichier": "634443cb35f852800fb3e41dcf0dcbc08bb3c361a29e5210093f9298ef3a5eaa",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/Qwen3.7-Max.json",
+      "sha256_fichier": "64882f37cec749a8d23e61e133ae97469bc3d52d60678608c6d2931f0e752b11",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/Composer-2.5.txt",
+      "sha256_fichier": "251162743292409718893b721e7de96dd0bef1c33f99e2396ea8bddb154a88f5",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/DeepSeek-V4-Pro.txt",
+      "sha256_fichier": "6f0701441b03add67421efe1ae7207933e6a5bcd1837905ecea63809d1b69653",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/GLM-5.2.txt",
+      "sha256_fichier": "d7aaade09bd44ad1093213dcfdcb79e58abcad96e7028c9804546d6033d125c8",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/Gemini-3.1-Pro.txt",
+      "sha256_fichier": "2190fa846ca3570429ca285e5b1f21d461f6979c918ef507f69c606a61be6a65",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/Gemini-3.6-Flash.txt",
+      "sha256_fichier": "31b48fc88a6d055e86d20830a37e91f0aa8e3e3e4a855a811b509267b6725519",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/Grok-4.5.txt",
+      "sha256_fichier": "376a36b5c86dbd64c0be19697e33795f25a06e3bd1fdb94aaacf77ae5f20c20c",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/Kimi-2.7.round2.txt",
+      "sha256_fichier": "6f8a50656fd7499f71de552cf168fdd1e374a37ee58cd0c68859a9bb7967cde7",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/Kimi-2.7.txt",
+      "sha256_fichier": "0d37e5d5bc44525e0826eb5f470f9db30a1d2fdfc619f92d450568503c5bacf0",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/LongCat-2.0.txt",
+      "sha256_fichier": "9afa15ba9aaab6e60448fb583e92080427c9b7be6da2094946ef94a99828d384",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/MiMo-Pro-V2.txt",
+      "sha256_fichier": "799b8647d91fa3f65f133d1e53a8d20fac19af4f1e2bc001ec6e9f2793e2dab1",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/MiniMax-M3.txt",
+      "sha256_fichier": "636dd28c7a43adbea2b45f124ac54b9231ee5168ed0a63e9ee101d6693cdf772",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/raw/Qwen3.7-Max.txt",
+      "sha256_fichier": "23a07b3baeb85afbeb59679728f061e2fd89a63ac912ed325b6c0d1bc8952b02",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    },
+    {
+      "chemin": "registries/verdicts/phaseC-live/round-1/Kimi-2.7.json",
+      "sha256_fichier": "18fdd76e8839df41076db351daa25094c3eec6a2aa5b7d28ef7790823240e2e6",
+      "liaisons": [
+        {
+          "champ": "message-commit-introducteur(d5c5322957be)",
+          "type": "commit-hors-portee",
+          "valeur": null,
+          "methode": "commit-introducteur",
+          "verifie": false,
+          "detail": "commit introducteur d5c5322957be (2026-07-24) touche d'autres bundles du périmètre indexé que le sien : toute référence qu'il cite n'est pas retenue (risque de citation hors-sujet dans un commit fourre-tout, cf. docstring groupe_bundle)"
+        }
+      ],
+      "statut": "NON_PROUVE",
+      "commit_introducteur": {
+        "hash": "d5c5322957be36f13f4bb3ae77c2ff26a7c1dcd9",
+        "date": "2026-07-24",
+        "sujet": "chore: consensus Phase C exécuté — 11 verdicts scellés, tally APPROVED, synthèse ratification"
+      },
+      "non_preuve_raison": "aucun champ du vocabulaire connu trouvé ; commit introducteur d5c5322957be (2026-07-24) hors périmètre (touche d'autres bundles du même lot) : citations non retenues."
+    }
+  ]
+}
