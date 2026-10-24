@@ -51,7 +51,7 @@ FAUX_UV = '''#!/usr/bin/env bash
 if [ "$1 ${2:-}" = "venv --clear" ]; then
     for dossier; do :; done  # le dernier argument (portable : bash 3.2 de macOS compris)
     mkdir -p "$dossier/bin"
-    printf '#!/bin/sh\\nexec %s "$@"\\n' "$FAUX_PYTHON" >"$dossier/bin/python"
+    printf '#!/bin/sh\\nexport OPSYS_PYTHON_LAUNCHER="$0"\\nexec %s "$@"\\n' "$FAUX_PYTHON" >"$dossier/bin/python"
     chmod +x "$dossier/bin/python"
 fi
 exit 0

@@ -449,8 +449,10 @@ preparer_generation() {
         origine="$(detecter_depot_voisin)" || die "la préparation exige --source vers un dépôt OPSYS local."
     fi
     origine="$(cd "$origine" && pwd -P)" || die "source de génération inaccessible."
-    [ -f "$origine/core/openclaw.mjs" ] && [ -f "$origine/pyproject.toml" ] &&
-        [ -d "$origine/departments" ] || die "source de génération OPSYS incomplète."
+    if [ ! -f "$origine/core/openclaw.mjs" ] || [ ! -f "$origine/pyproject.toml" ] ||
+        [ ! -d "$origine/departments" ]; then
+        die "source de génération OPSYS incomplète."
+    fi
     SOURCE_COMMIT="$(git -C "$origine" rev-parse --verify 'HEAD^{commit}')" ||
         die "la préparation exige un commit local vérifiable."
     etat="$(GIT_OPTIONAL_LOCKS=0 git -C "$origine" status --porcelain --untracked-files=normal)" ||
@@ -462,7 +464,9 @@ preparer_generation() {
         die "source avec lien symbolique ou sous-module : ressource extérieure non figée, préparation refusée."
     fi
     racine="$OPSYS_LOGICIEL/generations"
-    [ ! -L "$racine" ] && [ ! -L "$OPSYS_LOGICIEL" ] || die "racine de générations symbolique refusée."
+    if [ -L "$racine" ] || [ -L "$OPSYS_LOGICIEL" ]; then
+        die "racine de générations symbolique refusée."
+    fi
     mkdir -p "$racine"
     racine="$(cd "$racine" && pwd -P)"
     GENERATION="$(mktemp -d "$racine/generation-XXXXXXXXXX")" || die "réservation de génération impossible."
@@ -512,7 +516,7 @@ manifest = {"state": "prepared", "publication": "not-published", "generation": g
             "source": source, "venv": venv, "python": python, "commit": commit,
             "system_python_dependency": "not-qualified", "core_build": "not-prepared",
             "sqlite_helper_overlay_sha256": sqlite_helper or None}
-# Le nom accepté ne devient visible qu’après écriture complète et fsync réussis.
+# Le nom accepté devient visible seulement après écriture complète et fsync réussis.
 # Un fichier pending éventuel conserve le diagnostic sans annoncer prepared.
 pending = Path(generation) / ".generation.json.pending"
 with pending.open("x") as stream:
@@ -523,10 +527,10 @@ with pending.open("x") as stream:
 os.replace(pending, Path(generation) / "generation.json")
 ' "$GENERATION" "$SOURCE" "$VENV" "$MOTEUR_PY" "$SOURCE_COMMIT" "$GENERATION_SQLITE_HELPER_SHA" "$origine" ||
         die "finalisation de la génération impossible ; aucun pointeur publié."
-    chmod 400 "$GENERATION/generation.json" && chmod 500 "$GENERATION" || {
+    if ! chmod 400 "$GENERATION/generation.json" || ! chmod 500 "$GENERATION"; then
         rm -f "$GENERATION/generation.json"
         die "gel final impossible ; génération incomplète, aucun pointeur publié."
-    }
+    fi
     info "génération préparée sans publication : $GENERATION"
 }
 
@@ -646,11 +650,15 @@ preparer_sqlite_privee() {
         return 0
     fi
     if [ -n "$GENERATION" ]; then
-        # Le helper qualifié reste un ingrédient isolé non publié dans le commit de base.
-        # On le transporte depuis le bundle du candidat, avec provenance distincte du commit.
-        local helper="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/sqlite_runtime.py"
-        GENERATION_SQLITE_HELPER_SHA=757d5d04a76f43210dbac4ccda71f5ec67a94216002bfc8888d3eb2ff2c8dddc
-        [ -f "$helper" ] && [ ! -L "$helper" ] || die "helper SQLite qualifié absent du bundle."
+        # Le helper livré par ce bundle est épinglé indépendamment du commit Source reçu.
+        # Sa copie privée conserve cette provenance explicite dans la génération.
+        local helper
+        helper="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/sqlite_runtime.py" ||
+            die "répertoire du helper SQLite inaccessible."
+        GENERATION_SQLITE_HELPER_SHA=75de1b3dbcc96b02ab970187439ad8101e547eebac415bc535773b8f87df6e89
+        if [ ! -f "$helper" ] || [ -L "$helper" ]; then
+            die "helper SQLite qualifié absent du bundle."
+        fi
         printf '%s  %s\n' "$GENERATION_SQLITE_HELPER_SHA" "$helper" | sha256sum --check --status ||
             die "helper SQLite différent du composant qualifié."
         cp "$helper" "$SOURCE/install/sqlite_runtime.py" || die "copie privée du helper SQLite impossible."

@@ -1440,6 +1440,14 @@ def test_l_installateur_lit_la_version_de_pnpm_dans_le_package_json_reel_du_core
     assert reel.startswith(f"pnpm@{lu}") and re.fullmatch(r"\d+\.\d+\.\d+", lu)
 
 
+def test_le_helper_sqlite_livre_correspond_a_l_empreinte_de_generation():
+    source = INSTALL.read_text(encoding="utf-8")
+    empreinte = re.search(r"(?m)^\s*GENERATION_SQLITE_HELPER_SHA=([0-9a-f]{64})$", source)
+    assert empreinte is not None
+    helper = RACINE / "install" / "sqlite_runtime.py"
+    assert hashlib.sha256(helper.read_bytes()).hexdigest() == empreinte.group(1)
+
+
 def test_les_scripts_sont_executables_et_sans_faute_de_syntaxe():
     bout_en_bout = RACINE / "tests" / "installateur" / "bout_en_bout.sh"  # joué par la CI avec le vrai core
     diagnostic = RACINE / "tests" / "installateur" / "diagnostic.sh"  # joué par la CI après un échec

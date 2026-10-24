@@ -158,7 +158,10 @@ def test_les_installateurs_verifient_docker_linux_et_preparent_l_image_sandbox_a
     assert "core/scripts/sandbox-setup.sh" in sh
     assert "scripts\\docker\\sandbox\\Dockerfile" in ps
     assert "docker build -t $image -f $dockerfile $core" in ps
-    assert sh.index("construire_core\n    preparer_image_sandbox") < sh.index("installer_moteur\n")
+    main_sh = re.search(r"^main\(\) \{\n(.*?)^\}", sh, flags=re.MULTILINE | re.DOTALL)
+    assert main_sh is not None
+    main = main_sh.group(1)
+    assert main.index("construire_core\n    preparer_image_sandbox") < main.index("installer_moteur\n")
     assert ps.rindex("Build-Core\n        Prepare-SandboxImage") < ps.rindex("Install-Moteur")
     assert "docker pull" not in sh and "docker pull" not in ps
 
