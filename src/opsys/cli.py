@@ -284,6 +284,20 @@ def _source_du_logiciel(source: str | None) -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _interpreteur_instance(lanceur: str | None) -> Path:
+    """Conserve le lanceur imposé par l'installation, même après passage dans CPython."""
+    declare = os.environ.get("OPSYS_PYTHON_LAUNCHER")
+    if declare is not None and lanceur is not None and Path(declare) != Path(lanceur):
+        raise ValueError("le lanceur demandé diffère du profil Python installé ; réconcilier avant initialisation")
+    choisi = lanceur if lanceur is not None else declare
+    if choisi is None:
+        return Path(sys.executable)
+    chemin = Path(choisi)
+    if not chemin.is_absolute() or not chemin.is_file() or not os.access(chemin, os.X_OK):
+        raise ValueError("lanceur Python déclaré absent, relatif ou non exécutable : aucun repli")
+    return chemin
+
+
 def cmd_instance(args: argparse.Namespace) -> int:
     """Instance locale (PLAN T0.11) : préparation par l'installateur, export et restauration. Voir `opsys.instance`
     et `opsys.exportation`. Le code de sortie 3 de `initialiser` veut dire : installé, mais il manque une décision.
@@ -301,7 +315,8 @@ def cmd_instance(args: argparse.Namespace) -> int:
             return 0
         if args.action == "initialiser":
             resultat = instance.initialiser(
-                home, source=_source_du_logiciel(args.source), python=Path(sys.executable),
+                home, source=_source_du_logiciel(args.source),
+                python=_interpreteur_instance(args.lanceur_python),
                 port_gateway=args.port_gateway, port_moteur=args.port_moteur,
                 mode_fournisseur=args.mode_fournisseur, url_passerelle=args.url_passerelle)
             _afficher(resultat.en_json())
@@ -802,6 +817,9 @@ def construire_parseur() -> argparse.ArgumentParser:
                      help="restaurer : mettre de côté les fichiers actuels (jamais supprimés) et les remplacer")
     ins.add_argument("--empreinte", help="restaurer : SHA-256 attendu de l'archive (défaut : <archive>.sha256)")
     ins.add_argument("--source", help="initialiser : dépôt du logiciel (défaut : celui du paquet installé)")
+    ins.add_argument("--lanceur-python",
+                     help=("initialiser : lanceur Python absolu préparé par l’installateur "
+                           "(défaut : interpréteur courant)"))
     ins.add_argument("--port-gateway", type=int, help="initialiser : port du Gateway (défaut : 18789)")
     ins.add_argument("--port-moteur", type=int, help="initialiser : port du moteur métier (défaut : 8765)")
     ins.add_argument("--mode-fournisseur", choices=["natif", "litellm"],
