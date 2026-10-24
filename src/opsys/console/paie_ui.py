@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy import Connection
 
 from .. import identite
-from . import metier, obligations_privees, pages, securite
+from . import metier, obligations_privees, pages, paie_admission_ui, securite
 from .securite import Session
 
 _OUTIL = "m5_preparer_brut_regulier"
@@ -318,6 +318,10 @@ def creer_router(
     prefixe: str,
 ) -> APIRouter:
     router = APIRouter(tags=["paie préparatoire"])
+    router.include_router(paie_admission_ui.creer_router(
+        session_page=session_page, session_api=session_api, formulaire=formulaire,
+        objet_json=objet_json, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+    ))
 
     def employees_actifs(cnx: Connection, session: Session) -> list[identite.Personne]:
         _owner(cnx, session)
@@ -347,6 +351,8 @@ def creer_router(
             "Une nouvelle lecture et le recalcul d’un snapshot épinglé sont deux actions distinctes.</p>"
             f'<p><a class="bouton" href="{pages.e(prefixe)}/finance/paie/obligations">'
             "Calendrier privé des montants paie/DAS confirmés</a></p>"
+            f'<p><a href="{pages.e(prefixe)}/finance/paie/admission">'
+            "Vérifier les préconditions documentaires</a></p>"
             + _formulaire(prefixe, session.csrf, employees, values)
             + _rendu_resultat(resultat, erreur)
         )
