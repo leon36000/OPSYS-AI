@@ -5,6 +5,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+from pathlib import Path
 
 import pytest
 from agents_base_qa import provisionner_base_qa
@@ -270,9 +271,29 @@ def test_projection_preserve_autres_profils_agents_et_fragments(monde, tmp_path)
     _creer(monde)
     new_files = _generer(monde, tmp_path / "after")
     current = _json(new_files, "agents")
-    assert current["entries"]["opsys-agent-" + p["id"]] == before["agents"]["entries"]["opsys-agent-" + p["id"]]
     assert current["entries"]["opsys-agent-" + p["id"]]["tools"]["allow"] == ["opsys_m1__" + TOOL]
+    assert current.keys() == before["agents"].keys()
+    for field, value in before["agents"].items():
+        if field != "entries":
+            assert current[field] == value
+    before_root = (tmp_path / "before" / "opsys" / "espaces").resolve()
+    after_root = (tmp_path / "after" / "opsys" / "espaces").resolve()
     for name, entry in before["agents"]["entries"].items():
-        assert current["entries"][name] == entry
+        current_entry = current["entries"][name]
+        assert current_entry.keys() == entry.keys()
+        assert "workspace" in entry
+        for field, value in entry.items():
+            if field != "workspace":
+                assert current_entry[field] == value
+        before_workspace = Path(entry["workspace"])
+        after_workspace = Path(current_entry["workspace"])
+        assert before_workspace.is_absolute() and after_workspace.is_absolute()
+        suffix = (Path("agents") / name.removeprefix("opsys-agent-")
+                  if name.startswith("opsys-agent-") else Path(name))
+        assert before_workspace == before_root / suffix
+        assert after_workspace == after_root / suffix
+        assert before_workspace.relative_to(before_root) == after_workspace.relative_to(after_root)
+        assert (before_workspace / "SOUL.md").is_file()
+        assert (after_workspace / "SOUL.md").is_file()
     for name in ("channels", "plugins", "models", "roles", "tools"):
         assert _json(new_files, name) == before[name]

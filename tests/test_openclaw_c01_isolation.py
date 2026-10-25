@@ -45,6 +45,12 @@ def test_config_opsys_marque_tous_les_agents_et_sandbox_exec_obligatoire(tmp_pat
     }
     assert outils["exec"]["host"] == "sandbox"
     assert agents["entries"]
+    # Fichiers réellement générés, même si la commande Core part d'un autre cwd.
+    for agent_id, entree in agents["entries"].items():
+        workspace = Path(entree["workspace"])
+        assert workspace.is_absolute()
+        assert workspace == (tmp_path / "opsys" / "espaces" / agent_id).resolve()
+        assert (workspace / "SOUL.md").is_file()
     assert all(
         entree["opsysIsolation"] == {"exec": "sandbox-required"}
         for entree in agents["entries"].values()

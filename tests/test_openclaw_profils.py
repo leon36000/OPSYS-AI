@@ -81,6 +81,8 @@ def test_genere_les_profils_actifs_avec_admission_durable(session, tmp_path):
     ]
     assert all("opsys_runtime_" not in item for item in config[profile_agent_id]["tools"]["allow"])
     assert config[profile_agent_id]["workspace"] != config[second_agent_id]["workspace"]
+    assert Path(config[profile_agent_id]["workspace"]).is_absolute()
+    assert Path(config[second_agent_id]["workspace"]).is_absolute()
     workspace = tmp_path / config[profile_agent_id]["workspace"].removeprefix("./")
     second_workspace = tmp_path / config[second_agent_id]["workspace"].removeprefix("./")
     assert "Préparer des estimations vérifiables." in (workspace / "SOUL.md").read_text(encoding="utf-8")

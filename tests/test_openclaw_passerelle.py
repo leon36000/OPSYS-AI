@@ -51,7 +51,7 @@ def test_fragments_openclaw(departements_demo, tmp_path, session):
     agents = fragment_agents["entries"]
     assert agents["m09-demo"] == {
         "name": "M9 · Démo",
-        "workspace": "./opsys/espaces/m09-demo",
+        "workspace": str((tmp_path / "opsys" / "espaces" / "m09-demo").resolve()),
         "model": "anthropic/claude-sonnet-5",
         "opsysIsolation": {"exec": "sandbox-required"},
         "tools": {"deny": ["opsys_context_*__*", "opsys_runtime_*__*"]},

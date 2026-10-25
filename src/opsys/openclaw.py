@@ -809,7 +809,8 @@ def generer(
     Validation de transport avant toute écriture, y compris les espaces de travail.
     `mode_fournisseur` sélectionne les fournisseurs natifs par défaut ou LiteLLM en compatibilité explicite.
     `url_passerelle` n'est utilisée que pour `mode_fournisseur="litellm"`.
-    `racine_espaces` est le chemin vu par la passerelle OpenClaw, relatif au dossier de config.
+    La racine par défaut est émise en chemin absolu vers les espaces générés, indépendamment
+    du cwd du Core. Une `racine_espaces` personnalisée reste le chemin vu par la passerelle.
     `environ` (défaut `os.environ`) fournit `OPSYS_EMBEDDINGS_{URL,MODELE,CLE}` pour la mémoire
     Couche A ; validé avant l'écriture des fragments (fail-closed, voir `_configuration_memoire`). Il dit aussi
     quels canaux du public sont actifs (`opsys.canaux` : toutes leurs variables fournies, sinon désactivés).
@@ -845,6 +846,9 @@ def generer(
     configuration_canaux = canaux.configuration(departements, env_canaux, sans_include)
     base = dossier_config / "opsys"
     espaces = base / "espaces"
+    # Core résout un workspace relatif depuis le cwd du processus, pas depuis sa config.
+    # La racine générée par défaut doit donc désigner les fichiers réellement écrits ici.
+    racine_espaces_core = str(espaces.resolve()) if racine_espaces == "./opsys/espaces" else racine_espaces
     env_isolation = os.environ if environ is None else environ
     _verifier_espaces_sans_donnees_sensibles(dossier_config, racine_espaces, env_isolation)
     profils_actifs: list[dict[str, Any]] = []
@@ -932,7 +936,7 @@ def generer(
         })
         agents[agents_base.agent_core_id(profil_base)] = {
             "name": f"{dep.code} · {dep.nom}",
-            "workspace": f"{racine_espaces}/{dep.id}",
+            "workspace": f"{racine_espaces_core}/{dep.id}",
             "model": modele_agent,
             "runtime": {"type": "embedded"},
             "opsysRuntimeAdmission": {"profileId": profil_base["id"], "profileRevision": profil_base["revision"]},
@@ -1016,7 +1020,7 @@ def generer(
             shutil.copytree(dep.racine / "skills" / skill, espace_profil / "skills" / skill, dirs_exist_ok=True)
         agents[profile_agent_id] = {
             "name": f"Agent OPSYS · {profil['id']}",
-            "workspace": f"{racine_espaces}/agents/{profil['id']}",
+            "workspace": f"{racine_espaces_core}/agents/{profil['id']}",
             "model": {"primary": primaire, "fallbacks": replis} if replis else primaire,
             "runtime": {"type": "embedded"},
             "opsysRuntimeAdmission": {"profileId": profil["id"], "profileRevision": profil["revision"]},
