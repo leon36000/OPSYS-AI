@@ -260,11 +260,13 @@ def test_un_lien_empreinte_pendant_est_refuse_sans_creer_sa_cible(opsys_home, tm
     empreinte = tmp_path / "export.tar.gz.sha256"
     cible = tmp_path / "cible-fictive-absente"
     empreinte.symlink_to(cible)
+    # Windows peut rendre la cible avec son préfixe natif \\?\ : conserver cette représentation.
+    cible_initiale = empreinte.readlink()
 
     with pytest.raises(exportation.ErreurExportation, match="existe déjà"):
         exportation.exporter(opsys_home, sortie, par="test-fictif")
 
-    assert empreinte.is_symlink() and empreinte.readlink() == cible
+    assert empreinte.is_symlink() and empreinte.readlink() == cible_initiale
     assert not cible.exists()
     assert not sortie.exists()
 
