@@ -183,6 +183,7 @@ def test_les_outils_de_l_agent_m1_sont_fermes_et_suivent_le_schema(tous, tmp_pat
     assert "alsoAllow" not in outils, "le schéma refuse allow et alsoAllow ensemble"
     # Il n'appelle que les outils de son propre serveur MCP...
     assert outils["allow"] == ["opsys_m1__*"]
+    assert outils["sandbox"] == {"tools": {"allow": ["opsys_m1__*"]}}
     # ... jamais ceux des autres départements, ni l'outil `message` du core (envoi sans approbation).
     assert "message" in outils["deny"] and "group:messaging" in outils["deny"]
     autres = {f"opsys_m{n}__*" for n in range(2, 11)}
@@ -190,7 +191,8 @@ def test_les_outils_de_l_agent_m1_sont_fermes_et_suivent_le_schema(tous, tmp_pat
     assert "opsys_m1__*" not in outils["deny"]
     # Les agents internes gardent leurs outils Core/communs et les refus voisins et privés.
     m2 = entrees["m02-revenue-crm"]["tools"]
-    assert set(m2) == {"deny"} and "message" not in m2["deny"]
+    assert set(m2) == {"deny", "sandbox"} and "message" not in m2["deny"]
+    assert m2["sandbox"] == {"tools": {"alsoAllow": ["opsys_m2__*"]}}
     assert set(m2["deny"]) == ({f"opsys_m{n}__*" for n in range(1, 11) if n != 2}
                                | {"opsys_context_*__*", "opsys_runtime_*__*"})
 
@@ -302,6 +304,7 @@ def test_sans_departement_a_canaux_les_fragments_sont_vides_et_les_agents_inchan
     assert _json(fichiers, "plugins")["entries"].keys() == {"memory-core"}
     assert _json(fichiers, "agents")["entries"]["m09-demo"]["tools"] == {
         "deny": ["opsys_context_*__*", "opsys_runtime_*__*"],
+        "sandbox": {"tools": {"alsoAllow": ["opsys_m9__*"]}},
     }
 
 

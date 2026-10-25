@@ -54,7 +54,10 @@ def test_fragments_openclaw(departements_demo, tmp_path, session):
         "workspace": str((tmp_path / "opsys" / "espaces" / "m09-demo").resolve()),
         "model": "anthropic/claude-sonnet-5",
         "opsysIsolation": {"exec": "sandbox-required"},
-        "tools": {"deny": ["opsys_context_*__*", "opsys_runtime_*__*"]},
+        "tools": {
+            "deny": ["opsys_context_*__*", "opsys_runtime_*__*"],
+            "sandbox": {"tools": {"alsoAllow": ["opsys_m9__*"]}},
+        },
         "runtime": {"type": "embedded"},
         "opsysRuntimeAdmission": {"profileId": "base-m09-demo", "profileRevision": 2},
     }

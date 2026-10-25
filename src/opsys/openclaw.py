@@ -376,11 +376,15 @@ def _outils_de_l_agent(dep: Departement, departements: Mapping[str, Departement]
     # Internal origin-bound context servers are for the ContextEngine only. Deny for internal
     # and public agents so model discovery/calls cannot select another agent's identity bearer.
     refus.extend(("opsys_context_*__*", "opsys_runtime_*__*"))
+    portee = f"{serveur_mcp(dep)}__*"
     if not expose:
-        return {"deny": refus}
+        # Le filtre final applique aussi la politique sandbox aux outils MCP. Ajouter
+        # la portée métier aux défauts Core, sans recopier ni remplacer ces défauts.
+        return {"deny": refus, "sandbox": {"tools": {"alsoAllow": [portee]}}}
     return {
-        "allow": [f"{serveur_mcp(dep)}__*"],
+        "allow": [portee],
         "deny": [*refus, *canaux.OUTILS_MESSAGERIE_REFUSES],
+        "sandbox": {"tools": {"allow": [portee]}},
     }
 
 
@@ -989,9 +993,10 @@ def generer(
             generique_sms = f"{serveur_mcp(dep)}__{canaux.CANAL_SMS.outil_accueil}"
             politique["allow"] = [nom for nom in politique["allow"] if nom != generique_sms]
             politique["deny"] = sorted(set(politique["deny"]) | {generique_sms})
-            if not politique["allow"]:
-                # Core traite allow=[] comme ouvert : un profil sans droit modèle refuse donc tous les noms.
-                politique["deny"] = sorted(set(politique["deny"]) | {"*"})
+        if not politique["allow"]:
+            # Core traite allow=[] comme ouvert, y compris hors des projections SMS.
+            # Un profil sans outil modèle ne doit donc conserver aucun nom callable.
+            politique["deny"] = sorted(set(politique["deny"]) | {"*"})
         profile_agent_id = agents_base.agent_core_id(profil)
         espace_profil = espaces / "agents" / profil["id"]
         (espace_profil / "skills").mkdir(parents=True, exist_ok=True)
