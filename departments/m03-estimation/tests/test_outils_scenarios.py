@@ -52,13 +52,18 @@ def _outil():
 
 
 def _arguments(**surcharges):
+    contrat_estimation = {
+        "lead_id": "lead-outil-scenarios-001",
+        "conversation_id": "conv-outil-scenarios-001",
+        "type_travaux": "ravalement",
+        "ville": "Quebec",
+        "canal": "formulaire",
+        "contact": {"nom": "Durand", "telephone": "5145550000"},
+        "urgence_declaree": False,
+    }
     arguments = {
-        "contrat": {
-            "lead_id": "lead-outil-scenarios-001", "conversation_id": "conv-outil-scenarios-001",
-            "type_travaux": "ravalement", "ville": "Quebec", "canal": "formulaire_web",
-            "contact": {"nom": "Durand", "telephone": "5145550000"}, "urgence_declaree": False,
-        },
-        "marqueur": marqueur_m2("lead-outil-scenarios-001"),
+        "contrat": contrat_estimation,
+        "marqueur": marqueur_m2("lead-outil-scenarios-001", contrat=contrat_estimation),
         "photos": [{
             "photo_id": "p1", "resolution_largeur": 3000, "resolution_hauteur": 2000, "eclairage": 7,
             "angle": "face", "reference_echelle": {"type": "porte", "dimensions_connues": True},

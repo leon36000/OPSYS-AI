@@ -99,7 +99,7 @@ def _contrat(**surcharges):
         "conversation_id": "conv-identite-001",
         "type_travaux": "ravalement",
         "ville": "Quebec",
-        "canal": "formulaire_web",
+        "canal": "formulaire",
         "contact": {"nom": "Durand", "telephone": "5145550000"},
         "urgence_declaree": False,
     }
@@ -108,7 +108,7 @@ def _contrat(**surcharges):
 
 
 def _marqueur(**surcharges):
-    marqueur = marqueur_m2("lead-identite-001")
+    marqueur = marqueur_m2("lead-identite-001", contrat=_contrat())
     marqueur.update(surcharges)
     return marqueur
 

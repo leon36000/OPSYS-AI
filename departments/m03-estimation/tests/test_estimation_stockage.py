@@ -42,7 +42,7 @@ def _contrat(**surcharges):
         "conversation_id": "conv-stock-001",
         "type_travaux": "ravalement",
         "ville": "Quebec",
-        "canal": "formulaire_web",
+        "canal": "formulaire",
         "contact": {"nom": "Durand", "telephone": "5145550000"},
         "urgence_declaree": False,
     }
@@ -51,7 +51,7 @@ def _contrat(**surcharges):
 
 
 def _marqueur(**surcharges):
-    marqueur = marqueur_m2("lead-stock-001")
+    marqueur = marqueur_m2("lead-stock-001", contrat=_contrat())
     marqueur.update(surcharges)
     return marqueur
 
@@ -139,15 +139,17 @@ def test_estimer_projet_ne_publie_aucun_evenement(base_durable):
 
 
 def test_estimer_projet_type_travaux_hors_contrat_rejet_metier_nomme(base_durable):
-    """`type_travaux` vit désormais DANS `contrat` (PLAN T2.3) : le validateur de schéma minimal
-    de `opsys.outils` (premier niveau seulement) ne peut plus le rejeter à ce stade — c'est
-    `validation.valider_entrees`, à l'intérieur de l'orchestrateur, qui le fait, avec un verdict
-    nommé (jamais un plantage ni un contrat accepté à tort)."""
-    reponse = _estimer(contrat=_contrat(type_travaux="piscine"))
+    """Le contrat modifié est refusé avant l'effet durable ; le validateur pur reste strict."""
+    from m3_estimation.validation import valider_entrees
+
+    contrat_invalide = _contrat(type_travaux="piscine")
+    reponse = _estimer(contrat=contrat_invalide)
     assert reponse["ok"] is True, reponse
     assert reponse["resultat"]["accepte"] is False
-    assert reponse["resultat"]["etape"] == "validation"
-    assert reponse["resultat"]["verdict"]["code"] == "REJ-CONTRAT-INVALIDE"
+    assert reponse["resultat"]["etape"] == "readiness_m2"
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-READINESS-NON-CONSTATEE"
+    accuse, verdict = valider_entrees(contrat_invalide, _marqueur(), [_photo()])
+    assert accuse is None and verdict["code"] == "REJ-CONTRAT-INVALIDE"
     assert len(registre_production().lire()) == 0, "une entrée rejetée n'écrit rien au registre"
 
 

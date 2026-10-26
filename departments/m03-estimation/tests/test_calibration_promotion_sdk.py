@@ -79,13 +79,20 @@ def _deposer_photo_m4(par_nom: dict[str, object]) -> str:
 
 def _estimation_et_devis(par_nom: dict[str, object], index: int) -> tuple[str, str, dict, dict]:
     lead_id = f"LEAD-CAL-PROMO-{index:03d}"
+    contrat_estimation = {
+        "lead_id": lead_id,
+        "conversation_id": f"CONV-CAL-PROMO-{index:03d}",
+        "type_travaux": "renovation_totale",
+        "ville": "Montreal",
+        "canal": "formulaire",
+        "contact": {"nom": "Client fictif", "telephone": "5145550101"},
+        "urgence_declaree": False,
+    }
     estimation = executer_atomique(par_nom["m3_estimer_projet"], {
-        "contrat": {
-            "lead_id": lead_id, "conversation_id": f"CONV-CAL-PROMO-{index:03d}",
-            "type_travaux": "renovation_totale", "ville": "Montreal", "canal": "formulaire",
-            "contact": {"nom": "Client fictif", "telephone": "5145550101"}, "urgence_declaree": False,
-        },
-        "marqueur": marqueur_m2(lead_id, type_travaux="renovation_totale", ville="Montreal"),
+        "contrat": contrat_estimation,
+        "marqueur": marqueur_m2(
+            lead_id, type_travaux="renovation_totale", ville="Montreal", contrat=contrat_estimation,
+        ),
         "photos": [{
             "photo_id": f"photo-cal-promo-{index:03d}", "resolution_largeur": 3000,
             "resolution_hauteur": 2000, "eclairage": 7, "angle": "face",
@@ -291,13 +298,20 @@ def test_capacites_real_m4_train_holdout_n4_activation_consumption_rollback(base
     assert calibration_versions_active()["candidate_id"] == candidate["candidate_id"]
 
     with contexte.appeler_en_tant_que(DEP):
+        contrat_estimation = {
+            "lead_id": "LEAD-CAL-PROMO-ACTIVE",
+            "conversation_id": "CONV-CAL-PROMO-ACTIVE",
+            "type_travaux": "renovation_totale",
+            "ville": "Montreal",
+            "canal": "formulaire",
+            "contact": {"nom": "Client fictif", "telephone": "5145550101"},
+            "urgence_declaree": False,
+        }
         nouveau = capacites.appeler("m3_estimer_projet", {
-            "contrat": {
-                "lead_id": "LEAD-CAL-PROMO-ACTIVE", "conversation_id": "CONV-CAL-PROMO-ACTIVE",
-                "type_travaux": "renovation_totale", "ville": "Montreal", "canal": "formulaire",
-                "contact": {"nom": "Client fictif", "telephone": "5145550101"}, "urgence_declaree": False,
-            },
-            "marqueur": marqueur_m2("LEAD-CAL-PROMO-ACTIVE", type_travaux="renovation_totale", ville="Montreal"),
+            "contrat": contrat_estimation,
+            "marqueur": marqueur_m2(
+                "LEAD-CAL-PROMO-ACTIVE", type_travaux="renovation_totale", ville="Montreal", contrat=contrat_estimation,
+            ),
             "photos": [{"photo_id": "photo-active", "resolution_largeur": 3000, "resolution_hauteur": 2000,
                          "eclairage": 7, "angle": "face",
                          "reference_echelle": {"type": "porte", "dimensions_connues": True}}],
@@ -331,13 +345,21 @@ def test_capacites_real_m4_train_holdout_n4_activation_consumption_rollback(base
                         if m["charge"].get("lead_id") in {f"LEAD-CAL-PROMO-{i:03d}" for i in range(60)}]
     assert historique_apres == [record for record, _ in old_estimations]
     with contexte.appeler_en_tant_que(DEP):
+        contrat_estimation = {
+            "lead_id": "LEAD-CAL-PROMO-POST-ROLLBACK",
+            "conversation_id": "CONV-CAL-PROMO-POST",
+            "type_travaux": "renovation_totale",
+            "ville": "Montreal",
+            "canal": "formulaire",
+            "contact": {"nom": "Client fictif", "telephone": "5145550101"},
+            "urgence_declaree": False,
+        }
         apres_rollback = capacites.appeler("m3_estimer_projet", {
-            "contrat": {
-                "lead_id": "LEAD-CAL-PROMO-POST-ROLLBACK", "conversation_id": "CONV-CAL-PROMO-POST",
-                "type_travaux": "renovation_totale", "ville": "Montreal", "canal": "formulaire",
-                "contact": {"nom": "Client fictif", "telephone": "5145550101"}, "urgence_declaree": False,
-            },
-            "marqueur": marqueur_m2("LEAD-CAL-PROMO-POST-ROLLBACK", type_travaux="renovation_totale", ville="Montreal"),
+            "contrat": contrat_estimation,
+            "marqueur": marqueur_m2(
+                "LEAD-CAL-PROMO-POST-ROLLBACK",
+                type_travaux="renovation_totale", ville="Montreal", contrat=contrat_estimation,
+            ),
             "photos": [{"photo_id": "photo-post-rollback", "resolution_largeur": 3000,
                          "resolution_hauteur": 2000, "eclairage": 7, "angle": "face",
                          "reference_echelle": {"type": "porte", "dimensions_connues": True}}],

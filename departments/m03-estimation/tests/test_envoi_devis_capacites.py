@@ -803,12 +803,18 @@ def test_le_schema_de_l_evenement_est_ferme_et_refuse_tout_montant():
 
 def _creer_devis_source_revue(*, photos_valides=False, legacy=False, remplacer_faits=False, faits=None):
     lead_id = "lead-source-revue-fictif"
+    contrat_estimation = {
+        "lead_id": lead_id,
+        "conversation_id": "conv-source-revue-fictif",
+        "type_travaux": "ravalement",
+        "ville": "Quebec",
+        "canal": "formulaire",
+        "contact": {"nom": "Client fictif", "telephone": "555-0101"},
+        "urgence_declaree": False,
+    }
     estimation = executer_atomique(_outil("m3_estimer_projet"), {
-        "contrat": {"lead_id": lead_id, "conversation_id": "conv-source-revue-fictif",
-                    "type_travaux": "ravalement", "ville": "Quebec", "canal": "formulaire_web",
-                    "contact": {"nom": "Client fictif", "telephone": "555-0101"},
-                    "urgence_declaree": False},
-        "marqueur": marqueur_m2(lead_id),
+        "contrat": contrat_estimation,
+        "marqueur": marqueur_m2(lead_id, contrat=contrat_estimation),
         "photos": [{"photo_id": "p-fictif", "resolution_largeur": 3000 if photos_valides else 640,
                     "resolution_hauteur": 2000, "eclairage": 7, "angle": "face",
                     "reference_echelle": {"type": "porte", "dimensions_connues": True}

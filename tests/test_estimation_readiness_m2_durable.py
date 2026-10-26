@@ -20,7 +20,17 @@ from m3_estimation import outils as m3
 from m10_memoire import liaison, registre
 from sqlalchemy import select
 
-from opsys import admission_agents, agents, approbations, contexte, idempotence, identite, stockage
+from opsys import (
+    admission_agents,
+    agents,
+    approbations,
+    contexte,
+    idempotence,
+    identite,
+    readiness_m2,
+    stockage,
+    taxonomie,
+)
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
@@ -85,9 +95,11 @@ def _effects(session):
             "events_count": len(events), "events_sha256": _digest(events), "m3_entries": entries}
 
 
-def preparer_m2_m3(session, monkeypatch, *, outils_profil=("m3_estimer_projet",)):
+def preparer_m2_m3(session, monkeypatch, *, outils_profil=("m3_estimer_projet",), version_contrat=1):
     """Native reusable preparation; default preserves the PG bootstrap contract."""
     monkeypatch.setenv("OPSYS_EVENEMENTS_REPARTITEUR", "0")
+    if version_contrat == 2:
+        taxonomie.enregistrer_services(["gouttieres", "revetement"])
     deps = charger_departements(RACINE / "departments")
     m2.utiliser_stockage_durable()
     cap2 = Capacites(deps, session, filtre={"m02-revenue-crm"}, memoire=False)
@@ -124,6 +136,9 @@ def preparer_m2_m3(session, monkeypatch, *, outils_profil=("m3_estimer_projet",)
             "contact": {"nom": "Client " + label + " FICTIF", "courriel": label.lower() + "@example.test"},
             "type_travaux": "ravalement", "ville": "Québec", "urgence_declaree": False, "canal": "telephone",
         }
+        if version_contrat == 2:
+            contract.pop("type_travaux")
+            contract.update(schema_version=2, service="gouttieres")
         response = executer_atomique(cap2.index["m2_ingerer_lead"][1], {"contrat": contract, "horodatage": H0})
         _accepted(response)
         records.append({"tool": "m2_ingerer_lead", "arguments": contract, "response": response})
@@ -173,7 +188,8 @@ def _current(session, contracts, marker_a, marker_b):
 
 
 CASES = [(seam, scenario) for seam in ("direct", "atomic", "profile")
-         for scenario in ("fresh", "stale", "forged")] + [("profile", "mismatched")]
+         for scenario in ("fresh", "stale", "forged", "altered_city", "altered_contact", "reordered")] + [
+             ("profile", "mismatched")]
 
 
 @pytest.mark.parametrize(("seam", "scenario"), CASES)
@@ -207,6 +223,14 @@ def test_estimation_requires_current_m2_readiness(session, preparation_m2_m3, se
         assert admitted["autorise"] is True
         assert agents.obtenir(cnx, PROFILE)["actif"] is True
     contract = contracts["A"] if scenario in {"stale", "mismatched"} else contracts["B"]
+    contract = copy.deepcopy(contract)
+    if scenario == "altered_city":
+        contract["ville"] = "Ville alternative FICTIVE"
+    elif scenario == "altered_contact":
+        contract["contact"]["courriel"] = "autre-contact@example.test"
+    elif scenario == "reordered":
+        contract = dict(reversed(list(contract.items())))
+        contract["contact"] = dict(reversed(list(contract["contact"].items())))
     marker = copy.deepcopy(marker_a if scenario == "stale" else marker_b)
     if scenario == "forged":
         marker["empreinte"] = ("0" if marker["empreinte"][0] != "0" else "1") + marker["empreinte"][1:]
@@ -252,7 +276,7 @@ def test_estimation_requires_current_m2_readiness(session, preparation_m2_m3, se
         )
     assert before_m2 == after_m2, "Estimation mutated M2 or its authority."
     assert before["events_sha256"] == after["events_sha256"], "Unexpected publication."
-    if scenario == "fresh":
+    if scenario in {"fresh", "reordered"}:
         assert "response" in outcome, outcome
         _accepted(outcome["response"])
         assert after["m3_count"] == before["m3_count"] + 1
@@ -260,3 +284,42 @@ def test_estimation_requires_current_m2_readiness(session, preparation_m2_m3, se
     else:
         assert _refused(outcome), ("CURRENT_M2_READINESS_REQUIRED", seam, scenario, outcome)
         assert after["m3_sha256"] == before["m3_sha256"], "Refusal must leave M3 unchanged."
+
+
+@pytest.mark.parametrize("version", [1, 2])
+@pytest.mark.parametrize("mutation", ["ville", "travaux", "contact", "source", "urgence", "version"])
+def test_readiness_binds_exact_frozen_contract(session, monkeypatch, version, mutation):
+    prep = preparer_m2_m3(session, monkeypatch, version_contrat=version)
+    contract = prep["contracts"]["B"]
+    marker = _accepted(prep["device"]("m2_evaluer_readiness", {
+        "lead_id": contract["lead_id"], "horodatage": H3,
+    }, "marker-contract-B", reading=True))["resultat"]
+    reordered = dict(reversed(list(contract.items())))
+    reordered["contact"] = dict(reversed(list(contract["contact"].items())))
+    altered = copy.deepcopy(contract)
+    if mutation == "ville":
+        altered["ville"] = "Ville alternative FICTIVE"
+    elif mutation == "travaux":
+        altered["service" if version == 2 else "type_travaux"] = (
+            "revetement" if version == 2 else "isolation_thermique"
+        )
+    elif mutation == "contact":
+        altered["contact"]["courriel"] = "autre-contact@example.test"
+    elif mutation == "source":
+        altered["source"] = "campagne-fictive"
+    elif mutation == "urgence":
+        altered["urgence_declaree"] = 0  # Python equality must not conflate False and 0.
+    elif version == 2:
+        altered["schema_version"] = 2.0
+    else:
+        altered.pop("type_travaux")
+        altered.update(schema_version=2, service="gouttieres")
+    before = _effects(session)
+    with session() as cnx:
+        before_m2 = _digest(m2._obtenir_registre().lire())
+        assert readiness_m2.verifier_preparation_estimation(cnx, contract, marker) is True
+        assert readiness_m2.verifier_preparation_estimation(cnx, reordered, marker) is True
+        assert altered["lead_id"] == marker["lead_id"]
+        assert readiness_m2.verifier_preparation_estimation(cnx, altered, marker) is False
+        assert _digest(m2._obtenir_registre().lire()) == before_m2
+    assert _effects(session) == before

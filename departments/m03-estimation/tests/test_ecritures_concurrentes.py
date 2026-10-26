@@ -258,11 +258,18 @@ def test_une_estimation_survit_a_une_estimation_concurrente_et_la_chaine_reste_v
     base_durable, monkeypatch, essais
 ):
     lead_id = "lead-conc-estimation-fictif"
+    contrat_estimation = {
+        "lead_id": lead_id,
+        "conversation_id": "conv-conc-fictif",
+        "type_travaux": "ravalement",
+        "ville": "Quebec",
+        "canal": "formulaire",
+        "contact": {"nom": "Client fictif", "telephone": "555-0101"},
+        "urgence_declaree": False,
+    }
     arguments = {
-        "contrat": {"lead_id": lead_id, "conversation_id": "conv-conc-fictif", "type_travaux": "ravalement",
-                    "ville": "Quebec", "canal": "formulaire_web",
-                    "contact": {"nom": "Client fictif", "telephone": "555-0101"}, "urgence_declaree": False},
-        "marqueur": marqueur_m2(lead_id),
+        "contrat": contrat_estimation,
+        "marqueur": marqueur_m2(lead_id, contrat=contrat_estimation),
         "photos": [{"photo_id": "p-fictif", "resolution_largeur": 3000, "resolution_hauteur": 2000, "eclairage": 7,
                     "angle": "face", "reference_echelle": {"type": "porte", "dimensions_connues": True}}],
         "seuils": {"resolution_minimale": 1000, "eclairage_minimal": 4},
