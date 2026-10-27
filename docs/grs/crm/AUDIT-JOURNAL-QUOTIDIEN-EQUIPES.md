@@ -1156,3 +1156,72 @@ Prochaine amélioration utile : sélecteur privé de comptes internes pour facil
 sans devoir connaître l'identifiant; noms actuels explicitement séparés des faits historiques,
 SQL minimisé/borné, aucun hash secret, droit ou profil modifié. Réutiliser la politique staff
 validée; le sélecteur paie existant utilise une lecture globale trop large pour cette surface.
+
+
+## Contrat avant le choix de compte interne
+
+Le lookup actuel exige un identifiant connu. Ajouter une consultation privée paginée de
+comptes internes humains, avec nom ACTUEL, identifiant et état actif ACTUEL clairement séparés
+du jour de déclaration visé. Le sélecteur paie existant utilise `identite.lister`, qui lit des
+lignes complètes et exclut les comptes désactivés : ne pas l'appeler sur cette surface. Réemployer
+les tables canoniques et ROLES_INTERNES du writer, sans nouvelle vérité, rôle ou compte.
+
+Sélection SQL par EXISTS (pas de jointure multipliant les comptes) : au moins un rôle humain
+interne, aucun system_agent même combiné et aucun rôle inconnu. Comptes désactivés inclus,
+explicitement étiquetés, sans réactivation. Ne sélectionner nom/id/actif et rôles que des
+comptes éligibles; jamais nom de clients/agents seuls, hash secret ou colonne inutile. Compter
+lignes et octets bruts UTF-8 avant chargement; plafond comptes/rôles/8 Mio, puis snapshot
+minimal stable et sortie ≤64 Kio. Valider les identifiants canoniques, tri nom actuel puis ID,
+pagination liée au snapshot et au jour. Une modification de nom/rôle invalide la continuation.
+
+GET admin `/crm/journal-equipes/comptes?jour=...`, sans mutation. Autorité SQL/session et connexion
+SQLite canonique avant/après, recapture avant restitution et après rendu; HTML ≤128 Kio,
+échappement, no-store/CSP, logs Uvicorn masqués avec/sans slash. Les liens ne transportent que
+jour/personne vers l'historique individuel existant; aucun nom courant n'est copié dans le
+registre ni substitué aux événements passés. Garder le lookup par ID exact pour les anciennes
+paires dont le compte n'est plus éligible. Journal et liste d'absences ajoutent seulement un lien
+vers ce choix, sans requête de répertoire ni copie de noms dans leur projection.
+
+Tests avant code : vraie source SQL minimisée (colonnes et périmètre), actif/inactif et homonymes,
+client/agent/mix exclus, doublons de rôles sans doublons de comptes, quotas avant chargement,
+source périmée après renommage/rôle, faux admin/session expirée, noms échappés, rendu après
+révocation/source changée, navigation vers ID exact et fallback historique conservé, zero écriture.
+Réutiliser les preuves des déclarations, pas de modèle, API externe ou données réelles.
+
+
+## Choix privé de compte interne qualifié localement
+
+Le journal et la liste quotidienne proposent maintenant un lien GET vers
+`/crm/journal-equipes/comptes?jour=...`. La secrétaire peut choisir un compte par son **nom actuel**,
+avec identifiant et état actif/désactivé explicites, puis consulter le signalement du jour/ID exacts.
+Les homonymes restent distincts. Le lookup par identifiant est conservé pour les anciennes paires
+dont le compte n’est plus admissible. Aucun nom actuel n’est copié dans les déclarations historiques,
+ni affiché comme preuve d’emploi ou de présence passée. Les deux projections de journal ajoutent
+uniquement une navigation; elles ne chargent aucun nom du répertoire.
+
+`comptes_terrain.py` sélectionne seulement id/nom/actif et les rôles utiles des comptes admissibles,
+avec EXISTS corrélés et sans doublons : rôle interne humain requis, system_agent même mixte et rôle
+inconnu exclus; désactivés inclus sans réactivation. Comptes/rôles et octets UTF-8 sont comptés avant
+chargement (10 000/80 000/8 Mio), puis snapshot minimal, JSON ≤64 Kio et HTML ≤128 Kio. La garde
+d’authentification existante lit le compte de l’auteur; le test de minimisation mesure les requêtes
+propres au répertoire, sans modifier cette garde. Aucun hash secret n’alimente le snapshot/cursor.
+
+Pagination triée nom puis ID, source liée au jour/snapshot; changement de nom, rôle ou activation
+invalide la continuation. Un changement de hash de mot de passe n’affecte pas le snapshot minimisé.
+Page terminale vide distincte de répertoire vide. SQLite courant, admin SQL/session avant/après
+lecture et rendu; autorité contrôlée avant puis après la dernière recapture, révocation→403 sans
+ancien nom. Rendu échappé, no-store/CSP, POST405, query Uvicorn masquée même avec slash final.
+
+Qualification `crm16-staff-v2` : **61 PASS, 0 FAIL/SKIP, 16,76 s**, dont 22 nouveaux cas et les
+régressions liste quotidienne/formulaire/masque q. Quatre contrôles complémentaires ciblés
+`crm16-staff-cursor-v1` passent en 2,25 s (homonymes/fin de page/autre jour/rôle/activation/secret).
+Les preuves antérieures sont réutilisées; populations recoupées jamais additionnées. Source produit
+identique entre ces deux phases, seuls les quatre tests complémentaires ont été ajoutés. Ruff et
+catalogue natif 303/177 passent. Revue statique indépendante : aucun constat concret, sans runtime.
+Les trois rouges réels initiaux (module absent et deux logs exposés) et les refus de lint du harnais
+sont conservés. Preuve : `CRM16-STAFF-LOCAL-QUALIFIED.json`.
+
+**PARTIAL : sélecteur admin HTTP/SQLite qualifié localement.** Aucun droit, compte, stock, paie,
+présence observée ou donnée réelle modifié. M10, PostgreSQL, navigateur natif et mobile non qualifiés.
+La CI parent ebce est maintenant terminale : 40 succès/4 SKIP/44 checks, sans pagination restante;
+elle permet une publication normale du lot local, mais ne prouve ni sa nouvelle tête ni le produit.

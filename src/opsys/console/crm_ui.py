@@ -920,11 +920,14 @@ def creer_router(
         absences_personnes,
         absences_quotidiennes,
         compositions_equipes,
+        comptes_terrain,
         journal_equipes,
         preparation_chantier,
         rentabilite_chantier,
     )
 
+    router.include_router(comptes_terrain.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, prefixe=prefixe, rendre=rendre))
     router.include_router(absences_quotidiennes.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(absences_personnes.creer_router(

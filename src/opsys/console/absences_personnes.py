@@ -54,7 +54,7 @@ def arguments(params):
 
 
 def formulaire_consultation(jour, prefixe):
-    from . import pages
+    from . import comptes_terrain, pages
 
     return (f'<form method="get" action="{pages.e(prefixe)}/crm/journal-equipes/absence" class="pile">'
             '<h3>Consulter une absence signalée</h3>'
@@ -62,7 +62,9 @@ def formulaire_consultation(jour, prefixe):
             '<label>Identifiant historique de personne<input name="personne_id" maxlength="64" '
             'autocomplete="off" required></label><p>Consultation seulement, par identifiant exact. '
             'Un signalement n’est pas une absence mesurée; son absence ne prouve aucune présence.</p>'
-            '<button type="submit">Consulter le signalement et son historique</button></form>')
+            '<button type="submit">Consulter le signalement et son historique</button></form>'
+            f'<p><a href="{pages.e(comptes_terrain.url_jour(jour, prefixe))}">'
+            'Choisir un compte interne par son nom actuel</a></p>')
 
 
 def contenu(vue, prefixe, limite):
