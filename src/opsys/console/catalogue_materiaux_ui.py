@@ -28,11 +28,17 @@ def extraire(reponse):
         return r['resultat']
     code = r.get('raison')
     statuts = {'IDENTITE': 403, 'ARGUMENTS': 400, 'INTROUVABLE': 404, 'REVISION-PERIMEE': 409,
-               'UNITE-IMMUABLE': 409, 'MUTATION-CONFLIT': 409}
+               'UNITE-IMMUABLE': 409, 'MUTATION-CONFLIT': 409, 'SOURCE-MODIFIEE': 409,
+               'MONTANT-INVALIDE': 400, 'DATE-INVALIDE': 400, 'MATERIAU-INACTIF': 409, 'FOURNISSEUR-INCONNU': 404}
     messages = {'REVISION-PERIMEE': 'La fiche a changé : relire avant de modifier.',
                 'UNITE-IMMUABLE': 'L’unité est immuable : créer une autre référence pour une autre unité.',
                 'MUTATION-CONFLIT': 'Cette intention a déjà servi à une autre saisie.',
                 'ARGUMENTS': 'Vérifier les textes, l’unité et la version.',
+                'SOURCE-MODIFIEE': 'Les sources ont changé : préparer de nouveau le tarif.',
+                'DATE-INVALIDE': 'Date civile non future requise.',
+                'MONTANT-INVALIDE': 'Montant positif exact requis.',
+                'MATERIAU-INACTIF': 'Matériau inactif : réviser la fiche.',
+                'FOURNISSEUR-INCONNU': 'Fournisseur introuvable.',
                 'INTROUVABLE': 'Matériau ou version introuvable.'}
     raise HTTPException(statuts.get(code, 503), messages.get(code, 'Catalogue matériaux indisponible'))
 
@@ -140,6 +146,14 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                 corps += f'<p><a href="{pages.e(lien)}">{label}</a></p>'
         if f['revision'] == courant['revision']:
             corps += '<h2>Réviser cette fiche</h2>' + formulaire(session, prefixe, f)
+            if f['actif']:
+                lien_tarifs = base + '/' + pages._segment(materiau_id) + '/tarifs'
+                corps += f'<p><a href="{pages.e(lien_tarifs)}">Saisir un tarif fournisseur</a></p>'
         return rendre(session, 'Fiche matériau', corps)
 
+    from . import tarifs_ui
+
+    router.include_router(tarifs_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire, rendre=rendre))
     return router

@@ -78,3 +78,34 @@ QA privée `crm-prefill-qa-20261027-r1/price-ports-v2` : 136 réussites, aucun �
 non additives. Revue statique indépendante sans constat sur précision, CAS ou transaction.
 Le reçu v1 conserve 136 tests réussis et deux E501 corrigés. HTTP et mémoire des nouveaux
 tarifs restent à raccorder; aucune capacité de prix par courriel ou d’achat annoncée ici.
+
+## Parcours HTTP confirmé
+
+`src/opsys/console/tarifs_ui.py` expose GET
+`/crm/materiaux/{materiau_id}/tarifs`, POST `/preparer` et POST `/confirmer`, accessibles
+depuis la fiche active du matériau. Fournisseurs connus par nom, pages de 25, aucun choix
+ni prix ni date présélectionné. Absence de fournisseur et matériau inactif sont signalés.
+Unité et CAD sont relus/imposés côté serveur. La préparation montre ancien tarif utilisable
+ou son indisponibilité, nouveau coût, date et marquage documentaire; elle ne crée rien.
+La confirmation ajoute une version et retourne à la fiche, avec garde de sources et reçu.
+
+QA privée `crm-prefill-qa-20261027-r1/price-ui-v2` : 85 tests réussis, zéro échec/saut,
+28,42 s; Ruff et vérificateur 294/173 réussis. Parcours réel : saisie HTTP → confirmation →
+réouverture SQL → devis M3 prérempli au tarif → document client sans coût/fournisseur privé.
+Un changement de tarif ultérieur ne change ni le devis existant ni le reçu original.
+Refus HTTP : source périmée, CSRF, rôle révoqué, unité/devise/historique injectés,
+fournisseur inconnu, corps excessif. Prix fallback sans document et échappement HTML prouvés.
+Revue statique indépendante sans défaut établi. V1 conservé : 84 tests réussis et deux
+E501 corrigés; V2 ajoute l’échappement de la référence et un nouveau prix préparé par le
+formulaire avant confirmation. Populations recoupées, non additives.
+
+La CI de `ef6fcb31` a révélé un compteur documentaire resté à 288 au lieu de 291 après
+l’ajout des ports privés du catalogue. Le compteur courant est maintenant 294, dont les
+mêmes 173 outils appareil. `roles-count-v1` qualifie les 116 tests de portées appareil,
+zéro échec/saut, 1,13 s, Ruff et vérificateur réussis; aucun droit ajouté ni test affaibli.
+Le rouge CI et ses SKIP demeurent historiques; cela ne transforme pas la CI précédente en verte.
+
+Le parcours suppose un fournisseur déjà enregistré. Création/modification de fiches
+fournisseurs en HTTP, mémoire M10 des tarifs, historique navigable de prix, import annuel
+par courriel, navigateur natif et PostgreSQL restent ouverts. Pas d’achat, de paiement ou
+de modification des devis antérieurs. Statut M6/CRM/OPSYS : PARTIAL.

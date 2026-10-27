@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 173 outils sur 288 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 173 outils sur 294 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -1018,3 +1018,13 @@ Les appels génériques, runtime profilé et MCP sont fermés; aucune permission
 n’est ajoutée. SQLite seul est qualifié. Transaction atomique de la version, audit et
 reçu; réponse bornée à l’enveloppe UTF-8 complète. Ce raccord n’ajoute ni commande
 fournisseur, ni coût, ni mouvement de stock, ni endpoint HTTP.
+
+### Tarifs fournisseurs M6 — console privée (27 octobre 2026)
+
+`m6_lister_fournisseurs_tarif_console`, `m6_preparer_tarif_console` et
+`m6_confirmer_tarif_console` passent par le même contrôle de session/admin SQL que le
+catalogue matériaux. Liste nommée sans coordonnées; préparation sans écriture; confirmation
+avec source matériau/fournisseur et dernier tarif du couple revalidés. Montant décimal
+explicite, unité M6, CAD, date civile non future et badge documentaire déclaratif. Rejeu
+autorisé seulement après contrôle d’identité; tarif/audit/reçu dans une transaction.
+Les chemins génériques, runtime et MCP sont fermés. Aucun rôle appareil nouveau.
