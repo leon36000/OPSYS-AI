@@ -916,8 +916,10 @@ def creer_router(
         ajouter_note(session, lead_id, {k: v for k, v in champs.items() if k != "csrf"})
         return RedirectResponse(f"{prefixe}/crm/lead/{pages._segment(lead_id)}#activites", status_code=303)
 
-    from . import compositions_equipes, journal_equipes, preparation_chantier, rentabilite_chantier
+    from . import absences_personnes, compositions_equipes, journal_equipes, preparation_chantier, rentabilite_chantier
 
+    router.include_router(absences_personnes.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(journal_equipes.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(compositions_equipes.creer_router(

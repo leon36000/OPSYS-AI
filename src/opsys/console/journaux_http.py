@@ -1,10 +1,10 @@
-"""Masque la recherche de contact dans les logs d'accès de la console Uvicorn."""
+"""Masque les recherches et identifiants privés dans les logs d'accès de la console Uvicorn."""
 
 from __future__ import annotations
 
 import copy
 import logging
-from urllib.parse import parse_qsl
+from urllib.parse import parse_qsl, unquote
 
 from uvicorn.config import LOGGING_CONFIG
 
@@ -14,8 +14,12 @@ class MasquerRecherche(logging.Filter):
         # Contrat AccessFormatter Uvicorn : client, méthode, cible HTTP, version, statut.
         if isinstance(record.args, tuple) and len(record.args) == 5 and isinstance(record.args[2], str):
             chemin, separateur, query = record.args[2].partition("?")
-            if separateur and any(cle == "q" for cle, _ in parse_qsl(query, keep_blank_values=True)):
-                record.args = (*record.args[:2], chemin + "?q=[MASQUE]", *record.args[3:])
+            if separateur:
+                cles = {cle for cle, _ in parse_qsl(query, keep_blank_values=True)}
+                prive = unquote(chemin).rstrip("/").endswith("/crm/journal-equipes/absence")
+                cle = "q" if "q" in cles else "personne_id" if "personne_id" in cles or prive else None
+                if cle is not None:
+                    record.args = (*record.args[:2], chemin + "?" + cle + "=[MASQUE]", *record.args[3:])
         return True
 
 

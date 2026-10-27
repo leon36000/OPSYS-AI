@@ -881,3 +881,61 @@ prouvé ici. Prochaine capacité : exposer une consultation admin HTTP au jour/p
 avec session revérifiée après rendu et paramètres/sortie fermés; la saisie et la liste quotidienne
 viendront avec leurs sources et contrôles distincts. La CI du parent 4752 est maintenant terminale
 (40 succès, 4 SKIP historiques, 44 observés), sans déclaration de complétion produit.
+
+
+## Contrat avant consultation HTTP des absences
+
+GET `/crm/journal-equipes/absence` : jour et identifiant de personne explicites, mêmes paramètres
+fermés de pagination/source que le journal. Réemployer le port SQL/T0 réel et garder la transaction
+canonique pendant le rendu. Contrôler HTML ≤128 Kio, source inchangée puis session/admin après
+rendu, no-store/CSP. Afficher aucun_signalement/signalee/retiree, versions et deux temporalités;
+jamais traduire le retrait ou l'absence de signalement en présence. Les identifiants historiques
+restent exacts et échappés, sans nom ou rôle actuel. Page terminale vide ≠ aucune absence.
+
+Le journal gagne uniquement un formulaire GET de consultation par identifiant/jour, sans
+lire/compter/copier le registre d'absences dans sa projection. Aucun faux lien ne vise une URL
+qui requiert une personne manquante. Les logs d'accès Uvicorn masquent toute query contenant
+`personne_id`, clé encodée comprise, en conservant chemin/méthode/statut; réutiliser le filtre
+déjà branché pour la recherche `q`. La requête n'est pas une preuve qu'un compte existe.
+Aucun POST, writer, raison, paie, export ou notification dans cette tranche.
+
+Tests avant code : vraie route/SQLite/T0/rendu, historique signalement→retrait, inconnu distinct,
+paramètres uniques et fermés, non-admin et révocation pendant rendu, source changée pendant
+rendu, échappement/HTML borné, pagination et reprise périmée, formulaire GET du journal utile
+sans copie de données ou compteur, logs Uvicorn réels formatés sans identifiant. Régressions
+journal/composition et ancien masquage de recherche, sans refaire les cohortes compatibles.
+
+
+## Consultation HTTP des absences qualifiée localement
+
+GET admin `/crm/journal-equipes/absence?jour=...&personne_id=...` utilise le vrai port privé et
+la base canonique pendant le rendu. Historique, signalement retiré et aucun signalement sont
+visibles sans déduction de présence, paie ou nom actuel. Paramètres fermés, pagination liée
+à la source, page terminale explicite, HTML borné/échappé, no-store/CSP; source et autorité
+SQL/session sont recontrôlées après rendu. Le journal possède un formulaire GET utile par
+identifiant/jour, sans requête, copie ou compteur du registre d'absences dans sa projection.
+POST reste 405. Aucun writer ou formulaire de mutation d'absence n'est affiché.
+
+Cohorte `crm16-absence-http-v2` : **79 PASS, 0 FAIL, 0 SKIP, 22,07 s**, dont 22 nouveaux cas HTTP,
+avec les 20 lecteurs privés SQL, journal, consultation des compositions et ancien masquage
+Uvicorn. Les 78 cas de v1 sont inclus; aucune addition aux cohortes précédentes. Ruff et
+catalogue natif 301 outils/176 déclarés passent. Même enveloppe QA privée, source RO sous
+Landlock, sans réseau, données fictives et ressources bornées avant imports. Fonctions
+privées de lecture existantes inchangées par AST; aucun SDK ou profil/identité modifié.
+
+Rouges réels conservés : route 404, deux logs `AccessFormatter` exposant identifiant/jour
+(clé normale et encodée), puis défaut signalé par la revue indépendante avec slash final et
+clé invalide. Le vrai premier GET307 a été reproduit et son log divulguait la query. Le filtre
+masque désormais toute query du chemin privé, slash final et chemin décodé compris; il masque
+également la clé personne_id et conserve l'ancien comportement de q. Chemin/méthode/statut
+restent disponibles. Cela qualifie Uvicorn; les logs d'un proxy externe ne sont pas prouvés.
+Relecture statique ferme le constat, aucun runtime du relecteur. Révocation ou source changée
+pendant rendu refusent l'ancien contenu; lecture/refus ne modifient aucune table, hors mutations
+explicitement injectées dans les tests. Preuve : `CRM16-ABSENCE-HTTP-LOCAL-QUALIFIED.json`.
+
+**PARTIAL — consultation admin HTTP/SQLite qualifiée localement, commit à publier après CI
+terminale du parent ebce.** Absence réellement constatée, saisie staff à identité confirmée,
+liste quotidienne globale, heures/paie, M10, PostgreSQL, navigateur natif et mobile restent
+ouverts. Prochaine action : writer admin privé des signalements/retraits, cible humaine
+canonique initiale, auteur/heure serveur, CAS/rejeu et rollback audit/source/autorité, avant
+formulaire CSRF. Aucun motif de santé ni action RH/financière automatique.

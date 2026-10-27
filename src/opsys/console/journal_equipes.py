@@ -62,7 +62,7 @@ def contenu(vue, prefixe, limite):
     from datetime import date, timedelta
     from urllib.parse import urlencode
 
-    from . import annotations_cedule_ui, cedule_ui, compositions_equipes, pages
+    from . import absences_personnes, annotations_cedule_ui, cedule_ui, compositions_equipes, pages
 
     def lien(debut, titre):
         args = dict(jour=vue['jour'], debut=debut, limite=limite, source_attendue=vue['source'])
@@ -78,6 +78,7 @@ def contenu(vue, prefixe, limite):
               'proviennent de M4; les décisions sur les extras facturables relèvent de M3/M5. '
               'L’identifiant assigné peut désigner une personne ou une équipe. Cette décision ne prouve pas '
               'la présence ou la composition réelle de l’équipe.</p>')
+    corps += absences_personnes.formulaire_consultation(vue["jour"], prefixe)
     corps += f'<p>{len(vue["lignes"])} entrées affichées sur {vue["total"]}.</p>'
     nav = []
     if vue['debut']:
