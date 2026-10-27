@@ -115,3 +115,40 @@ avec régression `test_outils_agent.py` et test UTF-8 à la frontière. Aucun te
 Prochaine étape : formulaires HTTP admin de gestion du catalogue puis sélection M3 par
 nom/unité, avec source et révision explicites. Préserver les anciens modèles et devis;
 refuser les nouveaux choix inactifs. M10, mobile et PostgreSQL restent ouverts. **PARTIAL**.
+
+## Parcours HTTP et sélection par nom qualifiés
+
+Les formulaires admin sont disponibles dans `catalogue_materiaux_ui.py` :
+
+- GET `/crm/materiaux` : catalogue paginé par 25, actifs et inactifs, création sans prix;
+- GET `/crm/materiaux/{materiau_id}?version=N` : version historique ou fiche courante;
+- POST `/crm/materiaux/enregistrer` : création/révision/inactivation avec CSRF, mutation et CAS;
+- GET/POST `/crm/modeles-soumission/{modele_id}/lignes/catalogue` : sélection explicite des
+  matériaux actifs par nom et unité dans `lignes_catalogue_ui.py`.
+
+L’éditeur des lignes contient les liens vers ces parcours. L’ancien éditeur à références
+explicites reste disponible. Les anciens modèles ne sont pas migrés ou réécrits : une
+référence inconnue, Unicode ou longue reste visible avec sa description pour remplacement
+explicite. Les lignes connues hors de la page courante restent sélectionnées. Les nouveaux
+choix ne présélectionnent aucun matériau et excluent les fiches inactives.
+
+Chaque choix porte identité, révision et empreinte M6. Le POST relit la fiche active, puis
+écrit les lignes M3 sous la même transaction SQLite : une fiche modifiée/inactivée depuis
+l’affichage est refusée. L’unité est relue de M6 et ne vient pas d’un champ libre. Les lignes
+M3 conservent identité et unité, pas un nouveau snapshot de nom; les devis existants restent
+figés par leur contrat actuel. Les prix continuent de venir du livre de prix M6 et du calcul M3.
+Un rejeu du formulaire repasse les contrôles d’accès et de source : si la fiche a changé, il
+invite à relire; il ne réémet pas une mutation.
+
+Qualification privée `crm-prefill-qa-20261027-r1/material-ui-v2` : 77 tests réussis,
+zéro échec ni saut, 23,78 s; Ruff et vérificateur 291/173 réussis. Parcours réel HTTP et
+SQLite création → sélection par nom → lignes M3 → tarif fournisseur → aperçu de prix →
+brouillon et document client. Également : historique, pagination, source modifiée, fiche
+inactive, unité injectée, accès/CSRF/révocation, rejouabilité et régressions préremplies.
+La revue a identifié les références historiques incompatibles avec le nouvel identifiant
+M6 : traitées explicitement, avec tests Unicode et plus de 100 caractères. Le reçu v1
+conserve 73 tests réussis et trois lint corrigés. Populations recoupées, non additives.
+
+Ce jalon qualifie HTTP/SQLite; navigateur natif, PostgreSQL, M10, import de listes par
+courriel et application mobile restent ouverts. La sélection nommée ne certifie pas une
+nouvelle catégorie, substitution ou correspondance SKU fournisseur. M6 et CRM-07 restent PARTIAL.

@@ -20,8 +20,9 @@ M3 calcule le prix. Les quantités ne sont jamais déduites du modèle ni propos
 6. Vérifier le coût total privé et le prix de vente par ligne et total, taxes en sus.
 7. Créer le brouillon. Le dossier permet ensuite de consulter ses documents HTML/PDF.
 
-Les matériaux sont encore saisis par référence explicite lors de la configuration du modèle :
-leur catalogue de libellés reste à compléter. Les fournisseurs compatibles sont proposés par nom,
+Le lien « Choisir les matériaux par nom et unité » ouvre le sélecteur du catalogue M6 actif.
+Le catalogue se gère dans `/crm/materiaux`; les fiches sont versionnées et l’unité est immuable.
+Les anciennes références explicites restent consultables et remplaçables sans migration automatique. Les fournisseurs compatibles sont proposés par nom,
 sans présélection ni classement par coût. Sans lignes enregistrées, le parcours prérempli refuse;
 la saisie manuelle existante reste accessible, ainsi que le lien de configuration des lignes.
 
@@ -76,7 +77,7 @@ de l’en-tête au lieu du formulaire métier; corrigé par sélection explicite
 La revue a aussi identifié le risque de perte des sauts de ligne dans un input texte; corrigé
 par textarea et test de conservation. Aucun contrôle produit n’a été affaibli.
 
-Prochaines étapes : sélection des matériaux par libellé, puis qualification navigateur selon
+Prochaines étapes : qualification navigateur selon
 le harnais autorisé. Mobile reste en dernière phase. Les autres exigences CRM-07 restent ouvertes.
 
 ## Choix fournisseur par nom — jalon suivant
@@ -154,3 +155,9 @@ recoupées, non additives. Régression HTTP, jonction du bus, devis durables, st
 conformité M3. Revue statique indépendante du calcul, du rendu et des effets sans constat.
 Le reçu `sale-preview-v1` reste historique : mêmes 161 tests réussis, une ligne de rendu
 trop longue signalée par Ruff puis corrigée; aucune garde affaiblie.
+
+Le raccord de gestion et de choix nommé est qualifié par
+`tests/test_console_catalogue_m6_http.py` : création de fiche → sélection de sa version active
+→ lignes M3 → devis sourcé M6. L’identité, la révision et l’empreinte de la fiche sont relues
+sous la transaction d’enregistrement. Une fiche périmée/inactive refuse le nouveau choix.
+Voir [audit et preuves du catalogue](../inventory/M6-AUDIT-CATALOGUE-LIBELLES.md).

@@ -110,7 +110,10 @@ def creer_router(*, session_page, cnx_factory, prefixe, verifier_formulaire, ver
                 raise
             jeu = {'revision': 0, 'lignes': []}
         action = prefixe + '/crm/modeles-soumission/' + pages._segment(modele_id) + '/lignes'
-        corps = (f'<h2>Lignes — {pages.e(m["titre"])} (version {m["revision"]})</h2>'
+        lien_catalogue = action + '/catalogue?' + urlencode(dict(p))
+        corps = (f'<p><a href="{pages.e(lien_catalogue)}">Choisir les matériaux par nom et unité</a> · '
+                 f'<a href="{pages.e(prefixe + "/crm/materiaux")}">Gérer les matériaux M6</a></p>'
+                 f'<h2>Lignes — {pages.e(m["titre"])} (version {m["revision"]})</h2>'
                  '<p>Descriptions et références matériaux réutilisables. Quantités et fournisseur seront choisis '
                  'pour chaque soumission. Aucun prix ni quantité par défaut. Une révision du texte conserve '
                  'ses propres lignes; elle ne reprend pas automatiquement celles d’une autre version.</p>'

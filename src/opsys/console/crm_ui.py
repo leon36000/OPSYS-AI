@@ -30,6 +30,7 @@ from .. import idempotence, tableau_de_bord
 from . import (
     agenda_ui,
     annotations_cedule_ui,
+    catalogue_materiaux_ui,
     cedule_plan_ui,
     cedule_ui,
     couleurs_cedule_ui,
@@ -886,6 +887,9 @@ def creer_router(
     router.include_router(devis_modele_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
         verifier_formulaire=verifier_formulaire, verifier_lead=verifier_lead, rendre=rendre))
+    router.include_router(catalogue_materiaux_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire, rendre=rendre))
     router.include_router(modeles_soumission_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
         verifier_formulaire=verifier_formulaire, rendre=rendre))

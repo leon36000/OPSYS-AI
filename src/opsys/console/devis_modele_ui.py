@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlencode
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 
-from . import metier, pages, prefill_ui
+from . import lignes_catalogue_ui, metier, pages, prefill_ui
 from . import modeles_soumission_ui as modeles
 
 CHAMPS_LIGNE = ('description', 'quantite', 'unite', 'cout_unitaire', 'reference_besoin_materiau')
@@ -152,6 +152,9 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
             'Content-Security-Policy': "sandbox; default-src 'none'",
             'Content-Disposition': f'attachment; filename="soumission-brouillon.{format}"'})
 
+    router.include_router(lignes_catalogue_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire, rendre=rendre, appeler=appeler))
     router.include_router(prefill_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, prefixe=prefixe, verifier_formulaire=verifier_formulaire,
         verifier_lead=verifier_lead, rendre=rendre, appeler=appeler))
