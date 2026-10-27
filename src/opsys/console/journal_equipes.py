@@ -76,8 +76,8 @@ def contenu(vue, prefixe, limite):
     corps += ''.join(f'<li>{pages.e(a)}</li>' for a in vue['avertissements']) + '</ul>'
     corps += ('<p>Chaque ligne décrit un événement à son instant. Les déclarations et arbitrages terrain '
               'proviennent de M4; les décisions sur les extras facturables relèvent de M3/M5. '
-              'Une assignation consignée décrit une décision opérationnelle; la présence et la composition '
-              'réelle de l’équipe nécessitent leurs propres preuves.</p>')
+              'L’identifiant assigné peut désigner une personne ou une équipe. Cette décision ne prouve pas '
+              'la présence ou la composition réelle de l’équipe.</p>')
     corps += f'<p>{len(vue["lignes"])} entrées affichées sur {vue["total"]}.</p>'
     nav = []
     if vue['debut']:
@@ -89,7 +89,7 @@ def contenu(vue, prefixe, limite):
         corps += ('<p>Aucun fait ou prévision pour cette journée.</p>' if vue['total'] == 0 else
                   '<p>Aucune entrée sur cette page. ' + lien(0, 'Première page') + '</p>')
     corps += ('<table><thead><tr><th>Type</th><th>Intervention</th><th>Heure locale</th><th>Équipe prévue</th>'
-              '<th>Technicien assigné</th><th>Technicien du pointage</th><th>État ou action</th>'
+              '<th>Personne ou équipe assignée</th><th>Technicien du pointage</th><th>État ou action</th>'
               '<th>Validité de la prévision</th>'
               '<th>Source</th><th>Notes</th></tr></thead><tbody>')
     types = {'prevision': 'Prévision', 'pointage': 'Pointage', 'etat': 'Changement d’état',

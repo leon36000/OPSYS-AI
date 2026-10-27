@@ -409,3 +409,21 @@ composition réelle historique, absences, paie/heures quotidiennes et extras dé
 ouverts; navigateur, PostgreSQL et mobile non qualifiés. Prochaine capacité serveur à inspecter :
 les événements propriétaires de composition d'équipe existants et leur historisation, avec
 révocations/retraits explicites; ne pas en déduire une présence terrain ou une fiche RH.
+
+
+### Précision du libellé et prochaine source de composition
+
+Le contrat natif `opsys.equipes` précise que l'identifiant d'équipe peut occuper le champ
+`technicien_id` d'une assignation. La colonne porte donc « Personne ou équipe assignée », avec
+cette précision visible, sans résoudre l'identifiant en noms ou membres actuels. Le cas d'une
+assignation native à `eq-a` est vérifié en SQL/HTTP : ID conservé, aucun membre inventé, GET sans
+écriture. `crm16-assignations-http-v4` : 5 PASS en 2,97s, dont les quatre cas HTTP déjà inclus
+et ce cas nouveau; aucun cumul. Seuls le libellé et son test changent depuis la qualification
+précédente; aucune logique de projection ou d'autorité modifiée.
+
+Inspection de `opsys.equipes.enregistrer_equipes` : le profil courant remplace sa clé entière.
+L'audit conserve IDs d'équipes, nombres de membres et empreinte, explicitement aucun nom de
+membre. Cette preuve n'autorise pas la reconstruction des membres historiques depuis le
+profil actuel ou des seuls compteurs. La prochaine tranche doit donc définir une source
+historique déclarative minimale et sa provenance, distincte des décisions d'accès courantes,
+sans enrichir rétroactivement l'ancien audit ni prétendre prouver la présence réelle.

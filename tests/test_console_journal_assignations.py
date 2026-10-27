@@ -45,7 +45,7 @@ def test_decisions_historiques_sql_http_minimisees_sans_ecriture(client_crm, pla
     assert any(x.get('technicien_assigne') == '<T1-fictif>' for x in vue['lignes'])
     r = client_crm.get('/crm/journal-equipes?jour=' + D)
     assert r.status_code == 200, r.text
-    assert 'Technicien assigné' in r.text and 'Décision d’assignation' in r.text
+    assert 'Personne ou équipe assignée' in r.text and 'Décision d’assignation' in r.text
     assert '&lt;T1-fictif&gt;' in r.text and '<T1-fictif>' not in r.text and iid in r.text
     ligne = next(x for x in re.findall(r'<tr>.*?</tr>', r.text) if source in x)
     assert 'Notes et historique' not in ligne and 'Non applicable' in ligne
@@ -80,4 +80,24 @@ def test_identifiant_historique_espaces_signale_sans_normalisation_sql(client_cr
     assert any(x.get('technicien_assigne') == '   ' for x in vue['lignes'])
     r = client_crm.get('/crm/journal-equipes?jour=' + D)
     assert r.status_code == 200 and 'Identifiant à vérifier (espaces uniquement)' in r.text
+    assert f.f.base._instantane_base(session) == avant
+
+
+
+def test_assignation_equipe_conserve_identifiant_sans_membres_deduits(client_crm, planning, session):
+    _, ids, _, _ = planning
+    iid = next(iter(ids.values()))
+    with session():
+        reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        assert etats.assigner_technicien(iid, 'eq-a', reg, D + 'T08:00:00-04:00')[1] is None
+    f.f.base._connecter(client_crm, 'admin.fictif')
+    avant = f.f.base._instantane_base(session)
+    with session() as cnx:
+        vue = journal_equipes.lire(cnx, charger_departements(), f.AUTH, D)
+    ligne = next(x for x in vue['lignes'] if x['type'] == 'assignation')
+    assert ligne['technicien_assigne'] == 'eq-a'
+    assert not {'membres', 'equipe_planifiee', 'technicien_id'} & set(ligne)
+    r = client_crm.get('/crm/journal-equipes?jour=' + D)
+    assert r.status_code == 200 and 'Personne ou équipe assignée' in r.text
+    assert 'peut désigner une personne ou une équipe' in r.text
     assert f.f.base._instantane_base(session) == avant
