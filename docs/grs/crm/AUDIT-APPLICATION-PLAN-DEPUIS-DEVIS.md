@@ -128,3 +128,41 @@ homes/tmp privés, réseau interdit, 1 CPU/1 Gio/96 tâches.
 distinct dans la revue HTTP et retour vers l’éditeur civil existant; les avertissements sur
 l’absence de disponibilité globale/date/prévision doivent rester visibles. Navigateur,
 PostgreSQL, mobile, dispatch complet et CRM-08 complet ne sont pas qualifiés par ce jalon.
+
+
+## Jalon exécuté — décision N3 dans la revue HTTP
+
+`proposition_chantier_ui.py` raccorde maintenant le port privé, sans nouvelle portée d’outil.
+La revue GET prépare les preuves courantes sans écrire; si `peut_appliquer` est vrai, elle
+présente un formulaire distinct « Confirmer l’affectation interne » avec CSRF, intention et
+empreinte. Le texte annonce explicitement l’affectation sans réservation de date et les
+limites sur les autres plans, les trajets et la météo du créneau.
+
+`POST /crm/lead/{lead_id}/soumissions/{devis_id}/propositions-chantier/{plan_id}/appliquer`
+ferme ces trois champs, vérifie le CSRF et appelle le port N3 sous la session SQL actuelle.
+Un premier succès redirige 303 vers `/crm/cedule/plan/{plan_id}` : l’éditeur existant montre
+révision 0 et dates vides, sans les remplir ni confirmer un client. Un rejeu rend une page
+HTTP 200 « Reçu historique », relit l’état courant et n’affiche pas de formulaire d’application.
+Après report, le reçu montre `reportee`, aucune nouvelle affectation ni disponibilité; un
+nouvel identifiant sur la vieille empreinte refuse. Le rendu reste échappé, borné et no-store.
+
+`tests/test_console_application_chantier_http.py` exécute le vrai parcours proposé → décision
+N3 signée → marqueur/affectation → éditeur civil distinct → rejeu sans seconde approbation.
+Chaque GET et chaque refus conserve l’instantané complet de la base. Sont vérifiés : CSRF,
+champs d’identité/heure/plan injectés, doublons, taille/type de formulaire, rôle retiré,
+non-admin, plan inconnu, matériel retiré après affichage et rejeu HTTP après report.
+
+Preuves privées bornées : `crm08-apply-http-red-v1` formulaire absent avant code;
+`v1` arrêt au contrôle statique avant tout test (ligne d’import), sans verdict métier.
+`v2` **41 PASS, 0 FAIL/SKIP, 20,54 s**, Ruff/vérificateur 297/173 passent.
+`v3` ajoute les deux cas HTTP report et non-admin/plan inconnu : **2 PASS, 2,39 s**, contrôle
+statique et vérificateur passent. Les sources produit restent identiques à v2 et les octets
+des tests précédents sont conservés comme préfixe; la preuve de compatibilité évite un rejeu
+inutile de toute la cohorte. Les populations ne sont pas additionnées. Revue indépendante
+statique du contrôleur : aucun nouveau constat. Commandes et scripts du harnais sont épinglés.
+
+**PARTIAL** : parcours d’affectation interne qualifié sur HTTP/SQLite, avec décision N3 et
+rejeu historique. Les dates internes restent une action séparée. Avant dispatch réel et
+promesse client, restent à qualifier ensemble capacité globale, trajets entre plans, readiness
+actuelle et prévision du créneau, ainsi que les sources/mémoires requises par M4. Navigateur,
+PostgreSQL, mobile, M4 complet et OPSYS complet ne sont pas déclarés par ces jalons.

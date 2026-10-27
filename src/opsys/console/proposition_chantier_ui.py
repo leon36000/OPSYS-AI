@@ -4,6 +4,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
+from . import application_chantier as application
 from . import cedule_plan_ui, pages
 from . import preparation_chantier as lecture
 from . import proposition_chantier as port
@@ -28,6 +29,28 @@ def formulaire(apercu, csrf, prefixe):
         '<p>Créer une proposition pour cette intervention avec les profils actuels. '
         'Les sources seront relues. Aucune affectation ni date client ne sera confirmée.</p>'
         '<button type="submit">Proposer une cédule</button></form>')
+
+
+
+def formulaire_application(apercu, csrf, prefixe):
+    if apercu['peut_appliquer'] is not True:
+        return ''
+    vue = apercu['revue']
+    action = url(vue['lead_id'], vue['devis_id'], prefixe) + '/' + vue['proposition']['plan_id'] + '/appliquer'
+    return (f'<form method="post" action="{pages.e(action)}" class="pile">'
+        f'<input type="hidden" name="csrf" value="{pages.e(csrf)}">'
+        f'<input type="hidden" name="mutation_id" value="{uuid.uuid4()}">'
+        f'<input type="hidden" name="empreinte_attendue" value="{pages.e(apercu["empreinte"])}">'
+        '<p>Validation humaine N3 : affectation interne sans réservation de date. '
+        'Les autres plans, trajets et la météo du créneau restent à vérifier avant dispatch.</p>'
+        '<button type="submit">Confirmer l’affectation interne</button></form>')
+
+
+def _rendre_borne(rendre, session, titre, corps):
+    reponse = rendre(session, titre, corps)
+    if len(reponse.body) > 131072:
+        raise lecture.Refus('SORTIE-TROP-VOLUMINEUSE')
+    return reponse
 
 
 def _heure(minute):
@@ -72,7 +95,8 @@ def _refus(exc):
         statut = 404
     elif exc.code == 'ARGUMENTS':
         statut = 400
-    elif (exc.code in {'DEVIS-NON-ACCEPTE', 'PREPARATION-NON-PRETE', 'SOURCE-MODIFIEE', 'MUTATION-CONFLIT'}
+    elif (exc.code in {'DEVIS-NON-ACCEPTE', 'PREPARATION-NON-PRETE', 'SOURCE-MODIFIEE', 'MUTATION-CONFLIT',
+                       'APPLICATION-NON-PERMISE', 'APPLICATION-REFUSEE'}
           or exc.code.startswith(('REJ-CEDULE-', 'REJ-COORDONNEES-'))):
         statut = 409
     else:
@@ -112,10 +136,9 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre, verifier_f
             raise HTTPException(400, 'Paramètres invalides')
         try:
             with cnx_factory() as cnx:
-                vue = port.lire(cnx, deps, session, lead_id, devis_id, plan_id)
-            reponse = rendre(session, 'Revue de proposition M4', contenu(vue, prefixe))
-            if len(reponse.body) > 131072:
-                raise lecture.Refus('SORTIE-TROP-VOLUMINEUSE')
+                apercu = application.preparer(cnx, deps, session, lead_id, devis_id, plan_id)
+            corps = contenu(apercu['revue'], prefixe) + formulaire_application(apercu, session.csrf, prefixe)
+            reponse = _rendre_borne(rendre, session, 'Revue de proposition M4', corps)
         except PermissionError:
             raise HTTPException(403, 'Accès admin requis') from None
         except lecture.Refus as exc:
@@ -123,5 +146,33 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre, verifier_f
         except (ValueError, KeyError, TypeError):
             raise HTTPException(503, 'Sources de proposition indisponibles') from None
         return reponse
+
+    @router.post(BASE + '/{plan_id}/appliquer')
+    async def appliquer(lead_id: str, devis_id: str, plan_id: str, request: Request):
+        session = session_page(request)
+        if request.query_params:
+            raise HTTPException(400, 'Paramètres invalides')
+        champs = await cedule_plan_ui.formulaire(request)
+        verifier_formulaire(champs, session)
+        if set(champs) != {'csrf', 'mutation_id', 'empreinte_attendue'}:
+            raise HTTPException(400, 'Formulaire invalide')
+        try:
+            with cnx_factory() as cnx:
+                resultat = application.appliquer(cnx, deps, session, lead_id, devis_id, plan_id,
+                    champs['empreinte_attendue'], champs['mutation_id'])
+            if resultat['historique'] is True:
+                with cnx_factory() as cnx:
+                    apercu = application.preparer(cnx, deps, session, lead_id, devis_id, plan_id)
+                corps = ('<p role="status">Reçu historique : décision déjà enregistrée. '
+                         'Aucune nouvelle affectation ni disponibilité confirmée.</p>'
+                         + contenu(apercu['revue'], prefixe))
+                return _rendre_borne(rendre, session, 'Reçu historique M4', corps)
+        except PermissionError:
+            raise HTTPException(403, 'Accès admin requis') from None
+        except lecture.Refus as exc:
+            raise _refus(exc) from None
+        except (ValueError, KeyError, TypeError):
+            raise HTTPException(503, 'Sources de décision indisponibles') from None
+        return RedirectResponse(f'{prefixe}/crm/cedule/plan/{pages._segment(plan_id)}', status_code=303)
 
     return router
