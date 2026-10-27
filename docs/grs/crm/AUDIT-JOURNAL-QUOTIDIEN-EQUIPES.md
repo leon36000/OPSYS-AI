@@ -339,3 +339,73 @@ quotidiennes, association exacte des visites/pointages, détails et approbation 
 navigateur, PostgreSQL et mobile restent ouverts. Prochaine tranche serveur : établir depuis
 les sources M4 une association démontrable visite/pointage, avec ambiguïtés explicites et sans
 déduire une présence à partir d'une simple prévision.
+
+
+## Décision avant l'historique des assignations
+
+Inspection de `pointage.enregistrer_pointage` : le maillon propriétaire contient intervention,
+technicien, action et heure, mais aucune des quatre références de visite civile. Le contrôle
+de technicien relit la transition `en_route`, pas une ancre de calendrier. Une coïncidence de
+jour/heure/technicien ne suffit donc pas à rattacher le pointage à une prévision précise,
+particulièrement après report ou redatation. Ce rattachement reste ouvert et nécessite un
+contrat propriétaire explicite avant modification des writers; ne pas l'inventer au journal.
+
+Une capacité serveur existante et exploitable est en revanche l'historique d'assignation :
+`etats.assigner_technicien` écrit `assignation_technicien`, sans modifier le statut; le départ
+`en_route` consigne aussi le technicien envoyé. Première tranche : afficher la décision
+historique d'assignation et l'identité consignée au départ, à leurs propres instants, sans
+présenter ces décisions comme une présence ou une composition d'équipe réellement observée.
+
+La lecture devra exiger inscription antérieure unique, identifiant technicien textuel non vide,
+horodatage propriétaire et état historique non terminal pour l'assignation. Reprendre la fonction
+`statut_courant` sur le préfixe plutôt qu'un dernier état global qui réécrirait le passé. Les
+réassignations successives restent deux faits, sans écraser les anciennes ni inventer un rôle
+salarié/équipe. Sortie en liste blanche : source/intervention, instant/origine et technicien
+assigné; pas de coordonnées, nom, permis, coût, note ou liste de membres. Aucune ancre de visite
+ni lien de note pour cette décision non liée au calendrier. Le rendu distinguera explicitement
+« technicien assigné » de « technicien du pointage » et « équipe prévue ».
+
+Tests avant code : vraie assignation propriétaire avant/après report et deux jours distincts,
+départ avec technicien consigné, invariance des données, pagination sans perte et conteneurs
+indépendants; source orpheline/double/future, état terminal, identifiant invalide. Puis SQL/HTTP
+sur fixture canonique propriétaire : libellés sans ambiguïté, échappement, pas de lien de note
+inventé, rôle courant et absence d'écriture. Les régressions écarts/notes/journal sont conservées.
+
+
+## Qualification de l'historique d'assignation
+
+La projection et le journal HTTP distinguent maintenant les décisions d'assignation, le
+technicien consigné au départ, l'équipe du plan et le technicien ayant pointé. Les deux
+premiers restent des décisions opérationnelles sourcées et ne reconstituent pas une présence,
+une absence ou les membres réels d'une équipe. Après report, l'assignation d'origine reste
+visible à son jour et la nouvelle décision apparaît au sien. Ni le dernier technicien courant
+ni le dernier calendrier ne remplacent les événements passés. Toute ligne hors prévision
+reste sans ancre de note civile inventée.
+
+La revue indépendante a trouvé une incompatibilité de la candidate : `_texte` rejetait un
+identifiant composé d'espaces alors que les deux writers historiques acceptent toute chaîne
+non vide. Le test par les vraies fonctions a reproduit ce refus; rouge conservé. La lecture
+s'aligne sur leur contrat sans normaliser la valeur source. L'interface indique alors
+« Identifiant à vérifier (espaces uniquement) » sans modifier le registre ni inventer un employé.
+Les identifiants vides/non textuels, inscriptions orphelines/futures/doubles, assignations après
+état terminal et départs sans préfixe `planifiee` cohérent sont refusés.
+
+La cohorte pure `crm16-assignations-v3` passe : 52 PASS en 0,30s, dont neuf cas nouveaux; les
+19 contrôles du journal initial et les 24 des écarts sont inclus, sans cumul. La cohorte
+`crm16-assignations-http-v3` passe : 102 PASS en 16,69s, dont quatre nouveaux cas SQL/HTTP,
+neuf cas purs et les régressions accès/notes/écarts/journal. Les cohortes 51 et 100 PASS
+antérieures sont recouvertes, pas additionnées. Ruff et vérificateur 298/174 passent.
+La revue indépendante finale ferme le constat de compatibilité et ne relève aucun autre
+défaut concret. Le lecteur privé T0, ses refus et l'autorité SQL finale restent inchangés.
+Preuve : `CRM16-ASSIGNATIONS-LOCAL-QUALIFIED.json` et reçus/pins/JUnit privés bornés.
+Les rouges de fonctionnalité absente et HTTP503, refus Ruff préalables et erreur de
+compatibilité sont des constats de candidate conservés, pas des réparations silencieuses
+ni une qualification de l'ensemble du produit.
+
+
+**PARTIAL — décisions historiques d'assignation qualifiées localement en pur/HTTP/SQLite.**
+Aucun writer, schéma, compte ou rôle ajouté. Rattachement exact des pointages aux visites,
+composition réelle historique, absences, paie/heures quotidiennes et extras détaillés restent
+ouverts; navigateur, PostgreSQL et mobile non qualifiés. Prochaine capacité serveur à inspecter :
+les événements propriétaires de composition d'équipe existants et leur historisation, avec
+révocations/retraits explicites; ne pas en déduire une présence terrain ou une fiche RH.

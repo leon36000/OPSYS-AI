@@ -91,22 +91,36 @@ def _faits(maillons, jour):
     lignes, inscriptions = [], _inscriptions(maillons)
     for rang, m in enumerate(maillons):
         typ = m['type_entree']
-        if typ not in {pointage.TYPE_POINTAGE, etats.TYPE_TRANSITION}:
+        if typ not in {pointage.TYPE_POINTAGE, etats.TYPE_TRANSITION, etats.TYPE_ASSIGNATION}:
             continue
         _verifier_inscription(m, rang, inscriptions)
         horodatage.valider_horodatage(m['horodatage'])
+        assignee = typ == etats.TYPE_ASSIGNATION or (typ == etats.TYPE_TRANSITION and m.get('statut') == 'en_route')
+        if assignee:
+            # Contrat historique des deux writers : chaîne différente de vide, sans normalisation.
+            if not isinstance(m['technicien_id'], str) or m['technicien_id'] == '':
+                raise ValueError('technicien assigné invalide')
+            avant = etats.statut_courant(cedule_tournees._Instantane(maillons[:rang]), m['intervention_id'])
+            if avant is None or avant in etats.ETATS_TERMINAUX:
+                raise ValueError('assignation hors état non terminal')
+            if typ == etats.TYPE_TRANSITION and (avant != 'planifiee' or m['statut_precedent'] != avant):
+                raise ValueError('départ sans préfixe planifié cohérent')
         instant = datetime.fromisoformat(m['horodatage']).astimezone(ZoneInfo(calendrier.FUSEAU))
         if instant.date().isoformat() != jour:
             continue
-        ligne = {'type': 'pointage' if typ == pointage.TYPE_POINTAGE else 'etat',
+        types = {pointage.TYPE_POINTAGE: 'pointage', etats.TYPE_TRANSITION: 'etat',
+                 etats.TYPE_ASSIGNATION: 'assignation'}
+        ligne = {'type': types[typ],
                  'source_ligne_id': _texte(m['ligne_id']), 'intervention_id': _texte(m['intervention_id']),
                  'instant': instant.isoformat(), 'origine_heure': horodatage.origine(m),
                  'ancre_visite': None}
+        if assignee:
+            ligne['technicien_assigne'] = m['technicien_id']
         if typ == pointage.TYPE_POINTAGE:
             if m['action'] not in pointage.ACTIONS:
                 raise ValueError('action de pointage invalide')
             ligne.update(action=m['action'], technicien_id=_texte(m['technicien_id']))
-        else:
+        elif typ == etats.TYPE_TRANSITION:
             if m['statut'] not in etats.ETATS:
                 raise ValueError('état invalide')
             ligne['statut'] = m['statut']

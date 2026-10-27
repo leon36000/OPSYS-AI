@@ -47,7 +47,7 @@ Principes transverses (critères d'acceptation communs à toute ligne)
 | CRM-13 | Tableau commercial chiffré gagnés/perdus, en cours, acceptés, volumes/montants, période/filtre, définitions | `m8_lire_vue_executive`, `m8_rapport_metriques`, définitions M8, `m2_lister_leads` (aucun montant), `m3_lister_devis` | **Partiel** | M8 (+M2, M3) | Chaque chiffre porte sa définition M8, sa période et sa source ; pas de montant calculé dans le cockpit |
 | CRM-14 | Prix fournisseurs : réception de listes par courriel, détection, import annuel/catalogue, comparaison, historique, anomalies, mise à jour validable ; fournisseurs connus Gentek, Royal Solution de Bâtiment, O.A.M., Kaycan | M6 livre de prix manuel (`m6_enregistrer_prix`, `m6_resoudre_prix_materiau`, fournisseurs) | **Partiel** (livre de prix, fiches fournisseurs privées et saisie tarif en HTTP/SQLite qualifiées) / **Manquant** (détection courriel, import, anomalies) | M6 (+M1 pour la réception) | Variante dictée ≠ nouveau fournisseur (file de revue) ; ligne ambiguë → revue humaine ; aucun prix inventé ; les soumissions historiques gardent leur version. Contrat §3.9 |
 | CRM-15 | Contrat employé annuel signé en ligne, profil à jour, permis + échéance en accès restreint, heures ; jamais visible du CRM vendeur/client | `m5_enregistrer_contrat_horaire`, `paie_admission_ui`, `m4_pointer` | **Partiel** (contrat horaire M5) / **Manquant** (signature en ligne, documents RH) | M5/M4 (RH à trancher) | Accès restreint propriétaire/admin ; absent du répertoire et du dossier client par conception (test négatif) ; Loi 25 |
-| CRM-16 | Journal quotidien d'équipe : qui avec qui, prévu vs visité, terminé/reporté, extras, absences, heures ; historique annuel ; plusieurs visites conservées | `m4_pointer`, `m4_signaler_report`, `m4_completer_intervention`, `m4_lire_retards_incidents`, `m4_produire_digest`, `m4_lire_journal_quotidien` | **Partiel** : journal par jour en consultation admin HTTP/SQLite qualifié ; déclarations/arbitrages M4 minimisés disponibles; membres historiques, absences, heures quotidiennes et extras détaillés manquants | M4 | Anciennes prévisions conservées D→D+4 et nouveau plan ; pointages distincts, source/validité explicites, aucune présence/absence ni durée inventée. [Audit et limites](AUDIT-JOURNAL-QUOTIDIEN-EQUIPES.md) |
+| CRM-16 | Journal quotidien d'équipe : qui avec qui, prévu vs visité, terminé/reporté, extras, absences, heures ; historique annuel ; plusieurs visites conservées | `m4_pointer`, `m4_signaler_report`, `m4_completer_intervention`, `m4_lire_retards_incidents`, `m4_produire_digest`, `m4_lire_journal_quotidien` | **Partiel** : journal par jour en consultation admin HTTP/SQLite qualifié ; déclarations/arbitrages et assignations M4 historiques disponibles; membres historiques, absences, heures quotidiennes et extras détaillés manquants | M4 | Anciennes prévisions conservées D→D+4 et nouveau plan ; pointages distincts, source/validité explicites, aucune présence/absence ni durée inventée. [Audit et limites](AUDIT-JOURNAL-QUOTIDIEN-EQUIPES.md) |
 
 ## 2. Modules/navigation visibles du brief (photos 9960–9965)
 
@@ -372,3 +372,11 @@ la décision M4 n'approuve aucun extra facturable M3/M5. Qualification pure 99 P
 72 PASS avec cohortes recoupées, non additionnées; cinq contre-exemples sémantiques reproduits
 puis corrigés par validation de la transition et du WCT propriétaires. Aucun writer/outil/rôle
 nouveau. Statut **PARTIAL**, limites et preuves dans l'audit du journal.
+
+
+CRM-16 — décisions d'assignation historiques et technicien consigné au départ disponibles,
+distincts de l'équipe prévue et du technicien pointé. Report et réassignation conservent les
+anciens jours; la présence et la composition réelle ne sont pas déduites. Identifiants
+historiques composés d'espaces signalés à vérifier sans correction automatique. Qualification
+pure 52 PASS et SQL/HTTP 102 PASS, populations recoupées non additionnées, revue indépendante
+corrigée et fermée. Statut **PARTIAL** et limites dans l'audit du journal.

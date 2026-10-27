@@ -75,7 +75,9 @@ def contenu(vue, prefixe, limite):
              f'<p>Fuseau : {pages.e(vue["fuseau"])}</p><ul>')
     corps += ''.join(f'<li>{pages.e(a)}</li>' for a in vue['avertissements']) + '</ul>'
     corps += ('<p>Chaque ligne décrit un événement à son instant. Les déclarations et arbitrages terrain '
-              'proviennent de M4; les décisions sur les extras facturables relèvent de M3/M5.</p>')
+              'proviennent de M4; les décisions sur les extras facturables relèvent de M3/M5. '
+              'Une assignation consignée décrit une décision opérationnelle; la présence et la composition '
+              'réelle de l’équipe nécessitent leurs propres preuves.</p>')
     corps += f'<p>{len(vue["lignes"])} entrées affichées sur {vue["total"]}.</p>'
     nav = []
     if vue['debut']:
@@ -87,10 +89,12 @@ def contenu(vue, prefixe, limite):
         corps += ('<p>Aucun fait ou prévision pour cette journée.</p>' if vue['total'] == 0 else
                   '<p>Aucune entrée sur cette page. ' + lien(0, 'Première page') + '</p>')
     corps += ('<table><thead><tr><th>Type</th><th>Intervention</th><th>Heure locale</th><th>Équipe prévue</th>'
-              '<th>Technicien du pointage</th><th>État ou action</th><th>Validité de la prévision</th>'
+              '<th>Technicien assigné</th><th>Technicien du pointage</th><th>État ou action</th>'
+              '<th>Validité de la prévision</th>'
               '<th>Source</th><th>Notes</th></tr></thead><tbody>')
     types = {'prevision': 'Prévision', 'pointage': 'Pointage', 'etat': 'Changement d’état',
-             'ecart_declare': 'Écart déclaré', 'ecart_arbitre': 'Arbitrage d’écart'}
+             'ecart_declare': 'Écart déclaré', 'ecart_arbitre': 'Arbitrage d’écart',
+             'assignation': 'Décision d’assignation'}
     arbitrages = {'en_attente': 'En attente d’arbitrage M4', 'validee': 'Arbitrage M4 validé',
                   'rejetee': 'Arbitrage M4 rejeté'}
     dimensions = {'duree_minutes': 'Durée déclarée', 'materiaux': 'Matériaux déclarés',
@@ -100,6 +104,10 @@ def contenu(vue, prefixe, limite):
     for ligne in vue['lignes']:
         etat = cedule_ui.STATUTS.get(ligne.get('statut'), ligne.get('action', 'Non applicable'))
         source = ligne['source_ligne_id']
+        if ligne['type'] == 'assignation':
+            etat = 'Assignation consignée'
+        elif ligne.get('statut') == 'en_route' and 'technicien_assigne' in ligne:
+            etat += ' · Départ consigné'
         if ligne['type'] in {'ecart_declare', 'ecart_arbitre'}:
             etat = arbitrages[ligne['statut_arbitrage']] + ' · ' + ', '.join(
                 dimensions[k] for k in ligne['dimensions_modifiees'])
@@ -107,8 +115,12 @@ def contenu(vue, prefixe, limite):
         if ligne.get('motif'):
             etat += ' · ' + ligne['motif']
         heure = ligne['instant'] if ligne['type'] != 'prevision' else ligne['debut'] + ' – ' + ligne['fin']
+        assigne = ligne.get('technicien_assigne', 'Non applicable')
+        if not assigne.strip():
+            assigne = 'Identifiant à vérifier (espaces uniquement)'
         valeurs = [types[ligne['type']], ligne['intervention_id'], heure,
-                   ligne.get('equipe_planifiee', 'Non applicable'), ligne.get('technicien_id', 'Non applicable'),
+                   ligne.get('equipe_planifiee', 'Non applicable'), assigne,
+                   ligne.get('technicien_id', 'Non applicable'),
                    etat, validites.get(ligne.get('validite'), 'Non applicable'), source]
         note = 'Aucune ancre de visite démontrée'
         if ligne['type'] == 'prevision':
