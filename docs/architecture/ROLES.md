@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 177 outils sur 303 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 177 outils sur 304 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -1056,3 +1056,10 @@ présence, santé, paie ou décision RH automatique.
 source canonique bornée et recapturée. Les agents/MCP/appareils directs et répartiteurs
 génériques refusent avant effet; aucun rôle de personne ajouté. Une dernière déclaration
 par personne du jour, retrait compris; aucune présence, absence observée ou paie déduite.
+
+
+M6 — `m6_lire_historique_prix_console` : T0 de console privée, sans rôle appareil, runtime
+ou MCP. Admin SQL/session courants, réception serveur, SQLite canonique, quotas bruts avant
+décodage; source et métadonnées recapturées et autorité finale. Les deux chemins génériques
+ferment avant factory/normalisation. Historique du couple exact sans conversion ni timestamp
+fictif, pas de nouvel écran, droit de compte, achat ou source externe. Catalogue304/177.

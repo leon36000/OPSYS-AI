@@ -498,3 +498,10 @@ CRM-14/M6 — [fondation d’historique des tarifs](../inventory/M6-AUDIT-HISTOR
 qualifiée localement : 85 PASS dont 23 nouveaux, rangs/couple/snapshot paginés et valeurs déclarées
 sans conversion ni repli. Le livre/sélecteur existants sont préservés. **Historique navigable encore
 manquant** : aucun port SQL ni écran livré par cette fondation; import courriel toujours ouvert.
+
+
+CRM-14/M6 — lecteur privé SQLite/T0 d’historique qualifié : vrai writer → registre canonique →
+T0/dispatcher → réouverture, 40 PASS dont 19 nouveaux; preuves compatibles précédentes réutilisées
+sans addition. Quotas/source/métadonnées/autorité/session et canaux fermés vérifiés, natif304/177.
+**Écran navigable encore manquant** : aucun GET ajouté par cette tranche. Import courriel ouvert.
+[Audit et limites](../inventory/M6-AUDIT-HISTORIQUE-TARIFS-ADMIN.md).

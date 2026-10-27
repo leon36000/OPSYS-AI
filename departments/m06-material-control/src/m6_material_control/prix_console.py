@@ -12,7 +12,8 @@ from opsys.stockage.maillons import copier_maillons_avec_metadonnees
 from . import catalogue_console as acces
 from . import catalogue_materiaux, fournisseurs, livre_prix, tarif_soumission
 
-NOMS = frozenset({'m6_lister_fournisseurs_tarif_console', 'm6_preparer_tarif_console', 'm6_confirmer_tarif_console'})
+NOMS = frozenset({'m6_lister_fournisseurs_tarif_console', 'm6_preparer_tarif_console',
+                  'm6_confirmer_tarif_console', 'm6_lire_historique_prix_console'})
 _BASE = {'materiau_id': {'type': 'string', 'minLength': 1, 'maxLength': 100},
          'fournisseur_id': {'type': 'string', 'minLength': 1, 'maxLength': 200},
          'prix_unitaire': {'type': 'string', 'pattern': r'^[0-9]{1,9}(\.[0-9]{1,6})?$', 'maxLength': 16},
@@ -185,6 +186,8 @@ def confirmer(materiau_id, fournisseur_id, prix_unitaire, date_effet, source_doc
 
 
 def outils():
+    from .historique_prix_console import outil as outil_historique
+
     return (Outil(nom='m6_lister_fournisseurs_tarif_console',
                   description='Console admin : page de fournisseurs nommés.',
                   parametres=schema({'debut': {'type': 'integer', 'minimum': 0, 'maximum': 10000},
@@ -192,4 +195,5 @@ def outils():
             Outil(nom='m6_preparer_tarif_console', description='Console admin : vérifier un tarif sans écriture.',
                   parametres=schema(_BASE), fonction=preparer),
             Outil(nom='m6_confirmer_tarif_console', description='Console admin : confirmer un nouveau tarif sourcé.',
-                  parametres=schema(dict(_BASE, **_ANCRE)), fonction=confirmer, autonomie=Autonomie.T1))
+                  parametres=schema(dict(_BASE, **_ANCRE)), fonction=confirmer, autonomie=Autonomie.T1),
+            outil_historique())
