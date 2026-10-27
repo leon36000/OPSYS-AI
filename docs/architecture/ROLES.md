@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 177 outils sur 304 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 177 outils sur 305 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -1063,3 +1063,9 @@ ou MCP. Admin SQL/session courants, réception serveur, SQLite canonique, quotas
 décodage; source et métadonnées recapturées et autorité finale. Les deux chemins génériques
 ferment avant factory/normalisation. Historique du couple exact sans conversion ni timestamp
 fictif, pas de nouvel écran, droit de compte, achat ou source externe. Catalogue304/177.
+
+
+Le T0 `m6_preparer_import_tarifs_console` est privé console admin, sans rôle appareil.
+Origine/réception, SQLite canonique, source CSV et trois snapshots bornés, quota hérité et
+session finale sont vérifiés. Les deux répartiteurs génériques ferment avant factory/arguments;
+pas de nouvelle portée, table, prix appliqué, achat, source courriel ou permission de compte.

@@ -532,3 +532,9 @@ CRM-14 — adaptateur CSV UTF-8 à mapping et séparateur explicites ajouté à 
 restent hors de l’aperçu et la configuration est liée à la source/au lot. Upload et aperçu privés,
 confirmation des nouveaux prix et courriel restent à raccorder; aucune liste fournisseur réelle
 ou format de Gentek/Royal/O.A.M./Kaycan présumé. Produit et CRM-14 : PARTIAL.
+
+CRM-14 — [préparation privée sur sources canoniques](../inventory/M6-IMPORT-TARIFS-APERCU-PRIVE.md) :
+vraiT0 console admin revalide catalogue/fournisseur/unité/dernierprix sur3snapshots bornés,
+sourcepérimée et étatssensibles refusés, reçu desaisie existant reproduit sans appliquer de prix.
+82PASSdont23nouveaux;195 et116portées compatibles réutilisés sans addition. Catalogue305/177,
+aucun droit ajouté. Upload/aperçuCRM et confirmationlot restent à raccorder; pas de courriel réel.

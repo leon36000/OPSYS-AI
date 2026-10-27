@@ -13,7 +13,7 @@ from . import catalogue_console as acces
 from . import catalogue_materiaux, fournisseurs, livre_prix, tarif_soumission
 
 NOMS = frozenset({'m6_lister_fournisseurs_tarif_console', 'm6_preparer_tarif_console',
-                  'm6_confirmer_tarif_console', 'm6_lire_historique_prix_console'})
+                  'm6_confirmer_tarif_console', 'm6_lire_historique_prix_console', 'm6_preparer_import_tarifs_console'})
 _BASE = {'materiau_id': {'type': 'string', 'minLength': 1, 'maxLength': 100},
          'fournisseur_id': {'type': 'string', 'minLength': 1, 'maxLength': 200},
          'prix_unitaire': {'type': 'string', 'pattern': r'^[0-9]{1,9}(\.[0-9]{1,6})?$', 'maxLength': 16},
@@ -187,6 +187,7 @@ def confirmer(materiau_id, fournisseur_id, prix_unitaire, date_effet, source_doc
 
 def outils():
     from .historique_prix_console import outil as outil_historique
+    from .import_tarifs_console import outil as outil_import
 
     return (Outil(nom='m6_lister_fournisseurs_tarif_console',
                   description='Console admin : page de fournisseurs nommés.',
@@ -196,4 +197,4 @@ def outils():
                   parametres=schema(_BASE), fonction=preparer),
             Outil(nom='m6_confirmer_tarif_console', description='Console admin : confirmer un nouveau tarif sourcé.',
                   parametres=schema(dict(_BASE, **_ANCRE)), fonction=confirmer, autonomie=Autonomie.T1),
-            outil_historique())
+            outil_historique(), outil_import())
