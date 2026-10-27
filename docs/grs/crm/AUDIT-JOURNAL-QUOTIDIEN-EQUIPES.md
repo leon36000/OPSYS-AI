@@ -179,3 +179,41 @@ GET admin du journal avec page/continuation et lien depuis la cédule, dernier c
 après rendu, source/validité et avertissements explicites; tests HTTP sans effets et révocation.
 Rapprochement exact visite/pointage, heures par jour, absences, membres historiques, extras,
 historique annuel complet, navigateur, PostgreSQL et mobile demeurent ouverts.
+
+## Décision avant le GET du journal
+
+GET `/crm/journal-equipes` avec jour ISO explicite, offset/limite canoniques, continuation
+par source; clés inconnues ou répétées refusées avant lecture. Liens pour les sept jours
+depuis la cédule hebdomadaire et navigation des pages du même jour. Réutiliser uniquement
+le port SQL qualifié, conserver sa transaction pendant le rendu, quota HTML128Kio et contrôle
+SQL admin/session en dernier avant réponse. Valeurs échappées et protection no-store/CSP
+existante. Aucun formulaire de mutation, ajout d'absence, correction de pointage ou export RH.
+Une réponse de source refusée affiche une indisponibilité; ne jamais substituer une page vide
+ou un ancien résultat. Qualification HTTP distincte de la validation en navigateur natif.
+
+## Qualification locale de l'écran HTTP
+
+Le GET est raccordé depuis chacun des sept jours de la cédule. Il montre séparément prévisions
+avec début/fin et validité, pointages et changements d'état; les pages gardent jour et source,
+le retour à la cédule garde la semaine consultée. Aucun rôle, date civile ou fait terrain
+n'est inféré d'une cellule vide. Le port SQL qualifié et les fonctions `_t0`/`lire` restent
+inchangés; lecture, rendu, plafond HTML et dernier contrôle admin/session partagent la même
+transaction. Aucun formulaire de mutation; les refus ne contiennent pas d'identifiant de job.
+
+`crm16-http-v2` :119 PASS en38,47s, dont16 cas HTTP du journal et régressions du port, cédule,
+pagination et CRM. Journée vide, trois pages complètes sans perte/doublon, requêtes fermées,
+accès interdit, révocation pendant rendu, échappement, plafond HTML, source périmée et anciennes
+prévisions/report/reprise D+4 vérifiés en HTTP/SQLite avec données fictives. no-store/CSP présents.
+
+La revue indépendante a trouvé un faux message « journée vide » pour une page après la dernière
+entrée (`debut == total > 0`, autorisé par le pur). Rouge HTTP1 FAIL conservé. Le rendu distingue
+maintenant page vide et journée vide et propose la première page. `v3`3 PASS en2,10s couvre ce
+cas et deux parcours déjà inclus, avec correctif limité à cette branche. Les cohortes ne sont
+pas additionnées. Ruff et vérificateur298/174 passent. Le premier rouge de route404 et le refus
+lint préalable sont conservés distinctement. Preuve : `CRM16-HTTP-LOCAL-QUALIFIED.json`.
+
+**PARTIAL — journal en consultation admin HTTP/SQLite qualifié localement.** Aucun navigateur
+natif, PostgreSQL, mobile ou parcours terrain réel complet nouveau. Rapprochement exact des
+visites et pointages, heures par jour, membres historiques, absences, extras détaillés et
+historique annuel complet restent ouverts. Prochaine action : publier normalement les commits
+qualifiés après CI parent terminale, puis traiter un de ces écarts depuis ses sources M4.

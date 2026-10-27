@@ -182,7 +182,8 @@ def contenu(vue: Mapping, dossiers: set[str], prefixe: str) -> str:
             raise ValueError("équipe manquante")
         cellules.setdefault(equipe, {}).setdefault(debut.date(), []).append(
             _carte(ligne, debut, fin, dossiers, prefixe))
-    entete = ''.join(f'<th scope="col" data-jour="{j.isoformat()}">{nom}<br>{j:%d/%m}</th>'
+    entete = ''.join(f'<th scope="col" data-jour="{j.isoformat()}">{nom}<br>{j:%d/%m}<br>'
+                     f'<a href="{pages.e(prefixe)}/crm/journal-equipes?jour={j.isoformat()}">Journal</a></th>'
                      for nom, j in zip(JOURS, jours, strict=True))
     rangees = []
     vide = '<span class="vide">Aucun créneau daté affiché</span>'

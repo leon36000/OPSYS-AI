@@ -33,3 +33,100 @@ def lire(cnx, deps, session, jour, *, debut=0, limite=50, source_attendue=None):
         raise lecture.Refus('SOURCE-JOURNAL-INVALIDE') from None
     autorite._admin(cnx, session)
     return resultat
+
+
+def arguments(params):
+    import re
+
+    from m4_field_ops import calendrier_civil
+
+    items = list(params.multi_items())
+    if (len(items) != len({k for k, _ in items}) or set(params) - {'jour', 'debut', 'limite', 'source_attendue'}
+            or 'jour' not in params):
+        raise ValueError('jour explicite et paramètres uniques requis')
+    jour = calendrier_civil._date(params['jour']).isoformat()
+    nombres = {}
+    for nom, defaut, mini, maxi in [('debut', '0', 0, 11000), ('limite', '50', 1, 100)]:
+        brut = params.get(nom, defaut)
+        if re.fullmatch(r'0|[1-9][0-9]{0,4}', brut) is None or not mini <= int(brut) <= maxi:
+            raise ValueError('page invalide')
+        nombres[nom] = int(brut)
+    source = params.get('source_attendue')
+    if ((source is not None and re.fullmatch('[0-9a-f]{64}', source) is None)
+            or (nombres['debut'] and source is None)):
+        raise ValueError('source requise pour continuer')
+    return dict(jour=jour, **nombres, source_attendue=source)
+
+
+def contenu(vue, prefixe, limite):
+    from datetime import date, timedelta
+    from urllib.parse import urlencode
+
+    from . import cedule_ui, pages
+
+    def lien(debut, titre):
+        args = dict(jour=vue['jour'], debut=debut, limite=limite, source_attendue=vue['source'])
+        return f'<a href="{pages.e(prefixe + "/crm/journal-equipes?" + urlencode(args))}">{titre}</a>'
+
+    jour = date.fromisoformat(vue['jour'])
+    semaine = (jour - timedelta(days=jour.weekday())).isoformat()
+    corps = (f'<p><a href="{pages.e(prefixe)}/crm/cedule?debut_semaine={semaine}">Retour à la cédule</a></p>'
+             f'<section><h2>Journal des équipes — {pages.e(vue["jour"])}</h2>'
+             f'<p>Fuseau : {pages.e(vue["fuseau"])}</p><ul>')
+    corps += ''.join(f'<li>{pages.e(a)}</li>' for a in vue['avertissements']) + '</ul>'
+    corps += f'<p>{len(vue["lignes"])} entrées affichées sur {vue["total"]}.</p>'
+    nav = []
+    if vue['debut']:
+        nav.append(lien(max(0, vue['debut'] - limite), 'Page précédente'))
+    if vue['suivant'] is not None:
+        nav.append(lien(vue['suivant'], 'Page suivante'))
+    corps += '<nav aria-label="Pages du journal">' + ' · '.join(nav) + '</nav>'
+    if not vue['lignes']:
+        corps += ('<p>Aucun fait ou prévision pour cette journée.</p>' if vue['total'] == 0 else
+                  '<p>Aucune entrée sur cette page. ' + lien(0, 'Première page') + '</p>')
+    corps += ('<table><thead><tr><th>Type</th><th>Intervention</th><th>Heure locale</th><th>Équipe prévue</th>'
+              '<th>Technicien du pointage</th><th>État ou action</th><th>Validité de la prévision</th>'
+              '<th>Source</th></tr></thead><tbody>')
+    types = {'prevision': 'Prévision', 'pointage': 'Pointage', 'etat': 'Changement d’état'}
+    validites = {'historique': 'Ancienne prévision', 'a_reconfirmer': 'À reconfirmer',
+                 'date_confirmee': 'Date confirmée'}
+    for ligne in vue['lignes']:
+        etat = cedule_ui.STATUTS.get(ligne.get('statut'), ligne.get('action', 'Non applicable'))
+        if ligne.get('motif'):
+            etat += ' · ' + ligne['motif']
+        heure = ligne['instant'] if ligne['type'] != 'prevision' else ligne['debut'] + ' – ' + ligne['fin']
+        valeurs = [types[ligne['type']], ligne['intervention_id'], heure,
+                   ligne.get('equipe_planifiee', 'Non applicable'), ligne.get('technicien_id', 'Non applicable'),
+                   etat, validites.get(ligne.get('validite'), 'Non applicable'), ligne['source_ligne_id']]
+        corps += '<tr>' + ''.join(f'<td>{pages.e(v)}</td>' for v in valeurs) + '</tr>'
+    corps += ('</tbody></table><details><summary>Sources de consultation</summary>'
+              f'<p>Empreinte calculée du snapshot : {pages.e(vue["source_snapshot"])}</p></details></section>')
+    return corps
+
+
+def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre):
+    from fastapi import APIRouter, HTTPException, Request
+
+    router = APIRouter()
+
+    @router.get('/crm/journal-equipes')
+    def page(request: Request):
+        session = session_page(request)
+        try:
+            args = arguments(request.query_params)
+        except (ValueError, TypeError):
+            raise HTTPException(400, 'Choisir une journée et une page valides') from None
+        try:
+            with cnx_factory() as cnx:
+                vue = lire(cnx, deps, session, **args)
+                reponse = rendre(session, 'Journal des équipes', contenu(vue, prefixe, args['limite']))
+                if len(reponse.body) > 131072:
+                    raise HTTPException(503, 'Journal trop volumineux')
+                autorite._admin(cnx, session)
+        except PermissionError:
+            raise HTTPException(403, 'Accès admin requis') from None
+        except (lecture.Refus, ValueError, KeyError, TypeError):
+            raise HTTPException(503, 'Journal indisponible; relire depuis la cédule') from None
+        return reponse
+
+    return router
