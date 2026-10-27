@@ -628,6 +628,11 @@ def creer_router(
             raise HTTPException(503, "Cédule M4 indisponible") from None
         return rendre(session, "Cédule hebdomadaire", corps)
 
+    from . import meteo_dates_chantier
+    router.include_router(meteo_dates_chantier.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
+        verifier_formulaire=verifier_formulaire))
+
     @router.get("/crm/cedule/plan/{plan_id}", response_class=HTMLResponse)
     def dates_plan(plan_id: str, request: Request) -> Response:
         session = session_page(request)
@@ -640,6 +645,12 @@ def creer_router(
             sqlite = cnx.dialect.name == "sqlite"
         try:
             corps = cedule_plan_ui.contenu(vue, plan_id, session.csrf, prefixe, sqlite)
+            if sqlite:
+                with cnx_factory() as cnx:
+                    apercu = meteo_dates_chantier.preparer(cnx, deps, session, plan_id)
+                corps += meteo_dates_chantier.formulaire(apercu, session.csrf, prefixe)
+        except PermissionError:
+            raise HTTPException(403, "Accès admin requis") from None
         except (ValueError, KeyError, TypeError):
             raise HTTPException(503, "Détail M4 indisponible") from None
         return rendre(session, "Dates du plan appliqué", corps)

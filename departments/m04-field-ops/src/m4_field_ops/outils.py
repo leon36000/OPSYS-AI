@@ -1421,6 +1421,11 @@ def outils(
         )
         if verdict is not None:
             return _refus(verdict)
+        # Citer le profil effectivement consommé, même si le fichier change puis revient pendant l'appel.
+        resultat["profil_meteo_source"] = (
+            {"empreinte": meteo_entreprise.empreinte_meteo(profil), "fuseau": profil.get("fuseau")}
+            if profil is not None and verdict_profil is None else None
+        )
         return depuis_couple(meteo_creneaux.presenter(resultat, _tient_dans_une_reponse))
 
     def lire_meteo_intervention(
