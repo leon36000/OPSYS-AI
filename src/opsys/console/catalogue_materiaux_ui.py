@@ -145,6 +145,8 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
             if 1 <= version <= courant['revision']:
                 lien = base + '/' + pages._segment(materiau_id) + '?version=' + str(version)
                 corps += f'<p><a href="{pages.e(lien)}">{label}</a></p>'
+        historique = base + '/' + pages._segment(materiau_id) + '/tarifs/historique'
+        corps += f'<p><a href="{pages.e(historique)}">Historique des tarifs fournisseurs</a></p>'
         if f['revision'] == courant['revision']:
             corps += '<h2>Réviser cette fiche</h2>' + formulaire(session, prefixe, f)
             if f['actif']:

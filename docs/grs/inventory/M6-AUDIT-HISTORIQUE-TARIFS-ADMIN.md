@@ -206,3 +206,61 @@ matériau/fournisseur, comparaison indépendante et recapture après rendu, sour
 séparée du livre, champs déclaratifs échappés et pagination fiable. Import courriel, navigateur,
 PostgreSQL, mobile, production et M6 complet restent ouverts. Pas d’achat, paiement, changement de
 prix officiel externe, export, connexion, droits ou publication anticipée durant CI parent.
+
+## Contrat GET admin — audit sur 0a5dccdf avant implémentation
+
+Le domaine et le T0 privé sont qualifiés localement; aucun GET n’existe à cette révision.
+Ajouter `historique_tarifs_ui.py` : GET `/crm/materiaux/{materiau_id}/tarifs/historique`,
+raccord depuis le routeur des tarifs et lien sur toute fiche matériau, même inactive/historique.
+Lecture seule, admin SQL/session courants, connexion canonique gardée jusqu’après rendu.
+
+Choix explicite fournisseur : 25 premiers noms ACTUELS du répertoire, complétés par saisie
+exacte d’identifiant et lien au répertoire complet. Aucun choix automatique, contact copié,
+profil inventé ou prétention de liste exhaustive. Avant décodage fournisseurs : compte/8 Mio
+SQL, rangs continus, validation propriétaire et projection minimale comparée au vrai T0 privé.
+Capturer/recapturer les métadonnées fournisseurs. Pour le livre : capture propriétaire,
+projection pure indépendante puis vrai T0 via dispatcher privé, égalité JSON typée, quota
+combiné 64 Kio. Recapturer les deux sources et l’autorité avant et après rendu HTML (128 Kio).
+
+Paramètres fermés/uniques : fournisseur_id, debut, limite, source_attendue. Identifiant matériau
+canonique 100 caractères; identifiant fournisseur propriétaire exact sans normalisation.
+Continuer exige le curseur du couple/snapshot entier. Périmé : 409 avec invitation à recommencer;
+corruption/incohérence/changement en cours : 503 sans ancien prix. Auth : 403, saisie : 400.
+Pas de conversion devise/unité ni revalorisation de devis. Date commerciale distincte de rang;
+document échappé comme texte, jamais ouvert. Unité inconnue et prix non représentable restent
+signalés, jamais zéro. Noms actuels explicitement séparés de la provenance des prix.
+
+Tests réels GET avant implémentation : deux écritures natives, pagination et source périmée,
+permissions, corruption hors page, réponse T0 substituée, source/autorité changée après rendu,
+quotas avant décodage et sortie, liens/échappement, POST 405, paramètres fermés, masquage intégral
+de query Uvicorn y compris slash final. Les preuves pures/T0 inchangées sont réutilisées;
+aucune installation, connexion externe, import courriel ou extension de droit.
+
+
+## GET privé qualifié localement — résultat et limites
+
+`historique_tarifs_ui.py` raccordé par `tarifs_ui.py`, liens dans
+`catalogue_materiaux_ui.py`, query privée masquée dans `journaux_http.py`.
+Le GET utilise réellement le dispatcher privé, compare le résultat à la projection sur
+snapshot SQL indépendant, puis relit sources/autorité après rendu. Seules les suggestions de
+noms actuels sont proposées : `m6_lister_fournisseurs_console`, compatible avec les noms
+historiques longs, et projection propriétaire sur la page25. Le précédent choix de lecteur
+tarif refusait un nom legacy201 même sur un autre couple : constat indépendant, vrai rouge,
+correction et régression conservés. Aucun changement du lecteur tarif d’écriture existant.
+
+QA finale privée Linux : 61 PASS (29 nouveaux cas GET et 32 régressions fournisseurs), lint et
+vérification native 304 outils /177 déclarés réussis. La cohorte précédente 57 PASS (23 nouveaux
+cas +ports prix/catalogue) et les preuves pures/T0 inchangées sont réutilisées sans addition.
+Historique des rouges : 404 GET, query non masquée, nom201 bloquant; les refus de lint restent
+distincts des bugs produit. Tests réels via TestClient/SQLite/T0, pas un navigateur visuel.
+
+Source lecture seule pendant QA, réseau interdit, CPU1/1Gio/96tâches/600s et homes privés.
+Le GET n’ajoute aucun droit, outil, table, événement mémoire, prix ou écriture métier.
+Une référence documentaire reste du texte échappé. Un prix historique sans fiche fournisseur
+actuelle reste consultable par identifiant explicite. Noms longs valides préservés sous les
+quotas globaux; aucun contact n’est copié dans le résultat affiché.
+
+Gates inchangés : pas de vrai courriel/import, achat/commande/finance, données réelles, nouvelle
+connexion ou publication publique. Mobile/PostgreSQL/navigateur et automatisation des listes
+courriel non qualifiés. M6/CRM-14 restent PARTIAL; prochaine capacité : préparation gouvernée
+d’un import de liste fournisseur en données fictives, audit du flux existant avant tout code.

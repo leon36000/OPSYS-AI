@@ -19,6 +19,11 @@ class MasquerRecherche(logging.Filter):
                 prive = unquote(chemin).rstrip("/").endswith((
                     "/crm/journal-equipes/absence", "/crm/journal-equipes/absences",
                     "/crm/journal-equipes/comptes", "/crm/journal-equipes/temps"))
+                historique = ("/crm/materiaux/" in unquote(chemin)
+                              and unquote(chemin).rstrip("/").endswith("/tarifs/historique"))
+                if historique:
+                    record.args = (*record.args[:2], chemin + "?consultation=[MASQUE]", *record.args[3:])
+                    return True
                 cle = "q" if "q" in cles else "personne_id" if "personne_id" in cles or prive else None
                 if cle is not None:
                     record.args = (*record.args[:2], chemin + "?" + cle + "=[MASQUE]", *record.args[3:])
