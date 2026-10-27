@@ -13,6 +13,8 @@ import hashlib
 import json
 import re
 from collections.abc import Callable
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -21,7 +23,7 @@ from typing import Any
 import yaml
 from sqlalchemy import select
 
-from opsys import contexte, evenements, identite, jetons, readiness_m2, stockage, taxonomie
+from opsys import approbations, contexte, evenements, idempotence, identite, jetons, readiness_m2, stockage, taxonomie
 from opsys.approbations import approbateur_en_cours
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from opsys.stockage import codec
@@ -38,6 +40,7 @@ from . import (
     estimation,
     estime_vs_reel,
     hierarchie_echelle,
+    modeles_soumission,
     monte_carlo,
     plancher,
     politique_photos,
@@ -2497,4 +2500,106 @@ def outils() -> tuple[Outil, ...]:
             fonction=verifier_politique_photos,
             autonomie=Autonomie.T0,
         ),
+        *_outils_modeles(),
+    )
+
+
+_META_MODELES = ContextVar("m3_meta_modeles", default=None)
+
+
+@contextmanager
+def contexte_modeles(meta):
+    token = _META_MODELES.set(meta)
+    try:
+        yield
+    finally:
+        _META_MODELES.reset(token)
+
+
+def _autoriser_modeles():
+    cnx = stockage.connexion_courante()
+    appelante = contexte.identite_appelante()
+    if (cnx is None or appelante is None or appelante.role != "admin" or appelante.source != "console"
+            or contexte.departement_origine_appelante() != "console" or contexte.appel_provient_du_mcp()):
+        raise modeles_soumission.Refus("IDENTITE")
+    signataire = approbations.signataire_valide(cnx, appelante)
+    if signataire is None or signataire.role != "admin":
+        raise modeles_soumission.Refus("IDENTITE")
+    return {"personne": signataire.personne, "role": "admin"}
+
+
+def _journal_modeles():
+    journal = stockage.maillons("m03-estimation", modeles_soumission.REGISTRE)
+    if len(journal) > modeles_soumission.MAX_SOURCES:
+        raise modeles_soumission.Refus("SOURCES-TROP-VOLUMINEUSES")
+    return journal
+
+
+def enregistrer_modele_soumission(modele_id, titre, description, clauses, revision_attendue):
+    n = modeles_soumission
+    try:
+        auteur = _autoriser_modeles()
+        cnx = stockage.connexion_courante()
+        if cnx.dialect.name != "sqlite":
+            raise n.Refus("ECRITURE-NON-QUALIFIEE")
+        meta, reception = _META_MODELES.get(), contexte.horodatage_reception()
+        if (not isinstance(meta, idempotence.Meta) or reception is None
+                or meta.appareil != "console:" + auteur["personne"] or reception.appareil != meta.appareil
+                or reception.recu_le.utcoffset() is None):
+            raise n.Refus("MUTATION-ABSENTE")
+        arguments = {"modele_id": modele_id, "titre": titre, "description": description, "clauses": clauses,
+                     "revision_attendue": revision_attendue}
+        mutation = {"appareil": meta.appareil, "cle": meta.cle,
+                    "empreinte_arguments": registre._encoder_canonique(arguments)}
+        with cnx.begin_nested():
+            resultat = n.enregistrer(_journal_modeles(), **arguments, auteur=auteur, mutation=mutation,
+                                    horodatage=reception.recu_le.isoformat(),
+                                    limite_sortie=contexte.limite_sortie() or 65536)
+            if not resultat.get("rejoue"):
+                from opsys.etat import journaliser
+
+                r = resultat["resultat"]
+                journaliser(cnx, auteur["personne"], "m3.modele_soumission", r["source_id"],
+                            {"modele_id": r["modele_id"], "revision": r["revision"]})
+            return resultat
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lire_modele_soumission(modele_id, version):
+    n = modeles_soumission
+    try:
+        _autoriser_modeles()
+        return n.lire(_journal_modeles(), modele_id, version, limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lister_modeles_soumission(decalage, source_attendue):
+    n = modeles_soumission
+    try:
+        _autoriser_modeles()
+        return n.lister(_journal_modeles(), decalage, source_attendue, limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _outils_modeles():
+    def schema(props):
+        return {"type": "object", "properties": props, "required": list(props), "additionalProperties": False}
+
+    ident = {"type": "string", "minLength": 1, "maxLength": 100}
+    entier = {"type": "integer", "minimum": 0, "maximum": 1000}
+    return (
+        Outil(nom="m3_enregistrer_modele_soumission",
+              description="Console admin privée : version textuelle de modèle, aucun devis ni engagement modifié.",
+              parametres=schema({"modele_id": ident, "titre": {"type": "string", "maxLength": 120},
+                                "description": {"type": "string", "maxLength": 4000},
+                                "clauses": {"type": "string", "maxLength": 12000}, "revision_attendue": entier}),
+              fonction=enregistrer_modele_soumission, autonomie=Autonomie.T1),
+        Outil(nom="m3_lire_modele_soumission", description="Console admin privée : version exacte d'un modèle M3.",
+              parametres=schema({"modele_id": ident, "version": entier}), fonction=lire_modele_soumission),
+        Outil(nom="m3_lister_modeles_soumission", description="Console admin privée : catalogue sourcé et paginé.",
+              parametres=schema({"decalage": entier, "source_attendue": {"type": "string", "maxLength": 64}}),
+              fonction=lister_modeles_soumission),
     )

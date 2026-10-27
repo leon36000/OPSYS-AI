@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 173 outils sur 278 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 173 outils sur 281 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 

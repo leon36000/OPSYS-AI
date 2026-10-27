@@ -505,6 +505,38 @@ def _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id):
         return executer_atomique(outil, dict(arguments))
 
 
+def _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id):
+    """Port humain M3 : intention dans le maillon privé, aucune copie dans le reçu central."""
+    from m3_estimation import outils as m3
+
+    dept = "m03-estimation"
+    if session.expire <= datetime.now(UTC).timestamp() or "admin" not in personne.roles:
+        raise PermissionError("session admin active requise")
+    if dept not in deps or deps[dept].module_outils != "m3_estimation.outils":
+        raise KeyError("catalogue M3 indisponible")
+    outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
+    if outil is None:
+        raise KeyError("outil M3 indisponible")
+    ecriture = nom == "m3_enregistrer_modele_soumission"
+    if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
+        raise ValueError("modèle invalide")
+    if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
+            or (not ecriture and mutation_id is not None)):
+        raise ValueError("intention de modèle invalide")
+    maintenant = datetime.now(UTC)
+    meta = (idempotence.Meta(mutation_id, "console:" + personne.identifiant, maintenant.isoformat())
+            if ecriture else None)
+    with (
+        contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
+        contexte.appeler_en_tant_que(dept, origine="console"),
+        contexte.sortie_bornee(65536),
+        m3.contexte_modeles(meta),
+        contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
+        if ecriture else nullcontext(),
+    ):
+        return executer_atomique(outil, dict(arguments))
+
+
 def executer(
     cnx: Connection,
     deps: Mapping[str, Departement],
@@ -537,6 +569,8 @@ def executer(
         return _executer_observation_growth_humaine(cnx, deps, session, personne, arguments, mutation_id)
     if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom in {"m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission"}:
+        return _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",
                    "m2_lire_rencontres_lead"}:
         return _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id)
