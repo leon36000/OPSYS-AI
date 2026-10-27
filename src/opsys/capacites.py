@@ -292,7 +292,9 @@ class Capacites:
         ticket_memoire: str | None = None,
     ) -> dict[str, Any]:
         """Revérifie et dispatch un outil Core profilé sous le verrou de sa ligne de profil."""
-        if nom in {"m6_lister_fournisseurs_tarif_console", "m6_preparer_tarif_console", "m6_confirmer_tarif_console",
+        if nom in {"m6_lister_fournisseurs_console", "m6_lire_fournisseur_console",
+                   "m6_enregistrer_fournisseur_console",
+                   "m6_lister_fournisseurs_tarif_console", "m6_preparer_tarif_console", "m6_confirmer_tarif_console",
                    "m6_enregistrer_materiau_console", "m6_lire_materiau_console", "m6_lister_materiaux_console",
                    "m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
                    "m3_lire_tarif_modele", "m3_creer_devis_prefill",
@@ -341,7 +343,9 @@ class Capacites:
         Une identité d'appareil seule permet une lecture T0/N0 ; toute autre opération
         exige l'enveloppe d'idempotence avant le répartiteur métier.
         """
-        if nom in {"m6_lister_fournisseurs_tarif_console", "m6_preparer_tarif_console", "m6_confirmer_tarif_console",
+        if nom in {"m6_lister_fournisseurs_console", "m6_lire_fournisseur_console",
+                   "m6_enregistrer_fournisseur_console",
+                   "m6_lister_fournisseurs_tarif_console", "m6_preparer_tarif_console", "m6_confirmer_tarif_console",
                    "m6_enregistrer_materiau_console", "m6_lire_materiau_console", "m6_lister_materiaux_console",
                    "m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
                    "m3_lire_tarif_modele", "m3_creer_devis_prefill",
