@@ -388,3 +388,10 @@ rejeu sans retour arrière et quotas UTF-8. Qualification pure 173 PASS (30 nouv
 cohortes non additionnées. **PARTIAL : port durable/admin et interface non livrés**, aucun
 membre déduit du profil courant ni présence/absence/paie déclarée par ce mécanisme. L'audit du
 journal fixe les prochains contrôles avant exposition CRM.
+
+
+CRM-16 — lecture privée durable de la composition déclarée qualifiée en SQLite : vrai T0,
+source et métadonnées recoupées, admin SQL courant avant/après, aucune écriture.150 PASS puis
+116 PASS du catalogue natif (pas de cumul); profils actuels et droits de personnes inchangés.
+**PARTIAL : affichage HTTP et writer/formulaire non livrés**, aucune présence réelle déduite.
+L'audit du journal et `CRM16-COMPOSITION-PORT-LOCAL-QUALIFIED.json` détaillent les limites.

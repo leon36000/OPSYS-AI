@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 174 outils sur 298 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 175 outils sur 299 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (173 outils) : §9.5 + employé + vendeur
+### `admin` (174 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -1029,3 +1029,10 @@ avec source matériau/fournisseur et dernier tarif du couple revalidés. Montant
 explicite, unité M6, CAD, date civile non future et badge documentaire déclaratif. Rejeu
 autorisé seulement après contrôle d’identité; tarif/audit/reçu dans une transaction.
 Les chemins génériques, runtime et MCP sont fermés. Aucun rôle appareil nouveau.
+
+
+CRM-16 — `m4_lire_composition_journaliere_console` (N0, transport console privé uniquement) :
+admin SQL actif, source/origine console, MCP absent, source canonique SQLite et quota avant
+lecture. Les deux répartiteurs génériques ferment avant factory/normalisation/reçu. Lecture des
+identifiants historiquement déclarés, sans accès conféré ni présence déduite, aucun rôle de
+compte ajouté. Les membres ne sont jamais recopiés dans les artefacts génériques des agents.

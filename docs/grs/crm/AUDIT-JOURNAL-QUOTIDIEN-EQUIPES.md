@@ -508,3 +508,76 @@ contrôle d'identité courante, mémoire M10, politique RH ou preuve de présenc
 lu ni écrit dans le profil entreprise courant. Prochaine tranche : source durable bornée et
 port privé admin, avec résolution des identités et autorité canonique; ensuite formulaire et
 historique dans le CRM. Ne pas marquer la composition historique CRM disponible avant ces preuves.
+
+
+## Contrat avant la lecture durable privée des compositions
+
+Prochaine tranche serveur : une lecture de l'histoire déclarative déjà écrite, via vrai outil
+propriétaire T0 et port privé console. Le formulaire et le writer admin restent à suivre; les
+fixtures pourront écrire par le pur sur `stockage.maillons` canonique sans prétendre démontrer
+une saisie HTTP ou une autorité d'appareil. Aucune composition créée depuis le profil courant.
+
+Réemploi de `journal_durable` : capture SQL canonique SQLite, compte et octets UTF-8 avant
+décodage, `copier_maillons_avec_metadonnees` et empreinte calculée incluant rang/metadata.
+Nouveau wrapper `composition_durable` fixé au registre `compositions_journalieres` seulement.
+La projection pure fournit le jour/équipe explicitement demandés, historique et dernière
+composition connue, puis snapshot calculé. Plafond d'enveloppe selon le contexte et 64Kio.
+
+Nouveau T0 `m4_lire_composition_journaliere_console` : double autorité console admin SQL actif,
+origine console et MCP absent; `_cnx_durable` refuse les registres injectés et la connexion
+étrangère. Capture → projection → quota → recapture de source → autorité finale. La forme
+nominale `roles_appareil={admin}` ne confère aucun droit de compte ni accès d'appareil direct.
+Les répartiteurs `appeler` ET `appeler_profil_runtime` ferment le nom avant factory, normalisation
+ou reçu générique : les identifiants de membres n'y sont jamais recopiés.
+
+Port `console/compositions_equipes` : autorité/session SQL avant, capture indépendante/projection
+attendue, vrai T0 propriétaire, comparaison exacte, recapture de metadata, borne de sortie et
+autorité SQL/session finale. Retour privé sans champ inventé; aucune écriture. Une identité de
+membre désactivée aujourd'hui demeure une donnée de déclaration historique; lire l'histoire
+ne filtre ni ne réattribue les membres d'après les comptes/profils actuels. La validation des
+identités lors d'une nouvelle déclaration appartient au futur writer, pas à cette lecture.
+
+Tests SQL canoniques fictifs : écrire/corriger/retirer par les fonctions pures, relire après
+réouverture de transaction, dernier état et ancien historique, pagination, source et aucune
+écriture; refus agents/MCP/appareils même admin et non-admin/expiré; connexion étrangère,
+registre injecté, source/metadata altérées, réponse T0 falsifiée, révocation lors de la dernière
+capture, quota SQL avant décodage, enveloppe UTF-8 et deux répartiteurs fermés avant effet.
+Régressions journal/annotations/composition pure et catalogue rôles/outils ciblés. Aucun nouveau
+writer, compte, endpoint HTTP, M10, PostgreSQL, mobile, paie ou preuve de présence revendiqué.
+
+
+### Qualification de la lecture durable privée
+
+Le nouveau T0 privé et le port console lisent maintenant les compositions depuis le vrai
+registre séparé SQLite, avec snapshots calculés indépendants, métadonnées recoupées et admin
+SQL/session avant et après. Les identifiants historiques inactifs restent visibles dans leur
+déclaration; aucun membre n'est substitué depuis le profil courant. Les GET futurs devront
+encore garder l'autorité finale après rendu : aucun endpoint HTTP ajouté dans cette tranche.
+
+`crm16-composition-port-v3` : **150 PASS en 12,77s**, dont 20 cas nouveaux de source/port privés,
+30 purs, 20 du journal privé et les régressions verdicts/rôles. `v4` : **116 PASS en 1,17s** pour
+le catalogue natif des portées et les compteurs documentaires. Les populations se recoupent,
+aucun cumul. Ruff et vérificateur **299 outils/175 déclarés** passent; le transport nominal admin
+est le seul ajout, fermé aux deux répartiteurs génériques et à MCP/appareil/agents directs.
+Aucun compte ou droit de personne n'a été modifié hors des fixtures fictives.
+
+Les refus sont exercés : identités/sessions non autorisées, connexion étrangère, registre
+injecté, mutation des métadonnées, réponse T0 altérée, révocation après dernière capture,
+source illisible ou invalide, pagination périmée et quota avant décodage/retour. Source valide
+24 révisions × 50 identifiants : grande page refusée sans contenu, petite page encore lisible.
+Les instantanés de toutes les tables confirment l'absence d'écriture des lectures/refus non
+injectés. Les écritures de préparation des tests passent par le domaine pur et le vrai support;
+elles ne sont pas une preuve de formulaire, approbation SQL d'écriture ou appareil terrain.
+
+Historique conservé : T0 absent au rouge initial; refus Ruff avant exécution; v2 neuf PASS et
+huit FAIL dus aux nouveaux codes non catalogués, puis ajout explicite des six codes fermés et
+de leurs attentes; rouge quota reproduit (mauvaise classification SOURCE-INVALIDE), puis
+préservation des refus de volume dans le wrapper. Revue indépendante finale : deux constats
+fermés, aucun autre défaut concret. Aucun runtime ni mutation du relecteur.
+Preuve : `CRM16-COMPOSITION-PORT-LOCAL-QUALIFIED.json`, reçus/pins/JUnit et limites privées.
+
+**PARTIAL — lecture privée propriétaire qualifiée en SQLite, sans écran ni writer admin.**
+Aucune interface de déclaration, résolution des identités à l'écriture, mémoire M10, preuve
+de présence, PostgreSQL, navigateur ou mobile revendiquée. Prochaine tranche : affichage HTTP
+admin avec source/temporalisations/inconnu-vide-retrait explicites et autorité après rendu,
+puis saisie signée sous CSRF et identités canoniques sans modifier le profil ni les accès.

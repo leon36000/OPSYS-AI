@@ -60,6 +60,7 @@ from . import (
     calibration_projection,
     cedule,
     cedule_tournees,
+    composition_durable,
     consentement,
     couleurs_calendrier,
     digest,
@@ -1391,6 +1392,26 @@ def outils(
             return _refus(verdicts.construire_verdict('REJ-JOURNAL-SOURCE-INVALIDE'))
         return {'accepte': True, 'resultat': resultat}
 
+    def lire_composition_journaliere_console(jour: str, equipe_id: str, debut: int = 0, limite: int = 50,
+                              source_attendue: str | None = None) -> dict[str, Any]:
+        try:
+            _autoriser_annotation()
+            cnx = _cnx_durable()
+            source = composition_durable.capturer(cnx)
+            resultat = composition_durable.projeter(source, jour, equipe_id, debut=debut, limite=limite,
+                                                source_attendue=source_attendue)
+            composition_durable.verifier_sortie(resultat)
+            if composition_durable.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
+                raise composition_durable.Refus('SOURCE-MODIFIEE')
+            _autoriser_annotation()
+        except annotations_calendrier.Refus:
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-IDENTITE', detail='admin console actif requis'))
+        except composition_durable.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-SOURCE-INVALIDE'))
+        return {'accepte': True, 'resultat': resultat}
+
     def verifier_preparation(intervention_id: str) -> dict[str, Any]:
         """Lecture seule : la préparation d'une intervention (M4.6), volet par volet, avec ce qui manque. Rien n'est
         écrit ; aucun volet non vérifié n'est présenté comme prêt."""
@@ -2403,6 +2424,19 @@ def outils(
                 "source_attendue": {"type": ["string", "null"]}},
                 "required": ["jour"], "additionalProperties": False},
             fonction=lire_journal_quotidien, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_composition_journaliere_console",
+            description=("Console privée, admin SQL actif uniquement : composition déclarée pour un jour et "
+                         "une équipe explicites, historique et corrections. Ne prouve ni présence terrain ni "
+                         "droits courants; aucune résolution via le profil actuel. Pagination liée à la source. "
+                         "Lecture SQLite canonique bornée; agents, MCP et appareils directs refusés."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "equipe_id": {"type": "string"}, "debut": {"type": "integer", "minimum": 0},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                "source_attendue": {"type": ["string", "null"]}},
+                "required": ["jour", "equipe_id"], "additionalProperties": False},
+            fonction=lire_composition_journaliere_console, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_verifier_preparation",
