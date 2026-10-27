@@ -161,3 +161,30 @@ def lire(reg, jour, personne_id, *, debut=0, limite=50, source_attendue=None, li
             'L’instant d’enregistrement peut être postérieur au jour déclaré.']}
     _borne(reponse, limite_sortie)
     return reponse
+
+
+def lire_jour(reg, jour, *, debut=0, limite=50, source_attendue=None, limite_sortie=BORNE_SORTIE):
+    """Une ligne par dernière déclaration du jour; total n'est jamais un effectif absent observé."""
+    jour = _jour(jour)
+    if type(debut) is not int or debut < 0 or type(limite) is not int or not 1 <= limite <= 100:
+        raise Refus('PAGINATION-INVALIDE')
+    copie, _, precedentes, _ = _charger(reg)
+    source = encodage.empreinte('absences_par_jour_v1', copie.tete(), jour)
+    if (debut and source_attendue is None) or (source_attendue is not None and source_attendue != source):
+        raise Refus('SOURCE-PERIMEE')
+    lignes = sorted((m for (j, _), m in precedentes.items() if j == jour), key=lambda m: m['personne_id'])
+    if debut > len(lignes):
+        raise Refus('PAGINATION-HORS-HISTORIQUE')
+    fin = min(debut + limite, len(lignes))
+    reponse = {'jour': jour, 'source': source, 'total': len(lignes), 'debut': debut,
+        'suivant': fin if fin < len(lignes) else None, 'lignes': [
+            {'personne_id': m['personne_id'], 'jour': m['jour'], 'etat_declaration': m['statut_declaration'],
+             'revision': m['revision'], 'source_ligne_id': m['ligne_id'],
+             'auteur': deepcopy(m['auteur']), 'horodatage': m['horodatage']} for m in lignes[debut:fin]],
+        'avertissements': ['Une ligne par personne ayant une déclaration pour ce jour, retrait compris.',
+            'Ce total ne compte pas des absences observées; aucun annuaire ou pointage recoupé.',
+            'L’absence de signalement ou le retrait ne prouve aucune présence.',
+            'Aucune présence, heure travaillée ou paie déduite.',
+            'L’instant d’enregistrement peut être postérieur au jour déclaré.']}
+    _borne(reponse, limite_sortie)
+    return reponse

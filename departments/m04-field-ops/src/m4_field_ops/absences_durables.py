@@ -35,3 +35,15 @@ def projeter(snapshot, jour, personne_id, *, debut=0, limite=50, source_attendue
         raise Refus(codes.get(exc.suffixe, 'SOURCE-INVALIDE')) from None
     resultat['source_snapshot'] = snapshot.empreinte_snapshot_calculee
     return resultat
+
+
+def projeter_jour(snapshot, jour, *, debut=0, limite=50, source_attendue=None):
+    try:
+        resultat = domaine.lire_jour(Registre([r.maillon for r in snapshot.lignes]), jour,
+                                     debut=debut, limite=limite, source_attendue=source_attendue)
+    except domaine.Refus as exc:
+        codes = {'SORTIE-TROP-VOLUMINEUSE': 'SORTIE-TROP-VOLUMINEUSE',
+                 'SOURCES-TROP-VOLUMINEUSES': 'SOURCE-TROP-VOLUMINEUSE'}
+        raise Refus(codes.get(exc.suffixe, 'SOURCE-INVALIDE')) from None
+    resultat['source_snapshot'] = snapshot.empreinte_snapshot_calculee
+    return resultat

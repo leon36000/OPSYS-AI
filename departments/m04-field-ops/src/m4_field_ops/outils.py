@@ -1437,6 +1437,26 @@ def outils(
             return _refus(verdicts.construire_verdict('REJ-ABSENCE-SOURCE-INVALIDE'))
         return {'accepte': True, 'resultat': resultat}
 
+    def lire_absences_jour_console(jour: str, debut: int = 0, limite: int = 50,
+                              source_attendue: str | None = None) -> dict[str, Any]:
+        try:
+            _autoriser_annotation()
+            cnx = _cnx_durable()
+            source = absences_durables.capturer(cnx)
+            resultat = absences_durables.projeter_jour(source, jour, debut=debut, limite=limite,
+                                                source_attendue=source_attendue)
+            absences_durables.verifier_sortie(resultat)
+            if absences_durables.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
+                raise absences_durables.Refus('SOURCE-MODIFIEE')
+            _autoriser_annotation()
+        except annotations_calendrier.Refus:
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-IDENTITE', detail='admin console actif requis'))
+        except absences_durables.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-SOURCE-INVALIDE'))
+        return {'accepte': True, 'resultat': resultat}
+
     def declarer_composition_journaliere_console(jour, equipe_id, membres, revision_attendue, statut_declaration):
         from . import encodage
 
@@ -2549,6 +2569,19 @@ def outils(
                 "required": ["jour", "personne_id", "revision_attendue", "statut_declaration"],
                 "additionalProperties": False},
             fonction=declarer_absence_journaliere_console, autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m4_lire_absences_jour_console",
+            description=("Console humaine privée, admin SQL actif seulement : dernières déclarations d'absence "
+                         "par personne pour un jour, retraits compris. Total de personnes avec déclaration, "
+                         "pas d'absents observés. Aucun annuaire/pointage/paie recoupé. Source canonique SQLite "
+                         "et pagination bornées; agents, appareils directs et MCP refusés."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "debut": {"type": "integer", "minimum": 0},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                "source_attendue": {"type": ["string", "null"]}},
+                "required": ["jour"], "additionalProperties": False},
+            fonction=lire_absences_jour_console, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_lire_absence_journaliere_console",

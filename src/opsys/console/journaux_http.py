@@ -16,7 +16,8 @@ class MasquerRecherche(logging.Filter):
             chemin, separateur, query = record.args[2].partition("?")
             if separateur:
                 cles = {cle for cle, _ in parse_qsl(query, keep_blank_values=True)}
-                prive = unquote(chemin).rstrip("/").endswith("/crm/journal-equipes/absence")
+                prive = unquote(chemin).rstrip("/").endswith((
+                    "/crm/journal-equipes/absence", "/crm/journal-equipes/absences"))
                 cle = "q" if "q" in cles else "personne_id" if "personne_id" in cles or prive else None
                 if cle is not None:
                     record.args = (*record.args[:2], chemin + "?" + cle + "=[MASQUE]", *record.args[3:])

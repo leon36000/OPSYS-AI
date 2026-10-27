@@ -1090,3 +1090,69 @@ Liste quotidienne globale, heures, M10, PostgreSQL, navigateur et mobile restent
 Prochaine capacité utile : liste journalière paginée des signalements courants et retirés,
 avec liens vers cet historique, sans annuaire contemporain, compteur dupliqué dans le journal
 ou déduction de présence. Publication des commits locaux retenue par la CI du parent ebce.
+
+
+## Contrat avant la liste quotidienne des signalements
+
+Réutiliser exclusivement le registre d'absences et son `_charger` validé. Pour un jour explicite,
+retenir une seule dernière révision par personne exacte, y compris les retraits; tri stable
+par identifiant sans normalisation. `total` = nombre de personnes ayant une déclaration dans
+ce jour (retirée comprise), jamais nombre d'absents observés ni de salariés présents. Aucune
+addition des révisions/visites ou recoupement avec le profil/pointage. Jour sans ligne = aucun
+signalement documenté, pas tout le monde présent. Liste minimisée : identifiant, statut courant,
+révision, auteur, deux temporalités et source; aucun motif, paie, nom ou intention.
+
+Pagination liée à la tête source et au jour; continuation sans source ou source périmée refusée,
+page terminale vide distincte de journée vide. Bornes source et enveloppe UTF-8 préservées,
+chaîne et schéma validés même pour les autres jours, copies indépendantes. Pas de nouveau registre
+ni vérité parallèle. Fondation pure d'abord, puis adaptation du snapshot canonique existant,
+vrai T0 privé avec mêmes contrôles d'autorité/recapture/quota et page GET admin.
+
+Le journal ne lit/compte pas les absences; lien de jour exact vers la liste. Chaque ligne mène
+à l'historique individuel déjà qualifié. Consultation GET seulement, formes de mutation restent
+sur la page individuelle. Paramètres fermés, HTML borné/échappé et source/admin après rendu;
+masquer aussi la query du chemin pluriel dans Uvicorn, slash final compris. Pas d'annuaire
+contemporain, d'automatisation RH, de paie ni de présence déduite.
+
+Tests avant code : plusieurs personnes et révisions/retraits, tri et total uniques, autre jour,
+jour vide/page terminale, cursors périmés ou d'un autre jour, copies sans mutation, schéma altéré
+rehaché et quotas source/sortie. Puis vrai T0/source canonique, autorité et données altérées,
+route/lookup/journal sans copie, historique source exact, confidentialité/révocation après rendu,
+logs privés. Réutiliser les preuves compatibles du writer et du formulaire, sans refaire tout.
+
+
+## Vue quotidienne des déclarations qualifiée localement
+
+Le journal mène à GET admin `/crm/journal-equipes/absences?jour=...`. Une ligne par dernière
+révision exacte d'une personne pour ce jour, retraits conservés, tri par identifiant sans
+normalisation. Le total compte ces personnes ayant une déclaration, pas des absences observées,
+des visites, des salariés présents ou l'annuaire complet. Journée vide et page terminale sont
+distinctes. Un choix de date permet de revoir d'anciens jours; chaque ligne ouvre l'historique
+individuel au jour/personne exacts, avec source de la révision affichée séparément. La saisie
+reste sur la page individuelle déjà qualifiée; le lookup GET y donne aussi accès.
+
+La fondation réutilise `_charger`, sans registre parallèle : 65 PASS/0,50 s incluent 13 nouveaux
+cas purs et les registres précédents. L'adaptation complète `crm16-absence-day-port-v2` passe
+**168 tests, 0 FAIL, 0 SKIP, 11,51 s**, dont 21 nouveaux cas SQL/T0/HTTP et les 13 cas purs,
+avec portées, formulaires et ancien masque q. Populations recoupées, jamais additionnées.
+Ruff et catalogue natif : 303 outils/177 déclarés, T0 de console privée seulement; aucun rôle
+ou compte ajouté. Projection indépendante comparée au vrai T0, source SQLite bornée avant
+décodage, recapture et session/admin après rendu, HTML borné/échappé, no-store/CSP. Le journal
+ne lit ni copie ni compte ce registre : seul le lien du jour est ajouté.
+
+Rouges réels : fonction pure absente, T0 manquant, GET404 et deux logs pluriels exposant
+jour/source. Le filtre Uvicorn couvre maintenant aussi le chemin pluriel, avec ou sans slash
+final. v1 du raccord est un refus de lint sur imports/ligne longue, sans runtime produit.
+Revue statique indépendante de la fondation et du raccord : aucun constat concret, aucune
+exécution ou mutation du relecteur. Preuves : `CRM16-ABSENCE-DAY-PURE-QUALIFIED.json` et
+`CRM16-ABSENCE-DAY-LOCAL-QUALIFIED.json`. Fonctions existantes de lecture/écriture et capture
+inchangées par AST; source RO Landlock, réseau refusé et ressources privées bornées avant imports.
+
+**PARTIAL — vue quotidienne admin HTTP/SQLite qualifiée localement.** Retrait ou absence de
+signalement ne prouve aucune présence, absence observée, emploi passé, heure ou paie. M10,
+PostgreSQL, navigateur natif et mobile restent ouverts. Parent ebce au dernier jalon :
+37 succès, 4 SKIP, 2 en cours, 43 observés; pas de publication anticipée ni remplacement CI.
+Prochaine amélioration utile : sélecteur privé de comptes internes pour faciliter la saisie
+sans devoir connaître l'identifiant; noms actuels explicitement séparés des faits historiques,
+SQL minimisé/borné, aucun hash secret, droit ou profil modifié. Réutiliser la politique staff
+validée; le sélecteur paie existant utilise une lecture globale trop large pour cette surface.

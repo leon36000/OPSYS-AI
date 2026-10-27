@@ -78,6 +78,7 @@ ADMIN_SEUL = frozenset({
     "m4_confirmer_dates_cedule", "m4_lire_calendrier_plan", "m4_lire_cedule_semaine",
     "m4_lire_journal_quotidien",  # transport console admin; garde interne refuse MCP/appareil/agent
     "m4_lire_composition_journaliere_console",  # même transport privé, aucune autorité de compte ajoutée
+    "m4_lire_absences_jour_console",  # liste par jour privée, pas un effectif absent observé
     "m4_lire_absence_journaliere_console",  # signalements privés; source/origine console, aucun droit de compte
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
     "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # coût réel, marge, créances (T1.5-d)

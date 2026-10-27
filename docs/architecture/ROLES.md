@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 176 outils sur 302 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 177 outils sur 303 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (175 outils) : §9.5 + employé + vendeur
+### `admin` (176 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -1050,3 +1050,9 @@ Compte humain initial confirmé en SQLite, auteur et heure serveur, session/admi
 CAS/rejeu privé et savepoint. Les deux répartiteurs génériques refusent avant effet; aucun
 rôle de compte ou accès donné. Aucun sujet dans les accusés ou journaux génériques, aucune
 présence, santé, paie ou décision RH automatique.
+
+
+`m4_lire_absences_jour_console` : T0 de transport console privée admin SQL/session,
+source canonique bornée et recapturée. Les agents/MCP/appareils directs et répartiteurs
+génériques refusent avant effet; aucun rôle de personne ajouté. Une dernière déclaration
+par personne du jour, retrait compris; aucune présence, absence observée ou paie déduite.
