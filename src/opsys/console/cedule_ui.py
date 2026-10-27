@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from . import pages
+from . import annotations_cedule_ui, pages
 
 FUSEAU = "America/Montreal"
 JOURS = ("Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche")
@@ -60,12 +60,21 @@ def _carte(ligne, debut, fin, dossiers, prefixe):
     qualite = "À reconfirmer — ancien créneau" if perime else "Date interne confirmée"
     dossier = (f'<a href="{pages.e(prefixe)}/crm/lead/{pages._segment(lead)}">Dossier {pages.e(lead)}</a>'
                if lead in dossiers else '<span class="note">Dossier M2 non relié</span>')
+    annotation = ""
+    if "annotation" in ligne:
+        badge = ligne["annotation"]
+        if any(type(badge.get(k)) is not int or badge[k] < 0 for k in ("total_ancre", "total_historique")):
+            raise ValueError("compteurs d'annotations invalides")
+        lien = annotations_cedule_ui.url(annotations_cedule_ui.ancre_de(ligne), prefixe)
+        annotation = (f'<p><a href="{pages.e(lien)}" aria-label="Notes de ce créneau">'
+                      f'{"●" if badge["total_ancre"] else "○"} Notes : {badge["total_ancre"]}'
+                      f' · historique : {badge["total_historique"]}</a></p>')
     statut = STATUTS.get(ligne["statut"], ligne["statut"])
     return (
         f'<article class="cedule-job {classe}" data-intervention="{pages.e(iid)}">'
         f'<p><strong>{debut:%H:%M}–{fin:%H:%M}</strong></p><p>{pages.e(statut)}</p>'
         f'<p class="cedule-validite">{qualite}</p><p>{dossier}</p>'
-        f'<p>{_lien_plan(ligne["plan_id"], prefixe)}</p>'
+        f'<p>{_lien_plan(ligne["plan_id"], prefixe)}</p>{annotation}'
         '<details><summary>Origine et confirmation</summary>'
         f'<p>Intervention : {pages.e(iid)}</p>'
         f'<p>Équipe actuelle : {pages.e(ligne["technicien_actuel"] or "Non assignée")}</p>'

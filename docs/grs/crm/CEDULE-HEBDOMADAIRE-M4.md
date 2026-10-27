@@ -64,3 +64,7 @@ Fichiers : `calendrier_civil.py`, `outils.py`, `src/opsys/console/cedule_plan_ui
 Statut : **PARTIAL**, saisie administrative locale démontrée par HTTP. Gates Nathan : aucune notification client, aucun dispatch, aucune action financière implicite. M10, mobile, navigateur réel, disponibilités externes et parcours PostgreSQL ne sont pas qualifiés par ces tests. Le préflight navigateur n'a trouvé aucun Chromium dans les caches autorisés : préparer un navigateur privé avant de revendiquer une validation visuelle. Prochaines étapes : navigateur, couleurs configurables, notes sur cartes, pagination et visites successives.
 
 Vérification finale intégrée : **454 tests verts**, population unique couvrant console/CRM, nouveau détail et anciennes frontières M4 touchées ; les 28 tests ciblés y sont inclus, ne pas les additionner. Ruff et vérificateur passent. Preuves : `dates-ui-regression-v2-*`. La première régression avait sélectionné tout le département M4 (>3 000 tests) et atteint la limite de 90 secondes ; ce résultat reste historique et non qualifié, avec journal systemd. La sélection corrigée énumère les fichiers pertinents, sans relever les limites ni masquer un rouge.
+
+## Tranche CRM-02 — annotations
+
+Les mentions historiques « notes sur cartes ouvertes » ci-dessus précèdent la tranche documentée dans [ANNOTATIONS-CEDULE-M4.md](ANNOTATIONS-CEDULE-M4.md). Elle ajoute le port administratif privé M4, les sources exactes et les versions sans modifier les dates. Qualification et limites consignées dans ce document et le checkpoint courant.

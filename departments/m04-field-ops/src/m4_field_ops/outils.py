@@ -32,16 +32,29 @@ import json
 import os
 import re
 from collections.abc import Callable
+from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import partial
 from typing import Any
 
-from opsys import approbations, cles_chiffrement, contexte, evenements, fichiers, identite, jetons, stockage
+from opsys import (
+    approbations,
+    cles_chiffrement,
+    contexte,
+    evenements,
+    fichiers,
+    idempotence,
+    identite,
+    jetons,
+    stockage,
+)
 from opsys import equipes as equipes_entreprise
 from opsys import meteo as meteo_entreprise
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
     acces,
+    annotations_calendrier,
     calendrier_civil,
     calibration_projection,
     cedule,
@@ -2568,6 +2581,126 @@ def outils(
             # (`acces.controler_administrateur`).
             roles_appareil=frozenset({"admin"}),
         ),
+    ) + _outils_annotations()
+
+
+# CRM-02 : intention et identité fournies par le port humain privé de console.
+_META_ANNOTATION = ContextVar("m4_annotation_calendrier_meta", default=None)
+
+
+@contextmanager
+def contexte_annotation_calendrier(meta):
+    jeton = _META_ANNOTATION.set(meta)
+    try:
+        yield
+    finally:
+        _META_ANNOTATION.reset(jeton)
+
+
+def _autoriser_annotation():
+    n = annotations_calendrier
+    cnx, appelante = stockage.connexion_courante(), contexte.identite_appelante()
+    if (cnx is None or appelante is None or appelante.role != "admin" or appelante.source != "console"
+            or contexte.departement_origine_appelante() != "console" or contexte.appel_provient_du_mcp()):
+        raise n.Refus("IDENTITE")
+    signataire = approbations.signataire_valide(cnx, appelante)
+    if signataire is None or signataire.role != "admin":
+        raise n.Refus("IDENTITE")
+    return {"personne": signataire.personne, "role": "admin"}
+
+
+def _registres_annotations():
+    n = annotations_calendrier
+    principal = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+    notes = stockage.maillons(_DEPARTEMENT, n.REGISTRE)
+    if len(principal) > n.MAX_SOURCES or len(notes) > n.MAX_SOURCES:
+        raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+    return registre.Registre(principal), registre.Registre(notes)
+
+
+def enregistrer_annotation_calendrier(ancre, texte_libre, revision_attendue):
+    from . import encodage
+
+    n = annotations_calendrier
+    try:
+        auteur = _autoriser_annotation()
+        cnx = stockage.connexion_courante()
+        if cnx.dialect.name != "sqlite":
+            raise n.Refus("ECRITURE-NON-QUALIFIEE")
+        meta, reception = _META_ANNOTATION.get(), contexte.horodatage_reception()
+        if (not isinstance(meta, idempotence.Meta) or reception is None
+                or meta.appareil != "console:" + auteur["personne"] or reception.appareil != meta.appareil
+                or reception.recu_le.utcoffset() is None):
+            raise n.Refus("MUTATION-ABSENTE")
+        arguments = {"ancre": ancre, "texte_libre": texte_libre, "revision_attendue": revision_attendue}
+        mutation = {"appareil": meta.appareil, "cle": meta.cle,
+                    "empreinte_arguments": encodage.empreinte(arguments)}
+        principal, notes = _registres_annotations()
+        # SQLite BEGIN IMMEDIATE protège la relecture et l'ajout; intention durable dans le maillon.
+        with cnx.begin_nested():
+            resultat = n.enregistrer(principal, notes, ancre, texte_libre, revision_attendue,
+                                    auteur, mutation, reception.recu_le.isoformat(),
+                                    limite_sortie=contexte.limite_sortie() or 65536)
+            if not resultat.get("rejoue"):
+                from opsys.etat import journaliser
+
+                r = resultat["resultat"]
+                journaliser(cnx, auteur["personne"], "m4.annotation_calendrier", r["annotation_id"],
+                            {"revision": r["revision"], "intervention_id": r["intervention_id"]})
+            return resultat
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lire_annotations_calendrier(intervention_id, limite=20, decalage=0, revision_max=None):
+    n = annotations_calendrier
+    try:
+        _autoriser_annotation()
+        principal, notes = _registres_annotations()
+        return n.lire(principal, notes, intervention_id, limite, decalage, revision_max,
+                      limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def resumer_annotations_calendrier(ancres):
+    n = annotations_calendrier
+    try:
+        _autoriser_annotation()
+        principal, notes = _registres_annotations()
+        return n.resumer(principal, notes, ancres, limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _outils_annotations():
+    identifiant = {"type": "string", "minLength": 1, "maxLength": 200}
+    cles = ["intervention_id", "plan_id", "source_application_id", "source_ligne_id"]
+    ancre = {"type": "object", "properties": {k: identifiant for k in cles},
+             "required": cles, "additionalProperties": False}
+
+    def schema(proprietes, requis):
+        return {"type": "object", "properties": proprietes, "required": requis, "additionalProperties": False}
+
+    return (
+        Outil(nom="m4_enregistrer_annotation_calendrier",
+              description="Console admin privée : annotation versionnée d'un créneau exact. Aucun effet planning, "
+                          "temps, paie, notification ou mémoire. Port MCP fermé avant qualification de sa portée.",
+              parametres=schema({"ancre": ancre, "texte_libre": {"type": "string", "minLength": 1,
+                "maxLength": 2000}, "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 1000000}},
+                ["ancre", "texte_libre", "revision_attendue"]),
+              fonction=enregistrer_annotation_calendrier, autonomie=Autonomie.T1),
+        Outil(nom="m4_lire_annotations_calendrier",
+              description="Console admin privée : historique borné des annotations M4, sources exactes et révisions.",
+              parametres=schema({"intervention_id": identifiant,
+                "limite": {"type": "integer", "minimum": 1, "maximum": 20},
+                "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                "revision_max": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000}},
+                ["intervention_id"]), fonction=lire_annotations_calendrier),
+        Outil(nom="m4_resumer_annotations_calendrier",
+              description="Console admin privée : compteurs sans texte pour 200 créneaux M4 exacts au maximum.",
+              parametres=schema({"ancres": {"type": "array", "items": ancre, "maxItems": 200}}, ["ancres"]),
+              fonction=resumer_annotations_calendrier),
     )
 
 

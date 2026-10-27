@@ -27,7 +27,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from .. import idempotence, tableau_de_bord
-from . import cedule_plan_ui, cedule_ui, metier, notes_commande_ui, pages
+from . import annotations_cedule_ui, cedule_plan_ui, cedule_ui, metier, notes_commande_ui, pages
 from .securite import Session
 
 LIMITE_PAGE = 20  # = m2_revenue_crm.liste_leads.LIMITE_DEFAUT : la page que M2 rend sans argument de taille
@@ -576,6 +576,7 @@ def creer_router(
             if lien.get("lead_id") != lead or not lien.get("client_id"):
                 raise HTTPException(503, "Lien CRM indisponible")
             dossiers.add(lead)
+        annotations_cedule_ui.badges(cnx_factory, deps, session, vue)
         try:
             corps = cedule_ui.contenu(vue, dossiers, prefixe)
         except (ValueError, KeyError, TypeError):
@@ -802,6 +803,10 @@ def creer_router(
         verifier_formulaire(champs, session)
         ajouter_note(session, lead_id, {k: v for k, v in champs.items() if k != "csrf"})
         return RedirectResponse(f"{prefixe}/crm/lead/{pages._segment(lead_id)}#activites", status_code=303)
+
+    router.include_router(annotations_cedule_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire, rendre=rendre))
 
     router.include_router(notes_commande_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,

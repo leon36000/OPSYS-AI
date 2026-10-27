@@ -440,6 +440,38 @@ def _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutati
             return reponse
 
 
+def _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation_id):
+    """Port humain M4 : intention dans le maillon privé, aucune copie dans le reçu central."""
+    from m4_field_ops import outils as m4
+
+    dept = "m04-field-ops"
+    if session.expire <= datetime.now(UTC).timestamp() or "admin" not in personne.roles:
+        raise PermissionError("session admin active requise")
+    if dept not in deps or deps[dept].module_outils != "m4_field_ops.outils":
+        raise KeyError("annotations M4 indisponibles")
+    outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
+    if outil is None:
+        raise KeyError("outil M4 indisponible")
+    ecriture = nom == "m4_enregistrer_annotation_calendrier"
+    if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
+        raise ValueError("annotation invalide")
+    if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
+            or (not ecriture and mutation_id is not None)):
+        raise ValueError("intention d'annotation invalide")
+    maintenant = datetime.now(UTC)
+    meta = (idempotence.Meta(mutation_id, "console:" + personne.identifiant, maintenant.isoformat())
+            if ecriture else None)
+    with (
+        contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
+        contexte.appeler_en_tant_que(dept, origine="console"),
+        contexte.sortie_bornee(262144 if nom == "m4_resumer_annotations_calendrier" else 65536),
+        m4.contexte_annotation_calendrier(meta),
+        contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
+        if ecriture else nullcontext(),
+    ):
+        return executer_atomique(outil, dict(arguments))
+
+
 def executer(
     cnx: Connection,
     deps: Mapping[str, Departement],
@@ -472,6 +504,9 @@ def executer(
         return _executer_observation_growth_humaine(cnx, deps, session, personne, arguments, mutation_id)
     if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
+               "m4_resumer_annotations_calendrier"}:
+        return _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m6_enregistrer_note_commande", "m6_lire_note_commande", "m6_lister_notes_commande"}:
         return _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutation_id)
     surfaces = COMMANDES if mutation_id is not None else LECTURES
