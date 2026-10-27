@@ -22,7 +22,7 @@ client_crm = f.client_crm
 FICTIF = True
 
 
-def _plan_reel(session, nombre, attendre_refus_matrice=False):
+def _plan_reel(session, nombre):
     if not tournees.pyvrp_installe()[0]:
         pytest.skip('extra tournees épinglé requis pour cette qualification de volume réel')
     from m10_memoire import amont, registre
@@ -47,16 +47,10 @@ def _plan_reel(session, nombre, attendre_refus_matrice=False):
         equipe['quarts'] = [dict(jour=j, debut_min=480, fin_min=1020) for j in range(4)]
     chantiers = [dict(intervention_id=iid,
         fenetre=dict(jours=list(range(4)), debut_min=480, fin_min=1020), creneau_fige=None) for iid in ids.values()]
-    avant = f.b.base._instantane_base(session) if attendre_refus_matrice else None
     reponse = f.b.terrain._proposer(m4, ids, moteur='pyvrp', equipes=equipes,
         intervention_ids=list(ids.values()), chantiers=chantiers, durees_par_type_travaux={'ravalement': 5},
         competences_par_type_travaux={'ravalement': []},
         parametres={**f.b.terrain.SCENARIO['parametres'], 'iterations': 100})
-    if attendre_refus_matrice:
-        assert f.b.terrain._code_refus(reponse) == 'REJ-CONTRAT-INVALIDE'
-        assert '202 points, maximum 100 par matrice' in reponse['resultat']['verdict']['detail']
-        assert f.b.base._instantane_base(session) == avant
-        return m4, ids, reponse, time.perf_counter() - debut
     plan = f.b.terrain._resultat(reponse)
     assert plan['totaux']['chantiers_cedules'] == nombre and not plan['non_cedulees'], plan
     assert plan['solveur'] == 'pyvrp' and plan['version_solveur'] == '0.14.0'
@@ -145,15 +139,19 @@ def _http_fixture():
     return module
 
 
-def test_preuve_globale_identique_pages_et_vraie_confirmation(client_crm, session, monkeypatch):
+@pytest.mark.parametrize('nombre', [64, 200])
+def test_preuve_globale_identique_pages_et_vraie_confirmation(
+        client_crm, session, monkeypatch, record_testsuite_property, nombre):
     from opsys import idempotence
 
-    _m4, ids, plan, _preparation = _plan_reel(session, 64)
+    _m4, ids, plan, _preparation = _plan_reel(session, nombre)
     f.b.base._connecter(client_crm, f.AUTH.utilisateur)
     captures = {}
+    appels = [0]
     original = memoire_chantier._paquet
 
     def capturer(*args):
+        appels[0] += 1
         paquet = original(*args)
         captures.setdefault(args[2], paquet)
         return paquet
@@ -161,10 +159,14 @@ def test_preuve_globale_identique_pages_et_vraie_confirmation(client_crm, sessio
     monkeypatch.setattr(memoire_chantier, '_paquet', capturer)
     avant = f.b.base._instantane_base(session)
     offset, source, liens = 0, None, []
+    pages, maximum_octets = 0, 0
+    debut_navigation = time.perf_counter()
     while True:
         with session() as cnx:
             r = memoire_plan_calendrier.lire(cnx, charger_departements(), f.AUTH, plan['plan_id'], offset, source)
-        assert r['synthese']['affaires'] == 64 and len(captures) == 64
+        pages += 1
+        maximum_octets = max(maximum_octets, len(json.dumps(r, ensure_ascii=False).encode()))
+        assert r['synthese']['affaires'] == nombre and len(captures) == nombre
         assert len(json.dumps(r, ensure_ascii=False).encode()) <= 65536
         if source is None:
             source = r['source_pagination']
@@ -175,7 +177,9 @@ def test_preuve_globale_identique_pages_et_vraie_confirmation(client_crm, sessio
             break
         assert prochain > offset
         offset = prochain
-    assert len(liens) == len({lien['intervention_id'] for lien in liens}) == 64
+    navigation_secondes = time.perf_counter() - debut_navigation
+    appels_navigation = appels[0]
+    assert len(liens) == len({lien['intervention_id'] for lien in liens}) == nombre
     assert {lien['intervention_id'] for lien in liens} == set(ids.values())
     historique = dict(liaisons=liens, sources=r['sources_m10'], affaires=[dict(lead_id=lead, affaire_id=lead,
         etat='CONTEXTE_AFFAIRE', paquet={k: v for k, v in paquet.items() if k != 'horodatage'})
@@ -198,6 +202,12 @@ def test_preuve_globale_identique_pages_et_vraie_confirmation(client_crm, sessio
     apres = f.b.base._instantane_base(session)
     assert client_crm.post(url, data=champs).status_code == 200
     assert f.b.base._instantane_base(session) == apres
+
+    record_testsuite_property(f'navigation_complete_{nombre}', json.dumps(dict(
+        visites_reellement_appliquees=nombre, pages=pages, maximum_json_octets=maximum_octets,
+        navigation_secondes=navigation_secondes, appels_m10_navigation=appels_navigation,
+        preuve_historique_identique=True, confirmation_reelle=True, rejoue_sans_effet=True,
+        donnees_fictives=True, transport_reel=False)))
 
 
 def test_changement_m10_et_arguments_pagination_refusent_sans_effet(client_crm, session):
@@ -327,12 +337,42 @@ def test_retour_page_adaptative_ne_saute_aucune_visite(client_crm, session, monk
 
 
 
-def test_200_inscriptions_refusees_par_borne_matrice_sans_plan(client_crm, session, record_testsuite_property):
-    _m4, ids, refus, preparation = _plan_reel(session, 200, attendre_refus_matrice=True)
-    assert len(ids) == 200 and refus['resultat']['accepte'] is False
+def test_200_interventions_planifiees_contextes_et_confirmation_reelle(
+        client_crm, session, record_testsuite_property):
+    _m4, ids, plan, preparation = _plan_reel(session, 200)
+    assert len(ids) == plan['totaux']['chantiers_cedules'] == 200
+    f.b.base._connecter(client_crm, f.AUTH.utilisateur)
+    avant = f.b.base._instantane_base(session)
+    debut = time.perf_counter()
+    with session() as cnx:
+        premier = memoire_plan_calendrier.lire(cnx, charger_departements(), f.AUTH, plan['plan_id'])
+        dernier = memoire_plan_calendrier.lire(cnx, charger_departements(), f.AUTH, plan['plan_id'],
+            199, premier['source_pagination'])
+    assert premier['synthese']['affaires'] == premier['synthese']['visites'] == 200
+    assert dernier['source_pagination'] == premier['source_pagination']
+    assert dernier['pagination']['suivant'] is None and dernier['pagination']['inclus'] == 1
+    assert len(json.dumps(premier, ensure_ascii=False).encode()) <= 65536
+    url = '/crm/cedule/plan/' + plan['plan_id']
+    page = client_crm.get(url, params=dict(offset_memoire='199', source_memoire=premier['source_pagination']))
+    assert page.status_code == 200 and 'sur 200' in page.text, page.text
+    assert f.b.base._instantane_base(session) == avant
+    lecture_secondes = time.perf_counter()-debut
+    champs = _http_fixture().Formulaire(page.text).champs
+    for cle in champs:
+        if cle.startswith('date_'):
+            champs[cle] = '2030-06-' + str(3+int(cle.removeprefix('date_'))).zfill(2)
+    reponse = client_crm.post(url, data=champs, follow_redirects=False)
+    assert reponse.status_code == 303, reponse.text
     with session():
-        assert not any(m['type_entree'] in ('cedule_proposee', 'cedule_appliquee')
-                       for m in f.b.terrain._maillons())
-    record_testsuite_property('volume200_refus_matrice', json.dumps(dict(inscriptions_reelles=200,
-        points_matrice=202, maximum_matrice=100, preparation_secondes=preparation,
-        plan_cree=False, capacite_200_qualifiee=False, verdict=refus['resultat']['verdict']['code'])))
+        dates = [m for m in f.b.terrain._maillons() if m['type_entree'] == 'cedule_datee']
+        assert len(dates) == 1 and dates[0]['plan_id'] == plan['plan_id']
+    apres = f.b.base._instantane_base(session)
+    assert client_crm.post(url, data=champs).status_code == 200
+    assert f.b.base._instantane_base(session) == apres
+    record_testsuite_property('volume200_applique_et_date', json.dumps(dict(
+        visites_reellement_appliquees=200, points_matrice=202, maximum_global=256,
+        preparation_secondes=preparation, deux_lectures_et_HTTP_secondes=lecture_secondes,
+        premiere_octets=len(json.dumps(premier, ensure_ascii=False).encode()),
+        derniere_octets=len(json.dumps(dernier, ensure_ascii=False).encode()),
+        html_octets=len(page.content), mode='haversine_detour', transport_reel=False,
+        navigation_complete_200=False, confirmation_reelle=True, donnees_fictives=True)))

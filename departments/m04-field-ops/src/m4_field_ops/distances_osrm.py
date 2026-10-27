@@ -22,7 +22,7 @@ Forme de réponse attendue, d'après la documentation d'OSRM :
       lit, ne garde et ne recopie que les deux matrices.
     Une requête sans ``sources`` ni ``destinations`` demande la matrice n×n de tous les points ; le
     nombre de points est limité par ``osrm-routed --max-table-size`` (100 par défaut :
-    https://project-osrm.org/docs/v26.4.0/tools), d'où ``distances.MAX_POINTS``.
+    https://project-osrm.org/docs/v26.4.0/tools).
     Non vérifié contre un vrai sidecar : la documentation illustre ``annotations=distance`` par
     « for CH » ; à confirmer sur l'installation réelle. Une réponse sans matrice ``distances`` valide
     est un verdict (``REJ-MATRICE-REPONSE-INVALIDE``) puis un repli marqué, jamais des mètres inventés.
@@ -66,6 +66,8 @@ DELAI_DEFAUT_S = 5
 TAILLE_MAX_REPONSE = 8 * 1024 * 1024
 MODE_OSRM = "osrm_table"
 PROFIL_DEFAUT = "driving"
+# Politique conservatrice du transport actuel, distincte de la capacité de calcul globale.
+MAX_POINTS_REQUETE = 100
 
 # Plafond de plausibilité d'une cellule (1 000 000 km ou ≈ 11,5 jours) : au-delà, la réponse est
 # rejetée comme invalide plutôt que transmise au solveur.
@@ -81,6 +83,7 @@ __all__ = [
     "DELAI_DEFAUT_S",
     "TAILLE_MAX_REPONSE",
     "MODE_OSRM",
+    "MAX_POINTS_REQUETE",
     "PROFIL_DEFAUT",
     "FournisseurOsrm",
     "creer_fournisseur_osrm",
@@ -312,6 +315,11 @@ class FournisseurOsrm:
         tries, verdict = distances.valider_points(points)
         if verdict is not None:
             return None, verdict
+        if len(tries) > MAX_POINTS_REQUETE:
+            return None, _indisponible(
+                f"transport OSRM limité à {MAX_POINTS_REQUETE} positions par requête ; "
+                "matrice par blocs non qualifiée : repli global explicite requis",
+            )
         corps, verdict = self._requete(self._url(tries))
         if verdict is not None:
             return None, verdict

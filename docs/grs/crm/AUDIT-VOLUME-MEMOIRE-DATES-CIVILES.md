@@ -148,3 +148,12 @@ sans relever une limite à l'aveugle ni inventer une disponibilité globale. Mes
 le coût des snapshots M10 répétés avant toute mutualisation. Navigateur, PostgreSQL, mobilité,
 trajets réels, capacité opérationnelle complète et fraîcheur météo restent ouverts. Aucun
 client, fournisseur, paiement, droit, fusion ou déploiement réel n'a été engagé.
+
+
+Jalon suivant : [séparation matrice globale/transport](../field/M4-AUDIT-MATRICE-GRANDE-CAPACITE.md).
+La borne globale est désormais256, OSRM transport reste100 sans nouvelle requête. Un vrai
+plan200 PyVRP/haversine a été appliqué, parcouru sur67 pages, confirmé et rejoué sans effet.
+Les353 cas puis les deux contrôles complémentaires compatibles passent, sans cumul. Le refus
+historique202>100 n'est pas effacé. Le batch routier et les autres limites restent PARTIAL.
+La mesure13400 appels M10/80,492 s pour la navigation200 rend la mutualisation des snapshots
+par préparation pertinente; aucun gain ni coût constant n'est encore revendiqué.

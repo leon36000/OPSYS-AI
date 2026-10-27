@@ -306,3 +306,12 @@ page qualifiées. Frontière réelle98 (deux dépôts) vérifiée sur premières
 refusées par la matrice limitée à100 points; aucun plan200, trafic, capacité globale ou
 qualification navigateur/PostgreSQL/mobile n'est revendiqué. Prochaine tranche : contrat et
 calcul de matrice par blocs, puis coût de lecture M10 mesuré avant optimisation.
+
+
+CRM-08 — état courant de la [capacité locale200](../field/M4-AUDIT-MATRICE-GRANDE-CAPACITE.md) :
+borne globale256 distincte du transport OSRM100, vrai plan200 PyVRP/haversine appliqué,
+67 pages sous64Kio sans perte/doublon, contexte/proof complets, vraie datation et rejeu sans
+effet.353 tests passent puis deux contrôles compatibles recoupés, jamais additionnés. RSS et
+mémoire de groupe mesurés sous ressources bornées. **PARTIAL** : pas de routage OSRM>100 ni de
+trafic/dispatch de production; repli explicite avant réseau. Prochaine priorité mesurée :
+réduire les13400 lectures M10 par navigation200 sans perdre snapshots/autorité/confidentialité.
