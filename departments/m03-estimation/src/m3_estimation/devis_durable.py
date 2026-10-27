@@ -126,6 +126,7 @@ _CLES_CONTENU_DEVIS = (
     "prix_total",
     "estimation_source_hash",
     "modele_soumission",
+    "provenance_tarifs",
 )
 
 _ROLES_CONNUS = ("interne", "employe")
@@ -309,6 +310,8 @@ def _etats_courants(registre_cible: Any) -> dict[str, dict[str, Any]]:
             etats[devis_id] = dict(maillon)
             if "modele_soumission" in maillon:
                 etats[devis_id]["modele_soumission"] = copy.deepcopy(maillon["modele_soumission"])
+            if "provenance_tarifs" in maillon:
+                etats[devis_id]["provenance_tarifs"] = copy.deepcopy(maillon["provenance_tarifs"])
         elif type_entree == "transition_devis" and devis_id in etats:
             etats[devis_id] = {**etats[devis_id], **maillon}
     return etats
@@ -329,6 +332,7 @@ def creer_devis(
     prix_total_fourni: str | None = None,
     estimation_source_hash: str | None = None,
     modele_soumission: dict[str, Any] | None = None,
+    provenance_tarifs: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict | None]:
     """Crée un devis BROUILLON sur ``registre_cible`` (le registre DÉDIÉ des devis). Idempotente
     par ``devis_id`` (cf. docstring du module) : un contenu identique rend l'existant sans écrire,
@@ -404,6 +408,14 @@ def creer_devis(
         candidat["estimation_source_hash"] = estimation_source_hash
     if modele_soumission is not None:
         candidat["modele_soumission"] = copy.deepcopy(modele_soumission)
+    if provenance_tarifs is not None:
+        from .provenance_tarifs import valider
+
+        if not valider(provenance_tarifs, candidat["lignes"], modele_soumission, horodatage):
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="provenance de tarifs figée invalide"
+            )
+        candidat["provenance_tarifs"] = copy.deepcopy(provenance_tarifs)
 
     maillons = _lire_maillons(registre_cible)
     existant = _etat_devis(maillons, devis_id)
@@ -539,7 +551,10 @@ def projeter_devis(devis: dict[str, Any] | None, role: str) -> tuple[dict[str, A
     if devis is None:
         return None, verdicts.construire_verdict("REJ-DEVIS-INTROUVABLE", detail="aucun devis à projeter")
     if role == "interne":
-        return dict(devis), None
+        projection = dict(devis)
+        if "provenance_tarifs" in devis:
+            projection["provenance_tarifs"] = copy.deepcopy(devis["provenance_tarifs"])
+        return projection, None
 
     lignes_redigees = [
         {cle: ligne.get(cle) for cle in _CLES_LIGNE_EMPLOYE} for ligne in devis.get("lignes", ())

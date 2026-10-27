@@ -48,10 +48,31 @@ Preuves locales distinctes : `work/chantier-opsys-20261010/crm-prefill-qa-202610
 phases `foundation-v1`, `foundation-v2`, `foundation-v3`, avec reçus, JUnit, empreintes et
 limites effectives. QA sans réseau, source en lecture seule, homes/tmp privés.
 
+## Provenance privée du devis — raccord du domaine
+
+`provenance_tarifs.py` valide désormais une copie optionnelle fermée dans `devis_durable`.
+Elle lie la source textuelle, la source/révision du jeu de lignes et les tarifs par
+référence de ligne. Chaque ligne du devis sourcé est couverte une fois, avec identifiant
+de modèle unique, coût décimal égal au coût calculé, unité identique, CAD et date non future
+à la création. Le marquage documentaire reste déclaratif ou fallback. L’adaptateur futur
+doit toujours vérifier les sources réelles; le validateur ne les authentifie pas.
+
+La provenance participe au refus de rejeu avec contenu différent, ne peut être ajoutée
+rétroactivement à un devis manuel et reste copiée profondément après lecture/acceptation.
+Elle ne figure pas dans les documents clients, la projection employé ou les événements
+existants. Les anciens appels et rendus restent compatibles; aucun port supplémentaire
+n’accepte encore cette donnée depuis un navigateur ou un agent.
+
+Preuve locale `provenance-v2` : 534 réussites, aucun échec, un saut historique du garde
+réservé à GitHub Actions. Le PDF réel a bien été généré et lu. Cas vérifiés : couverture
+de 20 lignes, doublons refusés, unité/coût/date/source incohérents, changements de provenance
+au rejeu, copies indépendantes, SQLite migré puis moteur fermé/rouvert, rollback, acceptation,
+HTML et octets PDF identiques au devis équivalent sans provenance. Ruff et manifestes
+réussis. La sélection recoupe les précédentes; ne pas additionner les populations.
+
 ## Prochaine capacité
 
-Conserver une provenance privée fermée dans le nouveau devis, incluse dans l’idempotence
-et les copies profondes. Ajouter ensuite les ports console privés, les formulaires et
+Ajouter les ports console privés, les formulaires et
 le parcours HTTP/SQLite réel modèle → tarif choisi → devis → HTML/PDF. Vérifier révocation,
 CSRF, source modifiée GET/POST, double clic, rollback et absence de coût/fournisseur dans
 les documents clients. Les modèles manuels restent compatibles. L’import courriel,
