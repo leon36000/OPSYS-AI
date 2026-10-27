@@ -83,3 +83,47 @@ preflight T1 involontaire et prêt de rôle serveur. Aucun gate Nathan suppléme
 lecture préparatoire réversible. Les décisions sensibles réelles et la politique de blocage
 restent explicites. Prochaine action : écrire le cas réel de consultation M10 depuis la revue
 N3 avant le port; conserver les dates et le dispatch complets ouverts.
+
+## Constats reproduits pendant le port privé
+
+`memory-read-v3` : 102 PASS et une régression SQL A→B→A rouge. Une nouvelle entrée temporaire
+M10 consommée par le vrai T0 puis retirée avant la relecture pouvait produire un paquet accepté
+sous les têtes initiales. Le lecteur appareil doit assembler sur des snapshots immuables dont
+il cite les têtes réellement consommées; comparer ces preuves côté port, sans changer le paquet
+privé serveur/Core. Valider les chaînes de ces snapshots avant assemblage.
+
+La revue indépendante constate aussi chantier_id non comparé; `memory-read-v4` reproduit un
+fait M10 rechaîné au chantier étranger encore marqué LIE. Dériver tous les champs depuis la
+charge M3 publiée exacte par `etapes.etape(...).extraire`, puis comparer à la forme canonique
+`amont._entree`, y compris chantier_id=None. Ne jamais assimiler ce chantier à intervention_id.
+
+## Jalon exécuté — port privé de lecture, sans raccord décisionnel
+
+`console/memoire_chantier.py::lire` valide le lien M3/M4 réel, borne avant décodage les deux
+registres M10, contrôle leurs chaînes, vérifie l’intégralité du fait accepté par la projection
+canonique M3 et appelle le vrai T0 admin restrictif. État LIE signifie uniquement ce lien de
+source; DEVIS_NON_MEMORISE et NON_REPRESENTABLE restent explicites, jamais une autorisation.
+Les couches, omissions, signaux et consolidation sont conservés et vérifiés; l’empreinte de
+consultation exclut seulement l’heure volatile. Aucun reçu, événement ou preflight n’est écrit.
+
+Le lecteur appareil M10 assemble maintenant depuis des copies capturées et validées des vrais
+registres, puis cite `source_registres` (têtes effectivement consommées). Le port compare ces
+preuves aux têtes préparées et relues; le contrat privé serveur/Core n’est pas modifié.
+
+`memory-read-red-v1` constate le port absent; v1/v2/v5 sont des refus statiques avant tout test.
+`memory-read-v3` 102 PASS et le rouge SQL ABA; v4 reproduit le chantier étranger accepté.
+`memory-read-v6` **107 PASS, 0 FAIL/SKIP, 13,48 s**, dont 18 cas du nouveau port, cascade amont
+réelle, quotas sans artefacts, paquet d’affaire et autorisations appareil; Ruff/vérificateur
+297/173 passent. Les cohortes ne sont pas additionnées. Sont prouvés : lecture sans écriture,
+ancre étrangère/contradictoire ou absente, retrait de rôle/expiration avant M10, chaîne cassée,
+quota SQL avant décodage, projections altérées/excessives, tête changée et SQL A→B→A refusés.
+Six signaux critiques réels M10 sont créés par les propriétaires WCT/variance : certains sont
+omis du détail mais nb_ouverts=6 et nb_omis restent visibles. Ce fixture M10 ne qualifie pas à
+lui seul une clôture terrain M4 réelle. Revue finale statique : aucun constat restant.
+
+**PARTIAL** : port privé qualifié sur SQLite; pas encore d’affichage ni de contrôle M10 dans
+la revue N3 ou la modification de dates. La branche NON_REPRESENTABLE suit le contrat existant
+M10; une chaîne CRM complète avec un tel identifiant n’a pas été qualifiée ici. Aucun signal
+n’est traité ou clos et aucune politique bloquante n’est inventée. Prochaine action : raccorder
+le contexte courant à la revue N3 puis son empreinte avant/après application, en préservant le
+reçu historique et le rollback atomique; les dates critiques restent une tranche distincte.

@@ -457,9 +457,15 @@ def lire_paquet_affaire_appareil(affaire_id: str, horodatage: str) -> dict[str, 
     refus = _refus_lecture_admin()
     if refus is not None:
         return refus
+    # Une preuve de lecture doit décrire les snapshots réellement consommés, pas une tête relue après coup.
+    evenements = registre.Registre(_REGISTRE_EVENEMENTS.lire())
+    affaires = registre.Registre(_REGISTRE_AFFAIRES.lire())
+    if not evenements.valider_chaine()[0] or not affaires.valider_chaine()[0]:
+        return _verdict("REJ-PAQUET-AFFAIRE-SOURCE-INVALIDE", "chaîne de mémoire illisible")
     paquet = paquets.assembler_paquet_contexte(
-        affaire_id, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES, agent=None,
+        affaire_id, horodatage, evenements, affaires, agent=None,
     )
+    paquet["source_registres"] = {"evenements": evenements.tete(), "affaires": affaires.tete()}
     # Capacites mesure l'enveloppe entière. Le budget des faits du Core reste inchangé.
     taille = len(json.dumps({"ok": True, "resultat": paquet}, ensure_ascii=False))
     if taille > jetons.LIMITE_SORTIE_DEFAUT - 100:
