@@ -40,7 +40,10 @@ SHA256_HORODATAGE_ATTENDU = "7168dc81de0d37f0e7160b96e9df14c9a1bf5ef594a791f2574
 # Sixième rescellage, 2026-10-27 : CRM-04 (dd19e5cf), deux refus de correction des coordonnées
 # ajoutés seulement : REJ-CONTACT-CONFLIT et REJ-CONTACT-BACKEND-NON-QUALIFIE. Aucun verdict
 # historique modifié. Provenance et deux empreintes : docs/bmad/03-ARCHITECTURE.md, addendum CRM-04.
-SHA256_VERDICTS_ATTENDU = "842411b47028076c9718d5b915389676297f3624f9fdfb52eced49e5b86f9644"
+# Septième rescellage, 2026-10-27 : CRM-03, les quinze refus fermés de l'agenda
+# commercial ajoutés par 14540419. Octets historiques inchangés hors ajout;
+# décision et empreintes documentées dans l'addendum CRM-03 de l'architecture M2.
+SHA256_VERDICTS_ATTENDU = "54e79d529522edf386ada2d998ecad927b2c5a7bdebd4cf87784ede9fc17553e"
 
 
 class TestCA_M2_13_Empreintes:
