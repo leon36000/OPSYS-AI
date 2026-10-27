@@ -26,7 +26,7 @@ la saisie manuelle existante reste accessible, ainsi que le lien de configuratio
 
 ## Architecture, fichiers et routes
 
-`src/opsys/console/prefill_ui.py` porte les formulaires et appelle les quatre ports privés
+`src/opsys/console/prefill_ui.py` porte les formulaires et appelle les cinq ports privés
 qualifiés. `devis_modele_ui.py` raccorde le routeur et les liens; `modeles_soumission_ui.py`
 ajoute l’accès depuis le catalogue. Les domaines, tarifs, calculs et journaux restent M3/M6.
 
@@ -53,8 +53,8 @@ Aucun achat, paiement, envoi fournisseur/client, acceptation ou changement de dr
 Les gates Nathan de ces actions restent applicables. Les coûts et références fournisseur
 restent dans la console admin et la provenance privée; les documents client n’en contiennent pas.
 M10, import automatique de listes par courriel, mobile et PostgreSQL restent hors qualification
-de cette tranche. Le consommateur M6 de l’acceptation a été testé au jalon ports; le bus complet
-de ce nouveau parcours reste à qualifier séparément.
+de cette tranche. Le bus durable de ce nouveau parcours est désormais qualifié sur SQLite
+avec acceptation fictive explicite; cela ne vaut pas qualification du core ni de PostgreSQL.
 
 ## Preuves et statut
 
@@ -76,7 +76,7 @@ La revue a aussi identifié le risque de perte des sauts de ligne dans un input 
 par textarea et test de conservation. Aucun contrôle produit n’a été affaibli.
 
 Prochaines étapes : sélection des matériaux par libellé, confirmation complète du prix de vente
-avant création, preuve du bus acceptation → départements, puis qualification navigateur selon
+avant création, puis qualification navigateur selon
 le harnais autorisé. Mobile reste en dernière phase. Les autres exigences CRM-07 restent ouvertes.
 
 ## Choix fournisseur par nom — jalon suivant
@@ -109,3 +109,24 @@ Les populations se recoupent. Aucun test navigateur natif ni GO global n’est d
 La recherche ciblée dans `catalogue.py`, `livre_prix.py`, `registre.py` et `contrats.py` M6
 n’a pas établi de registre durable de noms de matériaux exploitable ici : la résolution de prix
 n’est pas un catalogue de libellés. Aucun nom matériau n’est inventé depuis son identifiant.
+
+## Jonction HTTP → acceptation → départements
+
+`tests/test_console_prefill_bus.py` réutilise les formulaires HTTP et le répartiteur réel
+de `test_cascade_devis_accepte.py`. Un lead fictif publié par M1 est qualifié dans M2,
+puis un devis est créé par HTTP avec modèle M3 et tarif M6. Le brouillon ne crée ni
+intervention ni besoin matériaux. Après changement du tarif, l’acceptation explicite
+conserve le coût figé 25 CAD et le prix de vente 30 CAD du scénario fictif.
+
+Les cinq consommateurs ont des reçus SQL traités : M2 convertit le lead, M4 inscrit
+une intervention à planifier, M5 reçoit le devis, M6 reçoit deux pieds de matériau et
+M8 reçoit le fait chantier. Sans stock, M6 marque à commander et réserve zéro; M4
+reste bloqué. Aucun achat ni facture finale ni promesse de cédule n’est déclenché.
+La provenance privée des tarifs reste absente du message, dont les champs financiers
+existants restent inchangés. Rejouer le même événement ou le même devis sous un nouvel
+identifiant ne duplique aucun registre métier.
+
+Qualification privée `crm-prefill-qa-20261027-r1/bus-v2` : huit tests réussis, zéro échec
+ou saut, 2,71 s; Ruff et vérificateur 288/173 réussis. Sept tests de cascade préexistants
+sont réutilisés, résultats non additionnables aux autres campagnes. Le test ne qualifie
+ni navigateur natif, ni envoi client, ni acceptation juridique, ni M10, ni PostgreSQL.
