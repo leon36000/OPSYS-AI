@@ -8,6 +8,7 @@ from .. import approbations, contexte, idempotence, identite, stockage
 from ..etat import journaliser
 from ..outils import Autonomie, Niveau
 from ..stockage.schema import APPROBATIONS, MUTATIONS_APPLIQUEES
+from . import memoire_chantier
 from . import preparation_chantier as lecture
 from . import proposition_chantier as proposition
 
@@ -36,8 +37,10 @@ def preparer(cnx, deps, session, lead_id, devis_id, plan_id):
     permis = (application is None and revue['statut_intervention'] == 'a_planifier'
               and not revue['etat_ou_equipes_modifies'] and revue['preparation'] is not None
               and revue['preparation']['pret'] is True and len(visites) == 1)
-    preuve = dict(apercu=apercu, revue=revue, application_presente=application is not None)
-    return lecture._sortie(dict(revue=revue, peut_appliquer=permis,
+    memoire = memoire_chantier.lire(cnx, deps, session, lead_id, devis_id)
+    preuve = dict(apercu=apercu, revue=revue, application_presente=application is not None,
+                  memoire_empreinte=memoire['empreinte'])
+    return lecture._sortie(dict(revue=revue, peut_appliquer=permis, memoire=memoire,
         empreinte=idempotence.empreinte_arguments(preuve), profils_source=apercu['profils_source']))
 
 
@@ -161,12 +164,17 @@ def appliquer(cnx, deps, session, lead_id, devis_id, plan_id, empreinte_attendue
         application = _preuve_application(cnx, courant['revue'], ident, session.utilisateur)
         if idempotence.empreinte_arguments(proposition._profils()) != courant['profils_source']:
             raise lecture.Refus('SOURCE-MODIFIEE')
+        memoire = memoire_chantier.lire(cnx, deps, session, lead_id, devis_id)
+        if memoire['empreinte'] != courant['memoire']['empreinte']:
+            raise lecture.Refus('SOURCE-MODIFIEE')
         personne = identite.personne_active(cnx, session.utilisateur)
         if personne is None or 'admin' not in personne.roles or session.expire <= datetime.now(UTC).timestamp():
             raise PermissionError('admin actif requis')
         resultat = lecture._sortie(dict(ok=True, application=application, approbation_id=ident,
                                        rejoue=False, historique=False))
         journaliser(cnx, session.utilisateur, 'console.action_interne', NOM,
-                    dict(plan_id=plan_id, approbation_id=ident, mutation_id=mutation_id))
+                    dict(plan_id=plan_id, approbation_id=ident, mutation_id=mutation_id,
+                         memoire_empreinte=memoire['empreinte'], memoire_sources=memoire['sources'],
+                         memoire_reference_devis=memoire['reference_devis']))
         idempotence.finaliser(cnx, meta, resultat)
         return resultat

@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from . import application_chantier as application
-from . import cedule_plan_ui, pages
+from . import cedule_plan_ui, memoire_chantier, pages
 from . import preparation_chantier as lecture
 from . import proposition_chantier as port
 
@@ -137,7 +137,8 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre, verifier_f
         try:
             with cnx_factory() as cnx:
                 apercu = application.preparer(cnx, deps, session, lead_id, devis_id, plan_id)
-            corps = contenu(apercu['revue'], prefixe) + formulaire_application(apercu, session.csrf, prefixe)
+            corps = (contenu(apercu['revue'], prefixe) + memoire_chantier.contenu(apercu['memoire'])
+                     + formulaire_application(apercu, session.csrf, prefixe))
             reponse = _rendre_borne(rendre, session, 'Revue de proposition M4', corps)
         except PermissionError:
             raise HTTPException(403, 'Accès admin requis') from None
@@ -165,7 +166,10 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre, verifier_f
                     apercu = application.preparer(cnx, deps, session, lead_id, devis_id, plan_id)
                 corps = ('<p role="status">Reçu historique : décision déjà enregistrée. '
                          'Aucune nouvelle affectation ni disponibilité confirmée.</p>'
-                         + contenu(apercu['revue'], prefixe))
+                         + contenu(apercu['revue'], prefixe)
+                         + '<p>Le contexte ci-dessous est actuel; il ne reconstitue pas '
+                         'celui de la décision initiale.</p>'
+                         + memoire_chantier.contenu(apercu['memoire']))
                 return _rendre_borne(rendre, session, 'Reçu historique M4', corps)
         except PermissionError:
             raise HTTPException(403, 'Accès admin requis') from None

@@ -1,8 +1,10 @@
 """Paquet M10 restrictif du devis exact : lecture privée, aucune décision ou mémoire copiée."""
+import json
 from datetime import UTC, datetime
 
 from .. import contexte, idempotence, identite, stockage
 from ..outils import Autonomie, executer
+from . import pages
 from . import preparation_chantier as lecture
 
 M10 = 'm10-memoire'
@@ -110,3 +112,35 @@ def lire(cnx, deps, session, lead_id, devis_id):
               {k: v for k, v in resultat['paquet'].items() if k != 'horodatage'}}
     resultat['empreinte'] = idempotence.empreinte_arguments(preuve)
     return lecture._sortie(resultat)
+
+
+def contenu(memoire):
+    """Projection humaine du paquet déjà validé; jamais un indicateur d'autorisation."""
+    titres = {'regles_entreprise': 'Règles de l’entreprise', 'faits_affaire': 'Faits de l’affaire',
+              'evenements_recents': 'Événements récents', 'signaux_non_resolus': 'Signaux non résolus'}
+    corps = ('<section><h2>Mémoire de l’affaire</h2><p>Contexte actuel M10, vue restrictive. '
+        'Cette lecture ne vaut ni validation du chantier ni clôture de ses signaux.</p>'
+        f'<p>Liaison du devis : {pages.e(memoire["etat"])}.</p>')
+    paquet = memoire['paquet']
+    if paquet is None:
+        return corps + '<p role="alert">Identifiant non représentable dans M10; aucun contexte substitué.</p></section>'
+    if memoire['etat'] != 'LIE':
+        corps += '<p role="alert">Le fait du devis exact manque dans M10. La mémoire est incomplète.</p>'
+    s = paquet['signaux']
+    corps += (f'<p>Signaux ouverts : {s["nb_ouverts"]} · Pris en compte : {s["nb_pris_en_compte"]} · '
+              f'Clos : {s["nb_clos"]}</p>')
+    if s['nb_ouverts']:
+        corps += '<p role="alert">Signaux à examiner humainement, y compris ceux omis du détail ci-dessous.</p>'
+    for couche in paquet['couches']:
+        corps += (f'<h3>{pages.e(titres[couche["nom"]])}</h3>'
+            f'<p>Inclus : {couche["nb_inclus"]} · Total : {couche["nb_total"]} · Omis : {couche["nb_omis"]}</p>')
+        if couche['tronque']:
+            corps += '<p role="alert">Couche partielle : le détail ne contient pas tous les faits.</p>'
+        for fait in couche['faits']:
+            corps += (f'<p>{pages.e(fait["resume"])}<br>Source : {pages.e(fait["source"])} · '
+                f'{pages.e(fait["identifiant"])} · {pages.e(fait["horodatage"])}</p>')
+    corps += '<details><summary>Origine, consolidation et références de lecture</summary>'
+    for nom, valeur in [('Affaire', paquet['affaire']), ('Consolidation', paquet['consolidation']),
+                        ('Sources', memoire['sources']), ('Référence du devis', memoire['reference_devis'])]:
+        corps += f'<p>{nom} : {pages.e(json.dumps(valeur, ensure_ascii=False))}</p>'
+    return corps + '</details></section>'

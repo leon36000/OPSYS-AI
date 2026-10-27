@@ -127,3 +127,56 @@ M10; une chaîne CRM complète avec un tel identifiant n’a pas été qualifié
 n’est traité ou clos et aucune politique bloquante n’est inventée. Prochaine action : raccorder
 le contexte courant à la revue N3 puis son empreinte avant/après application, en préservant le
 reçu historique et le rollback atomique; les dates critiques restent une tranche distincte.
+
+## Tranche suivante — contexte visible et CAS de décision N3
+
+La revue doit afficher le paquet courant restrictif avant le bouton N3 : liaison du devis,
+faits, sources, omissions et compteurs globaux de signaux, sans transformer un lien LIE en
+validation métier. L’empreinte du formulaire inclut l’empreinte stable du lecteur M10;
+l’heure volatile n’y entre pas. Après une nouvelle décision réelle, relire le même contexte
+et refuser/rollback si sa source a changé, même lorsque l’erreur est capturée par l’appelant.
+L’audit de décision garde l’empreinte, les têtes et la référence exacte du devis consulté,
+sans recopier les faits. Le même reçu rejoué demeure historique : aucune seconde décision,
+affichage du contexte actuel identifié comme tel, aucune prétention de contexte historique.
+
+Le formulaire reste fermé aux trois champs existants. Une mémoire absente reste signalée;
+aucune politique bloquante par signal n’est ajoutée. Les dates civiles ne sont pas modifiées
+par cette tranche. Qualifier sources changées après revue et pendant décision, rollback,
+rejeu avec nouveau contexte, signaux omis visibles et absence M10 avant de livrer le raccord.
+
+## Jalon exécuté — revue N3 et décision liées au contexte courant
+
+`application_chantier.preparer` relit le vrai paquet M10 restrictif et inclut uniquement son
+empreinte stable dans le CAS existant. La revue HTTP affiche le contexte avant le bouton N3 :
+liaison du devis, faits, sources, omissions, compteurs globaux de signaux et consolidation.
+Le formulaire conserve les trois seuls champs CSRF/intention/empreinte; pas d’argument mémoire
+libre, pas de changement de rôle ni de politique de blocage. Le GET ne modifie aucune table.
+
+Après exécution d’une nouvelle décision N3 réelle, le port relit M10; une empreinte différente
+refuse avant finalisation et le savepoint annule l’approbation, les effets M4, le reçu et l’audit.
+L’audit final garde empreinte/têtes/référence du devis consulté, sans copier les faits. Un ancien
+reçu reste historique et ne crée aucune seconde décision. La page de rejeu identifie le contexte
+affiché comme actuel et dit qu’il ne reconstitue pas celui de la décision initiale.
+
+`memory-decision-red-v1` reproduit l’absence de contexte dans la revue; v1/v2 s’arrêtent au
+lint avant tests. `memory-decision-v3` **55 PASS, 0 FAIL/SKIP, 29,35 s** : cinq nouveaux cas
+et cohortes existantes application privée/HTTP, lecteur M10 et proposition HTTP. Le refus de
+mémoire changée après revue conserve la base complète; le changement injecté pendant la vraie
+décision annule tout, même lorsque l’exception est capturée dans la transaction extérieure.
+Six signaux critiques M10 restent comptés et avertis même lorsque des détails sont omis.
+Le rejeu après nouvelle mémoire n’ajoute pas d’approbation et montre le contexte courant.
+
+`memory-decision-v4` ajoute **2 PASS, 2,55 s** sous les mêmes sources produit, anciens tests
+conservés comme préfixe exact : absence du devis M10 visible avant une décision humaine interne,
+et données d’audit au format ancien sans champs M10 rejouables historiquement. Ce dernier cas
+est une fixture de format de données, pas une exécution d’ancien binaire. Les cohortes se
+recoupent et ne sont pas additionnées. Ruff et vérificateur 297/173 passent; revue indépendante
+statique sans constat concret restant. Source lecture seule pendant QA, homes/tmp privés avant
+imports, réseau interdit, 1 CPU/1 Gio/96 tâches; commandes/empreintes/logs/JUnit/reçus distincts.
+
+**PARTIAL** : contexte M10 et CAS qualifiés pour l’application interne N3 sur HTTP/SQLite.
+Aucun signal n’est clos ni sanctionné. Les changements critiques de dates civiles, plans
+legacy/multi-interventions, la politique de fraîcheur météo, la capacité globale/trajets et
+le dispatch restent à traiter. Navigateur, PostgreSQL, mobile et produit complet ne sont pas
+qualifiés par ce jalon. Prochaine action : auditer les ancres M4 de chaque visite pour étendre
+la lecture M10 aux dates sans inventer un devis accepté sur un chantier manuel.
