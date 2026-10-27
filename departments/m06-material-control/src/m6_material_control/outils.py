@@ -78,7 +78,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -1408,6 +1408,27 @@ def _mutation_note_commande(arguments):
     return {"appareil": meta.appareil, "cle": meta.cle, "empreinte_arguments": encodage.empreinte(arguments)}
 
 
+def _horodatage_note_commande():
+    """Instant serveur injecté par le transport ; aucune horloge de secours locale/appareil."""
+    reception = contexte.horodatage_reception()
+    meta = _META_NOTE_COMMANDE.get()
+    try:
+        if (
+            type(reception) is not contexte.HorodatageAppareil
+            or not isinstance(meta, idempotence.Meta)
+            or reception.appareil != meta.appareil
+            or type(reception.horodatage_appareil) is not datetime
+            or type(reception.recu_le) is not datetime
+            or reception.horodatage_appareil.utcoffset() is None
+            or reception.recu_le.utcoffset() is None
+            or reception.horodatage_appareil != datetime.fromisoformat(meta.horodatage_appareil)
+        ):
+            raise notes_commande.Refus("HORODATAGE-RECEPTION-INVALIDE")
+        return reception.recu_le.isoformat()
+    except (ValueError, TypeError, OverflowError):
+        raise notes_commande.Refus("HORODATAGE-RECEPTION-INVALIDE") from None
+
+
 def enregistrer_note_commande(note_id: str, devis_id: str, texte_libre: str, revision_attendue: int):
     n = notes_commande
     try:
@@ -1416,6 +1437,7 @@ def enregistrer_note_commande(note_id: str, devis_id: str, texte_libre: str, rev
         arguments = {"note_id": note_id, "devis_id": devis_id, "texte_libre": texte_libre,
                      "revision_attendue": revision_attendue}
         mutation = _mutation_note_commande(arguments)
+        horodatage_serveur = _horodatage_note_commande()
         registre, maillons = _notes_commande_snapshot()
         ancien_recu = n.retrouver_mutation(maillons, mutation, auteur)
         limite = contexte.limite_sortie() or n.BORNE_SORTIE
@@ -1431,7 +1453,7 @@ def enregistrer_note_commande(note_id: str, devis_id: str, texte_libre: str, rev
         if len(maillons) >= n.MAX_SOURCES:
             raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
         maillon = n.construire(
-            maillons, arguments, besoin["chantier_id"], auteur, mutation, datetime.now(UTC).isoformat(),
+            maillons, arguments, besoin["chantier_id"], auteur, mutation, horodatage_serveur,
         )
         reponse = n.reponse(maillon)
         n.verifier_borne(reponse, limite)
@@ -2620,62 +2642,6 @@ _PAGE_CLASSEMENT = {
 def outils() -> tuple[Outil, ...]:
     return (
         Outil(
-            nom=notes_commande.ECRIRE,
-            description=(
-                "Enregistre une version de note d'achat interne sur le chantier connu d'un devis M6. "
-                "Texte original jusqu'à 20000 caractères, sans sélection d'articles ; prévu vide accepté. "
-                "Admin actif, mutation serveur et révision attendue requis. Aucun PO, stock, prix ou envoi. "
-                "Ne couvre pas un lead sans chantier connu ni la structuration en commande."
-            ),
-            parametres={
-                "type": "object", "additionalProperties": False,
-                "properties": {
-                    "note_id": {"type": "string", "minLength": 1, "maxLength": 200},
-                    "devis_id": {"type": "string", "minLength": 1, "maxLength": 200},
-                    "texte_libre": {"type": "string", "minLength": 1, "maxLength": notes_commande.MAX_TEXTE},
-                    "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 999999},
-                },
-                "required": ["note_id", "devis_id", "texte_libre", "revision_attendue"],
-            },
-            fonction=enregistrer_note_commande, autonomie=Autonomie.T1, roles_appareil=frozenset({"admin"}),
-            # Le socle ne connaît pas encore l'identité contexte « devis ». Ne pas la
-            # présenter comme lead/affaire/globale : le garde Core reste fail-closed.
-        ),
-        Outil(
-            nom=notes_commande.LIRE,
-            description=(
-                "Lit une note d'achat interne M6, courante ou à sa révision exacte, pour un admin actif. "
-                "Texte conservé sans structuration, prix ou statut de bon de commande."
-            ),
-            parametres={
-                "type": "object", "additionalProperties": False,
-                "properties": {
-                    "note_id": {"type": "string", "minLength": 1, "maxLength": 200},
-                    "revision": {"type": "integer", "minimum": 1, "maximum": 1000000},
-                },
-                "required": ["note_id"],
-            },
-            fonction=lire_note_commande, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
-        ),
-        Outil(
-            nom=notes_commande.LISTER,
-            description=(
-                "Liste les métadonnées des dernières versions des notes d'achat internes d'un devis M6, "
-                "sans texte. Admin actif, chantier connu obligatoire ; tri note_id et pagination bornée. "
-                "Lecture seule : aucun PO, stock, reçu de mutation ou envoi."
-            ),
-            parametres={
-                "type": "object", "additionalProperties": False,
-                "properties": {
-                    "devis_id": {"type": "string", "minLength": 1, "maxLength": 200},
-                    "limite": {"type": "integer", "minimum": 1, "maximum": 20, "default": 20},
-                    "decalage": {"type": "integer", "minimum": 0, "maximum": 10000, "default": 0},
-                },
-                "required": ["devis_id"],
-            },
-            fonction=lister_notes_commande, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
-        ),
-        Outil(
             nom="m6_receptionner_commande",
             description=(
                 "Réceptionne une commande de bout en bout : résout le prix par ligne (catalogue -> historique -> "
@@ -3381,6 +3347,62 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T0,
             niveau=Niveau.N0,
             roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom=notes_commande.ECRIRE,
+            description=(
+                "Enregistre une version de note d'achat interne sur le chantier connu d'un devis M6. "
+                "Texte original jusqu'à 20000 caractères, sans sélection d'articles ; prévu vide accepté. "
+                "Admin actif, mutation serveur et révision attendue requis. Aucun PO, stock, prix ou envoi. "
+                "Ne couvre pas un lead sans chantier connu ni la structuration en commande."
+            ),
+            parametres={
+                "type": "object", "additionalProperties": False,
+                "properties": {
+                    "note_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "devis_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "texte_libre": {"type": "string", "minLength": 1, "maxLength": notes_commande.MAX_TEXTE},
+                    "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 999999},
+                },
+                "required": ["note_id", "devis_id", "texte_libre", "revision_attendue"],
+            },
+            fonction=enregistrer_note_commande, autonomie=Autonomie.T1, roles_appareil=frozenset({"admin"}),
+            # Le socle ne connaît pas encore l'identité contexte « devis ». Ne pas la
+            # présenter comme lead/affaire/globale : le garde Core reste fail-closed.
+        ),
+        Outil(
+            nom=notes_commande.LIRE,
+            description=(
+                "Lit une note d'achat interne M6, courante ou à sa révision exacte, pour un admin actif. "
+                "Texte conservé sans structuration, prix ou statut de bon de commande."
+            ),
+            parametres={
+                "type": "object", "additionalProperties": False,
+                "properties": {
+                    "note_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "revision": {"type": "integer", "minimum": 1, "maximum": 1000000},
+                },
+                "required": ["note_id"],
+            },
+            fonction=lire_note_commande, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom=notes_commande.LISTER,
+            description=(
+                "Liste les métadonnées des dernières versions des notes d'achat internes d'un devis M6, "
+                "sans texte. Admin actif, chantier connu obligatoire ; tri note_id et pagination bornée. "
+                "Lecture seule : aucun PO, stock, reçu de mutation ou envoi."
+            ),
+            parametres={
+                "type": "object", "additionalProperties": False,
+                "properties": {
+                    "devis_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 20, "default": 20},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 10000, "default": 0},
+                },
+                "required": ["devis_id"],
+            },
+            fonction=lister_notes_commande, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
     )
 

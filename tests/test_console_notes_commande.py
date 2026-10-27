@@ -27,13 +27,13 @@ def client(session):
         for personne, role in [('admin-fictif', 'admin'), ('employee-fictif', 'employee'),
                                ('owner-fictif', 'nathan_owner')]:
             identite.creer_personne(cnx, personne, 'Personne FICTIVE', PASSWORD, [role])
-        for suffixe in ['', '-autre', '-sans-chantier']:
+        for suffixe in ['', '-autre', '-sans-chantier', '-lie']:
             lead, devis = 'lead-fictif'+suffixe, 'devis-fictif'+suffixe
             assert m2.ingerer_lead({'lead_id': lead, 'conversation_id': 'conv-'+lead,
                                    'contact': {'nom': 'FICTIF', 'courriel': lead+'@example.test'},
                                    'type_travaux': 'renovation_totale', 'ville': 'Québec',
                                    'urgence_declaree': False, 'canal': 'telephone'}, DATE)['accepte']
-            assert m3.creer_devis(devis, lead, None,
+            assert m3.creer_devis(devis, lead, 'chantier-fictif-lie' if suffixe == '-lie' else None,
                                   [{'description': 'FICTIF', 'quantite': '2', 'unite': 'pi',
                                     'cout_unitaire': '10', 'reference_besoin_materiau': None}],
                                   '0.20', DATE)['accepte']
@@ -249,11 +249,14 @@ def test_edition_historique_query_et_identifiant_usurpe(client, session):
 @pytest.mark.parametrize('ident', ['note fictive / matériel ? # 😀', '.', '..', '~fictif'])
 def test_identifiant_m6_existant_avec_espace_et_slash_accessible(client, session, ident):
     import base64
+    from datetime import datetime
 
     from opsys import contexte, idempotence
     ref = '~'+base64.urlsafe_b64encode(ident.encode()).decode().rstrip('=')
     with (session(), contexte.appele_par_appareil(contexte.IdentiteAppelante('admin-fictif', 'admin')),
-          m6.contexte_mutation_note_commande(idempotence.Meta('id-fictive-etrange', 'app-fictive', DATE))):
+          m6.contexte_mutation_note_commande(idempotence.Meta('id-fictive-etrange', 'app-fictive', DATE)),
+          contexte.receptionne_de(contexte.HorodatageAppareil(
+              'app-fictive', datetime.fromisoformat(DATE), datetime.fromisoformat(DATE)))):
         assert m6.enregistrer_note_commande(ident, 'devis-fictif', 'FICTIF note antérieure', 0)['accepte']
     login(client)
     page = client.get(URL)
@@ -264,3 +267,132 @@ def test_identifiant_m6_existant_avec_espace_et_slash_accessible(client, session
                        mutation_id='id-correction-fictive', texte_libre='FICTIF corrigé'),
                        follow_redirects=False).status_code == 303
     assert versions(session)[-1]['note_id'] == ident
+
+
+URL_LIE = URL.replace('lead-fictif', 'lead-fictif-lie').replace('devis-fictif', 'devis-fictif-lie')
+
+
+def origine_m10(session):
+    from m10_memoire import amont, registre
+    with session():
+        r, verdict = amont.memoriser('m1.lead_qualifie', {
+            'lead': {'lead_id': 'lead-fictif-lie', 'service': 'renovation_totale',
+                     'canal': 'telephone', 'urgence_declaree': False}, 'horodatage': DATE,
+        }, registre.Registre(stockage.maillons('m10-memoire', 'evenements')))
+        assert verdict is None and r['affaire']['origine_recue'], (r, verdict)
+
+
+def resoudre_note(session, revision=1, affaire='lead-fictif-lie', devis='devis-fictif-lie', admin=True):
+    from opsys import contexte, notes_commande_affaire
+    identity = contexte.IdentiteAppelante('admin-fictif', 'admin', source='console') if admin else None
+    with session(), contexte.appele_par_appareil(identity):
+        return notes_commande_affaire.resoudre('note-fictive', revision, devis, affaire)
+
+
+def test_rattachement_m10_version_exacte_sans_ecriture_et_sans_texte(client, session):
+    import json
+    login(client)
+    origine_m10(session)
+    assert client.post(URL_LIE, data=fields(client), follow_redirects=False).status_code == 303
+    before = snapshot(session)
+    dto = resoudre_note(session)
+    assert set(dto) == {'statut', 'affaire_id', 'revision', 'source_index', 'source_hash',
+                        'origine', 'note_memorisee'}
+    assert dto['statut'] == 'VERIFIE' and dto['affaire_id'] == 'lead-fictif-lie'
+    assert dto['note_memorisee'] is False and dto['origine'] == 'm1.lead_qualifie'
+    assert dto['source_hash'] == versions(session)[0]['hash_maillon']
+    assert all(s not in json.dumps(dto) for s in [TEXT, 'admin-fictif', 'note-fictive', 'devis-fictif-lie'])
+    page = client.get(URL_LIE+'/note-fictive')
+    assert page.status_code == 200 and 'Rattachement vérifié pour cette révision' in page.text
+    assert 'elle n’est pas mémorisée dans M10' in page.text and page.headers['cache-control'] == 'no-store'
+    assert snapshot(session) == before
+    assert client.post(URL_LIE+'/note-fictive', data=fields(client, revision_attendue='1',
+                       mutation_id='correction-liee', texte_libre='FICTIF deuxième version'),
+                       follow_redirects=False).status_code == 303
+    before = snapshot(session)
+    assert resoudre_note(session) == dto
+    assert resoudre_note(session, revision=2)['source_hash'] != dto['source_hash']
+    assert 'Rattachement vérifié' in client.get(URL_LIE+'/note-fictive?revision=1').text
+    assert snapshot(session) == before
+
+
+def test_rattachement_sans_origine_ou_chantier_m3_reste_inconnu(client, session):
+    login(client)
+    assert client.post(URL_LIE, data=fields(client), follow_redirects=False).status_code == 303
+    before = snapshot(session)
+    assert resoudre_note(session) == {'statut': 'NON_VERIFIE', 'code': 'ORIGINE-M10-ABSENTE'}
+    page = client.get(URL_LIE+'/note-fictive')
+    assert 'Rattachement non vérifié' in page.text and 'ORIGINE-M10-ABSENTE' in page.text
+    assert snapshot(session) == before
+    assert client.post(URL, data=fields(client, note_id='note-sans-ancre', mutation_id='sans-ancre'),
+                       follow_redirects=False).status_code == 303
+    before = snapshot(session)
+    assert 'CHANTIER-M3-NON-CONFIRME' in client.get(URL+'/note-sans-ancre').text
+    assert snapshot(session) == before
+
+
+@pytest.mark.parametrize('args,code', [
+    ({'revision': True}, 'REVISION-INVALIDE'), ({'revision': 0}, 'REVISION-INVALIDE'),
+    ({'revision': 3}, 'NOTE-INTROUVABLE'), ({'affaire': 'autre-lead'}, 'ANCRAGE-DIFFERENT'),
+    ({'affaire': 'lead-fictif-lie~opp~wct-fictif'}, 'AFFAIRE-NON-PRISE-EN-CHARGE'),
+    ({'devis': 'devis-fictif'}, 'ANCRAGE-DIFFERENT'), ({'admin': False}, 'NOTE-IDENTITE'),
+])
+def test_resolveur_refuse_cibles_revisions_et_absence_identite(client, session, args, code):
+    login(client)
+    origine_m10(session)
+    assert client.post(URL_LIE, data=fields(client), follow_redirects=False).status_code == 303
+    before = snapshot(session)
+    assert resoudre_note(session, **args) == {'statut': 'NON_VERIFIE', 'code': code}
+    assert snapshot(session) == before
+
+
+def test_resolveur_revalide_admin_sql(client, session):
+    login(client)
+    origine_m10(session)
+    assert client.post(URL_LIE, data=fields(client), follow_redirects=False).status_code == 303
+    with session() as cnx:
+        identite.activer(cnx, 'admin-fictif', False)
+    before = snapshot(session)
+    assert resoudre_note(session) == {'statut': 'NON_VERIFIE', 'code': 'NOTE-IDENTITE'}
+    assert snapshot(session) == before
+
+
+@pytest.mark.parametrize('dept,reg,mode,code', [
+    ('m02-revenue-crm', 'principal', 'corrompu', 'SOURCE-M2-INVALIDE'),
+    ('m10-memoire', 'evenements', 'corrompu', 'SOURCE-M10-INVALIDE'),
+    ('m06-material-control', 'notes_commande', 'corrompu', 'NOTE-REGISTRE-INVALIDE'),
+    ('m03-estimation', 'devis', 'creation-double', 'DEVIS-ABSENT-OU-AMBIGU'),
+    ('m03-estimation', 'devis', 'transition-cible', 'ANCRAGE-DEVIS-INVALIDE'),
+    ('m06-material-control', 'besoins_prevus', 'creation-double', 'BESOIN-NON-CONCORDANT'),
+    ('m03-estimation', 'devis', 'chantier', 'CHANTIER-DIFFERENT'),
+    ('m03-estimation', 'devis', 'absent', 'DEVIS-ABSENT-OU-AMBIGU'),
+    ('m02-revenue-crm', 'principal', 'absent', 'LEAD-M2-ABSENT'),
+])
+def test_sources_ambigues_absentes_ou_corrompues_ne_creent_pas_lien(client, session, dept, reg, mode, code):
+    from sqlalchemy import delete, update
+
+    from opsys.stockage import codec
+    from opsys.stockage.schema import REGISTRES
+    login(client)
+    origine_m10(session)
+    assert client.post(URL_LIE, data=fields(client), follow_redirects=False).status_code == 303
+    with session() as cnx:
+        filtre = (REGISTRES.c.departement == dept) & (REGISTRES.c.registre == reg)
+        if mode == 'absent':
+            cnx.execute(delete(REGISTRES).where(filtre))
+        else:
+            rows = list(cnx.execute(select(REGISTRES).where(filtre)).mappings())
+            row = next((r for r in rows if codec.decoder(r['maillon']).get('devis_id') == 'devis-fictif-lie'), rows[0])
+            value = codec.decoder(row['maillon'])
+            if mode == 'creation-double':
+                stockage.maillons(dept, reg).append(value)
+            elif mode == 'transition-cible':
+                stockage.maillons(dept, reg).append({'type_entree': 'transition_devis',
+                    'devis_id': 'devis-fictif-lie', 'lead_id': 'autre-fictif', 'statut': 'envoye'})
+            else:
+                value['chantier_id' if mode == 'chantier' else 'horodatage'] = 'FICTIF-altere'
+                cnx.execute(update(REGISTRES).where(filtre, REGISTRES.c.rang == row['rang']).values(
+                    maillon=codec.encoder(value)))
+    before = snapshot(session)
+    assert resoudre_note(session) == {'statut': 'NON_VERIFIE', 'code': code}
+    assert snapshot(session) == before

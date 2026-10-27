@@ -32,7 +32,6 @@ import json
 import os
 import re
 from collections.abc import Callable
-from datetime import UTC, datetime
 from functools import partial
 from typing import Any
 
@@ -1316,10 +1315,12 @@ def outils(
                 "REJ-FRONTIERE-VIOLEE", detail="confirmation qualifiée sur SQLite durable seulement"))
         appelante = contexte.identite_appelante()
         reception = contexte.horodatage_reception()
-        stamp = reception.recu_le if reception is not None else datetime.now(UTC)
+        if reception is None:
+            return _refus(verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="horodatage de réception serveur requis pour confirmer les dates"))
         try:
             resultat = calendrier_civil.confirmer(registre_courant(), plan_id, calendrier, revision_attendue,
-                                                  appelante.personne, stamp.isoformat())
+                                                  appelante.personne, reception.recu_le.isoformat())
         except (ValueError, registre.VerificationError) as exc:
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
         return {"accepte": True, "resultat": resultat}

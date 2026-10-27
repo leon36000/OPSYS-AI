@@ -30,7 +30,7 @@ def instant_local(jour, minute):
     """Refuse heures sautées ou répétées, jamais un choix implicite de fold."""
     if type(minute) is not int or not 0 <= minute <= 1440:
         raise ValueError("minute hors journée")
-    local = datetime.combine(_date(jour), time()) + timedelta(minutes=minute)
+    local = datetime.combine(_date(jour), time.min) + timedelta(minutes=minute)
     zone = ZoneInfo(FUSEAU)
     candidats = {local.replace(tzinfo=zone, fold=f).astimezone(UTC) for f in (0, 1)
                  if local.replace(tzinfo=zone, fold=f).astimezone(UTC).astimezone(zone).replace(tzinfo=None) == local}

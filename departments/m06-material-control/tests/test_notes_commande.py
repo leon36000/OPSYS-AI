@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
+from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Barrier
 
@@ -25,6 +27,10 @@ from opsys.stockage.schema import APPROBATIONS, JOURNAL, META, MUTATIONS_APPLIQU
 
 DEP = "m06-material-control"
 DATE = "2026-10-27T04:00:00+00:00"
+DATE_SERVEUR = "2030-03-04T15:16:17.123456+00:00"
+HORLOGE_TEST = contexte.HorodatageAppareil(
+    "APP-NOTES-FICTIF", datetime.fromisoformat(DATE), datetime.fromisoformat(DATE_SERVEUR),
+)
 ADMIN = contexte.IdentiteAppelante("admin.notes.fictif", "admin")
 EMP = contexte.IdentiteAppelante("employe.notes.fictif", "employee")
 SELLER = contexte.IdentiteAppelante("vendeur.notes.fictif", "seller")
@@ -68,9 +74,9 @@ def meta(cle="mutation-fictive"):
     return idempotence.Meta(cle, "APP-NOTES-FICTIF", DATE)
 
 
-def appel(arguments=None, *, cle="mutation-fictive", acteur=ADMIN, limite=n.BORNE_SORTIE):
+def appel(arguments=None, *, cle="mutation-fictive", acteur=ADMIN, limite=n.BORNE_SORTIE, horloge=HORLOGE_TEST):
     with (contexte.appele_par_appareil(acteur), outils.contexte_mutation_note_commande(meta(cle)),
-          contexte.sortie_bornee(limite)):
+          contexte.sortie_bornee(limite), contexte.receptionne_de(horloge)):
         return executer_atomique(outil(n.ECRIRE), ARGUMENTS if arguments is None else arguments)
 
 
@@ -211,6 +217,40 @@ def test_sans_contexte_mutation_et_hors_transaction_refuses(monde):
         assert executer_atomique(outil(n.ECRIRE), ARGUMENTS)["resultat"] == n.refuser("MUTATION-ABSENTE")
         assert outils.enregistrer_note_commande(**ARGUMENTS) == n.refuser("IDENTITE")
     assert notes() == []
+
+
+def test_horloge_serveur_injectee_prime_et_rejeu_conserve_son_instant(monde):
+    premier = resultat(appel())
+    assert premier["note"]["enregistree_le"] == DATE_SERVEUR
+    assert premier["note"]["enregistree_le"] != DATE
+    plus_tard = replace(HORLOGE_TEST, recu_le=HORLOGE_TEST.recu_le + timedelta(days=1))
+    replay = resultat(appel(horloge=plus_tard))
+    assert replay["rejoue"] and replay["note"] == premier["note"]
+    correction = resultat(appel(
+        {**ARGUMENTS, "revision_attendue": 1, "texte_libre": "FICTIF correction horodatée"},
+        cle="correction-horloge", horloge=plus_tard,
+    ))
+    assert correction["note"]["enregistree_le"] == plus_tard.recu_le.isoformat()
+    assert [m["enregistree_le"] for m in notes()] == [DATE_SERVEUR, plus_tard.recu_le.isoformat()]
+
+
+@pytest.mark.parametrize("horloge", [
+    None,
+    {"appareil": HORLOGE_TEST.appareil, "horodatage_appareil": HORLOGE_TEST.horodatage_appareil,
+     "recu_le": HORLOGE_TEST.recu_le},
+    replace(HORLOGE_TEST, appareil="AUTRE-APPAREIL-FICTIF"),
+    replace(HORLOGE_TEST, horodatage_appareil=HORLOGE_TEST.horodatage_appareil + timedelta(seconds=1)),
+    replace(HORLOGE_TEST, horodatage_appareil=HORLOGE_TEST.horodatage_appareil.replace(tzinfo=None)),
+    replace(HORLOGE_TEST, recu_le=HORLOGE_TEST.recu_le.replace(tzinfo=None)),
+    replace(HORLOGE_TEST, horodatage_appareil=DATE),
+    replace(HORLOGE_TEST, recu_le=DATE_SERVEUR),
+    replace(HORLOGE_TEST, recu_le=None),
+])
+def test_horloge_absente_malformee_ou_divergente_refusee_sans_ecriture(monde, horloge):
+    avant = toutes_tables()
+    reponse = appel(horloge=horloge)
+    assert reponse["resultat"] == n.refuser("HORODATAGE-RECEPTION-INVALIDE")
+    assert toutes_tables() == avant
 
 
 def test_deux_corrections_concurrentes_une_seule_revision(monde):

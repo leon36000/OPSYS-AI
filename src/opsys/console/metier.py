@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 from collections.abc import Mapping
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from typing import Any
 
@@ -417,7 +418,10 @@ def _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutati
             return executer_atomique(outil, dict(arguments))
         maintenant = datetime.now(UTC)
         meta = idempotence.Meta(mutation_id, f"console:{personne.identifiant}", maintenant.isoformat())
-        with m6.contexte_mutation_note_commande(meta):
+        with (
+            m6.contexte_mutation_note_commande(meta),
+            contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant)),
+        ):
             try:
                 recu = idempotence.reclamer(cnx, meta, nom, dict(arguments), maintenant)
             except idempotence.MutationConflit as exc:
@@ -634,6 +638,9 @@ def executer(
         with (
             contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, role, source="console")),
             contexte.appeler_en_tant_que(departement, origine=departement),
+            contexte.receptionne_de(contexte.HorodatageAppareil(
+                f"console:{personne.identifiant}", maintenant, maintenant,
+            )) if nom == "m4_confirmer_dates_cedule" else nullcontext(),
         ):
             reponse = executer_atomique(outil, charge)
     if nom == "m1_consigner_suivi_rappel":

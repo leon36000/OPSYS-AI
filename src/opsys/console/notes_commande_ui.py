@@ -5,12 +5,13 @@ import base64
 import binascii
 import re
 import uuid
+from datetime import UTC, datetime
 from urllib.parse import parse_qs
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from .. import idempotence
+from .. import contexte, idempotence, identite, notes_commande_affaire
 from . import metier, pages
 
 IDENTIFIANT = re.compile(r'[\w.:@\-]{1,200}')
@@ -153,6 +154,31 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
             raise HTTPException(404, 'Note introuvable')
         return note
 
+    def rattachement(session, lead_id, devis_id, note):
+        with cnx_factory() as cnx:
+            personne = identite.personne_active(cnx, session.utilisateur)
+            if (personne is None or 'admin' not in personne.roles
+                    or session.expire <= datetime.now(UTC).timestamp()):
+                raise HTTPException(403, 'Accès refusé')
+            with contexte.appele_par_appareil(
+                contexte.IdentiteAppelante(personne.identifiant, 'admin', source='console'),
+            ):
+                resultat = notes_commande_affaire.resoudre(note['note_id'], note['revision'], devis_id, lead_id)
+        if resultat['statut'] == 'VERIFIE':
+            # La version affichée provient d'une lecture antérieure : aucun label positif
+            # si sa provenance a divergé entre les deux transactions.
+            if (resultat['source_hash'] != note['source']['hash_maillon']
+                    or resultat['source_index'] != note['source']['index']):
+                raise HTTPException(409, 'Source de la note modifiée : relire la page')
+            return ('<section aria-label="Rattachement mémoire"><h3>Affaire M10</h3>'
+                    '<p>Rattachement vérifié pour cette révision : '
+                    f'{pages.e(resultat["affaire_id"])}.</p>'
+                    '<p>La note reste privée dans M6 ; elle n’est pas mémorisée dans M10.</p></section>')
+        return ('<section aria-label="Rattachement mémoire"><h3>Affaire M10</h3>'
+                '<p>Rattachement non vérifié. Référence à contrôler : '
+                f'{pages.e(resultat["code"])}.</p>'
+                '<p>Aucun fait mémoire créé ; les versions de la note sont conservées dans M6.</p></section>')
+
     def entete(url, chantier):
         return ('<section class="carte"><h2>Notes d’achat internes</h2>'
                 f'<p>Chantier : {pages.e(chantier)}</p>'
@@ -204,6 +230,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                  f'<h3>Révision {note["revision"]}</h3><p>{pages.e(note["auteur"]["personne"])}'
                  f' — {pages.e(note["enregistree_le"])}</p><pre>{pages.e(note["texte_libre"])}</pre>'
                  f'<details><summary>Provenance M6</summary><p>{pages.e(note["source"]["hash_maillon"])}</p></details>')
+        corps += rattachement(session, lead_id, devis_id, note)
         if note['revision'] > 1:
             corps += f'<a href="{pages.e(lien)}?revision={note["revision"]-1}">Révision précédente</a> '
         if note['revision'] < courant['revision']:

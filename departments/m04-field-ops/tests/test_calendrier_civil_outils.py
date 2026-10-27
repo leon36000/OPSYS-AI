@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 from m4_field_ops.outils import outils
 
-from opsys import identite, stockage
+from opsys import contexte, identite, stockage
+from opsys.outils import executer_atomique
 
 _spec = importlib.util.spec_from_file_location(
     "fixture_calendrier_sql", Path(__file__).with_name("test_cedule_tournees_outils.py"))
@@ -36,6 +37,30 @@ def test_appliquer_dater_rouvrir_sql_et_refuser_revision_perimee(par_nom, interv
     assert aide._code_refus(_dates(outils_rouverts, plan)) == "REJ-CONTRAT-INVALIDE"
     assert aide._maillons() == avant
     assert aide._resultat(_dates(outils_rouverts, plan, 1))["revision"] == 2
+
+
+@pytest.mark.parametrize("source", ["appareil", "console"])
+def test_dates_exigent_reception_serveur_et_conservent_son_instant(par_nom, interventions, source):
+    plan = aide._resultat(aide._proposer(par_nom, interventions))["plan_id"]
+    aide._resultat(aide._appliquer(par_nom, plan))
+    acteur = contexte.IdentiteAppelante(aide.ADMIN.personne, "admin", source=source)
+    arguments = {"plan_id": plan, "calendrier": {"0": "2030-06-03"}, "revision_attendue": 0}
+    avant = aide._etat()
+    with contexte.appele_par_appareil(acteur), contexte.receptionne_de(None):
+        refus = executer_atomique(par_nom["m4_confirmer_dates_cedule"], arguments)
+    assert aide._code_refus(refus) == "REJ-CONTRAT-INVALIDE"
+    assert "réception serveur requis" in refus["resultat"]["verdict"]["detail"]
+    assert aide._etat() == avant
+    with (
+        contexte.appele_par_appareil(acteur),
+        contexte.receptionne_de(contexte.HorodatageAppareil(
+            appareil="horloge-fictive", horodatage_appareil=aide.HORLOGE_APPAREIL_DEREGLEE,
+            recu_le=aide.RECU_LE)),
+    ):
+        confirmation = aide._resultat(executer_atomique(par_nom["m4_confirmer_dates_cedule"], arguments))
+    datee = next(m for m in aide._maillons() if m["ligne_id"] == confirmation["ligne_id"])
+    assert datee["horodatage"] == aide.RECU_LE.isoformat()
+    assert datee["horodatage"] != aide.HORLOGE_APPAREIL_DEREGLEE.isoformat()
 
 
 @pytest.mark.parametrize("acteur", [None, aide.MARC, aide.VENDEUR, aide.FANTOME])
