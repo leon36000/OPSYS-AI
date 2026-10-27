@@ -1031,8 +1031,16 @@ def outils(
             return _refus(verdicts.construire_verdict(
                 "REJ-IDENTITE-HUMAINE-REQUISE", detail="lecture réservée à une identité admin confirmée"))
         cnx = stockage.connexion_courante()
-        personne = identite.personne_active(cnx, technicien_id) if cnx is not None else None
-        if personne is None or "employee" not in personne.roles:
+        from sqlalchemy import select
+
+        from opsys.stockage.schema import PERSONNES, ROLES_PERSONNES
+
+        # Même admissibilité qu’avant, sans charger le nom ou le hash secret du sujet.
+        requete = select(PERSONNES.c.identifiant).join(
+            ROLES_PERSONNES, PERSONNES.c.identifiant == ROLES_PERSONNES.c.identifiant).where(
+                PERSONNES.c.identifiant == technicien_id, PERSONNES.c.actif.is_(True),
+                ROLES_PERSONNES.c.role == "employee").limit(1)
+        if cnx is None or cnx.execute(requete).scalar_one_or_none() is None:
             return _refus(verdicts.construire_verdict(
                 "REJ-TECHNICIEN-INVALIDE", detail="technicien doit être une personne OPSYS active avec rôle employee"))
         reg = registre_courant()

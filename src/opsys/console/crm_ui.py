@@ -924,8 +924,11 @@ def creer_router(
         journal_equipes,
         preparation_chantier,
         rentabilite_chantier,
+        temps_pointes,
     )
 
+    router.include_router(temps_pointes.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(comptes_terrain.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, prefixe=prefixe, rendre=rendre))
     router.include_router(absences_quotidiennes.creer_router(

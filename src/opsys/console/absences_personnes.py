@@ -62,7 +62,9 @@ def formulaire_consultation(jour, prefixe):
             '<label>Identifiant historique de personne<input name="personne_id" maxlength="64" '
             'autocomplete="off" required></label><p>Consultation seulement, par identifiant exact. '
             'Un signalement n’est pas une absence mesurée; son absence ne prouve aucune présence.</p>'
-            '<button type="submit">Consulter le signalement et son historique</button></form>'
+            '<button type="submit">Consulter le signalement et son historique</button>'
+            f'<button type="submit" formaction="{pages.e(prefixe)}/crm/journal-equipes/temps">'
+            'Consulter les temps pointés du jour</button></form>'
             f'<p><a href="{pages.e(comptes_terrain.url_jour(jour, prefixe))}">'
             'Choisir un compte interne par son nom actuel</a></p>')
 
