@@ -53,3 +53,32 @@ Les ports génériques/runtime restent fermés, sans nouvelle portée appareil.
 
 Limites : la qualification concerne SQLite, pas PostgreSQL; écran HTTP encore à raccorder
 à ce jalon. Pas de mémoire M10 des fournisseurs/tarifs, d’import courriel ni d’envoi réel.
+
+## Raccord HTTP qualifié
+
+`src/opsys/console/fournisseurs_ui.py` apporte GET `/crm/fournisseurs`, GET
+`/crm/fournisseurs/{fournisseur_id}` et POST `/crm/fournisseurs/enregistrer`. Les liens
+depuis les matériaux et les tarifs ouvrent cette gestion. Les listes paginées ne diffusent
+pas les contacts; l’admin actif peut consulter et corriger une fiche privée sans envoi.
+
+Chaque champ a une action explicite : conserver, remplacer, ou effacer pour les contacts.
+Sur une fiche existante, conserver est sélectionné au départ. Le serveur n’utilise alors
+pas la valeur du champ reçu : une normalisation CR/LF par le navigateur ne doit pas réécrire
+un ancien contact pendant une correction du nom. Catégories, délais et formats cachés ne
+sont jamais envoyés par le formulaire. Une fiche nouvelle ne présélectionne aucun contact.
+
+`supplier-ui-v3` : 96 tests passent, aucun échec/skip, 30,83 s; Ruff et vérificateur
+297 outils/173 portées passent. Le parcours crée réellement fournisseur, matériau, tarif,
+modèle, lignes et devis par HTTP, puis vérifie le document client sans prix de revient,
+identité ni contact fournisseur. Les sources d’ancrage M3 viennent du lien de la page réelle.
+Une correction fournisseur entre aperçu et confirmation du tarif bloque celle-ci.
+Rejeu, source périmée, révocation, CSRF, corps excessif, champs étrangers, effacement explicite,
+échappement HTML et conservation d’anciennes coordonnées normalisées sont vérifiés.
+
+Les populations ne s’additionnent pas avec `supplier-ports-v5`. L’historique rouge reste
+conservé : v1 deux mauvaises URL de fixture construisaient `/tarifs` après la query de version;
+v2 une chaîne Python non fermée empêchait le chargement du routeur. La revue statique a
+détecté la perte possible de CR/LF et une lecture de fixture M3 inutile, toutes deux corrigées.
+Ce parcours ASGI/SQLite ne démontre ni navigateur natif, ni PostgreSQL, ni app mobile.
+Prochaine capacité : audit et raccord M10 des nouvelles versions fournisseurs/tarifs,
+sans coordonnées ni coût copié dans l’événement. M6/CRM/OPSYS restent **PARTIAL**.

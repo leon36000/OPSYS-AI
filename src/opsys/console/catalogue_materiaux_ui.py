@@ -33,13 +33,13 @@ def extraire(reponse):
     messages = {'REVISION-PERIMEE': 'La fiche a changé : relire avant de modifier.',
                 'UNITE-IMMUABLE': 'L’unité est immuable : créer une autre référence pour une autre unité.',
                 'MUTATION-CONFLIT': 'Cette intention a déjà servi à une autre saisie.',
-                'ARGUMENTS': 'Vérifier les textes, l’unité et la version.',
-                'SOURCE-MODIFIEE': 'Les sources ont changé : préparer de nouveau le tarif.',
+                'ARGUMENTS': 'Vérifier les champs saisis et la version.',
+                'SOURCE-MODIFIEE': 'Les sources ont changé : relire avant de confirmer.',
                 'DATE-INVALIDE': 'Date civile non future requise.',
                 'MONTANT-INVALIDE': 'Montant positif exact requis.',
                 'MATERIAU-INACTIF': 'Matériau inactif : réviser la fiche.',
                 'FOURNISSEUR-INCONNU': 'Fournisseur introuvable.',
-                'INTROUVABLE': 'Matériau ou version introuvable.'}
+                'INTROUVABLE': 'Fiche ou version introuvable.'}
     raise HTTPException(statuts.get(code, 503), messages.get(code, 'Catalogue matériaux indisponible'))
 
 
@@ -96,7 +96,8 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
             raise HTTPException(400, 'Paramètres invalides')
         debut = entier(p.get('debut', '0'))
         r = agir(session, 'm6_lister_materiaux_console', dict(debut=debut, limite=25, actifs_seulement=False))
-        corps = '<h2>Matériaux</h2><p>Fiches versionnées. Les prix restent dans le livre de prix fournisseur.</p><ul>'
+        corps = (f'<p><a href="{pages.e(prefixe + fournisseurs_ui.BASE)}">Gérer les fournisseurs</a></p>'
+                 '<h2>Matériaux</h2><p>Fiches versionnées. Les prix restent dans le livre de prix fournisseur.</p><ul>')
         for f in r['materiaux']:
             lien = base + '/' + pages._segment(f['materiau_id'])
             corps += (f'<li><a href="{pages.e(lien)}">{pages.e(f["nom"])}</a> · {pages.e(f["unite"])} · '
@@ -151,7 +152,11 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                 corps += f'<p><a href="{pages.e(lien_tarifs)}">Saisir un tarif fournisseur</a></p>'
         return rendre(session, 'Fiche matériau', corps)
 
-    from . import tarifs_ui
+    from . import fournisseurs_ui, tarifs_ui
+
+    router.include_router(fournisseurs_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire, rendre=rendre))
 
     router.include_router(tarifs_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,

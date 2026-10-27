@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from . import catalogue_materiaux_ui as catalogue
-from . import pages, prefill_ui
+from . import fournisseurs_ui, pages, prefill_ui
 
 CHAMPS = {'csrf', 'mutation_id', 'materiau_id', 'fournisseur_id', 'prix_unitaire', 'date_effet', 'source_document'}
 CONFIRMER = CHAMPS | {'materiau_source', 'fournisseur_source', 'tarif_rang', 'tarif_empreinte'}
@@ -43,6 +43,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                  f'<p>Unité : {pages.e(materiau["unite"])} · devise : CAD.</p>'
                  '<p>Saisir le prix fourni par le fournisseur et sa date effective. Une référence documentaire '
                  'est déclarative; sans référence, le prix reste marqué FALLBACK_PRICE_BOOK.</p>')
+        corps += (f'<p><a href="{pages.e(prefixe + fournisseurs_ui.BASE)}">Créer ou corriger un fournisseur</a></p>')
         for offset, label in [(max(0, debut - 25) if debut else None, 'Fournisseurs précédents'),
                               (liste['suivant'], 'Fournisseurs suivants')]:
             if offset is not None:

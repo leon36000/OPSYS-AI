@@ -22,6 +22,12 @@ M3 calcule le prix. Les quantités ne sont jamais déduites du modèle ni propos
 
 Le lien « Choisir les matériaux par nom et unité » ouvre le sélecteur du catalogue M6 actif.
 Le catalogue se gère dans `/crm/materiaux`; les fiches sont versionnées et l’unité est immuable.
+Le lien « Gérer les fournisseurs » ouvre `/crm/fournisseurs` : création et correction admin,
+contacts facultatifs explicitement conservés/remplacés/effacés. Depuis un matériau actif,
+« Saisir un tarif fournisseur » permet l’aperçu puis la confirmation du coût CAD daté et sourcé.
+Le parcours fournisseur → matériau → tarif → modèle/lignes → devis a été exécuté par les
+formulaires HTTP avec SQLite, sans préparation Python des données matériaux ou fournisseurs.
+Voir [audit et preuves fournisseurs](../inventory/M6-AUDIT-FOURNISSEURS-ADMIN.md).
 Les anciennes références explicites restent consultables et remplaçables sans migration automatique. Les fournisseurs compatibles sont proposés par nom,
 sans présélection ni classement par coût. Sans lignes enregistrées, le parcours prérempli refuse;
 la saisie manuelle existante reste accessible, ainsi que le lien de configuration des lignes.

@@ -45,7 +45,7 @@ Principes transverses (critères d'acceptation communs à toute ligne)
 | CRM-11 | Facture modifiable selon l'état : brouillon éditable ; émise → correction M5 tracée/versionnée ; période fermée protégée | `m5_creer_facture_brouillon`, `m5_envoyer_facture`, `m5_enregistrer_paiement_facture` ; correction seulement côté fournisseur | **Partiel** | M5 | Brouillon : édition ; émise : « corriger » ouvre un mécanisme M5 versionné (note de crédit/révision) ; jamais de suppression ni modification silencieuse. Contrat §3.8 |
 | CRM-12 | Photos et PDF par dossier : dépôt, aperçu, classement, téléchargement autorisé, liens projet/bon/facture ; pas d'usage marketing auto | `m4_deposer_fichier`/`m4_etat_fichier`, M10 `m10_*_document_*_appareil`, politique photos M3 | **Partiel** (primitives) / écran **Manquant** | M10 (+M4) | Aucun fichier orphelin : un dépôt exige un rattachement ; téléchargement par rôle ; la politique marketing reste M7 (consentement) |
 | CRM-13 | Tableau commercial chiffré gagnés/perdus, en cours, acceptés, volumes/montants, période/filtre, définitions | `m8_lire_vue_executive`, `m8_rapport_metriques`, définitions M8, `m2_lister_leads` (aucun montant), `m3_lister_devis` | **Partiel** | M8 (+M2, M3) | Chaque chiffre porte sa définition M8, sa période et sa source ; pas de montant calculé dans le cockpit |
-| CRM-14 | Prix fournisseurs : réception de listes par courriel, détection, import annuel/catalogue, comparaison, historique, anomalies, mise à jour validable ; fournisseurs connus Gentek, Royal Solution de Bâtiment, O.A.M., Kaycan | M6 livre de prix manuel (`m6_enregistrer_prix`, `m6_resoudre_prix_materiau`, fournisseurs) | **Partiel** (livre de prix) / **Manquant** (détection courriel, import, anomalies) | M6 (+M1 pour la réception) | Variante dictée ≠ nouveau fournisseur (file de revue) ; ligne ambiguë → revue humaine ; aucun prix inventé ; les soumissions historiques gardent leur version. Contrat §3.9 |
+| CRM-14 | Prix fournisseurs : réception de listes par courriel, détection, import annuel/catalogue, comparaison, historique, anomalies, mise à jour validable ; fournisseurs connus Gentek, Royal Solution de Bâtiment, O.A.M., Kaycan | M6 livre de prix manuel (`m6_enregistrer_prix`, `m6_resoudre_prix_materiau`, fournisseurs) | **Partiel** (livre de prix, fiches fournisseurs privées et saisie tarif en HTTP/SQLite qualifiées) / **Manquant** (détection courriel, import, anomalies) | M6 (+M1 pour la réception) | Variante dictée ≠ nouveau fournisseur (file de revue) ; ligne ambiguë → revue humaine ; aucun prix inventé ; les soumissions historiques gardent leur version. Contrat §3.9 |
 | CRM-15 | Contrat employé annuel signé en ligne, profil à jour, permis + échéance en accès restreint, heures ; jamais visible du CRM vendeur/client | `m5_enregistrer_contrat_horaire`, `paie_admission_ui`, `m4_pointer` | **Partiel** (contrat horaire M5) / **Manquant** (signature en ligne, documents RH) | M5/M4 (RH à trancher) | Accès restreint propriétaire/admin ; absent du répertoire et du dossier client par conception (test négatif) ; Loi 25 |
 | CRM-16 | Journal quotidien d'équipe : qui avec qui, prévu vs visité, terminé/reporté, extras, absences, heures ; historique annuel ; plusieurs visites conservées | `m4_pointer`, `m4_signaler_report`, `m4_completer_intervention`, `m4_lire_retards_incidents`, `m4_produire_digest` | **Partiel** (événements) / **Manquant** (journal par jour/équipe) | M4 | Une visite reportée puis reprise 4 jours plus tard donne deux entrées ; la première date n'est jamais écrasée (test) |
 
@@ -130,7 +130,7 @@ Libellés coupés/illisibles dans les photos : **non inventés** (§4).
 | Information T4A fournisseur ; détails feuillet T4A | aucune | Manquant — préparatoire, validation M5/CPA |
 | Information T5018 fournisseur ; détails formulaire T5018 | aucune | Manquant — idem |
 | Opérations par fournisseur ; achats par fournisseur ; dépenses par fournisseur (sommaire) | M5/M6 | Partiel |
-| Coordonnées / annuaire fournisseurs | `m6_lister_fournisseurs` | Existant (sans écran) |
+| Coordonnées / annuaire fournisseurs | `m6_lister_fournisseurs` + ports privés console | Partiel : liste/fiche/PATCH admin HTTP/SQLite qualifiés, contacts conservés explicitement; historique navigable et M10 fournisseur ouverts |
 
 ### R-TAXES (owner M5 — préparatoire, règles fiscales sourcées requises avant usage officiel)
 | Sous-rapport | Primitive | Statut / note |
@@ -227,3 +227,9 @@ CRM07 : [catalogue textuel versionné](MODELES-SOUMISSION-VERSIONNES-M3.md). [Ve
 
 CRM07 — [Rattachement explicite aux nouveaux devis](RATTACHEMENT-MODELE-DEVIS.md) : textes figés et documents;
 les lignes et tarifs explicites sont raccordés en [HTTP/SQLite](PREFILL-HTTP-M3-M6.md); mobile/M10 et qualifications navigateur/PostgreSQL restent ouverts.
+
+Mise à jour fournisseurs : [audit et qualification HTTP](../inventory/M6-AUDIT-FOURNISSEURS-ADMIN.md).
+Le secrétariat peut créer la fiche puis saisir le tarif et construire le devis entièrement
+par formulaires HTTP. La reprise revalide les rôles, les empreintes et le reçu. Les anciennes
+coordonnées restent intactes sans choix explicite de remplacement/effacement. Ni envoi de
+commande, ni import courriel, ni M10 fournisseur/tarif, ni navigateur/mobile/PG revendiqué.
