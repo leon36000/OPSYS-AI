@@ -2641,6 +2641,7 @@ _PAGE_CLASSEMENT = {
 
 def outils() -> tuple[Outil, ...]:
     from .catalogue_console import outils as outils_catalogue
+    from .prix_console import outils as outils_prix
 
     return (
         Outil(
@@ -3406,7 +3407,7 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=lister_notes_commande, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
-    ) + outils_catalogue()
+    ) + outils_catalogue() + outils_prix()
 
 # ---------------------------------------------------------------------------------------------
 # Consommateurs d'événements (ADR-0009 §3, PLAN T1.2, point 3 ; correctif : le trou du flux réel)

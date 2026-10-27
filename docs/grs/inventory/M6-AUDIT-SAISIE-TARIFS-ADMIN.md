@@ -53,3 +53,28 @@ reçues par courriel reste prévu et distinct : document reçu → extraction pr
 correspondances et unités vérifiées → changements préparatoires → politique humaine validée.
 Ce jalon n’autorise ni lecture de courriel réel en QA ni modification de données de production.
 M6, CRM et l’objectif OPSYS-AI global restent PARTIAL.
+
+## Ports privés qualifiés
+
+`prix_console.py` apporte `m6_lister_fournisseurs_tarif_console`,
+`m6_preparer_tarif_console` et `m6_confirmer_tarif_console`. La liste projette seulement
+identité et nom, 25 par page. Préparation : fiche matériau active et unité canonique,
+fournisseur connu, montant décimal fourni, date civile non future, source déclarée ou
+fallback explicitement marqué. Une conversion vers le nombre historique est acceptée
+seulement si sa relecture Decimal depuis le texte reste exactement égale au montant fourni.
+Le livre historique et ses anciens outils ne changent pas de contrat.
+
+La confirmation compare les empreintes de la fiche matériau et fournisseur et le rang SQL /
+empreinte du dernier tarif du couple (ou l’absence explicite). Une autre écriture impose
+une nouvelle préparation. Tarif, audit et reçu sont atomiques; le rejeu retourne son reçu
+original après revalidation de l’admin, sans nouvelle entrée. Les ports génériques, runtime
+profilé et MCP sont fermés avant toute intention; aucune portée appareil ajoutée.
+
+`tests/test_console_prix_m6.py` couvre préparation sans effet, précision, réouverture,
+rejeu après changement de prix, sources périmées, refus des champs injectés, date/montant,
+rollback audit/quota, révocation et deux confirmations concurrentes (une seule entrée).
+QA privée `crm-prefill-qa-20261027-r1/price-ports-v2` : 136 réussites, aucun échec/saut,
+13,40 s; Ruff et vérificateur 294 outils/173 portées réussis. Populations recoupées,
+non additives. Revue statique indépendante sans constat sur précision, CAS ou transaction.
+Le reçu v1 conserve 136 tests réussis et deux E501 corrigés. HTTP et mémoire des nouveaux
+tarifs restent à raccorder; aucune capacité de prix par courriel ou d’achat annoncée ici.

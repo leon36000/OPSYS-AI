@@ -516,7 +516,7 @@ def _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutatio
     outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
     if outil is None:
         raise KeyError("outil M6 indisponible")
-    ecriture = nom == "m6_enregistrer_materiau_console"
+    ecriture = nom in {"m6_enregistrer_materiau_console", "m6_confirmer_tarif_console"}
     if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
         raise ValueError("fiche matériau invalide")
     if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
@@ -599,7 +599,8 @@ def executer(
         return _executer_observation_growth_humaine(cnx, deps, session, personne, arguments, mutation_id)
     if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
-    if nom in {"m6_enregistrer_materiau_console", "m6_lire_materiau_console", "m6_lister_materiaux_console"}:
+    if nom in {"m6_enregistrer_materiau_console", "m6_lire_materiau_console", "m6_lister_materiaux_console",
+               "m6_lister_fournisseurs_tarif_console", "m6_preparer_tarif_console", "m6_confirmer_tarif_console"}:
         return _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
                    "m3_lire_tarif_modele", "m3_creer_devis_prefill",
