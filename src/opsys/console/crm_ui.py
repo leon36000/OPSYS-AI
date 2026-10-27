@@ -85,8 +85,8 @@ SECTIONS = (
      "Notes d’achat libres accessibles depuis les soumissions avec chantier connu ; commandes fournisseurs séparées."),
     ("bons_travail", "Bons de travail", "M4 — planning", "existant",
      "Cédule hebdomadaire datée accessible depuis le répertoire CRM ; bons de travail détaillés non affichés ici."),
-    ("couts", "Coûts des travaux", "M5 — finance (avec M6 et M4)", "existant",
-     "Rentabilité et écarts prévu/réel dans M5, M3 et M6 ; non affichés ici pour l'instant."),
+    ("couts", "Coûts des travaux", "M5 — finance (avec M6 et M4)", "affiche",
+     "Consultation admin depuis les devis acceptés : calcul M5 actuel, partiel ou en attente, sans mutation."),
     ("factures", "Factures", "M5 — finance", "partiel",
      "Factures client dans M5 ; la correction tracée d'une facture émise n'existe pas encore."),
     ("fichiers", "Photos et fichiers", "M10 / M4 — documents d'affaire", "partiel",
@@ -383,6 +383,8 @@ def contenu_soumission(lead_id: str, devis: Mapping[str, Any], *, prefixe: str) 
         'Notes d’achat du chantier</a></p>' +
         (f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}/{pages._segment(devis["devis_id"])}/'
          'preparation-chantier">Préparer la planification</a></p>' if devis['statut'] == 'accepte' else '') +
+        (f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}/{pages._segment(devis["devis_id"])}/'
+         'couts-travaux">Consulter les coûts des travaux</a></p>' if devis['statut'] == 'accepte' else '') +
         '</section>'
     )
 
@@ -914,8 +916,10 @@ def creer_router(
         ajouter_note(session, lead_id, {k: v for k, v in champs.items() if k != "csrf"})
         return RedirectResponse(f"{prefixe}/crm/lead/{pages._segment(lead_id)}#activites", status_code=303)
 
-    from . import preparation_chantier
+    from . import preparation_chantier, rentabilite_chantier
 
+    router.include_router(rentabilite_chantier.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(preparation_chantier.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
         verifier_formulaire=verifier_formulaire))

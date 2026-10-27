@@ -142,3 +142,39 @@ raccord HTTP admin de consultation et lien depuis le devis, sans formulaire de m
 afficher attente/partiel, sources, hypothèses, prix/taux actuels, trace et mention préparatoire.
 Browser, PostgreSQL, mobile, extras/dépenses non couverts et coût payé/historiquement figé
 restent ouverts; aucun gain de couverture n'est attribué aux tests recoupés.
+
+### Décision avant raccord HTTP
+
+Ajouter un GET admin sans paramètres ni action au routeur CRM existant, depuis le devis
+accepté seulement. Réutiliser le port qualifié; aucun nouveau calcul ou accès direct financier
+dans le rendu. Afficher les blocs propriétaires M5, leurs manques/hypothèses et sources de prix,
+le caractère actuel/préparatoire, facture non définitive et trace antérieure. Toute valeur
+absente reste « Non disponible ». Échapper chaque valeur, garder no-store/CSP et plafond HTML;
+refuser POST et toute requête superflue. Qualification HTTP/SQLite distincte du navigateur.
+
+## Qualification locale de la consultation HTTP
+
+Le GET `/crm/lead/{lead_id}/soumissions/{devis_id}/couts-travaux` est raccordé depuis le
+devis accepté. Il présente les coûts/prix prévus M5, coût calculé/connu, matériaux, minutes et
+taux, marges, sources de prix M6, hypothèses, manques et trace actuelle/ancienne. Aucun calcul
+n'est ajouté au cockpit. Les fonctions du port privé qualifié sont inchangées (AST comparé).
+
+Un rouge de revue a reproduit un HTTP200 après révocation de rôle pendant le rendu. Lecture,
+rendu, quota HTML et dernière vérification SQL admin sont maintenant dans la même transaction;
+ce cas retourne403 sans chiffres. Les valeurs sont échappées, le HTML limité à128Kio,
+POST405, paramètres400, sources indisponibles503, no-store/CSP conservés. Les contrôles sans
+injection comparent toutes les tables avant/après, sans mutation financière ni réparation.
+
+Preuves locales distinctes : `crm10-http-v2`62 PASS en22,88s (11 cas HTTP et régressions de
+port/préparation/modèles); `v3`2 PASS en2,14s, mêmes cas complets/partiels après ajout des deux
+montants prévus. `v4`54 PASS et un échec de l'ancienne liste exacte de sections affichées;
+seule cette attente a été mise à jour pour inclure « coûts ». `v6`1 PASS en1,10s vérifie cette
+attente corrigée; les autres pins produit/tests de v4 sont identiques. Les refus lint v5 et
+les rouges restent archivés. Ces cohortes se recoupent : aucun total cumulatif. Ruff et le
+vérificateur297/173 passent. Commandes, JUnit, pins, logs et bornes sont liés par
+`CRM10-HTTP-LOCAL-QUALIFIED.json`, dans le chantier CRM.
+
+**PARTIAL — consultation admin HTTP/SQLite qualifiée localement.** Les événements M4/variance
+de la fixture sont toujours contractuels fictifs reçus par le vrai M5, pas une nouvelle preuve
+de chantier M4 complet. Aucun coût payé/historiquement figé, extras/dépenses complets,+navigateur natif, PostgreSQL ou mobile n'est qualifié. Prochaine action : publication normale
+après CI du parent terminale, puis journal quotidien CRM-16 avec audit avant code.

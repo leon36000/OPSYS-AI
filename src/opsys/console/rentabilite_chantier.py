@@ -153,3 +153,96 @@ def lire(cnx, deps, session, lead_id, devis_id):
         acceptation=charge, reception=recu))
     autorite._admin(cnx, session)
     return lecture._sortie(m5.analyse.avec_mention(resultat))
+
+
+def contenu(vue, prefixe):
+    from . import pages
+
+    def valeur(v):
+        return 'Non disponible' if v is None else pages.e(v)
+
+    base = (f'{prefixe}/crm/lead/{pages._segment(vue["lead_id"])}/soumissions/'
+            f'{pages._segment(vue["devis_id"])}')
+    corps = (f'<p><a href="{pages.e(base)}">Retour à la soumission</a></p><section><h2>Coûts des travaux</h2>'
+        '<p>Source : M5, devis accepté M3, temps et matériaux reçus par M5. '
+        'Prix et taux actuels, sans attestation de dépense payée ou de coût historiquement figé.</p>'
+        f'<p>{pages.e(vue["mention"])}</p>'
+        '<p>Consultation seule. Les extras et dépenses hors du contrat actuel M5 ne sont pas inventés.</p>')
+    etat = vue['chantier']
+    if etat is None:
+        receptions = {'NON_PUBLIE': 'Acceptation sans publication vers M5', 'EN_ATTENTE': 'Réception M5 en attente',
+            'QUARANTAINE': 'Réception M5 en quarantaine', 'ECHEC_LIVRAISON': 'Réception M5 en échec'}
+        return corps + f'<p>{pages.e(receptions[vue["reception_m5"]])}</p></section>'
+    if etat['statut'] != 'calculee':
+        attentes = {'en_attente_travaux_termines': 'En attente des travaux terminés',
+                    'en_attente_devis_accepte': 'En attente du devis accepté dans M5'}
+        return corps + f'<p>{pages.e(attentes[etat["statut"]])}</p></section>'
+    r = etat['rentabilite']
+    cout, materiaux = r['cout_reel'], r['cout_reel']['materiaux']
+    corps += (f'<h3>{"Coût complet selon M5" if cout["complet"] else "Coût partiel"}</h3>'
+              f'<p>Devise : {valeur(cout["devise"])} · Facture : {valeur(r["statut_facture"])}</p>')
+    if not r['prix_definitif']:
+        corps += '<p role="alert">Prix non définitif : facture absente ou brouillon selon M5.</p>'
+    corps += ('<p>Trace de calcul à jour</p>' if etat['trace']['a_jour'] else
+              '<p role="alert">Trace de calcul antérieure : le calcul actuel n’a pas réécrit cette trace.</p>')
+    chiffres = [('Coût prévu du devis', r['cout_prevu']), ('Prix prévu du devis', r['prix_prevu']),
+        ('Coût total calculé', cout['cout_total']), ('Coût total connu', cout['cout_total_connu']),
+        ('Matériaux connus', materiaux['cout_connu']), ('Main-d’œuvre', cout['main_d_oeuvre']['cout']),
+        ('Prix de facture', r['prix_facture']), ('Marge prévue', r['marge_prevue']),
+        ('Marge réelle calculée', r['marge_reelle']), ('Écart de marge', r['ecart_marge'])]
+    corps += '<table><thead><tr><th>Mesure</th><th>Valeur M5</th></tr></thead><tbody>'
+    corps += ''.join(f'<tr><th>{pages.e(nom)}</th><td>{valeur(v)}</td></tr>' for nom, v in chiffres)
+    corps += '</tbody></table><h3>Matériaux reçus dans le calcul M5</h3>'
+    corps += '<table><thead><tr><th>Matériau</th><th>Quantité réelle</th><th>Unité</th>'
+    corps += '<th>Prix unitaire</th><th>Coût</th><th>État M5</th></tr></thead><tbody>'
+    for ligne in materiaux['lignes']:
+        corps += '<tr>' + ''.join(f'<td>{valeur(ligne[cle])}</td>' for cle in
+            ('materiau', 'quantite_reelle', 'unite', 'prix_unitaire', 'cout', 'statut')) + '</tr>'
+    corps += '</tbody></table><h3>Sources des prix M6 utilisées par M5</h3><ul>'
+    for ligne in materiaux['lignes']:
+        for source in ligne['sources_prix']:
+            corps += '<li>' + ' · '.join(valeur(source.get(k)) for k in
+                ('fournisseur_id', 'date_effet', 'source_document')) + '</li>'
+    corps += '</ul><h3>Main-d’œuvre M5</h3>'
+    mo = cout['main_d_oeuvre']
+    corps += (f'<p>État : {valeur(mo["statut"])} · Minutes : {valeur(mo["minutes"])} · '
+              f'Taux horaire : {valeur(mo["taux_horaire"])}</p><h3>Manques M5</h3><ul>')
+    for manque in cout['manque'] + r['manque']:
+        corps += f'<li>{pages.e(manque.get("code"))} : {pages.e(manque.get("detail"))}</li>'
+    corps += '</ul><h3>Hypothèses M5</h3><ul>'
+    corps += ''.join(f'<li>{pages.e(h)}</li>' for h in cout['hypotheses'])
+    corps += (f'</ul><p>Arrondi M5 : {pages.e(cout["arrondi"])}</p><details><summary>Source de consultation</summary>'
+              f'<p>Empreinte calculée : {pages.e(vue["source_calculee"])}</p></details></section>')
+    return corps
+
+
+def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre):
+    from fastapi import APIRouter, HTTPException, Request
+
+    router = APIRouter()
+
+    @router.get('/crm/lead/{lead_id}/soumissions/{devis_id}/couts-travaux')
+    def page(lead_id: str, devis_id: str, request: Request):
+        session = session_page(request)
+        if request.query_params:
+            raise HTTPException(400, 'Paramètres de consultation invalides')
+        try:
+            with cnx_factory() as cnx:
+                vue = lire(cnx, deps, session, lead_id, devis_id)
+                try:
+                    reponse = rendre(session, 'Coûts des travaux', contenu(vue, prefixe))
+                except (ValueError, KeyError, TypeError):
+                    raise HTTPException(503, 'Présentation des coûts indisponible') from None
+                if len(reponse.body) > 131072:
+                    raise HTTPException(503, 'Présentation des coûts trop volumineuse')
+                autorite._admin(cnx, session)
+        except PermissionError:
+            raise HTTPException(403, 'Accès admin requis') from None
+        except lecture.Refus as exc:
+            code = {'INTROUVABLE': 404, 'DEVIS-NON-ACCEPTE': 409}.get(exc.code, 503)
+            raise HTTPException(code, 'Coûts indisponibles : ' + exc.code) from None
+        except (ValueError, KeyError, TypeError):
+            raise HTTPException(503, 'Sources de coûts indisponibles') from None
+        return reponse
+
+    return router
