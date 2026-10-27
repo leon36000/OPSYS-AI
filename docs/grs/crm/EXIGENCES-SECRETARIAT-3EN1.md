@@ -526,3 +526,9 @@ exacts, doublons symétriques et erreurs de ligne. Aucun tarif appliqué; catalo
 encore à revalider dans l’aperçu privé futur. Suite entière M6 locale1700PASS dont39nouveaux,
 pas une preuve de courriel/import officiel/CSV/PDF/XLSX ou de déploiement. Le correctif de
 classification des messages d’avertissement garde le contrôleur de conformité inchangé.
+
+CRM-14 — adaptateur CSV UTF-8 à mapping et séparateur explicites ajouté à la fondation pure.
+25nouveauxCSV vérifiés dans une cohorte83PASS avec candidats/conformité. Les colonnes libres
+restent hors de l’aperçu et la configuration est liée à la source/au lot. Upload et aperçu privés,
+confirmation des nouveaux prix et courriel restent à raccorder; aucune liste fournisseur réelle
+ou format de Gentek/Royal/O.A.M./Kaycan présumé. Produit et CRM-14 : PARTIAL.

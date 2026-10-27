@@ -91,3 +91,48 @@ Déclarer séparément identité du binaire, mapping sémantique et configuratio
 ne pas prétendre que les hashes authentifient les lignes extraites. Aucun format réel de
 Gentek/Royal/O.A.M./Kaycan n’est présumé. Confirmation idempotente/atomique et courriel restent
 à raccorder/qualifier sous les permissions existantes.
+
+## Contrat adaptateur CSV — source f003eeaa, avant tests/code
+
+`import_tarifs_csv.preparer` reçoit des octets CSV UTF-8 (BOM accepté), un séparateur explicite
+virgule ou point-virgule et cinq correspondances exactes champ métier→nom d’en-tête : materiau_id,
+unite, prix_unitaire_decimal, devise, date_effet. Aucun sniffing, modèle, conversion locale,
+formule ou remplissage automatique. Source non vide1Mio,50lignes de données,50colonnes,
+cellule4096caractères; en-têtes uniques exacts et mapping bijectif vers cinq colonnes présentes.
+Colonnes non choisies contrôlées mais non copiées dans le lot. Une largeur différente, ligne
+vide ou citation CSV malformée refuse tout le CSV, sans lot partiel. Les erreurs métier des
+cellules choisies restent les erreurs par ligne du préparateur pur.
+
+Numéro de ligne = début physique de l’enregistrement dans le texte (une cellule citée peut
+occuper plusieurs lignes). La référence documentaire et le fournisseur restent explicitement
+fournis. Réutiliser `csv.reader(strict=True)` et les candidats purs; source complète hachée,
+mapping sémantique haché par le domaine, configuration d’extraction hachée séparément. Une
+empreinte de préparation couvre configuration et lot, même si deux configurations donnent
+les mêmes valeurs. Sortie totale64Kio ou quota inférieur, copie privée des correspondances.
+Aucune E/S, aucun téléchargement ni écriture officielle; pas encore d’upload/aperçu privé.
+
+Tests avant code : deux matériaux et ordre/date, BOM, ligne physique après cellule multilignes,
+prix virgule non converti, source invalide/nonUTF8/citation/colonnes/doublons/header/mapping,
+bornes, colonnes libres non divulguées, hash configuration distinct à sémantique identique et
+quota global. Les suites départementales compatibles sont réutilisées; conformité du nouveau
+module et non-régression des candidats restent vérifiées fraîchement.
+
+## Adaptateur CSV qualifié localement
+
+`import_tarifs_csv.preparer` lit des octets UTF-8 avec mapping explicite, traite les en-têtes
+et lignes structurellement, puis appelle réellement le préparateur de candidats existant.
+Numéros physiques après cellules multilignes, BOM, cinquante enregistrements, configuration
+hachée séparément même à résultats métier identiques et quota de l’enveloppe entière testés.
+Les colonnes non choisies n’apparaissent pas dans le résultat. Pas de conversion de prix virgule.
+
+Qualification : **83PASS/1,13s, 0FAIL/SKIP, dont25nouveauxCSV** et39candidats/19conformité.
+Premier rouge : adaptateur absent; première cohorte79PASS, quatre contrôles complémentaires
+sur quota global/binaire/colonnes/plafond50, code produit identique. Preuve1700M6 de la tranche
+précédente réutilisée pour sources inchangées, sans addition de populations. Relecture statique
+indépendante de la frontière CSV : aucun constat concret résiduel; aucune QA de relecteur.
+
+Statut actuel : fondation pure et adaptateur CSV qualifiés localement. La mise à jour officielle,
+l’upload/aperçu privé sur données canoniques, la confirmation de lot, courriel, PDF/XLSX,
+PostgreSQL/mobile et la qualification en production restent ouverts. Étape suivante : audit du
+raccord privé (autorité/session, source reçue, catalogue/fournisseur/unité/prix courant, quotas,
+comparaison indépendante et refus de source périmée) avant d’exposer cette préparation au CRM.
