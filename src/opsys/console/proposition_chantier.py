@@ -1,4 +1,5 @@
 """Port console privé : proposition M4 exacte depuis devis, sans application ni date."""
+import copy
 import re
 from datetime import UTC, datetime
 
@@ -22,7 +23,7 @@ def _profils():
 
 def _verifier_proposition(proposition, intervention_id, horodatage_appareil=None):
     """Le reçu historique ne remplace pas le plan réel et son intervention exacte."""
-    from m4_field_ops import cedule_tournees, registre
+    from m4_field_ops import cedule_tournees, encodage, registre, tournees
 
     if (not isinstance(proposition, dict) or type(proposition.get('plan_id')) is not str
             or EMPREINTE.fullmatch(proposition['plan_id']) is None
@@ -32,6 +33,20 @@ def _verifier_proposition(proposition, intervention_id, horodatage_appareil=None
     entree = cedule_tournees.plan_propose(cedule_tournees.instantane_du_registre(chaine), proposition['plan_id'])
     if (entree is None or len(entree['etat']) != 1
             or entree['etat'][0]['intervention_id'] != intervention_id):
+        raise lecture.Refus('SOURCE-INCOHERENTE')
+    sortie = copy.deepcopy(entree['sortie'])
+    if tournees._structure_sortie(sortie):
+        raise lecture.Refus('SOURCE-INCOHERENTE')
+    meta = sortie['meta']
+    empreinte_sortie = meta.pop('empreinte_sortie')
+    empreinte_etat = encodage.empreinte(entree['etat'])
+    if (entree['version'] != cedule_tournees.VERSION_PROPOSITION
+            or encodage.empreinte(sortie) != empreinte_sortie
+            or entree['empreinte_sortie'] != empreinte_sortie
+            or entree['empreinte_entree'] != meta['empreinte_entree']
+            or entree['empreinte_etat'] != empreinte_etat
+            or entree['plan_id'] != encodage.empreinte(cedule_tournees.VERSION_PROPOSITION,
+                meta['empreinte_entree'], empreinte_sortie, empreinte_etat)):
         raise lecture.Refus('SOURCE-INCOHERENTE')
     attendu = cedule_tournees._resultat_proposition(entree, proposition['deja_proposee'], entree['provenance'], [])
     propre = dict(proposition)
@@ -120,3 +135,38 @@ def proposer(cnx, deps, session, lead_id, devis_id, empreinte_attendue, mutation
                          intervention_id=arguments['intervention_ids'][0], mutation_id=mutation_id))
         idempotence.finaliser(cnx, meta, resultat)
         return resultat
+
+
+
+def lire(cnx, deps, session, lead_id, devis_id, plan_id):
+    """Projection historique du vrai brouillon, liée au devis exact; aucune application."""
+    from m4_field_ops import cedule_tournees, registre, tournees
+
+    courant = preparer(cnx, deps, session, lead_id, devis_id)
+    vue = courant['vue']
+    if type(plan_id) is not str or EMPREINTE.fullmatch(plan_id) is None:
+        raise lecture.Refus('INTROUVABLE')
+    if vue['intervention'] is None or vue['ancre_complete'] is not True:
+        raise lecture.Refus('INTROUVABLE')
+    iid = vue['intervention']['intervention_id']
+    chaine = registre.Registre(stockage.maillons(lecture.M4, 'principal'))
+    instantane = cedule_tournees.instantane_du_registre(chaine)
+    maillon = cedule_tournees.plan_propose(instantane, plan_id)
+    if (maillon is None or len(maillon['etat']) != 1
+            or maillon['etat'][0]['intervention_id'] != iid or maillon['etat'][0]['lead_id'] != lead_id):
+        raise lecture.Refus('INTROUVABLE')
+    if tournees._structure_sortie(maillon['sortie']):
+        raise lecture.Refus('SOURCE-INCOHERENTE')
+    projection = cedule_tournees._resultat_proposition(maillon, True, maillon['provenance'], [])
+    _verifier_proposition(projection, iid)
+    places = [v['chantier'] for r in projection['plan'] for v in r['visites']]
+    omis = [i['chantier'] for i in projection['non_cedulees']]
+    if places + omis != [iid] or projection['totaux']['chantiers_cedules'] != len(places):
+        raise lecture.Refus('SOURCE-INCOHERENTE')
+    inscription = cedule_tournees.inscriptions_du_registre(instantane)[iid]
+    preparations = {} if vue['preparation'] is None else {iid: vue['preparation']}
+    etat = cedule_tournees._etat_intervention(instantane, inscription, preparations)
+    modifies = (maillon['etat'][0] != etat or maillon['empreinte_profil'] != courant['equipes_source'])
+    return lecture._sortie(dict(lead_id=lead_id, devis_id=devis_id, intervention_id=iid,
+        statut_intervention=vue['intervention']['statut'], proposition=projection,
+        etat_ou_equipes_modifies=modifies, preparation=vue['preparation'], historique=True))

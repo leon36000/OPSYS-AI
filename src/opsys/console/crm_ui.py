@@ -890,7 +890,8 @@ def creer_router(
     from . import preparation_chantier
 
     router.include_router(preparation_chantier.creer_router(
-        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
+        verifier_formulaire=verifier_formulaire))
     router.include_router(devis_modele_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
         verifier_formulaire=verifier_formulaire, verifier_lead=verifier_lead, rendre=rendre))

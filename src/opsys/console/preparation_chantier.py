@@ -192,7 +192,7 @@ def contenu(vue, prefixe):
              f'<p>Devis accepté : {pages.e(vue["devis_id"])} · {pages.e(vue["horodatage_acceptation"])}</p>'
              f'<p data-reception-m4="{vue["reception_m4"]}">{reception[vue["reception_m4"]]}</p>'
              '<p>' + ('Source M1 vérifiée' if vue['source_m1'] == 'PRESENTE' else 'Source M1 absente') + '</p>'
-             '<p>Lecture seulement. Aucune date ni disponibilité promise par cet écran. '
+             '<p>La consultation ne modifie pas le chantier. Aucune date ni disponibilité promise par cet écran. '
              'Les règles météo ne constituent pas une prévision du créneau.</p>')
     if not vue['ancre_complete']:
         corps += '<p role="alert">Les preuves de transfert sont incomplètes; aucun créneau n’est confirmé.</p>'
@@ -220,7 +220,9 @@ def contenu(vue, prefixe):
     return corps
 
 
-def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre):
+def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre, verifier_formulaire):
+    from . import proposition_chantier, proposition_chantier_ui
+
     router = APIRouter()
 
     @router.get('/crm/lead/{lead_id}/soumissions/{devis_id}/preparation-chantier')
@@ -230,7 +232,8 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre):
             raise HTTPException(400, 'Paramètres invalides')
         try:
             with cnx_factory() as cnx:
-                vue = lire(cnx, deps, session, lead_id, devis_id)
+                apercu = proposition_chantier.preparer(cnx, deps, session, lead_id, devis_id)
+                vue = apercu["vue"]
         except PermissionError:
             raise HTTPException(403, 'Accès admin requis') from None
         except Refus as exc:
@@ -238,9 +241,13 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre):
             raise HTTPException(statut, 'Préparation indisponible : ' + exc.code) from None
         except (ValueError, KeyError, TypeError):
             raise HTTPException(503, 'Sources de préparation indisponibles') from None
-        reponse = rendre(session, 'Préparation du chantier', contenu(vue, prefixe))
+        corps = contenu(vue, prefixe) + proposition_chantier_ui.formulaire(apercu, session.csrf, prefixe)
+        reponse = rendre(session, 'Préparation du chantier', corps)
         if len(reponse.body) > 131072:
             raise HTTPException(503, 'Préparation trop volumineuse')
         return reponse
 
+    router.include_router(proposition_chantier_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
+        verifier_formulaire=verifier_formulaire))
     return router

@@ -98,3 +98,51 @@ Source en lecture seule, réseau bloqué, homes/tmp privés, 1 CPU/1 Gio/96 tâc
 la revue persistée du brouillon, le POST CSRF, l’application N3 et le raccord aux dates sont les
 prochaines étapes. Pas de qualification navigateur, PostgreSQL, météo distante, OR-Tools nouveau,
 mobile ou produit complet. Aucun envoi client, affectation ou date produit par cette tranche.
+
+
+## Jalon exécuté — formulaire et revue HTTP
+
+`proposition_chantier_ui.py` expose maintenant le formulaire uniquement quand le devis accepté,
+l’ancre bus et la préparation M4 relue permettent de proposer pour l’intervention `a_planifier`.
+`preparation_chantier.py` affiche ce formulaire après le préflight du port; `crm_ui.py` transmet
+le contrôle CSRF existant. Champs fermés : `csrf`, `mutation_id`, `empreinte_attendue`.
+
+- `POST /crm/lead/{lead_id}/soumissions/{devis_id}/propositions-chantier` appelle le port
+  atomique sous identité actuelle, puis redirige 303 vers la proposition persistée exacte.
+- `GET /crm/lead/{lead_id}/soumissions/{devis_id}/propositions-chantier/{plan_id}` relit les
+  sources et le plan M4 réel, puis rend équipe, jour numérique, heures proposées, non-cédulés,
+  solveur, provenance et avertissement de distance approximative. Préfixe console conservé.
+
+Le lecteur privé `proposition_chantier.lire` exige le lien exact lead/devis/intervention/plan,
+une seule intervention et sa présence dans les visites ou les non-cédulés. Il vérifie la forme
+propriétaire de sortie, son empreinte canonique, les copies méta/maillon, l’empreinte d’état et
+le `plan_id` recomposé. Une revue indépendante a trouvé qu’une sortie modifiée puis rechaînée
+pouvait afficher une équipe inexistante : `crm08-http-plan-red-v1` reproduit un HTTP 200 au lieu
+de 503; le contrôle commun des empreintes ferme ce cas avant projection et renvoi de reçu.
+Il garantit cette cohérence historique, pas une nouvelle résolution de faisabilité avec une
+matrice historique absente. La réécriture cohérente de toutes les preuves sans ancre externe
+n’est pas une garantie ajoutée ici.
+
+Les changements d’état/localisation/préparation/équipes détectés sont signalés. La consultation
+reste sans effet et la proposition est explicitement historique; aucun bouton d’application,
+affectation, date civile, message client ou fausse disponibilité. Les règles météo ne sont pas
+une prévision datée. Chaque texte rendu est échappé; sortie HTML bornée à 128 Kio, réponse no-store.
+
+`tests/test_console_proposition_chantier_http.py` qualifie le parcours réel prêt → formulaire →
+POST → plan persisté → revue → rejeu, sans affectation ni changement d’état. Les GET conservent
+l’instantané complet de la base. Refus vérifiés : CSRF, doublons/champs supplémentaires, auteur/
+heure/cible fournis par le client, corps/type excessif, job bloqué, matériel retiré depuis
+l’aperçu, intention réutilisée, rôle révoqué et plan d’un autre dossier. Une modification réelle
+du profil est signalée à la revue; le rejeu reste sans effet. XSS et quota HTML sont couverts.
+
+Preuves privées du même harnais borné : `crm08-http-red-v1` (formulaire absent avant code);
+`v1` 97 PASS avec style à corriger; `plan-red-v1` rouge métier décrit ci-dessus; `v2` 104 PASS
+et un prérequis de fixture erroné (second devis d’un lead déjà converti, M2 refuse légitimement).
+La fixture corrigée crée un second vrai lead M1, qualifié M2, puis son devis et son intervention,
+sans réduire le contrôle de quarantaine. Qualification finale `crm08-http-v3` :
+**105 PASS, 0 FAIL, 0 SKIP, 33,05 s**, Ruff et vérificateur 297/173 passent. Les populations
+se recoupent, sans addition. Revue statique complémentaire : aucun nouveau constat sur le correctif.
+
+**PARTIAL** : cette interface est qualifiée en HTTP/SQLite. Prochaine capacité : application
+humaine N3 du plan exact avec sources relues, puis raccord à l’éditeur civil existant sous ses
+gardes. Navigateur, PostgreSQL, prévision distante, mobile et CRM-08 complet restent ouverts.
