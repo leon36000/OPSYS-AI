@@ -307,7 +307,7 @@ class Capacites:
                    "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
                    "m4_lire_page_cedule_semaine", "m4_lire_journal_quotidien",
                    "m4_lire_composition_journaliere_console", "m4_declarer_composition_journaliere_console",
-                   "m4_lire_absence_journaliere_console"}:
+                   "m4_lire_absence_journaliere_console", "m4_declarer_absence_journaliere_console"}:
             # Aucun texte privé dans approbations, reçus ou artefacts génériques.
             # Le port humain privé de console appelle les outils M4 directement.
             return {"ok": False, "erreur": "port_console_prive_requis"}
@@ -360,7 +360,7 @@ class Capacites:
                    "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
                    "m4_lire_page_cedule_semaine", "m4_lire_journal_quotidien",
                    "m4_lire_composition_journaliere_console", "m4_declarer_composition_journaliere_console",
-                   "m4_lire_absence_journaliere_console"}:
+                   "m4_lire_absence_journaliere_console", "m4_declarer_absence_journaliere_console"}:
             # Refus avant toute normalisation, réclamation ou approbation contenant du texte privé.
             return {"ok": False, "erreur": "port_console_prive_requis"}
         if nom in _LECTURES_DOCUMENTAIRES_M10:

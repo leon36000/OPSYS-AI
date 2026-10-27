@@ -939,3 +939,81 @@ liste quotidienne globale, heures/paie, M10, PostgreSQL, navigateur natif et mob
 ouverts. Prochaine action : writer admin privé des signalements/retraits, cible humaine
 canonique initiale, auteur/heure serveur, CAS/rejeu et rollback audit/source/autorité, avant
 formulaire CSRF. Aucun motif de santé ni action RH/financière automatique.
+
+
+## Contrat avant le writer admin des signalements d'absence
+
+Réutiliser le domaine pur et le parcours signé des compositions : nouveau T1 privé
+`m4_declarer_absence_journaliere_console`, sans portée d'appareil et fermé aux deux répartiteurs
+génériques avant factory/normalisation/reçu. Paramètres exactement jour, personne_id, statut
+signalee/retiree, révision attendue. Auteur et instant de réception sont fournis par le serveur;
+aucun motif, santé, montant, heure, paie, nom ou rôle modifiable par le client.
+
+Pour la première paire jour/personne, résoudre un compte canonique existant ayant au moins un
+rôle interne humain employee/seller/manager/finance/admin/nathan_owner; refuser system_agent,
+même combiné à un rôle interne, et les comptes seulement client. Un compte désactivé peut être
+cité pour l'histoire, sans activation ni emploi passé déduit. Capturer uniquement identifiant,
+état actif et rôles du compte effectivement consommé, pas son nom ou mot de passe. Recontrôler
+cette même source avant/après append. Une paire déjà historisée validée, même retirée, reste
+corrigeable/retirable sans reconstituer les rôles actuels ou passés du sujet. La paire d'un
+autre jour n'autorise jamais une première saisie. Aucun compte ni rôle n'est créé ou modifié.
+
+Préparer et valider l'opération entière sur copie bornée avant append : CAS, schéma, chaîne,
+intention et quota d'accusé. Rejeu exact avant CAS et validation contemporaine du sujet :
+renvoyer l'ancien accusé sans sujet et sans nouvelle écriture, après autorité courante et
+source revérifiées. Conflit d'intention, auteur différent ou historique altéré = refus.
+
+Savepoint propre et transaction canonique SQLite BEGIN IMMEDIATE. Avant append vérifier
+source/identité/auteur; après append comparer accusé, maillon réel et préfixe/métadonnées
+intacts, puis identité initiale et auteur. Journal d'audit minimal : jour, révision, statut,
+empreintes et marqueur de validation initiale; pas de sujet, nom ou rôles dans journal/reçus
+génériques. Une erreur d'audit, d'identité, de source ou d'autorité après append sort du
+savepoint avant conversion en refus, même si l'appelant capture l'exception. Le wrapper SDK
+révérifie la session/admin après retour du writer et annule aussi toute perte d'autorité tardive.
+Aucun événement M10, automatisation RH, effet de présence ou calcul financier.
+
+Tests avant code : vrai outil absent au rouge; signaler/retirer/redéclarer, cible humaine
+inactive et chaque rôle interne, client/agent/inconnu et champs sensibles refusés; ancien
+rejeu sans lecture contemporaine du sujet, historique après changement de rôle et autre
+jour refusé; CAS/intention, deux transactions réelles concurrentes; source d'identité A→B→A,
+panne d'audit/révocation/métadonnées ou cible changée après append, accusé altéré, quota avant
+append et refus directs/MCP/injection. Tables/profil/pointage/composition/paie inchangés hors
+registre et audit minimisé. Formulaire CSRF et liste quotidienne viendront séparément.
+
+
+## Writer privé des absences qualifié localement
+
+Le vrai T1 privé `m4_declarer_absence_journaliere_console` et `absences_ecriture.py` existent.
+Compte interne humain confirmé pour une première paire, comptes désactivés admis sans activation,
+agent système refusé même combiné; historique et retrait gardés après changement du rôle actuel
+du sujet. Un autre jour redevient une première paire. Le rejeu exact renvoie l'ancien accusé,
+sans validation contemporaine du sujet, sans nouvelle trace et sans revenir sur les retraits.
+Auteur/session SQL restent courants. Les deux transactions concurrentes n'acceptent qu'une révision.
+
+Cohorte `crm16-absence-write-v2` : **222 PASS, 0 FAIL, 0 SKIP, 21,96 s**, dont 35 nouveaux cas
+writer/identité, plus les compositions, lectures privées, domaine pur, portées et verdicts.
+221 cas de v1 inclus, aucun cumul des cohortes. Ruff et vérificateur natif : 302 outils,
+176 déclarés au transport, nouveau T1 fermé aux appareils/agents/MCP et répartiteurs génériques.
+Aucun rôle de personne ajouté. Même enveloppe privée : source RO Landlock, sockets refusés,
+1 CPU / 1 Gio / 96 tâches / 600 s, données fictives, dépendances déjà privées avant imports.
+
+Rouge initial : outil réellement absent. Le root a ensuite reproduit par hook SQLAlchemy une
+sélection excessive du nom et du hash secret du sujet via `identite.personne` (aucun export
+observé). La résolution initiale sélectionne maintenant uniquement identifiant/actif et rôles
+bornés à neuf lignes, validés par le catalogue fermé. Revue statique indépendante ferme cette
+correction; aucun autre constat concret, aucun runtime du relecteur. Aucun changement de l'API
+identité globale. Le wrapper SDK partagé est seulement renommé; son corps est identique par AST.
+
+Préparation et quota avant append, source/identité effectivement consommées et auteur revalidés,
+accusé réel/maillon/préfixe/métadonnées comparés. Panne d'audit, identité/rôle modifié, source
+altérée ou autorité perdue après append annulent toutes les écritures, même si l'appelant
+capture l'exception. Une perte d'autorité après retour du writer annule également l'opération
+au niveau SDK. Audit minimal et accusé sans sujet; autres tables, profils, accès, composition,
+pointage et paie inchangés. Champs santé/motif/auteur client/heure/paie refusés par le schéma.
+Preuve : `CRM16-ABSENCE-WRITE-LOCAL-QUALIFIED.json`.
+
+**PARTIAL — backend privé HTTP/SQLite qualifié, formulaire de mutation encore absent.** La
+saisie UI vient ensuite sous CSRF, UUID et CAS, sans motif libre. Pas d'absence observée,
+présence, emploi passé, paie, liste quotidienne complète, M10, PostgreSQL, navigateur natif,
+mobile ou décision RH automatique qualifié. Parent ebce : dernier jalon CI 26 succès,
+4 SKIP, 12 en cours, 42 observés; les commits locaux restent retenus, sans annulation/rejeu.

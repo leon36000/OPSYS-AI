@@ -54,6 +54,8 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
     absences_durables,
+    absences_ecriture,
+    absences_journalieres,
     acces,
     annotations_calendrier,
     apercu_mois,
@@ -1465,6 +1467,36 @@ def outils(
         except (ValueError, KeyError, TypeError, registre.VerificationError):
             return _refus(verdicts.construire_verdict('REJ-COMPOSITION-SOURCE-INVALIDE'))
 
+    def declarer_absence_journaliere_console(jour, personne_id, revision_attendue, statut_declaration):
+        from . import encodage
+
+        n = absences_journalieres
+        try:
+            auteur = _autoriser_annotation()
+            cnx = _cnx_durable()
+            # Refuse l'injection même si la transaction courante est par ailleurs valide.
+            absences_durables.capturer(cnx)
+            meta, reception = _META_ANNOTATION.get(), contexte.horodatage_reception()
+            if (not isinstance(meta, idempotence.Meta) or reception is None
+                    or meta.appareil != 'console:' + auteur['personne'] or reception.appareil != meta.appareil
+                    or reception.recu_le.utcoffset() is None):
+                raise n.Refus('MUTATION-ABSENTE')
+            arguments = n._arguments(jour, personne_id, statut_declaration, revision_attendue)
+            mutation = {'appareil': meta.appareil, 'cle': meta.cle,
+                        'empreinte_arguments': encodage.empreinte(arguments)}
+            return absences_ecriture.enregistrer(cnx, arguments, auteur, mutation, reception.recu_le.isoformat(),
+                _autoriser_annotation, limite_sortie=contexte.limite_sortie() or 65536)
+        except n.Refus as exc:
+            codes = {'IDENTITE', 'MUTATION-ABSENTE', 'MUTATION-CONFLIT', 'REVISION-PERIMEE',
+                     'CIBLE-NON-CONFIRMEE', 'SOURCE-MODIFIEE', 'SORTIE-TROP-VOLUMINEUSE'}
+            code = ('SOURCE-TROP-VOLUMINEUSE' if exc.suffixe == 'SOURCES-TROP-VOLUMINEUSES' else
+                    exc.suffixe if exc.suffixe in codes else 'DECLARATION-INVALIDE')
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-' + code))
+        except absences_durables.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-SOURCE-INVALIDE'))
+
     def verifier_preparation(intervention_id: str) -> dict[str, Any]:
         """Lecture seule : la préparation d'une intervention (M4.6), volet par volet, avec ce qui manque. Rien n'est
         écrit ; aucun volet non vérifié n'est présenté comme prêt."""
@@ -2504,6 +2536,19 @@ def outils(
                 "source_attendue": {"type": ["string", "null"]}},
                 "required": ["jour", "equipe_id"], "additionalProperties": False},
             fonction=lire_composition_journaliere_console, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_declarer_absence_journaliere_console",
+            description=("Console humaine admin privée : signale/retire une absence déclarée par jour/personne. "
+                         "Compte humain initial confirmé, CAS/intention et heure serveur; aucune présence, "
+                         "santé, paie, décision RH ou accès créé. Aucun agent, MCP ou appareil direct."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "personne_id": {"type": "string", "maxLength": 64},
+                "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 10000},
+                "statut_declaration": {"type": "string", "enum": ["signalee", "retiree"]}},
+                "required": ["jour", "personne_id", "revision_attendue", "statut_declaration"],
+                "additionalProperties": False},
+            fonction=declarer_absence_journaliere_console, autonomie=Autonomie.T1,
         ),
         Outil(
             nom="m4_lire_absence_journaliere_console",

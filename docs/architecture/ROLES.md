@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 176 outils sur 301 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 176 outils sur 302 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -1043,3 +1043,10 @@ compte ajouté. Les membres ne sont jamais recopiés dans les artefacts généri
 Admin SQL/session et réception serveur, identités canoniques, CAS/rejeu privé; les deux
 répartiteurs génériques ferment avant effet. Aucun profil ou droit de compte changé, aucune
 présence/paie déduite; journaux et accusés sans liste de membres.
+
+
+`m4_declarer_absence_journaliere_console` : T1 humain privé sans portée d'appareil.
+Compte humain initial confirmé en SQLite, auteur et heure serveur, session/admin courant,
+CAS/rejeu privé et savepoint. Les deux répartiteurs génériques refusent avant effet; aucun
+rôle de compte ou accès donné. Aucun sujet dans les accusés ou journaux génériques, aucune
+présence, santé, paie ou décision RH automatique.
