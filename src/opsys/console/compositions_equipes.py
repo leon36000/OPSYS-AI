@@ -193,7 +193,7 @@ async def formulaire(request):
         raise HTTPException(400, 'Déclaration invalide') from None
 
 
-def confirmer(reponse):
+def confirmer(reponse, prefixe="REJ-COMPOSITION-"):
     from fastapi import HTTPException
 
     r = reponse.get('resultat') if isinstance(reponse, dict) and reponse.get('ok') is True else None
@@ -201,12 +201,13 @@ def confirmer(reponse):
         raise HTTPException(503, 'Déclaration indisponible')
     if r.get('accepte') is True and isinstance(r.get('resultat'), dict):
         return
-    code = r.get('verdict', {}).get('code', '').removeprefix('REJ-COMPOSITION-')
+    code = r.get('verdict', {}).get('code', '').removeprefix(prefixe)
     if code == 'IDENTITE':
         raise HTTPException(403, 'Accès admin requis')
     if code in {'REVISION-PERIMEE', 'MUTATION-CONFLIT', 'SOURCE-MODIFIEE'}:
         raise HTTPException(409, 'Déclaration modifiée : relire la journée avant de recommencer')
-    if code in {'ARGUMENTS', 'DECLARATION-INVALIDE', 'IDENTITES-NON-CONFIRMEES', 'MUTATION-ABSENTE'}:
+    if code in {'ARGUMENTS', 'DECLARATION-INVALIDE', 'IDENTITES-NON-CONFIRMEES',
+                'CIBLE-NON-CONFIRMEE', 'MUTATION-ABSENTE'}:
         raise HTTPException(400, 'Déclaration ou identifiants invalides')
     raise HTTPException(503, 'Source indisponible; aucune nouvelle déclaration confirmée')
 

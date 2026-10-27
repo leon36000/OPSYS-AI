@@ -1017,3 +1017,76 @@ saisie UI vient ensuite sous CSRF, UUID et CAS, sans motif libre. Pas d'absence 
 présence, emploi passé, paie, liste quotidienne complète, M10, PostgreSQL, navigateur natif,
 mobile ou décision RH automatique qualifié. Parent ebce : dernier jalon CI 26 succès,
 4 SKIP, 12 en cours, 42 observés; les commits locaux restent retenus, sans annulation/rejeu.
+
+
+## Contrat avant formulaires admin des absences
+
+Sur la route déjà qualifiée, ajouter un formulaire POST de signalement et un formulaire
+séparé de retrait seulement quand un signalement est courant. Quatre champs exactement :
+csrf, revision_attendue, mutation_id UUID, statut_declaration. Jour/personne restent dans
+l'URL canonique sans pagination. Réutiliser le parseur de formulaire des annotations (corps
+UTF-8 borné à 30 000 octets, champs uniques/fermés) et son entier canonique; valider UUID et
+statut. Réutiliser le classement de confirmation des déclarations avec préfixe ABSENCE explicite.
+Aucun champ libre pour santé, motif, temps, paiement, nom, rôle, auteur ou heure client.
+
+Première déclaration : forme visible seulement si la même connexion canonique confirme le
+compte humain interne avec le sélecteur SQL minimisé. Sinon message explicite, sans bouton
+inopérant ou nom actuel. Pour une paire déjà historisée, forme encore disponible après changement
+du rôle actuel, sans lookup du sujet. Retrait garde l'histoire et ne signifie jamais présent.
+L'admin valide explicitement le signalement pour la journée/identifiant affichés; aucun calcul RH.
+
+POST appelle le vrai T1 sous transaction canonique et savepoint, CSRF et session/admin SQL,
+confirme le refus dans le savepoint puis recontrôle l'admin avant 303 vers une lecture fraîche.
+Rejeu ancien = ancien accusé serveur mais état courant affiché, jamais retour arrière. Refus
+400/403/409/503 selon cible/autorité/CAS/source; toute panne après append annule les écritures.
+GET et lookup restent des lectures; les formulaires sont des actions distinctes et explicites.
+
+Tests avant code : vraies formes signalement→retrait→redéclaration/rejeu, ancien rôle du sujet,
+autre jour initial refusé, changement de corps/URL, CAS simultané, CSRF/UUID/révision/statut,
+champs sensibles/doubles, JSON et taille, non-admin/rôle révoqué, audit après append et autorité
+HTTP perdue après retour SDK. Régressions des formulaires de composition et annotations, des
+lectures et de la confidentialité. Le test POST sans Content-Type attend désormais 415 au lieu
+de405, avec invariant zéro écriture. Aucun navigateur, PostgreSQL ou mobile revendiqué.
+
+
+## Formulaires admin des absences qualifiés localement
+
+La page propose maintenant deux actions explicites : signaler et, si un signalement est
+courant, retirer. Quatre champs cachés seulement, sans motif/santé/paie : CSRF, révision,
+UUID et statut. Jour et identifiant restent dans l'URL fermée; le résultat POST303 relit
+l'état courant. Le premier formulaire exige un compte humain interne canonique et les
+anciennes paires restent corrigeables après changement du rôle actuel. Un compte désactivé
+n'est jamais réactivé. Après retrait, aucune présence n'est affirmée. Le GET et le lookup
+restent des lectures; les mutations exigent une validation administrative distincte.
+
+Ce jalon qualifie les écritures HTTP; le jalon précédent qualifiait le backend SDK/SQLite.
+Le parseur existant des annotations est réutilisé : UTF-8, 30 000 octets, quatre champs
+uniques et fermés, entier canonique. UUID/statut validés avant écriture. Le confirmateur
+partagé garde le préfixe COMPOSITION par défaut et reçoit explicitement ABSENCE ici; refus
+cible/CSRF/CAS/source en 400/403/409/503. La transaction et le savepoint englobent le vrai T1,
+la confirmation et l'admin SQL après retour SDK. Panne d'audit ou autorité HTTP perdue annulent
+l'append, même après succès du writer. Aucun reçu générique ne contient le sujet.
+
+Cohorte `crm16-absence-form-v2` : **107 PASS, 0 FAIL, 0 SKIP, 30,90 s**, dont 17 nouveaux cas
+HTTP/formulaire, avec 22 lectures/logs, 19 formulaires de composition, 14 annotations et
+35 writers. Les anciens 79/186/222 et ces populations se recoupent et ne sont pas additionnés.
+Ruff et vérificateur natif : 302 outils/176 déclarés, aucune nouvelle portée ou droit accordé.
+Même enveloppe QA privée, réseau refusé, source RO Landlock, 1 CPU / 1 Gio / 96 tâches / 600 s
+avant imports. Aucun navigateur natif utilisé. Rouge initial : vrai formulaire absent;
+v1 est seulement un refus de lint sur une ligne longue, sans runtime produit. Revue statique
+indépendante : aucun constat concret supplémentaire, aucun runtime ou mutation du relecteur.
+Preuve : `CRM16-ABSENCE-FORM-LOCAL-QUALIFIED.json`.
+
+Vrais formulaires signalement→retrait→redéclaration, ancien rejeu après corrections sans retour
+arrière, historique après changement du rôle et autre jour initial refusé, conflit de corps/URL
+ou révision, JSON/champs doubles/taille, CSRF/UUID/révision/statut et champs sensibles refusés.
+Non-admin et admin révoqué ne peuvent écrire/rejouer. Tous les autres états, rôles et profils
+restent inchangés hors registre/audit minimisé; compte inactif toujours inactif. POST sans
+Content-Type est désormais 415, contre 405 avant création de la route, et n'écrit rien.
+
+**PARTIAL — signalement/retrait admin HTTP/SQLite qualifiés localement.** Ce n'est pas une
+absence réellement observée, une présence, un calcul de paie ou une décision RH automatique.
+Liste quotidienne globale, heures, M10, PostgreSQL, navigateur et mobile restent ouverts.
+Prochaine capacité utile : liste journalière paginée des signalements courants et retirés,
+avec liens vers cet historique, sans annuaire contemporain, compteur dupliqué dans le journal
+ou déduction de présence. Publication des commits locaux retenue par la CI du parent ebce.

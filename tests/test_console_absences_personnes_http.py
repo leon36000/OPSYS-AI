@@ -43,7 +43,7 @@ def test_http_reel_source_temporalites_et_retrait_historise_sans_ecriture(client
     assert premier['resultat']['declaration_id'] in r.text and 'inactif.fictif' in r.text
     assert 'Empreinte calculée du snapshot' in r.text
     assert r.headers['cache-control'] == 'no-store' and 'content-security-policy' in r.headers
-    assert client_crm.post(URL).status_code == 405
+    assert client_crm.post(URL).status_code == 415
     assert base._instantane_base(session) == avant
 
 
