@@ -108,7 +108,8 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                               (r['suivant'], 'Page suivante')]:
             if offset is not None:
                 corps += f'<p><a href="{pages.e(base + "?" + urlencode(dict(debut=offset)))}">{label}</a></p>'
-        corps += '<h2>Nouveau matériau</h2>' + formulaire(session, prefixe)
+        corps += (f'<p><a href="{pages.e(base + "/tarifs/importer")}">Préparer une liste de prix CSV</a></p>'
+                  + '<h2>Nouveau matériau</h2>' + formulaire(session, prefixe))
         return rendre(session, 'Catalogue matériaux', corps)
 
     @router.post(BASE + '/enregistrer')

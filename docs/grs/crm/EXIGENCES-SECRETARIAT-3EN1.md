@@ -538,3 +538,9 @@ vraiT0 console admin revalide catalogue/fournisseur/unité/dernierprix sur3snaps
 sourcepérimée et étatssensibles refusés, reçu desaisie existant reproduit sans appliquer de prix.
 82PASSdont23nouveaux;195 et116portées compatibles réutilisés sans addition. Catalogue305/177,
 aucun droit ajouté. Upload/aperçuCRM et confirmationlot restent à raccorder; pas de courriel réel.
+
+CRM-14 — aperçu CSV désormais disponible en HTTP privé depuis le catalogue et les fournisseurs :
+upload borné, colonnes explicites, source/prix/unité revalidés, affichage des erreurs et ancienprix,
+CSRF/admin et sources aprèsrendu. 69PASSdont17nouveauxHTTP; prix officiels inchangés. La confirmation
+du lot, les formats fournisseurs réels, courriel et déploiement restent ouverts. Preuve HTTP/SQLite,
+pas navigateur réel; produit PARTIAL. Voir le [contrat et preuves](../inventory/M6-IMPORT-TARIFS-APERCU-PRIVE.md).

@@ -84,3 +84,46 @@ Statut : préparation privée sur SQLite qualifiée localement. Aucun upload/éc
 confirmationlot, importofficiel, courriel, PDF/XLSX, données réelles ou production dans cette tranche.
 Prochaineétape : aperçu HTTP privé et borné depuisCSV, comparaisonindépendante auT0 puis source/
 autorité aprèsrendu, requêteprivéemasquée, sans ajouter deconfirmationprix. Produit restePARTIAL.
+
+## Contrat HTTP — source53e9e89a, avant tests/code
+
+GET/POST `/crm/materiaux/tarifs/importer` (trois segments, sans collision avec fiche{id}).
+Lien du catalogue et de la fiche fournisseur, fournisseur exact prérempli seulement si explicite.
+Mapping cinq colonnes obligatoire sans défaut de format supposé. GET admin courant avant/après
+rendu, query fermée; aucune lecture de prix pour un simple formulaire. POSTmultipart CSRF :
+réutiliser `_media`/`_corps_borne` de l’ingestion privée existante,1Mio+64Kio de corps avant parser,
+1fichier/10champs/parttexte16Kio, clés exactes uniques, fermeture upload/formfinally, UTF-8 strict
+conservant BOM/CRLF. Identité/CSRF avant toute préparation; aucune persistance de fichier/source.
+
+Même connexion canonique jusqu’après rendu. Calcul indépendant du jour serveur, CSV propriétaire,
+3snapshots puis projection attendue; comparer JSON typé au vraiT0 via dispatcher. État/source
+relus avant restitution et aprèsgabarit, autorité aprèsrecapture. QuotaJSON64Kio/HTML128Kio,
+no-store/CSP. Erreur source périmée409, donnée canonique incohérente503, admission403, mauvais
+CSV/form400/413/415 sans copier la charge libre. Le tableau distingue prix fourni/ancienprix,
+unités, noms actuels, erreurs et sources; aucun montant calculé par IA, aucun bouton confirmation.
+Références documentaires échappées comme texte. Query entière masquée Uvicorn, slash final inclus.
+
+Tests avant code : vrais POSTCSV/writers/T0, BOM/CRLF, ancienprix, mêmes tables aprèslecture,
+liens, XSS et absence noteslibres, paramètres/champsdoublons, multipart/quotastream, CSRF/roles,
+réponseT0altérée, source etadminmodifiés aprèsrendu, logs. Pas de navigateur réel ou données réelles.
+
+## Aperçu HTTP privé qualifié localement
+
+GET/POSTmultipart disponibles, liés depuis catalogue et fiche fournisseur. Le CSV reçu passe
+réellement par le T0; projection indépendante et comparaison JSON typée, recapture des3sources
+et de l’admin après gabarit. Source binaireBOM/CRLF conservée; noms/documents échappés, anciennes
+valeurs distinguées du prix fourni; colonnes libres et contacts absents du résultat. Aucune
+modification de table sur la consultation et aucun bouton appliquant le tarif.
+
+Qualification finale : **69PASS/22,19s dont17nouveauxHTTP**, avec23ports privés et29cas historique.
+Cohorte initiale66PASS/14nouveaux et preuves du backend/CSV réutilisées sans addition. Un curseur
+malformé classé409 a été reproduit puis distingué en400; une source bien formée périmée reste409.
+GET et POST contrôlent HTML et autorité aprèsrendu; POST contrôle fauxCSRF/employee/owner,
+multipart/champsdoublons/taille/stream, T0altéré et source changée. Ruff et natif305/177 réussis.
+Revue statique ciblée : aucun constat concret résiduel. Commandes et reçus privés conservés.
+
+Aucun navigateur réel exécuté; preuve HTTP/SQLite/TestClient, sans donnée réelle ni déploiement.
+Les prix ne sont toujours pas mis à jour officiellement. Prochaine tranche : contrat de
+confirmation de lot, atomicité/idempotence et revalidation des sources/permissions au moment
+de l’application, via le writer existant, sous validation/politique autorisée. Pas d’envoi ou
+connexion courriel, paiement, nouveau droit, mobile/PG/PDF/XLSX qualifié. Statut globalPARTIAL.

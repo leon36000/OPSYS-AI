@@ -104,8 +104,11 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
         agir(session, 'm6_confirmer_tarif_console', args, p['mutation_id'])
         return RedirectResponse(prefixe + catalogue.BASE + '/' + pages._segment(materiau_id), 303)
 
-    from . import historique_tarifs_ui
+    from . import historique_tarifs_ui, import_tarifs_ui
 
     router.include_router(historique_tarifs_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
+    router.include_router(import_tarifs_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire, rendre=rendre))
     return router

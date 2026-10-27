@@ -103,6 +103,10 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                  f'{pages.e(f["horodatage"])}</p>'
                  f'<p><a href="{pages.e(prefixe + catalogue.BASE)}">Matériaux et tarifs</a></p>'
                  '<h2>Corriger la fiche</h2>')
+        from urllib.parse import urlencode
+
+        lien = prefixe + catalogue.BASE + '/tarifs/importer?' + urlencode(dict(fournisseur_id=fournisseur_id))
+        corps += f'<p><a href="{pages.e(lien)}">Préparer une liste de prix CSV pour ce fournisseur</a></p>'
         return rendre(session, 'Fiche fournisseur', corps + formulaire(session, prefixe, f))
 
     return router
