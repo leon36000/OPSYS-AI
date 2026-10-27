@@ -62,7 +62,7 @@ def contenu(vue, prefixe, limite):
     from datetime import date, timedelta
     from urllib.parse import urlencode
 
-    from . import annotations_cedule_ui, cedule_ui, pages
+    from . import annotations_cedule_ui, cedule_ui, compositions_equipes, pages
 
     def lien(debut, titre):
         args = dict(jour=vue['jour'], debut=debut, limite=limite, source_attendue=vue['source'])
@@ -91,7 +91,7 @@ def contenu(vue, prefixe, limite):
     corps += ('<table><thead><tr><th>Type</th><th>Intervention</th><th>Heure locale</th><th>Équipe prévue</th>'
               '<th>Personne ou équipe assignée</th><th>Technicien du pointage</th><th>État ou action</th>'
               '<th>Validité de la prévision</th>'
-              '<th>Source</th><th>Notes</th></tr></thead><tbody>')
+              '<th>Source</th><th>Consultations</th></tr></thead><tbody>')
     types = {'prevision': 'Prévision', 'pointage': 'Pointage', 'etat': 'Changement d’état',
              'ecart_declare': 'Écart déclaré', 'ecart_arbitre': 'Arbitrage d’écart',
              'assignation': 'Décision d’assignation'}
@@ -126,6 +126,12 @@ def contenu(vue, prefixe, limite):
         if ligne['type'] == 'prevision':
             url = annotations_cedule_ui.url(annotations_cedule_ui.ancre_de(ligne), prefixe)
             note = f'<a href="{pages.e(url)}" aria-label="Notes de cette prévision">Notes et historique</a>'
+            composition = compositions_equipes.url_journal(vue['jour'], ligne['equipe_planifiee'], prefixe)
+            if composition is None:
+                note += ' · Composition non consultable pour cet identifiant historique.'
+            else:
+                note += (f' · <a href="{pages.e(composition)}" '
+                         'aria-label="Composition déclarée de l’équipe pour ce jour">Composition déclarée</a>')
         corps += '<tr>' + ''.join(f'<td>{pages.e(v)}</td>' for v in valeurs) + f'<td>{note}</td></tr>'
     corps += ('</tbody></table><details><summary>Sources de consultation</summary>'
               f'<p>Empreinte calculée du snapshot : {pages.e(vue["source_snapshot"])}</p></details></section>')

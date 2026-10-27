@@ -581,3 +581,65 @@ Aucune interface de déclaration, résolution des identités à l'écriture, mé
 de présence, PostgreSQL, navigateur ou mobile revendiquée. Prochaine tranche : affichage HTTP
 admin avec source/temporalisations/inconnu-vide-retrait explicites et autorité après rendu,
 puis saisie signée sous CSRF et identités canoniques sans modifier le profil ni les accès.
+
+
+## Contrat avant l'affichage HTTP des compositions déclarées
+
+GET privé `/crm/journal-equipes/composition` : jour civil et identifiant d'équipe explicites,
+paramètres uniques fermés, reprise paginée avec source exacte. Réemploi du port T0 qualifié,
+du parseur strict du journal et du gabarit admin. Source/lecture/rendu/limite HTML128Kio et
+contrôle SQL admin/session final partagent la transaction canonique. Cache interdit et CSP
+existante conservés. Aucun POST, formulaire de déclaration, auto-remplissage ou effet métier.
+
+Afficher séparément : inconnu sans déclaration, retrait, liste explicitement vide, liste
+courante et historique; jour visé et instant d'enregistrement distincts. Un ID de membre
+historique n'est pas remplacé par son nom ou son état de compte actuel. Le texte rappelle la
+nature déclarative et l'absence de preuve de présence/droit courant. Échapper tous les champs.
+Aucune mutation, appareil, GPS ou note libre n'est rendu; empreinte de snapshot calculée.
+
+Navigation depuis la prévision du journal uniquement, vers son équipe et son jour. Ce lien
+concerne la déclaration journalière de l'équipe, sans rattacher les membres à cette intervention.
+Ne pas supposer qu'un technicien pointé/assigné représente une équipe. Le journal ne lit aucun
+membre/compteur de composition : son snapshot principal ne change pas pour ce simple lien.
+
+Preuves HTTP avec vrais stockage, T0 et gabarit : rouge404; inconnu/vide/retrait/corrections,
+liens exacts sans texte de membre copié dans le journal, pages et continuation périmée, rôles,
+échappement, limite HTML, autorité révoquée pendant rendu et aucune écriture des GET/refus
+non injectés. La préparation pure de fixtures n'est pas une preuve d'écriture HTTP autorisée.
+
+
+### Qualification de l'affichage HTTP
+
+L'écran admin affiche désormais dernière composition déclarée et historique via le port T0,
+en distinguant inconnu, liste explicitement vide et retrait, ainsi que jour visé et instant
+source d'enregistrement. Les identifiants restent ceux des déclarations; aucun nom, profil
+courant, statut de salarié ou présence réelle n'est substitué. Source calculée et pagination
+explicites, retour au journal, contrôle SQL admin/session après rendu dans la transaction,
+plafond HTML128Kio, no-store et CSP. Aucun POST ni nouvelle écriture exposé.
+
+Le journal ne fait qu'ajouter un lien depuis une prévision, pour l'équipe et la journée exactes.
+Une nouvelle composition ne modifie pas son snapshot principal, ne lui ajoute aucun membre ou
+compteur et n'attribue aucun membre à l'intervention. Les faits/assignations sans source d'équipe
+civile ne reçoivent pas ce lien. La revue a trouvé des IDs historiques valides pour les tournées
+mais non représentables par ce nouveau contrat (65 caractères ou espace en bordure). Deux
+rouges par vrais plans purs DP/appliquer/confirmer ont reproduit les liens inutilisables.
+Le lien n'est maintenant émis que si la clé exacte passe les validateurs de la cible; sinon
+message explicite « Composition non consultable pour cet identifiant historique », sans
+normalisation ni fausse composition inconnue. Le lien de notes d'origine reste disponible.
+
+`crm16-composition-http-v2` : **63 PASS en18,94s**, incluant 17 nouveaux cas HTTP/SQLite, deux
+cas de rendu sur plans purs historiques et les régressions port privé/journal HTTP/notes.
+La cohorte v1 de61 PASS est incluse, pas additionnée. Ruff et vérificateur299/175 passent.
+Révocation pendant le vrai gabarit :403 sans membre; HTML trop grand :503 borné; identifiants
+échappés; paramètres absents/doubles/inconnus et source périmée refusés; page terminale vide
+ne devient pas une déclaration inexistante. Instantanés SQL des lectures/refus non injectés
+inchangés. Les fixtures de préparation ne prouvent ni formulaire d'écriture ni appareil terrain.
+Revue indépendante finale ferme le constat legacy, aucun autre défaut concret relevé; pas de
+runtime du relecteur. Preuve : `CRM16-COMPOSITION-HTTP-LOCAL-QUALIFIED.json`.
+
+**PARTIAL — consultation admin HTTP/SQLite des compositions déclarées qualifiée localement.**
+Saisie/correction/retrait par writer admin, validation canonique des identités à l'écriture,
+CSRF d'écriture, M10, navigateur natif, PostgreSQL et mobile restent à qualifier. Les noms,
+absences, heures/paie et présence réellement observée ne sont pas reconstitués par cet écran.
+Prochaine tranche : déclaration manuelle signée par l'admin courant, avec identités canoniques,
+CAS/rejeu et CSRF; aucun profil d'équipe ni droit courant modifié par la déclaration historique.

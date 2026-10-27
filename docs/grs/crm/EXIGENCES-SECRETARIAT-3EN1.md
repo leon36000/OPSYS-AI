@@ -47,7 +47,7 @@ Principes transverses (critères d'acceptation communs à toute ligne)
 | CRM-13 | Tableau commercial chiffré gagnés/perdus, en cours, acceptés, volumes/montants, période/filtre, définitions | `m8_lire_vue_executive`, `m8_rapport_metriques`, définitions M8, `m2_lister_leads` (aucun montant), `m3_lister_devis` | **Partiel** | M8 (+M2, M3) | Chaque chiffre porte sa définition M8, sa période et sa source ; pas de montant calculé dans le cockpit |
 | CRM-14 | Prix fournisseurs : réception de listes par courriel, détection, import annuel/catalogue, comparaison, historique, anomalies, mise à jour validable ; fournisseurs connus Gentek, Royal Solution de Bâtiment, O.A.M., Kaycan | M6 livre de prix manuel (`m6_enregistrer_prix`, `m6_resoudre_prix_materiau`, fournisseurs) | **Partiel** (livre de prix, fiches fournisseurs privées et saisie tarif en HTTP/SQLite qualifiées) / **Manquant** (détection courriel, import, anomalies) | M6 (+M1 pour la réception) | Variante dictée ≠ nouveau fournisseur (file de revue) ; ligne ambiguë → revue humaine ; aucun prix inventé ; les soumissions historiques gardent leur version. Contrat §3.9 |
 | CRM-15 | Contrat employé annuel signé en ligne, profil à jour, permis + échéance en accès restreint, heures ; jamais visible du CRM vendeur/client | `m5_enregistrer_contrat_horaire`, `paie_admission_ui`, `m4_pointer` | **Partiel** (contrat horaire M5) / **Manquant** (signature en ligne, documents RH) | M5/M4 (RH à trancher) | Accès restreint propriétaire/admin ; absent du répertoire et du dossier client par conception (test négatif) ; Loi 25 |
-| CRM-16 | Journal quotidien d'équipe : qui avec qui, prévu vs visité, terminé/reporté, extras, absences, heures ; historique annuel ; plusieurs visites conservées | `m4_pointer`, `m4_signaler_report`, `m4_completer_intervention`, `m4_lire_retards_incidents`, `m4_produire_digest`, `m4_lire_journal_quotidien` | **Partiel** : journal par jour en consultation admin HTTP/SQLite qualifié ; déclarations/arbitrages et assignations M4 historiques disponibles; membres historiques, absences, heures quotidiennes et extras détaillés manquants | M4 | Anciennes prévisions conservées D→D+4 et nouveau plan ; pointages distincts, source/validité explicites, aucune présence/absence ni durée inventée. [Audit et limites](AUDIT-JOURNAL-QUOTIDIEN-EQUIPES.md) |
+| CRM-16 | Journal quotidien d’équipe : qui avec qui, prévu vs visité, terminé/reporté, extras, absences, heures ; historique annuel ; plusieurs visites conservées | Registre principal M4, `m4_lire_journal_quotidien`, compositions déclarées séparées et `m4_lire_composition_journaliere_console` | **Partiel** : journal, notes, écarts, assignations et composition déclarée en consultation admin HTTP/SQLite ; saisie des compositions, présence réelle, absences et heures quotidiennes à qualifier | M4 | Déclaration ≠ présence ; équipe du plan ≠ membres observés ; corrections et deux temporalités explicites. [Audit et limites](AUDIT-JOURNAL-QUOTIDIEN-EQUIPES.md) |
 
 ## 2. Modules/navigation visibles du brief (photos 9960–9965)
 
@@ -395,3 +395,13 @@ source et métadonnées recoupées, admin SQL courant avant/après, aucune écri
 116 PASS du catalogue natif (pas de cumul); profils actuels et droits de personnes inchangés.
 **PARTIAL : affichage HTTP et writer/formulaire non livrés**, aucune présence réelle déduite.
 L'audit du journal et `CRM16-COMPOSITION-PORT-LOCAL-QUALIFIED.json` détaillent les limites.
+
+
+CRM-16 — consultation HTTP admin de la composition journalière déclarée qualifiée localement :
+inconnu/vide/retrait/corrections distincts, deux temporalités et sources, pagination, autorité
+SQL après rendu, aucune écriture.63 PASS incluent17 nouveaux cas HTTP et deux rendus de plans
+purs legacy; populations non additionnées. Liens exacts depuis les prévisions sans copie des
+membres dans le journal; identifiants historiques incompatibles signalés sans normalisation.
+**PARTIAL : writer/formulaire, identités à l'écriture, M10, PostgreSQL, navigateur et mobile
+non livrés pour cette tranche.** Aucune présence, absence, composition réellement observée ou
+paie déduite. Prochaine tranche : déclaration admin signée sous CSRF et CAS/rejeu.
