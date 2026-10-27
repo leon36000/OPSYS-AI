@@ -16,7 +16,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 from pathlib import Path
 from typing import Any
 
@@ -1604,7 +1604,9 @@ _FORMATS_SOUMISSION = ("html", "pdf")
 _HORS_NOM_DE_FICHIER = re.compile(r"[^A-Za-z0-9._-]")
 
 
-def _soumission_pdf(devis: dict[str, Any], devis_id: str) -> dict[str, Any]:
+def _soumission_pdf(
+    devis: dict[str, Any], devis_id: str, *, limite: int | None = None,
+) -> dict[str, Any]:
     """Le brouillon en PDF, remis en base64 avec de quoi le vérifier (taille, SHA-256).
 
     Un outil ne peut pas transmettre plus de `jetons.LIMITE_SORTIE_DEFAUT` caractères : au-delà,
@@ -1624,12 +1626,14 @@ def _soumission_pdf(devis: dict[str, Any], devis_id: str) -> dict[str, Any]:
     }
     enveloppe = {"ok": True, "resultat": {"accepte": True, "resultat": resultat}}
     caracteres = len(json.dumps(enveloppe, ensure_ascii=False))
-    if caracteres > jetons.LIMITE_SORTIE_DEFAUT:
+    if limite is None:
+        limite = jetons.LIMITE_SORTIE_DEFAUT
+    if caracteres > limite:
         return {"accepte": False, "verdict": verdicts.construire_verdict(
             "REJ-SOUMISSION-PDF-TROP-VOLUMINEUX",
             detail=(
                 f"le PDF pèse {len(octets)} octets ({caracteres} caractères transmis) : un outil ne rend "
-                f"pas plus de {jetons.LIMITE_SORTIE_DEFAUT} caractères, il serait tronqué donc corrompu ; "
+                f"pas plus de {limite} caractères, il serait tronqué donc corrompu ; "
                 "réduire le nombre de lignes du devis (le dépôt de fichiers du socle ne prend pas encore le PDF)"
             ),
         )}
@@ -2501,6 +2505,7 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T0,
         ),
         *_outils_modeles(),
+        *_outils_devis_modele(),
     )
 
 
@@ -2602,4 +2607,162 @@ def _outils_modeles():
         Outil(nom="m3_lister_modeles_soumission", description="Console admin privée : catalogue sourcé et paginé.",
               parametres=schema({"decalage": entier, "source_attendue": {"type": "string", "maxLength": 64}}),
               fonction=lister_modeles_soumission),
+    )
+
+
+# Création humaine depuis le catalogue : seuls les identifiants de version viennent du formulaire.
+def _schema_devis_modele():
+    ident = {"type": "string", "minLength": 1, "maxLength": 100, "pattern": "^[A-Za-z0-9_:@.-]+$"}
+    def texte(n):
+        return {"type": "string", "minLength": 1, "maxLength": n}
+    decimal = {"type": "string", "maxLength": 24, "pattern": "^[0-9]{1,9}(\\.[0-9]{1,6})?$"}
+    ligne = {"type": "object", "additionalProperties": False, "properties": {
+        "description": texte(500), "quantite": decimal, "unite": texte(40), "cout_unitaire": decimal,
+        "reference_besoin_materiau": {"type": ["string", "null"], "maxLength": 100}},
+        "required": list(_LIGNE_DEVIS["required"])}
+    props = {"devis_id": ident, "lead_id": texte(200),
+             "chantier_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 100},
+             "lignes": {"type": "array", "minItems": 1, "maxItems": 20, "items": ligne},
+             "taux_marge": decimal, "modele_id": ident,
+             "modele_revision": {"type": "integer", "minimum": 1, "maximum": 1000},
+             "modele_source": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+    return {"type": "object", "properties": props, "required": list(props), "additionalProperties": False}
+
+
+def _contrat_devis_modele(args):
+    # Sous-ensemble fermé utilisé ici; le validateur socle ne valide pas les bornes imbriquées.
+    def valide(v, regle):
+        types = regle.get("type")
+        if isinstance(types, list):
+            return any(valide(v, {**regle, "type": t}) for t in types)
+        if types == "null":
+            return v is None
+        if types == "object":
+            return (type(v) is dict and set(v) == set(regle["properties"])
+                    and all(valide(v[k], r) for k, r in regle["properties"].items()))
+        if types == "array":
+            return (type(v) is list and regle["minItems"] <= len(v) <= regle["maxItems"]
+                    and all(valide(x, regle["items"]) for x in v))
+        if types == "integer":
+            return type(v) is int and regle["minimum"] <= v <= regle["maximum"]
+        if types == "string":
+            return (type(v) is str and regle.get("minLength", 0) <= len(v) <= regle.get("maxLength", 200)
+                    and ("pattern" not in regle or re.fullmatch(regle["pattern"], v) is not None))
+        return False
+    return valide(args, _schema_devis_modele())
+
+
+def _retour_devis_modele(resultat):
+    enveloppe = {"ok": True, "resultat": resultat}
+    if len(json.dumps(enveloppe, ensure_ascii=False).encode()) > (contexte.limite_sortie() or 65536):
+        raise modeles_soumission.Refus("SORTIE-TROP-VOLUMINEUSE")
+    return resultat
+
+
+def _lead_modele_existant(lead_id):
+    from m2_revenue_crm import clients
+    from m2_revenue_crm.registre import Registre, VerificationError
+
+    journal = stockage.maillons("m02-revenue-crm", "principal")
+    if len(journal) > 10000:
+        raise modeles_soumission.Refus("SOURCES-TROP-VOLUMINEUSES")
+    try:
+        reg = Registre(journal)
+        reg.assert_chaine()
+        if clients.client_de_lead(reg, lead_id) is None:
+            raise modeles_soumission.Refus("INTROUVABLE")
+    except (VerificationError, ValueError, KeyError, TypeError):
+        raise modeles_soumission.Refus("SOURCE-INVALIDE") from None
+
+
+def creer_devis_depuis_modele(devis_id, lead_id, chantier_id, lignes, taux_marge,
+                              modele_id, modele_revision, modele_source):
+    n = modeles_soumission
+    try:
+        auteur = _autoriser_modeles()
+        cnx = stockage.connexion_courante()
+        if cnx.dialect.name != "sqlite":
+            raise n.Refus("ECRITURE-NON-QUALIFIEE")
+        args = dict(devis_id=devis_id, lead_id=lead_id, chantier_id=chantier_id, lignes=lignes,
+                    taux_marge=taux_marge, modele_id=modele_id, modele_revision=modele_revision,
+                    modele_source=modele_source)
+        if (not _contrat_devis_modele(args) or devis_id in {".", ".."}
+                or Decimal(taux_marge) >= 10000):
+            raise n.Refus("ARGUMENTS")
+        meta, reception = _META_MODELES.get(), contexte.horodatage_reception()
+        if (not isinstance(meta, idempotence.Meta) or reception is None or not meta.cle.strip()
+                or len(meta.cle) > 200 or meta.appareil != "console:" + auteur["personne"]
+                or reception.appareil != meta.appareil or reception.recu_le.utcoffset() is None):
+            raise n.Refus("MUTATION-ABSENTE")
+        with cnx.begin_nested():
+            recu = idempotence.reclamer(cnx, meta, "m3_creer_devis_depuis_modele", args, reception.recu_le)
+            if recu.rejouee:
+                if not isinstance(recu.reponse, dict) or recu.reponse.get("ok") is not True:
+                    raise n.Refus("SOURCE-INVALIDE")
+                return _retour_devis_modele(recu.reponse["resultat"])
+            _lead_modele_existant(lead_id)
+            m = n.lire(_journal_modeles(), modele_id, modele_revision)["resultat"]
+            if m["source_id"] != modele_source:
+                raise n.Refus("SOURCE-MODIFIEE")
+            fige = {k: m[k] for k in ("modele_id", "revision", "source_id", "titre", "description", "clauses")}
+            journal = registre_devis_production()
+            if len(journal) > 10000:
+                raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+            avant = len(journal)
+            devis, verdict = devis_durable.creer_devis(
+                devis_id, lead_id, chantier_id, lignes, taux_marge, reception.recu_le.isoformat(), journal,
+                modele_soumission=fige)
+            if verdict is not None:
+                raise n.Refus("REVISION-PERIMEE" if verdict["code"] == "REJ-DEVIS-ID-DEJA-UTILISE" else "ARGUMENTS")
+            resultat = _retour_devis_modele({"accepte": True, "resultat": {
+                "devis_id": devis["devis_id"], "lead_id": lead_id,
+                "modele_revision": modele_revision, "modele_source": modele_source}})
+            if len(journal) != avant:
+                from opsys.etat import journaliser
+
+                journaliser(cnx, auteur["personne"], "m3.devis_depuis_modele", devis_id,
+                            {"modele_id": modele_id, "revision": modele_revision, "source_id": modele_source})
+            idempotence.finaliser(cnx, meta, {"ok": True, "resultat": resultat})
+            return resultat
+    except DecimalException:
+        return n.refuser("ARGUMENTS")
+    except idempotence.MutationConflit:
+        return n.refuser("MUTATION-CONFLIT")
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def document_devis_console(devis_id, lead_id, format):
+    n = modeles_soumission
+    try:
+        _autoriser_modeles()
+        if format not in {"html", "pdf"}:
+            raise n.Refus("ARGUMENTS")
+        _lead_modele_existant(lead_id)
+        journal = registre_devis_production()
+        if len(journal) > 10000:
+            raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+        d, v = devis_durable.lire_devis(journal, devis_id)
+        if v is not None or d.get("lead_id") != lead_id:
+            raise n.Refus("INTROUVABLE")
+        if format == "pdf":
+            return _retour_devis_modele(_soumission_pdf(d, devis_id, limite=contexte.limite_sortie() or 65536))
+        document, v = soumission.generer_brouillon_html(d)
+        if v is not None:
+            raise n.Refus("SOURCE-INVALIDE")
+        return _retour_devis_modele({"accepte": True, "resultat": {"format": "html", "document": document}})
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _outils_devis_modele():
+    return (
+        Outil(nom="m3_creer_devis_depuis_modele", description="Console admin : nouveau brouillon avec modèle figé.",
+              parametres=_schema_devis_modele(), fonction=creer_devis_depuis_modele, autonomie=Autonomie.T1),
+        Outil(nom="m3_document_devis_console", description="Console admin : document brouillon sans envoi.",
+              parametres={"type": "object", "properties": {
+                  "devis_id": {"type": "string", "maxLength": 100},
+                  "lead_id": {"type": "string", "maxLength": 200}, "format": {"enum": ["html", "pdf"]}},
+                  "required": ["devis_id", "lead_id", "format"], "additionalProperties": False},
+              fonction=document_devis_console),
     )

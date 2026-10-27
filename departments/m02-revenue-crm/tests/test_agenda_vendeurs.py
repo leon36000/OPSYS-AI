@@ -395,3 +395,31 @@ def test_rencontres_refuse_source_alteree_et_decalage_hors_liste():
     lignes[0]["titre"] = "falsifie"
     with pytest.raises(agenda.Refus, match="SOURCE-INVALIDE"):
         agenda.lire_rencontres_lead(p, Registre(lignes), BASE["lead_id"])
+
+
+def test_refus_agenda_appartiennent_au_catalogue_ferme():
+    from m2_revenue_crm import verdicts
+
+    suffixes = [
+        "ARGUMENTS",
+        "CONFLIT-HORAIRE",
+        "IDENTITE",
+        "LEAD-INCONNU",
+        "MUTATION-CONFLIT",
+        "PROPRIETAIRE-MODIFIE",
+        "REVISION-PERIMEE",
+        "SORTIE-TROP-VOLUMINEUSE",
+        "SOURCE-INVALIDE",
+        "SOURCE-MODIFIEE",
+        "SOURCES-TROP-VOLUMINEUSES",
+        "ECRITURE-NON-QUALIFIEE",
+        "MUTATION-ABSENTE",
+        "VENDEUR-INACTIF",
+        "VENDEUR-INCONNU",
+    ]
+    for suffixe in suffixes:
+        code = agenda.refuser(suffixe)["verdict"]["code"]
+        assert verdicts.est_verdict(code)
+        assert code == "REJ-AGENDA-" + suffixe
+    with pytest.raises(verdicts.CodeVerdictInconnu):
+        agenda.refuser("INVENTE")

@@ -120,7 +120,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                 return conflit(session, exc.detail)
             raise
         corps = ('<section class="carte"><h2>Modèles de soumission</h2>'
-                 '<p>Textes internes versionnés. Leur application aux devis et aux PDF reste à raccorder. '
+                 '<p>Textes versionnés : sélection depuis les soumissions du projet pour créer un brouillon HTML/PDF. '
                  'Enregistrer ici ne modifie aucune soumission existante.</p>')
         if resultat['modeles']:
             corps += '<ul>'

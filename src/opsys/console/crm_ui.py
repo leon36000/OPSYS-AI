@@ -33,6 +33,7 @@ from . import (
     cedule_plan_ui,
     cedule_ui,
     couleurs_cedule_ui,
+    devis_modele_ui,
     metier,
     modeles_soumission_ui,
     mois_cedule_ui,
@@ -78,7 +79,7 @@ SECTIONS = (
      "Rencontres du projet, tous vendeurs d’origine ; état courant et lien vers chaque historique."),
     ("soumissions", "Soumissions", "M3 — estimation", "affiche",
      "Consultation des soumissions du projet via le lien du dossier. "
-     "Catalogue textuel versionné disponible ; application aux devis à raccorder."),
+     "Catalogue textuel versionné et création de brouillons avec modèle figé."),
     ("bons_commande", "Bons de commande", "M6 — matériaux", "partiel",
      "Notes d’achat libres accessibles depuis les soumissions avec chantier connu ; commandes fournisseurs séparées."),
     ("bons_travail", "Bons de travail", "M4 — planning", "existant",
@@ -350,6 +351,8 @@ def contenu_soumissions(lead_id: str, page: Mapping[str, Any], *, prefixe: str, 
         '<section class="carte"><h2>Soumissions de ce projet</h2>'
         '<p>Lecture des états courants de M3. Aucun envoi ni acceptation depuis cet écran. '
         'Le statut « approuvé pour envoi » ne prouve pas la réception par le client.</p>'
+        + f'<p><a href="{pages.e(prefixe)}/crm/lead/{pages._segment(lead_id)}/nouvelle-soumission">'
+        'Créer un brouillon depuis un modèle</a></p>'
         + tableau + '<nav aria-label="Pages de soumissions">' + navigation + '</nav></section>'
     )
 
@@ -370,6 +373,11 @@ def contenu_soumission(lead_id: str, devis: Mapping[str, Any], *, prefixe: str) 
         '<th>Unité</th><th>Prix unitaire</th><th>Prix de ligne</th></tr></thead><tbody>'
         + "".join(lignes) + '</tbody></table></div>'
         f'<p>Prix total M3 : {pages.e(devis["prix_total"])} CAD</p>'
+        + ''.join(f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}/'
+                  f'{pages._segment(devis["devis_id"])}/document/{fmt}">Brouillon {fmt.upper()}</a></p>'
+                  for fmt in ('html', 'pdf')) +
+        (f'<p>Modèle figé : {pages.e(devis["modele_soumission"]["titre"])} '
+         f'— version {devis["modele_soumission"]["revision"]}</p>' if devis.get('modele_soumission') else '') +
         f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}/{pages._segment(devis["devis_id"])}/notes-achats">'
         'Notes d’achat du chantier</a></p></section>'
     )
@@ -875,6 +883,9 @@ def creer_router(
         ajouter_note(session, lead_id, {k: v for k, v in champs.items() if k != "csrf"})
         return RedirectResponse(f"{prefixe}/crm/lead/{pages._segment(lead_id)}#activites", status_code=303)
 
+    router.include_router(devis_modele_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire, verifier_lead=verifier_lead, rendre=rendre))
     router.include_router(modeles_soumission_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
         verifier_formulaire=verifier_formulaire, rendre=rendre))

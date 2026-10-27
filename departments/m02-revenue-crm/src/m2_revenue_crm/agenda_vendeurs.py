@@ -6,7 +6,7 @@ from copy import deepcopy
 from datetime import UTC, date, datetime, time
 from zoneinfo import ZoneInfo
 
-from . import acces, encodage
+from . import acces, encodage, verdicts
 from . import horodatage as heures
 from .registre import Registre, VerificationError
 
@@ -26,8 +26,30 @@ class Refus(Exception):
         super().__init__(suffixe)
 
 
+_CODES_REFUS = {
+    "ARGUMENTS": "REJ-AGENDA-ARGUMENTS",
+    "CONFLIT-HORAIRE": "REJ-AGENDA-CONFLIT-HORAIRE",
+    "IDENTITE": "REJ-AGENDA-IDENTITE",
+    "LEAD-INCONNU": "REJ-AGENDA-LEAD-INCONNU",
+    "MUTATION-CONFLIT": "REJ-AGENDA-MUTATION-CONFLIT",
+    "PROPRIETAIRE-MODIFIE": "REJ-AGENDA-PROPRIETAIRE-MODIFIE",
+    "REVISION-PERIMEE": "REJ-AGENDA-REVISION-PERIMEE",
+    "SORTIE-TROP-VOLUMINEUSE": "REJ-AGENDA-SORTIE-TROP-VOLUMINEUSE",
+    "SOURCE-INVALIDE": "REJ-AGENDA-SOURCE-INVALIDE",
+    "SOURCE-MODIFIEE": "REJ-AGENDA-SOURCE-MODIFIEE",
+    "SOURCES-TROP-VOLUMINEUSES": "REJ-AGENDA-SOURCES-TROP-VOLUMINEUSES",
+    "ECRITURE-NON-QUALIFIEE": "REJ-AGENDA-ECRITURE-NON-QUALIFIEE",
+    "MUTATION-ABSENTE": "REJ-AGENDA-MUTATION-ABSENTE",
+    "VENDEUR-INACTIF": "REJ-AGENDA-VENDEUR-INACTIF",
+    "VENDEUR-INCONNU": "REJ-AGENDA-VENDEUR-INCONNU",
+}
+
+
 def refuser(suffixe):
-    return {"accepte": False, "verdict": {"code": "REJ-AGENDA-" + suffixe}}
+    code = _CODES_REFUS.get(suffixe)
+    if code is None or not verdicts.est_verdict(code):
+        raise verdicts.CodeVerdictInconnu(f"Refus agenda inconnu : {suffixe!r}")
+    return {"accepte": False, "verdict": {"code": code}}
 
 
 def _identifiant(valeur):

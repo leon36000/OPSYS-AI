@@ -57,6 +57,22 @@ def _arguments(modele_id, titre, description, clauses, revision_attendue):
     return dict(zip(_ARGUMENTS, (modele_id, titre, description, clauses, revision_attendue), strict=True))
 
 
+def valider_modele_fige(modele):
+    """Valide la copie fermée d'une version; sa provenance est vérifiée par l'adaptateur."""
+    if (type(modele) is not dict
+            or set(modele) != {"modele_id", "revision", "source_id", "titre", "description", "clauses"}
+            or type(modele["revision"]) is not int or not 1 <= modele["revision"] <= MAX_SOURCES
+            or type(modele["source_id"]) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", modele["source_id"]) is None):
+        return False
+    try:
+        _arguments(modele["modele_id"], modele["titre"], modele["description"], modele["clauses"],
+                   modele["revision"] - 1)
+    except Refus:
+        return False
+    return True
+
+
 def _auteur(auteur):
     if (type(auteur) is not dict or set(auteur) != {"personne", "role"}
             or not _identifiant(auteur["personne"]) or type(auteur["role"]) is not str

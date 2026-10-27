@@ -134,6 +134,12 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
         "m3_lister_devis", "m3_lire_apprentissage_chantier",
         "m3_auditer_couverture_apprentissage", "m3_lister_devis_lead_admin",
     }
+    # Catalogue et création de devis CRM07 : ports console uniquement, sans scénario.
+    modeles_console = {
+        "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission",
+        "m3_lister_modeles_soumission", "m3_creer_devis_depuis_modele",
+        "m3_document_devis_console",
+    }
     baseline_13 = {
         "m3_estimer_projet", "m3_qualifier_photos", "m3_classifier_confiance",
         "m3_simuler_intervalle", "m3_confronter_plancher", "m3_creer_devis",
@@ -143,7 +149,9 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
     }
     assert noms[0] == "m3_estimer_projet"
     assert len(noms) == len(set(noms))
-    assert set(noms) - outils_calibration - lectures_reprise == baseline_13
+    assert set(noms) - outils_calibration - lectures_reprise - modeles_console == baseline_13
+    assert set(noms) & modeles_console == modeles_console
+    assert all(not o.roles_appareil for o in outils_m3.outils() if o.nom in modeles_console)
     assert set(noms) & outils_calibration == outils_calibration
     assert set(noms) & lectures_reprise == lectures_reprise
     assert all(o.autonomie is Autonomie.T0 for o in outils_m3.outils() if o.nom in lectures_reprise)

@@ -5,9 +5,9 @@
 Le secrétariat peut créer un modèle textuel, modifier sa description de travaux et ses clauses,
 et retrouver chaque version précédente. Il ne doit pas recopier un document pour conserver l'ancien texte.
 Audit préalable : [AUDIT-MODELES-SOUMISSION.md](AUDIT-MODELES-SOUMISSION.md).
-CRM07 reste **PARTIAL** : le catalogue est une tranche distincte; le rattachement d'une version à un devis,
-les champs de quantités/prix préremplis et la reprise des clauses dans HTML/PDF restent à implémenter.
-La console expose cette limite avant toute saisie. Aucun modèle juridique ni clause légale n'est préinstallé.
+CRM07 reste **PARTIAL** : le [rattachement figé aux nouveaux devis et leur rendu HTML/PDF](RATTACHEMENT-MODELE-DEVIS.md)
+est raccordé. Les champs de lignes/quantités/prix préremplis restent ouverts.
+La console expose ces limites avant toute saisie. Aucun modèle juridique ni clause légale n'est préinstallé.
 
 ## Architecture, fichiers et données
 
@@ -61,12 +61,12 @@ Tests HTTP/SQLite : vrai formulaire, création/révision/historique, réouvertur
 audit rollback, rédacteurs concurrents, catalogue paginé et absence de mutation d'un devis accepté et de son document.
 Les résultats exécutés sont conservés dans les reçus privés `crm-modeles-qa-20261027-r1` du workspace.
 
-Étape suivante obligatoire : sélectionner une version exacte lors de la création de la soumission,
-figer sa source et ses textes dans le devis, étendre la projection client partagée HTML/PDF sans coût interne,
-puis démontrer que les devis acceptés restent identiques après révision du catalogue.
+Le rattachement suivant est documenté et qualifié séparément dans
+[RATTACHEMENT-MODELE-DEVIS.md](RATTACHEMENT-MODELE-DEVIS.md). La prochaine extension concerne les lignes
+préremplies et leurs sources de prix, sans inventer de quantités ni de coûts.
 La modification des modèles ne doit jamais réécrire rétroactivement les soumissions.
 
-## Qualification exécutée le 27 octobre 2026
+## Qualification historique du catalogue seul — 27 octobre 2026
 
 La sélection de tests domaine et HTTP/SQLite compte **386 réussites, 0 échec, 0 saut** (26,84 s).
 Ruff passe; le vérificateur valide 10 départements, 281 outils dont 173 déclarés aux appareils.
@@ -78,5 +78,5 @@ Le premier passage reste conservé : 367 tests réussis mais trois erreurs de fo
 Les tests utilisent uniquement des données fictives, un HOME privé, la source en lecture seule et
 un réseau interdit, avec limites effectives de 1 GiB, un CPU et 96 tâches. Le processus QA est fermé.
 Reçu durable : `crm-modeles-20261027-r1/QUALIFIED-CLOSED.json` dans le chantier du workspace.
-Cette preuve qualifie le catalogue et ses routes HTTP/SQLite; elle ne qualifie ni navigateur natif,
+Cette preuve historique qualifie le catalogue et ses routes HTTP/SQLite; elle ne qualifie ni navigateur natif,
 ni writer PostgreSQL, ni application automatique du modèle à un devis. CRM07 reste PARTIAL.

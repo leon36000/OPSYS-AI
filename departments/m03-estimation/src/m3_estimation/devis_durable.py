@@ -125,6 +125,7 @@ _CLES_CONTENU_DEVIS = (
     "cout_total",
     "prix_total",
     "estimation_source_hash",
+    "modele_soumission",
 )
 
 _ROLES_CONNUS = ("interne", "employe")
@@ -306,6 +307,8 @@ def _etats_courants(registre_cible: Any) -> dict[str, dict[str, Any]]:
         devis_id = maillon.get("devis_id")
         if type_entree == "devis_cree":
             etats[devis_id] = dict(maillon)
+            if "modele_soumission" in maillon:
+                etats[devis_id]["modele_soumission"] = copy.deepcopy(maillon["modele_soumission"])
         elif type_entree == "transition_devis" and devis_id in etats:
             etats[devis_id] = {**etats[devis_id], **maillon}
     return etats
@@ -325,6 +328,7 @@ def creer_devis(
     registre_cible: Any,
     prix_total_fourni: str | None = None,
     estimation_source_hash: str | None = None,
+    modele_soumission: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict | None]:
     """Crée un devis BROUILLON sur ``registre_cible`` (le registre DÉDIÉ des devis). Idempotente
     par ``devis_id`` (cf. docstring du module) : un contenu identique rend l'existant sans écrire,
@@ -339,6 +343,13 @@ def creer_devis(
         )
     if not _est_texte_non_vide(horodatage):
         return None, verdicts.construire_verdict("REJ-DEVIS-HORODATAGE-VIDE", detail="horodatage requis, non vide")
+    if modele_soumission is not None:
+        from .modeles_soumission import valider_modele_fige
+
+        if not valider_modele_fige(modele_soumission):
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="modèle de soumission figé invalide"
+            )
     if estimation_source_hash is not None and (
         not isinstance(estimation_source_hash, str)
         or len(estimation_source_hash) != 64
@@ -391,6 +402,8 @@ def creer_devis(
     }
     if estimation_source_hash is not None:
         candidat["estimation_source_hash"] = estimation_source_hash
+    if modele_soumission is not None:
+        candidat["modele_soumission"] = copy.deepcopy(modele_soumission)
 
     maillons = _lire_maillons(registre_cible)
     existant = _etat_devis(maillons, devis_id)
