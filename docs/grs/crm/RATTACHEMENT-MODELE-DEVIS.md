@@ -85,3 +85,6 @@ reste à revérifier en CI. Aucun ancien run n’est annulé ni présenté comme
 Reçu privé : `crm-modele-devis-20261027-r1/QUALIFIED-LOCAL.json`. Source en lecture seule pendant QA,
 HOME/tmp privés avant imports, réseau interdit, limites effectives 1 GiB / un CPU / 96 tâches.
 La qualification porte sur cette tranche locale; CRM07, M2, M3 et OPSYS-AI restent partiels.
+
+Prochain raccord audité : [lignes réutilisables et coûts M6](AUDIT-LIGNES-PREFILL-M3-M6.md).
+Ce document prépare le contrat; il ne prétend pas que les lignes préremplies sont déjà disponibles.
