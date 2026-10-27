@@ -180,8 +180,9 @@ def test_les_charges_de_test_sont_conformes_au_catalogue_du_socle(type_evenement
 def test_le_manifeste_et_la_table_disent_la_meme_chose():
     dep = charger_departements()["m10-memoire"]
 
-    assert etapes.types_consommes() == TYPES_CONSOMMES
-    assert set(TYPES_CONSOMMES) <= set(dep.evenements_consomme)
+    attendus = (TYPE_LEAD, TYPE_CLIENT, etapes.TYPE_CONTACT_CORRIGE, TYPE_ENVOYE, TYPE_ACCEPTE, TYPE_SANS_REPONSE)
+    assert etapes.types_consommes() == attendus
+    assert set(attendus) <= set(dep.evenements_consomme)
     assert TYPE_ENVOYE in evenements.types_connus()  # publié par M3 depuis T4.7
     assert {etape.producteur for etape in etapes.etapes_de_l_amont()} == {
         "m01-front-office", "m02-revenue-crm", "m03-estimation"}

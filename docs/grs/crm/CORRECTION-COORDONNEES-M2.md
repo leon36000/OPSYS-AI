@@ -67,8 +67,7 @@ Les contrats ingérés, soumissions, factures et pièces émises restent inchang
 ne vaut ni consentement marketing ni autorisation d'envoi. Aucun courriel, appel ou paiement n'est lancé.
 La synchronisation des coordonnées vers les départements et documents dépendants doit être conçue
 avec leurs contrats de versionnement et de consentement ; cette tranche ne l'annonce pas réalisée.
-L'audit avant/après est durable dans M2. L’écran paginé d’historique admin est disponible (contrat ci-dessous). Un événement dédié pour M10
-reste à réaliser ; ne pas confondre ce registre avec une preuve d'ingestion M10.
+L'audit avant/après est durable dans M2. L’écran paginé d’historique admin est disponible (contrat ci-dessous). Le fait M10 minimisé est décrit ci-dessous ; l’audit des coordonnées reste dans M2.
 
 Tests ciblés : HTTP console et vraie base SQLite, CSRF, champs fermés, XSS, acteur réel, révocation,
 rejeu, collision historique, recherche courante, accès vendeur, plusieurs projets, nouvelle ingestion,
@@ -104,5 +103,51 @@ Fichiers : `clients.historique_contact`, adaptateur et contrat `outils.py`, list
 Tests : 22 corrections en SQLite réelle, nouvelle correction entre deux pages, absence de mutation de
 la base, XSS avant/après/motif, accès refusés et révocation, plus bornes et isolation sur registre pur.
 Qualification limitée à la console HTTP TestClient et aux primitives M2 ; navigateur, transport MCP,
-PostgreSQL et consommation M10 restent hors preuve. Ce livrable complète la consultation de l’audit
+PostgreSQL restent hors preuve de cette interface. Ce livrable complète la consultation de l’audit
 M2, pas l’ensemble CRM-04 ni le CRM 3-en-1.
+
+
+## Référence de correction dans M10 — intégration serveur SQLite
+
+Audit préalable : M10 indexe ses événements par affaire (lead/opportunité), pas par client global.
+La table `etapes.py`, son consommateur dynamique, son classement de confidentialité et la boîte
+transactionnelle M2 sont réutilisés ; aucun nouveau framework, outil, rôle ou schéma SQL ajouté.
+
+Après une correction acceptée, M2 publie `m2.contact_corrige` pour chaque projet déjà lié au client.
+La même transaction contient la correction et tous ces événements : une panne de publication annule
+l’ensemble. M10 reçoit ensuite le fait par le répartiteur habituel. La réception asynchrone n’est pas
+promise au retour HTTP ; une panne du consommateur relève des reprises du bus existant.
+
+La charge fermée contient seulement `client_id`, `lead_id`, `revision`, `source_ligne_id`,
+`horodatage` et `fait_id`. La clé sémantique est le SHA256 UTF-8 de
+`m2-contact-v1:{client_id}:{revision}:{lead_id}` ; l’identifiant transport est `m2-contact-` suivi
+par cette clé. M10 recalcule la clé, valide les identifiants, la révision et l’instant avec fuseau.
+Les identifiants demeurent des données pseudonymes, pas des données anonymes. Le catalogue impose
+la forme canonique des affaires ; un ancien identifiant incompatible empêche la publication et fait
+échouer la transaction, sans correction partielle. Les coordonnées, l’auteur et le motif libre ne
+sont pas transférés. Les sources M2 avant/après sont accessibles uniquement par l’historique admin.
+
+Le fait M10 est `CLIENT_PRIVATE`, selon la politique existante : utilisable par les agents M1/M2
+sur les couches autorisées, retenu pour les autres. Ce classement n’est pas une nouvelle permission
+admin ni une restriction par vendeur. Les résumés consolidés peuvent exposer le nombre de références
+et leur provenance opaque, sans coordonnées ni motif ni contenu de l’audit M2. Un fait par projet
+n’est pas une correction client supplémentaire : ne pas sommer ces références comme des clients
+corrigés. Un rejeu sous un autre identifiant transport ne crée pas de second fait ; une provenance
+contradictoire conserve le premier fait et retourne `identique: false` dans le reçu existant.
+
+Fichiers : `m02-revenue-crm/outils.py`, manifestes M2/M10,
+`evenements/catalogue/m2.contact_corrige.json`, `m10-memoire/etapes.py`,
+`tests/test_contact_m2_m10.py` et contrat de manifeste `test_amont.py`.
+Les routes de correction et de consultation restent celles décrites plus haut.
+
+Les tests emploient le vrai stockage SQLite, la boîte transactionnelle, le répartiteur des dix
+modules et le registre M10 : plusieurs projets et révisions, rejeu sémantique, provenance
+contradictoire, annulation sur panne au deuxième événement, refus de révision, charges invalides,
+confidentialité des contextes, consolidation et audit des faits non oubliés. Les rouges de harnais
+MCP/PostgreSQL restent dans les reçus QA et ne prouvent ni un défaut produit ni leur qualification.
+
+Statut : tranche locale qualifiée séparément du CRM complet. Pas de reprise des corrections anciennes,
+pas d’ajout rétroactif aux projets créés ensuite, pas de modification des destinataires, documents,
+consentements ou règles de fusion. Prochaine étape distincte : préparer une réconciliation en lecture
+seule de l’historique M2 et des références M10 avant toute reprise contrôlée. Aucun envoi réel autorisé
+par ce fait ; PostgreSQL, navigateur et transport MCP restent à qualifier.

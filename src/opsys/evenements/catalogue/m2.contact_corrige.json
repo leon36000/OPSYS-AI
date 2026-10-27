@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m2.contact_corrige",
+  "title": "M2 — Référence de correction de coordonnées par projet",
+  "description": "Fait minimisé publié dans la même transaction que la correction M2. Un fait par lead actuellement lié ; fait_id = SHA256 UTF-8 de m2-contact-v1:{client_id}:{revision}:{lead_id}. source_ligne_id référence le maillon admin M2, sans copier contact, motif ou auteur. CLIENT_PRIVATE chez M10. Aucun consentement, envoi, fusion ou modification des documents. Pas de reprise automatique des corrections anciennes.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "fait_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "client_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_ligne_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "lead_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 197,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}(?:~opp~[A-Za-z0-9][A-Za-z0-9._:-]{0,127})?$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000001
+    },
+    "horodatage": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "fait_id",
+    "client_id",
+    "source_ligne_id",
+    "lead_id",
+    "revision",
+    "horodatage"
+  ]
+}

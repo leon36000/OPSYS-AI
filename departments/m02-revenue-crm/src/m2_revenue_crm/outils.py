@@ -41,6 +41,7 @@ son numéro). Sans consentement actif : « appel seulement ». La fréquence max
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -682,9 +683,21 @@ def corriger_contact_client(client_id: str, contact: dict, revision_attendue: in
     if cnx is None or cnx.dialect.name != "sqlite" or not _stockage_durable_actif:
         return _refus(verdicts.construire_verdict(
             "REJ-CONTACT-BACKEND-NON-QUALIFIE", detail="correction qualifiée sur SQLite durable seulement"))
+    reg = _obtenir_registre()
     resultat, verdict = clients.corriger_contact(
-        _obtenir_registre(), client_id, contact, revision_attendue, motif, acteur.personne, horodatage)
-    return _refus(verdict) if verdict else {"accepte": True, "resultat": resultat}
+        reg, client_id, contact, revision_attendue, motif, acteur.personne, horodatage)
+    if verdict:
+        return _refus(verdict)
+    # Une référence par projet actuellement lié ; le contact et le motif restent dans l'audit admin M2.
+    # Publication dans la transaction appelante : un échec annule aussi la correction.
+    for lead_id in clients.opportunites_du_client(reg, client_id):
+        cle = f"m2-contact-v1:{client_id}:{resultat['revision']}:{lead_id}"
+        fait_id = hashlib.sha256(cle.encode("utf-8")).hexdigest()
+        _publier_si_durable("m2.contact_corrige", {
+            "fait_id": fait_id, "lead_id": lead_id, "client_id": client_id,
+            "revision": resultat["revision"], "source_ligne_id": resultat["ligne_id"], "horodatage": horodatage,
+        }, "m2-contact-" + fait_id)
+    return {"accepte": True, "resultat": resultat}
 
 
 def suggerer_prochaine_action(lead_id: str, horodatage: str) -> dict[str, Any]:

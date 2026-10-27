@@ -73,6 +73,7 @@ evenements:
     - m5.rentabilite_chantier
     - m1.lead_qualifie
     - m2.client_associe
+    - m2.contact_corrige
     - m3.devis_envoye
     - m3.devis_accepte
     - m3.devis_sans_reponse
