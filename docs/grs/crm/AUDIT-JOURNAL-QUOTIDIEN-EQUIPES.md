@@ -119,3 +119,63 @@ Prochaine action : outil T0 propriétaire de journal et port console admin sur s
 borné avant décodage, comparaison des sources avant/après et tests de révocation; HTTP ensuite.
 Membres historiques, absences, extras détaillés, reprise après démarrage, journal annuel complet,
 navigateur, PostgreSQL et mobile restent des capacités ouvertes distinctes.
+
+## Décision avant le port SQL privé
+
+Ajouter un outil T0 M4 de journal, fermé aux agents sans personne et aux appels MCP/appareil,
+autorisé seulement au contexte console d'un admin SQL actif déjà habilité. Aucun rôle de
+compte ni droit de production n'est ajouté. Réutiliser `_autoriser_annotation` et la connexion
+canonique SQLite, refuser les registres injectés. Le schéma d'appareil déclare admin pour le
+transport console, mais le garde interne exige toujours source/origine console et MCP absent.
+Le T0 n'est pas inscrit au catalogue générique de lectures HTTP avant qualification du port.
+
+Avant tout décodage, compter les maillons et leurs octets SQL. Capturer le snapshot avec ses
+métadonnées canoniques; appeler le pur qualifié et joindre l'empreinte calculée du snapshot.
+Relire source et autorité en dernier. Borner l'enveloppe UTF-8 à la plus petite limite de
+sortie applicable, avec refus explicite, jamais une réponse coupée prise pour complète.
+La continuation du pur reste liée à sa tête et au jour; l'empreinte de snapshot contrôle aussi
+les changements de métadonnées pendant chaque requête. Ce n'est pas une attestation native.
+
+Le port console privé capture indépendamment les sources, construit la projection attendue
+par le même propriétaire M4, appelle le vrai T0 et compare toute la réponse. Recontrôler le
+snapshot puis l'admin/session en dernier. Tests SQL réels sur données fictives : aucun effet
+sur aucune table, rôle/session révoqués, fausse connexion ou registre, réponse altérée, quota
+avant JSON, continuation périmée. Aucune route, aucun rendu, ni écriture RH dans cette tranche.
+
+## Qualification locale du T0 et du port privé SQL
+
+`journal_durable.py` capture les maillons et métadonnées SQL après bornes10000/8Mio avant
+décodage, puis utilise le pur inchangé. `outils.py::m4_lire_journal_quotidien` exige l'admin
+console actif, refuse registre injecté/connexion étrangère et relit source puis autorité.
+`console/journal_equipes.py` compare ce vrai T0 à une projection sur sa capture indépendante,
+recoupe le snapshot et vérifie l'admin/session en dernier. Toute lecture sans injection
+compare l'ensemble des tables avant/après, sans écriture ni réparation. Les mutations de rôle,
+métadonnées et données invalides sont des injections fictives explicites de test.
+
+Les deux entrées génériques `Capacites.appeler`/`appeler_profil_runtime` refusent le journal
+avant normalisation, factory, reçu ou dispatch. Il n'existe aucune voie de rejeu générique
+autorisée pour ce port. Aucun ajout à l'allowlist de lectures HTTP. Le transport console passe
+le rôle admin existant; aucun compte, rôle de personne ou droit de production n'est modifié.
+Le schéma compte désormais298 outils/174 déclarés, dont173 dans la portée nominale admin;
+`ROLES.md` explique la restriction console, plus étroite que cette déclaration de transport.
+
+Historique : port/outil absents reproduits par2 FAIL. Le premier test avait un import de
+candidat erroné intercepté au lint, corrigé avant exécution. Les négatifs suivants ont révélé
+9 FAIL/8 PASS : nouveaux codes de refus non catalogués provoquant `CodeVerdictInconnu`.
+Six codes fermés ont été ajoutés au catalogue et à son oracle. Deux rouges supplémentaires
+ont prouvé l'absence de garde privée précoce des répartiteurs; leur première occurrence
+incluait aussi un mauvais nom d'API dans le test profilé, corrigé et conservé séparément.
+Ni ce mauvais nom ni le refus lint ne sont des bugs produit.
+
+`crm16-port-v3` :170 PASS/1 FAIL en11,80s, dont20 contrôles SQL/journal tous PASS; seul échec :
+compteurs documentaires de rôles encore173/297. Documentation corrigée sans toucher au produit,
+puis `v4` :1 PASS en0,87s pour ce contrôle exact, avec tous les pins produit/tests v3 inchangés.
+Populations recoupées, non additionnées. Ruff et vérificateur298/174 passent. Revue corrective
+statique indépendante sans défaut concret résiduel. Preuves : `CRM16-PORT-LOCAL-QUALIFIED.json`,
+commandes, JUnit, logs, pins, limites effectives du QA privé; aucun appel modèle ou réseau métier.
+
+**PARTIAL — T0 et port privé SQLite qualifiés localement, aucun écran.** Prochaine action :
+GET admin du journal avec page/continuation et lien depuis la cédule, dernier contrôle SQL
+après rendu, source/validité et avertissements explicites; tests HTTP sans effets et révocation.
+Rapprochement exact visite/pointage, heures par jour, absences, membres historiques, extras,
+historique annuel complet, navigateur, PostgreSQL et mobile demeurent ouverts.

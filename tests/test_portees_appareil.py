@@ -76,6 +76,7 @@ ADMIN_SEUL = frozenset({
     "m4_previsualiser_heures_regulieres", "m4_lire_heures_regulieres_validees",
     "m4_volumetrie_pending_review",
     "m4_confirmer_dates_cedule", "m4_lire_calendrier_plan", "m4_lire_cedule_semaine",
+    "m4_lire_journal_quotidien",  # transport console admin; garde interne refuse MCP/appareil/agent
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
     "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # coût réel, marge, créances (T1.5-d)
     "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",  # comptes à payer, saisie par un humain (T4.15)

@@ -66,6 +66,7 @@ from . import (
     ecarts,
     etats,
     heures_regulieres,
+    journal_durable,
     localisation,
     materiel,
     meteo_creneaux,
@@ -1370,6 +1371,26 @@ def outils(
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
         return {"accepte": True, "resultat": resultat}
 
+    def lire_journal_quotidien(jour: str, debut: int = 0, limite: int = 50,
+                              source_attendue: str | None = None) -> dict[str, Any]:
+        try:
+            _autoriser_annotation()
+            cnx = _cnx_durable()
+            source = journal_durable.capturer(cnx)
+            resultat = journal_durable.projeter(source, jour, debut=debut, limite=limite,
+                                                source_attendue=source_attendue)
+            journal_durable.verifier_sortie(resultat)
+            if journal_durable.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
+                raise journal_durable.Refus('SOURCE-MODIFIEE')
+            _autoriser_annotation()
+        except annotations_calendrier.Refus:
+            return _refus(verdicts.construire_verdict('REJ-JOURNAL-IDENTITE', detail='admin console actif requis'))
+        except journal_durable.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-JOURNAL-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-JOURNAL-SOURCE-INVALIDE'))
+        return {'accepte': True, 'resultat': resultat}
+
     def verifier_preparation(intervention_id: str) -> dict[str, Any]:
         """Lecture seule : la préparation d'une intervention (M4.6), volet par volet, avec ce qui manque. Rien n'est
         écrit ; aucun volet non vérifié n'est présenté comme prêt."""
@@ -2367,6 +2388,19 @@ def outils(
             parametres={"type": "object", "properties": {"debut_semaine": {"type": "string"}},
                         "required": ["debut_semaine"], "additionalProperties": False},
             fonction=lire_cedule_semaine, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_journal_quotidien",
+            description=("Console privée, admin SQL actif uniquement : journée ISO America/Montreal, prévisions "
+                         "historiques et pointages distincts, aucune localisation ni déduction RH. Pagination "
+                         "liée à la tête et au jour; empreinte calculée de snapshot, sans attestation native. "
+                         "Lecture seule SQLite canonique bornée; agents, MCP et appareils directs refusés."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "debut": {"type": "integer", "minimum": 0},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                "source_attendue": {"type": ["string", "null"]}},
+                "required": ["jour"], "additionalProperties": False},
+            fonction=lire_journal_quotidien, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_verifier_preparation",
