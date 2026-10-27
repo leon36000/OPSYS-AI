@@ -27,7 +27,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from .. import idempotence, tableau_de_bord
-from . import cedule_plan_ui, cedule_ui, metier, pages
+from . import cedule_plan_ui, cedule_ui, metier, notes_commande_ui, pages
 from .securite import Session
 
 LIMITE_PAGE = 20  # = m2_revenue_crm.liste_leads.LIMITE_DEFAUT : la page que M2 rend sans argument de taille
@@ -68,7 +68,7 @@ SECTIONS = (
      "Consultation des soumissions du projet via le lien du dossier. "
      "Modèles et clauses versionnés : à créer."),
     ("bons_commande", "Bons de commande", "M6 — matériaux", "partiel",
-     "Bons de commande structurés par articles dans M6 ; la grosse note libre n'existe pas encore."),
+     "Notes d’achat libres accessibles depuis les soumissions avec chantier connu ; commandes fournisseurs séparées."),
     ("bons_travail", "Bons de travail", "M4 — planning", "existant",
      "Cédule hebdomadaire datée accessible depuis le répertoire CRM ; bons de travail détaillés non affichés ici."),
     ("couts", "Coûts des travaux", "M5 — finance (avec M6 et M4)", "existant",
@@ -355,7 +355,9 @@ def contenu_soumission(lead_id: str, devis: Mapping[str, Any], *, prefixe: str) 
         '<div class="table-defilante"><table><thead><tr><th>Description</th><th>Quantité</th>'
         '<th>Unité</th><th>Prix unitaire</th><th>Prix de ligne</th></tr></thead><tbody>'
         + "".join(lignes) + '</tbody></table></div>'
-        f'<p>Prix total M3 : {pages.e(devis["prix_total"])} CAD</p></section>'
+        f'<p>Prix total M3 : {pages.e(devis["prix_total"])} CAD</p>'
+        f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}/{pages._segment(devis["devis_id"])}/notes-achats">'
+        'Notes d’achat du chantier</a></p></section>'
     )
 
 
@@ -800,5 +802,9 @@ def creer_router(
         verifier_formulaire(champs, session)
         ajouter_note(session, lead_id, {k: v for k, v in champs.items() if k != "csrf"})
         return RedirectResponse(f"{prefixe}/crm/lead/{pages._segment(lead_id)}#activites", status_code=303)
+
+    router.include_router(notes_commande_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire, lire=lire, rendre=rendre, verifier_lead=verifier_lead))
 
     return router

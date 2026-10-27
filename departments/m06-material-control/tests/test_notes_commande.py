@@ -20,6 +20,7 @@ from opsys import contexte, idempotence, identite, stockage
 from opsys.capacites import Capacites
 from opsys.departements import lire_manifeste
 from opsys.outils import Autonomie, Niveau, executer_atomique
+from opsys.stockage import codec
 from opsys.stockage.schema import APPROBATIONS, JOURNAL, META, MUTATIONS_APPLIQUEES, PERSONNES, REGISTRES
 
 DEP = "m06-material-control"
@@ -314,6 +315,156 @@ def test_capacites_meme_appareil_autre_admin_ne_rejoue_pas_le_texte(monde):
     assert not r.get("ok") or not r.get("resultat", {}).get("accepte")
     assert ARGUMENTS["texte_libre"] not in json.dumps(r)
     assert len(notes()) == 1
+
+
+def liste(arguments=None, *, acteur=ADMIN, quota=n.BORNE_SORTIE):
+    with contexte.appele_par_appareil(acteur), contexte.sortie_bornee(quota):
+        return executer_atomique(outil(n.LISTER), {"devis_id": "DEVIS-FICTIF"} if arguments is None else arguments)
+
+
+def toutes_tables():
+    with stockage.transaction() as cnx:
+        return {table.name: [tuple(r) for r in cnx.execute(select(table)).all()] for table in META.sorted_tables}
+
+
+def test_liste_contrat_ferme_pagination_metadata_courante_et_aucun_effet(monde):
+    o = outil(n.LISTER)
+    assert o.roles_appareil == frozenset({"admin"})
+    assert o.autonomie is Autonomie.T0 and o.niveau_effectif is Niveau.N0
+    assert o.parametres["additionalProperties"] is False
+    assert o.parametres["required"] == ["devis_id"]
+    assert set(o.parametres["properties"]) == {"devis_id", "limite", "decalage"}
+    ecrites = {}
+    for note_id in ("NOTE-C-FICTIVE", "NOTE-A-FICTIVE", "NOTE-B-FICTIVE"):
+        ecrites[note_id] = resultat(appel({**ARGUMENTS, "note_id": note_id}, cle=note_id))["note"]
+    correction = {**ARGUMENTS, "note_id": "NOTE-A-FICTIVE", "revision_attendue": 1,
+                  "texte_libre": "CORRECTION-FICTIVE-TEXTE-INTERDIT-DANS-LISTE"}
+    ecrites["NOTE-A-FICTIVE"] = resultat(appel(correction, cle="correction-liste"))["note"]
+    besoin("AUTRE-DEVIS-LISTE", "AUTRE-CHANTIER-LISTE")
+    resultat(appel({**ARGUMENTS, "note_id": "NOTE-AUTRE-FICTIVE", "devis_id": "AUTRE-DEVIS-LISTE"},
+                  cle="autre-liste"))
+    avant = toutes_tables()
+    page1 = resultat(liste({"devis_id": "DEVIS-FICTIF", "limite": 2}))["resultat"]
+    page2 = resultat(liste({"devis_id": "DEVIS-FICTIF", "limite": 2, "decalage": 2}))["resultat"]
+    assert set(page1) == {"devis_id", "chantier_id", "notes", "total", "decalage", "suivant"}
+    assert (page1["devis_id"], page1["chantier_id"], page1["total"], page1["decalage"], page1["suivant"]) == (
+        "DEVIS-FICTIF", "CHANTIER-FICTIF", 3, 0, 2,
+    )
+    assert (page2["total"], page2["decalage"], page2["suivant"]) == (3, 2, None)
+    lignes = page1["notes"] + page2["notes"]
+    assert [ligne["note_id"] for ligne in lignes] == sorted(ecrites)
+    for ligne in lignes:
+        assert set(ligne) == {"note_id", "revision", "auteur", "enregistree_le", "source"}
+        assert ligne == {cle: ecrites[ligne["note_id"]][cle] for cle in ligne}
+    assert page1["notes"][0]["revision"] == 2
+    assert "texte_libre" not in json.dumps(lignes)
+    assert "CORRECTION-FICTIVE-TEXTE" not in json.dumps(lignes)
+    assert ARGUMENTS["texte_libre"] not in json.dumps(lignes)
+    page1["notes"][0]["auteur"]["personne"] = "mutation-locale-fictive"
+    assert resultat(liste())["resultat"]["notes"][0]["auteur"]["personne"] == ADMIN.personne
+    stockage.liberer()
+    assert resultat(liste({"devis_id": "DEVIS-FICTIF", "limite": 2, "decalage": 2}))["resultat"] == page2
+    assert toutes_tables() == avant
+
+
+def test_liste_defaut_vingt_derniere_page_et_decalage_maximal(monde):
+    for index in range(21):
+        note_id = f"NOTE-LISTE-{20 - index:02d}"
+        resultat(appel({**ARGUMENTS, "note_id": note_id}, cle=note_id))
+    avant = toutes_tables()
+    page = resultat(liste())["resultat"]
+    assert len(page["notes"]) == 20 and page["total"] == 21 and page["suivant"] == 20
+    assert [m["note_id"] for m in page["notes"]] == [f"NOTE-LISTE-{i:02d}" for i in range(20)]
+    fin = resultat(liste({"devis_id": "DEVIS-FICTIF", "decalage": 20}))["resultat"]
+    assert [m["note_id"] for m in fin["notes"]] == ["NOTE-LISTE-20"] and fin["suivant"] is None
+    vide = resultat(liste({"devis_id": "DEVIS-FICTIF", "decalage": 10000}))["resultat"]
+    assert vide["notes"] == [] and vide["total"] == 21 and vide["suivant"] is None
+    assert toutes_tables() == avant
+
+
+@pytest.mark.parametrize("changement", [
+    {"limite": 0}, {"limite": 21}, {"limite": True}, {"limite": 1.5},
+    {"decalage": -1}, {"decalage": 10001}, {"decalage": False}, {"decalage": "0"},
+    {"devis_id": " "}, {"devis_id": "x" * 201}, {"auteur": ADMIN.personne},
+])
+def test_liste_arguments_invalides_sans_effet(monde, changement):
+    avant = toutes_tables()
+    r = liste({"devis_id": "DEVIS-FICTIF", **changement})
+    assert not r.get("ok") or r["resultat"] == n.refuser("ARGUMENTS")
+    assert toutes_tables() == avant
+
+
+@pytest.mark.parametrize("acteur", [None, EMP, SELLER, OWNER,
+    contexte.IdentiteAppelante("inconnu.liste.fictif", "admin"),
+])
+def test_liste_identite_et_role_refuses_sans_effet(monde, acteur):
+    resultat(appel())
+    avant = toutes_tables()
+    assert liste(acteur=acteur)["resultat"] == n.refuser("IDENTITE")
+    assert toutes_tables() == avant
+
+
+def test_liste_admin_revoque_et_source_connue_vide(monde):
+    vide = resultat(liste())["resultat"]
+    assert vide == {"devis_id": "DEVIS-FICTIF", "chantier_id": "CHANTIER-FICTIF", "notes": [],
+                    "total": 0, "decalage": 0, "suivant": None}
+    with stockage.transaction() as cnx:
+        identite.retirer_role(cnx, ADMIN.personne, "admin")
+    avant = toutes_tables()
+    assert liste()["resultat"] == n.refuser("IDENTITE")
+    assert toutes_tables() == avant
+
+
+def test_liste_chantier_absent_nul_et_divergence_hors_page(monde):
+    assert liste({"devis_id": "ABSENT-FICTIF"})["resultat"] == n.refuser("BESOIN-INTROUVABLE")
+    besoin("DEVIS-SANS-CHANTIER", None)
+    assert liste({"devis_id": "DEVIS-SANS-CHANTIER"})["resultat"] == n.refuser("CHANTIER-INCONNU")
+    resultat(appel())
+    with stockage.transaction() as cnx:
+        row = cnx.execute(select(REGISTRES.c.rang, REGISTRES.c.maillon).where(
+            (REGISTRES.c.departement == DEP) & (REGISTRES.c.registre == "besoins_prevus")
+        ).order_by(REGISTRES.c.rang)).first()
+        maillon = codec.decoder(row.maillon)
+        assert maillon["devis_id"] == "DEVIS-FICTIF"
+        maillon["chantier_id"] = "CHANTIER-DIVERGENT-FICTIF"
+        cnx.execute(update(REGISTRES).where(
+            (REGISTRES.c.departement == DEP) & (REGISTRES.c.registre == "besoins_prevus")
+            & (REGISTRES.c.rang == row.rang)
+        ).values(maillon=codec.encoder(maillon)))
+    avant = toutes_tables()
+    r = liste({"devis_id": "DEVIS-FICTIF", "decalage": 10000})
+    assert r["resultat"] == n.refuser("ANCRAGE-DIFFERENT")
+    assert toutes_tables() == avant
+
+
+@pytest.mark.parametrize("corruption", ["{}", "{", "[]"])
+def test_liste_registre_corrompu_refuse_sans_page_partielle(monde, corruption):
+    resultat(appel())
+    with stockage.transaction() as cnx:
+        cnx.execute(update(REGISTRES).where(
+            (REGISTRES.c.departement == DEP) & (REGISTRES.c.registre == n.REGISTRE)
+        ).values(maillon=corruption))
+    avant = toutes_tables()
+    assert liste()["resultat"] == n.refuser("REGISTRE-INVALIDE")
+    assert toutes_tables() == avant
+
+
+def test_liste_capacites_pure_quota_meta_et_aucun_artefact(monde):
+    resultat(appel())
+    dep = lire_manifeste(Path(__file__).resolve().parents[1])
+    cap = Capacites({DEP: dep}, stockage.transaction, limite_sortie=6000)
+    petit = Capacites({DEP: dep}, stockage.transaction, limite_sortie=200)
+    avant = toutes_tables()
+    with contexte.appele_par_appareil(ADMIN):
+        reponse = cap.appeler(n.LISTER, {"devis_id": "DEVIS-FICTIF"})
+        assert resultat(reponse)["resultat"]["total"] == 1
+        assert "texte_libre" not in json.dumps(reponse)
+        refuse = petit.appeler(n.LISTER, {"devis_id": "DEVIS-FICTIF"})
+        assert not refuse.get("ok") or not refuse.get("resultat", {}).get("accepte")
+        assert ARGUMENTS["texte_libre"] not in json.dumps(refuse)
+        mutation = cap.appeler(n.LISTER, {"devis_id": "DEVIS-FICTIF"}, meta=meta("liste-interdite"))
+        assert not mutation.get("ok")
+    assert toutes_tables() == avant
 
 
 @pytest.mark.parametrize("acteur", [None, contexte.IdentiteAppelante(ADMIN.personne, "admin", source="console")])

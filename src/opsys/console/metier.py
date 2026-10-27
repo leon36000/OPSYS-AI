@@ -385,6 +385,57 @@ def _executer_observation_growth_humaine(cnx, deps, session, personne, arguments
     return reponse
 
 
+
+def _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutation_id):
+    """Port humain privé : Meta réelle, autorité avant cache, réponse complète bornée."""
+    from m6_material_control import notes_commande as n
+    from m6_material_control import outils as m6
+
+    departement = "m06-material-control"
+    if (session.expire <= datetime.now(UTC).timestamp() or "admin" not in personne.roles):
+        raise PermissionError("session admin active requise")
+    if (departement not in deps or deps[departement].module_outils != "m6_material_control.outils"):
+        raise KeyError("service notes M6 indisponible")
+    outil = next((o for o in deps[departement].charger_outils() if o.nom == nom), None)
+    if outil is None:
+        raise KeyError("outil M6 indisponible")
+    if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
+        raise ValueError("arguments de note invalides")
+    ecriture = nom == n.ECRIRE
+    if (ecriture and (not isinstance(mutation_id, str) or not mutation_id.strip() or len(mutation_id) > 200)
+            or (not ecriture and mutation_id is not None)):
+        raise ValueError("intention de note invalide")
+    if ecriture and cnx.dialect.name != "sqlite":
+        return {"ok": True, "resultat": n.refuser("ECRITURE-NON-QUALIFIEE")}
+    with (
+        contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
+        contexte.appeler_en_tant_que(departement, origine="console"),
+        contexte.sortie_bornee(n.BORNE_SORTIE),
+    ):
+        m6.autoriser_note_commande()
+        if not ecriture:
+            return executer_atomique(outil, dict(arguments))
+        maintenant = datetime.now(UTC)
+        meta = idempotence.Meta(mutation_id, f"console:{personne.identifiant}", maintenant.isoformat())
+        with m6.contexte_mutation_note_commande(meta):
+            try:
+                recu = idempotence.reclamer(cnx, meta, nom, dict(arguments), maintenant)
+            except idempotence.MutationConflit as exc:
+                raise ValueError("conflit d'intention de note") from exc
+            if recu.rejouee:
+                try:
+                    m6.verifier_rejeu_note_commande(dict(arguments), recu.reponse)
+                except n.Refus as exc:
+                    return {"ok": True, "resultat": n.refuser(exc.suffixe)}
+                return {**recu.reponse, "rejoue": True}
+            reponse = executer_atomique(outil, dict(arguments))
+            if reponse.get("ok") is True:
+                n.verifier_borne(reponse["resultat"], n.BORNE_SORTIE)
+            idempotence.finaliser(cnx, meta, reponse)
+            # Le journal métier M6 contient uniquement les références, jamais le texte.
+            return reponse
+
+
 def executer(
     cnx: Connection,
     deps: Mapping[str, Departement],
@@ -417,6 +468,8 @@ def executer(
         return _executer_observation_growth_humaine(cnx, deps, session, personne, arguments, mutation_id)
     if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom in {"m6_enregistrer_note_commande", "m6_lire_note_commande", "m6_lister_notes_commande"}:
+        return _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutation_id)
     surfaces = COMMANDES if mutation_id is not None else LECTURES
     departement = surfaces.get(nom)
     est_media = nom == "m7_lire_dossier_medias" or nom in _COMMANDES_MEDIAS

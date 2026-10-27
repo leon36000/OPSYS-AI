@@ -1466,6 +1466,28 @@ def lire_note_commande(note_id: str, revision: int | None = None):
         return n.refuser(exc.suffixe)
 
 
+def lister_notes_commande(devis_id: str, limite: int = 20, decalage: int = 0):
+    """Lecture admin sans effet, ancrée dans les besoins M6, sans texte des notes."""
+    n = notes_commande
+    try:
+        autoriser_note_commande()
+        n.valider_pagination(devis_id, limite, decalage)
+        try:
+            besoin = besoins_prevus.pour_devis(devis_id, _besoins_prevus_de_l_appel(None))
+        except (ValueError, TypeError, KeyError, AttributeError):
+            raise n.Refus("REGISTRE-INVALIDE") from None
+        if besoin is None:
+            raise n.Refus("BESOIN-INTROUVABLE")
+        if not n.texte(besoin.get("chantier_id")):
+            raise n.Refus("CHANTIER-INCONNU")
+        _, maillons = _notes_commande_snapshot()
+        reponse = n.lister(maillons, devis_id, besoin["chantier_id"], limite, decalage)
+        n.verifier_borne(reponse, contexte.limite_sortie() or n.BORNE_SORTIE)
+        return reponse
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
 def verifier_rejeu_note_commande(arguments, reponse):
     """Raccord du cache central : autorité et reçu propre, jamais CAS du dernier état.
 
@@ -2634,6 +2656,24 @@ def outils() -> tuple[Outil, ...]:
                 "required": ["note_id"],
             },
             fonction=lire_note_commande, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom=notes_commande.LISTER,
+            description=(
+                "Liste les métadonnées des dernières versions des notes d'achat internes d'un devis M6, "
+                "sans texte. Admin actif, chantier connu obligatoire ; tri note_id et pagination bornée. "
+                "Lecture seule : aucun PO, stock, reçu de mutation ou envoi."
+            ),
+            parametres={
+                "type": "object", "additionalProperties": False,
+                "properties": {
+                    "devis_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 20, "default": 20},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 10000, "default": 0},
+                },
+                "required": ["devis_id"],
+            },
+            fonction=lister_notes_commande, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m6_receptionner_commande",

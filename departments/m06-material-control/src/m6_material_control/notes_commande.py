@@ -15,6 +15,7 @@ from . import encodage
 REGISTRE = "notes_commande"
 ECRIRE = "m6_enregistrer_note_commande"
 LIRE = "m6_lire_note_commande"
+LISTER = "m6_lister_notes_commande"
 MAX_TEXTE = 20000
 MAX_SOURCES = 10000
 BORNE_SORTIE = 131072
@@ -156,3 +157,43 @@ def verifier_borne(resultat, limite):
     if any(len(json.dumps({"ok": True, "resultat": resultat, "rejoue": flag}, ensure_ascii=False)) > limite
            for flag in (True, False)):
         raise Refus("SORTIE-TROP-VOLUMINEUSE")
+
+
+def valider_pagination(devis_id, limite, decalage):
+    if not (
+        texte(devis_id) and type(limite) is int and 1 <= limite <= 20
+        and type(decalage) is int and 0 <= decalage <= 10000
+    ):
+        raise Refus("ARGUMENTS")
+
+
+def lister(maillons, devis_id, chantier_id, limite=20, decalage=0):
+    """Projection d'un registre déjà validé : métadonnées courantes, jamais de texte.
+
+    L'ancrage fourni vient des besoins M6 relus par l'adaptateur. La cohérence est
+    vérifiée avant pagination, y compris pour une note qui n'est pas sur la page.
+    """
+    valider_pagination(devis_id, limite, decalage)
+    derniers = {}
+    for m in maillons:
+        if m["devis_id"] == devis_id:
+            if m["chantier_id"] != chantier_id:
+                raise Refus("ANCRAGE-DIFFERENT")
+            derniers[m["note_id"]] = m
+    ids = sorted(derniers)
+    notes = []
+    for note_id in ids[decalage:decalage + limite]:
+        m = derniers[note_id]
+        notes.append({
+            "note_id": m["note_id"], "revision": m["revision"], "auteur": copy.deepcopy(m["auteur"]),
+            "enregistree_le": m["enregistree_le"],
+            "source": {
+                "departement": "m06-material-control", "registre": REGISTRE,
+                "index": m["index"], "hash_maillon": m["hash_maillon"],
+            },
+        })
+    suivant = decalage + len(notes)
+    return {"accepte": True, "resultat": {
+        "devis_id": devis_id, "chantier_id": chantier_id, "notes": notes, "total": len(ids),
+        "decalage": decalage, "suivant": suivant if suivant < len(ids) else None,
+    }}

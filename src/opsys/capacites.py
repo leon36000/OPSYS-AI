@@ -45,6 +45,7 @@ _SCHEMA_VIDE = {"type": "object", "properties": {}, "additionalProperties": Fals
 logger = logging.getLogger("opsys.capacites")
 _MUTATION_NOTE_M6 = "m6_enregistrer_note_commande"
 _LECTURE_NOTE_M6 = "m6_lire_note_commande"
+_LISTE_NOTES_M6 = "m6_lister_notes_commande"
 _MUTATION_CLASSEMENT_M6 = "m6_classer_cause_variance_appareil"
 _LECTURES_CLASSEMENT_M6 = frozenset({
     "m6_lister_variances_classables_wct_appareil",
@@ -368,7 +369,7 @@ class Capacites:
             return self._appeler_idempotent(nom, args, meta, revalider_humain_cible=True,
                                            demander_n4_humain=True)
         if (
-            nom in {"m6_lire_preuves_pertes_wct_appareil", _LECTURE_NOTE_M6}
+            nom in {"m6_lire_preuves_pertes_wct_appareil", _LECTURE_NOTE_M6, _LISTE_NOTES_M6}
             or nom in _LECTURES_CLASSEMENT_M6
             or nom == _LECTURE_RAPPELS_M1
         ) and meta is not None:
@@ -1693,7 +1694,7 @@ class Capacites:
         departement: str | None = None,
         origine: str | None = None,
     ) -> dict[str, Any]:
-        if source in {_MUTATION_NOTE_M6, _LECTURE_NOTE_M6}:
+        if source in {_MUTATION_NOTE_M6, _LECTURE_NOTE_M6, _LISTE_NOTES_M6}:
             # Notes privées : jamais copiées dans un artefact générique de sortie.
             from m6_material_control import notes_commande as n
 
