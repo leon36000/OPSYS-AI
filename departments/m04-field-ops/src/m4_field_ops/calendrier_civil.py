@@ -166,6 +166,51 @@ def confirmer(reg, plan_id, calendrier, revision_attendue, confirme_par, horodat
             "calendrier": dict(normalise), "fuseau": FUSEAU, "avertissements": list(AVERTISSEMENTS)}
 
 
+def lire_plan(reg, plan_id):
+    """Détail borné d'un plan appliqué, sans date déduite ni autorisation de mutation.
+
+    Les blocages portent sur toutes les visites, même celles omises de la réponse.
+    La confirmation doit toujours revalider l'état courant et la révision dans sa transaction.
+    """
+    _, propositions, applications, dates, detenteurs, etat = _index(reg)
+    if not isinstance(plan_id, str) or plan_id not in applications or plan_id not in propositions:
+        raise ValueError("plan appliqué requis")
+    source = dates[plan_id][1] if plan_id in dates else None
+    jours, visites, bloquants, total = set(), [], set(), 0
+    for route, visite in _visites(propositions[plan_id]):
+        jour = route["jour"]
+        if type(jour) is not int or jour < 0:
+            raise ValueError("jour numérique positif ou nul requis")
+        jours.add(jour)
+        total += 1
+        iid = visite["chantier"]
+        info = etat.get(iid)
+        raisons = []
+        if detenteurs.get(iid) != plan_id:
+            raisons.append("plan_remplace")
+        if not info or info["statut"] != "planifiee":
+            raisons.append("intervention_non_planifiee")
+        if info and info["technicien_assigne"] != route["equipe"]:
+            raisons.append("equipe_reassignee")
+        bloquants.update(raisons)
+        if len(visites) < 200:
+            visites.append({"intervention_id": iid, "equipe_id": route["equipe"], "jour": jour,
+                            "debut_min": visite["debut_min"], "fin_min": visite["fin_min"],
+                            "statut": info["statut"] if info else None, "bloquants": raisons})
+    jours_affiches = sorted(jours)[:31]
+    return {"plan_id": plan_id, "fuseau": FUSEAU, "revision": source["revision"] if source else 0,
+            "calendrier": {str(j): source["calendrier"][str(j)] for j in jours_affiches
+                           if source and str(j) in source["calendrier"]},
+            "source_application_id": applications[plan_id]["ligne_id"],
+            "source_proposition_id": propositions[plan_id]["ligne_id"],
+            "source_ligne_id": source["ligne_id"] if source else None,
+            "jours": jours_affiches, "total_jours": len(jours),
+            "visites": visites, "total_visites": total, "bloquants": sorted(bloquants),
+            "tronque": total > 200 or len(jours) > 31,
+            "avertissements": [*AVERTISSEMENTS,
+                "Confirmation indisponible si le détail est tronqué; toute mutation revalide l'état courant."]}
+
+
 def lire_semaine(reg, debut_semaine):
     """Projection bornée sans contacts ; sans_date concerne tout le carnet, pas une semaine devinée."""
     jour = _date(debut_semaine)

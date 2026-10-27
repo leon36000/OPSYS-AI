@@ -27,7 +27,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from .. import idempotence, tableau_de_bord
-from . import cedule_ui, metier, pages
+from . import cedule_plan_ui, cedule_ui, metier, pages
 from .securite import Session
 
 LIMITE_PAGE = 20  # = m2_revenue_crm.liste_leads.LIMITE_DEFAUT : la page que M2 rend sans argument de taille
@@ -579,6 +579,62 @@ def creer_router(
         except (ValueError, KeyError, TypeError):
             raise HTTPException(503, "Cédule M4 indisponible") from None
         return rendre(session, "Cédule hebdomadaire", corps)
+
+    @router.get("/crm/cedule/plan/{plan_id}", response_class=HTMLResponse)
+    def dates_plan(plan_id: str, request: Request) -> Response:
+        session = session_page(request)
+        if cedule_plan_ui.PLAN_ID.fullmatch(plan_id) is None:
+            raise HTTPException(404, "plan introuvable")
+        if request.query_params:
+            raise HTTPException(400, "requête invalide")
+        vue = lire(session, "m4_lire_calendrier_plan", {"plan_id": plan_id})
+        with cnx_factory() as cnx:
+            sqlite = cnx.dialect.name == "sqlite"
+        try:
+            corps = cedule_plan_ui.contenu(vue, plan_id, session.csrf, prefixe, sqlite)
+        except (ValueError, KeyError, TypeError):
+            raise HTTPException(503, "Détail M4 indisponible") from None
+        return rendre(session, "Dates du plan appliqué", corps)
+
+    @router.post("/crm/cedule/plan/{plan_id}")
+    async def confirmer_dates_plan(plan_id: str, request: Request) -> Response:
+        session = session_page(request)
+        if cedule_plan_ui.PLAN_ID.fullmatch(plan_id) is None:
+            raise HTTPException(404, "plan introuvable")
+        if request.query_params:
+            raise HTTPException(400, "requête invalide")
+        champs = await cedule_plan_ui.formulaire(request)
+        verifier_formulaire(champs, session)
+        try:
+            with cnx_factory() as cnx:
+                if cnx.dialect.name != "sqlite":
+                    raise HTTPException(503, "Modification des dates indisponible sur cette instance")
+                vue = extraire_resultat(metier.executer(cnx, deps, session, "m4_lire_calendrier_plan",
+                                                       {"plan_id": plan_id}))
+                try:
+                    permis = cedule_plan_ui.valider(vue, plan_id)
+                except (ValueError, KeyError, TypeError):
+                    raise HTTPException(503, "Détail M4 indisponible") from None
+                if not permis:
+                    raise HTTPException(409, "Plan bloqué ou incomplet : relire avant de confirmer")
+                arguments, mutation = cedule_plan_ui.arguments(champs, vue['jours'])
+                reponse = metier.executer(cnx, deps, session, "m4_confirmer_dates_cedule",
+                                         {"plan_id": plan_id, **arguments}, mutation_id=mutation)
+                try:
+                    extraire_resultat(reponse)
+                except HTTPException as exc:
+                    if exc.status_code == 400:
+                        raise HTTPException(409, "Dates non enregistrées : relire le plan et sa révision") from None
+                    raise
+        except PermissionError:
+            raise HTTPException(403, "accès refusé") from None
+        except ValueError as exc:
+            if isinstance(exc.__cause__, idempotence.MutationConflit):
+                raise HTTPException(409, "identifiant de saisie déjà utilisé") from None
+            raise HTTPException(400, "dates ou formulaire invalides") from None
+        except KeyError:
+            raise HTTPException(503, "Confirmation M4 indisponible") from None
+        return RedirectResponse(f"{prefixe}/crm/cedule/plan/{pages._segment(plan_id)}", status_code=303)
 
     @router.get("/crm/lead/{lead_id}", response_class=HTMLResponse)
     def dossier(lead_id: str, request: Request) -> Response:

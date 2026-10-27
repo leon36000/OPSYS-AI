@@ -1324,6 +1324,16 @@ def outils(
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
         return {"accepte": True, "resultat": resultat}
 
+    def lire_calendrier_plan(plan_id: str) -> dict[str, Any]:
+        refus = verifier_autorite_calendrier()
+        if refus:
+            return refus
+        try:
+            resultat = calendrier_civil.lire_plan(registre_courant(), plan_id)
+        except (ValueError, registre.VerificationError) as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
+        return {"accepte": True, "resultat": resultat}
+
     def lire_cedule_semaine(debut_semaine: str) -> dict[str, Any]:
         refus = verifier_autorite_calendrier()
         if refus:
@@ -2306,6 +2316,16 @@ def outils(
                 "revision_attendue": {"type": "integer", "minimum": 0}},
                 "required": ["plan_id", "calendrier", "revision_attendue"], "additionalProperties": False},
             fonction=confirmer_dates_cedule, autonomie=Autonomie.T1, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_calendrier_plan",
+            description=("Admin actif : détail en lecture seule d'un plan M4 appliqué, jours numériques utilisés, "
+                         "calendrier explicite et révision (0 sans dates), sources et blocages actuels. "
+                         "Maximum 200 visites et 31 jours, totaux et troncature explicites; aucun contact. "
+                         "Ne pas confirmer depuis un détail tronqué. La mutation revalide toujours l'état courant."),
+            parametres={"type": "object", "properties": {"plan_id": {"type": "string"}},
+                        "required": ["plan_id"], "additionalProperties": False},
+            fonction=lire_calendrier_plan, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_lire_cedule_semaine",

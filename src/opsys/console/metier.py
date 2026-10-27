@@ -46,6 +46,7 @@ LECTURES = {
     "m9_rapport_activite_periode": "m09-strategic-intelligence",
     # CRM secrétariat (répertoire et dossier client) : lectures pures de la vérité commerciale M2.
     "m4_lire_cedule_semaine": "m04-field-ops",
+    "m4_lire_calendrier_plan": "m04-field-ops",
     "m2_lister_leads": "m02-revenue-crm",
     "m2_trouver_client_de_lead": "m02-revenue-crm",
     "m2_obtenir_client_360": "m02-revenue-crm",
@@ -66,11 +67,13 @@ _LECTURES_ADMIN_M2 = frozenset({
     "m2_reconcilier_memoire_contact_client",
 })
 _LECTURES_ADMIN_M3 = frozenset({"m3_lister_devis_lead_admin", "m3_lire_devis"})
-_LECTURES_ADMIN_M4 = frozenset({"m4_lire_cedule_semaine"})
+_LECTURES_ADMIN_M4 = frozenset({"m4_lire_cedule_semaine", "m4_lire_calendrier_plan"})
 _LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3 | _LECTURES_ADMIN_M4
 _COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction", "m2_corriger_contact_client"})
-_OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2
+_COMMANDES_ADMIN_M4 = frozenset({"m4_confirmer_dates_cedule"})
+_OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2 | _COMMANDES_ADMIN_M4
 COMMANDES = {
+    "m4_confirmer_dates_cedule": "m04-field-ops",
     "m2_corriger_contact_client": "m02-revenue-crm",
     "m2_enregistrer_interaction": "m02-revenue-crm",
     "m1_importer_appel_manuellement": "m01-front-office",
@@ -398,7 +401,7 @@ def executer(
         raise PermissionError("administration métier requise")
     if nom in _OUTILS_ADMIN and "admin" not in personne.roles:
         raise PermissionError("admin SQL requis pour cet outil métier")
-    if nom in _COMMANDES_ADMIN_M2 and session.expire <= datetime.now(UTC).timestamp():
+    if nom in (_COMMANDES_ADMIN_M2 | _COMMANDES_ADMIN_M4) and session.expire <= datetime.now(UTC).timestamp():
         raise PermissionError("session de note expirée")
     if nom == "m1_consigner_suivi_rappel" and session.expire <= datetime.now(UTC).timestamp():
         raise PermissionError("session de suivi expirée")

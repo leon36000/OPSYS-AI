@@ -46,6 +46,11 @@ def _instant(valeur):
     return instant.astimezone(ZoneInfo(FUSEAU))
 
 
+def _lien_plan(plan_id, prefixe):
+    return (f'<a href="{pages.e(prefixe)}/crm/cedule/plan/{pages._segment(plan_id)}">Voir les dates du plan</a>'
+            if plan_id else 'Plan non appliqué')
+
+
 def _carte(ligne, debut, fin, dossiers, prefixe):
     iid, lead = ligne["intervention_id"], ligne["lead_id"]
     if ligne["validite"] not in {"date_confirmee", "a_reconfirmer"}:
@@ -60,6 +65,7 @@ def _carte(ligne, debut, fin, dossiers, prefixe):
         f'<article class="cedule-job {classe}" data-intervention="{pages.e(iid)}">'
         f'<p><strong>{debut:%H:%M}–{fin:%H:%M}</strong></p><p>{pages.e(statut)}</p>'
         f'<p class="cedule-validite">{qualite}</p><p>{dossier}</p>'
+        f'<p>{_lien_plan(ligne["plan_id"], prefixe)}</p>'
         '<details><summary>Origine et confirmation</summary>'
         f'<p>Intervention : {pages.e(iid)}</p>'
         f'<p>Équipe actuelle : {pages.e(ligne["technicien_actuel"] or "Non assignée")}</p>'
@@ -116,7 +122,7 @@ def contenu(vue: Mapping, dossiers: set[str], prefixe: str) -> str:
               'Les éléments non affichés doivent être consultés avant toute planification.</p>' if partiel else '')
     attente = ''.join(
         f'<li>Intervention {pages.e(ligne["intervention_id"])} · {pages.e(ligne["statut"])} · '
-        f'Plan {pages.e(ligne["plan_id"] or "non appliqué")} · Aucune date civile confirmée</li>'
+        f'{_lien_plan(ligne["plan_id"], prefixe)} · Aucune date civile confirmée</li>'
         for ligne in sans_date)
     carnet = f'<ul>{attente}</ul>' if attente else '<p>Aucune intervention non datée signalée par M4.</p>'
     return (
