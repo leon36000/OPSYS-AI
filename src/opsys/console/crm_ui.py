@@ -27,7 +27,16 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from .. import idempotence, tableau_de_bord
-from . import annotations_cedule_ui, cedule_plan_ui, cedule_ui, couleurs_cedule_ui, metier, notes_commande_ui, pages
+from . import (
+    annotations_cedule_ui,
+    cedule_plan_ui,
+    cedule_ui,
+    couleurs_cedule_ui,
+    metier,
+    mois_cedule_ui,
+    notes_commande_ui,
+    pages,
+)
 from .securite import Session
 
 LIMITE_PAGE = 20  # = m2_revenue_crm.liste_leads.LIMITE_DEFAUT : la page que M2 rend sans argument de taille
@@ -808,6 +817,9 @@ def creer_router(
     router.include_router(annotations_cedule_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
         verifier_formulaire=verifier_formulaire, rendre=rendre))
+
+    router.include_router(mois_cedule_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
 
     router.include_router(couleurs_cedule_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,

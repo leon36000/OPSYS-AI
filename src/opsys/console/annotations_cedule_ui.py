@@ -26,7 +26,7 @@ def extraire(reponse):
     if r.get('accepte') is True and isinstance(r.get('resultat'), dict):
         return r['resultat']
     suffixe = r.get('verdict', {}).get('code', '')
-    for prefix in ('REJ-ANNOTATION-CALENDRIER-', 'REJ-COULEUR-CALENDRIER-'):
+    for prefix in ('REJ-ANNOTATION-CALENDRIER-', 'REJ-COULEUR-CALENDRIER-', 'REJ-APERCU-MOIS-'):
         suffixe = suffixe.removeprefix(prefix)
     if suffixe == 'IDENTITE':
         raise HTTPException(403, 'Accès refusé')

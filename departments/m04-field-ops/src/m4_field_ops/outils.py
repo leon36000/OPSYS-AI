@@ -55,6 +55,7 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from . import (
     acces,
     annotations_calendrier,
+    apercu_mois,
     calendrier_civil,
     calibration_projection,
     cedule,
@@ -2493,7 +2494,7 @@ def outils(
               fonction=resoudre_revue_completion_sources, autonomie=Autonomie.T1, niveau=Niveau.N4,
               roles_appareil=frozenset({"admin"})),
         *_outils_annotations(),
-        *_outils_couleurs(),
+        *_outils_presentation_calendrier(),
         Outil(
             nom="m4_previsualiser_heures_regulieres",
             description=("Aperçu privé des pointages d'une personne OPSYS active. Dérive catégories travail, "
@@ -2736,7 +2737,21 @@ def lire_couleurs_calendrier(intervention_id, limite=20, decalage=0, revision_ma
         return n.refuser(exc.suffixe)
 
 
-def _outils_couleurs():
+
+def lire_apercu_mois(premier_mois):
+    n = apercu_mois
+    try:
+        _autoriser_annotation()
+        maillons = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+        if len(maillons) > n.MAX_SOURCES:
+            raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+        return n.lire(registre.Registre(maillons), premier_mois,
+                      limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _outils_presentation_calendrier():
     # Réutilise les contrats d'ancre/pagination des notes; seule la valeur de présentation diffère.
     from copy import deepcopy
 
@@ -2756,6 +2771,13 @@ def _outils_couleurs():
         Outil(nom="m4_resumer_couleurs_calendrier", parametres=deepcopy(resumer.parametres),
               description="Console admin privée : repères de présentation pour 200 créneaux exacts maximum.",
               fonction=resumer_couleurs_calendrier),
+        Outil(nom="m4_lire_apercu_mois",
+              description="Console admin privée : aperçu de trois mois, créneaux datés M4 et invalidations séparés. "
+                          "Comptage par date de début, jamais disponibilité ou promesse client.",
+              parametres={"type": "object", "properties": {"premier_mois": {
+                  "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$", "maxLength": 7}},
+                  "required": ["premier_mois"], "additionalProperties": False},
+              fonction=lire_apercu_mois),
     )
 
 

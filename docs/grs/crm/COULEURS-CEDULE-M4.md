@@ -44,3 +44,5 @@ Qualification Linux locale : lot intégré final **213 PASS**, sans SKIP, inclua
 La CI du commit précédent a révélé une régression d’ordre du catalogue d’outils et un catalogue de types non actualisé. Le patch restaure les quatre outils historiques de fin de liste et déclare explicitement les deux types privés dans le test d’énumération exacte. Les trois tests CI concernés passent localement dans le lot final ; leur CI distante suivante reste à observer.
 
 Statut **PARTIAL** : couleur par créneau utilisable en HTTP/SQLite local, sans validation visuelle navigateur. Restent vue multi-mois, visites successives, pagination du grand carnet, PostgreSQL, portée agent/M10 et mobile. Le navigateur local dont le sandbox a échoué ne doit pas être relancé avec protection désactivée. Prochaine capacité : vue multi-mois sourcée par le calendrier M4, après audit des bornes de lecture.
+
+Évolution suivante : [aperçu trois mois](APERCU-MULTIMOIS-M4.md) qualifié en HTTP/SQLite. Ses comptes de validité restent indépendants des couleurs manuelles.

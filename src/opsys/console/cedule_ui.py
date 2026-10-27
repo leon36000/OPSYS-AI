@@ -26,7 +26,9 @@ def lundi(valeur: str) -> date:
 
 def _navigation(jour: date, prefixe: str) -> str:
     base = pages.e(prefixe) + "/crm/cedule"
-    liens = []
+    liens = [f'<a href="{pages.e(prefixe)}/crm/cedule/mois?premier_mois={jour:%Y-%m}">Vue trois mois</a>']
+    if jour > date(2199, 10, 1):
+        liens = [f'<a href="{pages.e(prefixe)}/crm/cedule/mois?premier_mois=2199-10">Vue trois mois</a>']
     for decalage, label in [(-7, "Semaine précédente"), (7, "Semaine suivante")]:
         cible = jour + timedelta(days=decalage)
         if 1900 <= cible.year <= 2199:

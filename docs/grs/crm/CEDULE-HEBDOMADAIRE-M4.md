@@ -73,3 +73,7 @@ Les mentions historiques « notes sur cartes ouvertes » ci-dessus précèdent l
 ### Évolution CRM-01 — Repères couleur
 
 La tranche [couleurs configurables](COULEURS-CEDULE-M4.md) ajoute le choix manuel sur chaque créneau, sa révision et son historique. La bordure de validité et le statut restent visibles indépendamment. Les mentions de couleurs manquantes dans les audits précédents décrivent leur état historique. Vue multi-mois, visites successives et qualification navigateur restent ouvertes.
+
+### Évolution CRM-01 — Aperçu trois mois
+
+La [vue multi-mois](APERCU-MULTIMOIS-M4.md) est maintenant disponible en lecture administrative, depuis un seul instantané M4. Chaque créneau est compté une fois à sa date de début ; le carnet sans date reste global et distinct. Les jours mènent à la grille semaine existante. Les limites de 200 créneaux et 50 non datés de cette grille restent explicites : leur pagination, les visites successives et le navigateur réel restent ouverts. Les audits ci-dessus décrivent leurs états historiques.
