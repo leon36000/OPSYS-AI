@@ -1,0 +1,85 @@
+# CRM-08 — mémoire d’affaire avant décision : audit du port réel
+
+27 octobre 2026. Parent 28f8ab78734ef1a5fbcfc9ce5d9539b0f15c9915. PARTIAL.
+Revue statique ciblée wave1_m4_calendar puis contrôle ROOT des propriétaires et tests existants.
+Aucun raccord M10 console CRM n’est encore livré par ce document.
+
+## Propriétaires et identité
+
+`m10_memoire.outils.lire_paquet_affaire_appareil(affaire_id, horodatage)` est un vrai lecteur
+T0 admin appareil. Il exige identité actuelle et transaction, assemble avec `agent=None` et
+applique la vue restrictive; aucune donnée financière ni CLIENT_PRIVATE. Il rend directement
+le paquet, sans l’enveloppe métier `accepte/resultat` utilisée par `preparation_chantier._appel`.
+Il faut donc un adaptateur dédié, pas une adaptation silencieuse du helper partagé M2/M3/M4.
+
+`m10_paquet_contexte_affaire` est un autre port, privé MCP, dont le destinataire vient du
+contexte serveur; la console ne doit pas se faire passer pour M4 afin de voir davantage.
+`m10_contexte_preflight` est T1 et peut écrire un refus; ce n’est pas le lecteur à réutiliser.
+Le `/memoire` actuel de la console concerne le développement, pas les affaires CRM.
+
+L’identité d’affaire vient du lead exact déjà validé avec le devis par le lecteur de préparation.
+`m10_memoire.etapes._extraire_devis_accepte` conserve lead_id, devis_id, chantier_id éventuel,
+horodatage_acceptation sous horodatage. `classification.lead_id` rend l’affaire du fait, sans
+inférence depuis un identifiant d’intervention. Retrouver dans le registre M10 evenements le
+fait m3.devis_accepte du devis exact : même lead et heure d’acceptation que le vrai M3.
+Une autre soumission du même client ne remplace pas cette ancre.
+
+Le contrat `m10_memoire.affaire.valide` accepte un lead ASCII 1–64 caractères ou une opportunité
+`<lead>~opp~<wct_id>` bornée. Certains identifiants Unicode/longs admis par le CRM ne sont pas
+représentables. Ne pas tronquer ni hacher ni substituer devis_id/intervention_id. Une opportunité
+reste distincte du lead d’origine; aucune recherche de mémoire avec rabattement automatique.
+
+## Paquet, omissions et absence
+
+`paquets.assembler_paquet_contexte` expose quatre couches avec vide, tronque, nb_total,
+nb_inclus, nb_omis. Garder ces compteurs et les compteurs globaux signaux.nb_ouverts,
+nb_pris_en_compte, nb_clos, même si les faits correspondants ne tiennent pas dans le détail.
+`consolidation` conserve les jours non résumés. Le budget nominal est 4 000 caractères et
+cinq faits par couche; le lecteur appareil borne aussi l’enveloppe entière. Ce budget ne
+borne pas le chargement initial des registres evenements et affaires.
+
+`affaire` distingue AMONT-AFFAIRE-INCONNUE et AMONT-ORIGINE-NON-RECUE. Le code existant ne
+définit pas une règle imposant de refuser N3 ou les dates quand M10 est vide. Pour la tranche
+préparatoire, montrer explicitement absence/non-représentabilité/omissions et signaux; ne pas
+présenter un paquet inconnu comme un preflight réussi. Une contradiction du lien devis/lead
+ou une intégrité illisible doit refuser la consultation. Une politique bloquante par signal
+critique reste à définir chez le propriétaire, sans prétendre l’avoir déduite du simple lecteur.
+
+## Plus petit patch prévu
+
+1. Adaptateur console privé de lecture, SQLite canonique, admin SQL et session vivante; aucune
+   nouvelle permission et aucun rôle M4 usurpé. Réutiliser le lien réel M3/M4 de préparation.
+2. Borner les deux registres M10 avant décodage, puis valider leurs chaînes par le vrai
+   `m10_memoire.registre.Registre`. Lire le fait exact et ses références; pas de mémoire parallèle.
+3. Appeler le vrai T0 sous identité console admin, heure serveur, cible serveur fixe. Vérifier
+   affaire_id et confidentialité restrictive de la réponse, préserver couche/omission/signaux;
+   borne JSON 64 Kio et rendu HTML 128 Kio. Aucune copie durable du paquet ni consolidation.
+4. Intégrer cette lecture à la revue N3 : contexte humain visible, empreinte liée aux têtes M10
+   et au lien devis. Exclure l’heure volatile de consultation de l’empreinte de décision.
+5. Relire les têtes et l’identité avant/après une nouvelle application; un changement depuis
+   la revue rend l’intention périmée. Conserver l’historicité du même reçu N3, sans reconstruire
+   une nouvelle décision ni faire croire que son contexte historique est courant.
+6. Ensuite seulement adapter les changements critiques de dates; ne pas modifier en même temps
+   la politique de fraîcheur météo, le dispatch ou la capacité globale.
+
+## Qualification à exécuter
+
+Réutiliser les vrais producteurs/bus de `tests/test_cascade_amont_m10.py` et du parcours CRM-08;
+les contrats `departments/m10-memoire/tests/test_paquet_affaire.py` et
+`test_paquet_appareil_borne.py`, ainsi que `tests/test_lectures_m10_appareil_sans_artefact.py`.
+Ajouter : devis étranger, fait exact absent, lien contradictoire, identifiant non représentable,
+paquet tronqué avec signaux ouverts omis, révocation, quota avant décodage, chaîne altérée,
+changement de tête entre revue/décision et pendant action, reçu historique après contexte changé.
+Chaque lecture/refus doit laisser la base intacte; rollback complet de l’action et de sa décision
+si la validation échoue après effet M4. Homes/tmp privés avant imports, Source lecture seule
+pendant QA et réseau interdit; preuves distinctes, anciennes cohortes compatibles réutilisées.
+
+## Statut, risques et gates
+
+Audit prêt; aucun test nouveau de ce raccord n’a encore été exécuté, aucune intégration n’est
+prétendue. Risques : confusion affaire/client, restriction ignorée, compteur caché par budget,
+paquet vide pris pour un feu vert, heure volatile rendant toute intention périmée, mutation de
+preflight T1 involontaire et prêt de rôle serveur. Aucun gate Nathan supplémentaire pour cette
+lecture préparatoire réversible. Les décisions sensibles réelles et la politique de blocage
+restent explicites. Prochaine action : écrire le cas réel de consultation M10 depuis la revue
+N3 avant le port; conserver les dates et le dispatch complets ouverts.
