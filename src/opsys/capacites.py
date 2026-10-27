@@ -43,6 +43,8 @@ from .politiques import approbation_requise_niveau, validation_au_depart_possibl
 
 _SCHEMA_VIDE = {"type": "object", "properties": {}, "additionalProperties": False}
 logger = logging.getLogger("opsys.capacites")
+_MUTATION_NOTE_M6 = "m6_enregistrer_note_commande"
+_LECTURE_NOTE_M6 = "m6_lire_note_commande"
 _MUTATION_CLASSEMENT_M6 = "m6_classer_cause_variance_appareil"
 _LECTURES_CLASSEMENT_M6 = frozenset({
     "m6_lister_variances_classables_wct_appareil",
@@ -334,6 +336,14 @@ class Capacites:
         args = dict(arguments or {})
         appelante = identite_appelante()
         entree = self.index.get(nom)
+        if entree is not None and nom == _MUTATION_NOTE_M6 and meta is None:
+            # Aucun brouillon d'approbation ne doit copier une note privée sans intention authentifiée.
+            with self._cnx_factory():
+                refus = self._garder_note_m6()
+                if refus is not None:
+                    return refus
+            return {"ok": False, "erreur": "idempotence_appareil_requise",
+                    "details": "La note interne exige une intention authentifiée persistée."}
         if entree is not None and nom in {_LECTURE_OBLIGATIONS_M5, _MUTATION_OBLIGATIONS_M5}:
             return self._appeler_obligations_m5(nom, args, meta, ticket_cible, ticket_memoire)
         if nom == _LEGACY_REVUE_M4 and (
@@ -358,7 +368,7 @@ class Capacites:
             return self._appeler_idempotent(nom, args, meta, revalider_humain_cible=True,
                                            demander_n4_humain=True)
         if (
-            nom == "m6_lire_preuves_pertes_wct_appareil"
+            nom in {"m6_lire_preuves_pertes_wct_appareil", _LECTURE_NOTE_M6}
             or nom in _LECTURES_CLASSEMENT_M6
             or nom == _LECTURE_RAPPELS_M1
         ) and meta is not None:
@@ -1219,6 +1229,27 @@ class Capacites:
         return r.contexte_mutation(meta)
 
     @staticmethod
+    def _contexte_mutation_note_m6(nom: str, meta: idempotence.Meta) -> AbstractContextManager:
+        if nom != _MUTATION_NOTE_M6:
+            return nullcontext()
+        from m6_material_control import outils as outils_m6
+
+        return outils_m6.contexte_mutation_note_commande(meta)
+
+    @staticmethod
+    def _garder_note_m6(arguments=None, reponse=None):
+        from m6_material_control import notes_commande as n
+        from m6_material_control import outils as outils_m6
+
+        try:
+            outils_m6.autoriser_note_commande()
+            if reponse is not None:
+                outils_m6.verifier_rejeu_note_commande(arguments, reponse)
+        except n.Refus as exc:
+            return {"ok": True, "resultat": n.refuser(exc.suffixe), "rejoue": False}
+        return None
+
+    @staticmethod
     def _contexte_mutation_classement_m6(nom: str, meta: idempotence.Meta) -> AbstractContextManager:
         if nom != _MUTATION_CLASSEMENT_M6:
             return nullcontext()
@@ -1268,8 +1299,14 @@ class Capacites:
             self._cnx_factory() as cnx,
             self._contexte_mutation_rappel_m1(nom, meta),
             self._contexte_mutation_classement_m6(nom, meta),
+            self._contexte_mutation_note_m6(nom, meta),
+            contexte_appel.sortie_bornee(self._limite) if nom == _MUTATION_NOTE_M6 else nullcontext(),
             self._contexte_decision_revue_m4(nom, meta, arguments),
         ):
+            if nom == _MUTATION_NOTE_M6:
+                refus = self._garder_note_m6()
+                if refus is not None:
+                    return refus
             decision_revue = False
             if nom == _PROPOSITION_REVUE_M4:
                 # Autorité avant même la lecture de son claim ; la création historique
@@ -1361,6 +1398,10 @@ class Capacites:
                 refus_rejoue = reclamation.rejouee and reclamation.reponse.get("erreur") == "hors_portee_role"
                 return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
+                if nom == _MUTATION_NOTE_M6:
+                    refus = self._garder_note_m6(arguments, reclamation.reponse)
+                    if refus is not None:
+                        return refus
                 # L'autorité propriétaire COURANTE, relue après le claim, précède toute restitution
                 # d'une décision M9 en cache ; rien n'est écrit, le claim original reste intact.
                 if nom == "m9_decider_demande_approbation":
@@ -1624,9 +1665,9 @@ class Capacites:
                 reponse = executer_atomique(outil, arguments)
             if reponse.get("ok") and (
                 outil.nom not in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6,
-                                 _MUTATION_OBLIGATIONS_M5}
+                                 _MUTATION_OBLIGATIONS_M5, _MUTATION_NOTE_M6}
                 or reponse.get("resultat", {}).get("accepte") is True
-            ):
+            ) and not (outil.nom == _MUTATION_NOTE_M6 and reponse.get("resultat", {}).get("rejoue") is True):
                 approbations.tracer_validation_au_depart(
                     cnx,
                     departement.id,
@@ -1652,6 +1693,16 @@ class Capacites:
         departement: str | None = None,
         origine: str | None = None,
     ) -> dict[str, Any]:
+        if source in {_MUTATION_NOTE_M6, _LECTURE_NOTE_M6}:
+            # Notes privées : jamais copiées dans un artefact générique de sortie.
+            from m6_material_control import notes_commande as n
+
+            frames = [{**reponse, "rejoue": flag} for flag in (False, True)]
+            if all(len(json.dumps(frame, ensure_ascii=False)) <= self._limite for frame in frames):
+                return reponse
+            if source == _MUTATION_NOTE_M6 and reponse.get("resultat", {}).get("accepte") is True:
+                raise RuntimeError("confirmation note M6 hors borne dans sa transaction")
+            return {"ok": True, "resultat": n.refuser("SORTIE-TROP-VOLUMINEUSE")}
         if source == _LECTURE_PROVENANCE_M8:
             # Toutes les issues de ce nom sortent ici, avant le fallback artefact.
             # Les cadres d'erreur constants sans données peuvent dépasser quota40.

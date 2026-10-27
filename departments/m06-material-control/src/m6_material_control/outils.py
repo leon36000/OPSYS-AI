@@ -76,6 +76,9 @@ et ne paie rien ; il ne convertit aucune unité (le livre de prix n'en déclare 
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import contextmanager
+from contextvars import ContextVar
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -83,7 +86,8 @@ from typing import Any
 import yaml
 from sqlalchemy import select
 
-from opsys import approbations, contexte, evenements, fichiers, stockage
+from opsys import approbations, contexte, evenements, fichiers, idempotence, stockage
+from opsys.etat import journaliser
 from opsys.evenements.schemas import erreurs_charge
 from opsys.outils import Autonomie, Niveau, Outil
 from opsys.stockage import codec
@@ -105,6 +109,7 @@ from . import (
     fournisseurs,
     livre_prix,
     materiel,
+    notes_commande,
     pertes_appareil,
     preuves_pertes_bris,
     preuves_pertes_bris_appareil,
@@ -1349,6 +1354,143 @@ def _reponse_po(resultat: dict[str, Any], registre_cible: list[dict[str, Any]]) 
     return reponse
 
 
+_META_NOTE_COMMANDE: ContextVar[idempotence.Meta | None] = ContextVar("m6_note_commande_meta", default=None)
+
+
+@contextmanager
+def contexte_mutation_note_commande(meta):
+    """Port serveur uniquement : le socle transmet sa Meta, jamais les arguments métier."""
+    jeton = _META_NOTE_COMMANDE.set(meta)
+    try:
+        yield
+    finally:
+        _META_NOTE_COMMANDE.reset(jeton)
+
+
+def autoriser_note_commande():
+    """Garde à appeler aussi AVANT le rejeu du reçu central, sans lire de note."""
+    cnx = stockage.connexion_courante()
+    appelante = contexte.identite_appelante()
+    if cnx is None or appelante is None or appelante.role != "admin" or appelante.source not in {
+        "appareil", "console",
+    }:
+        raise notes_commande.Refus("IDENTITE")
+    personne = approbations.signataire_valide(cnx, appelante)
+    if personne is None or personne.role != "admin":
+        raise notes_commande.Refus("IDENTITE")
+    return {"personne": personne.personne, "role": "admin"}
+
+
+def _notes_commande_snapshot():
+    registre = stockage.maillons(_DEPARTEMENT, notes_commande.REGISTRE)
+    if len(registre) > notes_commande.MAX_SOURCES:
+        raise notes_commande.Refus("SOURCES-TROP-VOLUMINEUSES")
+    try:
+        maillons = list(registre)
+        if len(maillons) > notes_commande.MAX_SOURCES:
+            raise notes_commande.Refus("SOURCES-TROP-VOLUMINEUSES")
+        notes_commande.valider_registre(maillons)
+    except (ValueError, TypeError, KeyError):
+        raise notes_commande.Refus("REGISTRE-INVALIDE") from None
+    return registre, maillons
+
+
+def _mutation_note_commande(arguments):
+    meta = _META_NOTE_COMMANDE.get()
+    if not isinstance(meta, idempotence.Meta) or not notes_commande.texte(meta.cle) or not notes_commande.texte(
+        meta.appareil, 256,
+    ):
+        raise notes_commande.Refus("MUTATION-ABSENTE")
+    try:
+        notes_commande.instant(meta.horodatage_appareil)
+    except notes_commande.Refus:
+        raise notes_commande.Refus("MUTATION-ABSENTE") from None
+    return {"appareil": meta.appareil, "cle": meta.cle, "empreinte_arguments": encodage.empreinte(arguments)}
+
+
+def enregistrer_note_commande(note_id: str, devis_id: str, texte_libre: str, revision_attendue: int):
+    n = notes_commande
+    try:
+        auteur = autoriser_note_commande()
+        n.valider_arguments(note_id, devis_id, texte_libre, revision_attendue)
+        arguments = {"note_id": note_id, "devis_id": devis_id, "texte_libre": texte_libre,
+                     "revision_attendue": revision_attendue}
+        mutation = _mutation_note_commande(arguments)
+        registre, maillons = _notes_commande_snapshot()
+        ancien_recu = n.retrouver_mutation(maillons, mutation, auteur)
+        limite = contexte.limite_sortie() or n.BORNE_SORTIE
+        if ancien_recu is not None:
+            reponse = n.reponse(ancien_recu, rejoue=True)
+            n.verifier_borne(reponse, limite)
+            return reponse
+        besoin = besoins_prevus.pour_devis(devis_id, _besoins_prevus_de_l_appel(None))
+        if besoin is None:
+            raise n.Refus("BESOIN-INTROUVABLE")
+        if not n.texte(besoin.get("chantier_id")):
+            raise n.Refus("CHANTIER-INCONNU")
+        if len(maillons) >= n.MAX_SOURCES:
+            raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+        maillon = n.construire(
+            maillons, arguments, besoin["chantier_id"], auteur, mutation, datetime.now(UTC).isoformat(),
+        )
+        reponse = n.reponse(maillon)
+        n.verifier_borne(reponse, limite)
+        cnx = stockage.connexion_courante()
+        with cnx.begin_nested():
+            registre.append(maillon, rang_attendu=len(maillons))
+            journaliser(cnx, auteur["personne"], "m6.note_commande_enregistree", note_id, {
+                "devis_id": devis_id, "revision": maillon["revision"], "mutation_id": mutation["cle"],
+                "source_index": maillon["index"],
+            })
+        return reponse
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+    except EcritureConcurrente:
+        return n.refuser("REVISION-PERIMEE")
+
+
+def lire_note_commande(note_id: str, revision: int | None = None):
+    n = notes_commande
+    try:
+        autoriser_note_commande()
+        if not n.texte(note_id) or (revision is not None and not n.entier(revision, 1)):
+            raise n.Refus("ARGUMENTS")
+        _, maillons = _notes_commande_snapshot()
+        maillon = n.lire(maillons, note_id, revision)
+        if maillon is None:
+            raise n.Refus("INTROUVABLE")
+        reponse = n.reponse(maillon)
+        n.verifier_borne(reponse, contexte.limite_sortie() or n.BORNE_SORTIE)
+        return reponse
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def verifier_rejeu_note_commande(arguments, reponse):
+    """Raccord du cache central : autorité et reçu propre, jamais CAS du dernier état.
+
+Les refus sans note sont déjà minimisés. Un succès doit correspondre à la version
+exacte, à la mutation et à son auteur, même si l'appareil a changé de personne.
+"""
+    n = notes_commande
+    auteur = autoriser_note_commande()
+    mutation = _mutation_note_commande(arguments)
+    resultat = reponse.get("resultat") if isinstance(reponse, dict) else None
+    if isinstance(resultat, dict) and resultat.get("accepte") is False and set(resultat) == {"accepte", "verdict"}:
+        verdict = resultat["verdict"]
+        if (type(verdict) is dict and set(verdict) == {"code"} and type(verdict["code"]) is str
+                and verdict["code"].startswith("REJ-NOTE-COMMANDE-")):
+            return
+    _, maillons = _notes_commande_snapshot()
+    propre = n.retrouver_mutation(maillons, mutation, auteur)
+    if propre is None or not isinstance(resultat, dict):
+        raise n.Refus("RECU-INVALIDE")
+    attendu = n.reponse(propre, rejoue=resultat.get("rejoue") is True)
+    if resultat != attendu:
+        raise n.Refus("RECU-INVALIDE")
+    n.verifier_borne(attendu, contexte.limite_sortie() or n.BORNE_SORTIE)
+
+
 def creer_po_brouillon(
     po_id: str,
     devis_id: str,
@@ -2455,6 +2597,44 @@ _PAGE_CLASSEMENT = {
 
 def outils() -> tuple[Outil, ...]:
     return (
+        Outil(
+            nom=notes_commande.ECRIRE,
+            description=(
+                "Enregistre une version de note d'achat interne sur le chantier connu d'un devis M6. "
+                "Texte original jusqu'à 20000 caractères, sans sélection d'articles ; prévu vide accepté. "
+                "Admin actif, mutation serveur et révision attendue requis. Aucun PO, stock, prix ou envoi. "
+                "Ne couvre pas un lead sans chantier connu ni la structuration en commande."
+            ),
+            parametres={
+                "type": "object", "additionalProperties": False,
+                "properties": {
+                    "note_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "devis_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "texte_libre": {"type": "string", "minLength": 1, "maxLength": notes_commande.MAX_TEXTE},
+                    "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 999999},
+                },
+                "required": ["note_id", "devis_id", "texte_libre", "revision_attendue"],
+            },
+            fonction=enregistrer_note_commande, autonomie=Autonomie.T1, roles_appareil=frozenset({"admin"}),
+            # Le socle ne connaît pas encore l'identité contexte « devis ». Ne pas la
+            # présenter comme lead/affaire/globale : le garde Core reste fail-closed.
+        ),
+        Outil(
+            nom=notes_commande.LIRE,
+            description=(
+                "Lit une note d'achat interne M6, courante ou à sa révision exacte, pour un admin actif. "
+                "Texte conservé sans structuration, prix ou statut de bon de commande."
+            ),
+            parametres={
+                "type": "object", "additionalProperties": False,
+                "properties": {
+                    "note_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "revision": {"type": "integer", "minimum": 1, "maximum": 1000000},
+                },
+                "required": ["note_id"],
+            },
+            fonction=lire_note_commande, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
         Outil(
             nom="m6_receptionner_commande",
             description=(
