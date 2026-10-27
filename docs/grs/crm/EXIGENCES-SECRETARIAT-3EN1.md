@@ -357,5 +357,10 @@ Répartiteurs génériques fermés avant factory/reçu, aucun rôle de compte aj
 qualifié en HTTP/SQLite : v2 119PASS, puis v3 3PASS dont deux cas inclus après correction d'un
 faux message de journée vide sur page terminale vide. Source/pagination conservées, liens des
 sept jours depuis la cédule, contrôle SQL admin après rendu. Pas de cumul des populations.
+Le journal mène ensuite aux notes de la prévision exacte, y compris historique, sans copier
+leur texte ou leur compteur dans son snapshot. Parcours notes57PASS (7 nouveaux inclus),
+sans cumul avec les cohortes précédentes : création autorisée, D+4 sans transfert ni écrasement,
+lecture seule de l'ancienne ancre, CSRF et rôle courant. Un rouge de révocation pendant rendu
+de l'ancien écran de notes a été reproduit, puis corrigé par transaction et admin SQL final.
 **PARTIAL** : absence de pointage ≠ absence du salarié; technicien pointé ≠ composition réelle
 de l'équipe; aucune durée quotidienne ou association exacte de visite déduite.

@@ -20,7 +20,7 @@ AVERTISSEMENTS = [
     'Absence de pointage ne signifie pas absence du salarié.',
     'Le technicien pointé ne prouve pas la composition historique de son équipe.',
     'Aucune association de pointage à une visite précise ni durée quotidienne calculée.',
-    'Notes, extras détaillés, absences et composition historique restent à raccorder.',
+    'Textes des notes, extras détaillés, absences et composition historique non inclus dans cette projection.',
 ]
 
 

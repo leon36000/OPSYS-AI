@@ -1,11 +1,13 @@
 """Annotations privées de la cédule : rendu sans effet sur les opérations M4."""
 import re
 import uuid
+from datetime import UTC, datetime
 from urllib.parse import parse_qs, urlencode
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
+from .. import identite, stockage
 from . import metier, pages
 
 CLES = ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')
@@ -109,15 +111,22 @@ def ecriture_qualifiee(cnx_factory):
         return cnx.dialect.name == "sqlite"
 
 
+def verifier_lecture(cnx, session):
+    if cnx is not stockage.connexion_courante():
+        raise HTTPException(503, 'Connexion de lecture indisponible')
+    personne = identite.personne_active(cnx, session.utilisateur)
+    if (personne is None or 'admin' not in personne.roles
+            or session.expire <= datetime.now(UTC).timestamp()):
+        raise HTTPException(403, 'Accès refusé')
+
+
 def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulaire, rendre):
     router = APIRouter()
 
     def agir(session, nom, args, mutation=None):
         return appeler(cnx_factory, deps, session, nom, args, mutation)
 
-    @router.get('/crm/cedule/annotations')
-    def detail(request: Request):
-        session = session_page(request)
+    def contenu_detail(session, request):
         ancre = _parametres(request)
         decalage = _entier(request.query_params.get('decalage', '0'))
         plafond = _entier(request.query_params['revision_max']) if 'revision_max' in request.query_params else None
@@ -164,6 +173,17 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                 lien = chemin+'&'+urlencode({'decalage': cible, 'revision_max': vue['revision_max']})
                 corps += f'<a href="{pages.e(lien)}">{label}</a> '
         return rendre(session, 'Annotations de cédule', corps+'</section>')
+
+    @router.get('/crm/cedule/annotations')
+    def detail(request: Request):
+        session = session_page(request)
+        with cnx_factory() as cnx:
+            verifier_lecture(cnx, session)
+            reponse = contenu_detail(session, request)
+            if len(reponse.body) > 131072:
+                raise HTTPException(503, 'Historique trop volumineux')
+            verifier_lecture(cnx, session)
+        return reponse
 
     @router.post('/crm/cedule/annotations')
     async def enregistrer(request: Request):

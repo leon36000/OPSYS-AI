@@ -62,7 +62,7 @@ def contenu(vue, prefixe, limite):
     from datetime import date, timedelta
     from urllib.parse import urlencode
 
-    from . import cedule_ui, pages
+    from . import annotations_cedule_ui, cedule_ui, pages
 
     def lien(debut, titre):
         args = dict(jour=vue['jour'], debut=debut, limite=limite, source_attendue=vue['source'])
@@ -86,7 +86,7 @@ def contenu(vue, prefixe, limite):
                   '<p>Aucune entrée sur cette page. ' + lien(0, 'Première page') + '</p>')
     corps += ('<table><thead><tr><th>Type</th><th>Intervention</th><th>Heure locale</th><th>Équipe prévue</th>'
               '<th>Technicien du pointage</th><th>État ou action</th><th>Validité de la prévision</th>'
-              '<th>Source</th></tr></thead><tbody>')
+              '<th>Source</th><th>Notes</th></tr></thead><tbody>')
     types = {'prevision': 'Prévision', 'pointage': 'Pointage', 'etat': 'Changement d’état'}
     validites = {'historique': 'Ancienne prévision', 'a_reconfirmer': 'À reconfirmer',
                  'date_confirmee': 'Date confirmée'}
@@ -98,7 +98,11 @@ def contenu(vue, prefixe, limite):
         valeurs = [types[ligne['type']], ligne['intervention_id'], heure,
                    ligne.get('equipe_planifiee', 'Non applicable'), ligne.get('technicien_id', 'Non applicable'),
                    etat, validites.get(ligne.get('validite'), 'Non applicable'), ligne['source_ligne_id']]
-        corps += '<tr>' + ''.join(f'<td>{pages.e(v)}</td>' for v in valeurs) + '</tr>'
+        note = 'Aucune ancre de visite démontrée'
+        if ligne['type'] == 'prevision':
+            url = annotations_cedule_ui.url(annotations_cedule_ui.ancre_de(ligne), prefixe)
+            note = f'<a href="{pages.e(url)}" aria-label="Notes de cette prévision">Notes et historique</a>'
+        corps += '<tr>' + ''.join(f'<td>{pages.e(v)}</td>' for v in valeurs) + f'<td>{note}</td></tr>'
     corps += ('</tbody></table><details><summary>Sources de consultation</summary>'
               f'<p>Empreinte calculée du snapshot : {pages.e(vue["source_snapshot"])}</p></details></section>')
     return corps

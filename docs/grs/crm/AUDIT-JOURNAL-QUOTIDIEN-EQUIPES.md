@@ -217,3 +217,55 @@ natif, PostgreSQL, mobile ou parcours terrain réel complet nouveau. Rapprocheme
 visites et pointages, heures par jour, membres historiques, absences, extras détaillés et
 historique annuel complet restent ouverts. Prochaine action : publier normalement les commits
 qualifiés après CI parent terminale, puis traiter un de ces écarts depuis ses sources M4.
+
+## Décision avant le raccord des notes rapides
+
+Réutiliser `annotations_cedule_ui.ancre_de/url` et l'écran existant
+`/crm/cedule/annotations`, dont les vrais outils M4 relisent l'ancre et l'autorité courantes.
+Depuis chaque ligne de prévision du journal, proposer « Notes et historique » avec les quatre
+références exactes. Une ancienne date doit mener à son ancien créneau, pas à la dernière date.
+Aucun lien de note pour pointage ou changement d'état sans ancre civile démontrée.
+
+Première tranche : navigation vers l'écran existant, aucune copie de texte ou compteur de
+notes dans le journal. Son snapshot reste donc celui des faits M4 seulement; ne pas lui
+attribuer une preuve de contenu des annotations non lues. Préciser la portée de l'avertissement
+pur : les textes des notes ne font pas partie de sa projection. Pas de nouveau modèle, outil,
+rôle de personne, formulaire d'écriture ou automatisme. Le writer existant garde CSRF, révision,
+rejeu, piste d'audit et fermeture des anciennes ancres aux nouvelles notes.
+
+Qualifier le parcours HTTP réel journal → notes → création autorisée → report/redatation D+4
+→ consultation des deux ancres, sans transfert ni écrasement. Vérifier liens de prévision
+seulement, ancien créneau en lecture seule, rôle révoqué, CSRF et GET sans écriture. Si des
+badges/compteurs ou du texte sont intégrés ensuite, leur preuve nécessitera une capture bornée
+du registre des notes et une référence composée, avant/après toutes les lectures.
+
+## Qualification du raccord des notes et correction d'autorité
+
+Chaque prévision propose maintenant le lien exact vers son écran « Notes et historique ».
+Les pointages et changements d'état sans ancre n'en reçoivent aucun. Le journal ne lit ni
+ne copie les textes/compteurs : une note nouvelle ne change pas son snapshot de faits M4,
+ce qui a été vérifié; le détail propriétaire des notes affiche et source son propre contenu.
+L'avertissement pur précise cette séparation sans modifier ses calculs ou sa pagination.
+
+Le parcours a aussi prouvé un défaut existant du GET des annotations : après révocation de
+l'admin pendant `gabarit`, la réponse contenait encore la note fictive avec HTTP200. Ce rouge
+est conservé dans `crm16-notes-privacy-red-v1`. Le détail et son rendu partagent maintenant la
+connexion canonique, avec contrôle SQL admin/session avant lecture et après rendu, et plafond
+HTML128Kio avant réponse. Le même scénario retourne403 sans la note. Le POST et le métier
+M4 d'enregistrement sont inchangés; aucune attribution de rôle de compte ou donnée réelle.
+
+`crm16-notes-v2` :57 PASS en12,18s, dont7 cas nouveaux de raccord et les régressions des notes,
+du journal HTTP et du journal pur. Création autorisée depuis le lien, CSRF, rôles SQL, report
+et redatation D+4, conservation exacte de la note d'origine, ancienne ancre en lecture seule,
+nouvelle note sur la bonne ancre, échappement, limites HTML et GET sans écriture sont vérifiés.
+L'ajout de pointage du test de rendu est une charge contractuelle fictive, pas une nouvelle
+exécution d'appareil terrain. La première cohorte21 PASS est incluse, non additionnée.
+Ruff et vérificateur298/174 passent. Revue indépendante statique sans défaut concret relevé.
+Preuve détaillée : `CRM16-NOTES-LOCAL-QUALIFIED.json`, avec rouges, commandes, JUnit, pins et
+limites effectives du QA privé.
+
+**PARTIAL — navigation et lecture des notes qualifiées en HTTP/SQLite.** Aucun nouveau writer,
+outil, modèle ou formulaire. Les badges/compteurs de notes dans le journal, les extras détaillés,
+heures par jour, absences, composition historique, navigateur, PostgreSQL et mobile restent
+ouverts. Prochaine action : commit local, qualification CI parent, puis lecture des demandes
+d'écart/arbitrages M4 dans le journal sans les présenter comme une facturation d'extras.
