@@ -380,3 +380,11 @@ anciens jours; la présence et la composition réelle ne sont pas déduites. Ide
 historiques composés d'espaces signalés à vérifier sans correction automatique. Qualification
 pure 52 PASS et SQL/HTTP 102 PASS, populations recoupées non additionnées, revue indépendante
 corrigée et fermée. Statut **PARTIAL** et limites dans l'audit du journal.
+
+
+CRM-16 — fondation pure de composition journalière **déclarée** ajoutée : révisions et retrait
+append-only, jour visé distinct de l'instant d'enregistrement, inconnu distinct de liste vide,
+rejeu sans retour arrière et quotas UTF-8. Qualification pure 173 PASS (30 nouveaux inclus),
+cohortes non additionnées. **PARTIAL : port durable/admin et interface non livrés**, aucun
+membre déduit du profil courant ni présence/absence/paie déclarée par ce mécanisme. L'audit du
+journal fixe les prochains contrôles avant exposition CRM.

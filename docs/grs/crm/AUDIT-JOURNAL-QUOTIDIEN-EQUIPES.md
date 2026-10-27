@@ -427,3 +427,84 @@ membre. Cette preuve n'autorise pas la reconstruction des membres historiques de
 profil actuel ou des seuls compteurs. La prochaine tranche doit donc définir une source
 historique déclarative minimale et sa provenance, distincte des décisions d'accès courantes,
 sans enrichir rétroactivement l'ancien audit ni prétendre prouver la présence réelle.
+
+
+## Contrat avant la composition journalière déclarée
+
+Objectif CRM-16 : conserver la composition qu'un admin déclare pour une équipe et un jour,
+puis ses corrections, sans prétendre constater qui était effectivement présent. Le profil
+courant et son audit sans membres ne permettent pas cette reconstruction. Une déclaration
+porte deux temps explicites : jour civil visé et horodatage d'enregistrement; une correction
+faite aujourd'hui d'un ancien jour n'est pas présentée comme connue ce jour-là.
+
+Réemploi choisi : `Registre` M4, son support durable existant et les patrons auteur/mutation/
+révision des annotations. La [bibliothèque eventsourcing](https://github.com/pyeventsourcing/eventsourcing)
+et sa [licence](https://github.com/pyeventsourcing/eventsourcing/blob/9.5/LICENSE) ont été examinées
+comme piste; aucune version, dépendance ou extraction n'est adoptée. La [recherche GitLab](https://gitlab.com/explore/projects/topics/Event%2BSourcing)
+n'a pas fourni de raccourci métier démontré pour ce contrat. Ajouter une seconde infrastructure
+événementielle dupliquerait ici le stockage propriétaire déjà utilisé; aucun gain de temps
+chiffré n'est revendiqué. Aucun package installé ni code externe copié.
+
+Première tranche pure : module `composition_journaliere.py`, registre distinct
+`compositions_journalieres`, type fermé `composition_journaliere`, clé `(jour,equipe_id)`.
+Données : identifiants uniquement, `statut_declaration` (`declaree` ou `retiree`), membres
+triés sans doublons (50 maximum), révision, lien précédent exact de la paire, auteur admin,
+mutation d'intention et horodatage. Liste vide = liste explicitement vide; aucun maillon ou
+retrait explicite avec `membres=None` = composition inconnue. Retrait sans déclaration active
+refusé. Une nouvelle déclaration peut suivre un retrait. Pas de nom libre, permis, santé,
+GPS, note, coût, heure travaillée ou sanction. Identifiants pures : textes bornés sans contrôle
+ni espaces en bordure; validation de l'identité canonique par le futur adaptateur, sans copier
+la grammaire socle ni affirmer l'existence SQL dans cette tranche.
+
+CAS par paire, rejeu exact avant CAS, unicité globale `(appareil,cle)` et empreinte sur arguments
+normalisés dont révision attendue. Rejeu d'une ancienne révision après correction retourne son
+ancien accusé, sans ramener l'état courant en arrière. Même clé avec autre auteur/arguments =
+conflit. Accusé sans liste de membres pour éviter sa copie dans les journaux génériques.
+La chaîne ET le schéma fermé, liens/révisions/horodatages/mutations seront vérifiés à la lecture,
+y compris après rechaînage. Pagination de l'historique liée à la paire et à la tête entière.
+Pas de remplissage automatique depuis le profil courant, de disparition des anciens membres
+désactivés, d'exclusivité entre équipes, d'accès conféré ni de pointage/paie déduit.
+
+Bornes : 10 000 maillons, 8 Mio UTF-8 avant décodage côté futur adaptateur; contrôles purs avant
+lecture et après capture, réponse/enveloppe UTF-8 bornée avant append et retour, maximum 100
+lignes par page. Utiliser des octets, pas la limite en caractères du helper des annotations.
+Tests : deux journées indépendantes; correction et retrait/rédéclaration; doublon de membre,
+arguments/roles invalides; CAS et rejeu ancien/conflits; invariance et copies indépendantes;
+registre corrompu/rechaîné invalide, schéma et mutation incohérents; pagination périmée et quotas.
+
+Cette tranche pure n'est ni un port SQL/admin ni un formulaire utilisable. Les futurs ports
+vérifieront l'admin SQL actif avant/après, la source et les identités canoniques, CSRF, transaction
+et reçus bornés. Ils n'utiliseront jamais cette histoire déclarative dans `equipes_de`, `acces`,
+les permissions courantes, disponibilités ou paie. Aucune donnée réelle ni nouveau droit.
+Statut attendu après tests purs : **PARTIAL — fondation déclarative pure**, pas capacité CRM
+complète; branchement durable et journal/admin à qualifier ensuite.
+
+
+### Qualification de la fondation pure des compositions déclarées
+
+`composition_journaliere.declarer/lire` conserve les révisions par paire jour/équipe dans le
+registre séparé prévu. La dernière déclaration connue, son retrait explicite et l'historique
+restent distincts. Deux équipes peuvent déclarer le même identifiant sans que cela prouve un
+chevauchement de présence. Rejeu exact d'une ancienne révision après correction : ancien accusé,
+aucun retour arrière. L'accusé ne contient pas les membres; la lecture ne renvoie pas les
+mutations. Copies indépendantes, validation de chaîne ET sémantique fermée, précédents/révisions,
+unicité globale d'intention, horodatages par paire et plafonds UTF-8 sont exercés.
+
+`crm16-composition-v4` : **173 PASS en 0,88s**, dont 30 cas de cette nouvelle fondation et les
+régressions registre/annotations/couleurs/journal/écarts/assignations. Aucun cumul avec les
+cohortes précédentes. Ruff et vérificateur 298 outils/174 déclarés passent. Revue indépendante
+statique sans défaut concret relevé; aucun runtime de l'agent de revue.
+
+Historique conservé : rouge de module absent; `v1`20 PASS et une erreur de fixture (tri d'une
+chaîne avant appel du produit), corrigée sans la présenter comme bug produit; `v2`172 PASS et
+un refus du catalogue figé des types, mis à jour explicitement pour le seul nouveau type
+inspecté; `v3` refus préalable Ruff sur le commentaire de ce test, sans exécution produit.
+Le code produit de v2 est inchangé dans v4; le catalogue de régression reste fermé et vérifié.
+Preuve détaillée : `CRM16-COMPOSITION-PURE-LOCAL-QUALIFIED.json` avec commandes, reçus, pins,
+limites effectives et JUnit.
+
+**PARTIAL — fondation pure seulement.** Aucun outil, formulaire HTTP, nouveau droit, port SQL,
+contrôle d'identité courante, mémoire M10, politique RH ou preuve de présence ajouté. Rien n'est
+lu ni écrit dans le profil entreprise courant. Prochaine tranche : source durable bornée et
+port privé admin, avec résolution des identités et autorité canonique; ensuite formulaire et
+historique dans le CRM. Ne pas marquer la composition historique CRM disponible avant ces preuves.

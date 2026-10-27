@@ -61,6 +61,7 @@ _TYPE_ENTREE_VALIDES = {
     # est réservé ; M4 le range pour que la préparation le lise, sans jamais importer M6 ni lire son stock.
     "materiel_pret_recu",
     "heures_regulieres_validees",
+    "composition_journaliere",  # CRM-16 : registre déclaratif distinct, aucun droit courant.
 }
 
 
