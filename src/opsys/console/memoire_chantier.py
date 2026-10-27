@@ -76,9 +76,24 @@ def _valider(paquet, affaire_id, horodatage):
         raise lecture.Refus('MEMOIRE-REPONSE-INCOHERENTE')
 
 
+def _reference_devis(cnx, devis_id, faits):
+    """Comparer un fait déjà sélectionné à la même projection canonique M3, sans lire un paquet."""
+    from m10_memoire import amont, etapes
+
+    charge = lecture._publication(cnx, 'm3-devis-accepte-' + devis_id, etapes.TYPE_DEVIS_ACCEPTE, lecture.M3)
+    attendu = None
+    if charge is not None:
+        etape = etapes.etape(etapes.TYPE_DEVIS_ACCEPTE)
+        attendu = amont._entree(etape.type_evenement, etape.niveau, etape.extraire(charge))
+    if (len(faits) > 1 or any({k: v for k, v in m.items() if k not in ('ligne_id', 'precedent_ligne_id')}
+                             != attendu for m in faits)):
+        raise lecture.Refus('MEMOIRE-ANCRE-INCOHERENTE')
+    return faits[0]['ligne_id'] if faits else None
+
+
 def lire(cnx, deps, session, lead_id, devis_id):
     """Ancrage M3/M4 et vrai lecteur M10. Les absences restent visibles, jamais un feu vert."""
-    from m10_memoire import affaire, amont, etapes
+    from m10_memoire import affaire, etapes
 
     _admin(cnx, session)
     lecture.lire(cnx, deps, session, lead_id, devis_id)
@@ -89,21 +104,14 @@ def lire(cnx, deps, session, lead_id, devis_id):
     if affaire.valide(lead_id):
         faits = [m for m in sources['evenements'].lire()
                  if m.get('type_evenement') == etapes.TYPE_DEVIS_ACCEPTE and m.get('devis_id') == devis_id]
-        charge = lecture._publication(cnx, 'm3-devis-accepte-' + devis_id, etapes.TYPE_DEVIS_ACCEPTE, lecture.M3)
-        attendu = None
-        if charge is not None:
-            etape = etapes.etape(etapes.TYPE_DEVIS_ACCEPTE)
-            attendu = amont._entree(etape.type_evenement, etape.niveau, etape.extraire(charge))
-        if (len(faits) > 1 or any({k: v for k, v in m.items() if k not in ('ligne_id', 'precedent_ligne_id')}
-                                 != attendu for m in faits)):
-            raise lecture.Refus('MEMOIRE-ANCRE-INCOHERENTE')
+        reference = _reference_devis(cnx, devis_id, faits)
         horodatage = datetime.now(UTC).isoformat()
         paquet = _paquet(deps, session, lead_id, horodatage)
         _valider(paquet, lead_id, horodatage)
         if paquet.get('source_registres') != tetes:
             raise lecture.Refus('SOURCE-MODIFIEE')
         resultat.update(etat='LIE' if faits else 'DEVIS_NON_MEMORISE', affaire_id=lead_id,
-                        reference_devis=faits[0]['ligne_id'] if faits else None, paquet=paquet)
+                        reference_devis=reference, paquet=paquet)
     _admin(cnx, session)
     if {k: r.tete() for k, r in _sources(cnx).items()} != tetes:
         raise lecture.Refus('SOURCE-MODIFIEE')

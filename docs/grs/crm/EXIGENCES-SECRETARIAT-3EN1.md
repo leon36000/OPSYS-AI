@@ -281,3 +281,9 @@ CRM-08 — [intégrité avant première date](AUDIT-MEMOIRE-DATES-CIVILES.md) : 
 partagée proposition/application dès révision 0, refus des heures altérées/rechaînées et des
 ancres dupliquées/hors ordre; dates, annotations et couleurs préservées sous QA ciblée.
 Le contexte M10 avant datation multi-affaire et le dispatch restent PARTIAL.
+
+
+CRM-08 — [contexte civil M10 privé](AUDIT-MEMOIRE-DATES-CIVILES.md) : adaptateur readonly qualifié,
+liaisons M3 réelles distinguées des devis manuels déclarés, un paquet par affaire et omissions
+conservées. Identité immuable et sources contrôlées, NON_REPRESENTABLE explicite, quota global.
+La cohorte ciblée de 48 tests passe; UI/CAS/reçu civil et volume réel maximal restent **PARTIAL**.

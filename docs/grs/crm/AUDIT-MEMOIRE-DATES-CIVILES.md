@@ -104,3 +104,63 @@ multi-affaire avant datation n’est toujours pas raccordé. La prochaine tranch
 les inscriptions M4 sans inventer un devis sur un manuel et qualifier le budget/chargement
 unique des paquets avant de modifier le formulaire civil et ses reçus. Fraîcheur météo,
 capacité globale/trajets, dispatch, navigateur, PostgreSQL et mobile restent ouverts.
+
+## Contrat du premier adaptateur privé, sans formulaire ni writer
+
+API de lecture seule `memoire_plan_calendrier.lire(cnx, deps, session, plan_id)` : admin SQL
+courant; sources M4 et M10 bornées avant décodage. Comparer le détail T0 au snapshot civil
+validé, résoudre une inscription unique par visite, recouper l’état du plan et ses ancres.
+Les visites tronquées refusent une consultation complète; un plan complet mais bloqué peut
+rester consultable avec permis=false, sans nouvelle permission de mutation.
+
+Renvoyer les liaisons séparément des contextes d’affaire. Origine M3 : couple lead/devis
+accepté réel et intervention identique, référence canonique M10. Origine manuelle : devis
+vérifié absent même si un devis est déclaré, contexte du lead seulement, aucune requête M3
+inventée. Charger une seule fois le vrai paquet restrictif de chaque affaire distincte,
+conserver ses omissions/signaux et vérifier ses têtes réellement consommées. Deux empreintes
+stables : plan M4 et mémoire/liaisons sans l’heure volatile. Relire identité et têtes avant
+retour. Quota global JSON 64 Kio : refus explicite, aucun sous-ensemble silencieux. La future
+UI devra qualifier détail/pagination pour les plans qui excèdent cette borne; le présent
+adaptateur n’est pas branché à la datation et ne bloque donc aucun parcours legacy existant.
+
+Mesurer appels et durée dans les preuves QA pour un vrai plan mixte et la déduplication;
+ne factoriser le propriétaire M10 que si un coût répété est effectivement démontré. Ce
+premier raccord ne change ni politiques de signaux, ni dates, ni reçu d’idempotence.
+
+
+## Jalon exécuté — contexte civil privé en lecture seule
+
+`memoire_plan_calendrier` résout maintenant les inscriptions M4 et relit les vrais ports T0,
+sans appeler M3 pour un manuel. Un vrai plan mixte de trois visites partage deux affaires :
+un devis M3 accepté est lié canoniquement; un manuel de la même affaire garde son devis
+simplement déclaré, sans le convertir en devis vérifié. Deux paquets M10 sont réellement
+appelés pour ces trois visites, une fois par affaire; les temps sont enregistrés dans le JUnit.
+Cette mesure ne démontre aucun gain de débit sans comparaison A/B.
+
+La revue indépendante a révélé une projection M10 inadmissible pour un vrai lead M3 contenant
+un caractère Unicode. Le rouge `memory-calendar-nonrepr-red-v1` a reproduit ce défaut : M3/M4
+acceptaient le lead, M10 le mettait légitimement en quarantaine selon son contrat restrictif,
+mais l'adaptateur tentait encore sa projection canonique. Il conserve désormais le vrai lien
+M3/M4 et annonce NON_REPRESENTABLE sans référence/paquet substitué. Aucun élargissement M10.
+
+Deux autres refus ont été prouvés par `memory-calendar-identity-red-v3` : une inscription
+rechaînée dont le type de travaux ou l'urgence contredit l'état scellé du plan. Le lecteur
+compare maintenant ces champs immuables via la taxonomie M4. Les statuts/affectations courants,
+qui peuvent légitimement évoluer, restent évalués par le propriétaire civil. Le rouge v2 du
+type était un mauvais oracle (ravalement réécrit à l'identique), corrigé en v3 avec assertion
+sur la valeur initiale et remplacement réel; il ne constitue pas une preuve produit.
+
+`memory-calendar-v8` : **48 PASS, 0 FAIL/SKIP, 19,51 s**, dont 12 nouveaux cas de l'adaptateur,
+les ports M10 antérieurs, N3 et les dates existantes. Ruff ciblé et vérificateur 297/173 passent.
+Sources en lecture seule pendant QA; limites et artefacts durables décrits ci-dessus. Les
+v3/v4 ont refusé au lint, v5/v6 ont révélé des prérequis de fixture (payload legacy plat et
+fenêtres client explicites), corrigés sans modifier les politiques produit. Tous les rouges,
+les reçus et les populations recoupées sont conservés, jamais additionnés.
+
+**PARTIAL** : ce port privé est qualifié sur SQLite avec refus de détail tronqué, quota global,
+révocation et changement de source pendant lecture. Il n'est pas encore affiché avant la
+confirmation civile. Le formulaire, sa preuve d'intention, son rollback après effet et ses
+reçus legacy restent à raccorder; le volume réel maximal et sa pagination restent à qualifier.
+Ni dispatch, ni capacité globale/trajets, ni fraîcheur météo, ni navigateur/PG/mobile ne sont
+qualifiés par ce jalon. Prochaine action : UI mémoire par affaire avant datation, preuve CAS
+liée au reçu et relecture mémoire après effet sous savepoint, sans nouvelle politique de signaux.
