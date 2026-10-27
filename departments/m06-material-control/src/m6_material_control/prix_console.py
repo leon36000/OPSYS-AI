@@ -163,7 +163,7 @@ def confirmer(materiau_id, fournisseur_id, prix_unitaire, date_effet, source_doc
                 raise catalogue_materiaux.CatalogueRefuse('ARGUMENTS')
             from opsys import receptions_tarifs
 
-            preuve_tarif = receptions_tarifs.enregistrer(cnx, meta, args, rang)
+            preuve_tarif, rang_reception = receptions_tarifs.enregistrer(cnx, meta, args, rang)
             resultat = acces._borner({'accepte': True, 'resultat': dict(tarif_rang=rang,
                                       tarif_source_sha256=preuve_tarif,
                                       prix_unitaire_decimal=nouveau['prix_unitaire_decimal'], unite=nouveau['unite'],
@@ -174,6 +174,9 @@ def confirmer(materiau_id, fournisseur_id, prix_unitaire, date_effet, source_doc
                         {'tarif_rang': rang, 'fournisseur_source': fournisseur_source,
                          'materiau_source': materiau_source})
             idempotence.finaliser(cnx, meta, {'ok': True, 'resultat': resultat})
+            from opsys.catalogues_memoire import publier
+
+            publier(acces.DEPARTEMENT, 'receptions_tarifs', None, source_rang=rang_reception)
             return resultat
     except idempotence.MutationConflit:
         return {'accepte': False, 'raison': 'MUTATION-CONFLIT'}

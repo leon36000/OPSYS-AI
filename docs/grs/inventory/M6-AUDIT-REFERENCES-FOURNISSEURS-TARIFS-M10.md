@@ -168,3 +168,35 @@ sont refusés sans écriture. Les anciens rouges baseline/lint restent conservé
 Prochaine tranche : projection M10 de cette provenance démontrée et publication **après**
 finalisation du reçu, dans le même savepoint. Le consommateur devra refaire les vérifications
 ci-dessus. Aucun événement ni mémoire M10 de tarif n’est encore revendiqué par cette fondation.
+
+## Raccord tarifs → M10 qualifié localement
+
+La projection `receptions_tarifs.projeter` utilise le **rang SQL du compagnon** comme
+`source_rang`. `source_revision` est l’ordinal du rang SQL du prix + 1, pas une version
+commerciale par fournisseur : il peut commencer à 2 si un prix ancien sans liaison existe.
+La source reste le hash de la liaison vérifiée, avec le texte exact de réception serveur.
+Prix, coordonnées, clé de mutation et identifiants libres ne passent pas dans la référence.
+
+Le courtier et les genres fermés M6/M10 admettent maintenant `m6_tarifs`. Le port finalise
+le reçu **avant** publication, dans le même savepoint. La projection exige déjà un reçu
+finalisé valide; une finalisation oubliée refuse la publication et annule toute l’opération.
+M10 répète la vérification de la liaison, du prix et du reçu lors d’une livraison différée.
+Rejouer la confirmation d’origine retourne son ancien reçu avant ces écritures.
+
+Le test HTTP était rouge avant ce raccord (`tariff-memory-red-v1`, zéro publication au lieu
+de deux). Après raccord, `tariff-memory-v1` : **139 PASS, 0 FAIL/SKIP, 29,84 s**, Ruff de tous
+les fichiers touchés et vérificateur 297 outils/173 portées PASS. Inclut les régressions de
+provenance tarif, références fournisseurs et anciennes familles M3/M6, HTTP tarif, manifeste
+et conformité M10/M6. Les populations se recoupent avec les jalons précédents, sans addition.
+Revue statique indépendante de l’ordre transactionnel, source/rang/réception : aucun constat.
+
+Le parcours traverse deux confirmations HTTP puis le vrai répartiteur SQL vers la chaîne
+M10; il conserve les deux versions après réouverture. Autre ID de livraison, rejeu original,
+absence de backfill, source/réception/rang SQL altérés, référence forgée, champ coût injecté,
+oubli de finalisation et panne de publication sont vérifiés sans effet partiel. Les canaris
+coût, document fournisseur, identité admin et intention sont absents d’outbox/M10.
+
+Statut : références serveur fournisseurs **et** tarifs prouvées sur SQLite. Les badges admin
+pour ces deux familles, l’historique de prix navigable et l’import courriel restent ouverts,
+ainsi que navigateur natif, PostgreSQL, mobile et consolidation sémantique. Aucun prix reçu
+par courriel, achat, paiement ou donnée réelle traité ici. M6/M10/OPSYS restent **PARTIAL**.

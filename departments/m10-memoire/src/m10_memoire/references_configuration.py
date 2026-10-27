@@ -13,6 +13,7 @@ SOURCES = {
     'm3_lignes': ('m03-estimation', 'modeles_lignes_soumission', 'm3.catalogue_reference'),
     'm6_materiaux': ('m06-material-control', 'catalogue_materiaux', 'm6.catalogue_reference'),
     'm6_fournisseurs': ('m06-material-control', 'fournisseurs', 'm6.catalogue_reference'),
+    'm6_tarifs': ('m06-material-control', 'receptions_tarifs', 'm6.catalogue_reference'),
 }
 CHAMPS_REFERENCE = {'fait_id', 'source_genre', 'source_rang', 'source_revision', 'source_sha256', 'horodatage'}
 

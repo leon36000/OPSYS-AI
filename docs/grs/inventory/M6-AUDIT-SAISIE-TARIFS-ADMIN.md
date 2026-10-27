@@ -1,5 +1,10 @@
 # Saisie des tarifs fournisseurs — audit avant raccord admin
 
+Mise à jour du 27 octobre : les références des nouveaux tarifs ont ensuite été raccordées
+à M10 avec une réception serveur relue dans leur reçu durable et un hash complet ancré.
+Voir [provenance, bus et preuves M10](M6-AUDIT-REFERENCES-FOURNISSEURS-TARIFS-M10.md).
+Cette qualification locale SQLite ne livre ni import courriel ni historique de prix navigable.
+
 27 octobre 2026, source `0f975e337b0146daf6706a7f10b4e6a370546eb8`.
 Statut : **PARTIAL**, préparation de la prochaine tranche; aucun nouveau port tarif ni écran livré ici.
 

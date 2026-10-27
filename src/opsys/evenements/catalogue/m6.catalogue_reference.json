@@ -14,7 +14,8 @@
       "type": "string",
       "enum": [
         "m6_materiaux",
-        "m6_fournisseurs"
+        "m6_fournisseurs",
+        "m6_tarifs"
       ]
     },
     "source_rang": {

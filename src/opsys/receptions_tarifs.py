@@ -134,7 +134,7 @@ def enregistrer(cnx, meta, arguments, tarif_rang):
                    cle_idempotence=meta.cle, empreinte_arguments=recu['empreinte_arguments'], recu_le=recu['recu_le'])
     liaison['preuve_sha256'] = _sha(liaison)
     stockage.maillons(DEPARTEMENT, REGISTRE).append(liaison, rang_attendu=len(liaisons))
-    return empreinte
+    return empreinte, len(liaisons)
 
 
 def lire(cnx, tarif_rang):
@@ -173,3 +173,18 @@ def lire(cnx, tarif_rang):
     if not valide or any(donnees[k] != attendu[k] for k in attendu if k != 'prix_unitaire_decimal'):
         _refuser()
     return dict(liaison)
+
+
+def projeter(cnx, rang_reception):
+    """Référence sans contenu; revision est l'ordinal SQL du prix, pas une version commerciale."""
+    _connexion(cnx)
+    _rang(rang_reception)
+    liaisons = _liaisons(cnx)
+    if rang_reception >= len(liaisons):
+        _refuser()
+    original = liaisons[rang_reception]
+    liaison = lire(cnx, original['tarif_rang'])
+    if liaison != original:
+        _refuser()
+    return dict(source_id=liaison['preuve_sha256'], revision=liaison['tarif_rang'] + 1,
+                horodatage=liaison['recu_le'])

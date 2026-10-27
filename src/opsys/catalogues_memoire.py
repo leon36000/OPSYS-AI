@@ -8,6 +8,7 @@ SOURCES = {
     ('m03-estimation', 'modeles_lignes_soumission'): ('m3_lignes', 'm3.catalogue_reference'),
     ('m06-material-control', 'catalogue_materiaux'): ('m6_materiaux', 'm6.catalogue_reference'),
     ('m06-material-control', 'fournisseurs'): ('m6_fournisseurs', 'm6.catalogue_reference'),
+    ('m06-material-control', 'receptions_tarifs'): ('m6_tarifs', 'm6.catalogue_reference'),
 }
 
 
@@ -35,13 +36,23 @@ def _source_fournisseur(rang):
     return references_fournisseurs.projeter(prefixe, rang)
 
 
+def _source_tarif(rang):
+    from . import receptions_tarifs
+
+    try:
+        return receptions_tarifs.projeter(stockage.connexion_courante(), rang)
+    except (ValueError, KeyError, TypeError):
+        raise ValueError('Source de référence configuration invalide') from None
+
+
 def _reference(producteur, registre, source_hash, *, source_rang=None):
     genre, type_evenement = SOURCES[(producteur, registre)]
     journal = stockage.maillons(producteur, registre)
     if len(journal) > 10000:
         raise ValueError('Source de catalogue hors borne')
-    if genre == 'm6_fournisseurs':
-        rang, m = source_rang, _source_fournisseur(source_rang)
+    if genre in {'m6_fournisseurs', 'm6_tarifs'}:
+        rang = source_rang
+        m = _source_fournisseur(rang) if genre == 'm6_fournisseurs' else _source_tarif(rang)
         if source_hash is not None and source_hash != m['source_id']:
             raise ValueError('Source de référence configuration incohérente')
         source_hash = m['source_id']
@@ -72,8 +83,8 @@ def verifier_source(genre, rang, revision, source_hash, horodatage):
     journal = stockage.maillons(*cle)
     if len(journal) > 10000:
         raise ValueError('Source de catalogue hors borne')
-    if genre == 'm6_fournisseurs':
-        source = _source_fournisseur(rang)
+    if genre in {'m6_fournisseurs', 'm6_tarifs'}:
+        source = _source_fournisseur(rang) if genre == 'm6_fournisseurs' else _source_tarif(rang)
         if (source['source_id'] != source_hash or source['revision'] != revision
                 or source['horodatage'] != horodatage):
             raise ValueError('Source de référence configuration invalide')

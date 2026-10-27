@@ -233,3 +233,8 @@ Le secrétariat peut créer la fiche puis saisir le tarif et construire le devis
 par formulaires HTTP. La reprise revalide les rôles, les empreintes et le reçu. Les anciennes
 coordonnées restent intactes sans choix explicite de remplacement/effacement. Ni envoi de
 commande, ni import courriel, ni M10 fournisseur/tarif, ni navigateur/mobile/PG revendiqué.
+
+Le jalon suivant a qualifié localement les références fournisseurs et tarifs → M10 :
+[sources relues, réception durable et chaîne privée](../inventory/M6-AUDIT-REFERENCES-FOURNISSEURS-TARIFS-M10.md).
+Il n’ajoute pas de consolidation sémantique ni de badge admin pour ces deux familles.
+CRM-14 reste partiel : l’import des listes de prix par courriel n’est pas livré.
