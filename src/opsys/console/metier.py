@@ -44,12 +44,20 @@ LECTURES = {
     "m9_rapport_periode": "m09-strategic-intelligence",
     "m9_observations_chantier_periode": "m09-strategic-intelligence",
     "m9_rapport_activite_periode": "m09-strategic-intelligence",
+    # CRM secrétariat (répertoire et dossier client) : lectures pures de la vérité commerciale M2.
+    "m2_lister_leads": "m02-revenue-crm",
+    "m2_trouver_client_de_lead": "m02-revenue-crm",
+    "m2_obtenir_client_360": "m02-revenue-crm",
 }
 # Les lecteurs M9 revérifient l'admin SQL de la persona : jamais la persona propriétaire, même cumulée.
 _LECTURES_ADMIN_M9 = frozenset({
     "m9_lister_suivis_decision", "m9_lire_suivi_decision", "m9_bilan_suivis_decision", "m9_rapport_periode",
     "m9_observations_chantier_periode", "m9_rapport_activite_periode",
 })
+# Les lecteurs M2 n'ont de portée que pour `seller` et `admin` (`m2_revenue_crm.acces.ROLES_LEADS`) : la console
+# les appelle avec le rôle `admin` confirmé en base, jamais sans identité d'appareil ni sous `nathan_owner` seul.
+_LECTURES_ADMIN_M2 = frozenset({"m2_lister_leads", "m2_trouver_client_de_lead", "m2_obtenir_client_360"})
+_LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2
 COMMANDES = {
     "m1_importer_appel_manuellement": "m01-front-office",
     "m1_clore_transfert": "m01-front-office",
@@ -374,8 +382,8 @@ def executer(
     personne = identite.personne_active(cnx, session.utilisateur)
     if personne is None or not personne.roles.intersection({"nathan_owner", "admin"}):
         raise PermissionError("administration métier requise")
-    if nom in _LECTURES_ADMIN_M9 and "admin" not in personne.roles:
-        raise PermissionError("admin SQL requis pour les lectures M9")
+    if nom in _LECTURES_ADMIN and "admin" not in personne.roles:
+        raise PermissionError("admin SQL requis pour les lectures M9 et M2")
     if nom == "m1_consigner_suivi_rappel" and session.expire <= datetime.now(UTC).timestamp():
         raise PermissionError("session de suivi expirée")
     if nom in {
@@ -550,7 +558,7 @@ def executer(
             )
         reponse = {**decision["reponse"], "approbation_id": ident}
     else:
-        role = "nathan_owner" if "nathan_owner" in personne.roles and nom not in _LECTURES_ADMIN_M9 else "admin"
+        role = "nathan_owner" if "nathan_owner" in personne.roles and nom not in _LECTURES_ADMIN else "admin"
         with (
             contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, role, source="console")),
             contexte.appeler_en_tant_que(departement, origine=departement),

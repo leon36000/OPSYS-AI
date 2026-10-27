@@ -1,0 +1,259 @@
+"""CRM secrétariat, tranche 1 : répertoire (/crm) et dossier client (/crm/lead/{id}), lecture seule sur M2.
+
+Données fictives (`FICTIF`). Le vrai registre durable de M2 est amorcé par ses propres fonctions (voie des agents), la
+console le lit par `metier.executer` sous l'identité `admin` confirmée en base. NON EXÉCUTÉS dans le snapshot privé :
+voir docs/grs/crm/HANDOFF-CLAUDE-SONNET55.md pour les commandes ciblées.
+"""
+
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+from m2_revenue_crm import outils as outils_m2
+from m2_revenue_crm import statuts as statuts_m2
+from sqlalchemy import select
+
+from opsys import identite
+from opsys.console import application, crm_ui
+from opsys.console.securite import Configuration
+from opsys.stockage.schema import META
+
+FICTIF = True
+SECRET = "secret-console-crm-fictif-" + "x" * 32
+PREFIXE = "/opsys"
+H0 = "2026-09-01T09:00:00-04:00"
+H1 = "2026-09-01T09:05:00-04:00"
+H2 = "2026-09-02T10:30:00-04:00"
+ACTION = {"description": "Appeler le client", "echeance": "2026-09-05T09:00:00-04:00"}
+NOM_PIEGE = "Client <script>alert(1)</script> FICTIF"
+NOTE = "Rappeler pour la visite <b>fictive</b>"
+MOTS_DE_PASSE = {
+    "admin.fictif": "mot-de-passe-admin-fictif-1234",
+    "nathan": "mot-de-passe-proprietaire-fictif",
+    "employe": "mot-de-passe-employe-fictif",
+}
+
+
+def _contact(nom: str, courriel: str) -> dict:
+    return {"nom": nom, "courriel": courriel}
+
+
+def _contrat(lead_id: str, contact: dict) -> dict:
+    return {
+        "lead_id": lead_id, "conversation_id": f"conv-{lead_id}", "contact": contact,
+        "type_travaux": "renovation_totale", "ville": "Québec", "urgence_declaree": False, "canal": "telephone",
+    }
+
+
+@pytest.fixture
+def client_crm(session):
+    outils_m2.utiliser_stockage_durable()
+    with session() as cnx:
+        identite.creer_personne(cnx, "admin.fictif", "Admin FICTIVE", MOTS_DE_PASSE["admin.fictif"], ["admin"])
+        identite.creer_personne(cnx, "nathan", "Nathan FICTIF", MOTS_DE_PASSE["nathan"], ["nathan_owner"])
+        identite.creer_personne(cnx, "employe", "Employé FICTIF", MOTS_DE_PASSE["employe"], ["employee"])
+    # Deux projets d'un même client (même contact), un client distinct.
+    client_un = _contact(NOM_PIEGE, "un@example.test")
+    client_deux = _contact("Client Deux FICTIF", "deux@example.test")
+    with session():
+        assert outils_m2.ingerer_lead(_contrat("lead-fictif-001", client_un), H0)["accepte"] is True
+        assert outils_m2.ingerer_lead(_contrat("lead-fictif-002", client_un), H0)["accepte"] is True
+        assert outils_m2.ingerer_lead(_contrat("lead-fictif-003", client_deux), H0)["accepte"] is True
+        qualifie = outils_m2.transitionner_statut(
+            "lead-fictif-001", "qualifie", H1, owner="vendeur.fictif", prochaine_action=ACTION)
+        assert qualifie["accepte"] is True, qualifie
+        note = outils_m2.enregistrer_interaction("lead-fictif-001", "admin.fictif", NOTE, H2)
+        assert note["accepte"] is True, note
+    app = application.creer_application(Configuration(SECRET, cookie_securise=False, prefixe=PREFIXE), None, session)
+    with TestClient(app, base_url=f"https://testserver{PREFIXE}") as client:
+        yield client
+
+
+def _connecter(client: TestClient, utilisateur: str) -> None:
+    reponse = client.post(
+        "/connexion",
+        data={"identifiant": utilisateur, "mot_de_passe": MOTS_DE_PASSE[utilisateur]},
+        follow_redirects=False,
+    )
+    assert reponse.status_code == 303, reponse.text
+
+
+def _instantane_base(session):
+    with session() as cnx:
+        return tuple(
+            (table.name, tuple(tuple(ligne) for ligne in cnx.execute(select(table)).all()))
+            for table in META.sorted_tables
+        )
+
+
+# -- accès ---------------------------------------------------------------------------------------------------
+
+
+def test_acces_refuse_sans_session_pour_employe_et_pour_owner_sans_role_admin(client_crm):
+    client = client_crm
+    for chemin in ("/crm", "/crm/lead/lead-fictif-001"):
+        anonyme = client.get(chemin, follow_redirects=False)
+        assert anonyme.status_code == 303 and anonyme.headers["location"].endswith("/connexion")
+
+    _connecter(client, "employe")
+    assert client.get("/crm").status_code == 403
+    assert client.get("/crm/lead/lead-fictif-001").status_code == 403
+
+    # Les outils M2 n'ont de portée que pour seller/admin : nathan_owner seul est refusé, pas contourné.
+    _connecter(client, "nathan")
+    for chemin in ("/crm", "/crm/lead/lead-fictif-001"):
+        refuse = client.get(chemin)
+        assert refuse.status_code == 403
+        assert "lead-fictif-001" not in refuse.text and "example.test" not in refuse.text
+
+
+def test_onglet_crm_dans_la_navigation_et_en_tetes_de_securite(client_crm):
+    _connecter(client_crm, "admin.fictif")
+    page = client_crm.get("/crm")
+    assert page.status_code == 200, page.text
+    assert f'href="{PREFIXE}/crm"' in page.text
+    assert page.headers["cache-control"] == "no-store"
+    assert "script-src 'self'" in page.headers["content-security-policy"]
+    assert "<script>" not in page.text.lower().replace('<script src="', "")
+
+
+# -- répertoire ----------------------------------------------------------------------------------------------
+
+
+def test_repertoire_liste_les_leads_de_m2_avec_lien_dossier_et_heure_de_montreal(client_crm):
+    _connecter(client_crm, "admin.fictif")
+    page = client_crm.get("/crm")
+    assert page.status_code == 200, page.text
+    for lead_id in ("lead-fictif-001", "lead-fictif-002", "lead-fictif-003"):
+        assert f'href="{PREFIXE}/crm/lead/{lead_id}"' in page.text
+    assert "vendeur.fictif" in page.text  # propriétaire consigné par M2
+    assert "Appeler le client" in page.text  # prochaine action de M2
+    assert "2026-09-01 09:00" in page.text  # 09:00-04:00 affiché en heure de Montréal
+    assert "Qualifié" in page.text and "Nouveau" in page.text
+    assert "Lecture seule" in page.text
+    assert "alert(1)" not in page.text  # le nom du contact n'est pas dans la liste
+
+
+def test_filtre_par_statut_et_parametres_invalides(client_crm):
+    _connecter(client_crm, "admin.fictif")
+    qualifies = client_crm.get("/crm?statut=qualifie")
+    assert qualifies.status_code == 200, qualifies.text
+    assert "lead-fictif-001" in qualifies.text
+    assert "lead-fictif-002" not in qualifies.text and "lead-fictif-003" not in qualifies.text
+    nouveaux = client_crm.get("/crm?statut=nouveau")
+    assert "lead-fictif-002" in nouveaux.text and "lead-fictif-003" in nouveaux.text
+    assert "lead-fictif-001" not in nouveaux.text
+
+    for requete in ("statut=inexistant", "decalage=-1", "decalage=abc", "decalage=99999999", "inconnu=1"):
+        assert client_crm.get(f"/crm?{requete}").status_code == 400, requete
+
+
+def test_pagination_suit_le_decalage_de_m2_sans_calcul_local():
+    page = {
+        "ordre": "ingestion croissante", "total": 45, "decalage": 0, "affichees": 20, "reste": 25, "suivant": 20,
+        "message": "25 autres leads non affichés : poursuivre avec decalage=20.",
+        "leads": [{"lead_id": "lead-fictif-001", "statut": "nouveau", "segments": []}],
+        "segments_non_calculables": [{"segment": "quote_stale"}],
+    }
+    debut = crm_ui.contenu_repertoire(page, statut="qualifie", prefixe=PREFIXE)
+    assert f"{PREFIXE}/crm?statut=qualifie&amp;decalage=20" in debut and "Page suivante" in debut
+    assert "Revenir au début" not in debut
+    assert "quote_stale" in debut and "Aucune valeur n'est devinée" in debut
+
+    milieu = crm_ui.contenu_repertoire({**page, "decalage": 20, "suivant": None}, statut="", prefixe=PREFIXE)
+    assert "Revenir au début" in milieu and "Page suivante" not in milieu
+    vide = crm_ui.contenu_repertoire({"leads": [], "total": 0, "decalage": 0}, statut="perdu", prefixe=PREFIXE)
+    assert "Aucun lead ne correspond à ce filtre." in vide
+
+
+# -- dossier -------------------------------------------------------------------------------------------------
+
+
+def test_dossier_affiche_client_projets_sections_et_activites_sans_faux_boutons(client_crm):
+    _connecter(client_crm, "admin.fictif")
+    page = client_crm.get("/crm/lead/lead-fictif-001")
+    assert page.status_code == 200, page.text
+    texte = page.text
+    # Contact du contrat ingéré, échappé.
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in texte and NOM_PIEGE not in texte
+    assert "un@example.test" in texte
+    # Plusieurs projets du même client ; le client distinct n'apparaît pas.
+    assert "lead-fictif-002" in texte and "(affiché ici)" in texte
+    assert "lead-fictif-003" not in texte and "deux@example.test" not in texte
+    # Neuf sections, état dit en toutes lettres, pas de « Vérification » recopiée.
+    for libelle in ("Activités", "Suivi client", "Rencontres", "Soumissions", "Bons de commande", "Bons de travail",
+                    "Coûts des travaux", "Factures", "Photos et fichiers"):
+        assert libelle in texte, libelle
+    assert "Non disponible" in texte and "pas encore branchée" in texte and "Vérification" not in texte
+    # Activités réelles de M2, échappées, en heure de Montréal.
+    assert "Rappeler pour la visite &lt;b&gt;fictive&lt;/b&gt;" in texte and "<b>fictive</b>" not in texte
+    assert "2026-09-02 10:30" in texte and "admin.fictif" in texte
+    # Aucune écriture ni envoi : le seul formulaire POST est la déconnexion du gabarit.
+    assert texte.count('method="post"') == 1 and f'action="{PREFIXE}/deconnexion"' in texte
+    assert "Envoyer" not in texte and "mailto:" not in texte
+    for outil in ("m2_lister_leads", "m2_obtenir_client_360", "m2_trouver_client_de_lead", "m3_lister_devis",
+                  "m5_lire_rentabilite_chantier", "m4_lister_interventions"):
+        assert outil not in texte  # aucun nom d'outil à l'écran
+
+
+def test_dossier_inconnu_ou_identifiant_invalide_donne_404_sans_fuite(client_crm):
+    _connecter(client_crm, "admin.fictif")
+    for chemin in ("/crm/lead/lead-inconnu-fictif", "/crm/lead/%3Cscript%3Ealert(1)%3C%2Fscript%3E"):
+        reponse = client_crm.get(chemin)
+        assert reponse.status_code == 404, chemin
+        assert "alert(1)" not in reponse.text and "example.test" not in reponse.text
+
+
+def test_lecture_seule_aucune_ecriture_en_base(client_crm, session):
+    _connecter(client_crm, "admin.fictif")
+    avant = _instantane_base(session)
+    assert client_crm.get("/crm").status_code == 200
+    assert client_crm.get("/crm?statut=qualifie&decalage=0").status_code == 200
+    assert client_crm.get("/crm/lead/lead-fictif-001").status_code == 200
+    assert client_crm.get("/crm/lead/lead-inconnu-fictif").status_code == 404
+    assert _instantane_base(session) == avant
+
+
+def test_aucune_route_d_ecriture_crm(client_crm):
+    _connecter(client_crm, "admin.fictif")
+    csrf = client_crm.get("/api/session").json()["csrf"]
+    for chemin in ("/crm", "/crm/lead/lead-fictif-001"):
+        for methode in (client_crm.post, client_crm.put, client_crm.delete):
+            reponse = methode(chemin, headers={"x-csrf-token": csrf})
+            assert reponse.status_code in {404, 405}, (methode.__name__, chemin)
+
+
+# -- pur : contrats d'affichage ----------------------------------------------------------------------------
+
+
+def test_statuts_alignes_sur_m2():
+    assert tuple(crm_ui.STATUTS) == statuts_m2.STATUTS
+
+
+def test_sections_du_brief_et_etats_honnetes():
+    libelles = [libelle for _cle, libelle, *_ in crm_ui.SECTIONS]
+    assert libelles == ["Activités", "Suivi client", "Rencontres", "Soumissions", "Bons de commande",
+                        "Bons de travail", "Coûts des travaux", "Factures", "Photos et fichiers"]
+    etats = {cle: etat for cle, _libelle, _source, etat, _explication in crm_ui.SECTIONS}
+    assert etats["activites"] == "affiche"
+    assert [cle for cle, etat in etats.items() if etat == "affiche"] == ["activites"]
+    assert etats["suivi"] == "manquant" and etats["rencontres"] == "manquant"
+    assert set(etats.values()) <= set(crm_ui.ETATS_SECTION)
+
+
+@pytest.mark.parametrize(("entree", "attendu"), [
+    ("2026-09-01T13:00:00+00:00", "2026-09-01 09:00"),
+    ("2026-01-15T09:00:00-05:00", "2026-01-15 09:00"),
+    (None, "—"),
+    ("", "—"),
+    ("pas une date", "pas une date"),
+    ("2026-09-01", "2026-09-01"),
+])
+def test_heure_de_montreal(entree, attendu):
+    assert crm_ui._montreal(entree) == attendu
+
+
+def test_decalage_trop_long_refuse_nominalement(client_crm):
+    _connecter(client_crm, "admin.fictif")
+    reponse = client_crm.get("/crm?decalage=" + "9" * 5000)
+    assert reponse.status_code == 400

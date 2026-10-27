@@ -57,6 +57,7 @@ from . import (
     calendrier_marketing_ui,
     cfo_ui,
     connecteurs_ui,
+    crm_ui,
     estimation_apprentissage_ui,
     finance_snapshot_prive,
     finance_ui,
@@ -324,6 +325,9 @@ def creer_application(
     app.include_router(
         frontoffice_marketing.creer_router(**callbacks_frontoffice, _formulaire=_formulaire, _objet_json=_objet_json)
     )
+    app.include_router(crm_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+    ))
     app.include_router(reception_digest_ui.creer_router(
         session_page=session_page, session_api=session_api, cnx_factory=cnx_factory,
         deps=deps, prefixe=prefixe,

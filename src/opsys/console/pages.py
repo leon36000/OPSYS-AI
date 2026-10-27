@@ -22,6 +22,7 @@ PLAFOND_PASTILLE = 100  # au-delà, la navigation affiche « 100+ »
 
 ONGLETS = (
     ("departements", "Départements"),
+    ("crm", "CRM"),
     ("approbations", "Approbations"),
     ("budgets", "Budgets"),
     ("modeles", "Modèles"),
