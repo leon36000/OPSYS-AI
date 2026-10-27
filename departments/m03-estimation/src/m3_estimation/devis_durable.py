@@ -99,6 +99,7 @@ __all__ = [
     "charge_evenement_devis_accepte",
     "charge_evenement_devis_envoye",
     "creer_devis",
+    "calculer_lignes_devis",
     "lire_devis",
     "lister_devis",
     "marquer_devis_accepte",
@@ -321,6 +322,32 @@ def _etat_devis(registre_cible: Any, devis_id: str) -> dict[str, Any] | None:
     return _etats_courants(registre_cible).get(devis_id)
 
 
+def calculer_lignes_devis(lignes, taux_marge, devis_id):
+    """Validation et arrondis communs à l'aperçu et à la création, sans journal ni effet."""
+    if not isinstance(lignes, (list, tuple)) or not lignes:
+        return None, verdicts.construire_verdict("REJ-DEVIS-LIGNES-VIDES", detail="au moins une ligne est requise")
+
+    taux, verdict = texte_vers_taux_marge(taux_marge)
+    if verdict is not None:
+        return None, verdict
+
+    lignes_validees: list[LigneDevis] = []
+    cout_total = Decimal("0")
+    prix_total = Decimal("0")
+    for index, brute in enumerate(lignes):
+        ligne, verdict = _valider_ligne(brute, index, taux, devis_id)
+        if verdict is not None:
+            return None, verdict
+        lignes_validees.append(ligne)
+        # Totaux = SOMME des montants de ligne déjà arrondis (jamais un nouvel arrondi de la
+        # somme) : la somme de valeurs à exactement 2 décimales reste exacte à 2 décimales.
+        cout_total += ligne.cout_ligne
+        prix_total += ligne.prix_ligne
+
+    return {"lignes": [dataclasses.asdict(ligne) for ligne in lignes_validees],
+            "taux_marge": taux, "cout_total": cout_total, "prix_total": prix_total}, None
+
+
 def creer_devis(
     devis_id: str,
     lead_id: str,
@@ -363,25 +390,11 @@ def creer_devis(
             "REJ-CONTRAT-INVALIDE",
             detail="estimation_source_hash doit être absent ou un SHA-256 hexadécimal minuscule de 64 caractères",
         )
-    if not isinstance(lignes, (list, tuple)) or not lignes:
-        return None, verdicts.construire_verdict("REJ-DEVIS-LIGNES-VIDES", detail="au moins une ligne est requise")
-
-    taux, verdict = texte_vers_taux_marge(taux_marge)
+    calcul, verdict = calculer_lignes_devis(lignes, taux_marge, devis_id)
     if verdict is not None:
         return None, verdict
-
-    lignes_validees: list[LigneDevis] = []
-    cout_total = Decimal("0")
-    prix_total = Decimal("0")
-    for index, brute in enumerate(lignes):
-        ligne, verdict = _valider_ligne(brute, index, taux, devis_id)
-        if verdict is not None:
-            return None, verdict
-        lignes_validees.append(ligne)
-        # Totaux = SOMME des montants de ligne déjà arrondis (jamais un nouvel arrondi de la
-        # somme) : la somme de valeurs à exactement 2 décimales reste exacte à 2 décimales.
-        cout_total += ligne.cout_ligne
-        prix_total += ligne.prix_ligne
+    taux = calcul["taux_marge"]
+    cout_total, prix_total = calcul["cout_total"], calcul["prix_total"]
 
     if prix_total_fourni is not None:
         fourni, verdict = _texte_vers_decimal(prix_total_fourni, "prix_total", "REJ-DEVIS-TOTAL-INCOHERENT")
@@ -399,7 +412,7 @@ def creer_devis(
         "devis_id": devis_id,
         "lead_id": lead_id,
         "chantier_id": chantier_id,
-        "lignes": [dataclasses.asdict(ligne) for ligne in lignes_validees],
+        "lignes": calcul["lignes"],
         "taux_marge": taux,
         "cout_total": cout_total,
         "prix_total": prix_total,

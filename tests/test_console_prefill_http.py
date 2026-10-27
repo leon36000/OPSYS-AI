@@ -186,3 +186,42 @@ def test_fournisseur_corrompu_apres_preview_bloque_creation(catalogue, session):
     avant = p.m.base._instantane_base(session)
     assert catalogue.post(action, data=donnees).status_code == 503
     assert p.m.base._instantane_base(session) == avant
+
+
+@pytest.mark.parametrize('cout,quantite,taux,cout_total,vente_total', [
+    (15.5, '4', '0.25', '62.00', '77.52'),
+    (0.335, '3', '0', '1.01', '1.02'),
+    (12.5, '2', '0.2', '25.00', '30.00'),
+])
+def test_apercu_prix_arrondis_identiques_au_devis(catalogue, session, cout, quantite, taux, cout_total, vente_total):
+    from m3_estimation import devis_durable, outils
+
+    initial = p.preparer(session)
+    p.prix(session, cout)
+    query = urlencode({k: initial[k] for k in ('modele_id', 'modele_revision', 'modele_source')})
+    action, choix = form(catalogue.get(ROUTE + '?' + query))
+    choix.update(quantite_0=quantite, fournisseur_id_0='fourn-fictif', taux_marge=taux)
+    avant = p.m.base._instantane_base(session)
+    page = catalogue.post(action, data=choix)
+    assert page.status_code == 200, page.text
+    assert p.m.base._instantane_base(session) == avant
+    assert f'data-total="cout">{cout_total}</strong>' in page.text
+    assert f'data-total="vente">{vente_total}</strong>' in page.text
+    assert 'taxes (TPS/TVQ) en sus' in page.text
+    action, donnees = form(page)
+    assert not any('total' in k or 'cout' in k or 'prix' in k for k in donnees)
+    assert catalogue.post(action, data=donnees, follow_redirects=False).status_code == 303
+    with session():
+        devis, refus = devis_durable.lire_devis(outils.registre_devis_production(), donnees['devis_id'])
+        assert refus is None
+        assert str(devis['cout_total']) == cout_total and str(devis['prix_total']) == vente_total
+
+
+@pytest.mark.parametrize('taux', ['', '-0.1', 'NaN', 'Infinity', '1e2', '10000', '0.1234567'])
+def test_apercu_refuse_majoration_invalide_sans_effet(catalogue, session, taux):
+    _, _, action, choix = preparer(catalogue, session)
+    avant = p.m.base._instantane_base(session)
+    r = catalogue.post(action, data={**choix, 'taux_marge': taux})
+    assert r.status_code == 400
+    assert 'data-total="vente"' not in r.text
+    assert p.m.base._instantane_base(session) == avant

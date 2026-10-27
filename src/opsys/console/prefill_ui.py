@@ -1,6 +1,7 @@
 """Formulaires admin de lignes réutilisables et devis avec tarif M6 choisi."""
 import re
 import uuid
+from decimal import Decimal, DecimalException
 from urllib.parse import parse_qs, urlencode
 
 from fastapi import APIRouter, HTTPException, Request
@@ -208,12 +209,20 @@ def creer_router(*, session_page, cnx_factory, prefixe, verifier_formulaire, ver
         if (jeu['source_id'] != p['lignes_source']
                 or [c['ligne_modele_id'] for c in choix] != [ligne['ligne_id'] for ligne in jeu['lignes']]):
             raise HTTPException(409, 'Lignes modifiées : reprendre la sélection')
+        if (re.fullmatch(r'[0-9]{1,9}(\.[0-9]{1,6})?', p['taux_marge']) is None
+                or Decimal(p['taux_marge']) >= 10000):
+            raise HTTPException(400, 'Majoration invalide')
+        lignes_calcul = []
         valeurs = {k: '' for k in CONFIRMER}
         valeurs.update(p)
         corps = '<h2>Vérifier les coûts sélectionnés</h2><p>Coûts privés admin, en CAD. Aucun envoi.</p><ul>'
         for i, (ligne, choix_ligne) in enumerate(zip(jeu['lignes'], choix, strict=True)):
             tarif = appeler(session, 'm3_lire_tarif_modele', dict(materiau_id=ligne['materiau_id'],
                             fournisseur_id=choix_ligne['fournisseur_id'], unite=ligne['unite']))
+            lignes_calcul.append(dict(description=ligne['description'], unite=ligne['unite'],
+                                      quantite=choix_ligne['quantite'],
+                                      cout_unitaire=tarif['cout_unitaire_decimal'],
+                                      reference_besoin_materiau=ligne['materiau_id']))
             valeurs[f'tarif_rang_{i}'] = tarif['tarif_rang']
             valeurs[f'tarif_empreinte_{i}'] = tarif['tarif_empreinte']
             corps += (f'<li>{pages.e(ligne["description"])} : {pages.e(choix_ligne["quantite"])} '
@@ -221,8 +230,25 @@ def creer_router(*, session_page, cnx_factory, prefixe, verifier_formulaire, ver
                       f'fournisseur {pages.e(choix_ligne["fournisseur_id"])} · '
                       f'{pages.e(tarif["marquage_source"])} · {pages.e(tarif["source_document"] or "Sans document")} '
                       f'· date {pages.e(tarif["date_effet"])}</li>')
+        from m3_estimation.devis_durable import calculer_lignes_devis
+
+        try:
+            calcul, refus = calculer_lignes_devis(lignes_calcul, p['taux_marge'], p['devis_id'])
+        except DecimalException:
+            raise HTTPException(400, 'Montants invalides') from None
+        if refus is not None:
+            raise HTTPException(400, 'Quantités ou montants invalides')
+        corps += ('</ul><h2>Prix de vente du brouillon</h2>'
+                  '<p>Les prix unitaires sont arrondis au cent avant multiplication par la quantité.</p><ul>')
+        for ligne in calcul['lignes']:
+            corps += (f'<li>{pages.e(ligne["description"])} : prix unitaire '
+                      f'{pages.e(ligne["prix_unitaire"])} CAD · ligne {pages.e(ligne["prix_ligne"])} CAD</li>')
+        corps += ('</ul><p>Coût total privé : <strong data-total="cout">'
+                  f'{pages.e(calcul["cout_total"])}</strong> CAD.</p>'
+                  f'<p>Prix de vente total : <strong data-total="vente">{pages.e(calcul["prix_total"])}</strong> CAD, '
+                  'taxes (TPS/TVQ) en sus. Aucun envoi, aucune acceptation.</p>')
         action = prefixe + '/crm/lead/' + pages._segment(lead_id) + '/soumission-preremplie'
-        corps += ('</ul>' + f'<form method="post" action="{pages.e(action)}">' + caches(valeurs)
+        corps += (f'<form method="post" action="{pages.e(action)}">' + caches(valeurs)
                   + '<button>Créer le brouillon avec ces tarifs</button></form>')
         return rendre(session, 'Confirmer la soumission', corps)
 

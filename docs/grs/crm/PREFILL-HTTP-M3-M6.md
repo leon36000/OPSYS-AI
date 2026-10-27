@@ -17,7 +17,8 @@ M3 calcule le prix. Les quantités ne sont jamais déduites du modèle ni propos
 4. Renseigner la quantité, choisir le fournisseur par son nom M6 pour chaque ligne, puis la majoration.
 5. Vérifier les coûts CAD, date effective, fournisseur et source documentaire affichés.
    Sans pièce, le badge reste `FALLBACK_PRICE_BOOK`.
-6. Créer le brouillon. Le dossier permet ensuite de consulter ses documents HTML/PDF.
+6. Vérifier le coût total privé et le prix de vente par ligne et total, taxes en sus.
+7. Créer le brouillon. Le dossier permet ensuite de consulter ses documents HTML/PDF.
 
 Les matériaux sont encore saisis par référence explicite lors de la configuration du modèle :
 leur catalogue de libellés reste à compléter. Les fournisseurs compatibles sont proposés par nom,
@@ -75,8 +76,7 @@ de l’en-tête au lieu du formulaire métier; corrigé par sélection explicite
 La revue a aussi identifié le risque de perte des sauts de ligne dans un input texte; corrigé
 par textarea et test de conservation. Aucun contrôle produit n’a été affaibli.
 
-Prochaines étapes : sélection des matériaux par libellé, confirmation complète du prix de vente
-avant création, puis qualification navigateur selon
+Prochaines étapes : sélection des matériaux par libellé, puis qualification navigateur selon
 le harnais autorisé. Mobile reste en dernière phase. Les autres exigences CRM-07 restent ouvertes.
 
 ## Choix fournisseur par nom — jalon suivant
@@ -130,3 +130,27 @@ Qualification privée `crm-prefill-qa-20261027-r1/bus-v2` : huit tests réussis,
 ou saut, 2,71 s; Ruff et vérificateur 288/173 réussis. Sept tests de cascade préexistants
 sont réutilisés, résultats non additionnables aux autres campagnes. Le test ne qualifie
 ni navigateur natif, ni envoi client, ni acceptation juridique, ni M10, ni PostgreSQL.
+
+## Aperçu du prix de vente avant création
+
+Le formulaire de confirmation affiche les prix unitaires, montants de ligne, coût total
+privé et prix de vente total en CAD, taxes en sus. Le calcul pur
+`m3_estimation.devis_durable.calculer_lignes_devis` est partagé avec la création durable :
+prix unitaire arrondi au cent, puis multiplication par quantité et nouvel arrondi au cent.
+Aucune formule parallèle dans l’interface, aucun prix fourni par le navigateur.
+
+La préparation ne crée pas de journal ni de mutation. Les tarifs sont relus lors de la
+création avec leurs rangs et empreintes; un tarif changé reste refusé. Les majorations
+vides, négatives, non finies, exponentielles, excessives ou trop précises sont refusées
+avant affichage du total. Les coûts restent réservés à la console admin.
+
+Les tests HTTP comparent les montants affichés aux montants réellement enregistrés,
+notamment le cas de double arrondi : 15,50 CAD × 4 avec majoration 25 % donne 77,52 CAD.
+Ce sont des données fictives; le formulaire ne constitue ni un envoi ni une acceptation.
+
+Qualification `crm-prefill-qa-20261027-r1/sale-preview-v2` : 161 tests réussis, aucun
+échec ni saut, 9,86 s; Ruff et vérificateur 288 outils/173 portées réussis. Populations
+recoupées, non additives. Régression HTTP, jonction du bus, devis durables, stockage et
+conformité M3. Revue statique indépendante du calcul, du rendu et des effets sans constat.
+Le reçu `sale-preview-v1` reste historique : mêmes 161 tests réussis, une ligne de rendu
+trop longue signalée par Ruff puis corrigée; aucune garde affaiblie.
