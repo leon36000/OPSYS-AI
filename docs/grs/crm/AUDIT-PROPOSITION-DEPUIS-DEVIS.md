@@ -52,3 +52,49 @@ reçu historique sans effet supplémentaire, avec instantané complet de la base
 La première qualification portera le port privé; route HTTP, revue persistée, application,
 prévision du créneau, navigateur et PostgreSQL restent ouverts. Aucun blocage du moteur
 avéré dans cette revue; les prérequis d’instance sont à fournir explicitement.
+
+
+## Jalon exécuté — port privé uniquement
+
+`src/opsys/console/proposition_chantier.py::{preparer,proposer}` est qualifié localement.
+Le préflight relit la vue exacte, les profils équipes/météo et la tête M4. Le POST futur ne
+fournira que l’empreinte de cet aperçu et son intention; le port impose lui-même l’intervention
+exacte, `a_planifier`, prête, l’auteur SQL actuel et l’heure serveur. Le vrai outil T1/N1 M4
+reçoit `intervention_ids: [id]`, `moteur: auto`; aucune surcharge de profil n’est admise.
+
+Après calcul, le port compare le maillon réel à l’intervention, à l’empreinte propriétaire du
+profil équipes et à celle de préparation, puis relit les profils pour refuser un changement
+observé pendant le dispatch. Cela ne transforme pas des fichiers YAML en une transaction SQL :
+une modification de configuration indépendante reste présente si la tentative de proposition
+est annulée. La prévision datée et l’application restent hors de ce port.
+
+Le reçu durable réussi est `ok`, sa taille SQL est vérifiée avant décodage. Son enveloppe est
+fermée; sa projection est reconstruite depuis le plan propriétaire réel, sans clé libre ni
+horodatage d’appareil arbitraire. Le rejeu exige toujours une autorité actuelle et porte
+`historique: true`, sans nouvelle affirmation de disponibilité. Le plan, l’audit et le reçu
+partagent le même savepoint; refus, quota, panne d’audit et panne de finalisation annulent les
+écritures même si l’exception est capturée dans la transaction extérieure.
+
+`tests/test_console_proposition_chantier.py` utilise de vrais profils enregistrés, une
+localisation humaine confirmée, une réception M6 et le vrai bus du devis M3 accepté. Aucun
+volet de préparation n’est simulé dans cette cohorte privée. Une proposition place le chantier
+mais ne modifie ni `a_planifier` ni l’absence d’assignation. Le mode distance bridé est signalé.
+Cas vérifiés : profil modifié avant ou pendant calcul, réservation libérée, empreinte fausse,
+préparation bloquée, intention contradictoire, révocation avant rejeu, rollback audit/reçu/sortie,
+cache altéré et reçu trop volumineux avant son décodeur.
+
+Preuves privées `crm-prefill-qa-20261027-r1` : baseline `crm08-proposal-red-v1` module absent;
+`v1` conserve l’import erroné introduit `opsys.audit`, corrigé par le vrai propriétaire `opsys.etat`;
+`v2` 70 PASS. Revue indépendante : changement YAML entre contrôle et dispatch, reproduit par
+`crm08-proposal-integrity-red-v1` (deux FAIL avec le statut de reçu réussi incorrect). Après
+correction, `v3` 72 PASS. Deux charges libres de cache reproduites par `crm08-proposal-cache-red-v1`
+(deux FAIL), puis enveloppe/projection fermées. Qualification finale `crm08-proposal-v4` :
+**76 PASS, 0 FAIL, 0 SKIP, 13,77 s**, Ruff et vérificateur 297/173 passent; les populations
+se recoupent avec la vue et ne s’additionnent pas. Revue statique finale indépendante : aucun
+nouveau constat. Commandes, limites, empreintes, JUnit, logs et reçus distincts conservés;
+Source en lecture seule, réseau bloqué, homes/tmp privés, 1 CPU/1 Gio/96 tâches.
+
+**PARTIAL** : port privé exécuté sur SQLite. Aucune route de proposition n’est encore ouverte;
+la revue persistée du brouillon, le POST CSRF, l’application N3 et le raccord aux dates sont les
+prochaines étapes. Pas de qualification navigateur, PostgreSQL, météo distante, OR-Tools nouveau,
+mobile ou produit complet. Aucun envoi client, affectation ou date produit par cette tranche.
