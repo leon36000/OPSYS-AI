@@ -1,4 +1,6 @@
-"""CRM secrétariat : répertoire et dossier client/projet (CRM-04, CRM-05), en LECTURE SEULE sur la vérité M2.
+"""CRM secrétariat : répertoire et dossier client/projet (CRM-04, CRM-05), sur la vérité M2.
+
+Ajout de notes internes authentifiées.
 
 - `GET /crm` : répertoire paginé des leads/clients (statut, propriétaire, travaux, ville, dernière activité,
   prochaine action, segments) ; chaque ligne mène au dossier.
@@ -6,8 +8,8 @@
   d'un même client), activités récentes, et les neuf sections du dossier avec leur état réel (affichée, source existante
   non branchée, non disponible). Une section sans primitive ne montre ni donnée ni faux bouton.
 
-Aucune donnée n'est stockée ici et rien n'est écrit : tout passe par `metier.executer` (surface LECTURES fermée), donc
-par les outils M2 `m2_lister_leads`, `m2_trouver_client_de_lead` et `m2_obtenir_client_360`, sous l'identité `admin`
+Aucune donnée métier n'est stockée ici : lectures et notes passent par `metier.executer` (listes fermées).
+Les outils M2 de lecture et `m2_enregistrer_interaction` sont appelés sous l'identité `admin`
 confirmée en base.
 Les fonctions `contenu_*` sont pures ; toute valeur dynamique passe par `pages.e`.
 """
@@ -15,15 +17,16 @@ Les fonctions `contenu_*` sont pures ; toute valeur dynamique passe par `pages.e
 from __future__ import annotations
 
 import re
+import uuid
 from collections.abc import Callable, Iterable, Mapping
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
-from .. import tableau_de_bord
+from .. import idempotence, tableau_de_bord
 from . import metier, pages
 from .securite import Session
 
@@ -267,7 +270,10 @@ def _lien_court(lead_id: Any) -> str:
 
 
 def contenu_dossier(lead_id: str, client_id: str, vue: Mapping[str, Any], *, prefixe: str) -> str:
-    """Le dossier : client, projets, neuf sections avec état réel, activités. Aucune écriture, aucun bouton d'envoi."""
+    """Dossier client, projets, sections avec état réel et activités.
+
+    La route authentifiée ajoute le formulaire de note.
+    """
     return (
         f'<p><a href="{pages.e(prefixe)}/crm">Retour au répertoire</a></p>'
         f'<section class="carte"><h2>Client</h2><p class="note">Identifiant client M2 : {pages.e(client_id)}</p>'
@@ -277,9 +283,23 @@ def contenu_dossier(lead_id: str, client_id: str, vue: Mapping[str, Any], *, pre
         '<section class="carte"><h2>Sections du dossier</h2>'
         '<p class="note">Chaque section dit sa source de vérité et son état réel. Les sections non branchées '
         "ne montrent aucune donnée et aucune action.</p>" + _sections() + "</section>"
-        '<section class="carte"><h2>Activités</h2>'
-        '<p class="note">Dix interactions les plus récentes du client, tous projets confondus. Lecture seule : '
-        "l'ajout de note n'est pas encore branché.</p>" + _activites(vue) + "</section>"
+        '<section class="carte" id="activites"><h2>Activités</h2>'
+        '<p class="note">Dix interactions les plus récentes du client, tous projets confondus.</p>'
+        + _activites(vue) + "</section>"
+    )
+
+
+def formulaire_note(lead_id: str, csrf: str, prefixe: str) -> str:
+    return (
+        '<section class="carte"><h2>Ajouter une note</h2>'
+        '<p>Note interne sur cette demande active, visible dans les activités du client. '
+        'Les notes déjà consignées restent dans l’historique.</p>'
+        f'<form method="post" action="{pages.e(prefixe)}/crm/lead/{pages._segment(lead_id)}/notes" class="pile">'
+        f'<input type="hidden" name="csrf" value="{pages.e(csrf)}">'
+        f'<input type="hidden" name="mutation_id" value="{uuid.uuid4()}">'
+        '<label for="resume-note">Votre note (300 caractères maximum)</label>'
+        '<textarea id="resume-note" name="resume" maxlength="300" required rows="4"></textarea>'
+        '<button type="submit">Enregistrer la note</button></form></section>'
     )
 
 
@@ -291,6 +311,9 @@ _HTTP_PAR_VERDICT = {
     "REJ-TRANSITION-ILLEGALE": 404,
     "REJ-PAGINATION-INVALIDE": 400,
     "REJ-ENUM-INVALIDE": 400,
+    "REJ-CONVERSATION-CLOSE": 409,
+    "REJ-CHAMP-VIDE": 400,
+    "REJ-CONTRAT-INVALIDE": 400,
 }
 
 
@@ -300,6 +323,10 @@ def creer_router(
     cnx_factory: Callable[[], Any],
     deps: Mapping[str, Any],
     prefixe: str,
+    ecriture_api: Callable[..., Session],
+    formulaire: Callable[..., Any],
+    objet_json: Callable[..., Any],
+    verifier_formulaire: Callable[..., None],
 ) -> APIRouter:
     router = APIRouter()
 
@@ -314,6 +341,9 @@ def creer_router(
             raise HTTPException(503, "CRM indisponible") from None
         except ValueError:
             raise HTTPException(400, "requête invalide") from None
+        return extraire_resultat(reponse)
+
+    def extraire_resultat(reponse: Any) -> Mapping[str, Any]:
         sortie = reponse.get("resultat") if isinstance(reponse, Mapping) and reponse.get("ok") is True else None
         if not isinstance(sortie, Mapping):
             raise HTTPException(503, "CRM temporairement indisponible")
@@ -323,6 +353,8 @@ def creer_router(
         code = verdict.get("code") if isinstance(verdict, Mapping) else None
         statut_http = _HTTP_PAR_VERDICT.get(code, 503)
         detail = "CRM indisponible" if statut_http == 503 else "dossier introuvable ou accès refusé"
+        if code == "REJ-CONVERSATION-CLOSE":
+            detail = "Cette demande est close : les nouvelles notes sont réservées aux demandes actives."
         raise HTTPException(statut_http, detail)
 
     def rendre(session: Session, titre: str, corps: str) -> HTMLResponse:
@@ -359,6 +391,45 @@ def creer_router(
         if not isinstance(client_id, str) or not client_id:
             raise HTTPException(503, "CRM temporairement indisponible")
         vue = lire(session, "m2_obtenir_client_360", {"client_id": client_id})
-        return rendre(session, "Dossier client", contenu_dossier(lead_id, client_id, vue, prefixe=prefixe))
+        return rendre(session, "Dossier client",
+                      contenu_dossier(lead_id, client_id, vue, prefixe=prefixe)
+                      + formulaire_note(lead_id, session.csrf, prefixe))
+
+    def ajouter_note(session: Session, lead_id: str, champs: Mapping[str, Any]) -> dict:
+        if _IDENTIFIANT.fullmatch(lead_id) is None:
+            raise HTTPException(404, "dossier introuvable")
+        if not isinstance(champs, Mapping) or set(champs) != {"resume", "mutation_id"}:
+            raise HTTPException(400, "champs de la note invalides")
+        resume, mutation = champs["resume"], champs["mutation_id"]
+        if (not isinstance(resume, str) or not resume.strip() or len(resume) > 300
+                or not isinstance(mutation, str) or not mutation.strip() or len(mutation) > 200):
+            raise HTTPException(400, "note ou identifiant de saisie invalide")
+        try:
+            with cnx_factory() as cnx:
+                reponse = metier.executer(cnx, deps, session, "m2_enregistrer_interaction",
+                                         {"lead_id": lead_id, "resume": resume}, mutation_id=mutation)
+                resultat = extraire_resultat(reponse)
+        except PermissionError:
+            raise HTTPException(403, "accès refusé") from None
+        except KeyError:
+            raise HTTPException(503, "notes temporairement indisponibles") from None
+        except ValueError as exc:
+            if isinstance(exc.__cause__, idempotence.MutationConflit):
+                raise HTTPException(409, "identifiant de saisie déjà utilisé pour une autre note") from None
+            raise HTTPException(400, "note invalide") from None
+        return {"ok": True, "resultat": resultat, "rejoue": reponse.get("rejoue") is True}
+
+    @router.post("/api/crm/lead/{lead_id}/notes")
+    async def note_api(lead_id: str, request: Request) -> Response:
+        session = ecriture_api(request)
+        return JSONResponse(ajouter_note(session, lead_id, await objet_json(request)))
+
+    @router.post("/crm/lead/{lead_id}/notes")
+    async def note_formulaire(lead_id: str, request: Request) -> Response:
+        session = session_page(request)
+        champs = await formulaire(request)
+        verifier_formulaire(champs, session)
+        ajouter_note(session, lead_id, {k: v for k, v in champs.items() if k != "csrf"})
+        return RedirectResponse(f"{prefixe}/crm/lead/{pages._segment(lead_id)}#activites", status_code=303)
 
     return router

@@ -40,3 +40,10 @@ La phase mobile suit les exigences serveur. Toute automatisation financière res
 
 Preuves externes à Source : chantier crm-secretariat-sonnet55-20261027-r1 et crm-root-qa-20261027-r1.
 Les captures originales restent privées ; seuls leurs besoins dépersonnalisés entrent dans le dépôt.
+
+## Tranche suivante : notes internes
+
+Le constat « aucune route d’écriture » ci-dessus décrit la première tranche historique. La suite ROOT
+ajoute la saisie interne authentifiée sur une demande active, documentée dans
+[NOTES-CLIENT-AUTHENTIFIEES.md](NOTES-CLIENT-AUTHENTIFIEES.md). La délégation Claude est close ;
+ces changements suivants sont réalisés par ROOT, avec tests et reçus distincts.

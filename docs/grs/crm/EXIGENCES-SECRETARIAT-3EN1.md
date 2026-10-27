@@ -4,6 +4,12 @@ Dérivé de `BRIEF-SECRETARIAT-20261027.md` et de `AUDIT-SECRETARIAT-3EN1.md` (m
 la colonne **Statut** dit l'état réel. Vocabulaire : **Livré-T1** (code de la tranche 1, non exécuté) · **Existant** (primitive de département
 nommée, sans écran cockpit) · **Partiel** · **Manquant**. « Non exécuté » : aucun test n'a pu être lancé dans ce snapshot.
 
+Mise à jour ROOT : la consultation T1 a été vérifiée séparément ; la tranche suivante ajoute les notes
+internes authentifiées (voir [NOTES-CLIENT-AUTHENTIFIEES.md](NOTES-CLIENT-AUTHENTIFIEES.md)).
+Les statuts Livré-T1 et la mention « non exécuté » ci-dessus décrivent le snapshot initial de Claude,
+pas une absence de QA ultérieure. CRM-02 reste partiel sans carte de cédule ; CRM-05/06 gagnent la saisie
+de note, mais pas le suivi des courriels ni leurs réponses.
+
 Principes transverses (critères d'acceptation communs à toute ligne)
 - **CA-0** Le CRM soutient le travail de l'IA mais reste utilisable à la main : toute action de l'IA est visible, corrigeable et reprise par un humain autorisé.
 - **CA-1** Aucune seconde vérité : le cockpit lit/écrit via les outils du département propriétaire (M2 commercial, M3 soumissions, M4 planning, M5 finance,

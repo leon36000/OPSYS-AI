@@ -327,6 +327,8 @@ def creer_application(
     )
     app.include_router(crm_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        ecriture_api=ecriture_api, formulaire=_formulaire, objet_json=_objet_json,
+        verifier_formulaire=verifier_formulaire,
     ))
     app.include_router(reception_digest_ui.creer_router(
         session_page=session_page, session_api=session_api, cnx_factory=cnx_factory,

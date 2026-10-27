@@ -58,7 +58,10 @@ _LECTURES_ADMIN_M9 = frozenset({
 # les appelle avec le rôle `admin` confirmé en base, jamais sans identité d'appareil ni sous `nathan_owner` seul.
 _LECTURES_ADMIN_M2 = frozenset({"m2_lister_leads", "m2_trouver_client_de_lead", "m2_obtenir_client_360"})
 _LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2
+_COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction"})
+_OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2
 COMMANDES = {
+    "m2_enregistrer_interaction": "m02-revenue-crm",
     "m1_importer_appel_manuellement": "m01-front-office",
     "m1_clore_transfert": "m01-front-office",
     "m1_consigner_suivi_rappel": "m01-front-office",
@@ -382,8 +385,10 @@ def executer(
     personne = identite.personne_active(cnx, session.utilisateur)
     if personne is None or not personne.roles.intersection({"nathan_owner", "admin"}):
         raise PermissionError("administration métier requise")
-    if nom in _LECTURES_ADMIN and "admin" not in personne.roles:
-        raise PermissionError("admin SQL requis pour les lectures M9 et M2")
+    if nom in _OUTILS_ADMIN and "admin" not in personne.roles:
+        raise PermissionError("admin SQL requis pour les outils M9 et M2")
+    if nom in _COMMANDES_ADMIN_M2 and session.expire <= datetime.now(UTC).timestamp():
+        raise PermissionError("session de note expirée")
     if nom == "m1_consigner_suivi_rappel" and session.expire <= datetime.now(UTC).timestamp():
         raise PermissionError("session de suivi expirée")
     if nom in {
@@ -558,7 +563,7 @@ def executer(
             )
         reponse = {**decision["reponse"], "approbation_id": ident}
     else:
-        role = "nathan_owner" if "nathan_owner" in personne.roles and nom not in _LECTURES_ADMIN else "admin"
+        role = "nathan_owner" if "nathan_owner" in personne.roles and nom not in _OUTILS_ADMIN else "admin"
         with (
             contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, role, source="console")),
             contexte.appeler_en_tant_que(departement, origine=departement),

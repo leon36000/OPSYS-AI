@@ -188,8 +188,8 @@ def test_dossier_affiche_client_projets_sections_et_activites_sans_faux_boutons(
     # Activités réelles de M2, échappées, en heure de Montréal.
     assert "Rappeler pour la visite &lt;b&gt;fictive&lt;/b&gt;" in texte and "<b>fictive</b>" not in texte
     assert "2026-09-02 10:30" in texte and "admin.fictif" in texte
-    # Aucune écriture ni envoi : le seul formulaire POST est la déconnexion du gabarit.
-    assert texte.count('method="post"') == 1 and f'action="{PREFIXE}/deconnexion"' in texte
+    # Deux formulaires internes : note et déconnexion ; aucun envoi externe.
+    assert texte.count('method="post"') == 2 and f'action="{PREFIXE}/deconnexion"' in texte
     assert "Envoyer" not in texte and "mailto:" not in texte
     for outil in ("m2_lister_leads", "m2_obtenir_client_360", "m2_trouver_client_de_lead", "m3_lister_devis",
                   "m5_lire_rentabilite_chantier", "m4_lister_interventions"):
@@ -257,3 +257,107 @@ def test_decalage_trop_long_refuse_nominalement(client_crm):
     _connecter(client_crm, "admin.fictif")
     reponse = client_crm.get("/crm?decalage=" + "9" * 5000)
     assert reponse.status_code == 400
+
+
+# Notes internes fictives : ajout par la secrétaire, jamais un courriel client.
+def _notes_m2(session):
+    from opsys import stockage
+    with session():
+        return [m for m in stockage.maillons("m02-revenue-crm", "principal") if m.get("type_entree") == "interaction"]
+
+
+def _headers_note(client):
+    return {"x-csrf-token": client.get("/api/session").json()["csrf"]}
+
+
+def test_note_api_auteur_serveur_idempotence_conflit_et_affichage(client_crm, session):
+    _connecter(client_crm, "admin.fictif")
+    headers = _headers_note(client_crm)
+    avant = _notes_m2(session)
+    charge = {"mutation_id": "note-fictive-1", "resume": "Visite fictive <b>à confirmer</b>"}
+    route = "/api/crm/lead/lead-fictif-001/notes"
+    premier = client_crm.post(route, json=charge, headers=headers)
+    assert premier.status_code == 200, premier.text
+    notes = _notes_m2(session)
+    assert len(notes) == len(avant) + 1
+    assert notes[-1]["auteur"] == "admin.fictif" and notes[-1]["resume"] == charge["resume"]
+    assert notes[-1]["horodatage"] not in (H0, H1, H2)
+    rejoue = client_crm.post(route, json=charge, headers=headers)
+    assert rejoue.status_code == 200 and rejoue.json()["rejoue"] is True
+    assert _notes_m2(session) == notes
+    conflit = client_crm.post(route, json={**charge, "resume": "Autre note fictive"}, headers=headers)
+    assert conflit.status_code == 409 and _notes_m2(session) == notes
+    page = client_crm.get("/crm/lead/lead-fictif-001").text
+    assert "Visite fictive &lt;b&gt;à confirmer&lt;/b&gt;" in page
+    assert "Visite fictive <b>" not in page
+
+
+def test_note_formulaire_avec_csrf_et_redirection(client_crm, session):
+    import re
+    _connecter(client_crm, "admin.fictif")
+    page = client_crm.get("/crm/lead/lead-fictif-001").text
+    assert 'maxlength="300"' in page and "Ajouter une note" in page
+    mutation = re.search(r'name="mutation_id" value="([^"]+)"', page).group(1)
+    csrf = client_crm.get("/api/session").json()["csrf"]
+    data = {"csrf": csrf, "mutation_id": mutation, "resume": "Note secrétaire FICTIVE"}
+    r = client_crm.post("/crm/lead/lead-fictif-001/notes", data=data, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == PREFIXE + "/crm/lead/lead-fictif-001#activites"
+    assert _notes_m2(session)[-1]["resume"] == data["resume"]
+
+
+@pytest.mark.parametrize("charge", [
+    {"resume": "sans mutation"}, {"mutation_id": "", "resume": "vide"},
+    {"mutation_id": "fictif", "resume": " "}, {"mutation_id": "fictif", "resume": "x" * 301},
+    {"mutation_id": "fictif", "resume": "fictif", "auteur": "quelquun"},
+    {"mutation_id": "fictif", "resume": "fictif", "horodatage": H0},
+    {"mutation_id": "fictif", "resume": 42},
+])
+def test_note_champs_invalides_necrit_pas(client_crm, session, charge):
+    _connecter(client_crm, "admin.fictif")
+    avant = _instantane_base(session)
+    r = client_crm.post("/api/crm/lead/lead-fictif-001/notes", json=charge, headers=_headers_note(client_crm))
+    assert r.status_code == 400 and _instantane_base(session) == avant
+
+
+def test_note_csrf_role_revoque_et_owner_seul_refuses(client_crm, session):
+    _connecter(client_crm, "admin.fictif")
+    route = "/api/crm/lead/lead-fictif-001/notes"
+    charge = {"mutation_id": "note-acces-fictive", "resume": "Note FICTIVE"}
+    avant = _notes_m2(session)
+    assert client_crm.post(route, json=charge).status_code == 403
+    assert client_crm.post("/crm/lead/lead-fictif-001/notes", data=charge).status_code == 403
+    headers = _headers_note(client_crm)
+    assert client_crm.post(route, json=charge, headers=headers).status_code == 200
+    avant = _notes_m2(session)  # même mutation déjà acceptée : le retrait interdit aussi son rejeu
+    with session() as cnx:
+        identite.retirer_role(cnx, "admin.fictif", "admin")
+    assert client_crm.post(route, json=charge, headers=headers).status_code == 403
+    _connecter(client_crm, "nathan")
+    assert client_crm.post(route, json=charge, headers=_headers_note(client_crm)).status_code == 403
+    assert _notes_m2(session) == avant
+
+
+def test_note_lead_inconnu_et_clos_refuses(client_crm, session):
+    _connecter(client_crm, "admin.fictif")
+    headers = _headers_note(client_crm)
+    avant = _notes_m2(session)
+    charge = {"mutation_id": "absent-fictif", "resume": "Note FICTIVE"}
+    assert client_crm.post("/api/crm/lead/inconnu-fictif/notes", json=charge, headers=headers).status_code == 404
+    with session():
+        transition = outils_m2.transitionner_statut("lead-fictif-001", "perdu", H2, motif="Projet fictif abandonné")
+        assert transition["accepte"]
+    assert client_crm.post("/api/crm/lead/lead-fictif-001/notes", json={**charge, "mutation_id": "clos-fictif"},
+                           headers=headers).status_code == 409
+    assert _notes_m2(session) == avant
+
+
+def test_note_session_expiree_refusee(client_crm, session, monkeypatch):
+    from opsys.console import securite
+    _connecter(client_crm, "admin.fictif")
+    headers = _headers_note(client_crm)
+    avant = _notes_m2(session)
+    futur = securite.time.time() + 100000
+    monkeypatch.setattr(securite.time, "time", lambda: futur)
+    r = client_crm.post("/api/crm/lead/lead-fictif-001/notes",
+                        json={"mutation_id": "expire-fictif", "resume": "Note FICTIVE"}, headers=headers)
+    assert r.status_code == 401 and _notes_m2(session) == avant
