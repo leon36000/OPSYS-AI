@@ -45,6 +45,7 @@ LECTURES = {
     "m9_observations_chantier_periode": "m09-strategic-intelligence",
     "m9_rapport_activite_periode": "m09-strategic-intelligence",
     # CRM secrétariat (répertoire et dossier client) : lectures pures de la vérité commerciale M2.
+    "m4_lire_cedule_semaine": "m04-field-ops",
     "m2_lister_leads": "m02-revenue-crm",
     "m2_trouver_client_de_lead": "m02-revenue-crm",
     "m2_obtenir_client_360": "m02-revenue-crm",
@@ -65,7 +66,8 @@ _LECTURES_ADMIN_M2 = frozenset({
     "m2_reconcilier_memoire_contact_client",
 })
 _LECTURES_ADMIN_M3 = frozenset({"m3_lister_devis_lead_admin", "m3_lire_devis"})
-_LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3
+_LECTURES_ADMIN_M4 = frozenset({"m4_lire_cedule_semaine"})
+_LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3 | _LECTURES_ADMIN_M4
 _COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction", "m2_corriger_contact_client"})
 _OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2
 COMMANDES = {
@@ -395,7 +397,7 @@ def executer(
     if personne is None or not personne.roles.intersection({"nathan_owner", "admin"}):
         raise PermissionError("administration métier requise")
     if nom in _OUTILS_ADMIN and "admin" not in personne.roles:
-        raise PermissionError("admin SQL requis pour les outils M9, M2 et M3")
+        raise PermissionError("admin SQL requis pour cet outil métier")
     if nom in _COMMANDES_ADMIN_M2 and session.expire <= datetime.now(UTC).timestamp():
         raise PermissionError("session de note expirée")
     if nom == "m1_consigner_suivi_rappel" and session.expire <= datetime.now(UTC).timestamp():

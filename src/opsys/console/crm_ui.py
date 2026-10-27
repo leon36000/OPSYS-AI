@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 import uuid
 from collections.abc import Callable, Iterable, Mapping
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -27,7 +27,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from .. import idempotence, tableau_de_bord
-from . import metier, pages
+from . import cedule_ui, metier, pages
 from .securite import Session
 
 LIMITE_PAGE = 20  # = m2_revenue_crm.liste_leads.LIMITE_DEFAUT : la page que M2 rend sans argument de taille
@@ -70,7 +70,7 @@ SECTIONS = (
     ("bons_commande", "Bons de commande", "M6 — matériaux", "partiel",
      "Bons de commande structurés par articles dans M6 ; la grosse note libre n'existe pas encore."),
     ("bons_travail", "Bons de travail", "M4 — planning", "existant",
-     "Interventions et cédule dans M4 ; la fenêtre planifiée n'y est pas encore publiée."),
+     "Cédule hebdomadaire datée accessible depuis le répertoire CRM ; bons de travail détaillés non affichés ici."),
     ("couts", "Coûts des travaux", "M5 — finance (avec M6 et M4)", "existant",
      "Rentabilité et écarts prévu/réel dans M5, M3 et M6 ; non affichés ici pour l'instant."),
     ("factures", "Factures", "M5 — finance", "partiel",
@@ -195,6 +195,7 @@ def contenu_repertoire(page: Mapping[str, Any], *, statut: str, prefixe: str, re
         )
     return (
         '<section class="carte"><h2>Répertoire clients et prospects</h2>'
+        f'<p><a href="{pages.e(prefixe)}/crm/cedule">Cédule hebdomadaire des équipes</a></p>'
         '<p class="note">Lecture seule : recherche dans M2, sur tous les dossiers autorisés avant pagination. '
         'Les termes sont littéraux, sans distinction de casse ou d’accents. '
         'La correction des coordonnées reste à venir.</p>'
@@ -533,6 +534,51 @@ def creer_router(
         page = lire(session, "m2_lister_leads", arguments)
         return rendre(session, "Répertoire CRM",
                       contenu_repertoire(page, statut=statut, prefixe=prefixe, recherche=recherche))
+
+    @router.get("/crm/cedule", response_class=HTMLResponse)
+    def cedule_semaine(request: Request) -> Response:
+        session = session_page(request)
+        params = request.query_params
+        if set(params) - {"debut_semaine"} or len(params.getlist("debut_semaine")) > 1:
+            raise HTTPException(400, "requête invalide")
+        brut = params.get("debut_semaine")
+        if brut is None:
+            aujourd_hui = datetime.now(ZoneInfo(FUSEAU)).date()
+            brut = (aujourd_hui - timedelta(days=aujourd_hui.weekday())).isoformat()
+        try:
+            cedule_ui.lundi(brut)
+        except ValueError:
+            raise HTTPException(400, "Choisir un lundi au format AAAA-MM-JJ (1900–2199).") from None
+        vue = lire(session, "m4_lire_cedule_semaine", {"debut_semaine": brut})
+        if vue.get("debut_semaine") != brut or not isinstance(vue.get("interventions"), list):
+            raise HTTPException(503, "Cédule M4 indisponible")
+        # Valider la projection AVANT toute résolution de dossiers (borne de 200 créneaux incluse).
+        try:
+            cedule_ui.contenu(vue, set(), prefixe)
+            leads = {ligne["lead_id"] for ligne in vue["interventions"]}
+            if any(not isinstance(lead, str) for lead in leads):
+                raise ValueError("lead M4 illisible")
+        except (ValueError, KeyError, TypeError, AttributeError):
+            raise HTTPException(503, "Cédule M4 indisponible") from None
+        # Liens seulement vers les dossiers réellement reconnus par M2. Une absence n'est pas une panne.
+        dossiers = set()
+        for lead in sorted(leads):
+            if not isinstance(lead, str) or _IDENTIFIANT.fullmatch(lead) is None:
+                continue
+            try:
+                lien = lire(session, "m2_trouver_client_de_lead", {"lead_id": lead})
+            except HTTPException as exc:
+                if exc.status_code == 404:
+                    continue
+                raise
+            if lien.get("lead_id") != lead or not lien.get("client_id"):
+                raise HTTPException(503, "Lien CRM indisponible")
+            dossiers.add(lead)
+        try:
+            corps = cedule_ui.contenu(vue, dossiers, prefixe)
+        except (ValueError, KeyError, TypeError):
+            raise HTTPException(503, "Cédule M4 indisponible") from None
+        return rendre(session, "Cédule hebdomadaire", corps)
 
     @router.get("/crm/lead/{lead_id}", response_class=HTMLResponse)
     def dossier(lead_id: str, request: Request) -> Response:

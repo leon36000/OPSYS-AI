@@ -96,6 +96,18 @@ summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .jauge-titre span { color: var(--attenue); }
 meter { width: 100%; height: 1rem; }
 .connexion { max-width: 380px; }
+.cedule-navigation { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+.cedule-semaine { min-width: 1100px; table-layout: fixed; }
+.cedule-semaine caption { text-align: left; padding: .5rem; color: var(--attenue); }
+.cedule-semaine td { vertical-align: top; }
+.cedule-semaine th { overflow-wrap: anywhere; }
+.cedule-job { padding: .6rem; margin-bottom: .65rem; border: 1px solid var(--bordure);
+  border-left: 4px solid var(--accent); border-radius: var(--rayon); background: var(--surface);
+  overflow-wrap: anywhere; }
+.cedule-job p { margin: .25rem 0; }
+.cedule-job details { font-size: .8rem; }
+.cedule-validite { font-size: .8rem; }
+.cedule-perimee { border-left-color: var(--alerte); background: var(--alerte-fond); }
 @media (max-width: 600px) { main { padding: 1rem; } .grille { grid-template-columns: 1fr; } }
 """
 
