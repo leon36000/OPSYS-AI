@@ -38,8 +38,7 @@ def valider(charge):
     return deepcopy(charge)
 
 
-def memoriser(maillons, charge):
-    source = valider(charge)
+def _charger(maillons):
     if len(maillons) > MAX_SOURCES:
         raise ValueError('Mémoire de configuration hors borne')
     snapshot = list(maillons)
@@ -60,6 +59,20 @@ def memoriser(maillons, charge):
             vus.add(cle)
     except (KeyError, TypeError, ValueError):
         raise ValueError('Mémoire de configuration invalide') from None
+    return snapshot
+
+
+def lire(maillons, fait_id):
+    if type(fait_id) is not str or re.fullmatch(r'[0-9a-f]{64}', fait_id) is None:
+        raise ValueError('Identité de référence configuration invalide')
+    snapshot = _charger(maillons)
+    return deepcopy(next((m for m in snapshot if m['fait_id'] == fait_id), None))
+
+
+def memoriser(maillons, charge):
+    source = valider(charge)
+    snapshot = _charger(maillons)
+    chaine = Registre(list(snapshot))
     existant = next((m for m in snapshot if (m['source_genre'], m['source_rang']) ==
                      (source['source_genre'], source['source_rang'])), None)
     if existant is not None:

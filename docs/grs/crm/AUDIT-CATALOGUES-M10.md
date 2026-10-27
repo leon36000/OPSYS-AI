@@ -75,3 +75,31 @@ Statut : **références de versions confirmées sur HTTP/outbox/SQLite**. Leur c
 admin avec état de livraison reste à raccorder à l’interface. Aucune lecture de texte M10,
 consolidation sémantique de clauses, import courriel, navigateur natif ou PostgreSQL qualifié
 par ce jalon. M10 et CRM-07 restent PARTIAL.
+
+## Consultation admin de la preuve
+
+Les fiches matériaux, les modèles et leurs éditeurs de lignes affichent maintenant un
+indicateur privé, calculé par `catalogues_memoire.consulter` et rendu par
+`console/catalogue_memoire_ui.py`. La façade revalide l’admin actif et la session SQL avant
+lecture. Aucun outil générique, nouvelle portée appareil ou lecture de contenu n’est ouvert.
+
+`MEMORISE` exige ensemble : source canonique valide, publication exacte, reçu M10 `traite`
+concordant et maillon attendu dans une chaîne M10 `SENSITIVE` valide. Sans reçu, même si un
+maillon est présent, l’état reste en attente. Un reçu incohérent indique un conflit; échec,
+quarantaine et corruption sont distingués. Sans publication, la version est explicitement
+signalée comme non publiée; les GET ne déclenchent aucun rattrapage ni aucune écriture.
+
+`tests/test_console_catalogue_memoire.py` prouve les transitions par HTTP et bus réels,
+les réceptions absentes/échouées/en quarantaine, faux résultat, chaîne corrompue, version
+sans publication et révocation avant lecture. QA privée `catalog-status-v2` : 108 tests
+réussis, zéro échec/saut, 27,76 s; Ruff et vérificateur 291/173 réussis. Populations
+recoupées, non additives. Revue statique indépendante sans constat sur faux MEMORISE,
+autorité, chaîne ou effet des GET. V1 conservé : 107 réussites et une assertion de harnais
+qui exigeait à tort une outbox entièrement vide malgré les faits M2 de la fixture, plus
+deux imports à trier. La vérification porte désormais explicitement sur les types catalogue;
+l’assertion générale de zéro effet sur toute la base reste maintenue.
+
+La consultation de références est qualifiée sur HTTP/SQLite; la CI du jalon précédent
+continue et ces changements attendent une publication normale ultérieure. La mémoire de
+texte/clauses, recherche sémantique, navigateur natif, PostgreSQL et application mobile
+restent hors de ces preuves. Aucun statut global terminé n’est induit.

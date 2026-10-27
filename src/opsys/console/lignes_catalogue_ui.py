@@ -7,8 +7,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from . import catalogue_materiaux_ui as catalogue
+from . import catalogue_memoire_ui, pages, prefill_ui
 from . import modeles_soumission_ui as modeles
-from . import pages, prefill_ui
 
 CHAMPS = prefill_ui.ANCRE | {'csrf', 'mutation_id', 'revision_attendue'} | {
     f'{k}_{i}' for i in range(20) for k in ('ligne_id', 'description', 'selection')}
@@ -72,6 +72,9 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                  f'<p><a href="{pages.e(prefixe + catalogue.BASE)}">Gérer les matériaux</a></p>'
                  '<p>Choisir le nom et l’unité officiels. Les quantités et fournisseurs seront choisis dans le devis. '
                  'Changer de page recharge le formulaire : enregistrer les choix avant de changer de page.</p>')
+        if jeu['revision']:
+            corps += catalogue_memoire_ui.indicateur(
+                session, cnx_factory, 'm03-estimation', 'modeles_lignes_soumission', jeu['source_id'])
         for offset, label in [(max(0, debut - 25) if debut else None, 'Matériaux précédents'),
                               (page['suivant'], 'Matériaux suivants')]:
             if offset is not None:

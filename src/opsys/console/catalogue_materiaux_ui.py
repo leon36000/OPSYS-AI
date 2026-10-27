@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from .. import identite
-from . import metier, pages, prefill_ui
+from . import catalogue_memoire_ui, metier, pages, prefill_ui
 
 BASE = '/crm/materiaux'
 CHAMPS = {'materiau_id', 'nom', 'unite', 'actif', 'raison', 'revision_attendue', 'csrf', 'mutation_id'}
@@ -132,6 +132,8 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                  + ('Actif' if f['actif'] else 'Inactif')
                  + f'</p><p>Raison : {pages.e(f["raison"])}</p>'
                  f'<p>Auteur : {pages.e(f["auteur"])} · {pages.e(f["horodatage"])}</p>')
+        corps += catalogue_memoire_ui.indicateur(
+            session, cnx_factory, 'm06-material-control', 'catalogue_materiaux', f['source_id'])
         for version, label in [(f['revision'] - 1, 'Version précédente'), (f['revision'] + 1, 'Version suivante')]:
             if 1 <= version <= courant['revision']:
                 lien = base + '/' + pages._segment(materiau_id) + '?version=' + str(version)

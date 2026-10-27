@@ -7,8 +7,8 @@ from urllib.parse import parse_qs, urlencode
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
+from . import catalogue_memoire_ui, pages
 from . import modeles_soumission_ui as modeles
-from . import pages
 
 ANCRE = {'modele_id', 'modele_revision', 'modele_source'}
 LIGNES = ANCRE | {'csrf', 'mutation_id', 'revision_attendue'} | {
@@ -120,6 +120,9 @@ def creer_router(*, session_page, cnx_factory, prefixe, verifier_formulaire, ver
                  f'<form method="post" action="{pages.e(action)}" class="pile">'
                  + caches({**dict(p), 'csrf': session.csrf, 'mutation_id': str(uuid.uuid4()),
                            'revision_attendue': jeu['revision']}))
+        if jeu['revision']:
+            corps += catalogue_memoire_ui.indicateur(
+                session, cnx_factory, 'm03-estimation', 'modeles_lignes_soumission', jeu['source_id'])
         for i in range(20):
             ligne = jeu['lignes'][i] if i < len(jeu['lignes']) else {'ligne_id': str(uuid.uuid4())}
             corps += f'<fieldset><legend>Ligne {i+1}</legend>' + caches({f'ligne_id_{i}': ligne['ligne_id']})

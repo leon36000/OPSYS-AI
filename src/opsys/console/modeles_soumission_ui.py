@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from .. import identite
-from . import metier, pages
+from . import catalogue_memoire_ui, metier, pages
 
 IDENTIFIANT = re.compile(r'[A-Za-z0-9_.:@-]{1,100}')
 CHAMPS = {'modele_id', 'titre', 'description', 'clauses', 'revision_attendue', 'csrf', 'mutation_id'}
@@ -173,6 +173,8 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                  f'<p>Auteur : {pages.e(m["auteur"]["personne"])} · {pages.e(m["horodatage"])}</p>'
                  f'<h3>Description des travaux</h3><pre>\n{pages.e(m["description"])}</pre>'
                  f'<h3>Clauses et notes</h3><pre>\n{pages.e(m["clauses"])}</pre></section>')
+        corps += catalogue_memoire_ui.indicateur(
+            session, cnx_factory, 'm03-estimation', 'modeles_soumission', m['source_id'])
         for version, label in [(m['revision'] - 1, 'Version précédente'), (m['revision'] + 1, 'Version suivante')]:
             if 1 <= version <= m['revision_courante']:
                 lien = base + '/' + pages._segment(modele_id) + '?version=' + str(version)

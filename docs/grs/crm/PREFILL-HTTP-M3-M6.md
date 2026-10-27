@@ -166,3 +166,7 @@ Les nouvelles versions de modèles textuels, de lignes et de fiches matériaux p
 maintenant une référence vers M10 dans leur transaction. M10 valide la source puis mémorise
 uniquement rang, révision, empreinte et horodatage dans une chaîne privée. Aucun texte ou
 prix du modèle n’y est copié. Voir [audit et preuves M10](AUDIT-CATALOGUES-M10.md).
+
+Les fiches et modèles affichent l’état de preuve M10 après revalidation de l’admin SQL :
+en attente, reçu et mémoire concordants, échec, quarantaine ou preuve à vérifier. Une
+publication seule ne donne jamais le badge mémorisé. Cette consultation est en lecture seule.

@@ -10,7 +10,7 @@ SOURCES = {
 }
 
 
-def publier(producteur, registre, source_hash):
+def _reference(producteur, registre, source_hash):
     genre, type_evenement = SOURCES[(producteur, registre)]
     journal = stockage.maillons(producteur, registre)
     if len(journal) > 10000:
@@ -23,7 +23,14 @@ def publier(producteur, registre, source_hash):
     fait_id = hashlib.sha256(f'catalogue-reference-v1:{genre}:{rang}:{revision}:{source_hash}'.encode()).hexdigest()
     charge = dict(fait_id=fait_id, source_genre=genre, source_rang=rang, source_revision=revision,
                   source_sha256=source_hash, horodatage=m['horodatage'])
-    return evenements.publier(type_evenement, producteur, charge, evenement_id='catalogue-reference-' + fait_id)
+    verifier_source(genre, rang, revision, source_hash, m['horodatage'])
+    return type_evenement, charge
+
+
+def publier(producteur, registre, source_hash):
+    type_evenement, charge = _reference(producteur, registre, source_hash)
+    return evenements.publier(type_evenement, producteur, charge,
+                              evenement_id='catalogue-reference-' + charge['fait_id'])
 
 
 def verifier_source(genre, rang, revision, source_hash, horodatage):
@@ -59,3 +66,45 @@ def verifier_source(genre, rang, revision, source_hash, horodatage):
     if (source['source_id'] != source_hash or source['revision'] != revision or source['horodatage'] != horodatage
             or original.get('source_id') != source_hash or original.get('revision') != revision):
         raise ValueError('Source de référence configuration absente ou incohérente')
+
+
+def consulter(producteur, registre, source_hash):
+    """Projection de preuve pour une façade autorisée : publié ne veut pas dire mémorisé."""
+    from m10_memoire import references_configuration
+    from sqlalchemy import select
+
+    from .stockage import codec
+    from .stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
+
+    type_evenement, attendu = _reference(producteur, registre, source_hash)
+    eid = 'catalogue-reference-' + attendu['fait_id']
+    cnx = stockage.connexion_courante()
+    publication = cnx.execute(select(EVENEMENTS_SORTANTS).where(
+        EVENEMENTS_SORTANTS.c.evenement_id == eid)).mappings().one_or_none()
+    recu = cnx.execute(select(EVENEMENTS_RECUS).where(
+        (EVENEMENTS_RECUS.c.evenement_id == eid) &
+        (EVENEMENTS_RECUS.c.consommateur == 'm10-memoire'))).mappings().one_or_none()
+    memoire = references_configuration.lire(
+        stockage.maillons('m10-memoire', references_configuration.REGISTRE), attendu['fait_id'])
+    conflit = memoire is not None and any(memoire[k] != v for k, v in attendu.items())
+    if publication is not None:
+        conflit |= (publication['producteur'] != producteur or publication['type_evenement'] != type_evenement
+                    or codec.decoder(publication['charge']) != attendu)
+    resultat = codec.decoder(recu['resultat']) if recu is not None and recu['resultat'] else None
+    livre = (recu is not None and recu['statut'] == 'traite' and memoire is not None
+             and isinstance(resultat, dict) and resultat.get('memorise') is True
+             and resultat.get('fait_id') == attendu['fait_id'] and resultat.get('ligne_id') == memoire['ligne_id'])
+    if recu is not None and recu['statut'] == 'traite' and not livre:
+        conflit = True
+    if publication is None and (recu is not None or memoire is not None):
+        conflit = True
+    if conflit:
+        etat = 'CONFLIT'
+    elif publication is None:
+        etat = 'NON_PUBLIE'
+    elif livre:
+        etat = 'MEMORISE'
+    else:
+        etat = {'echec': 'ECHEC_LIVRAISON', 'quarantaine': 'QUARANTAINE'}.get(
+            recu['statut'] if recu is not None else None, 'EN_ATTENTE')
+    return {'etat': etat, 'revision': attendu['source_revision']}
