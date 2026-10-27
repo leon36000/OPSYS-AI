@@ -180,6 +180,9 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
         if m['revision'] == m['revision_courante'] and ecriture():
             corps += ('<section class="carte"><h2>Réviser ce modèle</h2>'
                       + formulaire(session, prefixe, m) + '</section>')
+        lien_lignes = base + '/' + pages._segment(modele_id) + '/lignes?' + urlencode({
+            'modele_id': modele_id, 'modele_revision': m['revision'], 'modele_source': m['source_id']})
+        corps += f'<p><a href="{pages.e(lien_lignes)}">Configurer les lignes réutilisables</a></p>'
         return rendre(session, 'Version du modèle', corps)
 
     return router

@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlencode
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 
-from . import metier, pages
+from . import metier, pages, prefill_ui
 from . import modeles_soumission_ui as modeles
 
 CHAMPS_LIGNE = ('description', 'quantite', 'unite', 'cout_unitaire', 'reference_besoin_materiau')
@@ -92,7 +92,13 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                         {'modele_id': p['modele_id'], 'version': modeles.entier(p['version'])})
             if m['source_id'] != p['source']:
                 raise HTTPException(409, 'Source du modèle différente; reprendre la sélection')
-            return rendre(session, 'Nouvelle soumission', formulaire(session, base, m))
+            query = urlencode({'modele_id': m['modele_id'], 'modele_revision': m['revision'],
+                               'modele_source': m['source_id']})
+            lien = prefixe + '/crm/lead/' + pages._segment(lead_id) + '/soumission-preremplie?' + query
+            edition = prefixe + '/crm/modeles-soumission/' + pages._segment(m['modele_id']) + '/lignes?' + query
+            liens = (f'<p><a href="{pages.e(lien)}">Utiliser les lignes et tarifs M6</a> · '
+                     f'<a href="{pages.e(edition)}">Configurer les lignes du modèle</a></p>')
+            return rendre(session, 'Nouvelle soumission', liens + formulaire(session, base, m))
         if set(p) - {'decalage', 'source_attendue'}:
             raise HTTPException(400, 'Paramètres invalides')
         r = appeler(session, 'm3_lister_modeles_soumission',
@@ -146,4 +152,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
             'Content-Security-Policy': "sandbox; default-src 'none'",
             'Content-Disposition': f'attachment; filename="soumission-brouillon.{format}"'})
 
+    router.include_router(prefill_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, prefixe=prefixe, verifier_formulaire=verifier_formulaire,
+        verifier_lead=verifier_lead, rendre=rendre, appeler=appeler))
     return router

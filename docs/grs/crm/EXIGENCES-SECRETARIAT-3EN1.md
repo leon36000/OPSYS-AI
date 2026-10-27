@@ -223,7 +223,7 @@ CRM03 : [audit initial](AUDIT-AGENDA-VENDEURS.md), [contrat et limites de la tra
 
 CRM05 : [rencontres par projet](RENCONTRES-DOSSIER-M2.md), pagination sourcée, anciens vendeurs conservés. Les courriels et autres sections restent ouverts.
 
-CRM07 : [catalogue textuel versionné](MODELES-SOUMISSION-VERSIONNES-M3.md). [Version figée et rendu client](RATTACHEMENT-MODELE-DEVIS.md) raccordés; lignes préremplies, M10 et qualification navigateur restent ouverts.
+CRM07 : [catalogue textuel versionné](MODELES-SOUMISSION-VERSIONNES-M3.md). [Version figée et rendu client](RATTACHEMENT-MODELE-DEVIS.md) raccordés; [lignes et tarifs préremplis](PREFILL-HTTP-M3-M6.md) qualifiés en HTTP/SQLite. M10 et navigateur restent ouverts.
 
 CRM07 — [Rattachement explicite aux nouveaux devis](RATTACHEMENT-MODELE-DEVIS.md) : textes figés et documents;
-les lignes préremplies, mobile/M10 et qualifications navigateur/PostgreSQL restent ouverts.
+les lignes et tarifs explicites sont raccordés en [HTTP/SQLite](PREFILL-HTTP-M3-M6.md); mobile/M10 et qualifications navigateur/PostgreSQL restent ouverts.

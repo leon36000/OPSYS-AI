@@ -1,8 +1,8 @@
 # Lignes de modèles et sélection de coûts M6 — composants préparés
 
 27 octobre 2026. Suite de [l’audit préalable](AUDIT-LIGNES-PREFILL-M3-M6.md).
-Statut CRM-07 : **PARTIAL**. Les composants et ports privés sont testés; le formulaire de devis
-ne les appelle pas encore. Aucun préremplissage de lignes annoncé comme livré.
+Statut CRM-07 : **PARTIAL**. Composants, ports privés et formulaires HTTP/SQLite sont
+qualifiés localement : [parcours et limites](PREFILL-HTTP-M3-M6.md).
 
 ## Objectif et architecture
 
@@ -71,10 +71,8 @@ réussis. La sélection recoupe les précédentes; ne pas additionner les popula
 
 ## Prochaine capacité
 
-Ajouter les formulaires et
-le parcours HTTP/SQLite réel modèle → tarif choisi → devis → HTML/PDF. Vérifier révocation,
-CSRF, source modifiée GET/POST, double clic, rollback et absence de coût/fournisseur dans
-les documents clients. Les modèles manuels restent compatibles. L’import courriel,
+Les formulaires et le parcours HTTP/SQLite sont désormais qualifiés dans [PREFILL-HTTP-M3-M6.md](PREFILL-HTTP-M3-M6.md).
+Améliorer ensuite la sélection par libellé et qualifier le bus complet sans rejouer les anciennes intentions. Les modèles manuels restent compatibles. L’import courriel,
 M10, PostgreSQL, navigateur natif et mobile restent des capacités distinctes à qualifier.
 
 Les commandes réelles, paiements, envois externes et changements sensibles gardent les
@@ -110,5 +108,5 @@ Cette preuve ne couvre pas encore le bus complet ni un formulaire HTTP de prére
 
 La revue indépendante a signalé deux défauts corrigés : horloge ambiante M3 et perte du
 matériau lors du transfert au prévu M6. Le rouge `ports-v1` (conformité et lint) est conservé.
-Le statut reste **PARTIAL** : prochaine étape, formulaires serveur avec CSRF, puis parcours
-HTTP/SQLite et documents clients sans fuite des coûts. Aucun envoi externe effectué.
+Le statut reste **PARTIAL**. Le jalon suivant HTTP/SQLite est maintenant décrit dans
+[PREFILL-HTTP-M3-M6.md](PREFILL-HTTP-M3-M6.md). Aucun envoi externe effectué.
