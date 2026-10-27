@@ -43,19 +43,22 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 
 import yaml
 from sqlalchemy import select
 
-from opsys import approbations, contexte, evenements, identite, jetons, stockage
+from opsys import approbations, contexte, evenements, idempotence, identite, jetons, stockage
 from opsys.outils import Autonomie, Niveau, Outil
 from opsys.stockage import codec
 from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 
 from . import (
     acces,
+    agenda_vendeurs,
     assignation,
     clients,
     consentements,
@@ -2480,4 +2483,125 @@ def outils() -> tuple[Outil, ...]:
             fonction=marquer_chantier_termine,
             autonomie=Autonomie.T1,
         ),
+        *_outils_agenda(),
+    )
+
+# CRM03 : port admin console privé. Aucune portée appareil ou agent ajoutée.
+_META_AGENDA = ContextVar("m2_agenda_meta", default=None)
+
+
+@contextmanager
+def contexte_agenda(meta):
+    jeton = _META_AGENDA.set(meta)
+    try:
+        yield
+    finally:
+        _META_AGENDA.reset(jeton)
+
+
+def _autoriser_agenda():
+    n = agenda_vendeurs
+    cnx, appelante = stockage.connexion_courante(), contexte.identite_appelante()
+    if (cnx is None or appelante is None or appelante.role != "admin" or appelante.source != "console"
+            or contexte.departement_origine_appelante() != "console" or contexte.appel_provient_du_mcp()):
+        raise n.Refus("IDENTITE")
+    signataire = approbations.signataire_valide(cnx, appelante)
+    if signataire is None or signataire.role != "admin":
+        raise n.Refus("IDENTITE")
+    return {"personne": signataire.personne, "role": "admin"}
+
+
+def _registres_agenda():
+    n = agenda_vendeurs
+    principal = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+    agenda = stockage.maillons(_DEPARTEMENT, n.REGISTRE)
+    if len(principal) > n.MAX_SOURCES or len(agenda) > n.MAX_SOURCES:
+        raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+    return Registre(list(principal)), Registre(agenda)
+
+
+def enregistrer_rendez_vous(rendez_vous_id, lead_id, vendeur_id, debut, fin, titre, statut, revision_attendue):
+    n = agenda_vendeurs
+    try:
+        auteur = _autoriser_agenda()
+        cnx = stockage.connexion_courante()
+        if cnx.dialect.name != "sqlite":
+            raise n.Refus("ECRITURE-NON-QUALIFIEE")
+        meta, reception = _META_AGENDA.get(), contexte.horodatage_reception()
+        if (not isinstance(meta, idempotence.Meta) or reception is None
+                or meta.appareil != "console:" + auteur["personne"] or reception.appareil != meta.appareil
+                or reception.recu_le.utcoffset() is None):
+            raise n.Refus("MUTATION-ABSENTE")
+        # Une annulation historique reste possible quand un vendeur quitte l'entreprise.
+        if statut == "actif" and _vendeur_cible(vendeur_id)[1] is not None:
+            raise n.Refus("VENDEUR-INACTIF")
+        arguments = {"rendez_vous_id": rendez_vous_id, "lead_id": lead_id, "vendeur_id": vendeur_id,
+                     "debut": debut, "fin": fin, "titre": titre, "statut": statut,
+                     "revision_attendue": revision_attendue}
+        mutation = {"appareil": meta.appareil, "cle": meta.cle,
+                    "empreinte_arguments": encodage.encoder_canonique(arguments)}
+        principal, agenda = _registres_agenda()
+        with cnx.begin_nested():
+            resultat = n.enregistrer(principal, agenda, **arguments, auteur=auteur, mutation=mutation,
+                                    horodatage=reception.recu_le.isoformat(),
+                                    limite_sortie=contexte.limite_sortie() or 65536)
+            if not resultat.get("rejoue"):
+                from opsys.etat import journaliser
+
+                r = resultat["resultat"]
+                journaliser(cnx, auteur["personne"], "m2.rendez_vous", r["source_id"],
+                            {"revision": r["revision"], "rendez_vous_id": r["rendez_vous_id"]})
+            return resultat
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lire_agenda_vendeur(vendeur_id, debut_periode, fin_periode):
+    n = agenda_vendeurs
+    try:
+        _autoriser_agenda()
+        # La lecture historique admin ne dépend pas de l'activité actuelle du vendeur.
+        if identite.personne(stockage.connexion_courante(), vendeur_id) is None:
+            raise n.Refus("VENDEUR-INCONNU")
+        principal, agenda = _registres_agenda()
+        return n.lire(principal, agenda, vendeur_id, debut_periode, fin_periode,
+                      limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def historique_rendez_vous(rendez_vous_id):
+    n = agenda_vendeurs
+    try:
+        _autoriser_agenda()
+        principal, agenda = _registres_agenda()
+        return n.historique(principal, agenda, rendez_vous_id, limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _outils_agenda():
+    identifiant = {"type": "string", "pattern": "^[A-Za-z0-9_.:@-]{1,200}$"}
+    instant = {"type": "string", "minLength": 1, "maxLength": 32}
+
+    def schema(proprietes):
+        return {"type": "object", "properties": proprietes, "required": list(proprietes),
+                "additionalProperties": False}
+
+    return (
+        Outil(nom="m2_enregistrer_rendez_vous",
+              description="Console admin privée : rendez-vous vendeur interne versionné, lié au lead M2. "
+                          "Pas de message client, de synchronisation Google ni de cédule M4.",
+              parametres=schema({"rendez_vous_id": identifiant, "lead_id": identifiant, "vendeur_id": identifiant,
+                                "debut": instant, "fin": instant, "titre": {"type": "string", "minLength": 1,
+                                "maxLength": 200}, "statut": {"type": "string", "enum": ["actif", "annule"]},
+                                "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 10000}}),
+              fonction=enregistrer_rendez_vous, autonomie=Autonomie.T1),
+        Outil(nom="m2_lire_agenda_vendeur",
+              description="Console admin privée : agenda d'un vendeur, dates de Montréal, source et conflits.",
+              parametres=schema({"vendeur_id": identifiant, "debut_periode": instant, "fin_periode": instant}),
+              fonction=lire_agenda_vendeur),
+        Outil(nom="m2_historique_rendez_vous",
+              description="Console admin privée : historique append-only d'un rendez-vous commercial.",
+              parametres=schema({"rendez_vous_id": identifiant}), fonction=historique_rendez_vous),
     )

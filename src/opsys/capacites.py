@@ -292,7 +292,8 @@ class Capacites:
         ticket_memoire: str | None = None,
     ) -> dict[str, Any]:
         """Revérifie et dispatch un outil Core profilé sous le verrou de sa ligne de profil."""
-        if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
+        if nom in {"m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",
+                   "m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
                    "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
                    "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
                    "m4_lire_page_cedule_semaine"}:
@@ -333,7 +334,8 @@ class Capacites:
         Une identité d'appareil seule permet une lecture T0/N0 ; toute autre opération
         exige l'enveloppe d'idempotence avant le répartiteur métier.
         """
-        if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
+        if nom in {"m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",
+                   "m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
                    "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
                    "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
                    "m4_lire_page_cedule_semaine"}:

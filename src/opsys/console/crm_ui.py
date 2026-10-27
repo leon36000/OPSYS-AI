@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 
 from .. import idempotence, tableau_de_bord
 from . import (
+    agenda_ui,
     annotations_cedule_ui,
     cedule_plan_ui,
     cedule_ui,
@@ -71,8 +72,8 @@ SECTIONS = (
      "Notes et interactions consignées dans M2 (les plus récentes du client), affichées plus bas."),
     ("suivi", "Suivi client", "M2 / M1 — courriels", "manquant",
      "Aucun journal des courriels envoyés et reçus par client : rien n'est présenté comme « envoyé » ou « livré »."),
-    ("rencontres", "Rencontres", "Agenda (à trancher)", "manquant",
-     "Pas d'agenda ni de rendez-vous reliés au dossier."),
+    ("rencontres", "Rencontres", "M2 — agenda commercial", "existant",
+     "Agenda vendeur accessible depuis le répertoire CRM ; historique des rencontres non intégré ici."),
     ("soumissions", "Soumissions", "M3 — estimation", "affiche",
      "Consultation des soumissions du projet via le lien du dossier. "
      "Modèles et clauses versionnés : à créer."),
@@ -205,6 +206,7 @@ def contenu_repertoire(page: Mapping[str, Any], *, statut: str, prefixe: str, re
     return (
         '<section class="carte"><h2>Répertoire clients et prospects</h2>'
         f'<p><a href="{pages.e(prefixe)}/crm/cedule">Cédule hebdomadaire des équipes</a></p>'
+        f'<p><a href="{pages.e(prefixe)}/crm/agenda">Agenda des vendeurs</a></p>'
         '<p class="note">Lecture seule : recherche dans M2, sur tous les dossiers autorisés avant pagination. '
         'Les termes sont littéraux, sans distinction de casse ou d’accents. '
         'La correction des coordonnées reste à venir.</p>'
@@ -832,6 +834,9 @@ def creer_router(
         ajouter_note(session, lead_id, {k: v for k, v in champs.items() if k != "csrf"})
         return RedirectResponse(f"{prefixe}/crm/lead/{pages._segment(lead_id)}#activites", status_code=303)
 
+    router.include_router(agenda_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire, rendre=rendre))
     router.include_router(annotations_cedule_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
         verifier_formulaire=verifier_formulaire, rendre=rendre))
