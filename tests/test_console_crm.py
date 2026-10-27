@@ -767,3 +767,33 @@ def test_historique_contact_refuse_seller_agent_roles_et_revocation(client_crm, 
         contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')
     ):
         assert outils_m2.lister_historique_contact_client(cid)['verdict']['code'] == 'REJ-IDENTITE-APPAREIL-INVALIDE'
+
+
+def test_diagnostic_memoire_contact_admin_lisible_sans_donnee_privee(client_crm, session):
+    from opsys import contexte
+    route = '/crm/lead/lead-fictif-001/contact/memoire'
+    assert client_crm.get(route, follow_redirects=False).status_code == 303
+    for personne in ['employe', 'nathan']:
+        _connecter(client_crm, personne)
+        assert client_crm.get(route).status_code == 403
+    _connecter(client_crm, 'admin.fictif')
+    assert 'Aucune référence' in client_crm.get(route).text
+    with session():
+        cid = outils_m2.trouver_client_de_lead('lead-fictif-001')['resultat']['client_id']
+    with session(), contexte.appele_par_appareil(
+        contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')
+    ):
+        assert outils_m2.corriger_contact_client(cid, {'nom': 'Coordonnée SECRÈTE FICTIVE'}, 0,
+                                                 'Motif SECRÈTE FICTIVE', H2)['accepte']
+    avant = _instantane_base(session)
+    page = client_crm.get(route)
+    assert page.status_code == 200 and page.headers['cache-control'] == 'no-store'
+    assert '1 corrections ; 2 références' in page.text and 'En attente de M10' in page.text
+    assert 'SECRÈTE' not in page.text and 'un@example.test' not in page.text
+    assert 'contact/memoire' in client_crm.get('/crm/lead/lead-fictif-001/contact/historique').text
+    for params in [{'decalage': '-1'}, {'revision_max': '2'}, {'limite': '500'}, {'replay': '1'}]:
+        assert client_crm.get(route, params=params).status_code == 400
+    assert _instantane_base(session) == avant
+    with session() as cnx:
+        identite.retirer_role(cnx, 'admin.fictif', 'admin')
+    assert client_crm.get(route).status_code == 403

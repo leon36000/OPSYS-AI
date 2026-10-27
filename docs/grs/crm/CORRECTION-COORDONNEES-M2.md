@@ -148,6 +148,63 @@ MCP/PostgreSQL restent dans les reçus QA et ne prouvent ni un défaut produit n
 
 Statut : tranche locale qualifiée séparément du CRM complet. Pas de reprise des corrections anciennes,
 pas d’ajout rétroactif aux projets créés ensuite, pas de modification des destinataires, documents,
-consentements ou règles de fusion. Prochaine étape distincte : préparer une réconciliation en lecture
-seule de l’historique M2 et des références M10 avant toute reprise contrôlée. Aucun envoi réel autorisé
+consentements ou règles de fusion. Le diagnostic en lecture seule ci-dessous compare l’historique M2 et les références M10.
+Une reprise contrôlée reste un changement distinct, non effectué. Aucun envoi réel autorisé
 par ce fait ; PostgreSQL, navigateur et transport MCP restent à qualifier.
+
+
+## Diagnostic admin de transmission des corrections
+
+Objectif : permettre au secrétariat de constater une correction conservée dans M2 mais absente,
+en attente ou contradictoire dans M10, sans confondre publication, reçu technique et mémoire métier.
+L’audit réutilise les trois sources existantes. `m2_republier_assignations` a servi de référence de
+lecture du bus ; il n’est pas appelé. Une bibliothèque de synchronisation n’apporterait pas les
+sémantiques propres au registre M2 : aucune dépendance ajoutée.
+
+L’outil de lecture `m2_reconcilier_memoire_contact_client` exige un admin humain encore actif et le
+stockage durable SQLite. La console l’expose à `GET /crm/lead/{lead_id}/contact/memoire`, avec lien
+depuis l’historique. Aucun endpoint de correction, d’export ou de rejeu n’est ajouté. Le contenu HTTP
+est échappé et porte `Cache-Control: no-store` ; l’identité réelle et son rôle sont revérifiés.
+
+Les liens client/projet sont parcourus dans l’ordre physique du registre. Chaque correction ne
+concerne que les projets déjà liés à cet instant ; son horodatage déclaratif ne réordonne pas les
+liens. La génération de charge versionnée est partagée avec le producteur. Les corrections anciennes
+sont observables même sans publication automatique ; elles ne sont jamais publiées par cette lecture.
+
+La réponse distingue `total_corrections` et `total_references` : plusieurs projets donnent plusieurs
+références pour une même révision. Les statuts sont calculés pour les références de la page :
+
+| État | Preuve observée |
+|---|---|
+| NON_PUBLIE | Identifiant de transport canonique absent de la boîte transactionnelle |
+| EN_ATTENTE | Publication conforme présente, aucun fait M10 confirmé |
+| ECHEC_LIVRAISON | Reçu d’échec M10, sans fait conforme |
+| QUARANTAINE | Reçu de quarantaine M10, sans fait conforme |
+| MEMORISE | Charge canonique conforme et fait M10 exact, classé CLIENT_PRIVATE |
+| CONFLIT | Provenance différente, plusieurs faits concurrents, reçu contradictoire ou reçu traité sans fait conforme |
+
+`publication_presente`, `memoire_presente` et `livraison` restent séparés : un reçu traité ne suffit
+pas à prouver le souvenir. Le diagnostic cherche le transport canonique ; une livraison par un
+identifiant alternatif peut laisser la publication canonique absente même si M10 contient un fait.
+Il ne reconstitue pas l’historique complet de tous les transports alternatifs. Aucun motif libre,
+coordonnée, auteur de correction, message d’erreur ou charge contradictoire n’est recopié dans la réponse.
+Les références pseudonymes ne deviennent pas anonymes.
+
+Paramètres : `limite` 1..50, `decalage` 0..1 000 000, `revision_max` 0..1 000 001. Les booléens sont
+refusés. Le plafond par défaut est la dernière correction ; un plafond futur est refusé. `suivant`
+est le décalage effectif après application du budget de sortie de 5 900 caractères ; une page peut
+contenir moins que `limite`. La console garde ce plafond pour la page suivante. L’ensemble de
+références reste stable, mais leur livraison peut progresser entre deux lectures : ce n’est pas un
+instantané historique des reçus. Les registres sont parcourus pour établir les références et lire M10 ;
+seules les requêtes du bus et la réponse sont bornées. Aucun benchmark de grand volume n’est revendiqué.
+
+Fichiers : projection pure `m2_revenue_crm/contact_memoire.py`, adaptateur/contrat `outils.py`, surfaces
+`console/metier.py` et `console/crm_ui.py`. Tests SQLite réels : avant/après répartition, projets tardifs,
+correction antérieure sans événement, statut de reçu sans souvenir, provenance divergente, pagination
+sous budget sans perte, base inchangée, accès refusé et révocation, rendu HTTP sans contenu sensible.
+Les états d’erreur injectés dans les tests sont fictifs ; aucune panne fournisseur réelle n’est simulée
+comme une preuve de production. Statut : diagnostic local qualifié, CRM-04 toujours PARTIAL.
+
+Suite : raccorder la cédule visuelle CRM-01 aux créneaux effectivement confirmés par M4, en auditer
+le contrat actuel avant code. La reprise historique des corrections demeure hors de cette tranche et
+ne doit pas être déclenchée parce qu’une référence apparaît NON_PUBLIE.

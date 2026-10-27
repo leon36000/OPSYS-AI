@@ -362,6 +362,8 @@ def contenu_historique_contact(lead_id: str, resultat: Mapping[str, Any], prefix
     """Historique administrateur : valeurs échappées, navigation dans la même révision maximale."""
     base = f"{prefixe}/crm/lead/{pages._segment(lead_id)}/contact/historique"
     corps = f'<h1>Historique des coordonnées</h1><p>{_lien_dossier(lead_id, prefixe)}</p>'
+    corps += (f'<p><a href="{pages.e(prefixe)}/crm/lead/{pages._segment(lead_id)}/contact/memoire">'
+              'Vérifier la transmission à M10</a></p>')
     corps += (f'<p>{resultat["total"]} corrections — jusqu’à la révision {resultat["revision_max"]}. '
               f'<a href="{pages.e(base)}">Actualiser l’historique</a></p>')
     for correction in resultat["corrections"]:
@@ -382,6 +384,30 @@ def contenu_historique_contact(lead_id: str, resultat: Mapping[str, Any], prefix
     corps += '<nav aria-label="Pages de corrections">' + ' '.join(
         f'<a href="{pages.e(base)}?decalage={decalage}&amp;revision_max={resultat["revision_max"]}">{titre}</a>'
         for titre, decalage in liens) + '</nav>'
+    return corps
+
+
+def contenu_memoire_contact(lead_id: str, resultat: Mapping[str, Any], prefixe: str) -> str:
+    base = f"{prefixe}/crm/lead/{pages._segment(lead_id)}/contact/memoire"
+    libelles = {"NON_PUBLIE": "Publication absente", "EN_ATTENTE": "En attente de M10",
+                "MEMORISE": "Présent dans M10", "CONFLIT": "Écart à examiner",
+                "ECHEC_LIVRAISON": "Échec de livraison", "QUARANTAINE": "En quarantaine"}
+    corps = (f'<h1>Transmission des corrections à M10</h1><p>{_lien_dossier(lead_id, prefixe)}</p>'
+             '<p>Lecture seule de M2, du bus et de M10. Aucune reprise ni réparation automatique. '
+             'Les projets liés après une correction sont exclus de cette correction.</p>'
+             f'<p>{resultat["total_corrections"]} corrections ; {resultat["total_references"]} références par projet. '
+             f'Jusqu’à la révision {resultat["revision_max"]}. '
+             f'<a href="{pages.e(base)}">Actualiser le diagnostic</a></p>')
+    for ref in resultat["references"]:
+        corps += (f'<section class="carte"><h2>Révision {pages.e(ref["revision"])} — {pages.e(ref["lead_id"])}</h2>'
+                  f'<p>{pages.e(libelles[ref["etat"]])}</p>'
+                  f'<p>Référence : {pages.e(ref["fait_id"])}</p>'
+                  f'<p>Source M2 : {pages.e(ref["source_ligne_id"])}</p></section>')
+    if not resultat["references"]:
+        corps += pages._vide("Aucune référence sur cette page.")
+    if resultat["suivant"] is not None:
+        corps += (f'<a href="{pages.e(base)}?decalage={resultat["suivant"]}'
+                  f'&amp;revision_max={resultat["revision_max"]}">Suivant</a>')
     return corps
 
 
@@ -532,6 +558,7 @@ def creer_router(
                       + 'Historique des coordonnées</a></p>')
 
     @router.get("/crm/lead/{lead_id}/contact/historique", response_class=HTMLResponse)
+    @router.get("/crm/lead/{lead_id}/contact/memoire", response_class=HTMLResponse)
     def historique_contact(lead_id: str, request: Request) -> Response:
         session = session_page(request)
         if _IDENTIFIANT.fullmatch(lead_id) is None:
@@ -548,6 +575,11 @@ def creer_router(
                 raise HTTPException(400, "pagination invalide")
             arguments[cle] = int(brut)
         lien = lire(session, "m2_trouver_client_de_lead", {"lead_id": lead_id})
+        if request.url.path.endswith("/contact/memoire"):
+            resultat = lire(session, "m2_reconcilier_memoire_contact_client",
+                            {**arguments, "client_id": lien["client_id"]})
+            corps = contenu_memoire_contact(lead_id, resultat, prefixe)
+            return rendre(session, "Transmission des corrections à M10", corps)
         resultat = lire(session, "m2_lister_historique_contact_client", {**arguments, "client_id": lien["client_id"]})
         return rendre(session, "Historique des coordonnées", contenu_historique_contact(lead_id, resultat, prefixe))
 

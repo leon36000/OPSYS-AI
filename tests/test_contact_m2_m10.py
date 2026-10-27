@@ -183,3 +183,112 @@ def test_catalogue_refuse_coordonnees_et_motif_et_extracteur_ne_les_copie_pas(se
     resultat, verdict = amont.memoriser(TYPE, ajoute, reg)
     assert verdict is None
     assert 'secret@example.test' not in json.dumps(resultat) and 'Motif privé' not in json.dumps(resultat)
+
+
+def _reconciliation(session, cid, **options):
+    with session(), contexte.appele_par_appareil(ADMIN):
+        r = m2.reconcilier_memoire_contact_client(cid, **options)
+        assert r['accepte'], r
+        return r['resultat']
+
+
+def test_reconciliation_observe_attente_puis_memoire_sans_ecriture(session, dossier):
+    from opsys.stockage.schema import META
+    cid, deps = dossier
+    _correction(session, cid, 0)
+    attente = _reconciliation(session, cid, limite=1)
+    assert attente['total_references'] == 2 and attente['total_corrections'] == 1 and attente['suivant'] == 1
+    assert attente['references'][0]['etat'] == 'EN_ATTENTE'
+    _drainer(deps)
+    with session() as cnx:
+        avant = [cnx.execute(select(t)).all() for t in META.sorted_tables]
+    rendu = _reconciliation(session, cid)
+    assert {r['etat'] for r in rendu['references']} == {'MEMORISE'}
+    assert 'example.test' not in json.dumps(rendu) and 'Motif personnel' not in json.dumps(rendu)
+    with session() as cnx:
+        assert [cnx.execute(select(t)).all() for t in META.sorted_tables] == avant
+
+
+def test_reconciliation_historique_exclut_projet_tardif_et_borne_revisions(session, dossier):
+    from m2_revenue_crm import clients
+    cid, _ = dossier
+    with session():
+        # Simule une correction historique avant la publication automatique, avec la vraie primitive M2.
+        _, verdict = clients.corriger_contact(m2._obtenir_registre(), cid, {'nom': 'Historique FICTIF'},
+                                             0, 'Privé FICTIF', 'admin.fictif', H)
+        assert verdict is None
+        assert m2.ingerer_lead({'lead_id': 'lead-tardif', 'conversation_id': 'conv-tardive',
+            'contact': {'nom': 'Historique FICTIF'}, 'type_travaux': 'renovation_totale',
+            'ville': 'Québec', 'urgence_declaree': False, 'canal': 'telephone'}, H)['accepte']
+    ancien = _reconciliation(session, cid)
+    assert ancien['total_references'] == 2
+    assert {r['lead_id'] for r in ancien['references']} == {'lead-fictif-1', 'lead-fictif-2'}
+    assert {r['etat'] for r in ancien['references']} == {'NON_PUBLIE'}
+    _correction(session, cid, 1)
+    assert _reconciliation(session, cid)['total_references'] == 5
+    assert _reconciliation(session, cid, revision_max=1) == ancien
+
+
+def test_reconciliation_refuse_agent_sans_identite_et_parametres_invalides(session, dossier):
+    cid, _ = dossier
+    with session():
+        assert not m2.reconcilier_memoire_contact_client(cid)['accepte']
+    for options in [{'limite': True}, {'limite': 51}, {'decalage': -1}, {'revision_max': 1}]:
+        with session(), contexte.appele_par_appareil(ADMIN):
+            assert not m2.reconcilier_memoire_contact_client(cid, **options)['accepte']
+
+
+@pytest.mark.parametrize('statut,etat', [
+    ('echec', 'ECHEC_LIVRAISON'), ('quarantaine', 'QUARANTAINE'), ('traite', 'CONFLIT'),
+])
+def test_reconciliation_recu_sans_fait_ne_vaut_pas_memoire(session, dossier, statut, etat):
+    from sqlalchemy import insert
+    cid, _ = dossier
+    _correction(session, cid, 0)
+    evenement = _sortants(session)[0]['evenement_id']
+    # États de livraison fictifs stockés ; diagnostic réel, sans invoquer de fournisseur externe.
+    with session() as cnx:
+        cnx.execute(insert(EVENEMENTS_RECUS).values(
+            evenement_id=evenement, consommateur='m10-memoire', statut=statut,
+            tentatives=5, derniere_erreur='Erreur privée FICTIVE secret@example.test',
+            resultat=codec.encoder({'identique': True})))
+    resultat = _reconciliation(session, cid)
+    assert {r['etat'] for r in resultat['references']} == {etat, 'EN_ATTENTE'}
+    assert 'secret@example.test' not in json.dumps(resultat) and 'Erreur privée' not in json.dumps(resultat)
+
+
+def test_reconciliation_detecte_provenance_divergente(session, dossier):
+    from sqlalchemy import update
+    cid, deps = dossier
+    _correction(session, cid, 0)
+    event = _sortants(session)[0]
+    altere = dict(event['charge'], source_ligne_id='f' * 64)
+    with session() as cnx:
+        cnx.execute(update(EVENEMENTS_SORTANTS).where(
+            EVENEMENTS_SORTANTS.c.evenement_id == event['evenement_id']).values(charge=codec.encoder(altere)))
+    _drainer(deps)
+    assert {r['etat'] for r in _reconciliation(session, cid)['references']} == {'CONFLIT', 'MEMORISE'}
+
+
+def test_reconciliation_pagine_sous_budget_sans_perte_et_borne_clients(session, dossier):
+    from m2_revenue_crm import clients
+    cid, _ = dossier
+    assert _reconciliation(session, cid)['references'] == []
+    with session(), contexte.appele_par_appareil(ADMIN):
+        assert not m2.reconcilier_memoire_contact_client('0' * 64)['accepte']
+        for revision in range(25):
+            _, v = clients.corriger_contact(m2._obtenir_registre(), cid, {'nom': f'FICTIF {revision}'},
+                                           revision, 'Privé FICTIF', ADMIN.personne, H)
+            assert v is None
+    offset, ids = 0, []
+    for _ in range(10):
+        page = _reconciliation(session, cid, limite=50, decalage=offset, revision_max=25)
+        assert page['total_corrections'] == 25 and page['total_references'] == 50
+        assert len(json.dumps(page, ensure_ascii=False)) <= m2.BUDGET_SORTIE
+        ids.extend(r['fait_id'] for r in page['references'])
+        if page['suivant'] is None:
+            break
+        assert page['suivant'] > offset
+        offset = page['suivant']
+    assert len(ids) == len(set(ids)) == 50
+    assert _reconciliation(session, cid, decalage=99)['references'] == []

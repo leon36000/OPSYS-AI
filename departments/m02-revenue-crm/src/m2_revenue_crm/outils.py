@@ -41,7 +41,6 @@ son numéro). Sans consentement actif : « appel seulement ». La fréquence max
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -52,13 +51,15 @@ from sqlalchemy import select
 
 from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.outils import Autonomie, Niveau, Outil
-from opsys.stockage.schema import APPROBATIONS
+from opsys.stockage import codec
+from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 
 from . import (
     acces,
     assignation,
     clients,
     consentements,
+    contact_memoire,
     contrats,
     digest,
     doublons,
@@ -670,6 +671,63 @@ def verifier_autorite_rejeu_contact_appareil() -> dict[str, Any] | None:
     return None
 
 
+def reconcilier_memoire_contact_client(client_id: str, limite: int = 20, decalage: int = 0,
+                                      revision_max: int | None = None) -> dict[str, Any]:
+    """Diagnostic admin en lecture seule, références paginées ; aucune publication ou réparation."""
+    refus = verifier_autorite_rejeu_contact_appareil()
+    if refus:
+        return refus
+    cnx = stockage.connexion_courante()
+    if cnx is None or cnx.dialect.name != "sqlite" or not _stockage_durable_actif:
+        return _refus(verdicts.construire_verdict(
+            "REJ-CONTACT-BACKEND-NON-QUALIFIE", detail="lecture qualifiée sur SQLite durable seulement"))
+    reg = _obtenir_registre()
+    historique, verdict = clients.historique_contact(reg, client_id, limite, decalage, revision_max)
+    if verdict:
+        return _refus(verdict)
+    attentes = contact_memoire.references_attendues(reg.lire(), client_id, historique["revision_max"])
+    total, tranche = 0, []
+    for attendu in attentes:
+        if decalage <= total < decalage + limite:
+            tranche.append(attendu)
+        total += 1
+    ids = ["m2-contact-" + a["fait_id"] for a in tranche]
+    publications = {r["evenement_id"]: {**dict(r), "charge": codec.decoder(r["charge"])}
+                    for r in cnx.execute(select(EVENEMENTS_SORTANTS).where(
+                        EVENEMENTS_SORTANTS.c.evenement_id.in_(ids))).mappings()} if ids else {}
+    recus = {}
+    if ids:
+        for r in cnx.execute(select(EVENEMENTS_RECUS).where(
+                EVENEMENTS_RECUS.c.evenement_id.in_(ids) & (EVENEMENTS_RECUS.c.consommateur == "m10-memoire")
+        )).mappings():
+            resultat = codec.decoder(r["resultat"]) if r["resultat"] else {}
+            recus[r["evenement_id"]] = {
+                "statut": r["statut"],
+                "contradictoire": isinstance(resultat, dict) and resultat.get("identique") is False,
+            }
+    faits = {a["fait_id"]: [] for a in tranche}
+    if faits:
+        for m in stockage.maillons("m10-memoire", "evenements"):
+            if m.get("type_evenement") == contact_memoire.TYPE and m.get("fait_id") in faits:
+                faits[m["fait_id"]].append(m)
+    resultat = {"client_id": client_id, "revision_max": historique["revision_max"],
+                "total_corrections": historique["total"], "total_references": total,
+                "decalage": decalage, "limite": limite, "references": [], "suivant": None}
+    for attendu in tranche:
+        eid = "m2-contact-" + attendu["fait_id"]
+        ligne = contact_memoire.comparer(attendu, publications.get(eid), faits[attendu["fait_id"]], recus.get(eid))
+        essai = {**resultat, "references": [*resultat["references"], ligne], "suivant": decalage + limite}
+        if len(json.dumps(essai, ensure_ascii=False)) > BUDGET_SORTIE:
+            break
+        resultat["references"].append(ligne)
+    if tranche and not resultat["references"]:
+        return _refus(verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="référence historique au-delà du budget de lecture"))
+    suivant = decalage + len(resultat["references"])
+    resultat["suivant"] = suivant if suivant < total else None
+    return {"accepte": True, "resultat": resultat}
+
+
 def corriger_contact_client(client_id: str, contact: dict, revision_attendue: int,
                             motif: str, horodatage: str) -> dict[str, Any]:
     """Écriture humaine explicite ; autorité relue, aucun auteur libre ni réécriture d'identité."""
@@ -691,12 +749,8 @@ def corriger_contact_client(client_id: str, contact: dict, revision_attendue: in
     # Une référence par projet actuellement lié ; le contact et le motif restent dans l'audit admin M2.
     # Publication dans la transaction appelante : un échec annule aussi la correction.
     for lead_id in clients.opportunites_du_client(reg, client_id):
-        cle = f"m2-contact-v1:{client_id}:{resultat['revision']}:{lead_id}"
-        fait_id = hashlib.sha256(cle.encode("utf-8")).hexdigest()
-        _publier_si_durable("m2.contact_corrige", {
-            "fait_id": fait_id, "lead_id": lead_id, "client_id": client_id,
-            "revision": resultat["revision"], "source_ligne_id": resultat["ligne_id"], "horodatage": horodatage,
-        }, "m2-contact-" + fait_id)
+        charge = contact_memoire.charge(client_id, lead_id, resultat["revision"], resultat["ligne_id"], horodatage)
+        _publier_si_durable(contact_memoire.TYPE, charge, "m2-contact-" + charge["fait_id"])
     return {"accepte": True, "resultat": resultat}
 
 
@@ -2095,6 +2149,24 @@ def outils() -> tuple[Outil, ...]:
                 "required": ["client_id"], "additionalProperties": False,
             },
             fonction=lister_historique_contact_client,
+            roles_appareil=acces.ROLES_ADMIN,
+        ),
+        Outil(
+            nom="m2_reconcilier_memoire_contact_client",
+            description=("Diagnostic de livraison des corrections vers M10, admin humain actif seulement. "
+                         "Lecture seule, projets historiques, 50 références maximum et budget de sortie. "
+                         "Conserver revision_max et utiliser suivant pour la page suivante."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "client_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 50},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 1000000},
+                    "revision_max": {"type": "integer", "minimum": 0, "maximum": 1000001},
+                },
+                "required": ["client_id"], "additionalProperties": False,
+            },
+            fonction=reconcilier_memoire_contact_client,
             roles_appareil=acces.ROLES_ADMIN,
         ),
         Outil(
