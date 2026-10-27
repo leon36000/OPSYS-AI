@@ -32,6 +32,7 @@ import json
 import os
 import re
 from collections.abc import Callable
+from datetime import UTC, datetime
 from functools import partial
 from typing import Any
 
@@ -42,6 +43,7 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
     acces,
+    calendrier_civil,
     calibration_projection,
     cedule,
     cedule_tournees,
@@ -175,6 +177,16 @@ def _acteur_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
     profil, _ = equipes_entreprise.charger_equipes()
     equipes_de_la_personne = equipes_entreprise.equipes_de(profil, confirmee.personne)
     return acces.acteur_de(confirmee.personne, confirmee.role, equipes_de_la_personne)
+
+
+def verifier_autorite_calendrier() -> dict[str, Any] | None:
+    """Vérifiée aussi avant tout reçu d'idempotence : un ancien rôle ne donne aucun accès."""
+    acteur, verdict = _acteur_appareil()
+    if verdict is not None:
+        return _refus(verdict)
+    if acteur is None or acteur.role != "admin":
+        return _refus(verdicts.construire_verdict("REJ-HUMAIN-REQUIS", detail="admin authentifié actif requis"))
+    return None
 
 
 def _lecteur_equipes() -> Callable[[], tuple[dict[str, Any] | None, dict[str, Any] | None]]:
@@ -1294,6 +1306,34 @@ def outils(
             reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
         return reponse
 
+    def confirmer_dates_cedule(plan_id: str, calendrier: dict[str, str], revision_attendue: int) -> dict[str, Any]:
+        refus = verifier_autorite_calendrier()
+        if refus:
+            return refus
+        cnx = _cnx_durable()
+        if cnx is None or cnx.dialect.name != "sqlite":
+            return _refus(verdicts.construire_verdict(
+                "REJ-FRONTIERE-VIOLEE", detail="confirmation qualifiée sur SQLite durable seulement"))
+        appelante = contexte.identite_appelante()
+        reception = contexte.horodatage_reception()
+        stamp = reception.recu_le if reception is not None else datetime.now(UTC)
+        try:
+            resultat = calendrier_civil.confirmer(registre_courant(), plan_id, calendrier, revision_attendue,
+                                                  appelante.personne, stamp.isoformat())
+        except (ValueError, registre.VerificationError) as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
+        return {"accepte": True, "resultat": resultat}
+
+    def lire_cedule_semaine(debut_semaine: str) -> dict[str, Any]:
+        refus = verifier_autorite_calendrier()
+        if refus:
+            return refus
+        try:
+            resultat = calendrier_civil.lire_semaine(registre_courant(), debut_semaine)
+        except (ValueError, registre.VerificationError) as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
+        return {"accepte": True, "resultat": resultat}
+
     def verifier_preparation(intervention_id: str) -> dict[str, Any]:
         """Lecture seule : la préparation d'une intervention (M4.6), volet par volet, avec ce qui manque. Rien n'est
         écrit ; aucun volet non vérifié n'est présenté comme prêt."""
@@ -2253,6 +2293,29 @@ def outils(
             # `supervise` et `autonome`, un N3 s'exécute sans file (ROLES.md, « Ce qui reste »).
             # §9.5 (dispatch du jour) : réservé à l'admin ; l'employé ne dispatche pas.
             roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_confirmer_dates_cedule",
+            description=("Admin humain actif : date explicitement les jours numérotés d'un plan M4 déjà appliqué. "
+                         "Révision attendue 0 initialement; historique append-only. Refuse conflits connus, plan "
+                         "remplacé, intervention non planifiée, dates ambiguës. Planification interne seulement : "
+                         "ne confirme ni client, ni météo, ni matériel. SQLite durable qualifié."),
+            parametres={"type": "object", "properties": {
+                "plan_id": {"type": "string"},
+                "calendrier": {"type": "object", "additionalProperties": {"type": "string"}},
+                "revision_attendue": {"type": "integer", "minimum": 0}},
+                "required": ["plan_id", "calendrier", "revision_attendue"], "additionalProperties": False},
+            fonction=confirmer_dates_cedule, autonomie=Autonomie.T1, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_cedule_semaine",
+            description=("Admin actif : semaine datée M4, lundi ISO AAAA-MM-JJ, America/Montreal. "
+                         "Références de source, révisions, statuts et dates à reconfirmer; aucun contact ou prix. "
+                         "Jobs non datés séparés pour tout le carnet. Maximum 200 créneaux et 50 non datés, "
+                         "totaux et troncature explicites."),
+            parametres={"type": "object", "properties": {"debut_semaine": {"type": "string"}},
+                        "required": ["debut_semaine"], "additionalProperties": False},
+            fonction=lire_cedule_semaine, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_verifier_preparation",

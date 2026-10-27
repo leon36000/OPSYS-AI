@@ -1373,6 +1373,12 @@ class Capacites:
                     refus = outils_m4.verifier_identite_rejeu_route_appareil(arguments)
                     if refus is not None:
                         return {"ok": True, "resultat": refus, "rejoue": True}
+                if nom == "m4_confirmer_dates_cedule":
+                    from m4_field_ops import outils as outils_m4
+
+                    refus = outils_m4.verifier_autorite_calendrier()
+                    if refus is not None:
+                        return {"ok": True, "resultat": refus, "rejoue": True}
                 if nom == "m2_enregistrer_interaction":
                     from m2_revenue_crm import outils as outils_m2
 
