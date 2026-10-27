@@ -1,5 +1,6 @@
 """Paquet M10 restrictif du devis exact : lecture privée, aucune décision ou mémoire copiée."""
 import json
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from .. import contexte, idempotence, identite, stockage
@@ -34,6 +35,17 @@ def _sources(cnx):
             raise lecture.Refus('MEMOIRE-SOURCE-INCOHERENTE')
         sources[nom] = chaine
     return sources
+
+
+@contextmanager
+def capture_paquets(cnx, session):
+    """Une seule préparation, sous l'identité courante; les T0 gardent leurs propres gardes."""
+    from m10_memoire import outils
+
+    _admin(cnx, session)
+    with (contexte.appele_par_appareil(contexte.IdentiteAppelante(session.utilisateur, 'admin', source='console')),
+          contexte.appeler_en_tant_que(M10, origine='console'), outils.capture_paquets_appareil(cnx)):
+        yield outils.sources_capture_paquets_appareil()
 
 
 def _paquet(deps, session, affaire_id, horodatage):

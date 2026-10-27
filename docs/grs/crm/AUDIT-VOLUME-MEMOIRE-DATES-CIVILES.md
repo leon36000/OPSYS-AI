@@ -157,3 +157,10 @@ Les353 cas puis les deux contrôles complémentaires compatibles passent, sans c
 historique202>100 n'est pas effacé. Le batch routier et les autres limites restent PARTIAL.
 La mesure13400 appels M10/80,492 s pour la navigation200 rend la mutualisation des snapshots
 par préparation pertinente; aucun gain ni coût constant n'est encore revendiqué.
+
+Jalon suivant : [snapshots M10 par préparation](../analytics/M10-AUDIT-SNAPSHOTS-PAQUETS-CIVILS.md).
+Sur le même scénario et sous les mêmes limites, les 200 visites / 67 pages passent de80,492 s
+à31,290 s, avec13400 vrais T0 conservés et la même preuve globale/date/rejeu. Sur24 affaires,
+les lectures SQL M10 complètes passent de53 à4. Capture privée par requête, autorité SQL
+courante à chaque T0, aucune cache interrequêtes. Ce gain local observé ne constitue ni un
+SLA, ni une qualification terrain/dispatch. **PARTIAL**; profiler ensuite le pur assembleur.

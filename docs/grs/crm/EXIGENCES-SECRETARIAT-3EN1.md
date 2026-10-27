@@ -315,3 +315,11 @@ effet.353 tests passent puis deux contrôles compatibles recoupés, jamais addit
 mémoire de groupe mesurés sous ressources bornées. **PARTIAL** : pas de routage OSRM>100 ni de
 trafic/dispatch de production; repli explicite avant réseau. Prochaine priorité mesurée :
 réduire les13400 lectures M10 par navigation200 sans perdre snapshots/autorité/confidentialité.
+
+CRM-08 — [snapshots M10 privés par préparation civile](../analytics/M10-AUDIT-SNAPSHOTS-PAQUETS-CIVILS.md) :
+le même parcours fictif200/67pages passe de80,492 s à31,290 s sous un CPU, en conservant13400
+vrais T0, la confidentialité, la preuve globale, la vraie datation et le rejeu sans effet.
+Sur24 affaires,53 lectures SQL complètes deviennent4. Pas de cache entre requêtes; chaque T0
+relit l'autorité SQL. Contrôles de durée de vie, copies et sources qualifiés localement.
+**PARTIAL** : copies/parcours purs encore à profiler; aucune promesse de SLA, navigateur,
+PostgreSQL, mobile, routage réel ou dispatch global. Les observations historiques restent conservées.

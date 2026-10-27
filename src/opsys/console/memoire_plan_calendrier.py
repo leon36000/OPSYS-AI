@@ -43,55 +43,55 @@ def lire(cnx, deps, session, plan_id, decalage=0, source_attendue=None):
             inscriptions.setdefault(m['intervention_id'], []).append(m)
     for m in proposition['etat']:
         etats_plan.setdefault(m['intervention_id'], []).append(m)
-    sources_m10 = memoire._sources(cnx)
-    tetes_m10 = {k: r.tete() for k, r in sources_m10.items()}
-    faits_devis = {}
-    for m in sources_m10['evenements'].lire():
-        if m.get('type_evenement') == etapes.TYPE_DEVIS_ACCEPTE:
-            faits_devis.setdefault(m.get('devis_id'), []).append(m)
-    liaisons, contextes, vus = [], {}, set()
-    horodatage = datetime.now(UTC).isoformat()
-    for v in vue['visites']:
-        iid = v['intervention_id']
-        candidates, etat = inscriptions.get(iid, []), etats_plan.get(iid, [])
-        if (iid in vus or len(candidates) != 1 or len(etat) != 1
-                or candidates[0].get('lead_id') != etat[0].get('lead_id')):
-            raise lecture.Refus('SOURCE-INCOHERENTE')
-        vus.add(iid)
-        inscription = candidates[0]
-        cle, travaux = etats.travaux_de(inscription)
-        if (etat[0].get(cle) != travaux
-                or etat[0].get('urgence_declaree') is not inscription.get('urgence_declaree')):
-            raise lecture.Refus('SOURCE-INCOHERENTE')
-        lead = inscription['lead_id']
-        if type(lead) is not str or not lead or inscription.get('source') not in (None, etats.SOURCE_DEVIS_ACCEPTE):
-            raise lecture.Refus('SOURCE-INCOHERENTE')
-        representable = affaire.valide(lead)
-        lien = dict(intervention_id=iid, lead_id=lead, devis_id=None,
-                    devis_declare=inscription.get('devis_id'), origine='manuelle',
-                    reference_devis=None, ancre_bus_complete=False,
-                    lien_m10='CONTEXTE_AFFAIRE_SANS_DEVIS_VERIFIE' if representable else 'NON_REPRESENTABLE')
-        if inscription.get('source') == etats.SOURCE_DEVIS_ACCEPTE:
-            devis = inscription.get('devis_id')
-            if type(devis) is not str or not devis:
+    with memoire.capture_paquets(cnx, session) as sources_m10:
+        tetes_m10 = sources_m10['source_registres']
+        faits_devis = {}
+        for m in sources_m10['evenements']:
+            if m.get('type_evenement') == etapes.TYPE_DEVIS_ACCEPTE:
+                faits_devis.setdefault(m.get('devis_id'), []).append(m)
+        liaisons, contextes, vus = [], {}, set()
+        horodatage = datetime.now(UTC).isoformat()
+        for v in vue['visites']:
+            iid = v['intervention_id']
+            candidates, etat = inscriptions.get(iid, []), etats_plan.get(iid, [])
+            if (iid in vus or len(candidates) != 1 or len(etat) != 1
+                    or candidates[0].get('lead_id') != etat[0].get('lead_id')):
                 raise lecture.Refus('SOURCE-INCOHERENTE')
-            amont = lecture.lire(cnx, deps, session, lead, devis)
-            if amont['intervention'] is None or amont['intervention']['intervention_id'] != iid:
+            vus.add(iid)
+            inscription = candidates[0]
+            cle, travaux = etats.travaux_de(inscription)
+            if (etat[0].get(cle) != travaux
+                    or etat[0].get('urgence_declaree') is not inscription.get('urgence_declaree')):
                 raise lecture.Refus('SOURCE-INCOHERENTE')
-            reference = memoire._reference_devis(cnx, devis, faits_devis.get(devis, [])) if representable else None
-            statut = ('LIE' if reference else 'DEVIS_NON_MEMORISE') if representable else 'NON_REPRESENTABLE'
-            lien.update(origine='devis_accepte', devis_id=devis, reference_devis=reference,
-                        ancre_bus_complete=amont['ancre_complete'], lien_m10=statut)
-        liaisons.append(lien)
-        if lead not in contextes:
-            paquet = None
-            if representable:
-                paquet = memoire._paquet(deps, session, lead, horodatage)
-                memoire._valider(paquet, lead, horodatage)
-                if paquet.get('source_registres') != tetes_m10:
-                    raise lecture.Refus('SOURCE-MODIFIEE')
-            contextes[lead] = dict(lead_id=lead, affaire_id=lead if representable else None,
-                                  etat='CONTEXTE_AFFAIRE' if representable else 'NON_REPRESENTABLE', paquet=paquet)
+            lead = inscription['lead_id']
+            if type(lead) is not str or not lead or inscription.get('source') not in (None, etats.SOURCE_DEVIS_ACCEPTE):
+                raise lecture.Refus('SOURCE-INCOHERENTE')
+            representable = affaire.valide(lead)
+            lien = dict(intervention_id=iid, lead_id=lead, devis_id=None,
+                        devis_declare=inscription.get('devis_id'), origine='manuelle',
+                        reference_devis=None, ancre_bus_complete=False,
+                        lien_m10='CONTEXTE_AFFAIRE_SANS_DEVIS_VERIFIE' if representable else 'NON_REPRESENTABLE')
+            if inscription.get('source') == etats.SOURCE_DEVIS_ACCEPTE:
+                devis = inscription.get('devis_id')
+                if type(devis) is not str or not devis:
+                    raise lecture.Refus('SOURCE-INCOHERENTE')
+                amont = lecture.lire(cnx, deps, session, lead, devis)
+                if amont['intervention'] is None or amont['intervention']['intervention_id'] != iid:
+                    raise lecture.Refus('SOURCE-INCOHERENTE')
+                reference = memoire._reference_devis(cnx, devis, faits_devis.get(devis, [])) if representable else None
+                statut = ('LIE' if reference else 'DEVIS_NON_MEMORISE') if representable else 'NON_REPRESENTABLE'
+                lien.update(origine='devis_accepte', devis_id=devis, reference_devis=reference,
+                            ancre_bus_complete=amont['ancre_complete'], lien_m10=statut)
+            liaisons.append(lien)
+            if lead not in contextes:
+                paquet = None
+                if representable:
+                    paquet = memoire._paquet(deps, session, lead, horodatage)
+                    memoire._valider(paquet, lead, horodatage)
+                    if paquet.get('source_registres') != tetes_m10:
+                        raise lecture.Refus('SOURCE-MODIFIEE')
+                contextes[lead] = dict(lead_id=lead, affaire_id=lead if representable else None,
+                                      etat='CONTEXTE_AFFAIRE' if representable else 'NON_REPRESENTABLE', paquet=paquet)
     memoire._admin(cnx, session)
     lecture._borner(cnx, lecture.M4, 'principal')
     if (registre.Registre(stockage.maillons(lecture.M4, 'principal')).tete() != tete_m4

@@ -40,6 +40,7 @@ ici, et seulement ici, que le paquet touche `opsys` (stockage et bus).
 
 from __future__ import annotations
 
+import copy
 import json
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -47,11 +48,12 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import Connection
+from sqlalchemy import Connection, LargeBinary, cast, func, select
 
 from opsys import approbations, idempotence, jetons, stockage
 from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.stockage.schema import REGISTRES
 
 from . import (
     amont,
@@ -448,20 +450,122 @@ def paquet_contexte_affaire(affaire_id: str, horodatage: str) -> dict[str, Any]:
     )
 
 
+class _RegistreCapturePaquets:
+    """Lecteur privé : aucune écriture, chaque lire rend une copie indépendante."""
+
+    __slots__ = ('__lignes', '__tete')
+
+    def __init__(self, lignes):
+        self.__lignes = copy.deepcopy(lignes)
+        self.__tete = lignes[-1]['ligne_id'] if lignes else None
+
+    def lire(self):
+        return copy.deepcopy(self.__lignes)
+
+    def tete(self):
+        return self.__tete
+
+
+@dataclass
+class _CapturePaquetsAppareil:
+    cnx: Connection
+    transaction: Any
+    savepoint: Any
+    appelante: Any
+    evenements: _RegistreCapturePaquets
+    affaires: _RegistreCapturePaquets
+    active: bool = True
+
+
+_CAPTURE_PAQUETS_APPAREIL: ContextVar[_CapturePaquetsAppareil | None] = ContextVar(
+    'm10_capture_paquets_appareil', default=None,
+)
+_MAX_CAPTURE_MAILLONS = 10000
+_MAX_CAPTURE_OCTETS = 8 * 1024 * 1024
+
+
+def _verifier_capture_paquets(capture):
+    try:
+        if (type(capture) is not _CapturePaquetsAppareil or not capture.active
+                or type(capture.cnx) is not Connection or capture.cnx is not stockage.connexion_courante()
+                or capture.cnx.closed or capture.cnx.dialect.name != 'sqlite'
+                or capture.transaction is None or not capture.transaction.is_active
+                or capture.cnx.get_transaction() is not capture.transaction
+                or (capture.savepoint is not None and not capture.savepoint.is_active)
+                or capture.appelante != contexte_appel.identite_appelante()):
+            raise ValueError('capture inactive')
+    except Exception:
+        raise ValueError('CAPTURE-M10-INDISPONIBLE') from None
+
+
+@contextmanager
+def capture_paquets_appareil(cnx):
+    """Snapshots privés pour une préparation; ne crée ni identité, ni rôle, ni permission."""
+    if (_CAPTURE_PAQUETS_APPAREIL.get() is not None or type(cnx) is not Connection
+            or cnx is not stockage.connexion_courante() or cnx.closed
+            or cnx.dialect.name != 'sqlite' or not cnx.in_transaction()):
+        raise ValueError('CAPTURE-M10-INDISPONIBLE')
+    if contexte_appel.identite_appelante() is None or _refus_lecture_admin() is not None:
+        raise PermissionError('admin actif requis pour la capture M10')
+    # Borner les deux sources avant de décoder la première.
+    for nom in ('evenements', 'affaires'):
+        condition = (REGISTRES.c.departement == 'm10-memoire') & (REGISTRES.c.registre == nom)
+        nombre, octets = cnx.execute(select(func.count(), func.sum(func.length(cast(REGISTRES.c.maillon, LargeBinary))))
+            .where(condition)).one()
+        if nombre > _MAX_CAPTURE_MAILLONS or (octets or 0) > _MAX_CAPTURE_OCTETS:
+            raise ValueError('CAPTURE-M10-SOURCE-TROP-VOLUMINEUSE')
+    lecteurs = {}
+    try:
+        for nom in ('evenements', 'affaires'):
+            lignes = registre.Registre(stockage.maillons('m10-memoire', nom)).lire()
+            if not registre.Registre(lignes).valider_chaine()[0]:
+                raise ValueError('chaîne invalide')
+            lecteurs[nom] = _RegistreCapturePaquets(lignes)
+    except (ValueError, KeyError, TypeError, AttributeError):
+        raise ValueError('CAPTURE-M10-SOURCE-INVALIDE') from None
+    capture = _CapturePaquetsAppareil(cnx, cnx.get_transaction(), cnx.get_nested_transaction(),
+        contexte_appel.identite_appelante(), lecteurs['evenements'], lecteurs['affaires'])
+    token = _CAPTURE_PAQUETS_APPAREIL.set(capture)
+    try:
+        yield
+    finally:
+        capture.active = False
+        _CAPTURE_PAQUETS_APPAREIL.reset(token)
+
+
+def sources_capture_paquets_appareil():
+    """Copies des faits et têtes consommés pour l'ancrage privé; aucun lecteur mutable exposé."""
+    capture = _CAPTURE_PAQUETS_APPAREIL.get()
+    _verifier_capture_paquets(capture)
+    if _refus_lecture_admin() is not None:
+        raise PermissionError('admin actif requis pour la capture M10')
+    return dict(source_registres=dict(evenements=capture.evenements.tete(), affaires=capture.affaires.tete()),
+                evenements=capture.evenements.lire())
+
+
 def lire_paquet_affaire_appareil(affaire_id: str, horodatage: str) -> dict[str, Any]:
     """Lecture admin distincte du contexte privé Core : filtre restrictif et sortie sans artefact."""
     if contexte_appel.identite_appelante() is None:
         return _verdict(
             "REJ-IDENTITE-APPAREIL-INVALIDE", "cette lecture exige une personne admin active confirmée en base"
         )
+    capture = _CAPTURE_PAQUETS_APPAREIL.get()
+    if capture is not None:
+        try:
+            _verifier_capture_paquets(capture)
+        except ValueError:
+            return _verdict('REJ-PAQUET-AFFAIRE-CAPTURE-INVALIDE', 'capture privée inactive ou étrangère')
     refus = _refus_lecture_admin()
     if refus is not None:
         return refus
-    # Une preuve de lecture doit décrire les snapshots réellement consommés, pas une tête relue après coup.
-    evenements = registre.Registre(_REGISTRE_EVENEMENTS.lire())
-    affaires = registre.Registre(_REGISTRE_AFFAIRES.lire())
-    if not evenements.valider_chaine()[0] or not affaires.valider_chaine()[0]:
-        return _verdict("REJ-PAQUET-AFFAIRE-SOURCE-INVALIDE", "chaîne de mémoire illisible")
+    # Toujours citer les copies effectivement consommées, jamais une tête relue après coup.
+    if capture is None:
+        evenements = registre.Registre(_REGISTRE_EVENEMENTS.lire())
+        affaires = registre.Registre(_REGISTRE_AFFAIRES.lire())
+        if not evenements.valider_chaine()[0] or not affaires.valider_chaine()[0]:
+            return _verdict("REJ-PAQUET-AFFAIRE-SOURCE-INVALIDE", "chaîne de mémoire illisible")
+    else:
+        evenements, affaires = capture.evenements, capture.affaires
     paquet = paquets.assembler_paquet_contexte(
         affaire_id, horodatage, evenements, affaires, agent=None,
     )
