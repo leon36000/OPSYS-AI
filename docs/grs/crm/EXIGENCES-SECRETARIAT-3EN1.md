@@ -518,3 +518,11 @@ de revue (nom fournisseur historique >200 caractères bloquant le livre) a été
 corrigé via le lecteur privé compatible historique; contacts conservés hors de cette vue.
 Détection courriel, import fournisseur automatique, anomalies, navigateur réel, PostgreSQL et
 mobile restent non qualifiés par cette tranche. Statut CRM-14/M6 et produit : PARTIAL.
+
+
+CRM-14 — [préparation de listes fournisseurs](../inventory/M6-IMPORT-TARIFS-CANDIDATS.md) :
+candidats purs depuis lignes explicitement mappées, source et mapping hachés, montants texte
+exacts, doublons symétriques et erreurs de ligne. Aucun tarif appliqué; catalogue/fournisseur
+encore à revalider dans l’aperçu privé futur. Suite entière M6 locale1700PASS dont39nouveaux,
+pas une preuve de courriel/import officiel/CSV/PDF/XLSX ou de déploiement. Le correctif de
+classification des messages d’avertissement garde le contrôleur de conformité inchangé.

@@ -674,3 +674,18 @@ Le descripteur `action.yml` vérifié porte le blob
 `actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02`.
 Les manifestes sont des données JSON validées, conservées par tentative ; cette adoption
 concerne le transport de preuves CI et laisse les dépendances applicatives inchangées.
+
+
+### CRM-14 — préparation d’import de prix fournisseurs (27 octobre 2026)
+
+Décision ciblée : réutiliser Decimal et les validateurs/projections/confirmations M6 existants
+pour des lignes explicitement mappées; aucune nouvelle dépendance adoptée. Python `csv`
+([documentation primaire](https://docs.python.org/3/library/csv.html)) reste candidat à un
+adaptateur ultérieur borné, délimiteur/encodage/colonnes explicites, sans QUOTE_NONNUMERIC.
+[Frictionless Python](https://github.com/frictionlessdata/frictionless-py),
+[licence MIT examinée](https://github.com/frictionlessdata/frictionless-py/blob/main/LICENSE.md),
+peut fournir extraction/validation CSV/Excel mais requiert maîtrise de l’inférence, quotas,
+formats et traduction métier; coût disproportionné pour des lignes déjà mappées, non adopté.
+Recherche GitLab primaire également effectuée, échantillon borné sans candidate suffisamment
+qualifiée; aucune licence GitLab déclarée vérifiée. Aucun gain de temps chiffré ou format
+fournisseur réel revendiqué. CSV/XLSX ne qualifient pas extraction PDF ni provenance courriel.

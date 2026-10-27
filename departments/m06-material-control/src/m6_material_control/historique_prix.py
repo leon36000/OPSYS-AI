@@ -12,7 +12,7 @@ MAX_SOURCES = 10000
 MAX_OCTETS = 8 * 1024 * 1024
 MAX_SORTIE = 65536
 VERSION = 'historique-prix-v1'
-AVERTISSEMENTS = [
+_AVERTISSEMENTS = [
     'Ordre des écritures du couple exact; date commerciale déclarée, pas date de réception.',
     'Dernière écriture ne signifie pas prix utilisable pour un devis ou un achat.',
     'Référence documentaire déclarée, sans authentification; aucune conversion de devise ou unité.',
@@ -127,7 +127,7 @@ def lire(lignes, materiau_id, fournisseur_id, *, debut=0, limite=25, source_atte
             for index, (rang, entree) in enumerate(choisies[debut:debut + limite])]
     resultat = dict(materiau_id=materiau_id, fournisseur_id=fournisseur_id, debut=debut, total=total,
                     suivant=debut + len(page) if debut + len(page) < total else None,
-                    source=source, source_snapshot=empreinte, lignes=page, avertissements=list(AVERTISSEMENTS))
+                    source=source, source_snapshot=empreinte, lignes=page, avertissements=list(_AVERTISSEMENTS))
     if len(_encoder(resultat)) > min(MAX_SORTIE, limite_sortie):
         raise Refus('SORTIE-TROP-VOLUMINEUSE')
     return resultat
