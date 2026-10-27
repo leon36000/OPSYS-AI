@@ -492,3 +492,9 @@ CRM-16 — le fait pointé du journal ouvre maintenant les temps de sa personne 
 civile Montréal, sans recopie de temps ou nom. IDs non canoniques signalés sans normalisation;
 lien ne signifie ni visite associée ni présence complète. 23 PASS dont six nouveaux, avec
 vrais writers M4 et UTC du lendemain; catalogue303/177. [Limites](AUDIT-TEMPS-POINTES-QUOTIDIENS.md).
+
+
+CRM-14/M6 — [fondation d’historique des tarifs](../inventory/M6-AUDIT-HISTORIQUE-TARIFS-ADMIN.md)
+qualifiée localement : 85 PASS dont 23 nouveaux, rangs/couple/snapshot paginés et valeurs déclarées
+sans conversion ni repli. Le livre/sélecteur existants sont préservés. **Historique navigable encore
+manquant** : aucun port SQL ni écran livré par cette fondation; import courriel toujours ouvert.
