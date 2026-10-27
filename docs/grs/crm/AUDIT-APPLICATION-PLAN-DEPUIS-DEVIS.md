@@ -72,3 +72,59 @@ Données fictives, homes/tmp privés avant imports, Source en lecture seule pend
 ressources et réseau bornés, commandes/empreintes/JUnit/reçus distincts. Navigateur, PostgreSQL,
 mobile, dispatch global et produit complet restent ouverts. Prochaine étape : tests-first
 puis port privé d’application, avant de raccorder sa décision explicite dans la revue HTTP.
+
+
+## Jalon exécuté — port privé N3 (sans nouveau bouton HTTP)
+
+`src/opsys/console/application_chantier.py::{preparer,appliquer}` relit la revue exacte et
+prépare son empreinte avec les profils, la préparation et la tête M4. Il refuse une preuve
+changée ou un plan non applicable avant décision. L’action construit les seuls arguments
+M4 permis à partir de l’admin et de l’heure serveur. Elle crée et décide une vraie demande
+N3 sous `role=admin` en gardant l’identité console; le propriétaire refait ses contrôles.
+
+Avant finalisation, la preuve relie le marqueur `cedule_appliquee` au plan exact et à son
+intervention, à une transition unique `a_planifier → planifiee` avec la même heure et la même
+empreinte de préparation, puis à l’assignation attendue après cette transition. Le préfixe
+historique avant marqueur confirme état/équipe; les modifications ultérieures n’effacent pas
+cette preuve. La demande SQL est bornée avant décodage et doit être N3 exécutée, signée admin
+par la même personne, avec arguments et résultat métier exacts. Le reçu est fermé et réussi
+`ok`; rôle/expiration sont relus avant les sources et après l’action, et la configuration est
+relue avant audit/finalisation. Toute erreur annule aussi la décision et les mutations.
+
+Un rejeu relit l’autorité et reconstruit depuis le marqueur, la transition, l’assignation et
+l’approbation réelle. Il porte `historique=true`, y compris après report, sans nouvelle décision
+ni affectation. Cache libre/altéré, preuve manquante, signataire ou résultat incohérent et
+approbation trop volumineuse sont refusés. Un nouvel identifiant ne réapplique pas un ancien plan.
+
+`tests/test_console_application_chantier.py` utilise les vrais M1/M2/M3/M4/M6, profils et
+décision N3. L’application produit une approbation admin, une transition et une assignation,
+aucune date. Retrait matériel, localisation retirée et profil modifié après aperçu refusent;
+profil changé après décision, panne d’audit/finalisation/décision et quota final annulent la
+tentative SQL, même si l’exception est attrapée à l’intérieur de la transaction extérieure.
+La configuration fichier indépendante modifiée par le scénario reste distincte du rollback SQL.
+
+La revue indépendante a détecté une preuve de transition insuffisante :
+`crm08-apply-transition-red-v1` reproduit un rejeu accepté après altération de l’empreinte de
+préparation et rechaînage valide de M4. La liaison exacte transition/assignation décrite ci-dessus
+ferme ce cas; revue statique complémentaire sans autre constat.
+
+Le scénario à deux affaires est exécuté : deux propositions réelles et deux applications
+N3 peuvent attribuer la même équipe, jour numérique 0, même heure de début, sans date civile.
+La première datation explicite réussit; la deuxième sur la même date est refusée pour conflit
+sans changement de base. Cette preuve confirme la limite d’affectation interne et le garde
+civil; elle ne qualifie ni capacité globale ni trajet entre plans ni prévision météo.
+
+Preuves privées `crm-prefill-qa-20261027-r1` : baseline `crm08-apply-red-v1` module absent;
+`v1` 35 PASS avec style; rouge de transition conservé; `v2` 51 PASS, Ruff/vérificateur passent;
+`v3` **52 PASS, 0 FAIL/SKIP, 24,25 s** avec une ligne de test à 121 caractères. Le seul changement
+final coupe cette ligne, AST identique documenté; `v4` reprend le cas à deux plans inclus :
+**1 PASS, 2,04 s**, Ruff ciblé et vérificateur 297/173 passent. Les cohortes se recoupent et
+ne sont pas additionnées. Le harnais fait désormais le contrôle statique avant les tests et
+épingle ses scripts, pour éviter de répéter une cohorte métier à cause d’une erreur de style.
+Commandes, limites, sources, JUnit et reçus restent distincts; Source en lecture seule,
+homes/tmp privés, réseau interdit, 1 CPU/1 Gio/96 tâches.
+
+**PARTIAL** : port privé qualifié sur SQLite. Prochaine étape : formulaire de décision N3
+distinct dans la revue HTTP et retour vers l’éditeur civil existant; les avertissements sur
+l’absence de disponibilité globale/date/prévision doivent rester visibles. Navigateur,
+PostgreSQL, mobile, dispatch complet et CRM-08 complet ne sont pas qualifiés par ce jalon.
