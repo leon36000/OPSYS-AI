@@ -732,3 +732,57 @@ de la CI du parent.** Ce résultat ne prouve ni présence, absence, heures/paie,
 réellement observée, M10, PostgreSQL, navigateur natif ou mobile. Prochaine capacité : journal
 administratif explicite des absences par journée, sans motif de santé, sans déduction à partir
 d'une composition et sans décision RH automatique; son contrat et ses sources restent à examiner.
+
+
+## Prochain besoin réel examiné : absences administratives par journée
+
+Examen de source, sans code d'absence ni nouveau runtime : `journal_quotidien.py` avertit déjà
+qu'un pointage manquant ne signifie pas absence et exclut ces données de sa projection.
+`composition_journaliere.py` sait seulement déclarer des membres d'équipe. `temps.py` concerne
+les pointages et refuse les champs de paie. Aucun writer, lecteur ou formulaire d'absence
+journalière n'a été trouvé dans ces propriétaires, le catalogue `outils.py`, la console du
+journal ou les tests M4 concernés. Un motif libre d'une réassignation commerciale M2 n'est
+pas une source d'absence. `identite.Personne` fournit identifiant, état actif et rôles actuels;
+ces rôles ne constituent pas une preuve d'emploi ou de présence à une date passée.
+
+Patch minimal envisagé, à vérifier avant exposition : registre M4 distinct
+`absences_journalieres_declarees`, clé exacte `(jour,personne_id)`, type fermé dédié. Une
+entrée signifie seulement « absence pour la journée signalée par un administrateur » et
+reste une déclaration. Son retrait rétablit l'inconnu; ni aucun signalement, ni retrait ne
+signifie présent. Aucun motif, maladie, document médical, durée rémunérée, sanction ou calcul
+de paie ne fait partie du schéma. Jour civil explicite et instant d'enregistrement serveur
+restent distincts. Auteur admin et intention bornée, révisions append-only avec lien précédent,
+CAS, rejeu exact avant CAS et accusé ancien sans données du sujet. Aucun hard-delete.
+
+Fondation pure en premier : date/identifiants canoniques de transport, champs exactement fermés,
+révisions monotones, retrait seulement après signalement actif, source/sortie bornées et paginées,
+validation sémantique même si une chaîne altérée a été rehachée. Aucun import d'identité SQL,
+profil, temps, réseau ou horloge dans cette fondation. Réutiliser les validateurs et primitives
+chaînées existants sans transformer la composition d'équipe en registre d'absences ni recopier
+sa liste de membres. Ne pas extraire un framework commun au prix de changements sans besoin.
+
+Adaptateur futur : SQLite canonique, admin SQL/session avant/après sous transaction/savepoint.
+Pour la première paire jour/personne, résoudre un compte existant ayant un rôle interne humain
+parmi employee, seller, manager, finance, admin, nathan_owner; un compte désactivé peut rester
+citable pour une déclaration historique, sans réactivation. Aucun compte seulement client ou
+agent système proposé pour une première saisie. Pour retirer ou corriger une paire déjà
+historisée, les rôles actuels ne doivent pas effacer l'histoire; revalider l'auteur courant,
+pas inventer les rôles passés du sujet. Tout contrôle d'identité doit porter sur la même
+transaction que l'écriture. Aucun droit ni profil modifié; pas d'export M5/M8/M10 automatique,
+pas d'accès agent/générique, pas de décision RH automatique. La validation explicite de l'admin
+est l'action humaine requise. Toute extension sensible ou export sera une autre tranche.
+
+Lecture et écran futurs : accès admin seul, état explicite et sources, pagination liée à la
+source; pas de nom actuel substitué à un identifiant historique. Lien indépendant depuis le
+journal par jour; la source principale du journal demeure inchangée. Formulaire humain CSRF,
+UUID et CAS, aucune raison libre, puis POST303 vers la lecture fraîche. Un jour sans déclaration
+reste « aucune absence signalée », jamais « tout le monde présent ». Une incohérence avec une
+composition ou un pointage ne déclenche ni retrait automatique ni pénalité.
+
+Tests à écrire ensuite avant implémentation : signalement→retrait→nouveau signalement et ancien
+rejeu, distinction aucun signalement/retrait/présence inconnue, paires indépendantes, doublons
+et champs sensibles refusés, chaîne rehachée invalide, temporalité et pagination/quotas. Puis
+identités humaines/client/agent et comptes désactivés, rôle admin révoqué, deux transactions,
+rollback après append et audit, vrais GET/POST CSRF, aucun changement de pointage, paie,
+composition, profil, droits ou mémoire. Les preuves compatibles de composition seront réutilisées;
+aucun ancien runtime ou modèle n'est rejoué. **STUB : contrat préparé, fonctionnalité non codée.**
