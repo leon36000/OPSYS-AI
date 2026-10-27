@@ -1,5 +1,6 @@
 """Dates du cockpit : outils M4 et SQLite réels, données fictives uniquement."""
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -19,9 +20,15 @@ def _url(planning):
     return '/crm/cedule/plan/' + planning[2]['plan_id']
 
 
-def _champs(client, **autres):
+def _champs(client, plan_id=None, **autres):
+    preuve = {}
+    if plan_id is not None:
+        page = client.get("/crm/cedule/plan/" + plan_id)
+        trouve = re.search(r'name="empreinte_memoire_attendue" value="([0-9a-f]{64})"', page.text)
+        if trouve:
+            preuve["empreinte_memoire_attendue"] = trouve[1]
     return {'csrf': client.get('/api/session').json()['csrf'], 'revision_attendue': '1',
-            'mutation_id': 'date-fictive-unique', 'date_0': '2030-06-10', **autres}
+            'mutation_id': 'date-fictive-unique', 'date_0': '2030-06-10', **preuve, **autres}
 
 
 def test_lire_modifier_et_rejouer_dates_reelles(client_crm, planning, session):
@@ -35,7 +42,7 @@ def test_lire_modifier_et_rejouer_dates_reelles(client_crm, planning, session):
     assert 'confirmation client' in page.text
     assert page.headers['cache-control'] == 'no-store'
     assert base.base._instantane_base(session) == avant
-    champs = _champs(client_crm)
+    champs = _champs(client_crm, planning[2]['plan_id'])
     assert client_crm.post(_url(planning), data=champs, follow_redirects=False).status_code == 303
     with session():
         dates = [m for m in base.terrain._maillons() if m['type_entree'] == 'cedule_datee']
@@ -43,7 +50,7 @@ def test_lire_modifier_et_rejouer_dates_reelles(client_crm, planning, session):
     assert dates[-1]['calendrier'] == {'0': '2030-06-10'}
     assert dates[-1]['confirme_par'] == 'admin.fictif'
     apres = base.base._instantane_base(session)
-    assert client_crm.post(_url(planning), data=champs, follow_redirects=False).status_code == 303
+    assert client_crm.post(_url(planning), data=champs, follow_redirects=False).status_code == 200
     assert base.base._instantane_base(session) == apres
     semaine = client_crm.get('/crm/cedule?debut_semaine=2030-06-10')
     assert 'data-intervention=' in semaine.text and _url(planning) in semaine.text
@@ -51,7 +58,7 @@ def test_lire_modifier_et_rejouer_dates_reelles(client_crm, planning, session):
 
 def test_revision_obsolete_et_reutilisation_id_different_refusees(client_crm, planning, session):
     base.base._connecter(client_crm, 'admin.fictif')
-    champs = _champs(client_crm)
+    champs = _champs(client_crm, planning[2]['plan_id'])
     assert client_crm.post(_url(planning), data=champs, follow_redirects=False).status_code == 303
     avant = base.base._instantane_base(session)
     for modification in [{'mutation_id': 'autre-fictif'}, {'date_0': '2030-06-11'}]:
@@ -62,7 +69,7 @@ def test_revision_obsolete_et_reutilisation_id_different_refusees(client_crm, pl
 def test_csrf_et_formulaire_borne_unique(client_crm, planning, session):
     from urllib.parse import urlencode
     base.base._connecter(client_crm, 'admin.fictif')
-    champs = _champs(client_crm)
+    champs = _champs(client_crm, planning[2]['plan_id'])
     avant = base.base._instantane_base(session)
     assert client_crm.post(_url(planning), data={**champs, 'csrf': 'faux'}).status_code == 403
     assert client_crm.post(_url(planning), data={**champs, 'confirme_par': 'usurpe'}).status_code == 400
@@ -79,13 +86,13 @@ def test_non_admin_refuse(client_crm, planning, session, acteur):
     base.base._connecter(client_crm, acteur)
     avant = base.base._instantane_base(session)
     assert client_crm.get(_url(planning)).status_code == 403
-    assert client_crm.post(_url(planning), data=_champs(client_crm)).status_code == 403
+    assert client_crm.post(_url(planning), data=_champs(client_crm, planning[2]['plan_id'])).status_code == 403
     assert base.base._instantane_base(session) == avant
 
 
 def test_revocation_avant_rejeu(client_crm, planning, session):
     base.base._connecter(client_crm, 'admin.fictif')
-    champs = _champs(client_crm)
+    champs = _champs(client_crm, planning[2]['plan_id'])
     assert client_crm.post(_url(planning), data=champs, follow_redirects=False).status_code == 303
     with session() as cnx:
         identite.ajouter_role(cnx, 'admin.fictif', 'nathan_owner')
@@ -105,13 +112,13 @@ def test_source_changee_entre_affichage_et_post(client_crm, planning, session):
     avant = base.base._instantane_base(session)
     page = client_crm.get(_url(planning))
     assert page.status_code == 200 and 'Confirmer les dates internes' not in page.text
-    assert client_crm.post(_url(planning), data=_champs(client_crm)).status_code == 409
+    assert client_crm.post(_url(planning), data=_champs(client_crm, planning[2]['plan_id'])).status_code == 409
     assert base.base._instantane_base(session) == avant
 
 
 def test_jour_manquant_date_impossible_et_mauvais_plan(client_crm, planning, session):
     base.base._connecter(client_crm, 'admin.fictif')
-    champs = _champs(client_crm)
+    champs = _champs(client_crm, planning[2]['plan_id'])
     avant = base.base._instantane_base(session)
     for changement in [{'date_0': ''}, {'date_0': '2030-02-30'}, {'date_1': '2030-06-11'},
                        {'revision_attendue': '-1'}]:
@@ -139,7 +146,7 @@ def test_plan_applique_sans_date_reste_vide_avant_confirmation(client_crm, sessi
     assert 'value="" required' in page.text and 'Aucune confirmation' in page.text
     assert url in client_crm.get('/crm/cedule?debut_semaine=2030-06-03').text
     assert base.base._instantane_base(session) == avant
-    champs = _champs(client_crm, revision_attendue='0')
+    champs = _champs(client_crm, plan, revision_attendue='0')
     assert client_crm.post(url, data=champs, follow_redirects=False).status_code == 303
     with session():
         dates = [m for m in base.terrain._maillons() if m['type_entree'] == 'cedule_datee']
@@ -171,6 +178,6 @@ def test_projection_partielle_ou_invalide_ne_permet_pas_confirmation(
     page = client_crm.get(_url(planning))
     assert page.status_code == (200 if defaut == 'tronque' else 503)
     assert 'Confirmer les dates internes' not in page.text
-    assert client_crm.post(_url(planning), data=_champs(client_crm)).status_code == (
+    assert client_crm.post(_url(planning), data=_champs(client_crm, planning[2]['plan_id'])).status_code == (
         409 if defaut == 'tronque' else 503)
     assert base.base._instantane_base(session) == avant

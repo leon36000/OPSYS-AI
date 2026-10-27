@@ -100,3 +100,35 @@ def lire(cnx, deps, session, plan_id):
         source_m4=tete_m4, sources_m10=tetes_m10,
         empreinte_plan=idempotence.empreinte_arguments(dict(vue=vue, source_m4=tete_m4)),
         empreinte_memoire=idempotence.empreinte_arguments(preuve_memoire)))
+
+
+
+def contenu(contexte):
+    from . import pages
+
+    corps = ('<section><h2>Mémoire avant les dates internes</h2>'
+             '<p>Contexte actuel M10 par affaire. Cette consultation ne confirme pas le chantier '
+             'et ne clôture aucun signal.</p>')
+    for lien in contexte['liaisons']:
+        corps += (f'<p>Intervention {pages.e(lien["intervention_id"])} · Affaire {pages.e(lien["lead_id"])} · '
+            f'{pages.e(lien["origine"])} · {pages.e(lien["lien_m10"])}<br>'
+            f'Devis vérifié : {pages.e(lien["devis_id"] or "Aucun")} · '
+            f'Devis déclaré : {pages.e(lien["devis_declare"] or "Aucun")}</p>')
+    for affaire in contexte['affaires']:
+        corps += f'<details open><summary>Affaire {pages.e(affaire["lead_id"])}</summary>'
+        if affaire['paquet'] is None:
+            corps += '<p role="alert">Identifiant non représentable dans M10; aucun contexte substitué.</p>'
+        else:
+            situation = affaire['paquet']['affaire']
+            if situation['connue'] is not True:
+                corps += '<p role="alert">Mémoire d’affaire inconnue : aucun fait reçu pour cette affaire.</p>'
+            elif situation['origine_recue'] is not True:
+                corps += '<p role="alert">Origine de l’affaire non reçue : le contexte amont est incomplet.</p>'
+            corps += memoire.contenu_paquet(affaire['paquet'])
+            consolidation = affaire['paquet']['consolidation']
+            jours = consolidation['a_consolider']
+            corps += (f'<p>Jours à consolider : {pages.e(consolidation["nb_a_consolider"])} · '
+                      f'Détail inclus : {len(jours)}.</p>')
+            corps += ''.join(f'<p>{pages.e(jour["jour"])}</p>' for jour in jours)
+        corps += '</details>'
+    return corps + '</section>'

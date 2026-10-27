@@ -124,8 +124,6 @@ def lire(cnx, deps, session, lead_id, devis_id):
 
 def contenu(memoire):
     """Projection humaine du paquet déjà validé; jamais un indicateur d'autorisation."""
-    titres = {'regles_entreprise': 'Règles de l’entreprise', 'faits_affaire': 'Faits de l’affaire',
-              'evenements_recents': 'Événements récents', 'signaux_non_resolus': 'Signaux non résolus'}
     corps = ('<section><h2>Mémoire de l’affaire</h2><p>Contexte actuel M10, vue restrictive. '
         'Cette lecture ne vaut ni validation du chantier ni clôture de ses signaux.</p>'
         f'<p>Liaison du devis : {pages.e(memoire["etat"])}.</p>')
@@ -134,6 +132,19 @@ def contenu(memoire):
         return corps + '<p role="alert">Identifiant non représentable dans M10; aucun contexte substitué.</p></section>'
     if memoire['etat'] != 'LIE':
         corps += '<p role="alert">Le fait du devis exact manque dans M10. La mémoire est incomplète.</p>'
+    corps += contenu_paquet(paquet)
+    corps += '<details><summary>Origine, consolidation et références de lecture</summary>'
+    for nom, valeur in [('Affaire', paquet['affaire']), ('Consolidation', paquet['consolidation']),
+                        ('Sources', memoire['sources']), ('Référence du devis', memoire['reference_devis'])]:
+        corps += f'<p>{nom} : {pages.e(json.dumps(valeur, ensure_ascii=False))}</p>'
+    return corps + '</details></section>'
+
+
+def contenu_paquet(paquet):
+    """Faits restrictifs, signaux et omissions du paquet déjà validé."""
+    titres = {'regles_entreprise': 'Règles de l’entreprise', 'faits_affaire': 'Faits de l’affaire',
+              'evenements_recents': 'Événements récents', 'signaux_non_resolus': 'Signaux non résolus'}
+    corps = ''
     s = paquet['signaux']
     corps += (f'<p>Signaux ouverts : {s["nb_ouverts"]} · Pris en compte : {s["nb_pris_en_compte"]} · '
               f'Clos : {s["nb_clos"]}</p>')
@@ -147,8 +158,4 @@ def contenu(memoire):
         for fait in couche['faits']:
             corps += (f'<p>{pages.e(fait["resume"])}<br>Source : {pages.e(fait["source"])} · '
                 f'{pages.e(fait["identifiant"])} · {pages.e(fait["horodatage"])}</p>')
-    corps += '<details><summary>Origine, consolidation et références de lecture</summary>'
-    for nom, valeur in [('Affaire', paquet['affaire']), ('Consolidation', paquet['consolidation']),
-                        ('Sources', memoire['sources']), ('Référence du devis', memoire['reference_devis'])]:
-        corps += f'<p>{nom} : {pages.e(json.dumps(valeur, ensure_ascii=False))}</p>'
-    return corps + '</details></section>'
+    return corps

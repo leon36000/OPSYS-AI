@@ -82,8 +82,8 @@ def mono(propose, catalogue):
     assert r.status_code == 303, r.text
     route = '/crm/cedule/plan/' + propose['plan_id']
     csrf = catalogue.get('/api/session').json()['csrf']
-    r = catalogue.post(route, data=dict(csrf=csrf, revision_attendue='0', mutation_id='dates-meteo-fictives',
-        date_0='2030-06-03'), follow_redirects=False)
+    r = catalogue.post(route, data=d._champs(catalogue, propose['plan_id'], csrf=csrf, revision_attendue='0',
+        mutation_id='dates-meteo-fictives', date_0='2030-06-03'), follow_redirects=False)
     assert r.status_code == 303, r.text
     return dict(propose, route=route)
 
@@ -210,7 +210,7 @@ def test_source_modifiee_depuis_formulaire_refusee(client_crm, dates, session, c
     base.base._connecter(client_crm, 'admin.fictif')
     champs = _form(client_crm, dates)
     if changement == 'dates':
-        r = client_crm.post(d._url(dates), data=d._champs(client_crm), follow_redirects=False)
+        r = client_crm.post(d._url(dates), data=d._champs(client_crm, dates[2]["plan_id"]), follow_redirects=False)
         assert r.status_code == 303, r.text
     elif changement == 'profil':
         profil = _profil()

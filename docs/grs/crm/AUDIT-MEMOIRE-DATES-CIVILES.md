@@ -164,3 +164,89 @@ reçus legacy restent à raccorder; le volume réel maximal et sa pagination res
 Ni dispatch, ni capacité globale/trajets, ni fraîcheur météo, ni navigateur/PG/mobile ne sont
 qualifiés par ce jalon. Prochaine action : UI mémoire par affaire avant datation, preuve CAS
 liée au reçu et relecture mémoire après effet sous savepoint, sans nouvelle politique de signaux.
+
+
+## Contrat du raccord civil HTTP suivant
+
+Un port `confirmation_dates_chantier` doit isoler toute confirmation dans un savepoint.
+Une preuve combinée du plan et de la mémoire est soumise par le formulaire (35 champs au
+maximum pour 31 jours); le reçu stocke cette preuve dans son intention, sans la transmettre
+au propriétaire M4. Après l'effet réel, ne comparer que la mémoire, puis l'admin/session :
+la tête M4 et la révision ont légitimement changé. Audit de hash/têtes, sans faits copiés.
+
+Un reçu existant doit être reconnu par appareil, clé, outil et hash exact d'intention, avec
+statut et taille SQL bornés avant tout décodage. Si la preuve est absente, seul un reçu de
+l'ancien format (hash des arguments seuls) peut être relu; jamais une nouvelle mutation.
+Aucun conflit ne déclenche un fallback legacy. Recouper la réponse avec sa vraie ligne
+historique de date et son acteur; retourner explicitement un reçu historique, même si le
+chantier a depuis été reporté, sans reconstituer sa mémoire initiale. Les nouvelles requêtes
+restent soumises au contexte courant, aux états M4 et aux conflits civils du propriétaire.
+
+La page affiche le paquet restrictif de chaque affaire avant le bouton, avec liaisons M3 et
+manuelles séparées, omissions/signaux conservés et absence/non-représentabilité explicites.
+Les vues tronquées restent consultables sans bouton; un quota global dépassé est indisponible,
+jamais un contexte partiel pris pour une validation. Ce jalon ne qualifie pas le volume réel
+maximal ni une nouvelle politique de signaux/fraîcheur, et ne crée aucun envoi terrain/client.
+
+
+## Jalon exécuté — mémoire avant confirmation civile HTTP
+
+La page du plan appliqué affiche maintenant le contexte restrictif par affaire **avant** le
+bouton de dates. Les devis acceptés et les déclarations manuelles restent distincts; chaque
+paquet garde ses faits autorisés, signaux, nombres inclus/omis, absence d'origine et besoins
+de consolidation. Une affaire inconnue ou non représentable est annoncée explicitement.
+Aucune règle automatique de blocage des signaux n'est ajoutée.
+
+Le formulaire transporte l'empreinte combinée du plan et de la mémoire; le parseur admet
+35 champs au maximum (31 dates et quatre métadonnées). Le nouveau port privé
+`confirmation_dates_chantier.confirmer` garde toute l'action dans un savepoint. La preuve
+soumise doit correspondre au contexte courant; elle entre dans l'intention d'idempotence,
+pas dans les arguments M4. Après la vraie mutation de date, mémoire et autorité sont relues.
+Un changement ou une panne d'audit annule date, reçu et audits, même si l'appelant capture
+l'exception puis valide sa transaction extérieure. L'audit supplémentaire garde hash/têtes,
+sans recopier les faits d'affaire.
+
+Un ancien formulaire sans preuve peut seulement relire un reçu existant du format exact
+historique. Outil/hash/statut et taille SQL sont contrôlés avant décodage; la réponse acceptée
+est recoupée avec sa vraie ligne de date, sa révision, son calendrier, son auteur et son
+application. Un conflit n'essaie jamais un autre format. Le rejeu exact reste possible après
+report ou changement M10, sans relire les paquets ni produire une nouvelle date. La page de
+réponse dit « Reçu historique », sans prétendre reconstituer la mémoire initiale. Les nouveaux
+formulaires et nouvelles clés doivent toujours présenter une preuve valide.
+
+`memory-civil-ui-red-v1` reproduit deux exigences absentes (pas de mémoire visible; nouvelle
+date sans preuve encore acceptée). `v1` refuse au lint avant les tests. `v2` : 58 PASS,
+un rouge et dix erreurs de fixtures météo soumettant leurs dates sans lire le formulaire;
+ces fixtures lisent désormais sa vraie preuve, sans désactiver les contrôles. `v3` : 69 PASS.
+La revue indépendante a ensuite révélé un avertissement d'origine M1 et la consolidation
+omis dans le rendu civil. `memory-civil-ui-origin-red-v1` reproduit ce constat avec cinq faits
+M3 fictifs mémorisés par le vrai propriétaire M10, sans origine M1 : connue=true,
+origine_recue=false, couches partielles et jours à consolider réels. Le rendu les expose
+maintenant; aucun fait ni politique métier n'a été changé pour masquer l'absence.
+
+`memory-civil-ui-v4` : **70 PASS, 0 FAIL/SKIP, 28,34 s**, dont 13 cas du nouveau raccord.
+Dates réelles, intention scellée, CAS mémoire, rollback après effet (mémoire, rôle, audit),
+reçu legacy après report sans paquet, absence de fallback, cache altéré/surdimensionné,
+35/36 champs, contexte privé, ancien parcours N3, météo datée et première date intègre.
+Ruff des fichiers touchés et vérificateur 297/173 passent; Source en lecture seule pendant
+chaque QA, données/home/tmp privés, 1 CPU/1 Gio/swap0/96 tâches, réseau interdit. Les cohortes
+se recoupent : aucun cumul. Tous les rouges, prérequis de fixtures et reçus sont conservés.
+
+**PARTIAL** : raccord HTTP/SQLite mémoire → date qualifié. La borne de 31 jours du formulaire
+est testée, pas un ordonnancement réel maximal. Les plans dépassant le quota JSON global
+64 Kio restent indisponibles à la confirmation, jamais partiellement présentés comme prêts.
+Prochaine capacité : qualifier coût/volume réel multi-affaire puis une consultation paginée
+qui conserve une preuve complète de confirmation, avant capacité globale/trajets/dispatch.
+Fraîcheur météo, PostgreSQL, navigateur natif et mobile restent ouverts; aucun envoi client,
+engagement fournisseur, paiement ou déploiement n'est effectué.
+
+
+Contrôle final du reçu : `memory-civil-ui-receipt-red-v1` reproduit une réponse SQL encodée
+null, malgré statut ok et intention exacte, qui provoquait un TypeError dans le dépliage
+générique du cache. Le port civil valide désormais la réponse métier acceptée après sa borne
+SQL, avant ce chemin générique; une enveloppe invalide devient un refus 503 explicite. Aucun
+changement global du codec/idempotence ni qualification des autres appelants n'est revendiqué.
+`memory-civil-ui-v5` : **71 PASS, 0 FAIL/SKIP, 28,62 s**, dont 14 cas du raccord; Ruff et
+vérificateur 297/173 passent. Cette cohorte inclut/remplace les 70 cas précédents, sans cumul.
+Preuves finales privées : `CIVIL-M10-HTTP-FINAL-QUALIFIED.json`, commandes/pins/logs/JUnit/reçus
+v5 et rouges distincts. Les limites PARTIAL et la prochaine capacité restent celles ci-dessus.

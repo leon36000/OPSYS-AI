@@ -628,7 +628,7 @@ def creer_router(
             raise HTTPException(503, "Cédule M4 indisponible") from None
         return rendre(session, "Cédule hebdomadaire", corps)
 
-    from . import meteo_dates_chantier
+    from . import confirmation_dates_chantier, memoire_plan_calendrier, meteo_dates_chantier
     router.include_router(meteo_dates_chantier.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
         verifier_formulaire=verifier_formulaire))
@@ -644,7 +644,16 @@ def creer_router(
         with cnx_factory() as cnx:
             sqlite = cnx.dialect.name == "sqlite"
         try:
-            corps = cedule_plan_ui.contenu(vue, plan_id, session.csrf, prefixe, sqlite)
+            cedule_plan_ui.valider(vue, plan_id)
+            memoire = None
+            if sqlite and not vue['tronque']:
+                with cnx_factory() as cnx:
+                    memoire = memoire_plan_calendrier.lire(cnx, deps, session, plan_id)
+                if memoire['vue'] != vue:
+                    raise ValueError('source civile modifiée')
+            preuve = confirmation_dates_chantier.empreinte(memoire) if memoire is not None else None
+            corps = (memoire_plan_calendrier.contenu(memoire) if memoire is not None else '')
+            corps += cedule_plan_ui.contenu(vue, plan_id, session.csrf, prefixe, sqlite, preuve)
             if sqlite:
                 with cnx_factory() as cnx:
                     apercu = meteo_dates_chantier.preparer(cnx, deps, session, plan_id)
@@ -668,31 +677,27 @@ def creer_router(
             with cnx_factory() as cnx:
                 if cnx.dialect.name != "sqlite":
                     raise HTTPException(503, "Modification des dates indisponible sur cette instance")
-                vue = extraire_resultat(metier.executer(cnx, deps, session, "m4_lire_calendrier_plan",
-                                                       {"plan_id": plan_id}))
-                try:
-                    permis = cedule_plan_ui.valider(vue, plan_id)
-                except (ValueError, KeyError, TypeError):
-                    raise HTTPException(503, "Détail M4 indisponible") from None
-                if not permis:
-                    raise HTTPException(409, "Plan bloqué ou incomplet : relire avant de confirmer")
-                arguments, mutation = cedule_plan_ui.arguments(champs, vue['jours'])
-                reponse = metier.executer(cnx, deps, session, "m4_confirmer_dates_cedule",
-                                         {"plan_id": plan_id, **arguments}, mutation_id=mutation)
-                try:
-                    extraire_resultat(reponse)
-                except HTTPException as exc:
-                    if exc.status_code == 400:
-                        raise HTTPException(409, "Dates non enregistrées : relire le plan et sa révision") from None
-                    raise
+                resultat = confirmation_dates_chantier.confirmer(cnx, deps, session, plan_id, champs)
         except PermissionError:
             raise HTTPException(403, "accès refusé") from None
+        except preparation_chantier.Refus as exc:
+            code = str(exc)
+            conflit = code in {'MEMOIRE-PREUVE-REQUISE', 'PLAN-BLOQUE', 'SOURCE-MODIFIEE',
+                               'MUTATION-CONFLIT', 'CONFIRMATION-REFUSEE'}
+            raise HTTPException(409 if conflit else 503,
+                'Dates non enregistrées : relire le plan et son contexte') from None
         except ValueError as exc:
             if isinstance(exc.__cause__, idempotence.MutationConflit):
                 raise HTTPException(409, "identifiant de saisie déjà utilisé") from None
             raise HTTPException(400, "dates ou formulaire invalides") from None
         except KeyError:
             raise HTTPException(503, "Confirmation M4 indisponible") from None
+        if resultat['historique']:
+            return rendre(session, 'Reçu historique des dates', '<section><h2>Reçu historique</h2>'
+                '<p>Aucune nouvelle date enregistrée. '
+                'Ce reçu ne reconstitue pas la mémoire de la décision initiale.</p>'
+                f'<p><a href="{prefixe}/crm/cedule/plan/{pages._segment(plan_id)}">Consulter le contexte actuel</a></p>'
+                '</section>')
         return RedirectResponse(f"{prefixe}/crm/cedule/plan/{pages._segment(plan_id)}", status_code=303)
 
     @router.get("/crm/lead/{lead_id}", response_class=HTMLResponse)

@@ -69,7 +69,7 @@ def _date(valeur):
 
 
 async def formulaire(request: Request):
-    """31 dates + csrf/révision/id, doublons refusés avant toute action."""
+    """31 dates + csrf/révision/id/preuve, doublons refusés avant toute action."""
     if request.headers.get('content-type', '').split(';')[0] != 'application/x-www-form-urlencoded':
         raise HTTPException(415, 'formulaire requis')
     corps = bytearray()
@@ -78,7 +78,7 @@ async def formulaire(request: Request):
         if len(corps) > 8192:
             raise HTTPException(413, 'formulaire trop volumineux')
     try:
-        champs = parse_qs(corps.decode('utf-8'), keep_blank_values=True, max_num_fields=34,
+        champs = parse_qs(corps.decode('utf-8'), keep_blank_values=True, max_num_fields=35,
                           strict_parsing=True, errors='strict')
         if any(len(v) != 1 for v in champs.values()):
             raise ValueError('doublon')
@@ -89,7 +89,7 @@ async def formulaire(request: Request):
 
 def arguments(champs, jours):
     attendus = {'csrf', 'revision_attendue', 'mutation_id'} | {f'date_{j}' for j in jours}
-    if set(champs) != attendus:
+    if set(champs) not in (attendus, attendus | {'empreinte_memoire_attendue'}):
         raise ValueError('champs inattendus')
     brut = champs['revision_attendue']
     if not re.fullmatch(r'0|[1-9][0-9]{0,8}', brut):
@@ -101,8 +101,8 @@ def arguments(champs, jours):
             'calendrier': {str(j): _date(champs[f'date_{j}']) for j in jours}}, mutation
 
 
-def contenu(vue, plan_id, csrf, prefixe, sqlite=True):
-    permis = valider(vue, plan_id) and sqlite
+def contenu(vue, plan_id, csrf, prefixe, sqlite=True, empreinte_memoire=None):
+    permis = valider(vue, plan_id) and sqlite and empreinte_memoire is not None
     lignes = ''.join(
         f'<tr><td>{pages.e(v["intervention_id"])}</td><td>{pages.e(v["equipe_id"])}</td>'
         f'<td>{pages.e(v["jour"] + 1)}</td>'
@@ -125,6 +125,7 @@ def contenu(vue, plan_id, csrf, prefixe, sqlite=True):
             f'<input type="hidden" name="csrf" value="{pages.e(csrf)}">'
             f'<input type="hidden" name="revision_attendue" value="{vue["revision"]}">'
             f'<input type="hidden" name="mutation_id" value="{uuid.uuid4()}">'
+            + f'<input type="hidden" name="empreinte_memoire_attendue" value="{pages.e(empreinte_memoire)}">'
             + champs + '<button type="submit">Confirmer les dates internes</button></form>')
     return (
         '<section class="carte"><h2>Dates du plan appliqué</h2>'
