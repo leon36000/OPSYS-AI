@@ -310,6 +310,8 @@ def test_enumere_des_types_est_fige():
         "cedule_proposee",  # PLAN T4.1-d : cedule_tournees.proposer (plan stocké, jamais une vérité)
         "cedule_appliquee",  # PLAN T4.1-d : cedule_tournees.appliquer (via etats.assigner_technicien)
         "cedule_datee",  # CRM-01 : calendrier civil confirmé, révisions append-only auditées.
+        "annotation_calendrier",  # CRM-02 : notes privées, collection séparée du planning.
+        "couleur_calendrier",  # CRM-01 : repères de présentation versionnés, collection séparée.
         "materiel_pret_recu",  # PLAN T4.14-b : la charge m6.materiel_pret la plus récente d'un devis (materiel.py)
         "heures_regulieres_validees",  # M5.4 : révision individuelle validée N4, sans paie.
     }

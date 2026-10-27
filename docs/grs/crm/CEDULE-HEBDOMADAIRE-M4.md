@@ -68,3 +68,8 @@ Vérification finale intégrée : **454 tests verts**, population unique couvran
 ## Tranche CRM-02 — annotations
 
 Les mentions historiques « notes sur cartes ouvertes » ci-dessus précèdent la tranche documentée dans [ANNOTATIONS-CEDULE-M4.md](ANNOTATIONS-CEDULE-M4.md). Elle ajoute le port administratif privé M4, les sources exactes et les versions sans modifier les dates. Qualification et limites consignées dans ce document et le checkpoint courant.
+
+
+### Évolution CRM-01 — Repères couleur
+
+La tranche [couleurs configurables](COULEURS-CEDULE-M4.md) ajoute le choix manuel sur chaque créneau, sa révision et son historique. La bordure de validité et le statut restent visibles indépendamment. Les mentions de couleurs manquantes dans les audits précédents décrivent leur état historique. Vue multi-mois, visites successives et qualification navigateur restent ouvertes.

@@ -25,11 +25,13 @@ def extraire(reponse):
         raise HTTPException(503, 'Annotations temporairement indisponibles')
     if r.get('accepte') is True and isinstance(r.get('resultat'), dict):
         return r['resultat']
-    suffixe = r.get('verdict', {}).get('code', '').removeprefix('REJ-ANNOTATION-CALENDRIER-')
+    suffixe = r.get('verdict', {}).get('code', '')
+    for prefix in ('REJ-ANNOTATION-CALENDRIER-', 'REJ-COULEUR-CALENDRIER-'):
+        suffixe = suffixe.removeprefix(prefix)
     if suffixe == 'IDENTITE':
         raise HTTPException(403, 'Accès refusé')
     if suffixe in {'REVISION-PERIMEE', 'SOURCE-PERIMEE', 'SOURCE-REMPLACEE', 'MUTATION-CONFLIT'}:
-        raise HTTPException(409, 'Note non enregistrée : relire le créneau et sa dernière révision.')
+        raise HTTPException(409, 'Repère non enregistré : relire le créneau et sa dernière révision.')
     if suffixe in {'ARGUMENTS', 'ANCRE-INVALIDE', 'MUTATION-INVALIDE'}:
         raise HTTPException(400, 'Annotation invalide')
     raise HTTPException(503, 'Source ou historique indisponible : aucune nouvelle note confirmée.')
@@ -80,7 +82,7 @@ def _parametres(request, historique=True):
     return a
 
 
-async def _formulaire(request):
+async def _formulaire(request, champ="texte_libre"):
     if request.headers.get('content-type', '').split(';')[0] != 'application/x-www-form-urlencoded':
         raise HTTPException(415, 'Formulaire requis')
     corps = bytearray()
@@ -91,12 +93,18 @@ async def _formulaire(request):
     try:
         p = parse_qs(corps.decode('utf-8'), keep_blank_values=True, strict_parsing=True,
                      max_num_fields=4, errors='strict')
-        if (set(p) != {'csrf', 'texte_libre', 'revision_attendue', 'mutation_id'}
+        if (set(p) != {'csrf', champ, 'revision_attendue', 'mutation_id'}
                 or any(len(v) != 1 for v in p.values())):
             raise ValueError('champs invalides')
         return {k: v[0] for k, v in p.items()}
     except (ValueError, UnicodeError):
         raise HTTPException(400, 'Formulaire invalide') from None
+
+
+def ecriture_qualifiee(cnx_factory):
+    """Même frontière que le writer; aucun formulaire trompeur sur un backend fermé."""
+    with cnx_factory() as cnx:
+        return cnx.dialect.name == "sqlite"
 
 
 def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulaire, rendre):
@@ -126,7 +134,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                  '<p>Note interne administrative. Ne change ni la cédule, ni le temps, ni la paie; '
                  'aucun message client envoyé.</p>'
                  f'<p><a href="{pages.e(prefixe)}/crm/cedule">Retour à la cédule</a></p>')
-        if b['source_courante']:
+        if b['source_courante'] and ecriture_qualifiee(cnx_factory):
             corps += (f'<form method="post" action="{pages.e(chemin)}" class="pile">'
                 f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">'
                 f'<input type="hidden" name="revision_attendue" value="{b["revision_courante"]}">'
@@ -135,6 +143,8 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                 'required></textarea></label><p>2 000 caractères maximum; chaque version reste dans l’historique. '
                 'Saisir uniquement des informations utiles au chantier, sans données de santé.</p>'
                 '<button type="submit">Enregistrer la note</button></form>')
+        elif b['source_courante']:
+            corps += '<p>Lecture seule : saisie des notes indisponible sur ce backend.</p>'
         else:
             corps += '<p>Ancien créneau : historique conservé. Ouvrir la carte actuelle pour une nouvelle note.</p>'
         corps += '<h3>Historique des notes de cette intervention</h3>'

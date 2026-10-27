@@ -107,6 +107,15 @@ meter { width: 100%; height: 1rem; }
 .cedule-job p { margin: .25rem 0; }
 .cedule-job details { font-size: .8rem; }
 .cedule-validite { font-size: .8rem; }
+.cedule-repere { display: inline-flex; align-items: center; gap: .4rem; font-weight: 600; }
+.repere-echantillon { display: inline-block; width: 1rem; height: 1rem; border: 1px solid currentColor;
+  border-radius: 3px; background: var(--repere, transparent); flex-shrink: 0; }
+.repere-bleu { --repere: #1678d3; }
+.repere-violet { --repere: #995bd5; }
+.repere-vert { --repere: #2d9e61; }
+.repere-rose { --repere: #e0669b; }
+.repere-ambre { --repere: #d99b21; }
+.repere-gris { --repere: #858b95; }
 .cedule-perimee { border-left-color: var(--alerte); background: var(--alerte-fond); }
 @media (max-width: 600px) { main { padding: 1rem; } .grille { grid-template-columns: 1fr; } }
 """

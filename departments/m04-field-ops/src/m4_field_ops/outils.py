@@ -60,6 +60,7 @@ from . import (
     cedule,
     cedule_tournees,
     consentement,
+    couleurs_calendrier,
     digest,
     ecarts,
     etats,
@@ -2491,6 +2492,8 @@ def outils(
               parametres=revue_completion_sources.SCHEMA_ARGUMENTS,
               fonction=resoudre_revue_completion_sources, autonomie=Autonomie.T1, niveau=Niveau.N4,
               roles_appareil=frozenset({"admin"})),
+        *_outils_annotations(),
+        *_outils_couleurs(),
         Outil(
             nom="m4_previsualiser_heures_regulieres",
             description=("Aperçu privé des pointages d'une personne OPSYS active. Dérive catégories travail, "
@@ -2581,7 +2584,7 @@ def outils(
             # (`acces.controler_administrateur`).
             roles_appareil=frozenset({"admin"}),
         ),
-    ) + _outils_annotations()
+    )
 
 
 # CRM-02 : intention et identité fournies par le port humain privé de console.
@@ -2609,8 +2612,7 @@ def _autoriser_annotation():
     return {"personne": signataire.personne, "role": "admin"}
 
 
-def _registres_annotations():
-    n = annotations_calendrier
+def _registres_annotations(n=annotations_calendrier):
     principal = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
     notes = stockage.maillons(_DEPARTEMENT, n.REGISTRE)
     if len(principal) > n.MAX_SOURCES or len(notes) > n.MAX_SOURCES:
@@ -2619,9 +2621,16 @@ def _registres_annotations():
 
 
 def enregistrer_annotation_calendrier(ancre, texte_libre, revision_attendue):
-    from . import encodage
+    return _enregistrer_repere(annotations_calendrier, ancre, "texte_libre", texte_libre, revision_attendue)
 
-    n = annotations_calendrier
+
+def definir_couleur_calendrier(ancre, couleur, revision_attendue):
+    return _enregistrer_repere(couleurs_calendrier, ancre, "couleur", couleur, revision_attendue)
+
+
+def _enregistrer_repere(n, ancre, champ, valeur, revision_attendue):
+    """Même transaction privée pour les deux métadonnées, collections et intentions distinctes."""
+    from . import encodage
     try:
         auteur = _autoriser_annotation()
         cnx = stockage.connexion_courante()
@@ -2632,20 +2641,21 @@ def enregistrer_annotation_calendrier(ancre, texte_libre, revision_attendue):
                 or meta.appareil != "console:" + auteur["personne"] or reception.appareil != meta.appareil
                 or reception.recu_le.utcoffset() is None):
             raise n.Refus("MUTATION-ABSENTE")
-        arguments = {"ancre": ancre, "texte_libre": texte_libre, "revision_attendue": revision_attendue}
+        arguments = {"ancre": ancre, champ: valeur, "revision_attendue": revision_attendue}
         mutation = {"appareil": meta.appareil, "cle": meta.cle,
                     "empreinte_arguments": encodage.empreinte(arguments)}
-        principal, notes = _registres_annotations()
+        principal, notes = _registres_annotations(n)
         # SQLite BEGIN IMMEDIATE protège la relecture et l'ajout; intention durable dans le maillon.
         with cnx.begin_nested():
-            resultat = n.enregistrer(principal, notes, ancre, texte_libre, revision_attendue,
+            resultat = n.enregistrer(principal, notes, ancre, valeur, revision_attendue,
                                     auteur, mutation, reception.recu_le.isoformat(),
                                     limite_sortie=contexte.limite_sortie() or 65536)
             if not resultat.get("rejoue"):
                 from opsys.etat import journaliser
 
                 r = resultat["resultat"]
-                journaliser(cnx, auteur["personne"], "m4.annotation_calendrier", r["annotation_id"],
+                journaliser(cnx, auteur["personne"], "m4." + n.TYPE,
+                            r["annotation_id" if champ == "texte_libre" else "couleur_id"],
                             {"revision": r["revision"], "intervention_id": r["intervention_id"]})
             return resultat
     except n.Refus as exc:
@@ -2701,6 +2711,51 @@ def _outils_annotations():
               description="Console admin privée : compteurs sans texte pour 200 créneaux M4 exacts au maximum.",
               parametres=schema({"ancres": {"type": "array", "items": ancre, "maxItems": 200}}, ["ancres"]),
               fonction=resumer_annotations_calendrier),
+    )
+
+
+
+def resumer_couleurs_calendrier(ancres):
+    n = couleurs_calendrier
+    try:
+        _autoriser_annotation()
+        principal, couleurs = _registres_annotations(n)
+        return n.resumer(principal, couleurs, ancres, limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lire_couleurs_calendrier(intervention_id, limite=20, decalage=0, revision_max=None):
+    n = couleurs_calendrier
+    try:
+        _autoriser_annotation()
+        principal, couleurs = _registres_annotations(n)
+        return n.lire(principal, couleurs, intervention_id, limite, decalage, revision_max,
+                      limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _outils_couleurs():
+    # Réutilise les contrats d'ancre/pagination des notes; seule la valeur de présentation diffère.
+    from copy import deepcopy
+
+    ecrire, lire, resumer = _outils_annotations()
+    schema = deepcopy(ecrire.parametres)
+    del schema["properties"]["texte_libre"]
+    schema["properties"]["couleur"] = {"type": "string", "enum": list(couleurs_calendrier.PALETTE)}
+    schema["required"] = ["ancre", "couleur", "revision_attendue"]
+    return (
+        Outil(nom="m4_definir_couleur_calendrier", parametres=schema, autonomie=Autonomie.T1,
+              description="Console admin privée : repère couleur versionné du créneau exact. "
+                          "Aucun changement de dates, statut, temps, paie ou notification.",
+              fonction=definir_couleur_calendrier),
+        Outil(nom="m4_lire_couleurs_calendrier", parametres=deepcopy(lire.parametres),
+              description="Console admin privée : historique borné des repères couleur et leurs sources exactes.",
+              fonction=lire_couleurs_calendrier),
+        Outil(nom="m4_resumer_couleurs_calendrier", parametres=deepcopy(resumer.parametres),
+              description="Console admin privée : repères de présentation pour 200 créneaux exacts maximum.",
+              fonction=resumer_couleurs_calendrier),
     )
 
 

@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from . import annotations_cedule_ui, pages
+from . import annotations_cedule_ui, couleurs_cedule_ui, pages
 
 FUSEAU = "America/Montreal"
 JOURS = ("Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche")
@@ -69,12 +69,17 @@ def _carte(ligne, debut, fin, dossiers, prefixe):
         annotation = (f'<p><a href="{pages.e(lien)}" aria-label="Notes de ce créneau">'
                       f'{"●" if badge["total_ancre"] else "○"} Notes : {badge["total_ancre"]}'
                       f' · historique : {badge["total_historique"]}</a></p>')
+    repere = ""
+    if "couleur" in ligne:
+        lien = couleurs_cedule_ui.url(annotations_cedule_ui.ancre_de(ligne), prefixe)
+        repere = (f'<p>{couleurs_cedule_ui.marqueur(ligne["couleur"])}</p>'
+                  f'<p><a href="{pages.e(lien)}" aria-label="Couleur de ce créneau">Changer le repère</a></p>')
     statut = STATUTS.get(ligne["statut"], ligne["statut"])
     return (
         f'<article class="cedule-job {classe}" data-intervention="{pages.e(iid)}">'
         f'<p><strong>{debut:%H:%M}–{fin:%H:%M}</strong></p><p>{pages.e(statut)}</p>'
         f'<p class="cedule-validite">{qualite}</p><p>{dossier}</p>'
-        f'<p>{_lien_plan(ligne["plan_id"], prefixe)}</p>{annotation}'
+        f'<p>{_lien_plan(ligne["plan_id"], prefixe)}</p>{repere}{annotation}'
         '<details><summary>Origine et confirmation</summary>'
         f'<p>Intervention : {pages.e(iid)}</p>'
         f'<p>Équipe actuelle : {pages.e(ligne["technicien_actuel"] or "Non assignée")}</p>'
@@ -138,10 +143,12 @@ def contenu(vue: Mapping, dossiers: set[str], prefixe: str) -> str:
         '<section class="carte"><h2>Équipes × jours</h2>'
         f'<p>Semaine du {jour:%d/%m/%Y} au {jours[-1]:%d/%m/%Y} · {FUSEAU}</p>'
         f'<p><a href="{pages.e(prefixe)}/crm">Répertoire CRM</a></p>' + _navigation(jour, prefixe)
-        + '<p class="note">Lecture seule. Une cellule vide ne prouve aucune disponibilité. '
+        + '<p class="note">Une cellule vide ne prouve aucune disponibilité. '
         'Seules les équipes portant un créneau dans cette vue sont affichées.</p>'
         '<p class="note">Légende : bleu — date interne confirmée ; orange — ancien créneau à reconfirmer. '
-        'La couleur ne signifie pas que le client a confirmé ou que le chantier est prêt.</p>'
+        'Cette bordure ne signifie pas que le client a confirmé ou que le chantier est prêt.</p>'
+        '<p class="note">Repère administratif : sans repère, bleu, violet, vert, rose, ambre ou gris. '
+        'Choisir sa couleur depuis la carte; ce repère reste indépendant du statut et de la bordure de validité.</p>'
         + limite + f'<p>{len(lignes)} créneau(x) affiché(s) sur {vue["total_interventions"]} pour cette semaine.</p>'
         '<div class="table-defilante" role="region" aria-label="Cédule hebdomadaire" tabindex="0">'
         '<table class="cedule-semaine"><caption>Planification interne — source M4</caption>'

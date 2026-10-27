@@ -39,3 +39,6 @@ Tests dédiés : `departments/m04-field-ops/tests/test_annotations_calendrier.py
 Qualification locale Linux : **106 cas PASS** pour primitive, console, calendrier et registre ; lot distinct de **59 cas PASS** pour contrats d’outils, horloge serveur et politiques. Ces lots ne sont pas additionnés aux populations des jalons précédents. Ruff et `python -B -m opsys.cli verifier` passent (269 outils, 173 portées d’appareil inchangées). Les premiers rouges restent conservés : garde du port direct corrigé, erreur de préfixe du harnais HTTP corrigée, lint corrigé.
 
 Statut : **PARTIAL**, parcours HTTP/SQLite local vérifié. Restent navigateur réel, parcours PostgreSQL, portée agent/M10, personnalisation des couleurs, visites successives et mobile. Le préflight navigateur local précédemment refusé ne doit pas être rejoué avec désactivation du sandbox. Aucun gate Nathan supplémentaire pour la saisie privée réversible ; notifications et actions opérationnelles gardent leurs gates existants.
+
+
+Évolution CRM-01 : les [repères couleur](COULEURS-CEDULE-M4.md) utilisent une collection séparée, sans détourner le texte des notes. Les formulaires de notes sont maintenant masqués sur les backends dont l’écriture n’est pas qualifiée ; la fermeture existante du writer PostgreSQL reste en place.

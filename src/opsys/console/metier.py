@@ -452,7 +452,7 @@ def _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation
     outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
     if outil is None:
         raise KeyError("outil M4 indisponible")
-    ecriture = nom == "m4_enregistrer_annotation_calendrier"
+    ecriture = nom in {"m4_enregistrer_annotation_calendrier", "m4_definir_couleur_calendrier"}
     if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
         raise ValueError("annotation invalide")
     if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
@@ -464,7 +464,8 @@ def _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation
     with (
         contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
         contexte.appeler_en_tant_que(dept, origine="console"),
-        contexte.sortie_bornee(262144 if nom == "m4_resumer_annotations_calendrier" else 65536),
+        contexte.sortie_bornee(262144 if nom in {"m4_resumer_annotations_calendrier",
+                                               "m4_resumer_couleurs_calendrier"} else 65536),
         m4.contexte_annotation_calendrier(meta),
         contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
         if ecriture else nullcontext(),
@@ -505,7 +506,8 @@ def executer(
     if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
-               "m4_resumer_annotations_calendrier"}:
+               "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
+               "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier"}:
         return _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m6_enregistrer_note_commande", "m6_lire_note_commande", "m6_lister_notes_commande"}:
         return _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutation_id)
