@@ -15,6 +15,10 @@ relie la liste admin par lead et le détail au dossier. CRM-05/07 restent partie
 uniquement, sans édition de clauses, génération de PDF ni envoi. Les constats T1 ci-dessous restent
 l’état historique du snapshot initial.
 
+Tranche recherche : [RECHERCHE-CLIENTS-M2.md](RECHERCHE-CLIENTS-M2.md) ajoute la recherche
+nom/courriel/téléphone/lead dans M2 avant pagination, avec visibilité inchangée et masquage du terme
+dans les journaux d’accès de la console. CRM-04 reste partiel : correction de coordonnées non livrée.
+
 Principes transverses (critères d'acceptation communs à toute ligne)
 - **CA-0** Le CRM soutient le travail de l'IA mais reste utilisable à la main : toute action de l'IA est visible, corrigeable et reprise par un humain autorisé.
 - **CA-1** Aucune seconde vérité : le cockpit lit/écrit via les outils du département propriétaire (M2 commercial, M3 soumissions, M4 planning, M5 finance,

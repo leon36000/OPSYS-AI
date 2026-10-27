@@ -722,6 +722,7 @@ def lister_leads(
     segment: str | None = None,
     decalage: int = 0,
     limite: int = liste_leads.LIMITE_DEFAUT,
+    recherche: str | None = None,
 ) -> dict[str, Any]:
     """PLAN T4.6 (M2.11) : les leads que l'appelant peut voir, par statut et par segment, une page à la fois.
     Lecture pure, aucune écriture.
@@ -748,6 +749,7 @@ def lister_leads(
         decalage=decalage,
         limite=limite,
         budget_caracteres=BUDGET_SORTIE,
+        recherche=recherche,
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
@@ -2048,7 +2050,8 @@ def outils() -> tuple[Outil, ...]:
                 "tous. Chaque lead porte ses segments, avec la règle citée et la donnée qui la déclenche ; "
                 "un segment non calculable dit « non calculable, manque X » et un filtre sur lui est refusé "
                 "(seuils à configurer dans department.yaml). Ordre : le plus ancien lead d'abord. Aucun "
-                "montant. Lecture pure. Pour lire la suite, rappeler avec decalage = suivant."
+                "montant. Recherche littérale facultative par nom/courriel/téléphone/lead_id, sans casse ni accents, "
+                "avant pagination et dans les seuls leads autorisés. Lecture pure. Suite : decalage = suivant."
             ),
             parametres={
                 "type": "object",
@@ -2078,6 +2081,10 @@ def outils() -> tuple[Outil, ...]:
                             f"Leads par page au plus (défaut {liste_leads.LIMITE_DEFAUT}) ; "
                             "la taille de la sortie les borne aussi."
                         ),
+                    },
+                    "recherche": {
+                        "type": ["string", "null"], "maxLength": liste_leads.LIMITE_RECHERCHE,
+                        "description": "Tous les termes doivent correspondre, sans regex; vide = aucun filtre.",
                     },
                     "horodatage": _HORODATAGE,
                 },

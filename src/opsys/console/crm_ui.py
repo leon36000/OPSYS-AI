@@ -126,16 +126,18 @@ def _lien_dossier(lead_id: str, prefixe: str) -> str:
     return f'<a href="{pages.e(prefixe)}/crm/lead/{pages._segment(lead_id)}">{pages.e(lead_id)}</a>'
 
 
-def _lien_repertoire(prefixe: str, statut: str, decalage: int) -> str:
+def _lien_repertoire(prefixe: str, statut: str, decalage: int, recherche: str = "") -> str:
     requete = []
     if statut:
         requete.append(f"statut={pages._segment(statut)}")
+    if recherche:
+        requete.append(f"q={pages._segment(recherche)}")
     if decalage:
         requete.append(f"decalage={decalage}")
     return f"{pages.e(prefixe)}/crm" + (("?" + "&amp;".join(requete)) if requete else "")
 
 
-def contenu_repertoire(page: Mapping[str, Any], *, statut: str, prefixe: str) -> str:
+def contenu_repertoire(page: Mapping[str, Any], *, statut: str, prefixe: str, recherche: str = "") -> str:
     """Le répertoire : filtre par statut, tableau, pagination fidèle au `decalage` de M2."""
     options = "".join(
         f'<option value="{pages.e(cle)}"{" selected" if cle == statut else ""}>{pages.e(libelle)}</option>'
@@ -143,6 +145,8 @@ def contenu_repertoire(page: Mapping[str, Any], *, statut: str, prefixe: str) ->
     )
     filtre = (
         f'<form method="get" action="{pages.e(prefixe)}/crm" class="pile">'
+        '<label for="recherche">Nom, courriel, téléphone ou identifiant</label>'
+        f'<input id="recherche" name="q" value="{pages.e(recherche)}" maxlength="120" type="search">'
         '<label for="statut">Statut</label>'
         f'<select id="statut" name="statut"><option value="">Tous</option>{options}</select>'
         '<button type="submit">Filtrer</button></form>'
@@ -151,7 +155,8 @@ def contenu_repertoire(page: Mapping[str, Any], *, statut: str, prefixe: str) ->
     total = page.get("total") if isinstance(page.get("total"), int) else 0
     decalage = page.get("decalage") if isinstance(page.get("decalage"), int) else 0
     if not leads:
-        corps = pages._vide("Aucun lead ne correspond à ce filtre." if statut else "Aucun lead enregistré dans M2.")
+        vide = "Aucun lead ne correspond à ce filtre." if statut or recherche else "Aucun lead enregistré dans M2."
+        corps = pages._vide(vide)
     else:
         lignes = []
         for lead in leads:
@@ -173,10 +178,10 @@ def contenu_repertoire(page: Mapping[str, Any], *, statut: str, prefixe: str) ->
         )
     navigation = []
     if decalage:
-        navigation.append(f'<a href="{_lien_repertoire(prefixe, statut, 0)}">Revenir au début</a>')
+        navigation.append(f'<a href="{_lien_repertoire(prefixe, statut, 0, recherche)}">Revenir au début</a>')
     suivant = page.get("suivant")
     if isinstance(suivant, int) and not isinstance(suivant, bool):
-        navigation.append(f'<a href="{_lien_repertoire(prefixe, statut, suivant)}">Page suivante</a>')
+        navigation.append(f'<a href="{_lien_repertoire(prefixe, statut, suivant, recherche)}">Page suivante</a>')
     message = page.get("message")
     notes = [
         f"<p>{total} lead(s) correspondent ; ordre : {_texte(page.get('ordre'))}.</p>",
@@ -190,8 +195,9 @@ def contenu_repertoire(page: Mapping[str, Any], *, statut: str, prefixe: str) ->
         )
     return (
         '<section class="carte"><h2>Répertoire clients et prospects</h2>'
-        '<p class="note">Lecture seule de M2 (vérité commerciale). Pas de recherche par nom ni de correction '
-        "de coordonnées pour l'instant : ces capacités n'existent pas encore dans M2.</p>"
+        '<p class="note">Lecture seule : recherche dans M2, sur tous les dossiers autorisés avant pagination. '
+        'Les termes sont littéraux, sans distinction de casse ou d’accents. '
+        'La correction des coordonnées reste à venir.</p>'
         + filtre + "".join(notes) + corps
         + (f"<p>{' · '.join(navigation)}</p>" if navigation else "")
         + "</section>"
@@ -431,8 +437,12 @@ def creer_router(
     def repertoire(request: Request) -> Response:
         session = session_page(request)
         parametres = request.query_params
-        if set(parametres) - {"statut", "decalage"}:
+        if set(parametres) - {"statut", "decalage", "q"}:
             raise HTTPException(400, "requête invalide")
+        recherche = parametres.get("q", "")
+        if len(recherche) > 120:
+            raise HTTPException(400, "recherche limitée à 120 caractères")
+        recherche = recherche.strip()
         statut = parametres.get("statut", "")
         if statut and statut not in STATUTS:
             raise HTTPException(400, "requête invalide")
@@ -442,8 +452,11 @@ def creer_router(
         arguments: dict[str, Any] = {"decalage": int(brut), "limite": LIMITE_PAGE}
         if statut:
             arguments["statut"] = statut
+        if recherche:
+            arguments["recherche"] = recherche
         page = lire(session, "m2_lister_leads", arguments)
-        return rendre(session, "Répertoire CRM", contenu_repertoire(page, statut=statut, prefixe=prefixe))
+        return rendre(session, "Répertoire CRM",
+                      contenu_repertoire(page, statut=statut, prefixe=prefixe, recherche=recherche))
 
     @router.get("/crm/lead/{lead_id}", response_class=HTMLResponse)
     def dossier(lead_id: str, request: Request) -> Response:

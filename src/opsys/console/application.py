@@ -1210,5 +1210,7 @@ def lancer(argv: list[str] | None = None, environ: Mapping[str, str] | None = No
         print(f"opsys-console : {exc}", file=sys.stderr)
         return 2
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s : %(message)s")
-    uvicorn.run(application, host=args.hote, port=args.port)
+    from .journaux_http import configuration_journaux
+
+    uvicorn.run(application, host=args.hote, port=args.port, log_config=configuration_journaux())
     return 0

@@ -475,3 +475,64 @@ def test_soumission_approuvee_pour_envoi_ne_promet_pas_livraison(devis_crm, sess
     reponse = devis_crm.get("/crm/lead/lead-fictif-001/soumissions/devis-fictif-001")
     assert reponse.status_code == 200
     assert "Approuvé pour envoi — livraison non attestée" in reponse.text
+
+
+def test_recherche_console_contact_source_et_chaine_echappee(client_crm, session):
+    _connecter(client_crm, "admin.fictif")
+    avant = _instantane_base(session)
+    resultat = client_crm.get("/crm", params={"q": "UN@EXAMPLE.TEST"})
+    assert resultat.status_code == 200
+    assert "lead-fictif-001" in resultat.text and "lead-fictif-002" in resultat.text
+    assert "lead-fictif-003" not in resultat.text
+    rien = client_crm.get("/crm", params={"q": '\"><script>FICTIF</script>'})
+    assert rien.status_code == 200
+    assert '<script>FICTIF</script>' not in rien.text
+    assert "Aucun lead ne correspond" in rien.text
+    assert client_crm.get("/crm", params={"q": "x" * 121}).status_code == 400
+    assert _instantane_base(session) == avant
+
+
+def test_recherche_outil_vendeur_n_expose_pas_le_client_d_un_autre(client_crm, session):
+    from opsys import contexte
+    with session() as cnx:
+        identite.creer_personne(cnx, "vendeur.fictif", "Vendeur FICTIF", "mot-de-passe-fictif-long", ["seller"])
+    avant = _instantane_base(session)
+    with session(), contexte.appele_par_appareil(contexte.IdentiteAppelante("vendeur.fictif", "seller")):
+        visible = outils_m2.lister_leads(H2, recherche="un@example.test")
+        cache = outils_m2.lister_leads(H2, recherche="deux@example.test")
+    assert visible["accepte"] and visible["resultat"]["total"] == 1
+    assert visible["resultat"]["leads"][0]["lead_id"] == "lead-fictif-001"
+    assert cache["accepte"] and cache["resultat"]["total"] == 0
+    assert _instantane_base(session) == avant
+
+
+def test_recherche_console_pagination_conserve_filtre(client_crm, session, monkeypatch):
+    monkeypatch.setattr(crm_ui, "LIMITE_PAGE", 1)
+    _connecter(client_crm, "admin.fictif")
+    avant = _instantane_base(session)
+    page = client_crm.get("/crm", params={"q": "un@example.test"})
+    assert "lead-fictif-001" in page.text and "lead-fictif-002" not in page.text
+    assert "q=un%40example.test&amp;decalage=1" in page.text
+    suite = client_crm.get("/crm", params={"q": "un@example.test", "decalage": 1})
+    assert "lead-fictif-002" in suite.text and "lead-fictif-003" not in suite.text
+    assert _instantane_base(session) == avant
+
+
+def test_recherche_logs_uvicorn_masquent_query_et_preservent_statut():
+    import logging
+
+    from uvicorn.config import LOGGING_CONFIG
+    from uvicorn.logging import AccessFormatter
+
+    from opsys.console.journaux_http import MasquerRecherche, configuration_journaux
+
+    for query in ("q=client%40example.test", "%71=client%40example.test&statut=nouveau"):
+        record = logging.LogRecord("uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/%s" %d',
+                                   ("127.0.0.1", "GET", "/opsys/crm?" + query, "1.1", 200), None)
+        assert MasquerRecherche().filter(record)
+        ligne = AccessFormatter(fmt='%(request_line)s %(status_code)s', use_colors=False).format(record)
+        assert "client" not in ligne and "example.test" not in ligne
+        assert "[MASQUE]" in ligne and "200" in ligne and "/opsys/crm" in ligne
+    config = configuration_journaux()
+    assert config["handlers"]["access"]["filters"] == ["recherche_privee"]
+    assert "recherche_privee" not in LOGGING_CONFIG.get("filters", {})

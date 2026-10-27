@@ -743,3 +743,40 @@ def test_le_module_est_pur_aucun_import_opsys_ni_horloge():
     assert not re.search(r"^\s*(from|import) opsys", source, re.M)
     assert "datetime.now" not in source
     assert "time.time" not in source
+
+
+def test_recherche_contact_avant_pagination_et_visibilite(reg):
+    for i in range(24):
+        _ingerer(reg, f"aaa-sans-match-{i:02d}")
+    for ident in ["cible-a", "cible-b", "cache-c"]:
+        _ingerer(reg, ident, contact={"nom": "Élodie FICTIVE", "courriel": "elodie@example.test",
+                                    "telephone": "514-555-0100"})
+    _qualifier(reg, "cible-b")
+    _note(reg, "cible-a", "2026-09-02T09:00:00-04:00")
+    avant = reg.lire()
+    page = _lister(reg, recherche="ELODIE example.test", visibles={"cible-a", "cible-b"}, limite=1)
+    assert _ids(page) == ["cible-a"] and page["total"] == 2 and page["suivant"] == 1
+    suite = _lister(reg, recherche="élodie", visibles={"cible-a", "cible-b"}, limite=1, decalage=1)
+    assert _ids(suite) == ["cible-b"] and suite["suivant"] is None
+    assert _lister(reg, recherche="Appel")["total"] == 0  # aucune recherche dans les notes
+    assert _lister(reg, recherche="514-555", visibles={"cible-a"})["total"] == 1
+    assert _lister(reg, recherche="cache-c", visibles={"cible-a"})["total"] == 0
+    assert _ids(_lister(reg, recherche="elodie", statut="qualifie")) == ["cible-b"]
+    assert reg.lire() == avant
+
+
+@pytest.mark.parametrize("recherche", [123, [], "x" * 121, "\u0301"])
+def test_recherche_invalide_refusee_sans_lecture_large(reg, recherche):
+    _ingerer(reg, "un")
+    avant = reg.lire()
+    refus = _lister(reg, recherche=recherche, verdict_attendu=True)
+    assert refus["code"] == "REJ-CONTRAT-INVALIDE"
+    assert reg.lire() == avant
+
+
+def test_recherche_vide_compatible_et_syntaxe_litterale(reg):
+    _ingerer(reg, "un", contact={"nom": "Alpha FICTIF", "courriel": "a@example.test"})
+    assert _lister(reg, recherche="  ") == _lister(reg)
+    assert _lister(reg, recherche=None) == _lister(reg)
+    assert _lister(reg, recherche=".*")["total"] == 0
+    assert _lister(reg, recherche="' OR 1=1 --")["total"] == 0
