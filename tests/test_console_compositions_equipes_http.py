@@ -42,7 +42,7 @@ def test_lecture_http_source_canonique_et_temporalites_sans_ecriture(client_crm,
     assert 'aucune présence terrain' in r.text
     assert 'Empreinte calculée du snapshot' in r.text
     assert r.headers['cache-control'] == 'no-store' and 'content-security-policy' in r.headers
-    assert client_crm.post(URL).status_code == 405
+    assert client_crm.post(URL).status_code == 415
     assert base._instantane_base(session) == avant
 
 

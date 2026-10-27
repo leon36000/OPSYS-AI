@@ -61,6 +61,8 @@ from . import (
     cedule,
     cedule_tournees,
     composition_durable,
+    composition_ecriture,
+    composition_journaliere,
     consentement,
     couleurs_calendrier,
     digest,
@@ -1412,6 +1414,36 @@ def outils(
             return _refus(verdicts.construire_verdict('REJ-COMPOSITION-SOURCE-INVALIDE'))
         return {'accepte': True, 'resultat': resultat}
 
+    def declarer_composition_journaliere_console(jour, equipe_id, membres, revision_attendue, statut_declaration):
+        from . import encodage
+
+        n = composition_journaliere
+        try:
+            auteur = _autoriser_annotation()
+            cnx = _cnx_durable()
+            # Refuse l'injection même si la transaction courante est par ailleurs valide.
+            composition_durable.capturer(cnx)
+            meta, reception = _META_ANNOTATION.get(), contexte.horodatage_reception()
+            if (not isinstance(meta, idempotence.Meta) or reception is None
+                    or meta.appareil != 'console:' + auteur['personne'] or reception.appareil != meta.appareil
+                    or reception.recu_le.utcoffset() is None):
+                raise n.Refus('MUTATION-ABSENTE')
+            arguments = n._arguments(jour, equipe_id, membres, revision_attendue, statut_declaration)
+            mutation = {'appareil': meta.appareil, 'cle': meta.cle,
+                        'empreinte_arguments': encodage.empreinte(arguments)}
+            return composition_ecriture.enregistrer(cnx, arguments, auteur, mutation, reception.recu_le.isoformat(),
+                _autoriser_annotation, limite_sortie=contexte.limite_sortie() or 65536)
+        except n.Refus as exc:
+            codes = {'IDENTITE', 'MUTATION-ABSENTE', 'MUTATION-CONFLIT', 'REVISION-PERIMEE',
+                     'IDENTITES-NON-CONFIRMEES', 'SOURCE-MODIFIEE', 'SORTIE-TROP-VOLUMINEUSE'}
+            code = ('SOURCE-TROP-VOLUMINEUSE' if exc.suffixe == 'SOURCES-TROP-VOLUMINEUSES' else
+                    exc.suffixe if exc.suffixe in codes else 'DECLARATION-INVALIDE')
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-' + code))
+        except composition_durable.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-SOURCE-INVALIDE'))
+
     def verifier_preparation(intervention_id: str) -> dict[str, Any]:
         """Lecture seule : la préparation d'une intervention (M4.6), volet par volet, avec ce qui manque. Rien n'est
         écrit ; aucun volet non vérifié n'est présenté comme prêt."""
@@ -2424,6 +2456,20 @@ def outils(
                 "source_attendue": {"type": ["string", "null"]}},
                 "required": ["jour"], "additionalProperties": False},
             fonction=lire_journal_quotidien, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_declarer_composition_journaliere_console",
+            description=("Console humaine admin privée : déclare/corrige/retire une composition journalière. "
+                         "Identités canoniques, révision et intention signée; ne modifie ni profil, accès, "
+                         "présence, paie ou mémoire. Aucun agent, MCP ou appareil direct autorisé."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "equipe_id": {"type": "string", "maxLength": 64},
+                "membres": {"type": ["array", "null"], "items": {"type": "string", "maxLength": 64}, "maxItems": 50},
+                "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 10000},
+                "statut_declaration": {"type": "string", "enum": ["declaree", "retiree"]}},
+                "required": ["jour", "equipe_id", "membres", "revision_attendue", "statut_declaration"],
+                "additionalProperties": False},
+            fonction=declarer_composition_journaliere_console, autonomie=Autonomie.T1,
         ),
         Outil(
             nom="m4_lire_composition_journaliere_console",

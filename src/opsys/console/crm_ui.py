@@ -921,7 +921,8 @@ def creer_router(
     router.include_router(journal_equipes.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(compositions_equipes.creer_router(
-        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
+        verifier_formulaire=verifier_formulaire))
     router.include_router(rentabilite_chantier.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(preparation_chantier.creer_router(

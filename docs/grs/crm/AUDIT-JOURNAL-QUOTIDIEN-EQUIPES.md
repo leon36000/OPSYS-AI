@@ -643,3 +643,92 @@ CSRF d'écriture, M10, navigateur natif, PostgreSQL et mobile restent à qualifi
 absences, heures/paie et présence réellement observée ne sont pas reconstitués par cet écran.
 Prochaine tranche : déclaration manuelle signée par l'admin courant, avec identités canoniques,
 CAS/rejeu et CSRF; aucun profil d'équipe ni droit courant modifié par la déclaration historique.
+
+
+## Contrat avant la déclaration admin et son formulaire
+
+Nouvelle tranche : `m4_declarer_composition_journaliere_console`, T1 privé sans portée d'appareil,
+fermé aux deux répartiteurs génériques. Réemploi du contexte d'intention des annotations et du
+port humain `metier`, sans reçu central contenant les membres. Un wrapper propre à la composition
+vérifie connexion canonique SQLite, admin SQL/session avant et après l'action dans un savepoint.
+Auteur et heure de réception sont calculés côté serveur; le client ne les fournit jamais.
+
+Capturer la source bornée et préparer l'opération complète sur copie par le domaine, accusé
+et quota compris. Retrouver le rejeu exact avant CAS et validation des identités contemporaines;
+revalider quand même l'admin courant, la source et la sortie. Ancien rejeu = ancien accusé sans
+membres, puis lecture fraîche de l'état courant; aucun retour arrière, aucune nouvelle trace.
+L'existence historique d'une paire se déduit uniquement des maillons validés `(jour,equipe_id)`,
+pas du numéro de révision fourni ni d'une autre journée.
+
+Pour une première déclaration, l'équipe doit exister dans la copie exacte du profil canonique
+consommé. Son empreinte vient de cette même copie et est revérifiée avant/après l'ajout.
+Pour corriger une paire déjà historisée (même retirée), ne pas exiger qu'elle existe encore dans
+le profil courant. Retrait : aucune validation de membres ou d'équipe contemporaine qui empêcherait
+de retirer une ancienne déclaration erronée. Toute nouvelle liste utilise exclusivement les
+identifiants de comptes canoniques existants, sans nom libre ni création de compte. Un compte
+désactivé peut être cité dans une déclaration explicite : cela ne le réactive pas et ne prouve
+ni disponibilité, présence, rôle passé ou appartenance actuelle. Aucun membre n'est copié depuis
+le profil; pas d'exclusivité entre équipes imposée à cette histoire déclarative.
+
+SQLite BEGIN IMMEDIATE et savepoint encadrent la relecture/CAS/append. Vérifier le maillon réellement
+ajouté contre le préparé et le préfixe SQL/metadonnées inchangé; une panne d'audit, de source,
+de profil ou d'autorité après append doit lever hors du savepoint et annuler toutes les écritures
+avant conversion en refus métier. Ne pas supposer que `executer_atomique` annule un refus dont
+l'enveloppe technique porte `ok=True`. Audit minimal : source, jour/équipe, révision, statut,
+effectif et empreintes; jamais la liste de membres dans les journaux/reçus génériques. Aucun
+envoi M10 ou événement d'accès automatique dans cette tranche.
+
+Formulaire sur l'écran déjà qualifié : déclaration/correction avec identifiants un par ligne,
+préremplis seulement depuis la déclaration courante; après retrait, liste inconnue et champ vide.
+Formulaire distinct de retrait pour revenir à inconnu, pas à une fausse liste vide. CSRF, mutation
+UUID, révision attendue, corps UTF-8 et champs strictement bornés; jour/équipe proviennent de l'URL
+exacte et sont inclus dans l'empreinte d'intention. POST303 vers une lecture fraîche. Auteur,
+heure, rôles, profils et paie ne sont ni modifiables ni traités par ce formulaire.
+
+Tests : writer réel absent au rouge; identités connues/inactives, équipe initiale inconnue et
+paire d'un autre jour refusées, retrait/correction après disparition de l'équipe, rejeu ancien
+sans profil/identités contemporaines, CAS concurrent de deux transactions, conflit d'intention,
+source/profil A→B→A, rôle ou audit défaillant après append avec rollback, sortie bornée avant append,
+aucun changement du profil/des droits/du principal/du reçu central. Puis vrais POST HTTP CSRF,
+déclaration→correction→retrait→nouvelle déclaration, réouverture et historique, faux auteur/heure,
+champs doubles et taille, rôle révoqué, forme et classement privé de l'outil. Aucun accès réel,
+paiement, présence, sanction, navigateur, PostgreSQL ou mobile revendiqué.
+
+
+## Déclaration admin et formulaire qualifiés localement
+
+Le vrai T1 privé et le formulaire admin CSRF existent maintenant. Déclarer, corriger, retirer
+puis redéclarer conserve les quatre révisions dans la base canonique; le retrait signifie
+inconnu, tandis que la liste vide demeure une déclaration explicitement vide. POST303 relit
+l'état courant, même après rejeu d'une ancienne intention. Jour et équipe restent fixés par
+l'URL; auteur et heure proviennent du serveur. Les identifiants ne sont ni créés, ni réactivés,
+ni copiés depuis la configuration actuelle. La disparition actuelle d'une équipe n'empêche
+pas de corriger son jour historique; elle interdit une première déclaration pour un autre jour.
+
+Cohorte intégrée `crm16-composition-form-v3` : **273 PASS, 0 FAIL, 0 SKIP, 35,63 s**, Ruff et
+vérificateur natif passent. Elle inclut 21 cas du writer et 19 cas du formulaire, les lecteurs
+SQL/HTTP, le domaine, les portées d'appareil, les verdicts et les régressions notes/journal.
+Les cohortes antérieures se recoupent et ne sont jamais additionnées. Catalogue natif :
+300 outils, 175 déclarés aux appareils; ce nouveau T1 demeure fermé aux appareils et aux
+agents, aucun rôle de compte ajouté. Source en lecture seule sous Landlock, réseau refusé,
+homes/tmp privés avant imports, 1 CPU / 1 Gio / 96 tâches / 600 s, données fictives uniquement.
+
+Rouges conservés : writer absent, formulaire absent, puis trois POST acceptant à tort des
+séparateurs de contrôle comme deux membres. LF/CRLF sont désormais les seules fins de ligne
+interprétées; caractères de contrôle, espaces de bord, doublons et identités inconnues sont
+refusés. Les erreurs de préparation (fixture, syntaxe de test, import ou lint) restent classées
+comme erreurs du harnais, sans attribution au produit. Panne d'audit après append, perte
+d'autorité après ajout, métadonnées altérées, profil A→B→A et deux transactions concurrentes
+sont exercés; les refus annulent les écritures. Rejeu exact = ancien accusé sans nouvelle trace;
+conflit de corps ou révision périmée = refus sans écriture. Aucun membre dans les accusés ou
+journaux génériques; aucun changement des autres tables, profils ou droits.
+
+Revue statique indépendante backend et formulaire : aucun constat concret supplémentaire,
+sans runtime du relecteur. Le défaut de séparateurs a été reproduit et corrigé par le root.
+Preuve : `CRM16-COMPOSITION-WRITE-LOCAL-QUALIFIED.json`, avec reçus, pins, limites et historique.
+
+**PARTIAL — saisie admin déclarative HTTP/SQLite qualifiée localement, publication en attente
+de la CI du parent.** Ce résultat ne prouve ni présence, absence, heures/paie, composition
+réellement observée, M10, PostgreSQL, navigateur natif ou mobile. Prochaine capacité : journal
+administratif explicite des absences par journée, sans motif de santé, sans déduction à partir
+d'une composition et sans décision RH automatique; son contrat et ses sources restent à examiner.

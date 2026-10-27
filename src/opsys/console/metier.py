@@ -452,7 +452,8 @@ def _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation
     outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
     if outil is None:
         raise KeyError("outil M4 indisponible")
-    ecriture = nom in {"m4_enregistrer_annotation_calendrier", "m4_definir_couleur_calendrier"}
+    ecriture = nom in {"m4_enregistrer_annotation_calendrier", "m4_definir_couleur_calendrier",
+                       "m4_declarer_composition_journaliere_console"}
     if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
         raise ValueError("annotation invalide")
     if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
@@ -461,16 +462,28 @@ def _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation
     maintenant = datetime.now(UTC)
     meta = (idempotence.Meta(mutation_id, "console:" + personne.identifiant, maintenant.isoformat())
             if ecriture else None)
+    borne = 262144 if nom in {"m4_resumer_annotations_calendrier", "m4_resumer_couleurs_calendrier"} else 65536
+    if nom == "m4_declarer_composition_journaliere_console" and contexte.limite_sortie() is not None:
+        borne = min(borne, contexte.limite_sortie())
     with (
         contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
         contexte.appeler_en_tant_que(dept, origine="console"),
-        contexte.sortie_bornee(262144 if nom in {"m4_resumer_annotations_calendrier",
-                                               "m4_resumer_couleurs_calendrier"} else 65536),
+        contexte.sortie_bornee(borne),
         m4.contexte_annotation_calendrier(meta),
         contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
         if ecriture else nullcontext(),
     ):
         return executer_atomique(outil, dict(arguments))
+
+
+def _executer_composition(cnx, deps, session, personne, nom, arguments, mutation_id):
+    from . import memoire_chantier as autorite
+
+    with cnx.begin_nested():
+        autorite._admin(cnx, session)
+        resultat = _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation_id)
+        autorite._admin(cnx, session)
+        return resultat
 
 
 def _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id):
@@ -612,6 +625,8 @@ def executer(
     if nom in {"m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",
                    "m2_lire_rencontres_lead"}:
         return _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom == "m4_declarer_composition_journaliere_console":
+        return _executer_composition(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
                "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
                "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",

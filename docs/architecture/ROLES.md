@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 175 outils sur 299 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 175 outils sur 300 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -1036,3 +1036,9 @@ admin SQL actif, source/origine console, MCP absent, source canonique SQLite et 
 lecture. Les deux répartiteurs génériques ferment avant factory/normalisation/reçu. Lecture des
 identifiants historiquement déclarés, sans accès conféré ni présence déduite, aucun rôle de
 compte ajouté. Les membres ne sont jamais recopiés dans les artefacts génériques des agents.
+
+
+`m4_declarer_composition_journaliere_console` : T1 humain privé, aucune portée d'appareil.
+Admin SQL/session et réception serveur, identités canoniques, CAS/rejeu privé; les deux
+répartiteurs génériques ferment avant effet. Aucun profil ou droit de compte changé, aucune
+présence/paie déduite; journaux et accusés sans liste de membres.

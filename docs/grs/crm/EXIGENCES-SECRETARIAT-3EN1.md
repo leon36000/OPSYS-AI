@@ -405,3 +405,14 @@ membres dans le journal; identifiants historiques incompatibles signalés sans n
 **PARTIAL : writer/formulaire, identités à l'écriture, M10, PostgreSQL, navigateur et mobile
 non livrés pour cette tranche.** Aucune présence, absence, composition réellement observée ou
 paie déduite. Prochaine tranche : déclaration admin signée sous CSRF et CAS/rejeu.
+
+
+CRM-16 — déclaration/correction/retrait admin d'une composition journalière maintenant
+qualifiés localement via vrai T1 privé et formulaires CSRF. Identités canoniques et deux
+transactions concurrentes, CAS/rejeu, historique et rollback après panne d'audit vérifiés.
+273 PASS intégrés (dont 21 writer et 19 formulaire), sans addition avec les anciens lots;
+300 outils natifs, nouveau T1 fermé aux appareils/agents, aucun rôle ou profil modifié.
+**PARTIAL : publication retenue jusqu'à la fin de CI du parent; absences, présence réellement
+observée, heures/paie, M10, PostgreSQL, navigateur et mobile non qualifiés pour cette tranche.**
+Preuve : `CRM16-COMPOSITION-WRITE-LOCAL-QUALIFIED.json`. Prochain besoin du secrétariat :
+absences journalières explicites et historisées, sans données de santé ni inférence automatique.
