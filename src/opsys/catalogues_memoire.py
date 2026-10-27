@@ -7,18 +7,49 @@ SOURCES = {
     ('m03-estimation', 'modeles_soumission'): ('m3_modeles', 'm3.catalogue_reference'),
     ('m03-estimation', 'modeles_lignes_soumission'): ('m3_lignes', 'm3.catalogue_reference'),
     ('m06-material-control', 'catalogue_materiaux'): ('m6_materiaux', 'm6.catalogue_reference'),
+    ('m06-material-control', 'fournisseurs'): ('m6_fournisseurs', 'm6.catalogue_reference'),
 }
 
 
-def _reference(producteur, registre, source_hash):
+def _source_fournisseur(rang):
+    from m6_material_control import references_fournisseurs
+    from sqlalchemy import select
+
+    from .stockage import codec
+    from .stockage.schema import REGISTRES
+
+    if type(rang) is not int or not 0 <= rang < references_fournisseurs.MAX_SOURCES:
+        raise ValueError('Source de référence configuration invalide')
+    cnx = stockage.connexion_courante()
+    if cnx is None or len(stockage.maillons('m06-material-control', 'fournisseurs')) > 10000:
+        raise ValueError('Source de référence configuration hors borne')
+    requete = select(REGISTRES.c.rang, REGISTRES.c.maillon).where(
+        (REGISTRES.c.departement == 'm06-material-control') & (REGISTRES.c.registre == 'fournisseurs')
+        & (REGISTRES.c.rang <= rang)).order_by(REGISTRES.c.rang)
+    prefixe, taille = [], 0
+    for ligne in cnx.execute(requete):
+        taille += len(ligne.maillon.encode('utf-8')) + 1
+        if ligne.rang != len(prefixe) or taille > references_fournisseurs.MAX_OCTETS:
+            raise ValueError('Source de référence configuration invalide')
+        prefixe.append(codec.decoder(ligne.maillon))
+    return references_fournisseurs.projeter(prefixe, rang)
+
+
+def _reference(producteur, registre, source_hash, *, source_rang=None):
     genre, type_evenement = SOURCES[(producteur, registre)]
     journal = stockage.maillons(producteur, registre)
     if len(journal) > 10000:
         raise ValueError('Source de catalogue hors borne')
-    candidats = [(rang, m) for rang, m in enumerate(journal) if m.get('source_id') == source_hash]
-    if len(candidats) != 1:
-        raise ValueError('Version de catalogue introuvable ou ambiguë')
-    rang, m = candidats[0]
+    if genre == 'm6_fournisseurs':
+        rang, m = source_rang, _source_fournisseur(source_rang)
+        if source_hash is not None and source_hash != m['source_id']:
+            raise ValueError('Source de référence configuration incohérente')
+        source_hash = m['source_id']
+    else:
+        candidats = [(rang, m) for rang, m in enumerate(journal) if m.get('source_id') == source_hash]
+        if len(candidats) != 1:
+            raise ValueError('Version de catalogue introuvable ou ambiguë')
+        rang, m = candidats[0]
     revision = m['revision']
     fait_id = hashlib.sha256(f'catalogue-reference-v1:{genre}:{rang}:{revision}:{source_hash}'.encode()).hexdigest()
     charge = dict(fait_id=fait_id, source_genre=genre, source_rang=rang, source_revision=revision,
@@ -27,8 +58,8 @@ def _reference(producteur, registre, source_hash):
     return type_evenement, charge
 
 
-def publier(producteur, registre, source_hash):
-    type_evenement, charge = _reference(producteur, registre, source_hash)
+def publier(producteur, registre, source_hash, *, source_rang=None):
+    type_evenement, charge = _reference(producteur, registre, source_hash, source_rang=source_rang)
     return evenements.publier(type_evenement, producteur, charge,
                               evenement_id='catalogue-reference-' + charge['fait_id'])
 
@@ -41,6 +72,12 @@ def verifier_source(genre, rang, revision, source_hash, horodatage):
     journal = stockage.maillons(*cle)
     if len(journal) > 10000:
         raise ValueError('Source de catalogue hors borne')
+    if genre == 'm6_fournisseurs':
+        source = _source_fournisseur(rang)
+        if (source['source_id'] != source_hash or source['revision'] != revision
+                or source['horodatage'] != horodatage):
+            raise ValueError('Source de référence configuration invalide')
+        return
     original = next((m for i, m in enumerate(journal) if i == rang), None)
     if not isinstance(original, dict):
         raise ValueError('Source de référence configuration absente ou incohérente')

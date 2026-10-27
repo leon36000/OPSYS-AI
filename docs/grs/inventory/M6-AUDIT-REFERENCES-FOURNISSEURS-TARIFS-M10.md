@@ -76,3 +76,61 @@ Fichiers concernés : nouvelle projection pure M6, `fournisseurs_console.py`,
 QA privée habituelle, Source en lecture seule pendant l’exécution. Pas de modèle requis.
 M6, M10 et OPSYS restent PARTIAL; import courriel, historique de prix navigable,
 PostgreSQL, navigateur natif et mobile ne sont pas qualifiés par cette préparation.
+
+## Réalisation fournisseurs et qualification locale
+
+`references_fournisseurs.projeter` valide les fiches fusionnées de chaque préfixe avec le
+domaine historique, puis calcule un hash JSON déterministe couvrant toutes ses entrées.
+La version compte les entrées de la fiche concernée, indépendamment du rang global. Les
+catégories nombreuses et coordonnées historiques acceptées par M6 restent conservées.
+Le courtier lit les rangs SQL réels, refuse un trou et borne la source à 10 000 entrées et
+8 Mio avant décodage; la projection pure possède aussi sa borne d’octets. Les écritures
+ultérieures ne modifient pas une référence ancienne. Ce hash détecte une incohérence du
+contenu relu; ce n’est pas une authentification cryptographique de toute la base.
+
+Le port fournisseur publie seulement s’il a réellement ajouté un maillon. Le schéma M6 et
+le registre M10 admettent explicitement `m6_fournisseurs`. Le consommateur revalide le
+préfixe par son propriétaire avant de mémoriser la référence en `SENSITIVE`. Les trois
+familles précédentes et leurs badges sont conservés. Aucun nouvel outil ni droit appareil.
+
+Le test HTTP initial échouait réellement avant code : zéro publication au lieu de deux
+(`supplier-memory-red-v1`). Puis `supplier-memory-v1` : **207 PASS, 0 FAIL/SKIP, 19,98 s**,
+avec deux erreurs Ruff dans le seul fichier de tests pur. Ces imports et le nom de variable
+ont été corrigés; les sept autres fichiers empreintés n’ont pas changé. Reprise ciblée
+`supplier-memory-v2` : **9 PASS, 0 FAIL/SKIP, 0,46 s**, Ruff de tous les fichiers du lot et
+vérificateur 297 outils/173 portées PASS. Les neuf cas sont inclus dans les 207, non ajoutés.
+Revue statique indépendante du préfixe, rang, atomicité et confidentialité : aucun constat.
+
+Les preuves traversent HTTP → outbox → répartiteur SQL → chaîne M10, après deux versions
+déjà écrites puis réouverture SQL. Rejeux sous deux identifiants de livraison, no-op, absence
+de backfill, horodatage/version/rang/hash forgés, préfixe hérité altéré, trou SQL et panne
+outbox sont contrôlés. Les canaris de coordonnées restent absents des événements et de M10.
+Source en lecture seule pendant QA; limites habituelles effectives, commandes/JUnit/reçus
+distincts conservés. Ni mémoire sémantique ni badge fournisseur admin revendiqué ici.
+
+La CI du parent publié `04da8766` a signalé une attente de manifeste M10 devenue obsolète :
+le tuple du test omettait les deux événements de catalogue déjà déclarés. L’attente exacte
+est mise à jour en conservant tous les anciens événements et l’égalité des consommateurs.
+`memory-manifest-v1` : cinq tests passent en 0,98 s, Ruff et vérificateur passent. Le rouge
+CI reste historique; cette correction locale n’est pas une CI verte transférée au parent.
+
+## Décision de provenance pour les tarifs, avant code
+
+Analyse indépendante puis relecture de `idempotence.reclamer/finaliser` : le champ texte
+`MUTATIONS_APPLIQUEES.recu_le` conserve la réception serveur avec son fuseau, à la seconde.
+`finaliser` ne la réécrit pas. C’est la source à réutiliser, sans recréer des microsecondes.
+Le reçu tarif actuel ne relie toutefois pas une empreinte complète du maillon à cette
+réception. Son rang, son montant et son unité ne couvrent pas fournisseur/date/document.
+
+Tranche suivante : registre compagnon M6 privé `receptions_tarifs`, sans migration de table
+ni champ ajouté au livre de prix. Lier rang SQL et hash complet du tarif à la clé de mutation,
+à l’empreinte des arguments et au texte exact de réception relu. Source, liaison, audit,
+finalisation du reçu et outbox partagent le savepoint existant. Lors d’une livraison différée,
+relire la mutation exacte, exiger outil tarif, statut `ok`, empreinte, réponse et réception
+concordants, puis le maillon original par rang SQL. Absence, doublon ou contradiction refuse.
+Les clés de mutation, montants et identifiants libres restent dans M6/socle, hors événement M10.
+
+Réutiliser le patron de reçu borné de `console/fusion_ap_m5_reference.py::_recu`, sans importer
+le domaine M5. Garder les tests de rejeu avant nouvelle publication, rollback de chaque étape,
+altération du reçu ou de la liaison, concurrence et vieux tarifs sans backfill. Cette décision
+ne livre pas encore `receptions_tarifs` ni la mémoire des tarifs. OPSYS reste **PARTIAL**.

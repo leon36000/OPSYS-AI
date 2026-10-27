@@ -13,7 +13,8 @@
     "source_genre": {
       "type": "string",
       "enum": [
-        "m6_materiaux"
+        "m6_materiaux",
+        "m6_fournisseurs"
       ]
     },
     "source_rang": {

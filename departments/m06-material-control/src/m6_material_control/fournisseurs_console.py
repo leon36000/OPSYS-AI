@@ -149,6 +149,9 @@ def enregistrer(fournisseur_id, modifications, source_attendue):
                 journaliser(cnx, auteur, 'm6.fournisseur_console', fournisseur_id,
                             {'source_precedente': source_attendue, 'source_empreinte':
                              resultat['resultat']['source_empreinte']})
+                from opsys.catalogues_memoire import publier
+
+                publier(acces.DEPARTEMENT, 'fournisseurs', None, source_rang=avant)
             idempotence.finaliser(cnx, meta, {'ok': True, 'resultat': resultat})
             return resultat
     except idempotence.MutationConflit:

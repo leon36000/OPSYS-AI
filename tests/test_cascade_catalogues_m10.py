@@ -50,7 +50,8 @@ def test_cascade_catalogue_modeles_lignes_memoire_sans_contenu_prive(catalogue, 
     assert catalogue.post(action, data=choix, follow_redirects=False).status_code == 303
     publications = publies(session)
     assert len(publications) == 3
-    assert {charge['source_genre'] for _, _, charge in publications} == set(references.SOURCES)
+    assert {charge['source_genre'] for _, _, charge in publications} == {
+        'm3_modeles', 'm3_lignes', 'm6_materiaux'}
     for _, _, charge in publications:
         assert set(charge) == references.CHAMPS_REFERENCE
     assert memoire() == []  # publié ne signifie pas reçu

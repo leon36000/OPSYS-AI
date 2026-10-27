@@ -130,7 +130,7 @@ Libellés coupés/illisibles dans les photos : **non inventés** (§4).
 | Information T4A fournisseur ; détails feuillet T4A | aucune | Manquant — préparatoire, validation M5/CPA |
 | Information T5018 fournisseur ; détails formulaire T5018 | aucune | Manquant — idem |
 | Opérations par fournisseur ; achats par fournisseur ; dépenses par fournisseur (sommaire) | M5/M6 | Partiel |
-| Coordonnées / annuaire fournisseurs | `m6_lister_fournisseurs` + ports privés console | Partiel : liste/fiche/PATCH admin HTTP/SQLite qualifiés, contacts conservés explicitement; historique navigable et M10 fournisseur ouverts |
+| Coordonnées / annuaire fournisseurs | `m6_lister_fournisseurs` + ports privés console | Partiel : liste/fiche/PATCH admin HTTP/SQLite qualifiés, contacts conservés explicitement; références fournisseurs reçues par M10 en QA locale; historique navigable et badge admin ouverts |
 
 ### R-TAXES (owner M5 — préparatoire, règles fiscales sourcées requises avant usage officiel)
 | Sous-rapport | Primitive | Statut / note |

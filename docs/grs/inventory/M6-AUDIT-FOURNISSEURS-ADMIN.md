@@ -82,3 +82,8 @@ détecté la perte possible de CR/LF et une lecture de fixture M3 inutile, toute
 Ce parcours ASGI/SQLite ne démontre ni navigateur natif, ni PostgreSQL, ni app mobile.
 Prochaine capacité : audit et raccord M10 des nouvelles versions fournisseurs/tarifs,
 sans coordonnées ni coût copié dans l’événement. M6/CRM/OPSYS restent **PARTIAL**.
+
+Le raccord serveur des références fournisseurs est maintenant qualifié localement :
+[projection historique, bus M10 et preuves](M6-AUDIT-REFERENCES-FOURNISSEURS-TARIFS-M10.md).
+Il conserve les préfixes et refuse les sources altérées, sans recopier les contacts. Le badge
+admin fournisseur, la mémoire des tarifs et l’import courriel restent ouverts.
