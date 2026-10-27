@@ -2506,6 +2506,7 @@ def outils() -> tuple[Outil, ...]:
         ),
         *_outils_modeles(),
         *_outils_devis_modele(),
+        *_outils_prefill(),
     )
 
 
@@ -2629,7 +2630,7 @@ def _schema_devis_modele():
     return {"type": "object", "properties": props, "required": list(props), "additionalProperties": False}
 
 
-def _contrat_devis_modele(args):
+def _contrat_devis_modele(args, schema=None):
     # Sous-ensemble fermé utilisé ici; le validateur socle ne valide pas les bornes imbriquées.
     def valide(v, regle):
         types = regle.get("type")
@@ -2649,7 +2650,7 @@ def _contrat_devis_modele(args):
             return (type(v) is str and regle.get("minLength", 0) <= len(v) <= regle.get("maxLength", 200)
                     and ("pattern" not in regle or re.fullmatch(regle["pattern"], v) is not None))
         return False
-    return valide(args, _schema_devis_modele())
+    return valide(args, _schema_devis_modele() if schema is None else schema)
 
 
 def _retour_devis_modele(resultat):
@@ -2765,4 +2766,224 @@ def _outils_devis_modele():
                   "lead_id": {"type": "string", "maxLength": 200}, "format": {"enum": ["html", "pdf"]}},
                   "required": ["devis_id", "lead_id", "format"], "additionalProperties": False},
               fonction=document_devis_console),
+    )
+
+
+def _schemas_prefill():
+    def objet(props):
+        return {"type": "object", "properties": props, "required": list(props), "additionalProperties": False}
+    def texte(n):
+        return {"type": "string", "minLength": 1, "maxLength": n}
+    ident = {**texte(100), "pattern": "^[A-Za-z0-9_:@.-]+$"}
+    empreinte = {**texte(64), "pattern": "^[0-9a-f]{64}$"}
+    revision = {"type": "integer", "minimum": 1, "maximum": 1000}
+    decimal = {**texte(24), "pattern": "^[0-9]{1,9}(\\.[0-9]{1,6})?$"}
+    modele = {"modele_id": ident, "modele_revision": revision, "modele_source": empreinte}
+    ligne = objet({"ligne_id": ident, "description": texte(500), "materiau_id": texte(200), "unite": texte(40)})
+    selection = objet({"ligne_modele_id": ident, "quantite": decimal, "fournisseur_id": texte(200),
+                       "tarif_rang": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+                       "tarif_empreinte": empreinte})
+    return {
+        "enregistrer": objet({**modele, "lignes": {"type": "array", "minItems": 1, "maxItems": 20, "items": ligne},
+                              "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 1000}}),
+        "lire": objet({**modele, "version_lignes": {"type": "integer", "minimum": 0, "maximum": 1000}}),
+        "tarif": objet({"materiau_id": texte(200), "fournisseur_id": texte(200), "unite": texte(40)}),
+        "creer": objet({**modele, "devis_id": ident, "lead_id": texte(200),
+                         "chantier_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 100},
+                         "taux_marge": decimal, "lignes_revision": revision, "lignes_source": empreinte,
+                         "selections": {"type": "array", "minItems": 1, "maxItems": 20, "items": selection}}),
+    }
+
+
+def _journal_lignes_modele():
+    from . import modeles_lignes_soumission as n
+
+    journal = stockage.maillons("m03-estimation", n.REGISTRE)
+    if len(journal) > n.MAX_SOURCES:
+        raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+    return journal
+
+
+def _texte_modele_exact(modele_id, modele_revision, modele_source):
+    m = modeles_soumission.lire(_journal_modeles(), modele_id, modele_revision)["resultat"]
+    if m["source_id"] != modele_source:
+        raise modeles_soumission.Refus("SOURCE-MODIFIEE")
+    return {k: m[k] for k in ("modele_id", "revision", "source_id", "titre", "description", "clauses")}
+
+
+def _mutation_prefill(auteur):
+    n = modeles_soumission
+    if stockage.connexion_courante().dialect.name != "sqlite":
+        raise n.Refus("ECRITURE-NON-QUALIFIEE")
+    meta, reception = _META_MODELES.get(), contexte.horodatage_reception()
+    if (not isinstance(meta, idempotence.Meta) or reception is None or not meta.cle.strip()
+            or len(meta.cle) > 200 or meta.appareil != "console:" + auteur["personne"]
+            or reception.appareil != meta.appareil or reception.recu_le.utcoffset() is None):
+        raise n.Refus("MUTATION-ABSENTE")
+    return meta, reception
+
+
+def enregistrer_lignes_modele(modele_id, modele_revision, modele_source, lignes, revision_attendue):
+    from . import modeles_lignes_soumission as n
+
+    try:
+        auteur = _autoriser_modeles()
+        args = dict(modele_id=modele_id, modele_revision=modele_revision, modele_source=modele_source,
+                    lignes=lignes, revision_attendue=revision_attendue)
+        if not _contrat_devis_modele(args, _schemas_prefill()["enregistrer"]):
+            raise n.Refus("ARGUMENTS")
+        meta, reception = _mutation_prefill(auteur)
+        with stockage.connexion_courante().begin_nested():
+            _texte_modele_exact(modele_id, modele_revision, modele_source)
+            domaine = {k: args[k] for k in ("modele_id", "modele_source", "lignes", "revision_attendue")}
+            mutation = {"appareil": meta.appareil, "cle": meta.cle,
+                        "empreinte_arguments": registre._encoder_canonique(domaine)}
+            r = n.enregistrer(_journal_lignes_modele(), **domaine, auteur=auteur, mutation=mutation,
+                              horodatage=reception.recu_le.isoformat(),
+                              limite_sortie=contexte.limite_sortie() or 65536)
+            if not r["rejoue"]:
+                from opsys.etat import journaliser
+
+                journaliser(stockage.connexion_courante(), auteur["personne"], "m3.lignes_modele",
+                            r["resultat"]["source_id"], {"modele_id": modele_id, "revision": r["resultat"]["revision"]})
+            return r
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lire_lignes_modele(modele_id, modele_revision, modele_source, version_lignes):
+    from . import modeles_lignes_soumission as n
+
+    try:
+        _autoriser_modeles()
+        args = dict(modele_id=modele_id, modele_revision=modele_revision, modele_source=modele_source,
+                    version_lignes=version_lignes)
+        if not _contrat_devis_modele(args, _schemas_prefill()["lire"]):
+            raise n.Refus("ARGUMENTS")
+        _texte_modele_exact(modele_id, modele_revision, modele_source)
+        return n.lire(_journal_lignes_modele(), modele_id, modele_source, version_lignes,
+                      limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _sources_tarifs_prefill():
+    from opsys.stockage.maillons import copier_maillons_avec_metadonnees
+
+    dept = "m06-material-control"
+    if any(len(stockage.maillons(dept, nom)) > 10000 for nom in ("livre_prix", "fournisseurs")):
+        raise modeles_soumission.Refus("SOURCES-TROP-VOLUMINEUSES")
+    snapshot = copier_maillons_avec_metadonnees(stockage.connexion_courante(), departement=dept, registre="livre_prix")
+    return [(m.rang, m.maillon) for m in snapshot.lignes], list(stockage.maillons(dept, "fournisseurs"))
+
+
+def _tarif_prefill(sources, materiau_id, fournisseur_id, unite, jour, **attendus):
+    from m6_material_control.fournisseurs import lire_fournisseur
+    from m6_material_control.tarif_soumission import SelectionTarifRefusee, selectionner_tarif
+
+    try:
+        fournisseur = lire_fournisseur(sources[1], fournisseur_id)
+        return selectionner_tarif(sources[0], fournisseur, materiau_id, fournisseur_id, unite, jour, **attendus)
+    except SelectionTarifRefusee as exc:
+        suffixe = "SOURCE-MODIFIEE" if exc.raison == "source_modifiee" else "SOURCE-INVALIDE"
+        raise modeles_soumission.Refus(suffixe) from None
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise modeles_soumission.Refus("SOURCE-INVALIDE") from None
+
+
+def lire_tarif_modele(materiau_id, fournisseur_id, unite):
+    n = modeles_soumission
+    try:
+        auteur = _autoriser_modeles()
+        args = dict(materiau_id=materiau_id, fournisseur_id=fournisseur_id, unite=unite)
+        if not _contrat_devis_modele(args, _schemas_prefill()["tarif"]):
+            raise n.Refus("ARGUMENTS")
+        reception = contexte.horodatage_reception()
+        if (reception is None or reception.appareil != "console:" + auteur["personne"]
+                or reception.recu_le.utcoffset() is None):
+            raise n.Refus("MUTATION-ABSENTE")
+        tarif = _tarif_prefill(_sources_tarifs_prefill(), **args, jour=reception.recu_le.date().isoformat())
+        return _retour_devis_modele({"accepte": True, "resultat": tarif})
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def creer_devis_prefill(modele_id, modele_revision, modele_source, devis_id, lead_id, chantier_id,
+                        taux_marge, lignes_revision, lignes_source, selections):
+    from . import modeles_lignes_soumission as n
+
+    try:
+        auteur = _autoriser_modeles()
+        args = dict(modele_id=modele_id, modele_revision=modele_revision, modele_source=modele_source,
+                    devis_id=devis_id, lead_id=lead_id, chantier_id=chantier_id, taux_marge=taux_marge,
+                    lignes_revision=lignes_revision, lignes_source=lignes_source, selections=selections)
+        if (not _contrat_devis_modele(args, _schemas_prefill()["creer"]) or devis_id in {".", ".."}
+                or Decimal(taux_marge) >= 10000):
+            raise n.Refus("ARGUMENTS")
+        meta, reception = _mutation_prefill(auteur)
+        cnx = stockage.connexion_courante()
+        with cnx.begin_nested():
+            recu = idempotence.reclamer(cnx, meta, "m3_creer_devis_prefill", args, reception.recu_le)
+            if recu.rejouee:
+                if not isinstance(recu.reponse, dict) or recu.reponse.get("ok") is not True:
+                    raise n.Refus("SOURCE-INVALIDE")
+                return _retour_devis_modele(recu.reponse["resultat"])
+            _lead_modele_existant(lead_id)
+            modele = _texte_modele_exact(modele_id, modele_revision, modele_source)
+            jeu = n.lire(_journal_lignes_modele(), modele_id, modele_source, lignes_revision)["resultat"]
+            if jeu["source_id"] != lignes_source:
+                raise n.Refus("SOURCE-MODIFIEE")
+            choix = {c["ligne_modele_id"]: c for c in selections}
+            if len(choix) != len(selections) or set(choix) != {ligne["ligne_id"] for ligne in jeu["lignes"]}:
+                raise n.Refus("ARGUMENTS")
+            sources = _sources_tarifs_prefill()
+            lignes, tarifs = [], []
+            for i, ligne in enumerate(jeu["lignes"]):
+                c = choix[ligne["ligne_id"]]
+                tarif = _tarif_prefill(sources, ligne["materiau_id"], c["fournisseur_id"], ligne["unite"],
+                                       reception.recu_le.date().isoformat(), rang_attendu=c["tarif_rang"],
+                                       empreinte_attendue=c["tarif_empreinte"])
+                lignes.append({"description": ligne["description"], "unite": ligne["unite"], "quantite": c["quantite"],
+                               "cout_unitaire": tarif["cout_unitaire_decimal"],
+                               "reference_besoin_materiau": ligne["materiau_id"]})
+                tarifs.append({**tarif, "reference_ligne": f"{devis_id}-L{i}", "ligne_modele_id": ligne["ligne_id"]})
+            journal = registre_devis_production()
+            if len(journal) > 10000:
+                raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+            avant = len(journal)
+            d, v = devis_durable.creer_devis(
+                devis_id, lead_id, chantier_id, lignes, taux_marge, reception.recu_le.isoformat(), journal,
+                modele_soumission=modele, provenance_tarifs={"modele_source": modele_source,
+                    "lignes_source": lignes_source, "lignes_revision": lignes_revision, "tarifs": tarifs})
+            if v is not None:
+                raise n.Refus("REVISION-PERIMEE" if v["code"] == "REJ-DEVIS-ID-DEJA-UTILISE" else "ARGUMENTS")
+            resultat = _retour_devis_modele({"accepte": True, "resultat": {
+                "devis_id": d["devis_id"], "lead_id": lead_id, "modele_source": modele_source,
+                "lignes_source": lignes_source}})
+            if len(journal) != avant:
+                from opsys.etat import journaliser
+
+                journaliser(cnx, auteur["personne"], "m3.devis_prefill", devis_id,
+                            {"modele_source": modele_source, "lignes_source": lignes_source})
+            idempotence.finaliser(cnx, meta, {"ok": True, "resultat": resultat})
+            return resultat
+    except DecimalException:
+        return n.refuser("ARGUMENTS")
+    except idempotence.MutationConflit:
+        return n.refuser("MUTATION-CONFLIT")
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _outils_prefill():
+    s = _schemas_prefill()
+    return (
+        Outil(nom="m3_enregistrer_lignes_modele", description="Console admin privée : lignes réutilisables sans prix.",
+              parametres=s["enregistrer"], fonction=enregistrer_lignes_modele, autonomie=Autonomie.T1),
+        Outil(nom="m3_lire_lignes_modele", description="Console admin privée : lignes d'une version exacte.",
+              parametres=s["lire"], fonction=lire_lignes_modele),
+        Outil(nom="m3_lire_tarif_modele", description="Console admin privée : coût M6 explicitement sélectionné.",
+              parametres=s["tarif"], fonction=lire_tarif_modele),
+        Outil(nom="m3_creer_devis_prefill", description="Console admin privée : brouillon sourcé.",
+              parametres=s["creer"], fonction=creer_devis_prefill, autonomie=Autonomie.T1),
     )

@@ -517,7 +517,8 @@ def _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id)
     outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
     if outil is None:
         raise KeyError("outil M3 indisponible")
-    ecriture = nom in {"m3_enregistrer_modele_soumission", "m3_creer_devis_depuis_modele"}
+    ecriture = nom in {"m3_enregistrer_modele_soumission", "m3_creer_devis_depuis_modele",
+                       "m3_enregistrer_lignes_modele", "m3_creer_devis_prefill"}
     if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
         raise ValueError("modèle invalide")
     if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
@@ -531,8 +532,8 @@ def _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id)
         contexte.appeler_en_tant_que(dept, origine="console"),
         contexte.sortie_bornee(65536),
         m3.contexte_modeles(meta),
-        contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
-        if ecriture else nullcontext(),
+        contexte.receptionne_de(contexte.HorodatageAppareil(
+            "console:" + personne.identifiant, maintenant, maintenant)),
     ):
         return executer_atomique(outil, dict(arguments))
 
@@ -569,7 +570,9 @@ def executer(
         return _executer_observation_growth_humaine(cnx, deps, session, personne, arguments, mutation_id)
     if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
-    if nom in {"m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission",
+    if nom in {"m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
+                   "m3_lire_tarif_modele", "m3_creer_devis_prefill",
+                   "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission",
                "m3_creer_devis_depuis_modele", "m3_document_devis_console"}:
         return _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",

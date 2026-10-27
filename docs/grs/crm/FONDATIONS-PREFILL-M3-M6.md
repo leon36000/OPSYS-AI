@@ -1,7 +1,7 @@
 # Lignes de modèles et sélection de coûts M6 — composants préparés
 
 27 octobre 2026. Suite de [l’audit préalable](AUDIT-LIGNES-PREFILL-M3-M6.md).
-Statut CRM-07 : **PARTIAL**. Ces composants purs sont testés; le formulaire de devis
+Statut CRM-07 : **PARTIAL**. Les composants et ports privés sont testés; le formulaire de devis
 ne les appelle pas encore. Aucun préremplissage de lignes annoncé comme livré.
 
 ## Objectif et architecture
@@ -27,10 +27,9 @@ conversion d’unité, taux de change ou quantité par défaut n’est choisi im
 ## Interfaces, données et permissions
 
 Fonctions pures `enregistrer`/`lire` (M3), `selectionner_tarif` (M6); aucune nouvelle route
-ni nouveau port public. Aucun droit appareil ou agent ajouté. Le futur adaptateur devra
-contrôler l’admin SQL actif, la provenance M3, les références M6, le jour serveur et la
-taille SQL avant lecture, puis relire rang/empreinte dans la transaction de création.
-Les permissions ne sont pas démontrées par ces fonctions pures : elles relèvent du prochain raccord.
+ni nouveau port public. Aucun droit appareil ou agent ajouté. Le raccord privé décrit plus bas contrôle désormais l’admin SQL actif, la provenance M3, les références M6, le jour serveur et la
+taille SQL avant lecture, puis relit rang/empreinte dans la transaction de création.
+Les fonctions pures seules ne démontrent pas les permissions; la qualification des ports est décrite plus bas.
 
 ## Vérification et limites
 
@@ -54,8 +53,8 @@ limites effectives. QA sans réseau, source en lecture seule, homes/tmp privés.
 Elle lie la source textuelle, la source/révision du jeu de lignes et les tarifs par
 référence de ligne. Chaque ligne du devis sourcé est couverte une fois, avec identifiant
 de modèle unique, coût décimal égal au coût calculé, unité identique, CAD et date non future
-à la création. Le marquage documentaire reste déclaratif ou fallback. L’adaptateur futur
-doit toujours vérifier les sources réelles; le validateur ne les authentifie pas.
+à la création. Le marquage documentaire reste déclaratif ou fallback. L’adaptateur privé
+vérifie les sources réelles; le validateur ne les authentifie pas.
 
 La provenance participe au refus de rejeu avec contenu différent, ne peut être ajoutée
 rétroactivement à un devis manuel et reste copiée profondément après lecture/acceptation.
@@ -72,7 +71,7 @@ réussis. La sélection recoupe les précédentes; ne pas additionner les popula
 
 ## Prochaine capacité
 
-Ajouter les ports console privés, les formulaires et
+Ajouter les formulaires et
 le parcours HTTP/SQLite réel modèle → tarif choisi → devis → HTML/PDF. Vérifier révocation,
 CSRF, source modifiée GET/POST, double clic, rollback et absence de coût/fournisseur dans
 les documents clients. Les modèles manuels restent compatibles. L’import courriel,
@@ -80,3 +79,36 @@ M10, PostgreSQL, navigateur natif et mobile restent des capacités distinctes à
 
 Les commandes réelles, paiements, envois externes et changements sensibles gardent les
 validations Nathan prévues; ce lot n’en déclenche aucun.
+
+## Ports console privés — qualification SQLite
+
+Quatre ports sont maintenant raccordés au répartiteur interne `console/metier.py` :
+`m3_enregistrer_lignes_modele`, `m3_lire_lignes_modele`, `m3_lire_tarif_modele` et
+`m3_creer_devis_prefill`. Les passages génériques et profils runtime les refusent;
+les 173 portées appareil restent inchangées, sur 287 outils enregistrés.
+
+Le répartiteur contrôle session non expirée et admin actif en base. L’heure est fournie
+par la réception serveur, même en lecture : aucun appel d’horloge dans M3. Le port de
+création relit modèle exact, version des lignes, fournisseur et tarif M6 dans sa transaction.
+Le navigateur futur ne fournira ni coût, ni description, ni unité résolue : seulement
+quantité, choix fournisseur et références de sélection. Source modifiée, couverture
+incomplète, doublon ou champ supplémentaire refusent sans effet. La copie privée fige
+les sources; un rejeu identique après changement de prix restitue le reçu original,
+tout en revérifiant l’autorité. Les écritures restent non qualifiées sur PostgreSQL.
+
+Chaque ligne matériau transmet son `materiau_id` dans `reference_besoin_materiau`, selon
+le contrat M3/M6 existant. À l’acceptation ultérieure, le consommateur M6 construit les
+besoins et la réservation; le brouillon ne réserve et ne commande rien. La provenance
+tarifaire privée n’est pas ajoutée à l’événement d’acceptation.
+
+Preuve locale `ports-v2` : 336 réussites, aucun échec ni saut, 16,55 s; Ruff et vérificateur
+réussis. Sélection non additive : ports SQL, répartiteur console réel, relecture après
+fermeture du moteur, source modifiée, rejeu, révocation admin, rollback sur panne d’audit
+et quota, refus des ports génériques, acceptation vers le consommateur M6 réel avec
+réservation sans stock et rejeu, régressions HTTP des anciens formulaires et conformité.
+Cette preuve ne couvre pas encore le bus complet ni un formulaire HTTP de préremplissage.
+
+La revue indépendante a signalé deux défauts corrigés : horloge ambiante M3 et perte du
+matériau lors du transfert au prévu M6. Le rouge `ports-v1` (conformité et lint) est conservé.
+Le statut reste **PARTIAL** : prochaine étape, formulaires serveur avec CSRF, puis parcours
+HTTP/SQLite et documents clients sans fuite des coûts. Aucun envoi externe effectué.
