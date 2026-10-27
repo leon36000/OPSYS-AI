@@ -813,8 +813,19 @@ def _taux_horaire_configure() -> Any:
     illisible ou sans ce champ rend `None` : `cout_reel.valider_taux_horaire` en fait le verdict « taux
     horaire à configurer », jamais un taux par défaut. La valeur brute est rendue (validée plus loin)."""
     try:
-        donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
+        raw = _MANIFESTE.read_bytes()
+    except OSError:
+        return None
+    return _taux_horaire_depuis_octets(raw)
+
+
+def _taux_horaire_depuis_octets(raw: bytes | None) -> Any:
+    """Même extraction M5 sur les octets effectivement capturés; aucune seconde lecture de fichier."""
+    if raw is None:
+        return None
+    try:
+        donnees = yaml.safe_load(raw.decode('utf-8'))
+    except yaml.YAMLError:
         return None
     configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
     return configuration.get("taux_horaire_main_d_oeuvre") if isinstance(configuration, dict) else None
@@ -830,20 +841,32 @@ def _sources_cout_reel() -> dict[str, Any]:
     """Lit UNE fois chaque source du coût réel (PLAN T1.5-d) : les registres reçus (devis, WCT, variance), la
     facture ACTIVE de chaque devis, le livre de prix de M6, le taux horaire configuré et le dernier état tracé de
     chaque devis. Lire une fois (et non à chaque devis) garde une liste de chantiers linéaire, pas quadratique."""
+    return _sources_cout_reel_depuis(dict(
+        rentabilite=list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE)),
+        devis=list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS)),
+        wct=list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)),
+        variance=list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_VARIANCE_RECUE)),
+        factures=_registre_factures(None), livre=_livre_de_prix_m6(), taux=_taux_horaire_configure()))
+
+
+def _sources_cout_reel_depuis(captures: dict[str, Any]) -> dict[str, Any]:
+    """Assemblage privé des mêmes entrées M5 depuis copies; aucune formule ni écriture nouvelle."""
+    try:
+        valide, _ = captures['factures'].valider_chaine()
+    except (ValueError, KeyError, TypeError, AttributeError):
+        valide = False
+    if valide is not True:
+        raise ValueError('REJ-FACTURE-CHAINE-INVALIDE')
     traces: dict[str, dict[str, Any]] = {}
     nombre_de_traces: dict[str, int] = {}
-    for maillon in stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE):
-        traces[maillon.get("devis_id")] = maillon  # le dernier écrit fait foi
+    for maillon in captures['rentabilite']:
+        traces[maillon.get("devis_id")] = maillon
         nombre_de_traces[maillon.get("devis_id")] = nombre_de_traces.get(maillon.get("devis_id"), 0) + 1
     return {
-        "devis": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS)),
-        "wct": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)),
-        "variance": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_VARIANCE_RECUE)),
-        "factures": facturation.factures_actives_par_devis(_registre_factures(None)),
-        "livre": _livre_de_prix_m6(),
-        "taux": _taux_horaire_configure(),
-        "traces": traces,
-        "nombre_de_traces": nombre_de_traces,
+        "devis": captures['devis'], "wct": captures['wct'], "variance": captures['variance'],
+        "factures": facturation.factures_actives_par_devis(captures['factures']),
+        "livre": captures['livre'], "taux": captures['taux'],
+        "traces": traces, "nombre_de_traces": nombre_de_traces,
     }
 
 
