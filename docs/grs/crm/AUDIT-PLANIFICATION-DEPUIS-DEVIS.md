@@ -81,3 +81,54 @@ et aucune promesse/envoi. Données fictives, homes/tmp privés, Source en lectur
 Gates inchangés : argent, acceptation commerciale sensible et actions externes humaines;
 pas de permission supplémentaire pour préparer ce raccord. M4 complet, VRP/GPS/mobile,
 CRM-08 complet et OPSYS complet ne sont pas déclarés par cet audit.
+
+
+## Jalon exécuté — lecture privée de préparation (27 octobre 2026)
+
+Le lien « Préparer la planification » apparaît maintenant sur la fiche d’un devis M3 accepté.
+`src/opsys/console/preparation_chantier.py` compose la lecture admin privée sur
+`GET /crm/lead/{lead_id}/soumissions/{devis_id}/preparation-chantier` (préfixe console éventuel).
+`crm_ui.py` raccorde ce lien et le routeur. Aucun POST, nouvel outil, portée appareil ou
+raccourci d’acceptation commerciale n’est ajouté.
+
+Le rôle admin SQL et l’expiration sont revérifiés avant les sources. La lecture exige le lien
+M2 lead/devis, le devis M3 réellement accepté et la charge canonique publiée par M3; elle réutilise
+la composition du propriétaire pour la durée estimée optionnelle, sans qualifier ici une nouvelle
+E2E de cette variante. Elle distingue publication absente, réception en attente, échec,
+quarantaine et reçu traité. Elle vérifie la chaîne M4, l’inscription unique du devis et le reçu
+exact; elle lit l’état courant par les fonctions M4, sans rejouer toutes les interventions une
+à une. Pour une inscription née du bus, elle compare l’instant d’acceptation et les champs M1
+schema/service/urgence, ainsi que la ville tokenisée avec la clé existante uniquement lue.
+Une inscription manuelle ou une source M1 absente ne produit pas une ancre bus complète.
+Une contradiction refuse la lecture plutôt que d’afficher un chantier prêt.
+
+La préparation est le verdict courant de `m4_verifier_preparation` : soumission, adresse,
+équipe, matériel et règles météo. Le GET ne livre pas le bus, ne répare pas une quarantaine,
+ne crée pas de clé et ne confirme aucun créneau. La projection de devis est celle du propriétaire
+pour l’employé : quantités, unités, descriptions et références matériaux, sans coûts/marges ni
+contacts. Les sources sont bornées avant décodage; sorties JSON/HTML bornées et réponse no-store.
+
+### Qualification et limites
+
+`tests/test_console_preparation_chantier.py` passe sur TestClient et SQLite migrée avec vrais
+outils, vrai bus M1→M2→M3→M4 et vraie préparation M4. Une réception réelle M6 rend le volet
+matériel disponible; la libération réelle de réservation le retire à la lecture suivante.
+Chaque GET testé conserve l’instantané de toute la base. Liens étrangers, brouillon, révocation,
+expiration, lecture non admin, corruption publication/reçu/chaîne, intervention absente, sources
+trop volumineuses et petit quota de sortie sont refusés. Aucune acceptation via nouvelle UI,
+navigation navigateur, PostgreSQL, prévision distante ou installation complète démontrée.
+
+Preuves privées du chantier `crm-prefill-qa-20261027-r1` : baseline `crm08-view-red-v1`
+(404 attendu avant code), `crm08-view-v1` (165 tests passent, deux erreurs de style conservées).
+La revue indépendante a détecté une provenance M1/M4 insuffisante; `crm08-source-red-v1`
+reproduit deux HTTP 200 au lieu du refus attendu (service/urgence). La fixture service utilise
+ensuite le code déclaré `revetement`; la régression urgence demeure inchangée. Après correction,
+`crm08-view-v2` : **168 PASS, 0 FAIL, 0 SKIP, 28,93 s**, Ruff et vérificateur des 297 outils /
+173 portées déclarées passent. Les cohortes se recoupent et ne sont pas additionnées.
+Revue complémentaire statique indépendante : aucun constat supplémentaire sur le correctif.
+Homes/tmp privés avant imports, Source en lecture seule, réseau bloqué, 1 CPU/1 Gio/96 tâches,
+commandes, limites effectives, JUnit, empreintes et reçus distincts conservés.
+
+Statut **PARTIAL** : cette première vue est qualifiée localement. Proposition/application de
+cédule depuis cette fiche, confirmation civile avec préparation et prévision du créneau relues,
+acceptation commerciale humaine et notifications restent des capacités distinctes à raccorder.

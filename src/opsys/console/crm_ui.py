@@ -380,7 +380,10 @@ def contenu_soumission(lead_id: str, devis: Mapping[str, Any], *, prefixe: str) 
         (f'<p>Modèle figé : {pages.e(devis["modele_soumission"]["titre"])} '
          f'— version {devis["modele_soumission"]["revision"]}</p>' if devis.get('modele_soumission') else '') +
         f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}/{pages._segment(devis["devis_id"])}/notes-achats">'
-        'Notes d’achat du chantier</a></p></section>'
+        'Notes d’achat du chantier</a></p>' +
+        (f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}/{pages._segment(devis["devis_id"])}/'
+         'preparation-chantier">Préparer la planification</a></p>' if devis['statut'] == 'accepte' else '') +
+        '</section>'
     )
 
 
@@ -884,6 +887,10 @@ def creer_router(
         ajouter_note(session, lead_id, {k: v for k, v in champs.items() if k != "csrf"})
         return RedirectResponse(f"{prefixe}/crm/lead/{pages._segment(lead_id)}#activites", status_code=303)
 
+    from . import preparation_chantier
+
+    router.include_router(preparation_chantier.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(devis_modele_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
         verifier_formulaire=verifier_formulaire, verifier_lead=verifier_lead, rendre=rendre))
