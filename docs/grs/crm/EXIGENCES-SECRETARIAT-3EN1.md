@@ -47,7 +47,7 @@ Principes transverses (critères d'acceptation communs à toute ligne)
 | CRM-13 | Tableau commercial chiffré gagnés/perdus, en cours, acceptés, volumes/montants, période/filtre, définitions | `m8_lire_vue_executive`, `m8_rapport_metriques`, définitions M8, `m2_lister_leads` (aucun montant), `m3_lister_devis` | **Partiel** | M8 (+M2, M3) | Chaque chiffre porte sa définition M8, sa période et sa source ; pas de montant calculé dans le cockpit |
 | CRM-14 | Prix fournisseurs : réception de listes par courriel, détection, import annuel/catalogue, comparaison, historique, anomalies, mise à jour validable ; fournisseurs connus Gentek, Royal Solution de Bâtiment, O.A.M., Kaycan | M6 livre de prix manuel (`m6_enregistrer_prix`, `m6_resoudre_prix_materiau`, fournisseurs) | **Partiel** (livre de prix, fiches fournisseurs privées et saisie tarif en HTTP/SQLite qualifiées) / **Manquant** (détection courriel, import, anomalies) | M6 (+M1 pour la réception) | Variante dictée ≠ nouveau fournisseur (file de revue) ; ligne ambiguë → revue humaine ; aucun prix inventé ; les soumissions historiques gardent leur version. Contrat §3.9 |
 | CRM-15 | Contrat employé annuel signé en ligne, profil à jour, permis + échéance en accès restreint, heures ; jamais visible du CRM vendeur/client | `m5_enregistrer_contrat_horaire`, `paie_admission_ui`, `m4_pointer` | **Partiel** (contrat horaire M5) / **Manquant** (signature en ligne, documents RH) | M5/M4 (RH à trancher) | Accès restreint propriétaire/admin ; absent du répertoire et du dossier client par conception (test négatif) ; Loi 25 |
-| CRM-16 | Journal quotidien d'équipe : qui avec qui, prévu vs visité, terminé/reporté, extras, absences, heures ; historique annuel ; plusieurs visites conservées | `m4_pointer`, `m4_signaler_report`, `m4_completer_intervention`, `m4_lire_retards_incidents`, `m4_produire_digest` | **Partiel** (événements) / **Manquant** (journal par jour/équipe) | M4 | Une visite reportée puis reprise 4 jours plus tard donne deux entrées ; la première date n'est jamais écrasée (test) |
+| CRM-16 | Journal quotidien d'équipe : qui avec qui, prévu vs visité, terminé/reporté, extras, absences, heures ; historique annuel ; plusieurs visites conservées | `m4_pointer`, `m4_signaler_report`, `m4_completer_intervention`, `m4_lire_retards_incidents`, `m4_produire_digest`, lecteur privé `journal_quotidien.lire` | **Partiel** : projection pure par journée qualifiée ; port SQL/admin, écran, membres historiques, absences et extras détaillés manquants | M4 | Anciennes prévisions conservées D→D+4 et nouveau plan ; pointages distincts, source/validité explicites, aucune présence/absence ni durée inventée. [Audit et limites](AUDIT-JOURNAL-QUOTIDIEN-EQUIPES.md) |
 
 ## 2. Modules/navigation visibles du brief (photos 9960–9965)
 
@@ -345,3 +345,10 @@ Populations recoupées, non additionnées. Révocation pendant rendu reproduite 
 par dernière vérification SQL dans la même transaction. **PARTIAL** : aucune nouvelle
 complétion terrain M4 prouvée, coût payé/historique, extras/dépenses complets, navigateur,
 PostgreSQL et mobile non qualifiés. Prochaine capacité : journal quotidien CRM-16.
+
+CRM-16 — [journal quotidien](AUDIT-JOURNAL-QUOTIDIEN-EQUIPES.md) : première projection pure
+M4 qualifiée,166PASS dans une cohorte incluant19 contrôles nouveaux (aucun cumul). Historique
+D/D+4 et plans distincts, validité courante, pointages minimisés et pages liées à la tête;
+faits orphelins/inscriptions futures ou doubles refusés. Aucun port SQL/admin ou écran encore.
+**PARTIAL** : absence de pointage ≠ absence du salarié; technicien pointé ≠ composition réelle
+de l'équipe; aucune durée quotidienne ou association exacte de visite déduite.
