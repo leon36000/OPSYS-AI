@@ -77,3 +77,7 @@ La tranche [couleurs configurables](COULEURS-CEDULE-M4.md) ajoute le choix manue
 ### Évolution CRM-01 — Aperçu trois mois
 
 La [vue multi-mois](APERCU-MULTIMOIS-M4.md) est maintenant disponible en lecture administrative, depuis un seul instantané M4. Chaque créneau est compté une fois à sa date de début ; le carnet sans date reste global et distinct. Les jours mènent à la grille semaine existante. Les limites de 200 créneaux et 50 non datés de cette grille restent explicites : leur pagination, les visites successives et le navigateur réel restent ouverts. Les audits ci-dessus décrivent leurs états historiques.
+
+### Évolution CRM-01 — Pagination du carnet
+
+Le nouveau [parcours paginé](PAGINATION-CEDULE-M4.md) traite séparément créneaux de la semaine et carnet sans date. Les observations historiques de plafonds 200/50 restent valables pour l’ancien outil, mais la console adopte le lecteur privé par pages avec source stable. Le détail des preuves et limites figure dans ce document.

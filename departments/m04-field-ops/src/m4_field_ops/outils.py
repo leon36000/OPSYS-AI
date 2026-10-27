@@ -72,6 +72,7 @@ from . import (
     meteo_fournisseurs,
     meteo_manuelle,
     outbox,
+    pages_semaine,
     pagination_interventions,
     pointage,
     preparation,
@@ -2618,7 +2619,8 @@ def _registres_annotations(n=annotations_calendrier):
     notes = stockage.maillons(_DEPARTEMENT, n.REGISTRE)
     if len(principal) > n.MAX_SOURCES or len(notes) > n.MAX_SOURCES:
         raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
-    return registre.Registre(principal), registre.Registre(notes)
+    # Le principal est uniquement consulté ; les repères restent durables pour leurs append.
+    return registre.Registre(list(principal)), registre.Registre(notes)
 
 
 def enregistrer_annotation_calendrier(ancre, texte_libre, revision_attendue):
@@ -2751,6 +2753,19 @@ def lire_apercu_mois(premier_mois):
         return n.refuser(exc.suffixe)
 
 
+def lire_page_cedule_semaine(debut_semaine, offset_interventions=0, offset_sans_date=0, source_attendue=None):
+    n = pages_semaine
+    try:
+        _autoriser_annotation()
+        maillons = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+        if len(maillons) > apercu_mois.MAX_SOURCES:
+            raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+        return n.lire(registre.Registre(list(maillons)), debut_semaine, offset_interventions,
+                      offset_sans_date, source_attendue, limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
 def _outils_presentation_calendrier():
     # Réutilise les contrats d'ancre/pagination des notes; seule la valeur de présentation diffère.
     from copy import deepcopy
@@ -2771,6 +2786,16 @@ def _outils_presentation_calendrier():
         Outil(nom="m4_resumer_couleurs_calendrier", parametres=deepcopy(resumer.parametres),
               description="Console admin privée : repères de présentation pour 200 créneaux exacts maximum.",
               fonction=resumer_couleurs_calendrier),
+        Outil(nom="m4_lire_page_cedule_semaine",
+              description="Console admin privée : pages de 25 créneaux et 25 non datés, "
+                          "source stable requise en continuation.",
+              parametres={"type": "object", "properties": {
+                  "debut_semaine": {"type": "string", "maxLength": 10},
+                  "offset_interventions": {"type": "integer", "minimum": 0, "maximum": 10000, "multipleOf": 25},
+                  "offset_sans_date": {"type": "integer", "minimum": 0, "maximum": 10000, "multipleOf": 25},
+                  "source_attendue": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$", "maxLength": 64}},
+                  "required": ["debut_semaine"], "additionalProperties": False},
+              fonction=lire_page_cedule_semaine),
         Outil(nom="m4_lire_apercu_mois",
               description="Console admin privée : aperçu de trois mois, créneaux datés M4 et invalidations séparés. "
                           "Comptage par date de début, jamais disponibilité ou promesse client.",

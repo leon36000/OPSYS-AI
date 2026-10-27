@@ -550,7 +550,8 @@ def creer_router(
     def cedule_semaine(request: Request) -> Response:
         session = session_page(request)
         params = request.query_params
-        if set(params) - {"debut_semaine"} or len(params.getlist("debut_semaine")) > 1:
+        autorises = {"debut_semaine", "offset_interventions", "offset_sans_date", "source_attendue"}
+        if set(params) - autorises or any(len(params.getlist(k)) > 1 for k in params):
             raise HTTPException(400, "requête invalide")
         brut = params.get("debut_semaine")
         if brut is None:
@@ -558,12 +559,29 @@ def creer_router(
             brut = (aujourd_hui - timedelta(days=aujourd_hui.weekday())).isoformat()
         try:
             cedule_ui.lundi(brut)
+            arguments = cedule_ui.arguments_page(params, brut)
         except ValueError:
-            raise HTTPException(400, "Choisir un lundi au format AAAA-MM-JJ (1900–2199).") from None
-        vue = lire(session, "m4_lire_cedule_semaine", {"debut_semaine": brut})
+            raise HTTPException(400, "Lundi, pages ou référence de source invalides.") from None
+        try:
+            vue = annotations_cedule_ui.appeler(cnx_factory, deps, session,
+                                                "m4_lire_page_cedule_semaine", arguments)
+        except HTTPException as exc:
+            if exc.status_code != 409:
+                raise
+            corps = ('<section class="carte"><h2>La cédule a changé</h2>'
+                     '<p>Les pages précédentes ne sont plus cohérentes avec la source actuelle.</p>'
+                     f'<a href="{pages.e(prefixe)}/crm/cedule?debut_semaine={brut}">'
+                     'Recommencer la lecture</a></section>')
+            reponse = rendre(session, "Cédule modifiée", corps)
+            reponse.status_code = 409
+            return reponse
+        if (vue.get("taille_page") != 25
+                or any(vue.get(k) != arguments[k] for k in ("offset_interventions", "offset_sans_date"))
+                or (arguments["source_attendue"] and vue.get("source_tete") != arguments["source_attendue"])):
+            raise HTTPException(503, "Pagination M4 indisponible")
         if vue.get("debut_semaine") != brut or not isinstance(vue.get("interventions"), list):
             raise HTTPException(503, "Cédule M4 indisponible")
-        # Valider la projection AVANT toute résolution de dossiers (borne de 200 créneaux incluse).
+        # Valider la projection AVANT toute résolution de dossiers (borne de 25 créneaux incluse).
         try:
             cedule_ui.contenu(vue, set(), prefixe)
             leads = {ligne["lead_id"] for ligne in vue["interventions"]}

@@ -507,7 +507,8 @@ def executer(
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
                "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
-               "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois"}:
+               "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
+                   "m4_lire_page_cedule_semaine"}:
         return _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m6_enregistrer_note_commande", "m6_lire_note_commande", "m6_lister_notes_commande"}:
         return _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutation_id)

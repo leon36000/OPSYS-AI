@@ -53,7 +53,9 @@ def _index(reg):
                 detenteurs[a["intervention_id"]] = m["plan_id"]
         elif typ == TYPE_DATEE:
             dates[m["plan_id"]] = (rang, m)
-    etat = {i["intervention_id"]: i for i in etats.lister_interventions(reg)}
+    # Réutiliser la copie validée : la projection des états ne modifie jamais ses maillons.
+    instantane = cedule_tournees._Instantane(maillons)
+    etat = {i["intervention_id"]: i for i in etats.lister_interventions(instantane)}
     return maillons, propositions, applications, dates, detenteurs, etat
 
 

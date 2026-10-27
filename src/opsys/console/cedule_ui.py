@@ -2,8 +2,10 @@
 
 Aucune mutation, aucun calendrier externe, aucune disponibilité déduite d'une cellule vide.
 """
+import re
 from collections.abc import Mapping
 from datetime import date, datetime, timedelta
+from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 from . import annotations_cedule_ui, couleurs_cedule_ui, pages
@@ -24,6 +26,64 @@ def lundi(valeur: str) -> date:
     return jour
 
 
+def arguments_page(params, semaine):
+    resultat = {"debut_semaine": semaine}
+    for k in ("offset_interventions", "offset_sans_date"):
+        brut = params.get(k, "0")
+        if type(brut) is not str or re.fullmatch(r"0|[1-9][0-9]{0,4}", brut) is None:
+            raise ValueError("page invalide")
+        n = int(brut)
+        if n > 10000 or n % 25:
+            raise ValueError("page invalide")
+        resultat[k] = n
+    source = params.get("source_attendue")
+    if source is not None and (type(source) is not str or re.fullmatch('[0-9a-f]{64}', source) is None):
+        raise ValueError("source invalide")
+    if (resultat['offset_interventions'] or resultat['offset_sans_date']) and not source:
+        raise ValueError("source requise")
+    # Une continuation doit conserver aussi sa semaine explicite.
+    if source and 'debut_semaine' not in params:
+        raise ValueError("semaine requise")
+    resultat['source_attendue'] = source
+    return resultat
+
+
+def pagination(vue, prefixe):
+    if 'taille_page' not in vue:
+        return '', ''  # ancien contrat, conservé pour les consommateurs existants
+    if type(vue['taille_page']) is not int or vue['taille_page'] != 25:
+        raise ValueError("taille de page invalide")
+    source = vue['source_tete']
+    if source is not None and (type(source) is not str or re.fullmatch('[0-9a-f]{64}', source) is None):
+        raise ValueError("source invalide")
+    nombre = vue['source_nombre']
+    if type(nombre) is not int or not 0 <= nombre <= 10000 or (source is None) != (nombre == 0):
+        raise ValueError("source incohérente")
+    liens_par_liste = []
+    for cle, total, lignes, label in [
+        ('offset_interventions', 'total_interventions', 'interventions', 'Créneaux'),
+        ('offset_sans_date', 'total_sans_date', 'sans_date', 'Sans date'),
+    ]:
+        offset, n = vue[cle], vue[total]
+        if (type(offset) is not int or offset < 0 or offset > 10000 or offset % 25
+                or type(n) is not int or not 0 <= n <= 10000
+                or (offset >= n and offset != 0)
+                or len(vue[lignes]) != min(25, n-offset)
+                or (source is None and n)):
+            raise ValueError("pagination incohérente")
+        liens = []
+        for cible, titre in [(offset-25, 'Page précédente'), (offset+25, 'Page suivante')]:
+            if 0 <= cible < n:
+                args = {k: vue[k] for k in ('debut_semaine', 'offset_interventions', 'offset_sans_date')}
+                args.update({cle: cible, 'source_attendue': source})
+                url = prefixe+'/crm/cedule?'+urlencode(args)
+                liens.append(f'<a href="{pages.e(url)}">{titre} — {label}</a>')
+        compte = f'{offset+1}–{offset+len(vue[lignes])}' if n else '0'
+        liens_par_liste.append(f'<p>{label} : {compte} sur {n}.</p>'
+                               f'<nav aria-label="Pages {label}">'+" · ".join(liens)+'</nav>')
+    return tuple(liens_par_liste)
+
+
 def _navigation(jour: date, prefixe: str) -> str:
     base = pages.e(prefixe) + "/crm/cedule"
     liens = [f'<a href="{pages.e(prefixe)}/crm/cedule/mois?premier_mois={jour:%Y-%m}">Vue trois mois</a>']
@@ -31,7 +91,7 @@ def _navigation(jour: date, prefixe: str) -> str:
         liens = [f'<a href="{pages.e(prefixe)}/crm/cedule/mois?premier_mois=2199-10">Vue trois mois</a>']
     for decalage, label in [(-7, "Semaine précédente"), (7, "Semaine suivante")]:
         cible = jour + timedelta(days=decalage)
-        if 1900 <= cible.year <= 2199:
+        if cible.year >= 1900 and (cible + timedelta(days=7)).year <= 2199:
             liens.append(f'<a href="{base}?debut_semaine={cible.isoformat()}">{label}</a>')
     liens.append(f'<a href="{base}">Semaine courante</a>')
     return ('<nav class="cedule-navigation" aria-label="Navigation des semaines">' + " · ".join(liens) + '</nav>'
@@ -103,6 +163,7 @@ def contenu(vue: Mapping, dossiers: set[str], prefixe: str) -> str:
     for cle, liste, borne in [("total_interventions", lignes, 200), ("total_sans_date", sans_date, 50)]:
         if type(vue[cle]) is not int or vue[cle] < len(liste) or len(liste) > borne:
             raise ValueError("total M4 incohérent")
+    pages_datees, pages_sans_date = pagination(vue, prefixe)
     jours = [jour + timedelta(days=i) for i in range(7)]
     cellules = {}
     ids = set()
@@ -136,6 +197,9 @@ def contenu(vue: Mapping, dossiers: set[str], prefixe: str) -> str:
         raise ValueError("troncature M4 incohérente")
     limite = ('<p class="message message-alerte">Vue incomplète : limites de lecture atteintes. '
               'Les éléments non affichés doivent être consultés avant toute planification.</p>' if partiel else '')
+    if partiel and 'taille_page' in vue:
+        limite = ('<p class="message message-alerte">Vue incomplète : cette page ne montre pas tout le carnet. '
+                  'Utiliser les pages suivantes pour consulter les autres éléments.</p>')
     attente = ''.join(
         f'<li>Intervention {pages.e(ligne["intervention_id"])} · {pages.e(ligne["statut"])} · '
         f'{_lien_plan(ligne["plan_id"], prefixe)} · Aucune date civile confirmée</li>'
@@ -152,12 +216,12 @@ def contenu(vue: Mapping, dossiers: set[str], prefixe: str) -> str:
         '<p class="note">Repère administratif : sans repère, bleu, violet, vert, rose, ambre ou gris. '
         'Choisir sa couleur depuis la carte; ce repère reste indépendant du statut et de la bordure de validité.</p>'
         + limite + f'<p>{len(lignes)} créneau(x) affiché(s) sur {vue["total_interventions"]} pour cette semaine.</p>'
-        '<div class="table-defilante" role="region" aria-label="Cédule hebdomadaire" tabindex="0">'
+        + pages_datees + '<div class="table-defilante" role="region" aria-label="Cédule hebdomadaire" tabindex="0">'
         '<table class="cedule-semaine"><caption>Planification interne — source M4</caption>'
         f'<thead><tr><th scope="col">Équipe</th>{entete}</tr></thead><tbody>{"".join(rangees)}</tbody></table></div>'
         '<ul class="note">' + ''.join(f'<li>{pages.e(a)}</li>' for a in vue["avertissements"]) + '</ul></section>'
         '<section class="carte"><h2>Sans date — tout le carnet</h2>'
         f'<p>{len(sans_date)} affichée(s) sur {vue["total_sans_date"]}. '
-        'Ces interventions ne sont rattachées à aucun jour par cette vue.</p>' + carnet
+        'Ces interventions ne sont rattachées à aucun jour par cette vue.</p>' + pages_sans_date + carnet
         + '</section>'
     )

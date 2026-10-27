@@ -26,8 +26,10 @@ def extraire(reponse):
     if r.get('accepte') is True and isinstance(r.get('resultat'), dict):
         return r['resultat']
     suffixe = r.get('verdict', {}).get('code', '')
-    for prefix in ('REJ-ANNOTATION-CALENDRIER-', 'REJ-COULEUR-CALENDRIER-', 'REJ-APERCU-MOIS-'):
+    for prefix in ('REJ-ANNOTATION-CALENDRIER-', 'REJ-COULEUR-CALENDRIER-', 'REJ-APERCU-MOIS-', 'REJ-PAGE-CEDULE-'):
         suffixe = suffixe.removeprefix(prefix)
+    if suffixe == 'SOURCE-MODIFIEE':
+        raise HTTPException(409, 'La cédule a changé : recommencer la lecture.')
     if suffixe == 'IDENTITE':
         raise HTTPException(403, 'Accès refusé')
     if suffixe in {'REVISION-PERIMEE', 'SOURCE-PERIMEE', 'SOURCE-REMPLACEE', 'MUTATION-CONFLIT'}:

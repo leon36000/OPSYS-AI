@@ -15,7 +15,7 @@ L’audit initial a identifié une projection hebdomadaire plafonnée à 200 cr�
 
 La source porte sa tête et son nombre de maillons. Les trois mois contiennent tous leurs jours, y compris les jours sans créneau. Chaque intervention courante compte une seule fois, à sa date de début dans le fuseau `America/Montreal`. La vue ne représente pas la durée d’occupation des chantiers sur plusieurs jours. Le nombre sans date concerne tout le carnet et apparaît une seule fois, séparément des totaux mensuels. Une redatation remplace la date courante ; un report conserve un avertissement à reconfirmer.
 
-La limite de source est de 10 000 maillons, vérifiée dans la logique et après lecture SQL dans l’adaptateur. Ce dernier charge encore les maillons avant ce contrôle : la limite ne garantit donc pas une lecture SQL paginée ni une mémoire constante. Un registre trop volumineux ou incohérent est refusé. La sortie respecte aussi le quota du contexte. Aucun nom, adresse, téléphone, coût, GPS ou identifiant client ne figure dans l’aperçu.
+La limite de source est de 10 000 maillons, vérifiée dans la logique et par comptage SQL dans l’adaptateur avant les lectures complètes. Ce contrôle ne garantit pas une lecture SQL paginée ni une mémoire constante. Un registre trop volumineux ou incohérent est refusé. La sortie respecte aussi le quota du contexte. Aucun nom, adresse, téléphone, coût, GPS ou identifiant client ne figure dans l’aperçu.
 
 ## Routes, workflow et intégrations
 
@@ -38,3 +38,5 @@ Tests dédiés : `departments/m04-field-ops/tests/test_apercu_mois.py` et `tests
 Lot intégré Linux : **261 PASS, zéro SKIP**, incluant les 213 cas antérieurs de calendrier/annotations/couleurs ; ces populations ne s’additionnent pas. Ruff et vérificateur des manifestes passent : 273 outils, 173 déclarés par rôle d’appareil. Revue indépendante statique des raccords : aucun défaut concret relevé ; elle ne remplace pas les tests.
 
 Statut **PARTIAL** : aperçu trois mois HTTP/SQLite qualifié localement. Restent pagination du grand carnet, visites successives, validation visuelle dans un navigateur réel, parcours PostgreSQL et mobile. L’échec historique du sandbox navigateur reste conservé ; aucun contournement des protections n’est autorisé par ce document. La CI distante et la publication sont suivies dans le checkpoint du chantier, sans déduire une qualification globale de ces tests locaux.
+
+La [pagination hebdomadaire](PAGINATION-CEDULE-M4.md) qualifiée ensuite remplace la troncature sans continuation de la console ; les limites 200/50 décrites plus haut restent celles de l’ancien outil.

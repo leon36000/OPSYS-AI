@@ -150,7 +150,7 @@ def test_source_corrompue_ne_devient_pas_semaine_vide(client_crm, planning, monk
     original = metier.executer
 
     def faux_lecteur(cnx, deps, session, nom, arguments, **kwargs):
-        if nom == "m4_lire_cedule_semaine":
+        if nom == "m4_lire_page_cedule_semaine":
             return {"ok": True, "resultat": {"accepte": True, "resultat": vue}}
         return original(cnx, deps, session, nom, arguments, **kwargs)
 

@@ -294,7 +294,8 @@ class Capacites:
         """Revérifie et dispatch un outil Core profilé sous le verrou de sa ligne de profil."""
         if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
                    "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
-                   "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois"}:
+                   "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
+                   "m4_lire_page_cedule_semaine"}:
             # Aucun texte privé dans approbations, reçus ou artefacts génériques.
             # Le port humain privé de console appelle les outils M4 directement.
             return {"ok": False, "erreur": "port_console_prive_requis"}
@@ -334,7 +335,8 @@ class Capacites:
         """
         if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
                    "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
-                   "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois"}:
+                   "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
+                   "m4_lire_page_cedule_semaine"}:
             # Refus avant toute normalisation, réclamation ou approbation contenant du texte privé.
             return {"ok": False, "erreur": "port_console_prive_requis"}
         if nom in _LECTURES_DOCUMENTAIRES_M10:
