@@ -269,3 +269,73 @@ outil, modèle ou formulaire. Les badges/compteurs de notes dans le journal, les
 heures par jour, absences, composition historique, navigateur, PostgreSQL et mobile restent
 ouverts. Prochaine action : commit local, qualification CI parent, puis lecture des demandes
 d'écart/arbitrages M4 dans le journal sans les présenter comme une facturation d'extras.
+
+## Décision avant la projection des écarts déclarés et arbitrés
+
+Réemploi inspecté : `ecarts.creer_demande_ecart` écrit `demande_revue/ecart_metier` avec
+versions exactes durée/périmètre/matériaux; `resoudre_demande` ajoute `resolution_revue`, sans
+réécrire la demande. Identifiants propriétaires : empreinte de `demande_revue`/intervention/
+horodatage, puis `resolution_revue`/demande/horodatage. La validation d'un écart métier produit
+un WCT `completed_pending_review`; l'anomalie GPS appartient à la même famille de demandes
+mais reprend `sur_site` si validée. Ne pas fusionner ces sens ni utiliser seulement l'intervention.
+
+Ajouter au journal pur deux événements distincts, chacun daté selon son heure faisant foi.
+Déclaration : en attente à cet instant; arbitrage : décision source, séparée, même si un autre
+jour. Exiger demande unique antérieure, même intervention, résolution unique, identifiants
+déterministes, inscription unique antérieure, versions validées par le propriétaire et
+décisions fermées. Inclure tous les types de demandes dans l'index de collision, mais ne
+projeter comme écarts que `ecart_metier`. Une résolution orpheline/avant sa demande ou un
+doublon ne doit jamais devenir un fait affiché. Les anomalies GPS restent exclues de ce volet.
+
+Sortie minimale : références/IDs, instant/origine, décision et noms des dimensions modifiées.
+Ne copier ni périmètre libre, matériaux, motif libre, heure appareil, prix ou coût. Comparer
+les dimensions déclarées ne prouve pas une durée travaillée ni un extra facturable; ces
+derniers relèvent des propriétaires M3/M5. Aucun statut opérationnel, facture, paie, rôle,
+table ou événement n'est écrit par cette lecture. Le snapshot principal M4 contient déjà
+ces maillons; son mécanisme canonique et sa continuation peuvent être réutilisés.
+
+Qualification prévue : vraies fonctions pures de `test_ecarts._registre_sur_site`, déclaration
+puis décision un autre jour, invariance du registre; références étrangères, doublons, IDs
+altérés, résolutions orphelines et collision avec anomalie GPS. Réutiliser les régressions
+d'arbitrage M4; adapter le T0/rendu seulement après qualification pure. Aucun nouveau parcours
+terrain réel ou accord de facturation n'est revendiqué par ces fixtures fictives.
+
+
+## Qualification des déclarations et arbitrages M4
+
+La projection expose désormais `ecart_declare` et `ecart_arbitre` au jour local de chacun,
+avec références à la demande, à ses maillons et aux seules dimensions modifiées. La déclaration
+reste « en attente » à son instant même si une décision intervient plus tard. Aucun périmètre,
+matériau libre, motif d'arbitrage, heure appareil, coût ou quantité de durée n'est recopié.
+L'écran précise que l'arbitrage M4 ne constitue pas une décision sur un extra facturable M3/M5.
+Les nouvelles lignes n'obtiennent pas de lien de note sans ancre civile démontrée.
+
+La revue de la première candidate a prouvé cinq acceptations erronées : décision inversée avec
+statut cohérent, transition compagnon retirée, mauvais identifiant de revue WCT, indicateur
+`ecart_signale` faux et demande ajoutée après état terminal. Les cinq rouges sont conservés.
+La projection vérifie maintenant le préfixe historique propriétaire et la transition immédiate
+exacte, ainsi que les invariants WCT et leur liaison à la demande. La demande initiale depuis
+`planifiee`, permise par le writer sans présence sur place, reste valide. Les anomalies GPS
+partagent l'index de collision mais ne deviennent jamais des écarts métier affichés.
+
+`crm16-ecarts-v3` : 99 PASS en 0,33s, incluant 24 cas de projection des écarts, les 56 cas du
+propriétaire écarts et les 19 du journal initial. `crm16-ecarts-http-v3` : 72 PASS en 15,00s,
+incluant quatre cas SQL/HTTP nouveaux, les 20 du port privé, les 17 du journal HTTP, les sept
+du raccord des notes et les 24 cas purs. Ces populations se recoupent et ne sont pas additionnées.
+Les quatre cas SQL/HTTP passent aussi isolément dans v2. Les écritures de fixture passent par
+les vraies fonctions propriétaires et le stockage canonique SQLite : aucune nouvelle preuve
+MCP/appareil ni parcours terrain réel n'en découle. Les GET/refus conservent toutes les tables.
+Pagination liée au snapshot, refus non-admin et révocation pendant rendu restent vérifiés.
+
+Le premier rouge HTTP503 pour les nouveaux types et le refus préalable Ruff (deux défauts de
+présentation/import de la candidate) restent historiques, distincts d'un défaut du produit
+publié. Ruff et vérificateur 298 outils/174 déclarés passent. Revue indépendante statique finale
+sans défaut concret relevé; aucun runtime supplémentaire de l'agent de revue.
+Preuve : `CRM16-ECARTS-LOCAL-QUALIFIED.json`, reçus/pins/JUnit et limites privées joints.
+
+**PARTIAL — écarts minimisés qualifiés localement en pur/HTTP/SQLite.** Aucun writer, schéma,
+rôle de compte ou effet financier ajouté. Composition réelle historique, absences, heures
+quotidiennes, association exacte des visites/pointages, détails et approbation des extras,
+navigateur, PostgreSQL et mobile restent ouverts. Prochaine tranche serveur : établir depuis
+les sources M4 une association démontrable visite/pointage, avec ambiguïtés explicites et sans
+déduire une présence à partir d'une simple prévision.

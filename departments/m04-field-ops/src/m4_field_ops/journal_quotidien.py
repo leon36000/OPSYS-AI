@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from . import annotations_calendrier as annotations
 from . import calendrier_civil as calendrier
-from . import cedule_tournees, encodage, etats, horodatage, pointage
+from . import cedule_tournees, ecarts, encodage, etats, horodatage, outbox, pointage
 from .registre import Registre, VerificationError
 
 MAX_SOURCES = 10000
@@ -73,19 +73,27 @@ def _previsions(sources, maillons, jour):
     return lignes
 
 
-def _faits(maillons, jour):
-    lignes = []
+def _inscriptions(maillons):
     inscriptions = {}
     for rang, m in enumerate(maillons):
         if m['type_entree'] == etats.TYPE_INSCRIPTION:
             inscriptions.setdefault(_texte(m['intervention_id']), []).append(rang)
+    return inscriptions
+
+
+def _verifier_inscription(m, rang, inscriptions):
+    origines = inscriptions.get(m['intervention_id'], [])
+    if len(origines) != 1 or origines[0] >= rang:
+        raise ValueError('inscription unique antérieure requise pour chaque fait')
+
+
+def _faits(maillons, jour):
+    lignes, inscriptions = [], _inscriptions(maillons)
     for rang, m in enumerate(maillons):
         typ = m['type_entree']
         if typ not in {pointage.TYPE_POINTAGE, etats.TYPE_TRANSITION}:
             continue
-        origines = inscriptions.get(m['intervention_id'], [])
-        if len(origines) != 1 or origines[0] >= rang:
-            raise ValueError('inscription unique antérieure requise pour chaque fait')
+        _verifier_inscription(m, rang, inscriptions)
         horodatage.valider_horodatage(m['horodatage'])
         instant = datetime.fromisoformat(m['horodatage']).astimezone(ZoneInfo(calendrier.FUSEAU))
         if instant.date().isoformat() != jour:
@@ -110,6 +118,92 @@ def _faits(maillons, jour):
     return lignes
 
 
+def _demandes(maillons):
+    demandes, inscriptions = {}, _inscriptions(maillons)
+    for rang, m in enumerate(maillons):
+        if m['type_entree'] != pointage.TYPE_DEMANDE_REVUE:
+            continue
+        ident = _texte(m['demande_id'])
+        if ident in demandes:
+            raise ValueError('demande unique requise, y compris entre types')
+        _verifier_inscription(m, rang, inscriptions)
+        horodatage.valider_horodatage(m['horodatage'])
+        if (m['type_demande'] not in ecarts.TYPES_DEMANDE
+                or ident != encodage.empreinte('demande_revue', m['intervention_id'], m['horodatage'])):
+            raise ValueError('identifiant ou type de demande invalide')
+        if m['type_demande'] == 'ecart_metier':
+            statut = etats.statut_courant(cedule_tournees._Instantane(maillons[:rang]), m['intervention_id'])
+            if statut is None or statut in etats.ETATS_TERMINAUX:
+                raise ValueError('déclaration hors état opérationnel non terminal')
+            ecarts._valider_version(m['version_prevue'])
+            ecarts._valider_version(m['version_declaree'])
+            if m['version_prevue'] == m['version_declaree'] or m['statut_arbitrage'] != 'en_attente':
+                raise ValueError('déclaration sans écart ou état initial invalide')
+        demandes[ident] = (rang, m)
+    return demandes, inscriptions
+
+
+def _verifier_transition_ecart(maillons, rang, resolution):
+    if rang < 1:
+        raise ValueError('transition de résolution absente')
+    compagnon = maillons[rang - 1]
+    avant = etats.statut_courant(cedule_tournees._Instantane(maillons[:rang - 1]), resolution['intervention_id'])
+    cible = 'annulee' if resolution['decision'] == 'rejetee' else 'completed_pending_review'
+    if (compagnon['type_entree'] != etats.TYPE_TRANSITION
+            or compagnon.get('intervention_id') != resolution['intervention_id']
+            or compagnon.get('horodatage') != resolution['horodatage']
+            or compagnon.get('statut') != cible or compagnon.get('statut_precedent') != avant
+            or (avant, cible) not in etats.TRANSITIONS_AUTORISEES):
+        raise ValueError('transition propriétaire de résolution incohérente')
+    if resolution['decision'] == 'rejetee':
+        if outbox.CLE_WCT in compagnon:
+            raise ValueError('rejet portant une complétion incohérente')
+        return
+    valide, _ = outbox.verifier_invariants_outbox(cedule_tournees._Instantane([compagnon]))
+    wct = compagnon.get(outbox.CLE_WCT, {})
+    if not valide or wct.get('revue_id') != resolution['demande_id'] or wct.get('ecart_signale') is not True:
+        raise ValueError('preuve de complétion de l’écart incohérente')
+
+
+def _ecarts(maillons, jour):
+    demandes, inscriptions = _demandes(maillons)
+    lignes, resolues = [], set()
+    for rang, m in enumerate(maillons):
+        typ = m['type_entree']
+        if typ not in {pointage.TYPE_DEMANDE_REVUE, ecarts.TYPE_RESOLUTION}:
+            continue
+        ident = m['demande_id']
+        if ident not in demandes:
+            raise ValueError('résolution sans demande')
+        rang_demande, demande = demandes[ident]
+        if typ == ecarts.TYPE_RESOLUTION:
+            _verifier_inscription(m, rang, inscriptions)
+            horodatage.valider_horodatage(m['horodatage'])
+            if (rang_demande >= rang or demande['intervention_id'] != m['intervention_id'] or ident in resolues
+                    or m['decision'] not in ecarts.DECISIONS or m['statut_arbitrage'] != m['decision']
+                    or m['resolution_id'] != encodage.empreinte('resolution_revue', ident, m['horodatage'])):
+                raise ValueError('liaison ou décision de résolution invalide')
+            resolues.add(ident)
+            if demande['type_demande'] == 'ecart_metier':
+                _verifier_transition_ecart(maillons, rang, m)
+        if demande['type_demande'] != 'ecart_metier':
+            continue
+        instant = datetime.fromisoformat(m['horodatage']).astimezone(ZoneInfo(calendrier.FUSEAU))
+        if instant.date().isoformat() != jour:
+            continue
+        dimensions = [k for k in sorted(ecarts.CLES_VERSION)
+                      if demande['version_prevue'][k] != demande['version_declaree'][k]]
+        ligne = {'type': 'ecart_declare' if typ == pointage.TYPE_DEMANDE_REVUE else 'ecart_arbitre',
+                 'intervention_id': m['intervention_id'], 'source_ligne_id': m['ligne_id'],
+                 'instant': instant.isoformat(), 'origine_heure': horodatage.origine(m), 'ancre_visite': None,
+                 'demande_id': ident, 'source_demande_id': demande['ligne_id'],
+                 'statut_arbitrage': m['statut_arbitrage'], 'dimensions_modifiees': dimensions}
+        if typ == ecarts.TYPE_RESOLUTION:
+            ligne['resolution_id'] = m['resolution_id']
+        lignes.append(ligne)
+    return lignes
+
+
 def lire(reg, jour, *, debut=0, limite=50, source_attendue=None):
     """Page déterministe d'un snapshot validé; continuation interdite si sa tête change.
 
@@ -125,7 +219,7 @@ def lire(reg, jour, *, debut=0, limite=50, source_attendue=None):
         source = encodage.empreinte('journal_quotidien_v1', copie.tete(), jour)
         if (debut and source_attendue is None) or (source_attendue is not None and source_attendue != source):
             raise ValueError('source périmée : relire la première page')
-        lignes = _previsions(sources, maillons, jour) + _faits(maillons, jour)
+        lignes = _previsions(sources, maillons, jour) + _faits(maillons, jour) + _ecarts(maillons, jour)
         lignes.sort(key=lambda x: (datetime.fromisoformat(x['instant']), sources[0][x['source_ligne_id']][0],
                                    x['type'], x['intervention_id']))
         if debut > len(lignes):

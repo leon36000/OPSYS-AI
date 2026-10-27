@@ -2392,7 +2392,8 @@ def outils(
         Outil(
             nom="m4_lire_journal_quotidien",
             description=("Console privée, admin SQL actif uniquement : journée ISO America/Montreal, prévisions "
-                         "historiques et pointages distincts, aucune localisation ni déduction RH. Pagination "
+                         "historiques, pointages, déclarations/arbitrages d'écart M4 minimisés; aucune localisation "
+                         "ni déduction RH ou d'extra facturable. Pagination "
                          "liée à la tête et au jour; empreinte calculée de snapshot, sans attestation native. "
                          "Lecture seule SQLite canonique bornée; agents, MCP et appareils directs refusés."),
             parametres={"type": "object", "properties": {

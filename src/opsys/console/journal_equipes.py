@@ -74,6 +74,8 @@ def contenu(vue, prefixe, limite):
              f'<section><h2>Journal des équipes — {pages.e(vue["jour"])}</h2>'
              f'<p>Fuseau : {pages.e(vue["fuseau"])}</p><ul>')
     corps += ''.join(f'<li>{pages.e(a)}</li>' for a in vue['avertissements']) + '</ul>'
+    corps += ('<p>Chaque ligne décrit un événement à son instant. Les déclarations et arbitrages terrain '
+              'proviennent de M4; les décisions sur les extras facturables relèvent de M3/M5.</p>')
     corps += f'<p>{len(vue["lignes"])} entrées affichées sur {vue["total"]}.</p>'
     nav = []
     if vue['debut']:
@@ -87,17 +89,27 @@ def contenu(vue, prefixe, limite):
     corps += ('<table><thead><tr><th>Type</th><th>Intervention</th><th>Heure locale</th><th>Équipe prévue</th>'
               '<th>Technicien du pointage</th><th>État ou action</th><th>Validité de la prévision</th>'
               '<th>Source</th><th>Notes</th></tr></thead><tbody>')
-    types = {'prevision': 'Prévision', 'pointage': 'Pointage', 'etat': 'Changement d’état'}
+    types = {'prevision': 'Prévision', 'pointage': 'Pointage', 'etat': 'Changement d’état',
+             'ecart_declare': 'Écart déclaré', 'ecart_arbitre': 'Arbitrage d’écart'}
+    arbitrages = {'en_attente': 'En attente d’arbitrage M4', 'validee': 'Arbitrage M4 validé',
+                  'rejetee': 'Arbitrage M4 rejeté'}
+    dimensions = {'duree_minutes': 'Durée déclarée', 'materiaux': 'Matériaux déclarés',
+                  'perimetre': 'Périmètre déclaré'}
     validites = {'historique': 'Ancienne prévision', 'a_reconfirmer': 'À reconfirmer',
                  'date_confirmee': 'Date confirmée'}
     for ligne in vue['lignes']:
         etat = cedule_ui.STATUTS.get(ligne.get('statut'), ligne.get('action', 'Non applicable'))
+        source = ligne['source_ligne_id']
+        if ligne['type'] in {'ecart_declare', 'ecart_arbitre'}:
+            etat = arbitrages[ligne['statut_arbitrage']] + ' · ' + ', '.join(
+                dimensions[k] for k in ligne['dimensions_modifiees'])
+            source += ' · Demande : ' + ligne['demande_id'] + ' · Source de demande : ' + ligne['source_demande_id']
         if ligne.get('motif'):
             etat += ' · ' + ligne['motif']
         heure = ligne['instant'] if ligne['type'] != 'prevision' else ligne['debut'] + ' – ' + ligne['fin']
         valeurs = [types[ligne['type']], ligne['intervention_id'], heure,
                    ligne.get('equipe_planifiee', 'Non applicable'), ligne.get('technicien_id', 'Non applicable'),
-                   etat, validites.get(ligne.get('validite'), 'Non applicable'), ligne['source_ligne_id']]
+                   etat, validites.get(ligne.get('validite'), 'Non applicable'), source]
         note = 'Aucune ancre de visite démontrée'
         if ligne['type'] == 'prevision':
             url = annotations_cedule_ui.url(annotations_cedule_ui.ancre_de(ligne), prefixe)
