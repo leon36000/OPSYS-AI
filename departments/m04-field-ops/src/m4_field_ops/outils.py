@@ -53,6 +53,7 @@ from opsys import meteo as meteo_entreprise
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
+    absences_durables,
     acces,
     annotations_calendrier,
     apercu_mois,
@@ -1414,6 +1415,26 @@ def outils(
             return _refus(verdicts.construire_verdict('REJ-COMPOSITION-SOURCE-INVALIDE'))
         return {'accepte': True, 'resultat': resultat}
 
+    def lire_absence_journaliere_console(jour: str, personne_id: str, debut: int = 0, limite: int = 50,
+                              source_attendue: str | None = None) -> dict[str, Any]:
+        try:
+            _autoriser_annotation()
+            cnx = _cnx_durable()
+            source = absences_durables.capturer(cnx)
+            resultat = absences_durables.projeter(source, jour, personne_id, debut=debut, limite=limite,
+                                                source_attendue=source_attendue)
+            absences_durables.verifier_sortie(resultat)
+            if absences_durables.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
+                raise absences_durables.Refus('SOURCE-MODIFIEE')
+            _autoriser_annotation()
+        except annotations_calendrier.Refus:
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-IDENTITE', detail='admin console actif requis'))
+        except absences_durables.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-SOURCE-INVALIDE'))
+        return {'accepte': True, 'resultat': resultat}
+
     def declarer_composition_journaliere_console(jour, equipe_id, membres, revision_attendue, statut_declaration):
         from . import encodage
 
@@ -2483,6 +2504,20 @@ def outils(
                 "source_attendue": {"type": ["string", "null"]}},
                 "required": ["jour", "equipe_id"], "additionalProperties": False},
             fonction=lire_composition_journaliere_console, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_absence_journaliere_console",
+            description=("Console humaine privée, admin SQL actif seulement : signalement d'absence pour un jour "
+                         "et une personne explicites, historique et retraits. Aucune présence, heure ou paie "
+                         "déduite, aucun motif de santé, aucune résolution par le profil actuel. Source SQLite "
+                         "canonique et pagination bornées; agents, MCP et appareils directs refusés."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "personne_id": {"type": "string"},
+                "debut": {"type": "integer", "minimum": 0},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                "source_attendue": {"type": ["string", "null"]}},
+                "required": ["jour", "personne_id"], "additionalProperties": False},
+            fonction=lire_absence_journaliere_console, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m4_verifier_preparation",

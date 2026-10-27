@@ -816,3 +816,68 @@ contrôle d'identité réel, événement M10, absence mesurée, paie ou décisio
 par cette tranche. Prochaine action concrète : capture canonique SQLite bornée avant décodage,
 projection indépendante et vrai T0 privé admin/session avec recapture et sortie minimisée;
 ensuite seulement writer à identité confirmée et formulaire sans motif de santé.
+
+
+## Contrat avant le lecteur SQL privé des absences
+
+Réutiliser le snapshot SQL canonique avec métadonnées et la garde admin/session déjà qualifiés,
+sans nouvelle dépendance. `absences_durables.py` fixe département et registre; SQL compte les
+maillons et octets UTF-8 bruts avant tout décodage. Source malformée, maillon hors schéma ou
+chaîne invalide = refus, sans réparation. La projection du domaine ajoute l'empreinte calculée
+du snapshot; source et sortie ont des bornes indépendantes. Conserver le classement des refus
+de quota plutôt que les confondre avec un défaut d'identité.
+
+Ajouter `m4_lire_absence_journaliere_console`, T0 au seul transport interne admin console,
+refusé aux agents/MCP/appareils directs ainsi qu'aux deux répartiteurs génériques AVANT factory,
+normalisation et reçu. La déclaration nominale de portée admin du transport est explicitement
+ratifiée avec catalogue gelé et documentation; elle ne donne aucun rôle à une personne et
+n'autorise pas un appel externe. Garde SQL courante avant/après et connexion SQLite exacte;
+aucun profil courant, nom ou rôle actuel du sujet lu pour reconstruire son histoire.
+
+Le port `console.absences_personnes.lire` compare une projection indépendante de la même
+capture au résultat du vrai T0, vérifie le quota puis recapture et contrôle à nouveau la
+session/admin. Identifiant et jour restent ceux demandés. Aucun faux état présent quand
+aucun signalement ou après retrait. Aucun writer, formulaire, calcul d'heures, paie, événement
+M10 ou décision RH dans cette tranche. PostgreSQL reste fermé tant que non qualifié.
+
+Tests avant implémentation : source SQLite réellement rouverte, états et temporalités, compte
+historique inactif sans réactivation, zéro écriture; fausse portée admin/session expirée,
+appareil/MCP et registre/connexion injectés refusés; réponse altérée et métadonnées changées,
+révocation après dernière capture, quotas SQL avant décodage et sortie, JSON/maillon invalides,
+pages liées à la source, répartiteurs privés sans factory/reçu. Catalogue et registres existants
+restent contrôlés, preuves de composition compatibles réutilisées sans réexécutions inutiles.
+
+
+## Lecture privée durable des absences qualifiée localement
+
+`absences_durables.py`, le vrai T0 `m4_lire_absence_journaliere_console` et le port
+`console.absences_personnes.lire` existent maintenant. La même base canonique est rouverte :
+signalement puis retrait, identifiant historique exact, deux temporalités et empreintes de
+source restent consultables, sans nom actuel ni réactivation du compte inactif. Projection
+indépendante et réponse du T0 sont comparées, métadonnées recapturées et admin SQL/session
+recontrôlés avant restitution. La source principale M4, les compositions, profils, droits,
+pointages et tous les autres états restent inchangés par une lecture ou un refus.
+
+Cohorte `crm16-absence-port-v2` : **186 PASS, 0 FAIL, 0 SKIP, 13,83 s**, incluant 20 nouveaux
+cas SQL/T0, les 20 cas purs, les verdicts, portées et lecteurs de composition. Les anciennes
+cohortes sont incluses ou recoupées et ne sont pas additionnées. Ruff et vérificateur natif
+passent : 301 outils, 176 déclarés au transport; le catalogue gelé et ROLES.md sont mis à jour
+explicitement. Aucun rôle de personne ajouté. Les appareils/agents/MCP et répartiteurs
+génériques refusent ce T0 avant normalisation, factory ou reçu. Les codes de quota restent
+distincts de ceux d'identité. Données fictives, source RO sous Landlock, réseau refusé et
+limites 1 CPU / 1 Gio / 96 tâches / 600 s vérifiées avant imports.
+
+Rouge `absence-port-red-v1` : vrai outil absent. `port-v1` est un refus de lint (deux lignes
+trop longues), sans erreur produit; aucun artefact remplacé. JSON/maillon invalide, quotas SQL
+avant décodage, fausse autorité et session expirée, registre/connexion injectés, réponse altérée,
+révocation après dernière capture et mutation des métadonnées ont leurs refus vérifiés.
+Revue indépendante statique : aucun défaut concret supplémentaire, sans runtime du relecteur.
+Fonctions existantes de lecture/écriture des compositions et de journal inchangées par AST.
+Preuve : `CRM16-ABSENCE-PORT-LOCAL-QUALIFIED.json`.
+
+**PARTIAL — lecture privée SQL/T0 uniquement.** Aucun writer, formulaire, vue par jour de toutes
+les absences, emploi/absence réellement vérifié, paie, M10, PostgreSQL, navigateur ou mobile
+prouvé ici. Prochaine capacité : exposer une consultation admin HTTP au jour/personne exacts,
+avec session revérifiée après rendu et paramètres/sortie fermés; la saisie et la liste quotidienne
+viendront avec leurs sources et contrôles distincts. La CI du parent 4752 est maintenant terminale
+(40 succès, 4 SKIP historiques, 44 observés), sans déclaration de complétion produit.
