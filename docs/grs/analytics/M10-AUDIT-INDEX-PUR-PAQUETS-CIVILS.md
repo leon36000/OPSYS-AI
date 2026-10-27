@@ -70,3 +70,71 @@ Preuves : `M10-PURE-PROFILE-QUALIFIED.json` dans le chantier CRM; phase QA disti
 et tester différentiellement la projection pure sur les règles métier ci-dessus avant tout
 raccord à la capture. Aucun nouveau gate Nathan pour ce travail privé réversible. Production,
 PostgreSQL, navigateur, mobile et déploiement restent hors de cette preuve.
+
+## Décision d'implémentation avant patch
+
+Retenir une préparation pure propriétaire, copiée une fois, qui construit l'index WCT global
+puis résout chaque événement avec la même fonction de classification. Préserver l'ordre de
+registre dans les groupes. Calculer tous les signaux sur les deux registres complets avant
+groupage; conserver déduplication globale, positions et réévaluations. Préparer les candidats
+avant confidentialité, jamais des paquets filtrés par profil. Partager seulement le dernier
+assemblage de sortie et extraire le calcul de situation après classification; la voie ordinaire
+conserve sa propre sélection complète et reste l'oracle différentiel.
+
+Revue indépendante : le calcul des faits consolidés filtre l'affaire avant de choisir la dernière
+clé, mais les jours non consolidés choisissent les dernières clés globalement. Garder donc
+le registre affaires complet pour `_a_consolider`. Tester explicitement la clé contradictoire,
+les WCT réutilisés entre affaires, les signaux dédupliqués globalement et les offsets égaux.
+Les copies des entrées et sorties doivent isoler aussi les blocs imbriqués. L'adaptateur de
+capture reste inchangé tant que cette préparation pure n'a pas ses preuves différentielles.
+
+## Qualification de la projection pure et du raccord
+
+La préparation pure est maintenant implémentée dans `paquets.py`, avec un petit helper de
+situation postclassification dans `amont.py`. Elle copie ses entrées une fois, résout les WCT
+et signaux globalement, groupe ensuite sans changer l'ordre et garde les candidats complets
+avant tout filtre de confidentialité. Chaque sortie reconstruit ses conteneurs. Le lecteur
+ordinaire conserve sa sélection complète et partage seulement l'assemblage final de sortie.
+Les tests historiques protègent donc aussi contre une régression commune à ce helper partagé.
+
+Dans `outils.py`, seule la capture privée construit cette projection, après bornes et validation
+des deux chaînes. Chaque vrai T0 garde ses contrôles SQL admin, connexion/transaction/savepoint,
+identité, durée de vie, quota et têtes effectivement consommées. Aucun cache entre requêtes.
+Sur24 affaires, la copie répétée des lecteurs capturés est passée de73 à3 appels `lire`, avec
+une construction pure unique. Les quatre lectures SQL complètes et les24 T0 sont conservés.
+
+Les cinq jeux différentiels couvrent5 affaires dont une opportunité et une inconnue,11 profils
+et3 couples budget/nombre maximal :825 comparaisons exactes, pas825 tests indépendants.
+Ils incluent WCT réutilisé entre affaires, variance orpheline, signaux dédupliqués globalement,
+réévaluation et clôture humaine, décisions remplacées, tous niveaux de confidentialité,
+consolidation avec source tardive et clé contradictoire, et instants égaux avec offsets distincts.
+Copies des entrées/sorties et validation par requête sont contrôlées séparément.
+
+Qualification bornée : cohorte pure440 PASS en4,79 s; cohorte adaptateur/civil124 PASS en45,46 s;
+deux cas de performance compatibles PASS en24,86 s. Les cohortes sont recoupées et ne sont
+pas additionnées. Ruff ciblé et vérificateur297/173 passent. Les rouges initiaux (helper absent,
+73 copies) et les erreurs de fixture (identifiant avec caractère interdit et retour dict traité
+comme tuple) sont conservés; ces erreurs de harnais ne sont pas déclarées bugs produit.
+Revue indépendante statique sans défaut concret après prise en compte du piège de consolidation.
+
+|Même scénario fictif, mêmes deux tests et limites|Avant capture|Capture SQL seule|Projection pure|
+|---|---:|---:|---:|
+|Navigation complète200 /67 pages|80,492 s|31,290 s|16,781 s|
+|T0 réellement exécutés durant la navigation|13400|13400|13400|
+|Maximum JSON|46275 octets|46275 octets|46275 octets|
+|Mémoire maximale du groupe QA|160591872|160018432|161300480|
+|RSS maximal des enfants QA|174460928|175763456|177131520|
+
+La projection réduit de46,4 % le temps observé après capture seule (1,86 fois plus rapide).
+L'ensemble des deux changements mesure4,80 fois le parcours initial, soit79,2 % de réduction
+observée. Une seule observation par scénario, **aucun SLA ni gain universel**. Fichiers des
+deux tests et matrice inchangés, PyVRP0.14.0, un CPU/1Gio/swap0/96 processus, Source en lecture
+seule, réseau interdit, homes/tmp privés. La preuve historique globale, la datation réelle
+SQLite et le rejeu sans effet passent toujours. Routage haversine bridé; aucun trafic réel.
+
+Preuve finale : `M10-PURE-PROJECTION-FINAL-QUALIFIED.json` dans le chantier CRM.
+**PARTIAL — tranche locale SQLite qualifiée.** Le contexte civil reste recalculé par page et
+les13400 autorisations T0 restent actuelles. Prochain travail : choisir une capacité serveur
+métier encore ouverte après réconciliation de publication/CI; ne pas modifier le modèle
+d'autorité pour chasser un autre gain. M10 complet, navigateur, PostgreSQL, mobile, routage
+réel et dispatch global ne sont pas qualifiés par cette tranche.

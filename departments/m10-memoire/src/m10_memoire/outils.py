@@ -474,6 +474,7 @@ class _CapturePaquetsAppareil:
     appelante: Any
     evenements: _RegistreCapturePaquets
     affaires: _RegistreCapturePaquets
+    projection: Any
     active: bool = True
 
 
@@ -524,7 +525,8 @@ def capture_paquets_appareil(cnx):
     except (ValueError, KeyError, TypeError, AttributeError):
         raise ValueError('CAPTURE-M10-SOURCE-INVALIDE') from None
     capture = _CapturePaquetsAppareil(cnx, cnx.get_transaction(), cnx.get_nested_transaction(),
-        contexte_appel.identite_appelante(), lecteurs['evenements'], lecteurs['affaires'])
+        contexte_appel.identite_appelante(), lecteurs['evenements'], lecteurs['affaires'],
+        paquets.preparer_paquets(lecteurs['evenements'], lecteurs['affaires']))
     token = _CAPTURE_PAQUETS_APPAREIL.set(capture)
     try:
         yield
@@ -566,9 +568,10 @@ def lire_paquet_affaire_appareil(affaire_id: str, horodatage: str) -> dict[str, 
             return _verdict("REJ-PAQUET-AFFAIRE-SOURCE-INVALIDE", "chaîne de mémoire illisible")
     else:
         evenements, affaires = capture.evenements, capture.affaires
-    paquet = paquets.assembler_paquet_contexte(
-        affaire_id, horodatage, evenements, affaires, agent=None,
-    )
+    if capture is None:
+        paquet = paquets.assembler_paquet_contexte(affaire_id, horodatage, evenements, affaires, agent=None)
+    else:
+        paquet = capture.projection.assembler(affaire_id, horodatage, agent=None)
     paquet["source_registres"] = {"evenements": evenements.tete(), "affaires": affaires.tete()}
     # Capacites mesure l'enveloppe entière. Le budget des faits du Core reste inchangé.
     taille = len(json.dumps({"ok": True, "resultat": paquet}, ensure_ascii=False))

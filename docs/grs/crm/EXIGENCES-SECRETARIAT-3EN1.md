@@ -323,3 +323,11 @@ Sur24 affaires,53 lectures SQL complètes deviennent4. Pas de cache entre requê
 relit l'autorité SQL. Contrôles de durée de vie, copies et sources qualifiés localement.
 **PARTIAL** : copies/parcours purs encore à profiler; aucune promesse de SLA, navigateur,
 PostgreSQL, mobile, routage réel ou dispatch global. Les observations historiques restent conservées.
+
+CRM-08 — [préparation pure du contexte M10](../analytics/M10-AUDIT-INDEX-PUR-PAQUETS-CIVILS.md) :
+même navigation fictive200/67pages en16,781 s après indexation pure, contre31,290 s pour la
+capture SQL seule et80,492 s initialement. Même preuve globale/date/rejeu, mêmes13400 vrais T0
+et autorisations SQL courantes.825 comparaisons exactes réparties dans cinq jeux différentiels,
+tests historiques et contrôles civils préservés; populations non additionnées. **PARTIAL** :
+gain local observé sans SLA; M10 complet, dispatch, routage réel, navigateur, PostgreSQL et mobile
+restent ouverts. Aucune modification du modèle d'autorité pour gagner du temps.

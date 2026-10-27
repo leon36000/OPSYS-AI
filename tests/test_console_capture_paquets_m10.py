@@ -296,3 +296,32 @@ def test_nouvelle_transaction_sur_meme_connexion_ne_reactive_pas_capture(pret, s
                             outils.sources_capture_paquets_appareil()
         finally:
             moteur._CONNEXION.reset(token)
+
+
+def test_projection_preparee_une_fois_et_copies_bornees_sur_24(
+        client_crm, session, monkeypatch, record_testsuite_property):
+    from m10_memoire import outils, paquets
+
+    _m4, _ids, plan, _preparation = f._plan_reel(session, 24)
+    lectures, constructions = [], []
+    lire, preparer = outils._RegistreCapturePaquets.lire, paquets.preparer_paquets
+
+    def compter_lecture(self):
+        lectures.append(1)
+        return lire(self)
+
+    def compter_preparation(*args):
+        constructions.append(1)
+        return preparer(*args)
+
+    monkeypatch.setattr(outils._RegistreCapturePaquets, 'lire', compter_lecture)
+    monkeypatch.setattr(paquets, 'preparer_paquets', compter_preparation)
+    avant = f.f.b.base._instantane_base(session)
+    with session() as cnx:
+        r = memoire_plan_calendrier.lire(cnx, charger_departements(), f.f.AUTH, plan['plan_id'])
+    assert r['synthese']['affaires'] == 24
+    assert len(lectures) <= 6, len(lectures)
+    assert len(constructions) == 1
+    assert f.f.b.base._instantane_base(session) == avant
+    record_testsuite_property('projection_capture_24', str(dict(affaires=24,
+        lectures_capture=len(lectures), constructions=len(constructions))))

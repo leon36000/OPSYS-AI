@@ -119,3 +119,9 @@ copies/parcours purs par affaire, puis décider d'un index interne au propriéta
 si l'équivalence complète des paquets et leur confidentialité peuvent être prouvées. Routage
 réel/batch OSRM, dispatch global, navigateur, PostgreSQL, mobile et qualification globale des
 modules restent ouverts. Aucun envoi client/fournisseur, paiement, droit, fusion ou déploiement.
+
+Suite qualifiée : [projection pure](M10-AUDIT-INDEX-PUR-PAQUETS-CIVILS.md). Le même parcours
+200/67pages atteint16,781 s après préparation pure unique, contre31,290 s après capture SQL
+seule;13400 T0 et leurs autorisations sont conservés. Les lecteurs capturés sont lus3 fois
+sur24 affaires au lieu de73. Ce jalon ferme ce coût de copie local mesuré, sans cache interrequêtes,
+ni SLA, ni qualification globale de M10. Les observations et limites précédentes restent historiques.
