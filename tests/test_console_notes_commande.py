@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from m2_revenue_crm import outils as m2
 from m3_estimation import outils as m3
 from m6_material_control import outils as m6
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from opsys import identite, stockage
 from opsys.console import application
@@ -395,4 +395,239 @@ def test_sources_ambigues_absentes_ou_corrompues_ne_creent_pas_lien(client, sess
                     maillon=codec.encoder(value)))
     before = snapshot(session)
     assert resoudre_note(session) == {'statut': 'NON_VERIFIE', 'code': code}
+    assert snapshot(session) == before
+
+
+TYPE_REFERENCE = 'm6.note_commande_referencee'
+
+
+def preparer_reference(c, session):
+    login(c)
+    origine_m10(session)
+    assert c.post(URL_LIE, data=fields(c), follow_redirects=False).status_code == 303
+    return {'csrf': c.get('/api/session').json()['csrf'], 'revision': '1',
+            'source_hash': versions(session)[0]['hash_maillon']}
+
+
+def references_sortantes(session):
+    from opsys.stockage import codec
+    from opsys.stockage.schema import EVENEMENTS_SORTANTS
+    with session() as cnx:
+        return [{**dict(r), 'charge': codec.decoder(r['charge'])} for r in cnx.execute(
+            select(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.type_evenement == TYPE_REFERENCE)).mappings()]
+
+
+def livrer_references():
+    from opsys import evenements
+    from opsys.departements import charger_departements
+    for _ in range(5):
+        r = evenements.repartir(charger_departements(), maintenant='2031-01-01T00:00:00+00:00')
+        assert r['echecs'] == 0 and r['quarantaines'] == 0, r
+        if r['livres'] == 0:
+            return
+    pytest.fail('Bus fictif non vidé')
+
+
+def test_reference_action_distincte_livraison_reelle_rejeu_et_revision_historique(client, session):
+    import hashlib
+    import json
+
+    from m10_memoire import audit, paquets, registre
+
+    formulaire = preparer_reference(client, session)
+    url = URL_LIE+'/note-fictive'
+    assert references_sortantes(session) == []  # ni sauvegarde ni GET ne publie
+    assert 'Mémoriser la référence de cette révision' in client.get(url).text
+    assert client.post(url, data=fields(client, revision_attendue='1', mutation_id='note-r2',
+                        texte_libre='FICTIF seconde version'), follow_redirects=False).status_code == 303
+    assert client.post(url+'/reference-memoire', data=formulaire, follow_redirects=False).status_code == 303
+    publications = references_sortantes(session)
+    assert len(publications) == 1
+    charge = publications[0]['charge']
+    assert set(charge) == {'fait_id', 'lead_id', 'revision', 'source_index', 'source_hash', 'horodatage'}
+    assert charge['revision'] == 1 and charge['source_index'] == 0
+    assert charge['horodatage'] == versions(session)[0]['enregistree_le']
+    cle = f"m6-note-v1:lead-fictif-lie:0:1:{formulaire['source_hash']}"
+    assert charge['fait_id'] == hashlib.sha256(cle.encode()).hexdigest()
+    assert all(t not in json.dumps(publications) for t in [TEXT, 'admin-fictif', 'note-fictive', 'devis-fictif'])
+    assert 'EN_ATTENTE' in client.get(url+'?revision=1').text
+    before = snapshot(session)
+    assert client.post(url+'/reference-memoire', data=formulaire, follow_redirects=False).status_code == 303
+    assert snapshot(session) == before
+    livrer_references()
+    assert 'MEMORISE' in client.get(url+'?revision=1').text
+    assert 'NON_PUBLIE' in client.get(url).text  # révision 2 n'est pas implicitement mémorisée
+    with session():
+        reg = registre.Registre(stockage.maillons('m10-memoire', 'evenements'))
+        mm = [m for m in reg.lire() if m.get('type_evenement') == TYPE_REFERENCE]
+        assert len(mm) == 1 and mm[0]['confidentialite'] == 'CLIENT_PRIVATE'
+        assert all(mm[0][k] == v for k, v in charge.items())
+        assert all(t not in json.dumps(mm) for t in [TEXT, 'admin-fictif', 'note-fictive', 'devis-fictif'])
+        for agent in [None, 'm06-material-control', 'm09-strategic-intelligence']:
+            pack = paquets.assembler_paquet_contexte('lead-fictif-lie', DATE, reg, registre.Registre(), agent=agent)
+            assert charge['fait_id'] not in json.dumps(pack)
+        assert audit.auditer_non_oubli([{'type_evenement': TYPE_REFERENCE,
+                   'identifiant': charge['fait_id']}], reg, registre.Registre())['nb_oublis'] == 0
+    before = snapshot(session)
+    assert client.post(url+'/reference-memoire', data=formulaire, follow_redirects=False).status_code == 303
+    assert snapshot(session) == before
+
+
+@pytest.mark.parametrize('changement,code', [
+    ({'csrf': 'faux'}, 403), ({'revision': '0'}, 400), ({'revision': '999999'}, 409),
+    ({'revision': '1.0'}, 400), ({'source_hash': '0'*64}, 409),
+    ({'source_hash': 'faux'}, 400), ({'auteur': 'usurpe'}, 400),
+])
+def test_reference_formulaire_falsifie_sans_effet(client, session, changement, code):
+    f = preparer_reference(client, session)
+    before = snapshot(session)
+    assert client.post(URL_LIE+'/note-fictive/reference-memoire', data={**f, **changement}).status_code == code
+    assert snapshot(session) == before
+
+
+def test_reference_ancrage_et_origine_obligatoires(client, session):
+    login(client)
+    assert client.post(URL_LIE, data=fields(client), follow_redirects=False).status_code == 303
+    f = {'csrf': client.get('/api/session').json()['csrf'], 'revision': '1',
+         'source_hash': versions(session)[0]['hash_maillon']}
+    before = snapshot(session)
+    assert client.post(URL_LIE+'/note-fictive/reference-memoire', data=f).status_code == 409
+    assert snapshot(session) == before
+    origine_m10(session)
+    before = snapshot(session)
+    assert client.post(URL+'/note-fictive/reference-memoire', data=f).status_code == 409
+    assert snapshot(session) == before
+
+
+def test_reference_panne_audit_annule_outbox(client, session, monkeypatch):
+    from opsys import notes_commande_memoire
+    f = preparer_reference(client, session)
+    before = snapshot(session)
+    def panne(*args, **kwargs):
+        raise RuntimeError('panne audit fictive')
+    monkeypatch.setattr(notes_commande_memoire, 'journaliser', panne)
+    with pytest.raises(RuntimeError, match='panne audit fictive'):
+        client.post(URL_LIE+'/note-fictive/reference-memoire', data=f)
+    assert snapshot(session) == before
+
+
+def test_reference_recu_seul_ou_memoire_seule_ne_prouvent_pas_livraison(client, session):
+    from sqlalchemy import delete, update
+
+    from opsys.stockage import codec
+    from opsys.stockage.schema import EVENEMENTS_RECUS
+    f = preparer_reference(client, session)
+    url = URL_LIE+'/note-fictive'
+    assert client.post(url+'/reference-memoire', data=f, follow_redirects=False).status_code == 303
+    livrer_references()
+    eid = references_sortantes(session)[0]['evenement_id']
+    with session() as cnx:
+        cnx.execute(update(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id == eid).values(
+            resultat=codec.encoder({'memorise': True, 'identique': False})))
+    assert 'CONFLIT' in client.get(url).text
+    before = snapshot(session)
+    assert client.post(url+'/reference-memoire', data=f).status_code == 409
+    assert snapshot(session) == before
+    with session() as cnx:
+        cnx.execute(delete(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id == eid))
+    assert 'EN_ATTENTE' in client.get(url).text
+
+
+def test_reference_admin_revoque_avant_rejeu(client, session):
+    from opsys import contexte, notes_commande_memoire
+    from opsys.stockage.schema import PERSONNES
+    f = preparer_reference(client, session)
+    assert client.post(URL_LIE+'/note-fictive/reference-memoire', data=f, follow_redirects=False).status_code == 303
+    with session() as cnx:
+        cnx.execute(PERSONNES.update().where(PERSONNES.c.identifiant == 'admin-fictif').values(actif=False))
+    before = snapshot(session)
+    with (session(), contexte.appele_par_appareil(
+            contexte.IdentiteAppelante('admin-fictif', 'admin', source='console')),
+          pytest.raises(notes_commande_memoire.ReferenceRefusee, match='IDENTITE')):
+        notes_commande_memoire.publier('note-fictive', 1, 'devis-fictif-lie', 'lead-fictif-lie', f['source_hash'])
+    assert snapshot(session) == before
+
+
+@pytest.mark.parametrize('champ,valeur', [
+    ('fait_id', 'a'*64), ('source_hash', 'texte@example.test'), ('source_index', True),
+    ('source_index', -1), ('source_index', 10000), ('revision', 0), ('revision', True),
+    ('horodatage', '2026-10-27T01:00:00'), ('lead_id', 'lead~opp~x'), ('texte_libre', TEXT),
+])
+def test_reference_m10_charge_invalide_refusee(client, session, champ, valeur):
+    from m10_memoire import amont, registre
+    f = preparer_reference(client, session)
+    assert client.post(URL_LIE+'/note-fictive/reference-memoire', data=f, follow_redirects=False).status_code == 303
+    charge = references_sortantes(session)[0]['charge']
+    reg = registre.Registre()
+    result, refus = amont.memoriser(TYPE_REFERENCE, {**charge, champ: valeur}, reg)
+    assert result is None and refus is not None and reg.lire() == []
+
+
+def test_reference_collision_publication_et_relivraison_contradictoire(client, session):
+    from opsys import evenements
+    from opsys.departements import charger_departements
+    from opsys.stockage import codec
+    from opsys.stockage.schema import EVENEMENTS_SORTANTS
+    f = preparer_reference(client, session)
+    url = URL_LIE+'/note-fictive'
+    assert client.post(url+'/reference-memoire', data=f, follow_redirects=False).status_code == 303
+    pub = references_sortantes(session)[0]
+    livrer_references()
+    contradiction = {**pub['charge'], 'horodatage': '2040-01-01T00:00:00+00:00'}
+    with session():
+        evenements.publier(TYPE_REFERENCE, 'm06-material-control', contradiction, evenement_id='collision-fictive')
+    r = evenements.repartir(charger_departements(), maintenant='2041-01-01T00:00:00+00:00')
+    assert r['echecs'] == 1, r
+    with session():
+        mm = [m for m in stockage.maillons('m10-memoire', 'evenements') if m.get('type_evenement') == TYPE_REFERENCE]
+        assert len(mm) == 1 and mm[0]['horodatage'] == pub['charge']['horodatage']
+    with session() as cnx:
+        cnx.execute(update(EVENEMENTS_SORTANTS).where(
+            EVENEMENTS_SORTANTS.c.evenement_id == pub['evenement_id']).values(charge=codec.encoder(contradiction)))
+    before = snapshot(session)
+    assert client.post(url+'/reference-memoire', data=f).status_code == 409
+    assert snapshot(session) == before
+
+
+def test_reference_concurrence_une_publication_un_audit(client, session):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    from opsys import contexte, notes_commande_memoire
+    from opsys.stockage.schema import JOURNAL
+    f = preparer_reference(client, session)
+    barriere = Barrier(2)
+    def publier():
+        barriere.wait(timeout=5)
+        with (session(), contexte.appele_par_appareil(
+                contexte.IdentiteAppelante('admin-fictif', 'admin', source='console'))):
+            return notes_commande_memoire.publier(
+                'note-fictive', 1, 'devis-fictif-lie', 'lead-fictif-lie', f['source_hash'])
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(publier) for _ in range(2)]
+        assert [f.result(timeout=15)['etat'] for f in futures] == ['EN_ATTENTE', 'EN_ATTENTE']
+    assert len(references_sortantes(session)) == 1
+    with session() as cnx:
+        assert len(cnx.execute(select(JOURNAL).where(JOURNAL.c.action == 'console.reference_note_m6')).all()) == 1
+
+
+@pytest.mark.parametrize('user', ['employee-fictif', 'owner-fictif'])
+def test_reference_post_non_admin_refuse(client, session, user):
+    f = preparer_reference(client, session)
+    login(client, user)
+    f['csrf'] = client.get('/api/session').json()['csrf']
+    before = snapshot(session)
+    assert client.post(URL_LIE+'/note-fictive/reference-memoire', data=f).status_code == 403
+    assert snapshot(session) == before
+
+
+def test_reference_get_changement_provenance_repond_conflit(client, session, monkeypatch):
+    from opsys import notes_commande_affaire
+    preparer_reference(client, session)
+    original = notes_commande_affaire.resoudre
+    def diverge(*args):
+        return {**original(*args), 'source_hash': '0'*64}
+    monkeypatch.setattr(notes_commande_affaire, 'resoudre', diverge)
+    before = snapshot(session)
+    assert client.get(URL_LIE+'/note-fictive').status_code == 409
     assert snapshot(session) == before

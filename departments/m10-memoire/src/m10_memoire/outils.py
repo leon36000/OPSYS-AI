@@ -346,6 +346,8 @@ def _consommateur_amont(type_evenement: str) -> Callable[[dict], dict]:
         resultat, verdict = amont.memoriser(type_evenement, dict(charge), _REGISTRE_EVENEMENTS)
         if resultat is None:
             raise AmontRefuse(f"{type_evenement} : fait refusé par M10 : {verdict['code']} ({verdict['detail']})")
+        if type_evenement == etapes.TYPE_NOTE_COMMANDE and not resultat["identique"]:
+            raise AmontRefuse("référence de note M6 contradictoire")
         maillon = resultat["maillon"]
         return {
             "memorise": True,

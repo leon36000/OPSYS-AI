@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m6.note_commande_referencee",
+  "title": "M6 — Référence privée de note d’achat, révision exacte",
+  "description": "Publication humaine distincte. Référence opaque sans texte, auteur, prix ou identifiant libre. fait_id SHA256 UTF-8 m6-note-v1:{lead_id}:{source_index}:{revision}:{source_hash}. Horodatage original de la note. CLIENT_PRIVATE M10, sans élargissement de droits.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "fait_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "lead_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "source_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9999
+    },
+    "source_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "horodatage": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "fait_id",
+    "lead_id",
+    "revision",
+    "source_index",
+    "source_hash",
+    "horodatage"
+  ]
+}

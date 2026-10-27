@@ -91,7 +91,7 @@ class TestManifeste:
         dep = charger_departements()["m10-memoire"]
         assert dep.evenements_consomme == (
             "m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier",
-            "m1.lead_qualifie", "m2.client_associe", "m2.contact_corrige",
+            "m1.lead_qualifie", "m2.client_associe", "m2.contact_corrige", "m6.note_commande_referencee",
             "m3.devis_envoye", "m3.devis_accepte", "m3.devis_sans_reponse",
         )
         consommateurs = dep.charger_consommateurs()

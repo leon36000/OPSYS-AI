@@ -74,6 +74,7 @@ evenements:
     - m1.lead_qualifie
     - m2.client_associe
     - m2.contact_corrige
+    - m6.note_commande_referencee
     - m3.devis_envoye
     - m3.devis_accepte
     - m3.devis_sans_reponse

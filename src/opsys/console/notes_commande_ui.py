@@ -11,7 +11,7 @@ from urllib.parse import parse_qs
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from .. import contexte, idempotence, identite, notes_commande_affaire
+from .. import contexte, idempotence, identite, notes_commande_affaire, notes_commande_memoire
 from . import metier, pages
 
 IDENTIFIANT = re.compile(r'[\w.:@\-]{1,200}')
@@ -45,14 +45,14 @@ def entier(brut, maximum):
     return int(brut)
 
 
-async def formulaire(request):
+async def formulaire(request, reference_memoire=False):
     if request.headers.get('content-type', '').split(';')[0] != 'application/x-www-form-urlencoded':
         raise HTTPException(415, 'Formulaire requis')
     corps = bytearray()
     async for bloc in request.stream():
         corps.extend(bloc)
         # 20 000 caractères Unicode, au plus 12 octets encodés chacun, plus métadonnées.
-        if len(corps) > 260000:
+        if len(corps) > (4096 if reference_memoire else 260000):
             raise HTTPException(413, 'Formulaire trop volumineux')
     try:
         champs = parse_qs(corps.decode('utf-8'), keep_blank_values=True, max_num_fields=5,
@@ -61,7 +61,9 @@ async def formulaire(request):
             raise ValueError('doublon')
     except (ValueError, UnicodeError):
         raise HTTPException(400, 'Formulaire illisible ou dupliqué') from None
-    if set(champs) != {'csrf', 'note_id', 'revision_attendue', 'mutation_id', 'texte_libre'}:
+    attendus = ({'csrf', 'revision', 'source_hash'} if reference_memoire else
+                {'csrf', 'note_id', 'revision_attendue', 'mutation_id', 'texte_libre'})
+    if set(champs) != attendus:
         raise HTTPException(400, 'Champs invalides')
     return {k: v[0] for k, v in champs.items()}
 
@@ -164,16 +166,28 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                 contexte.IdentiteAppelante(personne.identifiant, 'admin', source='console'),
             ):
                 resultat = notes_commande_affaire.resoudre(note['note_id'], note['revision'], devis_id, lead_id)
+                if resultat['statut'] == 'VERIFIE' and (
+                    resultat['source_hash'] != note['source']['hash_maillon'] or
+                    resultat['source_index'] != note['source']['index']
+                ):
+                    raise HTTPException(409, 'Source de la note modifiée : relire la page')
+                memoire = (notes_commande_memoire.consulter(
+                    note['note_id'], note['revision'], devis_id, lead_id, note['source']['hash_maillon'],
+                ) if resultat['statut'] == 'VERIFIE' else None)
         if resultat['statut'] == 'VERIFIE':
-            # La version affichée provient d'une lecture antérieure : aucun label positif
-            # si sa provenance a divergé entre les deux transactions.
-            if (resultat['source_hash'] != note['source']['hash_maillon']
-                    or resultat['source_index'] != note['source']['index']):
-                raise HTTPException(409, 'Source de la note modifiée : relire la page')
+            action = base(lead_id, devis_id)+'/'+pages._segment(reference(note['note_id']))+'/reference-memoire'
+            bouton = ''
+            if memoire['etat'] == 'NON_PUBLIE':
+                bouton = (f'<form method="post" action="{pages.e(action)}">'
+                          f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">'
+                          f'<input type="hidden" name="revision" value="{note["revision"]}">'
+                          f'<input type="hidden" name="source_hash" value="{pages.e(resultat["source_hash"])}">'
+                          '<button type="submit">Mémoriser la référence de cette révision</button></form>')
             return ('<section aria-label="Rattachement mémoire"><h3>Affaire M10</h3>'
                     '<p>Rattachement vérifié pour cette révision : '
                     f'{pages.e(resultat["affaire_id"])}.</p>'
-                    '<p>La note reste privée dans M6 ; elle n’est pas mémorisée dans M10.</p></section>')
+                    '<p>La note reste privée dans M6 ; elle n’est pas mémorisée dans M10.</p>'
+                    f'<p>Référence M10 : {pages.e(memoire["etat"])}.</p>{bouton}</section>')
         return ('<section aria-label="Rattachement mémoire"><h3>Affaire M10</h3>'
                 '<p>Rattachement non vérifié. Référence à contrôler : '
                 f'{pages.e(resultat["code"])}.</p>'
@@ -273,5 +287,32 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
     @router.post(chemin+'/{note_id}')
     async def correction(lead_id: str, devis_id: str, note_id: str, request: Request):
         return await enregistrer(lead_id, devis_id, request, note_id)
+
+    @router.post(chemin+'/{note_id}/reference-memoire')
+    async def memoriser_reference(lead_id: str, devis_id: str, note_id: str, request: Request):
+        session = session_page(request)
+        if request.query_params:
+            raise HTTPException(400, 'Paramètres interdits')
+        ident = identifier(note_id)
+        champs = await formulaire(request, reference_memoire=True)
+        verifier_formulaire(champs, session)
+        revision = entier(champs['revision'], 1000000)
+        if revision == 0 or re.fullmatch(r'[0-9a-f]{64}', champs['source_hash']) is None:
+            raise HTTPException(400, 'Référence invalide')
+        # Revalidation dans la transaction d'écriture ; aucune autorité issue de l'URL/formulaire.
+        try:
+            with cnx_factory() as cnx:
+                personne = identite.personne_active(cnx, session.utilisateur)
+                if (personne is None or 'admin' not in personne.roles
+                        or session.expire <= datetime.now(UTC).timestamp()):
+                    raise HTTPException(403, 'Accès refusé')
+                with contexte.appele_par_appareil(
+                    contexte.IdentiteAppelante(personne.identifiant, 'admin', source='console'),
+                ):
+                    notes_commande_memoire.publier(ident, revision, devis_id, lead_id, champs['source_hash'])
+        except notes_commande_memoire.ReferenceRefusee:
+            raise HTTPException(409, 'Référence non vérifiée ou contradictoire ; relire ses sources') from None
+        return RedirectResponse(base(lead_id, devis_id)+'/'+pages._segment(reference(ident))+
+                                f'?revision={revision}', status_code=303)
 
     return router
