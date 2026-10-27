@@ -161,7 +161,11 @@ def confirmer(materiau_id, fournisseur_id, prix_unitaire, date_effet, source_doc
                                                    source_document=source_document, unite=nouveau['unite'])
             if refus is not None:
                 raise catalogue_materiaux.CatalogueRefuse('ARGUMENTS')
+            from opsys import receptions_tarifs
+
+            preuve_tarif = receptions_tarifs.enregistrer(cnx, meta, args, rang)
             resultat = acces._borner({'accepte': True, 'resultat': dict(tarif_rang=rang,
+                                      tarif_source_sha256=preuve_tarif,
                                       prix_unitaire_decimal=nouveau['prix_unitaire_decimal'], unite=nouveau['unite'],
                                       devise='CAD', marquage_source=nouveau['marquage_source'])})
             from opsys.etat import journaliser

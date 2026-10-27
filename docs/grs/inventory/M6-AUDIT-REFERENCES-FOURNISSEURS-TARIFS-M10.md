@@ -134,3 +134,37 @@ Réutiliser le patron de reçu borné de `console/fusion_ap_m5_reference.py::_re
 le domaine M5. Garder les tests de rejeu avant nouvelle publication, rollback de chaque étape,
 altération du reçu ou de la liaison, concurrence et vieux tarifs sans backfill. Cette décision
 ne livre pas encore `receptions_tarifs` ni la mémoire des tarifs. OPSYS reste **PARTIAL**.
+
+## Fondation tarif/réception désormais qualifiée localement
+
+`src/opsys/receptions_tarifs.py` et le port `prix_console.confirmer` écrivent le compagnon
+privé dans le savepoint existant. L’heure vient du texte exact `MUTATIONS_APPLIQUEES.recu_le`,
+fuseau conservé, précision réelle à la seconde. Aucun champ n’est ajouté au livre de prix.
+Le résultat durable finalisé inclut maintenant `tarif_source_sha256`, hash du rang SQL et
+du maillon complet. La lecture confronte cette ancre au compagnon, au prix et au reçu final
+`ok` : outil, empreinte des arguments, réception, rang, montant, unité, devise et marquage.
+Les vieux tarifs sans liaison restent explicitement non prouvés, sans écriture de rattrapage.
+
+Le compagnon est borné à 10 000 lignes/8 Mio; une entrée prix à 8 Kio et une réponse de reçu
+à 64 Kio sont bornées avant décodage. Rangs réels, clés fermées, doublons et dates naïves
+sont contrôlés. Aucune route ni permission supplémentaire; lecteur interne SQLite seulement.
+
+La revue a trouvé une véritable faiblesse de la première candidate : réécrire le document,
+fournisseur ou date du prix, puis recalculer les hashes du seul compagnon, restait accepté
+avec un reçu intact. Les trois rouges `tariff-anchor-red-v1` la reproduisent. L’ancre du
+hash complet dans le reçu final corrige ce défaut; ces trois cas passent ensuite. Cela
+détecte les incohérences contre le reçu durable, sans prétendre authentifier un hôte compromis.
+
+`tariff-receipt-v2` : **87 PASS, 0 FAIL/SKIP, 22,38 s**, une ligne de test trop longue.
+Après correction de cette seule ligne, `tariff-receipt-v3` : **24 PASS, 0 FAIL/SKIP, 8,62 s**,
+Ruff de tous les fichiers et vérificateur 297/173 PASS. Les deux fichiers produit sont
+empreintés identiques entre ces exécutions; les 24 tests sont inclus dans les 87.
+La cohorte contient les parcours HTTP tarif et fournisseur → matériau → tarif → devis.
+Les reprises gardent le premier reçu après un nouveau prix; prix, compagnon, audit et reçu
+s’annulent ensemble après une panne injectée à chacune des trois étapes. Reçus absents,
+faux outils/statuts/dates/réponses/types, source modifiée, doublon et substitution de reçu
+sont refusés sans écriture. Les anciens rouges baseline/lint restent conservés.
+
+Prochaine tranche : projection M10 de cette provenance démontrée et publication **après**
+finalisation du reçu, dans le même savepoint. Le consommateur devra refaire les vérifications
+ci-dessus. Aucun événement ni mémoire M10 de tarif n’est encore revendiqué par cette fondation.
