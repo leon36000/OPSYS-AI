@@ -638,8 +638,10 @@ def creer_router(
         session = session_page(request)
         if cedule_plan_ui.PLAN_ID.fullmatch(plan_id) is None:
             raise HTTPException(404, "plan introuvable")
-        if request.query_params:
-            raise HTTPException(400, "requête invalide")
+        try:
+            offset, source = memoire_plan_calendrier.arguments_pagination(list(request.query_params.multi_items()))
+        except preparation_chantier.Refus:
+            raise HTTPException(400, "pagination invalide") from None
         vue = lire(session, "m4_lire_calendrier_plan", {"plan_id": plan_id})
         with cnx_factory() as cnx:
             sqlite = cnx.dialect.name == "sqlite"
@@ -648,11 +650,11 @@ def creer_router(
             memoire = None
             if sqlite and not vue['tronque']:
                 with cnx_factory() as cnx:
-                    memoire = memoire_plan_calendrier.lire(cnx, deps, session, plan_id)
+                    memoire = memoire_plan_calendrier.lire(cnx, deps, session, plan_id, offset, source)
                 if memoire['vue'] != vue:
                     raise ValueError('source civile modifiée')
             preuve = confirmation_dates_chantier.empreinte(memoire) if memoire is not None else None
-            corps = (memoire_plan_calendrier.contenu(memoire) if memoire is not None else '')
+            corps = (memoire_plan_calendrier.contenu(memoire, plan_id, prefixe) if memoire is not None else '')
             corps += cedule_plan_ui.contenu(vue, plan_id, session.csrf, prefixe, sqlite, preuve)
             if sqlite:
                 with cnx_factory() as cnx:
@@ -660,6 +662,15 @@ def creer_router(
                 corps += meteo_dates_chantier.formulaire(apercu, session.csrf, prefixe)
         except PermissionError:
             raise HTTPException(403, "Accès admin requis") from None
+        except preparation_chantier.Refus as exc:
+            if exc.code == 'SOURCE-MODIFIEE':
+                reponse = rendre(session, 'Mémoire modifiée', '<section><h2>Le contexte a changé</h2>'
+                    '<p>Reprendre la consultation avant toute nouvelle confirmation.</p>'
+                    f'<p><a href="{prefixe}/crm/cedule/plan/{pages._segment(plan_id)}">Reprendre au début</a></p>'
+                    '</section>')
+                reponse.status_code = 409
+                return reponse
+            raise HTTPException(400 if exc.code == 'ARGUMENTS' else 503, 'Contexte indisponible') from None
         except (ValueError, KeyError, TypeError):
             raise HTTPException(503, "Détail M4 indisponible") from None
         return rendre(session, "Dates du plan appliqué", corps)

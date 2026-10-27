@@ -296,3 +296,13 @@ après vraie mutation sous savepoint; anciens reçus exacts rendus explicitement
 visible. Parcours **PARTIAL** : volume réel maximal/pagination des contextes, navigateur,
 PostgreSQL, fraîcheur météo et dispatch global restent ouverts. Les paragraphes précédents
 conservent les jalons antérieurs; ils ne ferment pas ces limites.
+
+
+CRM-08 — [volume et pagination du contexte civil](AUDIT-VOLUME-MEMOIRE-DATES-CIVILES.md) :
+64 visites d'un vrai plan PyVRP désormais consultables par pages sous64 Kio, synthèse et preuve
+globale couvrant le hors-page; navigation complète64 et confirmation réelle depuis dernière
+page qualifiées. Frontière réelle98 (deux dépôts) vérifiée sur premières/dernières pages.
+81 tests ciblés incluent les71 précédents sans cumul. **PARTIAL** :200 inscriptions sont
+refusées par la matrice limitée à100 points; aucun plan200, trafic, capacité globale ou
+qualification navigateur/PostgreSQL/mobile n'est revendiqué. Prochaine tranche : contrat et
+calcul de matrice par blocs, puis coût de lecture M10 mesuré avant optimisation.

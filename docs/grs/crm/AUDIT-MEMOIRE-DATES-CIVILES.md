@@ -250,3 +250,10 @@ changement global du codec/idempotence ni qualification des autres appelants n'e
 vérificateur 297/173 passent. Cette cohorte inclut/remplace les 70 cas précédents, sans cumul.
 Preuves finales privées : `CIVIL-M10-HTTP-FINAL-QUALIFIED.json`, commandes/pins/logs/JUnit/reçus
 v5 et rouges distincts. Les limites PARTIAL et la prochaine capacité restent celles ci-dessus.
+
+
+Le jalon suivant [volume et pagination](AUDIT-VOLUME-MEMOIRE-DATES-CIVILES.md) ferme le refus
+observé sur64 affaires : preuve globale complète inchangée, synthèse hors-page, détail paginé
+borné et CAS de continuation.81 tests passent, avec les71 précédents inclus. Le plafond
+réel actuel de matrice (100 points, donc98 chantiers avec deux dépôts) demeure ouvert pour200;
+les autres limites ci-dessus restent PARTIAL. Ne pas transférer ces résultats à un déploiement.

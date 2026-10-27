@@ -12,7 +12,7 @@ NOM = 'm4_confirmer_dates_cedule'
 
 
 def empreinte(contexte):
-    return idempotence.empreinte_arguments({k: contexte[k] for k in ('empreinte_plan', 'empreinte_memoire')})
+    return memoire_plan_calendrier.preuve(contexte)
 
 
 def _resultat(reponse):

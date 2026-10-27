@@ -205,7 +205,7 @@ def test_details_tronques_et_quota_global_ne_deviennent_pas_contexte_complet(pla
     with session() as cnx, pytest.raises(lecture.Refus, match='PLAN-INCOMPLET'):
         port.lire(cnx, charger_departements(), AUTH, planning[2]['plan_id'])
     monkeypatch.setattr(lecture, '_appel', original)
-    monkeypatch.setattr(lecture, 'MAX_SORTIE_OCTETS', 4500)
+    monkeypatch.setattr(lecture, 'MAX_SORTIE_OCTETS', 2500)
     with session() as cnx, pytest.raises(lecture.Refus, match='SORTIE-TROP-VOLUMINEUSE'):
         port.lire(cnx, charger_departements(), AUTH, planning[2]['plan_id'])
     assert b.base._instantane_base(session) == avant
