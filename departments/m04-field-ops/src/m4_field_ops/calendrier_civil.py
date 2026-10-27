@@ -46,8 +46,13 @@ def _index(reg):
     for rang, m in enumerate(maillons):
         typ = m["type_entree"]
         if typ == cedule_tournees.TYPE_PROPOSEE:
+            if m["plan_id"] in propositions:
+                raise cedule_tournees.PreuvePlanInvalide("proposition de plan dupliquée")
             propositions[m["plan_id"]] = m
         elif typ == cedule_tournees.TYPE_APPLIQUEE:
+            if m["plan_id"] in applications or m["plan_id"] not in propositions:
+                raise cedule_tournees.PreuvePlanInvalide("application de plan dupliquée ou sans proposition antérieure")
+            cedule_tournees.verifier_empreintes_plan_applique(propositions[m["plan_id"]], m)
             applications[m["plan_id"]] = m
             for a in m["assignations"]:
                 detenteurs[a["intervention_id"]] = m["plan_id"]

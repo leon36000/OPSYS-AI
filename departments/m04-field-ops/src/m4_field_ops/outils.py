@@ -1337,6 +1337,9 @@ def outils(
         try:
             resultat = calendrier_civil.confirmer(registre_courant(), plan_id, calendrier, revision_attendue,
                                                   appelante.personne, reception.recu_le.isoformat())
+        except cedule_tournees.PreuvePlanInvalide:
+            return _refus(verdicts.construire_verdict(
+                "REJ-REGISTRE-INVALIDE", detail="preuve métier du plan appliqué incohérente"))
         except (ValueError, registre.VerificationError) as exc:
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
         return {"accepte": True, "resultat": resultat}
@@ -1347,6 +1350,9 @@ def outils(
             return refus
         try:
             resultat = calendrier_civil.lire_plan(registre_courant(), plan_id)
+        except cedule_tournees.PreuvePlanInvalide:
+            return _refus(verdicts.construire_verdict(
+                "REJ-REGISTRE-INVALIDE", detail="preuve métier du plan appliqué incohérente"))
         except (ValueError, registre.VerificationError) as exc:
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
         return {"accepte": True, "resultat": resultat}
@@ -1357,6 +1363,9 @@ def outils(
             return refus
         try:
             resultat = calendrier_civil.lire_semaine(registre_courant(), debut_semaine)
+        except cedule_tournees.PreuvePlanInvalide:
+            return _refus(verdicts.construire_verdict(
+                "REJ-REGISTRE-INVALIDE", detail="preuve métier du plan appliqué incohérente"))
         except (ValueError, registre.VerificationError) as exc:
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
         return {"accepte": True, "resultat": resultat}

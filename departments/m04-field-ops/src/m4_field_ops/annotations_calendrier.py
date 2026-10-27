@@ -121,19 +121,7 @@ def _creneau(sources, ancre):
         if len(propositions) != 1 or propositions[0][0] >= rang_app:
             raise Refus("SOURCE-INVALIDE")
         proposition = propositions[0][1]
-        if any(application[k] != proposition[k] for k in ("empreinte_entree", "empreinte_sortie")):
-            raise Refus("SOURCE-INVALIDE")
-        sortie = proposition["sortie"]
-        meta = sortie["meta"]
-        sans_empreinte = {**sortie, "meta": {k: v for k, v in meta.items() if k != "empreinte_sortie"}}
-        if (any(meta[k] != proposition[k] for k in ("empreinte_entree", "empreinte_sortie"))
-                or encodage.empreinte(sans_empreinte) != proposition["empreinte_sortie"]
-                or encodage.empreinte(proposition["etat"]) != proposition["empreinte_etat"]
-                or proposition["version"] != cedule_tournees.VERSION_PROPOSITION
-                or encodage.empreinte(proposition["version"], proposition["empreinte_entree"],
-                                     proposition["empreinte_sortie"], proposition["empreinte_etat"])
-                != ancre["plan_id"]):
-            raise Refus("SOURCE-INVALIDE")
+        cedule_tournees.verifier_empreintes_plan_applique(proposition, application)
         applications = [m for _, m in par_id.values()
                         if m["type_entree"] == cedule_tournees.TYPE_APPLIQUEE and m["plan_id"] == ancre["plan_id"]]
         if len(applications) != 1:

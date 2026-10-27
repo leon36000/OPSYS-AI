@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
-from m4_field_ops import calendrier_civil, cedule_tournees, etats
+from m4_field_ops import calendrier_civil, cedule_tournees, encodage, etats
 from m4_field_ops.outils import outils
 from m4_field_ops.registre import Registre, VerificationError
 
@@ -118,21 +118,29 @@ def test_bornes_independantes_registre_chaine(nombre, jours, tronque):
     application = next(m for m in reg.lire() if m["type_entree"] == cedule_tournees.TYPE_APPLIQUEE)
     route = proposition["sortie"]["plan"][0]
     visite = route["visites"][0]
-    proposition["plan_id"] = application["plan_id"] = "plan-volume-fictif"
     proposition["sortie"]["plan"] = [
         {**deepcopy(route), "jour": n % jours,
          "visites": [{**deepcopy(visite), **({"chantier": "absent-fictif"} if n == 200 else {})}]}
         for n in range(nombre)]
     # Un jour inutilisé ne doit pas créer un champ de date dans l'interface.
     proposition["sortie"]["plan"].append({**deepcopy(route), "jour": 999, "visites": []})
+    # Import synthétique borné : conserver les vrais sceaux, sans prétendre une faisabilité de solveur.
+    sortie = proposition["sortie"]
+    sortie["meta"].pop("empreinte_sortie")
+    empreinte_sortie = encodage.empreinte(sortie)
+    sortie["meta"]["empreinte_sortie"] = empreinte_sortie
+    proposition["empreinte_sortie"] = application["empreinte_sortie"] = empreinte_sortie
+    plan_volume = encodage.empreinte(proposition["version"], proposition["empreinte_entree"],
+                                     empreinte_sortie, proposition["empreinte_etat"])
+    proposition["plan_id"] = application["plan_id"] = plan_volume
     reg.ajouter(proposition)
     reg.ajouter(application)
     calendrier = {str(j): (date(2030, 6, 1) + timedelta(days=j)).isoformat() for j in range(jours)}
-    reg.ajouter({"type_entree": calendrier_civil.TYPE_DATEE, "plan_id": "plan-volume-fictif",
+    reg.ajouter({"type_entree": calendrier_civil.TYPE_DATEE, "plan_id": plan_volume,
                  "horodatage": pur.HORODATAGE, "revision": 1, "calendrier": calendrier,
                  "source_application_id": reg.tete()})
     avant = reg.lire()
-    resultat = calendrier_civil.lire_plan(reg, "plan-volume-fictif")
+    resultat = calendrier_civil.lire_plan(reg, plan_volume)
     assert resultat["total_visites"] == nombre and len(resultat["visites"]) == min(nombre, 200)
     assert resultat["total_jours"] == jours and resultat["jours"] == list(range(min(jours, 31)))
     assert resultat["tronque"] is tronque and len(resultat["calendrier"]) <= 31

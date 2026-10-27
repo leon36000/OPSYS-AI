@@ -275,3 +275,9 @@ paquet restrictif visible avant confirmation, omissions/signaux conservés, empr
 avant finalisation et rollback complet si changée; audit de références sans copie des faits.
 Le reçu reste historique avec contexte actuel explicitement identifié. Contexte avant les
 modifications de dates et dispatch complet restent PARTIAL.
+
+
+CRM-08 — [intégrité avant première date](AUDIT-MEMOIRE-DATES-CIVILES.md) : preuve métier
+partagée proposition/application dès révision 0, refus des heures altérées/rechaînées et des
+ancres dupliquées/hors ordre; dates, annotations et couleurs préservées sous QA ciblée.
+Le contexte M10 avant datation multi-affaire et le dispatch restent PARTIAL.
