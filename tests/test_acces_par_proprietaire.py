@@ -61,6 +61,8 @@ OUTILS_M3_DU_VENDEUR = {
 OUTILS_M2_DE_L_ADMIN = {
     "m2_produire_digest", "m2_detecter_doublons", "m2_signaler_doublon", "m2_arbitrer_doublon",
     "m2_reassigner_lead", "m2_republier_assignations",  # T1.4-m
+    "m2_corriger_contact_client", "m2_lister_historique_contact_client",
+    "m2_reconcilier_memoire_contact_client",  # CRM-04 : admin actif, coordonnées privées
 }
 
 

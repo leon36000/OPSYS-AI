@@ -308,7 +308,8 @@ def test_l_outil_d_audit_accepte_le_type_rentabilite_dans_son_schema():
     # Les trois d'abord ; l'amont de l'affaire (T4.18) ensuite, dans l'ordre de l'entonnoir.
     assert enum[:3] == ["m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier"]
     assert enum[3:] == [
-        "m1.lead_qualifie", "m2.client_associe", "m3.devis_envoye", "m3.devis_accepte", "m3.devis_sans_reponse"]
+        "m1.lead_qualifie", "m2.client_associe", "m2.contact_corrige",
+        "m3.devis_envoye", "m3.devis_accepte", "m3.devis_sans_reponse"]
 
 
 # =========================================================================================

@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 163 outils sur 256 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 173 outils sur 266 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (162 outils) : §9.5 + employé + vendeur
+### `admin` (172 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -134,6 +134,10 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M1 | `m1_lire_transfert` (T0), `m1_clore_transfert` (N3) | §7 M1.8, M1.12 et §9.5 M1 « plaintes, transferts, prendre en charge » (T4.5) : l'admin lit le contexte d'une plainte, d'une urgence de sécurité ou d'un transfert (résumé, contact, messages du client) puis le clôt. La clôture est une décision HUMAINE : voir « Les transferts à un humain de M1 » plus bas. Ni l'employé ni le vendeur : le contact et les mots d'un client qui se plaint sont pour le propriétaire. |
 | M2 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | §9.5 M2 : pipeline, leads chauds, doublons. |
 | M2 | `m2_reassigner_lead` (N3), `m2_republier_assignations` (N3) | §9.5 (le propriétaire ou son gestionnaire reprend le dossier d'un vendeur ; T1.4-m). La réassignation est une décision HUMAINE : voir « La réassignation d'un lead » plus bas. La republication remet au bus le fait de propriété que les leads qualifiés avant T1.4-k2 n'ont jamais publié ; outil de mise en service, idempotent, dérivé du registre. Ni l'employé ni le vendeur (un vendeur ne « prend » ni ne « cède » un lead). |
+| M2 | `m2_corriger_contact_client` (N3), `m2_lister_historique_contact_client`, `m2_reconcilier_memoire_contact_client` (N0) | CRM-04 : admin SQL actif, correction avec révision attendue et motif, historique privé et diagnostic de livraison M10. Aucun envoi au client, accès vendeur ou réécriture des documents historiques. |
+| M3 | `m3_lister_devis_lead_admin` (T0/N0) | Sommaires paginés des soumissions d’un lead désigné ; admin SQL actif. Lecture seule, aucune page vide ne prouve l’existence du lead M2. |
+| M4 | `m4_confirmer_dates_cedule` (N3), `m4_lire_calendrier_plan`, `m4_lire_cedule_semaine` (N0) | Calendrier civil explicite d’un plan déjà appliqué, révision et historique ; admin SQL actif. Plan interne seulement, sans confirmation client ni promesse globale de disponibilité. |
+| M6 | `m6_enregistrer_note_commande` (N3), `m6_lire_note_commande`, `m6_lister_notes_commande` (N0) | Notes privées liées au devis et chantier connus, admin SQL actif. Versionnement et rejeu lié à la personne ; liste bornée sans texte, lecture sans artefact générique. Aucun PO, envoi, dépense ou mouvement de stock. |
 | M3 | `m3_evaluer_calibration_cohortes`, `m3_proposer_calibration_temps` (N2), `m3_evaluer_candidate_calibration` (N2), `m3_activer_candidate_calibration`, `m3_rollback_candidate_calibration` (N4) | Boucle de calibration du temps à partir des cohortes et faits M4 vérifiés. Les candidates restent inactives jusqu'à une décision N4 du seul propriétaire; activation et rollback ne réécrivent jamais les devis ou estimations historiques. Aucun prix, coût ou facteur photo n'est modifié. |
 | M4 | `m4_lister_pending_review`, `m4_volumetrie_pending_review`, `m4_produire_digest` | §9.5 M4 : dispatch du jour, file de complétion. |
 | M3 | `m3_lire_apprentissage_chantier` (T0) | Lecture jointe M3/M4/M6/M5/M8 d’un WCT et d’une coupure UTC; admin appareil actif. Sources relues, marges seulement finales/comparables; aucun GPS, identité terrain ou activation. |

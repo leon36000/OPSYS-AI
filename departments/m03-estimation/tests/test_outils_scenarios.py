@@ -132,7 +132,7 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
     # outil de mutation supplémentaire n'est admis par cette exception.
     lectures_reprise = {
         "m3_lister_devis", "m3_lire_apprentissage_chantier",
-        "m3_auditer_couverture_apprentissage",
+        "m3_auditer_couverture_apprentissage", "m3_lister_devis_lead_admin",
     }
     baseline_13 = {
         "m3_estimer_projet", "m3_qualifier_photos", "m3_classifier_confiance",

@@ -56,6 +56,9 @@ ADMIN_SEUL = frozenset({
     "m2_arbitrer_doublon", "m2_detecter_doublons", "m2_produire_digest", "m2_signaler_doublon",
     # réassigner un lead (décision humaine) et republier le fait de propriété d'avant T1.4-k2 (T1.4-m)
     "m2_reassigner_lead", "m2_republier_assignations",
+    "m2_corriger_contact_client", "m2_lister_historique_contact_client",
+    "m2_reconcilier_memoire_contact_client",  # correction humaine et lectures privées CRM-04
+    "m3_lister_devis_lead_admin",  # inventaire par lead, distinct du lecteur vendeur
     # Calibration du temps M3 : lecture/évaluation, candidate inactive et demandes de décision N4.
     "m3_evaluer_calibration_cohortes", "m3_proposer_calibration_temps", "m3_evaluer_candidate_calibration",
     "m3_activer_candidate_calibration", "m3_rollback_candidate_calibration",
@@ -72,6 +75,7 @@ ADMIN_SEUL = frozenset({
     # Sources horaires individuelles : aperçu et validation courante privés, aucun accès employé/vendeur.
     "m4_previsualiser_heures_regulieres", "m4_lire_heures_regulieres_validees",
     "m4_volumetrie_pending_review",
+    "m4_confirmer_dates_cedule", "m4_lire_calendrier_plan", "m4_lire_cedule_semaine",
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
     "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # coût réel, marge, créances (T1.5-d)
     "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",  # comptes à payer, saisie par un humain (T4.15)
@@ -98,6 +102,7 @@ ADMIN_SEUL = frozenset({
     # Classement humain des six causes : annotation N3, lecteurs N0, admin DEVICE seulement.
     "m6_lister_variances_classables_wct_appareil", "m6_classer_cause_variance_appareil",
     "m6_lire_historique_classement_variance_appareil",
+    "m6_enregistrer_note_commande", "m6_lire_note_commande", "m6_lister_notes_commande",
     "m7_lister_file_approbation", "m7_lister_demandes_avis",  # avis à relire avant d'écrire au client (T1.5-d)
     "m7_approuver_budget_campagne", "m7_configurer_profil_marque",  # décisions propriétaires Brand/Growth
     "m7_decider_creneau_calendrier", "m7_decider_reponse_avis",  # décisions propriétaires avant tout export

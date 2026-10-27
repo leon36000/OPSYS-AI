@@ -227,3 +227,10 @@ Gabarits fixes, contrôlés au chargement. Chaque texte destiné à un client pa
 Catalogue de verdicts. Six identifiants s'ajoutent en groupe 8, à la suite : REJ-RELANCES-A-CONFIGURER (la fréquence maximale manque ou est invalide), REJ-RELANCE-NON-DUE (aucune relance de cette règle n'est due pour ce lead), REJ-RELANCE-TROP-PROCHE (la fréquence limitée refuse, avec la prochaine date permise), REJ-CONSENTEMENT-ABSENT (aucun consentement actif pour ce canal), REJ-CONSENTEMENT-RETIRE (le client s'est retiré) et REJ-CONSENTEMENT-INVALIDE (une saisie de consentement mal formée). Justification : aucun code existant ne dit qu'une fréquence manque, qu'une relance n'est pas due ou trop proche, ni l'état d'un consentement. REJ-SEGMENT-NON-CALCULABLE, REJ-ENUM-INVALIDE, REJ-PAGINATION-INVALIDE, REJ-HORODATAGE-INVALIDE, REJ-HUMAIN-REQUIS, REJ-LEAD-INCONNU, REJ-LEAD-NON-ASSIGNE et REJ-BUS-INDISPONIBLE servent aussi, avec leur détail propre.
 
 Gel rescellé. L'empreinte sha256 de verdicts.py, épinglée au titre de CA-M2-13, a été mise à jour une cinquième fois. Justification : le gel a rempli sa fonction, il a forcé cette modification à devenir une décision explicite et journalisée.
+
+
+## Addendum CRM-04 — rescellage explicite des verdicts (2026-10-27)
+
+La correction humaine des coordonnées, documentée dans `docs/grs/crm/CORRECTION-COORDONNEES-M2.md` à la racine, ajoute uniquement deux codes par le commit `dd19e5cf` : `REJ-CONTACT-CONFLIT` (identité déjà détenue par un autre client) et `REJ-CONTACT-BACKEND-NON-QUALIFIE` (écriture hors stockage SQLite qualifié). Le diff depuis le parent de ce commit conserve tous les verdicts historiques ; aucune valeur ni sémantique antérieure n’est retirée.
+
+Ancien SHA-256 de `verdicts.py` : `3525f2190a12641b0946567309c1d20d68a2c84b62b745814c550e065418e29f`. Nouveau SHA-256 : `842411b47028076c9718d5b915389676297f3624f9fdfb52eced49e5b86f9644`. Le contrôle d’empreinte reste strict et celui de `horodatage.py` reste inchangé. Ce rescellage réconcilie le contrat avec la capacité CRM-04 déjà implémentée ; il ne vaut pas validation complète du CRM.
