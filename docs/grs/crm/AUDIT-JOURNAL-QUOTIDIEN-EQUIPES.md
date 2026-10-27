@@ -786,3 +786,33 @@ identités humaines/client/agent et comptes désactivés, rôle admin révoqué,
 rollback après append et audit, vrais GET/POST CSRF, aucun changement de pointage, paie,
 composition, profil, droits ou mémoire. Les preuves compatibles de composition seront réutilisées;
 aucun ancien runtime ou modèle n'est rejoué. **STUB : contrat préparé, fonctionnalité non codée.**
+
+
+## Absences : fondation pure qualifiée, sans exposition CRM
+
+`absences_journalieres.py` existe maintenant, après le contrat et le rouge d'absence du module.
+Registre distinct, état aucun_signalement/signalee/retiree, révisions et retrait conservés,
+jour/personne indépendants, source de pagination et accusé sans personne concernée. Auteur
+et identifiants restent des charges pures; aucune autorité SQL ou présence réellement observée
+n'est prouvée à ce stade. Réemploi des validateurs et du registre, sans changer la signification
+ni les données des compositions ou pointages. Le type supplémentaire est explicitement ratifié
+dans l'énuméré fermé ET son assertion gelée; aucun élargissement par wildcard.
+
+Cohorte `crm16-absence-v3` : **101 PASS, 0 FAIL, 0 SKIP, 0,37 s**, dont 20 nouveaux cas purs,
+avec registre, compositions et journal. Ruff et vérificateur natif passent : 300 outils,
+175 déclarés, aucun nouvel outil exposé. Les 99 cas de v2 sont inclus et ne sont pas additionnés
+à la cohorte de composition de 273 cas. Même enveloppe privée bornée et sans réseau.
+
+Revue indépendante : le calcul des octets hors conversion pouvait laisser échapper une
+UnicodeEncodeError ou TypeError sur une source corrompue. Deux rouges réels reproduits
+(`crm16-absence-source-red-v1`) avec surrogate rehaché et charge non JSON. Mesure et lecture
+sont maintenant dans la conversion vers un refus métier; le contrôle du nombre précède
+encore toute lecture. Relecture statique ferme le constat, sans runtime du relecteur.
+Les rouges de lint, module absent et assertion d'énuméré omise restent historiques avec
+leur classement respectif. Preuve : `CRM16-ABSENCE-PURE-LOCAL-QUALIFIED.json`.
+
+**PARTIAL — fondation pure seulement.** Aucun T0/T1, SQL, formulaire, nom de personne résolu,
+contrôle d'identité réel, événement M10, absence mesurée, paie ou décision RH automatique livré
+par cette tranche. Prochaine action concrète : capture canonique SQLite bornée avant décodage,
+projection indépendante et vrai T0 privé admin/session avec recapture et sortie minimisée;
+ensuite seulement writer à identité confirmée et formulaire sans motif de santé.
