@@ -87,6 +87,9 @@ def _executer(operation, arguments):
 
             journaliser(cnx, auteur, 'm6.catalogue_materiau', r['materiau_id'],
                         {'revision': r['revision'], 'source_id': r['source_id']})
+            from opsys.catalogues_memoire import publier
+
+            publier(DEPARTEMENT, domaine.REGISTRE, r['source_id'])
             idempotence.finaliser(cnx, meta, {'ok': True, 'resultat': resultat})
             return resultat
     except idempotence.MutationConflit:

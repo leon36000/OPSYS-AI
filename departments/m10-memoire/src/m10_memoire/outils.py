@@ -366,9 +366,28 @@ def _consommateur_amont(type_evenement: str) -> Callable[[dict], dict]:
     return recevoir
 
 
+def _consommateur_configuration(type_evenement):
+    def recevoir(charge):
+        from . import references_configuration as references
+
+        source = references.valider(charge)
+        _, _, type_attendu = references.SOURCES[source["source_genre"]]
+        if type_evenement != type_attendu:
+            raise ValueError("Genre et producteur de référence incohérents")
+        from opsys.catalogues_memoire import verifier_source
+
+        verifier_source(source["source_genre"], source["source_rang"], source["source_revision"],
+                        source["source_sha256"], source["horodatage"])
+        return references.memoriser(stockage.maillons("m10-memoire", references.REGISTRE), source)
+
+    return recevoir
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     """Types d'événements consommés par M10 (ADR-0009 §3) — voir `department.yaml/evenements`."""
     return {
+        "m3.catalogue_reference": _consommateur_configuration("m3.catalogue_reference"),
+        "m6.catalogue_reference": _consommateur_configuration("m6.catalogue_reference"),
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m6.variance_chantier": _recevoir_variance_chantier,
         "m5.rentabilite_chantier": _recevoir_rentabilite_chantier,

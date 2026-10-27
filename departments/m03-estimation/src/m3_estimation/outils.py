@@ -2567,6 +2567,9 @@ def enregistrer_modele_soumission(modele_id, titre, description, clauses, revisi
                 r = resultat["resultat"]
                 journaliser(cnx, auteur["personne"], "m3.modele_soumission", r["source_id"],
                             {"modele_id": r["modele_id"], "revision": r["revision"]})
+                from opsys.catalogues_memoire import publier
+
+                publier("m03-estimation", modeles_soumission.REGISTRE, r["source_id"])
             return resultat
     except n.Refus as exc:
         return n.refuser(exc.suffixe)
@@ -2847,6 +2850,9 @@ def enregistrer_lignes_modele(modele_id, modele_revision, modele_source, lignes,
 
                 journaliser(stockage.connexion_courante(), auteur["personne"], "m3.lignes_modele",
                             r["resultat"]["source_id"], {"modele_id": modele_id, "revision": r["resultat"]["revision"]})
+                from opsys.catalogues_memoire import publier
+
+                publier("m03-estimation", n.REGISTRE, r["resultat"]["source_id"])
             return r
     except n.Refus as exc:
         return n.refuser(exc.suffixe)

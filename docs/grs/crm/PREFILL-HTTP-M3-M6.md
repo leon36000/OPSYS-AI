@@ -161,3 +161,8 @@ Le raccord de gestion et de choix nommé est qualifié par
 → lignes M3 → devis sourcé M6. L’identité, la révision et l’empreinte de la fiche sont relues
 sous la transaction d’enregistrement. Une fiche périmée/inactive refuse le nouveau choix.
 Voir [audit et preuves du catalogue](../inventory/M6-AUDIT-CATALOGUE-LIBELLES.md).
+
+Les nouvelles versions de modèles textuels, de lignes et de fiches matériaux publient
+maintenant une référence vers M10 dans leur transaction. M10 valide la source puis mémorise
+uniquement rang, révision, empreinte et horodatage dans une chaîne privée. Aucun texte ou
+prix du modèle n’y est copié. Voir [audit et preuves M10](AUDIT-CATALOGUES-M10.md).

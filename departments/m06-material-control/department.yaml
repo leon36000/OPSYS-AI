@@ -54,7 +54,7 @@ evenements:                        # ADR-0009 §3, PLAN T1.2-b/T1.2-d
   # complète, cède du stock, est libérée) ; `pret`, `partiel` ou `a_commander`, avec les lignes manquantes. M4 le lit
   # (`preparation.py`). Publié dans la transaction du fait de réservation ; jamais pour un prévu vide, jamais un bon de
   # commande.
-  publie: [m6.note_commande_referencee, m6.variance_chantier, m6.reception_enregistree, m6.materiel_pret]   # types au catalogue, M6 en est propriétaire
+  publie: [m6.catalogue_reference, m6.note_commande_referencee, m6.variance_chantier, m6.reception_enregistree, m6.materiel_pret]   # types au catalogue, M6 en est propriétaire
 configuration:
   # Seuil de criticité de la variance de CHANTIER (m6.variance_chantier, distinct du seuil de
   # variance d'INVENTAIRE physique qui reste fourni par l'appelant de m6_soumettre_comptage).

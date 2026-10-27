@@ -43,7 +43,7 @@ evenements:
   consomme: [m4.travaux_termines, m6.variance_chantier]  # PLAN T1.2-d, estimé vs réel en second ordre
   # PLAN T2.3 : relance vers M2 ; T2.3-e : besoins matériaux vers M6 ; T4.7 : m3.devis_envoye, l'envoi approuvé
   # par le propriétaire (sans montant ; M2 en fera partir la relance, T4.9)
-  publie: [m3.devis_accepte, m3.devis_sans_reponse, m3.besoins_materiaux, m3.devis_envoye]
+  publie: [m3.catalogue_reference, m3.devis_accepte, m3.devis_sans_reponse, m3.besoins_materiaux, m3.devis_envoye]
 approbations:                      # ADR-0009 §5, PLAN T4.7
   # N4 : l'envoi d'un devis au client (m3_demander_envoi_devis) est un engagement, décidé par le seul
   # propriétaire. C'est aussi le défaut du socle (fail-closed) ; il est écrit ici pour qu'un élargissement soit un
