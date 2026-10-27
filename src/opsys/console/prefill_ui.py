@@ -162,20 +162,39 @@ def creer_router(*, session_page, cnx_factory, prefixe, verifier_formulaire, ver
         for i, ligne in enumerate(jeu['lignes']):
             valeurs[f'ligne_modele_id_{i}'] = ligne['ligne_id']
         action = prefixe + '/crm/lead/' + pages._segment(lead_id) + '/soumission-preremplie/preparer'
-        corps = (f'<h2>{pages.e(m["titre"])}</h2><p>Choisir quantité et référence fournisseur pour chaque matériau. '
+        corps = (f'<h2>{pages.e(m["titre"])}</h2><p>Choisir quantité et fournisseur pour chaque matériau. '
                  'Les coûts seront relus dans M6 avant confirmation.</p>'
                  f'<form method="post" action="{pages.e(action)}" class="pile">'
                  + caches({k: v for k, v in valeurs.items() if k not in visibles | {'taux_marge', 'chantier_id'}})
                  + '<label>Chantier (facultatif)<input name="chantier_id" maxlength="100"></label>'
                  '<label>Majoration sur coût (0.35 = 35 %)<input name="taux_marge" maxlength="24" required></label>')
+        catalogues, incomplet = {}, False
         for i, ligne in enumerate(jeu['lignes']):
+            cle = (ligne['materiau_id'], ligne['unite'])
+            if cle not in catalogues:
+                catalogues[cle] = appeler(session, 'm3_lister_fournisseurs_modele',
+                                          dict(materiau_id=cle[0], unite=cle[1]))
+            fournisseurs = catalogues[cle]
+            incomplet = incomplet or not fournisseurs['fournisseurs']
             corps += (f'<fieldset><legend>{pages.e(ligne["description"])}</legend>'
                       f'<p>Matériau : {pages.e(ligne["materiau_id"])} · unité : {pages.e(ligne["unite"])}</p>'
                       f'<label>Quantité<input name="quantite_{i}" maxlength="24" required></label>'
-                      f'<label>Référence fournisseur M6<input name="fournisseur_id_{i}" '
-                      'maxlength="200" required></label>'
-                      '</fieldset>')
-        return rendre(session, 'Préremplir la soumission', corps + '<button>Vérifier les tarifs</button></form>')
+                      f'<label>Fournisseur<select name="fournisseur_id_{i}" required>'
+                      '<option value="">Choisir un fournisseur</option>')
+            for fournisseur in fournisseurs['fournisseurs']:
+                corps += (f'<option value="{pages.e(fournisseur["fournisseur_id"])}">'
+                          f'{pages.e(fournisseur["nom"])} · {pages.e(fournisseur["fournisseur_id"])}</option>')
+            corps += '</select></label>'
+            if not fournisseurs['fournisseurs']:
+                corps += '<p role="alert">Aucun fournisseur avec tarif utilisable pour ce matériau et cette unité.</p>'
+            if fournisseurs['indisponibles']:
+                corps += ('<p>Tarifs non sélectionnables : ' + ', '.join(
+                    pages.e(f['fournisseur_id']) for f in fournisseurs['indisponibles'])
+                    + '. Vérifier fiche fournisseur, unité, date et qualité du prix dans M6.</p>')
+            corps += '</fieldset>'
+        bouton = ('<button disabled>Tarifs à compléter dans M6</button>' if incomplet
+                  else '<button>Vérifier les tarifs</button>')
+        return rendre(session, 'Préremplir la soumission', corps + bouton + '</form>')
 
     @router.post(creation + '/preparer')
     async def preparer(lead_id: str, request: Request):

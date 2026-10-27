@@ -136,6 +136,7 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
     }
     # Catalogue et création de devis CRM07 : ports console uniquement, sans scénario.
     modeles_console = {
+        "m3_lister_fournisseurs_modele",
         "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
         "m3_lire_tarif_modele", "m3_creer_devis_prefill",
         "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission",

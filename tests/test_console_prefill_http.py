@@ -28,6 +28,8 @@ def form(page):
     for champ in re.findall(r'<input ([^>]+)>', corps):
         attrs = dict(re.findall(r'(\w+)="([^"]*)"', champ))
         valeurs[attrs['name']] = html.unescape(attrs.get('value', ''))
+    for nom, contenu in re.findall(r'<select name="([^"]+)"[^>]*>(.*?)</select>', corps, re.S):
+        valeurs[nom] = html.unescape(re.search(r'<option value="([^"]*)">', contenu)[1])
     for attrs, contenu in re.findall(r'<textarea ([^>]+)>(.*?)</textarea>', corps, re.S):
         nom = re.search(r'name="([^"]+)"', attrs)[1]
         # Règle HTML : le premier LF immédiatement après textarea est ignoré.
@@ -144,4 +146,43 @@ def test_aucune_ecriture_preview_invalide(catalogue, session):
     assert catalogue.post(action, data={**choix, 'ligne_modele_id_0': 'autre'}).status_code == 409
     assert catalogue.post(action, data={**choix, 'quantite_0': 'NaN'}).status_code == 400
     assert catalogue.post(action, data={**choix, 'fournisseur_id_0': 'inconnu'}).status_code == 503
+    assert p.m.base._instantane_base(session) == avant
+
+
+def test_fournisseur_par_nom_sans_defaut_et_tarif_invalide_visible(catalogue, session):
+    from m6_material_control.fournisseurs import enregistrer_fournisseur
+
+    initial = p.preparer(session)
+    query = urlencode({k: initial[k] for k in ('modele_id', 'modele_revision', 'modele_source')})
+    with session():
+        enregistrer_fournisseur('fourn-fictif', 'FICTIF <script>nom</script>', '2026-01-02T00:00:00+00:00',
+                                stockage.maillons('m06-material-control', 'fournisseurs'))
+    avant = p.m.base._instantane_base(session)
+    page = catalogue.get(ROUTE + '?' + query)
+    assert 'FICTIF &lt;script&gt;nom&lt;/script&gt;' in page.text
+    assert '<script>nom</script>' not in page.text
+    assert form(page)[1]['fournisseur_id_0'] == ''
+    assert '<option value="fourn-fictif">' in page.text
+    assert p.m.base._instantane_base(session) == avant
+
+    # Un dernier prix futur bloque; l'ancien prix utilisable ne réapparaît pas.
+    with session():
+        journal = stockage.maillons('m06-material-control', 'livre_prix')
+        journal.append({**list(journal)[-1], 'date_effet': '2099-01-01'})
+    avant = p.m.base._instantane_base(session)
+    page = catalogue.get(ROUTE + '?' + query)
+    assert 'Aucun fournisseur avec tarif utilisable' in page.text
+    assert 'Tarifs non sélectionnables' in page.text
+    assert '<option value="fourn-fictif">' not in page.text
+    assert '<button disabled>' in page.text
+    assert p.m.base._instantane_base(session) == avant
+
+
+def test_fournisseur_corrompu_apres_preview_bloque_creation(catalogue, session):
+    action, donnees, _, _ = preparer(catalogue, session)
+    with session():
+        stockage.maillons('m06-material-control', 'fournisseurs').append(
+            {'type_entree': 'fournisseur_maj', 'nom': 'Correction FICTIVE sans identité'})
+    avant = p.m.base._instantane_base(session)
+    assert catalogue.post(action, data=donnees).status_code == 503
     assert p.m.base._instantane_base(session) == avant

@@ -292,7 +292,7 @@ class Capacites:
         ticket_memoire: str | None = None,
     ) -> dict[str, Any]:
         """Revérifie et dispatch un outil Core profilé sous le verrou de sa ligne de profil."""
-        if nom in {"m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
+        if nom in {"m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
                    "m3_lire_tarif_modele", "m3_creer_devis_prefill",
                    "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission",
                    "m3_creer_devis_depuis_modele", "m3_document_devis_console",
@@ -339,7 +339,7 @@ class Capacites:
         Une identité d'appareil seule permet une lecture T0/N0 ; toute autre opération
         exige l'enveloppe d'idempotence avant le répartiteur métier.
         """
-        if nom in {"m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
+        if nom in {"m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
                    "m3_lire_tarif_modele", "m3_creer_devis_prefill",
                    "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission",
                    "m3_creer_devis_depuis_modele", "m3_document_devis_console",

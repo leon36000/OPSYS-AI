@@ -2787,6 +2787,7 @@ def _schemas_prefill():
         "enregistrer": objet({**modele, "lignes": {"type": "array", "minItems": 1, "maxItems": 20, "items": ligne},
                               "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 1000}}),
         "lire": objet({**modele, "version_lignes": {"type": "integer", "minimum": 0, "maximum": 1000}}),
+        "fournisseurs": objet({"materiau_id": texte(200), "unite": texte(40)}),
         "tarif": objet({"materiau_id": texte(200), "fournisseur_id": texte(200), "unite": texte(40)}),
         "creer": objet({**modele, "devis_id": ident, "lead_id": texte(200),
                          "chantier_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 100},
@@ -2868,13 +2869,20 @@ def lire_lignes_modele(modele_id, modele_revision, modele_source, version_lignes
 
 
 def _sources_tarifs_prefill():
+    from m6_material_control.tarif_soumission import SelectionTarifRefusee, verifier_journal_fournisseurs
+
     from opsys.stockage.maillons import copier_maillons_avec_metadonnees
 
     dept = "m06-material-control"
     if any(len(stockage.maillons(dept, nom)) > 10000 for nom in ("livre_prix", "fournisseurs")):
         raise modeles_soumission.Refus("SOURCES-TROP-VOLUMINEUSES")
     snapshot = copier_maillons_avec_metadonnees(stockage.connexion_courante(), departement=dept, registre="livre_prix")
-    return [(m.rang, m.maillon) for m in snapshot.lignes], list(stockage.maillons(dept, "fournisseurs"))
+    fournisseurs = list(stockage.maillons(dept, "fournisseurs"))
+    try:
+        verifier_journal_fournisseurs(fournisseurs)
+    except SelectionTarifRefusee:
+        raise modeles_soumission.Refus("SOURCE-INVALIDE") from None
+    return [(m.rang, m.maillon) for m in snapshot.lignes], fournisseurs
 
 
 def _tarif_prefill(sources, materiau_id, fournisseur_id, unite, jour, **attendus):
@@ -2904,6 +2912,30 @@ def lire_tarif_modele(materiau_id, fournisseur_id, unite):
             raise n.Refus("MUTATION-ABSENTE")
         tarif = _tarif_prefill(_sources_tarifs_prefill(), **args, jour=reception.recu_le.date().isoformat())
         return _retour_devis_modele({"accepte": True, "resultat": tarif})
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lister_fournisseurs_modele(materiau_id, unite):
+    from m6_material_control.tarif_soumission import SelectionTarifRefusee, fournisseurs_compatibles
+
+    n = modeles_soumission
+    try:
+        auteur = _autoriser_modeles()
+        args = dict(materiau_id=materiau_id, unite=unite)
+        if not _contrat_devis_modele(args, _schemas_prefill()["fournisseurs"]):
+            raise n.Refus("ARGUMENTS")
+        reception = contexte.horodatage_reception()
+        if (reception is None or reception.appareil != "console:" + auteur["personne"]
+                or reception.recu_le.utcoffset() is None):
+            raise n.Refus("MUTATION-ABSENTE")
+        lignes, fournisseurs = _sources_tarifs_prefill()
+        resultat = fournisseurs_compatibles(lignes, fournisseurs, **args,
+                                            jour_serveur=reception.recu_le.date().isoformat())
+        return _retour_devis_modele({"accepte": True, "resultat": resultat})
+    except SelectionTarifRefusee as exc:
+        suffixe = "SOURCES-TROP-VOLUMINEUSES" if exc.raison == "sources_trop_volumineuses" else "SOURCE-INVALIDE"
+        return n.refuser(suffixe)
     except n.Refus as exc:
         return n.refuser(exc.suffixe)
 
@@ -2978,6 +3010,8 @@ def creer_devis_prefill(modele_id, modele_revision, modele_source, devis_id, lea
 def _outils_prefill():
     s = _schemas_prefill()
     return (
+        Outil(nom="m3_lister_fournisseurs_modele", description="Console admin privée : fournisseurs compatibles M6.",
+              parametres=s["fournisseurs"], fonction=lister_fournisseurs_modele),
         Outil(nom="m3_enregistrer_lignes_modele", description="Console admin privée : lignes réutilisables sans prix.",
               parametres=s["enregistrer"], fonction=enregistrer_lignes_modele, autonomie=Autonomie.T1),
         Outil(nom="m3_lire_lignes_modele", description="Console admin privée : lignes d'une version exacte.",

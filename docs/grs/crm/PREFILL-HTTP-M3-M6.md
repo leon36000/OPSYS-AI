@@ -14,13 +14,14 @@ M3 calcule le prix. Les quantités ne sont jamais déduites du modèle ni propos
 2. Renseigner jusqu’à vingt lignes : description, référence matériau M6 et unité exacte.
    Enregistrer crée une version; aucune soumission existante ne change.
 3. Dans les soumissions du projet, choisir un modèle puis « Utiliser les lignes et tarifs M6 ».
-4. Renseigner quantité et référence fournisseur M6 pour chaque ligne, ainsi que la majoration.
+4. Renseigner la quantité, choisir le fournisseur par son nom M6 pour chaque ligne, puis la majoration.
 5. Vérifier les coûts CAD, date effective, fournisseur et source documentaire affichés.
    Sans pièce, le badge reste `FALLBACK_PRICE_BOOK`.
 6. Créer le brouillon. Le dossier permet ensuite de consulter ses documents HTML/PDF.
 
-Les fournisseurs/matériaux sont encore saisis par référence explicite : recherche et sélection
-par libellé restent à améliorer. Sans lignes enregistrées, le parcours prérempli refuse;
+Les matériaux sont encore saisis par référence explicite lors de la configuration du modèle :
+leur catalogue de libellés reste à compléter. Les fournisseurs compatibles sont proposés par nom,
+sans présélection ni classement par coût. Sans lignes enregistrées, le parcours prérempli refuse;
 la saisie manuelle existante reste accessible, ainsi que le lien de configuration des lignes.
 
 ## Architecture, fichiers et routes
@@ -74,6 +75,37 @@ de l’en-tête au lieu du formulaire métier; corrigé par sélection explicite
 La revue a aussi identifié le risque de perte des sauts de ligne dans un input texte; corrigé
 par textarea et test de conservation. Aucun contrôle produit n’a été affaibli.
 
-Prochaines étapes : sélection ergonomique par libellé, confirmation complète du prix de vente
+Prochaines étapes : sélection des matériaux par libellé, confirmation complète du prix de vente
 avant création, preuve du bus acceptation → départements, puis qualification navigateur selon
 le harnais autorisé. Mobile reste en dernière phase. Les autres exigences CRM-07 restent ouvertes.
+
+## Choix fournisseur par nom — jalon suivant
+
+`m3_lister_fournisseurs_modele` est un port console privé supplémentaire : admin SQL et réception
+serveur exigés, canaux génériques/appareils fermés. Il réutilise le livre M6 et les fiches
+fournisseurs réelles; seuls identifiant et nom sont transmis au menu. Aucun courriel, téléphone
+ou coût n’est nécessaire à ce choix. Le tarif est toujours relu lors de la préparation puis
+de la création. Les quantités et fournisseurs restent des choix explicites de l’utilisateur.
+
+Le lecteur pur `fournisseurs_compatibles` examine au plus 10 000 maillons par registre et
+100 fournisseurs distincts pour le matériau. Le dépassement refuse, sans tronquer la liste.
+Un dernier tarif futur, d’une autre unité/devise ou invalide rend ce fournisseur indisponible,
+sans retour à un ancien prix. Les références non sélectionnables sont signalées. Sans tarif
+utilisable, le bouton est désactivé et l’interface indique de compléter M6; les POST restent
+contrôlés côté serveur. Les paires matériau/unité répétées partagent une lecture dans la page.
+
+La revue indépendante a révélé qu’une mise à jour fournisseur sans identifiant pouvait laisser
+réapparaître l’ancien libellé. La validation du journal fournisseur bloque maintenant ce cas,
+les types inconnus, mises à jour orphelines et créations dupliquées, y compris lors du POST final.
+Elle ne modifie pas le registre ni ses contrats d’écriture historiques.
+
+Preuve `supplier-v2` : 361 réussites, aucun échec ni saut, 20,70 s, Ruff et vérificateur réussis
+(288 outils, 173 portées appareil inchangées). Cas supplémentaires : nom corrigé sans coordonnées,
+limites 100/101, corruption de fiche, dernier prix futur, nom HTML échappé, choix initial vide,
+absence de fournisseur utilisable et corruption entre préparation/création sans écriture.
+Le rouge `supplier-v1` conserve trois constats de lint; ses 355 tests passaient déjà.
+Les populations se recoupent. Aucun test navigateur natif ni GO global n’est déduit de ce jalon.
+
+La recherche ciblée dans `catalogue.py`, `livre_prix.py`, `registre.py` et `contrats.py` M6
+n’a pas établi de registre durable de noms de matériaux exploitable ici : la résolution de prix
+n’est pas un catalogue de libellés. Aucun nom matériau n’est inventé depuis son identifiant.

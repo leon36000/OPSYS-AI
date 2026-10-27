@@ -138,7 +138,7 @@ def test_ports_generiques_fermes(session):
     from opsys.capacites import Capacites
 
     cap = Capacites({}, cnx_factory=session)
-    for nom in ('m3_enregistrer_lignes_modele', 'm3_lire_lignes_modele',
+    for nom in ('m3_lister_fournisseurs_modele', 'm3_enregistrer_lignes_modele', 'm3_lire_lignes_modele',
                 'm3_lire_tarif_modele', 'm3_creer_devis_prefill'):
         assert cap.appeler(nom, {}) == {'ok': False, 'erreur': 'port_console_prive_requis'}
 

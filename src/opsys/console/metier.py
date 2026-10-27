@@ -570,7 +570,7 @@ def executer(
         return _executer_observation_growth_humaine(cnx, deps, session, personne, arguments, mutation_id)
     if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
-    if nom in {"m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
+    if nom in {"m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
                    "m3_lire_tarif_modele", "m3_creer_devis_prefill",
                    "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission",
                "m3_creer_devis_depuis_modele", "m3_document_devis_console"}:

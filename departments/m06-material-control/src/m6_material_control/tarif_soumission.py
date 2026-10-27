@@ -23,6 +23,65 @@ class SelectionTarifRefusee(ValueError):
         super().__init__(raison)
 
 
+def verifier_journal_fournisseurs(fournisseurs):
+    """Une mise à jour illisible ne peut pas faire réapparaître une ancienne fiche."""
+    if type(fournisseurs) not in (list, tuple) or len(fournisseurs) > MAX_SOURCES:
+        raise SelectionTarifRefusee("sources_trop_volumineuses")
+    connus = set()
+    for fiche in fournisseurs:
+        if (type(fiche) is not dict or not _texte(fiche.get("fournisseur_id"), 200)
+                or fiche.get("type_entree") not in {"fournisseur_cree", "fournisseur_maj"}):
+            raise SelectionTarifRefusee("source_invalide")
+        ident = fiche["fournisseur_id"]
+        if fiche["type_entree"] == "fournisseur_cree":
+            if ident in connus:
+                raise SelectionTarifRefusee("source_invalide")
+            connus.add(ident)
+        elif ident not in connus:
+            raise SelectionTarifRefusee("source_invalide")
+
+
+def fournisseurs_compatibles(lignes, fournisseurs, materiau_id, unite, jour_serveur):
+    """Choix explicites pour un matériau/unité, sans classement par coût ni défaut.
+
+    Les derniers tarifs refusés sont signalés, pas remplacés par leurs prédécesseurs.
+    Le nom provient de la fiche fournisseur; aucune coordonnée n'est exposée.
+    """
+    from .fournisseurs import lire_fournisseur
+
+    if not _texte(materiau_id, 200) or not _texte(unite, 40):
+        raise SelectionTarifRefusee("arguments_invalides")
+    _jour(jour_serveur)
+    if (type(lignes) not in (list, tuple) or len(lignes) > MAX_SOURCES
+            or type(fournisseurs) not in (list, tuple) or len(fournisseurs) > MAX_SOURCES):
+        raise SelectionTarifRefusee("sources_trop_volumineuses")
+    verifier_journal_fournisseurs(fournisseurs)
+    ids, precedent = set(), -1
+    for paire in lignes:
+        if (type(paire) not in (list, tuple) or len(paire) != 2 or type(paire[0]) is not int
+                or paire[0] < 0 or paire[0] <= precedent or type(paire[1]) is not dict
+                or not _texte(paire[1].get("materiau_id"), 200)
+                or not _texte(paire[1].get("fournisseur_id"), 200)):
+            raise SelectionTarifRefusee("source_invalide")
+        precedent = paire[0]
+        if paire[1]["materiau_id"] == materiau_id:
+            ids.add(paire[1]["fournisseur_id"])
+    if len(ids) > 100:
+        raise SelectionTarifRefusee("sources_trop_volumineuses")
+    choix, indisponibles = [], []
+    for fournisseur_id in sorted(ids):
+        try:
+            fiche = lire_fournisseur(fournisseurs, fournisseur_id)
+            selectionner_tarif(lignes, fiche, materiau_id, fournisseur_id, unite, jour_serveur)
+        except SelectionTarifRefusee as exc:
+            indisponibles.append({"fournisseur_id": fournisseur_id, "raison": exc.raison})
+        except (KeyError, TypeError, ValueError, AttributeError):
+            raise SelectionTarifRefusee("source_invalide") from None
+        else:
+            choix.append({"fournisseur_id": fournisseur_id, "nom": fiche["nom"]})
+    return {"materiau_id": materiau_id, "unite": unite, "fournisseurs": choix, "indisponibles": indisponibles}
+
+
 def _texte(v, limite):
     return (type(v) is str and bool(v.strip()) and len(v) <= limite
             and not any(unicodedata.category(c) in {"Cc", "Cf", "Cs"} for c in v))
