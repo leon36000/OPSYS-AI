@@ -647,6 +647,34 @@ def obtenir_client_360(client_id: str) -> dict[str, Any]:
     return {"accepte": True, "resultat": vue}
 
 
+def verifier_autorite_rejeu_contact_appareil() -> dict[str, Any] | None:
+    """Le reçu historique ne rend pas un rôle révoqué actif ; pas de CAS de sa propre écriture."""
+    acteur, verdict = _acteur_appareil(acces.ROLES_ADMIN)
+    if verdict is not None:
+        return _refus(verdict)
+    if acteur is None:
+        return _refus(verdicts.construire_verdict("REJ-HUMAIN-REQUIS", detail="admin authentifié requis"))
+    return None
+
+
+def corriger_contact_client(client_id: str, contact: dict, revision_attendue: int,
+                            motif: str, horodatage: str) -> dict[str, Any]:
+    """Écriture humaine explicite ; autorité relue, aucun auteur libre ni réécriture d'identité."""
+    acteur, verdict = _acteur_appareil(acces.ROLES_ADMIN)
+    if verdict is not None:
+        return _refus(verdict)
+    if acteur is None:
+        return _refus(verdicts.construire_verdict("REJ-HUMAIN-REQUIS", detail="admin authentifié requis"))
+    cnx = stockage.connexion_courante()
+    # BEGIN IMMEDIATE sérialise lecture de version + collision + append. PG à qualifier séparément.
+    if cnx is None or cnx.dialect.name != "sqlite" or not _stockage_durable_actif:
+        return _refus(verdicts.construire_verdict(
+            "REJ-CONTACT-BACKEND-NON-QUALIFIE", detail="correction qualifiée sur SQLite durable seulement"))
+    resultat, verdict = clients.corriger_contact(
+        _obtenir_registre(), client_id, contact, revision_attendue, motif, acteur.personne, horodatage)
+    return _refus(verdict) if verdict else {"accepte": True, "resultat": resultat}
+
+
 def suggerer_prochaine_action(lead_id: str, horodatage: str) -> dict[str, Any]:
     """PLAN T2.2 (M2.6) : suggestion déterministe de prochaine meilleure action, par table de
     règles citée (suggestions.suggerer) — jamais appliquée automatiquement au registre. Appel d'appareil
@@ -2025,6 +2053,29 @@ def outils() -> tuple[Outil, ...]:
             fonction=trouver_client_de_lead,
             # §9.4 (vendeur : Client 360).
             roles_appareil=acces.ROLES_LEADS,
+        ),
+        Outil(
+            nom="m2_corriger_contact_client",
+            description=("Corrige les coordonnées courantes d'un client sans changer ses projets ou documents. "
+                         "Admin humain authentifié requis. Révision attendue et motif obligatoires. "
+                         "Collision avec une autre identité refusée. SQLite durable seulement."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "client_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "contact": {"type": "object", "minProperties": 1,
+                                "properties": {c: {"type": "string", "minLength": 1, "maxLength": 254}
+                                               for c in contrats.CLES_CONTACT}, "additionalProperties": False},
+                    "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 1000000},
+                    "motif": {"type": "string", "minLength": 1, "maxLength": 300},
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["client_id", "contact", "revision_attendue", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=corriger_contact_client,
+            autonomie=Autonomie.T1,
+            roles_appareil=acces.ROLES_ADMIN,
         ),
         Outil(
             nom="m2_obtenir_client_360",

@@ -56,6 +56,8 @@ CODES_M2_LIST = [
     # fait m2.lead_assigne. REJ-OWNER-ABSENT, REJ-OWNER-INCONNU, REJ-MOTIF-ABSENT et REJ-HORODATAGE-INVALIDE
     # servent aussi, avec leur détail propre : aucun doublon de sens n'est ajouté.
     "REJ-HUMAIN-REQUIS",
+    "REJ-CONTACT-CONFLIT",
+    "REJ-CONTACT-BACKEND-NON-QUALIFIE",
     "REJ-MOTIF-INVALIDE",
     "REJ-LEAD-INCONNU",
     "REJ-PROPRIETAIRE-INCHANGE",

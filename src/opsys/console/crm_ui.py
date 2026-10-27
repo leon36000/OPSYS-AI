@@ -1,6 +1,6 @@
 """CRM secrétariat : répertoire et dossier client/projet (CRM-04, CRM-05), sur la vérité M2.
 
-Ajout de notes internes authentifiées.
+Notes internes et corrections de coordonnées authentifiées, sur M2.
 
 - `GET /crm` : répertoire paginé des leads/clients (statut, propriétaire, travaux, ville, dernière activité,
   prochaine action, segments) ; chaque ligne mène au dossier.
@@ -8,9 +8,9 @@ Ajout de notes internes authentifiées.
   d'un même client), activités récentes, et les neuf sections du dossier avec leur état réel (affichée, source existante
   non branchée, non disponible). Une section sans primitive ne montre ni donnée ni faux bouton.
 
-Aucune donnée métier n'est stockée ici : lectures et notes passent par `metier.executer` (listes fermées).
-Les outils M2 de lecture et `m2_enregistrer_interaction` sont appelés sous l'identité `admin`
-confirmée en base.
+Aucune donnée métier n'est stockée ici : lectures, notes et corrections passent par `metier.executer` (listes fermées).
+Les outils M2 de lecture, `m2_enregistrer_interaction` et `m2_corriger_contact_client` utilisent
+l'identité `admin` confirmée en base.
 Les fonctions `contenu_*` sont pures ; toute valeur dynamique passe par `pages.e`.
 """
 
@@ -358,6 +358,23 @@ def contenu_soumission(lead_id: str, devis: Mapping[str, Any], *, prefixe: str) 
     )
 
 
+def formulaire_contact(lead_id: str, vue: Mapping[str, Any], csrf: str, prefixe: str) -> str:
+    contact = vue.get("contact") or {}
+    champs = "".join(f'<label>{pages.e(c.title())}<input name="{c}" maxlength="254" '
+                     f'value="{pages.e(contact.get(c, ""))}"></label>' for c in ("nom", "courriel", "telephone"))
+    return (
+        '<section class="carte"><h2>Corriger les coordonnées</h2>'
+        '<p>Cette correction concerne tous les projets de ce client. Les documents émis restent inchangés. '
+        'Elle ne vaut pas consentement à contacter une nouvelle adresse.</p>'
+        f'<form method="post" action="{pages.e(prefixe)}/crm/lead/{pages._segment(lead_id)}/contact" class="pile">'
+        f'<input type="hidden" name="csrf" value="{pages.e(csrf)}">'
+        f'<input type="hidden" name="mutation_id" value="{uuid.uuid4().hex}">'
+        f'<input type="hidden" name="revision_attendue" value="{vue.get("revision_contact", 0)}">'
+        + champs + '<label>Motif de correction<input name="motif" maxlength="300" required></label>'
+        '<button type="submit">Enregistrer la correction</button></form></section>'
+    )
+
+
 def formulaire_note(lead_id: str, csrf: str, prefixe: str) -> str:
     return (
         '<section class="carte"><h2>Ajouter une note</h2>'
@@ -384,6 +401,9 @@ _HTTP_PAR_VERDICT = {
     "REJ-CONVERSATION-CLOSE": 409,
     "REJ-CHAMP-VIDE": 400,
     "REJ-CONTRAT-INVALIDE": 400,
+    "REJ-CONTACT-CONFLIT": 409,
+    "REJ-LEAD-INCONNU": 404,
+    "REJ-HUMAIN-REQUIS": 403,
 }
 
 
@@ -425,6 +445,9 @@ def creer_router(
         detail = "CRM indisponible" if statut_http == 503 else "dossier introuvable ou accès refusé"
         if code == "REJ-CONVERSATION-CLOSE":
             detail = "Cette demande est close : les nouvelles notes sont réservées aux demandes actives."
+        if code == "REJ-CONTACT-CONFLIT":
+            detail = ("Correction non enregistrée : relire les coordonnées et leur révision. "
+                      "Si elles sont inchangées ou déjà rattachées à un autre client, vérifier le dossier.")
         raise HTTPException(statut_http, detail)
 
     def rendre(session: Session, titre: str, corps: str) -> HTMLResponse:
@@ -468,11 +491,16 @@ def creer_router(
         if not isinstance(client_id, str) or not client_id:
             raise HTTPException(503, "CRM temporairement indisponible")
         vue = lire(session, "m2_obtenir_client_360", {"client_id": client_id})
+        with cnx_factory() as cnx:
+            correction_disponible = cnx.dialect.name == "sqlite"
+        edition = (formulaire_contact(lead_id, vue, session.csrf, prefixe) if correction_disponible
+                   else '<p class="note">Correction de coordonnées indisponible sur cette instance.</p>')
         return rendre(session, "Dossier client",
                       contenu_dossier(lead_id, client_id, vue, prefixe=prefixe)
                       + f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}">'
                       + "Voir les soumissions de ce projet</a></p>"
-                      + formulaire_note(lead_id, session.csrf, prefixe))
+                      + formulaire_note(lead_id, session.csrf, prefixe)
+                      + edition)
 
     def verifier_lead(session: Session, lead_id: str) -> None:
         if _IDENTIFIANT.fullmatch(lead_id) is None:
@@ -529,6 +557,53 @@ def creer_router(
                 raise HTTPException(409, "identifiant de saisie déjà utilisé pour une autre note") from None
             raise HTTPException(400, "note invalide") from None
         return {"ok": True, "resultat": resultat, "rejoue": reponse.get("rejoue") is True}
+
+    def corriger_contact(session: Session, lead_id: str, champs: Mapping[str, Any]) -> dict:
+        if _IDENTIFIANT.fullmatch(lead_id) is None:
+            raise HTTPException(404, "dossier introuvable")
+        if not isinstance(champs, Mapping) or set(champs) != {"contact", "revision_attendue", "motif", "mutation_id"}:
+            raise HTTPException(400, "champs de correction invalides")
+        if type(champs["revision_attendue"]) is not int:
+            raise HTTPException(400, "révision entière requise")
+        try:
+            with cnx_factory() as cnx:
+                lien = extraire_resultat(metier.executer(cnx, deps, session, "m2_trouver_client_de_lead",
+                                                        {"lead_id": lead_id}))
+                arguments = {k: v for k, v in champs.items() if k != "mutation_id"}
+                reponse = metier.executer(cnx, deps, session, "m2_corriger_contact_client",
+                                         {**arguments, "client_id": lien["client_id"]},
+                                         mutation_id=champs["mutation_id"])
+                resultat = extraire_resultat(reponse)
+        except PermissionError:
+            raise HTTPException(403, "accès refusé") from None
+        except KeyError:
+            raise HTTPException(503, "correction indisponible") from None
+        except ValueError as exc:
+            if isinstance(exc.__cause__, idempotence.MutationConflit):
+                raise HTTPException(409, "identifiant de saisie déjà utilisé") from None
+            raise HTTPException(400, "correction invalide") from None
+        return {"ok": True, "resultat": resultat, "rejoue": reponse.get("rejoue") is True}
+
+    @router.post("/api/crm/lead/{lead_id}/contact")
+    async def contact_api(lead_id: str, request: Request) -> Response:
+        session = ecriture_api(request)
+        return JSONResponse(corriger_contact(session, lead_id, await objet_json(request)))
+
+    @router.post("/crm/lead/{lead_id}/contact")
+    async def contact_formulaire(lead_id: str, request: Request) -> Response:
+        session = session_page(request)
+        champs = await formulaire(request)
+        verifier_formulaire(champs, session)
+        if set(champs) != {"csrf", "nom", "courriel", "telephone", "revision_attendue", "motif", "mutation_id"}:
+            raise HTTPException(400, "champs de correction invalides")
+        version = champs["revision_attendue"]
+        if not isinstance(version, str) or not version.isascii() or not version.isdigit() or len(version) > 7:
+            raise HTTPException(400, "révision invalide")
+        corriger_contact(session, lead_id, {"contact": {k: champs[k] for k in ("nom", "courriel", "telephone")
+                                                     if champs[k]},
+                        "revision_attendue": int(version), "motif": champs["motif"],
+                        "mutation_id": champs["mutation_id"]})
+        return RedirectResponse(f"{prefixe}/crm/lead/{pages._segment(lead_id)}", status_code=303)
 
     @router.post("/api/crm/lead/{lead_id}/notes")
     async def note_api(lead_id: str, request: Request) -> Response:

@@ -1,7 +1,7 @@
 # Recherche de clients et prospects — source M2
 
-Statut : PARTIAL pour CRM-04. La recherche complète la consultation du répertoire ; elle n’ajoute
-ni correction de coordonnées, ni fusion de contacts, ni moteur CRM parallèle.
+Statut : PARTIAL pour CRM-04. La recherche complète la consultation du répertoire ; la correction est décrite dans [son contrat](CORRECTION-COORDONNEES-M2.md).
+Aucune fusion de contacts ni moteur CRM parallèle.
 
 ## Objectif et audit
 
@@ -68,5 +68,5 @@ restent dans la qualification ciblée. Les populations se recoupent : ne pas les
 Les reçus `crm-root-qa-20261027-r1/search-*` conservent les rouges et les reprises. Le rapport de
 qualification donne les résultats exacts ; il ne prouve ni navigateur, ni déploiement, ni gros volume.
 La recherche parcourt les fiches déjà chargées par M2 : indexation et mesures de charge restent à
-qualifier si le volume l’exige. Prochaine capacité CRM-04 : correction de coordonnées avec historique,
-après examen du contrat d’identité client et des règles de fusion afin de préserver les projets liés.
+qualifier si le volume l’exige. La correction historisée utilise désormais cette recherche sur les coordonnées courantes.
+Restent à qualifier les performances, PostgreSQL et la propagation vers les documents dépendants.

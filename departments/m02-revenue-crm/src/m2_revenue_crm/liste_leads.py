@@ -141,6 +141,7 @@ def _fiches(maillons: list[dict[str, Any]]) -> dict[str, _Fiche]:
         lead_id = maillon.get("lead_id")
         if isinstance(lead_id, str):
             par_lead.setdefault(lead_id, []).append(maillon)
+    corrections = clients.corrections_courantes(maillons)
     fiches: dict[str, _Fiche] = {}
     for lead_id, siens in par_lead.items():
         ingere = next((m for m in siens if m.get("type_entree") == _TYPE_INGESTION), None)
@@ -148,6 +149,9 @@ def _fiches(maillons: list[dict[str, Any]]) -> dict[str, _Fiche]:
             continue
         vue = Vue(siens)
         contrat = ingere.get("contrat")
+        correction = corrections.get(clients.client_de_lead(vue, lead_id))
+        if correction and isinstance(contrat, dict):
+            contrat = {**contrat, "contact": correction["contact"]}
         fiches[lead_id] = _Fiche(
             lead_id=lead_id,
             vue=vue,

@@ -61,9 +61,10 @@ _LECTURES_ADMIN_M9 = frozenset({
 _LECTURES_ADMIN_M2 = frozenset({"m2_lister_leads", "m2_trouver_client_de_lead", "m2_obtenir_client_360"})
 _LECTURES_ADMIN_M3 = frozenset({"m3_lister_devis_lead_admin", "m3_lire_devis"})
 _LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3
-_COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction"})
+_COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction", "m2_corriger_contact_client"})
 _OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2
 COMMANDES = {
+    "m2_corriger_contact_client": "m02-revenue-crm",
     "m2_enregistrer_interaction": "m02-revenue-crm",
     "m1_importer_appel_manuellement": "m01-front-office",
     "m1_clore_transfert": "m01-front-office",

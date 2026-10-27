@@ -188,8 +188,8 @@ def test_dossier_affiche_client_projets_sections_et_activites_sans_faux_boutons(
     # Activités réelles de M2, échappées, en heure de Montréal.
     assert "Rappeler pour la visite &lt;b&gt;fictive&lt;/b&gt;" in texte and "<b>fictive</b>" not in texte
     assert "2026-09-02 10:30" in texte and "admin.fictif" in texte
-    # Deux formulaires internes : note et déconnexion ; aucun envoi externe.
-    assert texte.count('method="post"') == 2 and f'action="{PREFIXE}/deconnexion"' in texte
+    # Trois formulaires internes : note, correction et déconnexion ; aucun envoi externe.
+    assert texte.count('method="post"') == 3 and f'action="{PREFIXE}/deconnexion"' in texte
     assert "Envoyer" not in texte and "mailto:" not in texte
     for outil in ("m2_lister_leads", "m2_obtenir_client_360", "m2_trouver_client_de_lead", "m3_lister_devis",
                   "m5_lire_rentabilite_chantier", "m4_lister_interventions"):
@@ -536,3 +536,161 @@ def test_recherche_logs_uvicorn_masquent_query_et_preservent_statut():
     config = configuration_journaux()
     assert config["handlers"]["access"]["filters"] == ["recherche_privee"]
     assert "recherche_privee" not in LOGGING_CONFIG.get("filters", {})
+
+
+# CRM-04 : corrections de coordonnées, fixtures exclusivement fictives.
+def test_contact_corrige_conserve_projets_historique_recherche_et_rejeu(client_crm, session):
+    _connecter(client_crm, 'admin.fictif')
+    route = '/api/crm/lead/lead-fictif-001/contact'
+    contact = {'nom': 'Élodie FICTIVE', 'courriel': 'corrige@example.test', 'telephone': '450-555-0100'}
+    charge = {'contact': contact, 'revision_attendue': 0, 'motif': 'Correction demandée FICTIVE',
+              'mutation_id': 'contact-correction-fictive-1'}
+    headers = _headers_note(client_crm)
+    with session():
+        avant = outils_m2._obtenir_registre().lire()
+        cid = outils_m2.trouver_client_de_lead('lead-fictif-001')['resultat']['client_id']
+    r = client_crm.post(route, json=charge, headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()['resultat']['revision'] == 1
+    with session():
+        apres = outils_m2._obtenir_registre().lire()
+        assert apres[:-1] == avant
+        correction = apres[-1]
+        assert correction['client_id'] == cid and correction['auteur'] == 'admin.fictif'
+        assert correction['avant']['courriel'] == 'un@example.test'
+        assert correction['contact'] == contact and correction['motif'] == charge['motif']
+        assert outils_m2._obtenir_registre().valider_chaine()
+        vue = outils_m2.obtenir_client_360(cid)['resultat']
+        assert vue['contact'] == contact and vue['revision_contact'] == 1
+        assert {o['lead_id'] for o in vue['opportunites']} == {'lead-fictif-001', 'lead-fictif-002'}
+        nouvel = outils_m2.ingerer_lead(_contrat('lead-fictif-004', contact), H2)
+        assert nouvel['accepte']
+        assert outils_m2.trouver_client_de_lead('lead-fictif-004')['resultat']['client_id'] == cid
+    for lead in ['001', '002']:
+        assert 'corrige@example.test' in client_crm.get('/crm/lead/lead-fictif-'+lead).text
+    assert 'lead-fictif-001' in client_crm.get('/crm', params={'q': 'ELODIE'}).text
+    assert 'lead-fictif-001' not in client_crm.get('/crm', params={'q': 'un@example.test'}).text
+    assert client_crm.post(route, json=charge, headers=headers).json()['rejoue'] is True
+    stale = client_crm.post(route, json={**charge, 'mutation_id': 'stale-fictif'}, headers=headers)
+    assert stale.status_code == 409
+    collision = client_crm.post(route, json={**charge, 'mutation_id': 'collision-fictive', 'revision_attendue': 1,
+        'contact': _contact('Client Deux FICTIF', 'deux@example.test')}, headers=headers)
+    assert collision.status_code == 409
+    with session():
+        assert len([m for m in outils_m2._obtenir_registre().lire()
+                    if m['type_entree'] == 'contact_client_corrige']) == 1
+
+
+def test_contact_refuse_agent_csrf_champs_invalides_et_rejeu_revoque(client_crm, session):
+    _connecter(client_crm, 'admin.fictif')
+    route = '/api/crm/lead/lead-fictif-001/contact'
+    charge = {'contact': {'nom': 'Nom FICTIF'}, 'revision_attendue': 0, 'motif': 'Correction fictive',
+              'mutation_id': 'contact-droits-fictif'}
+    headers = _headers_note(client_crm)
+    assert client_crm.post(route, json=charge).status_code == 403
+    for alteration in [{'auteur': 'usurpe'}, {'revision_attendue': True}, {'contact': {}},
+                       {'contact': {'nom': 'x'*255}}, {'motif': ''}]:
+        assert client_crm.post(route, json={**charge, **alteration}, headers=headers).status_code == 400
+    with session():
+        cid = outils_m2.trouver_client_de_lead('lead-fictif-001')['resultat']['client_id']
+        r = outils_m2.corriger_contact_client(cid, charge['contact'], 0, charge['motif'], H2)
+        assert r['accepte'] is False and r['verdict']['code'] == 'REJ-HUMAIN-REQUIS'
+    assert client_crm.post(route, json=charge, headers=headers).status_code == 200
+    with session() as cnx:
+        identite.retirer_role(cnx, 'admin.fictif', 'admin')
+    assert client_crm.post(route, json=charge, headers=headers).status_code == 403
+
+
+def test_contact_formulaire_echappe_revision_bornee_et_historique(client_crm, session):
+    _connecter(client_crm, 'admin.fictif')
+    page = client_crm.get('/crm/lead/lead-fictif-001').text
+    assert 'Corriger les coordonnées' in page and 'revision_attendue' in page
+    data = {'csrf': client_crm.get('/api/session').json()['csrf'], 'nom': 'Nom <b>FICTIF</b>',
+            'courriel': 'nouveau@example.test', 'telephone': '', 'revision_attendue': '0',
+            'motif': 'Correction FICTIVE', 'mutation_id': 'contact-form-fictif'}
+    route = '/crm/lead/lead-fictif-001/contact'
+    assert client_crm.post(route, data={**data, 'revision_attendue': '9'*5000}).status_code == 400
+    r = client_crm.post(route, data=data, follow_redirects=False)
+    assert r.status_code == 303
+    html = client_crm.get('/crm/lead/lead-fictif-002').text
+    assert 'Nom &lt;b&gt;FICTIF&lt;/b&gt;' in html and 'Nom <b>FICTIF</b>' not in html
+    assert 'value="1"' in html
+
+
+def test_contact_seller_courant_sans_autre_projet_et_rollback(client_crm, session):
+    from opsys import contexte
+    with session() as cnx:
+        identite.creer_personne(cnx, 'vendeur.fictif', 'Vendeur FICTIF', 'secret-vendeur-fictif-1234', ['seller'])
+        cid = outils_m2.trouver_client_de_lead('lead-fictif-001')['resultat']['client_id']
+    admin = contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')
+    vendeur = contexte.IdentiteAppelante('vendeur.fictif', 'seller', source='console')
+    contact = {'nom': 'Contact FICTIF corrigé', 'courriel': 'vendeur-corrige@example.test'}
+    with pytest.raises(RuntimeError, match='rollback fictif'), session(), contexte.appele_par_appareil(admin):
+        assert outils_m2.corriger_contact_client(cid, contact, 0, 'Correction FICTIVE', H2)['accepte']
+        raise RuntimeError('rollback fictif')
+    with session():
+        assert outils_m2.obtenir_client_360(cid)['resultat']['contact']['courriel'] == 'un@example.test'
+    with session(), contexte.appele_par_appareil(admin):
+        assert outils_m2.corriger_contact_client(cid, contact, 0, 'Correction FICTIVE', H2)['accepte']
+    with session(), contexte.appele_par_appareil(vendeur):
+        refuse = outils_m2.corriger_contact_client(cid, {'nom': 'Usurpation FICTIVE'}, 1, 'fictif', H2)
+        assert not refuse['accepte'] and refuse['verdict']['code'] == 'REJ-IDENTITE-APPAREIL-INVALIDE'
+        vue = outils_m2.obtenir_client_360(cid)['resultat']
+        assert vue['contact'] == contact and [o['lead_id'] for o in vue['opportunites']] == ['lead-fictif-001']
+        liste = outils_m2.lister_leads(H2, recherche='vendeur-corrige')['resultat']
+        assert liste['total'] == 1 and liste['leads'][0]['lead_id'] == 'lead-fictif-001'
+        autre = outils_m2.lister_leads(H2, recherche='deux@example.test')['resultat']
+        assert autre['total'] == 0
+
+
+def test_contact_deux_transactions_sqlite_ne_perdent_pas_une_correction(client_crm, session):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    from opsys import contexte
+    with session():
+        cid = outils_m2.trouver_client_de_lead('lead-fictif-001')['resultat']['client_id']
+    depart = Barrier(2)
+    def corriger(numero):
+        depart.wait(timeout=10)
+        with session(), contexte.appele_par_appareil(
+            contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')
+        ):
+            return outils_m2.corriger_contact_client(cid, {'nom': f'Concurrent FICTIF {numero}'}, 0, 'FICTIF', H2)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(corriger, numero) for numero in [1, 2]]
+        resultats = [f.result(timeout=20) for f in futures]
+    assert sorted(r['accepte'] for r in resultats) == [False, True]
+    assert next(r for r in resultats if not r['accepte'])['verdict']['code'] == 'REJ-CONTACT-CONFLIT'
+    with session():
+        registre = outils_m2._obtenir_registre()
+        assert registre.valider_chaine()
+        assert len([m for m in registre.lire() if m['type_entree'] == 'contact_client_corrige']) == 1
+
+
+def test_contact_rejeu_capacites_revalide_admin_sql(client_crm, session):
+    from opsys import contexte, idempotence
+    from opsys.capacites import Capacites
+    from opsys.departements import charger_departements
+
+    with session():
+        cid = outils_m2.trouver_client_de_lead('lead-fictif-001')['resultat']['client_id']
+    caps = Capacites(charger_departements(), session, filtre={'m02-revenue-crm'},
+                     appelant='m02-revenue-crm', memoire=False)
+    args = {'client_id': cid, 'contact': {'nom': 'Capacité FICTIVE'}, 'revision_attendue': 0,
+            'motif': 'Correction FICTIVE', 'horodatage': H2}
+    meta = idempotence.Meta('contact-rejeu-fictif', 'appareil-fictif', H2)
+    acteur = contexte.IdentiteAppelante('admin.fictif', 'admin', source='appareil')
+    with contexte.appele_par_appareil(acteur):
+        premier = caps.appeler('m2_corriger_contact_client', args, meta)
+        assert premier.get('resultat', {}).get('accepte') is True, premier
+        assert caps.appeler('m2_corriger_contact_client', args, meta).get('rejoue') is True
+    with session() as cnx:
+        identite.retirer_role(cnx, 'admin.fictif', 'admin')
+    with contexte.appele_par_appareil(acteur):
+        refuse = caps.appeler('m2_corriger_contact_client', args, meta)
+        assert refuse.get('resultat', {}).get('accepte') is not True, refuse
+        assert refuse['resultat']['verdict']['code'] == 'REJ-IDENTITE-APPAREIL-INVALIDE'
+    with session():
+        assert len([m for m in outils_m2._obtenir_registre().lire()
+                    if m['type_entree'] == 'contact_client_corrige']) == 1

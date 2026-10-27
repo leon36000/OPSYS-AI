@@ -204,3 +204,55 @@ class TestVue360:
         assert opp["source"] is None
         assert opp["campagne"] is None
         assert opp["utm"] is None
+
+
+class TestCorrectionCoordonnees:
+    FICTIF = True
+    H = '2026-10-01T09:00:00+00:00'
+
+    def test_identite_stable_alias_historique_doublons_et_pas_de_mutation_par_lecture(self):
+        from m2_revenue_crm import doublons
+        reg = registre.Registre()
+        original = {'nom': 'Original FICTIF', 'courriel': 'original@example.test'}
+        _, lien = _ingerer(reg, 'fictif-a', self.H, contact=original, ville='Ville A FICTIVE')
+        cid = lien['client_id']
+        premier = {'nom': 'Corrigé FICTIF', 'courriel': 'corrige@example.test'}
+        deuxieme = {'nom': 'Courant FICTIF', 'courriel': 'courant@example.test'}
+        for version, contact in enumerate([premier, deuxieme]):
+            r, err = clients.corriger_contact(reg, cid, contact, version, 'FICTIF', 'admin.fictif', self.H)
+            assert err is None and r['revision'] == version + 1
+        # Trois coordonnées connues d'une seule identité ; aucun lien déjà écrit n'est changé.
+        for i, contact in enumerate([original, premier, deuxieme]):
+            _, autre = _ingerer(reg, f'fictif-b-{i}', self.H, contact=contact, ville=f'Ville {i} FICTIVE')
+            assert autre['client_id'] == cid
+        avant = reg.lire()
+        assert set(doublons.detecter(reg, 'fictif-a')) == {'fictif-b-0', 'fictif-b-1', 'fictif-b-2'}
+        vue = clients.vue_360(reg, cid)
+        vue['contact']['nom'] = 'ne doit pas persister'
+        assert reg.lire() == avant and clients.vue_360(reg, cid)['contact'] == deuxieme
+        assert reg.valider_chaine()
+
+    @pytest.mark.parametrize('changement', [
+        {'contact': {}}, {'contact': {'nom': ' '}}, {'contact': {'courriel': 42}},
+        {'contact': {'secret': 'FICTIF'}}, {'revision_attendue': True}, {'revision_attendue': -1},
+        {'motif': ''}, {'auteur': ''}, {'horodatage': 'sans-date'},
+    ])
+    def test_correction_invalide_necrit_rien(self, changement):
+        reg = registre.Registre()
+        _, lien = _ingerer(reg, 'fictif-a', self.H, contact={'nom': 'Initial FICTIF'})
+        args = {'client_id': lien['client_id'], 'contact': {'nom': 'Correction FICTIVE'}, 'revision_attendue': 0,
+                'motif': 'FICTIF', 'auteur': 'admin.fictif', 'horodatage': self.H}
+        avant = reg.lire()
+        resultat, refus = clients.corriger_contact(reg, **{**args, **changement})
+        assert resultat is None and refus and reg.lire() == avant
+
+    def test_collision_sur_ancien_contact_d_autre_client_refusee(self):
+        reg = registre.Registre()
+        _, a = _ingerer(reg, 'fictif-a', self.H, contact={'nom': 'Client A FICTIF'})
+        _, b = _ingerer(reg, 'fictif-b', self.H, contact={'nom': 'Client B FICTIF'})
+        assert clients.corriger_contact(reg, b['client_id'], {'nom': 'B corrigé FICTIF'},
+                                       0, 'FICTIF', 'admin.fictif', self.H)[1] is None
+        avant = reg.lire()
+        for contact in [{'nom': 'Client B FICTIF'}, {'nom': 'B corrigé FICTIF'}]:
+            _, refus = clients.corriger_contact(reg, a['client_id'], contact, 0, 'FICTIF', 'admin.fictif', self.H)
+            assert refus['code'] == 'REJ-CONTACT-CONFLIT' and reg.lire() == avant

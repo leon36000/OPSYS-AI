@@ -1379,6 +1379,12 @@ class Capacites:
                     refus = outils_m2.verifier_autorite_rejeu_interaction_appareil(arguments)
                     if refus is not None:
                         return {"ok": True, "resultat": refus, "rejoue": True}
+                if nom == "m2_corriger_contact_client":
+                    from m2_revenue_crm import outils as outils_m2
+
+                    refus = outils_m2.verifier_autorite_rejeu_contact_appareil()
+                    if refus is not None:
+                        return {"ok": True, "resultat": refus, "rejoue": True}
                 if (nom == _PROPOSITION_REVUE_M4 or decision_revue) and type(reclamation.reponse) is not dict:
                     return self._confirmation_revue_inconnue()
                 reponse = {**reclamation.reponse, "rejoue": True}
