@@ -152,3 +152,39 @@ payables/N4 journalières, présence réellement observée, M10, PostgreSQL, nav
 restent ouverts. CI parent 19655886 au jalon de revue : 22 succès/4 SKIP/16 en cours/42 observés;
 aucune publication anticipée, fusion ou production. Aucun salaire, paiement, export réel ou
 modification de droits effectué.
+
+## Contrat suivant — ouvrir les temps depuis un fait pointé
+
+Une ligne de pointage du journal peut proposer un lien jour/personne exacts vers l’aperçu déjà
+qualifié, sans saisir l’ID à nouveau. Ce lien concerne la journée entière de cette personne,
+pas une visite ou le seul chantier de la ligne. Date de la projection civile Montréal, jamais
+préfixe UTC brut du pointage. Seuls les identifiants canoniques stricts ouvrent le lien : ancien
+ID non représentable signalé sans normalisation. Aucun profil contemporain interrogé pour bâtir
+le lien; l’aperçu garde son refus employee actif et toutes ses permissions. Ni présence, nom,
+total, données d’heures ni query supplémentaire copiés dans le journal. Lookup manuel conservé.
+Tests : vrais writers M4 inscription/planning et pointages dans SQLite, arrivée/départ UTC le
+lendemain mais même jour Montréal, lien exact et aperçu GET, absence de lien pour les prévisions
+ou assignations seules, identifiant historique non canonique sans correction silencieuse.
+
+
+## Navigation depuis le fait pointé qualifiée localement
+
+Chaque ligne de pointage à identifiant canonique offre maintenant « Temps pointés de cette
+personne pour le jour ». La cible reprend le jour de la projection Montréal et l’ID exact,
+pas la date UTC brute, l’équipe prévue ou une visite supposée. L’avertissement d’absence
+d’ancre de visite reste visible. Les anciens IDs non canoniques restent affichés avec un
+message de consultation indisponible, sans trim/correction ni transformation en nouveau compte.
+Le lien ne promet pas l’admissibilité courante : l’aperçu contrôle toujours employee actif.
+
+La projection pure, le T0 et le port de journal sont inchangés; aucune lecture des temps ou
+identités ajoutée au rendu du journal. Le port de temps est inchangé par AST, seule une fonction
+pure de lien est ajoutée. Le lookup manuel demeure disponible. `crm16-temps-navigation-v1` :
+**23 PASS, 0 FAIL/SKIP, 9,73 s**, dont six nouveaux contrôles et les 17 cas HTTP du journal.
+Le rouge réel précédent montre zéro lien au lieu des deux attendus. Le parcours inscrit/planifie
+une intervention puis utilise les vrais writers M4 arrivée/départ sur stockage canonique : les
+pointages UTC du 4 juin ouvrent les temps du 3 juin Montréal (60 minutes nettes, 90 de déplacement).
+Cette preuve ne devient pas une qualification de l’appareil/mobile ou d’un GPS réel.
+
+Ruff et catalogue303/177 passent. Aucun chiffre, nom ou droit ajouté au journal, aucune présence
+déduite; les limites de l’aperçu ci-dessus restent applicables. Preuve privée :
+`CRM16-TEMPS-NAVIGATION-LOCAL-QUALIFIED.json`. Publication retenue tant que CI parent en cours.

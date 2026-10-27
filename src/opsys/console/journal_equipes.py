@@ -69,6 +69,7 @@ def contenu(vue, prefixe, limite):
         cedule_ui,
         compositions_equipes,
         pages,
+        temps_pointes,
     )
 
     def lien(debut, titre):
@@ -142,6 +143,13 @@ def contenu(vue, prefixe, limite):
             else:
                 note += (f' · <a href="{pages.e(composition)}" '
                          'aria-label="Composition déclarée de l’équipe pour ce jour">Composition déclarée</a>')
+        if ligne['type'] == 'pointage':
+            cible_temps = temps_pointes.url_jour_personne(vue['jour'], ligne['technicien_id'], prefixe)
+            if cible_temps is None:
+                note += ' · Temps non consultables pour cet identifiant historique.'
+            else:
+                note += (f' · <a href="{pages.e(cible_temps)}">'
+                         'Temps pointés de cette personne pour le jour</a>')
         corps += '<tr>' + ''.join(f'<td>{pages.e(v)}</td>' for v in valeurs) + f'<td>{note}</td></tr>'
     corps += ('</tbody></table><details><summary>Sources de consultation</summary>'
               f'<p>Empreinte calculée du snapshot : {pages.e(vue["source_snapshot"])}</p></details></section>')

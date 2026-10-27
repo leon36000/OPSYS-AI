@@ -486,3 +486,9 @@ contrôles complémentaires de schéma partagé; cohortes non additionnées. Deu
 reproduits/corrigés (SELECT sujet trop large et révision précédente non typée). Catalogue303/177,
 aucun droit ajouté. [Audit et limites](AUDIT-TEMPS-POINTES-QUOTIDIENS.md). Comptes désactivés,
 grandes journées, N4/paie, présence observée, M10/PG/navigateur/mobile restent ouverts. PARTIAL.
+
+
+CRM-16 — le fait pointé du journal ouvre maintenant les temps de sa personne pour la journée
+civile Montréal, sans recopie de temps ou nom. IDs non canoniques signalés sans normalisation;
+lien ne signifie ni visite associée ni présence complète. 23 PASS dont six nouveaux, avec
+vrais writers M4 et UTC du lendemain; catalogue303/177. [Limites](AUDIT-TEMPS-POINTES-QUOTIDIENS.md).

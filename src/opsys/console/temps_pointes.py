@@ -179,6 +179,14 @@ def lire(cnx, deps, session, jour, personne_id):
     return vue
 
 
+def url_jour_personne(jour, personne_id, prefixe):
+    from opsys import identite
+
+    if not identite.identifiant_valide(personne_id) or personne_id.strip() != personne_id:
+        return None
+    return prefixe + '/crm/journal-equipes/temps?' + urlencode(dict(jour=jour, personne_id=personne_id))
+
+
 def contenu(vue, prefixe):
     retour = prefixe + '/crm/journal-equipes?' + urlencode(dict(jour=vue['jour']))
     corps = (f'<p><a href="{pages.e(retour)}">Retour au journal</a></p>'
