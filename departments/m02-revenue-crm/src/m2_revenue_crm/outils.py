@@ -2580,6 +2580,17 @@ def historique_rendez_vous(rendez_vous_id):
         return n.refuser(exc.suffixe)
 
 
+def lire_rencontres_lead(lead_id, decalage, source_attendue):
+    n = agenda_vendeurs
+    try:
+        _autoriser_agenda()
+        principal, agenda = _registres_agenda()
+        return n.lire_rencontres_lead(principal, agenda, lead_id, decalage, source_attendue,
+                                     limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
 def _outils_agenda():
     identifiant = {"type": "string", "pattern": "^[A-Za-z0-9_.:@-]{1,200}$"}
     instant = {"type": "string", "minLength": 1, "maxLength": 32}
@@ -2601,6 +2612,12 @@ def _outils_agenda():
               description="Console admin privée : agenda d'un vendeur, dates de Montréal, source et conflits.",
               parametres=schema({"vendeur_id": identifiant, "debut_periode": instant, "fin_periode": instant}),
               fonction=lire_agenda_vendeur),
+        Outil(nom="m2_lire_rencontres_lead",
+              description="Console admin privée : rencontres exactes d'un projet, tous vendeurs, page sourcée de 25.",
+              parametres=schema({"lead_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                                "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                                "source_attendue": {"type": "string", "maxLength": 64}}),
+              fonction=lire_rencontres_lead),
         Outil(nom="m2_historique_rendez_vous",
               description="Console admin privée : historique append-only d'un rendez-vous commercial.",
               parametres=schema({"rendez_vous_id": identifiant}), fonction=historique_rendez_vous),

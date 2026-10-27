@@ -537,7 +537,8 @@ def executer(
         return _executer_observation_growth_humaine(cnx, deps, session, personne, arguments, mutation_id)
     if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
-    if nom in {"m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous"}:
+    if nom in {"m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",
+                   "m2_lire_rencontres_lead"}:
         return _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
                "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",

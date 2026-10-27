@@ -26,7 +26,7 @@ def extraire(reponse):
     codes = {'IDENTITE': 403, 'ARGUMENTS': 400, 'HORODATAGE-INVALIDE': 400,
              'REVISION-PERIMEE': 409, 'MUTATION-CONFLIT': 409, 'CONFLIT-HORAIRE': 409,
              'PROPRIETAIRE-MODIFIE': 409, 'VENDEUR-INACTIF': 409, 'VENDEUR-INCONNU': 404,
-             'RENDEZ-VOUS-INCONNU': 404}
+             'RENDEZ-VOUS-INCONNU': 404, 'LEAD-INCONNU': 404, 'SOURCE-MODIFIEE': 409}
     messages = {'CONFLIT-HORAIRE': 'Un autre rendez-vous occupe ce créneau : choisir une autre heure.',
                 'PROPRIETAIRE-MODIFIE': 'Le lead ne correspond plus au vendeur : relire son assignation.',
                 'REVISION-PERIMEE': 'Le rendez-vous a changé : relire avant de modifier.',

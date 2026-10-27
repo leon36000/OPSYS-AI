@@ -236,8 +236,8 @@ def test_sections_du_brief_et_etats_honnetes():
                         "Bons de travail", "Coûts des travaux", "Factures", "Photos et fichiers"]
     etats = {cle: etat for cle, _libelle, _source, etat, _explication in crm_ui.SECTIONS}
     assert etats["activites"] == "affiche"
-    assert [cle for cle, etat in etats.items() if etat == "affiche"] == ["activites", "soumissions"]
-    assert etats["suivi"] == "manquant" and etats["rencontres"] == "existant"
+    assert [cle for cle, etat in etats.items() if etat == "affiche"] == ["activites", "rencontres", "soumissions"]
+    assert etats["suivi"] == "manquant" and etats["rencontres"] == "affiche"
     assert set(etats.values()) <= set(crm_ui.ETATS_SECTION)
 
 

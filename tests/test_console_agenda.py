@@ -166,7 +166,8 @@ def test_ports_generique_et_profil_prives(session):
 
     cap = Capacites({}, cnx_factory=session)
     avant = base._instantane_base(session)
-    for nom in ['m2_enregistrer_rendez_vous', 'm2_lire_agenda_vendeur', 'm2_historique_rendez_vous']:
+    for nom in ['m2_enregistrer_rendez_vous', 'm2_lire_agenda_vendeur', 'm2_historique_rendez_vous',
+                'm2_lire_rencontres_lead']:
         attendu = {'ok': False, 'erreur': 'port_console_prive_requis'}
         assert cap.appeler(nom, arguments()) == attendu
         assert cap.appeler_profil_runtime(nom, arguments(), None, None,
@@ -246,3 +247,117 @@ def test_formulaire_reel_prefixe_http(agenda, session):
     r = agenda.post('https://testserver'+forms[0][0], data=donnees, follow_redirects=False)
     assert r.status_code == 303, r.text
     assert source(session)[0]['rendez_vous_id'] == donnees['rendez_vous_id']
+
+
+def test_rencontres_dossier_exact_projet_et_historique(agenda, session):
+    from m2_revenue_crm import outils
+
+    assert direct(session)['accepte'] is True
+    assert direct(session, cle='annule', statut='annule', revision_attendue=1)['accepte'] is True
+    with session():
+        assert outils.transitionner_statut('lead-fictif-002', 'qualifie', base.H1,
+            owner='vendeur.fictif', prochaine_action=base.ACTION)['accepte'] is True
+    assert direct(session, cle='autre-projet', rendez_vous_id='autre-projet', lead_id='lead-fictif-002',
+                  titre='Titre exclusif AUTRE PROJET')['accepte'] is True
+    avant = base._instantane_base(session)
+    for chemin in ['/crm/lead/lead-fictif-001', '/crm/lead/lead-fictif-001/rencontres']:
+        page = agenda.get(chemin)
+        assert page.status_code == 200, page.text
+        assert 'Visite &lt;script&gt;FICTIVE&lt;/script&gt;' in page.text
+        assert 'Titre exclusif AUTRE PROJET' not in page.text
+        assert 'Annulé' in page.text and 'Révision 2' in page.text
+        assert f'href="{base.PREFIXE}{DETAIL}"' in page.text
+        assert page.headers['cache-control'] == 'no-store'
+    assert agenda.get(DETAIL).status_code == 200
+    assert 'Aucune rencontre enregistrée' in agenda.get('/crm/lead/lead-fictif-003/rencontres').text
+    assert agenda.get('/crm/lead/lead-inconnu/rencontres').status_code == 404
+    assert base._instantane_base(session) == avant
+
+
+def test_rencontres_http_pagination_reelle_et_source_changee(agenda, session):
+    import html
+    import re
+    from datetime import timedelta
+
+    from m2_revenue_crm import assignation, outils
+
+    for i in range(26):
+        jour = datetime(2030, 6, 1) + timedelta(days=i)
+        assert direct(session, cle=f'visite-{i}', rendez_vous_id=f'visite-{i:02}',
+                      titre=f'Rencontre fictive {i:02}', debut=jour.strftime('%Y-%m-%dT10:00-04:00'),
+                      fin=jour.strftime('%Y-%m-%dT11:00-04:00'))['accepte'] is True
+    chemin = '/crm/lead/lead-fictif-001/rencontres'
+    avant = base._instantane_base(session)
+    premiere = agenda.get(chemin)
+    suivant = html.unescape(re.search(r'href="([^"]+)">Page suivante', premiere.text)[1])
+    assert suivant.startswith(base.PREFIXE + chemin + '?')
+    suite = agenda.get(suivant.removeprefix(base.PREFIXE))
+    assert suite.status_code == 200, suite.text
+    assert re.findall(r'>Rencontre fictive (\d+)</a>', premiere.text + suite.text) == [f'{i:02}' for i in range(26)]
+    assert 'Page suivante' not in suite.text
+    assert base._instantane_base(session) == avant
+    with session() as cnx:
+        identite.creer_personne(cnx, 'autre.vendeur', 'Autre FICTIF', 'mot-de-passe-autre-fictif-123', ['seller'])
+        r, v = assignation.reassigner(outils._obtenir_registre(), 'lead-fictif-001', 'autre.vendeur',
+                                     'Réassignation fictive', base.H2, 'admin.fictif', 'admin', 'appareil')
+        assert r is not None and v is None
+    refuse = agenda.get(suivant.removeprefix(base.PREFIXE))
+    assert refuse.status_code == 409 and 'Recommencer' in refuse.text
+    assert f'href="{base.PREFIXE}{chemin}"' in refuse.text
+    assert direct(session, cle='nouveau-vendeur', rendez_vous_id='nouvelle-visite', vendeur_id='autre.vendeur',
+                  titre='Nouveau vendeur FICTIF')['accepte'] is True
+    page = agenda.get(chemin)
+    assert page.status_code == 200 and 'projet réassigné' in page.text
+    assert 'Nouveau vendeur FICTIF' in page.text
+
+
+@pytest.mark.parametrize('query', ['decalage=25', 'decalage=1', 'decalage=-25', 'decalage=10025',
+    'decalage=0&decalage=25', 'source_attendue=a&source_attendue=b', 'autre=1', 'decalage='+'9'*200,
+    'source_attendue=<script>', 'decalage=０'])
+def test_rencontres_parametres_fermes(agenda, query):
+    assert agenda.get('/crm/lead/lead-fictif-001/rencontres?' + query).status_code == 400
+
+
+def test_rencontres_indisponible_pas_zero(agenda, session, monkeypatch):
+    from m2_revenue_crm import agenda_vendeurs
+
+    def source_invalide(*args, **kwargs):
+        raise agenda_vendeurs.Refus('SOURCE-INVALIDE')
+
+    assert direct(session)['accepte'] is True
+    monkeypatch.setattr(agenda_vendeurs, 'lire_rencontres_lead', source_invalide)
+    avant = base._instantane_base(session)
+    page = agenda.get('/crm/lead/lead-fictif-001')
+    assert page.status_code == 200 and 'Rencontres indisponibles' in page.text
+    assert 'Aucune rencontre enregistrée' not in page.text
+    assert agenda.get('/crm/lead/lead-fictif-001/rencontres').status_code == 503
+    assert base._instantane_base(session) == avant
+
+
+def test_rencontres_acces_revocation_et_ports_directs(agenda, session):
+    from m2_revenue_crm import outils
+
+    chemin = '/crm/lead/lead-fictif-001/rencontres'
+    for personne in ['nathan', 'employe']:
+        base._connecter(agenda, personne)
+        assert agenda.get(chemin).status_code == 403
+    base._connecter(agenda, 'admin.fictif')
+    with session() as cnx:
+        identite.retirer_role(cnx, 'admin.fictif', 'admin')
+    assert agenda.get(chemin).status_code == 403
+    with (session(),
+          contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+          contexte.appeler_en_tant_que('m02-revenue-crm', origine='console')):
+        assert outils.lire_rencontres_lead('lead-fictif-001', 0, '')['verdict']['code'] == 'REJ-AGENDA-IDENTITE'
+
+
+def test_rencontres_lead_unicode_historique_ne_casse_pas_dossier(agenda, session):
+    from m2_revenue_crm import outils
+
+    with session():
+        assert outils.ingerer_lead(base._contrat('lead-fictif-Québec',
+            base._contact('Client FICTIF Unicode', 'unicode@example.test')), base.H0)['accepte'] is True
+    for suffixe in ['', '/rencontres']:
+        page = agenda.get('/crm/lead/lead-fictif-Québec' + suffixe)
+        assert page.status_code == 200, page.text
+        assert 'Aucune rencontre enregistrée' in page.text

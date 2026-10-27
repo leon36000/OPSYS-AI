@@ -326,3 +326,72 @@ def test_owner_legacy_libre_sur_autre_lead_ne_bloque_pas_agenda():
     with pytest.raises(agenda.Refus, match="PROPRIETAIRE-MODIFIE"):
         enregistrer(principal, registre, {"rendez_vous_id": "legacy-incompatible", "lead_id": lead}, "legacy")
     assert principal.lire() == avant
+
+
+def test_rencontres_exact_lead_annulation_et_anciens_vendeurs():
+    p, a = monde()
+    enregistrer(p, a)
+    enregistrer(p, a, {"statut": "annule", "revision_attendue": 1}, "annulation")
+    reassigner(p)
+    enregistrer(p, a, {"rendez_vous_id": "nouvelle-visite", "vendeur_id": "vendeur.deux"}, "nouveau")
+    enregistrer(p, a, {"rendez_vous_id": "autre-projet", "lead_id": "lead-fictif-3"}, "autre")
+    avant = (p.lire(), a.lire())
+    page = agenda.lire_rencontres_lead(p, a, BASE["lead_id"])["resultat"]
+    assert page["total"] == 2
+    assert {r["statut"] for r in page["rendez_vous"]} == {"actif", "annule"}
+    assert {r["vendeur_id"]: r["propriete_courante"] for r in page["rendez_vous"]} == {
+        "vendeur.un": False, "vendeur.deux": True}
+    assert page["source_principal"] == p.tete() and page["source_agenda"] == a.tete()
+    page["rendez_vous"][0]["auteur"]["personne"] = "alteration"
+    assert (p.lire(), a.lire()) == avant
+    assert agenda.lire_rencontres_lead(p, a, "lead-fictif-2")["resultat"]["total"] == 0
+    with pytest.raises(agenda.Refus, match="LEAD-INCONNU"):
+        agenda.lire_rencontres_lead(p, a, "lead-inconnu")
+
+
+def test_rencontres_pagination_source_liee_au_lead_et_deux_registres():
+    p, a = monde()
+    for i in range(26):
+        jour = datetime(2030, 6, 1) + timedelta(days=i)
+        enregistrer(p, a, {"rendez_vous_id": f"visite-{i:02}",
+                          "debut": jour.strftime("%Y-%m-%dT09:00-04:00"),
+                          "fin": jour.strftime("%Y-%m-%dT10:00-04:00")}, f"intention-{i}")
+    premiere = agenda.lire_rencontres_lead(p, a, BASE["lead_id"])["resultat"]
+    empreinte = premiere["source_empreinte"]
+    suite = agenda.lire_rencontres_lead(p, a, BASE["lead_id"], 25, empreinte)["resultat"]
+    assert len(premiere["rendez_vous"]) == 25 and len(suite["rendez_vous"]) == 1
+    assert premiere["decalage_suivant"] == 25 and suite["decalage_suivant"] is None
+    assert [r["rendez_vous_id"] for r in premiere["rendez_vous"] + suite["rendez_vous"]] == [
+        f"visite-{i:02}" for i in range(26)]
+    with pytest.raises(agenda.Refus, match="SOURCE-MODIFIEE"):
+        agenda.lire_rencontres_lead(p, a, "lead-fictif-3", 0, empreinte)
+    with pytest.raises(agenda.Refus, match="SORTIE-TROP-VOLUMINEUSE"):
+        agenda.lire_rencontres_lead(p, a, BASE["lead_id"], limite_sortie=10)
+    ancien = Registre(a.lire())
+    enregistrer(p, a, {"rendez_vous_id": "addition", "debut": "2030-07-01T09:00-04:00",
+                      "fin": "2030-07-01T10:00-04:00"}, "addition")
+    with pytest.raises(agenda.Refus, match="SOURCE-MODIFIEE"):
+        agenda.lire_rencontres_lead(p, a, BASE["lead_id"], 25, empreinte)
+    reassigner(p)
+    with pytest.raises(agenda.Refus, match="SOURCE-MODIFIEE"):
+        agenda.lire_rencontres_lead(p, ancien, BASE["lead_id"], 25, empreinte)
+
+
+@pytest.mark.parametrize("offset,source", [(True, ""), (25, ""), (1, ""), (-25, ""), (10025, "a" * 64),
+    (0, None), (0, "G" * 64), (0, "a" * 65), ("0", ""), (0.0, "")])
+def test_rencontres_refuse_pagination_invalide(offset, source):
+    p, a = monde()
+    with pytest.raises(agenda.Refus, match="ARGUMENTS"):
+        agenda.lire_rencontres_lead(p, a, BASE["lead_id"], offset, source)
+
+
+def test_rencontres_refuse_source_alteree_et_decalage_hors_liste():
+    p, a = monde()
+    enregistrer(p, a)
+    empreinte = agenda.lire_rencontres_lead(p, a, BASE["lead_id"])["resultat"]["source_empreinte"]
+    with pytest.raises(agenda.Refus, match="ARGUMENTS"):
+        agenda.lire_rencontres_lead(p, a, BASE["lead_id"], 25, empreinte)
+    lignes = a.lire()
+    lignes[0]["titre"] = "falsifie"
+    with pytest.raises(agenda.Refus, match="SOURCE-INVALIDE"):
+        agenda.lire_rencontres_lead(p, Registre(lignes), BASE["lead_id"])

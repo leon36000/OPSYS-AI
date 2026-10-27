@@ -272,3 +272,37 @@ def historique(principal, agenda, rendez_vous_id, limite_sortie=BORNE_SORTIE):
         "revision_courante": dernieres[rendez_vous_id]["revision"]}}
     verifier_borne(reponse, limite_sortie)
     return reponse
+
+
+def lire_rencontres_lead(principal, agenda, lead_id, decalage=0, source_attendue="", limite_sortie=BORNE_SORTIE):
+    """État courant de chaque rencontre du projet, sans perdre les vendeurs précédents.
+
+    La continuation est liée aux deux registres et au lead; un changement exige une nouvelle lecture.
+    """
+    if (type(lead_id) is not str or re.fullmatch(r"[\w.:@\-]{1,200}", lead_id) is None
+            or type(decalage) is not int
+            or not 0 <= decalage <= MAX_SOURCES or decalage % 25
+            or type(source_attendue) is not str
+            or (source_attendue and re.fullmatch(r"[0-9a-f]{64}", source_attendue) is None)
+            or (decalage > 0 and not source_attendue)):
+        raise Refus("ARGUMENTS")
+    source, proprietaires, maillons, dernieres, _, intervalles = _charger(principal, agenda)
+    if not any(m.get("type_entree") == "lead_ingere" and m.get("lead_id") == lead_id for m in source):
+        raise Refus("LEAD-INCONNU")
+    tete_principal = source[-1]["ligne_id"] if source else None
+    tete_agenda = maillons[-1]["ligne_id"] if maillons else None
+    empreinte = encodage.encoder_canonique("rencontres-lead-v1", lead_id, tete_principal, tete_agenda)
+    if source_attendue and source_attendue != empreinte:
+        raise Refus("SOURCE-MODIFIEE")
+    selection = [m for m in dernieres.values() if m["lead_id"] == lead_id]
+    selection.sort(key=lambda m: (*intervalles[m["rendez_vous_id"]], m["rendez_vous_id"]))
+    if decalage and decalage >= len(selection):
+        raise Refus("ARGUMENTS")
+    page = selection[decalage:decalage + 25]
+    reponse = {"accepte": True, "resultat": {
+        "lead_id": lead_id, "fuseau": FUSEAU, "decalage": decalage, "total": len(selection),
+        "decalage_suivant": decalage + 25 if decalage + 25 < len(selection) else None,
+        "source_empreinte": empreinte, "source_principal": tete_principal, "source_agenda": tete_agenda,
+        "rendez_vous": [_public(m, proprietaires.get(lead_id) == m["vendeur_id"]) for m in page]}}
+    verifier_borne(reponse, limite_sortie)
+    return reponse

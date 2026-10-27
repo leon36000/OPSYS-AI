@@ -37,6 +37,7 @@ from . import (
     mois_cedule_ui,
     notes_commande_ui,
     pages,
+    rencontres_ui,
 )
 from .securite import Session
 
@@ -72,8 +73,8 @@ SECTIONS = (
      "Notes et interactions consignées dans M2 (les plus récentes du client), affichées plus bas."),
     ("suivi", "Suivi client", "M2 / M1 — courriels", "manquant",
      "Aucun journal des courriels envoyés et reçus par client : rien n'est présenté comme « envoyé » ou « livré »."),
-    ("rencontres", "Rencontres", "M2 — agenda commercial", "existant",
-     "Agenda vendeur accessible depuis le répertoire CRM ; historique des rencontres non intégré ici."),
+    ("rencontres", "Rencontres", "M2 — agenda commercial", "affiche",
+     "Rencontres du projet, tous vendeurs d’origine ; état courant et lien vers chaque historique."),
     ("soumissions", "Soumissions", "M3 — estimation", "affiche",
      "Consultation des soumissions du projet via le lien du dossier. "
      "Modèles et clauses versionnés : à créer."),
@@ -683,8 +684,15 @@ def creer_router(
             correction_disponible = cnx.dialect.name == "sqlite"
         edition = (formulaire_contact(lead_id, vue, session.csrf, prefixe) if correction_disponible
                    else '<p class="note">Correction de coordonnées indisponible sur cette instance.</p>')
+        try:
+            rencontres = lire_rencontres(session, lead_id, {"decalage": 0, "source_attendue": ""})
+        except HTTPException as exc:
+            if exc.status_code != 503:
+                raise
+            rencontres = None
         return rendre(session, "Dossier client",
                       contenu_dossier(lead_id, client_id, vue, prefixe=prefixe)
+                      + rencontres_ui.contenu(lead_id, rencontres, prefixe)
                       + f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}">'
                       + "Voir les soumissions de ce projet</a></p>"
                       + formulaire_note(lead_id, session.csrf, prefixe)
@@ -722,6 +730,37 @@ def creer_router(
         if _IDENTIFIANT.fullmatch(lead_id) is None:
             raise HTTPException(404, "dossier introuvable")
         lire(session, "m2_trouver_client_de_lead", {"lead_id": lead_id})
+
+    def lire_rencontres(session, lead_id, arguments):
+        try:
+            with cnx_factory() as cnx:
+                reponse = metier.executer(cnx, deps, session, "m2_lire_rencontres_lead",
+                                         {"lead_id": lead_id, **arguments})
+            return agenda_ui.extraire(reponse)
+        except PermissionError:
+            raise HTTPException(403, "Accès admin requis") from None
+        except KeyError:
+            raise HTTPException(503, "Rencontres indisponibles") from None
+        except ValueError:
+            raise HTTPException(400, "Pagination invalide") from None
+
+    @router.get("/crm/lead/{lead_id}/rencontres", response_class=HTMLResponse)
+    def rencontres_projet(lead_id: str, request: Request) -> Response:
+        session = session_page(request)
+        verifier_lead(session, lead_id)
+        arguments = rencontres_ui.parametres(request.query_params)
+        try:
+            resultat = lire_rencontres(session, lead_id, arguments)
+        except HTTPException as exc:
+            if exc.status_code != 409:
+                raise
+            reponse = rendre(session, "Rencontres à relire",
+                             '<p role="alert">Les sources M2 ont changé. Recommencer la lecture pour éviter '
+                             'de manquer ou de compter deux fois une rencontre.</p>'
+                             f'<a href="{pages.e(rencontres_ui.base_url(prefixe, lead_id))}">Recommencer</a>')
+            reponse.status_code = 409
+            return reponse
+        return rendre(session, "Rencontres du projet", rencontres_ui.contenu(lead_id, resultat, prefixe))
 
     @router.get("/crm/lead/{lead_id}/soumissions", response_class=HTMLResponse)
     def soumissions(lead_id: str, request: Request) -> Response:
