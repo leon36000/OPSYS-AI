@@ -10,6 +10,11 @@ Les statuts Livré-T1 et la mention « non exécuté » ci-dessus décrivent le 
 pas une absence de QA ultérieure. CRM-02 reste partiel sans carte de cédule ; CRM-05/06 gagnent la saisie
 de note, mais pas le suivi des courriels ni leurs réponses.
 
+Tranche consultation M3 : [SOUMISSIONS-DOSSIER-LECTURE.md](SOUMISSIONS-DOSSIER-LECTURE.md)
+relie la liste admin par lead et le détail au dossier. CRM-05/07 restent partiels : consultation
+uniquement, sans édition de clauses, génération de PDF ni envoi. Les constats T1 ci-dessous restent
+l’état historique du snapshot initial.
+
 Principes transverses (critères d'acceptation communs à toute ligne)
 - **CA-0** Le CRM soutient le travail de l'IA mais reste utilisable à la main : toute action de l'IA est visible, corrigeable et reprise par un humain autorisé.
 - **CA-1** Aucune seconde vérité : le cockpit lit/écrit via les outils du département propriétaire (M2 commercial, M3 soumissions, M4 planning, M5 finance,

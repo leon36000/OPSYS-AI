@@ -236,7 +236,7 @@ def test_sections_du_brief_et_etats_honnetes():
                         "Bons de travail", "Coûts des travaux", "Factures", "Photos et fichiers"]
     etats = {cle: etat for cle, _libelle, _source, etat, _explication in crm_ui.SECTIONS}
     assert etats["activites"] == "affiche"
-    assert [cle for cle, etat in etats.items() if etat == "affiche"] == ["activites"]
+    assert [cle for cle, etat in etats.items() if etat == "affiche"] == ["activites", "soumissions"]
     assert etats["suivi"] == "manquant" and etats["rencontres"] == "manquant"
     assert set(etats.values()) <= set(crm_ui.ETATS_SECTION)
 
@@ -361,3 +361,117 @@ def test_note_session_expiree_refusee(client_crm, session, monkeypatch):
     r = client_crm.post("/api/crm/lead/lead-fictif-001/notes",
                         json={"mutation_id": "expire-fictif", "resume": "Note FICTIVE"}, headers=headers)
     assert r.status_code == 401 and _notes_m2(session) == avant
+
+
+@pytest.fixture
+def devis_crm(client_crm, session):
+    from m3_estimation import outils as outils_m3
+    with session():
+        for devis_id, lead in [("devis-fictif-001", "lead-fictif-001"),
+                               ("devis-fictif-002", "lead-fictif-001"),
+                               ("devis-fictif-autre", "lead-fictif-003")]:
+            assert outils_m3.creer_devis(
+                devis_id, lead, None,
+                [{"description": "Gouttière <script>FICTIF</script>", "quantite": "2", "unite": "pi",
+                  "cout_unitaire": "10", "reference_besoin_materiau": None}],
+                "0.20", H0,
+            )["accepte"]
+    return client_crm
+
+
+def test_soumissions_dossier_scoper_lecture_et_details(devis_crm, session):
+    _connecter(devis_crm, "admin.fictif")
+    avant = _instantane_base(session)
+    dossier = devis_crm.get("/crm/lead/lead-fictif-001")
+    assert '/crm/lead/lead-fictif-001/soumissions' in dossier.text
+    reponse = devis_crm.get("/crm/lead/lead-fictif-001/soumissions")
+    assert reponse.status_code == 200
+    assert "devis-fictif-001" in reponse.text and "devis-fictif-002" in reponse.text
+    assert "devis-fictif-autre" not in reponse.text
+    assert 'href="/opsys/crm/lead/lead-fictif-001">Retour au dossier' in reponse.text
+    detail = devis_crm.get("/crm/lead/lead-fictif-001/soumissions/devis-fictif-001")
+    assert detail.status_code == 200
+    assert "24.00" in detail.text  # M3 applique un taux au coût, pas un calcul du cockpit.
+    assert "&lt;script&gt;FICTIF&lt;/script&gt;" in detail.text
+    assert "<script>FICTIF</script>" not in detail.text
+    assert '<form' not in detail.text.split('<main>', 1)[1]
+    assert _instantane_base(session) == avant
+
+
+def test_soumissions_liens_croises_et_identites_refuses(devis_crm, session):
+    for user in ("employe", "nathan"):
+        _connecter(devis_crm, user)
+        assert devis_crm.get("/crm/lead/lead-fictif-001/soumissions").status_code == 403
+    _connecter(devis_crm, "admin.fictif")
+    avant = _instantane_base(session)
+    for lead, devis in [("lead-fictif-001", "devis-fictif-autre"),
+                         ("lead-fictif-001", "devis-fictif-absent"),
+                         ("inconnu-fictif", "devis-fictif-001")]:
+        assert devis_crm.get(f"/crm/lead/{lead}/soumissions/{devis}").status_code == 404
+    assert _instantane_base(session) == avant
+    with session() as cnx:
+        identite.retirer_role(cnx, "admin.fictif", "admin")
+    assert devis_crm.get("/crm/lead/lead-fictif-001/soumissions/devis-fictif-001").status_code == 403
+
+
+@pytest.mark.parametrize("query", ["decalage=-1", "decalage=" + "9" * 5000, "decalage=1000001", "role=seller"])
+def test_soumissions_pagination_invalide(devis_crm, session, query):
+    _connecter(devis_crm, "admin.fictif")
+    avant = _instantane_base(session)
+    assert devis_crm.get("/crm/lead/lead-fictif-001/soumissions?" + query).status_code == 400
+    assert _instantane_base(session) == avant
+
+
+@pytest.mark.parametrize("role", [None, "seller", "employee", "nathan_owner"])
+def test_soumissions_outil_admin_refuse_les_autres_contextes(devis_crm, session, role):
+    from m3_estimation import outils as outils_m3
+
+    from opsys import contexte
+    avant = _instantane_base(session)
+    with session(), contexte.appele_par_appareil(
+        contexte.IdentiteAppelante("admin.fictif", role) if role else None,
+    ):
+        refus = outils_m3.lister_devis_lead_admin("lead-fictif-001")
+    assert refus["accepte"] is False
+    assert _instantane_base(session) == avant
+
+
+def test_soumissions_outil_admin_pagine_sans_ecrire_et_revalide_role(devis_crm, session):
+    from m3_estimation import outils as outils_m3
+
+    from opsys import contexte
+    avant = _instantane_base(session)
+    with session(), contexte.appele_par_appareil(contexte.IdentiteAppelante("admin.fictif", "admin")):
+        page1 = outils_m3.lister_devis_lead_admin("lead-fictif-001", limite=1)["resultat"]
+        page2 = outils_m3.lister_devis_lead_admin("lead-fictif-001", limite=1, decalage=1)["resultat"]
+        vide = outils_m3.lister_devis_lead_admin("aucun-devis-fictif")["resultat"]
+        assert [d["devis_id"] for d in page1["devis"]] == ["devis-fictif-001"]
+        assert page1["decalage_suivant"] == 1
+        assert [d["devis_id"] for d in page2["devis"]] == ["devis-fictif-002"]
+        assert page2["decalage_suivant"] is None and vide["devis"] == []
+        assert "lignes" not in page1["devis"][0]
+        for args in ({"limite": True}, {"limite": 51}, {"decalage": -1}, {"decalage": 1_000_001}):
+            assert outils_m3.lister_devis_lead_admin("lead-fictif-001", **args)["accepte"] is False
+        assert outils_m3.lister_devis_lead_admin(" " * 3)["accepte"] is False
+        assert outils_m3.lister_devis_lead_admin("x" * 201)["accepte"] is False
+    assert _instantane_base(session) == avant
+    with session() as cnx:
+        identite.retirer_role(cnx, "admin.fictif", "admin")
+    apres = _instantane_base(session)
+    with session(), contexte.appele_par_appareil(contexte.IdentiteAppelante("admin.fictif", "admin")):
+        assert outils_m3.lister_devis_lead_admin("lead-fictif-001")["accepte"] is False
+    assert _instantane_base(session) == apres
+
+
+def test_soumission_approuvee_pour_envoi_ne_promet_pas_livraison(devis_crm, session):
+    from m3_estimation import devis_durable
+    from m3_estimation import outils as outils_m3
+    with session():
+        resultat, refus = devis_durable.marquer_devis_envoye(
+            "devis-fictif-001", H2, outils_m3.registre_devis_production(),
+        )
+        assert refus is None and resultat["statut"] == "envoye"
+    _connecter(devis_crm, "admin.fictif")
+    reponse = devis_crm.get("/crm/lead/lead-fictif-001/soumissions/devis-fictif-001")
+    assert reponse.status_code == 200
+    assert "Approuvé pour envoi — livraison non attestée" in reponse.text

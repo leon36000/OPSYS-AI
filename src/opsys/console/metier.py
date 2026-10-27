@@ -48,6 +48,8 @@ LECTURES = {
     "m2_lister_leads": "m02-revenue-crm",
     "m2_trouver_client_de_lead": "m02-revenue-crm",
     "m2_obtenir_client_360": "m02-revenue-crm",
+    "m3_lister_devis_lead_admin": "m03-estimation",
+    "m3_lire_devis": "m03-estimation",
 }
 # Les lecteurs M9 revérifient l'admin SQL de la persona : jamais la persona propriétaire, même cumulée.
 _LECTURES_ADMIN_M9 = frozenset({
@@ -57,7 +59,8 @@ _LECTURES_ADMIN_M9 = frozenset({
 # Les lecteurs M2 n'ont de portée que pour `seller` et `admin` (`m2_revenue_crm.acces.ROLES_LEADS`) : la console
 # les appelle avec le rôle `admin` confirmé en base, jamais sans identité d'appareil ni sous `nathan_owner` seul.
 _LECTURES_ADMIN_M2 = frozenset({"m2_lister_leads", "m2_trouver_client_de_lead", "m2_obtenir_client_360"})
-_LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2
+_LECTURES_ADMIN_M3 = frozenset({"m3_lister_devis_lead_admin", "m3_lire_devis"})
+_LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3
 _COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction"})
 _OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2
 COMMANDES = {
@@ -386,7 +389,7 @@ def executer(
     if personne is None or not personne.roles.intersection({"nathan_owner", "admin"}):
         raise PermissionError("administration métier requise")
     if nom in _OUTILS_ADMIN and "admin" not in personne.roles:
-        raise PermissionError("admin SQL requis pour les outils M9 et M2")
+        raise PermissionError("admin SQL requis pour les outils M9, M2 et M3")
     if nom in _COMMANDES_ADMIN_M2 and session.expire <= datetime.now(UTC).timestamp():
         raise PermissionError("session de note expirée")
     if nom == "m1_consigner_suivi_rappel" and session.expire <= datetime.now(UTC).timestamp():

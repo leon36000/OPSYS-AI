@@ -728,6 +728,40 @@ def lister_devis_vendeur(limite: int = 20, curseur: str | None = None) -> dict[s
     return depuis_couple(({"devis": projection, "curseur_suivant": suivant}, None))
 
 
+def lister_devis_lead_admin(lead_id: str, limite: int = 20, decalage: int = 0) -> dict[str, Any]:
+    """Sommaires des devis M3 d'un lead, sous admin SQL actif uniquement.
+
+    Ne constate pas l'existence du lead dans M2 : une page vide signifie seulement aucun devis
+    M3 correspondant. Le cockpit vérifie séparément le dossier M2. Aucune nouvelle identité,
+    aucun total recalculé, aucune modification de la liste vendeur existante.
+    """
+    appareil = contexte.identite_appelante()
+    if appareil is None or appareil.role != "admin":
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE", detail="admin authentifié requis",
+        )}
+    vue = _vue_projection_effective(None)
+    if not vue["accepte"]:
+        return {"accepte": False, "verdict": vue["verdict"]}
+    if (not isinstance(lead_id, str) or not lead_id.strip() or len(lead_id) > 200
+            or type(limite) is not int or not 1 <= limite <= 50
+            or type(decalage) is not int or not 0 <= decalage <= 1_000_000):
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="lead et pagination bornés requis",
+        )}
+    correspondants = [d for d in devis_durable.lister_devis(registre_devis_production())
+                     if d.get("lead_id") == lead_id]
+    page = correspondants[decalage:decalage + limite]
+    sommaires = []
+    for devis in page:
+        projete, rejet = devis_durable.projeter_devis(devis, vue["role"])
+        if rejet is not None:
+            return {"accepte": False, "verdict": rejet}
+        sommaires.append({k: projete[k] for k in ("devis_id", "lead_id", "statut", "horodatage", "prix_total")})
+    suivant = decalage + limite if len(correspondants) > decalage + limite else None
+    return {"accepte": True, "resultat": {"devis": sommaires, "decalage_suivant": suivant}}
+
+
 def marquer_devis_accepte(devis_id: str, approbateur: str, horodatage: str) -> dict[str, Any]:
     """Marque un devis ACCEPTE et publie `m3.devis_accepte` dans la MÊME transaction (ADR-0009
     §3) — seulement quand la transition réussit réellement (`verdict is None`) : un rejet
@@ -2179,6 +2213,27 @@ def outils() -> tuple[Outil, ...]:
             fonction=lister_devis_vendeur,
             autonomie=Autonomie.T0,
             roles_appareil=frozenset({_ROLE_VENDEUR}),
+        ),
+        Outil(
+            nom="m3_lister_devis_lead_admin",
+            description=(
+                "Sommaires paginés des devis M3 d'un lead explicitement désigné, sous admin SQL actif. "
+                "Lit les états courants sans écriture; une page vide ne prouve pas l'existence du lead M2. "
+                "Prix et statuts canoniques, sans lignes détaillées. Aucun envoi au client."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "lead_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 1_000_000, "default": 0},
+                },
+                "required": ["lead_id"],
+                "additionalProperties": False,
+            },
+            fonction=lister_devis_lead_admin,
+            autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m3_marquer_devis_accepte",

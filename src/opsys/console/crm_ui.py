@@ -64,8 +64,8 @@ SECTIONS = (
      "Aucun journal des courriels envoyés et reçus par client : rien n'est présenté comme « envoyé » ou « livré »."),
     ("rencontres", "Rencontres", "Agenda (à trancher)", "manquant",
      "Pas d'agenda ni de rendez-vous reliés au dossier."),
-    ("soumissions", "Soumissions", "M3 — estimation", "existant",
-     "La lecture des devis existe dans M3 ; le dossier ne l'affiche pas encore. "
+    ("soumissions", "Soumissions", "M3 — estimation", "affiche",
+     "Consultation des soumissions du projet via le lien du dossier. "
      "Modèles et clauses versionnés : à créer."),
     ("bons_commande", "Bons de commande", "M6 — matériaux", "partiel",
      "Bons de commande structurés par articles dans M6 ; la grosse note libre n'existe pas encore."),
@@ -289,6 +289,69 @@ def contenu_dossier(lead_id: str, client_id: str, vue: Mapping[str, Any], *, pre
     )
 
 
+_STATUTS_DEVIS = {
+    "brouillon": "Brouillon",
+    "envoye": "Approuvé pour envoi — livraison non attestée",
+    "accepte": "Accepté",
+}
+
+
+def _base_soumissions(lead_id: str, prefixe: str) -> str:
+    return f"{prefixe}/crm/lead/{pages._segment(lead_id)}/soumissions"
+
+
+def contenu_soumissions(lead_id: str, page: Mapping[str, Any], *, prefixe: str, decalage: int) -> str:
+    base = _base_soumissions(lead_id, prefixe)
+    lignes = []
+    for devis in page["devis"]:
+        ident = devis["devis_id"]
+        lien = f"{base}/{pages._segment(ident)}"
+        lignes.append(
+            f'<tr><td><a href="{pages.e(lien)}">{pages.e(ident)}</a></td>'
+            f'<td>{pages.e(_STATUTS_DEVIS.get(devis["statut"], devis["statut"]))}</td>'
+            f'<td>{pages.e(devis["prix_total"])} CAD</td>'
+            f'<td>{pages.e(_montreal(devis["horodatage"]))}</td></tr>'
+        )
+    tableau = (
+        '<div class="table-defilante"><table><thead><tr><th>Soumission</th><th>Statut</th>'
+        '<th>Prix total (source M3)</th><th>Date (Montréal)</th></tr></thead><tbody>'
+        + "".join(lignes) + "</tbody></table></div>"
+        if lignes else '<p>Aucune soumission sur cette page pour ce projet.</p>'
+    )
+    navigation = ""
+    if decalage:
+        navigation += f'<a href="{pages.e(base)}?decalage={max(0, decalage - LIMITE_PAGE)}">Page précédente</a> '
+    suivant = page.get("decalage_suivant")
+    if type(suivant) is int and 0 <= suivant <= DECALAGE_MAX:
+        navigation += f'<a href="{pages.e(base)}?decalage={suivant}">Page suivante</a>'
+    return (
+        f'<p><a href="{pages.e(prefixe)}/crm/lead/{pages._segment(lead_id)}">Retour au dossier</a></p>'
+        '<section class="carte"><h2>Soumissions de ce projet</h2>'
+        '<p>Lecture des états courants de M3. Aucun envoi ni acceptation depuis cet écran. '
+        'Le statut « approuvé pour envoi » ne prouve pas la réception par le client.</p>'
+        + tableau + '<nav aria-label="Pages de soumissions">' + navigation + '</nav></section>'
+    )
+
+
+def contenu_soumission(lead_id: str, devis: Mapping[str, Any], *, prefixe: str) -> str:
+    lignes = []
+    for ligne in devis["lignes"]:
+        lignes.append("<tr>" + "".join(f"<td>{pages.e(ligne.get(k))}</td>" for k in (
+            "description", "quantite", "unite", "prix_unitaire", "prix_ligne",
+        )) + "</tr>")
+    return (
+        f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}">Retour aux soumissions</a></p>'
+        f'<section class="carte"><h2>{pages.e(devis["devis_id"])}</h2>'
+        f'<p>{pages.e(_STATUTS_DEVIS.get(devis["statut"], devis["statut"]))}</p>'
+        '<p>Source : M3, état courant relu. Montants CAD tels que calculés par M3 ; '
+        'aucun recalcul, ajout de taxes ni envoi depuis cet écran.</p>'
+        '<div class="table-defilante"><table><thead><tr><th>Description</th><th>Quantité</th>'
+        '<th>Unité</th><th>Prix unitaire</th><th>Prix de ligne</th></tr></thead><tbody>'
+        + "".join(lignes) + '</tbody></table></div>'
+        f'<p>Prix total M3 : {pages.e(devis["prix_total"])} CAD</p></section>'
+    )
+
+
 def formulaire_note(lead_id: str, csrf: str, prefixe: str) -> str:
     return (
         '<section class="carte"><h2>Ajouter une note</h2>'
@@ -311,6 +374,7 @@ _HTTP_PAR_VERDICT = {
     "REJ-TRANSITION-ILLEGALE": 404,
     "REJ-PAGINATION-INVALIDE": 400,
     "REJ-ENUM-INVALIDE": 400,
+    "REJ-DEVIS-INTROUVABLE": 404,
     "REJ-CONVERSATION-CLOSE": 409,
     "REJ-CHAMP-VIDE": 400,
     "REJ-CONTRAT-INVALIDE": 400,
@@ -393,7 +457,41 @@ def creer_router(
         vue = lire(session, "m2_obtenir_client_360", {"client_id": client_id})
         return rendre(session, "Dossier client",
                       contenu_dossier(lead_id, client_id, vue, prefixe=prefixe)
+                      + f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}">'
+                      + "Voir les soumissions de ce projet</a></p>"
                       + formulaire_note(lead_id, session.csrf, prefixe))
+
+    def verifier_lead(session: Session, lead_id: str) -> None:
+        if _IDENTIFIANT.fullmatch(lead_id) is None:
+            raise HTTPException(404, "dossier introuvable")
+        lire(session, "m2_trouver_client_de_lead", {"lead_id": lead_id})
+
+    @router.get("/crm/lead/{lead_id}/soumissions", response_class=HTMLResponse)
+    def soumissions(lead_id: str, request: Request) -> Response:
+        session = session_page(request)
+        verifier_lead(session, lead_id)
+        params = request.query_params
+        brut = params.get("decalage", "0")
+        if (set(params) - {"decalage"} or len(brut) > len(str(DECALAGE_MAX))
+                or not brut.isascii() or not brut.isdigit() or int(brut) > DECALAGE_MAX):
+            raise HTTPException(400, "pagination invalide")
+        decalage = int(brut)
+        page = lire(session, "m3_lister_devis_lead_admin", {
+            "lead_id": lead_id, "limite": LIMITE_PAGE, "decalage": decalage,
+        })
+        return rendre(session, "Soumissions du projet",
+                      contenu_soumissions(lead_id, page, prefixe=prefixe, decalage=decalage))
+
+    @router.get("/crm/lead/{lead_id}/soumissions/{devis_id}", response_class=HTMLResponse)
+    def soumission(lead_id: str, devis_id: str, request: Request) -> Response:
+        session = session_page(request)
+        verifier_lead(session, lead_id)
+        if _IDENTIFIANT.fullmatch(devis_id) is None or request.query_params:
+            raise HTTPException(404, "soumission introuvable")
+        devis = lire(session, "m3_lire_devis", {"devis_id": devis_id})
+        if devis.get("lead_id") != lead_id:
+            raise HTTPException(404, "soumission introuvable")
+        return rendre(session, "Soumission", contenu_soumission(lead_id, devis, prefixe=prefixe))
 
     def ajouter_note(session: Session, lead_id: str, champs: Mapping[str, Any]) -> dict:
         if _IDENTIFIANT.fullmatch(lead_id) is None:
