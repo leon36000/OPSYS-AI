@@ -96,6 +96,31 @@ def corrections_courantes(maillons: list[dict]) -> dict[str, dict]:
             if m.get("type_entree") == "contact_client_corrige"}
 
 
+def historique_contact(registre_cible, client_id, limite=20, decalage=0, revision_max=None):
+    """Projection paginée pure, ordre des révisions ; plafond conservé pendant la navigation."""
+    if (type(limite) is not int or not 1 <= limite <= 50
+            or type(decalage) is not int or not 0 <= decalage <= 1_000_000
+            or (revision_max is not None and
+                (type(revision_max) is not int or not 0 <= revision_max <= 1_000_001))):
+        return None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail="pagination invalide")
+    maillons = registre_cible.lire()
+    if not any(m.get("type_entree") == TYPE_ENTREE and m.get("client_id") == client_id for m in maillons):
+        return None, verdicts.construire_verdict("REJ-LEAD-INCONNU", detail="client introuvable")
+    corrections = [m for m in maillons if m.get("type_entree") == "contact_client_corrige"
+                   and m.get("client_id") == client_id]
+    courante = max((m["revision"] for m in corrections), default=0)
+    plafond = courante if revision_max is None else revision_max
+    if plafond > courante:
+        return None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail="révision inconnue")
+    corrections = sorted((m for m in corrections if m["revision"] <= plafond), key=lambda m: m["revision"])
+    # Liste explicite : aucune métadonnée étrangère ni autre maillon du registre dans la réponse.
+    champs = ("revision", "avant", "contact", "motif", "auteur", "horodatage")
+    tranche = [{k: copy.deepcopy(m[k]) for k in champs} for m in corrections[decalage:decalage + limite]]
+    suivant = decalage + limite if decalage + limite < len(corrections) else None
+    return {"client_id": client_id, "corrections": tranche, "total": len(corrections),
+            "limite": limite, "decalage": decalage, "revision_max": plafond, "suivant": suivant}, None
+
+
 def corriger_contact(registre_cible, client_id, contact, revision_attendue, motif, auteur, horodatage):
     """Correction humaine versionnée ; l'adaptateur garantit autorité et transaction sérialisée."""
     def refus(code, detail):

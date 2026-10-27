@@ -647,6 +647,18 @@ def obtenir_client_360(client_id: str) -> dict[str, Any]:
     return {"accepte": True, "resultat": vue}
 
 
+def lister_historique_contact_client(client_id: str, limite: int = 20, decalage: int = 0,
+                                    revision_max: int | None = None) -> dict[str, Any]:
+    """Historique sensible réservé à l'admin humain actif, sans écriture ni cache de lecture."""
+    acteur, verdict = _acteur_appareil(acces.ROLES_ADMIN)
+    if verdict is not None:
+        return _refus(verdict)
+    if acteur is None:
+        return _refus(verdicts.construire_verdict("REJ-HUMAIN-REQUIS", detail="admin authentifié requis"))
+    resultat, verdict = clients.historique_contact(_obtenir_registre(), client_id, limite, decalage, revision_max)
+    return _refus(verdict) if verdict else {"accepte": True, "resultat": resultat}
+
+
 def verifier_autorite_rejeu_contact_appareil() -> dict[str, Any] | None:
     """Le reçu historique ne rend pas un rôle révoqué actif ; pas de CAS de sa propre écriture."""
     acteur, verdict = _acteur_appareil(acces.ROLES_ADMIN)
@@ -2053,6 +2065,24 @@ def outils() -> tuple[Outil, ...]:
             fonction=trouver_client_de_lead,
             # §9.4 (vendeur : Client 360).
             roles_appareil=acces.ROLES_LEADS,
+        ),
+        Outil(
+            nom="m2_lister_historique_contact_client",
+            description=("Historique des corrections de coordonnées, admin humain actif seulement. "
+                         "Lecture pure, révisions croissantes, 50 entrées maximum. "
+                         "Conserver revision_max et utiliser suivant pour la page suivante."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "client_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 50},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 1000000},
+                    "revision_max": {"type": "integer", "minimum": 0, "maximum": 1000001},
+                },
+                "required": ["client_id"], "additionalProperties": False,
+            },
+            fonction=lister_historique_contact_client,
+            roles_appareil=acces.ROLES_ADMIN,
         ),
         Outil(
             nom="m2_corriger_contact_client",

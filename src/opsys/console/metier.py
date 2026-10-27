@@ -48,6 +48,7 @@ LECTURES = {
     "m2_lister_leads": "m02-revenue-crm",
     "m2_trouver_client_de_lead": "m02-revenue-crm",
     "m2_obtenir_client_360": "m02-revenue-crm",
+    "m2_lister_historique_contact_client": "m02-revenue-crm",
     "m3_lister_devis_lead_admin": "m03-estimation",
     "m3_lire_devis": "m03-estimation",
 }
@@ -58,7 +59,9 @@ _LECTURES_ADMIN_M9 = frozenset({
 })
 # Les lecteurs M2 n'ont de portée que pour `seller` et `admin` (`m2_revenue_crm.acces.ROLES_LEADS`) : la console
 # les appelle avec le rôle `admin` confirmé en base, jamais sans identité d'appareil ni sous `nathan_owner` seul.
-_LECTURES_ADMIN_M2 = frozenset({"m2_lister_leads", "m2_trouver_client_de_lead", "m2_obtenir_client_360"})
+_LECTURES_ADMIN_M2 = frozenset({
+    "m2_lister_leads", "m2_trouver_client_de_lead", "m2_obtenir_client_360", "m2_lister_historique_contact_client",
+})
 _LECTURES_ADMIN_M3 = frozenset({"m3_lister_devis_lead_admin", "m3_lire_devis"})
 _LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3
 _COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction", "m2_corriger_contact_client"})

@@ -256,3 +256,41 @@ class TestCorrectionCoordonnees:
         for contact in [{'nom': 'Client B FICTIF'}, {'nom': 'B corrigé FICTIF'}]:
             _, refus = clients.corriger_contact(reg, a['client_id'], contact, 0, 'FICTIF', 'admin.fictif', self.H)
             assert refus['code'] == 'REJ-CONTACT-CONFLIT' and reg.lire() == avant
+
+
+class TestHistoriqueContact:
+    FICTIF = True
+    H = '2026-10-01T09:00:00+00:00'
+
+    @pytest.mark.parametrize('arguments', [
+        {'limite': 0}, {'limite': 51}, {'limite': True}, {'limite': '20'},
+        {'decalage': -1}, {'decalage': 1000001}, {'decalage': False},
+        {'revision_max': -1}, {'revision_max': 1000002}, {'revision_max': True}, {'revision_max': 1},
+    ])
+    def test_pagination_invalide_refusee_sans_ecriture(self, arguments):
+        reg = registre.Registre()
+        _, lien = _ingerer(reg, 'historique-fictif', self.H, contact={'nom': 'FICTIF'})
+        avant = reg.lire()
+        page, refus = clients.historique_contact(reg, lien['client_id'], **arguments)
+        assert page is None and refus['code'] == 'REJ-CONTRAT-INVALIDE'
+        assert reg.lire() == avant
+
+    def test_cinquante_maximum_client_isole_vide_et_plafond_zero(self):
+        reg = registre.Registre()
+        _, a = _ingerer(reg, 'historique-a-fictif', self.H, contact={'nom': 'Client A FICTIF'})
+        _, b = _ingerer(reg, 'historique-b-fictif', self.H, contact={'nom': 'Client B FICTIF'})
+        assert clients.historique_contact(reg, '0'*64)[1]['code'] == 'REJ-LEAD-INCONNU'
+        for revision in range(51):
+            assert clients.corriger_contact(reg, a['client_id'], {'nom': f'A FICTIF {revision}'}, revision,
+                                           'Motif FICTIF', 'admin.fictif', self.H)[1] is None
+        avant = reg.lire()
+        page, err = clients.historique_contact(reg, a['client_id'], limite=50)
+        assert err is None and len(page['corrections']) == 50 and page['suivant'] == 50
+        assert [c['revision'] for c in page['corrections']] == list(range(1, 51))
+        fin, err = clients.historique_contact(reg, a['client_id'], limite=50, decalage=50, revision_max=51)
+        assert err is None and len(fin['corrections']) == 1 and fin['suivant'] is None
+        for cid, args in [(a['client_id'], {'revision_max': 0}), (b['client_id'], {}),
+                          (a['client_id'], {'decalage': 1000000})]:
+            vide, err = clients.historique_contact(reg, cid, **args)
+            assert err is None and vide['corrections'] == [] and vide['suivant'] is None
+        assert reg.lire() == avant

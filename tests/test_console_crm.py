@@ -694,3 +694,76 @@ def test_contact_rejeu_capacites_revalide_admin_sql(client_crm, session):
     with session():
         assert len([m for m in outils_m2._obtenir_registre().lire()
                     if m['type_entree'] == 'contact_client_corrige']) == 1
+
+
+def test_historique_contact_admin_pagination_stable_et_lecture_pure(client_crm, session):
+    from opsys import contexte
+    _connecter(client_crm, 'admin.fictif')
+    with session():
+        cid = outils_m2.trouver_client_de_lead('lead-fictif-001')['resultat']['client_id']
+    acteur = contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')
+    route = '/crm/lead/lead-fictif-001/contact/historique'
+    vide = client_crm.get(route)
+    assert vide.status_code == 200, vide.text
+    assert 'Aucune correction' in vide.text
+    assert 'contact/historique' in client_crm.get('/crm/lead/lead-fictif-001').text
+    with session(), contexte.appele_par_appareil(acteur):
+        for revision in range(22):
+            assert outils_m2.corriger_contact_client(cid, {'nom': f'Client FICTIF {revision+1}'}, revision,
+                                                     'Motif <script>FICTIF</script>', H2)['accepte']
+    avant = _instantane_base(session)
+    page = client_crm.get(route)
+    assert page.status_code == 200 and '22 corrections' in page.text
+    assert 'admin.fictif' in page.text and 'Motif &lt;script&gt;FICTIF&lt;/script&gt;' in page.text
+    assert 'Motif <script>' not in page.text and 'Client FICTIF 22' not in page.text
+    assert 'un@example.test' in page.text and 'revision_max=22' in page.text
+    assert 'deux@example.test' not in page.text
+    assert _instantane_base(session) == avant
+    with session(), contexte.appele_par_appareil(acteur):
+        assert outils_m2.corriger_contact_client(cid, {'nom': 'Client FICTIF 23'}, 22, 'FICTIF', H2)['accepte']
+        p = outils_m2.lister_historique_contact_client(cid, limite=2, decalage=20, revision_max=22)['resultat']
+        assert [e['revision'] for e in p['corrections']] == [21, 22]
+        assert p['total'] == 22 and p['suivant'] is None and p['revision_max'] == 22
+        assert p['corrections'][0]['avant'] == {'nom': 'Client FICTIF 20'}
+        p['corrections'][0]['contact']['nom'] = 'MUTATION FICTIVE'
+        relue = outils_m2.lister_historique_contact_client(cid)['resultat']
+        assert relue['corrections'][0]['contact']['nom'] == 'Client FICTIF 1'
+    avant = _instantane_base(session)
+    suite = client_crm.get(route, params={'decalage': 20, 'revision_max': 22})
+    assert suite.status_code == 200 and 'Client FICTIF 22' in suite.text and 'Client FICTIF 23' not in suite.text
+    assert 'revision_max=22' in suite.text
+    assert '23 corrections' in client_crm.get(route).text
+    for params in [{'decalage': '-1'}, {'revision_max': '9'*5000}, {'revision_max': '24'},
+                   {'limite': '500'}, {'decalage': '1.0'}, {'decalage': '1000001'}]:
+        assert client_crm.get(route, params=params).status_code == 400
+    assert client_crm.get('/crm/lead/inconnu-fictif/contact/historique').status_code == 404
+    assert _instantane_base(session) == avant
+
+
+def test_historique_contact_refuse_seller_agent_roles_et_revocation(client_crm, session):
+    from opsys import contexte
+    route = '/crm/lead/lead-fictif-001/contact/historique'
+    assert client_crm.get(route, follow_redirects=False).status_code == 303
+    for personne in ['employe', 'nathan']:
+        _connecter(client_crm, personne)
+        r = client_crm.get(route)
+        assert r.status_code == 403 and 'example.test' not in r.text
+    with session() as cnx:
+        identite.creer_personne(cnx, 'vendeur.fictif', 'FICTIF', 'mot-passe-vendeur-fictif-1234', ['seller'])
+        cid = outils_m2.trouver_client_de_lead('lead-fictif-001')['resultat']['client_id']
+        assert outils_m2.lister_historique_contact_client(cid)['verdict']['code'] == 'REJ-HUMAIN-REQUIS'
+    with session(), contexte.appele_par_appareil(
+        contexte.IdentiteAppelante('vendeur.fictif', 'seller', source='console')
+    ):
+        for cible in [cid, '0'*64]:
+            r = outils_m2.lister_historique_contact_client(cible)
+            assert r['verdict']['code'] == 'REJ-IDENTITE-APPAREIL-INVALIDE' and 'resultat' not in r
+    _connecter(client_crm, 'admin.fictif')
+    assert client_crm.get(route).status_code == 200
+    with session() as cnx:
+        identite.retirer_role(cnx, 'admin.fictif', 'admin')
+    assert client_crm.get(route).status_code == 403
+    with session(), contexte.appele_par_appareil(
+        contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')
+    ):
+        assert outils_m2.lister_historique_contact_client(cid)['verdict']['code'] == 'REJ-IDENTITE-APPAREIL-INVALIDE'

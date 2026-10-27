@@ -358,6 +358,33 @@ def contenu_soumission(lead_id: str, devis: Mapping[str, Any], *, prefixe: str) 
     )
 
 
+def contenu_historique_contact(lead_id: str, resultat: Mapping[str, Any], prefixe: str) -> str:
+    """Historique administrateur : valeurs échappées, navigation dans la même révision maximale."""
+    base = f"{prefixe}/crm/lead/{pages._segment(lead_id)}/contact/historique"
+    corps = f'<h1>Historique des coordonnées</h1><p>{_lien_dossier(lead_id, prefixe)}</p>'
+    corps += (f'<p>{resultat["total"]} corrections — jusqu’à la révision {resultat["revision_max"]}. '
+              f'<a href="{pages.e(base)}">Actualiser l’historique</a></p>')
+    for correction in resultat["corrections"]:
+        corps += (f'<section class="carte"><h2>Révision {correction["revision"]}</h2>'
+                  f'<p>{_texte(correction["auteur"])} — {pages.e(_montreal(correction["horodatage"]))}</p>'
+                  f'<p>Motif : {_texte(correction["motif"])}</p><dl>')
+        for titre, cle in [("Avant", "avant"), ("Après", "contact")]:
+            corps += f'<dt>{titre}</dt><dd>' + ' ; '.join(
+                f'{pages.e(k)} : {_texte(v)}' for k, v in correction[cle].items()) + '</dd>'
+        corps += '</dl></section>'
+    if not resultat["corrections"]:
+        corps += pages._vide("Aucune correction sur cette page.")
+    liens = []
+    if resultat["decalage"]:
+        liens.append(("Précédent", max(0, resultat["decalage"] - resultat["limite"])))
+    if resultat["suivant"] is not None:
+        liens.append(("Suivant", resultat["suivant"]))
+    corps += '<nav aria-label="Pages de corrections">' + ' '.join(
+        f'<a href="{pages.e(base)}?decalage={decalage}&amp;revision_max={resultat["revision_max"]}">{titre}</a>'
+        for titre, decalage in liens) + '</nav>'
+    return corps
+
+
 def formulaire_contact(lead_id: str, vue: Mapping[str, Any], csrf: str, prefixe: str) -> str:
     contact = vue.get("contact") or {}
     champs = "".join(f'<label>{pages.e(c.title())}<input name="{c}" maxlength="254" '
@@ -500,7 +527,29 @@ def creer_router(
                       + f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}">'
                       + "Voir les soumissions de ce projet</a></p>"
                       + formulaire_note(lead_id, session.csrf, prefixe)
-                      + edition)
+                      + edition
+                      + f'<p><a href="{pages.e(prefixe)}/crm/lead/{pages._segment(lead_id)}/contact/historique">'
+                      + 'Historique des coordonnées</a></p>')
+
+    @router.get("/crm/lead/{lead_id}/contact/historique", response_class=HTMLResponse)
+    def historique_contact(lead_id: str, request: Request) -> Response:
+        session = session_page(request)
+        if _IDENTIFIANT.fullmatch(lead_id) is None:
+            raise HTTPException(404, "dossier introuvable")
+        parametres = request.query_params
+        if set(parametres) - {"decalage", "revision_max"}:
+            raise HTTPException(400, "requête invalide")
+        arguments: dict[str, Any] = {"limite": LIMITE_PAGE}
+        for cle, plafond in [("decalage", DECALAGE_MAX), ("revision_max", 1_000_001)]:
+            if cle not in parametres:
+                continue
+            brut = parametres[cle]
+            if len(brut) > 7 or not brut.isascii() or not brut.isdigit() or int(brut) > plafond:
+                raise HTTPException(400, "pagination invalide")
+            arguments[cle] = int(brut)
+        lien = lire(session, "m2_trouver_client_de_lead", {"lead_id": lead_id})
+        resultat = lire(session, "m2_lister_historique_contact_client", {**arguments, "client_id": lien["client_id"]})
+        return rendre(session, "Historique des coordonnées", contenu_historique_contact(lead_id, resultat, prefixe))
 
     def verifier_lead(session: Session, lead_id: str) -> None:
         if _IDENTIFIANT.fullmatch(lead_id) is None:
