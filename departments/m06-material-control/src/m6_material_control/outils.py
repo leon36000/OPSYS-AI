@@ -496,7 +496,8 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
     AVANT toute tentative de lecture du prévu ou de la déclaration (fail-closed le plus tôt
     possible). Sinon, prévu absent (aucun besoin enregistré pour le devis_id du WCT) donne
     `prevu_absent` ; prévu présent mais aucune déclaration pour ce wct_id donne
-    `declaration_absente` ; les deux présents donnent `evaluee`.
+    `declaration_absente` ; les deux présents donnent `evaluee` seulement si les unités
+    sont prouvées compatibles, sinon `unites_indeterminees` (revue nécessaire).
 
     `chantier_id` (minimum requis par le catalogue) est résolu depuis QUELLE QUE SOIT la source
     disponible (le prévu, s'il existe et le connaît — sinon la déclaration, si elle existe déjà)
@@ -609,6 +610,12 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
             }
             for verdict in resultat["verdicts_materiaux"]
         ]
+        if any(v["verdict_variance"] == "INDETERMINE" for v in resultat["verdicts_materiaux"]):
+            # Le calcul a tourné mais la preuve dimensionnelle manque : ne pas permettre
+            # à M4 de vérifier le chantier ni à M3/M8 d'apprendre un écart imaginaire.
+            statut_variance = "unites_indeterminees"
+            signal_critique = None
+            lignes = None
 
     ident = f"m6-variance-{wct_id}-{statut_variance}"
     resultat_evenement = {

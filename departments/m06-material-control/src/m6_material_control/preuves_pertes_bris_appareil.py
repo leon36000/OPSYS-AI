@@ -106,11 +106,12 @@ def valider_snapshots(principal, preuves):
         for i, m in enumerate(principal):
             if (
                 type(m) is not dict
-                or not champs <= set(m) <= champs | {"wct_id"}
+                or not champs <= set(m) <= champs | {"wct_id", "unite"}
                 or type(m["index"]) is not int
                 or m["index"] != i
                 or not _metadata(m["chantier_id"])
                 or not _metadata(m["materiau_id"])
+                or ("unite" in m and not _metadata(m["unite"]))
                 or ("wct_id" in m and not _metadata(m["wct_id"]))
                 or not _nombre(m["quantite"])
                 or not _hash(m["hash_maillon"])
@@ -313,7 +314,7 @@ def lire(wct, principal, preuves, decalage, limite, verifier_photo):
                 "materiau_id": m["materiau_id"],
                 "type_mouvement": m["type_mouvement"],
                 "quantite": pertes_appareil._quantite_signee(m["quantite"]),
-                "unite": None,
+                "unite": m.get("unite"),
                 "preuve": vue,
             }
         )

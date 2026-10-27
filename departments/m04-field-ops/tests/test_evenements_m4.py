@@ -364,6 +364,7 @@ def test_recevoir_variance_chantier_evaluee_sans_signal_passe_a_completed_verifi
     "overrides",
     [
         {"statut_variance": "prevu_absent", "signal_critique": None},
+        {"statut_variance": "unites_indeterminees", "signal_critique": None},
         {"statut_variance": "declaration_absente", "signal_critique": None},
         {"statut_variance": "seuil_absent", "signal_critique": None, "seuil_pourcentage": None},
         {"statut_variance": "evaluee", "signal_critique": True},

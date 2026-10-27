@@ -268,6 +268,7 @@ def test_un_prix_du_livre_en_texte_decimal_reste_exact():
 @pytest.mark.parametrize(("statut", "lignes"), [
     pytest.param("declaration_absente", None, id="declaration_absente"),
     pytest.param("prevu_absent", None, id="prevu_absent"),
+    pytest.param("unites_indeterminees", None, id="unites_indeterminees"),
     pytest.param("seuil_absent", None, id="seuil_absent"),
 ])
 def test_variance_non_evaluee_les_materiaux_reels_sont_inconnus(statut, lignes):

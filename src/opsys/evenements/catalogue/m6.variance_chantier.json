@@ -24,8 +24,8 @@
     },
     "statut_variance": {
       "type": "string",
-      "enum": ["evaluee", "prevu_absent", "declaration_absente", "seuil_absent"],
-      "description": "evaluee : prévu ET déclaration trouvés, variance_chantier.evaluer a tourné. prevu_absent : aucun besoin enregistré pour le devis_id du WCT (m6_enregistrer_besoins_prevus jamais appelé). declaration_absente : prévu trouvé mais m6_declarer_materiaux_utilises pas encore soumis pour ce wct_id. seuil_absent : configuration department.yaml/configuration.seuil_variance_chantier_pourcentage absente ou invalide (fail-closed, vérifié avant toute autre lecture)."
+      "enum": ["evaluee", "prevu_absent", "declaration_absente", "seuil_absent", "unites_indeterminees"],
+      "description": "evaluee : prévu ET déclaration trouvés, variance_chantier.evaluer a tourné. prevu_absent : aucun besoin enregistré pour le devis_id du WCT (m6_enregistrer_besoins_prevus jamais appelé). declaration_absente : prévu trouvé mais m6_declarer_materiaux_utilises pas encore soumis pour ce wct_id. seuil_absent : configuration department.yaml/configuration.seuil_variance_chantier_pourcentage absente ou invalide (fail-closed, vérifié avant toute autre lecture). unites_indeterminees : unité réelle absente, mixte ou incompatible avec le besoin ; revue requise, signal_critique et lignes restent null, sans coût dimensionnellement validé déductible."
     },
     "signal_critique": {
       "type": ["boolean", "null"],

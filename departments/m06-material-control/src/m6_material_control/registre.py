@@ -49,6 +49,9 @@ class Registre:
         ]
         if wct_id is not None:
             valeurs_hash.append(wct_id)
+        # Extension étiquetée : les anciens maillons sans unité gardent leur empreinte.
+        if "unite" in mouvement:
+            valeurs_hash.append({"unite_declaree": mouvement["unite"]})
         hash_maillon = encodage.empreinte(*valeurs_hash)
 
         maillon = {
@@ -63,6 +66,8 @@ class Registre:
         }
         if wct_id is not None:
             maillon["wct_id"] = wct_id
+        if "unite" in mouvement:
+            maillon["unite"] = mouvement["unite"]
         return maillon
 
     def ajouter(self, mouvement):
@@ -70,6 +75,8 @@ class Registre:
             return None, "REJ-MOUVEMENT-STRUCTURE-INVALIDE"
         if mouvement["type_mouvement"] not in TYPES_MOUVEMENT_VALIDES:
             return None, "REJ-MOUVEMENT-TYPE-INVALIDE"
+        if "unite" in mouvement and (not isinstance(mouvement["unite"], str) or not mouvement["unite"].strip()):
+            return None, "REJ-MOUVEMENT-UNITE-INVALIDE"
 
         hash_precedent = (
             self._maillons[-1]["hash_maillon"]
@@ -86,6 +93,8 @@ class Registre:
                 return None, "REJ-MOUVEMENT-STRUCTURE-INVALIDE"
             if mouvement["type_mouvement"] not in TYPES_MOUVEMENT_VALIDES:
                 return None, "REJ-MOUVEMENT-TYPE-INVALIDE"
+            if "unite" in mouvement and (not isinstance(mouvement["unite"], str) or not mouvement["unite"].strip()):
+                return None, "REJ-MOUVEMENT-UNITE-INVALIDE"
 
         maillons_construits = []
         hash_precedent = (
@@ -131,6 +140,8 @@ class Registre:
             ]
             if "wct_id" in maillon:
                 valeurs_hash.append(maillon["wct_id"])
+            if "unite" in maillon:
+                valeurs_hash.append({"unite_declaree": maillon["unite"]})
             hash_attendu = encodage.empreinte(*valeurs_hash)
             if maillon["hash_maillon"] != hash_attendu:
                 return False, f"maillon invalide à l'index {index}"

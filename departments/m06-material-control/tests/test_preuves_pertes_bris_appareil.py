@@ -157,7 +157,7 @@ def test_lecture_notes_photos_et_page_courante(monde):
     page = lire(a, limite=1)["resultat"]
     assert page["total"] == 2 and page["decalage_suivant"] == 1
     item = page["pertes_bris"][0]
-    assert item["unite"] is None and item["quantite"] == "-1"
+    assert item["unite"] == "pi" and item["quantite"] == "-1"
     assert item["preuve"]["etat"] == "photos_declarees"
     assert item["preuve"]["photos"][0]["etat_actuel"] == "disponible"
     second = lire(a, decalage=1, limite=1)["resultat"]

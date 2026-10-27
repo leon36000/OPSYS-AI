@@ -7,6 +7,7 @@ SignalVarianceChantierCritique sur un seuil fourni par l'appelant.
 """
 
 
+import pytest
 from m6_material_control import contrats, variance_chantier
 from m6_material_control.registre import Registre
 
@@ -300,13 +301,15 @@ def test_resultat_de_evaluer_ne_contient_aucune_cle_monetaire():
 # --- comparer_depuis_registre / evaluer(registre=...) : PLAN T1.1-d2 point 3 -----------
 
 
-def _mouvement(type_mouvement, quantite, materiau_id="MAT-1", chantier_id="CHANTIER-1", wct_id=None):
+def _mouvement(type_mouvement, quantite, materiau_id="MAT-1", chantier_id="CHANTIER-1", wct_id=None, unite="boite"):
     mouvement = {
         "type_mouvement": type_mouvement, "chantier_id": chantier_id,
         "materiau_id": materiau_id, "quantite": quantite, "cout_unitaire": 5.0,
     }
     if wct_id is not None:
         mouvement["wct_id"] = wct_id
+    if unite is not None:
+        mouvement["unite"] = unite
     return mouvement
 
 
@@ -364,18 +367,28 @@ def test_comparer_depuis_registre_ignore_les_mouvements_d_un_autre_chantier():
     assert verdicts[0]["verdict_variance"] == "NON_UTILISE"
 
 
-def test_comparer_depuis_registre_n_utilise_jamais_l_unite_du_registre_absente():
-    """Le registre ne porte pas d'unité (contrat gelé) : l'unité rapportée vient
-    uniquement du besoin — jamais INDETERMINE par incohérence côté réel ici."""
+def test_comparer_depuis_registre_historique_sans_unite_est_indetermine():
+    """Aucune unité réelle empruntée au prévu pour un mouvement historique sans preuve."""
     registre = Registre()
-    registre.ajouter(_mouvement("CONSOMMATION", -5.0))
+    registre.ajouter(_mouvement("CONSOMMATION", -5.0, unite=None))
+    verdict = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0)], "CHANTIER-1", registre,
+    )[0]
+    assert verdict["unite"] is None
+    assert verdict["verdict_variance"] == "INDETERMINE"
+    assert verdict["ecart_pourcentage"] is None
 
-    verdicts = variance_chantier.comparer_depuis_registre(
-        [besoin(quantite_estimee=5.0, unite="boite")], "CHANTIER-1", registre,
-    )
 
-    assert verdicts[0]["unite"] == "boite"
-    assert verdicts[0]["verdict_variance"] != "INDETERMINE"
+@pytest.mark.parametrize("unites", [("pi",), ("boite", "pi"), ("boite", None)])
+def test_unites_reelles_incompatibles_ou_incompletes_ne_sont_pas_comparees(unites):
+    registre = Registre()
+    for unite in unites:
+        registre.ajouter(_mouvement("CONSOMMATION", -5.0, unite=unite))
+    verdict = variance_chantier.comparer_depuis_registre(
+        [besoin(quantite_estimee=5.0)], "CHANTIER-1", registre,
+    )[0]
+    assert verdict["verdict_variance"] == "INDETERMINE"
+    assert verdict["ecart_pourcentage"] is None
 
 
 def test_evaluer_avec_registre_produit_le_meme_signal_que_evaluer_avec_lignes_declarees():

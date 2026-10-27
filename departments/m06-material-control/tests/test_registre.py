@@ -323,3 +323,36 @@ def test_ajouter_lot_produit_un_chainage_de_hash_identique_au_cas_ajouter_un_par
         assert a["hash_precedent"] == b["hash_precedent"]
         assert a["index"] == b["index"]
     assert [m["hash_maillon"] for m in registre_un_par_un.lire()] == [m["hash_maillon"] for m in registre_lot.lire()]
+
+
+def test_unite_additive_preserve_historique_et_detecte_alteration():
+    """Fixture fictive : aucune migration ni réécriture des anciens maillons."""
+    ancien = {"type_mouvement": "RECEPTION", "chantier_id": "FICTIF", "materiau_id": "MAT-FICTIF",
+              "quantite": 10.0, "cout_unitaire": 2.0}
+    registre = Registre()
+    premier, code = registre.ajouter(ancien)
+    assert code is None
+    nouveau = dict(ancien, type_mouvement="CONSOMMATION", quantite=-5.0, wct_id="WCT-FICTIF", unite="pi")
+    registre.ajouter(nouveau)
+    assert registre.lire()[0] == premier
+    assert "unite" not in premier
+    assert registre.lire()[1]["unite"] == "pi"
+    assert registre.valider_chaine() == (True, "")
+    for corruption in ("modifier", "supprimer", "ajouter_historique"):
+        lignes = registre.lire()
+        if corruption == "modifier":
+            lignes[1]["unite"] = "boite"
+        elif corruption == "supprimer":
+            del lignes[1]["unite"]
+        else:
+            lignes[0]["unite"] = "pi"
+        assert Registre(lignes).valider_chaine()[0] is False
+
+
+def test_lot_unite_invalide_necrit_rien():
+    registre = Registre()
+    mouvement = {"type_mouvement": "CONSOMMATION", "chantier_id": "FICTIF", "materiau_id": "MAT-FICTIF",
+                 "quantite": -1.0, "cout_unitaire": 2.0, "unite": "pi"}
+    result, code = registre.ajouter_lot([mouvement, dict(mouvement, unite=None)])
+    assert result is None and code == "REJ-MOUVEMENT-UNITE-INVALIDE"
+    assert registre.lire() == []

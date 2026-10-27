@@ -187,6 +187,7 @@ def soumettre_materiaux_utilises(wct, formulaire, registre) -> tuple[dict | None
                     "quantite": -ligne["quantite"],
                     "cout_unitaire": cout,
                     "wct_id": wct_id,
+                    "unite": ligne["unite"],
                 }
             )
         elif type_ligne == "retour":
@@ -198,6 +199,7 @@ def soumettre_materiaux_utilises(wct, formulaire, registre) -> tuple[dict | None
                     "quantite": ligne["quantite"],
                     "cout_unitaire": cout,
                     "wct_id": wct_id,
+                    "unite": ligne["unite"],
                 }
             )
         elif type_ligne == "perte":
@@ -209,6 +211,7 @@ def soumettre_materiaux_utilises(wct, formulaire, registre) -> tuple[dict | None
                     "quantite": -ligne["quantite"],
                     "cout_unitaire": cout,
                     "wct_id": wct_id,
+                    "unite": ligne["unite"],
                 }
             )
         else:  # "bris"
@@ -220,6 +223,7 @@ def soumettre_materiaux_utilises(wct, formulaire, registre) -> tuple[dict | None
                     "quantite": -ligne["quantite"],
                     "cout_unitaire": cout,
                     "wct_id": wct_id,
+                    "unite": ligne["unite"],
                 }
             )
 

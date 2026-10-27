@@ -117,12 +117,13 @@ def _principal(rows: list[dict], chiffres: list[Decimal]) -> None:
     }
     for position, m in enumerate(rows):
         if (
-            not requis <= set(m) <= requis | {"wct_id"}
+            not requis <= set(m) <= requis | {"wct_id", "unite"}
             or type(m["index"]) is not int
             or m["index"] != position
             or m["type_mouvement"] not in registre.TYPES_MOUVEMENT_VALIDES
             or not _texte(m["chantier_id"])
             or not _texte(m["materiau_id"])
+            or ("unite" in m and not _texte(m["unite"]))
             or ("wct_id" in m and not _texte(m["wct_id"]))
         ):
             raise Refus("REGISTRE-INVALIDE")
