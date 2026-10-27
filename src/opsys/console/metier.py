@@ -505,6 +505,35 @@ def _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id):
         return executer_atomique(outil, dict(arguments))
 
 
+def _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutation_id):
+    from m6_material_control import catalogue_console as catalogue
+
+    if session.expire <= datetime.now(UTC).timestamp() or "admin" not in personne.roles:
+        raise PermissionError("session admin active requise")
+    dept = catalogue.DEPARTEMENT
+    if dept not in deps or deps[dept].module_outils != "m6_material_control.outils":
+        raise KeyError("catalogue M6 indisponible")
+    outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
+    if outil is None:
+        raise KeyError("outil M6 indisponible")
+    ecriture = nom == "m6_enregistrer_materiau_console"
+    if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
+        raise ValueError("fiche matériau invalide")
+    if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
+            or (not ecriture and mutation_id is not None)):
+        raise ValueError("intention de catalogue invalide")
+    maintenant = datetime.now(UTC)
+    meta = (idempotence.Meta(mutation_id, "console:" + personne.identifiant, maintenant.isoformat())
+            if ecriture else None)
+    with (
+        contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
+        contexte.appeler_en_tant_que(dept, origine="console"), contexte.sortie_bornee(65536),
+        catalogue.contexte_mutation(meta),
+        contexte.receptionne_de(contexte.HorodatageAppareil("console:" + personne.identifiant, maintenant, maintenant)),
+    ):
+        return executer_atomique(outil, dict(arguments))
+
+
 def _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id):
     """Port humain M3 : intention dans le maillon privé, aucune copie dans le reçu central."""
     from m3_estimation import outils as m3
@@ -570,6 +599,8 @@ def executer(
         return _executer_observation_growth_humaine(cnx, deps, session, personne, arguments, mutation_id)
     if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom in {"m6_enregistrer_materiau_console", "m6_lire_materiau_console", "m6_lister_materiaux_console"}:
+        return _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
                    "m3_lire_tarif_modele", "m3_creer_devis_prefill",
                    "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission",

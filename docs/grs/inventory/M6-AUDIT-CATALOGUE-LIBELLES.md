@@ -83,3 +83,35 @@ console admin SQL; reprendre le patron de `console.metier._executer_modeles` et 
 réception serveur, transaction audit+réponse bornée+mutation. Fermer ces ports aux appareils,
 MCP et agents génériques. Prouver concurrence SQL et rejeu/révocation avant les formulaires.
 Aucun écran ni nouveau port exposé par cette fondation; M6 et CRM-07 restent PARTIAL.
+
+## Ports privés qualifiés, interface encore ouverte
+
+`catalogue_console.py` expose trois ports internes : `m6_enregistrer_materiau_console`,
+`m6_lire_materiau_console`, `m6_lister_materiaux_console`. `console.metier` vérifie la
+session active et le rôle admin en base, fournit identité et réception serveur, puis
+appelle l’outil réel. L’adaptateur M6 revérifie l’identité SQL avant chaque opération,
+y compris un rejeu. PostgreSQL, origine agent et MCP sont refusés; `capacites.py` ferme
+les chemins génériques et runtime avant toute intention. Aucune portée appareil ajoutée.
+
+Écriture SQLite : reçu idempotent, CAS et journal métier, audit puis réponse dans une
+transaction imbriquée. Une panne d’audit ou dépassement de quota annule aussi le reçu.
+La limite de sortie porte sur l’enveloppe publique entière en UTF-8, plafonnée à 64 Kio.
+Les lectures sont paginées; la réponse porte `accepte`, puis `resultat` ou `raison` de
+refus. Aucun nouveau endpoint HTTP ni interface utilisateur à ce jalon.
+
+`tests/test_console_catalogue_m6.py` prouve le dispatch console SQL, réouverture, versions,
+inactivation, rejeu exact, conflit d’intention, révocation, session expirée, owner sans
+admin, champs fermés, refus des canaux génériques, unité immuable, corruption du journal,
+rollback audit/quota et frontière UTF-8 exacte. Deux threads tentent réellement la même
+révision sous les transactions SQLite `BEGIN IMMEDIATE` : un seul réussit, l’autre reçoit
+`REVISION-PERIMEE`. Ceci ne qualifie pas PostgreSQL ni une flotte multi-hôtes.
+
+QA `crm-prefill-qa-20261027-r1/material-ports-v2` : 98 tests réussis, zéro échec/saut,
+10,37 s; Ruff et vérificateur 291 outils/173 portées réussis, populations recoupées.
+Le rouge v1 conserve 68 tests réussis et deux E501. La revue indépendante a aussi trouvé
+l’ordre historique des outils à préserver et le quota d’enveloppe incomplet : corrigés
+avec régression `test_outils_agent.py` et test UTF-8 à la frontière. Aucun test affaibli.
+
+Prochaine étape : formulaires HTTP admin de gestion du catalogue puis sélection M3 par
+nom/unité, avec source et révision explicites. Préserver les anciens modèles et devis;
+refuser les nouveaux choix inactifs. M10, mobile et PostgreSQL restent ouverts. **PARTIAL**.

@@ -1007,3 +1007,14 @@ Le registre préparatoire M5 est exclu : aucune somme, réconciliation bancaire,
 ou réparation n'est ajoutée. Aucun claim, trace, approbation, journal ou publication n'est permis
 par cette lecture. Les preuves locales, le parcours Gateway authentifié et la CI du futur commit
 restent des qualifications distinctes ; le frontend ne fait pas partie de ce premier jalon.
+
+### Catalogue de matériaux M6 — console privée (27 octobre 2026)
+
+`m6_enregistrer_materiau_console`, `m6_lire_materiau_console` et
+`m6_lister_materiaux_console` passent uniquement par le dispatch interne de la console,
+avec session active et admin SQL revalidé avant lecture, écriture et rejeu. Le domaine
+ne fait pas confiance à un auteur dans les arguments; la réception vient du serveur.
+Les appels génériques, runtime profilé et MCP sont fermés; aucune permission appareil
+n’est ajoutée. SQLite seul est qualifié. Transaction atomique de la version, audit et
+reçu; réponse bornée à l’enveloppe UTF-8 complète. Ce raccord n’ajoute ni commande
+fournisseur, ni coût, ni mouvement de stock, ni endpoint HTTP.

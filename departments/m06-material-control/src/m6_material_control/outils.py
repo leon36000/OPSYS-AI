@@ -2640,6 +2640,8 @@ _PAGE_CLASSEMENT = {
 
 
 def outils() -> tuple[Outil, ...]:
+    from .catalogue_console import outils as outils_catalogue
+
     return (
         Outil(
             nom="m6_receptionner_commande",
@@ -3404,8 +3406,7 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=lister_notes_commande, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
-    )
-
+    ) + outils_catalogue()
 
 # ---------------------------------------------------------------------------------------------
 # Consommateurs d'événements (ADR-0009 §3, PLAN T1.2, point 3 ; correctif : le trou du flux réel)
