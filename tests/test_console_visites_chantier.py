@@ -176,14 +176,22 @@ def test_port_console_admin_verifie_metier_et_rejeu(planning, session, monkeypat
                                  mutation_id='ouvrir-metier-fictif')
         assert rejoue['resultat']['rejoue'] is True
         import pytest
+        from sqlalchemy import select
 
         from opsys import identite
+        from opsys.stockage.schema import META
+
         identite.retirer_role(cnx, 'admin.fictif', 'admin')
+        def toutes_tables():
+            return tuple((table.name, tuple(tuple(row) for row in cnx.execute(select(table)).all()))
+                         for table in META.sorted_tables)
+        avant_refus = toutes_tables()
         with pytest.raises(PermissionError):
             metier.executer(cnx, charger_departements(), auth, 'm4_lire_visites_console', {'intervention_id': iid})
         with pytest.raises(PermissionError):
             metier.executer(cnx, charger_departements(), auth, 'm4_evenement_visite_console', args,
                             mutation_id='ouvrir-metier-fictif')
+        assert toutes_tables() == avant_refus
 
 
 def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, session, monkeypatch):
@@ -211,8 +219,10 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
     cookie.value = securite.signer_session(replace(sess, expire=4102444800), f.base.SECRET)
     journal = client_crm.get('/crm/journal-equipes?jour=2030-06-03')
     assert journal.status_code == 200 and ('/crm/visites?intervention_id=' + iid) in journal.text
+    avant_lecture = f.base._instantane_base(session)
     page = client_crm.get(chemin)
     assert page.status_code == 200, page.text
+    assert f.base._instantane_base(session) == avant_lecture
     assert page.headers['cache-control'] == 'no-store'
     assert 'content-security-policy' in page.headers
     assert 'Prévisions et visites' in page.text and 'Composition' in page.text
@@ -238,6 +248,7 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
     prevoir = formulaire(page.text, 'prevoir')
     mauvais_csrf = {**prevoir, 'csrf': 'csrf-incorrect-fictif'}
     assert client_crm.post(chemin, data=mauvais_csrf, follow_redirects=False).status_code == 403
+    assert f.base._instantane_base(session) == avant_lecture
     cree = client_crm.post(chemin, data=prevoir, follow_redirects=False)
     assert cree.status_code == 303, cree.text
     page = client_crm.get(chemin)
