@@ -238,6 +238,14 @@ LECTURES: tuple[Lecture, ...] = (
         incomplets=(Marqueur("resultat.trouve", "faux"),),
     ),
     _lecture(
+        "m8.definitions_metriques",
+        "m08-analytics",
+        "m8_lister_definitions_metriques",
+        {"curseur"},
+        fixes={"limite": 100},
+        pagination=Pagination("curseur", "resultat.curseur_suivant", "resultat.total"),
+    ),
+    _lecture(
         "m10.paquet_affaire",
         "m10-memoire",
         "m10_paquet_contexte_affaire",

@@ -65,3 +65,21 @@ def test_une_valeur_non_textuelle_est_refusee_pas_convertie():
         sm.classer({"metric_id": "marge_reelle", "valeur": 100.5}, catalogue)
     with pytest.raises(ValueError, match="REJ-SEMANTIQUE-OBSERVATION"):
         sm.classer({"valeur": "1"}, catalogue)
+
+
+def test_empreinte_de_definition_face_a_une_version_entiere_n_est_ni_perimee_ni_compatible():
+    catalogue = sm.cataloguer(_definitions())
+    empreinte = "a" * 64
+    res = sm.classer(
+        {"metric_id": "marge_reelle", "valeur": "1", "unite": "CAD", "version_definition": empreinte}, catalogue
+    )
+    assert res["statut"] == "VERSION_NON_COMPARABLE" and res["version_courante"] == 2
+    groupes = sm.rapprocher(
+        [{"metric_id": "marge_reelle", "valeur": "1", "unite": "CAD", "version_definition": empreinte}], catalogue
+    )
+    assert groupes["comparables_ensemble"] == [] and "VERSION_NON_COMPARABLE" in sm.STATUTS
+    # Une chaîne hexadécimale de longueur différente n'est pas une empreinte : elle reste une version périmée.
+    court = sm.classer(
+        {"metric_id": "marge_reelle", "valeur": "1", "unite": "CAD", "version_definition": "abc"}, catalogue
+    )
+    assert court["statut"] == "VERSION_PERIMEE"

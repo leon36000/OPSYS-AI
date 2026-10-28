@@ -14,6 +14,9 @@ mesure ;
 * ``VERSION_PERIMEE`` / ``VERSION_NON_DECLAREE`` — la version de définition ayant produit la valeur n'est pas la
 courante, ou
   n'est pas déclarée (la comparabilité ne peut pas être affirmée) ;
+* ``VERSION_NON_COMPARABLE`` — l'observation porte une EMPREINTE de définition (64 hexadécimaux) alors que le registre
+  numérote ses versions en entiers : les deux schémas de version ne sont pas reliés, M9 n'affirme ni la péremption ni la
+  compatibilité ;
 * ``COMPATIBLE`` — même métrique, même unité, même version que la définition courante.
 
 Les groupes de sortie sont clés par ``(metric_id, unité, version)`` : deux groupes ne sont jamais additionnés, moyennés
@@ -25,9 +28,20 @@ TEXTE exact ; aucun nombre n'est produit ici.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 
-STATUTS = frozenset({"COMPATIBLE", "SANS_DEFINITION", "UNITE_DIVERGENTE", "VERSION_PERIMEE", "VERSION_NON_DECLAREE"})
+STATUTS = frozenset(
+    {
+        "COMPATIBLE",
+        "SANS_DEFINITION",
+        "UNITE_DIVERGENTE",
+        "VERSION_PERIMEE",
+        "VERSION_NON_DECLAREE",
+        "VERSION_NON_COMPARABLE",
+    }
+)
+_EMPREINTE = re.compile(r"[0-9a-f]{64}")
 _LIMITES = (
     "M9 ne calcule ni n'agrège aucune métrique : les groupes sont des juxtapositions de valeurs de leurs "
     "propriétaires.",
@@ -100,7 +114,10 @@ def classer(observation: Mapping, catalogue: Mapping[str, Mapping]) -> dict:
     declaree = observation.get("version_definition")
     if declaree in (None, ""):
         return resultat | {"statut": "VERSION_NON_DECLAREE"}
-    if declaree != definition.get("version_definition", definition["version"]):
+    courante = definition.get("version_definition", definition["version"])
+    if type(declaree) is str and _EMPREINTE.fullmatch(declaree) and type(courante) is int:
+        return resultat | {"statut": "VERSION_NON_COMPARABLE", "version_courante": courante}
+    if declaree != courante:
         return resultat | {
             "statut": "VERSION_PERIMEE",
             "version_courante": definition.get("version_definition", definition["version"]),
