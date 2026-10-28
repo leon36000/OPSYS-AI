@@ -123,6 +123,9 @@ ADMIN_SEUL = frozenset({
     "m9_lister_demandes_approbation", "m9_produire_briefing_matin", "m9_produire_lecture_strategique",
     "m9_preparer_dossier_direction",  # dossier préparatoire sourcé T0/N0, admin seulement
     "m9_diagnostiquer_dossier_direction",  # dossier serveur et diagnostic temporel T0/N0, admin seulement
+    # Tissu stratégique M9.1 : captures de producteurs par le port serveur (écriture interne T1/N2) et leurs lectures.
+    "m9_capturer_producteur", "m9_lister_captures", "m9_lire_capture", "m9_couverture_strategique",
+    "m9_verifier_captures",
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",

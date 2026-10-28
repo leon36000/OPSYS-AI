@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 177 outils sur 306 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 182 outils sur 311 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (176 outils) : §9.5 + employé + vendeur
+### `admin` (181 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -194,6 +194,7 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M9 | `m9_observations_chantier_periode` (T0/N0) | Observations WCT liées à leur publication `m8.snapshot_chantier`, connues à la lecture et filtrées sur un instant métier zoné dans `[debut, fin)`. Admin SQL courant avant registre et bus ; chaîne et liaisons complètes vérifiées même hors période, doublons refusés. Chaque page conserve maillon et charge exacts ; vue périmée et preuve trop grande refusées. `source_bus_liee` ne prouve ni authentification du producteur ni réception par M9. Snapshots génériques comptés globalement, aucune somme financière ni couverture complète. |
 | M9 | `m9_rapport_activite_periode` (T0/N0) | Rapport interne partiel : observations WCT liées au bus, puis alertes M8 connues à la lecture, puis suivis humains juste avant fin. Admin SQL courant avant toute source ; trois flux intégralement validés et parcourus, preuves originales complètes, curseur global et budget entier inchangé. Toute preuve trop grande refuse dès la première page. Vue des cinq sources, y compris hors période et clôture future ; aucune réception, authentification M8, finance ni couverture complète attestée. |
 | M9 | `m9_auditer_affirmations_conseil` (T0/N0) | Compare tout un lot de citations textuelles structurées à une seule capture serveur du dossier attendu. Admin SQL courant avant lecture ; référence sélectionnée, valeur textuelle exacte, aucune source contradictoire arbitrée. Hypothèses explicitement déclarées, dossier et preuves complets, refus entier sans troncature. Ni vérité, actualité, modèle, conseil, critique sémantique, gouvernance ou approbation attestés. |
+| M9 | `m9_capturer_producteur` (T1, N2), `m9_lister_captures`, `m9_lire_capture`, `m9_couverture_strategique`, `m9_verifier_captures` (T0/N0) | Tissu stratégique M9.1 : lit, par le port serveur `lecteur_producteurs_m9` (liste blanche de lectures T0 des producteurs), puis conserve les réponses dans un registre chaîné aux quatre temps distincts ; couverture et état « connu à… ». **Admin authentifié seulement, y compris en lecture** (copies d'autres départements) : jamais un agent, jamais une identité absente. |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision` | §7 M10 mobile : décisions à valider et contradictions. |
 | M10 | `m10_paquet_contexte_affaire` (T0/N0) | Contexte privé du moteur Core selon ADR-0010 : sa déclaration admin ne l'expose pas aux routes publiques. L'origine M1/M2 est fixée par la route interne, jamais par un argument. Le plafond effectif du socle refuse le paquet volumineux avant tout artefact ; aucune donnée partielle prise pour un contexte valide. |
 | M10 | `m10_deposer_version_document_appareil`, `m10_activer_version_document_appareil`, `m10_retirer_document_appareil` (T1/N3) | Mutations documentaires de l’affaire connue du corpus autorisé, admin appareil actif et mode ombre. Intention originale, versions/CAS frais, trace APP/J propre et liaison transactionnelles ; quotas entiers avant claim et après trace. Le rejeu confirme sa version originale, sans nouvel effet, même après v2/retrait. Corps/extraits APP masqués en restitution, titre visible ; aucune purge. Premier backend SQLite ; PG reste fermé, transports DEVICE/Native et client sont des qualifications séparées. |
