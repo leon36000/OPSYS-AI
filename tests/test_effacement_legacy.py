@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from alembic.script import ScriptDirectory
 from sqlalchemy import delete, insert
 
 from opsys import cles_chiffrement as coffre
@@ -23,7 +24,7 @@ def base(tmp_path, monkeypatch):
     path = tmp_path / "coffre.db"
     url = "sqlite:///" + str(path)
     monkeypatch.setenv("OPSYS_BASE_URL", url)
-    assert stockage.migrer(url) == "0027"
+    assert stockage.migrer(url) == ScriptDirectory.from_config(stockage._config()).get_current_head()
     yield path, url
     stockage.liberer()
 

@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 from alembic import command
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_mock_engine, event
 
 from opsys import cles_chiffrement as coffre
@@ -27,7 +28,7 @@ def base(tmp_path, monkeypatch):
     path = tmp_path / "coffre.db"
     url = "sqlite:///" + str(path)
     monkeypatch.setenv("OPSYS_BASE_URL", url)
-    assert stockage.migrer(url) == "0027"
+    assert stockage.migrer(url) == ScriptDirectory.from_config(stockage._config()).get_current_head()
     with storage.transaction(url) as cnx:
         key = coffre.obtenir_ou_creer(cnx, PORTEE, ID, DATE)
     yield path, url, key
@@ -166,8 +167,9 @@ def test_reprise_identite_operation_ne_detruit_pas_nouvelle_cle_et_downgrade_ref
             coffre.demander_effacement(
                 cnx, PORTEE, "autre-identite", DATE, purge_id=purge_id, demande_id="demande-fictive",
             )
+    revision_avant = stockage.revision_courante(url)
     config = stockage._config()
     with pytest.raises(RuntimeError, match="effacements"), storage.moteur(url).begin() as cnx:
         config.attributes["connection"] = cnx
         command.downgrade(config, "0026")
-    assert stockage.revision_courante(url) == "0027"
+    assert stockage.revision_courante(url) == revision_avant
