@@ -328,6 +328,7 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
         relu = Registre(stockage.maillons('m04-field-ops', 'principal'))
         assert etats.statut_courant(relu, iid) == 'planifiee'
         assert outbox.lire_outbox(relu) == []
+    assert '/crm/visites/reprise?intervention_id=' + iid in client_crm.get(chemin).text
     # Nouvelle proposition réelle mono-chantier, autre équipe et date civile vendredi.
     import datetime as dt
 

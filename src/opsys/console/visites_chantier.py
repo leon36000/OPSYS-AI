@@ -147,8 +147,9 @@ def contenu(vue, session, prefixe):
     if vue['faits_anciens_non_attribues']:
         corps += '<p>Ancien pointage sans visite : durée globale inconnue ; voir le journal historique.</p>'
     if vue['etat_chantier'] == 'planifiee' and vue['total']:
-        corps += (f'<p><a href="{pages.e(prefixe)}/crm/cedule">Retourner à la cédule</a> pour préparer '
-                  'et confirmer une nouvelle date. L’ancienne prévision reste dans l’historique.</p>')
+        cible = prefixe + '/crm/visites/reprise?' + urlencode({'intervention_id': vue['intervention_id']})
+        corps += (f'<p><a href="{pages.e(cible)}">Préparer une proposition de reprise</a>. '
+                  'L’ancienne prévision reste dans l’historique.</p>')
     courant = vue['ancre_courante']
     if courant and not vue['deja_prevue']:
         corps += f'<form method="post" action="{pages.e(chemin)}">'
@@ -303,6 +304,9 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre, verifier_f
     from . import metier
 
     router = APIRouter()
+    from . import reprise_visite
+    router.include_router(reprise_visite.creer_router(session_page=session_page, cnx_factory=cnx_factory,
+        deps=deps, prefixe=prefixe, rendre=rendre, verifier_formulaire=verifier_formulaire))
 
     @router.get('/crm/visites')
     def page(request: Request):
