@@ -1,0 +1,60 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_console_reprise_visite.py:2:1
+   |
+ 1 |   """Reprise privée : données, profils et SQLite fictifs uniquement."""
+ 2 | / import importlib.util
+ 3 | | from pathlib import Path
+ 4 | |
+ 5 | | import pytest
+ 6 | | from m4_field_ops import (
+ 7 | |     calendrier_civil,
+ 8 | |     cedule,
+ 9 | |     annotations_calendrier,
+10 | |     couleurs_calendrier,
+11 | |     encodage,
+12 | |     etats,
+13 | |     pointage,
+14 | |     registre,
+15 | |     visites_chantier,
+16 | |     visites_durables,
+17 | | )
+18 | |
+19 | | from opsys import equipes, stockage
+   | |___________________________________^
+20 |
+21 |   spec = importlib.util.spec_from_file_location('fixture_application_reprise',
+   |
+help: Organize imports
+   |
+6  | from m4_field_ops import (
+7  +     annotations_calendrier,
+8  |     calendrier_civil,
+9  |     cedule,
+   -     annotations_calendrier,
+10 |     couleurs_calendrier,
+   |
+
+E501 Line too long (123 > 120)
+   --> tests/test_console_reprise_visite.py:227:121
+    |
+225 |         couleurs = registre.Registre(stockage.maillons('m04-field-ops', couleurs_calendrier.REGISTRE))
+226 |         historique_notes = annotations_calendrier.lire(principal, notes, iid)['resultat']['annotations']
+227 |         badges_notes = annotations_calendrier.resumer(principal, notes, [ancre, nouvelle_ancre])['resultat']['annotations']
+    |                                                                                                                         ^^^
+228 |         badges_couleurs = couleurs_calendrier.resumer(principal, couleurs, [ancre, nouvelle_ancre])['resultat']['couleurs']
+229 |     assert nouvelle_ancre != ancre
+    |
+
+E501 Line too long (123 > 120)
+   --> tests/test_console_reprise_visite.py:228:121
+    |
+226 |         historique_notes = annotations_calendrier.lire(principal, notes, iid)['resultat']['annotations']
+227 |         badges_notes = annotations_calendrier.resumer(principal, notes, [ancre, nouvelle_ancre])['resultat']['annotations']
+228 |         badges_couleurs = couleurs_calendrier.resumer(principal, couleurs, [ancre, nouvelle_ancre])['resultat']['couleurs']
+    |                                                                                                                         ^^^
+229 |     assert nouvelle_ancre != ancre
+230 |     assert len(historique_notes) == 1 and historique_notes[0]['ancre'] == ancre
+    |
+
+Found 3 errors.
+[*] 1 fixable with the `--fix` option.
