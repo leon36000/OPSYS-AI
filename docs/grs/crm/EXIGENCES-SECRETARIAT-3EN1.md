@@ -544,3 +544,11 @@ upload borné, colonnes explicites, source/prix/unité revalidés, affichage des
 CSRF/admin et sources aprèsrendu. 69PASSdont17nouveauxHTTP; prix officiels inchangés. La confirmation
 du lot, les formats fournisseurs réels, courriel et déploiement restent ouverts. Preuve HTTP/SQLite,
 pas navigateur réel; produit PARTIAL. Voir le [contrat et preuves](../inventory/M6-IMPORT-TARIFS-APERCU-PRIVE.md).
+
+
+CRM-14 — [confirmation atomique privée du lot](../inventory/M6-IMPORT-TARIFS-CONFIRMATION-LOT.md)
+qualifiée sur94PASSdont31nouveaux : toutes lignes ou aucune, reçu parent/enfants idempotent,
+CAS des3sources, capacité10000, audit/outbox et vrai drainage de références M10 minimisées.
+Concurrence, échec deuxième ligne, quota et expiration finale vérifiés. Catalogue306/177 sans
+permission ajoutée; writer de saisie conservé. Confirmation HTTP, approbation de prix réels,
+courriel et formats fournisseurs restent ouverts. Produit/M6/CRM-14 : PARTIAL.

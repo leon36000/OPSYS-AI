@@ -531,7 +531,7 @@ def _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutatio
     if outil is None:
         raise KeyError("outil M6 indisponible")
     ecriture = nom in {"m6_enregistrer_materiau_console", "m6_confirmer_tarif_console",
-                       "m6_enregistrer_fournisseur_console"}
+                       "m6_enregistrer_fournisseur_console", "m6_confirmer_import_tarifs_console"}
     if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
         raise ValueError("fiche matériau invalide")
     if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
@@ -541,7 +541,7 @@ def _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutatio
     meta = (idempotence.Meta(mutation_id, "console:" + personne.identifiant, maintenant.isoformat())
             if ecriture else None)
     limite_historique = (contexte.limite_sortie() if nom in {"m6_lire_historique_prix_console",
-                         "m6_preparer_import_tarifs_console"} else None)
+                         "m6_preparer_import_tarifs_console", "m6_confirmer_import_tarifs_console"} else None)
     maximum = min(65536, limite_historique) if limite_historique is not None else 65536
     with (
         contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
@@ -549,6 +549,13 @@ def _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutatio
         catalogue.contexte_mutation(meta),
         contexte.receptionne_de(contexte.HorodatageAppareil("console:" + personne.identifiant, maintenant, maintenant)),
     ):
+        if nom == "m6_confirmer_import_tarifs_console":
+            from .memoire_chantier import _admin
+
+            with stockage.transaction():
+                resultat = executer_atomique(outil, dict(arguments))
+                _admin(cnx, session)
+                return resultat
         resultat = executer_atomique(outil, dict(arguments))
         if nom in {"m6_lire_historique_prix_console", "m6_preparer_import_tarifs_console"}:
             from .memoire_chantier import _admin
@@ -625,7 +632,8 @@ def executer(
     if nom in {"m6_lister_fournisseurs_console", "m6_lire_fournisseur_console", "m6_enregistrer_fournisseur_console",
                "m6_enregistrer_materiau_console", "m6_lire_materiau_console", "m6_lister_materiaux_console",
                "m6_lister_fournisseurs_tarif_console", "m6_preparer_tarif_console", "m6_confirmer_tarif_console",
-               "m6_lire_historique_prix_console", "m6_preparer_import_tarifs_console"}:
+               "m6_lire_historique_prix_console", "m6_preparer_import_tarifs_console",
+               "m6_confirmer_import_tarifs_console"}:
         return _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
                    "m3_lire_tarif_modele", "m3_creer_devis_prefill",

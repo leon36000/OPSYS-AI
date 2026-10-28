@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 177 outils sur 305 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 177 outils sur 306 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -1069,3 +1069,11 @@ Le T0 `m6_preparer_import_tarifs_console` est privé console admin, sans rôle a
 Origine/réception, SQLite canonique, source CSV et trois snapshots bornés, quota hérité et
 session finale sont vérifiés. Les deux répartiteurs génériques ferment avant factory/arguments;
 pas de nouvelle portée, table, prix appliqué, achat, source courriel ou permission de compte.
+
+
+Le T1 `m6_confirmer_import_tarifs_console` est privé console admin SQL/session, sans rôle
+appareil ni nouvelle portée. Deux fermetures génériques avant factory; Meta parent hors
+arguments, clés enfants dérivées, source/préparation approuvées obligatoires. Réutilise les
+writers de saisie sous transaction englobante et contrôle final de session, y compris au
+rejeu. Aucun bouton HTTP de confirmation ni import courriel fourni par cette tranche.
+Catalogue306/177 vérifié nativement; aucune donnée réelle ou action fournisseur.

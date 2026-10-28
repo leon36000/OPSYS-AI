@@ -689,3 +689,10 @@ formats et traduction métier; coût disproportionné pour des lignes déjà map
 Recherche GitLab primaire également effectuée, échantillon borné sans candidate suffisamment
 qualifiée; aucune licence GitLab déclarée vérifiée. Aucun gain de temps chiffré ou format
 fournisseur réel revendiqué. CSV/XLSX ne qualifient pas extraction PDF ni provenance courriel.
+
+
+CRM-14 — confirmation du lot : composition des writers M6 natifs, des réclamations
+idempotentes et de `stockage.transaction()` incluant rappels aprèsvalidation. Aucune
+nouvelle dépendance, modèle ou orchestrateur introduit. Le reçu de lot ne remplace ni
+les réceptions, ni l’audit, ni les références M10 de chaque writer. Les types JSON font
+partie de la preuve; une égalité Python bool/int ne suffit pas pour valider un reçu.
