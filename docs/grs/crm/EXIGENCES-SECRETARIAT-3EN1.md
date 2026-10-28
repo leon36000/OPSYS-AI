@@ -561,3 +561,10 @@ réutilisés sans somme; rollback jusqu’après rendu/réception/dernière auto
 libres ne sont ni cachées dans le formulaire ni persistées. Erreurs client400, limites413,
 conflits409 et sources serveur indisponibles503 distincts. Aucun prix réel ou import courriel.
 Navigateur réel encore non qualifié dans cette tranche; M6/CRM-14/produit : PARTIAL.
+
+
+CRM-14 — complément navigateur intégré : login fictif → dialogue fichier → aperçu2lignes →
+confirmation explicite → reçu visible et écritures SQLite vérifiées (+2tarifs/2réceptions,
++3réclamations/+2audits/+2événements). Captures et preuve du chantier conservées, serveur QA
+possédé arrêté. Rejeu via historique navigateur NON VÉRIFIÉ (cache/politique du navigateur),
+rejeu HTTP natif distinct déjà qualifié. Aucun vrai tarif appliqué; statutPARTIAL maintenu.

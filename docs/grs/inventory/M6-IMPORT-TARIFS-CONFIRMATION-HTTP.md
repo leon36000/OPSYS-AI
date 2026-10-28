@@ -99,3 +99,29 @@ en cours au dernier relevé; aucun PASS global revendiqué. Prochaine étape : q
 visuelle/navigateur sous harnais privé autorisé et sandbox effectif (ancien échec sandbox
 Chromium reste historique), puis détection/extraction courriel et formats fournisseurs sourcés
 sous portes propres. Pas de rejeu de l’ancien lancement Chromium ni de suppression du sandbox.
+
+## Parcours navigateur intégré sur fixtures (qualification complémentaire)
+
+Depuis la même source03725737, un serveur ASGI neuf et une base SQLite fictive isolée ont
+été exercés dans le navigateur intégré via Cua. Connexion admin fictive → choix réel du CSV
+par dialogue fichier → mapping/séparateur explicites → aperçu2lignes A_REVOIR → rechoix du même
+CSV → clic de confirmation → reçu visible HTTP200. CapturesJPEG et textes DOM conservés :
+`crm-import-browser-20261028-r1/apercu-v1.jpg` et `recu-v1.jpg`. La preuve SQL après réponse
+constate2tarifs/2réceptions, +3réclamations/+2audits/+2événements source par rapport à l’amorçage.
+Aucun format réel fournisseur ou donnée d’entreprise; ni courriel, achat ou finance exécutés.
+
+Harnais serveur : SourceRO, homes/tmp privés avant imports, CPU1/1Gio/swap0/96tâches/TTL900s,
+IPv6 refusé et syscall connect sortant refusé par noyau, vérifiés avant imports métier; écoute
+entrante127.0.0.1 sur port OS exclusif. Navigateur hors unité serveur, actions limitées à cette
+origine fictive. Un premier amorçage a échoué sur un mauvais nom de variable de harnais avant
+migration/utilisateur; tentative suivante distincte corrigée, sans rejeu du premier reçu.
+L’ancien lancement Chromium CLI échoué n’a pas été relancé et aucun sandbox n’a été désactivé.
+Unité serveur possédée arrêtée, PID absent et état inactive/dead relus.
+
+Limite explicite : le retour arrière sur le POST no-store produit ERR_CACHE_MISS dans ce
+navigateur; la navigation suivante et fermeture explicite ont été refusées par sa politique
+de page interne data:. Aucun contournement; onglet temporaire non marqué pour conservation,
+nettoyage automatique de fin de tour attendu, non encore constaté. Le rejeu navigateur reste
+NON VÉRIFIÉ; le rejeu HTTP natif118PASS garde sa propre preuve, sans addition des populations.
+Preuve : `PRICE-IMPORT-CONFIRMATION-BROWSER-QUALIFIED.json`. Parcours nominal navigateur vérifié,
+qualification navigateur complète ouverte; produit/M6/CRM-14 restentPARTIAL.
