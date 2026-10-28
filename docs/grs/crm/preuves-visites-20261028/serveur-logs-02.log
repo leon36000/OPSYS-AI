@@ -1,0 +1,95 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_serveur_http_access_log_sans_cookie_ni_csrf _______________
+
+client_crm = <starlette.testclient.TestClient object at 0xea8423352360>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...da747c8d', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xea8423fb23c0>
+
+    def test_serveur_http_access_log_sans_cookie_ni_csrf(client_crm, planning, monkeypatch):
+        import logging
+        import socket
+        import threading
+        import time
+        from datetime import UTC, datetime
+        from html.parser import HTMLParser
+    
+        import httpx
+        import uvicorn
+    
+        from opsys.console import metier
+    
+        class HorlogeFictive(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2030, 6, 3, 12, tzinfo=UTC).astimezone(tz)
+    
+        monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
+    
+        class Formulaires(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.forms, self.courant = [], None
+    
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'form':
+                    self.courant = {}
+                    self.forms.append(self.courant)
+                elif tag == 'input' and self.courant is not None and 'name' in attrs:
+                    self.courant[attrs['name']] = attrs.get('value', '')
+    
+            def handle_endtag(self, tag):
+                if tag == 'form':
+                    self.courant = None
+    
+        class Capture(logging.Handler):
+            def __init__(self):
+                super().__init__()
+                self.messages = []
+    
+            def emit(self, record):
+                self.messages.append(record.getMessage())
+    
+        f.f.base._connecter(client_crm, 'admin.fictif')
+        cookies = dict(client_crm.cookies)
+        assert cookies and all(cookies.values())
+        logger = logging.getLogger('uvicorn.access')
+        capture = Capture()
+        ancien_niveau = logger.level
+        logger.setLevel(logging.INFO)
+        logger.addHandler(capture)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('127.0.0.1', 0))
+        sock.listen(16)
+        port = sock.getsockname()[1]
+        serveur = uvicorn.Server(uvicorn.Config(client_crm.app, log_config=None, access_log=True,
+                                                 lifespan='off', timeout_graceful_shutdown=2))
+        thread = threading.Thread(target=serveur.run, kwargs={'sockets': [sock]}, daemon=True)
+        thread.start()
+        try:
+            limite = time.monotonic() + 5
+            while not serveur.started and thread.is_alive() and time.monotonic() < limite:
+                time.sleep(0.01)
+            assert serveur.started
+            iid = planning[1]['lead-fictif-001']
+            route = '/crm/visites?intervention_id=' + iid
+            with httpx.Client(base_url=f'http://127.0.0.1:{port}', cookies=cookies, timeout=5,
+                              trust_env=False, follow_redirects=False) as client:
+                page = client.get(route)
+                assert page.status_code == 200
+                forms = Formulaires()
+                forms.feed(page.text)
+                prevoir = next(x for x in forms.forms if x.get('operation') == 'prevoir')
+                assert prevoir['csrf']
+                reponse = client.post(route, data=prevoir)
+>               assert reponse.status_code == 303
+E               assert 403 == 303
+E                +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests/test_console_logs_visites.py:89: AssertionError
+------------------------------ Captured log call -------------------------------
+INFO     uvicorn.access:h11_impl.py:477 127.0.0.1:50420 - "GET /crm/visites?intervention_id=14b0cb396e9f3544c5b4ae44f45326b5d8121c554eafa32d388ba88a17b9fbc7 HTTP/1.1" 200
+INFO     uvicorn.access:h11_impl.py:477 127.0.0.1:50420 - "POST /crm/visites?intervention_id=14b0cb396e9f3544c5b4ae44f45326b5d8121c554eafa32d388ba88a17b9fbc7 HTTP/1.1" 403
+=========================== short test summary info ============================
+FAILED tests/test_console_logs_visites.py::test_serveur_http_access_log_sans_cookie_ni_csrf
