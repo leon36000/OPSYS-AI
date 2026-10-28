@@ -152,7 +152,26 @@ def _dernier_depart(registre_cible, intervention_id):
 
 
 # --------------------------------------------------------------------- API publique
-def calculer_minutes_pause(registre_cible, intervention_id, debut_presence=None, fin_presence=None):
+def _source_visites_explicite(registre_cible, intervention_id):
+    """Ne jamais traiter un fait étiqueté ou un marqueur de visite comme du legacy."""
+    return any(m.get("intervention_id") == intervention_id
+               and (m.get("type_entree") in {"visite_ouverte", "visite_fermee"} or "visite_id" in m)
+               for m in registre_cible.lire())
+
+
+def _total_visites(registre_cible, intervention_id, registre_visites, cle):
+    if registre_visites is None:
+        return None, "REJ-CONTRAT-INVALIDE"
+    from . import visites_chantier
+    try:
+        resultat = visites_chantier.calculer_faits_certifies(registre_cible, registre_visites, intervention_id)
+    except ValueError:
+        return None, "REJ-CONTRAT-INVALIDE"
+    return resultat[cle], None
+
+
+def calculer_minutes_pause(registre_cible, intervention_id, debut_presence=None, fin_presence=None,
+                           *, registre_visites=None):
     """
     Somme les pauses (T1.1-c#1) d'une intervention, en minutes.
 
@@ -170,8 +189,17 @@ def calculer_minutes_pause(registre_cible, intervention_id, debut_presence=None,
         bloquent avec un verdict nommé. Aucune pause : 0 minute, légitimement
         (une intervention peut n'avoir jamais fait de pause).
     """
+    if _source_visites_explicite(registre_cible, intervention_id):
+        if debut_presence is not None or fin_presence is not None:
+            return None, "REJ-CONTRAT-INVALIDE"
+        return _total_visites(registre_cible, intervention_id, registre_visites, "pause_minutes")
+
+    maillons = registre_cible.lire()
+    if sum(1 for m in maillons if m.get("type_entree") == pointage.TYPE_POINTAGE
+           and m.get("intervention_id") == intervention_id and m.get("action") == "arrivee") > 1:
+        return None, "REJ-CONTRAT-INVALIDE"
     pointages = [
-        m for m in registre_cible.lire()
+        m for m in maillons
         if m.get("type_entree") == pointage.TYPE_POINTAGE
         and m.get("intervention_id") == intervention_id
         and m.get("action") in ("pause_debut", "pause_fin")
@@ -203,7 +231,7 @@ def calculer_minutes_pause(registre_cible, intervention_id, debut_presence=None,
     return total_minutes, None
 
 
-def calculer_minutes_deplacement(registre_cible, intervention_id):
+def calculer_minutes_deplacement(registre_cible, intervention_id, *, registre_visites=None):
     """
     Calcule le temps de déplacement (T1.1-c#2) : de la transition planifiee ->
     en_route jusqu'au PREMIER pointage d'arrivée, DISTINCT du temps sur site
@@ -219,6 +247,9 @@ def calculer_minutes_deplacement(registre_cible, intervention_id):
         transition en_route, aucune arrivée, ou arrivée ANTÉRIEURE au départ
         déclaré. Aucune valeur conventionnelle n'est jamais substituée.
     """
+    if _source_visites_explicite(registre_cible, intervention_id):
+        return _total_visites(registre_cible, intervention_id, registre_visites, "deplacement_minutes")
+
     horodatage_en_route = None
     for maillon in registre_cible.lire():
         if (maillon.get("type_entree") == etats.TYPE_TRANSITION
@@ -277,16 +308,8 @@ def calculer_duree_reelle(registre_cible, intervention_id, *, registre_visites=N
     """
     # Une source segmentée exige sa preuve de visite et ses ancres. Sans elle,
     # ne pas retomber sur le calcul historique, même avec une seule arrivée.
-    if any(m.get("type_entree") == "visite_ouverte" and m.get("intervention_id") == intervention_id
-           for m in registre_cible.lire()):
-        if registre_visites is None:
-            return None, "REJ-CONTRAT-INVALIDE"
-        from . import visites_chantier
-        try:
-            resultat = visites_chantier.calculer_faits_certifies(registre_cible, registre_visites, intervention_id)
-        except ValueError:
-            return None, "REJ-CONTRAT-INVALIDE"
-        return resultat["travail_minutes"], None
+    if _source_visites_explicite(registre_cible, intervention_id):
+        return _total_visites(registre_cible, intervention_id, registre_visites, "travail_minutes")
 
     pointages = []
     for maillon in registre_cible.lire():

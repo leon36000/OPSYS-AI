@@ -326,6 +326,10 @@ def test_reprise_lundi_vendredi_avec_un_seul_wct_et_minutes_reelles():
     session(seconde_ancre, 1, 'vendredi-fictif', '2030-06-07', [])
     resultat = visites_chantier.calculer_faits_certifies(principal, visites, iid)
     assert (resultat['travail_minutes'], resultat['pause_minutes'], resultat['deplacement_minutes']) == (390, 30, 60)
+    assert outbox.calculer_minutes_pause(principal, iid)[0] is None
+    assert outbox.calculer_minutes_deplacement(principal, iid)[0] is None
+    assert outbox.calculer_minutes_pause(principal, iid, registre_visites=visites) == (30, None)
+    assert outbox.calculer_minutes_deplacement(principal, iid, registre_visites=visites) == (60, None)
     avant_completion = principal.lire()
     assert outbox.completer_intervention(iid, '2030-06-07T13:02:00-04:00', principal,
                                         ecart_detecte=False)[1] is not None
@@ -339,6 +343,12 @@ def test_reprise_lundi_vendredi_avec_un_seul_wct_et_minutes_reelles():
     assert len(outbox.lire_outbox(principal)) == 1
     assert outbox.lire_outbox(principal)[0][1]['duree_reelle_minutes'] == 390
     assert outbox.lire_outbox(principal)[0][1]['technicien_id'] == autre_equipe['id']
+    from m4_field_ops import heures_regulieres, temps
+    brouillon, refus = temps.produire_brouillon_temps(principal, {'debut': '2030-06-03', 'fin': '2030-06-07'})
+    assert brouillon is None and refus is not None
+    apercu = heures_regulieres.previsualiser(principal.lire(), equipe, '2030-06-03', '2030-06-07',
+                                            'America/Montreal')
+    assert apercu['accepte'] is False and apercu['verdict']['code'] == 'REJ-TECHNICIEN-AMBIGU'
     assert autre_equipe['id'] != equipe
     assert outbox.completer_intervention(iid, '2030-06-07T13:03:00-04:00', principal,
                                         ecart_detecte=False, registre_visites=visites)[1] is not None

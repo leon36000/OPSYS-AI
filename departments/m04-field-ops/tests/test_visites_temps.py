@@ -24,6 +24,11 @@ def test_refuse_duree_continue_sur_deux_arrivees_sans_ancrage():
         None, 'REJ-CONTRAT-INVALIDE')
 
 
+def test_refuse_pause_globale_sur_deux_arrivees_non_identifiees():
+    assert outbox.calculer_minutes_pause(_registre_fictif(), 'fictif-1') == (
+        None, 'REJ-CONTRAT-INVALIDE')
+
+
 def test_refuse_deplacement_ambigu_sur_deux_arrivees():
     reg = _registre_fictif()
     reg.ajouter({'type_entree': 'transition_statut', 'intervention_id': 'fictif-1',
@@ -41,3 +46,18 @@ def test_double_depart_historique_reste_calculable():
         reg.ajouter({'type_entree': 'pointage', 'intervention_id': 'fictif-1',
                      'action': action, 'horodatage': instant, 'fictif': True})
     assert outbox.calculer_duree_reelle(reg, 'fictif-1') == (125, None)
+
+
+def test_fait_etiquete_sans_ouverture_ne_devient_pas_un_fait_legacy():
+    reg = registre.Registre()
+    for action, heure in [('arrivee', '09:00:00'), ('depart', '11:00:00')]:
+        reg.ajouter({'type_entree': 'pointage', 'intervention_id': 'fictif-1', 'visite_id': 'f' * 64,
+                     'action': action, 'horodatage': f'2026-11-02T{heure}-05:00', 'fictif': True})
+    assert outbox.calculer_duree_reelle(reg, 'fictif-1') == (None, 'REJ-CONTRAT-INVALIDE')
+    assert outbox.calculer_minutes_pause(reg, 'fictif-1') == (None, 'REJ-CONTRAT-INVALIDE')
+    assert outbox.calculer_minutes_deplacement(reg, 'fictif-1') == (None, 'REJ-CONTRAT-INVALIDE')
+    visites = registre.Registre()
+    assert outbox.calculer_duree_reelle(reg, 'fictif-1', registre_visites=visites) == (None, 'REJ-CONTRAT-INVALIDE')
+    assert outbox.calculer_minutes_pause(reg, 'fictif-1', registre_visites=visites) == (None, 'REJ-CONTRAT-INVALIDE')
+    assert outbox.calculer_minutes_deplacement(reg, 'fictif-1', registre_visites=visites) == (
+        None, 'REJ-CONTRAT-INVALIDE')
