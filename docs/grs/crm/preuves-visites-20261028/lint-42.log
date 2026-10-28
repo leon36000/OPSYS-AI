@@ -1,0 +1,3 @@
+ruff failed
+  Cause: Failed to create temporary file
+  Cause: Read-only file system (os error 30) at path "/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/.ruff_cache/0.17.1/.tmpazXIV5"

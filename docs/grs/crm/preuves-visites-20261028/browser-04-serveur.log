@@ -1,0 +1,4 @@
+QA_PORT=40679
+QA_INTERVENTION=c09957d3e72a26380019fca7aee8451885274737c58083fe85bae696e4343031
+QA_HOME=/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-qa/private/tmp/pytest-of-pc6/pytest-63/test_serveur_fictif_reprise0/opsys-home
+QA_DATABASE=sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-qa/private/tmp/pytest-of-pc6/pytest-63/test_serveur_fictif_reprise0/opsys-home/opsys.db

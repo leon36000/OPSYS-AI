@@ -1,0 +1,26 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________ test_projections_utilisent_les_faits_explicitement_identifies _________
+
+    def test_projections_utilisent_les_faits_explicitement_identifies():
+        reg = registre_sessions()
+>       resultat = visites.calculer_faits(reg, 'chantier-fictif')
+                   ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'm4_field_ops.visites_chantier' has no attribute 'calculer_faits'
+
+departments/m04-field-ops/tests/test_visites_chantier.py:116: AttributeError
+_____ test_refuse_fait_historique_non_identifie_sans_rattachement_invente ______
+
+    def test_refuse_fait_historique_non_identifie_sans_rattachement_invente():
+        reg = registre_sessions()
+        reg.ajouter({'type_entree': 'pointage', 'intervention_id': 'chantier-fictif',
+                     'action': 'depart', 'horodatage': '2026-11-06T18:01:00+00:00', 'fictif': True})
+        with pytest.raises(ValueError):
+>           visites.calculer_faits(reg, 'chantier-fictif')
+            ^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'm4_field_ops.visites_chantier' has no attribute 'calculer_faits'
+
+departments/m04-field-ops/tests/test_visites_chantier.py:129: AttributeError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_chantier.py::test_projections_utilisent_les_faits_explicitement_identifies
+FAILED departments/m04-field-ops/tests/test_visites_chantier.py::test_refuse_fait_historique_non_identifie_sans_rattachement_invente

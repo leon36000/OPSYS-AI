@@ -1,0 +1,12 @@
+E501 Line too long (133 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/etats.py:736:121
+    |
+734 |             fermetures = [m for m in registre_cible.lire() if m.get("type_entree") == "visite_fermee"
+735 |                           and m.get("intervention_id") == intervention_id]
+736 |             if not fermetures or visites_chantier._instant(horodatage_arg) < visites_chantier._instant(fermetures[-1]["horodatage"]):
+    |                                                                                                                         ^^^^^^^^^^^^^
+737 |                 raise ValueError("fermeture ou chronologie invalide")
+738 |             fermeture_visite = fermetures[-1]
+    |
+
+Found 1 error.

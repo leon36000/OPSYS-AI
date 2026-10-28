@@ -1,0 +1,25 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_console_journal_visites.py:72:5
+   |
+71 |   def test_lien_visite_hors_premiere_page_conserve_la_source(client_crm, planning, session):
+72 | /     from datetime import date, timedelta
+73 | |     from html import unescape
+74 | |     import re
+75 | |
+76 | |     from m4_field_ops import calendrier_civil, encodage, visites_durables
+   | |_________________________________________________________________________^
+77 |
+78 |       _, ids, confirmation, _ = planning
+   |
+help: Organize imports
+   |
+71 | def test_lien_visite_hors_premiere_page_conserve_la_source(client_crm, planning, session):
+72 +     import re
+73 |     from datetime import date, timedelta
+74 |     from html import unescape
+   -     import re
+75 |
+   |
+
+Found 1 error.
+[*] 1 fixable with `--fix`.

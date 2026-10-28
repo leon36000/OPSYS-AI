@@ -933,6 +933,7 @@ def creer_router(
         preparation_chantier,
         rentabilite_chantier,
         temps_pointes,
+        visites_chantier,
     )
 
     router.include_router(temps_pointes.creer_router(
@@ -946,6 +947,9 @@ def creer_router(
         verifier_formulaire=verifier_formulaire))
     router.include_router(journal_equipes.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
+    router.include_router(visites_chantier.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
+        verifier_formulaire=verifier_formulaire))
     router.include_router(compositions_equipes.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
         verifier_formulaire=verifier_formulaire))

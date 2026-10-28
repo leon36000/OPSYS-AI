@@ -1,0 +1,148 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_http_visites_depuis_chantier_prevision_et_csrf ______________
+
+client_crm = <starlette.testclient.TestClient object at 0xe017b6448680>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...fc4f0f9d', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xe017b9973b00>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xe017b6ad2c60>
+
+    def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, session, monkeypatch):
+        from datetime import UTC, datetime
+    
+        from opsys.console import metier
+    
+        class HorlogeFictive(datetime):
+            instant = datetime(2030, 6, 3, 12, 0, 0, tzinfo=UTC)
+            @classmethod
+            def now(cls, tz=None):
+                return cls.instant.astimezone(tz)
+        monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
+        _, ids, _, _ = planning
+        iid = ids['lead-fictif-001']
+        chemin = '/crm/visites?intervention_id=' + iid
+        assert client_crm.get(chemin, follow_redirects=False).status_code == 303
+        f.base._connecter(client_crm, 'admin.fictif')
+        # Cookie fictif à échéance 2100 : l'horloge métier est avancée pour tester le jour de visite.
+        from dataclasses import replace
+    
+        from opsys.console import securite
+        cookie = next(c for c in client_crm.cookies.jar if c.name == securite.NOM_COOKIE)
+        sess = securite.lire_session(cookie.value, f.base.SECRET)
+        cookie.value = securite.signer_session(replace(sess, expire=4102444800), f.base.SECRET)
+        journal = client_crm.get('/crm/journal-equipes?jour=2030-06-03')
+        assert journal.status_code == 200 and ('/crm/visites?intervention_id=' + iid) in journal.text
+        page = client_crm.get(chemin)
+        assert page.status_code == 200, page.text
+        assert 'Prévisions et visites' in page.text and 'Composition' in page.text
+        from html.parser import HTMLParser
+        class Forms(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.forms, self.current = [], None
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'form':
+                    self.current = {}
+                    self.forms.append(self.current)
+                elif tag == 'input' and self.current is not None and 'name' in attrs:
+                    self.current[attrs['name']] = attrs.get('value', '')
+            def handle_endtag(self, tag):
+                if tag == 'form':
+                    self.current = None
+        def formulaire(html, operation):
+            parser = Forms()
+            parser.feed(html)
+            return next(x for x in parser.forms if x.get('operation') == operation)
+        prevoir = formulaire(page.text, 'prevoir')
+        mauvais_csrf = {**prevoir, 'csrf': 'csrf-incorrect-fictif'}
+        assert client_crm.post(chemin, data=mauvais_csrf, follow_redirects=False).status_code == 403
+        cree = client_crm.post(chemin, data=prevoir, follow_redirects=False)
+        assert cree.status_code == 303, cree.text
+        page = client_crm.get(chemin)
+        assert page.status_code == 200 and 'Composition déclarée inconnue' in page.text
+        ouvrir = formulaire(page.text, 'ouvrir')
+        autre = next(x for x in ids.values() if x != iid)
+        assert client_crm.post('/crm/visites?intervention_id=' + autre, data=ouvrir,
+                               follow_redirects=False).status_code == 400
+        resultat = client_crm.post(chemin, data=ouvrir, follow_redirects=False)
+        assert resultat.status_code == 303, resultat.text
+        page = client_crm.get(chemin)
+        assert page.status_code == 200 and 'Temps pointé : inconnu' in page.text
+        assert formulaire(page.text, 'fermer')
+        from m4_field_ops import calendrier_civil, cedule, composition_journaliere, encodage, etats, pointage
+        from m4_field_ops.registre import Registre
+    
+        from opsys import stockage
+        with session():
+            reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            ligne = next(x for x in calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions']
+                         if x['intervention_id'] == iid)
+            equipe = ligne['equipe_id']
+            assign = {'intervention_id': iid, 'technicien_id': equipe}
+            assert etats.transitionner(iid, 'en_route', reg, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+            ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+                'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+            fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+            for action, instant in [('arrivee', '2030-06-03T09:00:00-04:00'),
+                                    ('depart', '2030-06-03T12:00:00-04:00')]:
+                assert pointage.enregistrer_pointage(iid, equipe, action, instant,
+                    {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                    assign, fenetre, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
+            declaration = {'jour': '2030-06-03', 'equipe_id': equipe, 'membres': ['personne<script>.fictive'],
+                           'revision_attendue': 0, 'statut_declaration': 'declaree'}
+            composition_journaliere.declarer(Registre(stockage.maillons('m04-field-ops',
+                                                                        composition_journaliere.REGISTRE)),
+                **declaration, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                mutation={'appareil': 'test-fictif', 'cle': 'composition-fictive',
+                          'empreinte_arguments': encodage.empreinte(declaration)},
+                horodatage='2030-06-03T12:00:00-04:00')
+        HorlogeFictive.instant = datetime(2030, 6, 3, 16, 1, 0, tzinfo=UTC)
+        page = client_crm.get(chemin)
+        fermer = formulaire(page.text, 'fermer')
+        assert 'Composition déclarée : personne&lt;script&gt;.fictive' in page.text
+        assert 'personne<script>.fictive' not in page.text
+        assert client_crm.post(chemin, data=fermer, follow_redirects=False).status_code == 303
+        assert client_crm.post(chemin, data=fermer, follow_redirects=False).status_code == 303
+        page = client_crm.get(chemin)
+        assert page.status_code == 200 and 'Pointé : 180 min nettes' in page.text
+        assert 'ne prouve pas la présence individuelle' in page.text
+        interrompre = formulaire(page.text, 'interrompre')
+        interrompre['motif'] = 'meteo'
+        HorlogeFictive.instant = datetime(2030, 6, 3, 16, 2, 0, tzinfo=UTC)
+        with session():
+            reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            reg.ajouter({'type_entree': 'variance_m6_recue', 'intervention_id': autre,
+                         'horodatage': '2030-06-03T16:01:30+00:00', 'fictif': True})
+        assert client_crm.post(chemin, data=interrompre, follow_redirects=False).status_code == 409
+        page = client_crm.get(chemin)
+        interrompre = formulaire(page.text, 'interrompre')
+        interrompre['motif'] = 'meteo'
+        response = client_crm.post(chemin, data=interrompre, follow_redirects=False)
+        assert response.status_code == 303, response.text
+        assert client_crm.post(chemin, data=interrompre, follow_redirects=False).status_code == 303
+        with session():
+            from m4_field_ops import outbox
+            relu = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            assert etats.statut_courant(relu, iid) == 'reportee'
+            assert outbox.lire_outbox(relu) == []
+        page = client_crm.get(chemin)
+>       replanifier = formulaire(page.text, 'replanifier')
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_visites_chantier.py:296: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+html = '<!doctype html>\n<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initi...ournal-equipes?jour=2030-06-03">Journal de cette journée</a></p></article><nav></nav></section></main></body></html>\n'
+operation = 'replanifier'
+
+    def formulaire(html, operation):
+        parser = Forms()
+        parser.feed(html)
+>       return next(x for x in parser.forms if x.get('operation') == operation)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       StopIteration
+
+tests/test_console_visites_chantier.py:222: StopIteration
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_http_visites_depuis_chantier_prevision_et_csrf

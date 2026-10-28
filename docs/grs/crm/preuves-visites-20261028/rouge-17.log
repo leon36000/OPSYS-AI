@@ -1,0 +1,15 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_prevision_ne_peut_predater_sa_source_civile _______________
+
+    def test_prevision_ne_peut_predater_sa_source_civile():
+        principal, visites, ancre, _, _ = fixture.monde()
+        datee = fixture.calendrier_civil.confirmer(principal, ancre['plan_id'], {'0': '2030-06-10'}, 1,
+                                                   'admin.fictif', '2030-02-01T00:00:00+00:00')
+        nouvelle = {**ancre, 'source_ligne_id': datee['ligne_id']}
+>       with pytest.raises(visites_durables.Refus):
+E       Failed: DID NOT RAISE Refus
+
+departments/m04-field-ops/tests/test_visites_reprise.py:326: Failed
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_prevision_ne_peut_predater_sa_source_civile

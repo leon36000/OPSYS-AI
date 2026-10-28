@@ -1,0 +1,23 @@
+E501 Line too long (129 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/outils.py:570:121
+    |
+568 |             if (etats.statut_courant(reg, intervention_id) != "reportee" or not reports
+569 |                     or reports[-1].get("ligne_id") != report_id or reports[-1].get("visite_id") != visite_id
+570 |                     or visites_chantier._instant(horodatage_faisant_foi) < visites_chantier._instant(reports[-1]["horodatage"])):
+    |                                                                                                                         ^^^^^^^^^
+571 |                 raise annotations_calendrier.Refus("SOURCE-PERIMEE")
+572 |             visites_chantier.calculer_faits_certifies(
+    |
+
+E501 Line too long (121 > 120)
+   --> src/opsys/console/visites_chantier.py:329:121
+    |
+327 |         elif champs['operation'] == 'interrompre':
+328 |             nom, payload = 'm4_signaler_report', {'intervention_id': args['intervention_id'],
+329 |                 'motif': champs['motif'], 'visite_id': champs['visite_id'], 'source_attendue': champs['source_attendue']}
+    |                                                                                                                         ^
+330 |         else:
+331 |             nom, payload = 'm4_evenement_visite_console', {k: champs[k] for k in (
+    |
+
+Found 2 errors.

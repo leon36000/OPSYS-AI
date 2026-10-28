@@ -1,0 +1,12 @@
+
+==================================== ERRORS ====================================
+__ ERROR collecting departments/m04-field-ops/tests/test_visites_chantier.py ___
+ImportError while importing test module '/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_visites_chantier.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+departments/m04-field-ops/tests/test_visites_chantier.py:6: in <module>
+    from m4_field_ops import visites_chantier as visites
+E   ImportError: cannot import name 'visites_chantier' from 'm4_field_ops' (/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/src/m4_field_ops/__init__.py)
+=========================== short test summary info ============================
+ERROR departments/m04-field-ops/tests/test_visites_chantier.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!

@@ -1,0 +1,115 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_port_console_admin_verifie_metier_et_rejeu ________________
+
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...b5821047', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xe659bef8b880>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xe659bd104050>
+
+    def test_port_console_admin_verifie_metier_et_rejeu(planning, session, monkeypatch):
+        from datetime import UTC, datetime
+        from m4_field_ops import calendrier_civil
+        from m4_field_ops.registre import Registre
+        from opsys import stockage
+        from opsys.console import metier
+        from opsys.console.securite import Session
+        from opsys.departements import charger_departements
+    
+        class HorlogeFictive(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2030, 6, 3, 12, 0, 0, tzinfo=UTC).astimezone(tz)
+        monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
+        auth = Session('admin.fictif', frozenset({'admin'}), 'csrf-fictif', 4102444800)
+        _, ids, _, _ = planning
+        iid = ids['lead-fictif-001']
+        with session() as cnx:
+            reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            ligne = next(x for x in calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions']
+                         if x['intervention_id'] == iid)
+            ancre = {k: ligne[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+>           result = metier.executer(cnx, charger_departements(), auth, 'm4_prevoir_visite_console',
+                                     {'ancre': ancre, 'revision_attendue': 0}, mutation_id='prevoir-metier-fictif')
+
+tests/test_console_visites_chantier.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cnx = <sqlalchemy.engine.base.Connection object at 0xe659bd25ee40>
+deps = {'m01-front-office': Departement(id='m01-front-office', code='M1', nom='Front Office', mission="Recevoir chaque demand...ger', 'nathan_owner', 'admin'}), <Niveau.N4: 'N4'>: frozenset({'manager', 'nathan_owner', 'admin'})}), canaux=()), ...}
+session = Session(utilisateur='admin.fictif', roles=frozenset({'admin'}), expire=4102444800)
+nom = 'm4_prevoir_visite_console'
+arguments = {'ancre': {'intervention_id': '14b0cb396e9f3544c5b4ae44f45326b5d8121c554eafa32d388ba88a17b9fbc7', 'plan_id': '5fd2c584...97cd7', 'source_ligne_id': '479f69047073b0ab4370e6b9e8ffec67962e6338d4ed78adcd2dd7c0b5821047'}, 'revision_attendue': 0}
+mutation_id = 'prevoir-metier-fictif', octets_prives = None
+preuve_commande = None
+
+    def executer(
+        cnx: Connection,
+        deps: Mapping[str, Departement],
+        session: Session,
+        nom: str,
+        arguments: Mapping[str, Any],
+        *,
+        mutation_id: str | None = None,
+        octets_prives: bytes | None = None,
+        preuve_commande: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        personne = identite.personne_active(cnx, session.utilisateur)
+        if personne is None or not personne.roles.intersection({"nathan_owner", "admin"}):
+            raise PermissionError("administration métier requise")
+        if nom in _OUTILS_ADMIN and "admin" not in personne.roles:
+            raise PermissionError("admin SQL requis pour cet outil métier")
+        if nom in (_COMMANDES_ADMIN_M2 | _COMMANDES_ADMIN_M4) and session.expire <= datetime.now(UTC).timestamp():
+            raise PermissionError("session de note expirée")
+        if nom == "m1_consigner_suivi_rappel" and session.expire <= datetime.now(UTC).timestamp():
+            raise PermissionError("session de suivi expirée")
+        if nom in {
+            "m5_affecter_cout_marketing", "m5_revoquer_affectation_cout_marketing", "m5_lire_couts_marketing_affectes",
+        }:
+            from . import couts_marketing
+    
+            return couts_marketing.executer_action(cnx, deps, session, nom, arguments, mutation_id)
+        if nom in _COMMANDES_CMO:
+            return _executer_strategie_cmo(cnx, deps, session, nom, arguments, mutation_id)
+        if nom == "m7_enregistrer_observation_humaine":
+            return _executer_observation_growth_humaine(cnx, deps, session, personne, arguments, mutation_id)
+        if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
+            return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
+        if nom in {"m6_lister_fournisseurs_console", "m6_lire_fournisseur_console", "m6_enregistrer_fournisseur_console",
+                   "m6_enregistrer_materiau_console", "m6_lire_materiau_console", "m6_lister_materiaux_console",
+                   "m6_lister_fournisseurs_tarif_console", "m6_preparer_tarif_console", "m6_confirmer_tarif_console",
+                   "m6_lire_historique_prix_console", "m6_preparer_import_tarifs_console",
+                   "m6_confirmer_import_tarifs_console"}:
+            return _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutation_id)
+        if nom in {"m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
+                       "m3_lire_tarif_modele", "m3_creer_devis_prefill",
+                       "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission",
+                   "m3_creer_devis_depuis_modele", "m3_document_devis_console"}:
+            return _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id)
+        if nom in {"m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",
+                       "m2_lire_rencontres_lead"}:
+            return _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id)
+        if nom in {"m4_declarer_composition_journaliere_console", "m4_declarer_absence_journaliere_console"}:
+            return _executer_declaration_journaliere(cnx, deps, session, personne, nom, arguments, mutation_id)
+        if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
+                   "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
+                   "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
+                       "m4_lire_page_cedule_semaine"}:
+            return _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation_id)
+        if nom in {"m6_enregistrer_note_commande", "m6_lire_note_commande", "m6_lister_notes_commande"}:
+            return _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutation_id)
+        surfaces = COMMANDES if mutation_id is not None else LECTURES
+        departement = surfaces.get(nom)
+        est_media = nom == "m7_lire_dossier_medias" or nom in _COMMANDES_MEDIAS
+        if est_media and "nathan_owner" not in personne.roles:
+            raise PermissionError("propriétaire humain requis")
+        if nom in _COMMANDES_MEDIAS and mutation_id is None:
+            raise ValueError("mutation média requise")
+        if est_media and departement is None:
+            departement = "m07-marketing"
+        if departement is None or departement not in deps:
+>           raise KeyError("action métier inconnue")
+E           KeyError: 'action métier inconnue'
+
+src/opsys/console/metier.py:665: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_port_console_admin_verifie_metier_et_rejeu

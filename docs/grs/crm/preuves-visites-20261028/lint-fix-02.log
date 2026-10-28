@@ -1,0 +1,12 @@
+E501 Line too long (121 > 120)
+  --> tests/test_console_reprise_visite.py:61:121
+   |
+59 |         recu = visites_durables.prevoir(reg, prev, **args,
+60 |             auteur={'personne': 'admin.fictif', 'role': 'admin'},
+61 |             mutation={'appareil': 'fictif', 'cle': 'prevision-fictive', 'empreinte_arguments': encodage.empreinte(args)},
+   |                                                                                                                         ^
+62 |             horodatage='2030-06-03T07:30:00-04:00')
+63 |         visites_chantier.ouvrir(reg, prev, recu['visite_id'], '2030-06-03T08:00:00-04:00')
+   |
+
+Found 4 errors (3 fixed, 1 remaining).

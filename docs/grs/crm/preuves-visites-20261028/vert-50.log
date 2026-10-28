@@ -1,0 +1,56 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_http_visites_depuis_chantier_prevision_et_csrf ______________
+
+client_crm = <starlette.testclient.TestClient object at 0xf9f11f4f2f60>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...cde865a3', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xf9f120194500>
+
+    def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, monkeypatch):
+        from datetime import UTC, datetime
+        from opsys.console import metier
+    
+        class HorlogeFictive(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2030, 6, 3, 12, 0, 0, tzinfo=UTC).astimezone(tz)
+        monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
+        _, ids, _, _ = planning
+        iid = ids['lead-fictif-001']
+        chemin = '/crm/visites?intervention_id=' + iid
+        assert client_crm.get(chemin, follow_redirects=False).status_code == 303
+        f.base._connecter(client_crm, 'admin.fictif')
+        page = client_crm.get(chemin)
+        assert page.status_code == 200, page.text
+        assert 'Prévisions et visites' in page.text and 'Composition' in page.text
+        from html.parser import HTMLParser
+        class Forms(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.forms, self.current = [], None
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'form':
+                    self.current = {}
+                    self.forms.append(self.current)
+                elif tag == 'input' and self.current is not None and 'name' in attrs:
+                    self.current[attrs['name']] = attrs.get('value', '')
+            def handle_endtag(self, tag):
+                if tag == 'form':
+                    self.current = None
+        def formulaire(html, operation):
+            parser = Forms()
+            parser.feed(html)
+            return next(x for x in parser.forms if x.get('operation') == operation)
+        prevoir = formulaire(page.text, 'prevoir')
+        mauvais_csrf = {**prevoir, 'csrf': 'csrf-incorrect-fictif'}
+        assert client_crm.post(chemin, data=mauvais_csrf, follow_redirects=False).status_code == 403
+        cree = client_crm.post(chemin, data=prevoir, follow_redirects=False)
+>       assert cree.status_code == 303, cree.text
+E       AssertionError: {"detail":"Accès admin requis"}
+E       assert 403 == 303
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests/test_console_visites_chantier.py:206: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_http_visites_depuis_chantier_prevision_et_csrf

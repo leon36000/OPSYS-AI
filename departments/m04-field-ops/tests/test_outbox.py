@@ -827,10 +827,7 @@ def test_lire_outbox_depuis_index():
     reg, i_id = _intervention_sur_site_avec_pointages()
     outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
     # Créer une deuxième intervention complétée pour avoir un index plus loin
-    reg2, i_id2 = _intervention_sur_site_avec_pointages()
-    # Copier les maillons dans reg (artificiel mais suffisant)
-    for m in reg2.lire()[1:]:  # skip le premier (marqueur)
-        reg.ajouter(m)
+    i_id2 = _ajouter_intervention_sur_site(reg, "L2", H1)
     outbox_mod.completer_intervention(i_id2, H_COMPLETION, reg, ecart_detecte=False)
 
     tout = outbox_mod.lire_outbox(reg)

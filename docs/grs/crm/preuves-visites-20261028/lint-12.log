@@ -1,0 +1,12 @@
+E501 Line too long (121 > 120)
+   --> src/opsys/console/visites_chantier.py:175:121
+    |
+173 |                             (vue['suivant'], 'Page suivante')):
+174 |         if debut is not None and (debut != 0 or vue['debut']):
+175 |             cible = chemin + '&' + urlencode({'debut': debut, 'limite': vue['limite'], 'source_attendue': vue['source']})
+    |                                                                                                                         ^
+176 |             nav.append(f'<a href="{pages.e(cible)}">{libelle}</a>')
+177 |     return corps + '<nav>' + ' · '.join(nav) + '</nav></section>'
+    |
+
+Found 1 error.

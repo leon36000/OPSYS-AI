@@ -1,0 +1,32 @@
+........................................................................ [ 49%]
+.......F................................................................ [ 98%]
+..                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_liens_du_journal_depuis_previsions_uniquement_sans_copie_membres _____
+
+client_crm = <starlette.testclient.TestClient object at 0xe312d1dc9d30>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...18e64ea7', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xe312d3d06e80>
+
+    def test_liens_du_journal_depuis_previsions_uniquement_sans_copie_membres(client_crm, planning, session):
+        from m4_field_ops import etats
+    
+        _, ids, _, _ = planning
+        with session() as cnx:
+            assert etats.transitionner(next(iter(ids.values())), 'reportee', g.f.f.terrain._registre(),
+                                       g.D + 'T10:00:00-04:00', motif='meteo')[1] is None
+            avant = journal_equipes.lire(cnx, charger_departements(), g.AUTH, g.D)
+        g.ajouter(session)
+        with session() as cnx:
+            apres = journal_equipes.lire(cnx, charger_departements(), g.AUTH, g.D)
+>       assert avant == apres
+E       AssertionError: assert {'jour': '203...', ...}], ...} == {'jour': '203...', ...}], ...}
+E         
+E         Omitting 8 identical items, use -vv to show
+E         Differing items:
+E         {'source': 'bcbbe5affc99abce35a72f524f2d8ebabb8e0d04b36d8328e87fa66d95bfbc6d'} != {'source': 'fcd4bf07294e14699432752b39c068f6f9f7fec4af7787347d248a848778c0d0'}
+E         Use -v to get more diff
+
+tests/test_console_compositions_equipes_http.py:150: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_console_compositions_equipes_http.py::test_liens_du_journal_depuis_previsions_uniquement_sans_copie_membres

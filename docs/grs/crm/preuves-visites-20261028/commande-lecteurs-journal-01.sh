@@ -1,0 +1,3 @@
+#!/bin/sh
+QA="$PWD/../preuves-qa/private"
+env HOME="$QA/home" OPSYS_HOME="$QA/opsys" XDG_CONFIG_HOME="$QA/xdg" XDG_CACHE_HOME="$QA/xdg" XDG_DATA_HOME="$QA/xdg" TMPDIR="$QA/tmp" PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONDONTWRITEBYTECODE=1 timeout 90s bwrap --unshare-net --unshare-pid --ro-bind / / --dev /dev --proc /proc --bind "$QA" "$QA" --chdir "$PWD" -- python3 ../preuves-qa/runner-03.py ../preuves-qa/venv/bin/python -m pytest -p no:cacheprovider -q --junitxml="$QA/lecteurs-journal-01.xml" tests/test_console_comptes_terrain.py tests/test_console_journal_assignations.py tests/test_console_journal_ecarts.py tests/test_console_journal_temps_navigation.py

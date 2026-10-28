@@ -1,0 +1,94 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_proposition_reprise_choisit_equipe_declaree_et_rejoue __________
+
+propose = {'deps': {'m01-front-office': Departement(id='m01-front-office', code='M1', nom='Front Office', mission="Recevoir chaq...938919339487a6e8ee36e7da5fde8', 'devis': 'DEVIS-CRM08-FICTIF', 'evenement': 'm3-devis-accepte-DEVIS-CRM08-FICTIF', ...}
+session = <function session at 0xe5d7d876dbc0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xe5d7d6c33a70>
+
+    def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, session, monkeypatch):
+        from datetime import UTC, datetime
+    
+        from opsys.console import application_chantier, reprise_visite
+    
+        class HorlogeFictive(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2030, 6, 3, 16, 4, tzinfo=UTC).astimezone(tz)
+        monkeypatch.setattr(reprise_visite, 'datetime', HorlogeFictive)
+        profil, erreur = equipes.charger_equipes()
+        assert erreur is None
+        autre = dict(profil['liste'][0], id='eq-reprise-fictive', membres=['reprise.fictive'])
+        profil['liste'].append(autre)
+        # Le premier plan doit être appliqué avant le changement de profil.
+        profil_initial = dict(profil, liste=profil['liste'][:1])
+        equipes.enregistrer_equipes(profil_initial)
+        with session() as cnx:
+            vue = application_chantier.preparer(cnx, propose['deps'], f.p.AUTH, propose['lead'], f.p.DEVIS,
+                                               propose['plan_id'])
+            application_chantier.appliquer(cnx, propose['deps'], f.p.AUTH, propose['lead'], f.p.DEVIS,
+                                          propose['plan_id'], vue['empreinte'], 'premier-plan-fictif')
+            reg = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
+            calendrier_civil.confirmer(reg, propose['plan_id'], {'0': '2030-06-03'}, 0,
+                                               'admin.fictif', '2030-06-02T09:00:00+00:00')
+            ligne = calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions'][0]
+            iid = ligne['intervention_id']
+            ancre = {k: ligne[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+            prev = registre.Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+            args = {'ancre': ancre, 'revision_attendue': 0}
+            recu = visites_durables.prevoir(reg, prev, **args,
+                auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                mutation={'appareil': 'fictif', 'cle': 'prevision-fictive', 'empreinte_arguments': encodage.empreinte(args)},
+                horodatage='2030-06-03T07:30:00-04:00')
+            visites_chantier.ouvrir(reg, prev, recu['visite_id'], '2030-06-03T08:00:00-04:00')
+            assign = {'intervention_id': iid, 'technicien_id': ligne['equipe_id']}
+            assert etats.transitionner(iid, 'en_route', reg, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+            ref = {cedule.tokeniser_ville('sel-fictif', 'Laval'): {
+                'latitude': 45.59, 'longitude': -73.74, 'rayon_km': 25.0}}
+            fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+            for action, heure in [('arrivee', '09:00:00'), ('depart', '12:00:00')]:
+                assert pointage.enregistrer_pointage(iid, ligne['equipe_id'], action, f'2030-06-03T{heure}-04:00',
+                    {'latitude': 45.59, 'longitude': -73.74}, {'fictif': True, 'appareil_id': 'fictif'},
+                    assign, fenetre, ref, 'Laval', 'sel-fictif', reg)[1] is None
+            visites_chantier.fermer(reg, prev, recu['visite_id'], '2030-06-03T12:01:00-04:00')
+            assert etats.transitionner(iid, 'reportee', reg, '2030-06-03T12:02:00-04:00',
+                                       motif='meteo', registre_visites=prev)[1] is None
+            assert etats.transitionner(iid, 'planifiee', reg, '2030-06-03T12:03:00-04:00')[1] is None
+        equipes.enregistrer_equipes(profil)
+        with session() as cnx:
+            apercu = reprise_visite.preparer(cnx, propose['deps'], f.p.AUTH, iid)
+            assert 'eq-reprise-fictive' in apercu['equipes']
+        avant = f.p.m.base._instantane_base(session)
+        from opsys.console import preparation_chantier
+        for equipe_demande, empreinte, code in [('eq-reprise-fictive', '0' * 64, 'SOURCE-MODIFIEE'),
+                                                 ('inconnue-fictive', apercu['empreinte'], 'EQUIPE-INCONNUE')]:
+            with session() as cnx, pytest.raises(preparation_chantier.Refus, match=code):
+                reprise_visite.proposer(cnx, propose['deps'], f.p.AUTH, iid, equipe_demande,
+                                        480, 1020, empreinte, 'refus-' + code)
+            assert f.p.m.base._instantane_base(session) == avant
+        def panne(*args, **kwargs):
+            raise RuntimeError('panne fictive après proposition')
+        with monkeypatch.context() as patch:
+            patch.setattr(reprise_visite, 'journaliser', panne)
+            with session() as cnx, pytest.raises(RuntimeError, match='panne fictive'):
+                reprise_visite.proposer(cnx, propose['deps'], f.p.AUTH, iid, 'eq-reprise-fictive',
+                                        480, 1020, apercu['empreinte'], 'rollback-fictif')
+        assert f.p.m.base._instantane_base(session) == avant
+        with session() as cnx:
+            resultat = reprise_visite.proposer(cnx, propose['deps'], f.p.AUTH, iid, 'eq-reprise-fictive',
+                                               480, 1020, apercu['empreinte'], 'reprise-fictive')
+            assert resultat['proposition']['plan'][0]['equipe'] == 'eq-reprise-fictive'
+        with session() as cnx:
+            rejoue = reprise_visite.proposer(cnx, propose['deps'], f.p.AUTH, iid, 'eq-reprise-fictive',
+                                             480, 1020, apercu['empreinte'], 'reprise-fictive')
+            assert rejoue['rejoue'] is True
+    
+        with session() as cnx:
+>           revue = reprise_visite.preparer_application(cnx, propose['deps'], f.p.AUTH, iid,
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                                        resultat['proposition']['plan_id'])
+E           AttributeError: module 'opsys.console.reprise_visite' has no attribute 'preparer_application'
+
+tests/test_console_reprise_visite.py:96: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_console_reprise_visite.py::test_proposition_reprise_choisit_equipe_declaree_et_rejoue

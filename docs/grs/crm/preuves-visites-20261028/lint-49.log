@@ -1,0 +1,19 @@
+I001 [*] Import block is un-sorted or un-formatted
+ --> departments/m04-field-ops/tests/test_visites_chantier.py:2:1
+  |
+1 |   """Données fictives : calcul explicite par visite, sans inférence des liens anciens."""
+2 | / from copy import deepcopy
+3 | |
+4 | | import pytest
+5 | |
+6 | | from m4_field_ops import visites_chantier as visites
+  | |____________________________________________________^
+help: Organize imports
+  |
+4 | import pytest
+  -
+5 | from m4_field_ops import visites_chantier as visites
+  |
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.

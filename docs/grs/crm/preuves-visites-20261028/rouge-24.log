@@ -1,0 +1,73 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_outils_console_sql_admin_prevision_et_ouverture _____________
+
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...faa21b39', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xfcd9917377e0>
+
+    def test_outils_console_sql_admin_prevision_et_ouverture(planning, session):
+        from datetime import datetime
+        from m4_field_ops import calendrier_civil, outils as module_outils
+        from m4_field_ops.registre import Registre
+        from opsys import contexte, idempotence, stockage
+        from opsys.outils import executer_atomique
+    
+        par_nom, ids, _, _ = planning
+        iid = ids['lead-fictif-001']
+        with session():
+            principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            ligne = next(x for x in calendrier_civil.lire_semaine(principal, '2030-06-03')['interventions']
+                         if x['intervention_id'] == iid)
+            ancre = {k: ligne[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+        def appeler(nom, arguments, heure, cle=None):
+            instant = datetime.fromisoformat(heure)
+            meta = idempotence.Meta(cle, 'console:admin.fictif', heure) if cle else None
+            with (session(),
+                  contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+                  contexte.appeler_en_tant_que('m04-field-ops', origine='console'),
+                  module_outils.contexte_annotation_calendrier(meta),
+                  contexte.receptionne_de(contexte.HorodatageAppareil('console:admin.fictif', instant, instant))):
+                return executer_atomique(par_nom[nom], arguments)
+        lecture = appeler('m4_lire_visites_console', {'intervention_id': iid}, '2030-06-03T07:30:00-04:00')
+        assert lecture['ok'] and lecture['resultat']['accepte']
+        assert lecture['resultat']['resultat']['visites'] == []
+        cree = appeler('m4_prevoir_visite_console', {'ancre': ancre, 'revision_attendue': 0},
+                       '2030-06-03T07:31:00-04:00', 'prev-fictive')
+        assert cree['ok'] and cree['resultat']['accepte'], cree
+        visite_id = cree['resultat']['resultat']['visite_id']
+        vue = appeler('m4_lire_visites_console', {'intervention_id': iid}, '2030-06-03T07:32:00-04:00')
+        assert vue['resultat']['resultat']['visites'][0]['visite_id'] == visite_id
+        source = vue['resultat']['resultat']['source_sql']
+        params = {'operation': 'ouvrir', 'visite_id': visite_id, 'source_attendue': source}
+        ouvre = appeler('m4_evenement_visite_console', params, '2030-06-03T08:00:00-04:00', 'ouvre-fictive')
+        assert ouvre['ok'] and ouvre['resultat']['accepte'], ouvre
+        reprise = appeler('m4_evenement_visite_console', params, '2030-06-03T08:01:00-04:00', 'ouvre-fictive')
+        assert reprise['resultat']['rejoue'] is True
+        from m4_field_ops import cedule, etats, pointage
+        equipe = vue['resultat']['resultat']['visites'][0]['creneau']['equipe_id']
+        assign = {'intervention_id': iid, 'technicien_id': equipe}
+        with session():
+            principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            assert etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+            ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+                'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+            fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+            for action, instant in [('arrivee', '2030-06-03T09:00:00-04:00'),
+                                    ('depart', '2030-06-03T12:00:00-04:00')]:
+                assert pointage.enregistrer_pointage(iid, equipe, action, instant,
+                    {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                    assign, fenetre, ref, 'Repentigny', 'sel-fictif', principal)[1] is None
+        vue = appeler('m4_lire_visites_console', {'intervention_id': iid}, '2030-06-03T12:00:00-04:00')
+        fermeture = appeler('m4_evenement_visite_console', {
+            'operation': 'fermer', 'visite_id': visite_id, 'source_attendue': vue['resultat']['resultat']['source_sql']},
+            '2030-06-03T12:01:00-04:00', 'ferme-fictive')
+        assert fermeture['ok'] and fermeture['resultat']['accepte'], fermeture
+        report = appeler('m4_signaler_report', {'intervention_id': iid, 'motif': 'meteo',
+            'horodatage': '2030-06-03T12:02:00-04:00'}, '2030-06-03T12:02:00-04:00', 'report-fictif')
+>       assert report['ok'] and report['resultat']['accepte'], report
+E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-TRANSITION-ILLEGALE', 'statut': 'sur_site', 'detail': 'visite fermée et sources vérifiées requises'}}}
+E       assert (True and False)
+
+tests/test_console_visites_chantier.py:98: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_outils_console_sql_admin_prevision_et_ouverture

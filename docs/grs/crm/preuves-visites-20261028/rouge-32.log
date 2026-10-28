@@ -1,0 +1,22 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_route_refuse_ancre_redatee_apres_ouverture_sans_mutation _________
+
+    def test_route_refuse_ancre_redatee_apres_ouverture_sans_mutation():
+        from m4_field_ops import etats, visites_chantier
+        principal, visites, ancre, _, _ = fixture.monde()
+        prev = ecrire(principal, visites, ancre)
+        iid = ancre['intervention_id']
+        equipe = visites_durables.lire(principal, visites, iid)['visites'][0]['creneau']['equipe_id']
+        visites_chantier.ouvrir(principal, visites, prev['visite_id'], '2030-06-03T08:00:00-04:00')
+        fixture.calendrier_civil.confirmer(principal, ancre['plan_id'], {'0': '2030-06-10'}, 1,
+                                          'admin.fictif', '2030-06-03T08:01:00-04:00')
+        avant = principal.lire()
+        _, erreur = etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:02:00-04:00',
+                                         assignation={'intervention_id': iid, 'technicien_id': equipe})
+>       assert erreur is not None
+E       assert None is not None
+
+departments/m04-field-ops/tests/test_visites_reprise.py:459: AssertionError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_route_refuse_ancre_redatee_apres_ouverture_sans_mutation

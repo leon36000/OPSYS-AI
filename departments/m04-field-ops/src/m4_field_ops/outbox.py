@@ -152,7 +152,26 @@ def _dernier_depart(registre_cible, intervention_id):
 
 
 # --------------------------------------------------------------------- API publique
-def calculer_minutes_pause(registre_cible, intervention_id, debut_presence=None, fin_presence=None):
+def _source_visites_explicite(registre_cible, intervention_id):
+    """Ne jamais traiter un fait étiqueté ou un marqueur de visite comme du legacy."""
+    return any(m.get("intervention_id") == intervention_id
+               and (m.get("type_entree") in {"visite_ouverte", "visite_fermee"} or "visite_id" in m)
+               for m in registre_cible.lire())
+
+
+def _total_visites(registre_cible, intervention_id, registre_visites, cle):
+    if registre_visites is None:
+        return None, "REJ-CONTRAT-INVALIDE"
+    from . import visites_chantier
+    try:
+        resultat = visites_chantier.calculer_faits_certifies(registre_cible, registre_visites, intervention_id)
+    except ValueError:
+        return None, "REJ-CONTRAT-INVALIDE"
+    return resultat[cle], None
+
+
+def calculer_minutes_pause(registre_cible, intervention_id, debut_presence=None, fin_presence=None,
+                           *, registre_visites=None):
     """
     Somme les pauses (T1.1-c#1) d'une intervention, en minutes.
 
@@ -170,8 +189,17 @@ def calculer_minutes_pause(registre_cible, intervention_id, debut_presence=None,
         bloquent avec un verdict nommé. Aucune pause : 0 minute, légitimement
         (une intervention peut n'avoir jamais fait de pause).
     """
+    if _source_visites_explicite(registre_cible, intervention_id):
+        if debut_presence is not None or fin_presence is not None:
+            return None, "REJ-CONTRAT-INVALIDE"
+        return _total_visites(registre_cible, intervention_id, registre_visites, "pause_minutes")
+
+    maillons = registre_cible.lire()
+    if sum(1 for m in maillons if m.get("type_entree") == pointage.TYPE_POINTAGE
+           and m.get("intervention_id") == intervention_id and m.get("action") == "arrivee") > 1:
+        return None, "REJ-CONTRAT-INVALIDE"
     pointages = [
-        m for m in registre_cible.lire()
+        m for m in maillons
         if m.get("type_entree") == pointage.TYPE_POINTAGE
         and m.get("intervention_id") == intervention_id
         and m.get("action") in ("pause_debut", "pause_fin")
@@ -203,7 +231,7 @@ def calculer_minutes_pause(registre_cible, intervention_id, debut_presence=None,
     return total_minutes, None
 
 
-def calculer_minutes_deplacement(registre_cible, intervention_id):
+def calculer_minutes_deplacement(registre_cible, intervention_id, *, registre_visites=None):
     """
     Calcule le temps de déplacement (T1.1-c#2) : de la transition planifiee ->
     en_route jusqu'au PREMIER pointage d'arrivée, DISTINCT du temps sur site
@@ -219,6 +247,9 @@ def calculer_minutes_deplacement(registre_cible, intervention_id):
         transition en_route, aucune arrivée, ou arrivée ANTÉRIEURE au départ
         déclaré. Aucune valeur conventionnelle n'est jamais substituée.
     """
+    if _source_visites_explicite(registre_cible, intervention_id):
+        return _total_visites(registre_cible, intervention_id, registre_visites, "deplacement_minutes")
+
     horodatage_en_route = None
     for maillon in registre_cible.lire():
         if (maillon.get("type_entree") == etats.TYPE_TRANSITION
@@ -234,7 +265,9 @@ def calculer_minutes_deplacement(registre_cible, intervention_id):
         and m.get("intervention_id") == intervention_id
         and m.get("action") == "arrivee"
     ]
-    if not arrivees:
+    # Plusieurs arrivées ne possèdent pas encore d’ancre de visite fiable.
+    # Ne pas mélanger la dernière transition avec la première arrivée.
+    if len(arrivees) != 1:
         return None, "REJ-CONTRAT-INVALIDE"
 
     dt_route = datetime.fromisoformat(horodatage_en_route)
@@ -245,7 +278,7 @@ def calculer_minutes_deplacement(registre_cible, intervention_id):
     return int((dt_arr - dt_route).total_seconds() // 60), None
 
 
-def calculer_duree_reelle(registre_cible, intervention_id):
+def calculer_duree_reelle(registre_cible, intervention_id, *, registre_visites=None):
     """
     Calcule la durée réelle de l'intervention à partir des pointages de terrain.
 
@@ -273,6 +306,11 @@ def calculer_duree_reelle(registre_cible, intervention_id):
         mal formées (voir ``calculer_minutes_pause``). Aucune valeur
         conventionnelle n'est jamais substituée.
     """
+    # Une source segmentée exige sa preuve de visite et ses ancres. Sans elle,
+    # ne pas retomber sur le calcul historique, même avec une seule arrivée.
+    if _source_visites_explicite(registre_cible, intervention_id):
+        return _total_visites(registre_cible, intervention_id, registre_visites, "travail_minutes")
+
     pointages = []
     for maillon in registre_cible.lire():
         if (maillon.get("type_entree") == pointage.TYPE_POINTAGE
@@ -282,7 +320,10 @@ def calculer_duree_reelle(registre_cible, intervention_id):
     arrivees = [p for p in pointages if p.get("action") == "arrivee"]
     departs = [p for p in pointages if p.get("action") == "depart"]
 
-    if not arrivees or not departs:
+    # Les anciennes sources ne prouvent pas quelles arrivées et quels départs
+    # appartiennent à une visite. Refuser plusieurs arrivées évite de facturer
+    # les jours entre elles ; plusieurs départs restent possibles pour la revue GPS.
+    if len(arrivees) != 1 or not departs:
         return None, "REJ-CONTRAT-INVALIDE"
 
     # Premier arrivée / dernier départ : l'ordre du registre est l'ordre
@@ -362,6 +403,7 @@ def completer_intervention(
     consentement_marketing=NON_FOURNI, client_satisfait=NON_FOURNI,
     consentement_demande_avis=NON_FOURNI, consentement_recueilli_par=NON_FOURNI,
     consentement_recueilli_le=NON_FOURNI, consentement_version_texte=NON_FOURNI,
+    registre_visites=None,
 ):
     """
     Réalise la complétion et émet le WCT en une unique écriture.
@@ -522,12 +564,22 @@ def completer_intervention(
             )
 
     # 6. Durée réelle
-    duree_minutes, code_duree = calculer_duree_reelle(registre_cible, intervention_id)
+    duree_minutes, code_duree = calculer_duree_reelle(
+        registre_cible, intervention_id, registre_visites=registre_visites)
     if duree_minutes is None:
         return None, verdicts.construire_verdict(
             code_duree,
             detail="durée réelle indéterminable",
         )
+
+    # Sur le parcours segmenté, la complétion suit la dernière fermeture
+    # vérifiée ; elle ne peut pas antidater une visite déjà terminée.
+    if registre_visites is not None:
+        fermetures = [m for m in registre_cible.lire() if m.get("type_entree") == "visite_fermee"
+                      and m.get("intervention_id") == intervention_id]
+        if fermetures and datetime.fromisoformat(horodatage_arg) < datetime.fromisoformat(fermetures[-1]["horodatage"]):
+            return None, verdicts.construire_verdict("REJ-HORODATAGE-ANTERIEUR",
+                                                      detail="complétion avant fermeture de visite")
 
     # 7. Extraction des données terrain (ne fait pas confiance à l'appelant)
     lead_id = _extraire_lead_id(registre_cible, intervention_id)

@@ -1,0 +1,19 @@
+..F.                                                                     [100%]
+=================================== FAILURES ===================================
+_______ test_deux_previsions_demeurent_distinctes_et_pagination_perimee ________
+
+    def test_deux_previsions_demeurent_distinctes_et_pagination_perimee():
+        principal, visites, ancienne, _, _ = fixture.monde()
+        first = ecrire(principal, visites, ancienne)
+        datee = fixture.calendrier_civil.confirmer(principal, ancienne['plan_id'], {'0': '2030-06-10'}, 1,
+                                                   'admin.fictif', fixture.pur.HORODATAGE)
+        nouvelle = {**ancienne, 'source_ligne_id': datee['ligne_id']}
+        seconde = ecrire(principal, visites, nouvelle, revision=1, cle='fictif-2')
+        assert first['visite_id'] != seconde['visite_id']
+>       page = visites_durables.lire(principal, visites, ancienne['intervention_id'], limite=1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: lire() got an unexpected keyword argument 'limite'
+
+departments/m04-field-ops/tests/test_visites_reprise.py:57: TypeError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_deux_previsions_demeurent_distinctes_et_pagination_perimee

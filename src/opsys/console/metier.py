@@ -71,10 +71,13 @@ _LECTURES_ADMIN_M3 = frozenset({"m3_lister_devis_lead_admin", "m3_lire_devis"})
 _LECTURES_ADMIN_M4 = frozenset({"m4_lire_cedule_semaine", "m4_lire_calendrier_plan"})
 _LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3 | _LECTURES_ADMIN_M4
 _COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction", "m2_corriger_contact_client"})
-_COMMANDES_ADMIN_M4 = frozenset({"m4_confirmer_dates_cedule"})
+_COMMANDES_ADMIN_M4 = frozenset({"m4_confirmer_dates_cedule", "m4_signaler_report",
+                                  "m4_replanifier_visite_console"})
 _OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2 | _COMMANDES_ADMIN_M4
 COMMANDES = {
     "m4_confirmer_dates_cedule": "m04-field-ops",
+    "m4_signaler_report": "m04-field-ops",
+    "m4_replanifier_visite_console": "m04-field-ops",
     "m2_corriger_contact_client": "m02-revenue-crm",
     "m2_enregistrer_interaction": "m02-revenue-crm",
     "m1_importer_appel_manuellement": "m01-front-office",
@@ -453,7 +456,8 @@ def _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation
     if outil is None:
         raise KeyError("outil M4 indisponible")
     ecriture = nom in {"m4_enregistrer_annotation_calendrier", "m4_definir_couleur_calendrier",
-                       "m4_declarer_composition_journaliere_console", "m4_declarer_absence_journaliere_console"}
+                       "m4_declarer_composition_journaliere_console", "m4_declarer_absence_journaliere_console",
+                       "m4_prevoir_visite_console", "m4_evenement_visite_console"}
     if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
         raise ValueError("annotation invalide")
     if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
@@ -643,10 +647,12 @@ def executer(
     if nom in {"m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",
                    "m2_lire_rencontres_lead"}:
         return _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id)
-    if nom in {"m4_declarer_composition_journaliere_console", "m4_declarer_absence_journaliere_console"}:
+    if nom in {"m4_declarer_composition_journaliere_console", "m4_declarer_absence_journaliere_console",
+               "m4_prevoir_visite_console", "m4_evenement_visite_console"}:
         return _executer_declaration_journaliere(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
                "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
+               "m4_lire_visites_console",
                "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
                    "m4_lire_page_cedule_semaine"}:
         return _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation_id)
@@ -818,7 +824,8 @@ def executer(
             contexte.appeler_en_tant_que(departement, origine=departement),
             contexte.receptionne_de(contexte.HorodatageAppareil(
                 f"console:{personne.identifiant}", maintenant, maintenant,
-            )) if nom == "m4_confirmer_dates_cedule" else nullcontext(),
+            )) if nom in {"m4_confirmer_dates_cedule", "m4_signaler_report", "m4_replanifier_visite_console"}
+            else nullcontext(),
         ):
             reponse = executer_atomique(outil, charge)
     if nom == "m1_consigner_suivi_rappel":

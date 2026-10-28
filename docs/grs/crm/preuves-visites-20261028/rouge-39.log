@@ -1,0 +1,14 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_proposition_reprise_choisit_equipe_declaree_et_rejoue __________
+
+propose = {'deps': {'m01-front-office': Departement(id='m01-front-office', code='M1', nom='Front Office', mission="Recevoir chaq...938919339487a6e8ee36e7da5fde8', 'devis': 'DEVIS-CRM08-FICTIF', 'evenement': 'm3-devis-accepte-DEVIS-CRM08-FICTIF', ...}
+session = <function session at 0xfe6a461fcd60>
+
+    def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, session):
+>       from opsys.console import application_chantier, reprise_visite
+E       ImportError: cannot import name 'reprise_visite' from 'opsys.console' (/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/src/opsys/console/__init__.py)
+
+tests/test_console_reprise_visite.py:17: ImportError
+=========================== short test summary info ============================
+FAILED tests/test_console_reprise_visite.py::test_proposition_reprise_choisit_equipe_declaree_et_rejoue

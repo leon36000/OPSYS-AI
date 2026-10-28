@@ -1,0 +1,26 @@
+....................F............................                        [100%]
+=================================== FAILURES ===================================
+___________ test_continuation_sql_ancienne_tete_refuse_sans_ecriture ___________
+
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...d73c52e8', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xf26a079dc680>
+
+    def test_continuation_sql_ancienne_tete_refuse_sans_ecriture(planning, session):
+        from m4_field_ops import etats
+    
+        port = import_module('opsys.console.journal_equipes')
+        _, ids, _, _ = planning
+        with session() as cnx:
+            premier = port.lire(cnx, charger_departements(), AUTH, JOUR, limite=1)
+            assert premier['suivant'] == 1
+            assert etats.transitionner(next(iter(ids.values())), 'reportee', f.terrain._registre(),
+                                      JOUR + 'T10:00:00-04:00', motif='meteo')[1] is None
+        avant = f.base._instantane_base(session)
+>       with session() as cnx, pytest.raises(lecture.Refus, match='SOURCE-JOURNAL-INVALIDE'):
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'SOURCE-JOURNAL-INVALIDE'
+E         Actual message: 'SOURCE-MODIFIEE'
+
+tests/test_console_journal_equipes.py:195: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_console_journal_equipes.py::test_continuation_sql_ancienne_tete_refuse_sans_ecriture

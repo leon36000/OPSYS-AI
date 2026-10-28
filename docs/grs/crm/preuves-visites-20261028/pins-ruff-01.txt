@@ -1,0 +1,2 @@
+ruff 0.16.9
+728be25098265be5669f98ab838143a4d91a3cc8f7bb4cdbe51d6a55d36c8fb9  ../preuves-qa/venv/bin/ruff

@@ -1,0 +1,50 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_ouverture_sqlite_cas_rejeu_et_revocation_tardive _____________
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-qa/private/tmp/pytest-of-pc6/pytest-20/test_ouverture_sqlite_cas_reje0/opsys.db'
+
+    def test_ouverture_sqlite_cas_rejeu_et_revocation_tardive(base_durable):
+        from m4_field_ops import visites_ecriture
+        from opsys import stockage
+        from opsys.stockage.schema import JOURNAL
+        from sqlalchemy import func, select
+    
+        principal, _, ancre, _, _ = fixture.monde()
+        auteur = fixture.AUTEUR
+        with stockage.transaction(base_durable) as cnx:
+            durable = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            for m in principal.lire():
+                durable.ajouter({k: v for k, v in m.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
+            args = {'ancre': ancre, 'revision_attendue': 0}
+            mutation = {'appareil': 'console-fictive', 'cle': 'prevision-fictive',
+                        'empreinte_arguments': encodage.empreinte(args)}
+            prev = visites_ecriture.enregistrer(cnx, args, auteur, mutation, fixture.pur.HORODATAGE, lambda: auteur)
+        with stockage.transaction(base_durable) as cnx:
+            source = visites_ecriture.empreinte_sources(cnx)
+            args = {'operation': 'ouvrir', 'visite_id': prev['visite_id'], 'source_attendue': source}
+            mutation = {'appareil': 'console-fictive', 'cle': 'ouvrir-fictif',
+                        'empreinte_arguments': encodage.empreinte(args)}
+            audit_avant = cnx.execute(select(func.count()).select_from(JOURNAL)).scalar_one()
+            appels = []
+            def revoque():
+                appels.append(1)
+                return auteur if len(appels) < 2 else {'personne': 'autre-fictif', 'role': 'admin'}
+            with pytest.raises(visites_durables.Refus):
+                visites_ecriture.executer_evenement(cnx, args, auteur, mutation, '2030-06-03T08:00:00-04:00', revoque)
+            assert not any(m['type_entree'] == 'visite_ouverte' for m in stockage.maillons('m04-field-ops', 'principal'))
+            assert cnx.execute(select(func.count()).select_from(JOURNAL)).scalar_one() == audit_avant
+            result = visites_ecriture.executer_evenement(cnx, args, auteur, mutation, '2030-06-03T08:00:00-04:00',
+                                                           lambda: auteur)
+            assert result['rejoue'] is False
+        stockage.liberer()
+        with stockage.transaction(base_durable) as cnx:
+            rejoue = visites_ecriture.executer_evenement(cnx, args, auteur, mutation, '2030-06-03T08:01:00-04:00',
+                                                           lambda: auteur)
+            assert rejoue['rejoue'] is True and rejoue['resultat'] == result['resultat']
+>           with pytest.raises(visites_durables.Refus):
+E           Failed: DID NOT RAISE Refus
+
+departments/m04-field-ops/tests/test_visites_reprise.py:390: Failed
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_ouverture_sqlite_cas_rejeu_et_revocation_tardive

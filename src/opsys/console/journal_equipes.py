@@ -15,16 +15,30 @@ def _t0(deps, session, arguments):
 def lire(cnx, deps, session, jour, *, debut=0, limite=50, source_attendue=None):
     autorite._admin(cnx, session)
     try:
+        from m4_field_ops import encodage
+        from m4_field_ops.registre import Registre
+
+        from . import journal_visites
+
         source = journal_durable.capturer(cnx)
-        arguments = dict(jour=jour, debut=debut, limite=limite, source_attendue=source_attendue)
+        visites, composition = journal_visites.capturer_sources(cnx)
+        source_console = journal_visites.source_journal(source, visites, composition, jour)
+        if (debut and source_attendue is None) or (source_attendue is not None and source_attendue != source_console):
+            raise lecture.Refus('SOURCE-JOURNAL-INVALIDE')
+        source_m4 = encodage.empreinte('journal_quotidien_v1',
+                                      Registre([r.maillon for r in source.lignes]).tete(), jour)
+        arguments = dict(jour=jour, debut=debut, limite=limite,
+                         source_attendue=source_m4 if source_attendue is not None else None)
         attendu = journal_durable.projeter(source, **arguments)
         journal_durable.verifier_sortie(attendu)
         resultat = _t0(deps, session, arguments)
         if resultat != attendu:
             raise lecture.Refus('SOURCE-REPONSE-INCOHERENTE')
+        resultat = journal_visites.enrichir(cnx, source, resultat, visites, composition)
+        resultat['source'] = source_console
+        resultat = lecture._sortie(resultat)
         if journal_durable.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
             raise lecture.Refus('SOURCE-MODIFIEE')
-        resultat = lecture._sortie(resultat)
     except journal_durable.Refus as exc:
         raise lecture.Refus(exc.code) from None
     except (KeyError, TypeError, ValueError) as exc:
@@ -70,6 +84,7 @@ def contenu(vue, prefixe, limite):
         compositions_equipes,
         pages,
         temps_pointes,
+        visites_chantier,
     )
 
     def lien(debut, titre):
@@ -133,10 +148,14 @@ def contenu(vue, prefixe, limite):
                    ligne.get('equipe_planifiee', 'Non applicable'), assigne,
                    ligne.get('technicien_id', 'Non applicable'),
                    etat, validites.get(ligne.get('validite'), 'Non applicable'), source]
-        note = 'Aucune ancre de visite démontrée'
+        visite = ligne.get('visite_consultation')
+        cible = (prefixe + '/crm/visites?' + visite['query'] + '#visite-' + visite['visite_id']
+                 if visite else None)
+        note = (f'<a href="{pages.e(cible)}">Visite identifiée</a>' if cible else
+                'Aucune ancre de visite démontrée')
         if ligne['type'] == 'prevision':
             url = annotations_cedule_ui.url(annotations_cedule_ui.ancre_de(ligne), prefixe)
-            note = f'<a href="{pages.e(url)}" aria-label="Notes de cette prévision">Notes et historique</a>'
+            note += f' · <a href="{pages.e(url)}" aria-label="Notes de cette prévision">Notes et historique</a>'
             composition = compositions_equipes.url_journal(vue['jour'], ligne['equipe_planifiee'], prefixe)
             if composition is None:
                 note += ' · Composition non consultable pour cet identifiant historique.'
@@ -150,6 +169,8 @@ def contenu(vue, prefixe, limite):
             else:
                 note += (f' · <a href="{pages.e(cible_temps)}">'
                          'Temps pointés de cette personne pour le jour</a>')
+        lien_visites = visites_chantier.url(ligne['intervention_id'], prefixe)
+        note += f' · <a href="{pages.e(lien_visites)}">Visites du chantier</a>'
         corps += '<tr>' + ''.join(f'<td>{pages.e(v)}</td>' for v in valeurs) + f'<td>{note}</td></tr>'
     corps += ('</tbody></table><details><summary>Sources de consultation</summary>'
               f'<p>Empreinte calculée du snapshot : {pages.e(vue["source_snapshot"])}</p></details></section>')

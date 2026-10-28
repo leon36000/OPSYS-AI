@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/src/opsys/cli.py", line 867, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/src/opsys/cli.py", line 841, in main
+    args = construire_parseur().parse_args(argv)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/src/opsys/cli.py", line 678, in construire_parseur
+    from . import memoire_developpement_cli
+  File "/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/src/opsys/memoire_developpement_cli.py", line 17, in <module>
+    from m10_memoire import consolidation_developpement as consolidation
+ModuleNotFoundError: No module named 'm10_memoire'

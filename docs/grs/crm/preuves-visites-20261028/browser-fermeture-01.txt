@@ -1,0 +1,4 @@
+PID serveur QA: 2437726
+/proc/2437726 existe: False
+Signal SIGTERM envoyé au PID du serveur; sortie du processus parent 143.
+Onglet IAB temporaire fermé. Aucun arrêt gracieux journalisé par le serveur.

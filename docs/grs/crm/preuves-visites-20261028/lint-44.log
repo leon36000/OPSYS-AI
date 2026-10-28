@@ -1,0 +1,80 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> src/opsys/console/journal_equipes.py:18:9
+   |
+16 |       autorite._admin(cnx, session)
+17 |       try:
+18 | /         from m4_field_ops import encodage
+19 | |         from m4_field_ops.registre import Registre
+20 | |         from . import journal_visites
+   | |_____________________________________^
+21 |
+22 |           source = journal_durable.capturer(cnx)
+   |
+help: Organize imports
+   |
+19 |         from m4_field_ops.registre import Registre
+20 +
+21 |         from . import journal_visites
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> src/opsys/console/journal_visites.py:2:1
+  |
+1 |   """Liens privés du journal vers les seules visites identifiées par des faits vérifiés."""
+2 | / from urllib.parse import urlencode
+3 | | from zoneinfo import ZoneInfo
+4 | |
+5 | | from m4_field_ops import composition_durable, encodage, etats, pointage, visites_chantier, visites_durables, visites_ecriture
+6 | | from m4_field_ops.registre import Registre
+7 | |
+8 | | from . import preparation_chantier as lecture
+  | |_____________________________________________^
+help: Organize imports
+   |
+4  |
+   - from m4_field_ops import composition_durable, encodage, etats, pointage, visites_chantier, visites_durables, visites_ecriture
+5  + from m4_field_ops import (
+6  +     composition_durable,
+7  +     encodage,
+8  +     etats,
+9  +     pointage,
+10 +     visites_chantier,
+11 +     visites_durables,
+12 +     visites_ecriture,
+13 + )
+14 | from m4_field_ops.registre import Registre
+   |
+
+E501 Line too long (125 > 120)
+ --> src/opsys/console/journal_visites.py:5:121
+  |
+3 | from zoneinfo import ZoneInfo
+4 |
+5 | from m4_field_ops import composition_durable, encodage, etats, pointage, visites_chantier, visites_durables, visites_ecriture
+  |                                                                                                                         ^^^^^
+6 | from m4_field_ops.registre import Registre
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> tests/test_console_journal_visites.py:124:5
+    |
+123 |   def test_pagination_journal_refuse_changement_de_composition(client_crm, planning, session):
+124 | /     from html import unescape
+125 | |     import re
+126 | |
+127 | |     from m4_field_ops import calendrier_civil, composition_journaliere, encodage
+    | |________________________________________________________________________________^
+128 |
+129 |       f.base._connecter(client_crm, 'admin.fictif')
+    |
+help: Organize imports
+    |
+123 | def test_pagination_journal_refuse_changement_de_composition(client_crm, planning, session):
+124 +     import re
+125 |     from html import unescape
+    -     import re
+126 |
+    |
+
+Found 4 errors.
+[*] 3 fixable with `--fix`.

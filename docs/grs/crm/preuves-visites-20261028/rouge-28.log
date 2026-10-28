@@ -1,0 +1,72 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________________ test_outil_completion_session_segmente_sqlite _________________
+
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...ba9f15d5', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xe19801393880>
+
+    def test_outil_completion_session_segmente_sqlite(planning, session):
+        import base64
+        import hashlib
+        import importlib.util
+        from datetime import datetime
+        from pathlib import Path
+    
+        from m4_field_ops import calendrier_civil, cedule, encodage, etats, pointage, visites_chantier, visites_durables
+        from m4_field_ops.registre import Registre
+        from opsys import contexte, stockage
+        from opsys.outils import executer_atomique
+    
+        par_nom, ids, _, _ = planning
+        iid = ids['lead-fictif-001']
+        with session():
+            reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            prev = Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+            ligne = next(x for x in calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions']
+                         if x['intervention_id'] == iid)
+            ancre = {k: ligne[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+            args = {'ancre': ancre, 'revision_attendue': 0}
+            mutation = {'appareil': 'console-fictive', 'cle': 'completion-prev-fictive',
+                        'empreinte_arguments': encodage.empreinte(args)}
+            visite = visites_durables.prevoir(reg, prev, **args, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                                               mutation=mutation, horodatage='2030-06-03T07:30:00-04:00')
+            visites_chantier.ouvrir(reg, prev, visite['visite_id'], '2030-06-03T08:00:00-04:00')
+            equipe = ligne['equipe_id']
+            assign = {'intervention_id': iid, 'technicien_id': equipe}
+            assert etats.transitionner(iid, 'en_route', reg, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+            ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+                'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+            fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+            for action, instant in [('arrivee', '2030-06-03T09:00:00-04:00'),
+                                    ('depart', '2030-06-03T12:00:00-04:00')]:
+                assert pointage.enregistrer_pointage(iid, equipe, action, instant,
+                    {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                    assign, fenetre, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
+            visites_chantier.fermer(reg, prev, visite['visite_id'], '2030-06-03T12:01:00-04:00')
+        spec = importlib.util.spec_from_file_location('fixture_png_visites',
+            Path(__file__).parents[1] / 'departments/m04-field-ops/tests/conftest.py')
+        fixture_png = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fixture_png)
+        png = fixture_png.png_minimal()
+        instant = datetime.fromisoformat('2030-06-03T12:02:00-04:00')
+        def outil(nom, arguments):
+            with (session(),
+                  contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+                  contexte.receptionne_de(contexte.HorodatageAppareil('console:admin.fictif', instant, instant))):
+                return executer_atomique(par_nom[nom], arguments)
+        photo = outil('m4_deposer_fichier', {'empreinte_sha256': hashlib.sha256(png).hexdigest(),
+            'taille_octets': len(png), 'type_mime': 'image/png', 'index_bloc': 0, 'nombre_blocs': 1,
+            'bloc_base64': base64.b64encode(png).decode('ascii')})
+        assert photo['ok'] and photo['resultat']['accepte'], photo
+        reference = photo['resultat']['resultat']['reference']
+        args = {'intervention_id': iid, 'horodatage': instant.isoformat(),
+                'preuves_completion': {'checklist_complete': True, 'photos_apres': [reference],
+                                       'notes': 'Fictif', 'signature': None}, 'signature_requise': False}
+        resultat = outil('m4_completer_intervention', args)
+>       assert resultat['ok'] and resultat['resultat']['accepte'], resultat
+E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-CONTRAT-INVALIDE', 'statut': '', 'detail': 'durée réelle indéterminable'}}}
+E       assert (True and False)
+
+tests/test_console_visites_chantier.py:329: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_outil_completion_session_segmente_sqlite
