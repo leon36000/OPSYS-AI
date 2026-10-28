@@ -76,6 +76,36 @@ def test_registre_semantiquement_altere_meme_rechaine_refuse():
         visites_durables.lire(principal, rechaine, ancre['intervention_id'])
 
 
+def test_port_sql_refuse_connexion_etrangere_sans_ecriture(base_durable):
+    from m4_field_ops import journal_durable, visites_ecriture
+    from sqlalchemy import create_engine, func, select
+
+    from opsys import stockage
+    from opsys.stockage.schema import JOURNAL, REGISTRES
+
+    principal, _, ancre, _, _ = fixture.monde()
+    args = {'ancre': ancre, 'revision_attendue': 0}
+    mutation = {'appareil': 'console-fictive', 'cle': 'connexion-etrangere-fictive',
+                'empreinte_arguments': encodage.empreinte(args)}
+    moteur_etranger = create_engine(base_durable)
+    try:
+        with stockage.transaction(base_durable) as canonique, moteur_etranger.connect() as etrangere:
+            durable = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            for maillon in principal.lire():
+                durable.ajouter({k: v for k, v in maillon.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
+            avant = (canonique.execute(select(func.count()).select_from(REGISTRES)).scalar_one(),
+                     canonique.execute(select(func.count()).select_from(JOURNAL)).scalar_one())
+            with pytest.raises(visites_durables.Refus, match='INSTANCE-NON-QUALIFIEE'):
+                visites_ecriture.capturer_visites(etrangere)
+            with pytest.raises(journal_durable.Refus, match='INSTANCE-NON-QUALIFIEE'):
+                visites_ecriture.enregistrer(etrangere, args, fixture.AUTEUR, mutation,
+                                             fixture.pur.HORODATAGE, lambda: fixture.AUTEUR)
+            assert (canonique.execute(select(func.count()).select_from(REGISTRES)).scalar_one(),
+                    canonique.execute(select(func.count()).select_from(JOURNAL)).scalar_one()) == avant
+    finally:
+        moteur_etranger.dispose()
+
+
 def test_sqlite_reouverture_rejeu_et_rollback_tardif(base_durable):
     from m4_field_ops import visites_ecriture
     from sqlalchemy import func, select

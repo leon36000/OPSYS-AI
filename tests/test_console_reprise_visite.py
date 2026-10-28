@@ -4,8 +4,10 @@ from pathlib import Path
 
 import pytest
 from m4_field_ops import (
+    annotations_calendrier,
     calendrier_civil,
     cedule,
+    couleurs_calendrier,
     encodage,
     etats,
     pointage,
@@ -55,6 +57,21 @@ def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, catalogu
         ligne = calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions'][0]
         iid = ligne['intervention_id']
         ancre = {k: ligne[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+        auteur = {'personne': 'admin.fictif', 'role': 'admin'}
+        note_args = {'ancre': ancre, 'texte_libre': 'Note historique fictive <script>ancien</script>',
+                     'revision_attendue': 0}
+        couleur_args = {'ancre': ancre, 'couleur': 'violet', 'revision_attendue': 0}
+        note_reg = registre.Registre(stockage.maillons('m04-field-ops', annotations_calendrier.REGISTRE))
+        couleur_reg = registre.Registre(stockage.maillons('m04-field-ops', couleurs_calendrier.REGISTRE))
+        for module, cible, arguments, cle in [
+            (annotations_calendrier, note_reg, note_args, 'note-avant-reprise-fictive'),
+            (couleurs_calendrier, couleur_reg, couleur_args, 'couleur-avant-reprise-fictive'),
+        ]:
+            recu_historique = module.enregistrer(reg, cible, **arguments, auteur=auteur,
+                mutation={'appareil': 'console:admin.fictif', 'cle': cle,
+                          'empreinte_arguments': encodage.empreinte(arguments)},
+                horodatage='2030-06-03T07:29:00-04:00')
+            assert recu_historique['accepte']
         prev = registre.Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
         args = {'ancre': ancre, 'revision_attendue': 0}
         recu = visites_durables.prevoir(reg, prev, **args,
@@ -198,6 +215,31 @@ def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, catalogu
     dates['date_0'] = '2030-06-07'
     confirmation = catalogue.post(dates_route, data=dates, follow_redirects=False)
     assert confirmation.status_code == 303, confirmation.text
+    # La nouvelle date appartient à une nouvelle ancre : ni note ni repère n'y sont copiés.
+    with session():
+        principal = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
+        nouvelle_ligne = next(x for x in calendrier_civil.lire_semaine(principal, '2030-06-03')['interventions']
+                              if x['intervention_id'] == iid and x['debut'].startswith('2030-06-07'))
+        nouvelle_ancre = {k: nouvelle_ligne[k] for k in ancre}
+        notes = registre.Registre(stockage.maillons('m04-field-ops', annotations_calendrier.REGISTRE))
+        couleurs = registre.Registre(stockage.maillons('m04-field-ops', couleurs_calendrier.REGISTRE))
+        historique_notes = annotations_calendrier.lire(principal, notes, iid)['resultat']['annotations']
+        badges_notes = annotations_calendrier.resumer(principal, notes, [ancre, nouvelle_ancre])
+        badges_notes = badges_notes['resultat']['annotations']
+        badges_couleurs = couleurs_calendrier.resumer(principal, couleurs, [ancre, nouvelle_ancre])
+        badges_couleurs = badges_couleurs['resultat']['couleurs']
+    assert nouvelle_ancre != ancre
+    assert len(historique_notes) == 1 and historique_notes[0]['ancre'] == ancre
+    assert historique_notes[0]['validite'] == 'historique'
+    assert [badge['total_ancre'] for badge in badges_notes] == [1, 0]
+    assert [badge['couleur'] for badge in badges_couleurs] == ['violet', 'aucune']
+    assert [badge['validite'] for badge in badges_couleurs] == ['historique', 'date_confirmee']
+    from opsys.console import annotations_cedule_ui, couleurs_cedule_ui
+    page_note = catalogue.get(annotations_cedule_ui.url(ancre, ''))
+    page_couleur = catalogue.get(couleurs_cedule_ui.url(ancre, ''))
+    assert page_note.status_code == page_couleur.status_code == 200
+    assert 'Note historique fictive' in page_note.text and '&lt;script&gt;ancien&lt;/script&gt;' in page_note.text
+    assert 'Repère : Violet' in page_couleur.text
     class Formulaires(HTMLParser):
         def __init__(self, html):
             super().__init__()
@@ -290,6 +332,11 @@ def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, catalogu
         principal = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
         wcts = [w for _, w in outbox.lire_outbox(principal) if w['intervention_id'] == iid]
         assert len(wcts) == 1 and wcts[0]['duree_reelle_minutes'] == 390
+        notes_relues = registre.Registre(stockage.maillons('m04-field-ops', annotations_calendrier.REGISTRE))
+        couleurs_relues = registre.Registre(stockage.maillons('m04-field-ops', couleurs_calendrier.REGISTRE))
+        assert annotations_calendrier.lire(principal, notes_relues, iid)['resultat']['annotations'][0]['ancre'] == ancre
+        badges_relus = couleurs_calendrier.resumer(principal, couleurs_relues, [ancre, nouvelle_ancre])
+        assert [x['couleur'] for x in badges_relus['resultat']['couleurs']] == ['violet', 'aucune']
     # Le journal d'audit des nouveaux ports conserve les références utiles, pas les corps privés.
     import json
 
