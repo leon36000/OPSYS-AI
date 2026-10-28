@@ -204,6 +204,7 @@ def gateway_au_premier_plan(contexte: Contexte, port: int) -> int:
             threading.Thread(target=relayer, daemon=True).start()
     while not arret.is_set() and (enfant is None or enfant.poll() is None):
         time.sleep(0.2)
+    code_enfant = enfant.poll() if enfant is not None else None
     if enfant is not None and enfant.poll() is None:  # arrêt commun : le Gateway emporte le moteur qu'il supervise
         enfant.terminate()
         try:
@@ -212,6 +213,9 @@ def gateway_au_premier_plan(contexte: Contexte, port: int) -> int:
             enfant.kill()
     serveur.shutdown()
     print("[faux gateway] arrêté", flush=True)
+    if not arret.is_set() and code_enfant not in (None, 0):
+        print(f"[faux gateway] échec du moteur enfant : code {code_enfant}", flush=True)
+        return code_enfant
     return 0
 
 
