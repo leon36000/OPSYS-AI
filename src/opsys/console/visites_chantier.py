@@ -76,9 +76,10 @@ def lire(cnx, deps, session, intervention_id, *, debut=0, limite=50, source_atte
                       and not m.get('visite_id') for m in sources.values())
         active = visites_chantier.visite_active(reg, intervention_id)
         resultat_temps = None
-        if ouvertures and active is None and not anciens:
-            # Ici une erreur signale une source incohérente, pas une durée nulle.
-            resultat_temps = visites_chantier.calculer_faits_certifies(reg, prev, intervention_id)
+        if fermetures:
+            # Une visite ouverte reste inconnue ; seules les sessions fermées sont projetées.
+            resultat_temps = visites_chantier.calculer_faits_certifies(
+                reg, prev, intervention_id, ignorer_anciens=anciens, omettre_ouverte=True)
         calculs = {x['visite_id']: x for x in resultat_temps['visites']} if resultat_temps else {}
         reports = [m for m in sources.values() if m.get('type_entree') == 'transition_statut'
                    and m.get('intervention_id') == intervention_id and m.get('statut') == 'reportee']
@@ -111,6 +112,7 @@ def lire(cnx, deps, session, intervention_id, *, debut=0, limite=50, source_atte
             'intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')} if courant else None)
         attendu['deja_prevue'] = bool(courant and any(
             m.maillon['ancre'] == attendu['ancre_courante'] for m in v.lignes))
+        attendu['faits_anciens_non_attribues'] = anciens
         attendu['intervention_id'] = intervention_id
         attendu['limite'] = limite
         attendu['etat_chantier'] = etats.statut_courant(reg, intervention_id)
@@ -142,6 +144,8 @@ def contenu(vue, session, prefixe):
     corps = (f'<section><h2>Prévisions et visites — {pages.e(vue["intervention_id"])}</h2>'
              f'<p>{pages.e(vue["avertissement"])}</p>'
              '<p>Composition déclarée et présence observée sont distinctes.</p>')
+    if vue['faits_anciens_non_attribues']:
+        corps += '<p>Ancien pointage sans visite : durée globale inconnue ; voir le journal historique.</p>'
     if vue['etat_chantier'] == 'planifiee' and vue['total']:
         corps += (f'<p><a href="{pages.e(prefixe)}/crm/cedule">Retourner à la cédule</a> pour préparer '
                   'et confirmer une nouvelle date. L’ancienne prévision reste dans l’historique.</p>')

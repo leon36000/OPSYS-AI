@@ -70,6 +70,10 @@ def test_outils_console_sql_admin_prevision_et_ouverture(planning, session, monk
                    '2030-06-03T07:31:00-04:00', 'prev-fictive')
     assert cree['ok'] and cree['resultat']['accepte'], cree
     visite_id = cree['resultat']['resultat']['visite_id']
+    with session():
+        Registre(stockage.maillons('m04-field-ops', 'principal')).ajouter({
+            'type_entree': 'pointage', 'intervention_id': iid, 'technicien_id': 'ancien.fictif',
+            'action': 'arrivee', 'horodatage': '2030-05-01T09:00:00-04:00'})
     vue = appeler('m4_lire_visites_console', {'intervention_id': iid}, '2030-06-03T07:32:00-04:00')
     assert vue['resultat']['resultat']['visites'][0]['visite_id'] == visite_id
     source = vue['resultat']['resultat']['source_sql']
@@ -98,6 +102,15 @@ def test_outils_console_sql_admin_prevision_et_ouverture(planning, session, monk
         'operation': 'fermer', 'visite_id': visite_id, 'source_attendue': vue['resultat']['resultat']['source_sql']},
         '2030-06-03T12:01:00-04:00', 'ferme-fictive')
     assert fermeture['ok'] and fermeture['resultat']['accepte'], fermeture
+    from opsys.console import visites_chantier as page_visites
+    from opsys.console.securite import Session
+    from opsys.departements import charger_departements
+    with session() as cnx:
+        vue_console = page_visites.lire(cnx, charger_departements(),
+            Session('admin.fictif', frozenset({'admin'}), 'csrf-fictif', 4102444800), iid)
+    assert vue_console['visites'][0]['temps']['travail_minutes'] == 180
+    assert 'Ancien pointage sans visite : durée globale inconnue' in page_visites.contenu(
+        vue_console, Session('admin.fictif', frozenset({'admin'}), 'csrf-fictif', 4102444800), '')
     vue_report = appeler('m4_lire_visites_console', {'intervention_id': iid}, '2030-06-03T12:01:00-04:00')
     report_args = {'intervention_id': iid, 'motif': 'meteo', 'horodatage': '2030-06-03T12:02:00-04:00',
                    'visite_id': visite_id, 'source_attendue': vue_report['resultat']['resultat']['source_sql']}
@@ -184,7 +197,7 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
         def now(cls, tz=None):
             return cls.instant.astimezone(tz)
     monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
-    _, ids, _, _ = planning
+    par_nom, ids, _, _ = planning
     iid = ids['lead-fictif-001']
     chemin = '/crm/visites?intervention_id=' + iid
     assert client_crm.get(chemin, follow_redirects=False).status_code == 303
@@ -252,6 +265,8 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
             'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
         fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
         for action, instant in [('arrivee', '2030-06-03T09:00:00-04:00'),
+                                ('pause_debut', '2030-06-03T10:00:00-04:00'),
+                                ('pause_fin', '2030-06-03T10:30:00-04:00'),
                                 ('depart', '2030-06-03T12:00:00-04:00')]:
             assert pointage.enregistrer_pointage(iid, equipe, action, instant,
                 {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
@@ -272,7 +287,7 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
     assert client_crm.post(chemin, data=fermer, follow_redirects=False).status_code == 303
     assert client_crm.post(chemin, data=fermer, follow_redirects=False).status_code == 303
     page = client_crm.get(chemin)
-    assert page.status_code == 200 and 'Pointé : 180 min nettes' in page.text
+    assert page.status_code == 200 and 'Pointé : 150 min nettes' in page.text
     assert 'ne prouve pas la présence individuelle' in page.text
     interrompre = formulaire(page.text, 'interrompre')
     interrompre['motif'] = 'meteo'
@@ -313,6 +328,93 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
         relu = Registre(stockage.maillons('m04-field-ops', 'principal'))
         assert etats.statut_courant(relu, iid) == 'planifiee'
         assert outbox.lire_outbox(relu) == []
+    # Nouvelle proposition réelle mono-chantier, autre équipe et date civile vendredi.
+    import datetime as dt
+
+    from opsys import contexte
+    from opsys.outils import executer_atomique
+
+    instant_plan = dt.datetime(2030, 6, 3, 16, 4, 0, tzinfo=dt.UTC)
+    equipe_reprise = next(e for e in f.terrain._equipes() if e['id'] != equipe)
+    arguments_plan = f.terrain._arguments({'lead-fictif-001': iid}, equipes=[equipe_reprise],
+                                         intervention_ids=[iid])
+    with f.terrain._appareil(f.terrain.ADMIN, recu_le=instant_plan):
+        proposition = f.terrain._resultat(executer_atomique(par_nom['m4_proposer_cedule'], arguments_plan))
+    plan = proposition['plan_id']
+    with f.terrain._appareil(f.terrain.ADMIN, recu_le=instant_plan):
+        f.terrain._resultat(executer_atomique(par_nom['m4_appliquer_cedule'], {
+            'plan_id': plan, 'horodatage': instant_plan.isoformat(), 'confirme_par': 'admin.fictif'}))
+    with f.terrain._appareil(f.terrain.ADMIN, recu_le=instant_plan):
+        f.terrain._resultat(executer_atomique(par_nom['m4_confirmer_dates_cedule'], {
+            'plan_id': plan, 'calendrier': {'0': '2030-06-07'}, 'revision_attendue': 0}))
+    HorlogeFictive.instant = datetime(2030, 6, 3, 16, 5, 0, tzinfo=UTC)
+    page = client_crm.get(chemin)
+    assert page.status_code == 200, page.text
+    prevoir_vendredi = formulaire(page.text, 'prevoir')
+    assert client_crm.post(chemin, data=prevoir_vendredi, follow_redirects=False).status_code == 303
+    HorlogeFictive.instant = datetime(2030, 6, 7, 12, 0, 0, tzinfo=UTC)
+    page = client_crm.get(chemin)
+    assert client_crm.post(chemin, data=formulaire(page.text, 'ouvrir'), follow_redirects=False).status_code == 303
+    page_reprise_ouverte = client_crm.get(chemin)
+    assert page_reprise_ouverte.status_code == 200 and 'Pointé : 150 min nettes' in page_reprise_ouverte.text
+    assert 'Temps pointé : inconnu' in page_reprise_ouverte.text
+    with session():
+        reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        assign_vendredi = {'intervention_id': iid, 'technicien_id': equipe_reprise['id']}
+        assert etats.transitionner(iid, 'en_route', reg, '2030-06-07T08:30:00-04:00',
+                                   assignation=assign_vendredi)[1] is None
+        fenetre_vendredi = {'debut': '2030-06-07T08:00:00-04:00', 'fin': '2030-06-07T18:00:00-04:00'}
+        for action, instant in [('arrivee', '2030-06-07T13:00:00+00:00'),
+                                ('depart', '2030-06-07T17:00:00+00:00')]:
+            assert pointage.enregistrer_pointage(iid, equipe_reprise['id'], action, instant,
+                {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                assign_vendredi, fenetre_vendredi, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
+    HorlogeFictive.instant = datetime(2030, 6, 7, 17, 1, 0, tzinfo=UTC)
+    page = client_crm.get(chemin)
+    assert client_crm.post(chemin, data=formulaire(page.text, 'fermer'), follow_redirects=False).status_code == 303
+    page = client_crm.get(chemin)
+    assert page.status_code == 200 and 'Pointé : 150 min nettes' in page.text
+    assert 'Pointé : 240 min nettes' in page.text and 'Interruption : meteo' in page.text
+    with session():
+        from m4_field_ops import visites_chantier, visites_durables
+        reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        prev = Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+        assert visites_chantier.calculer_faits_certifies(reg, prev, iid)['travail_minutes'] == 390
+        assert len(outbox.lire_outbox(reg)) == 0
+    # La complétion M4 réelle émet une seule fois la somme des deux sessions.
+    import base64
+    import hashlib
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location('png_deux_visites',
+        Path(__file__).parents[1] / 'departments/m04-field-ops/tests/conftest.py')
+    fixture_png = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fixture_png)
+    png = fixture_png.png_minimal()
+    instant_completion = datetime(2030, 6, 7, 17, 2, 0, tzinfo=UTC)
+    def outil_final(nom, arguments):
+        with (session(), contexte.appele_par_appareil(
+                contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+              contexte.receptionne_de(contexte.HorodatageAppareil(
+                  'console:admin.fictif', instant_completion, instant_completion))):
+            return executer_atomique(par_nom[nom], arguments)
+    photo = outil_final('m4_deposer_fichier', {'empreinte_sha256': hashlib.sha256(png).hexdigest(),
+        'taille_octets': len(png), 'type_mime': 'image/png', 'index_bloc': 0, 'nombre_blocs': 1,
+        'bloc_base64': base64.b64encode(png).decode('ascii')})
+    assert photo['ok'] and photo['resultat']['accepte'], photo
+    args_completion = {'intervention_id': iid, 'horodatage': instant_completion.isoformat(),
+        'preuves_completion': {'checklist_complete': True,
+            'photos_apres': [photo['resultat']['resultat']['reference']], 'notes': 'Fictif', 'signature': None},
+        'signature_requise': False}
+    final = outil_final('m4_completer_intervention', args_completion)
+    assert final['ok'] and final['resultat']['accepte'], final
+    assert outil_final('m4_completer_intervention', args_completion)['resultat']['accepte'] is False
+    stockage.liberer()  # Fermer les connexions, puis relire depuis SQLite.
+    assert client_crm.get(chemin).status_code == 200
+    with session():
+        relu = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        wcts = [w for _, w in outbox.lire_outbox(relu) if w['intervention_id'] == iid]
+        assert len(wcts) == 1 and wcts[0]['duree_reelle_minutes'] == 390
     assert client_crm.get('/crm/visites?intervention_id=%3Cscript%3E').status_code == 400
     from opsys import identite
     with session() as cnx:

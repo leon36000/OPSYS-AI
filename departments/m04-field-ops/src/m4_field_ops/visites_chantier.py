@@ -119,7 +119,7 @@ def _anomalie_validee(maillons, point):
             and transition.get('horodatage') == resolution.get('horodatage'))
 
 
-def calculer_faits(registre, intervention_id, *, ignorer_anciens=False):
+def calculer_faits(registre, intervention_id, *, ignorer_anciens=False, ignorer_visite=None):
     """Lit les faits porteurs d'une identité explicite, sans rétro-attribution.
 
     Par défaut toute source ancienne non identifiée bloque le total. Le mode interne
@@ -145,7 +145,7 @@ def calculer_faits(registre, intervention_id, *, ignorer_anciens=False):
         if action not in {'en_route', 'arrivee', 'depart', 'pause_debut', 'pause_fin'}:
             continue
         ident = m.get('visite_id')
-        if ignorer_anciens and ident is None:
+        if (ignorer_anciens and ident is None) or (ignorer_visite is not None and ident == ignorer_visite):
             continue
         technicien = m.get('technicien_id')
         if (type(ident) is not str or not ident.strip() or type(technicien) is not str
@@ -330,12 +330,14 @@ def fermer(principal, visites, visite_id, horodatage, *, provenance=None):
         raise ValueError('source de visite invalide') from exc
 
 
-def calculer_faits_certifies(principal, visites, intervention_id, *, ignorer_anciens=False):
+def calculer_faits_certifies(principal, visites, intervention_id, *, ignorer_anciens=False,
+                             omettre_ouverte=False):
     """Vérifie les ancres et fermetures explicites avant tout total de chantier.
 
     Les anomalies GPS exigent une demande et une résolution validée reliées au pointage.
     Le mode interne d'interruption écarte les anciens faits hors session sans les
-    attribuer ; il ne permet pas de calculer un total global certifié.
+    attribuer. Le mode de consultation peut omettre la session encore ouverte.
+    Dans ces deux modes, le résultat n'est pas un total global certifié pour WCT.
     """
     from zoneinfo import ZoneInfo
 
@@ -349,6 +351,7 @@ def calculer_faits_certifies(principal, visites, intervention_id, *, ignorer_anc
         from .registre import Registre
 
         active, utilisees, dernier_depart, technicien_route = None, set(), None, None
+        ouverte_courante = visite_active(principal, intervention_id) if omettre_ouverte else None
         maillons = principal.lire()
         for rang, m in enumerate(maillons):
             if m.get('intervention_id') != intervention_id:
@@ -391,6 +394,7 @@ def calculer_faits_certifies(principal, visites, intervention_id, *, ignorer_anc
                     raise ValueError('pointage sans technicien de route correspondant')
                 if (typ == 'pointage' and action in ('arrivee', 'depart')
                         and m.get('gps_coherent') is not True
+                        and not (ouverte_courante and m.get('visite_id') == ouverte_courante['visite_id'])
                         and not _anomalie_validee(maillons, m)):
                     raise ValueError('anomalie GPS non arbitrée')
                 if action == 'depart':
@@ -402,10 +406,15 @@ def calculer_faits_certifies(principal, visites, intervention_id, *, ignorer_anc
                         or _instant(m['horodatage']) < _instant(dernier_depart['horodatage'])):
                     raise ValueError('fermeture sans départ correspondant')
                 active, dernier_depart, technicien_route = None, None, None
-        if active is not None or not utilisees:
+        if (active is not None and not omettre_ouverte) or not utilisees:
             raise ValueError('visite ouverte ou absente')
-        resultat = calculer_faits(principal, intervention_id, ignorer_anciens=ignorer_anciens)
-        if {v['visite_id'] for v in resultat['visites']} != utilisees:
+        ouverte_id = active['visite_id'] if active is not None else None
+        fermees = utilisees - ({ouverte_id} if ouverte_id is not None else set())
+        if not fermees:
+            raise ValueError('aucune visite fermée')
+        resultat = calculer_faits(principal, intervention_id, ignorer_anciens=ignorer_anciens,
+                                   ignorer_visite=ouverte_id)
+        if {v['visite_id'] for v in resultat['visites']} != fermees:
             raise ValueError('sessions incohérentes')
         if principal.tete() != tete_principal or visites.tete() != tete_visites:
             raise ValueError('source modifiée')
