@@ -788,3 +788,66 @@ def test_nonce_deterministe_distinct_par_clair_et_chiffre_different_par_evenemen
     decodees = [codec.decoder(m) if isinstance(m, str) else m for m in enveloppes]
     assert len({e["nonce"] for e in decodees}) == len(decodees)
     assert copie(decodees[0])["type"] == "VERSION" and decodees[1]["type"] == "REVUE"
+
+
+def test_doublon_de_periode_sous_une_autre_reference_d_employeur_refuse(base, src):
+    with tx() as cnx:
+        _conserver(cnx, src, mutation=1)
+        autre = entrees()
+        autre["employeur_reference"] = "employeur-fictif-bis"
+        avant = _lignes(cnx)
+        with pytest.raises(service.ServiceErreur) as exc:
+            _conserver(cnx, src, e=autre, mutation=2)
+        assert exc.value.verdict["code"] == "REJ-DOSSIER-PAIE-DOSSIER-DOUBLON"
+        assert _lignes(cnx) == avant
+
+
+def test_ecritures_concurrentes_une_seule_gagne_sans_ecriture_partielle(base, src):
+    """Deux transactions réelles visent la même version attendue : une version, un refus VERSION-PERIMEE."""
+    import threading
+
+    with tx() as cnx:
+        v1 = _conserver(cnx, src, mutation=1)
+    corrige_a, corrige_b = entrees(), entrees()
+    corrige_a["credits_federal"]["TC"] = "17000.00"
+    corrige_b["credits_federal"]["TC"] = "18000.00"
+    barriere = threading.Barrier(2)
+    resultats: dict[str, object] = {}
+
+    def travailler(nom, e, mutation):
+        try:
+            with tx() as cnx:
+                apercu_local = service.apercu(
+                    cnx,
+                    employee_person_id=EMPLOYE,
+                    entrees_brutes=e,
+                    fournisseur_brut=src.brut_provider,
+                    fournisseur_admission=src.admission_provider,
+                )
+            barriere.wait(timeout=10)
+            with tx() as cnx:
+                resultats[nom] = _conserver(
+                    cnx,
+                    src,
+                    e=e,
+                    mutation=mutation,
+                    attendue=1,
+                    type_version="CORRECTION",
+                    apercu=apercu_local,
+                )
+        except Exception as exc:  # noqa: BLE001 — le refus attendu est transporté vers le fil principal
+            resultats[nom] = exc
+
+    fils = [threading.Thread(target=travailler, args=args) for args in (("a", corrige_a, 10), ("b", corrige_b, 11))]
+    for fil in fils:
+        fil.start()
+    for fil in fils:
+        fil.join(timeout=60)
+    gagnants = [r for r in resultats.values() if isinstance(r, dict)]
+    perdants = [r for r in resultats.values() if isinstance(r, service.ServiceErreur)]
+    assert len(gagnants) == 1 and len(perdants) == 1, resultats
+    assert perdants[0].verdict["code"] == "REJ-DOSSIER-PAIE-VERSION-PERIMEE"
+    with tx() as cnx:
+        lu = journal.lire_dossier(cnx, v1["dossier_id"])
+        assert [v["numero"] for v in lu["versions"]] == [1, 2]
+        assert _compte_par_registre(cnx) == {("m05-financecore", "dossiers_paie_preparatoires"): 2}

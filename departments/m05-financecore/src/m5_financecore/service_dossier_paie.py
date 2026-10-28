@@ -37,7 +37,7 @@ def _resume_admission(admission: Mapping[str, Any] | None) -> dict[str, Any]:
     if not isinstance(admission, Mapping):
         return {
             "admissible": False,
-            "motifs": ["ADMISSION_ABSENTE"],
+            "motifs": ["ADMISSION_NON_EVALUEE"],
             "sources_verifiees": [],
             "empreintes_sources": {},
             "schema": None,
@@ -295,6 +295,19 @@ def conserver_version(
     courant = journal.lire_dossier(cnx, dossier_id)
     if courant is not None and courant["etat"] == "REVUE_COMPLETEE":
         raise _lever("DOSSIER-REVU", "dossier revu : rouvrez-le explicitement avant de conserver une nouvelle version")
+    if type_version == "CREATION":
+        for autre in journal.lire_tout(cnx).values():
+            ident = autre["versions"][-1]["version"]["identite"]
+            if (
+                autre["dossier_id"] != dossier_id
+                and ident["employee_person_id"] == employee_person_id
+                and ident["annee"] == periode["annee"]
+                and ident["periode_annuelle"] == periode["periode_annuelle"]
+            ):
+                raise _lever(
+                    "DOSSIER-DOUBLON",
+                    "un dossier existe déjà pour cet employé et cette période sous une autre référence d'employeur",
+                )
     if (type_version == "CREATION") != (version_attendue == 0):
         raise _lever("STRUCTURE-INVALIDE", "CREATION exige version_attendue=0, CORRECTION/REBASE une version existante")
     resultat = apercu(
