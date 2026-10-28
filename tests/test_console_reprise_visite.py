@@ -31,14 +31,15 @@ planning = legacy.planning
 
 
 def test_reprise_type_travaux_utilise_plan_historique_ancre(planning, session, monkeypatch):
-    from datetime import UTC, datetime
     import json
+    from datetime import UTC, datetime
+
+    from sqlalchemy import select
 
     from opsys.console import reprise_visite
     from opsys.console.securite import Session
     from opsys.departements import charger_departements
     from opsys.stockage.schema import JOURNAL
-    from sqlalchemy import select
 
     class HorlogeFictive(datetime):
         @classmethod

@@ -465,7 +465,8 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre, verifier_f
                 else:
                     if vue['historique'] is not None:
                         corps += ('<p>La durée et les compétences proviennent du plan de la visite interrompue. '
-                                  'Cette durée est une prévision historique complète, pas une estimation du travail restant.</p>')
+                                  'Cette durée est une prévision historique complète, '
+                                  'pas une estimation du travail restant.</p>')
                     options = ''.join(f'<option value="{pages.e(e)}">{pages.e(e)}</option>' for e in vue['equipes'])
                     corps += (f'<form method="post" action="{pages.e(cible(iid))}">{commun}'
                               f'<label>Équipe déclarée <select name="equipe_id">{options}</select></label>'
