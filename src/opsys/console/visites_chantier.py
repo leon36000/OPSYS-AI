@@ -144,6 +144,7 @@ def lire(cnx, deps, session, intervention_id, *, debut=0, limite=50, source_atte
         attendu['intervention_id'] = intervention_id
         attendu['limite'] = limite
         attendu['etat_chantier'] = etats.statut_courant(reg, intervention_id)
+        attendu['visite_active'] = active['visite_id'] if active is not None else None
         attendu['derniere_fermeture'] = fermetures_liste[-1]['visite_id'] if fermetures_liste else None
         attendu['dernier_report'] = reports[-1]['ligne_id'] if reports else None
         attendu['avertissement'] = ('Composition déclarée : elle ne prouve pas la présence individuelle. '
@@ -166,12 +167,14 @@ def lire(cnx, deps, session, intervention_id, *, debut=0, limite=50, source_atte
 def contenu(vue, session, prefixe):
     import uuid
 
-    from . import annotations_cedule_ui, compositions_equipes
+    from . import annotations_cedule_ui, cedule_ui, compositions_equipes
 
     chemin = url(vue['intervention_id'], prefixe)
     corps = (f'<section><h2>Prévisions et visites — {pages.e(vue["intervention_id"])}</h2>'
              f'<p>{pages.e(vue["avertissement"])}</p>'
              '<p>Composition déclarée et présence observée sont distinctes.</p>')
+    statut = cedule_ui.STATUTS.get(vue['etat_chantier'], 'État indisponible')
+    corps += f'<p>Statut du chantier : {pages.e(statut)}.</p>'
     if vue['faits_anciens_non_attribues']:
         corps += '<p>Ancien pointage sans visite : durée globale inconnue ; voir le journal historique.</p>'
     if vue['etat_chantier'] == 'planifiee' and vue['total']:
@@ -226,7 +229,7 @@ def contenu(vue, session, prefixe):
         journal = prefixe + '/crm/journal-equipes?' + urlencode({'jour': jour})
         corps += f'<p><a href="{pages.e(journal)}">Journal de cette journée</a></p>'
         if (v['etat_visite'] == 'fermee' and v['visite_id'] == vue['derniere_fermeture']
-                and vue['etat_chantier'] == 'sur_site'):
+                and vue['etat_chantier'] == 'sur_site' and vue['visite_active'] is None):
             champs = {'operation': 'interrompre', 'visite_id': v['visite_id'],
                       'source_attendue': vue['source_sql'], 'csrf': session.csrf, 'mutation_id': str(uuid.uuid4())}
             corps += f'<form method="post" action="{pages.e(chemin)}">'

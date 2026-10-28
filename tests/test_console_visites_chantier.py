@@ -385,6 +385,11 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
             mutation={'appareil': 'test-fictif', 'cle': 'composition-vendredi-fictive',
                       'empreinte_arguments': encodage.empreinte(declaration_jour)},
             horodatage='2030-06-07T17:00:00+00:00')
+    page_active = client_crm.get(chemin)
+    assert page_active.status_code == 200
+    parser_active = Forms()
+    parser_active.feed(page_active.text)
+    assert not any(x.get('operation') == 'interrompre' for x in parser_active.forms)
     journal_vendredi = client_crm.get('/crm/journal-equipes?jour=2030-06-07')
     assert journal_vendredi.status_code == 200
     assert '#visite-' + ouverture_vendredi['visite_id'] in journal_vendredi.text
@@ -398,6 +403,7 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
     page = client_crm.get(chemin)
     assert page.status_code == 200 and 'Pointé : 150 min nettes' in page.text
     assert 'Pointé : 240 min nettes' in page.text and 'Interruption : meteo' in page.text
+    assert formulaire(page.text, 'interrompre')['visite_id'] == ouverture_vendredi['visite_id']
     assert 'Composition déclarée : personne&lt;script&gt;.fictive' in page.text
     assert 'Composition déclarée : reprise.fictive' in page.text
     assert declaration_lundi['resultat']['declaration_id'] in page.text
@@ -437,7 +443,12 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
     assert final['ok'] and final['resultat']['accepte'], final
     assert outil_final('m4_completer_intervention', args_completion)['resultat']['accepte'] is False
     stockage.liberer()  # Fermer les connexions, puis relire depuis SQLite.
-    assert client_crm.get(chemin).status_code == 200
+    finale_page = client_crm.get(chemin)
+    assert finale_page.status_code == 200
+    assert 'Statut du chantier : Terminé' in finale_page.text
+    parser_final = Forms()
+    parser_final.feed(finale_page.text)
+    assert not any(x.get('operation') in {'interrompre', 'ouvrir', 'fermer'} for x in parser_final.forms)
     with session():
         relu = Registre(stockage.maillons('m04-field-ops', 'principal'))
         wcts = [w for _, w in outbox.lire_outbox(relu) if w['intervention_id'] == iid]
