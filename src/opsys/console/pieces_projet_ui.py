@@ -5,6 +5,7 @@ import re
 import uuid
 from contextlib import contextmanager
 from email.message import Message
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
@@ -13,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 from starlette.requests import Request as StarletteRequest
 
+from . import classement_pieces as classement
 from . import pages, pieces_projet, securite
 from .fusion_pdf_ui import _corps_borne, _media
 
@@ -46,7 +48,7 @@ def _erreurs():
         statut = {'INTROUVABLE': 404, 'SAISIE-CONFLIT': 409, 'TITRE-INVALIDE': 400,
                   'TAILLE-INVALIDE': 400, 'TYPE-INVALIDE': 400, 'SAISIE-INVALIDE': 400,
                   'PAGINATION-INVALIDE': 400, 'CLASSEMENT-ARGUMENTS': 400,
-                  'REVISION-PERIMEE': 409, 'CLASSEMENT-INCHANGE': 409}.get(exc.code, 503)
+                  'REVISION-PERIMEE': 409, 'CLASSEMENT-INCHANGE': 409, 'LISTE-PERIMEE': 409}.get(exc.code, 503)
         raise HTTPException(statut, 'Pièces reçues indisponibles : ' + exc.code) from None
     except (ValueError, KeyError, TypeError, AttributeError, ArithmeticError, SQLAlchemyError):
         raise HTTPException(503, 'Pièces reçues temporairement indisponibles') from None
@@ -58,23 +60,42 @@ def _base(prefixe, lead):
 
 def _parametres(request, *, page=False):
     q = request.query_params
-    if not q:
-        return 0
-    valeur = q.get('decalage', '')
-    if (not page or set(q) != {'decalage'} or len(q.getlist('decalage')) != 1
+    if not page:
+        if q:
+            raise HTTPException(400, 'Paramètres de pièces reçues invalides')
+        return {}
+    valeur = q.get('decalage', '0')
+    categorie = q.get('categorie') or None
+    source = q.get('source_attendue', '')
+    if (set(q) - {'decalage', 'categorie', 'source_attendue'}
+            or any(len(q.getlist(k)) != 1 for k in q)
             or re.fullmatch(r'0|[1-9][0-9]{0,2}', valeur) is None
-            or int(valeur) >= pieces_projet.MAX_PIECES or int(valeur) % pieces_projet.PAGE):
+            or int(valeur) >= pieces_projet.MAX_PIECES or int(valeur) % pieces_projet.PAGE
+            or (categorie is not None and categorie not in classement.CATEGORIES)
+            or (source and re.fullmatch('[0-9a-f]{64}', source) is None)
+            or (int(valeur) and not source)):
         raise HTTPException(400, 'Paramètres de pièces reçues invalides')
-    return int(valeur)
+    return dict(decalage=int(valeur), categorie=categorie, source_attendue=source)
+
+
+def _url_filtre(base, categorie):
+    return base + ('?' + urlencode({'categorie': categorie}) if categorie is not None else '')
 
 
 def contenu(vue, csrf, prefixe):
     base = _base(prefixe, vue['lead_id'])
     corps = (f'<p><a href="{prefixe}/crm/lead/{pages._segment(vue["lead_id"])}">Retour au dossier</a></p>'
              '<h2>Pièces reçues de ce projet</h2>'
-             f'<p>Projet : {pages.e(vue["lead_id"])} · {vue["nombre"]} pièce(s).</p>'
+             f'<p>Projet : {pages.e(vue["lead_id"])} · {vue["nombre"]} pièce(s) correspondent sur '
+             f'{vue["nombre_total"]} dans ce projet.</p>'
              '<p>Originaux conservés sans analyse du contenu ni validation de signature. '
-             'Téléchargement uniquement. Aucun usage marketing automatique.</p><ul>')
+             'Téléchargement uniquement. Aucun usage marketing automatique.</p>')
+    corps += (f'<form method="get" action="{pages.e(base)}">'
+              '<label>Classement <select name="categorie">')
+    for code, label in [('', 'Toutes les catégories'), *classement.CATEGORIES.items()]:
+        selection = ' selected' if code == (vue['categorie'] or '') else ''
+        corps += f'<option value="{code}"{selection}>{pages.e(label)}</option>'
+    corps += '</select></label><button type="submit">Filtrer les pièces</button></form><ul>'
     for piece in vue['pieces']:
         lien = base + '/' + piece['piece_id']
         type_court = {'application/pdf': 'PDF', 'image/png': 'PNG', 'image/jpeg': 'JPEG'}[piece['type_mime']]
@@ -82,15 +103,23 @@ def contenu(vue, csrf, prefixe):
                   f'{piece["taille_octets"]} octets · {pages.e(piece["statut"])}<br>'
                   f'Reçu le {pages.e(piece["recu_le"])} par {pages.e(piece["auteur"])}<br>'
                   f'SHA-256 : {pages.e(piece["source_sha256"])}<br>'
+                  f'Classement : {pages.e(classement.CATEGORIES[piece["categorie_courante"]])} · '
+                  f'révision {piece["revision_classement"]}<br>'
                   f'<a href="{pages.e(lien)}">Télécharger l’original {type_court}</a> · '
                   f'<a href="{pages.e(lien)}/classement">Classement et historique</a></li>')
     corps += '</ul>'
     if not vue['pieces']:
-        corps += '<p>Aucune pièce reçue conservée pour ce projet.</p>'
+        corps += '<p>Aucune pièce reçue ne correspond à ce classement dans ce projet.</p>'
     for offset, libelle in ((vue['decalage'] - pieces_projet.PAGE, 'Page précédente'),
                             (vue['suivant'], 'Page suivante')):
         if offset is not None and offset >= 0:
-            corps += f'<p><a href="{pages.e(base)}?decalage={offset}">{libelle}</a></p>'
+            parametres = dict(decalage=offset, source_attendue=vue['source_calculee'])
+            if vue['categorie'] is not None:
+                parametres['categorie'] = vue['categorie']
+            lien = base + '?' + urlencode(parametres)
+            corps += f'<p><a href="{pages.e(lien)}">{libelle}</a></p>'
+    corps += (f'<p><a href="{pages.e(_url_filtre(base, vue["categorie"]))}">'
+              'Actualiser les résultats</a></p>')
     return corps + (f'<h3>Ajouter un original reçu</h3><form method="post" enctype="multipart/form-data" '
         f'action="{pages.e(base)}"><input type="hidden" name="csrf" value="{pages.e(csrf)}">'
         f'<input type="hidden" name="mutation_id" value="{uuid.uuid4().hex}">'
@@ -151,18 +180,32 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre):
     @router.get(chemin)
     def page(lead_id: str, request: Request):
         session = session_page(request)
-        decalage = _parametres(request, page=True)
+        params = _parametres(request, page=True)
         with _erreurs(), cnx_factory() as cnx:
             pieces_projet.autorite._admin(cnx, session)
             cle = _cle()
             ancre = pieces_projet._ancre(cnx, deps, session, lead_id)
-            vue = pieces_projet.lister(cnx, deps, session, lead_id, cle=cle, decalage=decalage)
+            try:
+                vue = classement.lister_projet(cnx, deps, session, lead_id, cle=cle, **params)
+            except pieces_projet.Refus as exc:
+                if exc.code != 'LISTE-PERIMEE':
+                    raise
+                lien = _url_filtre(_base(prefixe, lead_id), params['categorie'])
+                reponse = rendre(session, 'Liste à actualiser',
+                    '<p>La liste a changé depuis cette consultation. Actualiser pour lire les résultats courants.</p>'
+                    f'<p><a href="{pages.e(lien)}">Actualiser les résultats</a></p>')
+                reponse.status_code = 409
+                pieces_projet._fermer(cnx, deps, session, lead_id, ancre)
+                if _cle() != cle:
+                    raise pieces_projet.Refus('SOURCE-MODIFIEE') from None
+                pieces_projet.autorite._admin(cnx, session)
+                return reponse
             reponse = rendre(session, 'Pièces reçues du projet', contenu(vue, session.csrf, prefixe))
             if len(reponse.body) > MAX_HTML:
                 raise pieces_projet.Refus('SORTIE-TROP-VOLUMINEUSE')
             pieces_projet._fermer(cnx, deps, session, lead_id, ancre)
-            if _cle() != cle or pieces_projet.lister(
-                    cnx, deps, session, lead_id, cle=cle, decalage=decalage) != vue:
+            if _cle() != cle or classement.lister_projet(
+                    cnx, deps, session, lead_id, cle=cle, **params) != vue:
                 raise pieces_projet.Refus('SOURCE-MODIFIEE')
             pieces_projet.autorite._admin(cnx, session)
             reponse.headers['X-Content-Type-Options'] = 'nosniff'

@@ -167,3 +167,56 @@ def classer(cnx, deps, session, lead_id, piece_id, *, cle, categorie, revision_a
             raise Refus('SOURCE-MODIFIEE')
         pieces.autorite._admin(cnx, session)
         return dict(recu=ligne, rejoue=False)
+
+
+def _sources_liste(cnx, lead_id):
+    # Bornes avant toute sélection : les originaux restent dans SQL (seules leurs longueurs sont mesurées).
+    pieces._borner(cnx)
+    metas = [dict(r) for r in cnx.execute(select(*pieces._METADATA).where(
+        pieces.PIECES.c.lead_id == lead_id).order_by(pieces.PIECES.c.recu_le, pieces.PIECES.c.piece_id)).mappings()]
+    classements = [r for r in _charger(cnx) if r['lead_id'] == lead_id]
+    return metas, classements
+
+
+def lister_projet(cnx, deps, session, lead_id, *, cle, categorie=None, decalage=0, source_attendue=''):
+    """Métadonnées authentifiées et filtre avant pagination; aucun original sélectionné ou déchiffré."""
+    pieces.autorite._admin(cnx, session)
+    pieces._cle(cle)
+    if (categorie is not None and (type(categorie) is not str or categorie not in CATEGORIES)
+            or type(decalage) is not int or not 0 <= decalage < pieces.MAX_PIECES or decalage % pieces.PAGE
+            or type(source_attendue) is not str
+            or (source_attendue and re.fullmatch('[0-9a-f]{64}', source_attendue) is None)
+            or (decalage and not source_attendue)):
+        raise Refus('PAGINATION-INVALIDE')
+    ancre = pieces._ancre(cnx, deps, session, lead_id)
+    metas, classements = _sources_liste(cnx, lead_id)
+    if any(r['client_id'] != ancre['client_id'] for r in metas):
+        raise Refus('SOURCE-INCOHERENTE')
+    # Le titre porte l’AAD du manifeste original : authentifier les métadonnées du projet seulement.
+    recus = [pieces._recu(r, cle) for r in metas]
+    courants = {r['piece_id']: r for r in classements}
+    enrichis = []
+    for recu in recus:
+        courant = courants.get(recu['piece_id'])
+        if courant is not None and (courant['lead_id'], courant['source_sha256']) != (
+                lead_id, recu['source_sha256']):
+            raise Refus('CLASSEMENT-INCOHERENT')
+        enrichis.append({**recu,
+            'categorie_courante': courant['categorie'] if courant else 'non_classee',
+            'revision_classement': courant['revision'] if courant else 0})
+    source = idempotence.empreinte_arguments(dict(lead_id=lead_id, categorie=categorie,
+        ancre=ancre, metadonnees=metas, classements=classements))
+    if source_attendue and source_attendue != source:
+        raise Refus('LISTE-PERIMEE')
+    selection = [r for r in enrichis if categorie is None or r['categorie_courante'] == categorie]
+    nombre = len(selection)
+    if decalage and decalage >= nombre:
+        raise Refus('INTROUVABLE')
+    resultat = dict(lead_id=lead_id, pieces=selection[decalage:decalage + pieces.PAGE],
+        categorie=categorie, nombre=nombre, nombre_total=len(enrichis), decalage=decalage,
+        suivant=decalage + pieces.PAGE if decalage + pieces.PAGE < nombre else None, source_calculee=source)
+    pieces._fermer(cnx, deps, session, lead_id, ancre)
+    if _sources_liste(cnx, lead_id) != (metas, classements):
+        raise Refus('SOURCE-MODIFIEE')
+    pieces.autorite._admin(cnx, session)
+    return pieces.lecture._sortie(resultat)

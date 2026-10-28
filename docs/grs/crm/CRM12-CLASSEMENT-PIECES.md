@@ -5,7 +5,7 @@
 Le secrétariat range une pièce dans le dossier du chantier exact et peut corriger ce rangement tout
 en retrouvant les choix antérieurs. Le fichier original reçu reste identique.
 **PARTIAL : tranche locale SQLite qualifiée; publication en attente de la CI précédente.** Le besoin
-documentaire intégral, les filtres de liste, les versions, le retrait/rétention, les autres rôles,
+documentaire intégral, les versions, le retrait/rétention, les autres rôles,
 l’exploitation des clés et le mobile restent ouverts. [Audit préalable](CRM12-AUDIT-CLASSEMENT-PIECES.md).
 
 ## Architecture, fichiers et routes
@@ -21,8 +21,8 @@ Sous `src/opsys/` :
 - `tests/test_console_classement_pieces.py` et `tests/test_console_classement_pieces_http.py` : 50 cas nouveaux.
 
 GET/POST privé `/crm/lead/{lead_id}/pieces-recues/{piece_id}/classement`, sous le préfixe configuré.
-Accès depuis « Classement et historique » dans la liste des pièces du projet. Cette liste ne filtre
-pas encore les catégories et n’affiche pas une catégorie courante pour chaque ligne.
+Accès depuis « Classement et historique » dans la liste des pièces du projet. La [liste filtrée](CRM12-LISTE-FILTREE-PIECES.md) montre maintenant la catégorie courante de chaque
+pièce et filtre avant pagination, avec contrôle de fraîcheur.
 Les primitives de [dépôt/téléchargement](CRM12-PIECES-RECUES-HTTP.md) restent les propriétaires des originaux.
 
 ## Données et workflow
@@ -102,7 +102,7 @@ permission supplémentaire. Pas de retrait, purge, version du contenu, classemen
 masse, export ou usage marketing. Bibliothèque complète, politique de rétention, rotation/restauration
 et accès multi-profils restent à qualifier. Le mobile suit les grandes exigences serveur.
 
-Prochaine capacité : faire apparaître la catégorie courante dans la liste du projet et permettre un
-filtrage borné, sans déchiffrer tous les originaux ni mélanger les projets. Auditer ce raccord avant code.
-Réconcilier la CI de la tête publiée avant publication normale de ce lot local. OPSYS-AI reste PARTIAL,
+La catégorie courante et le filtre de liste sont qualifiés localement dans la tranche suivante.
+La CI de la tête publiée 9e4 a terminé avec 38 succès, 4 SKIP et 2 échecs (socle et gate agrégé).
+Diagnostiquer les fixtures historiques avant publication normale de ces lots locaux. OPSYS-AI reste PARTIAL,
 `runtime_GO=false`, `global_PASS=false`.
