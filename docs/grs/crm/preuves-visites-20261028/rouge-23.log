@@ -1,0 +1,22 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_vraies_primitives_attachent_route_et_pointages_a_ouverture ________
+
+    def test_vraies_primitives_attachent_route_et_pointages_a_ouverture():
+        from m4_field_ops import cedule, etats, pointage, visites_chantier
+        principal, visites, ancre, _, _ = fixture.monde()
+        prevision = ecrire(principal, visites, ancre)
+        visites_chantier.ouvrir(principal, visites, prevision['visite_id'], '2030-06-03T08:00:00-04:00')
+        ligne = visites_durables.lire(principal, visites, ancre['intervention_id'])['visites'][0]
+        equipe = ligne['creneau']['equipe_id']
+        technicien = 'employe.fictif'
+        assert technicien != equipe  # déclaration d'équipe ≠ personne pointée
+        assign = {'intervention_id': ancre['intervention_id'], 'technicien_id': technicien}
+        route, erreur = etats.transitionner(ancre['intervention_id'], 'en_route', principal,
+                                            '2030-06-03T08:30:00-04:00', assignation=assign)
+>       assert erreur is None
+E       AssertionError: assert {'code': 'REJ-CONTRAT-INVALIDE', 'statut': '', 'detail': 'visite ouverte incohérente'} is None
+
+departments/m04-field-ops/tests/test_visites_reprise.py:166: AssertionError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_vraies_primitives_attachent_route_et_pointages_a_ouverture

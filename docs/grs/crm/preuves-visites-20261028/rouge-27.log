@@ -1,0 +1,37 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_http_visites_depuis_chantier_prevision_et_csrf ______________
+
+client_crm = <starlette.testclient.TestClient object at 0xeec245858770>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...15e15ef4', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xeec2490c7e00>
+
+    def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, monkeypatch):
+        from datetime import UTC, datetime
+        from opsys.console import metier
+    
+        class HorlogeFictive(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2030, 6, 3, 12, 0, 0, tzinfo=UTC).astimezone(tz)
+        monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
+        _, ids, _, _ = planning
+        iid = ids['lead-fictif-001']
+        chemin = '/crm/visites?intervention_id=' + iid
+        assert client_crm.get(chemin, follow_redirects=False).status_code == 303
+        f.base._connecter(client_crm, 'admin.fictif')
+        # Cookie fictif à échéance 2100 : l'horloge métier est avancée pour tester le jour de visite.
+        from dataclasses import replace
+        from opsys.console import securite
+        cookie = next(c for c in client_crm.cookies.jar if c.name == securite.NOM_COOKIE)
+        sess = securite.lire_session(cookie.value, f.base.SECRET)
+        cookie.value = securite.signer_session(replace(sess, expire=4102444800), f.base.SECRET)
+        journal = client_crm.get('/crm/journal-equipes?jour=2030-06-03')
+>       assert journal.status_code == 200 and ('/crm/visites?intervention_id=' + iid) in journal.text
+E       assert (200 == 200 and ('/crm/visites?intervention_id=' + '14b0cb396e9f3544c5b4ae44f45326b5d8121c554eafa32d388ba88a17b9fbc7') in '<!doctype html>\n<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initi...shot : 3516de2e3da572f4181640c51bf36c940c1ff400582d061915e00a8650d96863</p></details></section></main></body></html>\n')
+E        +  where 200 = <Response [200 OK]>.status_code
+E        +  and   '<!doctype html>\n<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initi...shot : 3516de2e3da572f4181640c51bf36c940c1ff400582d061915e00a8650d96863</p></details></section></main></body></html>\n' = <Response [200 OK]>.text
+
+tests/test_console_visites_chantier.py:187: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_http_visites_depuis_chantier_prevision_et_csrf

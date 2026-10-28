@@ -1,0 +1,215 @@
+....F.                                                                   [100%]
+=================================== FAILURES ===================================
+_____________ test_http_visites_depuis_chantier_prevision_et_csrf ______________
+
+client_crm = <starlette.testclient.TestClient object at 0xfb3a69e73020>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...6e42d35b', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xfb3a6e997b00>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xfb3a6aa24290>
+
+    def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, session, monkeypatch):
+        from datetime import UTC, datetime
+    
+        from opsys.console import metier
+    
+        class HorlogeFictive(datetime):
+            instant = datetime(2030, 6, 3, 12, 0, 0, tzinfo=UTC)
+            @classmethod
+            def now(cls, tz=None):
+                return cls.instant.astimezone(tz)
+        monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
+        _, ids, _, _ = planning
+        iid = ids['lead-fictif-001']
+        chemin = '/crm/visites?intervention_id=' + iid
+        assert client_crm.get(chemin, follow_redirects=False).status_code == 303
+        f.base._connecter(client_crm, 'admin.fictif')
+        # Cookie fictif à échéance 2100 : l'horloge métier est avancée pour tester le jour de visite.
+        from dataclasses import replace
+    
+        from opsys.console import securite
+        cookie = next(c for c in client_crm.cookies.jar if c.name == securite.NOM_COOKIE)
+        sess = securite.lire_session(cookie.value, f.base.SECRET)
+        cookie.value = securite.signer_session(replace(sess, expire=4102444800), f.base.SECRET)
+        journal = client_crm.get('/crm/journal-equipes?jour=2030-06-03')
+        assert journal.status_code == 200 and ('/crm/visites?intervention_id=' + iid) in journal.text
+>       page = client_crm.get(chemin)
+               ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_visites_chantier.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_client.py:1112: in get
+    return self.request(
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/testclient.py:518: in request
+    return super().request(
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_client.py:796: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_client.py:993: in send
+    raise exc
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_client.py:987: in send
+    response.read()
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_models.py:877: in read
+    self._content = b"".join(self.iter_bytes())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_models.py:893: in iter_bytes
+    for raw_bytes in self.iter_raw():
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_models.py:948: in iter_raw
+    for raw_stream_bytes in self.stream:
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_client.py:143: in __iter__
+    yield from self._stream
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/testclient.py:384: in iter_body
+    exit_stack.close()
+/usr/lib/python3.12/contextlib.py:618: in close
+    self.__exit__(None, None, None)
+/usr/lib/python3.12/contextlib.py:610: in __exit__
+    raise exc_details[1]
+/usr/lib/python3.12/contextlib.py:595: in __exit__
+    if cb(*exc_details):
+       ^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/testclient.py:399: in close_app
+    raise exception
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/from_thread.py:265: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/testclient.py:366: in run_app
+    await self.app(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/applications.py:1160: in __call__
+    await super().__call__(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/applications.py:96: in __call__
+    await self.middleware_stack(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+src/opsys/console/application.py:140: in __call__
+    await self.app(scope, receive, envoyer)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/routing.py:683: in __call__
+    await self.middleware_stack(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/routing.py:704: in app
+    await route.handle(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/routing.py:289: in handle
+    await self.app(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/routing.py:119: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/routing.py:105: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/routing.py:431: in app
+    raw_response = await run_endpoint_function(
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/routing.py:315: in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/concurrency.py:34: in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/to_thread.py:65: in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:2706: in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1100: in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+src/opsys/console/visites_chantier.py:274: in page
+    vue = lire(cnx, deps, session, **args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cnx = <sqlalchemy.engine.base.Connection object at 0xfb3a6a1ce000>
+deps = {'m01-front-office': Departement(id='m01-front-office', code='M1', nom='Front Office', mission="Recevoir chaque demand...n', 'nathan_owner', 'manager'}), <Niveau.N4: 'N4'>: frozenset({'admin', 'nathan_owner', 'manager'})}), canaux=()), ...}
+session = Session(utilisateur='admin.fictif', roles=frozenset({'admin'}), expire=4102444800)
+intervention_id = '14b0cb396e9f3544c5b4ae44f45326b5d8121c554eafa32d388ba88a17b9fbc7'
+debut = 0, limite = 50, source_attendue = None
+
+    def lire(cnx, deps, session, intervention_id, *, debut=0, limite=50, source_attendue=None):
+        autorite._admin(cnx, session)
+        try:
+            p = journal_durable.capturer(cnx)
+            v = visites_ecriture.capturer_visites(cnx)
+            c = composition_durable.capturer(cnx)
+            reg, prev = Registre([x.maillon for x in p.lignes]), Registre([x.maillon for x in v.lignes])
+            arguments = dict(intervention_id=intervention_id, debut=debut, limite=limite, source_attendue=source_attendue)
+            attendu = visites_durables.lire(reg, prev, **arguments)
+            attendu['source_sql'] = visites_ecriture.empreinte_sources(cnx)
+            obtenu = lecture._appel(deps, session.utilisateur, M4, NOM, arguments)
+            if obtenu != attendu:
+                raise lecture.Refus('SOURCE-REPONSE-INCOHERENTE')
+            _, courantes = annotations_calendrier._sources(reg)
+            attendues = [ligne for ligne in courantes.values()
+                         if ligne['intervention_id'] == intervention_id and ligne['validite'] == 'date_confirmee']
+            if len(attendues) > 1:
+                raise lecture.Refus('ANCRE-AMBIGUE')
+            courant = attendues[0] if attendues else None
+            sources = {x.maillon['ligne_id']: x.maillon for x in p.lignes}
+            rangs = {x.maillon['ligne_id']: n for n, x in enumerate(p.lignes)}
+            previsions = {x.maillon['ligne_id']: x.maillon for x in v.lignes}
+            ouvertures_liste = [m for m in sources.values()
+                                if m.get('type_entree') == 'visite_ouverte' and m.get('intervention_id') == intervention_id]
+            fermetures_liste = [m for m in sources.values()
+                                if m.get('type_entree') == 'visite_fermee' and m.get('intervention_id') == intervention_id]
+            ouvertures = {m['visite_id']: m for m in ouvertures_liste}
+            fermetures = {m['visite_id']: m for m in fermetures_liste}
+            if (len(ouvertures) != len(ouvertures_liste) or len(fermetures) != len(fermetures_liste)
+                    or len(ouvertures) > 1000 or len(fermetures) > 1000):
+                raise lecture.Refus('SOURCE-VISITE-INVALIDE')
+            for ident, m in ouvertures.items():
+                prevision_source = previsions.get(ident)
+                if (prevision_source is None or prevision_source['ancre']['intervention_id'] != intervention_id
+                        or m.get('source_calendrier') != prevision_source['ancre']['source_ligne_id']
+                        or m.get('source_application') != prevision_source['ancre']['source_application_id']
+                        or m.get('equipe_id') != prevision_source['creneau']['equipe_id']
+                        or rangs.get(m['source_calendrier'], len(rangs)) >= rangs[m['ligne_id']]):
+                    raise lecture.Refus('SOURCE-VISITE-INVALIDE')
+            for ident, m in fermetures.items():
+                ouverture, depart = ouvertures.get(ident), sources.get(m.get('source_depart'))
+                if (ouverture is None or m.get('ouverture_id') != ouverture['ligne_id'] or depart is None
+                        or depart.get('type_entree') != 'pointage' or depart.get('action') != 'depart'
+                        or depart.get('visite_id') != ident or depart.get('intervention_id') != intervention_id
+                        or not rangs[ouverture['ligne_id']] < rangs[depart['ligne_id']] < rangs[m['ligne_id']]):
+                    raise lecture.Refus('SOURCE-VISITE-INVALIDE')
+            # Un ancien pointage sans identité reste consultable dans le journal, jamais attribué.
+            anciens = any(m.get('type_entree') == 'pointage' and m.get('intervention_id') == intervention_id
+                          and not m.get('visite_id') for m in sources.values())
+            active = visites_chantier.visite_active(reg, intervention_id)
+            resultat_temps = None
+            if ouvertures and active is None and not anciens:
+                # Ici une erreur signale une source incohérente, pas une durée nulle.
+                resultat_temps = visites_chantier.calculer_faits_certifies(reg, prev, intervention_id)
+            calculs = {x['visite_id']: x for x in resultat_temps['visites']} if resultat_temps else {}
+            for ligne in attendu['visites']:
+                ident = ligne['visite_id']
+                ligne['etat_visite'] = ('fermee' if ident in fermetures else
+                                        'ouverte' if active and ident == active['visite_id'] else 'prevue')
+                calc = calculs.get(ident)
+                ligne['temps'] = calc
+                ligne['pointages'] = ([{'action': sources[x].get('action'), 'instant': sources[x]['horodatage'],
+                                        'technicien_id': sources[x].get('technicien_id'), 'source': x}
+                                       for x in calc['sources'] if sources[x].get('type_entree') == 'pointage']
+                                      if calc else None)
+                jour = ligne['creneau']['debut'][:10]
+                ligne['composition'] = composition_durable.projeter(c, jour, ligne['creneau']['equipe_id'])
+            attendu['ancre_courante'] = ({k: courant[k] for k in (
+                'intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')} if courant else None)
+            attendu['deja_prevue'] = bool(courant and any(
+                m.maillon['ancre'] == attendu['ancre_courante'] for m in v.lignes))
+            attendu['intervention_id'] = intervention_id
+            attendu['limite'] = limite
+>           attendu['etat_chantier'] = etats.statut_courant(reg, intervention_id)
+                                       ^^^^^
+E           NameError: name 'etats' is not defined
+
+src/opsys/console/visites_chantier.py:100: NameError
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_http_visites_depuis_chantier_prevision_et_csrf

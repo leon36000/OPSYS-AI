@@ -1,0 +1,83 @@
+B905 `zip()` without an explicit `strict=` parameter
+  --> departments/m04-field-ops/src/m4_field_ops/visites_chantier.py:68:40
+   |
+66 |             intervalles.append((debut, fin))
+67 |         intervalles.sort()
+68 |         if any(a[1] > b[0] for a, b in zip(intervalles, intervalles[1:])):
+   |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+69 |             raise ValueError('pauses chevauchées')
+70 |         minutes_pause = sum(_minutes(a, b) for a, b in intervalles)
+   |
+help: Add explicit value for parameter `strict=`
+   |
+67 |         intervalles.sort()
+   -         if any(a[1] > b[0] for a, b in zip(intervalles, intervalles[1:])):
+68 +         if any(a[1] > b[0] for a, b in zip(intervalles, intervalles[1:], strict=False)):
+69 |             raise ValueError('pauses chevauchées')
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+B905 `zip()` without an explicit `strict=` parameter
+  --> departments/m04-field-ops/src/m4_field_ops/visites_chantier.py:76:51
+   |
+74 |                         '_route': route, '_depart': depart})
+75 |     visites.sort(key=lambda v: (v['_route'], v['visite_id']))
+76 |     if any(a['_depart'] > b['_route'] for a, b in zip(visites, visites[1:])):
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+77 |         raise ValueError('visites chevauchées')
+78 |     for v in visites:
+   |
+help: Add explicit value for parameter `strict=`
+   |
+75 |     visites.sort(key=lambda v: (v['_route'], v['visite_id']))
+   -     if any(a['_depart'] > b['_route'] for a, b in zip(visites, visites[1:])):
+76 +     if any(a['_depart'] > b['_route'] for a, b in zip(visites, visites[1:], strict=False)):
+77 |         raise ValueError('visites chevauchées')
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+E501 Line too long (123 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/visites_chantier.py:111:121
+    |
+109 |             or resolution.get('intervention_id') != point.get('intervention_id')
+110 |             or resolution.get('decision') != 'validee' or resolution.get('statut_arbitrage') != 'validee'
+111 |             or resolution.get('resolution_id') != encodage.empreinte('resolution_revue', did, resolution.get('horodatage'))
+    |                                                                                                                         ^^^
+112 |             or _instant(resolution.get('horodatage')) < _instant(demande.get('horodatage'))):
+113 |         return False
+    |
+
+E501 Line too long (124 > 120)
+   --> departments/m04-field-ops/tests/test_visites_reprise.py:177:121
+    |
+175 |             assign, fenetre, ref, 'Repentigny', 'sel-fictif', principal)
+176 |         assert erreur is None, erreur
+177 |         assert next(m for m in principal.lire() if m['ligne_id'] == recu['ligne_id'])['visite_id'] == prevision['visite_id']
+    |                                                                                                                         ^^^^
+178 |     assert next(m for m in principal.lire() if m['ligne_id'] == route['ligne_id'])['visite_id'] == prevision['visite_id']
+179 |     assert visites_chantier.calculer_faits(principal, ancre['intervention_id'])['travail_minutes'] == 150
+    |
+
+E501 Line too long (121 > 120)
+   --> departments/m04-field-ops/tests/test_visites_reprise.py:178:121
+    |
+176 |         assert erreur is None, erreur
+177 |         assert next(m for m in principal.lire() if m['ligne_id'] == recu['ligne_id'])['visite_id'] == prevision['visite_id']
+178 |     assert next(m for m in principal.lire() if m['ligne_id'] == route['ligne_id'])['visite_id'] == prevision['visite_id']
+    |                                                                                                                         ^
+179 |     assert visites_chantier.calculer_faits(principal, ancre['intervention_id'])['travail_minutes'] == 150
+    |
+
+E501 Line too long (136 > 120)
+   --> departments/m04-field-ops/tests/test_visites_reprise.py:303:121
+    |
+301 | …te_id'], f'{jour}T{actions[-1][1][:2]}:01:00-04:00')
+302 | …ebut', '10:00:00'), ('pause_fin', '10:30:00')])
+303 | …pal, '2030-06-03T12:02:00-04:00', motif='meteo', registre_visites=visites)
+    |                                                            ^^^^^^^^^^^^^^^^
+304 | …
+305 | …
+    |
+
+Found 11 errors (5 fixed, 6 remaining).
+2 unsafe fixes available with `--fix --unsafe-fixes`.

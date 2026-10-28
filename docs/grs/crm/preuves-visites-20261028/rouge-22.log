@@ -1,0 +1,13 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________________ test_outils_visites_privatives_enregistres __________________
+
+    def test_outils_visites_privatives_enregistres():
+        par_nom = {outil.nom: outil for outil in outils()}
+>       assert par_nom['m4_lire_visites_console'].autonomie.value == 'T0'
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'm4_lire_visites_console'
+
+tests/test_console_visites_chantier.py:7: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_outils_visites_privatives_enregistres

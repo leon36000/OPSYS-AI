@@ -1,0 +1,221 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_http_visites_depuis_chantier_prevision_et_csrf ______________
+
+client_crm = <starlette.testclient.TestClient object at 0xf29635cf8d70>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...965c1dd5', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xf29639197880>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xf296362fdd90>
+
+    def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, session, monkeypatch):
+        from datetime import UTC, datetime
+        from opsys.console import metier
+    
+        class HorlogeFictive(datetime):
+            instant = datetime(2030, 6, 3, 12, 0, 0, tzinfo=UTC)
+            @classmethod
+            def now(cls, tz=None):
+                return cls.instant.astimezone(tz)
+        monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
+        _, ids, _, _ = planning
+        iid = ids['lead-fictif-001']
+        chemin = '/crm/visites?intervention_id=' + iid
+        assert client_crm.get(chemin, follow_redirects=False).status_code == 303
+        f.base._connecter(client_crm, 'admin.fictif')
+        # Cookie fictif à échéance 2100 : l'horloge métier est avancée pour tester le jour de visite.
+        from dataclasses import replace
+        from opsys.console import securite
+        cookie = next(c for c in client_crm.cookies.jar if c.name == securite.NOM_COOKIE)
+        sess = securite.lire_session(cookie.value, f.base.SECRET)
+        cookie.value = securite.signer_session(replace(sess, expire=4102444800), f.base.SECRET)
+        journal = client_crm.get('/crm/journal-equipes?jour=2030-06-03')
+        assert journal.status_code == 200 and ('/crm/visites?intervention_id=' + iid) in journal.text
+        page = client_crm.get(chemin)
+        assert page.status_code == 200, page.text
+        assert 'Prévisions et visites' in page.text and 'Composition' in page.text
+        from html.parser import HTMLParser
+        class Forms(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.forms, self.current = [], None
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'form':
+                    self.current = {}
+                    self.forms.append(self.current)
+                elif tag == 'input' and self.current is not None and 'name' in attrs:
+                    self.current[attrs['name']] = attrs.get('value', '')
+            def handle_endtag(self, tag):
+                if tag == 'form':
+                    self.current = None
+        def formulaire(html, operation):
+            parser = Forms()
+            parser.feed(html)
+            return next(x for x in parser.forms if x.get('operation') == operation)
+        prevoir = formulaire(page.text, 'prevoir')
+        mauvais_csrf = {**prevoir, 'csrf': 'csrf-incorrect-fictif'}
+        assert client_crm.post(chemin, data=mauvais_csrf, follow_redirects=False).status_code == 403
+        cree = client_crm.post(chemin, data=prevoir, follow_redirects=False)
+        assert cree.status_code == 303, cree.text
+        page = client_crm.get(chemin)
+        assert page.status_code == 200 and 'Composition déclarée inconnue' in page.text
+        ouvrir = formulaire(page.text, 'ouvrir')
+        autre = next(x for x in ids.values() if x != iid)
+        assert client_crm.post('/crm/visites?intervention_id=' + autre, data=ouvrir,
+                               follow_redirects=False).status_code == 400
+        resultat = client_crm.post(chemin, data=ouvrir, follow_redirects=False)
+        assert resultat.status_code == 303, resultat.text
+        page = client_crm.get(chemin)
+        assert page.status_code == 200 and 'Temps pointé : inconnu' in page.text
+        assert formulaire(page.text, 'fermer')
+        from m4_field_ops import calendrier_civil, cedule, composition_journaliere, encodage, etats, pointage
+        from m4_field_ops.registre import Registre
+        from opsys import stockage
+        with session():
+            reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            ligne = next(x for x in calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions']
+                         if x['intervention_id'] == iid)
+            equipe = ligne['equipe_id']
+            assign = {'intervention_id': iid, 'technicien_id': equipe}
+            assert etats.transitionner(iid, 'en_route', reg, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+            ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+                'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+            fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+            for action, instant in [('arrivee', '2030-06-03T09:00:00-04:00'),
+                                    ('depart', '2030-06-03T12:00:00-04:00')]:
+                assert pointage.enregistrer_pointage(iid, equipe, action, instant,
+                    {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                    assign, fenetre, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
+            declaration = {'jour': '2030-06-03', 'equipe_id': equipe, 'membres': ['personne.fictive'],
+                           'revision_attendue': 0, 'statut_declaration': 'declaree'}
+            composition_journaliere.declarer(Registre(stockage.maillons('m04-field-ops',
+                                                                        composition_journaliere.REGISTRE)),
+                **declaration, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                mutation={'appareil': 'test-fictif', 'cle': 'composition-fictive',
+                          'empreinte_arguments': encodage.empreinte(declaration)},
+                horodatage='2030-06-03T12:00:00-04:00')
+        HorlogeFictive.instant = datetime(2030, 6, 3, 16, 1, 0, tzinfo=UTC)
+        page = client_crm.get(chemin)
+        fermer = formulaire(page.text, 'fermer')
+        assert 'Composition déclarée : personne.fictive' in page.text
+        assert client_crm.post(chemin, data=fermer, follow_redirects=False).status_code == 303
+        assert client_crm.post(chemin, data=fermer, follow_redirects=False).status_code == 303
+>       page = client_crm.get(chemin)
+               ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_visites_chantier.py:259: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_client.py:1112: in get
+    return self.request(
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/testclient.py:518: in request
+    return super().request(
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_client.py:796: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_client.py:993: in send
+    raise exc
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_client.py:987: in send
+    response.read()
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_models.py:877: in read
+    self._content = b"".join(self.iter_bytes())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_models.py:893: in iter_bytes
+    for raw_bytes in self.iter_raw():
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_models.py:948: in iter_raw
+    for raw_stream_bytes in self.stream:
+../preuves-qa/venv/lib/python3.12/site-packages/httpx2/_client.py:143: in __iter__
+    yield from self._stream
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/testclient.py:384: in iter_body
+    exit_stack.close()
+/usr/lib/python3.12/contextlib.py:618: in close
+    self.__exit__(None, None, None)
+/usr/lib/python3.12/contextlib.py:610: in __exit__
+    raise exc_details[1]
+/usr/lib/python3.12/contextlib.py:595: in __exit__
+    if cb(*exc_details):
+       ^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/testclient.py:399: in close_app
+    raise exception
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/from_thread.py:265: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/testclient.py:366: in run_app
+    await self.app(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/applications.py:1160: in __call__
+    await super().__call__(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/applications.py:96: in __call__
+    await self.middleware_stack(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+src/opsys/console/application.py:140: in __call__
+    await self.app(scope, receive, envoyer)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/routing.py:683: in __call__
+    await self.middleware_stack(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/routing.py:704: in app
+    await route.handle(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/routing.py:289: in handle
+    await self.app(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/routing.py:119: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/routing.py:105: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/routing.py:431: in app
+    raw_response = await run_endpoint_function(
+../preuves-qa/venv/lib/python3.12/site-packages/fastapi/routing.py:315: in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/concurrency.py:34: in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/to_thread.py:65: in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:2706: in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1100: in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+src/opsys/console/visites_chantier.py:248: in page
+    vue = lire(cnx, deps, session, **args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/opsys/console/visites_chantier.py:74: in lire
+    resultat_temps = visites_chantier.calculer_faits_certifies(reg, prev, intervention_id)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+principal = <m4_field_ops.registre.Registre object at 0xf296352fd100>
+visites = {'type_entree': 'visite_prevue', 'ancre': {'intervention_id': '14b0cb396e9f3544c5b4ae44f45326b5d8121c554eafa32d388ba88...1f38965c1dd5'}, 'creneau': {'equipe_id': 'eq-a', 'jour': 0, 'debut_min': 492, 'fin_min': 612, ...}, 'revision': 1, ...}
+intervention_id = '14b0cb396e9f3544c5b4ae44f45326b5d8121c554eafa32d388ba88a17b9fbc7'
+
+    def calculer_faits_certifies(principal, visites, intervention_id):
+        """Vérifie les ancres et fermetures explicites avant tout total de chantier.
+    
+        Les anomalies GPS exigent une demande et une résolution validée reliées au pointage.
+        """
+        from zoneinfo import ZoneInfo
+    
+        from . import visites_durables
+        from .annotations_calendrier import Refus
+    
+>       tete_principal, tete_visites = principal.tete(), visites.tete()
+                                                         ^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'tete'
+
+departments/m04-field-ops/src/m4_field_ops/visites_chantier.py:322: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_http_visites_depuis_chantier_prevision_et_csrf

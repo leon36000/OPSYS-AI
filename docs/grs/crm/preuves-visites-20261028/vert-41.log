@@ -1,0 +1,114 @@
+..E                                                                      [100%]/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-qa/venv/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseEventLoop.__del__ at 0xe6cf71b09ee0>
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 728, in __del__
+    self.close()
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 68, in close
+    super().close()
+  File "/usr/lib/python3.12/asyncio/selector_events.py", line 104, in close
+    self._close_self_pipe()
+  File "/usr/lib/python3.12/asyncio/selector_events.py", line 111, in _close_self_pipe
+    self._remove_reader(self._ssock.fileno())
+                        ^^^^^^^^^^^
+AttributeError: '_UnixSelectorEventLoop' object has no attribute '_ssock'
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+==================================== ERRORS ====================================
+____ ERROR at setup of test_outils_console_sql_admin_prevision_et_ouverture ____
+
+session = <function session at 0xe6cf71f737e0>
+
+    @pytest.fixture
+    def client_crm(session):
+        outils_m2.utiliser_stockage_durable()
+        with session() as cnx:
+            identite.creer_personne(cnx, "admin.fictif", "Admin FICTIVE", MOTS_DE_PASSE["admin.fictif"], ["admin"])
+            identite.creer_personne(cnx, "nathan", "Nathan FICTIF", MOTS_DE_PASSE["nathan"], ["nathan_owner"])
+            identite.creer_personne(cnx, "employe", "Employé FICTIF", MOTS_DE_PASSE["employe"], ["employee"])
+        # Deux projets d'un même client (même contact), un client distinct.
+        client_un = _contact(NOM_PIEGE, "un@example.test")
+        client_deux = _contact("Client Deux FICTIF", "deux@example.test")
+        with session():
+            assert outils_m2.ingerer_lead(_contrat("lead-fictif-001", client_un), H0)["accepte"] is True
+            assert outils_m2.ingerer_lead(_contrat("lead-fictif-002", client_un), H0)["accepte"] is True
+            assert outils_m2.ingerer_lead(_contrat("lead-fictif-003", client_deux), H0)["accepte"] is True
+            qualifie = outils_m2.transitionner_statut(
+                "lead-fictif-001", "qualifie", H1, owner="vendeur.fictif", prochaine_action=ACTION)
+            assert qualifie["accepte"] is True, qualifie
+            note = outils_m2.enregistrer_interaction("lead-fictif-001", "admin.fictif", NOTE, H2)
+            assert note["accepte"] is True, note
+        app = application.creer_application(Configuration(SECRET, cookie_securise=False, prefixe=PREFIXE), None, session)
+>       with TestClient(app, base_url=f"https://testserver{PREFIXE}") as client:
+
+tests/test_console_crm.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../preuves-qa/venv/lib/python3.12/site-packages/starlette/testclient.py:559: in __enter__
+    self.portal = portal = stack.enter_context(anyio.from_thread.start_blocking_portal(**self.async_backend))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/contextlib.py:526: in enter_context
+    result = _enter(cm)
+             ^^^^^^^^^^
+/usr/lib/python3.12/contextlib.py:137: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/from_thread.py:554: in start_blocking_portal
+    portal = future.result()
+             ^^^^^^^^^^^^^^^
+/usr/lib/python3.12/concurrent/futures/_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/from_thread.py:538: in run_blocking_portal
+    run_eventloop(
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/_core/_eventloop.py:83: in run
+    return async_backend.run(func, args, {}, backend_options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-qa/venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:2547: in run
+    with Runner(debug=debug, loop_factory=loop_factory) as runner:
+/usr/lib/python3.12/asyncio/runners.py:58: in __enter__
+    self._lazy_init()
+/usr/lib/python3.12/asyncio/runners.py:137: in _lazy_init
+    self._loop = events.new_event_loop()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/events.py:823: in new_event_loop
+    return get_event_loop_policy().new_event_loop()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/events.py:720: in new_event_loop
+    return self._loop_factory()
+           ^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/unix_events.py:64: in __init__
+    super().__init__(selector)
+/usr/lib/python3.12/asyncio/selector_events.py:66: in __init__
+    self._make_self_pipe()
+/usr/lib/python3.12/asyncio/selector_events.py:120: in _make_self_pipe
+    self._ssock, self._csock = socket.socketpair()
+                               ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+family = <AddressFamily.AF_UNIX: 1>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0
+
+    def socketpair(family=None, type=SOCK_STREAM, proto=0):
+        """socketpair([family[, type[, proto]]]) -> (socket object, socket object)
+    
+        Create a pair of socket objects from the sockets returned by the platform
+        socketpair() function.
+        The arguments are the same as for socket() except the default family is
+        AF_UNIX if defined on the platform; otherwise, the default is AF_INET.
+        """
+        if family is None:
+            try:
+                family = AF_UNIX
+            except NameError:
+                family = AF_INET
+>       a, b = _socket.socketpair(family, type, proto)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:609: PermissionError
+=========================== short test summary info ============================
+ERROR tests/test_console_visites_chantier.py::test_outils_console_sql_admin_prevision_et_ouverture

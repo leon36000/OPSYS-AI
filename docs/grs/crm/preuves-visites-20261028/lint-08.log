@@ -1,0 +1,195 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> departments/m04-field-ops/src/m4_field_ops/outils.py:29:1
+   |
+27 |   """
+28 |
+29 | / from __future__ import annotations
+30 | |
+31 | | import json
+32 | | import os
+33 | | import re
+34 | | from collections.abc import Callable
+35 | | from contextlib import contextmanager
+36 | | from contextvars import ContextVar
+37 | | from functools import partial
+38 | | from typing import Any
+39 | |
+40 | | from opsys import (
+41 | |     approbations,
+42 | |     cles_chiffrement,
+43 | |     contexte,
+44 | |     evenements,
+45 | |     fichiers,
+46 | |     idempotence,
+47 | |     identite,
+48 | |     jetons,
+49 | |     stockage,
+50 | | )
+51 | | from opsys import equipes as equipes_entreprise
+52 | | from opsys import meteo as meteo_entreprise
+53 | | from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+54 | |
+55 | | from . import (
+56 | |     absences_durables,
+57 | |     absences_ecriture,
+58 | |     absences_journalieres,
+59 | |     acces,
+60 | |     annotations_calendrier,
+61 | |     apercu_mois,
+62 | |     calendrier_civil,
+63 | |     calibration_projection,
+64 | |     cedule,
+65 | |     cedule_tournees,
+66 | |     composition_durable,
+67 | |     composition_ecriture,
+68 | |     composition_journaliere,
+69 | |     consentement,
+70 | |     couleurs_calendrier,
+71 | |     digest,
+72 | |     ecarts,
+73 | |     etats,
+74 | |     heures_regulieres,
+75 | |     journal_durable,
+76 | |     localisation,
+77 | |     materiel,
+78 | |     meteo_creneaux,
+79 | |     meteo_fournisseurs,
+80 | |     meteo_manuelle,
+81 | |     outbox,
+82 | |     pages_semaine,
+83 | |     pagination_interventions,
+84 | |     pointage,
+85 | |     preparation,
+86 | |     preuves,
+87 | |     registre,
+88 | |     retards,
+89 | |     retention,
+90 | |     revue_completion_sources,
+91 | |     visites_durables,
+92 | |     visites_ecriture,
+93 | |     sources_revue_completion,
+94 | |     temps,
+95 | |     tournees,
+96 | |     verdicts,
+97 | | )
+   | |_^
+98 |
+99 |   # PLAN T4.2 (POLITIQUE-geolocalisation.md §5) : portée des clés de chiffrement GPS dans le coffre
+   |
+help: Organize imports
+   |
+90 |     revue_completion_sources,
+   -     visites_durables,
+   -     visites_ecriture,
+91 |     sources_revue_completion,
+92 |     temps,
+93 |     tournees,
+94 |     verdicts,
+95 +     visites_durables,
+96 +     visites_ecriture,
+97 | )
+   |
+
+E501 Line too long (124 > 120)
+   --> departments/m04-field-ops/tests/test_visites_reprise.py:185:121
+    |
+183 |     assert visites_chantier.calculer_faits(principal, ancre['intervention_id'])['travail_minutes'] == 150
+184 |     visites_chantier.fermer(principal, visites, prevision['visite_id'], '2030-06-03T12:01:00-04:00')
+185 |     assert visites_chantier.calculer_faits_certifies(principal, visites, ancre['intervention_id'])['travail_minutes'] == 150
+    |                                                                                                                         ^^^^
+
+E501 Line too long (127 > 120)
+  --> tests/test_console_visites_chantier.py:29:121
+   |
+27 |     import importlib.util
+28 |     from pathlib import Path
+29 |     spec = importlib.util.spec_from_file_location('visites_cedule_fixture', Path(__file__).with_name('test_console_cedule.py'))
+   |                                                                                                                         ^^^^^^^
+30 |     module = importlib.util.module_from_spec(spec)
+31 |     spec.loader.exec_module(module)
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_console_visites_chantier.py:40:5
+   |
+39 |   def test_outils_console_sql_admin_prevision_et_ouverture(planning, session, monkeypatch):
+40 | /     from datetime import datetime
+41 | |     from m4_field_ops import calendrier_civil, outils as module_outils
+42 | |     from m4_field_ops.registre import Registre
+43 | |     from opsys import contexte, idempotence, stockage
+44 | |     from opsys.outils import executer_atomique
+   | |______________________________________________^
+45 |
+46 |       par_nom, ids, _, _ = planning
+   |
+help: Organize imports
+   |
+40 |     from datetime import datetime
+   -     from m4_field_ops import calendrier_civil, outils as module_outils
+41 +
+42 +     from m4_field_ops import calendrier_civil
+43 +     from m4_field_ops import outils as module_outils
+44 |     from m4_field_ops.registre import Registre
+45 +
+46 |     from opsys import contexte, idempotence, stockage
+   |
+
+E501 Line too long (122 > 120)
+  --> tests/test_console_visites_chantier.py:82:121
+   |
+80 |     with session():
+81 |         principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+82 |         assert etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+   |                                                                                                                         ^^
+83 |         ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+84 |             'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> tests/test_console_visites_chantier.py:122:5
+    |
+121 |   def test_port_console_admin_verifie_metier_et_rejeu(planning, session, monkeypatch):
+122 | /     from datetime import UTC, datetime
+123 | |     from m4_field_ops import calendrier_civil
+124 | |     from m4_field_ops.registre import Registre
+125 | |     from opsys import stockage
+126 | |     from opsys.console import metier
+127 | |     from opsys.console.securite import Session
+128 | |     from opsys.departements import charger_departements
+    | |_______________________________________________________^
+129 |
+130 |       class HorlogeFictive(datetime):
+    |
+help: Organize imports
+    |
+122 |     from datetime import UTC, datetime
+123 +
+124 |     from m4_field_ops import calendrier_civil
+125 |     from m4_field_ops.registre import Registre
+126 +
+127 |     from opsys import stockage
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> tests/test_console_visites_chantier.py:156:9
+    |
+154 |                                    mutation_id='ouvrir-metier-fictif')
+155 |           assert rejoue['resultat']['rejoue'] is True
+156 | /         from opsys import identite
+157 | |         import pytest
+    | |_____________________^
+158 |           identite.retirer_role(cnx, 'admin.fictif', 'admin')
+159 |           with pytest.raises(PermissionError):
+    |
+help: Organize imports
+    |
+155 |         assert rejoue['resultat']['rejoue'] is True
+    -         from opsys import identite
+156 |         import pytest
+157 +
+158 +         from opsys import identite
+159 |         identite.retirer_role(cnx, 'admin.fictif', 'admin')
+    |
+
+Found 7 errors.
+[*] 4 fixable with `--fix`.

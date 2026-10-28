@@ -1,0 +1,31 @@
+E501 Line too long (124 > 120)
+   --> departments/m04-field-ops/tests/test_visites_reprise.py:185:121
+    |
+183 |     assert visites_chantier.calculer_faits(principal, ancre['intervention_id'])['travail_minutes'] == 150
+184 |     visites_chantier.fermer(principal, visites, prevision['visite_id'], '2030-06-03T12:01:00-04:00')
+185 |     assert visites_chantier.calculer_faits_certifies(principal, visites, ancre['intervention_id'])['travail_minutes'] == 150
+    |                                                                                                                         ^^^^
+
+E501 Line too long (127 > 120)
+  --> tests/test_console_visites_chantier.py:29:121
+   |
+27 |     import importlib.util
+28 |     from pathlib import Path
+29 |     spec = importlib.util.spec_from_file_location('visites_cedule_fixture', Path(__file__).with_name('test_console_cedule.py'))
+   |                                                                                                                         ^^^^^^^
+30 |     module = importlib.util.module_from_spec(spec)
+31 |     spec.loader.exec_module(module)
+   |
+
+E501 Line too long (122 > 120)
+  --> tests/test_console_visites_chantier.py:85:121
+   |
+83 |     with session():
+84 |         principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+85 |         assert etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+   |                                                                                                                         ^^
+86 |         ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+87 |             'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+   |
+
+Found 14 errors (11 fixed, 3 remaining).
