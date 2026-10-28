@@ -400,7 +400,7 @@ def verifier_version(
     d = journal.lire_dossier(cnx, dossier_id)
     if d is None:
         raise _lever("INTROUVABLE", "dossier introuvable")
-    version = _version_numero(d, numero)
+    version = version_numero(d, numero)
     figee = version["version"]
     differences: list[dict[str, str]] = []
     brut_fige = figee["sources"]["brut"]
@@ -487,7 +487,7 @@ def apercu_sources(
     return {"differences": differences}
 
 
-def _version_numero(d: Mapping[str, Any], numero: int | None) -> Mapping[str, Any]:
+def version_numero(d: Mapping[str, Any], numero: int | None) -> Mapping[str, Any]:
     if numero is None:
         return d["versions"][-1]
     if type(numero) is not int or not 1 <= numero <= len(d["versions"]):
@@ -582,7 +582,7 @@ def _aplatir(valeur: Any, prefixe: str = "") -> dict[str, Any]:
 
 def comparer(d: Mapping[str, Any], de: int, vers: int) -> dict[str, Any]:
     """Différences lisibles et déterministes entre deux versions conservées d'un même dossier."""
-    a, b = _version_numero(d, de), _version_numero(d, vers)
+    a, b = version_numero(d, de), version_numero(d, vers)
 
     def vue(version: Mapping[str, Any]) -> dict[str, Any]:
         figee = version["version"]

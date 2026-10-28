@@ -219,9 +219,11 @@ from . import (
     decision_capital,
     devis_recus,
     dossier_decision_cfo,
+    dossier_paie_preparatoire,
     echeanciers_contrats,
     etat_financier,
     facturation,
+    outils_paie_dossier,
     prevision,
     soldes,
     sources_regles_paie,
@@ -4148,8 +4150,53 @@ def _outils_couts_marketing(lecteur: Callable) -> tuple[Outil, ...]:
     )
 
 
+def _proprietaire_console() -> tuple[str | None, dict[str, Any] | None]:
+    """Propriétaire OPSYS confirmé en base ET origine console (même garde que le brut régulier)."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return None, dossier_paie_preparatoire.refus("ACCES-REFUSE", str(refus.get("detail", "identité refusée")))
+    cnx = stockage.connexion_courante()
+    personne = identite.personne_active(cnx, acteur.personne) if cnx is not None and acteur is not None else None
+    if (
+        personne is None
+        or acteur is None
+        or acteur.source != "console"
+        or acteur.role != "nathan_owner"
+        or "nathan_owner" not in personne.roles
+    ):
+        return None, dossier_paie_preparatoire.refus("ACCES-REFUSE", "réservé au propriétaire confirmé via console")
+    return personne.identifiant, None
+
+
+def _outils_dossier_paie(lecteur_heures_m4: LecteurHeuresM4 | None) -> tuple[Outil, ...]:
+    lecteur_brut = _fonction_brut_regulier(lecteur_heures_m4)
+
+    def fournisseur_brut(employee_person_id: str, entrees: Mapping[str, Any]) -> Mapping[str, Any]:
+        periode, arrondi = entrees["periode"], entrees["arrondi"]
+        return lecteur_brut(
+            employee_person_id, periode["debut"], periode["fin"], periode["fuseau"],
+            arrondi["politique"], arrondi["hypothese"], None,
+        )
+
+    return outils_paie_dossier.construire_outils(
+        proprietaire=_proprietaire_console,
+        fournisseur_brut=fournisseur_brut,
+        fournisseur_admission=lambda contexte_paie: _admission_paie_serveur(contexte_paie=dict(contexte_paie)),
+        employe_actif=_identite_employe_active,
+        liens_officiels=_LIENS_PAIE_OFFICIELS,
+    )
+
+
 def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
            lecteur_campagne_m7: Callable | None = None) -> tuple[Outil, ...]:
+    return (
+        *_outils_base(lecteur_heures_m4=lecteur_heures_m4, lecteur_campagne_m7=lecteur_campagne_m7),
+        *_outils_dossier_paie(lecteur_heures_m4),
+    )
+
+
+def _outils_base(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
+                 lecteur_campagne_m7: Callable | None = None) -> tuple[Outil, ...]:
     return (
         Outil(
             nom="m5_etat_tresorerie",

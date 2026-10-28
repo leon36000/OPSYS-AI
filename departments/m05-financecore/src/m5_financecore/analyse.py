@@ -41,10 +41,26 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_preparer_brut_regulier",  # estimation préparatoire humaine du brut, sans retenues ni action officielle
     "m5_preparer_dossier_webras",  # dossier préparatoire pour calcul humain dans les services officiels
     "m5_prevoir_tresorerie_contrats",  # prévision préparatoire de flux contractuels rapprochés aux sources M3/M5
+    "m5_apercu_dossier_paie",  # composition préparatoire de la paie d'une période : postes et totaux sous couverture
+    "m5_lire_dossier_paie",  # relit les dossiers de paie préparatoires conservés et compare leurs versions
 })
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {
+    "m5_conserver_version_dossier_paie": (
+        "écrit une version chiffrée d'un dossier préparatoire; la sortie est un reçu sans montant"
+    ),
+    "m5_rouvrir_dossier_paie": "événement de réouverture d'un dossier préparatoire; la sortie est un reçu sans montant",
+    "m5_revue_dossier_paie": (
+        "revue interne du propriétaire liée à une version et à son hash; la sortie est un reçu sans montant"
+    ),
+    "m5_exporter_dossier_paie": "audit d'un export CPA reproductible; la sortie est un reçu avec l'empreinte seulement",
+    "m5_verifier_dossier_paie": (
+        "contrôle de reproductibilité et de dérive des sources d'une version conservée, sans montant"
+    ),
+    "m5_lire_export_dossier_paie": (
+        "rend l'export CPA reproductible déjà audité, qui porte lui-même ses mentions et ses limites"
+    ),
     "m5_verifier_admission_paie_preparatoire": (
         "diagnostic documentaire et génération Source, sans calcul monétaire ni qualification fiscale"
     ),

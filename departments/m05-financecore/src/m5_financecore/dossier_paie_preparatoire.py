@@ -134,8 +134,9 @@ class DossierErreur(ValueError):
     """Refus métier du dossier : `verdict` porte un code `REJ-DOSSIER-PAIE-*` (type unique pour journal et service)."""
 
     def __init__(self, verdict: Mapping[str, Any]) -> None:
-        super().__init__(str(verdict.get("detail", "")))
-        self.verdict = dict(verdict)
+        # Le socle ne conserve que `str(exc)` d'un refus métier : le verdict complet y voyage donc en JSON.
+        super().__init__(json.dumps({"code": verdict["code"], "detail": verdict["detail"]}, ensure_ascii=False))
+        self.verdict = {"code": verdict["code"], "detail": verdict["detail"]}
 
 
 def canonique(objet: Any) -> str:
