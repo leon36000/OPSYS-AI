@@ -22,9 +22,10 @@ def lire(cnx, deps, session, jour, *, debut=0, limite=50, source_attendue=None):
         resultat = _t0(deps, session, arguments)
         if resultat != attendu:
             raise lecture.Refus('SOURCE-REPONSE-INCOHERENTE')
+        from . import journal_visites
+        resultat = lecture._sortie(journal_visites.enrichir(cnx, source, resultat))
         if journal_durable.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
             raise lecture.Refus('SOURCE-MODIFIEE')
-        resultat = lecture._sortie(resultat)
     except journal_durable.Refus as exc:
         raise lecture.Refus(exc.code) from None
     except (KeyError, TypeError, ValueError) as exc:
@@ -134,10 +135,14 @@ def contenu(vue, prefixe, limite):
                    ligne.get('equipe_planifiee', 'Non applicable'), assigne,
                    ligne.get('technicien_id', 'Non applicable'),
                    etat, validites.get(ligne.get('validite'), 'Non applicable'), source]
-        note = 'Aucune ancre de visite démontrée'
+        visite = ligne.get('visite_consultation')
+        cible = (prefixe + '/crm/visites?' + visite['query'] + '#visite-' + visite['visite_id']
+                 if visite else None)
+        note = (f'<a href="{pages.e(cible)}">Visite identifiée</a>' if cible else
+                'Aucune ancre de visite démontrée')
         if ligne['type'] == 'prevision':
             url = annotations_cedule_ui.url(annotations_cedule_ui.ancre_de(ligne), prefixe)
-            note = f'<a href="{pages.e(url)}" aria-label="Notes de cette prévision">Notes et historique</a>'
+            note += f' · <a href="{pages.e(url)}" aria-label="Notes de cette prévision">Notes et historique</a>'
             composition = compositions_equipes.url_journal(vue['jour'], ligne['equipe_planifiee'], prefixe)
             if composition is None:
                 note += ' · Composition non consultable pour cet identifiant historique.'
