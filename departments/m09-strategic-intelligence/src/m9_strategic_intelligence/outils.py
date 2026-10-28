@@ -81,6 +81,7 @@ from . import (
     lecture_alertes,
     lecture_strategique,
     observations_chantier,
+    outils_tissu,
     rapport_activite,
     rapport_periode,
     rapport_strategique,
@@ -296,6 +297,9 @@ def consommateurs() -> dict[str, Any]:
 def outils(
     registre_cible: registre.RegistreSnapshots | None = None,
     alertes_cible: Any = None,
+    *,
+    lecteur_producteurs_m9: Any = None,
+    captures_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -700,7 +704,7 @@ def outils(
                 cnx, charger_departements(), contexte.identite_appelante(), demande_id, decision, motif,
                 appareil=reception.appareil if reception is not None else None))
 
-    return (
+    outils_base = (
         Outil(
             nom="m9_etat_consolide",
             description=(
@@ -1257,5 +1261,11 @@ def outils(
             },
             fonction=clore_suivi_decision, autonomie=Autonomie.T1, niveau=Niveau.N3,
             roles_appareil=frozenset({"admin"}),
+        ),
+    )
+    return (
+        *outils_base,
+        *outils_tissu.construire_outils(
+            lecteur=lecteur_producteurs_m9, budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible
         ),
     )
