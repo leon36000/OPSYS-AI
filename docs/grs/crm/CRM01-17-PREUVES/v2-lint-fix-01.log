@@ -1,0 +1,106 @@
+E501 Line too long (121 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:126:121
+    |
+124 |         if len(ouvertures) != 1 or len(fermetures) != 1:
+125 |             raise Refus('VISITE-AMBIGUE')
+126 |         if visites_chantier._instant(fermetures[0]['horodatage']) > visites_chantier._instant(maillon_wct['horodatage']):
+    |                                                                                                                         ^
+127 |             raise Refus('WCT-ANTERIEUR-A-VISITE')
+128 |         faits = [par_ligne[ident] for ident in calcul['sources']]
+    |
+
+E501 Line too long (122 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:164:121
+    |
+162 |         'intervention_id': intervention_id, 'lead_id': wct['lead_id'],
+163 |         'wct': {'wct_id': wct_id, 'source_ligne_id': maillon_wct['ligne_id'], 'hash_maillon': wct['hash_maillon'],
+164 |                 'horodatage_transition': maillon_wct['horodatage'], 'horodatage_completion': wct['horodatage_completion'],
+    |                                                                                                                         ^^
+165 |                 'statut': wct['statut'], 'duree_reelle_minutes': wct['duree_reelle_minutes']},
+166 |         'sources': dict(zip(('principal', 'visites', 'compositions'), map(_source, captures), strict=True)),
+    |
+
+E501 Line too long (124 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:186:121
+    |
+184 |         raise Refus('ARGUMENTS')
+185 |     try:
+186 |         instance_id = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one_or_none()
+    |                                                                                                                         ^^^^
+187 |         if not isinstance(instance_id, str) or not instance_id:
+188 |             raise Refus('INSTANCE-NON-QUALIFIEE')
+    |
+
+E501 Line too long (128 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:199:121
+    |
+197 |                 borne if borne is not None else 65536, 65536):
+198 |             raise Refus('SORTIE-TROP-VOLUMINEUSE')
+199 |         instance_finale = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one_or_none()
+    |                                                                                                                         ^^^^^^^^
+200 |         if _autoriser(cnx) != auteur or _sources(cnx) != captures or instance_finale != instance_id:
+201 |             raise Refus('SOURCE-MODIFIEE')
+    |
+
+E501 Line too long (121 > 120)
+  --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:11:121
+   |
+ 9 | from opsys import contexte, identite, stockage
+10 |
+11 | _spec = importlib.util.spec_from_file_location('fixture_visites_v2', Path(__file__).with_name('test_visites_reprise.py'))
+   |                                                                                                                         ^
+12 | _base = importlib.util.module_from_spec(_spec)
+13 | _spec.loader.exec_module(_base)
+   |
+
+E501 Line too long (123 > 120)
+  --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:41:121
+   |
+39 |             assign = {'intervention_id': iid, 'technicien_id': equipe_jour}
+40 |             visites_chantier.ouvrir(principal, visites, prev['visite_id'], f'{jour}T08:00:00-04:00')
+41 |             assert etats.transitionner(iid, 'en_route', principal, f'{jour}T08:30:00-04:00', assignation=assign)[1] is None
+   |                                                                                                                         ^^^
+42 |             fenetre = {'debut': f'{jour}T08:00:00-04:00', 'fin': f'{jour}T18:00:00-04:00'}
+43 |             actions = [('arrivee', '09:00:00'), *pauses, ('depart', '12:00:00' if pauses else '13:00:00')]
+   |
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:188:5
+    |
+186 |               identite.retirer_role(cnx, 'admin.fictif', 'admin')
+187 |           return original_autorite(cnx)
+188 | /     with pytest.raises(temps_certifies_v2.Refus, match='IDENTITE'):
+189 | |         with stockage.transaction(cas['url']) as cnx, monkeypatch.context() as patch:
+    | |_____________________________________________________________________________________^
+190 |               patch.setattr(temps_certifies_v2, '_autoriser', revoquer)
+191 |               _appel(cnx, cas)
+    |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:201:9
+    |
+199 |       moteur = create_engine(cas['url'])
+200 |       try:
+201 | /         with stockage.transaction(cas['url']), moteur.connect() as etrangere:
+202 | |             with pytest.raises(temps_certifies_v2.Refus, match='INSTANCE-NON-QUALIFIEE'):
+    | |_________________________________________________________________________________________^
+203 |                   _appel(etrangere, cas)
+204 |           with stockage.transaction(cas['url']) as cnx, contexte.sortie_bornee(1):
+    |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:204:9
+    |
+202 |               with pytest.raises(temps_certifies_v2.Refus, match='INSTANCE-NON-QUALIFIEE'):
+203 |                   _appel(etrangere, cas)
+204 | /         with stockage.transaction(cas['url']) as cnx, contexte.sortie_bornee(1):
+205 | |             with pytest.raises(temps_certifies_v2.Refus, match='SORTIE-TROP-VOLUMINEUSE'):
+    | |__________________________________________________________________________________________^
+206 |                   _appel(cnx, cas)
+207 |       finally:
+    |
+help: Combine `with` statements
+
+Found 12 errors (3 fixed, 9 remaining).
