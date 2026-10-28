@@ -496,8 +496,19 @@ def outils(
             reponse["resultat"]["horodatage_appareil"] = horodatage_appareil
         return reponse
 
-    def signaler_report(intervention_id: str, motif: str, horodatage: str,
-                        source_attendue: str | None = None, visite_id: str | None = None) -> dict[str, Any]:
+    def signaler_report(intervention_id: str, motif: str, horodatage: str) -> dict[str, Any]:
+        """Contrat v1 gelé : les visites commencées exigent le port privé V2."""
+        return _signaler_report(intervention_id, motif, horodatage)
+
+    def interrompre_visite_console_v2(intervention_id, motif, horodatage, visite_id, source_attendue):
+        """Interruption privée d'une visite fermée, sous identité console courante."""
+        try:
+            _autoriser_annotation()
+        except annotations_calendrier.Refus as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=exc.suffixe))
+        return _signaler_report(intervention_id, motif, horodatage, source_attendue, visite_id, prive=True)
+
+    def _signaler_report(intervention_id, motif, horodatage, source_attendue=None, visite_id=None, *, prive=False):
         acteur, verdict_acteur = _acteur_appareil()
         if verdict_acteur is not None:
             return _refus(verdict_acteur)
@@ -510,6 +521,8 @@ def outils(
         # première réception, avec son heure : le socle ne ré-exécute rien.
         horodatage_faisant_foi, horodatage_appareil = _heures_de_l_appel(horodatage)
         reg = registre_courant()
+        if prive and etats.statut_courant(reg, intervention_id) != "sur_site":
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail="visite commencée requise"))
         if etats.statut_courant(reg, intervention_id) == "sur_site":
             # Un chantier commencé ne peut être interrompu que sur sources de visites
             # durables et une identité active, revalidées avant la sortie du savepoint.
@@ -536,6 +549,8 @@ def outils(
                     from opsys.etat import journaliser
                     journaliser(cnx, acteur.personne, "m4.visite_interrompue", r["ligne_id"],
                                 {"intervention_id": intervention_id, "motif": motif})
+                    if prive:
+                        _autoriser_annotation()
                     nouvel_acteur, refus_acteur = _acteur_appareil()
                     if (refus_acteur is not None or nouvel_acteur != acteur
                             or acces.controler_intervention(reg, intervention_id, nouvel_acteur) is not None
@@ -560,6 +575,7 @@ def outils(
         reg = registre_courant()
         horodatage_faisant_foi, horodatage_appareil = _heures_de_l_appel(horodatage)
         try:
+            _autoriser_annotation()
             source = visites_ecriture.capturer_visites(cnx)
             if source_attendue != visites_ecriture.empreinte_sources(cnx):
                 raise annotations_calendrier.Refus("SOURCE-PERIMEE")
@@ -580,6 +596,7 @@ def outils(
                 from opsys.etat import journaliser
                 journaliser(cnx, acteur.personne, "m4.visite_replanifiable", recu["ligne_id"],
                             {"intervention_id": intervention_id, "report_id": report_id, "visite_id": visite_id})
+                _autoriser_annotation()
                 nouvel_acteur, nouveau_refus = _acteur_appareil()
                 if (nouveau_refus is not None or nouvel_acteur != acteur
                         or visites_ecriture.capturer_visites(cnx).empreinte_snapshot_calculee
@@ -1874,8 +1891,6 @@ def outils(
                     "intervention_id": {"type": "string"},
                     "motif": {"type": "string", "enum": list(etats.MOTIFS_REPORT)},
                     "horodatage": {"type": "string"},
-                    "source_attendue": {"type": ["string", "null"]},
-                    "visite_id": {"type": ["string", "null"]},
                 },
                 "required": ["intervention_id", "motif", "horodatage"],
                 "additionalProperties": False,
@@ -1884,6 +1899,20 @@ def outils(
             autonomie=Autonomie.T1,
             # §9.3 exécution (client absent, météo) ; le motif `decision_admin` reste celui de l'admin.
             roles_appareil=frozenset({"employee", "admin"}),
+        ),
+        Outil(
+            nom="m4_interrompre_visite_console_v2",
+            description=("Console privée admin active : interrompt une visite fermée sur ses sources vérifiées. "
+                         "L'heure de réception du serveur fait foi ; aucun WCT n'est émis."),
+            parametres={"type": "object", "properties": {
+                "intervention_id": {"type": "string"},
+                "motif": {"type": "string", "enum": list(etats.MOTIFS_REPORT)},
+                "horodatage": {"type": "string"},
+                "visite_id": {"type": "string", "minLength": 64, "maxLength": 64},
+                "source_attendue": {"type": "string", "minLength": 64, "maxLength": 64}},
+                "required": ["intervention_id", "motif", "horodatage", "visite_id", "source_attendue"],
+                "additionalProperties": False},
+            fonction=interrompre_visite_console_v2, autonomie=Autonomie.T1,
         ),
         Outil(
             nom="m4_annuler_intervention",

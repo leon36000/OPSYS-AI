@@ -125,11 +125,11 @@ def test_outils_console_sql_admin_prevision_et_ouverture(planning, session, monk
         return original_acteur()
     with monkeypatch.context() as patch:
         patch.setattr(module_outils, '_acteur_appareil', acteur_revoque)
-        echec = appeler('m4_signaler_report', report_args, '2030-06-03T12:02:00-04:00', 'report-fictif')
+        echec = appeler('m4_interrompre_visite_console_v2', report_args, '2030-06-03T12:02:00-04:00', 'report-fictif')
         assert echec['resultat']['accepte'] is False
     with session():
         assert list(stockage.maillons('m04-field-ops', 'principal')) == avant_report
-    report = appeler('m4_signaler_report', report_args, '2030-06-03T12:02:00-04:00', 'report-fictif')
+    report = appeler('m4_interrompre_visite_console_v2', report_args, '2030-06-03T12:02:00-04:00', 'report-fictif')
     assert report['ok'] and report['resultat']['accepte'], report
     with session() as cnx:
         from opsys import identite

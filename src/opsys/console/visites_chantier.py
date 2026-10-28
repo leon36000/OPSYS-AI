@@ -391,7 +391,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre, verifier_f
                 'visite_id': champs['visite_id'], 'report_id': champs['report_id'],
                 'source_attendue': champs['source_attendue']}
         elif champs['operation'] == 'interrompre':
-            nom, payload = 'm4_signaler_report', {'intervention_id': args['intervention_id'],
+            nom, payload = 'm4_interrompre_visite_console_v2', {'intervention_id': args['intervention_id'],
                 'motif': champs['motif'], 'visite_id': champs['visite_id'],
                 'source_attendue': champs['source_attendue']}
         else:
