@@ -508,8 +508,7 @@ def creer_router(
         )
         attribut = " required" if requis else ""
         return (
-            f'<label for="{e(nom)}">{e(libelle)}</label>'
-            f'<select id="{e(nom)}" name="{e(nom)}"{attribut}>{opts}</select>'
+            f'<label for="{e(nom)}">{e(libelle)}</label><select id="{e(nom)}" name="{e(nom)}"{attribut}>{opts}</select>'
         )
 
     def formulaire_html(
@@ -522,7 +521,7 @@ def creer_router(
     ) -> str:
         options_employes = '<option value="">— à choisir —</option>' + "".join(
             f'<option value="{e(p.identifiant)}"'
-            f'{" selected" if valeurs.get("employee_person_id") == p.identifiant else ""}>'
+            f"{' selected' if valeurs.get('employee_person_id') == p.identifiant else ''}>"
             f"{e(p.nom)}</option>"
             for p in employes
         )
@@ -687,7 +686,7 @@ def creer_router(
             champ("fdrcmo_masse", "FDRCMO : masse salariale de l'année (CAD)", valeurs, requis=False),
             champ("fdrcmo_ref", "FDRCMO : référence", valeurs, requis=False),
             '<button type="submit" name="action" value="apercu">Calculer '
-            'l\'aperçu (rien n\'est conservé)</button></form>',
+            "l'aperçu (rien n'est conservé)</button></form>",
         ]
         return "".join(parties)
 
@@ -756,7 +755,7 @@ def creer_router(
             '<section class="carte pile" aria-labelledby="entete-version">'
             f'<h2 id="entete-version">Calcul préparatoire — état : {e(calcul["etat"])}</h2>'
             '<p class="message message-alerte" role="note"><strong>PREPARATOIRE '
-            '— NON_QUALIFIEE_POUR_PAIE.</strong> Aucun salaire versé, '
+            "— NON_QUALIFIEE_POUR_PAIE.</strong> Aucun salaire versé, "
             "aucune remise, aucun document fiscal officiel, aucune "
             "écriture financière. Validation Nathan/CPA requise.</p>"
             + (message_refus(refus) if refus else "")
@@ -799,9 +798,9 @@ def creer_router(
             )
         lignes = "".join(
             f'<tr><td><a href="{e(base)}/{e(d["dossier_id"])}">{e(d["date_paie"])}</a>'
-            f'</td><td>{e(d["employee_person_id"])}</td>'
+            f"</td><td>{e(d['employee_person_id'])}</td>"
             f"<td>{e(d['periode_annuelle'])}</td><td>{e(d['etat'])}</td><td>{e(d['etat_calcul'])}</td>"
-            f'<td>v{e(d["numero_courant"])}</td><td '
+            f"<td>v{e(d['numero_courant'])}</td><td "
             f'class="num">{e(d["net_preparatoire"]) + " $" if d["net_preparatoire"] else "INCONNU"}</td></tr>'
             for d in resultat["dossiers"]
         )
@@ -1001,7 +1000,7 @@ def creer_router(
             )
             return (
                 f'<tr><td><a href="{e(base)}/{e(dossier_id)}?v={numero}">v{numero}</a>'
-                f'</td><td>{e(v["type_version"])}</td>'
+                f"</td><td>{e(v['type_version'])}</td>"
                 f"<td>{e(v['horodatage'])}</td><td>{e(v['etat_calcul'])}</td><td>{e(v['motif'])}</td>"
                 f"<td><code>{e(v['hash_version'])[:16]}…</code></td><td>{comparer}</td></tr>"
             )
@@ -1077,7 +1076,7 @@ def creer_router(
         liens = (
             f'<a href="{e(base)}/nouveau?depuis={e(dossier_id)}&amp;mode=correction">Corriger (nouvelle version)</a> · '
             f'<a href="{e(base)}/nouveau?depuis={e(dossier_id)}&amp;mode=suivante">Période '
-            f'suivante (cumuls simulés)</a> · '
+            f"suivante (cumuls simulés)</a> · "
             f'<a href="{e(base)}/{e(dossier_id)}/verifier">Vérifier les sources et la reproductibilité</a> · '
             f'<a href="{e(base)}">Tous les dossiers</a>'
         )
@@ -1158,7 +1157,8 @@ def creer_router(
 
     def telecharger(
         session: Session, dossier_id: str, numero: int, hash_version: str, fmt: str, mutation_id: str
-    ) -> Response:
+    ) -> tuple[Response | None, dict[str, Any] | None]:
+        """Audite l'export puis le rend : (réponse, None) ou (None, verdict). Rien n'est rendu sans export audité."""
         recu, verdict = appeler(
             session,
             "m5_exporter_dossier_paie",
@@ -1172,19 +1172,16 @@ def creer_router(
             mutation_id=mutation_id,
         )
         if verdict is not None:
-            return reponse_html(session, "Export refusé", message_refus(verdict), verdict_http(verdict))
+            return None, verdict
         contenu, verdict = appeler(
             session,
             "m5_lire_export_dossier_paie",
             {"dossier_id": dossier_id, "numero": numero, "hash_version": hash_version, "format_export": fmt},
         )
-        if verdict is not None or contenu["empreinte_sha256"] != recu["empreinte_export"]:
-            return reponse_html(
-                session,
-                "Export refusé",
-                message_refus(verdict or {"code": "REJ-DOSSIER-PAIE-EXPORT-REFUSE", "detail": "empreinte"}),
-                409,
-            )
+        if verdict is not None:
+            return None, verdict
+        if contenu["empreinte_sha256"] != recu["empreinte_export"]:
+            return None, {"code": "REJ-DOSSIER-PAIE-EXPORT-REFUSE", "detail": "empreinte de l'export différente"}
         extension = "json" if fmt == "json" else "html"
         return Response(
             content=contenu["contenu"].encode("utf-8"),
@@ -1196,7 +1193,7 @@ def creer_router(
                 "Content-Disposition": f'attachment; filename="dossier-paie-preparatoire-v{numero}.{extension}"',
                 "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
             },
-        )
+        ), None
 
     @router.post("/finance/paie/dossiers/{dossier_id}/export")
     async def export_formulaire(dossier_id: str, request: Request) -> Response:
@@ -1212,9 +1209,13 @@ def creer_router(
             numero = int(data["numero"])
         except ValueError as exc:
             raise HTTPException(400, "numéro invalide") from exc
-        return telecharger(
+        reponse, verdict = telecharger(
             session, id_dossier(dossier_id), numero, data["hash_version"], data["format_export"], data["mutation_id"]
         )
+        if verdict is not None or reponse is None:
+            verdict = verdict or {"code": "REJ-DOSSIER-PAIE-EXPORT-REFUSE", "detail": "export indisponible"}
+            return reponse_html(session, "Export refusé", message_refus(verdict), verdict_http(verdict))
+        return reponse
 
     # ------------------------------------------------------------------ API JSON
     def exiger_csrf(request: Request, session: Session) -> None:
@@ -1334,7 +1335,7 @@ def creer_router(
         corps = await _json_borne(request)
         if set(corps) != {"numero", "hash_version", "format_export", "mutation_id"} or type(corps["numero"]) is not int:
             raise HTTPException(400, "champs invalides")
-        reponse = telecharger(
+        reponse, verdict = telecharger(
             session,
             id_dossier(dossier_id),
             corps["numero"],
@@ -1342,12 +1343,8 @@ def creer_router(
             corps["format_export"],
             corps["mutation_id"],
         )
-        if reponse.headers.get("content-disposition"):
-            return reponse
-        return JSONResponse(
-            {"accepte": False, "erreur": "export refusé"},
-            status_code=reponse.status_code,
-            headers={"Cache-Control": "no-store"},
-        )
+        if verdict is not None or reponse is None:
+            return json_ou_erreur(None, verdict or {"code": "REJ-DOSSIER-PAIE-EXPORT-REFUSE", "detail": "indisponible"})
+        return reponse
 
     return router

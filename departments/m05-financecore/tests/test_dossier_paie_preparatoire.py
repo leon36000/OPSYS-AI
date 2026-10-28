@@ -368,3 +368,48 @@ def test_sortie_deterministe_et_sans_donnee_personnelle():
     assert a == b
     for interdit in ("nas", "iban", "adresse", "taux_horaire", "courriel"):
         assert interdit not in a.lower()
+
+
+def test_retenues_superieures_au_brut_ne_donnent_jamais_un_net_negatif():
+    e = entrees()
+    e["autres_retenues_employe"] = {"montant": "99999.00", "reference": "retenue-fictive-excessive"}
+    calcul = _compose(e)
+    assert calcul["etat"] == "COMPOSE_PREPARATOIRE"
+    assert calcul["totaux"]["retenues_employe"]["etat"] == "CALCULE"
+    net = calcul["totaux"]["net_preparatoire"]
+    assert net["etat"] == "INCONNU" and net["montant"] is None
+    assert any("supérieures au brut" in m for m in net["manques"])
+
+
+def test_brut_nul_donne_des_retenues_nulles_et_un_net_nul_sans_division():
+    calcul = _compose(entrees(), brut="0.00")
+    assert calcul["etat"] == "COMPOSE_PREPARATOIRE"
+    assert calcul["totaux"]["net_preparatoire"]["montant"] == "0.00"
+    assert calcul["totaux"]["retenues_employe"]["montant"] == "0.00"
+
+
+def test_rapprochement_independant_sans_double_compte_sur_toute_l_annee():
+    """Chaque poste n'est compté qu'une fois : DAS RQ et DAS ARC sont disjointes et leur somme est la DAS complète."""
+    for calcul, _ in _chaine("1234.56"):
+        par_id = _par_id(calcul)
+        totaux = calcul["totaux"]
+        rq = ("impot_quebec", "rrq_employe", "rrq_employeur", "rqap_employe", "rqap_employeur", "fss")
+        arc = ("impot_federal", "ae_employe", "ae_employeur")
+        assert set(totaux["das_revenu_quebec"]["postes"]) == set(rq) and set(totaux["das_arc"]["postes"]) == set(arc)
+        assert not set(rq) & set(arc)
+        somme_rq = sum(Fraction(par_id[i]["montant"]) for i in rq)
+        somme_arc = sum(Fraction(par_id[i]["montant"]) for i in arc)
+        assert Fraction(totaux["das_revenu_quebec"]["montant"]) == somme_rq
+        assert Fraction(totaux["das_arc"]["montant"]) == somme_arc
+        assert Fraction(totaux["das_complete"]["montant"]) == somme_rq + somme_arc
+        employe = sum(
+            Fraction(par_id[i]["montant"])
+            for i in ("rrq_employe", "impot_quebec", "rqap_employe", "ae_employe", "impot_federal")
+        )
+        assert Fraction(totaux["retenues_employe"]["montant"]) == employe  # + 0.00 d'autres retenues déclarées
+        assert Fraction(totaux["net_preparatoire"]["montant"]) == Fraction("1234.56") - employe
+        cout = Fraction("1234.56") + sum(
+            Fraction(par_id[i]["montant"] or "0")
+            for i in ("rrq_employeur", "rqap_employeur", "ae_employeur", "fss", "cnesst", "normes_travail")
+        )
+        assert Fraction(totaux["cout_employeur_global"]["montant"]) == cout
