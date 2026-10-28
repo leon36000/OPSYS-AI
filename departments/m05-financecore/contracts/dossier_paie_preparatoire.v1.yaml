@@ -1,0 +1,63 @@
+# Contrat versionné du dossier de paie préparatoire M5 (lecture par humains et par tests ; le code fait foi).
+schema_version: 1
+identifiant: opsys.dossier-paie-preparatoire/v1
+statut: PREPARATOIRE
+qualification_regles: NON_QUALIFIEE_POUR_PAIE
+grain: employé × employeur × année × période annuelle (un dossier ; plusieurs versions immuables)
+identifiants:
+  dossier_id: HMAC-SHA256 tronqué à 32 hex, clé d'index du coffre (opsys.cles_chiffrement, portée m05/dossiers-paie-index)
+  hash_version: SHA-256 du JSON canonique (clés triées, séparateurs compacts, UTF-8) de la version figée
+schemas:
+  entrees: opsys.dossier-paie-entrees/v1
+  version: opsys.dossier-paie-version/v1
+  calcul: opsys.dossier-paie-calcul/v1
+  export: opsys.export-cpa-paie-preparatoire/v1
+  parametres_employeur: m5-cotisations-employeur-preparatoires/1
+domaine:
+  juridiction: QC
+  annee: 2026
+  frequence: bihebdomadaire
+  periodes_annuelles: 26
+  jours_par_periode: 14
+  pm: 12
+  hors_domaine: [surtemps, prime_variable, avantage_imposable, gratification, retroactif, transfert_province, exemption, taux_ae_reduit, regime_ccq, annee_27_paies, autre_annee]
+separation_des_donnees:
+  heures: lues de M4 via le port lecteur_heures_m4 (minutes régulières validées, références ligne_id/revision/empreinte_sources)
+  brut: taux M5 × minutes / 60, centime demi supérieur (preparer_brut_regulier)
+  assiettes: égales au brut, attestées ; toute autre configuration est HORS_COUVERTURE
+  cumuls: origines NUL_PERIODE_1, DECLARE_HISTORIQUE, CONFIRME_AUTORITE_HUMAINE, SIMULE_VERSION_PRECEDENTE (jamais un versement)
+  credits: TD1 fédéral (TC et zéros hors périmètre), TP-1015.3 Québec (K1 annuel et montants), tous explicites
+  preuves: neuf pièces {reference, sha256|null} ; l'empreinte sans pièce est celle de la déclaration seule
+etats_calcul: [COMPOSE_PREPARATOIRE, ADMISSION_REFUSEE, HORS_COUVERTURE, COMPOSANTE_REFUSEE, SOURCE_REFUSEE]
+etats_poste: [CALCULE, DECLARE, NON_APPLICABLE, INCONNU]
+totaux_conditionnels: [retenues_employe, net_preparatoire, das_revenu_quebec, das_arc, das_complete, cout_employeur_global]
+regle_totaux: montant non nul seulement si tous les postes listés sont CALCULE/DECLARE/NON_APPLICABLE et que le cas est dans le domaine et non CCQ
+evenements_journal: [VERSION, REVUE, REOUVERTURE, EXPORT]
+types_version: [CREATION, CORRECTION, REBASE]
+decisions_revue: [REVUE_COMPLETEE, A_CORRIGER]
+etats_dossier: [EN_PREPARATION, REVUE_COMPLETEE, A_CORRIGER, ROUVERT]
+verdicts:
+  prefixe: REJ-DOSSIER-PAIE-
+  codes: [STRUCTURE-INVALIDE, PERIODE-INVALIDE, CALENDRIER-INCOHERENT, HORS-COUVERTURE, ACCES-REFUSE, ADMISSION-REFUSEE,
+          SOURCE-REFUSEE, SOURCE-MODIFIEE, CUMUL-INVALIDE, CUMUL-PERIME, COMPOSANTE-REFUSEE, VERSION-PERIMEE,
+          MUTATION-CONFLIT, DOSSIER-REVU, DOSSIER-DOUBLON, ETAT-INVALIDE, INTROUVABLE, REVUE-INVALIDE, EXPORT-REFUSE,
+          STOCKAGE-INDISPONIBLE, DONNEES-CORROMPUES, DOSSIER-TROP-GROS]
+statuts_http:
+  403: ACCES-REFUSE
+  404: INTROUVABLE
+  409: [VERSION-PERIMEE, MUTATION-CONFLIT, SOURCE-MODIFIEE, CUMUL-PERIME, DOSSIER-REVU, DOSSIER-DOUBLON, ETAT-INVALIDE, EXPORT-REFUSE, SOURCE-REFUSEE]
+  500: DONNEES-CORROMPUES
+  503: STOCKAGE-INDISPONIBLE
+confidentialite:
+  stockage: contenu chiffré AES-256-GCM (clé par dossier), enveloppe en clair = empreintes et identifiant opaque
+  idempotence_partagee: reçus sans montant ni identité (commandes) ; les lectures ne sont jamais mises en idempotence
+  export: référence OPSYS de l'employé seulement ; ni NAS, ni adresse, ni compte bancaire, ni taux horaire
+  http: Cache-Control no-store ; export avec nosniff et CSP default-src 'none'
+sources_employeur:
+  statut: TEXTE_OFFICIEL_LU_SANS_CAPTURE_BINAIRE
+  lecture: 2026-10-28
+  references:
+    - {autorite: Revenu Québec, document: TP-1015.F, edition: 2026-01, sections: "p. 7; partie 3.2 p. 40 (RRQ employeur); partie 5 pp. 43-45 (FSS)"}
+    - {autorite: Revenu Québec, document: TP-1015.G, edition: 2026-01, sections: "partie 6 pp. 67-70 (FSS); partie 7 p. 74 (normes); partie 8 p. 75 (FDRCMO)"}
+    - {autorite: CNESST, document: "Guide : Calcul du versement périodique", edition: "2026", sections: "2, 2.1, 2.2"}
+    - {autorite: CNESST, document: "Salaire maximum annuel assurable", edition: "ligne 2026", sections: tableau}

@@ -254,10 +254,16 @@ def test_brut_absent_ou_illisible_donne_source_refusee():
         assert all(t["montant"] is None for t in calcul["totaux"].values())
 
 
+def _periode(e, numero):
+    """Période déclarée ≠ 1 : l'origine des cumuls doit être cohérente (sinon refus plus tôt, au contrat)."""
+    e["periode"].update(periode_annuelle=numero)
+    e["cumuls_avant"].update(origine="DECLARE_HISTORIQUE")
+
+
 @pytest.mark.parametrize(
     ("mutation", "code"),
     [
-        (lambda e: e["periode"].update(periode_annuelle=2), "CALENDRIER-INCOHERENT"),
+        (lambda e: _periode(e, 2), "CALENDRIER-INCOHERENT"),
         (lambda e: e["periode"].update(date_paie="2026-01-16"), "CALENDRIER-INCOHERENT"),
         (
             lambda e: e["periode"].update(
@@ -266,7 +272,7 @@ def test_brut_absent_ou_illisible_donne_source_refusee():
             "HORS-COUVERTURE",
         ),  # 27 paies
         (lambda e: e["periode"].update(annee=2027), "HORS-COUVERTURE"),
-        (lambda e: e["periode"].update(periode_annuelle=27), "PERIODE-INVALIDE"),
+        (lambda e: _periode(e, 27), "PERIODE-INVALIDE"),
         (lambda e: e["periode"].update(fin="2026-01-13"), "HORS-COUVERTURE"),  # 13 jours
         (lambda e: e["periode"].update(fuseau="Mars/Olympus"), "PERIODE-INVALIDE"),
         (
@@ -413,3 +419,32 @@ def test_rapprochement_independant_sans_double_compte_sur_toute_l_annee():
             for i in ("rrq_employeur", "rqap_employeur", "ae_employeur", "fss", "cnesst", "normes_travail")
         )
         assert Fraction(totaux["cout_employeur_global"]["montant"]) == cout
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda e: e["periode"].update(periode_annuelle=20),  # période 20 avec « cumuls nuls de la période 1 »
+        lambda e: e["cumuls_avant"].update(origine="DECLARE_HISTORIQUE"),  # période 1 avec un historique déclaré
+        lambda e: e["cumuls_avant"]["valeurs"].update(ae_salarie_cumul_avant="1.00"),  # NUL_PERIODE_1 non nul
+    ],
+)
+def test_origine_de_cumul_incoherente_avec_la_periode_refusee(mutation):
+    e = entrees()
+    mutation(e)
+    valides, verdict = d.valider_entrees(e)
+    assert valides is None and verdict["code"] == "REJ-DOSSIER-PAIE-CUMUL-INVALIDE"
+
+
+def test_cumul_simule_impossible_a_la_periode_1():
+    e = entrees(origine="SIMULE_VERSION_PRECEDENTE")
+    e["cumuls_avant"]["source_simulee"] = {"dossier_id": "a" * 32, "numero_version": 1, "hash_version": "b" * 64}
+    valides, verdict = d.valider_entrees(e)
+    assert valides is None and verdict["code"] == "REJ-DOSSIER-PAIE-CUMUL-INVALIDE"
+
+
+def test_edition_federale_change_au_1er_juillet_dans_la_chaine():
+    resultats = _chaine("2000.00")  # première paie 2026-01-02 : période 13 = 2026-06-19, période 14 = 2026-07-03
+    editions = {n + 1: calcul["moteurs"]["edition_federale"] for n, (calcul, _) in enumerate(resultats)}
+    assert editions[1] == editions[13] == "T4127-122-2026-01"
+    assert editions[14] == editions[26] == "T4127-123-2026-07"

@@ -332,7 +332,7 @@ def test_source_refusee_ou_periode_invalide_ne_conserve_rien(base, src):
                 verifier_acteur=src.verifier_acteur,
             )
         assert _lignes(cnx) == []
-        mauvaise = entrees(2)  # période 2 incohérente avec la date de paie
+        mauvaise = entrees(2, origine="DECLARE_HISTORIQUE")  # période 2 incohérente avec la date de paie
         autre = service.apercu(
             cnx,
             employee_person_id=EMPLOYE,

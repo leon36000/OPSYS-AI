@@ -269,6 +269,16 @@ def valider_entrees(entrees: object) -> tuple[dict[str, Any] | None, dict[str, s
         or not all(_montant_ok(v) for v in valeurs.values())
     ):
         return None, refus("CUMUL-INVALIDE", "cumuls_avant.valeurs : sept montants CAD au centime requis")
+    periode_declaree = periode["periode_annuelle"]
+    tous_nuls = all(v == "0.00" for v in valeurs.values())
+    if cumuls["origine"] == "NUL_PERIODE_1" and (periode_declaree != 1 or not tous_nuls):
+        return None, refus(
+            "CUMUL-INVALIDE", "NUL_PERIODE_1 exige la période 1 et sept cumuls à 0.00 : sinon déclarer l'origine réelle"
+        )
+    if periode_declaree == 1 and cumuls["origine"] != "NUL_PERIODE_1":
+        return None, refus("CUMUL-INVALIDE", "la période 1 n'a aucun cumul antérieur : origine NUL_PERIODE_1 requise")
+    if cumuls["origine"] == "SIMULE_VERSION_PRECEDENTE" and periode_declaree == 1:
+        return None, refus("CUMUL-INVALIDE", "aucun cumul simulé avant la période 1")
     simulee = cumuls["source_simulee"]
     if cumuls["origine"] == "SIMULE_VERSION_PRECEDENTE":
         if (
