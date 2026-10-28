@@ -23,7 +23,10 @@ class MasquerRecherche(logging.Filter):
                               and unquote(chemin).rstrip("/").endswith("/tarifs/historique"))
                 importer = unquote(chemin).rstrip('/').endswith((
                     '/crm/materiaux/tarifs/importer', '/crm/materiaux/tarifs/importer/confirmer'))
-                if historique or importer:
+                documents = ('/crm/lead/' in unquote(chemin) and (
+                    unquote(chemin).rstrip('/').endswith('/fichiers')
+                    or '/fichiers/photos/' in unquote(chemin)))
+                if historique or importer or documents:
                     record.args = (*record.args[:2], chemin + "?consultation=[MASQUE]", *record.args[3:])
                     return True
                 cle = "q" if "q" in cles else "personne_id" if "personne_id" in cles or prive else None

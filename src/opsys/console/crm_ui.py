@@ -89,8 +89,9 @@ SECTIONS = (
      "Consultation admin depuis les devis acceptés : calcul M5 actuel, partiel ou en attente, sans mutation."),
     ("factures", "Factures", "M5 — finance", "partiel",
      "Factures client dans M5 ; la correction tracée d'une facture émise n'existe pas encore."),
-    ("fichiers", "Photos et fichiers", "M10 / M4 — documents d'affaire", "partiel",
-     "Dépôt et lecture de documents existent dans M10 et M4 ; pas encore d'aperçu ni de rattachement ici."),
+    ("fichiers", "Photos et fichiers", "M3 / M4 — documents du chantier", "partiel",
+     "Depuis les devis acceptés : PDF M3 et photos déclarées au chantier. "
+     "Dépôt libre et preuves historiques à raccorder."),
 )
 
 
@@ -385,6 +386,8 @@ def contenu_soumission(lead_id: str, devis: Mapping[str, Any], *, prefixe: str) 
          'preparation-chantier">Préparer la planification</a></p>' if devis['statut'] == 'accepte' else '') +
         (f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}/{pages._segment(devis["devis_id"])}/'
          'couts-travaux">Consulter les coûts des travaux</a></p>' if devis['statut'] == 'accepte' else '') +
+        (f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}/{pages._segment(devis["devis_id"])}/'
+         'fichiers">Photos et fichiers du chantier</a></p>' if devis['statut'] == 'accepte' else '') +
         '</section>'
     )
 
@@ -921,6 +924,7 @@ def creer_router(
         absences_quotidiennes,
         compositions_equipes,
         comptes_terrain,
+        documents_chantier,
         journal_equipes,
         preparation_chantier,
         rentabilite_chantier,
@@ -941,6 +945,8 @@ def creer_router(
     router.include_router(compositions_equipes.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
         verifier_formulaire=verifier_formulaire))
+    router.include_router(documents_chantier.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(rentabilite_chantier.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(preparation_chantier.creer_router(
