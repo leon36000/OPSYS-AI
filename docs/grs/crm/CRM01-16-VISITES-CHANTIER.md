@@ -1,4 +1,8 @@
-# CRM-01/16 — tranche de protection, mission inachevée
+# CRM-01/16 — visites de chantier, historique des tranches
+
+Ce document conserve les constats et preuves dans l'ordre de leur production : les premières sections décrivent une tranche initiale désormais dépassée et ne constituent pas le verdict actuel. Pour l'état livré en PR draft, les vérifications récentes et les limites, consulter [le rapport de mission](RAPPORT-CRM01-16-VISITES.md) et [le contrat d'intégration](CRM01-16-CONTRAT-INTEGRATION.md).
+
+## État initial : tranche de protection
 
 Base publiée : `3ab7692f041892ec2af0cab6f241a715edac2d50`. Branche : `mission/claude-crm-visites-20261028`. Cette tranche ne fournit ni identité de visite, ni interruption/reprise, ni raccord console. Ne pas ouvrir la transition sur_site → reportee sur cette base.
 

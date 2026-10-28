@@ -1,0 +1,27 @@
+I001 [*] Import block is un-sorted or un-formatted
+   --> tests/test_console_visites_chantier.py:178:9
+    |
+176 |                                    mutation_id='ouvrir-metier-fictif')
+177 |           assert rejoue['resultat']['rejoue'] is True
+178 | /         import pytest
+179 | |
+180 | |         from opsys import identite
+181 | |         from opsys.stockage.schema import META
+182 | |         from sqlalchemy import select
+    | |_____________________________________^
+183 |
+184 |           identite.retirer_role(cnx, 'admin.fictif', 'admin')
+    |
+help: Organize imports
+    |
+178 |         import pytest
+179 +         from sqlalchemy import select
+180 |
+181 |         from opsys import identite
+182 |         from opsys.stockage.schema import META
+    -         from sqlalchemy import select
+183 |
+    |
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.
