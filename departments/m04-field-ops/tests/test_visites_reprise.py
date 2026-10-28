@@ -181,6 +181,24 @@ def test_ouverture_refuse_source_remplacee_et_identite_inconnue():
     assert principal.lire() == avant
 
 
+def test_deux_previsions_ne_peuvent_pas_etre_ouvertes_simultanement():
+    from m4_field_ops import visites_chantier
+
+    principal, visites, premiere, _, _ = fixture.monde()
+    v1 = ecrire(principal, visites, premiere)
+    visites_chantier.ouvrir(principal, visites, v1['visite_id'], '2030-06-03T08:00:00-04:00')
+    datee = fixture.calendrier_civil.confirmer(principal, premiere['plan_id'], {'0': '2030-06-10'}, 1,
+                                                'admin.fictif', '2030-06-03T08:01:00-04:00')
+    seconde = {**premiere, 'source_ligne_id': datee['ligne_id']}
+    v2 = ecrire(principal, visites, seconde, revision=1, cle='seconde-visite-fictive',
+                heure='2030-06-03T08:02:00-04:00')
+    assert v1['visite_id'] != v2['visite_id']
+    avant = principal.lire(), visites.lire()
+    with pytest.raises(ValueError, match='déjà ouverte'):
+        visites_chantier.ouvrir(principal, visites, v2['visite_id'], '2030-06-10T08:00:00-04:00')
+    assert (principal.lire(), visites.lire()) == avant
+
+
 def test_vraies_primitives_attachent_route_et_pointages_a_ouverture():
     from m4_field_ops import cedule, etats, pointage, visites_chantier
     principal, visites, ancre, _, _ = fixture.monde()
