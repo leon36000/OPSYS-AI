@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="0.357" timestamp="2026-10-28T18:09:31.855858-04:00" hostname="gx10-e526"><testcase classname="tests.test_console_report_visite_v2" name="test_contrats_report_v1_et_interruption_privee_v2_distincts" time="0.002"><failure message="AssertionError: assert {'horodatage'..., 'visite_id'} == {'horodatage'..._id', 'motif'}&#10;  &#10;  Extra items in the left set:&#10;  'source_attendue'&#10;  'visite_id'&#10;  Use -v to get more diff">def test_contrats_report_v1_et_interruption_privee_v2_distincts():
+        par_nom = {outil.nom: outil for outil in outils()}
+        ancien = par_nom['m4_signaler_report']
+&gt;       assert set(ancien.parametres['properties']) == {'intervention_id', 'motif', 'horodatage'}
+E       AssertionError: assert {'horodatage'..., 'visite_id'} == {'horodatage'..._id', 'motif'}
+E         
+E         Extra items in the left set:
+E         'source_attendue'
+E         'visite_id'
+E         Use -v to get more diff
+
+tests/test_console_report_visite_v2.py:10: AssertionError</failure></testcase><testcase classname="tests.test_console_report_visite_v2" name="test_interruption_privee_v2_refuse_sans_identite_console" time="0.001"><failure message="StopIteration">def test_interruption_privee_v2_refuse_sans_identite_console():
+&gt;       nouveau = next(o for o in outils() if o.nom == 'm4_interrompre_visite_console_v2')
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       StopIteration
+
+tests/test_console_report_visite_v2.py:23: StopIteration</failure></testcase></testsuite></testsuites>
