@@ -70,6 +70,7 @@ def contenu(vue, prefixe, limite):
         compositions_equipes,
         pages,
         temps_pointes,
+        visites_chantier,
     )
 
     def lien(debut, titre):
@@ -150,6 +151,8 @@ def contenu(vue, prefixe, limite):
             else:
                 note += (f' · <a href="{pages.e(cible_temps)}">'
                          'Temps pointés de cette personne pour le jour</a>')
+        lien_visites = visites_chantier.url(ligne['intervention_id'], prefixe)
+        note += f' · <a href="{pages.e(lien_visites)}">Visites du chantier</a>'
         corps += '<tr>' + ''.join(f'<td>{pages.e(v)}</td>' for v in valeurs) + f'<td>{note}</td></tr>'
     corps += ('</tbody></table><details><summary>Sources de consultation</summary>'
               f'<p>Empreinte calculée du snapshot : {pages.e(vue["source_snapshot"])}</p></details></section>')
