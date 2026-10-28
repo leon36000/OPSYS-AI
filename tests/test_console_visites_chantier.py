@@ -279,6 +279,9 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
             mutation={'appareil': 'test-fictif', 'cle': 'composition-fictive',
                       'empreinte_arguments': encodage.empreinte(declaration)},
             horodatage='2030-06-03T12:00:00-04:00')
+    journal_pointe = client_crm.get('/crm/journal-equipes?jour=2030-06-03')
+    assert journal_pointe.status_code == 200
+    assert '#visite-' + ouvrir['visite_id'] in journal_pointe.text
     HorlogeFictive.instant = datetime(2030, 6, 3, 16, 1, 0, tzinfo=UTC)
     page = client_crm.get(chemin)
     fermer = formulaire(page.text, 'fermer')
@@ -355,7 +358,8 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
     assert client_crm.post(chemin, data=prevoir_vendredi, follow_redirects=False).status_code == 303
     HorlogeFictive.instant = datetime(2030, 6, 7, 12, 0, 0, tzinfo=UTC)
     page = client_crm.get(chemin)
-    assert client_crm.post(chemin, data=formulaire(page.text, 'ouvrir'), follow_redirects=False).status_code == 303
+    ouverture_vendredi = formulaire(page.text, 'ouvrir')
+    assert client_crm.post(chemin, data=ouverture_vendredi, follow_redirects=False).status_code == 303
     page_reprise_ouverte = client_crm.get(chemin)
     assert page_reprise_ouverte.status_code == 200 and 'Pointé : 150 min nettes' in page_reprise_ouverte.text
     assert 'Temps pointé : inconnu' in page_reprise_ouverte.text
@@ -370,6 +374,13 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
             assert pointage.enregistrer_pointage(iid, equipe_reprise['id'], action, instant,
                 {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
                 assign_vendredi, fenetre_vendredi, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
+    journal_vendredi = client_crm.get('/crm/journal-equipes?jour=2030-06-07')
+    assert journal_vendredi.status_code == 200
+    assert '#visite-' + ouverture_vendredi['visite_id'] in journal_vendredi.text
+    assert '#visite-' + ouvrir['visite_id'] not in journal_vendredi.text
+    journal_lundi = client_crm.get('/crm/journal-equipes?jour=2030-06-03')
+    assert journal_lundi.status_code == 200 and '#visite-' + ouvrir['visite_id'] in journal_lundi.text
+    assert '#visite-' + ouverture_vendredi['visite_id'] not in journal_lundi.text
     HorlogeFictive.instant = datetime(2030, 6, 7, 17, 1, 0, tzinfo=UTC)
     page = client_crm.get(chemin)
     assert client_crm.post(chemin, data=formulaire(page.text, 'fermer'), follow_redirects=False).status_code == 303

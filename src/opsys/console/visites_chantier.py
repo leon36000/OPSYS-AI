@@ -163,7 +163,7 @@ def contenu(vue, session, prefixe):
     for v in vue['visites']:
         creneau, composition = v['creneau'], v['composition']
         jour, equipe = creneau['debut'][:10], creneau['equipe_id']
-        corps += (f'<article><h3>Visite {pages.e(v["visite_id"])}</h3>'
+        corps += (f'<article id="visite-{pages.e(v["visite_id"])}"><h3>Visite {pages.e(v["visite_id"])}</h3>'
                   f'<p>Prévu : {pages.e(creneau["debut"])} – {pages.e(creneau["fin"])} '
                   f'· Équipe prévue : {pages.e(equipe)} · État : {pages.e(v["etat_visite"])}</p>')
         if composition['composition_connue']:
