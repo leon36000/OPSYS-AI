@@ -198,7 +198,7 @@ def calculer_faits(registre, intervention_id):
     return resultat
 
 
-def ouvrir(principal, visites, visite_id, horodatage):
+def ouvrir(principal, visites, visite_id, horodatage, *, provenance=None):
     """Ouvre une visite prévue avec preuve civile courante, sans écrire de pointage.
 
     Fonction pure : l'adaptateur devra fournir transaction, autorité et rejeu.
@@ -238,6 +238,8 @@ def ouvrir(principal, visites, visite_id, horodatage):
                   'visite_id': visite_id, 'source_calendrier': ancre['source_ligne_id'],
                   'source_application': ancre['source_application_id'],
                   'equipe_id': prevision['creneau']['equipe_id'], 'horodatage': horodatage}
+        if provenance is not None:
+            entree.update(_provenance(provenance, 'ouvrir', visite_id))
         ligne = principal.ajouter(entree)
         return {'visite_id': visite_id, 'ouverture_id': ligne}
     except notes.Refus as exc:
@@ -265,7 +267,7 @@ def visite_active(registre, intervention_id):
     return ouverte
 
 
-def fermer(principal, visites, visite_id, horodatage):
+def fermer(principal, visites, visite_id, horodatage, *, provenance=None):
     """Ferme une session pointée sans achever le chantier ni émettre de WCT."""
     from . import etats, visites_durables
     from .annotations_calendrier import Refus
@@ -296,9 +298,12 @@ def fermer(principal, visites, visite_id, horodatage):
             raise ValueError('départ absent ou chronologie invalide')
         if principal.tete() != tete_principal or visites.tete() != tete_visites:
             raise ValueError('source modifiée')
-        ligne = principal.ajouter({'type_entree': 'visite_fermee', 'intervention_id': iid,
-                                   'visite_id': visite_id, 'ouverture_id': ouverture['ligne_id'],
-                                   'source_depart': dernier_id, 'horodatage': horodatage})
+        entree = {'type_entree': 'visite_fermee', 'intervention_id': iid,
+                  'visite_id': visite_id, 'ouverture_id': ouverture['ligne_id'],
+                  'source_depart': dernier_id, 'horodatage': horodatage}
+        if provenance is not None:
+            entree.update(_provenance(provenance, 'fermer', visite_id))
+        ligne = principal.ajouter(entree)
         return {'visite_id': visite_id, 'fermeture_id': ligne}
     except Refus as exc:
         raise ValueError('source de visite invalide') from exc
@@ -323,6 +328,10 @@ def calculer_faits_certifies(principal, visites, intervention_id):
             if m.get('intervention_id') != intervention_id:
                 continue
             typ = m.get('type_entree')
+            if typ in {'visite_ouverte', 'visite_fermee'} and any(
+                    k in m for k in ('auteur', 'mutation', 'source_attendue')):
+                _provenance({k: m[k] for k in ('auteur', 'mutation', 'source_attendue')},
+                            'ouvrir' if typ == 'visite_ouverte' else 'fermer', m.get('visite_id'))
             action = m.get('action') if typ == 'pointage' else m.get('statut') if typ == 'transition_statut' else None
             if typ == 'visite_ouverte':
                 ident = m.get('visite_id')
@@ -368,3 +377,22 @@ def calculer_faits_certifies(principal, visites, intervention_id):
         return resultat
     except (Refus, KeyError, TypeError, StopIteration) as exc:
         raise ValueError('source de visite invalide') from exc
+
+
+def _provenance(provenance, operation, visite_id):
+    from copy import deepcopy
+
+    from . import annotations_calendrier as notes
+
+    if type(provenance) is not dict or set(provenance) != {'auteur', 'mutation', 'source_attendue'}:
+        raise ValueError('provenance invalide')
+    try:
+        notes._auteur(provenance['auteur'])
+        source = provenance['source_attendue']
+        if type(source) is not str or notes._HEX.fullmatch(source) is None:
+            raise ValueError('source invalide')
+        notes._mutation(provenance['mutation'], {'operation': operation, 'visite_id': visite_id,
+                                                 'source_attendue': source})
+    except notes.Refus as exc:
+        raise ValueError('provenance invalide') from exc
+    return deepcopy(provenance)

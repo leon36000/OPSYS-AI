@@ -347,3 +347,93 @@ def test_prevision_ne_peut_predater_sa_source_civile():
     with pytest.raises(visites_durables.Refus):
         ecrire(principal, visites, nouvelle, heure='2030-01-01T00:00:00+00:00')
     assert visites.taille() == 0
+
+
+def test_ouverture_sqlite_cas_rejeu_et_revocation_tardive(base_durable):
+    from m4_field_ops import visites_ecriture
+    from sqlalchemy import func, select
+
+    from opsys import stockage
+    from opsys.stockage.schema import JOURNAL
+
+    principal, _, ancre, _, _ = fixture.monde()
+    auteur = fixture.AUTEUR
+    with stockage.transaction(base_durable) as cnx:
+        durable = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        for m in principal.lire():
+            durable.ajouter({k: v for k, v in m.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
+        args = {'ancre': ancre, 'revision_attendue': 0}
+        mutation = {'appareil': 'console-fictive', 'cle': 'prevision-fictive',
+                    'empreinte_arguments': encodage.empreinte(args)}
+        prev = visites_ecriture.enregistrer(cnx, args, auteur, mutation, fixture.pur.HORODATAGE, lambda: auteur)
+    with stockage.transaction(base_durable) as cnx:
+        source = visites_ecriture.empreinte_sources(cnx)
+        args = {'operation': 'ouvrir', 'visite_id': prev['visite_id'], 'source_attendue': source}
+        mutation = {'appareil': 'console-fictive', 'cle': 'ouvrir-fictif',
+                    'empreinte_arguments': encodage.empreinte(args)}
+        audit_avant = cnx.execute(select(func.count()).select_from(JOURNAL)).scalar_one()
+        appels = []
+        def revoque():
+            appels.append(1)
+            return auteur if len(appels) < 2 else {'personne': 'autre-fictif', 'role': 'admin'}
+        with pytest.raises(visites_durables.Refus):
+            visites_ecriture.executer_evenement(cnx, args, auteur, mutation, '2030-06-03T08:00:00-04:00', revoque)
+        assert not any(m['type_entree'] == 'visite_ouverte' for m in stockage.maillons('m04-field-ops', 'principal'))
+        assert cnx.execute(select(func.count()).select_from(JOURNAL)).scalar_one() == audit_avant
+        result = visites_ecriture.executer_evenement(cnx, args, auteur, mutation, '2030-06-03T08:00:00-04:00',
+                                                       lambda: auteur)
+        assert result['rejoue'] is False
+    stockage.liberer()
+    with stockage.transaction(base_durable) as cnx:
+        rejoue = visites_ecriture.executer_evenement(cnx, args, auteur, mutation, '2030-06-03T08:01:00-04:00',
+                                                       lambda: auteur)
+        assert rejoue['rejoue'] is True and rejoue['resultat'] == result['resultat']
+        with pytest.raises(visites_durables.Refus):
+            visites_ecriture.executer_evenement(cnx, args, auteur, mutation, '2030-06-03T08:01:00-04:00',
+                                                lambda: auteur, limite_sortie=1)
+        autres = {**args, 'source_attendue': 'f' * 64}
+        mutation2 = {'appareil': 'console-fictive', 'cle': 'source-perimee',
+                     'empreinte_arguments': encodage.empreinte(autres)}
+        with pytest.raises(visites_durables.Refus):
+            visites_ecriture.executer_evenement(cnx, autres, auteur, mutation2, '2030-06-03T08:02:00-04:00',
+                                                lambda: auteur)
+        args_collision = {'ancre': ancre, 'revision_attendue': 1}
+        meme_cle = {'appareil': 'console-fictive', 'cle': 'ouvrir-fictif',
+                    'empreinte_arguments': encodage.empreinte(args_collision)}
+        with pytest.raises(visites_durables.Refus, match='MUTATION-CONFLIT'):
+            visites_ecriture.enregistrer(cnx, args_collision, auteur, meme_cle,
+                                         '2030-06-03T08:03:00-04:00', lambda: auteur)
+        from m4_field_ops import cedule, etats, pointage
+        reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        prev_reg = Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+        equipe = visites_durables.lire(reg, prev_reg, ancre['intervention_id'])['visites'][0]['creneau']['equipe_id']
+        assign = {'intervention_id': ancre['intervention_id'], 'technicien_id': equipe}
+        assert etats.transitionner(ancre['intervention_id'], 'en_route', reg,
+                                   '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+        ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+            'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+        fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+        for action, instant in [('arrivee', '2030-06-03T09:00:00-04:00'),
+                                ('depart', '2030-06-03T12:00:00-04:00')]:
+            assert pointage.enregistrer_pointage(ancre['intervention_id'], equipe, action, instant,
+                {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                assign, fenetre, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
+        fermer_args = {'operation': 'fermer', 'visite_id': prev['visite_id'],
+                        'source_attendue': visites_ecriture.empreinte_sources(cnx)}
+        fermer_mutation = {'appareil': 'console-fictive', 'cle': 'fermer-fictif',
+                            'empreinte_arguments': encodage.empreinte(fermer_args)}
+        ferme = visites_ecriture.executer_evenement(cnx, fermer_args, auteur, fermer_mutation,
+                                                    '2030-06-03T12:01:00-04:00', lambda: auteur)
+        assert ferme['rejoue'] is False
+    stockage.liberer()
+    with stockage.transaction(base_durable) as cnx:
+        rejoue_fin = visites_ecriture.executer_evenement(cnx, fermer_args, auteur, fermer_mutation,
+                                                          '2030-06-03T12:02:00-04:00', lambda: auteur)
+        assert rejoue_fin['rejoue'] is True and rejoue_fin['resultat'] == ferme['resultat']
+        assert len([m for m in stockage.maillons('m04-field-ops', 'principal')
+                    if m['type_entree'] == 'visite_fermee']) == 1
+        from m4_field_ops import visites_chantier
+        principal_relu = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        visites_relues = Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+        assert visites_chantier.calculer_faits_certifies(
+            principal_relu, visites_relues, ancre['intervention_id'])['travail_minutes'] == 180

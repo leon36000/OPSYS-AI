@@ -1,0 +1,42 @@
+I001 [*] Import block is un-sorted or un-formatted
+   --> departments/m04-field-ops/src/m4_field_ops/visites_chantier.py:379:5
+    |
+378 |   def _provenance(provenance, operation, visite_id):
+379 | /     from copy import deepcopy
+380 | |     from . import annotations_calendrier as notes
+    | |_________________________________________________^
+381 |
+382 |       if type(provenance) is not dict or set(provenance) != {'auteur', 'mutation', 'source_attendue'}:
+    |
+help: Organize imports
+    |
+379 |     from copy import deepcopy
+380 +
+381 |     from . import annotations_calendrier as notes
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> departments/m04-field-ops/tests/test_visites_reprise.py:353:5
+    |
+352 |   def test_ouverture_sqlite_cas_rejeu_et_revocation_tardive(base_durable):
+353 | /     from m4_field_ops import visites_ecriture
+354 | |     from opsys import stockage
+355 | |     from opsys.stockage.schema import JOURNAL
+356 | |     from sqlalchemy import func, select
+    | |_______________________________________^
+357 |
+358 |       principal, _, ancre, _, _ = fixture.monde()
+    |
+help: Organize imports
+    |
+353 |     from m4_field_ops import visites_ecriture
+354 +     from sqlalchemy import func, select
+355 +
+356 |     from opsys import stockage
+357 |     from opsys.stockage.schema import JOURNAL
+    -     from sqlalchemy import func, select
+358 |
+    |
+
+Found 2 errors.
+[*] 2 fixable with `--fix`.
