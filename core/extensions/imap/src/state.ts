@@ -1,6 +1,11 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 
-export type ImapCursor = { uidValidity: string; lastSeenUid: number; updatedAt: number };
+export type ImapCursor = {
+  mailbox: string;
+  uidValidity: string;
+  lastSeenUid: number;
+  updatedAt: number;
+};
 export type ImapClaim = { accountId: string; uid: number; recordedAt: number };
 export type ImapAttempt = { count: number; reason: string };
 export type ImapMessageRing = { messageIds: string[] };
@@ -31,19 +36,70 @@ export function createImapState(runtime: OpenClawPluginApi["runtime"]) {
 
 export type ImapWatcherState = ReturnType<typeof createImapState>;
 
+function requireMailbox(mailbox: string, cursor?: ImapCursor): void {
+  if (
+    typeof mailbox !== "string" ||
+    mailbox.length === 0 ||
+    mailbox.length > 1024 ||
+    /[\0\r\n]/u.test(mailbox) ||
+    (cursor !== undefined && cursor.mailbox !== mailbox)
+  ) {
+    // Old cursors carry no mailbox. Never guess INBOX, overwrite or silently reset them.
+    throw new Error("IMAP_CURSOR_MAILBOX_UNBOUND_OR_CHANGED");
+  }
+}
+
+export function assertImapCursorSource(
+  cursor: ImapCursor | undefined,
+  mailbox: string,
+  uidValidity?: string,
+): asserts cursor is ImapCursor {
+  if (cursor === undefined) {
+    throw new Error("IMAP_CURSOR_MAILBOX_UNAVAILABLE");
+  }
+  requireMailbox(mailbox, cursor);
+  if (uidValidity !== undefined && cursor.uidValidity !== uidValidity) {
+    throw new Error("IMAP_CURSOR_UIDVALIDITY_CHANGED");
+  }
+}
+
 export async function initializeImapCursor(
   state: ImapWatcherState,
   accountId: string,
   uidValidity: string,
   uidNext: number,
+  mailbox: string,
 ): Promise<{ kind: "baseline" | "reset" | "resume"; cursor: ImapCursor }> {
-  const existing = await state.cursors.lookup(accountId);
-  if (existing?.uidValidity === uidValidity) {
+  requireMailbox(mailbox);
+  let existing = await state.cursors.lookup(accountId);
+  if (existing === undefined) {
+    const baseline = {
+      mailbox,
+      uidValidity,
+      lastSeenUid: Math.max(0, uidNext - 1),
+      updatedAt: Date.now(),
+    };
+    // Two initializers must not bind the same account to different mailboxes.
+    if (await state.cursors.registerIfAbsent(accountId, baseline)) {
+      return { kind: "baseline", cursor: baseline };
+    }
+    existing = await state.cursors.lookup(accountId);
+    if (existing === undefined) {
+      throw new Error("IMAP_CURSOR_MAILBOX_UNAVAILABLE");
+    }
+  }
+  assertImapCursorSource(existing, mailbox);
+  if (existing.uidValidity === uidValidity) {
     return { kind: "resume", cursor: existing };
   }
-  const cursor = { uidValidity, lastSeenUid: Math.max(0, uidNext - 1), updatedAt: Date.now() };
+  const cursor = {
+    mailbox,
+    uidValidity,
+    lastSeenUid: Math.max(0, uidNext - 1),
+    updatedAt: Date.now(),
+  };
   await state.cursors.register(accountId, cursor);
-  return { kind: existing ? "reset" : "baseline", cursor };
+  return { kind: "reset", cursor };
 }
 
 export async function advanceImapCursor(
@@ -51,8 +107,12 @@ export async function advanceImapCursor(
   accountId: string,
   uidValidity: string,
   uid: number,
+  mailbox: string,
 ): Promise<void> {
+  const existing = await state.cursors.lookup(accountId);
+  assertImapCursorSource(existing, mailbox, uidValidity);
   await state.cursors.register(accountId, {
+    mailbox,
     uidValidity,
     lastSeenUid: uid,
     updatedAt: Date.now(),

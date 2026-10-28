@@ -656,3 +656,14 @@ Le SDK MCP existant passe de1.30.0 à1.31.0; les dépendances directes UI client
 Le LICENSE du SDK1.31 est MIT. Les LICENSE client/core2.2 indiquent la transition MIT vers Apache-2.0 pour les nouvelles contributions de code, et CC-BY-4.0 pour la documentation hors spécifications. Leurs notices restent distribuées dans les paquets; aucun nouveau fichier source amont copié dans le fork. Empreintes et preuves : complémentV1 dans `docs/reprise/VERTICALE-AFFAIRE-2026-10-06-V1/`.
 
 Le provider OPSYS conserve l’issuer et les extensions persistées. Un secret hérité sans issuer valide n’est plus fourni au SDK; le remplacement d’un client existant exige la capacité interne de connexion explicite. Seuls un objet identique ou l’ajout d’un issuer déjà prouvé par l’ancienne provenance peuvent être sauvegardés en arrière-plan. Un POST d’inscription dynamique peut précéder le refus du callback; la preuve protège les credentials persistés et ne revendique pas zéro effet réseau OAuth.
+
+
+## Garde de curseur IMAP par boîte — 28 octobre 2026
+
+Modification OPSYS originale, aucun code amont ou paquet ajouté. `extensions/imap/src/state.ts`
+lie les nouveaux curseurs à leur boîte et refuse un historique ambigu; `watcher.ts` vérifie la
+boîte/UIDValidity réellement ouvertes avant FETCH et traitement. Les limites/droits d’origine
+restent inchangés. Tests de refus, concurrence, raccord mocké et SQLite natif/reopen ajoutés;
+fixture de packaging explicitement liée à INBOX. [Audit, preuves et gate d’activation de l’ancien
+état](../docs/grs/crm/CRM06-IMAP-GARDE-BOITE.md). Pas de qualification de réception métier ni de
+connexion IMAP réelle par cette tranche, pas de migration ou purge automatique.

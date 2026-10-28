@@ -22,7 +22,12 @@ const cursors = openKeyedStore({
   maxEntries: 256,
   overflowPolicy: "reject-new",
 });
-cursors.register("fixture", { uidValidity: "7", lastSeenUid: 0, updatedAt: Date.now() });
+cursors.register("fixture", {
+  mailbox: "INBOX",
+  uidValidity: "7",
+  lastSeenUid: 0,
+  updatedAt: Date.now(),
+});
 const headers = (uid, sender = "sender@example.test") => [
   `From: ${sender}`,
   "To: recipient+proof-token@example.test",
