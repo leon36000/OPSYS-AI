@@ -15,9 +15,22 @@ Mise à jour atomique à chaque jalon (une seule version courante ; l'historique
 | `pytest departments/m09-strategic-intelligence/tests -q` | 0 | 673 tests, 0 échec, 0 erreur, 0 skip (111 s) |
 | 11 fichiers `tests/*m9*` du socle (suivis, rapports, bus, cible Core) | voir `PREUVES.md` | en cours à la rédaction |
 
+## Baseline complémentaire (SHA `3ab7692f`)
+| 11 fichiers `tests/*m9*` du socle (suivis, rapports, bus, cible Core) | 0 | 267 tests, 0 échec, 0 skip (192 s) |
+
+## Livré (commits de la branche, tous poussés sauf mention)
+- Lot 0 : schéma proposé à 21 sections (`rapport_decision_v2`, non ratifié), matrice requalifiée, inventaire.
+- M9.1 : captures de producteurs (`capture_strategique`, `catalogue_producteurs`, `outils_tissu`), port privé socle `lecteurs_m9`
+  (raccord commun séparé), lectures réelles M2/M3/M4/M5/M6/M7/M8/M10 capturées et testées par des agents de fixtures.
+- M9.2–3 : `graphe_impacts` (règles réelles en cours), `semantique_metriques`.
+- M9.4/M9.10 : `conseil` (12 rôles, sélection sous budget, admission, gouvernance), `sessions_conseil`, `outils_conseil`
+  (dépôt exigeant une réservation native réconciliée), rapport v2 assemblé.
+- M9.8 : `scenarios` (9 chocs, sensibilités arithmétiques sur bases citées).
+- M9.6–7 : `revue_periodique` (en cours : outils et publication durable à brancher).
+
 ## Étape courante
-Lot 0 : matrice, source des 21 sections (introuvable → proposition `rapport_decision_v2` + `CONTRAT-RAPPORT-21-SECTIONS.md`,
-gate `GATED_HUMAN` pour l'arbitrage de Nathan), inventaires producteurs/runtime en cours.
+Régression complète après adoption du catalogue ; puis outils de revue périodique, règles réelles du graphe (agent A à reprendre),
+tableau exécutif console (seam metier.py séparé), Lots 5–9.
 
 ## Prochaine action
-Recevoir les inventaires (producteurs M1–M8/M10, runtime natif) → conception Lot 1 (tissu de confiance, graphe, sémantique).
+Valider la régression, committer catalogue+tests B, brancher `revue_periodique`.
