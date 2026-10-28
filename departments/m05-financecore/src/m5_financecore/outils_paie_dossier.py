@@ -295,6 +295,7 @@ def construire_outils(
                     "type_version": {"type": "string", "enum": ["CREATION", "CORRECTION", "REBASE"]},
                     "motif": _NOTE,
                     "mutation_id": _HEX_32,
+                    "horodatage": _HORODATAGE,
                 },
                 [
                     "employee_person_id",
@@ -304,6 +305,7 @@ def construire_outils(
                     "type_version",
                     "motif",
                     "mutation_id",
+                    "horodatage",
                 ],
             ),
             fonction=conserver,
