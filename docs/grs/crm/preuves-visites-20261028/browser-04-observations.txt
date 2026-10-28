@@ -1,0 +1,6 @@
+Observation manuelle du navigateur QA fictif, sans capture enregistrée.
+Après prévision et affectation de l'équipe eq-reprise-fictive, date 2030-06-07 : ouverture et fermeture de la seconde visite par l'interface.
+Les pointages arrivée 13:00Z et départ 17:00Z ont été écrits séparément par les primitives M4 dans SQLite fictif ; la page a affiché 150 minutes lundi et 240 vendredi, avec les deux visites fermées.
+La complétion et le dépôt de photo fictive ont été exécutés séparément par les outils M4 : browser-04-completion.log confirme 1 WCT de 390 minutes et le refus du double.
+Une relecture navigateur après redémarrage a affiché « Statut du chantier : Terminé — en attente de revue » et les deux durées. Aucun WCT ou complétion n'a été saisi au navigateur.
+Un bouton d'interruption erronément affiché sur la première visite pendant la seconde visite ouverte a été constaté ; les tests rouge-49 et vert-123 prouvent la correction ultérieure du rendu. Le garde métier refusait cette interruption.
