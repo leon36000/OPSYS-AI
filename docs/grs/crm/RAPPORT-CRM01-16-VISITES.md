@@ -1,4 +1,4 @@
-# Rapport de mission — état intermédiaire
+# Rapport de mission — livraison M4 en PR draft
 
 - Mission / responsable : `CLAUDE-M4-VISITES-CRM01-16` / Codex.
 - Dépôt / branche / base SHA : `leon36000/OPSYS-AI`, `mission/claude-crm-visites-20261028`, `3ab7692f041892ec2af0cab6f241a715edac2d50`. Tête fonctionnelle testée : `da00b3216` ; la tête documentaire effective est celle de la PR.
@@ -16,11 +16,20 @@
 | Déclaré, pointé, inconnu | `visites_chantier.py` console, composition existante | tests console et QA navigateur | Composition et présence distinctes ; ancien fait non attribué laisse total global inconnu |
 | Sources, CAS, rejeu, rôle et rollback | ports privés M4/console | `regression-20.log`, preuves ciblées | Tests fictifs positifs pour sources périmées, CSRF et révocation tardive ; couverture non exhaustive |
 | Ancres et anciennes notes | registres et annotations existants | `regression-01.log`, tests de notes et journal | Ancres précédentes conservées dans les cas exercés ; projection console liée uniquement pour des identités vérifiées, T0 historique inchangé |
-| GPS arbitré et dates limites | `visites_chantier.py`, tests M4 | `test_visites_reprise.py`, tests de calcul | Cas d'anomalie arbitrée et frontières couverts par tests ciblés ; audit complet restant |
+| GPS arbitré et dates limites | `visites_chantier.py`, tests M4 | `test_visites_reprise.py`, `test_visites_chantier.py`, `regression-34.log` | Anomalie arbitrée, chevauchements, pauses hors visite et changement d'heure couverts par tests ciblés |
+| Pagination, XSS et historique | console visites et journal | `test_console_journal_visites.py`, `test_console_visites_chantier.py`, `test_console_journal_notes.py`, `regression-34.log` | Curseur périmé refusé, contenu fictif échappé, anciennes et nouvelles ancres distinctes dans les cas exercés |
+| États terminaux et sources historiques | `etats.py`, `outbox.py`, registres | `test_etats.py`, `test_visites_reprise.py`, `test_visites_temps.py`, `regression-34.log` | État terminal et seconde complétion refusés ; une source historique ambiguë n'est pas attribuée |
+| En-têtes des pages privées | pages visites et reprise | `regression-36.xml` et `regression-36.log` | `no-store` et présence de CSP vérifiés pour les deux pages ; confidentialité des journaux serveur non auditée exhaustivement |
 
 ## Vérification
 
 Les commandes, logs, pins et limites effectives sont détaillés dans [CRM01-16-VISITES-CHANTIER.md](CRM01-16-VISITES-CHANTIER.md) et `preuves-visites-20261028/`. Les régressions `regression-20.log`, `regression-23.log`, `regression-27.log`, `regression-33.log`, `regression-34.log` et les contrôles `lint-33.log`, `lint-37.log`, `lint-40.log`, `lint-45.log`, `lint-46.log` ont exit 0 ; populations recoupées, pas de cumul. Test de reprise SHA-256 `4e5ed28dfb5c8187df1c508b74003f90b65129dbb1936f482887d6400664e639`. Les premiers essais et échecs sont conservés. Python et dépendances : `pins-02.txt` ; homes et données fictifs privés, réseau de test filtré ; la dernière régression utilise source montée en lecture seule et espaces réseau/PID isolés. Le plafond de processus demeure partagé avec l’utilisateur hôte ; les essais précédents conservent leurs limites propres.
+
+Dernière régression : `commande-regression-36.sh`, exit 0, JUnit `regression-36.xml` : 616 tests, zéro échec, erreur ou saut. Elle reprend la population de `regression-35.xml` et les populations précédentes se recoupent. Base fonctionnelle `da00b3216` avec assertions d'en-têtes supplémentaires ; SHA-256 du diff des sources/tests `3b61eb1eb4d70371c7ed47f37015e51b6e9695f9ebd94572e6014b081f315a8d` avant et après (`source-36-avant.txt`, `source-36-apres.txt`). L'exécution monte la source en lecture seule, isole les espaces réseau/PID et utilise le harnais borné décrit par la commande ; les ressources ne constituent pas un quota PID dédié.
+
+Une relance de lint ciblée après ajout de ces assertions a échoué avant analyse (`lint-47.log`, exit 1 : exécutable Ruff absent au chemin choisi). `lint-46.log` reste la dernière analyse réussie sur la base fonctionnelle ; les deux assertions ajoutées ont été exercées par la régression 36.
+
+Le client `claude` est présent et son aide expose `--effort`, mais cette vérification ne démontre pas que Claude Sonnet 5.5 est disponible pour ce compte. La mission a été exécutée dans la session Codex GPT-6 ; aucun identifiant Claude inventé n'a été utilisé.
 
 Commande de la régression précédente depuis la racine du clone ; la commande isolée plus récente est dans `preuves-visites-20261028/commande-regression-33.sh` :
 
@@ -31,4 +40,4 @@ env HOME="$QA/home" OPSYS_HOME="$QA/opsys" XDG_CONFIG_HOME="$QA/xdg" XDG_CACHE_H
 
 ## Risques et reprise
 
-La deuxième session a été ouverte et fermée au navigateur ; les pointages et le WCT ont été produits séparément par primitives et outils M4, puis la page a été relue au navigateur. Le statut est terminé en attente de revue, et non une vérification finale. Le lien journal → visite a été exercé en HTTP et au navigateur. La carte des lecteurs indique les refus des aperçus et le risque de consommation M5 ; leur adaptation aval reste à coordonner. Les chiffres historiques ambigus ne sont pas attribués ; un total WCT incomplet est refusé. Le contrat de temps M5 est une proposition distincte, à intégrer par le coordinateur. Les services QA possédés sont arrêtés ; pas de production, déploiement, fusion, envoi ou paie. Prochaine action : terminer l’audit des critères et coordonner la consommation des temps, puis mettre à jour ce rapport et la PR. La mission n'est pas revendiquée terminée.
+La deuxième session a été ouverte et fermée au navigateur ; les pointages et le WCT ont été produits séparément par primitives et outils M4, puis la page a été relue au navigateur. Le statut est terminé en attente de revue, et non une vérification finale. Le lien journal → visite a été exercé en HTTP et au navigateur. La carte des lecteurs indique les refus des aperçus et le risque de consommation M5 ; leur adaptation aval reste à coordonner. Les chiffres historiques ambigus ne sont pas attribués ; un total WCT incomplet est refusé. Le contrat de temps M5 est une proposition distincte, à intégrer par le coordinateur. PostgreSQL, mobile et confidentialité exhaustive des journaux serveur ne sont pas qualifiés. Les services QA possédés sont arrêtés ; pas de production, déploiement, fusion, envoi ou paie. Le [contrat d'intégration](CRM01-16-CONTRAT-INTEGRATION.md) précise les raccords et la prochaine vérification sur la branche intégrée. Le parcours M4 décrit est exercé sur données fictives ; la compatibilité métier M5 et une mise en service ne sont pas démontrées.
