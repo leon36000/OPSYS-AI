@@ -81,6 +81,7 @@ from . import (
     lecture_alertes,
     lecture_strategique,
     observations_chantier,
+    outils_conseil,
     outils_tissu,
     rapport_activite,
     rapport_periode,
@@ -300,6 +301,7 @@ def outils(
     *,
     lecteur_producteurs_m9: Any = None,
     captures_cible: Any = None,
+    sessions_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -1267,5 +1269,8 @@ def outils(
         *outils_base,
         *outils_tissu.construire_outils(
             lecteur=lecteur_producteurs_m9, budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible
+        ),
+        *outils_conseil.construire_outils(
+            budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible, sessions_cible=sessions_cible
         ),
     )
