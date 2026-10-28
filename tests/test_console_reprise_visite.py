@@ -67,7 +67,8 @@ def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, catalogu
         ref = {cedule.tokeniser_ville('sel-fictif', 'Laval'): {
             'latitude': 45.59, 'longitude': -73.74, 'rayon_km': 25.0}}
         fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
-        for action, heure in [('arrivee', '09:00:00'), ('depart', '12:00:00')]:
+        for action, heure in [('arrivee', '09:00:00'), ('pause_debut', '10:00:00'),
+                              ('pause_fin', '10:30:00'), ('depart', '12:00:00')]:
             assert pointage.enregistrer_pointage(iid, ligne['equipe_id'], action, f'2030-06-03T{heure}-04:00',
                 {'latitude': 45.59, 'longitude': -73.74}, {'fictif': True, 'appareil_id': 'fictif'},
                 assign, fenetre, ref, 'Laval', 'sel-fictif', reg)[1] is None
@@ -227,6 +228,65 @@ def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, catalogu
         rejoue_app = reprise_visite.appliquer(cnx, propose['deps'], f.p.AUTH, iid,
             plan_id, revue['empreinte'], formulaire['mutation_id'])
         assert rejoue_app['rejoue'] is True
+    # Les pointages terrain restent distincts des déclarations d'équipe.
+    with session():
+        principal = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
+        assign_reprise = {'intervention_id': iid, 'technicien_id': 'eq-reprise-fictive'}
+        assert etats.transitionner(iid, 'en_route', principal, '2030-06-07T08:30:00-04:00',
+                                   assignation=assign_reprise)[1] is None
+        fenetre = {'debut': '2030-06-07T08:00:00-04:00', 'fin': '2030-06-07T18:00:00-04:00'}
+        for action, instant in [('arrivee', '2030-06-07T13:00:00+00:00'),
+                                ('depart', '2030-06-07T17:00:00+00:00')]:
+            assert pointage.enregistrer_pointage(iid, 'eq-reprise-fictive', action, instant,
+                {'latitude': 45.59, 'longitude': -73.74}, {'fictif': True, 'appareil_id': 'fictif'},
+                assign_reprise, fenetre, ref, 'Laval', 'sel-fictif', principal)[1] is None
+    HorlogeFictive.instant = datetime(2030, 6, 7, 17, 1, tzinfo=UTC)
+    page_visite = catalogue.get(visite_route)
+    fermer = next(x for x in Formulaires(page_visite.text).forms if x.get('operation') == 'fermer')
+    assert catalogue.post(visite_route, data=fermer, follow_redirects=False).status_code == 303
+    page_visite = catalogue.get(visite_route)
+    assert 'Pointé : 150 min nettes' in page_visite.text and 'Pointé : 240 min nettes' in page_visite.text
+    from m4_field_ops import outbox
+    with session():
+        principal = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
+        assert not [w for _, w in outbox.lire_outbox(principal) if w['intervention_id'] == iid]
+    import base64
+    import hashlib
+
+    from m4_field_ops.outils import outils
+
+    from opsys import contexte
+    from opsys.outils import executer_atomique
+    png_spec = importlib.util.spec_from_file_location('png_reprise_complete',
+        Path(__file__).parents[1] / 'departments/m04-field-ops/tests/conftest.py')
+    png_fixture = importlib.util.module_from_spec(png_spec)
+    png_spec.loader.exec_module(png_fixture)
+    png = png_fixture.png_minimal()
+    par_nom = {o.nom: o for o in outils()}
+    instant_fin = datetime(2030, 6, 7, 17, 2, tzinfo=UTC)
+    def outil_final(nom, arguments):
+        with (session(), contexte.appele_par_appareil(
+                contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+              contexte.receptionne_de(contexte.HorodatageAppareil(
+                  'console:admin.fictif', instant_fin, instant_fin))):
+            return executer_atomique(par_nom[nom], arguments)
+    photo = outil_final('m4_deposer_fichier', {'empreinte_sha256': hashlib.sha256(png).hexdigest(),
+        'taille_octets': len(png), 'type_mime': 'image/png', 'index_bloc': 0, 'nombre_blocs': 1,
+        'bloc_base64': base64.b64encode(png).decode('ascii')})
+    assert photo['ok'] and photo['resultat']['accepte'], photo
+    completion = {'intervention_id': iid, 'horodatage': instant_fin.isoformat(),
+        'preuves_completion': {'checklist_complete': True,
+            'photos_apres': [photo['resultat']['resultat']['reference']], 'notes': 'Fictif', 'signature': None},
+        'signature_requise': False}
+    reponse_fin = outil_final('m4_completer_intervention', completion)
+    assert reponse_fin['ok'] and reponse_fin['resultat']['accepte'], reponse_fin
+    assert not outil_final('m4_completer_intervention', completion)['resultat']['accepte']
+    stockage.liberer()
+    assert catalogue.get(visite_route).status_code == 200
+    with session():
+        principal = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
+        wcts = [w for _, w in outbox.lire_outbox(principal) if w['intervention_id'] == iid]
+        assert len(wcts) == 1 and wcts[0]['duree_reelle_minutes'] == 390
     with session() as cnx:
         identite.retirer_role(cnx, 'admin.fictif', 'admin')
     assert catalogue.get(route, follow_redirects=False).status_code in {303, 403}
