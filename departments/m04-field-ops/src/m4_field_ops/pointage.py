@@ -195,8 +195,7 @@ def enregistrer_pointage(
     from . import visites_chantier
     try:
         visite = visites_chantier.visite_active(registre_cible, intervention_id)
-        if visite and (visite['equipe_id'] != technicien_id or
-                       visites_chantier._instant(horodatage_arg) <
+        if visite and (visites_chantier._instant(horodatage_arg) <
                        visites_chantier._instant(visite['horodatage'])):
             raise ValueError('visite incohérente')
         if visite is None and any(m.get('type_entree') == 'visite_ouverte'

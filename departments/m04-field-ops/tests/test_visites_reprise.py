@@ -158,7 +158,9 @@ def test_vraies_primitives_attachent_route_et_pointages_a_ouverture():
     visites_chantier.ouvrir(principal, visites, prevision['visite_id'], '2030-06-03T08:00:00-04:00')
     ligne = visites_durables.lire(principal, visites, ancre['intervention_id'])['visites'][0]
     equipe = ligne['creneau']['equipe_id']
-    assign = {'intervention_id': ancre['intervention_id'], 'technicien_id': equipe}
+    technicien = 'employe.fictif'
+    assert technicien != equipe  # déclaration d'équipe ≠ personne pointée
+    assign = {'intervention_id': ancre['intervention_id'], 'technicien_id': technicien}
     route, erreur = etats.transitionner(ancre['intervention_id'], 'en_route', principal,
                                         '2030-06-03T08:30:00-04:00', assignation=assign)
     assert erreur is None
@@ -170,7 +172,7 @@ def test_vraies_primitives_attachent_route_et_pointages_a_ouverture():
                             ('pause_fin', '2030-06-03T10:30:00-04:00'),
                             ('depart', '2030-06-03T12:00:00-04:00')]:
         recu, erreur = pointage.enregistrer_pointage(
-            ancre['intervention_id'], equipe, action, instant,
+            ancre['intervention_id'], technicien, action, instant,
             {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
             assign, fenetre, ref, 'Repentigny', 'sel-fictif', principal)
         assert erreur is None, erreur
@@ -179,6 +181,9 @@ def test_vraies_primitives_attachent_route_et_pointages_a_ouverture():
     assert (next(m for m in principal.lire() if m['ligne_id'] == route['ligne_id'])['visite_id']
             == prevision['visite_id'])
     assert visites_chantier.calculer_faits(principal, ancre['intervention_id'])['travail_minutes'] == 150
+    visites_chantier.fermer(principal, visites, prevision['visite_id'], '2030-06-03T12:01:00-04:00')
+    assert (visites_chantier.calculer_faits_certifies(principal, visites, ancre['intervention_id'])
+            ['travail_minutes'] == 150)
 
 
 def test_fermeture_de_session_sans_completion_ni_wct():
@@ -437,3 +442,47 @@ def test_ouverture_sqlite_cas_rejeu_et_revocation_tardive(base_durable):
         visites_relues = Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
         assert visites_chantier.calculer_faits_certifies(
             principal_relu, visites_relues, ancre['intervention_id'])['travail_minutes'] == 180
+
+
+def test_route_refuse_ancre_redatee_apres_ouverture_sans_mutation():
+    from m4_field_ops import etats, visites_chantier
+    principal, visites, ancre, _, _ = fixture.monde()
+    prev = ecrire(principal, visites, ancre)
+    iid = ancre['intervention_id']
+    equipe = visites_durables.lire(principal, visites, iid)['visites'][0]['creneau']['equipe_id']
+    visites_chantier.ouvrir(principal, visites, prev['visite_id'], '2030-06-03T08:00:00-04:00')
+    fixture.calendrier_civil.confirmer(principal, ancre['plan_id'], {'0': '2030-06-10'}, 1,
+                                      'admin.fictif', '2030-06-03T08:01:00-04:00')
+    avant = principal.lire()
+    _, erreur = etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:02:00-04:00',
+                                     assignation={'intervention_id': iid, 'technicien_id': equipe})
+    assert erreur is not None
+    assert principal.lire() == avant
+
+
+def test_calcul_refuse_ancre_perimee_meme_si_chaine_forgee_est_valide():
+    from m4_field_ops import visites_chantier
+    principal, visites, ancre, _, _ = fixture.monde()
+    prev = ecrire(principal, visites, ancre)
+    iid = ancre['intervention_id']
+    equipe = visites_durables.lire(principal, visites, iid)['visites'][0]['creneau']['equipe_id']
+    fixture.calendrier_civil.confirmer(principal, ancre['plan_id'], {'0': '2030-06-10'}, 1,
+                                      'admin.fictif', '2030-06-03T08:01:00-04:00')
+    ouverture = principal.ajouter({'type_entree': 'visite_ouverte', 'intervention_id': iid,
+        'visite_id': prev['visite_id'], 'source_calendrier': ancre['source_ligne_id'],
+        'source_application': ancre['source_application_id'], 'equipe_id': equipe,
+        'horodatage': '2030-06-03T08:02:00-04:00', 'fictif': True})
+    principal.ajouter({'type_entree': 'transition_statut', 'intervention_id': iid,
+        'visite_id': prev['visite_id'], 'technicien_id': equipe, 'statut': 'en_route',
+        'statut_precedent': 'planifiee', 'horodatage': '2030-06-03T08:03:00-04:00', 'fictif': True})
+    for action, instant in [('arrivee', '2030-06-03T09:00:00-04:00'),
+                            ('depart', '2030-06-03T12:00:00-04:00')]:
+        dernier = principal.ajouter({'type_entree': 'pointage', 'intervention_id': iid,
+            'visite_id': prev['visite_id'], 'technicien_id': equipe, 'action': action,
+            'gps_coherent': True, 'horodatage': instant, 'fictif': True})
+    principal.ajouter({'type_entree': 'visite_fermee', 'intervention_id': iid,
+        'visite_id': prev['visite_id'], 'ouverture_id': ouverture, 'source_depart': dernier,
+        'horodatage': '2030-06-03T12:01:00-04:00', 'fictif': True})
+    assert principal.valider_chaine()
+    with pytest.raises(ValueError):
+        visites_chantier.calculer_faits_certifies(principal, visites, iid)

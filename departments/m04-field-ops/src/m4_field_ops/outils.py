@@ -92,6 +92,9 @@ from . import (
     temps,
     tournees,
     verdicts,
+    visites_chantier,
+    visites_durables,
+    visites_ecriture,
 )
 
 # PLAN T4.2 (POLITIQUE-geolocalisation.md §5) : portée des clés de chiffrement GPS dans le coffre
@@ -493,7 +496,8 @@ def outils(
             reponse["resultat"]["horodatage_appareil"] = horodatage_appareil
         return reponse
 
-    def signaler_report(intervention_id: str, motif: str, horodatage: str) -> dict[str, Any]:
+    def signaler_report(intervention_id: str, motif: str, horodatage: str,
+                        source_attendue: str | None = None, visite_id: str | None = None) -> dict[str, Any]:
         acteur, verdict_acteur = _acteur_appareil()
         if verdict_acteur is not None:
             return _refus(verdict_acteur)
@@ -505,12 +509,87 @@ def outils(
         # l'appareil se garde à côté, sur le maillon et l'accusé. Un renvoi de la même clé rend l'accusé de la
         # première réception, avec son heure : le socle ne ré-exécute rien.
         horodatage_faisant_foi, horodatage_appareil = _heures_de_l_appel(horodatage)
-        return depuis_couple(
-            etats.transitionner(
-                intervention_id, "reportee", registre_courant(), horodatage_faisant_foi, motif=motif,
-                horodatage_appareil=horodatage_appareil,
-            )
-        )
+        reg = registre_courant()
+        if etats.statut_courant(reg, intervention_id) == "sur_site":
+            # Un chantier commencé ne peut être interrompu que sur sources de visites
+            # durables et une identité active, revalidées avant la sortie du savepoint.
+            cnx = _cnx_durable()
+            if acteur is None or cnx is None:
+                return _refus(verdicts.construire_verdict("REJ-IDENTITE-APPAREIL-INVALIDE",
+                                                          detail="identité active et SQLite requis"))
+            try:
+                source = visites_ecriture.capturer_visites(cnx)
+                if (source_attendue != visites_ecriture.empreinte_sources(cnx) or not isinstance(visite_id, str)):
+                    raise annotations_calendrier.Refus("SOURCE-PERIMEE")
+                fermees = [m for m in reg.lire() if m.get("type_entree") == "visite_fermee"
+                           and m.get("intervention_id") == intervention_id]
+                if not fermees or fermees[-1].get("visite_id") != visite_id:
+                    raise annotations_calendrier.Refus("SOURCE-PERIMEE")
+                with cnx.begin_nested():
+                    r, v = etats.transitionner(
+                        intervention_id, "reportee", reg, horodatage_faisant_foi, motif=motif,
+                        horodatage_appareil=horodatage_appareil,
+                        registre_visites=registre.Registre([x.maillon for x in source.lignes]),
+                    )
+                    if v is not None:
+                        return depuis_couple((r, v))
+                    from opsys.etat import journaliser
+                    journaliser(cnx, acteur.personne, "m4.visite_interrompue", r["ligne_id"],
+                                {"intervention_id": intervention_id, "motif": motif})
+                    nouvel_acteur, refus_acteur = _acteur_appareil()
+                    if (refus_acteur is not None or nouvel_acteur != acteur
+                            or acces.controler_intervention(reg, intervention_id, nouvel_acteur) is not None
+                            or visites_ecriture.capturer_visites(cnx).empreinte_snapshot_calculee
+                            != source.empreinte_snapshot_calculee):
+                        raise annotations_calendrier.Refus("SOURCE-MODIFIEE")
+                    return depuis_couple((r, None))
+            except annotations_calendrier.Refus as exc:
+                return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=exc.suffixe))
+        return depuis_couple(etats.transitionner(
+            intervention_id, "reportee", reg, horodatage_faisant_foi, motif=motif,
+            horodatage_appareil=horodatage_appareil,
+        ))
+
+    def replanifier_visite_console(intervention_id, visite_id, report_id, source_attendue, horodatage):
+        acteur, refus = _acteur_appareil()
+        appelante, cnx = contexte.identite_appelante(), _cnx_durable()
+        if (refus is not None or acteur is None or acteur.role != "admin" or appelante is None
+                or appelante.source != "console" or cnx is None):
+            return _refus(verdicts.construire_verdict("REJ-IDENTITE-APPAREIL-INVALIDE",
+                                                      detail="admin console actif requis"))
+        reg = registre_courant()
+        horodatage_faisant_foi, horodatage_appareil = _heures_de_l_appel(horodatage)
+        try:
+            source = visites_ecriture.capturer_visites(cnx)
+            if source_attendue != visites_ecriture.empreinte_sources(cnx):
+                raise annotations_calendrier.Refus("SOURCE-PERIMEE")
+            reports = [m for m in reg.lire() if m.get("type_entree") == etats.TYPE_TRANSITION
+                       and m.get("intervention_id") == intervention_id and m.get("statut") == "reportee"]
+            if (etats.statut_courant(reg, intervention_id) != "reportee" or not reports
+                    or reports[-1].get("ligne_id") != report_id or reports[-1].get("visite_id") != visite_id
+                    or visites_chantier._instant(horodatage_faisant_foi)
+                    < visites_chantier._instant(reports[-1]["horodatage"])):
+                raise annotations_calendrier.Refus("SOURCE-PERIMEE")
+            visites_chantier.calculer_faits_certifies(
+                reg, registre.Registre([r.maillon for r in source.lignes]), intervention_id)
+            with cnx.begin_nested():
+                recu, verdict = etats.transitionner(intervention_id, "planifiee", reg, horodatage_faisant_foi,
+                                                     horodatage_appareil=horodatage_appareil)
+                if verdict is not None:
+                    return depuis_couple((recu, verdict))
+                from opsys.etat import journaliser
+                journaliser(cnx, acteur.personne, "m4.visite_replanifiable", recu["ligne_id"],
+                            {"intervention_id": intervention_id, "report_id": report_id, "visite_id": visite_id})
+                nouvel_acteur, nouveau_refus = _acteur_appareil()
+                if (nouveau_refus is not None or nouvel_acteur != acteur
+                        or visites_ecriture.capturer_visites(cnx).empreinte_snapshot_calculee
+                        != source.empreinte_snapshot_calculee):
+                    raise annotations_calendrier.Refus("SOURCE-MODIFIEE")
+                return depuis_couple((recu, None))
+        except annotations_calendrier.Refus as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=exc.suffixe))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail="source visite invalide"))
 
     def annuler_intervention(intervention_id: str, horodatage: str) -> dict[str, Any]:
         return depuis_couple(etats.transitionner(intervention_id, "annulee", registre_courant(), horodatage))
@@ -929,39 +1008,54 @@ def outils(
         #    instant : la variance des matériaux, elle, n'existe pas encore (M6, après la complétion).
         #    `wct.ecart_signale` ne vaut donc plus vrai « par précaution ».
         reg = registre_courant()
-        accuse, verdict = outbox.completer_intervention(
-            intervention_id, horodatage_faisant_foi, reg,
-            ecart_detecte=ecarts.ecart_metier_ouvert(reg, intervention_id),
-            verification_en_attente=True,
-            preuves_completion=preuves_completion, signature_requise=signature_requise,
-            photos=photos, description_factuelle=description_factuelle,
-            consentement_marketing=consentement_marketing, client_satisfait=client_satisfait,
-            consentement_demande_avis=consentement_demande_avis, **preuve_consentement,
-        )
-        if verdict is not None:
-            return {"accepte": False, "verdict": verdict}
-        if horodatage_appareil is not None:
-            accuse["horodatage_appareil"] = horodatage_appareil
-        # T1.2-b : publie m4.travaux_termines DANS LA MÊME TRANSACTION que le WCT qui vient
-        # d'être écrit ci-dessus — `evenements.publier` ouvre un POINT DE SAUVEGARDE sur la
-        # transaction déjà ouverte par `executer_atomique` (ADR-0009), jamais une transaction
-        # indépendante ; un refus plus loin dans l'appelant annule les deux écritures ensemble.
-        # Gardé par `stockage.connexion_courante() is not None` (même garde que
-        # `m6_material_control.outils._registre_de_l_appel`) : seule la production (registre
-        # durable, appel enveloppé par `executer_atomique`/`Capacites.appeler`) publie ; les
-        # tests unitaires de ce fichier, qui injectent un `registre.Registre()` EN MÉMOIRE et
-        # appellent `executer()` sans transaction, ne touchent jamais la base — publier quand
-        # même y ouvrirait une transaction hors de propos pour un WCT qui n'existe que dans un
-        # objet Python local, jamais dans `evenements_sortants`.
-        if stockage.connexion_courante() is not None:
-            wct = next(
-                m[outbox.CLE_WCT] for m in reg.lire()
-                if m.get("ligne_id") == accuse["ligne_id"]
+        segmentee = any(m.get("type_entree") == "visite_ouverte" and m.get("intervention_id") == intervention_id
+                        for m in reg.lire())
+
+        def appliquer(registre_visites=None):
+            accuse, verdict = outbox.completer_intervention(
+                intervention_id, horodatage_faisant_foi, reg,
+                ecart_detecte=ecarts.ecart_metier_ouvert(reg, intervention_id),
+                verification_en_attente=True,
+                preuves_completion=preuves_completion, signature_requise=signature_requise,
+                photos=photos, description_factuelle=description_factuelle,
+                consentement_marketing=consentement_marketing, client_satisfait=client_satisfait,
+                consentement_demande_avis=consentement_demande_avis, registre_visites=registre_visites,
+                **preuve_consentement,
             )
-            evenements.publier(
-                "m4.travaux_termines", _DEPARTEMENT, wct, evenement_id=wct["wct_id"],
-            )
-        return {"accepte": True, "resultat": accuse}
+            if verdict is not None:
+                return {"accepte": False, "verdict": verdict}
+            if horodatage_appareil is not None:
+                accuse["horodatage_appareil"] = horodatage_appareil
+            # L'événement et le WCT restent dans la même transaction.
+            if stockage.connexion_courante() is not None:
+                wct = next(m[outbox.CLE_WCT] for m in reg.lire() if m.get("ligne_id") == accuse["ligne_id"])
+                evenements.publier("m4.travaux_termines", _DEPARTEMENT, wct, evenement_id=wct["wct_id"])
+            return {"accepte": True, "resultat": accuse}
+
+        if not segmentee:
+            return appliquer()
+        cnx = _cnx_durable()
+        if acteur is None or cnx is None:
+            return _refus(verdicts.construire_verdict("REJ-IDENTITE-APPAREIL-INVALIDE",
+                                                      detail="identité active et SQLite requis"))
+        try:
+            source = visites_ecriture.capturer_visites(cnx)
+            with cnx.begin_nested():
+                resultat = appliquer(registre.Registre([x.maillon for x in source.lignes]))
+                if not resultat["accepte"]:
+                    return resultat
+                from opsys.etat import journaliser
+                journaliser(cnx, acteur.personne, "m4.chantier_complete", resultat["resultat"]["ligne_id"],
+                            {"intervention_id": intervention_id})
+                nouvel_acteur, refus_acteur = _acteur_appareil()
+                if (refus_acteur is not None or nouvel_acteur != acteur
+                        or acces.controler_intervention(reg, intervention_id, nouvel_acteur) is not None
+                        or visites_ecriture.capturer_visites(cnx).empreinte_snapshot_calculee
+                        != source.empreinte_snapshot_calculee):
+                    raise annotations_calendrier.Refus("SOURCE-MODIFIEE")
+                return resultat
+        except annotations_calendrier.Refus as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=exc.suffixe))
 
     def lire_outbox(depuis_index: int = 0) -> list[dict[str, Any]]:
         return [{"index": i, "wct": w} for i, w in outbox.lire_outbox(registre_courant(), depuis_index)]
@@ -1412,6 +1506,76 @@ def outils(
             return _refus(verdicts.construire_verdict('REJ-JOURNAL-SOURCE-INVALIDE'))
         return {'accepte': True, 'resultat': resultat}
 
+    def lire_visites_console(intervention_id: str, debut: int = 0, limite: int = 50,
+                              source_attendue: str | None = None) -> dict[str, Any]:
+        try:
+            _autoriser_annotation()
+            cnx = _cnx_durable()
+            source_principal = journal_durable.capturer(cnx)
+            source_visites = visites_ecriture.capturer_visites(cnx)
+            empreinte = visites_ecriture.empreinte_sources(cnx)
+            resultat = visites_durables.lire(
+                registre.Registre([r.maillon for r in source_principal.lignes]),
+                registre.Registre([r.maillon for r in source_visites.lignes]),
+                intervention_id, debut=debut, limite=limite, source_attendue=source_attendue)
+            resultat['source_sql'] = empreinte
+            journal_durable.verifier_sortie(resultat)
+            if visites_ecriture.empreinte_sources(cnx) != empreinte:
+                raise visites_durables.Refus('SOURCE-MODIFIEE')
+            _autoriser_annotation()
+        except annotations_calendrier.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail=exc.suffixe))
+        except journal_durable.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail=exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail='source visite invalide'))
+        return {'accepte': True, 'resultat': resultat}
+
+    def _meta_visite(auteur, arguments):
+        from . import encodage
+
+        meta, reception = _META_ANNOTATION.get(), contexte.horodatage_reception()
+        if (not isinstance(meta, idempotence.Meta) or reception is None
+                or meta.appareil != 'console:' + auteur['personne'] or reception.appareil != meta.appareil
+                or reception.recu_le.utcoffset() is None):
+            raise visites_durables.Refus('MUTATION-ABSENTE')
+        mutation = {'appareil': meta.appareil, 'cle': meta.cle,
+                    'empreinte_arguments': encodage.empreinte(arguments)}
+        return mutation, reception.recu_le.isoformat()
+
+    def prevoir_visite_console(ancre, revision_attendue):
+        try:
+            auteur = _autoriser_annotation()
+            cnx = _cnx_durable()
+            arguments = {'ancre': ancre, 'revision_attendue': revision_attendue}
+            mutation, heure = _meta_visite(auteur, arguments)
+            recu = visites_ecriture.enregistrer(cnx, arguments, auteur, mutation, heure,
+                                                _autoriser_annotation, contexte.limite_sortie() or 65536)
+            return {'accepte': True, 'resultat': {'visite_id': recu['visite_id'], 'revision': recu['revision']},
+                    'rejoue': recu['rejoue']}
+        except annotations_calendrier.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail=exc.suffixe))
+        except journal_durable.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail=exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail='prévision visite invalide'))
+
+    def evenement_visite_console(operation, visite_id, source_attendue):
+        try:
+            auteur = _autoriser_annotation()
+            cnx = _cnx_durable()
+            arguments = {'operation': operation, 'visite_id': visite_id, 'source_attendue': source_attendue}
+            mutation, heure = _meta_visite(auteur, arguments)
+            recu = visites_ecriture.executer_evenement(cnx, arguments, auteur, mutation, heure,
+                                                        _autoriser_annotation, contexte.limite_sortie() or 65536)
+            return {'accepte': True, **recu}
+        except annotations_calendrier.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail=exc.suffixe))
+        except journal_durable.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail=exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail='événement visite invalide'))
+
     def lire_composition_journaliere_console(jour: str, equipe_id: str, debut: int = 0, limite: int = 50,
                               source_attendue: str | None = None) -> dict[str, Any]:
         try:
@@ -1710,6 +1874,8 @@ def outils(
                     "intervention_id": {"type": "string"},
                     "motif": {"type": "string", "enum": list(etats.MOTIFS_REPORT)},
                     "horodatage": {"type": "string"},
+                    "source_attendue": {"type": ["string", "null"]},
+                    "visite_id": {"type": ["string", "null"]},
                 },
                 "required": ["intervention_id", "motif", "horodatage"],
                 "additionalProperties": False,
@@ -2544,6 +2710,50 @@ def outils(
                 "source_attendue": {"type": ["string", "null"]}},
                 "required": ["jour"], "additionalProperties": False},
             fonction=lire_journal_quotidien, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_visites_console",
+            description="Console privée admin : prévisions ancrées et source SQLite pour un chantier, paginées.",
+            parametres={"type": "object", "properties": {
+                "intervention_id": {"type": "string"}, "debut": {"type": "integer", "minimum": 0},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                "source_attendue": {"type": ["string", "null"]}},
+                "required": ["intervention_id"], "additionalProperties": False},
+            fonction=lire_visites_console, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_prevoir_visite_console",
+            description="Console privée admin : identité de prévision liée à une ancre civile courante.",
+            parametres={"type": "object", "properties": {
+                "ancre": {"type": "object", "properties": {
+                    "intervention_id": {"type": "string"}, "plan_id": {"type": "string"},
+                    "source_application_id": {"type": "string"}, "source_ligne_id": {"type": "string"}},
+                    "required": ["intervention_id", "plan_id", "source_application_id", "source_ligne_id"],
+                    "additionalProperties": False},
+                "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 10000}},
+                "required": ["ancre", "revision_attendue"], "additionalProperties": False},
+            fonction=prevoir_visite_console, autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m4_replanifier_visite_console",
+            description="Console admin : remet un chantier interrompu à planifier, sans réactiver l'ancienne date.",
+            parametres={"type": "object", "properties": {
+                "intervention_id": {"type": "string"}, "visite_id": {"type": "string"},
+                "report_id": {"type": "string"}, "source_attendue": {"type": "string"},
+                "horodatage": {"type": "string"}},
+                "required": ["intervention_id", "visite_id", "report_id", "source_attendue", "horodatage"],
+                "additionalProperties": False},
+            fonction=replanifier_visite_console, autonomie=Autonomie.T1, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_evenement_visite_console",
+            description="Console privée admin : ouvre ou ferme une visite avec sources SQLite attendues.",
+            parametres={"type": "object", "properties": {
+                "operation": {"type": "string", "enum": ["ouvrir", "fermer"]},
+                "visite_id": {"type": "string", "minLength": 64, "maxLength": 64},
+                "source_attendue": {"type": "string", "minLength": 64, "maxLength": 64}},
+                "required": ["operation", "visite_id", "source_attendue"], "additionalProperties": False},
+            fonction=evenement_visite_console, autonomie=Autonomie.T1,
         ),
         Outil(
             nom="m4_declarer_composition_journaliere_console",

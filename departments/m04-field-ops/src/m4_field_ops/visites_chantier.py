@@ -246,6 +246,25 @@ def ouvrir(principal, visites, visite_id, horodatage, *, provenance=None):
         raise ValueError('source de visite invalide') from exc
 
 
+def verifier_ouverture_courante(principal, ouverture):
+    """Revalide l'ancre civile au moment du départ, sans utiliser un profil courant."""
+    from . import annotations_calendrier as notes
+
+    try:
+        sources = notes._sources(principal)
+        datee = sources[0][ouverture['source_calendrier']][1]
+        ancre = {'intervention_id': ouverture['intervention_id'], 'plan_id': datee['plan_id'],
+                 'source_application_id': ouverture['source_application'],
+                 'source_ligne_id': ouverture['source_calendrier']}
+        creneau = notes._creneau(sources, ancre)
+        courante = sources[1].get(notes._cle(ancre))
+        if (courante is None or courante['validite'] != 'date_confirmee'
+                or creneau['equipe_id'] != ouverture['equipe_id']):
+            raise ValueError('prévision remplacée')
+    except (notes.Refus, KeyError, TypeError) as exc:
+        raise ValueError('ancre de visite invalide') from exc
+
+
 def visite_active(registre, intervention_id):
     """Identité explicite ouverte ; une chaîne contradictoire échoue fermée."""
     ouverte = None
@@ -323,8 +342,11 @@ def calculer_faits_certifies(principal, visites, intervention_id):
     try:
         _, lignes, _, _, _, _ = visites_durables._charger(principal, visites)
         previsions = {m['ligne_id']: m for m in lignes}
-        active, utilisees, dernier_depart = None, set(), None
-        for m in principal.lire():
+        from .registre import Registre
+
+        active, utilisees, dernier_depart, technicien_route = None, set(), None, None
+        maillons = principal.lire()
+        for rang, m in enumerate(maillons):
             if m.get('intervention_id') != intervention_id:
                 continue
             typ = m.get('type_entree')
@@ -347,16 +369,23 @@ def calculer_faits_certifies(principal, visites, intervention_id):
                         or _instant(m['horodatage']).astimezone(ZoneInfo('America/Montreal')).date().isoformat()
                         != creneau['debut'][:10]):
                     raise ValueError('ancre ou ouverture incohérente')
-                active, dernier_depart = m, None
+                verifier_ouverture_courante(Registre(maillons[:rang]), m)
+                active, dernier_depart, technicien_route = m, None, None
                 utilisees.add(ident)
             elif action in {'en_route', 'arrivee', 'depart', 'pause_debut', 'pause_fin'}:
                 if (active is None or m.get('visite_id') != active['visite_id']
-                        or m.get('technicien_id') != active['equipe_id']
                         or _instant(m['horodatage']) < _instant(active['horodatage'])):
                     raise ValueError('fait sans ouverture correspondante')
+                if action == 'en_route':
+                    verifier_ouverture_courante(Registre(maillons[:rang]), active)
+                    if technicien_route is not None or not m.get('technicien_id'):
+                        raise ValueError('route incohérente')
+                    technicien_route = m['technicien_id']
+                elif technicien_route is None or m.get('technicien_id') != technicien_route:
+                    raise ValueError('pointage sans technicien de route correspondant')
                 if (typ == 'pointage' and action in ('arrivee', 'depart')
                         and m.get('gps_coherent') is not True
-                        and not _anomalie_validee(principal.lire(), m)):
+                        and not _anomalie_validee(maillons, m)):
                     raise ValueError('anomalie GPS non arbitrée')
                 if action == 'depart':
                     dernier_depart = m
@@ -366,7 +395,7 @@ def calculer_faits_certifies(principal, visites, intervention_id):
                         or m.get('source_depart') != dernier_depart['ligne_id']
                         or _instant(m['horodatage']) < _instant(dernier_depart['horodatage'])):
                     raise ValueError('fermeture sans départ correspondant')
-                active, dernier_depart = None, None
+                active, dernier_depart, technicien_route = None, None, None
         if active is not None or not utilisees:
             raise ValueError('visite ouverte ou absente')
         resultat = calculer_faits(principal, intervention_id)

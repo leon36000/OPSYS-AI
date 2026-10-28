@@ -798,10 +798,11 @@ def transitionner(
         from . import visites_chantier
         try:
             visite = visites_chantier.visite_active(registre_cible, intervention_id)
-            if visite and (visite["equipe_id"] != assignation["technicien_id"] or
-                           visites_chantier._instant(horodatage_arg) <
+            if visite:
+                visites_chantier.verifier_ouverture_courante(registre_cible, visite)
+            if visite and (visites_chantier._instant(horodatage_arg) <
                            visites_chantier._instant(visite["horodatage"])):
-                raise ValueError("équipe ou chronologie de visite invalide")
+                raise ValueError("chronologie de visite invalide")
             if visite is None and any(m.get("type_entree") == "visite_ouverte"
                                       and m.get("intervention_id") == intervention_id
                                       for m in registre_cible.lire()):
