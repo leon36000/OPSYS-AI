@@ -46,6 +46,7 @@ def test_revue_en_attente_ne_produit_pas_de_total_certifie():
     p, w, tarifs = pieces()
     r = calculer(p, w, tarifs)
     assert not r['complet'] and r['cout_total'] is None and r['manque']
+    assert r['main_d_oeuvre']['lignes'] == []
 
 
 def test_tarif_manquant_preserve_la_part_sourcée_sans_inventer_de_total():
@@ -78,3 +79,15 @@ def test_version_rentabilite_inclut_la_source_du_tarif_meme_si_montant_identique
     va = cout_reel.calculer_rentabilite(a, None, None, devis_id='fictif', chantier_id=None)['version_entrees']
     vb = cout_reel.calculer_rentabilite(b, None, None, devis_id='fictif', chantier_id=None)['version_entrees']
     assert va != vb
+
+
+def test_version_inclut_le_snapshot_des_tarifs_non_selectionnes():
+    p, w, tarifs = pieces()
+    verifier(p)
+    ancien = tarifs + [tarifs[0] | {'equipe_id': 'equipe-C-fictive', 'version': '1'}]
+    nouveau = deepcopy(ancien)
+    nouveau[-1]['version'] = '2'
+    a, b = calculer(p, w, ancien), calculer(p, w, nouveau)
+    va = cout_reel.calculer_rentabilite(a, None, None, devis_id='fictif', chantier_id=None)['version_entrees']
+    vb = cout_reel.calculer_rentabilite(b, None, None, devis_id='fictif', chantier_id=None)['version_entrees']
+    assert a['cout_total'] == b['cout_total'] == Decimal('730.00') and va != vb

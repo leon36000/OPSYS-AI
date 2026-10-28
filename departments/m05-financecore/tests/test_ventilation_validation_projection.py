@@ -400,3 +400,13 @@ def test_cent_pauses_et_depart_arbitre_restent_dans_la_borne_du_contrat():
     p['visites'][0]['evenements'] = evenements[:2] + pauses + [evenements[-1], depart]
     _signer(p)
     assert _validation(p, sources, cas)['valide']
+
+
+def test_minutes_impossibles_ne_sont_pas_certifiees_meme_si_la_somme_correspond():
+    p, sources, cas = _cas()
+    p['visites'][0]['minutes']['travail'] = 10000
+    p['totaux']['travail'] = 10240
+    p['wct']['duree_reelle_minutes'] = 10240
+    p['revue_chantier']['statut'] = 'verifiee'
+    _signer(p)
+    assert not _validation(p, sources, cas)['valide']

@@ -371,7 +371,8 @@ def _main_d_oeuvre_ventilee(
     Aucun chemin public ne doit y relayer des arguments d'un appelant comme des faits.
     """
     resultat = {"statut": "non_disponible", "minutes": None, "taux_horaire": None,
-                "cout": None, "cout_connu": None, "lignes": [], "manque": [], "projection_empreinte": None}
+                "cout": None, "cout_connu": None, "lignes": [], "manque": [], "projection_empreinte": None,
+                "tarifs_empreinte": None}
     wct_id = wct.get("wct_id") if wct is not None else None
     controle = validation_projection_visites.valider_projection(
         projection, instance_id=instance_id, wct_id=wct_id,
@@ -393,12 +394,21 @@ def _main_d_oeuvre_ventilee(
         return resultat
     resultat["projection_empreinte"] = projection["empreinte"]
     resultat["minutes"] = piece["duree_reelle_minutes"]
-    economie = ventilation_couts_visites.chiffrer_visites(projection["visites"], tarifs)
-    resultat["lignes"] = economie["lignes"]
     if not controle["exploitable"]:
         resultat["manque"].append(_manque(
             "REJ-COUT-TEMPS-POINTE-ABSENT", "revue finale ou équipes pointées à vérifier avant imputation",
         ))
+        return resultat
+    if isinstance(tarifs, list) and len(tarifs) <= 10000:
+        try:
+            resultat["tarifs_empreinte"] = encodage.empreinte("m5.tarifs-equipes.v1", tarifs)
+        except (TypeError, ValueError, OverflowError, RecursionError):
+            resultat["manque"].append(_manque(
+                "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "instantané des tarifs illisible",
+            ))
+            return resultat
+    economie = ventilation_couts_visites.chiffrer_visites(projection["visites"], tarifs)
+    resultat["lignes"] = economie["lignes"]
     if not economie["complet"]:
         resultat["manque"].append(_manque(
             "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "; ".join(economie["raisons"]),
@@ -479,6 +489,7 @@ def calculer_cout_reel(
     if projection is not None:
         entrees["ventilation"] = {
             "empreinte": main_d_oeuvre.get("projection_empreinte"),
+            "tarifs_empreinte": main_d_oeuvre.get("tarifs_empreinte"),
             "lignes": main_d_oeuvre.get("lignes", []),
             "statut": main_d_oeuvre["statut"],
             "manque": main_d_oeuvre["manque"],

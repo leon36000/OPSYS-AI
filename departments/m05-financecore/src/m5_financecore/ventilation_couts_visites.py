@@ -83,6 +83,26 @@ def _date_civile(valeur: Any) -> date | None:
     return jour if jour.isoformat() == valeur else None
 
 
+def _jour_effectif(visite: dict[str, Any]) -> date | None:
+    """Une seule date civile d'arrivée à départ, sans répartir les minutes M4."""
+    evenements = visite.get("evenements")
+    if not isinstance(evenements, list):
+        return None
+    arrivees = [e for e in evenements if isinstance(e, dict) and e.get("type") == "arrivee"]
+    departs = [e for e in evenements if isinstance(e, dict) and e.get("type") == "depart"]
+    if len(arrivees) != 1 or not departs:
+        return None
+    try:
+        debut = datetime.fromisoformat(arrivees[0]["horodatage"])
+        fin = datetime.fromisoformat(departs[-1]["horodatage"])
+        if (debut.utcoffset() is None or fin.utcoffset() is None
+                or debut.utcoffset() != fin.utcoffset() or debut.date() != fin.date()):
+            return None
+        return debut.date()
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return None
+
+
 def chiffrer_visites(visites: Any, tarifs: Any) -> dict[str, Any]:
     """Chiffre des faits déjà validés par leur propriétaire, sans certifier leur origine.
 
@@ -110,6 +130,8 @@ def chiffrer_visites(visites: Any, tarifs: Any) -> dict[str, Any]:
         )
         composition = visite.get("composition_declaree")
         jour = _date_civile(composition.get("jour")) if isinstance(composition, dict) else None
+        if jour != _jour_effectif(visite):
+            jour = None
         minutes = visite.get("minutes")
         minutes = minutes.get("travail") if isinstance(minutes, dict) else None
         candidats = [tarif for tarif in tarifs if isinstance(tarif, dict) and tarif.get("equipe_id") == equipe_id]

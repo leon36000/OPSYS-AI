@@ -217,6 +217,11 @@ def _controle_visite(visite: Any, intervention: str) -> tuple[tuple, dict, list,
     _exiger(v["presence_individuelle"] == {"statut": "inconnue"}, "présence individuelle non établie")
     minutes = _objet(v["minutes"], {"travail", "pause", "deplacement"}, "minutes")
     _exiger(all(_minute(n) for n in minutes.values()), "minutes invalides")
+    _exiger(
+        (minutes["travail"] + minutes["pause"]) * 60 <= (instants[-1] - instants[1]).total_seconds()
+        and minutes["deplacement"] * 60 <= (instants[1] - instants[0]).total_seconds(),
+        "minutes hors des bornes temporelles des faits",
+    )
     inconnus = [{"code": "presence_individuelle_non_observee", "visite_id": ident}]
     if statut != "declaree":
         inconnus.append({"code": "composition_indisponible", "visite_id": ident})

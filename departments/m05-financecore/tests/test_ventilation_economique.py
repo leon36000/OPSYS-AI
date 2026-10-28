@@ -6,7 +6,9 @@ from m5_financecore.ventilation_couts_visites import chiffrer_visites
 
 def visite(identifiant, equipe, minutes, jour):
     return {"visite_id": identifiant, "equipe_pointee": {"statut": "identifiee", "identifiant": equipe},
-            "minutes": {"travail": minutes}, "composition_declaree": {"jour": jour}}
+            "minutes": {"travail": minutes}, "composition_declaree": {"jour": jour},
+            "evenements": [{"type": "arrivee", "horodatage": f"{jour}T09:00:00-04:00"},
+                           {"type": "depart", "horodatage": f"{jour}T12:00:00-04:00"}]}
 
 
 def taux(equipe, valeur):
@@ -48,3 +50,23 @@ def test_zero_atteste_par_les_faits_reste_un_montant_connu():
     resultat = chiffrer_visites([visite("v1", "A", 0, "2030-06-03")], [taux("A", "100")])
     assert resultat["complet"] is True
     assert resultat["cout_total"] == Decimal("0.00")
+
+
+def test_travail_effectue_un_autre_jour_ne_recoit_pas_le_tarif_de_la_prevision():
+    v = visite("v1", "A", 60, "2030-06-03")
+    v["evenements"] = [{"type": "arrivee", "horodatage": "2030-06-04T09:00:00-04:00"},
+                       {"type": "depart", "horodatage": "2030-06-04T10:00:00-04:00"}]
+    ancien = taux("A", "100") | {"date_fin": "2030-06-03"}
+    nouveau = taux("A", "200") | {"date_effet": "2030-06-04"}
+    resultat = chiffrer_visites([v], [ancien, nouveau])
+    assert resultat["cout_total"] is None
+    assert resultat["lignes"][0]["cout"] is None
+    assert resultat["raisons"]
+
+
+def test_offsets_divergents_ne_certifient_pas_le_jour_du_tarif():
+    v = visite("v1", "A", 60, "2030-06-03")
+    v["evenements"] = [{"type": "arrivee", "horodatage": "2030-06-03T23:30:00-04:00"},
+                       {"type": "depart", "horodatage": "2030-06-03T23:50:00-06:00"}]
+    resultat = chiffrer_visites([v], [taux("A", "100")])
+    assert resultat["cout_total"] is None and resultat["raisons"]
