@@ -54,3 +54,6 @@ Dépôt CAS natif d’un PNG fictif réel, outil de complétion natif, SQL/recon
 ## Gates Nathan et prochaines étapes
 Aucune approbation additionnelle pour les données fictives et cette correction réversible. Préflight M10 privé frais v2 qualifié; le refus v1 d’un chemin sous `crm` reste historique, la garde n’a pas été élargie. La base vide privée ne remplace pas la mémoire projet.
 Prochaine tranche : lire explicitement les nouvelles références `photos_apres` depuis la galerie du devis/chantier exact, garder le statut historique absent distinct et vérifier le binaire/les permissions à chaque ouverture. Puis bibliothèque photos/PDF complète et mobile dans la phase prévue. CI de publication et production ne sont pas qualifiées par ce seul résultat local.
+
+## Lecteur CRM raccordé après le correctif propriétaire
+La galerie admin lit maintenant les seules `photos_apres` depuis le maillon exact, avec pagination et vérification CAS; notes/signature restent privées. [Contrat CRM](../crm/CRM12-PHOTOS-APRES-CONSULTATION.md), qualification locale 126 tests et navigateur réel. Les 392 tests du correctif ci-dessus ne sont pas additionnés à cette population recoupée. Aucune ancienne preuve absente n’est reconstruite; production et bibliothèque complète restent non qualifiées.

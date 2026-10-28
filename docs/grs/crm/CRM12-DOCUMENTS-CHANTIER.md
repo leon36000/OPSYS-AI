@@ -47,3 +47,6 @@ Aucune approbation supplémentaire pour ces lectures fictives et réversibles. L
 
 ## Correctif propriétaire préparé après cette tranche CRM
 M4 conserve désormais localement les preuves des **futures** complétions dans le maillon privé, hors WCT diffusé : [contrat et qualification](../field/M4-PREUVES-COMPLETION-DURABLES.md), 392 tests ciblés/régressions sans addition à la population CRM ci-dessus. La galerie de cette tranche lit encore seulement `WCT.photos`; le raccordement explicite des nouvelles `photos_apres` est l’étape suivante. Les anciennes preuves absentes ne sont pas reconstituées.
+
+## Raccordement ultérieur des nouvelles preuves
+Le bloc privé M4 des futures complétions est maintenant raccordé à la galerie admin du chantier exact : [consultation et pagination](CRM12-PHOTOS-APRES-CONSULTATION.md). Notes/signature exclues, anciennes absences préservées, origines WCT/preuves distinctes, page de 20 références. Qualification locale 126 tests et navigateur réel, sans addition aux populations précédentes. Dépôt/classement/bibliothèque complète restent PARTIAL.

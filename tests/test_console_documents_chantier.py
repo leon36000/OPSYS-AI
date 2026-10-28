@@ -39,7 +39,7 @@ def _depot(cnx, contenu=PNG):
     return 'fichier:sha256:' + sha
 
 
-def _completion(a, session, photos):
+def _completion(a, session, photos, *, dossier=None, signature_requise=False):
     """État terrain de fixture, puis vrai écrivain outbox et vraie publication. Pas un E2E DEVICE."""
     from m4_field_ops import etats, outbox, pointage, registre
     with session() as cnx:
@@ -53,6 +53,8 @@ def _completion(a, session, photos):
                 latitude=45.5, longitude=-73.5, fictif=True))
         _depot(cnx)
         kwargs = {} if photos is None else {'photos': photos}
+        if dossier is not None:
+            kwargs.update(preuves_completion=dossier, signature_requise=signature_requise)
         recu, verdict = outbox.completer_intervention(intervention, '2030-06-01T11:05:00+00:00', reg,
             ecart_detecte=False, verification_en_attente=True, **kwargs)
         assert verdict is None, verdict
@@ -300,3 +302,127 @@ def test_publication_typee_et_non_finis_ne_qualifient_pas_une_photo(photos, cata
             .values(charge=brut(publie, True)))
     r = catalogue.get(_url(photos))
     assert r.status_code == 503 and SHA not in r.text
+
+
+def _photo_png(cnx, couleur):
+    """Vrai PNG RGB 1×1 fictif, avec chunks et CRC pour les nouvelles preuves visuelles."""
+    import struct
+    import zlib
+    def chunk(tag, corps):
+        return struct.pack('>I', len(corps)) + tag + corps + struct.pack('>I', zlib.crc32(tag + corps))
+    donnees = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0))
+        + chunk(b'IDAT', zlib.compress(b'\x00' + bytes([couleur, 0, 0]))) + chunk(b'IEND', b''))
+    return _depot(cnx, donnees), donnees
+
+
+@pytest.fixture
+def preuves_apres(affaire, session):
+    with session() as cnx:
+        ref, donnees = _photo_png(cnx, 12)
+        signature, _ = _photo_png(cnx, 99)
+    dossier = dict(checklist_complete=True, photos_apres=[ref],
+        notes='NOTE-PRIVEE-FICTIVE-NE-PAS-AFFICHER', signature=signature)
+    wct = _completion(affaire, session, None, dossier=dossier, signature_requise=True)
+    assert 'photos' not in wct
+    return {**affaire, 'wct': wct, 'ref_apres': ref, 'sha_apres': ref.rsplit(':', 1)[1],
+            'signature': signature, 'png_apres': donnees}
+
+
+def test_preuve_apres_sans_photos_wct_est_consultable_et_sans_dml(preuves_apres, catalogue, session):
+    avant = f.m.base._instantane_base(session)
+    page = catalogue.get(_url(preuves_apres))
+    assert page.status_code == 200, page.text
+    assert 'Photo après 1' in page.text and 'preuve conservée' in page.text
+    assert 'non conservées' not in page.text
+    assert 'completed_pending_review' in page.text
+    photo = catalogue.get(_url(preuves_apres) + '/photos/' + preuves_apres['sha_apres'])
+    assert photo.status_code == 200 and photo.content == preuves_apres['png_apres']
+    assert photo.headers['cache-control'] == 'no-store'
+    assert f.m.base._instantane_base(session) == avant
+
+
+def test_notes_signature_absentes_du_dto_et_signature_interdite(preuves_apres, catalogue, session):
+    p = _port()
+    page = catalogue.get(_url(preuves_apres))
+    with session() as cnx:
+        dto = p.lire(cnx, preuves_apres['deps'], f.AUTH, preuves_apres['lead'], preuves_apres['devis'])
+    for contenu in (page.text, repr(dto)):
+        assert 'NOTE-PRIVEE-FICTIVE-NE-PAS-AFFICHER' not in contenu
+        assert preuves_apres['signature'] not in contenu
+        assert preuves_apres['signature'].rsplit(':', 1)[1] not in contenu
+    r = catalogue.get(_url(preuves_apres) + '/photos/' + preuves_apres['signature'].rsplit(':', 1)[1])
+    assert r.status_code == 404
+
+
+def test_preuve_apres_ne_donne_pas_acces_depuis_un_autre_projet(preuves_apres, catalogue):
+    chemin = _url(preuves_apres).replace(preuves_apres['lead'], f.LEAD)
+    assert catalogue.get(chemin).status_code == 404
+    assert catalogue.get(chemin + '/photos/' + preuves_apres['sha_apres']).status_code == 404
+
+
+def test_sources_wct_et_preuve_apres_restant_distinctes(affaire, catalogue, session):
+    dossier = dict(checklist_complete=True, photos_apres=[REF], notes='', signature=None)
+    _completion(affaire, session, [REF], dossier=dossier)
+    page = catalogue.get(_url(affaire))
+    assert page.status_code == 200, page.text
+    assert 'Photo 1 (déclarée)' in page.text and 'Photo après 1' in page.text
+    assert page.text.count('/photos/' + SHA) == 2
+    assert 'une même image' in page.text
+
+
+def test_pagination_et_photo_hors_page_autorisees_depuis_meme_source(affaire, catalogue, session):
+    with session() as cnx:
+        images = [_photo_png(cnx, i) for i in range(25)]
+    dossier = dict(checklist_complete=True, photos_apres=[ref for ref, _ in images], notes='', signature=None)
+    _completion(affaire, session, None, dossier=dossier)
+    avant = f.m.base._instantane_base(session)
+    premiere = catalogue.get(_url(affaire))
+    assert premiere.status_code == 200, premiere.text
+    assert 'Photo après 20' in premiere.text and 'Photo après 21' not in premiere.text
+    assert '?decalage=20' in premiere.text
+    suivante = catalogue.get(_url(affaire) + '?decalage=20')
+    assert suivante.status_code == 200, suivante.text
+    assert 'Photo après 21' in suivante.text and 'Photo après 25' in suivante.text
+    assert 'Photo après 20' not in suivante.text and 'Page précédente' in suivante.text
+    retour = catalogue.get(_url(affaire) + '?decalage=0')
+    assert retour.status_code == 200 and 'Photo après 1' in retour.text and 'Photo après 21' not in retour.text
+    derniere_ref, derniere_image = images[-1]
+    assert derniere_ref.rsplit(':', 1)[1] not in premiere.text
+    r = catalogue.get(_url(affaire) + '/photos/' + derniere_ref.rsplit(':', 1)[1])
+    assert r.status_code == 200 and r.content == derniere_image
+    with session() as cnx:
+        p = _port()
+        debut = p.lire(cnx, affaire['deps'], f.AUTH, affaire['lead'], affaire['devis'])
+        fin = p.lire(cnx, affaire['deps'], f.AUTH, affaire['lead'], affaire['devis'], decalage=20)
+    assert debut['source_calculee'] == fin['source_calculee']
+    assert debut['nombre_references'] == fin['nombre_references'] == 25
+    assert f.m.base._instantane_base(session) == avant
+
+
+@pytest.mark.parametrize('valeur', ['', '-20', '1', '020', 'true', '20.0', '1000000'])
+def test_pagination_non_canonique_refusee(preuves_apres, catalogue, valeur):
+    assert catalogue.get(_url(preuves_apres) + '?decalage=' + valeur).status_code == 400
+
+
+def test_pagination_doublon_et_query_photo_refusees(preuves_apres, catalogue):
+    assert catalogue.get(_url(preuves_apres) + '?decalage=0&decalage=0').status_code == 400
+    chemin = _url(preuves_apres) + '/photos/' + preuves_apres['sha_apres']
+    assert catalogue.get(chemin + '?decalage=0').status_code == 400
+
+
+def test_page_inexistante_fermee_sans_photo(preuves_apres, catalogue):
+    r = catalogue.get(_url(preuves_apres) + '?decalage=20')
+    assert r.status_code == 404 and preuves_apres['sha_apres'] not in r.text
+
+
+def test_borne_native_512_references_est_paginee_sans_export_brut(affaire, catalogue, session):
+    dossier = dict(checklist_complete=True, photos_apres=[REF] * 512, notes='', signature=None)
+    _completion(affaire, session, None, dossier=dossier)
+    premiere = catalogue.get(_url(affaire))
+    assert premiere.status_code == 200, premiere.text
+    assert premiere.text.count('/photos/' + SHA) == 20
+    derniere = catalogue.get(_url(affaire) + '?decalage=500')
+    assert derniere.status_code == 200, derniere.text
+    assert 'Photo après 512' in derniere.text and 'Photo après 513' not in derniere.text
+    assert derniere.text.count('/photos/' + SHA) == 12
+    assert '?decalage=520' not in derniere.text
