@@ -1,0 +1,15 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_refuse_pause_globale_sur_deux_arrivees_non_identifiees __________
+
+    def test_refuse_pause_globale_sur_deux_arrivees_non_identifiees():
+>       assert outbox.calculer_minutes_pause(_registre_fictif(), 'fictif-1') == (
+            None, 'REJ-CONTRAT-INVALIDE')
+E       AssertionError: assert (30, None) == (None, 'REJ-CONTRAT-INVALIDE')
+E         
+E         At index 0 diff: 30 != None
+E         Use -v to get more diff
+
+departments/m04-field-ops/tests/test_visites_temps.py:28: AssertionError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_temps.py::test_refuse_pause_globale_sur_deux_arrivees_non_identifiees
