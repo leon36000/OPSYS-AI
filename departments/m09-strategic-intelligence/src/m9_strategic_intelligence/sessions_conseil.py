@@ -512,7 +512,7 @@ def assembler_rapport(
                 "contenu": [
                     {
                         "id": f"V{i + 1}",
-                        "texte": f"{v['action']} ({v['type']}) : {v['verdict']} ({v['mandataire'] or 'sans mandataire'})",
+                        "texte": f"{v['action']} ({v['type']}) : {v['verdict']} ({v['mandataire'] or 'aucun'})",
                     }
                     for i, v in enumerate(verdict["actions"])
                 ],
