@@ -1,0 +1,44 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_lien_visite_hors_premiere_page_conserve_la_source ____________
+
+client_crm = <starlette.testclient.TestClient object at 0xe1d86d278cb0>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...02b8498a', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xe1d86f2dc860>
+
+    def test_lien_visite_hors_premiere_page_conserve_la_source(client_crm, planning, session):
+        from datetime import date, timedelta
+        from html import unescape
+        import re
+    
+        from m4_field_ops import calendrier_civil, encodage, visites_durables
+    
+        _, ids, confirmation, _ = planning
+        iid = ids['lead-fictif-001']
+        with session():
+            reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            prev = Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+            initial = next(x for x in calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions']
+                           if x['intervention_id'] == iid)
+            ancre = {k: initial[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+            for i in range(51):
+                jour = (date(2030, 6, 3) + timedelta(days=i)).isoformat()
+                if i:
+                    datee = calendrier_civil.confirmer(reg, confirmation['plan_id'], {'0': jour}, i,
+                                                        'admin.fictif', '2030-06-02T10:00:00+00:00')
+                    ancre = {**ancre, 'source_ligne_id': datee['ligne_id']}
+                args = {'ancre': ancre, 'revision_attendue': i}
+                resultat = visites_durables.prevoir(reg, prev, **args, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                    mutation={'appareil': 'fictif', 'cle': f'prevision-{i}',
+                              'empreinte_arguments': encodage.empreinte(args)},
+                    horodatage='2030-06-02T10:01:00+00:00')
+        f.base._connecter(client_crm, 'admin.fictif')
+        page = client_crm.get('/crm/journal-equipes?jour=' + jour)
+        assert page.status_code == 200, page.text
+        cible = re.search(r'href="([^"]*#visite-' + resultat['visite_id'] + r')"', page.text)
+>       assert cible is not None
+E       assert None is not None
+
+tests/test_console_journal_visites.py:101: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_console_journal_visites.py::test_lien_visite_hors_premiere_page_conserve_la_source

@@ -1,12 +1,12 @@
 # Rapport de mission — état intermédiaire
 
 - Mission / responsable : `CLAUDE-M4-VISITES-CRM01-16` / Codex.
-- Dépôt / branche / base SHA : `leon36000/OPSYS-AI`, `mission/claude-crm-visites-20261028`, `3ab7692f041892ec2af0cab6f241a715edac2d50`. Tête fonctionnelle testée : `09a2991ef` ; la tête documentaire effective est celle de la PR.
+- Dépôt / branche / base SHA : `leon36000/OPSYS-AI`, `mission/claude-crm-visites-20261028`, `3ab7692f041892ec2af0cab6f241a715edac2d50`. Tête fonctionnelle testée : `b9290308b` ; la tête documentaire effective est celle de la PR.
 - PR draft : https://github.com/leon36000/OPSYS-AI/pull/853.
 - Résultat observable : parcours fictif lundi/vendredi, deux équipes, interruption météo, 150 + 240 = 390 minutes, WCT unique et relecture SQLite. La proposition, l'affectation et la date passent par HTTP ; les pointages et la complétion sont exercés par les primitives et outils M4.
 - Réutilisation : grille et journal existants, ancres et notes historiques, composition/absences déclaratives, solveur M4 et approbation N3, calendrier civil et registres existants. Aucune paie M4 ni modification M5.
 - Fichiers possédés modifiés : modules et tests sous `departments/m04-field-ops/**`, `src/opsys/console/visites_chantier.py`, `src/opsys/console/reprise_visite.py`, leurs tests spécifiques et documents de mission. Inventaire exact : `git diff --name-only 3ab7692f041892ec2af0cab6f241a715edac2d50...HEAD`.
-- Raccord partagé séparé : commit `333415ecd`, routeur, registre métier et lien journal console.
+- Raccord partagé séparé : commits `333415ecd` (routeur, registre métier et lien journal console) et `b9290308b` (projection de liens dans le journal commun).
 
 | Critère métier | Code/contrat | Commande et preuve | Verdict réel |
 |---|---|---|---|
@@ -15,12 +15,12 @@
 | Équipe différente, date et histoire | `reprise_visite.py`, calendrier existant | test HTTP et `browser-02-serveur.log` | Parcours HTTP complet vers seconde visite ; navigateur jusqu'à prévision vendredi |
 | Déclaré, pointé, inconnu | `visites_chantier.py` console, composition existante | tests console et QA navigateur | Composition et présence distinctes ; ancien fait non attribué laisse total global inconnu |
 | Sources, CAS, rejeu, rôle et rollback | ports privés M4/console | `regression-20.log`, preuves ciblées | Tests fictifs positifs pour sources périmées, CSRF et révocation tardive ; couverture non exhaustive |
-| Ancres et anciennes notes | registres et annotations existants | `regression-01.log`, tests de notes et journal | Ancres précédentes conservées dans les cas exercés ; association de visite du journal quotidien encore à examiner |
+| Ancres et anciennes notes | registres et annotations existants | `regression-01.log`, tests de notes et journal | Ancres précédentes conservées dans les cas exercés ; projection console liée uniquement pour des identités vérifiées, T0 historique inchangé |
 | GPS arbitré et dates limites | `visites_chantier.py`, tests M4 | `test_visites_reprise.py`, tests de calcul | Cas d'anomalie arbitrée et frontières couverts par tests ciblés ; audit complet restant |
 
 ## Vérification
 
-Les commandes, logs, pins et limites effectives sont détaillés dans [CRM01-16-VISITES-CHANTIER.md](CRM01-16-VISITES-CHANTIER.md) et `preuves-visites-20261028/`. La dernière régression `regression-20.log` et `lint-33.log` ont exit 0 ; populations recoupées, pas de cumul. Test de reprise SHA-256 `4e5ed28dfb5c8187df1c508b74003f90b65129dbb1936f482887d6400664e639`. Les premiers essais et échecs sont conservés. Python et dépendances : `pins-02.txt` ; homes et données fictifs privés, réseau de test filtré, limites du plafond de processus partagé et source non montée en lecture seule signalées dans le rapport détaillé.
+Les commandes, logs, pins et limites effectives sont détaillés dans [CRM01-16-VISITES-CHANTIER.md](CRM01-16-VISITES-CHANTIER.md) et `preuves-visites-20261028/`. Les régressions `regression-20.log` et `regression-23.log` et les contrôles `lint-33.log` et `lint-37.log` ont exit 0 ; populations recoupées, pas de cumul. Test de reprise SHA-256 `4e5ed28dfb5c8187df1c508b74003f90b65129dbb1936f482887d6400664e639`. Les premiers essais et échecs sont conservés. Python et dépendances : `pins-02.txt` ; homes et données fictifs privés, réseau de test filtré, limites du plafond de processus partagé et source non montée en lecture seule signalées dans le rapport détaillé.
 
 Commande de régression depuis la racine du clone :
 
@@ -31,4 +31,4 @@ env HOME="$QA/home" OPSYS_HOME="$QA/opsys" XDG_CONFIG_HOME="$QA/xdg" XDG_CACHE_H
 
 ## Risques et reprise
 
-Le parcours navigateur s'arrête à la prévision de vendredi ; la session et le WCT ne sont pas prouvés par navigateur. Les lecteurs du journal quotidien et leur ancre de visite demandent un examen complémentaire. Les chiffres historiques ambigus ne sont pas attribués ; un total WCT incomplet est refusé. Le contrat de temps M5 est une proposition distincte, à intégrer par le coordinateur. Les services QA possédés sont arrêtés ; pas de production, déploiement, fusion, envoi ou paie. Prochaine action : auditer les liens explicites de visite dans le journal et les lecteurs restants, compléter les tests de frontières et le parcours navigateur, puis mettre à jour ce rapport et la PR. La mission n'est pas revendiquée terminée.
+Le parcours navigateur s'arrête à la prévision de vendredi ; la session et le WCT ne sont pas prouvés par navigateur. Les liens du journal ont été exercés en HTTP ; les autres lecteurs et les limites doivent encore être audités. Les chiffres historiques ambigus ne sont pas attribués ; un total WCT incomplet est refusé. Le contrat de temps M5 est une proposition distincte, à intégrer par le coordinateur. Les services QA possédés sont arrêtés ; pas de production, déploiement, fusion, envoi ou paie. Prochaine action : auditer les lecteurs restants et vérifier le lien du journal au navigateur, compléter les tests de frontières et le parcours navigateur, puis mettre à jour ce rapport et la PR. La mission n'est pas revendiquée terminée.
