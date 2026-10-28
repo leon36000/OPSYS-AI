@@ -1,0 +1,6 @@
+Collecting ruff==0.16.9
+  Downloading ruff-0.16.9-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (20 kB)
+Downloading ruff-0.16.9-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (10.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.0/10.0 MB 43.2 MB/s eta 0:00:00
+Installing collected packages: ruff
+Successfully installed ruff-0.16.9

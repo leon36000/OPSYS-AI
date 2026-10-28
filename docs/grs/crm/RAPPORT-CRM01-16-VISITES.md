@@ -19,7 +19,7 @@
 | GPS arbitré et dates limites | `visites_chantier.py`, tests M4 | `test_visites_reprise.py`, `test_visites_chantier.py`, `regression-34.log` | Anomalie arbitrée, chevauchements, pauses hors visite et changement d'heure couverts par tests ciblés |
 | Pagination, XSS et historique | console visites et journal | `test_console_journal_visites.py`, `test_console_visites_chantier.py`, `test_console_journal_notes.py`, `regression-34.log` | Curseur périmé refusé, contenu fictif échappé, anciennes et nouvelles ancres distinctes dans les cas exercés |
 | États terminaux et sources historiques | `etats.py`, `outbox.py`, registres | `test_etats.py`, `test_visites_reprise.py`, `test_visites_temps.py`, `regression-34.log` | État terminal et seconde complétion refusés ; une source historique ambiguë n'est pas attribuée |
-| En-têtes des pages privées | pages visites et reprise | `regression-36.xml` et `regression-36.log` | `no-store` et présence de CSP vérifiés pour les deux pages ; confidentialité des journaux serveur non auditée exhaustivement |
+| En-têtes des pages privées et audit | pages visites et reprise | `regression-38.xml`, `regression-38.log`, `test_console_reprise_visite.py` | `no-store` et présence de CSP vérifiés pour les deux pages. Les cinq types d'événements d'audit ajoutés portent uniquement les champs attendus ; les jetons CSRF et le membre fictif du scénario n'y figurent pas. Journaux d'accès serveur non qualifiés. |
 
 ## Vérification
 
@@ -27,7 +27,9 @@ Les commandes, logs, pins et limites effectives sont détaillés dans [CRM01-16-
 
 Dernière régression : `commande-regression-36.sh`, exit 0, JUnit `regression-36.xml` : 616 tests, zéro échec, erreur ou saut. Elle reprend la population de `regression-35.xml` et les populations précédentes se recoupent. Base fonctionnelle `da00b3216` avec assertions d'en-têtes supplémentaires ; SHA-256 du diff des sources/tests `3b61eb1eb4d70371c7ed47f37015e51b6e9695f9ebd94572e6014b081f315a8d` avant et après (`source-36-avant.txt`, `source-36-apres.txt`). L'exécution monte la source en lecture seule, isole les espaces réseau/PID et utilise le harnais borné décrit par la commande ; les ressources ne constituent pas un quota PID dédié.
 
-Une relance de lint ciblée après ajout de ces assertions a échoué avant analyse (`lint-47.log`, exit 1 : exécutable Ruff absent au chemin choisi). `lint-46.log` reste la dernière analyse réussie sur la base fonctionnelle ; les deux assertions ajoutées ont été exercées par la régression 36.
+Une relance de lint ciblée après ajout de ces assertions a échoué avant analyse (`lint-47.log`, exit 1 : exécutable Ruff absent au chemin choisi). À cette étape, `lint-46.log` était la dernière analyse réussie ; les deux assertions ajoutées avaient été exercées par la régression 36.
+
+Vérification ultérieure : `commande-regression-38.sh`, exit 0, `regression-38.xml` : 616 tests, zéro échec, erreur ou saut ; même population que la régression 36, sans cumul. Base `54e7988c3` avec le diff de tests identifié par SHA-256 `7234a5ebf31789b08d6103433f4a7fe65bccfb7c90b9f20c1e47e45059dc8293` avant et après. Ruff 0.16.9, épinglé dans `pins-ruff-01.txt`, a contrôlé les 23 fichiers Python listés dans `lint-48-fichiers.txt` : `commande-lint-52.sh`, `lint-52.log`, exit 0. Installation QA privée : `install-ruff-01.log`. Les essais `lint-48` (exit 134, allocation sous limite mémoire), `lint-49` (exit 1, import corrigé) et `audit-journal-02` (exit 1, absence de logs `httpx` dans le client de test) sont conservés. Le test d'audit final ne prétend pas couvrir les logs d'accès réseau.
 
 `git diff --check 3ab7692f041892ec2af0cab6f241a715edac2d50 HEAD -- departments/m04-field-ops src/opsys/console tests` : exit 0. Le même contrôle sur tout le diff signale des espaces et fins de lignes dans les journaux bruts de tests historiques, conservés tels quels comme preuves ; il ne passe donc pas globalement.
 
