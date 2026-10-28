@@ -1,0 +1,13 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_sqlite_reouverture_rejeu_et_rollback_tardif _______________
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-qa/private/tmp/pytest-of-pc6/pytest-5/test_sqlite_reouverture_rejeu_0/opsys.db'
+
+    def test_sqlite_reouverture_rejeu_et_rollback_tardif(base_durable):
+>       from m4_field_ops import visites_ecriture
+E       ImportError: cannot import name 'visites_ecriture' from 'm4_field_ops' (/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/src/m4_field_ops/__init__.py)
+
+departments/m04-field-ops/tests/test_visites_reprise.py:80: ImportError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_sqlite_reouverture_rejeu_et_rollback_tardif

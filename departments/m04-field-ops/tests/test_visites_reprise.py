@@ -74,3 +74,48 @@ def test_registre_semantiquement_altere_meme_rechaine_refuse():
     rechaine.ajouter({k: v for k, v in maillon.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
     with pytest.raises(visites_durables.Refus):
         visites_durables.lire(principal, rechaine, ancre['intervention_id'])
+
+
+def test_sqlite_reouverture_rejeu_et_rollback_tardif(base_durable):
+    from m4_field_ops import visites_ecriture
+    from opsys import stockage
+    from opsys.stockage.schema import JOURNAL
+    from sqlalchemy import func, select
+    principal, _, ancre, _, _ = fixture.monde()
+    args = {'ancre': ancre, 'revision_attendue': 0}
+    mutation = {'appareil': 'console-fictive', 'cle': 'sql-fictif',
+                'empreinte_arguments': encodage.empreinte(args)}
+    auteur = fixture.AUTEUR
+    with stockage.transaction(base_durable) as cnx:
+        durable = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        for maillon in principal.lire():
+            durable.ajouter({k: v for k, v in maillon.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
+        recu = visites_ecriture.enregistrer(cnx, args, auteur, mutation, fixture.pur.HORODATAGE,
+                                             lambda: auteur)
+    stockage.liberer()
+    with stockage.transaction(base_durable) as cnx:
+        rejoue = visites_ecriture.enregistrer(cnx, args, auteur, mutation, fixture.pur.HORODATAGE,
+                                              lambda: auteur)
+        assert rejoue['rejoue'] is True and rejoue['visite_id'] == recu['visite_id']
+        assert len(stockage.maillons('m04-field-ops', visites_durables.REGISTRE)) == 1
+        source = visites_ecriture.capturer_visites(cnx)
+        assert source.lignes[0].maillon['ligne_id'] == recu['visite_id']
+    # Nouvelle base temporaire non nécessaire : simuler une panne tardive sur une seconde date.
+    with stockage.transaction(base_durable) as cnx:
+        principal_sql = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        datee = fixture.calendrier_civil.confirmer(principal_sql, ancre['plan_id'], {'0': '2030-06-10'}, 1,
+                                                   'admin.fictif', fixture.pur.HORODATAGE)
+        nouvelle = {**ancre, 'source_ligne_id': datee['ligne_id']}
+        args2 = {'ancre': nouvelle, 'revision_attendue': 1}
+        mutation2 = {'appareil': 'console-fictive', 'cle': 'sql-fictif-2',
+                     'empreinte_arguments': encodage.empreinte(args2)}
+        audit_avant = cnx.execute(select(func.count()).select_from(JOURNAL)).scalar_one()
+        appels = []
+        def autorite():
+            appels.append(1)
+            return auteur if len(appels) < 2 else {'personne': 'autre-fictif', 'role': 'admin'}
+        with pytest.raises(visites_durables.Refus):
+            visites_ecriture.enregistrer(cnx, args2, auteur, mutation2, fixture.pur.HORODATAGE, autorite)
+        assert len(stockage.maillons('m04-field-ops', visites_durables.REGISTRE)) == 1
+
+        assert cnx.execute(select(func.count()).select_from(JOURNAL)).scalar_one() == audit_avant
