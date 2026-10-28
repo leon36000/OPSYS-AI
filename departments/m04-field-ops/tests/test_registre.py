@@ -314,6 +314,7 @@ def test_enumere_des_types_est_fige():
         "couleur_calendrier",  # CRM-01 : repères de présentation versionnés, collection séparée.
         "materiel_pret_recu",  # PLAN T4.14-b : la charge m6.materiel_pret la plus récente d'un devis (materiel.py)
         "heures_regulieres_validees",  # M5.4 : révision individuelle validée N4, sans paie.
+        "visite_prevue",  # CRM-01 : prévision explicitement ancrée.
         "composition_journaliere",  # CRM-16 : histoire déclarative séparée, aucun droit courant.
         "absence_journaliere_declaree",  # CRM-16 : type ratifié par le contrat admin, aucune présence/paie.
     }

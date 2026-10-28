@@ -1,0 +1,210 @@
+.............................................FF....                      [100%]
+=================================== FAILURES ===================================
+____________________ test_determinisme_tete_entre_processus ____________________
+
+    def test_determinisme_tete_entre_processus():
+        """Deux processus avec des PYTHONHASHSEED différentes produisent la même tête
+        pour une séquence identique d'entrées."""
+        # Script que chaque sous-processus exécutera
+        script = """
+    import sys, json
+    from pathlib import Path
+    _SRC = Path(r'{src}')
+    sys.path.insert(0, str(_SRC))
+    from m4_field_ops.registre import Registre
+    
+    entrees = [
+        {{"type_entree": "intervention_inscrite", "horodatage": "2025-04-14T12:00:00+00:00", "id": 1}},
+        {{"type_entree": "pointage", "horodatage": "2025-04-14T13:00:00+00:00", "quantite": 5}},
+    ]
+    reg = Registre()
+    for e in entrees:
+        reg.ajouter(e)
+    print(reg.tete())
+    """
+        script_formate = script.format(src=_SRC)
+    
+        seeds = ["123", "456"]
+        sorties = []
+        for seed in seeds:
+            env = os.environ.copy()
+            env["PYTHONHASHSEED"] = seed
+>           result = subprocess.run(
+                [sys.executable, "-c", script_formate],
+                capture_output=True,
+                text=True,
+                env=env,
+                check=True,
+            )
+
+departments/m04-field-ops/tests/test_registre.py:275: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Popen: returncode: None args: ['/home/pc6/Documents/Codex/2026-10-28-tu-pre...>
+args = ['/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/../preuves-qa/venv/bin/python', ...-14T13:00:00+00:00", "quantite": 5},\n]\nreg = Registre()\nfor e in entrees:\n    reg.ajouter(e)\nprint(reg.tete())\n']
+executable = b'/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/../preuves-qa/venv/bin/python'
+preexec_fn = None, close_fds = True, pass_fds = (), cwd = None
+env = {'SHELL': '/bin/bash', 'SESSION_MANAGER': 'local/gx10-e526:@/tmp/.ICE-unix/3838,unix/gx10-e526:/tmp/.ICE-unix/3838', 'QT_ACCESSIBILITY': '1', 'CODEX_TECTONIC_PATH': '/usr/lib/chatgpt/resources/tectonic/tectonic', ...}
+startupinfo = None, creationflags = 0, shell = False, p2cread = -1
+p2cwrite = -1, c2pread = 11, c2pwrite = 12, errread = 13, errwrite = 14
+restore_signals = True, gid = None, gids = None, uid = None, umask = -1
+start_new_session = False, process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       restore_signals,
+                       gid, gids, uid, umask,
+                       start_new_session, process_group):
+        """Execute program (POSIX version)"""
+    
+        if isinstance(args, (str, bytes)):
+            args = [args]
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = [args]
+        else:
+            args = list(args)
+    
+        if shell:
+            # On Android the default shell is at '/system/bin/sh'.
+            unix_shell = ('/system/bin/sh' if
+                      hasattr(sys, 'getandroidapilevel') else '/bin/sh')
+            args = [unix_shell, "-c"] + args
+            if executable:
+                args[0] = executable
+    
+        if executable is None:
+            executable = args[0]
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        if (_USE_POSIX_SPAWN
+                and os.path.dirname(executable)
+                and preexec_fn is None
+                and not close_fds
+                and not pass_fds
+                and cwd is None
+                and (p2cread == -1 or p2cread > 2)
+                and (c2pwrite == -1 or c2pwrite > 2)
+                and (errwrite == -1 or errwrite > 2)
+                and not start_new_session
+                and process_group == -1
+                and gid is None
+                and gids is None
+                and uid is None
+                and umask < 0):
+            self._posix_spawn(args, executable, env, restore_signals,
+                              p2cread, p2cwrite,
+                              c2pread, c2pwrite,
+                              errread, errwrite)
+            return
+    
+        orig_executable = executable
+    
+        # For transferring possible exec failure from child to parent.
+        # Data format: "exception name:hex errno:description"
+        # Pickle is not used; it is complex and involves memory allocation.
+        errpipe_read, errpipe_write = os.pipe()
+        # errpipe_write must not be in the standard io 0, 1, or 2 fd range.
+        low_fds_to_close = []
+        while errpipe_write < 3:
+            low_fds_to_close.append(errpipe_write)
+            errpipe_write = os.dup(errpipe_write)
+        for low_fd in low_fds_to_close:
+            os.close(low_fd)
+        try:
+            try:
+                # We must avoid complex work that could involve
+                # malloc or free in the child process to avoid
+                # potential deadlocks, thus we do all this here.
+                # and pass it to fork_exec()
+    
+                if env is not None:
+                    env_list = []
+                    for k, v in env.items():
+                        k = os.fsencode(k)
+                        if b'=' in k:
+                            raise ValueError("illegal environment variable name")
+                        env_list.append(k + b'=' + os.fsencode(v))
+                else:
+                    env_list = None  # Use execv instead of execve.
+                executable = os.fsencode(executable)
+                if os.path.dirname(executable):
+                    executable_list = (executable,)
+                else:
+                    # This matches the behavior of os._execvpe().
+                    executable_list = tuple(
+                        os.path.join(os.fsencode(dir), executable)
+                        for dir in os.get_exec_path(env))
+                fds_to_keep = set(pass_fds)
+                fds_to_keep.add(errpipe_write)
+>               self.pid = _fork_exec(
+                        args, executable_list,
+                        close_fds, tuple(sorted(map(int, fds_to_keep))),
+                        cwd, env_list,
+                        p2cread, p2cwrite, c2pread, c2pwrite,
+                        errread, errwrite,
+                        errpipe_read, errpipe_write,
+                        restore_signals, start_new_session,
+                        process_group, gid, gids, uid, umask,
+                        preexec_fn, _USE_VFORK)
+E                       BlockingIOError: [Errno 11] Resource temporarily unavailable
+
+/usr/lib/python3.12/subprocess.py:1885: BlockingIOError
+_______________________ test_enumere_des_types_est_fige ________________________
+
+    def test_enumere_des_types_est_fige():
+        """PROUVE que l'énuméré des type_entree est FIGÉ à l'ensemble ratifié —
+        patron « catalogue gelé » (leçon du catalogue de verdicts M2, CA-M2-13) :
+        les tests de rejet ne détectent pas un type AJOUTÉ en douce (mutation
+        « type_pirate » mesurée non détectée sans ce test). Étendre l'énuméré doit
+        être un acte conscient : mettre à jour CE test en même temps que la
+        constante, avec revue."""
+        attendu = {
+            "intervention_inscrite",
+            "transition_statut",
+            "pointage",
+            "demande_revue",
+            "resolution_revue",
+            "consentement_gps",     # PLAN T4.2 : §4 de POLITIQUE-geolocalisation.md
+            "acces_position_gps",   # PLAN T4.2 : §6
+            "purge_retention_gps",  # PLAN T4.2 : §5
+            "variance_m6_recue",  # T1.3-b : outbox.enregistrer_signal_variance
+            "assignation_technicien",  # PLAN T1.4-k : etats.assigner_technicien
+            "localisation_chantier",  # PLAN T4.1-a : localisation.confirmer (coordonnées chiffrées)
+            "cedule_proposee",  # PLAN T4.1-d : cedule_tournees.proposer (plan stocké, jamais une vérité)
+            "cedule_appliquee",  # PLAN T4.1-d : cedule_tournees.appliquer (via etats.assigner_technicien)
+            "cedule_datee",  # CRM-01 : calendrier civil confirmé, révisions append-only auditées.
+            "annotation_calendrier",  # CRM-02 : notes privées, collection séparée du planning.
+            "couleur_calendrier",  # CRM-01 : repères de présentation versionnés, collection séparée.
+            "materiel_pret_recu",  # PLAN T4.14-b : la charge m6.materiel_pret la plus récente d'un devis (materiel.py)
+            "heures_regulieres_validees",  # M5.4 : révision individuelle validée N4, sans paie.
+            "composition_journaliere",  # CRM-16 : histoire déclarative séparée, aucun droit courant.
+            "absence_journaliere_declaree",  # CRM-16 : type ratifié par le contrat admin, aucune présence/paie.
+        }
+>       assert set(registre_mod._TYPE_ENTREE_VALIDES) == attendu, (
+            f"énuméré modifié sans ratification : {set(registre_mod._TYPE_ENTREE_VALIDES) ^ attendu}"
+        )
+E       AssertionError: énuméré modifié sans ratification : {'visite_prevue'}
+E       assert {'absence_jou...e_datee', ...} == {'absence_jou...e_datee', ...}
+E         
+E         Extra items in the left set:
+E         'visite_prevue'
+E         Use -v to get more diff
+
+departments/m04-field-ops/tests/test_registre.py:320: AssertionError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_registre.py::test_determinisme_tete_entre_processus
+FAILED departments/m04-field-ops/tests/test_registre.py::test_enumere_des_types_est_fige
