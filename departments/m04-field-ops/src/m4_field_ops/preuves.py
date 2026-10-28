@@ -16,7 +16,7 @@ ni comme « non requis ».
 """
 from typing import Any
 
-from . import verdicts
+from . import encodage, verdicts
 
 CLES_PREUVES_COMPLETION = ("checklist_complete", "photos_apres", "notes", "signature")
 
@@ -116,3 +116,54 @@ def valider_preuves_completion(preuves: Any, signature_requise: bool) -> tuple[b
             )
 
     return True, None
+
+
+# Borne du bloc privé archivé, indépendante des binaires CAS (jamais copiés ici).
+MAX_PHOTOS_ARCHIVE = 512
+MAX_OCTETS_ARCHIVE = 65536
+
+
+def preparer_archive(preuves: Any, signature_requise: bool) -> tuple[dict | None, dict | None]:
+    """Snapshot de types fermés avant tout hash/appel au registre; aucun IO ni référence inventée."""
+    def refuser():
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="preuves de complétion à conserver invalides ou trop volumineuses",
+        )
+
+    if (type(preuves) is not dict or any(type(k) is not str for k in preuves)
+            or set(preuves) != set(CLES_PREUVES_COMPLETION)
+            or type(signature_requise) is not bool or type(preuves.get("photos_apres")) is not list
+            or len(preuves["photos_apres"]) > MAX_PHOTOS_ARCHIVE
+            or type(preuves.get("notes")) is not str
+            or (preuves.get("signature") is not None and type(preuves["signature"]) is not str)
+            or any(type(p) is not str for p in preuves["photos_apres"])):
+        return refuser()
+    textes = [preuves["notes"], *preuves["photos_apres"]]
+    if preuves["signature"] is not None:
+        textes.append(preuves["signature"])
+    # Longueurs avant encodage/copie : même des chaînes hostiles ne provoquent pas une allocation libre.
+    if sum(len(t) for t in textes) > MAX_OCTETS_ARCHIVE:
+        return refuser()
+    try:
+        if sum(len(t.encode("utf-8", "strict")) for t in textes) > MAX_OCTETS_ARCHIVE:
+            return refuser()
+    except UnicodeError:
+        return refuser()
+    snapshot = {**preuves, "photos_apres": list(preuves["photos_apres"])}
+    valide, _ = valider_preuves_completion(snapshot, signature_requise)
+    if not valide:
+        return refuser()
+    archive = dict(version_schema=1, signature_requise=signature_requise, preuves=snapshot)
+    if len(encodage.encoder_canonique(archive).encode("utf-8")) > MAX_OCTETS_ARCHIVE:
+        return refuser()
+    return archive, None
+
+
+def archive_valide(archive: Any) -> bool:
+    """Un bloc présent est obligatoire et fermé; l'absence historique est traitée par l'outbox."""
+    if (type(archive) is not dict or any(type(k) is not str for k in archive)
+            or set(archive) != {"version_schema", "signature_requise", "preuves"}
+            or type(archive["version_schema"]) is not int or archive["version_schema"] != 1):
+        return False
+    _, verdict = preparer_archive(archive["preuves"], archive["signature_requise"])
+    return verdict is None

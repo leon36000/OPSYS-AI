@@ -44,3 +44,6 @@ Préflight M10 privé frais, sources versionnées épinglées; cette base vide d
 
 ## Gates Nathan et prochaines étapes
 Aucune approbation supplémentaire pour ces lectures fictives et réversibles. Les politiques et actions sur données réelles restent hors de cette QA. Réconcilier la CI de la tête publiée avant publication normale de la tranche. Ensuite : persistance atomique propriétaire M4 des preuves futures, dépôt/rattachement photos/PDF par projet, versions/retrait/rétention, puis consultation depuis le dossier complet et mobile dans la dernière phase.
+
+## Correctif propriétaire préparé après cette tranche CRM
+M4 conserve désormais localement les preuves des **futures** complétions dans le maillon privé, hors WCT diffusé : [contrat et qualification](../field/M4-PREUVES-COMPLETION-DURABLES.md), 392 tests ciblés/régressions sans addition à la population CRM ci-dessus. La galerie de cette tranche lit encore seulement `WCT.photos`; le raccordement explicite des nouvelles `photos_apres` est l’étape suivante. Les anciennes preuves absentes ne sont pas reconstituées.

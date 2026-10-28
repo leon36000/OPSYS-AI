@@ -891,6 +891,12 @@ def outils(
         ok, verdict = preuves.valider_preuves_completion(preuves_completion, signature_requise)
         if not ok:
             return {"accepte": False, "verdict": verdict}
+        # Geler et borner AVANT la lecture CAS : seule cette copie sera vérifiée puis archivée.
+        archive, verdict_archive = preuves.preparer_archive(preuves_completion, signature_requise)
+        if verdict_archive is not None:
+            return {"accepte": False, "verdict": verdict_archive}
+        preuves_completion = archive["preuves"]
+        signature_requise = archive["signature_requise"]
         # T1.4-e2 : chaque référence de preuve (photos_apres, et signature si requise) doit
         # désigner un fichier RÉELLEMENT déposé et complet — une chaîne inventée passait avant ce
         # point. Fail-closed, APRÈS la validation structurelle (ordre épinglé comme dans
@@ -927,6 +933,7 @@ def outils(
             intervention_id, horodatage_faisant_foi, reg,
             ecart_detecte=ecarts.ecart_metier_ouvert(reg, intervention_id),
             verification_en_attente=True,
+            preuves_completion=preuves_completion, signature_requise=signature_requise,
             photos=photos, description_factuelle=description_factuelle,
             consentement_marketing=consentement_marketing, client_satisfait=client_satisfait,
             consentement_demande_avis=consentement_demande_avis, **preuve_consentement,

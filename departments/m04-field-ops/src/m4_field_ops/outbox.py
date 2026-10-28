@@ -23,7 +23,7 @@ import copy
 from datetime import datetime
 from pathlib import Path
 
-from . import encodage, etats, horodatage, pointage, verdicts
+from . import encodage, etats, horodatage, pointage, preuves, verdicts
 
 # --------------------------------------------------------------------- constantes
 # L'ordre exact des tuples ci-dessous fait partie du contrat Ratifié WorkCompletionTriggerV1.
@@ -357,7 +357,7 @@ def _verdict_consentements_client(
 
 def completer_intervention(
     intervention_id, horodatage_arg, registre_cible, *, ecart_detecte, revue_id=None,
-    verification_en_attente=False,
+    verification_en_attente=False, preuves_completion=NON_FOURNI, signature_requise=NON_FOURNI,
     photos=NON_FOURNI, description_factuelle=NON_FOURNI,
     consentement_marketing=NON_FOURNI, client_satisfait=NON_FOURNI,
     consentement_demande_avis=NON_FOURNI, consentement_recueilli_par=NON_FOURNI,
@@ -412,9 +412,20 @@ def completer_intervention(
             sinon) ; qui a le droit de les fournir, et d'où viennent la personne et l'heure, est
             la décision de ``outils.py``.
 
+    Les deux arguments preuves_completion/signature_requise sont optionnels ensemble :
+    leur snapshot borné est lié au hash du maillon privé, jamais recopié dans le WCT.
+    Les anciens appels sans ces deux arguments gardent leur forme et leurs hashes.
+
     Returns:
         (accusé, None) ou (None, verdict).
     """
+    # Les preuves futures restent privées dans l'unique maillon; l'absence conserve les anciens hashes.
+    archive = NON_FOURNI
+    if preuves_completion is not NON_FOURNI or signature_requise is not NON_FOURNI:
+        archive, refus_archive = preuves.preparer_archive(preuves_completion, signature_requise)
+        if refus_archive is not None:
+            return None, refus_archive
+
     # 1. Horodatage valide
     try:
         horodatage.valider_horodatage(horodatage_arg)
@@ -549,6 +560,9 @@ def completer_intervention(
         "statut_precedent": courant,
         "horodatage": horodatage_arg,
     }
+
+    if archive is not NON_FOURNI:
+        partie_transition["preuves_completion"] = archive
 
     # 9. Empreinte de la partie transition (jamais circulaire car le wct n'y figure pas)
     hash_maillon = encodage.empreinte(partie_transition)
@@ -905,6 +919,11 @@ def verifier_invariants_outbox(registre_cible):
             (statut in STATUTS_COMPLETION and statut_precedent in STATUTS_COMPLETION)
             or decision_revue is not None
         )
+
+        if "preuves_completion" in maillon and (
+            wct is None or confirmation or not preuves.archive_valide(maillon["preuves_completion"])
+        ):
+            return False, "bloc privé de preuves de complétion invalide"
 
         if confirmation:
             if wct is not None:
