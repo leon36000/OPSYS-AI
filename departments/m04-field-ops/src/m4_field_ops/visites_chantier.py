@@ -79,3 +79,77 @@ def calculer_sessions(sessions):
         del v['_route'], v['_depart']
     return {'visites': visites, **{cle: sum(v[cle] for v in visites) for cle in
             ('travail_minutes', 'pause_minutes', 'deplacement_minutes')}}
+
+
+def calculer_faits(registre, intervention_id):
+    """Lit les faits porteurs d'une identité explicite, sans rétro-attribution.
+
+    Toute source ancienne non identifiée bloque le total. Ce lecteur reste privé :
+    les writers et l'authenticité des identités de visite doivent encore être raccordés.
+    """
+    from .registre import Registre, VerificationError
+
+    if type(intervention_id) is not str or not intervention_id.strip():
+        raise ValueError('intervention invalide')
+    if registre.taille() > 10000:
+        raise ValueError('source trop volumineuse')
+    maillons = registre.lire()
+    try:
+        Registre(maillons).assert_chaine()
+    except VerificationError:
+        raise ValueError('chaîne invalide') from None
+    sessions, sources, actives = {}, {}, {}
+    for m in maillons:
+        if m.get('intervention_id') != intervention_id:
+            continue
+        action = (m.get('statut') if m.get('type_entree') == 'transition_statut'
+                  else m.get('action') if m.get('type_entree') == 'pointage' else None)
+        if action not in {'en_route', 'arrivee', 'depart', 'pause_debut', 'pause_fin'}:
+            continue
+        ident = m.get('visite_id')
+        technicien = m.get('technicien_id')
+        if (type(ident) is not str or not ident.strip() or type(technicien) is not str
+                or not technicien.strip()):
+            raise ValueError('pointage sans identité explicite')
+        instant = _instant(m.get('horodatage'))
+        if action == 'en_route':
+            if ident in sessions or actives:
+                raise ValueError('visite dupliquée ou ouverte')
+            sessions[ident] = {'visite_id': ident, 'intervention_id': intervention_id,
+                               'en_route': m['horodatage'], 'pauses': []}
+            sources[ident] = []
+            actives[ident] = {'phase': 'route', 'technicien': technicien, 'dernier': instant, 'pause': None}
+        elif ident not in actives:
+            raise ValueError('pointage sans visite ouverte')
+        etat = actives[ident]
+        if technicien != etat['technicien'] or instant < etat['dernier']:
+            raise ValueError('équipe ou chronologie incohérente')
+        phase = etat['phase']
+        if action == 'arrivee':
+            if phase != 'route':
+                raise ValueError('arrivée incohérente')
+            sessions[ident]['arrivee'] = m['horodatage']
+            etat['phase'] = 'presence'
+        elif action == 'pause_debut':
+            if phase != 'presence' or etat['pause'] is not None:
+                raise ValueError('pause incohérente')
+            etat['pause'] = m['horodatage']
+        elif action == 'pause_fin':
+            if phase != 'presence' or etat['pause'] is None:
+                raise ValueError('pause incohérente')
+            sessions[ident]['pauses'].append((etat['pause'], m['horodatage']))
+            etat['pause'] = None
+        elif action == 'depart':
+            if phase != 'presence' or etat['pause'] is not None:
+                raise ValueError('départ incohérent')
+            sessions[ident]['depart'] = m['horodatage']
+        sources[ident].append(m['ligne_id'])
+        etat['dernier'] = instant
+        if action == 'depart':
+            del actives[ident]
+    if actives:
+        raise ValueError('visite incomplète')
+    resultat = calculer_sessions(list(sessions.values()))
+    for visite in resultat['visites']:
+        visite['sources'] = sources[visite['visite_id']][:]
+    return resultat
