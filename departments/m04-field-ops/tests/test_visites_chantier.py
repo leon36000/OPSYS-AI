@@ -120,6 +120,24 @@ def test_projections_utilisent_les_faits_explicitement_identifies():
     assert len(resultat['visites'][1]['sources']) == 3
 
 
+def test_deux_sessions_meme_equipe_meme_jour_restent_distinctes():
+    from m4_field_ops.registre import Registre
+
+    faits = registre_sessions().lire()
+    heures = {'en_route': '2026-11-02T13:00:00-05:00',
+              'arrivee': '2026-11-02T13:15:00-05:00', 'depart': '2026-11-02T14:00:00-05:00'}
+    autre = Registre()
+    for fait in faits:
+        fait = {k: v for k, v in fait.items() if k not in {'ligne_id', 'precedent_ligne_id'}}
+        if fait['visite_id'] == 'v2':
+            fait['horodatage'] = heures[fait.get('action', fait.get('statut'))]
+        autre.ajouter(fait)
+    resultat = visites.calculer_faits(autre, 'chantier-fictif')
+    assert [v['visite_id'] for v in resultat['visites']] == ['v1', 'v2']
+    assert [v['travail_minutes'] for v in resultat['visites']] == [150, 45]
+    assert resultat['travail_minutes'] == 195
+
+
 def test_refuse_fait_historique_non_identifie_sans_rattachement_invente():
     reg = registre_sessions()
     reg.ajouter({'type_entree': 'pointage', 'intervention_id': 'chantier-fictif',
