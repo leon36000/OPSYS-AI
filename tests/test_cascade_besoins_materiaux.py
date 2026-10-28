@@ -88,13 +88,20 @@ def _drainer(deps, *, max_tours: int = 15, pas_s: int = 90) -> dict:
 
 def _estimer(deps, *, quantite=40, lead_id="lead-fictif-t2-3-e", bareme=None):
     """M3 estime par l'outil RÉEL, après préparation réelle du lead au registre M2 canonique."""
+    contrat_estimation = {
+        "lead_id": lead_id,
+        "conversation_id": f"conv-{lead_id}",
+        "type_travaux": "renovation_totale",
+        "ville": "Repentigny",
+        "canal": "telephone",
+        "contact": {"nom": "Client Fictif", "telephone": "418-555-0100"},
+        "urgence_declaree": False,
+    }
     reponse = executer_atomique(_outils(deps, "m03-estimation")["m3_estimer_projet"], {
-        "contrat": {
-            "lead_id": lead_id, "conversation_id": f"conv-{lead_id}", "type_travaux": "renovation_totale",
-            "ville": "Repentigny", "canal": "telephone",
-            "contact": {"nom": "Client Fictif", "telephone": "418-555-0100"}, "urgence_declaree": False,
-        },
-        "marqueur": marqueur_m2(lead_id, type_travaux="renovation_totale", ville="Repentigny"),
+        "contrat": contrat_estimation,
+        "marqueur": marqueur_m2(
+            lead_id, type_travaux="renovation_totale", ville="Repentigny", contrat=contrat_estimation,
+        ),
         "photos": [{
             "photo_id": "p1", "resolution_largeur": 3000, "resolution_hauteur": 2000, "eclairage": 7,
             "angle": "face", "reference_echelle": {"type": "porte", "dimensions_connues": True},

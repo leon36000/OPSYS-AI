@@ -242,6 +242,8 @@ _CHEMIN_TAUX_FISCAUX = Path(__file__).resolve().parents[2] / "contracts" / "taux
 # PLAN T4.16 : le calendrier fiscal versionné (années déclarées, sources citées), lu à chaque appel.
 _CHEMIN_CALENDRIER_FISCAL = Path(__file__).resolve().parents[2] / "contracts" / "calendrier_fiscal.v1.yaml"
 _CHEMIN_SOURCES_REGLES_PAIE = Path(__file__).resolve().parents[2] / "contracts" / "sources_regles_paie.v1.yaml"
+_CHEMIN_ADMISSION_PAIE = Path(__file__).resolve().parents[2] / "contracts" / "admission_paie_preparatoire.v1.json"
+_RACINE_CAPTURES_ADMISSION_PAIE = _CHEMIN_ADMISSION_PAIE.parent / "captures-paie"
 
 _DEPARTEMENT = "m05-financecore"
 _NOM_REGISTRE_MOUVEMENTS = "principal"
@@ -811,8 +813,19 @@ def _taux_horaire_configure() -> Any:
     illisible ou sans ce champ rend `None` : `cout_reel.valider_taux_horaire` en fait le verdict « taux
     horaire à configurer », jamais un taux par défaut. La valeur brute est rendue (validée plus loin)."""
     try:
-        donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
+        raw = _MANIFESTE.read_bytes()
+    except OSError:
+        return None
+    return _taux_horaire_depuis_octets(raw)
+
+
+def _taux_horaire_depuis_octets(raw: bytes | None) -> Any:
+    """Même extraction M5 sur les octets effectivement capturés; aucune seconde lecture de fichier."""
+    if raw is None:
+        return None
+    try:
+        donnees = yaml.safe_load(raw.decode('utf-8'))
+    except yaml.YAMLError:
         return None
     configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
     return configuration.get("taux_horaire_main_d_oeuvre") if isinstance(configuration, dict) else None
@@ -828,20 +841,32 @@ def _sources_cout_reel() -> dict[str, Any]:
     """Lit UNE fois chaque source du coût réel (PLAN T1.5-d) : les registres reçus (devis, WCT, variance), la
     facture ACTIVE de chaque devis, le livre de prix de M6, le taux horaire configuré et le dernier état tracé de
     chaque devis. Lire une fois (et non à chaque devis) garde une liste de chantiers linéaire, pas quadratique."""
+    return _sources_cout_reel_depuis(dict(
+        rentabilite=list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE)),
+        devis=list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS)),
+        wct=list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)),
+        variance=list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_VARIANCE_RECUE)),
+        factures=_registre_factures(None), livre=_livre_de_prix_m6(), taux=_taux_horaire_configure()))
+
+
+def _sources_cout_reel_depuis(captures: dict[str, Any]) -> dict[str, Any]:
+    """Assemblage privé des mêmes entrées M5 depuis copies; aucune formule ni écriture nouvelle."""
+    try:
+        valide, _ = captures['factures'].valider_chaine()
+    except (ValueError, KeyError, TypeError, AttributeError):
+        valide = False
+    if valide is not True:
+        raise ValueError('REJ-FACTURE-CHAINE-INVALIDE')
     traces: dict[str, dict[str, Any]] = {}
     nombre_de_traces: dict[str, int] = {}
-    for maillon in stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE):
-        traces[maillon.get("devis_id")] = maillon  # le dernier écrit fait foi
+    for maillon in captures['rentabilite']:
+        traces[maillon.get("devis_id")] = maillon
         nombre_de_traces[maillon.get("devis_id")] = nombre_de_traces.get(maillon.get("devis_id"), 0) + 1
     return {
-        "devis": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS)),
-        "wct": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)),
-        "variance": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_VARIANCE_RECUE)),
-        "factures": facturation.factures_actives_par_devis(_registre_factures(None)),
-        "livre": _livre_de_prix_m6(),
-        "taux": _taux_horaire_configure(),
-        "traces": traces,
-        "nombre_de_traces": nombre_de_traces,
+        "devis": captures['devis'], "wct": captures['wct'], "variance": captures['variance'],
+        "factures": facturation.factures_actives_par_devis(captures['factures']),
+        "livre": captures['livre'], "taux": captures['taux'],
+        "traces": traces, "nombre_de_traces": nombre_de_traces,
     }
 
 
@@ -3607,6 +3632,36 @@ def lire_sources_regles_paie(
     return {"accepte": True, "resultat": resultat}
 
 
+def _admission_paie_serveur(*, contexte_paie: dict[str, Any]) -> dict[str, Any]:
+    from .admission_paie_preparatoire import verifier_admission_serveur_preparatoire
+
+    return verifier_admission_serveur_preparatoire(
+        chemin_configuration=_CHEMIN_ADMISSION_PAIE,
+        racine_captures=_RACINE_CAPTURES_ADMISSION_PAIE,
+        contexte=contexte_paie,
+    )
+
+
+def verifier_admission_paie_preparatoire(
+    annee: int, date_paie: str, juridiction: str, frequence: str, periode_annuelle: int, pm: int,
+) -> dict[str, Any]:
+    """Diagnostic documentaire, propriétaire console vivant ; aucun calcul monétaire."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    cnx = stockage.connexion_courante()
+    personne = identite.personne_active(cnx, acteur.personne) if cnx is not None and acteur is not None else None
+    if (personne is None or acteur.source != "console" or acteur.role != "nathan_owner"
+            or "nathan_owner" not in personne.roles):
+        return _refus(validation.construire_verdict(
+            "REJ-PAIE-ACCES-REFUSE", detail="diagnostic réservé au propriétaire confirmé via console",
+        ))
+    return {"accepte": True, "resultat": _admission_paie_serveur(contexte_paie={
+        "annee": annee, "date_paie": date_paie, "juridiction": juridiction, "frequence": frequence,
+        "periode_annuelle": periode_annuelle, "pm": pm,
+    })}
+
+
 _CHAMPS_MONTANTS_FISCAUX_INCONNUS = (
     "impot_federal",
     "impot_quebec",
@@ -5072,6 +5127,32 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
             fonction=lire_sources_regles_paie,
             autonomie=Autonomie.T0,
             # Phase propriétaire-console seulement; aucun accès appareil ou grant d'agent n'est ajouté.
+            roles_appareil=frozenset(),
+        ),
+        Outil(
+            nom="m5_verifier_admission_paie_preparatoire",
+            description=(
+                "Vérifie pour le propriétaire console vivant les prérequis documentaires préparatoires : "
+                "configuration serveur épinglée, fichiers Source stables, snapshot courant, contexte et PDF. "
+                "Aucun chemin ou hash de requête n'accorde de droit. Aucun calcul monétaire, qualification "
+                "fiscale, net, DAS ou mouvement financier ; les captures absentes refusent l'admission. "
+                "Ne certifie pas l'intégrité inviolable du processus ou un déploiement immuable."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "annee": {"type": "integer", "enum": [2026]},
+                    "date_paie": {"type": "string", "format": "date"},
+                    "juridiction": {"type": "string", "enum": ["QC"]},
+                    "frequence": {"type": "string", "enum": ["bihebdomadaire"]},
+                    "periode_annuelle": {"type": "integer", "minimum": 1, "maximum": 26},
+                    "pm": {"type": "integer", "enum": [12]},
+                },
+                "required": ["annee", "date_paie", "juridiction", "frequence", "periode_annuelle", "pm"],
+                "additionalProperties": False,
+            },
+            fonction=verifier_admission_paie_preparatoire,
+            autonomie=Autonomie.T0,
             roles_appareil=frozenset(),
         ),
         Outil(

@@ -5,6 +5,8 @@ Aucun remplacement du vérificateur ni événement ajouté au bus par la fixture
 Les permissions des outils M2 sont qualifiées séparément par leurs tests natifs.
 """
 
+import copy
+
 from m2_revenue_crm import ingestion, interactions, readiness, statuts
 from m2_revenue_crm.registre import Registre
 
@@ -14,18 +16,20 @@ FICTIF = True
 HORODATAGE = "2026-09-28T10:00:00-04:00"
 
 
-def marqueur_m2(lead_id, *, type_travaux="ravalement", ville="Quebec"):
+def marqueur_m2(lead_id, *, contrat=None, type_travaux="ravalement", ville="Quebec"):
     """Émet un marqueur courant ; ne réécrit pas un lead déjà prêt."""
     with stockage.transaction():
         registre = Registre(stockage.maillons("m02-revenue-crm", "principal"))
         statut = statuts.statut_courant(registre, lead_id)
         if statut is None:
-            _, refus = ingestion.ingerer({
+            contrat_canonique = copy.deepcopy(contrat) if contrat is not None else {
                 "lead_id": lead_id, "conversation_id": f"conv-fictive-{lead_id}",
                 "type_travaux": type_travaux, "ville": ville, "canal": "formulaire",
                 "contact": {"nom": "Client FICTIF", "telephone": "5145550101"},
                 "urgence_declaree": False,
-            }, registre, HORODATAGE)
+            }
+            assert contrat_canonique["lead_id"] == lead_id
+            _, refus = ingestion.ingerer(contrat_canonique, registre, HORODATAGE)
             assert refus is None, refus
             statut = "nouveau"
         if statut == "nouveau":

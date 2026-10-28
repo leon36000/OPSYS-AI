@@ -14,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     MetaData,
     String,
     Table,
@@ -241,8 +242,9 @@ JOURNAL = Table(
 # cryptographique (crypto-shredding) pour une donnée personnelle qu'un registre append-only ne
 # peut ni modifier ni supprimer une fois écrite (REGISTRES ci-dessus, INSERT seul). Un maillon
 # chiffré avec la clé (portee, identifiant) reste dans la chaîne pour toujours, intact ; DÉTRUIRE
-# la ligne ici (vrai DELETE, contrairement à REGISTRES) rend ce maillon irrécupérable sans jamais
-# toucher au registre ni à son empreinte. `portee` namespace l'usage (ex. "m04-field-ops/gps") ;
+# la ligne ici retire la clé de l'API sans toucher au registre ni à son empreinte. Le nettoyage
+# des fichiers courants est suivi séparément dans EFFACEMENTS_CLES.
+# `portee` namespace l'usage (ex. "m04-field-ops/gps") ;
 # `identifiant` est la clé métier dans cette portée (ex. un technicien_id) — une seule clé par
 # (portee, identifiant), jamais de rotation en v1 (voir `opsys.cles_chiffrement`).
 CLES_CHIFFREMENT = Table(
@@ -252,6 +254,20 @@ CLES_CHIFFREMENT = Table(
     Column("identifiant", String(128), primary_key=True),
     Column("cle", Text, nullable=False),
     Column("cree_le", Text, nullable=False),
+)
+
+# État distinct du DELETE logique ; aucune clé ni empreinte de clé dans cette file.
+EFFACEMENTS_CLES = Table(
+    "effacements_cles", META,
+    Column("purge_id", String(32), primary_key=True),
+    Column("portee", String(128), nullable=False),
+    Column("identifiant", String(128), nullable=False),
+    Column("demande_id", Text, nullable=True),
+    Column("cree_le", Text, nullable=False),
+    Column("cle_detruite", Boolean, nullable=False),
+    Column("etat_fichiers", String(24), nullable=False),
+    Column("motif", String(40), nullable=True),
+    CheckConstraint("etat_fichiers IN ('en_attente','termine','non_qualifie')", name="etat_fichiers_valide"),
 )
 
 MODES_DEPARTEMENTS = Table(
@@ -949,4 +965,67 @@ FUSION_PDF_OCR_QUOTA = Table(
     CheckConstraint("id = 1", name="singleton"),
     CheckConstraint("lots BETWEEN 0 AND 16", name="lots_borne"),
     CheckConstraint("octets_cipher BETWEEN 0 AND 4194304", name="octets_bornes"),
+)
+
+# Originaux reçus par projet : chiffrement externe, aucune référence CAS globale.
+PIECES_PROJET = Table(
+    "pieces_projet", META,
+    Column("piece_id", String(32), primary_key=True),
+    Column("lead_id", String(200), nullable=False),
+    Column("client_id", String(200), nullable=False),
+    Column("auteur", String(200), nullable=False),
+    Column("mutation_id", String(32), nullable=False),
+    Column("empreinte", String(64), nullable=False),
+    Column("source_sha256", String(64), nullable=False),
+    Column("type_mime", String(32), nullable=False),
+    Column("taille_octets", Integer, nullable=False),
+    Column("recu_le", String(40), nullable=False),
+    Column("version_format", Integer, nullable=False),
+    Column("nonce", String(24), nullable=False),
+    Column("chiffre", Text, nullable=False),
+    Column("titre_nonce", String(24), nullable=False),
+    Column("titre_chiffre", Text, nullable=False),
+    UniqueConstraint("auteur", "mutation_id", name="uq_pieces_projet_saisie"),
+    CheckConstraint("version_format = 1", name="pieces_format"),
+    CheckConstraint("taille_octets > 0 AND taille_octets <= 1048576", name="pieces_taille"),
+    CheckConstraint("type_mime IN ('image/jpeg','image/png','application/pdf')", name="pieces_type"),
+)
+Index("ix_pieces_projet_lead", PIECES_PROJET.c.lead_id, PIECES_PROJET.c.recu_le, PIECES_PROJET.c.piece_id)
+
+# Classement administratif compagnon : l’original et son AAD restent immuables.
+PIECES_CLASSEMENTS = Table(
+    "pieces_classements", META,
+    Column("piece_id", String(32), ForeignKey("pieces_projet.piece_id"), primary_key=True),
+    Column("revision", Integer, primary_key=True),
+    Column("lead_id", String(200), nullable=False),
+    Column("categorie", String(24), nullable=False),
+    Column("avant", String(24), nullable=False),
+    Column("motif", String(24), nullable=False),
+    Column("auteur", String(200), nullable=False),
+    Column("mutation_id", String(32), nullable=False),
+    Column("empreinte", String(64), nullable=False),
+    Column("source_sha256", String(64), nullable=False),
+    Column("horodatage", String(40), nullable=False),
+    Column("precedent", String(64), nullable=False),
+    Column("chaine", String(64), nullable=False),
+    UniqueConstraint("auteur", "mutation_id", name="uq_pieces_classements_saisie"),
+    CheckConstraint("revision >= 1 AND revision <= 32", name="classements_revision"),
+)
+
+# Originaux courriel privés non rattachés : aucun fait M1 ou projet implicite.
+RECEPTIONS_COURRIEL = Table(
+    "receptions_courriel", META,
+    Column("identite_id", String(64), primary_key=True),
+    Column("recu_id", String(32), nullable=False, unique=True),
+    Column("source_sha256", String(64), nullable=False),
+    Column("taille_octets", Integer, nullable=False),
+    Column("version_format", Integer, nullable=False),
+    Column("enregistre_le", String(24), nullable=False),
+    Column("cle_reference", String(32), nullable=False),
+    Column("nonce", LargeBinary, nullable=False),
+    Column("chiffre", LargeBinary, nullable=False),
+    CheckConstraint("version_format = 1", name="courriel_version"),
+    CheckConstraint("taille_octets > 0 AND taille_octets <= 1048576", name="courriel_taille"),
+    CheckConstraint("length(nonce) = 12 AND length(chiffre) > 16 AND length(chiffre) <= 1064980",
+                    name="courriel_chiffre"),
 )

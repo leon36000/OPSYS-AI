@@ -27,6 +27,7 @@ from html import escape
 from typing import Any
 
 from . import verdicts
+from .modeles_soumission import valider_modele_fige
 
 __all__ = ["MENTION_BROUILLON", "contenu_client", "generer_brouillon_html"]
 
@@ -69,13 +70,34 @@ def contenu_client(devis: dict[str, Any]) -> tuple[dict[str, Any] | None, dict |
         if verdict is not None:
             return None, verdict
         lignes_client.append(retenue)
-    return {
+    resultat = {
         "devis_id": devis["devis_id"],
         "statut": devis["statut"],
         "horodatage": devis["horodatage"],
         "lignes": lignes_client,
         "prix_total": devis["prix_total"],
-    }, None
+    }
+    if "modele_soumission" in devis:
+        modele = devis["modele_soumission"]
+        if not valider_modele_fige(modele):
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="modèle de soumission figé invalide"
+            )
+        resultat["modele_soumission"] = {cle: modele[cle] for cle in ("titre", "description", "clauses")}
+    return resultat, None
+
+
+def _modele_html(modele: dict[str, str] | None) -> str:
+    if modele is None:
+        return ""
+    return (
+        '<section class="modele-soumission">'
+        f'<h2>{escape(modele["titre"])}</h2>'
+        f'<div style="white-space: pre-wrap">{escape(modele["description"])}</div>'
+        '<h3>Clauses</h3>'
+        f'<div style="white-space: pre-wrap">{escape(modele["clauses"])}</div>'
+        '</section>'
+    )
 
 
 def _ligne_html(ligne: dict[str, Any]) -> str:
@@ -105,6 +127,7 @@ def generer_brouillon_html(devis: dict[str, Any]) -> tuple[str | None, dict | No
         f"<p><strong>{escape(MENTION_BROUILLON, quote=False)}</strong></p>"
         f"<h1>Soumission — {devis_id}</h1>"
         f"<p>Statut : {escape(str(contenu['statut']))} — daté du {escape(str(contenu['horodatage']))}</p>"
+        + _modele_html(contenu.get("modele_soumission")) +
         '<table border="1" cellspacing="0" cellpadding="4">'
         "<thead><tr><th>Description</th><th>Quantité</th><th>Prix unitaire</th><th>Prix</th></tr></thead>"
         "<tbody>" + "".join(_ligne_html(ligne) for ligne in contenu["lignes"]) + "</tbody>"

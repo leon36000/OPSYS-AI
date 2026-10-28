@@ -210,13 +210,17 @@ class Moteur:
 
     # -- cycle de vie ----------------------------------------------------------------------------
     def demarrer(self) -> None:
+        from agents_base_qa import provisionner_base_qa
+
+        provisionner_base_qa(etat.session, self.departements)
         self.port = _port_libre()
         app = application_http_departements(
             self.departements, etat.session, JETON_MCP, hote="127.0.0.1", jeton_contexte=self.jeton_contexte
         )
         self._serveur, self._fil = _serveur_http(app, self.port)
         openclaw.generer(self.departements, self.config_dir, PALIERS, url_mcp=f"http://127.0.0.1:{self.port}/mcp",
-                         origine_http_mcp_autorisee=f"http://127.0.0.1:{self.port}", environ=ENVIRON_EMBEDDINGS)
+                         origine_http_mcp_autorisee=f"http://127.0.0.1:{self.port}", environ=ENVIRON_EMBEDDINGS,
+                         cnx_factory=etat.session)
 
     def arreter(self) -> None:
         if self._serveur is not None:

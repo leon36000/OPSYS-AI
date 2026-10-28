@@ -199,8 +199,12 @@ def previsualiser(maillons: list[dict], technicien_id: str, debut: str, fin: str
     validations = [m for m in maillons if m.get("type_entree") == "heures_regulieres_validees"
                    and m.get("technicien_id") == technicien_id
                    and m.get("periode") == {"debut": debut, "fin": fin, "fuseau": fuseau}]
+    if any(type(m.get("revision")) is not int or m["revision"] < 1
+           or not isinstance(m.get("ligne_id"), str) or not re.fullmatch(r"[0-9a-f]{64}", m["ligne_id"])
+           for m in validations):
+        return _refus("REJ-VALIDATION-INCOHERENTE", "métadonnées de validation précédente invalides")
     precedente = None if not validations else {
-        "revision": validations[-1].get("revision"), "ligne_id": validations[-1].get("ligne_id")}
+        "revision": validations[-1]["revision"], "ligne_id": validations[-1]["ligne_id"]}
     return {"accepte": True, "resultat": {
         "technicien_id": technicien_id, "periode": {"debut": debut, "fin": fin, "fuseau": fuseau},
         "categories_minutes": {"travail": travail, "deplacement": deplacement, "pause": pause},

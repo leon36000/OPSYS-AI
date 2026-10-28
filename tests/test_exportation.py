@@ -254,6 +254,44 @@ def test_un_export_n_ecrase_jamais_un_fichier(opsys_home, tmp_path):
     assert sortie.read_bytes() == octets
 
 
+def test_un_lien_empreinte_pendant_est_refuse_sans_creer_sa_cible(opsys_home, tmp_path):
+    _peupler(opsys_home)
+    sortie = tmp_path / "export.tar.gz"
+    empreinte = tmp_path / "export.tar.gz.sha256"
+    cible = tmp_path / "cible-fictive-absente"
+    empreinte.symlink_to(cible)
+    # Windows peut rendre la cible avec son préfixe natif \\?\ : conserver cette représentation.
+    cible_initiale = empreinte.readlink()
+
+    with pytest.raises(exportation.ErreurExportation, match="existe déjà"):
+        exportation.exporter(opsys_home, sortie, par="test-fictif")
+
+    assert empreinte.is_symlink() and empreinte.readlink() == cible_initiale
+    assert not cible.exists()
+    assert not sortie.exists()
+
+
+def test_une_empreinte_apparue_apres_le_controle_est_preservee(opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    sortie = tmp_path / "export.tar.gz"
+    empreinte = tmp_path / "export.tar.gz.sha256"
+    contenu = b"empreinte concurrente fictive a conserver\n"
+    instantane = exportation._instantane_sqlite
+
+    def instantane_avec_arrivee_concurrente(base, cible):
+        revision = instantane(base, cible)
+        empreinte.write_bytes(contenu)
+        return revision
+
+    monkeypatch.setattr(exportation, "_instantane_sqlite", instantane_avec_arrivee_concurrente)
+    with pytest.raises(exportation.ErreurExportation, match="existe déjà"):
+        exportation.exporter(opsys_home, sortie, par="test-fictif")
+
+    assert empreinte.read_bytes() == contenu
+    assert not sortie.exists()
+    assert not [p for p in tmp_path.iterdir() if p.name.startswith(".opsys-export-")]
+
+
 def test_sans_base_ou_avec_une_base_non_migree_l_export_est_refuse(opsys_home, tmp_path):
     with pytest.raises(exportation.ErreurExportation, match="aucune base"):
         exportation.exporter(opsys_home, tmp_path / "a.tar.gz", par="test")

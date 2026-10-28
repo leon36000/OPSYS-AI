@@ -1,5 +1,17 @@
 # INGREDIENTS — Catalogue des briques open source retenues pour OPSYS-AI
 
+## Bêta-tests par agents — 22 octobre 2026
+
+Réutilisation initiale de **Playwright 1.63.0**, déjà installé/verrouillé dans le Core
+(Apache-2.0), pour les parcours de la console serveur. Les
+[agents officiels planner/generator](https://playwright.dev/docs/test-agents) ciblent Claude Code
+et Codex. Les corrections automatiques de tests ne doivent pas masquer un défaut métier.
+Licences, autres candidates (Schemathesis, Inspect AI, browser-use), recherche GitLab,
+limites et décision d'intégration sont décrites dans le
+[programme de bêta-tests](../programme/BETA-TESTS-SERVEUR-2026-10-22.md).
+Ces autres candidates ne sont ni installées ni déclarées qualifiées par leur seule présence
+dans cette recherche. Aucun paquet ou lockfile produit n'est modifié pour cette sélection.
+
 ## Correctifs ciblés de sécurité du 21 octobre 2026
 
 Les dépendances existantes sont corrigées sans renouvellement global. Le contrôle de production
@@ -662,3 +674,25 @@ Le descripteur `action.yml` vérifié porte le blob
 `actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02`.
 Les manifestes sont des données JSON validées, conservées par tentative ; cette adoption
 concerne le transport de preuves CI et laisse les dépendances applicatives inchangées.
+
+
+### CRM-14 — préparation d’import de prix fournisseurs (27 octobre 2026)
+
+Décision ciblée : réutiliser Decimal et les validateurs/projections/confirmations M6 existants
+pour des lignes explicitement mappées; aucune nouvelle dépendance adoptée. Python `csv`
+([documentation primaire](https://docs.python.org/3/library/csv.html)) reste candidat à un
+adaptateur ultérieur borné, délimiteur/encodage/colonnes explicites, sans QUOTE_NONNUMERIC.
+[Frictionless Python](https://github.com/frictionlessdata/frictionless-py),
+[licence MIT examinée](https://github.com/frictionlessdata/frictionless-py/blob/main/LICENSE.md),
+peut fournir extraction/validation CSV/Excel mais requiert maîtrise de l’inférence, quotas,
+formats et traduction métier; coût disproportionné pour des lignes déjà mappées, non adopté.
+Recherche GitLab primaire également effectuée, échantillon borné sans candidate suffisamment
+qualifiée; aucune licence GitLab déclarée vérifiée. Aucun gain de temps chiffré ou format
+fournisseur réel revendiqué. CSV/XLSX ne qualifient pas extraction PDF ni provenance courriel.
+
+
+CRM-14 — confirmation du lot : composition des writers M6 natifs, des réclamations
+idempotentes et de `stockage.transaction()` incluant rappels aprèsvalidation. Aucune
+nouvelle dépendance, modèle ou orchestrateur introduit. Le reçu de lot ne remplace ni
+les réceptions, ni l’audit, ni les références M10 de chaque writer. Les types JSON font
+partie de la preuve; une égalité Python bool/int ne suffit pas pour valider un reçu.

@@ -17,14 +17,18 @@ n'est nécessaire pour CALCULER l'identifiant : deux ingestions du même contact
 de se souvenir de quoi que ce soit — la seule chose que le registre sert à répondre, c'est « quelles
 opportunités porte ce client ».
 
-Loi 25 — minimisation : ce module ne COPIE ni n'INVENTE aucun renseignement personnel. La vue 360
+Historique initial (avant correction CRM-04) : ce module ne COPIE ni n'INVENTE aucun renseignement personnel. La vue 360
 (``vue_360``) est une PROJECTION en lecture du contrat déjà ingéré (contact, ville) : rien de plus
 n'est stocké pour la construire, et l'identifiant client lui-même n'est qu'une empreinte SHA256 du
-contact (irréversible), jamais le contact en clair.
+contact, jamais le contact en clair dans cet identifiant. Une empreinte n’anonymise pas le contact.
+CRM-04 ajoute des corrections explicites avant/après, motif et auteur dans le registre protégé.
+Les liens existants restent stables ; un nouveau lead correspondant exactement à une coordonnée
+corrigée connue rejoint cette même identité. Les contrats et documents historiques restent gelés.
 """
 
 from __future__ import annotations
 
+import copy
 from datetime import UTC, datetime
 
 from . import encodage, verdicts
@@ -86,6 +90,75 @@ def opportunites_du_client(registre_cible, client_id: str) -> list[str]:
     return vus
 
 
+def corrections_courantes(maillons: list[dict]) -> dict[str, dict]:
+    """Dernière révision de contact par identité stable, sans toucher aux contrats ingérés."""
+    return {m["client_id"]: copy.deepcopy(m) for m in maillons
+            if m.get("type_entree") == "contact_client_corrige"}
+
+
+def historique_contact(registre_cible, client_id, limite=20, decalage=0, revision_max=None):
+    """Projection paginée pure, ordre des révisions ; plafond conservé pendant la navigation."""
+    if (type(limite) is not int or not 1 <= limite <= 50
+            or type(decalage) is not int or not 0 <= decalage <= 1_000_000
+            or (revision_max is not None and
+                (type(revision_max) is not int or not 0 <= revision_max <= 1_000_001))):
+        return None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail="pagination invalide")
+    maillons = registre_cible.lire()
+    if not any(m.get("type_entree") == TYPE_ENTREE and m.get("client_id") == client_id for m in maillons):
+        return None, verdicts.construire_verdict("REJ-LEAD-INCONNU", detail="client introuvable")
+    corrections = [m for m in maillons if m.get("type_entree") == "contact_client_corrige"
+                   and m.get("client_id") == client_id]
+    courante = max((m["revision"] for m in corrections), default=0)
+    plafond = courante if revision_max is None else revision_max
+    if plafond > courante:
+        return None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail="révision inconnue")
+    corrections = sorted((m for m in corrections if m["revision"] <= plafond), key=lambda m: m["revision"])
+    # Liste explicite : aucune métadonnée étrangère ni autre maillon du registre dans la réponse.
+    champs = ("revision", "avant", "contact", "motif", "auteur", "horodatage")
+    tranche = [{k: copy.deepcopy(m[k]) for k in champs} for m in corrections[decalage:decalage + limite]]
+    suivant = decalage + limite if decalage + limite < len(corrections) else None
+    return {"client_id": client_id, "corrections": tranche, "total": len(corrections),
+            "limite": limite, "decalage": decalage, "revision_max": plafond, "suivant": suivant}, None
+
+
+def corriger_contact(registre_cible, client_id, contact, revision_attendue, motif, auteur, horodatage):
+    """Correction humaine versionnée ; l'adaptateur garantit autorité et transaction sérialisée."""
+    def refus(code, detail):
+        return None, verdicts.construire_verdict(code, detail=detail)
+
+    if (not isinstance(contact, dict) or not contact or set(contact) - {"nom", "courriel", "telephone"}
+            or any(not isinstance(v, str) or not v.strip() or len(v) > 254 for v in contact.values())
+            or type(revision_attendue) is not int or not 0 <= revision_attendue <= 1_000_000
+            or not isinstance(motif, str) or not motif.strip() or len(motif) > 300
+            or not isinstance(auteur, str) or not auteur.strip()):
+        return refus("REJ-CONTRAT-INVALIDE", "contact, révision, motif ou auteur invalide")
+    try:
+        instant = _horodatage.valider_horodatage(horodatage)
+    except ValueError:
+        return refus("REJ-HORODATAGE-INVALIDE", "horodatage invalide")
+    vue = vue_360(registre_cible, client_id)
+    if vue is None:
+        return refus("REJ-LEAD-INCONNU", "client introuvable")
+    revision = vue.get("revision_contact", 0)
+    if revision_attendue != revision:
+        return refus("REJ-CONTACT-CONFLIT", "coordonnées modifiées ; relire avant correction")
+    if contact == vue["contact"]:
+        return refus("REJ-CONTACT-CONFLIT", "coordonnées inchangées")
+    maillons = registre_cible.lire()
+    liens = {m["lead_id"]: m["client_id"] for m in maillons if m.get("type_entree") == TYPE_ENTREE}
+    # Réserve aussi les anciennes coordonnées : aucune correction ne réattribue une autre personne.
+    for m in maillons:
+        autre = liens.get(m.get("lead_id")) if m.get("type_entree") == "lead_ingere" else m.get("client_id")
+        historique = m.get("contrat", {}).get("contact") if m.get("type_entree") == "lead_ingere" else m.get("contact")
+        if autre and autre != client_id and historique == contact:
+            return refus("REJ-CONTACT-CONFLIT", "coordonnées déjà rattachées ; arbitrage distinct requis")
+    entree = {"type_entree": "contact_client_corrige", "client_id": client_id, "revision": revision + 1,
+              "avant": vue["contact"], "contact": copy.deepcopy(contact), "motif": motif,
+              "auteur": auteur, "horodatage": instant}
+    ligne = registre_cible.ajouter(entree)
+    return {"client_id": client_id, "revision": revision + 1, "ligne_id": ligne}, None
+
+
 def _dernier_contrat(registre_cible, lead_id: str) -> dict | None:
     """Contrat gelé du lead (copié tel quel dans son maillon ``lead_ingere``), ou None."""
     trouve = None
@@ -130,6 +203,12 @@ def lier_lead(registre_cible, lead_id: str, contrat: dict, horodatage: str) -> t
         return {"lead_id": lead_id, "client_id": existant, "deja_associe": True}, None
 
     client_id = identifiant_client(contrat)
+    aliases = {m["client_id"] for m in registre_cible.lire()
+               if m.get("type_entree") == "contact_client_corrige" and m.get("contact") == contrat.get("contact")}
+    if len(aliases) > 1:
+        return None, verdicts.construire_verdict("REJ-CONTACT-CONFLIT", detail="identité ambiguë")
+    if aliases:
+        client_id = next(iter(aliases))
     client_id_par_contact = _client_id_pour_contact_existant(registre_cible, contrat)
     if client_id_par_contact is not None and client_id_par_contact != client_id:
         raise RuntimeError(
@@ -189,9 +268,9 @@ _MAX_INTERACTIONS_RECENTES = 10
 
 def vue_360(registre_cible, client_id: str, leads_permis: set[str] | None = None) -> dict | None:
     """Vue 360 compacte (§7 M2, M2.2) : leads/opportunités, statuts, prochaines actions connues,
-    interactions récentes. PROJECTION pure du registre existant — aucune nouvelle donnée
-    personnelle stockée (Loi 25, minimisation) : contact/ville proviennent du contrat déjà ingéré,
-    jamais dupliqués ni enrichis ici. None si ``client_id`` ne correspond à aucun lead connu.
+    interactions récentes. Projection du contact courant corrigé si présent, sinon du contact ingéré ;
+    ville et opportunités proviennent des contrats gelés. Aucun enrichissement inféré.
+    None si ``client_id`` ne correspond à aucun lead connu.
 
     ``leads_permis`` (PLAN T1.4-k2, ``acces.leads_visibles``) : ``None`` = toutes les opportunités du
     client (admin, agent) ; un ensemble = seulement celles-là (un vendeur ne voit d'un client que ses
@@ -235,9 +314,11 @@ def vue_360(registre_cible, client_id: str, leads_permis: set[str] | None = None
 
     interactions_toutes.sort(key=lambda item: _instant_utc(item["horodatage"]))
 
+    correction = corrections_courantes(registre_cible.lire()).get(client_id)
     return {
+        **({"revision_contact": correction["revision"]} if correction else {}),
         "client_id": client_id,
-        "contact": contact,
+        "contact": copy.deepcopy(correction["contact"] if correction else contact),
         "opportunites": opportunites,
         "interactions_recentes": interactions_toutes[-_MAX_INTERACTIONS_RECENTES:],
     }

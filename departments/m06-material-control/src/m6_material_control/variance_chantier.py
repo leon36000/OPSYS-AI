@@ -169,10 +169,9 @@ def comparer_depuis_registre(besoins_estimes, chantier_id, registre, wct_id=None
     reçu de l'appelant. `wct_id=None` agrège tout le réel déclaré du chantier (toutes
     déclarations confondues) ; un `wct_id` cible une seule déclaration.
 
-    Le registre ne porte pas d'unité (contrat gelé de `registre.py`, PLAN T1.1-d) : seule
-    celle du besoin estimé est rapportée, sans vérification croisée possible côté réel —
-    à la différence de `comparer`, ce chemin ne peut jamais renvoyer INDETERMINE pour
-    incohérence d'unité.
+    Les nouvelles déclarations conservent leur unité dans le maillon hash-chaîné.
+    Une unité absente (historique), mixte ou différente du prévu rend la comparaison
+    INDETERMINE : jamais d'unité réelle empruntée au besoin, ni de conversion devinée.
     """
     estimes_par_materiau = {besoin["materiau_id"]: besoin for besoin in besoins_estimes}
 
@@ -191,7 +190,22 @@ def comparer_depuis_registre(besoins_estimes, chantier_id, registre, wct_id=None
         quantite_estimee = besoin["quantite_estimee"] if besoin else 0.0
         unite = besoin["unite"] if besoin else None
         quantite_reelle = _quantite_reelle_depuis_registre(chantier_id, materiau_id, wct_id, registre)
-        verdicts.append(_verdict_neutre(materiau_id, unite, quantite_estimee, quantite_reelle))
+        mouvements = [
+            m for m in registre.lire()
+            if m.get("type_mouvement") in _TYPES_MOUVEMENT_REEL_DECLARE
+            and m.get("chantier_id") == chantier_id and m.get("materiau_id") == materiau_id
+            and (wct_id is None or m.get("wct_id") == wct_id)
+        ]
+        unites = {m.get("unite") for m in mouvements}
+        if mouvements and (
+            len(unites) != 1 or None in unites
+            or any(not isinstance(u, str) or not u.strip() for u in unites)
+            or (unite is not None and unites != {unite})
+        ):
+            verdicts.append(_indetermine(materiau_id, quantite_estimee, quantite_reelle))
+        else:
+            unite_reelle = next(iter(unites)) if unites else None
+            verdicts.append(_verdict_neutre(materiau_id, unite or unite_reelle, quantite_estimee, quantite_reelle))
     return verdicts
 
 

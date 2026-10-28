@@ -99,6 +99,7 @@ __all__ = [
     "charge_evenement_devis_accepte",
     "charge_evenement_devis_envoye",
     "creer_devis",
+    "calculer_lignes_devis",
     "lire_devis",
     "lister_devis",
     "marquer_devis_accepte",
@@ -125,6 +126,8 @@ _CLES_CONTENU_DEVIS = (
     "cout_total",
     "prix_total",
     "estimation_source_hash",
+    "modele_soumission",
+    "provenance_tarifs",
 )
 
 _ROLES_CONNUS = ("interne", "employe")
@@ -306,6 +309,10 @@ def _etats_courants(registre_cible: Any) -> dict[str, dict[str, Any]]:
         devis_id = maillon.get("devis_id")
         if type_entree == "devis_cree":
             etats[devis_id] = dict(maillon)
+            if "modele_soumission" in maillon:
+                etats[devis_id]["modele_soumission"] = copy.deepcopy(maillon["modele_soumission"])
+            if "provenance_tarifs" in maillon:
+                etats[devis_id]["provenance_tarifs"] = copy.deepcopy(maillon["provenance_tarifs"])
         elif type_entree == "transition_devis" and devis_id in etats:
             etats[devis_id] = {**etats[devis_id], **maillon}
     return etats
@@ -315,39 +322,8 @@ def _etat_devis(registre_cible: Any, devis_id: str) -> dict[str, Any] | None:
     return _etats_courants(registre_cible).get(devis_id)
 
 
-def creer_devis(
-    devis_id: str,
-    lead_id: str,
-    chantier_id: str | None,
-    lignes: list[dict[str, Any]],
-    taux_marge: str | None,
-    horodatage: str,
-    registre_cible: Any,
-    prix_total_fourni: str | None = None,
-    estimation_source_hash: str | None = None,
-) -> tuple[dict[str, Any] | None, dict | None]:
-    """Crée un devis BROUILLON sur ``registre_cible`` (le registre DÉDIÉ des devis). Idempotente
-    par ``devis_id`` (cf. docstring du module) : un contenu identique rend l'existant sans écrire,
-    un contenu différent est un rejet nommé."""
-    if not _est_texte_non_vide(devis_id):
-        return None, verdicts.construire_verdict("REJ-DEVIS-DEVIS-ID-VIDE", detail="devis_id requis, non vide")
-    if not _est_texte_non_vide(lead_id):
-        return None, verdicts.construire_verdict("REJ-DEVIS-LEAD-ID-VIDE", detail="lead_id requis, non vide")
-    if chantier_id is not None and not _est_texte_non_vide(chantier_id):
-        return None, verdicts.construire_verdict(
-            "REJ-DEVIS-CHANTIER-ID-INVALIDE", detail="chantier_id doit être une chaîne non vide ou None"
-        )
-    if not _est_texte_non_vide(horodatage):
-        return None, verdicts.construire_verdict("REJ-DEVIS-HORODATAGE-VIDE", detail="horodatage requis, non vide")
-    if estimation_source_hash is not None and (
-        not isinstance(estimation_source_hash, str)
-        or len(estimation_source_hash) != 64
-        or any(caractere not in "0123456789abcdef" for caractere in estimation_source_hash)
-    ):
-        return None, verdicts.construire_verdict(
-            "REJ-CONTRAT-INVALIDE",
-            detail="estimation_source_hash doit être absent ou un SHA-256 hexadécimal minuscule de 64 caractères",
-        )
+def calculer_lignes_devis(lignes, taux_marge, devis_id):
+    """Validation et arrondis communs à l'aperçu et à la création, sans journal ni effet."""
     if not isinstance(lignes, (list, tuple)) or not lignes:
         return None, verdicts.construire_verdict("REJ-DEVIS-LIGNES-VIDES", detail="au moins une ligne est requise")
 
@@ -368,6 +344,58 @@ def creer_devis(
         cout_total += ligne.cout_ligne
         prix_total += ligne.prix_ligne
 
+    return {"lignes": [dataclasses.asdict(ligne) for ligne in lignes_validees],
+            "taux_marge": taux, "cout_total": cout_total, "prix_total": prix_total}, None
+
+
+def creer_devis(
+    devis_id: str,
+    lead_id: str,
+    chantier_id: str | None,
+    lignes: list[dict[str, Any]],
+    taux_marge: str | None,
+    horodatage: str,
+    registre_cible: Any,
+    prix_total_fourni: str | None = None,
+    estimation_source_hash: str | None = None,
+    modele_soumission: dict[str, Any] | None = None,
+    provenance_tarifs: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any] | None, dict | None]:
+    """Crée un devis BROUILLON sur ``registre_cible`` (le registre DÉDIÉ des devis). Idempotente
+    par ``devis_id`` (cf. docstring du module) : un contenu identique rend l'existant sans écrire,
+    un contenu différent est un rejet nommé."""
+    if not _est_texte_non_vide(devis_id):
+        return None, verdicts.construire_verdict("REJ-DEVIS-DEVIS-ID-VIDE", detail="devis_id requis, non vide")
+    if not _est_texte_non_vide(lead_id):
+        return None, verdicts.construire_verdict("REJ-DEVIS-LEAD-ID-VIDE", detail="lead_id requis, non vide")
+    if chantier_id is not None and not _est_texte_non_vide(chantier_id):
+        return None, verdicts.construire_verdict(
+            "REJ-DEVIS-CHANTIER-ID-INVALIDE", detail="chantier_id doit être une chaîne non vide ou None"
+        )
+    if not _est_texte_non_vide(horodatage):
+        return None, verdicts.construire_verdict("REJ-DEVIS-HORODATAGE-VIDE", detail="horodatage requis, non vide")
+    if modele_soumission is not None:
+        from .modeles_soumission import valider_modele_fige
+
+        if not valider_modele_fige(modele_soumission):
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="modèle de soumission figé invalide"
+            )
+    if estimation_source_hash is not None and (
+        not isinstance(estimation_source_hash, str)
+        or len(estimation_source_hash) != 64
+        or any(caractere not in "0123456789abcdef" for caractere in estimation_source_hash)
+    ):
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="estimation_source_hash doit être absent ou un SHA-256 hexadécimal minuscule de 64 caractères",
+        )
+    calcul, verdict = calculer_lignes_devis(lignes, taux_marge, devis_id)
+    if verdict is not None:
+        return None, verdict
+    taux = calcul["taux_marge"]
+    cout_total, prix_total = calcul["cout_total"], calcul["prix_total"]
+
     if prix_total_fourni is not None:
         fourni, verdict = _texte_vers_decimal(prix_total_fourni, "prix_total", "REJ-DEVIS-TOTAL-INCOHERENT")
         if verdict is not None:
@@ -384,13 +412,23 @@ def creer_devis(
         "devis_id": devis_id,
         "lead_id": lead_id,
         "chantier_id": chantier_id,
-        "lignes": [dataclasses.asdict(ligne) for ligne in lignes_validees],
+        "lignes": calcul["lignes"],
         "taux_marge": taux,
         "cout_total": cout_total,
         "prix_total": prix_total,
     }
     if estimation_source_hash is not None:
         candidat["estimation_source_hash"] = estimation_source_hash
+    if modele_soumission is not None:
+        candidat["modele_soumission"] = copy.deepcopy(modele_soumission)
+    if provenance_tarifs is not None:
+        from .provenance_tarifs import valider
+
+        if not valider(provenance_tarifs, candidat["lignes"], modele_soumission, horodatage):
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="provenance de tarifs figée invalide"
+            )
+        candidat["provenance_tarifs"] = copy.deepcopy(provenance_tarifs)
 
     maillons = _lire_maillons(registre_cible)
     existant = _etat_devis(maillons, devis_id)
@@ -526,7 +564,10 @@ def projeter_devis(devis: dict[str, Any] | None, role: str) -> tuple[dict[str, A
     if devis is None:
         return None, verdicts.construire_verdict("REJ-DEVIS-INTROUVABLE", detail="aucun devis à projeter")
     if role == "interne":
-        return dict(devis), None
+        projection = dict(devis)
+        if "provenance_tarifs" in devis:
+            projection["provenance_tarifs"] = copy.deepcopy(devis["provenance_tarifs"])
+        return projection, None
 
     lignes_redigees = [
         {cle: ligne.get(cle) for cle in _CLES_LIGNE_EMPLOYE} for ligne in devis.get("lignes", ())

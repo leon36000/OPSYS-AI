@@ -72,7 +72,7 @@ from urllib.parse import unquote, urlsplit
 from sqlalchemy import Connection, inspect
 
 from . import agents as profils_configurables
-from . import appareils, canaux, modeles, stockage
+from . import agents_base, appareils, canaux, modeles, stockage
 from .departements import PALIERS, Departement, tous_les_outils, verifier_portees
 from .memoire.embeddings import ENV_CLE, ENV_MODELE, ENV_URL, ClientEmbeddings
 from .outils import Autonomie
@@ -376,11 +376,15 @@ def _outils_de_l_agent(dep: Departement, departements: Mapping[str, Departement]
     # Internal origin-bound context servers are for the ContextEngine only. Deny for internal
     # and public agents so model discovery/calls cannot select another agent's identity bearer.
     refus.extend(("opsys_context_*__*", "opsys_runtime_*__*"))
+    portee = f"{serveur_mcp(dep)}__*"
     if not expose:
-        return {"deny": refus}
+        # Le filtre final applique aussi la politique sandbox aux outils MCP. Ajouter
+        # la portée métier aux défauts Core, sans recopier ni remplacer ces défauts.
+        return {"deny": refus, "sandbox": {"tools": {"alsoAllow": [portee]}}}
     return {
-        "allow": [f"{serveur_mcp(dep)}__*"],
+        "allow": [portee],
         "deny": [*refus, *canaux.OUTILS_MESSAGERIE_REFUSES],
+        "sandbox": {"tools": {"allow": [portee]}},
     }
 
 
@@ -712,7 +716,7 @@ def _preparer_projection_sms(
             selection = declencheurs[0]  # La validation canonique exige un seul variant SMS, M1 et son droit natif.
             configuration = canaux.projeter_profil_sms_default(
                 configuration,
-                agent_id=f"opsys-agent-{propre['id']}",
+                agent_id=agents_base.agent_core_id(propre),
                 compte_id=selection["compte_id"],
                 account_sid=selection["account_sid"],
                 environ=environ,
@@ -809,7 +813,8 @@ def generer(
     Validation de transport avant toute écriture, y compris les espaces de travail.
     `mode_fournisseur` sélectionne les fournisseurs natifs par défaut ou LiteLLM en compatibilité explicite.
     `url_passerelle` n'est utilisée que pour `mode_fournisseur="litellm"`.
-    `racine_espaces` est le chemin vu par la passerelle OpenClaw, relatif au dossier de config.
+    La racine par défaut est émise en chemin absolu vers les espaces générés, indépendamment
+    du cwd du Core. Une `racine_espaces` personnalisée reste le chemin vu par la passerelle.
     `environ` (défaut `os.environ`) fournit `OPSYS_EMBEDDINGS_{URL,MODELE,CLE}` pour la mémoire
     Couche A ; validé avant l'écriture des fragments (fail-closed, voir `_configuration_memoire`). Il dit aussi
     quels canaux du public sont actifs (`opsys.canaux` : toutes leurs variables fournies, sinon désactivés).
@@ -845,15 +850,20 @@ def generer(
     configuration_canaux = canaux.configuration(departements, env_canaux, sans_include)
     base = dossier_config / "opsys"
     espaces = base / "espaces"
+    # Core résout un workspace relatif depuis le cwd du processus, pas depuis sa config.
+    # La racine générée par défaut doit donc désigner les fichiers réellement écrits ici.
+    racine_espaces_core = str(espaces.resolve()) if racine_espaces == "./opsys/espaces" else racine_espaces
     env_isolation = os.environ if environ is None else environ
     _verifier_espaces_sans_donnees_sensibles(dossier_config, racine_espaces, env_isolation)
     profils_actifs: list[dict[str, Any]] = []
-    if cnx_factory is not None:
-        with cnx_factory() as cnx:
-            # Pre-registry installations have no configurable-profile table yet; they export no
-            # profiles until the OPSYS migration creates it.
-            if inspect(cnx).has_table("agents_configurables"):
-                profils_actifs = profils_configurables.lister(cnx)
+    if cnx_factory is None:
+        raise ValueError("profils de base : connexion au registre durable requise avant génération")
+    with cnx_factory() as cnx:
+        if not inspect(cnx).has_table("agents_configurables"):
+            raise ValueError("profils de base : migrer puis provisionner explicitement le registre")
+        profils_base = agents_base.lire(cnx, departements)
+        ids_base = {p["id"] for p in profils_base.values()}
+        profils_actifs = [p for p in profils_configurables.lister(cnx) if p["id"] not in ids_base]
     configuration_canaux, projections_sms = _preparer_projection_sms(
         profils_actifs, departements, configuration_canaux, env_canaux
     )
@@ -875,6 +885,7 @@ def generer(
     agents: dict[str, Any] = {}
     automatisations: list[str] = []
     for dep in departements.values():
+        profil_base = profils_base[dep.id]
         outils = [
             {"nom": o.nom, "autonomie": o.autonomie.value, "description": o.description} for o in dep.charger_outils()
         ]
@@ -909,14 +920,34 @@ def generer(
             modele_agent = _modele_agent(dep, paliers, mode_fournisseur)
         else:
             modele_agent = _modele_agent(dep, paliers, mode_fournisseur)
-        agents[dep.id] = {
+        palier_base = profil_base["palier_modele"]
+        if palier_base not in paliers:
+            raise ValueError(f"profil de base {profil_base['id']!r}: palier {palier_base!r} non configuré")
+        if mode_fournisseur == "litellm":
+            primaire = f"opsys-{dep.prefixe_outils}/{alias_palier(palier_base)}"
+            replis = [f"opsys-{dep.prefixe_outils}/{alias_palier(n)}" for n in _chaine_replis(palier_base, paliers)]
+        else:
+            primaire = _reference_modele(palier_base, paliers[palier_base])
+            replis = [_reference_modele(n, paliers[n]) for n in _chaine_replis(palier_base, paliers)]
+        modele_agent = {"primary": primaire, "fallbacks": replis} if replis else primaire
+        politique_base = _outils_de_l_agent(dep, departements, expose=dep.id in configuration_canaux.agents_exposes)
+        # Conserver les capacités Core et communes historiques. Les droits métier du
+        # profil restreignent exactement le catalogue de ce département, sans ouvrir
+        # d'autre serveur ni retirer implicitement lecture, mémoire ou exec isolé.
+        retires = {o.nom for o in dep.charger_outils()} - set(profil_base["outils"])
+        politique_base["deny"] = sorted(set(politique_base["deny"]) | {
+            f"{serveur_mcp(dep)}__{nom}" for nom in retires
+        })
+        agents[agents_base.agent_core_id(profil_base)] = {
             "name": f"{dep.code} · {dep.nom}",
-            "workspace": f"{racine_espaces}/{dep.id}",
+            "workspace": f"{racine_espaces_core}/{dep.id}",
             "model": modele_agent,
+            "runtime": {"type": "embedded"},
+            "opsysRuntimeAdmission": {"profileId": profil_base["id"], "profileRevision": profil_base["revision"]},
             "opsysIsolation": {"exec": "sandbox-required"},
             # Chaque agent ne voit que le serveur MCP de SON département (outils `<serveur>__<outil>`) ;
             # celui qui reçoit le public n'a de plus aucun outil de messagerie du core (T2.1-a).
-            "tools": _outils_de_l_agent(dep, departements, expose=dep.id in configuration_canaux.agents_exposes),
+            "tools": politique_base,
         }
         for plan in dep.planifications:
             automatisations.append(
@@ -962,10 +993,11 @@ def generer(
             generique_sms = f"{serveur_mcp(dep)}__{canaux.CANAL_SMS.outil_accueil}"
             politique["allow"] = [nom for nom in politique["allow"] if nom != generique_sms]
             politique["deny"] = sorted(set(politique["deny"]) | {generique_sms})
-            if not politique["allow"]:
-                # Core traite allow=[] comme ouvert : un profil sans droit modèle refuse donc tous les noms.
-                politique["deny"] = sorted(set(politique["deny"]) | {"*"})
-        profile_agent_id = f"opsys-agent-{profil['id']}"
+        if not politique["allow"]:
+            # Core traite allow=[] comme ouvert, y compris hors des projections SMS.
+            # Un profil sans outil modèle ne doit donc conserver aucun nom callable.
+            politique["deny"] = sorted(set(politique["deny"]) | {"*"})
+        profile_agent_id = agents_base.agent_core_id(profil)
         espace_profil = espaces / "agents" / profil["id"]
         (espace_profil / "skills").mkdir(parents=True, exist_ok=True)
         outils_profil = [
@@ -993,7 +1025,7 @@ def generer(
             shutil.copytree(dep.racine / "skills" / skill, espace_profil / "skills" / skill, dirs_exist_ok=True)
         agents[profile_agent_id] = {
             "name": f"Agent OPSYS · {profil['id']}",
-            "workspace": f"{racine_espaces}/agents/{profil['id']}",
+            "workspace": f"{racine_espaces_core}/agents/{profil['id']}",
             "model": {"primary": primaire, "fallbacks": replis} if replis else primaire,
             "runtime": {"type": "embedded"},
             "opsysRuntimeAdmission": {"profileId": profil["id"], "profileRevision": profil["revision"]},
@@ -1091,7 +1123,7 @@ def generer(
                 "connectionTimeoutMs": 5000,
                 "requestTimeoutMs": 60000,
             }
-    for profil in profils_actifs:
+    for profil in [*profils_base.values(), *profils_actifs]:
         serveurs_mcp[serveur_mcp_runtime(profil["id"])] = {
             "url": f"{url_mcp.rstrip('/')}/runtime/{profil['id']}",
             **({"transportSecurity": dict(transport_security)} if transport_security else {}),
@@ -1105,7 +1137,7 @@ def generer(
     modes_memoire = {ident: "client_session" if ident in clients_memoire else "global" for ident in departements}
     agents_memoire = {ident: {"departement": ident, "mode": mode} for ident, mode in modes_memoire.items()}
     for profil in profils_actifs:
-        agents_memoire[f"opsys-agent-{profil['id']}"] = {
+        agents_memoire[agents_base.agent_core_id(profil)] = {
             "departement": profil["departement"], "mode": modes_memoire[profil["departement"]],
         }
     _ecrire_json(fichiers["memoire_autorites"], {

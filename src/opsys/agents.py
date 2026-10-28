@@ -128,6 +128,14 @@ def _specification(departements: Mapping[str, Departement], spec: Mapping[str, A
         propres.append(propre)
     if len({_json(x) for x in propres}) != len(propres):
         raise ValueError("déclencheurs en double")
+    # Les contrats privés SMS possèdent une identité d'agent spécialisée distincte.
+    # Ne jamais accepter sur une base un canal que son export ne pourrait honorer.
+    from . import agents_base
+
+    if agents_base.est_base({"id": ident, "departement": departement_id}) and any(
+        decl["type"] == "canal" for decl in propres
+    ):
+        raise ValueError("canal sur profil de base refusé : créer un profil SMS spécialisé")
     return {
         "id": ident, "departement": departement_id, "responsabilite": responsabilite.strip(),
         "palier_modele": palier, "outils": sorted(outils), **entiers, "declencheurs": propres,

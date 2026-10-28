@@ -1,4 +1,4 @@
-"""Retenue fédérale préparatoire QC 2026, limitée à l'option 1 de la période 1."""
+"""Retenue fédérale préparatoire QC 2026 : P1 historique et crédits YTD après P1."""
 
 from __future__ import annotations
 
@@ -90,6 +90,33 @@ HASH_PARAMETRES = hashlib.sha256(
     json.dumps(_PARAMETRES, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 ).hexdigest()
 
+
+def _parametres_pour_demande(demande: dict[str, Any]) -> dict[str, Any]:
+    # Copie indépendante : aucun appelant ne peut modifier le snapshot global.
+    parametres = json.loads(json.dumps(_PARAMETRES))
+    if demande["periode_annuelle"] == 1:
+        return parametres
+    juillet = demande["date_paie"] >= "2026-07-01"
+    edition = "T4127-123-2026-07" if juillet else "T4127-122-2026-01"
+    parametres.update(
+        version=f"{edition}-QC26P-YTD-r1",
+        edition=edition,
+        date_debut_inclusive="2026-07-01" if juillet else "2026-01-01",
+        date_fin_inclusive="2026-12-31" if juillet else "2026-06-30",
+        periode_couverte=list(range(2, 27)),
+        methode_credits="CUMULS_PLUS_PERIODES_RESTANTES",
+        projection_credits="PR=26-periode+1; cumuls avant + PR fois poste courant, plafonds distincts",
+    )
+    parametres["sources"]["t4127_juillet"] = {
+        "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/"
+        "t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html",
+        "sections": "chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2",
+        "consultation": "2026-10-24",
+    }
+    parametres["sources"]["t4127_janvier"]["sections_credits_ytd"] = "chapitre 4, étape 2, variante YTD K2Q"
+    parametres["limites"][0] = "periodes 2 a 26 de 2026; edition datee; credits cumules option 1"
+    return parametres
+
 _CENT = Decimal("0.01")
 _MAX_MONTANT = Decimal(_PARAMETRES["montant_max_entree"])
 _MONTANT = re.compile(r"^(?:0|[1-9][0-9]{0,11})\.[0-9]{2}$")
@@ -126,6 +153,42 @@ _CHAMPS_ZERO = _PARAMETRES["inputs_nuls_obligatoires"]
 
 def _refus(code: str, detail: str) -> tuple[None, dict[str, str]]:
     return None, validation.construire_verdict(code, detail=detail)
+
+
+def obtenir_snapshot_retenue_federale_qc_preparatoire(
+    *, contexte: object,
+) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+    """Expose les paramètres du propriétaire, sans lancer les calculateurs de paie.
+
+    Le contexte ne certifie ni emploi, TD1, assiettes ni authenticité des preuves.
+    Cette métadonnée ne confère aucune qualification fiscale ou autorisation.
+    """
+    attendus = {"annee", "date_paie", "juridiction", "frequence", "periode_annuelle", "pm"}
+    valide = type(contexte) is dict and set(contexte) == attendus
+    if valide:
+        fixes = {"annee": 2026, "juridiction": "QC", "frequence": "bihebdomadaire", "pm": 12}
+        valide = all(type(contexte[k]) is type(v) and contexte[k] == v for k, v in fixes.items())
+        valide = valide and type(contexte["periode_annuelle"]) is int and 1 <= contexte["periode_annuelle"] <= 26
+        jour = contexte["date_paie"]
+        valide = valide and isinstance(jour, str)
+        if valide:
+            try:
+                date_paie = date.fromisoformat(jour)
+                valide = date_paie.isoformat() == jour and date(2026, 1, 1) <= date_paie <= date(2026, 12, 31)
+                valide = valide and (contexte["periode_annuelle"] != 1 or date_paie <= date(2026, 6, 30))
+            except ValueError:
+                valide = False
+    if not valide:
+        return _refus("REJ-PAIE-ASSIETTE-INVALIDE", "contexte documentaire fédéral hors périmètre")
+    parametres = _parametres_pour_demande(contexte)
+    empreinte = hashlib.sha256(
+        json.dumps(parametres, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return {
+        "parametres": parametres, "hash_parametres": empreinte,
+        "qualification_regles": "NON_QUALIFIEE_POUR_PAIE", "actions_financieres_bloquees": True,
+        "autorisation_outil_ou_acteur": False,
+    }, None
 
 
 def _decimal(valeur: object) -> Decimal | None:
@@ -180,13 +243,13 @@ def _contexte_demande_valide(demande: dict[str, Any]) -> dict[str, Any] | None:
         jour = date.fromisoformat(demande["date_paie"])
     except ValueError:
         return None
-    if jour.isoformat() != demande["date_paie"] or not date(2026, 1, 1) <= jour <= date(2026, 6, 30):
+    if jour.isoformat() != demande["date_paie"] or not date(2026, 1, 1) <= jour <= date(2026, 12, 31):
         return None
     if (
         demande["juridiction"] != "QC"
         or demande["frequence"] != "bihebdomadaire"
         or type(demande["periode_annuelle"]) is not int
-        or demande["periode_annuelle"] != 1
+        or not 1 <= demande["periode_annuelle"] <= 26
         or type(demande["pm"]) is not int
         or demande["pm"] != 12
         or type(demande["emploi_annuel_continu"]) is not bool
@@ -194,6 +257,8 @@ def _contexte_demande_valide(demande: dict[str, Any]) -> dict[str, Any] | None:
         or type(demande["resident"]) is not bool
         or not demande["resident"]
     ):
+        return None
+    if demande["periode_annuelle"] == 1 and jour > date(2026, 6, 30):
         return None
     if not isinstance(demande["preuves"], dict) or set(demande["preuves"]) != _CHAMPS_PREUVES:
         return None
@@ -242,7 +307,7 @@ def _entrees_coherentes(
     return revenu is not None and all(valeur is not None and valeur == revenu for valeur in assiettes)
 
 
-def _sorties_facade_valides(rapport: object, date_paie: str) -> bool:
+def _sorties_facade_valides(rapport: object, date_paie: str, periode_annuelle: int = 1) -> bool:
     if not isinstance(rapport, dict) or rapport.get("schema") != "m5-paie-qc-preparatoire/1":
         return False
     if rapport.get("statut") != "INCOMPLET" or rapport.get("refus") != {}:
@@ -260,7 +325,7 @@ def _sorties_facade_valides(rapport: object, date_paie: str) -> bool:
         "date_paie": date_paie,
         "juridiction": "QC",
         "frequence": "bihebdomadaire",
-        "periode_annuelle": 1,
+        "periode_annuelle": periode_annuelle,
     }:
         return False
     rrq = postes["rrq"]
@@ -272,7 +337,7 @@ def _sorties_facade_valides(rapport: object, date_paie: str) -> bool:
     rrq_sources = rrq_params.get("sources") if isinstance(rrq_params, dict) else None
     if (
         rrq.get("date_paie") != date_paie
-        or rrq.get("periode_annuelle") != 1
+        or rrq.get("periode_annuelle") != periode_annuelle
         or rrq.get("parametres", {}).get("version") != "TP-1015.F-2026-01-RRQ-26P-r1"
         or not isinstance(rrq_sources, list)
         or len(rrq_sources) < 2
@@ -338,8 +403,14 @@ def calculer_retenue_federale_qc_preparatoire(
         )
     except (KeyError, TypeError, ValueError):
         return _refus("REJ-PAIE-SNAPSHOT-REQUIS", "les trois demandes publiques préparatoires sont requises")
-    if not _sorties_facade_valides(facade, date_paie):
+    periode = demande_federale["periode_annuelle"]
+    if not _sorties_facade_valides(facade, date_paie, periode):
         return _refus("REJ-PAIE-SOURCE-NON-QUALIFIEE", "la façade publique ne fournit pas les trois postes attendus")
+
+    parametres = _parametres_pour_demande(demande_federale)
+    hash_parametres = hashlib.sha256(
+        json.dumps(parametres, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
     postes = facade["postes"]
     rrq = postes["rrq"]
@@ -386,6 +457,23 @@ def calculer_retenue_federale_qc_preparatoire(
             p * ie * Decimal(_PARAMETRES["K2Q"]["taux_qpip_credit"]),
             Decimal(_PARAMETRES["K2Q"]["maximum_qpip"]),
         )
+        pr = p - Decimal(periode) + Decimal(1)
+        if periode > 1:
+            # Les API enfants ont déjà validé ces montants et leurs preuves.
+            # Ne pas annualiser un C/EI devenu nul après atteinte du plafond.
+            dq = _decimal(entree_rrq["rrq_palier1_cumul_avant"])
+            d1 = _decimal(entree_rqap_ae["ae_salarie_cumul_avant"])
+            qpip_ytd = _decimal(entree_rqap_ae["rqap_salarie_cumul_avant"])
+            assert dq is not None and d1 is not None and qpip_ytd is not None
+            rqpp_base = min(
+                (dq + pr * c) * taux_base / taux_total,
+                Decimal(_PARAMETRES["K2Q"]["maximum_rrq_base"]) * pm / Decimal(12),
+            )
+            credit_ei = min(d1 + pr * ei, Decimal(_PARAMETRES["K2Q"]["maximum_ei_qc"]))
+            credit_qpip = min(
+                qpip_ytd + pr * ie * Decimal(_PARAMETRES["K2Q"]["taux_qpip_credit"]),
+                Decimal(_PARAMETRES["K2Q"]["maximum_qpip"]),
+            )
         k2q = taux_federal * (rqpp_base + credit_ei + credit_qpip)
         k4 = min(
             taux_federal * p * i,
@@ -400,8 +488,10 @@ def calculer_retenue_federale_qc_preparatoire(
         retenue = t.quantize(_CENT, rounding=ROUND_HALF_UP)
         retour = {
             "schema": _PARAMETRES["schema"],
-            "version_bareme": VERSION_BAREME,
-            "hash_parametres": HASH_PARAMETRES,
+            "version_bareme": parametres["version"],
+            "hash_parametres": hash_parametres,
+            "parametres": parametres,
+            "methode_credits": parametres.get("methode_credits", "ANNUALISATION_PERIODE_1"),
             "statut": "PREPARATOIRE",
             "qualification_regles": "NON_QUALIFIEE_POUR_PAIE",
             "authenticite_preuves": "NON_VERIFIEE",
@@ -410,7 +500,7 @@ def calculer_retenue_federale_qc_preparatoire(
                 "date_paie": date_paie,
                 "juridiction": "QC",
                 "frequence": "bihebdomadaire",
-                "periode_annuelle": 1,
+                "periode_annuelle": periode,
                 "pm": 12,
                 "option": 1,
             },
@@ -429,6 +519,7 @@ def calculer_retenue_federale_qc_preparatoire(
                 "EI_salarie": _fmt(ei),
             },
             "facteurs_exacts": {
+                "PR": _fmt(pr),
                 "F5Q": _fmt(f5q),
                 "A": _fmt(a),
                 "R": _fmt(r),

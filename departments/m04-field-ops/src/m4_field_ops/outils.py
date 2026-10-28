@@ -32,30 +32,54 @@ import json
 import os
 import re
 from collections.abc import Callable
+from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import partial
 from typing import Any
 
-from opsys import approbations, cles_chiffrement, contexte, evenements, fichiers, identite, jetons, stockage
+from opsys import (
+    approbations,
+    cles_chiffrement,
+    contexte,
+    evenements,
+    fichiers,
+    idempotence,
+    identite,
+    jetons,
+    stockage,
+)
 from opsys import equipes as equipes_entreprise
 from opsys import meteo as meteo_entreprise
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
+    absences_durables,
+    absences_ecriture,
+    absences_journalieres,
     acces,
+    annotations_calendrier,
+    apercu_mois,
+    calendrier_civil,
     calibration_projection,
     cedule,
     cedule_tournees,
+    composition_durable,
+    composition_ecriture,
+    composition_journaliere,
     consentement,
+    couleurs_calendrier,
     digest,
     ecarts,
     etats,
     heures_regulieres,
+    journal_durable,
     localisation,
     materiel,
     meteo_creneaux,
     meteo_fournisseurs,
     meteo_manuelle,
     outbox,
+    pages_semaine,
     pagination_interventions,
     pointage,
     preparation,
@@ -175,6 +199,16 @@ def _acteur_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
     profil, _ = equipes_entreprise.charger_equipes()
     equipes_de_la_personne = equipes_entreprise.equipes_de(profil, confirmee.personne)
     return acces.acteur_de(confirmee.personne, confirmee.role, equipes_de_la_personne)
+
+
+def verifier_autorite_calendrier() -> dict[str, Any] | None:
+    """Vérifiée aussi avant tout reçu d'idempotence : un ancien rôle ne donne aucun accès."""
+    acteur, verdict = _acteur_appareil()
+    if verdict is not None:
+        return _refus(verdict)
+    if acteur is None or acteur.role != "admin":
+        return _refus(verdicts.construire_verdict("REJ-HUMAIN-REQUIS", detail="admin authentifié actif requis"))
+    return None
 
 
 def _lecteur_equipes() -> Callable[[], tuple[dict[str, Any] | None, dict[str, Any] | None]]:
@@ -641,10 +675,22 @@ def outils(
             # détruirait rien en silence.
             return {"accepte": False, "verdict": verdicts.construire_verdict(
                 "REJ-CONTRAT-INVALIDE", detail="aucune connexion durable : purge refusée")}
-        cle_detruite = cles_chiffrement.detruire(cnx, _PORTEE_CLES_GPS, technicien_id)
+        effacement = cles_chiffrement.demander_effacement(
+            cnx, _PORTEE_CLES_GPS, technicien_id, horodatage,
+            demande_id=contexte.demande_approuvee_en_cours(),
+        )
+        # La réponse signée et le maillon restent historiques : le booléen décrit le retrait
+        # logique, tandis que le nettoyage des fichiers ne peut être attesté avant le commit.
+        initial = {
+            "purge_id": effacement["purge_id"],
+            "etat_fichiers": effacement["etat_fichiers"],
+            "cle_detruite": effacement["cle_detruite"],
+        }
         reg.ajouter(retention.construire_maillon_purge(
-            technicien_id, fin_contrat_travail, horodatage, motif, cle_detruite))
-        return {"accepte": True, "resultat": {**accuse_eligibilite, "motif": motif, "cle_detruite": cle_detruite}}
+            technicien_id, fin_contrat_travail, horodatage, motif, initial["cle_detruite"],
+            purge_id=initial["purge_id"], etat_fichiers=initial["etat_fichiers"],
+        ))
+        return {"accepte": True, "resultat": {**accuse_eligibilite, "motif": motif, **initial}}
 
     def creer_demande_ecart(
         intervention_id: str, version_prevue: dict[str, Any], version_declaree: dict[str, Any], horodatage: str,
@@ -675,6 +721,16 @@ def outils(
         # Le v1 reste pur/historique à la console, jamais promu en décision DEVICE liée.
         if contexte.identite_appelante() is not None and contexte.identite_appelante().source == "appareil":
             return {"accepte": False, "verdict": revue_completion_sources.verdict("LEGACY-DEVICE-INTERDIT")}
+        # N4 seul ne force pas la file en mode autonome. La revue reste humaine :
+        # l'adaptateur durable exige la demande exacte réservée par decider et son
+        # signataire SQL encore actif. Le registre injecté garde son usage pur de test.
+        if registre_cible is None and approbations.approbateur_en_cours(
+            stockage.connexion_courante(), "m4_resoudre_revue_completion", _DEPARTEMENT,
+        ) is None:
+            return {"accepte": False, "verdict": {
+                "code": "REJ-HUMAIN-REQUIS",
+                "detail": "La revue de complétion exige une demande approuvée par un humain, même en mode autonome.",
+            }}
         if contexte.demande_approuvee_en_cours() is not None:
             from opsys.approbations_completion_m4 import autoriser_legacy
 
@@ -835,6 +891,12 @@ def outils(
         ok, verdict = preuves.valider_preuves_completion(preuves_completion, signature_requise)
         if not ok:
             return {"accepte": False, "verdict": verdict}
+        # Geler et borner AVANT la lecture CAS : seule cette copie sera vérifiée puis archivée.
+        archive, verdict_archive = preuves.preparer_archive(preuves_completion, signature_requise)
+        if verdict_archive is not None:
+            return {"accepte": False, "verdict": verdict_archive}
+        preuves_completion = archive["preuves"]
+        signature_requise = archive["signature_requise"]
         # T1.4-e2 : chaque référence de preuve (photos_apres, et signature si requise) doit
         # désigner un fichier RÉELLEMENT déposé et complet — une chaîne inventée passait avant ce
         # point. Fail-closed, APRÈS la validation structurelle (ordre épinglé comme dans
@@ -871,6 +933,7 @@ def outils(
             intervention_id, horodatage_faisant_foi, reg,
             ecart_detecte=ecarts.ecart_metier_ouvert(reg, intervention_id),
             verification_en_attente=True,
+            preuves_completion=preuves_completion, signature_requise=signature_requise,
             photos=photos, description_factuelle=description_factuelle,
             consentement_marketing=consentement_marketing, client_satisfait=client_satisfait,
             consentement_demande_avis=consentement_demande_avis, **preuve_consentement,
@@ -975,8 +1038,16 @@ def outils(
             return _refus(verdicts.construire_verdict(
                 "REJ-IDENTITE-HUMAINE-REQUISE", detail="lecture réservée à une identité admin confirmée"))
         cnx = stockage.connexion_courante()
-        personne = identite.personne_active(cnx, technicien_id) if cnx is not None else None
-        if personne is None or "employee" not in personne.roles:
+        from sqlalchemy import select
+
+        from opsys.stockage.schema import PERSONNES, ROLES_PERSONNES
+
+        # Même admissibilité qu’avant, sans charger le nom ou le hash secret du sujet.
+        requete = select(PERSONNES.c.identifiant).join(
+            ROLES_PERSONNES, PERSONNES.c.identifiant == ROLES_PERSONNES.c.identifiant).where(
+                PERSONNES.c.identifiant == technicien_id, PERSONNES.c.actif.is_(True),
+                ROLES_PERSONNES.c.role == "employee").limit(1)
+        if cnx is None or cnx.execute(requete).scalar_one_or_none() is None:
             return _refus(verdicts.construire_verdict(
                 "REJ-TECHNICIEN-INVALIDE", detail="technicien doit être une personne OPSYS active avec rôle employee"))
         reg = registre_courant()
@@ -1272,6 +1343,195 @@ def outils(
             reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
         return reponse
 
+    def confirmer_dates_cedule(plan_id: str, calendrier: dict[str, str], revision_attendue: int) -> dict[str, Any]:
+        refus = verifier_autorite_calendrier()
+        if refus:
+            return refus
+        cnx = _cnx_durable()
+        if cnx is None or cnx.dialect.name != "sqlite":
+            return _refus(verdicts.construire_verdict(
+                "REJ-FRONTIERE-VIOLEE", detail="confirmation qualifiée sur SQLite durable seulement"))
+        appelante = contexte.identite_appelante()
+        reception = contexte.horodatage_reception()
+        if reception is None:
+            return _refus(verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="horodatage de réception serveur requis pour confirmer les dates"))
+        try:
+            resultat = calendrier_civil.confirmer(registre_courant(), plan_id, calendrier, revision_attendue,
+                                                  appelante.personne, reception.recu_le.isoformat())
+        except cedule_tournees.PreuvePlanInvalide:
+            return _refus(verdicts.construire_verdict(
+                "REJ-REGISTRE-INVALIDE", detail="preuve métier du plan appliqué incohérente"))
+        except (ValueError, registre.VerificationError) as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
+        return {"accepte": True, "resultat": resultat}
+
+    def lire_calendrier_plan(plan_id: str) -> dict[str, Any]:
+        refus = verifier_autorite_calendrier()
+        if refus:
+            return refus
+        try:
+            resultat = calendrier_civil.lire_plan(registre_courant(), plan_id)
+        except cedule_tournees.PreuvePlanInvalide:
+            return _refus(verdicts.construire_verdict(
+                "REJ-REGISTRE-INVALIDE", detail="preuve métier du plan appliqué incohérente"))
+        except (ValueError, registre.VerificationError) as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
+        return {"accepte": True, "resultat": resultat}
+
+    def lire_cedule_semaine(debut_semaine: str) -> dict[str, Any]:
+        refus = verifier_autorite_calendrier()
+        if refus:
+            return refus
+        try:
+            resultat = calendrier_civil.lire_semaine(registre_courant(), debut_semaine)
+        except cedule_tournees.PreuvePlanInvalide:
+            return _refus(verdicts.construire_verdict(
+                "REJ-REGISTRE-INVALIDE", detail="preuve métier du plan appliqué incohérente"))
+        except (ValueError, registre.VerificationError) as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
+        return {"accepte": True, "resultat": resultat}
+
+    def lire_journal_quotidien(jour: str, debut: int = 0, limite: int = 50,
+                              source_attendue: str | None = None) -> dict[str, Any]:
+        try:
+            _autoriser_annotation()
+            cnx = _cnx_durable()
+            source = journal_durable.capturer(cnx)
+            resultat = journal_durable.projeter(source, jour, debut=debut, limite=limite,
+                                                source_attendue=source_attendue)
+            journal_durable.verifier_sortie(resultat)
+            if journal_durable.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
+                raise journal_durable.Refus('SOURCE-MODIFIEE')
+            _autoriser_annotation()
+        except annotations_calendrier.Refus:
+            return _refus(verdicts.construire_verdict('REJ-JOURNAL-IDENTITE', detail='admin console actif requis'))
+        except journal_durable.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-JOURNAL-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-JOURNAL-SOURCE-INVALIDE'))
+        return {'accepte': True, 'resultat': resultat}
+
+    def lire_composition_journaliere_console(jour: str, equipe_id: str, debut: int = 0, limite: int = 50,
+                              source_attendue: str | None = None) -> dict[str, Any]:
+        try:
+            _autoriser_annotation()
+            cnx = _cnx_durable()
+            source = composition_durable.capturer(cnx)
+            resultat = composition_durable.projeter(source, jour, equipe_id, debut=debut, limite=limite,
+                                                source_attendue=source_attendue)
+            composition_durable.verifier_sortie(resultat)
+            if composition_durable.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
+                raise composition_durable.Refus('SOURCE-MODIFIEE')
+            _autoriser_annotation()
+        except annotations_calendrier.Refus:
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-IDENTITE', detail='admin console actif requis'))
+        except composition_durable.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-SOURCE-INVALIDE'))
+        return {'accepte': True, 'resultat': resultat}
+
+    def lire_absence_journaliere_console(jour: str, personne_id: str, debut: int = 0, limite: int = 50,
+                              source_attendue: str | None = None) -> dict[str, Any]:
+        try:
+            _autoriser_annotation()
+            cnx = _cnx_durable()
+            source = absences_durables.capturer(cnx)
+            resultat = absences_durables.projeter(source, jour, personne_id, debut=debut, limite=limite,
+                                                source_attendue=source_attendue)
+            absences_durables.verifier_sortie(resultat)
+            if absences_durables.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
+                raise absences_durables.Refus('SOURCE-MODIFIEE')
+            _autoriser_annotation()
+        except annotations_calendrier.Refus:
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-IDENTITE', detail='admin console actif requis'))
+        except absences_durables.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-SOURCE-INVALIDE'))
+        return {'accepte': True, 'resultat': resultat}
+
+    def lire_absences_jour_console(jour: str, debut: int = 0, limite: int = 50,
+                              source_attendue: str | None = None) -> dict[str, Any]:
+        try:
+            _autoriser_annotation()
+            cnx = _cnx_durable()
+            source = absences_durables.capturer(cnx)
+            resultat = absences_durables.projeter_jour(source, jour, debut=debut, limite=limite,
+                                                source_attendue=source_attendue)
+            absences_durables.verifier_sortie(resultat)
+            if absences_durables.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
+                raise absences_durables.Refus('SOURCE-MODIFIEE')
+            _autoriser_annotation()
+        except annotations_calendrier.Refus:
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-IDENTITE', detail='admin console actif requis'))
+        except absences_durables.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-SOURCE-INVALIDE'))
+        return {'accepte': True, 'resultat': resultat}
+
+    def declarer_composition_journaliere_console(jour, equipe_id, membres, revision_attendue, statut_declaration):
+        from . import encodage
+
+        n = composition_journaliere
+        try:
+            auteur = _autoriser_annotation()
+            cnx = _cnx_durable()
+            # Refuse l'injection même si la transaction courante est par ailleurs valide.
+            composition_durable.capturer(cnx)
+            meta, reception = _META_ANNOTATION.get(), contexte.horodatage_reception()
+            if (not isinstance(meta, idempotence.Meta) or reception is None
+                    or meta.appareil != 'console:' + auteur['personne'] or reception.appareil != meta.appareil
+                    or reception.recu_le.utcoffset() is None):
+                raise n.Refus('MUTATION-ABSENTE')
+            arguments = n._arguments(jour, equipe_id, membres, revision_attendue, statut_declaration)
+            mutation = {'appareil': meta.appareil, 'cle': meta.cle,
+                        'empreinte_arguments': encodage.empreinte(arguments)}
+            return composition_ecriture.enregistrer(cnx, arguments, auteur, mutation, reception.recu_le.isoformat(),
+                _autoriser_annotation, limite_sortie=contexte.limite_sortie() or 65536)
+        except n.Refus as exc:
+            codes = {'IDENTITE', 'MUTATION-ABSENTE', 'MUTATION-CONFLIT', 'REVISION-PERIMEE',
+                     'IDENTITES-NON-CONFIRMEES', 'SOURCE-MODIFIEE', 'SORTIE-TROP-VOLUMINEUSE'}
+            code = ('SOURCE-TROP-VOLUMINEUSE' if exc.suffixe == 'SOURCES-TROP-VOLUMINEUSES' else
+                    exc.suffixe if exc.suffixe in codes else 'DECLARATION-INVALIDE')
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-' + code))
+        except composition_durable.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-COMPOSITION-SOURCE-INVALIDE'))
+
+    def declarer_absence_journaliere_console(jour, personne_id, revision_attendue, statut_declaration):
+        from . import encodage
+
+        n = absences_journalieres
+        try:
+            auteur = _autoriser_annotation()
+            cnx = _cnx_durable()
+            # Refuse l'injection même si la transaction courante est par ailleurs valide.
+            absences_durables.capturer(cnx)
+            meta, reception = _META_ANNOTATION.get(), contexte.horodatage_reception()
+            if (not isinstance(meta, idempotence.Meta) or reception is None
+                    or meta.appareil != 'console:' + auteur['personne'] or reception.appareil != meta.appareil
+                    or reception.recu_le.utcoffset() is None):
+                raise n.Refus('MUTATION-ABSENTE')
+            arguments = n._arguments(jour, personne_id, statut_declaration, revision_attendue)
+            mutation = {'appareil': meta.appareil, 'cle': meta.cle,
+                        'empreinte_arguments': encodage.empreinte(arguments)}
+            return absences_ecriture.enregistrer(cnx, arguments, auteur, mutation, reception.recu_le.isoformat(),
+                _autoriser_annotation, limite_sortie=contexte.limite_sortie() or 65536)
+        except n.Refus as exc:
+            codes = {'IDENTITE', 'MUTATION-ABSENTE', 'MUTATION-CONFLIT', 'REVISION-PERIMEE',
+                     'CIBLE-NON-CONFIRMEE', 'SOURCE-MODIFIEE', 'SORTIE-TROP-VOLUMINEUSE'}
+            code = ('SOURCE-TROP-VOLUMINEUSE' if exc.suffixe == 'SOURCES-TROP-VOLUMINEUSES' else
+                    exc.suffixe if exc.suffixe in codes else 'DECLARATION-INVALIDE')
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-' + code))
+        except absences_durables.Refus as exc:
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-' + exc.code))
+        except (ValueError, KeyError, TypeError, registre.VerificationError):
+            return _refus(verdicts.construire_verdict('REJ-ABSENCE-SOURCE-INVALIDE'))
+
     def verifier_preparation(intervention_id: str) -> dict[str, Any]:
         """Lecture seule : la préparation d'une intervention (M4.6), volet par volet, avec ce qui manque. Rien n'est
         écrit ; aucun volet non vérifié n'est présenté comme prêt."""
@@ -1332,6 +1592,11 @@ def outils(
         )
         if verdict is not None:
             return _refus(verdict)
+        # Citer le profil effectivement consommé, même si le fichier change puis revient pendant l'appel.
+        resultat["profil_meteo_source"] = (
+            {"empreinte": meteo_entreprise.empreinte_meteo(profil), "fuseau": profil.get("fuseau")}
+            if profil is not None and verdict_profil is None else None
+        )
         return depuis_couple(meteo_creneaux.presenter(resultat, _tient_dans_une_reponse))
 
     def lire_meteo_intervention(
@@ -1985,14 +2250,16 @@ def outils(
         Outil(
             nom="m4_purger_retention_gps",
             description=(
-                "Détruit la clé de chiffrement des fixes GPS d'un technicien une fois l'échéance "
+                "Retire la clé GPS du coffre logique et demande le nettoyage des fichiers une fois l'échéance "
                 "de rétention atteinte (POLITIQUE-geolocalisation.md §5 : 12 mois après la fin du "
                 "contrat de travail ou le dernier punch, selon la plus longue des deux périodes — "
                 "fail-closed si fin_contrat_travail est inconnue, ou si l'échéance n'est pas "
                 "atteinte : aucune destruction). Suppression DÉFINITIVE d'une donnée personnelle "
                 "(AGENTS.md, frontière T3) : cet outil ne fait que PROPOSER — seul nathan_owner, "
                 "avec l'attestation du professionnel concerné (ADR-0009 §5, Niveau N5), peut "
-                "l'exécuter. Écrit toujours un maillon d'audit (jamais la position détruite)."
+                "l'exécuter. La réponse et l'audit portent un purge_id et l'état INITIAL des fichiers : "
+                "en_attente ne signifie pas un nettoyage déjà terminé. cle_detruite décrit uniquement "
+                "le retrait logique. Écrit toujours un maillon d'audit (jamais la position détruite)."
             ),
             parametres={
                 "type": "object",
@@ -2231,6 +2498,121 @@ def outils(
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(
+            nom="m4_confirmer_dates_cedule",
+            description=("Admin humain actif : date explicitement les jours numérotés d'un plan M4 déjà appliqué. "
+                         "Révision attendue 0 initialement; historique append-only. Refuse conflits connus, plan "
+                         "remplacé, intervention non planifiée, dates ambiguës. Planification interne seulement : "
+                         "ne confirme ni client, ni météo, ni matériel. SQLite durable qualifié."),
+            parametres={"type": "object", "properties": {
+                "plan_id": {"type": "string"},
+                "calendrier": {"type": "object", "additionalProperties": {"type": "string"}},
+                "revision_attendue": {"type": "integer", "minimum": 0}},
+                "required": ["plan_id", "calendrier", "revision_attendue"], "additionalProperties": False},
+            fonction=confirmer_dates_cedule, autonomie=Autonomie.T1, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_calendrier_plan",
+            description=("Admin actif : détail en lecture seule d'un plan M4 appliqué, jours numériques utilisés, "
+                         "calendrier explicite et révision (0 sans dates), sources et blocages actuels. "
+                         "Maximum 200 visites et 31 jours, totaux et troncature explicites; aucun contact. "
+                         "Ne pas confirmer depuis un détail tronqué. La mutation revalide toujours l'état courant."),
+            parametres={"type": "object", "properties": {"plan_id": {"type": "string"}},
+                        "required": ["plan_id"], "additionalProperties": False},
+            fonction=lire_calendrier_plan, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_cedule_semaine",
+            description=("Admin actif : semaine datée M4, lundi ISO AAAA-MM-JJ, America/Montreal. "
+                         "Références de source, révisions, statuts et dates à reconfirmer; aucun contact ou prix. "
+                         "Jobs non datés séparés pour tout le carnet. Maximum 200 créneaux et 50 non datés, "
+                         "totaux et troncature explicites."),
+            parametres={"type": "object", "properties": {"debut_semaine": {"type": "string"}},
+                        "required": ["debut_semaine"], "additionalProperties": False},
+            fonction=lire_cedule_semaine, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_journal_quotidien",
+            description=("Console privée, admin SQL actif uniquement : journée ISO America/Montreal, prévisions "
+                         "historiques, assignations consignées, pointages, déclarations/arbitrages d’écart M4 "
+                         "minimisés; aucune localisation "
+                         "ni déduction RH ou d'extra facturable. Pagination "
+                         "liée à la tête et au jour; empreinte calculée de snapshot, sans attestation native. "
+                         "Lecture seule SQLite canonique bornée; agents, MCP et appareils directs refusés."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "debut": {"type": "integer", "minimum": 0},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                "source_attendue": {"type": ["string", "null"]}},
+                "required": ["jour"], "additionalProperties": False},
+            fonction=lire_journal_quotidien, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_declarer_composition_journaliere_console",
+            description=("Console humaine admin privée : déclare/corrige/retire une composition journalière. "
+                         "Identités canoniques, révision et intention signée; ne modifie ni profil, accès, "
+                         "présence, paie ou mémoire. Aucun agent, MCP ou appareil direct autorisé."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "equipe_id": {"type": "string", "maxLength": 64},
+                "membres": {"type": ["array", "null"], "items": {"type": "string", "maxLength": 64}, "maxItems": 50},
+                "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 10000},
+                "statut_declaration": {"type": "string", "enum": ["declaree", "retiree"]}},
+                "required": ["jour", "equipe_id", "membres", "revision_attendue", "statut_declaration"],
+                "additionalProperties": False},
+            fonction=declarer_composition_journaliere_console, autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m4_lire_composition_journaliere_console",
+            description=("Console privée, admin SQL actif uniquement : composition déclarée pour un jour et "
+                         "une équipe explicites, historique et corrections. Ne prouve ni présence terrain ni "
+                         "droits courants; aucune résolution via le profil actuel. Pagination liée à la source. "
+                         "Lecture SQLite canonique bornée; agents, MCP et appareils directs refusés."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "equipe_id": {"type": "string"}, "debut": {"type": "integer", "minimum": 0},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                "source_attendue": {"type": ["string", "null"]}},
+                "required": ["jour", "equipe_id"], "additionalProperties": False},
+            fonction=lire_composition_journaliere_console, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_declarer_absence_journaliere_console",
+            description=("Console humaine admin privée : signale/retire une absence déclarée par jour/personne. "
+                         "Compte humain initial confirmé, CAS/intention et heure serveur; aucune présence, "
+                         "santé, paie, décision RH ou accès créé. Aucun agent, MCP ou appareil direct."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "personne_id": {"type": "string", "maxLength": 64},
+                "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 10000},
+                "statut_declaration": {"type": "string", "enum": ["signalee", "retiree"]}},
+                "required": ["jour", "personne_id", "revision_attendue", "statut_declaration"],
+                "additionalProperties": False},
+            fonction=declarer_absence_journaliere_console, autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m4_lire_absences_jour_console",
+            description=("Console humaine privée, admin SQL actif seulement : dernières déclarations d'absence "
+                         "par personne pour un jour, retraits compris. Total de personnes avec déclaration, "
+                         "pas d'absents observés. Aucun annuaire/pointage/paie recoupé. Source canonique SQLite "
+                         "et pagination bornées; agents, appareils directs et MCP refusés."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "debut": {"type": "integer", "minimum": 0},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                "source_attendue": {"type": ["string", "null"]}},
+                "required": ["jour"], "additionalProperties": False},
+            fonction=lire_absences_jour_console, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_absence_journaliere_console",
+            description=("Console humaine privée, admin SQL actif seulement : signalement d'absence pour un jour "
+                         "et une personne explicites, historique et retraits. Aucune présence, heure ou paie "
+                         "déduite, aucun motif de santé, aucune résolution par le profil actuel. Source SQLite "
+                         "canonique et pagination bornées; agents, MCP et appareils directs refusés."),
+            parametres={"type": "object", "properties": {
+                "jour": {"type": "string"}, "personne_id": {"type": "string"},
+                "debut": {"type": "integer", "minimum": 0},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                "source_attendue": {"type": ["string", "null"]}},
+                "required": ["jour", "personne_id"], "additionalProperties": False},
+            fonction=lire_absence_journaliere_console, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
             nom="m4_verifier_preparation",
             description=(
                 "Lecture seule (M4.6) : dit si une intervention peut être planifiée, VOLET PAR VOLET, et NOMME ce "
@@ -2370,6 +2752,8 @@ def outils(
               parametres=revue_completion_sources.SCHEMA_ARGUMENTS,
               fonction=resoudre_revue_completion_sources, autonomie=Autonomie.T1, niveau=Niveau.N4,
               roles_appareil=frozenset({"admin"})),
+        *_outils_annotations(),
+        *_outils_presentation_calendrier(),
         Outil(
             nom="m4_previsualiser_heures_regulieres",
             description=("Aperçu privé des pointages d'une personne OPSYS active. Dérive catégories travail, "
@@ -2460,6 +2844,223 @@ def outils(
             # (`acces.controler_administrateur`).
             roles_appareil=frozenset({"admin"}),
         ),
+    )
+
+
+# CRM-02 : intention et identité fournies par le port humain privé de console.
+_META_ANNOTATION = ContextVar("m4_annotation_calendrier_meta", default=None)
+
+
+@contextmanager
+def contexte_annotation_calendrier(meta):
+    jeton = _META_ANNOTATION.set(meta)
+    try:
+        yield
+    finally:
+        _META_ANNOTATION.reset(jeton)
+
+
+def _autoriser_annotation():
+    n = annotations_calendrier
+    cnx, appelante = stockage.connexion_courante(), contexte.identite_appelante()
+    if (cnx is None or appelante is None or appelante.role != "admin" or appelante.source != "console"
+            or contexte.departement_origine_appelante() != "console" or contexte.appel_provient_du_mcp()):
+        raise n.Refus("IDENTITE")
+    signataire = approbations.signataire_valide(cnx, appelante)
+    if signataire is None or signataire.role != "admin":
+        raise n.Refus("IDENTITE")
+    return {"personne": signataire.personne, "role": "admin"}
+
+
+def _registres_annotations(n=annotations_calendrier):
+    principal = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+    notes = stockage.maillons(_DEPARTEMENT, n.REGISTRE)
+    if len(principal) > n.MAX_SOURCES or len(notes) > n.MAX_SOURCES:
+        raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+    # Le principal est uniquement consulté ; les repères restent durables pour leurs append.
+    return registre.Registre(list(principal)), registre.Registre(notes)
+
+
+def enregistrer_annotation_calendrier(ancre, texte_libre, revision_attendue):
+    return _enregistrer_repere(annotations_calendrier, ancre, "texte_libre", texte_libre, revision_attendue)
+
+
+def definir_couleur_calendrier(ancre, couleur, revision_attendue):
+    return _enregistrer_repere(couleurs_calendrier, ancre, "couleur", couleur, revision_attendue)
+
+
+def _enregistrer_repere(n, ancre, champ, valeur, revision_attendue):
+    """Même transaction privée pour les deux métadonnées, collections et intentions distinctes."""
+    from . import encodage
+    try:
+        auteur = _autoriser_annotation()
+        cnx = stockage.connexion_courante()
+        if cnx.dialect.name != "sqlite":
+            raise n.Refus("ECRITURE-NON-QUALIFIEE")
+        meta, reception = _META_ANNOTATION.get(), contexte.horodatage_reception()
+        if (not isinstance(meta, idempotence.Meta) or reception is None
+                or meta.appareil != "console:" + auteur["personne"] or reception.appareil != meta.appareil
+                or reception.recu_le.utcoffset() is None):
+            raise n.Refus("MUTATION-ABSENTE")
+        arguments = {"ancre": ancre, champ: valeur, "revision_attendue": revision_attendue}
+        mutation = {"appareil": meta.appareil, "cle": meta.cle,
+                    "empreinte_arguments": encodage.empreinte(arguments)}
+        principal, notes = _registres_annotations(n)
+        # SQLite BEGIN IMMEDIATE protège la relecture et l'ajout; intention durable dans le maillon.
+        with cnx.begin_nested():
+            resultat = n.enregistrer(principal, notes, ancre, valeur, revision_attendue,
+                                    auteur, mutation, reception.recu_le.isoformat(),
+                                    limite_sortie=contexte.limite_sortie() or 65536)
+            if not resultat.get("rejoue"):
+                from opsys.etat import journaliser
+
+                r = resultat["resultat"]
+                journaliser(cnx, auteur["personne"], "m4." + n.TYPE,
+                            r["annotation_id" if champ == "texte_libre" else "couleur_id"],
+                            {"revision": r["revision"], "intervention_id": r["intervention_id"]})
+            return resultat
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lire_annotations_calendrier(intervention_id, limite=20, decalage=0, revision_max=None):
+    n = annotations_calendrier
+    try:
+        _autoriser_annotation()
+        principal, notes = _registres_annotations()
+        return n.lire(principal, notes, intervention_id, limite, decalage, revision_max,
+                      limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def resumer_annotations_calendrier(ancres):
+    n = annotations_calendrier
+    try:
+        _autoriser_annotation()
+        principal, notes = _registres_annotations()
+        return n.resumer(principal, notes, ancres, limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _outils_annotations():
+    identifiant = {"type": "string", "minLength": 1, "maxLength": 200}
+    cles = ["intervention_id", "plan_id", "source_application_id", "source_ligne_id"]
+    ancre = {"type": "object", "properties": {k: identifiant for k in cles},
+             "required": cles, "additionalProperties": False}
+
+    def schema(proprietes, requis):
+        return {"type": "object", "properties": proprietes, "required": requis, "additionalProperties": False}
+
+    return (
+        Outil(nom="m4_enregistrer_annotation_calendrier",
+              description="Console admin privée : annotation versionnée d'un créneau exact. Aucun effet planning, "
+                          "temps, paie, notification ou mémoire. Port MCP fermé avant qualification de sa portée.",
+              parametres=schema({"ancre": ancre, "texte_libre": {"type": "string", "minLength": 1,
+                "maxLength": 2000}, "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 1000000}},
+                ["ancre", "texte_libre", "revision_attendue"]),
+              fonction=enregistrer_annotation_calendrier, autonomie=Autonomie.T1),
+        Outil(nom="m4_lire_annotations_calendrier",
+              description="Console admin privée : historique borné des annotations M4, sources exactes et révisions.",
+              parametres=schema({"intervention_id": identifiant,
+                "limite": {"type": "integer", "minimum": 1, "maximum": 20},
+                "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                "revision_max": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000}},
+                ["intervention_id"]), fonction=lire_annotations_calendrier),
+        Outil(nom="m4_resumer_annotations_calendrier",
+              description="Console admin privée : compteurs sans texte pour 200 créneaux M4 exacts au maximum.",
+              parametres=schema({"ancres": {"type": "array", "items": ancre, "maxItems": 200}}, ["ancres"]),
+              fonction=resumer_annotations_calendrier),
+    )
+
+
+
+def resumer_couleurs_calendrier(ancres):
+    n = couleurs_calendrier
+    try:
+        _autoriser_annotation()
+        principal, couleurs = _registres_annotations(n)
+        return n.resumer(principal, couleurs, ancres, limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lire_couleurs_calendrier(intervention_id, limite=20, decalage=0, revision_max=None):
+    n = couleurs_calendrier
+    try:
+        _autoriser_annotation()
+        principal, couleurs = _registres_annotations(n)
+        return n.lire(principal, couleurs, intervention_id, limite, decalage, revision_max,
+                      limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+
+def lire_apercu_mois(premier_mois):
+    n = apercu_mois
+    try:
+        _autoriser_annotation()
+        maillons = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+        if len(maillons) > n.MAX_SOURCES:
+            raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+        return n.lire(registre.Registre(maillons), premier_mois,
+                      limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lire_page_cedule_semaine(debut_semaine, offset_interventions=0, offset_sans_date=0, source_attendue=None):
+    n = pages_semaine
+    try:
+        _autoriser_annotation()
+        maillons = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+        if len(maillons) > apercu_mois.MAX_SOURCES:
+            raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+        return n.lire(registre.Registre(list(maillons)), debut_semaine, offset_interventions,
+                      offset_sans_date, source_attendue, limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _outils_presentation_calendrier():
+    # Réutilise les contrats d'ancre/pagination des notes; seule la valeur de présentation diffère.
+    from copy import deepcopy
+
+    ecrire, lire, resumer = _outils_annotations()
+    schema = deepcopy(ecrire.parametres)
+    del schema["properties"]["texte_libre"]
+    schema["properties"]["couleur"] = {"type": "string", "enum": list(couleurs_calendrier.PALETTE)}
+    schema["required"] = ["ancre", "couleur", "revision_attendue"]
+    return (
+        Outil(nom="m4_definir_couleur_calendrier", parametres=schema, autonomie=Autonomie.T1,
+              description="Console admin privée : repère couleur versionné du créneau exact. "
+                          "Aucun changement de dates, statut, temps, paie ou notification.",
+              fonction=definir_couleur_calendrier),
+        Outil(nom="m4_lire_couleurs_calendrier", parametres=deepcopy(lire.parametres),
+              description="Console admin privée : historique borné des repères couleur et leurs sources exactes.",
+              fonction=lire_couleurs_calendrier),
+        Outil(nom="m4_resumer_couleurs_calendrier", parametres=deepcopy(resumer.parametres),
+              description="Console admin privée : repères de présentation pour 200 créneaux exacts maximum.",
+              fonction=resumer_couleurs_calendrier),
+        Outil(nom="m4_lire_page_cedule_semaine",
+              description="Console admin privée : pages de 25 créneaux et 25 non datés, "
+                          "source stable requise en continuation.",
+              parametres={"type": "object", "properties": {
+                  "debut_semaine": {"type": "string", "maxLength": 10},
+                  "offset_interventions": {"type": "integer", "minimum": 0, "maximum": 10000, "multipleOf": 25},
+                  "offset_sans_date": {"type": "integer", "minimum": 0, "maximum": 10000, "multipleOf": 25},
+                  "source_attendue": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$", "maxLength": 64}},
+                  "required": ["debut_semaine"], "additionalProperties": False},
+              fonction=lire_page_cedule_semaine),
+        Outil(nom="m4_lire_apercu_mois",
+              description="Console admin privée : aperçu de trois mois, créneaux datés M4 et invalidations séparés. "
+                          "Comptage par date de début, jamais disponibilité ou promesse client.",
+              parametres={"type": "object", "properties": {"premier_mois": {
+                  "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$", "maxLength": 7}},
+                  "required": ["premier_mois"], "additionalProperties": False},
+              fonction=lire_apercu_mois),
     )
 
 

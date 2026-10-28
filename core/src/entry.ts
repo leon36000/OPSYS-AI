@@ -346,8 +346,10 @@ export async function runMainOrRootHelp(
       // Answered before any help fast path or Commander: the arguments belong to the engine.
       const opsysMetier = resolveOpsysMetierInvocation(argv);
       if (opsysMetier) {
-        const { runOpsysMetierCli } = await import("./cli/opsys-metier-cli.js");
-        const exitCode = runOpsysMetierCli(opsysMetier);
+        const { runOpsysMetierCliWithPublication } = await import("./cli/opsys-metier-cli.js");
+        const exitCode = await runOpsysMetierCliWithPublication(opsysMetier, {
+          root: resolveEntryInstallRoot(fileURLToPath(import.meta.url)),
+        });
         process.exitCode = exitCode;
         requestExitAfterOneShotOutput(defaultRuntime, exitCode);
         return;

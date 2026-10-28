@@ -1,0 +1,570 @@
+# EXIGENCES — cockpit 3-en-1 : traçabilité CRM-01..16 et catalogue de rapports
+
+Dérivé de `BRIEF-SECRETARIAT-20261027.md` et de `AUDIT-SECRETARIAT-3EN1.md` (même dossier). Rien ici n'est « complet » :
+la colonne **Statut** dit l'état réel. Vocabulaire : **Livré-T1** (code de la tranche 1, non exécuté) · **Existant** (primitive de département
+nommée, sans écran cockpit) · **Partiel** · **Manquant**. « Non exécuté » : aucun test n'a pu être lancé dans ce snapshot.
+
+Mise à jour ROOT : la consultation T1 a été vérifiée séparément ; la tranche suivante ajoute les notes
+internes authentifiées (voir [NOTES-CLIENT-AUTHENTIFIEES.md](NOTES-CLIENT-AUTHENTIFIEES.md)).
+Les statuts Livré-T1 et la mention « non exécuté » ci-dessus décrivent le snapshot initial de Claude,
+pas une absence de QA ultérieure. CRM-02 dispose maintenant d’une tranche M4 vérifiée localement (voir `ANNOTATIONS-CEDULE-M4.md`) ; CRM-05/06 gagnent la saisie
+de note, mais pas le suivi des courriels ni leurs réponses.
+
+Tranche consultation M3 : [SOUMISSIONS-DOSSIER-LECTURE.md](SOUMISSIONS-DOSSIER-LECTURE.md)
+relie la liste admin par lead et le détail au dossier. CRM-05/07 restent partiels : consultation
+uniquement, sans édition de clauses, génération de PDF ni envoi. Les constats T1 ci-dessous restent
+l’état historique du snapshot initial.
+
+Tranche recherche : [RECHERCHE-CLIENTS-M2.md](RECHERCHE-CLIENTS-M2.md) ajoute la recherche
+nom/courriel/téléphone/lead dans M2 avant pagination, avec visibilité inchangée et masquage du terme
+dans les journaux d’accès de la console. CRM-04 reste partiel : correction historisée SQLite ajoutée, voir [contrat et limites](CORRECTION-COORDONNEES-M2.md).
+
+Principes transverses (critères d'acceptation communs à toute ligne)
+- **CA-0** Le CRM soutient le travail de l'IA mais reste utilisable à la main : toute action de l'IA est visible, corrigeable et reprise par un humain autorisé.
+- **CA-1** Aucune seconde vérité : le cockpit lit/écrit via les outils du département propriétaire (M2 commercial, M3 soumissions, M4 planning, M5 finance,
+  M6 matériaux, M8 rapports, M10 mémoire).
+- **CA-2** Une capacité n'est affichée que si sa primitive existe ; sinon la carte dit « non disponible » et nomme le contrat manquant. Aucun faux bouton d'envoi, aucun faux statut « envoyé/livré/synchronisé ».
+- **CA-3** RBAC existant préservé (session par personne, CSRF, CSP, échappement `pages.e`), aucune identité venant des arguments.
+- **CA-4** Fixtures fictives (`fictif: true`), aucun nom/adresse de client réel du brief. Fuseau d'affichage des agendas : `America/Montreal`.
+- **CA-5** Accessibilité : aucune information portée par la couleur seule (texte de statut + légende).
+
+## 1. CRM-01..16
+
+| ID | Exigence (résumé) | Existant réel | Statut | Owner | Critère d'acceptation spécifique |
+|---|---|---|---|---|---|
+| CRM-01 | Cédule hebdomadaire équipes × jours, cartes cliquables, vue multi-mois, couleurs configurables + légende + texte | `m4_confirmer_dates_cedule`, `m4_lire_cedule_semaine` : source civile explicite après plan appliqué, révisions, conflits connus, dates invalidées par report/annulation/réassignation | **Partiel** (grille semaine et formulaire de dates internes, SQLite/HTTP qualifiés ; repères de couleur qualifiés localement ; aperçu trois mois sourcé qualifié localement ; pagination indépendante qualifiée en HTTP/SQLite ; visites multiples manquantes) | M4 (données), cockpit (rendu) | Grille semaine rendue depuis M4 uniquement ; carte → dossier ; légende textuelle ; couleur = préférence du cockpit stockée dans une collection de présentation M4 séparée **sans** altérer son registre opérationnel ; vue mois. Source, grille `/crm/cedule` et saisie `/crm/cedule/plan/{plan_id}` disponibles ; navigation lundi→dimanche, liens M2 vérifiés, statuts avec couleurs et texte, sans transformer une date interne en promesse client (contrat §3.1, [preuve et limites](CEDULE-HEBDOMADAIRE-M4.md)) |
+| CRM-02 | Note rapide au clic sur job (pastille-note) | `m4_enregistrer_annotation_calendrier`, `m4_lire_annotations_calendrier`, `m4_resumer_annotations_calendrier` ; créneau exact, auteur serveur, versions conservées | **PARTIAL** : console privée SQLite ; qualification décrite dans `ANNOTATIONS-CEDULE-M4.md`, navigateur/agents/PostgreSQL ouverts | M4 | Pastille « note » = interprétation du message ; lien accessible + compteurs textuels ; ancienne date conservée sans transfert automatique. Aucune mutation planning/paie/notification |
+| CRM-03 | Agenda par vendeur jour/semaine/mois, rendez-vous, sync, conflits, droits, America/Montreal, historique | Registre M2 agenda_vendeurs et console admin jour/semaine/mois | **Partiel — HTTP/SQLite qualifié localement** | M2, port admin privé | Distinguer vue (lecture) de synchronisation réelle (connecteur Google : approbation, journal, conflits). Un vendeur ne voit que son agenda. Voir §3.2 |
+| CRM-04 | Répertoire clients/prospects permanent, recherche, coordonnées modifiables, multi-projets, historique, corrections tracées | `m2_lister_leads`, `m2_trouver_client_de_lead`, `m2_obtenir_client_360`, doublons | **Partiel** : répertoire recherché, dossier, correction historisée sur SQLite | M2 | Livré : liste paginée avec filtre statut, lien vers dossier, contact/ville depuis le contrat ingéré, opportunités multiples d'un même client visibles. Recherche et correction ajoutées ; historique visuel admin paginé, référence M10 minimisée et diagnostic de transmission ajoutés ; restent qualification PostgreSQL et propagation gouvernée |
+| CRM-05 | Dossier client/projet : Activités, Suivi client, Rencontres, Soumissions, Bons de commande, Bons de travail, Coûts des travaux, Factures, Photos et fichiers | Voir lignes CRM-06..12 | **Partiel** (activités, soumissions et rencontres par projet raccordées ; les autres sections gardent leur statut réel) | M2 + départements | Les 9 sections sont présentes ; chacune dit sa source et son statut réel. « Vérification » **non** recopiée comme exigence (non validée) |
+| CRM-06 | Activités = notes internes ; Suivi client = courriel exact, date/heure, destinataire, réponse dans le fil ; statut de livraison sourcé ; rendez-vous liés | Activités : interactions M2 (**Livré-T1** en lecture) ; courriels : aucun journal par client ; `m2_preparer_relance` = texte fixe, rien envoyé | **Partiel** (Activités) / **Manquant** (Suivi client) | M2 + M1 (canaux) | Un courriel n'apparaît « envoyé » que s'il existe une preuve d'envoi sourcée ; brouillon ≠ envoyé. Contrat §3.5. [Garde IMAP de boîte/curseur](CRM06-IMAP-GARDE-BOITE.md) qualifié localement; ne fournit pas encore le journal de courriels. [Codec original](CRM06-COURRIEL-CONTRAT.md) qualifié; [stockage chiffré interne](CRM06-COURRIEL-STOCKAGE.md) sans raccord Host ou journal client actif |
+| CRM-07 | Soumissions préremplies, modèles/options/clauses éditables et **versionnés**, signée non réécrite | `m3_creer_devis`, `m3_generer_soumission_brouillon`, `soumission_pdf` | **Partiel** (catalogue versionné, version figée dans un nouveau devis et rendu HTML/PDF ; lignes et tarifs M6 raccordés en HTTP/SQLite ; fournisseurs et matériaux par nom, aperçu du prix et cascade acceptation SQL vérifiés ; références de versions M10 reçues et preuve visible en admin ; navigateur et mémoire sémantique ouverts) | M3 | Modifier un modèle crée une version ; un devis signé référence la version utilisée et reste identique. Contrat §3.6 |
+| CRM-08 | Soumission acceptée → bon de travail planifiable avec contexte/matériaux ; readiness M4 avant confirmation | M3 accepté → vrai bus → intervention M4 existante ; lecteur privé de préparation depuis la fiche devis | **PARTIAL** : préparation/proposition/revue, affectation interne N3 et datation civile avec contexte M10, plus consultation météo datée qualifiées en HTTP/SQLite ; fraîcheur et dispatch final ouverts | M3→M2→M4 | Lien après acceptation réelle M3 ; publication/réception et inscription exactes vérifiées, source M1 concordante, préparation courante M4 ; aucune écriture GET ni promesse de date. [Audit, preuves et limites](AUDIT-PLANIFICATION-DEPUIS-DEVIS.md) |
+| CRM-09 | Note d’achat libre par chantier, structuration proposée puis validée | `m6_enregistrer_note_commande`, `m6_lire_note_commande`, `m6_lister_notes_commande` : formulaire, liste et historique depuis une soumission avec chantier M6 connu, admin actif, texte ≤20 000 car. | **Partiel** ; formulaire HTTP/SQLite vérifié, navigateur et PostgreSQL non qualifiés ; ancrage lead seul, structuration et conversion manquants | M6 (note/PO), M1 (envoi) | Aucune sélection d’articles requise pour la note ; aucun faux PO ni preuve d’envoi. Quotas, CAS, rejeu et audit vérifiés localement sur SQLite. [Contrat et limites](../inventory/M6-NOTES-COMMANDE.md) |
+| CRM-10 | Coût réel en fin de job : MO, matériaux, extras, dépenses, pièces, prévu/réel | `m5_lire_rentabilite_chantier`, `m3_lire_ecarts_estime_reel`, `m6_evaluer_variance_chantier`, `m4_produire_brouillon_temps` | **Partiel** : consultation admin HTTP/SQLite depuis le devis accepté qualifiée ; navigateur, coûts historiquement figés et extras/dépenses complets ouverts | M5 (+M6, M4) | Tableau prévu/réel propriétaire M5, coûts absents explicites, sources/hypothèses et prix/taux actuels ; aucune addition faite par le cockpit |
+| CRM-11 | Facture modifiable selon l'état : brouillon éditable ; émise → correction M5 tracée/versionnée ; période fermée protégée | `m5_creer_facture_brouillon`, `m5_envoyer_facture`, `m5_enregistrer_paiement_facture` ; correction seulement côté fournisseur | **Partiel** | M5 | Brouillon : édition ; émise : « corriger » ouvre un mécanisme M5 versionné (note de crédit/révision) ; jamais de suppression ni modification silencieuse. Contrat §3.8 |
+| CRM-12 | Photos et PDF par dossier : dépôt, aperçu, classement, téléchargement autorisé, liens projet/bon/facture ; pas d'usage marketing auto | PDF M3 natif; WCT M4 exact + nouvelles photos_apres privées + CAS vérifié; M10 documentaire non raccordé | **Partiel** — lecture admin paginée qualifiée localement (126 tests et navigateur réel); dépôt photos/PDF et téléchargement privé avant travaux qualifiés localement (237 tests, navigateur réel); classement manuel et historique qualifiés localement (225 tests recoupés et navigateur); catégorie courante et filtre avant pagination qualifiés localement (253 tests recoupés et navigateur, contrôle de fraîcheur 409); versions/rétention et bibliothèque complète manquantes | M3 / M4, M10 ultérieur | [Liste filtrée](CRM12-LISTE-FILTREE-PIECES.md), [classement et historique](CRM12-CLASSEMENT-PIECES.md), [pièces reçues : HTTP et navigateur](CRM12-PIECES-RECUES-HTTP.md), [port privé](CRM12-PIECES-RECUES.md), [consultation des preuves](CRM12-PHOTOS-APRES-CONSULTATION.md), [conservation M4](../field/M4-PREUVES-COMPLETION-DURABLES.md). Hash de signature/orphelin/autre projet refusé, notes/signature exclues, origines et références distinctes, aucune reconstruction historique ni utilisation marketing |
+| CRM-13 | Tableau commercial chiffré gagnés/perdus, en cours, acceptés, volumes/montants, période/filtre, définitions | `m8_lire_vue_executive`, `m8_rapport_metriques`, définitions M8, `m2_lister_leads` (aucun montant), `m3_lister_devis` | **Partiel** | M8 (+M2, M3) | Chaque chiffre porte sa définition M8, sa période et sa source ; pas de montant calculé dans le cockpit |
+| CRM-14 | Prix fournisseurs : réception de listes par courriel, détection, import annuel/catalogue, comparaison, historique, anomalies, mise à jour validable ; fournisseurs connus Gentek, Royal Solution de Bâtiment, O.A.M., Kaycan | M6 livre de prix manuel (`m6_enregistrer_prix`, `m6_resoudre_prix_materiau`, fournisseurs) | **Partiel** (catalogue/fournisseurs, saisie/historique et import CSV manuel revu/confirmé en HTTP/SQLite qualifiés localement) / **Manquant** (détection/extraction courriel, formats fournisseurs réels, automatisation et anomalies) | M6 (+M1 pour la réception) | Variante dictée ≠ nouveau fournisseur (file de revue) ; ligne ambiguë → revue humaine ; aucun prix inventé ; les soumissions historiques gardent leur version. Contrat §3.9 |
+| CRM-15 | Contrat employé annuel signé en ligne, profil à jour, permis + échéance en accès restreint, heures ; jamais visible du CRM vendeur/client | `m5_enregistrer_contrat_horaire`, `paie_admission_ui`, `m4_pointer` | **Partiel** (contrat horaire M5) / **Manquant** (signature en ligne, documents RH) | M5/M4 (RH à trancher) | Accès restreint propriétaire/admin ; absent du répertoire et du dossier client par conception (test négatif) ; Loi 25 |
+| CRM-16 | Journal quotidien d’équipe : qui avec qui, prévu vs visité, terminé/reporté, extras, absences, heures ; historique annuel ; plusieurs visites conservées | Registre principal M4, `m4_lire_journal_quotidien`, registre séparé et ports privés `m4_lire_composition_journaliere_console` / `m4_declarer_composition_journaliere_console`, consultation admin HTTP/SQLite des absences signalées et T1 privé `m4_declarer_absence_journaliere_console` avec formulaires CSRF, vue quotidienne sourcée et choix privé de compte actuel | **Partiel** : journal, notes, écarts, assignations et composition déclarée consultable/modifiable sous CSRF admin HTTP/SQLite qualifiés localement ; composition publiée en PR brouillon, consultation des absences qualifiée localement, saisie des absences déclarées qualifiée localement, vue quotidienne et sélecteur de comptes qualifiés localement, aperçu individuel des temps pointés qualifié localement; présence observée et historique horaire complet à qualifier | M4 | Déclaration ≠ présence ; équipe du plan ≠ membres observés ; corrections et deux temporalités explicites. [Audit et limites](AUDIT-JOURNAL-QUOTIDIEN-EQUIPES.md) |
+
+## 2. Modules/navigation visibles du brief (photos 9960–9965)
+
+Rapprochement avec l'existant ; aucune entrée de navigation n'est créée sans page réelle.
+
+| Module du brief | Rapprochement | Statut |
+|---|---|---|
+| Comptabilité : opérations bancaires, intégration, reçus, rapprochement, règles, plan comptable, récurrentes, espace comptable | `banque_ui` (prévisualisation/rapprochement), `obligations_rapprochement_ui`, M5 mouvements ; plan comptable/règles/récurrentes non repérés | Partiel |
+| Dépenses & fournisseurs : opérations, fournisseurs, factures à payer, kilométrage | `fusion_ap_*`, M5 factures fournisseur, `m5_lister_comptes_a_payer`, M6 fournisseurs ; kilométrage non repéré | Partiel |
+| Ventes & encaissements : aperçu, opérations, factures, liens de paiement, commandes de vente, paiements, produits/services | M5 factures/paiements, M3 devis ; liens de paiement : paiement = frontière humaine T3 | Partiel |
+| Centre clients : aperçu, clients/prospects, occasions, devis, propositions, contrats, rendez-vous, évaluations | **Tranche 1** (clients/prospects), M2 pipeline, M3 devis, M7 avis ; rendez-vous internes admin M2 : agenda et dossier | Partiel (T1) |
+| Paie : aperçu, employés, cotisations, conformité | `paie_ui`, `paie_admission_ui`, M5 `m54*` (préparatoire) | Partiel (préparatoire, validation CPA requise) |
+| Équipe, projets, stock, taxe de vente, marketing | M4, M5 chantiers, M6 stock, M5 taxes, M7 (onglet Marketing) | Partiel |
+| Barre latérale : création, signets, accueil, rapports, applications, favoris | Aucun équivalent (onglets fixes `pages.ONGLETS`) | Manquant |
+
+## 3. Catalogue de rapports (photos 9965–9970)
+
+Règle générale **RPT** : un rapport canonique, plusieurs raccourcis ; chaque rapport = source nommée (M5/M6/M8/M4), définition, période, filtres,
+export, fixtures fictives ; sinon carte « non disponible ». Critère d'acceptation par ligne = **RPT** + précision de la colonne « Note ».
+Statut par défaut : **Manquant** (aucun écran « Rapports » dans la console) ; la colonne « Primitive » nomme ce qui existe déjà côté département.
+Libellés coupés/illisibles dans les photos : **non inventés** (§4).
+
+### R-ENT Entreprise (owner M5, vue M8)
+| Sous-rapport | Primitive | Statut / note |
+|---|---|---|
+| Journal de bord | `journaliser` (journal d'audit socle) à confirmer | Manquant — sens exact à clarifier |
+| Bilan / provisoire, comparaison, détail, sommaire | aucune | Manquant (plan comptable M5 requis) |
+| État des flux de trésorerie | `m5_etat_tresorerie`, `m5_prevoir_tresorerie` (prévision, pas état QuickBooks) | Partiel |
+| Aperçu entreprise | `m8_lire_vue_executive` | Partiel |
+| Variations des capitaux propres (libellé anglais visible) | aucune | Manquant |
+| Compte de résultat ; par client / classe / mois / groupe de balise ; comparaison ; détail | aucune | Manquant |
+| Taille commune (% du chiffre d'affaires) | aucune | Manquant |
+| Comparaison annuelle cumulative ; sommaire trimestriel | aucune | Manquant |
+| Rentabilité projet | `m5_lire_rentabilite_chantier` | Existant (sans écran) |
+
+### R-AR Ce qu'on vous doit (owner M5)
+| Sous-rapport | Primitive | Statut / note |
+|---|---|---|
+| Classement chronologique des comptes clients — sommaire / détail | `m5_lire_comptes_a_recevoir` (forme à relire) | Partiel |
+| Perception / recouvrement | `m2_lister_relances` (relances commerciales) ≠ recouvrement | Manquant |
+| Soldes clients — sommaire / détail | `m5_lire_comptes_a_recevoir` | Partiel |
+| Liste de factures ; factures/paiements reçus ; factures impayées | M5 factures/paiements | Partiel |
+| Relevés de compte ; modalités | aucune | Manquant |
+| Activités/imputations et heures non facturées | `m4_produire_brouillon_temps`, `m5_lister_attentes_facturation` | Partiel |
+
+### R-STOCK Stocks (owner M6)
+| Sous-rapport | Primitive | Statut / note |
+|---|---|---|
+| Évaluation des stocks — détail / sommaire | `m6_lire_disponibilite`, `m6_produire_digest` | Partiel |
+| Bons de commande en cours — détail / liste | M6 PO (`creer/approuver/annuler`) | Partiel |
+| Feuille de calcul d'inventaire ; état des stocks | `m6_soumettre_comptage` | Partiel |
+
+### R-VENTES Ventes et clients (owner M2/M3/M8)
+| Sous-rapport | Primitive | Statut / note |
+|---|---|---|
+| Transactions de paiement / cashflow (libellé anglais visible) | M5 paiements | Partiel |
+| Ventes par type de client | aucune | Manquant (taxonomie de type de client à définir) |
+| Devis et facturation à l'avancement par client | `m3_lister_devis`, M5 contrats `m5_enregistrer_echeancier_contrat` | Partiel |
+| Coordonnées et annuaire clients | **Tranche 1** (répertoire, contact du contrat ingéré) | Partiel — Livré-T1 |
+| Revenus par client ; ventes par client sommaire / détail | M5 + M8 | Manquant |
+| Dépôts | aucune | Manquant |
+| Devis par client | `m3_lister_devis` | Partiel |
+| Produits/services : liste ; ventes sommaire / détail | catalogue services (taxonomie) + M3 | Partiel |
+| Ventes par classe — sommaire / détail | aucune (« classe » à définir) | Manquant |
+| Modes de paiement ; heures par client | aucune ; `m4` heures | Manquant ; Partiel |
+| Opérations par client / groupe de balise | aucune | Manquant |
+
+### R-AP Ce que vous devez (owner M5)
+| Sous-rapport | Primitive | Statut / note |
+|---|---|---|
+| Classement chronologique des comptes fournisseurs — sommaire / détail | `m5_lister_comptes_a_payer` | Partiel |
+| Factures fournisseurs et paiements sortants ; liste de paiements | `m5_saisir_facture_fournisseur`, mouvements | Partiel |
+| Factures non réglées ; soldes fournisseurs sommaire / détail | `m5_lister_comptes_a_payer` | Partiel |
+
+### R-ACHATS Dépenses / fournisseurs (owner M5/M6)
+| Sous-rapport | Primitive | Statut / note |
+|---|---|---|
+| Détails des chèques | aucune | Manquant |
+| Achats par produit/service/classe ; liste des achats | M6 réceptions + M5 factures fournisseur | Partiel |
+| Information T4A fournisseur ; détails feuillet T4A | aucune | Manquant — préparatoire, validation M5/CPA |
+| Information T5018 fournisseur ; détails formulaire T5018 | aucune | Manquant — idem |
+| Opérations par fournisseur ; achats par fournisseur ; dépenses par fournisseur (sommaire) | M5/M6 | Partiel |
+| Coordonnées / annuaire fournisseurs | `m6_lister_fournisseurs` + ports privés console | Partiel : liste/fiche/PATCH admin HTTP/SQLite qualifiés, contacts conservés explicitement; références fournisseurs reçues par M10 en QA locale; historique navigable et badge admin ouverts |
+
+### R-TAXES (owner M5 — préparatoire, règles fiscales sourcées requises avant usage officiel)
+| Sous-rapport | Primitive | Statut / note |
+|---|---|---|
+| Rapport détaillé / sommaire TPS/TVH–TVQ | `m5_calculer_taxes_tps_tvq` (calcul), `m5_lire_echeances_fiscales` | Partiel |
+| Exceptions ; opérations sans taxe ; ventes taxables ; opérations par code taxe | aucune | Manquant |
+
+### R-EMPLOYÉS (owner M4/M5)
+| Sous-rapport | Primitive | Statut / note |
+|---|---|---|
+| Coordonnées des employés | `identite` (personnes) ; RH à cadrer | Partiel — accès restreint (CRM-15) |
+| Heures travaillées récentes / modifiées ; détail des heures par employé | `m4_pointer`, `m4_lire_heures_regulieres_validees` | Partiel |
+
+### R-COMPTABLE Pour le comptable (owner M5)
+| Sous-rapport | Primitive | Statut / note |
+|---|---|---|
+| Liste des comptes ; classes | aucune (plan comptable) | Manquant |
+| Exceptions à la clôture ; opérations automatiques récentes ; opérations récentes | `obligations_*`, journal socle | Partiel |
+| Bilan et résultats (raccourcis vers R-ENT) | — | Manquant (raccourci seulement) |
+| Journal non validé ; journal ; grand livre général / liste | aucune | Manquant |
+| Modèles récurrents | M5 échéanciers de contrat (`m5_enregistrer_echeancier_contrat`) | Partiel |
+| Rapprochement | `banque_ui`, `obligations_rapprochement_ui` | Partiel |
+| Balance de vérification et ajustée ; opérations par compte/date ; opérations avec répartitions | aucune | Manquant |
+
+### R-PAIE (owner M5 — préparatoire, validation CPA)
+| Sous-rapport | Primitive | Statut / note |
+|---|---|---|
+| Historique des chèques de paie ; détail paie ; éléments de paie ; sommaire paie | `m5_preparer_brut_regulier`, `m5_preparer_dossier_webras` (préparatoire) | Partiel |
+| Retenues/cotisations ; obligations et paiements de cotisations ; sommaire cotisations sociales/traitements | `m54e…m54h` (impôt, RRQ), `m5_lire_sources_regles_paie` | Partiel |
+| Paie par employé (sommaire) ; répertoire/détail employés ; lieux de travail multiples | contrat horaire M5, M4 | Partiel / Manquant |
+| Congés annuels et maladie ; régimes de retraite | aucune | Manquant |
+| Coût total de la paie ; rémunération totale ; rémunération des travailleurs | aucune | Manquant |
+| Téléchargement des rapports de paie | aucune | Manquant |
+| Heures récentes/modifiées et détail par employé | voir R-EMPLOYÉS | Partiel |
+
+### Navigation des rapports
+Standards, personnalisés, direction, planification financière, aperçu/planificateur de flux de trésorerie, budgets, recherche, favoris :
+**Manquant** (aucun écran rapports). Critère : aucun lien n'est affiché sans rapport derrière ; « favoris » exige un stockage de préférence par personne (cockpit, non métier).
+
+## 4. Ambiguïtés et points ouverts (sans blocage)
+
+1. **Pastille-note (CRM-02)** : hypothèse « pastille indiquant une note, clic pour lire/ajouter » ; non confirmée par la secrétaire.
+2. **Couleurs** par état/équipe/service : règle non connue ; la configurabilité est exigée (CRM-01), la palette ne l'est pas.
+3. **Terminologie dictée** (fournisseurs, rubriques) : toute variante incertaine passe en revue humaine (CRM-14).
+4. **Édition/version QuickBooks visée** et libellés coupés en bas de photos : non inventés ; à compléter avec les prochaines photos.
+5. **Agenda Google (CRM-03)** : vraie synchronisation bidirectionnelle vs agenda « similaire ». Les deux se cadrent séparément ; seule la vue est livrable sans connecteur.
+6. **« Vérification »** (dossier, photo 9972) : non validé comme exigence métier.
+7. **Qui est l'utilisateur du cockpit** : les outils M2 acceptent `seller` et `admin`. La console n'ouvre aujourd'hui que `nathan_owner`/`admin` ; la secrétaire n'a pas de rôle défini dans `ROLES.md` (à décider par ROOT : rôle dédié ou `admin`).
+8. **Recherche** : l'absence de nom dans `m2_lister_leads` rend la recherche par nom impossible côté cockpit sans primitive M2 (§3.3).
+
+## 5. Tranche 1 livrée (non exécutée)
+
+**Répertoire et dossier client en lecture seule sur M2** — voir le HANDOFF pour fichiers et comportement.
+Critères d'acceptation de la tranche : (1) accès refusé sans session, sans rôle `admin` ; (2) lecture uniquement par `metier.executer` (LECTURES) ; (3) aucune valeur
+inventée : champ absent = « — » ; (4) échappement systématique (XSS) ; (5) chaque section non branchée dit « non disponible » avec l'outil/contrat visé ;
+(6) aucune écriture, aucun bouton d'envoi ; (7) pagination fidèle au `decalage` de M2.
+
+## Annexe A. Contrats proposés (primitives manquantes — non codés)
+
+Chaque contrat : outil, entrées, sortie, propriétaire, approbation, journal. Les événements/auth/permissions/DB existants ne sont pas modifiés ;
+ROOT décide de l'intégration.
+
+- **3.1 `m4_lire_cedule_semaine`** (M4, lecture) — `{debut_semaine: date, equipes?: [id]}` → `{interventions:[{intervention_id, lead_id, equipe_id, debut, fin, statut, visites:[{prevue_le, reelle_le, issue}]}], fuseau:"America/Montreal"}`. Source : cédule M4. Aucune donnée de contact. Rôle admin.
+- **3.2 Agenda** — M2 est propriétaire des rendez-vous commerciaux internes : `m2_lire_agenda_vendeur`, `m2_enregistrer_rendez_vous`, `m2_historique_rendez_vous` (port admin privé), conflits intégrés ; accès console vendeur à qualifier ; synchronisation Google = connecteur approuvé (T3 pour toute écriture externe), journal, version.
+- **3.3 `m2_rechercher_clients`** (M2, lecture) — `{texte (≥3 car.), decalage, limite}` → `{clients:[{client_id, nom, ville, lead_ids}]}` ; même contrôle d'accès que `m2_lister_leads`.
+- **3.4 `m2_corriger_contact`** (M2, écriture T1/T2) — `{client_id, champs, motif, revision_attendue}` → nouveau maillon append-only (ancienne valeur conservée), idempotent (`mutation_id`), auteur = session.
+- **3.5 `m2_enregistrer_courriel`** (M2/M1) — `{lead_id, direction: sortant|entrant, destinataire, objet, corps_ref, instant, statut_livraison, source_preuve}` ; `statut_livraison ∈ {brouillon, en_attente, envoye, livre, echec, inconnu}` ; `envoye` exige `source_preuve`.
+- **3.6 Modèles de soumission versionnés** (M3) — `m3_lister_modeles`, `m3_proposer_version_modele`, `m3_activer_version_modele` (approbation humaine) ; `m3_creer_devis` figé sur `version_modele_id`.
+- **3.7 `m6_enregistrer_note_commande`** (M6) — `{lead_id|chantier_id, texte_libre ≤ N, auteur}` ; `m6_proposer_structuration_note` → lignes suggérées à approuver.
+- **3.8 `m5_corriger_facture_emise`** (M5) — `{facture_id, motif, lignes_corrigees, revision_attendue}` → version/note de crédit M5 ; refus fermé si période close.
+- **3.9 `m6_importer_liste_prix`** (M6) — `{fournisseur_id (connu), source_ref, lignes:[{item, unite, couleur, profil, prix, date_effet}]}` → écarts/anomalies/doublons en revue ; politique d'auto-validation configurable.
+
+La tranche CRM-01 serveur rend `m4_lire_cedule_semaine(debut_semaine)` sans filtre équipes ni visites réelles multiples pour l'instant. Les champs `validite`, `revision`, `source_ligne_id`, `source_application_id`, les listes `sans_date`, les totaux et la troncature explicite complètent la source. `m4_confirmer_dates_cedule` exige un admin actif et une révision attendue ; une donnée non datée reste non datée. La grille HTML semaine et la saisie des dates internes depuis le détail borné `m4_lire_calendrier_plan` sont qualifiées par TestClient sur SQLite ; CSRF, révision attendue, identité active et rejeu contrôlés. Les données tronquées bloquent la saisie. Les couleurs sont des statuts fixes avec légende ; préférences personnalisées, visites successives et validation visuelle navigateur restent ouvertes. Voir [audit ciblé](CEDULE-HEBDOMADAIRE-M4.md).
+
+## Annexe B. Capacités avancées des agents (cadre commun, à instancier par ROOT)
+
+Pour chaque fonction du CRM : agent responsable (département propriétaire), outils réels (colonnes « Existant » ci-dessus), déclencheur (événement du bus
+ou cron `department.yaml`), approbation (palier T0–T3 ; écriture externe/argent = humain), journal (registre append-only + `journaliser`), budget (`budget:`
+du département), test (preuve fictive), résultat mesurable (ex. « note enregistrée en < N clics », « soumission préremplie en < N minutes »).
+Tranche 1 n'ajoute **aucun** agent ni déclencheur : elle donne la visibilité humaine sur les dossiers que les agents M2 alimentent déjà.
+
+
+Mise à jour CRM-01 couleurs : [COULEURS-CEDULE-M4.md](COULEURS-CEDULE-M4.md) décrit la palette manuelle, les références exactes, les versions et les preuves HTTP/SQLite. Les mentions historiques de couleurs manquantes ci-dessus restent datées de leurs tranches. Aucun classement automatique par service/équipe ni statut métier n’est déduit du repère.
+
+Mise à jour CRM-01 multi-mois : [APERCU-MULTIMOIS-M4.md](APERCU-MULTIMOIS-M4.md) décrit la lecture privée `m4_lire_apercu_mois`, la route `/crm/cedule/mois`, les totaux depuis un instantané unique et les liens vers la semaine. Les anciens constats de vue mois absente restent historiques. Pas de disponibilité ni durée d’occupation déduite des comptes par date de début.
+
+Évolution CRM-01 grand carnet : [PAGINATION-CEDULE-M4.md](PAGINATION-CEDULE-M4.md) décrit deux listes de 25 éléments navigables indépendamment, avec référence de source et reprise explicite si M4 change. Le contrat historique plafonné est conservé ; la qualification de cette tranche est consignée dans ce document.
+
+CRM03 : [audit initial](AUDIT-AGENDA-VENDEURS.md), [contrat et limites de la tranche interne](AGENDA-VENDEURS-M2.md).
+
+CRM05 : [rencontres par projet](RENCONTRES-DOSSIER-M2.md), pagination sourcée, anciens vendeurs conservés. Les courriels et autres sections restent ouverts.
+
+CRM07 : [catalogue textuel versionné](MODELES-SOUMISSION-VERSIONNES-M3.md). [Version figée et rendu client](RATTACHEMENT-MODELE-DEVIS.md) raccordés; [lignes et tarifs préremplis](PREFILL-HTTP-M3-M6.md) qualifiés en HTTP/SQLite. M10 et navigateur restent ouverts.
+
+CRM07 — [Rattachement explicite aux nouveaux devis](RATTACHEMENT-MODELE-DEVIS.md) : textes figés et documents;
+les lignes et tarifs explicites sont raccordés en [HTTP/SQLite](PREFILL-HTTP-M3-M6.md); mobile/M10 et qualifications navigateur/PostgreSQL restent ouverts.
+
+Mise à jour fournisseurs : [audit et qualification HTTP](../inventory/M6-AUDIT-FOURNISSEURS-ADMIN.md).
+Le secrétariat peut créer la fiche puis saisir le tarif et construire le devis entièrement
+par formulaires HTTP. La reprise revalide les rôles, les empreintes et le reçu. Les anciennes
+coordonnées restent intactes sans choix explicite de remplacement/effacement. Ni envoi de
+commande, ni import courriel, ni M10 fournisseur/tarif, ni navigateur/mobile/PG revendiqué.
+
+Le jalon suivant a qualifié localement les références fournisseurs et tarifs → M10 :
+[sources relues, réception durable et chaîne privée](../inventory/M6-AUDIT-REFERENCES-FOURNISSEURS-TARIFS-M10.md).
+Il n’ajoute pas de consolidation sémantique ni de badge admin pour ces deux familles.
+CRM-14 reste partiel : l’import des listes de prix par courriel n’est pas livré.
+
+
+CRM-08 : [vue de préparation](AUDIT-PLANIFICATION-DEPUIS-DEVIS.md) depuis le devis accepté et
+[port privé de proposition](AUDIT-PROPOSITION-DEPUIS-DEVIS.md) qualifiés sur SQLite. Le port crée
+un brouillon M4 pour l’intervention exacte, sans affectation; son interface HTTP et l’application
+restent ouvertes. Les traces d’acceptation, le matériel et les profils sont relus, sans promesse client.
+
+
+CRM-08 — interface de proposition : [formulaire CSRF et revue du plan réel](AUDIT-PROPOSITION-DEPUIS-DEVIS.md)
+qualifiés en HTTP/SQLite, avec refus des sources changées et des plans étrangers. Aucun bouton
+d’affectation ou de confirmation de date dans cette tranche. Le moteur reste la source du brouillon.
+
+
+CRM-08 — [port privé de décision N3](AUDIT-APPLICATION-PLAN-DEPUIS-DEVIS.md) qualifié sur SQLite :
+transition/assignation liées au plan et à l’approbation réelle, rejeu historique seulement.
+L’interface de décision reste à raccorder. Les affectations internes ne réservent pas une date;
+le conflit civil à deux plans est vérifié, capacité globale/trajets/météo restent ouverts.
+
+
+CRM-08 — [décision N3 dans la revue HTTP](AUDIT-APPLICATION-PLAN-DEPUIS-DEVIS.md) qualifiée :
+affectation interne signée, puis éditeur de dates distinct; rejeu après report explicitement
+historique. Aucune date automatique, notification ou disponibilité globale promise. Le
+parcours complet dispatch/météo/capacité et les autres qualifications restent PARTIAL.
+
+
+CRM-08 — [contrôle explicite de météo sur dates internes](AUDIT-METEO-DATES-CHANTIER.md) :
+GET sans prévision; POST sur dates enregistrées, sources et profil effectivement consommé
+vérifiés, verdicts et citations, fraîcheur explicitement non qualifiée. Aucune action de
+planification ou confirmation client. Capacité globale, trajets, politique de fraîcheur,
+M10 avant changement critique et dispatch final restent PARTIAL.
+
+
+CRM-08 — [contexte M10 avant décision N3](AUDIT-MEMOIRE-AVANT-DECISION-CHANTIER.md) :
+paquet restrictif visible avant confirmation, omissions/signaux conservés, empreinte relue
+avant finalisation et rollback complet si changée; audit de références sans copie des faits.
+Le reçu reste historique avec contexte actuel explicitement identifié. Contexte avant les
+modifications de dates et dispatch complet restent PARTIAL.
+
+
+CRM-08 — [intégrité avant première date](AUDIT-MEMOIRE-DATES-CIVILES.md) : preuve métier
+partagée proposition/application dès révision 0, refus des heures altérées/rechaînées et des
+ancres dupliquées/hors ordre; dates, annotations et couleurs préservées sous QA ciblée.
+Le contexte M10 avant datation multi-affaire et le dispatch restent PARTIAL.
+
+
+CRM-08 — [contexte civil M10 privé](AUDIT-MEMOIRE-DATES-CIVILES.md) : adaptateur readonly qualifié,
+liaisons M3 réelles distinguées des devis manuels déclarés, un paquet par affaire et omissions
+conservées. Identité immuable et sources contrôlées, NON_REPRESENTABLE explicite, quota global.
+La cohorte ciblée de 48 tests passe; UI/CAS/reçu civil et volume réel maximal restent **PARTIAL**.
+
+
+CRM-08 — état courant du [raccord M10 aux dates civiles HTTP](AUDIT-MEMOIRE-DATES-CIVILES.md) :
+contexte par affaire avant le bouton, empreinte liée à l'intention, relecture mémoire/autorité
+après vraie mutation sous savepoint; anciens reçus exacts rendus explicitement historiques.
+71 tests ciblés passent, comprenant la validation du reçu encodé et la correction d'une origine M1 absente et la consolidation
+visible. Parcours **PARTIAL** : volume réel maximal/pagination des contextes, navigateur,
+PostgreSQL, fraîcheur météo et dispatch global restent ouverts. Les paragraphes précédents
+conservent les jalons antérieurs; ils ne ferment pas ces limites.
+
+
+CRM-08 — [volume et pagination du contexte civil](AUDIT-VOLUME-MEMOIRE-DATES-CIVILES.md) :
+64 visites d'un vrai plan PyVRP désormais consultables par pages sous64 Kio, synthèse et preuve
+globale couvrant le hors-page; navigation complète64 et confirmation réelle depuis dernière
+page qualifiées. Frontière réelle98 (deux dépôts) vérifiée sur premières/dernières pages.
+81 tests ciblés incluent les71 précédents sans cumul. **PARTIAL** :200 inscriptions sont
+refusées par la matrice limitée à100 points; aucun plan200, trafic, capacité globale ou
+qualification navigateur/PostgreSQL/mobile n'est revendiqué. Prochaine tranche : contrat et
+calcul de matrice par blocs, puis coût de lecture M10 mesuré avant optimisation.
+
+
+CRM-08 — état courant de la [capacité locale200](../field/M4-AUDIT-MATRICE-GRANDE-CAPACITE.md) :
+borne globale256 distincte du transport OSRM100, vrai plan200 PyVRP/haversine appliqué,
+67 pages sous64Kio sans perte/doublon, contexte/proof complets, vraie datation et rejeu sans
+effet.353 tests passent puis deux contrôles compatibles recoupés, jamais additionnés. RSS et
+mémoire de groupe mesurés sous ressources bornées. **PARTIAL** : pas de routage OSRM>100 ni de
+trafic/dispatch de production; repli explicite avant réseau. Prochaine priorité mesurée :
+réduire les13400 lectures M10 par navigation200 sans perdre snapshots/autorité/confidentialité.
+
+CRM-08 — [snapshots M10 privés par préparation civile](../analytics/M10-AUDIT-SNAPSHOTS-PAQUETS-CIVILS.md) :
+le même parcours fictif200/67pages passe de80,492 s à31,290 s sous un CPU, en conservant13400
+vrais T0, la confidentialité, la preuve globale, la vraie datation et le rejeu sans effet.
+Sur24 affaires,53 lectures SQL complètes deviennent4. Pas de cache entre requêtes; chaque T0
+relit l'autorité SQL. Contrôles de durée de vie, copies et sources qualifiés localement.
+**PARTIAL** : copies/parcours purs encore à profiler; aucune promesse de SLA, navigateur,
+PostgreSQL, mobile, routage réel ou dispatch global. Les observations historiques restent conservées.
+
+CRM-08 — [préparation pure du contexte M10](../analytics/M10-AUDIT-INDEX-PUR-PAQUETS-CIVILS.md) :
+même navigation fictive200/67pages en16,781 s après indexation pure, contre31,290 s pour la
+capture SQL seule et80,492 s initialement. Même preuve globale/date/rejeu, mêmes13400 vrais T0
+et autorisations SQL courantes.825 comparaisons exactes réparties dans cinq jeux différentiels,
+tests historiques et contrôles civils préservés; populations non additionnées. **PARTIAL** :
+gain local observé sans SLA; M10 complet, dispatch, routage réel, navigateur, PostgreSQL et mobile
+restent ouverts. Aucune modification du modèle d'autorité pour gagner du temps.
+
+
+CRM-10 — [audit et port privé de coûts M5](AUDIT-COUTS-TRAVAUX-DEPUIS-DEVIS.md) :
+devis M3 accepté/publication/réception M5 exacts, projection et calcul propriétaires, captures
+SQL/configuration bornées et sources relues. Contrôles de coût complet/partiel, prix courant,
+trace décalée, configuration A→B→A, facture corrompue et révocation finale qualifiés localement.
+Aucune arithmétique cockpit ni effet financier de la lecture. Le GET admin depuis le devis
+accepté expose prévu/réel, manques, sources, hypothèses, prix/taux actuels et trace sans mutation.
+Qualification HTTP/SQLite : v2 62PASS, puis deux cas inclus après ajout des montants prévus;
+régression CRM v4 54PASS et attente de section obsolète, corrigée seule puis v6 1PASS.
+Populations recoupées, non additionnées. Révocation pendant rendu reproduite puis refusée403
+par dernière vérification SQL dans la même transaction. **PARTIAL** : aucune nouvelle
+complétion terrain M4 prouvée, coût payé/historique, extras/dépenses complets, navigateur,
+PostgreSQL et mobile non qualifiés. Prochaine capacité : journal quotidien CRM-16.
+
+CRM-16 — [journal quotidien](AUDIT-JOURNAL-QUOTIDIEN-EQUIPES.md) : première projection pure
+M4 qualifiée,166PASS dans une cohorte incluant19 contrôles nouveaux (aucun cumul). Historique
+D/D+4 et plans distincts, validité courante, pointages minimisés et pages liées à la tête;
+faits orphelins/inscriptions futures ou doubles refusés. T0 et port privé SQL/admin ensuite
+qualifiés :20 contrôles dédiés passent dans v3 (170PASS/1compteur documentaire FAIL), puis
+compteur corrigé seul v4 1PASS, pins produit/tests inchangés et populations non additionnées.
+Sources bornées avant décodage, snapshot recoupé, admin/session en dernier, aucune écriture.
+Répartiteurs génériques fermés avant factory/reçu, aucun rôle de compte ajouté. GET ensuite
+qualifié en HTTP/SQLite : v2 119PASS, puis v3 3PASS dont deux cas inclus après correction d'un
+faux message de journée vide sur page terminale vide. Source/pagination conservées, liens des
+sept jours depuis la cédule, contrôle SQL admin après rendu. Pas de cumul des populations.
+Le journal mène ensuite aux notes de la prévision exacte, y compris historique, sans copier
+leur texte ou leur compteur dans son snapshot. Parcours notes57PASS (7 nouveaux inclus),
+sans cumul avec les cohortes précédentes : création autorisée, D+4 sans transfert ni écrasement,
+lecture seule de l'ancienne ancre, CSRF et rôle courant. Un rouge de révocation pendant rendu
+de l'ancien écran de notes a été reproduit, puis corrigé par transaction et admin SQL final.
+**PARTIAL** : absence de pointage ≠ absence du salarié; technicien pointé ≠ composition réelle
+de l'équipe; aucune durée quotidienne ou association exacte de visite déduite.
+
+
+CRM-16 — écarts terrain : déclaration et arbitrage M4 sont désormais deux faits datés distincts,
+avec demande/source et noms des dimensions modifiées. Les valeurs libres restent privées et
+la décision M4 n'approuve aucun extra facturable M3/M5. Qualification pure 99 PASS et SQL/HTTP
+72 PASS avec cohortes recoupées, non additionnées; cinq contre-exemples sémantiques reproduits
+puis corrigés par validation de la transition et du WCT propriétaires. Aucun writer/outil/rôle
+nouveau. Statut **PARTIAL**, limites et preuves dans l'audit du journal.
+
+
+CRM-16 — décisions d'assignation historiques et technicien consigné au départ disponibles,
+distincts de l'équipe prévue et du technicien pointé. Report et réassignation conservent les
+anciens jours; la présence et la composition réelle ne sont pas déduites. Identifiants
+historiques composés d'espaces signalés à vérifier sans correction automatique. Qualification
+pure 52 PASS et SQL/HTTP 102 PASS, populations recoupées non additionnées, revue indépendante
+corrigée et fermée. Statut **PARTIAL** et limites dans l'audit du journal.
+
+
+CRM-16 — fondation pure de composition journalière **déclarée** ajoutée : révisions et retrait
+append-only, jour visé distinct de l'instant d'enregistrement, inconnu distinct de liste vide,
+rejeu sans retour arrière et quotas UTF-8. Qualification pure 173 PASS (30 nouveaux inclus),
+cohortes non additionnées. **PARTIAL : port durable/admin et interface non livrés**, aucun
+membre déduit du profil courant ni présence/absence/paie déclarée par ce mécanisme. L'audit du
+journal fixe les prochains contrôles avant exposition CRM.
+
+
+CRM-16 — lecture privée durable de la composition déclarée qualifiée en SQLite : vrai T0,
+source et métadonnées recoupées, admin SQL courant avant/après, aucune écriture.150 PASS puis
+116 PASS du catalogue natif (pas de cumul); profils actuels et droits de personnes inchangés.
+**PARTIAL : affichage HTTP et writer/formulaire non livrés**, aucune présence réelle déduite.
+L'audit du journal et `CRM16-COMPOSITION-PORT-LOCAL-QUALIFIED.json` détaillent les limites.
+
+
+CRM-16 — consultation HTTP admin de la composition journalière déclarée qualifiée localement :
+inconnu/vide/retrait/corrections distincts, deux temporalités et sources, pagination, autorité
+SQL après rendu, aucune écriture.63 PASS incluent17 nouveaux cas HTTP et deux rendus de plans
+purs legacy; populations non additionnées. Liens exacts depuis les prévisions sans copie des
+membres dans le journal; identifiants historiques incompatibles signalés sans normalisation.
+**PARTIAL : writer/formulaire, identités à l'écriture, M10, PostgreSQL, navigateur et mobile
+non livrés pour cette tranche.** Aucune présence, absence, composition réellement observée ou
+paie déduite. Prochaine tranche : déclaration admin signée sous CSRF et CAS/rejeu.
+
+
+CRM-16 — déclaration/correction/retrait admin d'une composition journalière maintenant
+qualifiés localement via vrai T1 privé et formulaires CSRF. Identités canoniques et deux
+transactions concurrentes, CAS/rejeu, historique et rollback après panne d'audit vérifiés.
+273 PASS intégrés (dont 21 writer et 19 formulaire), sans addition avec les anciens lots;
+300 outils natifs, nouveau T1 fermé aux appareils/agents, aucun rôle ou profil modifié.
+**PARTIAL : publication retenue jusqu'à la fin de CI du parent; absences, présence réellement
+observée, heures/paie, M10, PostgreSQL, navigateur et mobile non qualifiés pour cette tranche.**
+Preuve : `CRM16-COMPOSITION-WRITE-LOCAL-QUALIFIED.json`. Prochain besoin du secrétariat :
+absences journalières explicites et historisées, sans données de santé ni inférence automatique.
+
+
+CRM-16 — fondation pure des absences journalières signalées qualifiée localement : historique,
+retrait vers inconnu, CAS/rejeu et source paginée; aucun motif ou champ de paie.101 PASS incluent
+20 cas nouveaux et des régressions recoupant les anciens lots, sans cumul. Revue indépendante
+et deux rouges d'encodage source reproduits/corrigés. **PARTIAL : aucun outil, SQL ou formulaire
+d'absence exposé.** Capture SQLite et T0 privé constituent la prochaine tranche. Preuve :
+`CRM16-ABSENCE-PURE-LOCAL-QUALIFIED.json` et audit du journal.
+
+
+CRM-16 — lecteur privé d'absences journalières : vrai T0 et source SQLite canonique bornée,
+admin SQL/session avant/après, projection indépendante et recapture.186 PASS incluent 20 cas
+nouveaux et des populations recoupées, sans cumul; catalogue natif 301 outils/176 déclarés,
+aucun rôle de personne ajouté. **PARTIAL : writer, HTTP, liste par jour, paie, M10, PostgreSQL
+et mobile ouverts.** Preuve : `CRM16-ABSENCE-PORT-LOCAL-QUALIFIED.json`.
+
+
+CRM-16 — absences signalées consultables en HTTP admin : jour/personne exacts, versions/retraits,
+source et session vérifiées après rendu, formulaire GET de consultation dans le journal sans
+copie de données.79 PASS incluent 22 nouveaux cas; aucun cumul des anciennes cohortes. Les logs
+Uvicorn masquent identifiant/jour, même avant redirection307 avec slash final. Revue et rouges
+sourcés dans l'audit. **PARTIAL : writer/formulaire de mutation, liste quotidienne, absence
+observée, paie, M10, PostgreSQL, navigateur et mobile ouverts.** Nouvelle tranche locale non
+encore publiée; composition et lecteur SQL déjà en PR brouillon ebce. Preuve :
+`CRM16-ABSENCE-HTTP-LOCAL-QUALIFIED.json`.
+
+
+CRM-16 — writer privé des absences qualifié : cible humaine initiale, auteur/heure serveur,
+CAS/rejeu, rollback après audit/source/identité/autorité défaillante, aucune donnée de santé ou
+paie et accusé/audit sans sujet.222 PASS dont 35 nouveaux, sans cumul; nouveau T1 fermé aux
+appareils et agents, catalogue 302/176. **PARTIAL : formulaire CSRF absent, backend local
+non publié après ebce; absence observée, liste par jour, M10/PG/mobile ouverts.** Preuve :
+`CRM16-ABSENCE-WRITE-LOCAL-QUALIFIED.json`.
+
+
+CRM-16 — formulaires admin des absences qualifiés sur HTTP/SQLite : signaler/retirer/redéclarer,
+CSRF, UUID, CAS/rejeu, cible initiale humaine, historique après changement de rôle et rollback
+après audit ou autorité tardive.107 PASS dont 17 nouveaux, sans cumul des cohortes recoupées;
+aucun motif de santé ou champ paie, aucune réactivation. **PARTIAL : local non publié après
+ebce, liste quotidienne et constat réel/paie/M10/PG/navigateur/mobile ouverts.** Prochain besoin :
+vue par jour paginée et sourcée des déclarations. Preuve : `CRM16-ABSENCE-FORM-LOCAL-QUALIFIED.json`.
+
+
+CRM-16 — vue quotidienne admin des déclarations ajoutée : dernier état par personne, retraits
+conservés et historique individuel, filtre de date/pagination/source, lien exact depuis le
+journal sans copie de données.168 PASS dont 21 nouveaux SQL/HTTP et 13 purs (pas de cumul avec
+65/107/222). T0 privé ratifié, catalogue 303/177; logs pluriels masqués. **PARTIAL : commits
+locaux retenus par CI ebce, aucune absence/présence observée ni heure/paie déduite; M10, PG,
+navigateur/mobile ouverts.** Preuve : `CRM16-ABSENCE-DAY-LOCAL-QUALIFIED.json`.
+
+
+CRM-16 — choix privé de comptes internes qualifié en HTTP/SQLite : noms ACTUELS et état de compte
+explicitement séparés des signalements historiques; comptes désactivés inclus, clients seuls et
+agents même mixtes exclus avant chargement. Pagination nom/ID liée au jour et snapshot, quotas avant
+lecture des noms/rôles, source/admin après rendu, lookup exact conservé, aucune mutation de profil.
+61 PASS (dont 22 nouveaux) puis quatre contrôles ciblés complémentaires; cohortes non additionnées.
+Ruff/catalogue natif 303/177 passent. Revue statique indépendante sans constat. Le journal ajoute
+seulement une navigation. M10, heures quotidiennes, présence observée, PostgreSQL, navigateur et
+mobile restent ouverts. [Audit et limites](AUDIT-JOURNAL-QUOTIDIEN-EQUIPES.md). Parent ebce terminal
+40 succès/4 SKIP/44 checks; nouvelle tête à qualifier séparément, produit PARTIAL.
+
+
+CRM-16 — aperçu quotidien individuel des temps pointés qualifié localement sur HTTP/SQLite :
+calcul propriétaire M4 réutilisé (travail net/déplacement/pauses), intervalles sourcés et fuseau
+Montréal, refus sans zéro implicite, compte employee actif, aucun calcul de paie. Second bouton
+GET du lookup jour/ID, sans temps copiés dans le journal. 103 PASS dont 34 nouveaux, puis trois
+contrôles complémentaires de schéma partagé; cohortes non additionnées. Deux constats de revue
+reproduits/corrigés (SELECT sujet trop large et révision précédente non typée). Catalogue303/177,
+aucun droit ajouté. [Audit et limites](AUDIT-TEMPS-POINTES-QUOTIDIENS.md). Comptes désactivés,
+grandes journées, N4/paie, présence observée, M10/PG/navigateur/mobile restent ouverts. PARTIAL.
+
+
+CRM-16 — le fait pointé du journal ouvre maintenant les temps de sa personne pour la journée
+civile Montréal, sans recopie de temps ou nom. IDs non canoniques signalés sans normalisation;
+lien ne signifie ni visite associée ni présence complète. 23 PASS dont six nouveaux, avec
+vrais writers M4 et UTC du lendemain; catalogue303/177. [Limites](AUDIT-TEMPS-POINTES-QUOTIDIENS.md).
+
+
+CRM-14/M6 — [fondation d’historique des tarifs](../inventory/M6-AUDIT-HISTORIQUE-TARIFS-ADMIN.md)
+qualifiée localement : 85 PASS dont 23 nouveaux, rangs/couple/snapshot paginés et valeurs déclarées
+sans conversion ni repli. Le livre/sélecteur existants sont préservés. **Historique navigable encore
+manquant** : aucun port SQL ni écran livré par cette fondation; import courriel toujours ouvert.
+
+
+CRM-14/M6 — lecteur privé SQLite/T0 d’historique qualifié : vrai writer → registre canonique →
+T0/dispatcher → réouverture, 40 PASS dont 19 nouveaux; preuves compatibles précédentes réutilisées
+sans addition. Quotas/source/métadonnées/autorité/session et canaux fermés vérifiés, natif304/177.
+**Écran navigable encore manquant** : aucun GET ajouté par cette tranche. Import courriel ouvert.
+[Audit et limites](../inventory/M6-AUDIT-HISTORIQUE-TARIFS-ADMIN.md).
+
+
+CRM-14 — historique des tarifs désormais consultable en GET admin privé depuis toute fiche
+matériau, même inactive ou ancienne : fournisseur explicite, suggestions de 25 noms actuels,
+identifiant exact pour les autres références, pages liées au snapshot du livre et au couple.
+Montants/dates/unités/devises/documents déclarés restent distincts d’un prix utilisable ou d’une
+preuve externe. Recapture SQL et autorité après rendu, aucun achat/import/réévaluation historique.
+Qualification finale ciblée : 61 PASS dont 29 nouveaux cas HTTP; cohorte antérieure 57 dont 23
+nouveaux cas et preuves propriétaire/T0 réutilisées sans addition des populations. Un constat
+de revue (nom fournisseur historique >200 caractères bloquant le livre) a été reproduit puis
+corrigé via le lecteur privé compatible historique; contacts conservés hors de cette vue.
+Détection courriel, import fournisseur automatique, anomalies, navigateur réel, PostgreSQL et
+mobile restent non qualifiés par cette tranche. Statut CRM-14/M6 et produit : PARTIAL.
+
+
+CRM-14 — [préparation de listes fournisseurs](../inventory/M6-IMPORT-TARIFS-CANDIDATS.md) :
+candidats purs depuis lignes explicitement mappées, source et mapping hachés, montants texte
+exacts, doublons symétriques et erreurs de ligne. Aucun tarif appliqué; catalogue/fournisseur
+encore à revalider dans l’aperçu privé futur. Suite entière M6 locale1700PASS dont39nouveaux,
+pas une preuve de courriel/import officiel/CSV/PDF/XLSX ou de déploiement. Le correctif de
+classification des messages d’avertissement garde le contrôleur de conformité inchangé.
+
+CRM-14 — adaptateur CSV UTF-8 à mapping et séparateur explicites ajouté à la fondation pure.
+25nouveauxCSV vérifiés dans une cohorte83PASS avec candidats/conformité. Les colonnes libres
+restent hors de l’aperçu et la configuration est liée à la source/au lot. Upload et aperçu privés,
+confirmation des nouveaux prix et courriel restent à raccorder; aucune liste fournisseur réelle
+ou format de Gentek/Royal/O.A.M./Kaycan présumé. Produit et CRM-14 : PARTIAL.
+
+CRM-14 — [préparation privée sur sources canoniques](../inventory/M6-IMPORT-TARIFS-APERCU-PRIVE.md) :
+vraiT0 console admin revalide catalogue/fournisseur/unité/dernierprix sur3snapshots bornés,
+sourcepérimée et étatssensibles refusés, reçu desaisie existant reproduit sans appliquer de prix.
+82PASSdont23nouveaux;195 et116portées compatibles réutilisés sans addition. Catalogue305/177,
+aucun droit ajouté. Upload/aperçuCRM et confirmationlot restent à raccorder; pas de courriel réel.
+
+CRM-14 — aperçu CSV désormais disponible en HTTP privé depuis le catalogue et les fournisseurs :
+upload borné, colonnes explicites, source/prix/unité revalidés, affichage des erreurs et ancienprix,
+CSRF/admin et sources aprèsrendu. 69PASSdont17nouveauxHTTP; prix officiels inchangés. La confirmation
+du lot, les formats fournisseurs réels, courriel et déploiement restent ouverts. Preuve HTTP/SQLite,
+pas navigateur réel; produit PARTIAL. Voir le [contrat et preuves](../inventory/M6-IMPORT-TARIFS-APERCU-PRIVE.md).
+
+
+CRM-14 — [confirmation atomique privée du lot](../inventory/M6-IMPORT-TARIFS-CONFIRMATION-LOT.md)
+qualifiée sur94PASSdont31nouveaux : toutes lignes ou aucune, reçu parent/enfants idempotent,
+CAS des3sources, capacité10000, audit/outbox et vrai drainage de références M10 minimisées.
+Concurrence, échec deuxième ligne, quota et expiration finale vérifiés. Catalogue306/177 sans
+permission ajoutée; writer de saisie conservé. Confirmation HTTP, approbation de prix réels,
+courriel et formats fournisseurs restent ouverts. Produit/M6/CRM-14 : PARTIAL.
+
+
+CRM-14 — [confirmation HTTP du lot](../inventory/M6-IMPORT-TARIFS-CONFIRMATION-HTTP.md)
+qualifiée localement : revue de toutes les lignes, même CSV rechoisi, nonce/CSRF/approbation
+explicite, reçu historique et rejeu sans doublon.118PASSdont28nouveauxHTTP,71PASSantérieurs
+réutilisés sans somme; rollback jusqu’après rendu/réception/dernière autorité. Les notes
+libres ne sont ni cachées dans le formulaire ni persistées. Erreurs client400, limites413,
+conflits409 et sources serveur indisponibles503 distincts. Aucun prix réel ou import courriel.
+Navigateur réel encore non qualifié dans cette tranche; M6/CRM-14/produit : PARTIAL.
+
+
+CRM-14 — complément navigateur intégré : login fictif → dialogue fichier → aperçu2lignes →
+confirmation explicite → reçu visible et écritures SQLite vérifiées (+2tarifs/2réceptions,
++3réclamations/+2audits/+2événements). Captures et preuve du chantier conservées, serveur QA
+possédé arrêté. Rejeu via historique navigateur NON VÉRIFIÉ (cache/politique du navigateur),
+rejeu HTTP natif distinct déjà qualifié. Aucun vrai tarif appliqué; statutPARTIAL maintenu.

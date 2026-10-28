@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 import schema_ts as ts
+from agents_base_qa import provisionner_base_qa
 from m10_memoire import liaison
 
 from opsys import canaux, cli, openclaw, tableau_de_bord
@@ -51,8 +52,10 @@ def tous():
 
 
 def _generer(departements, dossier, **extra):
+    cnx_factory = extra.pop("cnx_factory")
+    provisionner_base_qa(cnx_factory, departements)
     environ = {**ENVIRON_EMBEDDINGS, **extra.pop("environ", {})}
-    fichiers = openclaw.generer(departements, dossier, PALIERS, environ=environ, **extra)
+    fichiers = openclaw.generer(departements, dossier, PALIERS, environ=environ, cnx_factory=cnx_factory, **extra)
     return {nom: chemin for nom, chemin in fichiers.items()}
 
 
@@ -91,8 +94,8 @@ def test_un_canal_inconnu_ou_double_dans_un_manifeste_est_refuse(tmp_path):
 # -- Chaque clé, confrontée au schéma du fork -------------------------------------------------------------------
 
 
-def test_channels_sms_ne_porte_que_des_cles_du_schema_de_l_extension(tous, tmp_path):
-    fichiers = _generer(tous, tmp_path)
+def test_channels_sms_ne_porte_que_des_cles_du_schema_de_l_extension(tous, tmp_path, session):
+    fichiers = _generer(tous, tmp_path, cnx_factory=session)
     sms = _json(fichiers, "channels")["sms"]
     schema = ts.lire("extensions/sms/src/config-schema.ts")
     permises = ts.cles_de_l_objet(schema, "export const SmsAccountConfigSchema = z") | {"accounts", "defaultAccount"}
@@ -109,8 +112,8 @@ def test_channels_sms_ne_porte_que_des_cles_du_schema_de_l_extension(tous, tmp_p
     assert sms["publicWebhookUrl"] == "${OPSYS_SMS_URL_PUBLIQUE}"
 
 
-def test_le_canal_est_une_cle_de_la_racine_du_core_et_la_liaison_suit_le_schema(tous, tmp_path):
-    fichiers = _generer(tous, tmp_path)
+def test_le_canal_est_une_cle_de_la_racine_du_core_et_la_liaison_suit_le_schema(tous, tmp_path, session):
+    fichiers = _generer(tous, tmp_path, cnx_factory=session)
     racine = ts.cles_de_l_objet(ts.lire("src/config/zod-schema.root-shape.ts"), "export const OpenClawSchemaShape =")
     assert {"channels", "bindings", "session", "plugins", "agents", "tools"} <= racine
 
@@ -133,8 +136,8 @@ def test_le_canal_est_une_cle_de_la_racine_du_core_et_la_liaison_suit_le_schema(
     assert "m01-front-office" in _json(fichiers, "agents")["entries"]
 
 
-def test_session_dmscope_et_send_policy_suivent_le_schema_du_fork(tous, tmp_path):
-    fichiers = _generer(tous, tmp_path)
+def test_session_dmscope_et_send_policy_suivent_le_schema_du_fork(tous, tmp_path, session):
+    fichiers = _generer(tous, tmp_path, cnx_factory=session)
     session = _json(fichiers, "session")
     config = ts.lire("src/config/zod-schema.session-config.ts")
     assert set(session) <= ts.cles_de_l_objet(config, "export const SessionSchema = z")
@@ -158,8 +161,8 @@ def test_session_dmscope_et_send_policy_suivent_le_schema_du_fork(tous, tmp_path
     ]
 
 
-def test_l_extension_du_canal_est_une_entree_de_plugin_du_schema(tous, tmp_path):
-    fichiers = _generer(tous, tmp_path)
+def test_l_extension_du_canal_est_une_entree_de_plugin_du_schema(tous, tmp_path, session):
+    fichiers = _generer(tous, tmp_path, cnx_factory=session)
     plugins = _json(fichiers, "plugins")
     entree = plugins["entries"]["sms"]
     cles = ts.cles_de_l_objet(ts.lire("src/config/zod-schema.root-support.ts"), "export const PluginEntrySchema = z")
@@ -169,8 +172,8 @@ def test_l_extension_du_canal_est_une_entree_de_plugin_du_schema(tous, tmp_path)
     assert "memory-core" in plugins["entries"]
 
 
-def test_les_outils_de_l_agent_m1_sont_fermes_et_suivent_le_schema(tous, tmp_path):
-    fichiers = _generer(tous, tmp_path)
+def test_les_outils_de_l_agent_m1_sont_fermes_et_suivent_le_schema(tous, tmp_path, session):
+    fichiers = _generer(tous, tmp_path, cnx_factory=session)
     entrees = _json(fichiers, "agents")["entries"]
     outils = entrees["m01-front-office"]["tools"]
     runtime = ts.lire("src/config/zod-schema.agent-runtime.ts")
@@ -180,14 +183,18 @@ def test_les_outils_de_l_agent_m1_sont_fermes_et_suivent_le_schema(tous, tmp_pat
     assert "alsoAllow" not in outils, "le schéma refuse allow et alsoAllow ensemble"
     # Il n'appelle que les outils de son propre serveur MCP...
     assert outils["allow"] == ["opsys_m1__*"]
+    assert outils["sandbox"] == {"tools": {"allow": ["opsys_m1__*"]}}
     # ... jamais ceux des autres départements, ni l'outil `message` du core (envoi sans approbation).
     assert "message" in outils["deny"] and "group:messaging" in outils["deny"]
     autres = {f"opsys_m{n}__*" for n in range(2, 11)}
     assert autres <= set(outils["deny"])
     assert "opsys_m1__*" not in outils["deny"]
-    # Les autres agents gardent la forme d'avant : refus des serveurs voisins, rien d'autre.
+    # Les agents internes gardent leurs outils Core/communs et les refus voisins et privés.
     m2 = entrees["m02-revenue-crm"]["tools"]
-    assert set(m2) == {"deny"} and "message" not in m2["deny"]
+    assert set(m2) == {"deny", "sandbox"} and "message" not in m2["deny"]
+    assert m2["sandbox"] == {"tools": {"alsoAllow": ["opsys_m2__*"]}}
+    assert set(m2["deny"]) == ({f"opsys_m{n}__*" for n in range(1, 11) if n != 2}
+                               | {"opsys_context_*__*", "opsys_runtime_*__*"})
 
 
 def test_la_cle_de_session_calculee_est_celle_du_core_et_celle_que_m10_accepte():
@@ -213,12 +220,14 @@ def test_cle_de_session_refuse_ce_qu_un_correspondant_n_est_pas():
         canaux.cle_session("m01-front-office", "pigeon", "x")
 
 
-def test_l_affaire_de_m1_vient_de_la_session_et_l_accueil_n_est_jamais_bloque_par_le_garde_du_core(tous, tmp_path):
+def test_l_affaire_de_m1_vient_de_la_session_et_l_accueil_n_est_jamais_bloque_par_le_garde_du_core(
+    tous, tmp_path, session,
+):
     """ADR-0010 : sur un canal client, l'affaire vient de la clé de session liée par un humain. Le garde du core
     refuse un outil de niveau N3 ou plus sans contexte d'affaire ; l'outil d'accueil (N2) doit donc passer pour
     le premier message d'un client, dont la session n'est pas encore liée."""
     fichiers = _generer(tous, tmp_path, contexte_entreprise={"m01-front-office": []},
-                        affaire_par_session=["m01-front-office"])
+                        affaire_par_session=["m01-front-office"], cnx_factory=session)
     contexte = _json(fichiers, "contexte")
     assert contexte["agents"]["m01-front-office"] == {
         "depot": [],
@@ -235,13 +244,13 @@ def test_l_affaire_de_m1_vient_de_la_session_et_l_accueil_n_est_jamais_bloque_pa
 # -- Désactivé par défaut, activé par les seules variables ----------------------------------------------------
 
 
-def test_sans_identifiant_le_canal_et_son_extension_sont_desactives(tous, tmp_path):
-    fichiers = _generer(tous, tmp_path)
+def test_sans_identifiant_le_canal_et_son_extension_sont_desactives(tous, tmp_path, session):
+    fichiers = _generer(tous, tmp_path, cnx_factory=session)
     assert _json(fichiers, "channels")["sms"]["enabled"] is False
     assert _json(fichiers, "plugins")["entries"]["sms"] == {"enabled": False}
 
 
-def test_un_identifiant_manquant_vide_ou_blanc_laisse_le_canal_desactive(tous, tmp_path):
+def test_un_identifiant_manquant_vide_ou_blanc_laisse_le_canal_desactive(tous, tmp_path, session):
     for variable in TOUTES_LES_VARIABLES:
         for valeur in (None, "", "   "):
             environ = dict(TOUTES_LES_VARIABLES)
@@ -249,20 +258,20 @@ def test_un_identifiant_manquant_vide_ou_blanc_laisse_le_canal_desactive(tous, t
                 del environ[variable]
             else:
                 environ[variable] = valeur
-            fichiers = _generer(tous, tmp_path / f"{variable}-{valeur!r}", environ=environ)
+            fichiers = _generer(tous, tmp_path / f"{variable}-{valeur!r}", environ=environ, cnx_factory=session)
             assert _json(fichiers, "channels")["sms"]["enabled"] is False, (variable, valeur)
 
 
-def test_l_attestation_de_validation_des_politiques_est_exigee_pour_activer(tous, tmp_path):
+def test_l_attestation_de_validation_des_politiques_est_exigee_pour_activer(tous, tmp_path, session):
     """Les quatre identifiants Twilio ne suffisent pas : la politique de consentement SMS est une PROPOSITION
     tant que le propriétaire ne l'a pas validée par écrit (T3)."""
     environ = {k: v for k, v in TOUTES_LES_VARIABLES.items() if k != "OPSYS_SMS_POLITIQUES_VALIDEES"}
-    fichiers = _generer(tous, tmp_path, environ=environ)
+    fichiers = _generer(tous, tmp_path, environ=environ, cnx_factory=session)
     assert _json(fichiers, "channels")["sms"]["enabled"] is False
 
 
-def test_toutes_les_variables_fournies_activent_le_canal_et_son_extension(tous, tmp_path):
-    fichiers = _generer(tous, tmp_path, environ=TOUTES_LES_VARIABLES)
+def test_toutes_les_variables_fournies_activent_le_canal_et_son_extension(tous, tmp_path, session):
+    fichiers = _generer(tous, tmp_path, environ=TOUTES_LES_VARIABLES, cnx_factory=session)
     assert _json(fichiers, "channels")["sms"]["enabled"] is True
     assert _json(fichiers, "plugins")["entries"]["sms"] == {"enabled": True}
     # Activer le canal ne desserre rien d'autre : ni l'envoi automatique, ni la boîte à outils.
@@ -270,8 +279,8 @@ def test_toutes_les_variables_fournies_activent_le_canal_et_son_extension(tous, 
     assert _json(fichiers, "agents")["entries"]["m01-front-office"]["tools"]["allow"] == ["opsys_m1__*"]
 
 
-def test_aucun_fichier_genere_ne_contient_un_secret_seulement_des_references(tous, tmp_path):
-    _generer(tous, tmp_path, environ=TOUTES_LES_VARIABLES)
+def test_aucun_fichier_genere_ne_contient_un_secret_seulement_des_references(tous, tmp_path, session):
+    _generer(tous, tmp_path, environ=TOUTES_LES_VARIABLES, cnx_factory=session)
     fichiers_ecrits = [f for f in (tmp_path / "opsys").rglob("*") if f.is_file()]
     assert fichiers_ecrits
     for fichier in fichiers_ecrits:
@@ -285,14 +294,17 @@ def test_aucun_fichier_genere_ne_contient_un_secret_seulement_des_references(tou
     assert "POLITIQUES_VALIDEES" not in channels
 
 
-def test_sans_departement_a_canaux_les_fragments_sont_vides_et_les_agents_inchanges(departements_demo, tmp_path):
-    fichiers = _generer(departements_demo, tmp_path)
+def test_sans_departement_a_canaux_les_fragments_sont_vides_et_les_agents_inchanges(
+    departements_demo, tmp_path, session,
+):
+    fichiers = _generer(departements_demo, tmp_path, cnx_factory=session)
     assert _json(fichiers, "channels") == {}
     assert _json(fichiers, "bindings") == []
     assert _json(fichiers, "session") == {}
     assert _json(fichiers, "plugins")["entries"].keys() == {"memory-core"}
     assert _json(fichiers, "agents")["entries"]["m09-demo"]["tools"] == {
-        "deny": ["opsys_context_*__*", "opsys_runtime_*__*"]
+        "deny": ["opsys_context_*__*", "opsys_runtime_*__*"],
+        "sandbox": {"tools": {"alsoAllow": ["opsys_m9__*"]}},
     }
 
 
@@ -339,7 +351,7 @@ def test_une_installation_anterieure_est_signalee_sans_etre_reecrite(tmp_path):
 
 def test_un_openclaw_json_sans_tous_les_includes_de_canal_garde_le_canal_inactif_meme_avec_toutes_les_variables(
     tous, tmp_path
-):
+, session):
     """Un canal dont `session.sendPolicy` ne serait pas lu par le core répondrait aux clients sans approbation :
     tant que `openclaw.json` n'inclut pas `channels`, `bindings` et `session`, le canal reste éteint."""
     dossier = tmp_path / "oc"
@@ -347,7 +359,7 @@ def test_un_openclaw_json_sans_tous_les_includes_de_canal_garde_le_canal_inactif
     (dossier / "openclaw.json").write_text(
         '{"channels": {"$include": ["./opsys/channels.json"]}, "bindings": {"$include": "./opsys/bindings.json"}}\n',
         encoding="utf-8")
-    fichiers = _generer(tous, dossier, environ=TOUTES_LES_VARIABLES)
+    fichiers = _generer(tous, dossier, environ=TOUTES_LES_VARIABLES, cnx_factory=session)
     assert _json(fichiers, "channels")["sms"]["enabled"] is False
     assert _json(fichiers, "plugins")["entries"]["sms"] == {"enabled": False}
 
@@ -358,8 +370,10 @@ def test_un_openclaw_json_sans_tous_les_includes_de_canal_garde_le_canal_inactif
     # Une fois le squelette complet, la même génération l'active ; sans openclaw.json (première installation :
     # `racine_si_absente` l'écrit ensuite avec tous les includes), rien ne retient le canal.
     (dossier / "openclaw.json").write_text(json.dumps(openclaw.FICHIER_RACINE_MODELE), encoding="utf-8")
-    assert _json(_generer(tous, dossier, environ=TOUTES_LES_VARIABLES), "channels")["sms"]["enabled"] is True
-    neuf = _generer(tous, tmp_path / "neuf", environ=TOUTES_LES_VARIABLES)
+    assert _json(_generer(tous, dossier, environ=TOUTES_LES_VARIABLES,
+        cnx_factory=session,
+    ), "channels")["sms"]["enabled"] is True
+    neuf = _generer(tous, tmp_path / "neuf", environ=TOUTES_LES_VARIABLES, cnx_factory=session)
     assert _json(neuf, "channels")["sms"]["enabled"] is True
 
 
@@ -454,13 +468,15 @@ def test_cli_verifier_dit_ce_qui_manque_sans_echouer(monkeypatch, capsys, opsys_
     assert SECRET not in sortie
 
 
-def test_cli_verifier_config_dir_detecte_un_ecart_avec_l_environnement(monkeypatch, capsys, opsys_home, tmp_path):
+def test_cli_verifier_config_dir_detecte_un_ecart_avec_l_environnement(
+    monkeypatch, capsys, opsys_home, tmp_path, session,
+):
     monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_URL"])
     monkeypatch.setenv("OPSYS_EMBEDDINGS_MODELE", "bge-m3")
     for variable in TOUTES_LES_VARIABLES:
         monkeypatch.delenv(variable, raising=False)
     dossier = tmp_path / "oc"
-    _generer(charger_departements(), dossier)
+    _generer(charger_departements(), dossier, cnx_factory=session)
     openclaw.racine_si_absente(dossier)
     assert cli.main(["verifier", "--config-dir", str(dossier)]) == 0
 
@@ -474,13 +490,13 @@ def test_cli_verifier_config_dir_detecte_un_ecart_avec_l_environnement(monkeypat
     assert "opsys-metier openclaw configurer" in erreur
 
     # Régénérée, elle suit.
-    _generer(charger_departements(), dossier, environ=TOUTES_LES_VARIABLES)
+    _generer(charger_departements(), dossier, environ=TOUTES_LES_VARIABLES, cnx_factory=session)
     assert cli.main(["verifier", "--config-dir", str(dossier)]) == 0
 
 
 def test_cli_verifier_config_dir_signale_un_fragment_absent_et_un_openclaw_json_sans_include(
     monkeypatch, capsys, opsys_home, tmp_path
-):
+, session):
     for variable in TOUTES_LES_VARIABLES:
         monkeypatch.delenv(variable, raising=False)
     dossier = tmp_path / "oc"
@@ -490,7 +506,7 @@ def test_cli_verifier_config_dir_signale_un_fragment_absent_et_un_openclaw_json_
 
     monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_URL"])
     monkeypatch.setenv("OPSYS_EMBEDDINGS_MODELE", "bge-m3")
-    _generer(charger_departements(), dossier)
+    _generer(charger_departements(), dossier, cnx_factory=session)
     (dossier / "openclaw.json").write_text('{"gateway": {"port": 18789}}\n', encoding="utf-8")
     assert cli.main(["verifier", "--config-dir", str(dossier)]) == 1
     assert "n'inclut pas channels, bindings, session" in capsys.readouterr().err
@@ -498,7 +514,7 @@ def test_cli_verifier_config_dir_signale_un_fragment_absent_et_un_openclaw_json_
 
 def test_cli_configurer_avertit_et_garde_le_canal_inactif_quand_openclaw_json_est_anterieur(
     monkeypatch, capsys, opsys_home, tmp_path
-):
+, session):
     for variable, valeur in TOUTES_LES_VARIABLES.items():
         monkeypatch.setenv(variable, valeur)
     monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_URL"])
@@ -508,6 +524,7 @@ def test_cli_configurer_avertit_et_garde_le_canal_inactif_quand_openclaw_json_es
     (dossier / "openclaw.json").write_text('{"gateway": {"port": 18789}}\n', encoding="utf-8")
     monkeypatch.setattr(cli.modeles, "charger_paliers", lambda *a, **k: PALIERS)
 
+    provisionner_base_qa(session, charger_departements())
     assert cli.main(["openclaw", "configurer", "--config-dir", str(dossier)]) == 0
     sortie = capsys.readouterr()
     attendu = "canal m01-front-office / sms : INACTIF, openclaw.json n'inclut pas channels, bindings, session"
@@ -524,12 +541,13 @@ def test_cli_configurer_avertit_et_garde_le_canal_inactif_quand_openclaw_json_es
     )
 
 
-def test_cli_litellm_ne_s_active_qu_avec_le_mode_legacy_et_url(monkeypatch, opsys_home, tmp_path, capsys):
+def test_cli_litellm_ne_s_active_qu_avec_le_mode_legacy_et_url(monkeypatch, opsys_home, tmp_path, capsys, session):
     monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_URL"])
     monkeypatch.setenv("OPSYS_EMBEDDINGS_MODELE", "bge-m3")
     monkeypatch.setattr(cli.modeles, "charger_paliers", lambda *a, **k: PALIERS)
     dossier = tmp_path / "oc"
 
+    provisionner_base_qa(session, charger_departements())
     code = cli.main([
         "openclaw", "configurer", "--config-dir", str(dossier),
         "--mode-fournisseur", "litellm", "--url-passerelle", "http://litellm-test:4000/v1",

@@ -51,7 +51,7 @@ FAUX_UV = '''#!/usr/bin/env bash
 if [ "$1 ${2:-}" = "venv --clear" ]; then
     for dossier; do :; done  # le dernier argument (portable : bash 3.2 de macOS compris)
     mkdir -p "$dossier/bin"
-    printf '#!/bin/sh\\nexec %s "$@"\\n' "$FAUX_PYTHON" >"$dossier/bin/python"
+    printf '#!/bin/sh\\nexport OPSYS_PYTHON_LAUNCHER="$0"\\nexec %s "$@"\\n' "$FAUX_PYTHON" >"$dossier/bin/python"
     chmod +x "$dossier/bin/python"
 fi
 exit 0
@@ -108,6 +108,15 @@ def _port_libre() -> int:
         return prise.getsockname()[1]
 
 
+def _ports_libres() -> tuple[int, int]:
+    # Garder la première prise ouverte jusqu'au choix de la seconde : fermer entre les
+    # deux bind(0) autorise le noyau à rendre deux fois le même port à ce poste fictif.
+    with socket.socket() as gateway, socket.socket() as moteur:
+        gateway.bind(("127.0.0.1", 0))
+        moteur.bind(("127.0.0.1", 0))
+        return gateway.getsockname()[1], moteur.getsockname()[1]
+
+
 def _version_pnpm() -> str:
     texte = (RACINE / "core" / "package.json").read_text(encoding="utf-8")
     trouve = re.search(r'"packageManager"\s*:\s*"pnpm@([^"+]*)', texte)
@@ -128,7 +137,7 @@ class Poste:
         self.resume = racine / "resume.md"
         self.hote.mkdir(parents=True)
         self.faux.mkdir()
-        self.port_gateway, self.port_moteur = _port_libre(), _port_libre()
+        self.port_gateway, self.port_moteur = _ports_libres()
         for nom, corps in (("node", FAUX_NODE), ("pnpm", FAUX_PNPM), ("uv", FAUX_UV), ("docker", FAUX_DOCKER)):
             self.ecrire(nom, corps)
         if macos:

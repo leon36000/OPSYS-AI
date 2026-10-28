@@ -10,6 +10,7 @@ import { renderImapPrompt } from "./prompt.js";
 import { evaluateImapSender, type MailAuthenticator } from "./sender-gate.js";
 import {
   advanceImapCursor,
+  assertImapCursorSource,
   countImapSkip,
   initializeImapCursor,
   recordImapAttempt,
@@ -42,6 +43,10 @@ function messageDate(message: FetchMessageObject): Date {
 
 export class ImapAccountWatcher {
   private client: ImapFlow | undefined;
+  private readonly openedMailboxes = new WeakMap<
+    ImapFlow,
+    { mailbox: string; uidValidity: string }
+  >();
   private pollTimer: ReturnType<typeof setInterval> | undefined;
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   private activeSweep: Promise<void> | undefined;
@@ -131,12 +136,18 @@ export class ImapAccountWatcher {
       client.close();
       return;
     }
-    const mailbox = await client.mailboxOpen(account.mailbox, { readOnly: true });
+    const mailboxName = account.mailbox;
+    const mailbox = await client.mailboxOpen(mailboxName, { readOnly: true });
+    this.openedMailboxes.set(client, {
+      mailbox: mailboxName,
+      uidValidity: mailbox.uidValidity.toString(),
+    });
     const initialized = await initializeImapCursor(
       this.options.state,
       this.options.accountId,
       mailbox.uidValidity.toString(),
       mailbox.uidNext,
+      mailboxName,
     );
     if (this.stopping || this.client !== client) {
       return;
@@ -257,6 +268,11 @@ export class ImapAccountWatcher {
     if (!cursor || this.stopping || this.client !== client) {
       return;
     }
+    const opened = this.openedMailboxes.get(client);
+    if (!opened) {
+      throw new Error("IMAP_CURSOR_MAILBOX_UNAVAILABLE");
+    }
+    assertImapCursorSource(cursor, opened.mailbox, opened.uidValidity);
     const messages: FetchMessageObject[] = [];
     for await (const message of client.fetch(
       `${cursor.lastSeenUid + 1}:*`,
@@ -269,18 +285,24 @@ export class ImapAccountWatcher {
       }
     }
     for (const message of messages.toSorted((left, right) => left.uid - right.uid)) {
-      if (
-        this.stopping ||
-        this.client !== client ||
-        !(await this.processMessage(message, cursor.uidValidity))
-      ) {
+      if (this.stopping || this.client !== client) {
+        break;
+      }
+      // The cursor may change while FETCH is awaiting its response.
+      assertImapCursorSource(
+        await this.options.state.cursors.lookup(this.options.accountId),
+        opened.mailbox,
+        opened.uidValidity,
+      );
+      if (!(await this.processMessage(message, opened.uidValidity))) {
         break;
       }
       await advanceImapCursor(
         this.options.state,
         this.options.accountId,
-        cursor.uidValidity,
+        opened.uidValidity,
         message.uid,
+        opened.mailbox,
       );
     }
     this.options.context.logger.debug?.(

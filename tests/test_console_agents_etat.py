@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 from fastapi.testclient import TestClient
 from sqlalchemy import event, func, select
 
@@ -131,6 +132,7 @@ def _activation(c: Console, profil: dict, actif: bool) -> dict:
 
 
 def _exporter(c: Console, session) -> None:
+    provisionner_base_qa(session, c.deps, budget_entreprise_jour=100000, budget_entreprise_mois=1000000)
     openclaw.generer(c.deps, c.dossier, PALIERS, environ=EMBEDDINGS, cnx_factory=session)
 
 
@@ -248,6 +250,8 @@ def test_profils_de_meme_departement_et_de_deux_departements_restent_distincts(c
     b = _creer(console, "estimateur-b-fictif")
     e = _creer(console, "estimateur-e-fictif", actif=False)
     attendus = {a["id"]: "CONCORDANT", b["id"]: "NON_EXPORTE", c["id"]: "CONCORDANT", e["id"]: "ABSENT_CONFORME"}
+    bases = {f"base-{dep}": "CONCORDANT" for dep in console.deps}
+    attendus.update(bases)
     for ident, statut in attendus.items():
         assert _etat(console, ident)["export"]["statut"] == statut, ident
 
@@ -257,15 +261,18 @@ def test_profils_de_meme_departement_et_de_deux_departements_restent_distincts(c
 
     dep_a = console.client.get("/api/agents", params={"departement": DEP_A}).json()
     assert {item["id"]: item["etat"]["export"]["statut"] for item in dep_a["agents"]} == {
-        k: v for k, v in attendus.items() if k != c["id"]
+        k: v for k, v in attendus.items() if k in {a["id"], b["id"], e["id"], f"base-{DEP_A}"}
     }
-    assert dep_a["export"]["statut"] == "LU" and dep_a["export"]["profils_exportes"] == 2
+    assert dep_a["export"]["statut"] == "LU" and dep_a["export"]["profils_exportes"] == len(bases) + 2
 
     premiere = console.client.get("/api/agents", params={"limite": 2, "decalage": 0}).json()
     seconde = console.client.get("/api/agents", params={"limite": 2, "decalage": 2}).json()
-    assert premiere["pagination"] == {"total": 4, "limite": 2, "decalage": 0, "retournes": 2}
+    assert premiere["pagination"] == {"total": len(attendus), "limite": 2, "decalage": 0, "retournes": 2}
     assert seconde["pagination"]["retournes"] == 2
-    assert {x["id"] for x in premiere["agents"]} | {x["id"] for x in seconde["agents"]} == set(attendus)
+    assert {x["id"] for x in premiere["agents"]} | {x["id"] for x in seconde["agents"]} == set(sorted(attendus)[:4])
+    pages = [console.client.get("/api/agents", params={"limite": 2, "decalage": d}).json()
+             for d in range(0, len(attendus), 2)]
+    assert [x["id"] for page in pages for x in page["agents"]] == sorted(attendus)
     for invalide in ({"limite": 0}, {"limite": 51}, {"decalage": -1}):
         assert console.client.get("/api/agents", params=invalide).status_code == 400
 
@@ -373,6 +380,7 @@ def test_parcours_durable_deux_departements_archivage_et_reouverture(console, se
     avant = console.client.get("/api/agents").json()
     assert {x["id"]: x["etat"]["export"]["statut"] for x in avant["agents"]} == {
         a["id"]: "PERIME", c["id"]: "DESACTIVE_ENCORE_EXPORTE",
+        **{f"base-{dep}": "CONCORDANT" for dep in console.deps},
     }
     assert avant["export"]["orphelins"] == [archive["id"]]
     assert console.client.get(f"/api/agents/{archive['id']}").status_code == 404
@@ -416,7 +424,7 @@ def test_pages_agents_ne_materialisent_que_les_profils_de_la_page(console, sessi
         "DELETE", f"/api/agents/{archive['id']}", headers={"x-csrf-token": console.csrf},
         json={"mutation_id": "archiver-borne-fictif", "revision_attendue": archive["revision"]},
     ).status_code == 200
-    departements = {exporte["id"]: DEP_A}
+    departements = {exporte["id"]: DEP_A, **{f"base-{dep}": dep for dep in console.deps}}
     with session() as cnx:
         for rang in range(agents_etat.LIMITE_MAX + 4):
             ident, dep = f"profil-{rang:03d}-fictif", DEP_A if rang % 3 else DEP_B
@@ -431,7 +439,7 @@ def test_pages_agents_ne_materialisent_que_les_profils_de_la_page(console, sessi
     assert corps["pagination"] == {"total": len(tous), "limite": 3, "decalage": 3, "retournes": 3}
     assert lignes == 3
     assert corps["export"]["orphelins"] == [archive["id"]] and corps["export"]["orphelins_total"] == 1
-    assert corps["export"]["profils_exportes"] == 2
+    assert corps["export"]["profils_exportes"] == len(console.deps) + 2
 
     reponse, lignes = _lire_sans_ecriture(console, "/api/agents", departement=DEP_B, limite=2, decalage=1)
     corps = reponse.json()

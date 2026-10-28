@@ -238,16 +238,22 @@ def _dessinable(caractere: str) -> bool:
     return True
 
 
-def _texte(valeur: Any, champ: str, code_invalide: str) -> tuple[str | None, dict | None]:
+def _texte(valeur: Any, champ: str, code_invalide: str, *, multiligne: bool = False,
+           vide: bool = False) -> tuple[str | None, dict | None]:
     """Texte libre du devis, prêt à dessiner : NFC, blancs ramenés à une espace, contrôlé contre la police
     du PDF. Non textuel, vide ou hors police : un verdict qui nomme le champ (jamais la valeur, sauf les
     points de code fautifs)."""
-    if not isinstance(valeur, str) or valeur.strip() == "":
+    if not isinstance(valeur, str) or (not vide and valeur.strip() == ""):
         return None, verdicts.construire_verdict(code_invalide, detail=f"{champ} doit être un texte non vide")
     fautifs: list[str] = []
     morceaux: list[str] = []
-    for caractere in unicodedata.normalize("NFC", valeur):
-        if caractere in _BLANCS:
+    normalise = unicodedata.normalize("NFC", valeur)
+    if multiligne:
+        normalise = normalise.replace("\r\n", "\n").replace("\r", "\n")
+    for caractere in normalise:
+        if multiligne and caractere == "\n":
+            morceaux.append("\n")
+        elif caractere in _BLANCS:
             morceaux.append(" ")
         elif _dessinable(caractere):
             morceaux.append(caractere)
@@ -266,12 +272,15 @@ def _texte(valeur: Any, champ: str, code_invalide: str) -> tuple[str | None, dic
     return "".join(morceaux), None
 
 
-def _paragraphe(texte: str, style: Any) -> Any:
+def _paragraphe(texte: str, style: Any, *, multiligne: bool = False) -> Any:
     """SEUL passage d'un texte libre vers un paragraphe ReportLab : échappé (``& < >``), donc affiché
     tel quel, jamais interprété comme balise (``<img src=...>`` ouvrirait un fichier local)."""
     from reportlab.platypus import Paragraph
 
-    return Paragraph(escape(texte, quote=False), style)
+    protege = escape(texte, quote=False)
+    if multiligne:
+        protege = protege.replace("\n", "<br/>")
+    return Paragraph(protege, style)
 
 
 # -- contenu -> pages ------------------------------------------------------------------------------
@@ -319,14 +328,24 @@ def _preparer(devis: dict[str, Any]) -> tuple[dict[str, Any] | None, dict | None
             "prix_ligne": prix_ligne,
         })
 
-    return {
+    resultat = {
         "devis_id": devis_id,
         "statut": _LIBELLES_STATUT.get(statut, statut),
         "date_lisible": _date_lisible(instant),
         "date_pdf": _date_pdf(instant),
         "lignes": lignes,
         "prix_total": total,
-    }, None
+    }
+    if "modele_soumission" in contenu:
+        modele = {}
+        for cle, valeur in contenu["modele_soumission"].items():
+            texte, verdict = _texte(valeur, f"modèle : {cle}", "REJ-CONTRAT-INVALIDE",
+                                   multiligne=cle != "titre", vide=cle == "clauses")
+            if verdict is not None:
+                return None, verdict
+            modele[cle] = texte
+        resultat["modele_soumission"] = modele
+    return resultat, None
 
 
 def _rendre(contenu: dict[str, Any]) -> bytes:
@@ -411,17 +430,34 @@ def _rendre(contenu: dict[str, Any]) -> bytes:
         invariant=1,
         pageCompression=1,
     )
-    document.build(
-        [
-            _paragraphe(f"Soumission {devis_id}", titre),
-            _paragraphe(soumission.MENTION_BROUILLON, mention),
+    elements = [
+        _paragraphe(f"Soumission {devis_id}", titre),
+        _paragraphe(soumission.MENTION_BROUILLON, mention),
+        Spacer(1, 6),
+        _paragraphe(f"Statut : {contenu['statut']} — daté du {contenu['date_lisible']}", normal),
+        Spacer(1, 10),
+    ]
+    if "modele_soumission" in contenu:
+        modele = contenu["modele_soumission"]
+        elements.extend([
+            _paragraphe(modele["titre"], entete),
             Spacer(1, 6),
-            _paragraphe(f"Statut : {contenu['statut']} — daté du {contenu['date_lisible']}", normal),
+            _paragraphe(modele["description"], normal, multiligne=True),
             Spacer(1, 10),
-            table,
-            Spacer(1, 8),
-            _paragraphe(_NOTE_MONTANTS, petit),
-        ],
+        ])
+    elements.extend([
+        table,
+        Spacer(1, 8),
+        _paragraphe(_NOTE_MONTANTS, petit),
+    ])
+    if "modele_soumission" in contenu and contenu["modele_soumission"]["clauses"]:
+        elements.extend([
+            Spacer(1, 10),
+            _paragraphe("Clauses", entete),
+            _paragraphe(contenu["modele_soumission"]["clauses"], normal, multiligne=True),
+        ])
+    document.build(
+        elements,
         onFirstPage=decorer,
         onLaterPages=decorer,
     )

@@ -103,6 +103,34 @@ AVERTISSEMENT_MODE_BRIDE = (
     "mode bridé : distances approximatives (ligne droite x détour), pas des routes réelles"
 )
 
+class PreuvePlanInvalide(ValueError):
+    """Source métier incohérente, distincte d'un argument de calendrier invalide."""
+
+
+def verifier_empreintes_plan_applique(proposition, application):
+    """Même preuve métier pour dates et annotations, y compris avant la première date.
+
+    Les appelants contrôlent unicité et ordre des maillons dans leur snapshot validé.
+    Ce contrôle ne refait ni solveur, ni disponibilité, ni validation humaine.
+    """
+    try:
+        sortie = proposition["sortie"]
+        meta = sortie["meta"]
+        sans_empreinte = {**sortie, "meta": {k: v for k, v in meta.items() if k != "empreinte_sortie"}}
+        if (application["plan_id"] != proposition["plan_id"]
+                or any(application[k] != proposition[k] for k in ("empreinte_entree", "empreinte_sortie"))
+                or any(meta[k] != proposition[k] for k in ("empreinte_entree", "empreinte_sortie"))
+                or encodage.empreinte(sans_empreinte) != proposition["empreinte_sortie"]
+                or encodage.empreinte(proposition["etat"]) != proposition["empreinte_etat"]
+                or proposition["version"] != VERSION_PROPOSITION
+                or encodage.empreinte(proposition["version"], proposition["empreinte_entree"],
+                                     proposition["empreinte_sortie"], proposition["empreinte_etat"])
+                != proposition["plan_id"]):
+            raise PreuvePlanInvalide("preuve métier du plan appliqué incohérente")
+    except (KeyError, TypeError, AttributeError):
+        raise PreuvePlanInvalide("preuve métier du plan appliqué illisible") from None
+
+
 CLES_PARAMETRES_DISTANCE = tuple(distances.BORNES_PARAMETRES)
 CLES_PARAMETRES_SOLVEUR = ("iterations", "cout_non_cedule_m")
 CLES_PARAMETRES_REQUISES = CLES_PARAMETRES_DISTANCE + CLES_PARAMETRES_SOLVEUR

@@ -43,21 +43,26 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 
 import yaml
 from sqlalchemy import select
 
-from opsys import approbations, contexte, evenements, identite, jetons, stockage
+from opsys import approbations, contexte, evenements, idempotence, identite, jetons, stockage
 from opsys.outils import Autonomie, Niveau, Outil
-from opsys.stockage.schema import APPROBATIONS
+from opsys.stockage import codec
+from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 
 from . import (
     acces,
+    agenda_vendeurs,
     assignation,
     clients,
     consentements,
+    contact_memoire,
     contrats,
     digest,
     doublons,
@@ -647,6 +652,111 @@ def obtenir_client_360(client_id: str) -> dict[str, Any]:
     return {"accepte": True, "resultat": vue}
 
 
+def lister_historique_contact_client(client_id: str, limite: int = 20, decalage: int = 0,
+                                    revision_max: int | None = None) -> dict[str, Any]:
+    """Historique sensible réservé à l'admin humain actif, sans écriture ni cache de lecture."""
+    acteur, verdict = _acteur_appareil(acces.ROLES_ADMIN)
+    if verdict is not None:
+        return _refus(verdict)
+    if acteur is None:
+        return _refus(verdicts.construire_verdict("REJ-HUMAIN-REQUIS", detail="admin authentifié requis"))
+    resultat, verdict = clients.historique_contact(_obtenir_registre(), client_id, limite, decalage, revision_max)
+    return _refus(verdict) if verdict else {"accepte": True, "resultat": resultat}
+
+
+def verifier_autorite_rejeu_contact_appareil() -> dict[str, Any] | None:
+    """Le reçu historique ne rend pas un rôle révoqué actif ; pas de CAS de sa propre écriture."""
+    acteur, verdict = _acteur_appareil(acces.ROLES_ADMIN)
+    if verdict is not None:
+        return _refus(verdict)
+    if acteur is None:
+        return _refus(verdicts.construire_verdict("REJ-HUMAIN-REQUIS", detail="admin authentifié requis"))
+    return None
+
+
+def reconcilier_memoire_contact_client(client_id: str, limite: int = 20, decalage: int = 0,
+                                      revision_max: int | None = None) -> dict[str, Any]:
+    """Diagnostic admin en lecture seule, références paginées ; aucune publication ou réparation."""
+    refus = verifier_autorite_rejeu_contact_appareil()
+    if refus:
+        return refus
+    cnx = stockage.connexion_courante()
+    if cnx is None or cnx.dialect.name != "sqlite" or not _stockage_durable_actif:
+        return _refus(verdicts.construire_verdict(
+            "REJ-CONTACT-BACKEND-NON-QUALIFIE", detail="lecture qualifiée sur SQLite durable seulement"))
+    reg = _obtenir_registre()
+    historique, verdict = clients.historique_contact(reg, client_id, limite, decalage, revision_max)
+    if verdict:
+        return _refus(verdict)
+    attentes = contact_memoire.references_attendues(reg.lire(), client_id, historique["revision_max"])
+    total, tranche = 0, []
+    for attendu in attentes:
+        if decalage <= total < decalage + limite:
+            tranche.append(attendu)
+        total += 1
+    ids = ["m2-contact-" + a["fait_id"] for a in tranche]
+    publications = {r["evenement_id"]: {**dict(r), "charge": codec.decoder(r["charge"])}
+                    for r in cnx.execute(select(EVENEMENTS_SORTANTS).where(
+                        EVENEMENTS_SORTANTS.c.evenement_id.in_(ids))).mappings()} if ids else {}
+    recus = {}
+    if ids:
+        for r in cnx.execute(select(EVENEMENTS_RECUS).where(
+                EVENEMENTS_RECUS.c.evenement_id.in_(ids) & (EVENEMENTS_RECUS.c.consommateur == "m10-memoire")
+        )).mappings():
+            resultat = codec.decoder(r["resultat"]) if r["resultat"] else {}
+            recus[r["evenement_id"]] = {
+                "statut": r["statut"],
+                "contradictoire": isinstance(resultat, dict) and resultat.get("identique") is False,
+            }
+    faits = {a["fait_id"]: [] for a in tranche}
+    if faits:
+        for m in stockage.maillons("m10-memoire", "evenements"):
+            if m.get("type_evenement") == contact_memoire.TYPE and m.get("fait_id") in faits:
+                faits[m["fait_id"]].append(m)
+    resultat = {"client_id": client_id, "revision_max": historique["revision_max"],
+                "total_corrections": historique["total"], "total_references": total,
+                "decalage": decalage, "limite": limite, "references": [], "suivant": None}
+    for attendu in tranche:
+        eid = "m2-contact-" + attendu["fait_id"]
+        ligne = contact_memoire.comparer(attendu, publications.get(eid), faits[attendu["fait_id"]], recus.get(eid))
+        essai = {**resultat, "references": [*resultat["references"], ligne], "suivant": decalage + limite}
+        if len(json.dumps(essai, ensure_ascii=False)) > BUDGET_SORTIE:
+            break
+        resultat["references"].append(ligne)
+    if tranche and not resultat["references"]:
+        return _refus(verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="référence historique au-delà du budget de lecture"))
+    suivant = decalage + len(resultat["references"])
+    resultat["suivant"] = suivant if suivant < total else None
+    return {"accepte": True, "resultat": resultat}
+
+
+def corriger_contact_client(client_id: str, contact: dict, revision_attendue: int,
+                            motif: str, horodatage: str) -> dict[str, Any]:
+    """Écriture humaine explicite ; autorité relue, aucun auteur libre ni réécriture d'identité."""
+    acteur, verdict = _acteur_appareil(acces.ROLES_ADMIN)
+    if verdict is not None:
+        return _refus(verdict)
+    if acteur is None:
+        return _refus(verdicts.construire_verdict("REJ-HUMAIN-REQUIS", detail="admin authentifié requis"))
+    cnx = stockage.connexion_courante()
+    # BEGIN IMMEDIATE sérialise lecture de version + collision + append. PG à qualifier séparément.
+    if cnx is None or cnx.dialect.name != "sqlite" or not _stockage_durable_actif:
+        return _refus(verdicts.construire_verdict(
+            "REJ-CONTACT-BACKEND-NON-QUALIFIE", detail="correction qualifiée sur SQLite durable seulement"))
+    reg = _obtenir_registre()
+    resultat, verdict = clients.corriger_contact(
+        reg, client_id, contact, revision_attendue, motif, acteur.personne, horodatage)
+    if verdict:
+        return _refus(verdict)
+    # Une référence par projet actuellement lié ; le contact et le motif restent dans l'audit admin M2.
+    # Publication dans la transaction appelante : un échec annule aussi la correction.
+    for lead_id in clients.opportunites_du_client(reg, client_id):
+        charge = contact_memoire.charge(client_id, lead_id, resultat["revision"], resultat["ligne_id"], horodatage)
+        _publier_si_durable(contact_memoire.TYPE, charge, "m2-contact-" + charge["fait_id"])
+    return {"accepte": True, "resultat": resultat}
+
+
 def suggerer_prochaine_action(lead_id: str, horodatage: str) -> dict[str, Any]:
     """PLAN T2.2 (M2.6) : suggestion déterministe de prochaine meilleure action, par table de
     règles citée (suggestions.suggerer) — jamais appliquée automatiquement au registre. Appel d'appareil
@@ -722,6 +832,7 @@ def lister_leads(
     segment: str | None = None,
     decalage: int = 0,
     limite: int = liste_leads.LIMITE_DEFAUT,
+    recherche: str | None = None,
 ) -> dict[str, Any]:
     """PLAN T4.6 (M2.11) : les leads que l'appelant peut voir, par statut et par segment, une page à la fois.
     Lecture pure, aucune écriture.
@@ -748,6 +859,7 @@ def lister_leads(
         decalage=decalage,
         limite=limite,
         budget_caracteres=BUDGET_SORTIE,
+        recherche=recherche,
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
@@ -2025,6 +2137,65 @@ def outils() -> tuple[Outil, ...]:
             roles_appareil=acces.ROLES_LEADS,
         ),
         Outil(
+            nom="m2_lister_historique_contact_client",
+            description=("Historique des corrections de coordonnées, admin humain actif seulement. "
+                         "Lecture pure, révisions croissantes, 50 entrées maximum. "
+                         "Conserver revision_max et utiliser suivant pour la page suivante."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "client_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 50},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 1000000},
+                    "revision_max": {"type": "integer", "minimum": 0, "maximum": 1000001},
+                },
+                "required": ["client_id"], "additionalProperties": False,
+            },
+            fonction=lister_historique_contact_client,
+            roles_appareil=acces.ROLES_ADMIN,
+        ),
+        Outil(
+            nom="m2_reconcilier_memoire_contact_client",
+            description=("Diagnostic de livraison des corrections vers M10, admin humain actif seulement. "
+                         "Lecture seule, projets historiques, 50 références maximum et budget de sortie. "
+                         "Conserver revision_max et utiliser suivant pour la page suivante."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "client_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 50},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 1000000},
+                    "revision_max": {"type": "integer", "minimum": 0, "maximum": 1000001},
+                },
+                "required": ["client_id"], "additionalProperties": False,
+            },
+            fonction=reconcilier_memoire_contact_client,
+            roles_appareil=acces.ROLES_ADMIN,
+        ),
+        Outil(
+            nom="m2_corriger_contact_client",
+            description=("Corrige les coordonnées courantes d'un client sans changer ses projets ou documents. "
+                         "Admin humain authentifié requis. Révision attendue et motif obligatoires. "
+                         "Collision avec une autre identité refusée. SQLite durable seulement."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "client_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "contact": {"type": "object", "minProperties": 1,
+                                "properties": {c: {"type": "string", "minLength": 1, "maxLength": 254}
+                                               for c in contrats.CLES_CONTACT}, "additionalProperties": False},
+                    "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 1000000},
+                    "motif": {"type": "string", "minLength": 1, "maxLength": 300},
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["client_id", "contact", "revision_attendue", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=corriger_contact_client,
+            autonomie=Autonomie.T1,
+            roles_appareil=acces.ROLES_ADMIN,
+        ),
+        Outil(
             nom="m2_obtenir_client_360",
             description=(
                 "PLAN T2.2 (M2.2) : vue 360 compacte d'un client — ses opportunités, statuts, "
@@ -2048,7 +2219,8 @@ def outils() -> tuple[Outil, ...]:
                 "tous. Chaque lead porte ses segments, avec la règle citée et la donnée qui la déclenche ; "
                 "un segment non calculable dit « non calculable, manque X » et un filtre sur lui est refusé "
                 "(seuils à configurer dans department.yaml). Ordre : le plus ancien lead d'abord. Aucun "
-                "montant. Lecture pure. Pour lire la suite, rappeler avec decalage = suivant."
+                "montant. Recherche littérale facultative par nom/courriel/téléphone/lead_id, sans casse ni accents, "
+                "avant pagination et dans les seuls leads autorisés. Lecture pure. Suite : decalage = suivant."
             ),
             parametres={
                 "type": "object",
@@ -2078,6 +2250,10 @@ def outils() -> tuple[Outil, ...]:
                             f"Leads par page au plus (défaut {liste_leads.LIMITE_DEFAUT}) ; "
                             "la taille de la sortie les borne aussi."
                         ),
+                    },
+                    "recherche": {
+                        "type": ["string", "null"], "maxLength": liste_leads.LIMITE_RECHERCHE,
+                        "description": "Tous les termes doivent correspondre, sans regex; vide = aucun filtre.",
                     },
                     "horodatage": _HORODATAGE,
                 },
@@ -2307,4 +2483,142 @@ def outils() -> tuple[Outil, ...]:
             fonction=marquer_chantier_termine,
             autonomie=Autonomie.T1,
         ),
+        *_outils_agenda(),
+    )
+
+# CRM03 : port admin console privé. Aucune portée appareil ou agent ajoutée.
+_META_AGENDA = ContextVar("m2_agenda_meta", default=None)
+
+
+@contextmanager
+def contexte_agenda(meta):
+    jeton = _META_AGENDA.set(meta)
+    try:
+        yield
+    finally:
+        _META_AGENDA.reset(jeton)
+
+
+def _autoriser_agenda():
+    n = agenda_vendeurs
+    cnx, appelante = stockage.connexion_courante(), contexte.identite_appelante()
+    if (cnx is None or appelante is None or appelante.role != "admin" or appelante.source != "console"
+            or contexte.departement_origine_appelante() != "console" or contexte.appel_provient_du_mcp()):
+        raise n.Refus("IDENTITE")
+    signataire = approbations.signataire_valide(cnx, appelante)
+    if signataire is None or signataire.role != "admin":
+        raise n.Refus("IDENTITE")
+    return {"personne": signataire.personne, "role": "admin"}
+
+
+def _registres_agenda():
+    n = agenda_vendeurs
+    principal = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
+    agenda = stockage.maillons(_DEPARTEMENT, n.REGISTRE)
+    if len(principal) > n.MAX_SOURCES or len(agenda) > n.MAX_SOURCES:
+        raise n.Refus("SOURCES-TROP-VOLUMINEUSES")
+    return Registre(list(principal)), Registre(agenda)
+
+
+def enregistrer_rendez_vous(rendez_vous_id, lead_id, vendeur_id, debut, fin, titre, statut, revision_attendue):
+    n = agenda_vendeurs
+    try:
+        auteur = _autoriser_agenda()
+        cnx = stockage.connexion_courante()
+        if cnx.dialect.name != "sqlite":
+            raise n.Refus("ECRITURE-NON-QUALIFIEE")
+        meta, reception = _META_AGENDA.get(), contexte.horodatage_reception()
+        if (not isinstance(meta, idempotence.Meta) or reception is None
+                or meta.appareil != "console:" + auteur["personne"] or reception.appareil != meta.appareil
+                or reception.recu_le.utcoffset() is None):
+            raise n.Refus("MUTATION-ABSENTE")
+        # Une annulation historique reste possible quand un vendeur quitte l'entreprise.
+        if statut == "actif" and _vendeur_cible(vendeur_id)[1] is not None:
+            raise n.Refus("VENDEUR-INACTIF")
+        arguments = {"rendez_vous_id": rendez_vous_id, "lead_id": lead_id, "vendeur_id": vendeur_id,
+                     "debut": debut, "fin": fin, "titre": titre, "statut": statut,
+                     "revision_attendue": revision_attendue}
+        mutation = {"appareil": meta.appareil, "cle": meta.cle,
+                    "empreinte_arguments": encodage.encoder_canonique(arguments)}
+        principal, agenda = _registres_agenda()
+        with cnx.begin_nested():
+            resultat = n.enregistrer(principal, agenda, **arguments, auteur=auteur, mutation=mutation,
+                                    horodatage=reception.recu_le.isoformat(),
+                                    limite_sortie=contexte.limite_sortie() or 65536)
+            if not resultat.get("rejoue"):
+                from opsys.etat import journaliser
+
+                r = resultat["resultat"]
+                journaliser(cnx, auteur["personne"], "m2.rendez_vous", r["source_id"],
+                            {"revision": r["revision"], "rendez_vous_id": r["rendez_vous_id"]})
+            return resultat
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lire_agenda_vendeur(vendeur_id, debut_periode, fin_periode):
+    n = agenda_vendeurs
+    try:
+        _autoriser_agenda()
+        # La lecture historique admin ne dépend pas de l'activité actuelle du vendeur.
+        if identite.personne(stockage.connexion_courante(), vendeur_id) is None:
+            raise n.Refus("VENDEUR-INCONNU")
+        principal, agenda = _registres_agenda()
+        return n.lire(principal, agenda, vendeur_id, debut_periode, fin_periode,
+                      limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def historique_rendez_vous(rendez_vous_id):
+    n = agenda_vendeurs
+    try:
+        _autoriser_agenda()
+        principal, agenda = _registres_agenda()
+        return n.historique(principal, agenda, rendez_vous_id, limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def lire_rencontres_lead(lead_id, decalage, source_attendue):
+    n = agenda_vendeurs
+    try:
+        _autoriser_agenda()
+        principal, agenda = _registres_agenda()
+        return n.lire_rencontres_lead(principal, agenda, lead_id, decalage, source_attendue,
+                                     limite_sortie=contexte.limite_sortie() or 65536)
+    except n.Refus as exc:
+        return n.refuser(exc.suffixe)
+
+
+def _outils_agenda():
+    identifiant = {"type": "string", "pattern": "^[A-Za-z0-9_.:@-]{1,200}$"}
+    instant = {"type": "string", "minLength": 1, "maxLength": 32}
+
+    def schema(proprietes):
+        return {"type": "object", "properties": proprietes, "required": list(proprietes),
+                "additionalProperties": False}
+
+    return (
+        Outil(nom="m2_enregistrer_rendez_vous",
+              description="Console admin privée : rendez-vous vendeur interne versionné, lié au lead M2. "
+                          "Pas de message client, de synchronisation Google ni de cédule M4.",
+              parametres=schema({"rendez_vous_id": identifiant, "lead_id": identifiant, "vendeur_id": identifiant,
+                                "debut": instant, "fin": instant, "titre": {"type": "string", "minLength": 1,
+                                "maxLength": 200}, "statut": {"type": "string", "enum": ["actif", "annule"]},
+                                "revision_attendue": {"type": "integer", "minimum": 0, "maximum": 10000}}),
+              fonction=enregistrer_rendez_vous, autonomie=Autonomie.T1),
+        Outil(nom="m2_lire_agenda_vendeur",
+              description="Console admin privée : agenda d'un vendeur, dates de Montréal, source et conflits.",
+              parametres=schema({"vendeur_id": identifiant, "debut_periode": instant, "fin_periode": instant}),
+              fonction=lire_agenda_vendeur),
+        Outil(nom="m2_lire_rencontres_lead",
+              description="Console admin privée : rencontres exactes d'un projet, tous vendeurs, page sourcée de 25.",
+              parametres=schema({"lead_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                                "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                                "source_attendue": {"type": "string", "maxLength": 64}}),
+              fonction=lire_rencontres_lead),
+        Outil(nom="m2_historique_rendez_vous",
+              description="Console admin privée : historique append-only d'un rendez-vous commercial.",
+              parametres=schema({"rendez_vous_id": identifiant}), fonction=historique_rendez_vous),
     )

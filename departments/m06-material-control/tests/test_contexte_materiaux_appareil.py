@@ -15,6 +15,10 @@ from sqlalchemy import text
 
 from opsys import contexte, fichiers, identite, stockage
 from opsys.outils import Autonomie, Niveau, executer_atomique
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 FICTIF = True
 NOM = "m6_lire_contexte_materiaux_appareil"
@@ -127,7 +131,7 @@ def _call(i, w, actor=EMP, **args):
     before = _tables()
     with contexte.appele_par_appareil(actor):
         r = executer_atomique(tool, {"intervention_id": i, "wct_id": w, "decalage": 0, "limite": 8, **args})
-    assert before == _tables() and len(before) == 49 and before["artefacts"] == []
+    assert before == _tables() and set(before) == TABLES_SQLITE and before["artefacts"] == []
     return r
 
 

@@ -96,6 +96,33 @@ summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .jauge-titre span { color: var(--attenue); }
 meter { width: 100%; height: 1rem; }
 .connexion { max-width: 380px; }
+.cedule-multimois { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 1rem; }
+.cedule-mois { table-layout: fixed; min-width: 430px; }
+.cedule-mois td { vertical-align: top; overflow-wrap: anywhere; }
+.cedule-mois td span { display: block; font-size: .75rem; }
+.cedule-mois .hors-mois { background: var(--fond); }
+.cedule-mois .mois-a-reconfirmer { background: var(--alerte-fond); border-top: 3px solid var(--alerte); }
+.cedule-navigation { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+.cedule-semaine { min-width: 1100px; table-layout: fixed; }
+.cedule-semaine caption { text-align: left; padding: .5rem; color: var(--attenue); }
+.cedule-semaine td { vertical-align: top; }
+.cedule-semaine th { overflow-wrap: anywhere; }
+.cedule-job { padding: .6rem; margin-bottom: .65rem; border: 1px solid var(--bordure);
+  border-left: 4px solid var(--accent); border-radius: var(--rayon); background: var(--surface);
+  overflow-wrap: anywhere; }
+.cedule-job p { margin: .25rem 0; }
+.cedule-job details { font-size: .8rem; }
+.cedule-validite { font-size: .8rem; }
+.cedule-repere { display: inline-flex; align-items: center; gap: .4rem; font-weight: 600; }
+.repere-echantillon { display: inline-block; width: 1rem; height: 1rem; border: 1px solid currentColor;
+  border-radius: 3px; background: var(--repere, transparent); flex-shrink: 0; }
+.repere-bleu { --repere: #1678d3; }
+.repere-violet { --repere: #995bd5; }
+.repere-vert { --repere: #2d9e61; }
+.repere-rose { --repere: #e0669b; }
+.repere-ambre { --repere: #d99b21; }
+.repere-gris { --repere: #858b95; }
+.cedule-perimee { border-left-color: var(--alerte); background: var(--alerte-fond); }
 @media (max-width: 600px) { main { padding: 1rem; } .grille { grid-template-columns: 1fr; } }
 """
 

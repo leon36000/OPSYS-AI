@@ -50,10 +50,15 @@ export async function withGatewayRuntimeArtifactPublication<T>(
     env: NodeJS.ProcessEnv;
     timeoutMs: number;
     assertCurrent: () => void;
+    /** Additional physical Python generation being published. It always shares
+     * this profile's Gateway maintenance boundary, even with disjoint Core roots.
+     * Other profiles and standalone Python callers require their own custody. */
+    python?: { softwareRoot: string; candidate: string };
   },
   publish: (assertPublicationCurrent: () => Promise<void>) => Promise<T>,
 ): Promise<T> {
   const assertCaller = params.assertCurrent;
+  const pythonScope = params.python ? { ...params.python } : undefined;
   assertCaller();
   return await withGatewayServiceOperationLock(params.env, async (assertNative) => {
     const assertCurrent = () => {
@@ -126,6 +131,26 @@ export async function withGatewayRuntimeArtifactPublication<T>(
       if (parents.some((parent) => parent.stat && !parent.stat.isDirectory())) {
         refuse();
       }
+      let python: PathIdentity[] | undefined;
+      if (pythonScope) {
+        if (!path.isAbsolute(pythonScope.softwareRoot) || !path.isAbsolute(pythonScope.candidate)) {
+          refuse();
+        }
+        python = await Promise.all([
+          identity(pythonScope.softwareRoot),
+          identity(pythonScope.candidate),
+        ]);
+        assertCurrent();
+        const [softwareRoot, candidate] = python;
+        if (
+          !softwareRoot?.stat?.isDirectory() ||
+          !candidate?.stat?.isDirectory() ||
+          same(softwareRoot, candidate) ||
+          !isPathInside(softwareRoot.real, candidate.real)
+        ) {
+          refuse();
+        }
+      }
       const target = parents[0]!;
       const destinations = await Promise.all(
         outputPaths.map((output) => outputIdentity(path.join(params.root, output))),
@@ -168,6 +193,7 @@ export async function withGatewayRuntimeArtifactPublication<T>(
         );
         assertCurrent();
         disjoint =
+          !pythonScope &&
           !same(target, installed) &&
           !destinations.some(
             (destination) =>
@@ -224,7 +250,7 @@ export async function withGatewayRuntimeArtifactPublication<T>(
           refuse();
         }
       }
-      return { state, disjoint, parents, destinations, database, nativeIdentity, serving };
+      return { state, disjoint, parents, destinations, database, nativeIdentity, serving, python };
     };
     const inspect = async () => {
       try {
@@ -257,6 +283,11 @@ export async function withGatewayRuntimeArtifactPublication<T>(
         before.disjoint !== current.disjoint ||
         before.database.real !== current.database.real ||
         before.nativeIdentity !== current.nativeIdentity ||
+        (before.python &&
+          (!current.python ||
+            before.python.some((target, index) =>
+              changedIdentity(target, current.python![index]!),
+            ))) ||
         before.parents.some((parent, index) => changedIdentity(parent, current.parents[index]!)) ||
         before.destinations.some(
           (destination, index) => destination.real !== current.destinations[index]!.real,

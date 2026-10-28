@@ -64,11 +64,12 @@ l'appelant (``outils.py``), comme partout ailleurs dans ce paquet.
 
 from __future__ import annotations
 
+import copy
 import json
 from datetime import datetime
 from typing import Any
 
-from . import affaire, amont, classification, confidentialite, consolidation, decisions, etapes, signaux
+from . import affaire, amont, classification, confidentialite, consolidation, decisions, etapes, registre, signaux
 
 BUDGET_CARACTERES_DEFAUT = 4000
 NB_FAITS_MAX_PAR_COUCHE_DEFAUT = 5
@@ -311,6 +312,12 @@ def assembler_paquet_contexte(
         (COUCHE_EVENEMENTS_RECENTS, _candidats_evenements_recents(affaire_id, maillons_evenements)),
         (COUCHE_SIGNAUX_NON_RESOLUS, _candidats_signaux(tous_les_signaux)),
     )
+    return _assembler_candidats(affaire_id, horodatage, entrees, tous_les_signaux, maillons_affaires,
+        amont.situation(affaire_id, maillons_evenements), budget_caracteres, n_faits_max_par_couche, agent)
+
+
+def _assembler_candidats(affaire_id, horodatage, entrees, tous_les_signaux, maillons_affaires,
+                        situation, budget_caracteres, n_faits_max_par_couche, agent):
     couches: list[dict[str, Any]] = []
     nb_retenus = 0
     omis_evenements: list[dict] = []
@@ -334,6 +341,62 @@ def assembler_paquet_contexte(
             "regle": confidentialite.REGLE_VERSION,
             "nb_retenus": nb_retenus,
         },
-        "affaire": amont.situation(affaire_id, maillons_evenements),
+        "affaire": dict(situation),
         "consolidation": _a_consolider(affaire_id, omis_evenements, maillons_affaires),
     }
+
+
+class _PreparationPaquets:
+    """Projection pure isolée de sources figées; aucune identité, autorisation ou écriture."""
+
+    __slots__ = ('__affaires', '__regles', '__evenements', '__signaux', '__faits', '__situations')
+
+    def __init__(self, registre_evenements, registre_affaires):
+        evenements = copy.deepcopy(registre_evenements.lire())
+        self.__affaires = copy.deepcopy(registre_affaires.lire())
+        index_wct = classification.index_lead_id_par_wct_id(evenements)
+        groupes = {}
+        for maillon in evenements:
+            lead = classification.lead_id(maillon, index_wct)
+            if isinstance(lead, str):
+                groupes.setdefault(lead, []).append(maillon)
+        # Résoudre sur le registre complet avant groupage : WCT répétés, signaux dédupliqués et positions.
+        self.__signaux = {}
+        for signal in signaux._signaux_avec_etat(evenements, self.__affaires):
+            lead = signal['affaire_id']
+            if isinstance(lead, str):
+                self.__signaux.setdefault(lead, []).append(signal)
+        self.__signaux = {lead: signaux._ordonner(lignes) for lead, lignes in self.__signaux.items()}
+        self.__regles = _candidats_regles_entreprise(registre.Registre(self.__affaires))
+        self.__evenements = {lead: [_fait_evenement(m) for m in _tri_recent_dabord(lignes)]
+                             for lead, lignes in groupes.items()}
+        self.__situations = {lead: amont._situation_de_evenements(lead, lignes)
+                             for lead, lignes in groupes.items() if affaire.valide(lead)}
+        groupes_affaires = {}
+        for maillon in self.__affaires:
+            lead = maillon.get('affaire_id')
+            if isinstance(lead, str):
+                groupes_affaires.setdefault(lead, []).append(maillon)
+        self.__faits = {lead: _candidats_faits_affaire(lead, lignes) for lead, lignes in groupes_affaires.items()}
+
+    def assembler(self, affaire_id, horodatage, *, budget_caracteres=BUDGET_CARACTERES_DEFAUT,
+                  n_faits_max_par_couche=NB_FAITS_MAX_PAR_COUCHE_DEFAUT, agent=None):
+        _valider_entrees(affaire_id, horodatage, budget_caracteres, n_faits_max_par_couche, agent)
+        tous_les_signaux = self.__signaux.get(affaire_id, [])
+        entrees = (
+            (COUCHE_REGLES_ENTREPRISE, self.__regles),
+            (COUCHE_FAITS_AFFAIRE, self.__faits.get(affaire_id, [])),
+            (COUCHE_EVENEMENTS_RECENTS, self.__evenements.get(affaire_id, [])),
+            (COUCHE_SIGNAUX_NON_RESOLUS, _candidats_signaux(tous_les_signaux)),
+        )
+        situation = self.__situations.get(affaire_id)
+        if situation is None:
+            situation = amont._situation_de_evenements(affaire_id, [])
+        # Les jours non consolidés utilisent le dernier fait par clé global, pas le sous-groupe affaire.
+        return _assembler_candidats(affaire_id, horodatage, entrees, tous_les_signaux, self.__affaires,
+            situation, budget_caracteres, n_faits_max_par_couche, agent)
+
+
+def preparer_paquets(registre_evenements, registre_affaires):
+    """Capturer une projection pure pour réemploi local; ne valide ni chaîne ni autorité de plateforme."""
+    return _PreparationPaquets(registre_evenements, registre_affaires)

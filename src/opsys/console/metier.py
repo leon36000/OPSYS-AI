@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 from collections.abc import Mapping
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from typing import Any
 
@@ -33,6 +34,7 @@ LECTURES = {
     "m5_preparer_dossier_decision_cfo": "m05-financecore",
     "m5_preparer_brut_regulier": "m05-financecore",
     "m5_preparer_dossier_webras": "m05-financecore",
+    "m5_verifier_admission_paie_preparatoire": "m05-financecore",
     "m7_lister_contenus_chantier": "m07-marketing",
     "m7_lister_calendrier": "m07-marketing",
     "m7_lire_performance_campagnes": "m07-marketing",
@@ -43,13 +45,38 @@ LECTURES = {
     "m9_rapport_periode": "m09-strategic-intelligence",
     "m9_observations_chantier_periode": "m09-strategic-intelligence",
     "m9_rapport_activite_periode": "m09-strategic-intelligence",
+    # CRM secrétariat (répertoire et dossier client) : lectures pures de la vérité commerciale M2.
+    "m4_lire_cedule_semaine": "m04-field-ops",
+    "m4_lire_calendrier_plan": "m04-field-ops",
+    "m2_lister_leads": "m02-revenue-crm",
+    "m2_trouver_client_de_lead": "m02-revenue-crm",
+    "m2_obtenir_client_360": "m02-revenue-crm",
+    "m2_lister_historique_contact_client": "m02-revenue-crm",
+    "m2_reconcilier_memoire_contact_client": "m02-revenue-crm",
+    "m3_lister_devis_lead_admin": "m03-estimation",
+    "m3_lire_devis": "m03-estimation",
 }
 # Les lecteurs M9 revérifient l'admin SQL de la persona : jamais la persona propriétaire, même cumulée.
 _LECTURES_ADMIN_M9 = frozenset({
     "m9_lister_suivis_decision", "m9_lire_suivi_decision", "m9_bilan_suivis_decision", "m9_rapport_periode",
     "m9_observations_chantier_periode", "m9_rapport_activite_periode",
 })
+# Les lecteurs M2 n'ont de portée que pour `seller` et `admin` (`m2_revenue_crm.acces.ROLES_LEADS`) : la console
+# les appelle avec le rôle `admin` confirmé en base, jamais sans identité d'appareil ni sous `nathan_owner` seul.
+_LECTURES_ADMIN_M2 = frozenset({
+    "m2_lister_leads", "m2_trouver_client_de_lead", "m2_obtenir_client_360", "m2_lister_historique_contact_client",
+    "m2_reconcilier_memoire_contact_client",
+})
+_LECTURES_ADMIN_M3 = frozenset({"m3_lister_devis_lead_admin", "m3_lire_devis"})
+_LECTURES_ADMIN_M4 = frozenset({"m4_lire_cedule_semaine", "m4_lire_calendrier_plan"})
+_LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3 | _LECTURES_ADMIN_M4
+_COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction", "m2_corriger_contact_client"})
+_COMMANDES_ADMIN_M4 = frozenset({"m4_confirmer_dates_cedule"})
+_OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2 | _COMMANDES_ADMIN_M4
 COMMANDES = {
+    "m4_confirmer_dates_cedule": "m04-field-ops",
+    "m2_corriger_contact_client": "m02-revenue-crm",
+    "m2_enregistrer_interaction": "m02-revenue-crm",
     "m1_importer_appel_manuellement": "m01-front-office",
     "m1_clore_transfert": "m01-front-office",
     "m1_consigner_suivi_rappel": "m01-front-office",
@@ -359,6 +386,217 @@ def _executer_observation_growth_humaine(cnx, deps, session, personne, arguments
     return reponse
 
 
+
+def _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutation_id):
+    """Port humain privé : Meta réelle, autorité avant cache, réponse complète bornée."""
+    from m6_material_control import notes_commande as n
+    from m6_material_control import outils as m6
+
+    departement = "m06-material-control"
+    if (session.expire <= datetime.now(UTC).timestamp() or "admin" not in personne.roles):
+        raise PermissionError("session admin active requise")
+    if (departement not in deps or deps[departement].module_outils != "m6_material_control.outils"):
+        raise KeyError("service notes M6 indisponible")
+    outil = next((o for o in deps[departement].charger_outils() if o.nom == nom), None)
+    if outil is None:
+        raise KeyError("outil M6 indisponible")
+    if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
+        raise ValueError("arguments de note invalides")
+    ecriture = nom == n.ECRIRE
+    if (ecriture and (not isinstance(mutation_id, str) or not mutation_id.strip() or len(mutation_id) > 200)
+            or (not ecriture and mutation_id is not None)):
+        raise ValueError("intention de note invalide")
+    if ecriture and cnx.dialect.name != "sqlite":
+        return {"ok": True, "resultat": n.refuser("ECRITURE-NON-QUALIFIEE")}
+    with (
+        contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
+        contexte.appeler_en_tant_que(departement, origine="console"),
+        contexte.sortie_bornee(n.BORNE_SORTIE),
+    ):
+        m6.autoriser_note_commande()
+        if not ecriture:
+            return executer_atomique(outil, dict(arguments))
+        maintenant = datetime.now(UTC)
+        meta = idempotence.Meta(mutation_id, f"console:{personne.identifiant}", maintenant.isoformat())
+        with (
+            m6.contexte_mutation_note_commande(meta),
+            contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant)),
+        ):
+            try:
+                recu = idempotence.reclamer(cnx, meta, nom, dict(arguments), maintenant)
+            except idempotence.MutationConflit as exc:
+                raise ValueError("conflit d'intention de note") from exc
+            if recu.rejouee:
+                try:
+                    m6.verifier_rejeu_note_commande(dict(arguments), recu.reponse)
+                except n.Refus as exc:
+                    return {"ok": True, "resultat": n.refuser(exc.suffixe)}
+                return {**recu.reponse, "rejoue": True}
+            reponse = executer_atomique(outil, dict(arguments))
+            if reponse.get("ok") is True:
+                n.verifier_borne(reponse["resultat"], n.BORNE_SORTIE)
+            idempotence.finaliser(cnx, meta, reponse)
+            # Le journal métier M6 contient uniquement les références, jamais le texte.
+            return reponse
+
+
+def _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation_id):
+    """Port humain M4 : intention dans le maillon privé, aucune copie dans le reçu central."""
+    from m4_field_ops import outils as m4
+
+    dept = "m04-field-ops"
+    if session.expire <= datetime.now(UTC).timestamp() or "admin" not in personne.roles:
+        raise PermissionError("session admin active requise")
+    if dept not in deps or deps[dept].module_outils != "m4_field_ops.outils":
+        raise KeyError("annotations M4 indisponibles")
+    outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
+    if outil is None:
+        raise KeyError("outil M4 indisponible")
+    ecriture = nom in {"m4_enregistrer_annotation_calendrier", "m4_definir_couleur_calendrier",
+                       "m4_declarer_composition_journaliere_console", "m4_declarer_absence_journaliere_console"}
+    if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
+        raise ValueError("annotation invalide")
+    if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
+            or (not ecriture and mutation_id is not None)):
+        raise ValueError("intention d'annotation invalide")
+    maintenant = datetime.now(UTC)
+    meta = (idempotence.Meta(mutation_id, "console:" + personne.identifiant, maintenant.isoformat())
+            if ecriture else None)
+    borne = 262144 if nom in {"m4_resumer_annotations_calendrier", "m4_resumer_couleurs_calendrier"} else 65536
+    if nom in {"m4_declarer_composition_journaliere_console",
+               "m4_declarer_absence_journaliere_console"} and contexte.limite_sortie() is not None:
+        borne = min(borne, contexte.limite_sortie())
+    with (
+        contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
+        contexte.appeler_en_tant_que(dept, origine="console"),
+        contexte.sortie_bornee(borne),
+        m4.contexte_annotation_calendrier(meta),
+        contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
+        if ecriture else nullcontext(),
+    ):
+        return executer_atomique(outil, dict(arguments))
+
+
+def _executer_declaration_journaliere(cnx, deps, session, personne, nom, arguments, mutation_id):
+    from . import memoire_chantier as autorite
+
+    with cnx.begin_nested():
+        autorite._admin(cnx, session)
+        resultat = _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation_id)
+        autorite._admin(cnx, session)
+        return resultat
+
+
+def _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id):
+    """Port humain M2 : intention dans le maillon privé, aucune copie dans le reçu central."""
+    from m2_revenue_crm import outils as m2
+
+    dept = "m02-revenue-crm"
+    if session.expire <= datetime.now(UTC).timestamp() or "admin" not in personne.roles:
+        raise PermissionError("session admin active requise")
+    if dept not in deps or deps[dept].module_outils != "m2_revenue_crm.outils":
+        raise KeyError("agenda M2 indisponible")
+    outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
+    if outil is None:
+        raise KeyError("outil M2 indisponible")
+    ecriture = nom == "m2_enregistrer_rendez_vous"
+    if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
+        raise ValueError("rendez-vous invalide")
+    if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
+            or (not ecriture and mutation_id is not None)):
+        raise ValueError("intention de rendez-vous invalide")
+    maintenant = datetime.now(UTC)
+    meta = (idempotence.Meta(mutation_id, "console:" + personne.identifiant, maintenant.isoformat())
+            if ecriture else None)
+    with (
+        contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
+        contexte.appeler_en_tant_que(dept, origine="console"),
+        contexte.sortie_bornee(65536),
+        m2.contexte_agenda(meta),
+        contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))
+        if ecriture else nullcontext(),
+    ):
+        return executer_atomique(outil, dict(arguments))
+
+
+def _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutation_id):
+    from m6_material_control import catalogue_console as catalogue
+
+    if session.expire <= datetime.now(UTC).timestamp() or "admin" not in personne.roles:
+        raise PermissionError("session admin active requise")
+    dept = catalogue.DEPARTEMENT
+    if dept not in deps or deps[dept].module_outils != "m6_material_control.outils":
+        raise KeyError("catalogue M6 indisponible")
+    outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
+    if outil is None:
+        raise KeyError("outil M6 indisponible")
+    ecriture = nom in {"m6_enregistrer_materiau_console", "m6_confirmer_tarif_console",
+                       "m6_enregistrer_fournisseur_console", "m6_confirmer_import_tarifs_console"}
+    if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
+        raise ValueError("fiche matériau invalide")
+    if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
+            or (not ecriture and mutation_id is not None)):
+        raise ValueError("intention de catalogue invalide")
+    maintenant = datetime.now(UTC)
+    meta = (idempotence.Meta(mutation_id, "console:" + personne.identifiant, maintenant.isoformat())
+            if ecriture else None)
+    limite_historique = (contexte.limite_sortie() if nom in {"m6_lire_historique_prix_console",
+                         "m6_preparer_import_tarifs_console", "m6_confirmer_import_tarifs_console"} else None)
+    maximum = min(65536, limite_historique) if limite_historique is not None else 65536
+    with (
+        contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
+        contexte.appeler_en_tant_que(dept, origine="console"), contexte.sortie_bornee(maximum),
+        catalogue.contexte_mutation(meta),
+        contexte.receptionne_de(contexte.HorodatageAppareil("console:" + personne.identifiant, maintenant, maintenant)),
+    ):
+        if nom == "m6_confirmer_import_tarifs_console":
+            from .memoire_chantier import _admin
+
+            with stockage.transaction():
+                resultat = executer_atomique(outil, dict(arguments))
+                _admin(cnx, session)
+                return resultat
+        resultat = executer_atomique(outil, dict(arguments))
+        if nom in {"m6_lire_historique_prix_console", "m6_preparer_import_tarifs_console"}:
+            from .memoire_chantier import _admin
+
+            _admin(cnx, session)
+        return resultat
+
+
+def _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id):
+    """Port humain M3 : intention dans le maillon privé, aucune copie dans le reçu central."""
+    from m3_estimation import outils as m3
+
+    dept = "m03-estimation"
+    if session.expire <= datetime.now(UTC).timestamp() or "admin" not in personne.roles:
+        raise PermissionError("session admin active requise")
+    if dept not in deps or deps[dept].module_outils != "m3_estimation.outils":
+        raise KeyError("catalogue M3 indisponible")
+    outil = next((o for o in deps[dept].charger_outils() if o.nom == nom), None)
+    if outil is None:
+        raise KeyError("outil M3 indisponible")
+    ecriture = nom in {"m3_enregistrer_modele_soumission", "m3_creer_devis_depuis_modele",
+                       "m3_enregistrer_lignes_modele", "m3_creer_devis_prefill"}
+    if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
+        raise ValueError("modèle invalide")
+    if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
+            or (not ecriture and mutation_id is not None)):
+        raise ValueError("intention de modèle invalide")
+    maintenant = datetime.now(UTC)
+    meta = (idempotence.Meta(mutation_id, "console:" + personne.identifiant, maintenant.isoformat())
+            if ecriture else None)
+    with (
+        contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),
+        contexte.appeler_en_tant_que(dept, origine="console"),
+        contexte.sortie_bornee(65536),
+        m3.contexte_modeles(meta),
+        contexte.receptionne_de(contexte.HorodatageAppareil(
+            "console:" + personne.identifiant, maintenant, maintenant)),
+    ):
+        return executer_atomique(outil, dict(arguments))
+
+
 def executer(
     cnx: Connection,
     deps: Mapping[str, Departement],
@@ -373,8 +611,10 @@ def executer(
     personne = identite.personne_active(cnx, session.utilisateur)
     if personne is None or not personne.roles.intersection({"nathan_owner", "admin"}):
         raise PermissionError("administration métier requise")
-    if nom in _LECTURES_ADMIN_M9 and "admin" not in personne.roles:
-        raise PermissionError("admin SQL requis pour les lectures M9")
+    if nom in _OUTILS_ADMIN and "admin" not in personne.roles:
+        raise PermissionError("admin SQL requis pour cet outil métier")
+    if nom in (_COMMANDES_ADMIN_M2 | _COMMANDES_ADMIN_M4) and session.expire <= datetime.now(UTC).timestamp():
+        raise PermissionError("session de note expirée")
     if nom == "m1_consigner_suivi_rappel" and session.expire <= datetime.now(UTC).timestamp():
         raise PermissionError("session de suivi expirée")
     if nom in {
@@ -389,6 +629,29 @@ def executer(
         return _executer_observation_growth_humaine(cnx, deps, session, personne, arguments, mutation_id)
     if nom in {"m7_lire_edition_texte_humain", "m7_reviser_texte_humain"}:
         return _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom in {"m6_lister_fournisseurs_console", "m6_lire_fournisseur_console", "m6_enregistrer_fournisseur_console",
+               "m6_enregistrer_materiau_console", "m6_lire_materiau_console", "m6_lister_materiaux_console",
+               "m6_lister_fournisseurs_tarif_console", "m6_preparer_tarif_console", "m6_confirmer_tarif_console",
+               "m6_lire_historique_prix_console", "m6_preparer_import_tarifs_console",
+               "m6_confirmer_import_tarifs_console"}:
+        return _executer_catalogue_m6(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom in {"m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
+                   "m3_lire_tarif_modele", "m3_creer_devis_prefill",
+                   "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission",
+               "m3_creer_devis_depuis_modele", "m3_document_devis_console"}:
+        return _executer_modeles(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom in {"m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",
+                   "m2_lire_rencontres_lead"}:
+        return _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom in {"m4_declarer_composition_journaliere_console", "m4_declarer_absence_journaliere_console"}:
+        return _executer_declaration_journaliere(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
+               "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
+               "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
+                   "m4_lire_page_cedule_semaine"}:
+        return _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation_id)
+    if nom in {"m6_enregistrer_note_commande", "m6_lire_note_commande", "m6_lister_notes_commande"}:
+        return _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutation_id)
     surfaces = COMMANDES if mutation_id is not None else LECTURES
     departement = surfaces.get(nom)
     est_media = nom == "m7_lire_dossier_medias" or nom in _COMMANDES_MEDIAS
@@ -549,10 +812,13 @@ def executer(
             )
         reponse = {**decision["reponse"], "approbation_id": ident}
     else:
-        role = "nathan_owner" if "nathan_owner" in personne.roles and nom not in _LECTURES_ADMIN_M9 else "admin"
+        role = "nathan_owner" if "nathan_owner" in personne.roles and nom not in _OUTILS_ADMIN else "admin"
         with (
             contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, role, source="console")),
             contexte.appeler_en_tant_que(departement, origine=departement),
+            contexte.receptionne_de(contexte.HorodatageAppareil(
+                f"console:{personne.identifiant}", maintenant, maintenant,
+            )) if nom == "m4_confirmer_dates_cedule" else nullcontext(),
         ):
             reponse = executer_atomique(outil, charge)
     if nom == "m1_consigner_suivi_rappel":

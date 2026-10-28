@@ -7,7 +7,7 @@ revérifié dans la transaction avant les sources :
   M6 et rapprochés de leur publication réelle `m4.travaux_termines` par ID,
   producteur M4, charge validée au catalogue et empreinte complète reçue.
 - `m6_lire_pertes_alertes_wct_appareil(wct_id, decalage, limite)` relit les
-  mouvements PERTE/BRIS du WCT exact et les quatre publications M6 de variance.
+  mouvements PERTE/BRIS du WCT exact et les cinq statuts publiables M6 de variance.
 
 Les entrées sont fermées et toutes requises dans le schéma. `limite` est un entier
 strict de 1 à 8 ; `decalage`, un entier strict de 0 à 10000. Les identifiants métier
@@ -22,8 +22,8 @@ et l'empreinte complète déjà conservée ; elle n'invente aucun hash de reçu.
 reçu ancien sans empreinte est refusé explicitement. Une référence de mouvement
 expose l'index et le hash du maillon réel, après validation intégrale de la chaîne.
 Les quantités sont finies, strictement négatives pour PERTE/BRIS, et projetées en
-texte décimal canonique sans conversion ni arrondi. L'unité et la date du mouvement
-restent `null` : ces champs ne sont pas conservés par cette source. Le coût n'est
+texte décimal canonique sans conversion ni arrondi. L'unité déclarée est exposée lorsqu'elle est conservée dans le maillon hash-chaîné ;
+elle reste `null` pour un ancien maillon sans unité. La date du mouvement reste `null`. Le coût n'est
 jamais projeté ni calculé ; `null` reste un coût inconnu légitime, alors qu'un type
 incohérent ou un nombre non fini rend le snapshot invalide.
 
@@ -34,8 +34,8 @@ mouvement est incohérente et refusée. RECEPTION et VARIANCE_INVENTAIRE ne cons
 pas une déclaration de ce WCT. Les chantiers connus dans les mouvements et les
 publications doivent concorder.
 
-L'historique comporte exactement quatre slots, dans l'ordre fixe `seuil_absent`,
-`prevu_absent`, `declaration_absente`, `evaluee`. Cet ordre n'est pas une chronologie.
+L'historique comporte exactement cinq slots, dans l'ordre fixe `seuil_absent`,
+`prevu_absent`, `declaration_absente`, `evaluee`, `unites_indeterminees`. Cet ordre n'est pas une chronologie.
 Chaque slot présent contient la référence réellement relue du bus M6, son signal,
 son seuil et sa date de complétion du WCT ; la date de publication reste `null`.
 `evaluee_terminal` rapporte seulement la présence du slot `evaluee`. Les signaux
@@ -59,5 +59,5 @@ limite effective avant tout repli en artefact.
 Un WCT publié par M4 mais non reçu par M6 est distinct d'un WCT inconnu. Les sources
 requises absentes, corrompues ou incohérentes produisent un verdict nominal générique,
 sans contenu brut. Rien n'est écrit, commandé ou ajusté. Stock courant, inventaire
-physique, réapprovisionnement, coûts, responsables, photos, unités réelles et dates
+physique, réapprovisionnement, coûts, responsables, photos, unités historiques non documentées et dates
 de perte/bris restent explicitement hors corpus.

@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import func, select
 
-from opsys import admission_agents, agents, stockage
+from opsys import agents, agents_base, stockage
 from opsys.stockage.schema import AGENTS_RESERVATIONS, META, USAGE_TOKENS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -62,7 +62,13 @@ def qualifier_raccord_core(_instance_isolee, request, monkeypatch):
             mutation_id="profil-affaire-active-fictif",
             revision_attendue=1,
         )
-        admission_agents.configurer_plafonds_entreprise(cnx, 500000, 5000000, par="nathan", revision_attendue=0)
+        # Moteur.demarrer owns the explicit QA policy; re-admit those same choices
+        # idempotently so subsequent engine restarts preserve the enterprise revision.
+        agents_base.provisionner(
+            cnx, moteur.departements, par="nathan", limite_tours=8,
+            limite_reessais=2, limite_concurrence=1,
+            budget_entreprise_jour=10_000_000, budget_entreprise_mois=100_000_000,
+        )
     assert profile["revision"] == 2
     # Runtime endpoints are mounted from active profiles at application startup.
     moteur.arreter()

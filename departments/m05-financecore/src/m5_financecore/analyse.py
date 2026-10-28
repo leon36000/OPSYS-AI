@@ -45,6 +45,9 @@ SORTIES_D_ANALYSE = frozenset({
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {
+    "m5_verifier_admission_paie_preparatoire": (
+        "diagnostic documentaire et génération Source, sans calcul monétaire ni qualification fiscale"
+    ),
     "m5_lire_obligations_preparees_appareil": (
         "inventorie les déclarations humaines non attestées et les lacunes de leurs sources, "
         "sans projection de flux, calcul de paie ou décision financière"

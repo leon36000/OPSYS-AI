@@ -151,7 +151,9 @@ def test_le_schema_exige_l_horodatage_et_enumere_les_statuts_et_les_segments(par
     schema = par_nom["m2_lister_leads"].parametres
     assert schema["required"] == ["horodatage"]
     assert schema["additionalProperties"] is False
-    assert set(schema["properties"]) == {"statut", "segment", "decalage", "limite", "horodatage"}
+    assert set(schema["properties"]) == {"statut", "segment", "decalage", "limite", "horodatage", "recherche"}
+    assert schema["properties"]["recherche"]["type"] == ["string", "null"]
+    assert schema["properties"]["recherche"]["maxLength"] == 120
     assert schema["properties"]["statut"]["enum"] == [*statuts.STATUTS, None]
     assert schema["properties"]["segment"]["enum"] == [*segments.SEGMENTS, None]
     assert schema["properties"]["limite"]["maximum"] == liste_leads.LIMITE_MAX

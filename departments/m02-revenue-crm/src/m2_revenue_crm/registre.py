@@ -21,6 +21,8 @@ _TYPE_ENTREE_VALIDES = {
     # remplace ni ne duplique aucune donnée personnelle : une simple référence, dans le MÊME
     # registre append-only que le reste (clients.py reste pur, aucun stockage séparé).
     "client_associe",
+    "contact_client_corrige",
+    "rendez_vous",  # CRM03 : collection agenda distincte, sans mutation du registre commercial.
     # PLAN T1.4-m : réassignation d'un lead à un autre vendeur (décision humaine : qui, pourquoi, de qui à qui, à
     # quel rang). Additif : le maillon de qualification n'est jamais modifié, le propriétaire courant est celui de
     # la dernière assignation (assignation.py).

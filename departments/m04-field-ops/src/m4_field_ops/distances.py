@@ -57,9 +57,10 @@ MODE_HAVERSINE_DETOUR = "haversine_detour"
 # s'accordent au mètre près (test de recoupement).
 RAYON_TERRESTRE_M = 6_371_000
 
-# Limite par défaut de ``osrm-routed --max-table-size`` (100 emplacements par requête `table`).
-# https://project-osrm.org/docs/v26.4.0/tools
-MAX_POINTS = 100
+# Borne globale de calcul/validation : 256² cellules par table, deux tables entières.
+# Distincte du transport OSRM : celui-ci garde sa limite locale de requête à 100 positions.
+# Permet 200 chantiers plus leurs dépôts sans rendre le calcul ou l'entrée du solveur illimités.
+MAX_POINTS = 256
 
 CLES_POINT = ("id", "latitude_microdeg", "longitude_microdeg")
 LATITUDE_MAX_MICRODEG = 90_000_000
@@ -309,7 +310,7 @@ def valider_points(points):
     if len(points) > MAX_POINTS:
         return None, _rejet(
             "REJ-CONTRAT-INVALIDE",
-            f"points : {len(points)} points, maximum {MAX_POINTS} par matrice (scinder la journée)",
+            f"points : {len(points)} points, maximum {MAX_POINTS} par matrice globale (scinder le plan)",
         )
     normalises = []
     vus = set()

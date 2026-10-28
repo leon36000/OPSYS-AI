@@ -65,11 +65,12 @@ def test_memoriser_variance_chaine_deux_maillons_successifs(registre_cible):
     assert registre_cible.valider_chaine() == (True, "")
 
 
-def test_memoriser_variance_avec_signal_critique_null_est_conserve(registre_cible):
+@pytest.mark.parametrize("statut", ["declaration_absente", "unites_indeterminees"])
+def test_memoriser_variance_avec_signal_critique_null_est_conserve(registre_cible, statut):
     """statut_variance != evaluee : signal_critique doit rester null, jamais un booléen inventé
     (catalogue socle) — M10 le reproduit tel quel, sans jamais le coercer."""
     maillon, _ = variance.memoriser_variance(
-        _variance(statut_variance="declaration_absente", signal_critique=None, lignes=None),
+        _variance(statut_variance=statut, signal_critique=None, lignes=None),
         registre_cible,
     )
 

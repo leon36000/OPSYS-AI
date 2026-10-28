@@ -18,7 +18,7 @@ WCT = "WCT-PERTES-FICTIF"
 CH = "CH-PERTES-FICTIF"
 LISTE = "m6_lister_wct_pertes_appareil"
 DETAIL = "m6_lire_pertes_alertes_wct_appareil"
-STATUTS = ["seuil_absent", "prevu_absent", "declaration_absente", "evaluee"]
+STATUTS = ["seuil_absent", "prevu_absent", "declaration_absente", "evaluee", "unites_indeterminees"]
 ADMIN = contexte.IdentiteAppelante("admin.pertes.fictif", "admin")
 
 
@@ -522,6 +522,6 @@ def test_sortie_bornee_reduit_page_aucun_detail_tronque(monde):
         _variance(statut)
     d = _dto()
     assert 0 < d["pagination"]["affichees"] < 8 and d["pagination"]["total"] == 8
-    assert len(d["historique_variance"]) == 4 and all(x["presente"] for x in d["historique_variance"])
+    assert len(d["historique_variance"]) == len(STATUTS) and all(x["presente"] for x in d["historique_variance"])
     assert all(len(m["materiau_id"]) > 240 for m in d["pertes_bris"])
     assert "tronque" not in d and "apercu" not in d

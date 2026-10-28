@@ -249,19 +249,20 @@ def test_la_variance_evaluee_de_m6_donne_le_plus_grand_ecart_sans_recalcul(base_
     assert mesure["entrees"]["signal_critique_m6"] is True
 
 
-def test_la_variance_en_attente_puis_evaluee_la_mesure_suit_le_statut(base_durable, departements):
+@pytest.mark.parametrize("statut_attente", ["declaration_absente", "unites_indeterminees"])
+def test_la_variance_en_attente_puis_evaluee_la_mesure_suit_le_statut(base_durable, departements, statut_attente):
     _publier("m4.travaux_termines", "m04-field-ops", _wct())
-    _publier("m6.variance_chantier", "m06-material-control", _variance(statut="declaration_absente"))
+    _publier("m6.variance_chantier", "m06-material-control", _variance(statut=statut_attente))
     _livrer(departements)
     resultat = _mesures()
     assert _par_metrique(resultat)["m8_ecart_materiaux_max_pct"]["statut"] == "non_calculable"
-    assert any("declaration_absente" in m["raison"] for m in resultat["manques"])
+    assert any(statut_attente in m["raison"] for m in resultat["manques"])
 
     _publier("m6.variance_chantier", "m06-material-control", _variance())
     _livrer(departements, "2026-09-28T18:05:00+00:00")
     assert _par_metrique(_mesures())["m8_ecart_materiaux_max_pct"]["valeur"] == "40.00"
     assert [f["statut_variance"] for f in _faits() if f["type_entree"] == "variance"] == [
-        "declaration_absente", "evaluee",
+        statut_attente, "evaluee",
     ]
 
 

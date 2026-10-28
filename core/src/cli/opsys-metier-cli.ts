@@ -239,3 +239,25 @@ export function runOpsysMetierCli(
   }
   return resolveSubprocessExitCode(result.status, result.signal);
 }
+
+/** Awaited entry dispatcher. Ordinary forwarding retains its existing synchronous API. */
+export async function runOpsysMetierCliWithPublication(
+  invocation: OpsysMetierInvocation,
+  deps: OpsysMetierRunDeps & { root?: string } = {},
+): Promise<number> {
+  if (
+    invocation.kind === "metier" &&
+    invocation.args[0] === "instance" &&
+    invocation.args[1] === "publier-generation"
+  ) {
+    const { runOpsysMetierGenerationPublication } =
+      await import("./opsys-metier-generation-publication.js");
+    return await runOpsysMetierGenerationPublication(invocation.args.slice(2), {
+      root: deps.root,
+      env: deps.env ?? process.env,
+      dir: deps.dir,
+      stderr: deps.stderr ?? process.stderr,
+    });
+  }
+  return runOpsysMetierCli(invocation, deps);
+}

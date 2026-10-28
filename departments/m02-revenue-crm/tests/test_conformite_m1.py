@@ -37,7 +37,13 @@ SHA256_HORODATAGE_ATTENDU = "7168dc81de0d37f0e7160b96e9df14c9a1bf5ef594a791f2574
 # ou invalide), REJ-RELANCE-NON-DUE, REJ-RELANCE-TROP-PROCHE (fréquence limitée, avec la prochaine date permise),
 # REJ-CONSENTEMENT-ABSENT, REJ-CONSENTEMENT-RETIRE (STOP) et REJ-CONSENTEMENT-INVALIDE. Décision journalisée dans
 # docs/bmad/03-ARCHITECTURE.md (addendum T4.9).
-SHA256_VERDICTS_ATTENDU = "3525f2190a12641b0946567309c1d20d68a2c84b62b745814c550e065418e29f"
+# Sixième rescellage, 2026-10-27 : CRM-04 (dd19e5cf), deux refus de correction des coordonnées
+# ajoutés seulement : REJ-CONTACT-CONFLIT et REJ-CONTACT-BACKEND-NON-QUALIFIE. Aucun verdict
+# historique modifié. Provenance et deux empreintes : docs/bmad/03-ARCHITECTURE.md, addendum CRM-04.
+# Septième rescellage, 2026-10-27 : CRM-03, les quinze refus fermés de l'agenda
+# commercial ajoutés par 14540419. Octets historiques inchangés hors ajout;
+# décision et empreintes documentées dans l'addendum CRM-03 de l'architecture M2.
+SHA256_VERDICTS_ATTENDU = "54e79d529522edf386ada2d998ecad927b2c5a7bdebd4cf87784ede9fc17553e"
 
 
 class TestCA_M2_13_Empreintes:

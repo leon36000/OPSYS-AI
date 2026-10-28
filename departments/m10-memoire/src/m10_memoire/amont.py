@@ -51,6 +51,11 @@ def situation(affaire_id: str, maillons: list[dict[str, Any]]) -> dict[str, Any]
     événements, qui omet l'origine, le plus ancien fait, en premier. Un vocabulaire fermé, sans renseignement personnel.
     """
     de_l_affaire = classification.evenements_de_laffaire(affaire_id, maillons)
+    return _situation_de_evenements(affaire_id, de_l_affaire)
+
+
+def _situation_de_evenements(affaire_id: str, de_l_affaire: list[dict[str, Any]]) -> dict[str, Any]:
+    """Projection d'événements déjà résolus sur l'index WCT global; ne reclassifie aucune sous-liste."""
     connue = bool(de_l_affaire)
     etape_d_origine = etapes.origine_de(affaire.genre(affaire_id))
     origine_recue = etape_d_origine is not None and any(

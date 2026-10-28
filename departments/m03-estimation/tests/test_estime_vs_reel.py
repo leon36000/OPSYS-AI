@@ -384,7 +384,7 @@ def test_wct_id_distincts_coexistent():
 # -- enregistrer_variance_chantier : matériaux, seulement au statut evaluee ----------------------
 def test_variance_non_evaluee_ne_touche_jamais_le_registre():
     registre_cible = []
-    for statut in ("prevu_absent", "declaration_absente", "seuil_absent"):
+    for statut in ("prevu_absent", "declaration_absente", "seuil_absent", "unites_indeterminees"):
         resultat = estime_vs_reel.enregistrer_variance_chantier(
             _charge_variance(statut_variance=statut), registre_cible
         )

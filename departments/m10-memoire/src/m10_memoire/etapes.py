@@ -32,6 +32,7 @@ Module pur (DA-M10-08) : aucun import d'``opsys``.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -42,6 +43,8 @@ from . import affaire, confidentialite, validation
 
 TYPE_LEAD_QUALIFIE = "m1.lead_qualifie"
 TYPE_CLIENT_ASSOCIE = "m2.client_associe"
+TYPE_CONTACT_CORRIGE = "m2.contact_corrige"
+TYPE_NOTE_COMMANDE = "m6.note_commande_referencee"
 TYPE_DEVIS_ENVOYE = "m3.devis_envoye"
 TYPE_DEVIS_ACCEPTE = "m3.devis_accepte"
 TYPE_DEVIS_SANS_REPONSE = "m3.devis_sans_reponse"
@@ -155,6 +158,54 @@ def _extraire_client_associe(charge: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _extraire_contact_corrige(charge: Mapping[str, Any]) -> dict[str, Any]:
+    """Provenance seule : identités fermées et clé sémantique vérifiée, aucun texte personnel."""
+    hex64 = re.compile(r"^[0-9a-f]{64}$")
+    champs = {
+        "lead_id": _forme(charge, ("lead_id",), affaire.FORME_AFFAIRE),
+        "client_id": _forme(charge, ("client_id",), hex64),
+        "revision": _entier_positif(charge, ("revision",)),
+        "source_ligne_id": _forme(charge, ("source_ligne_id",), hex64),
+        "fait_id": _forme(charge, ("fait_id",), hex64),
+        "horodatage": _instant(charge, ("horodatage",)),
+    }
+    if champs["revision"] > 1_000_001:
+        raise _refus_invalide(("revision",))
+    cle = f"m2-contact-v1:{champs['client_id']}:{champs['revision']}:{champs['lead_id']}"
+    if champs["fait_id"] != hashlib.sha256(cle.encode("utf-8")).hexdigest():
+        raise _refus_invalide(("fait_id",))
+    return champs
+
+
+def _extraire_note_commande(charge: Mapping[str, Any]) -> dict[str, Any]:
+    """Référence fermée, sans copie de la note ; ne crée pas l'origine d'une affaire."""
+    attendus = {"fait_id", "lead_id", "source_index", "source_hash", "revision", "horodatage"}
+    if set(charge) != attendus:
+        raise _refus_invalide(("champs",))
+    hex64 = re.compile(r"^[0-9a-f]{64}$")
+    index = _lire(charge, ("source_index",))
+    if type(index) is not int or not 0 <= index < 10000:
+        raise _refus_invalide(("source_index",))
+    champs = {
+        "lead_id": _forme(charge, ("lead_id",), affaire.FORME_LEAD),
+        "source_index": index,
+        "source_hash": _forme(charge, ("source_hash",), hex64),
+        "revision": _entier_positif(charge, ("revision",)),
+        "fait_id": _forme(charge, ("fait_id",), hex64),
+        "horodatage": _instant(charge, ("horodatage",)),
+    }
+    if champs["revision"] > 1_000_000:
+        raise _refus_invalide(("revision",))
+    cle = f"m6-note-v1:{champs['lead_id']}:{index}:{champs['revision']}:{champs['source_hash']}"
+    if champs["fait_id"] != hashlib.sha256(cle.encode("utf-8")).hexdigest():
+        raise _refus_invalide(("fait_id",))
+    return champs
+
+
+def _resume_note_commande(maillon: Mapping[str, Any]) -> str:
+    return f"Référence de note d’achat interne, révision {maillon['revision']} (texte privé conservé dans M6)"
+
+
 def _extraire_devis_envoye(charge: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "lead_id": _forme(charge, ("lead_id",), affaire.FORME_AFFAIRE),
@@ -206,6 +257,10 @@ def _resume_lead_qualifie(maillon: Mapping[str, Any]) -> str:
 
 def _resume_client_associe(maillon: Mapping[str, Any]) -> str:
     return f"Client associé au lead : {maillon.get('client_id')}"
+
+
+def _resume_contact_corrige(maillon: Mapping[str, Any]) -> str:
+    return f"Correction des coordonnées, révision M2 {maillon['revision']} ; consulter l’audit admin M2"
 
 
 def _resume_devis_envoye(maillon: Mapping[str, Any]) -> str:
@@ -269,6 +324,14 @@ _ETAPES = (
         TYPE_CLIENT_ASSOCIE, "m02-revenue-crm", "lead_id", "client(s) associé(s)",
         confidentialite.NIVEAU_CLIENT_PRIVE, _extraire_client_associe, _resume_client_associe,
         ouvre=(affaire.GENRE_OPPORTUNITE,),
+    ),
+    Etape(
+        TYPE_CONTACT_CORRIGE, "m02-revenue-crm", "fait_id", "référence(s) de correction de coordonnées",
+        confidentialite.NIVEAU_CLIENT_PRIVE, _extraire_contact_corrige, _resume_contact_corrige,
+    ),
+    Etape(
+        TYPE_NOTE_COMMANDE, "m06-material-control", "fait_id", "référence(s) de note d’achat interne",
+        confidentialite.NIVEAU_CLIENT_PRIVE, _extraire_note_commande, _resume_note_commande,
     ),
     Etape(
         TYPE_DEVIS_ENVOYE, "m03-estimation", "devis_id", "devis envoyé(s)",

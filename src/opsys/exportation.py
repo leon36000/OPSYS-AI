@@ -188,10 +188,18 @@ def _ajouter(tar: tarfile.TarFile, nom: str, chemin: Path) -> None:
 
 
 def _ecrire_empreinte(chemin: Path, sha256: str, nom_archive: str) -> None:
-    descripteur = os.open(chemin, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(descripteur, "w", encoding="utf-8") as fichier:  # fermé même si l'ACL est refusée (Windows)
-        instance.restreindre_acces(chemin)  # 0600 ; sous Windows, `os.open` ne restreint rien : l'ACL est réduite ici
-        fichier.write(f"{sha256}  {nom_archive}\n")
+    try:
+        descripteur = os.open(chemin, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError as erreur:
+        raise ErreurExportation(
+            f"{chemin} existe déjà : un export n'écrase jamais un fichier. Choisissez --sortie.") from erreur
+    try:
+        with os.fdopen(descripteur, "w", encoding="utf-8") as fichier:  # fermé même si l'ACL est refusée (Windows)
+            instance.restreindre_acces(chemin)  # 0600 ; sous Windows, `os.open` ne restreint rien : ACL réduite ici
+            fichier.write(f"{sha256}  {nom_archive}\n")
+    except BaseException:
+        chemin.unlink(missing_ok=True)  # seulement après notre création exclusive
+        raise
 
 
 def _journaliser(url: str, par: str, action: str, cible: str, details: dict[str, Any]) -> None:
@@ -212,7 +220,7 @@ def exporter(home: Path, sortie: Path, *, par: str) -> ResultatExport:
     sortie = Path(os.path.abspath(sortie))
     empreinte_chemin = sortie.with_name(sortie.name + ".sha256")
     for existant in (sortie, empreinte_chemin):
-        if existant.exists():
+        if existant.exists() or existant.is_symlink():
             raise ErreurExportation(
                 f"{existant} existe déjà : un export n'écrase jamais un fichier. Choisissez --sortie.")
     sortie.parent.mkdir(parents=True, exist_ok=True)
@@ -237,6 +245,7 @@ def exporter(home: Path, sortie: Path, *, par: str) -> ResultatExport:
         chemin_manifeste.write_text(json.dumps(manifeste, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
         descripteur = os.open(sortie, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        empreinte_ecrite = False
         try:
             # Fermé même si l'ACL est refusée (sous Windows, on ne supprime pas un fichier ouvert), et restreint avant
             # la première donnée : jamais, même un instant, lisible par un autre compte.
@@ -248,11 +257,13 @@ def exporter(home: Path, sortie: Path, *, par: str) -> ResultatExport:
                         _ajouter(tar, nom, chemin)
             sha256_archive, octets_archive = _sha256(sortie)
             _ecrire_empreinte(empreinte_chemin, sha256_archive, sortie.name)
+            empreinte_ecrite = True
             _journaliser(url, par, "instance.export", sortie.name, {
                 "sha256": sha256_archive, "octets": octets_archive, "fichiers": [f["chemin"] for f in fichiers]})
         except BaseException:
             sortie.unlink(missing_ok=True)
-            empreinte_chemin.unlink(missing_ok=True)
+            if empreinte_ecrite:
+                empreinte_chemin.unlink(missing_ok=True)
             raise
     return ResultatExport(sortie, empreinte_chemin, sha256_archive, octets_archive, tuple(fichiers), revision)
 

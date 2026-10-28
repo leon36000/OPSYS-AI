@@ -4,6 +4,7 @@ import { MAX_TIMER_TIMEOUT_MS } from "@openclaw/normalization-core/number-coerci
 import type { StreamFn } from "openclaw/plugin-sdk/agent-core";
 import {
   createAssistantMessageEventStream,
+  type AssistantMessage,
   type AssistantMessageEvent,
 } from "openclaw/plugin-sdk/llm";
 import { createRequireRecord } from "openclaw/plugin-sdk/test-fixtures";
@@ -770,4 +771,140 @@ describe("wrapStreamFnWithDiagnosticModelCallEvents stream proxy", () => {
       expect(events.map((event) => event.type)).toEqual(["model.call.started", "model.call.error"]);
     },
   );
+});
+
+function createLateDecoratorFixture(callId: string) {
+  const model = makeProviderModelFixture({
+    id: "late-decoration-fictif",
+    provider: "openai",
+    api: "openai-responses",
+    baseUrl: "https://example.invalid",
+  });
+  const message: AssistantMessage = {
+    role: "assistant",
+    content: [{ type: "text", text: "fictif: observation du raccord tardif" }],
+    api: model.api,
+    provider: model.provider,
+    model: model.id,
+    usage: { ...makeZeroUsageSnapshot(), output: 3, totalTokens: 3 },
+    stopReason: "stop",
+    timestamp: 1,
+  };
+  const native = createAssistantMessageEventStream();
+  native.push({ type: "start", partial: message });
+  native.push({ type: "done", reason: "stop", message });
+  native.end();
+  let providerDispatches = 0;
+  const provider: StreamFn = () => {
+    providerDispatches += 1;
+    return native;
+  };
+  const wrapped = wrapStreamFnWithDiagnosticModelCallEvents(provider, {
+    runId: `run-${callId}`,
+    provider: model.provider,
+    model: model.id,
+    api: model.api,
+    transport: "http",
+    trace: createDiagnosticTraceContext(),
+    nextCallId: () => callId,
+  });
+  return {
+    message,
+    native,
+    open: () => wrapped(model, { messages: [] }),
+    providerDispatches: () => providerDispatches,
+  };
+}
+
+describe("diagnostic stream proxy late host decorators", () => {
+  beforeEach(() => {
+    resetDiagnosticEventsForTest();
+    resetDiagnosticRunActivityForTest();
+    startDiagnosticRunActivityTracking();
+    resetGlobalHookRunner();
+  });
+
+  afterEach(() => {
+    resetDiagnosticEventsForTest();
+    resetGlobalHookRunner();
+    resetDiagnosticRunActivityForTest();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("honors a result decorator defined after the real diagnostic wrapper returns", async () => {
+    const fixture = createLateDecoratorFixture("late-result-fictif");
+    let lateResultCalls = 0;
+    let received: AssistantMessage | undefined;
+    const events = await collectModelCallEvents(async () => {
+      const response = await fixture.open();
+      const previousResult = response.result.bind(response);
+      const lateResult = async () => {
+        lateResultCalls += 1;
+        // Delegate the real existing result and return its exact original value.
+        return await previousResult();
+      };
+      // Matches the existing admission owner's late configurable descriptor pattern.
+      Object.defineProperty(response, "result", {
+        configurable: true,
+        value: lateResult,
+      });
+      expect(Object.getOwnPropertyDescriptor(response, "result")?.value).toBe(lateResult);
+      received = await response.result();
+    });
+    expect(received).toBe(fixture.message);
+    expect(lateResultCalls).toBe(1);
+    expect(fixture.providerDispatches()).toBe(1);
+    expect(events.map((event) => event.type)).toEqual([
+      "model.call.started",
+      "model.call.completed",
+    ]);
+  });
+
+  it("honors an async iterator decorator defined after the real diagnostic wrapper returns", async () => {
+    const fixture = createLateDecoratorFixture("late-iterator-fictif");
+    let lateIteratorCalls = 0;
+    let lateDoneCalls = 0;
+    const received: AssistantMessageEvent[] = [];
+    const events = await collectModelCallEvents(async () => {
+      const response = await fixture.open();
+      const previousIterator = response[Symbol.asyncIterator].bind(response);
+      const lateIterator = async function* () {
+        lateIteratorCalls += 1;
+        for await (const event of { [Symbol.asyncIterator]: previousIterator }) {
+          if (event.type === "done") {
+            lateDoneCalls += 1;
+          }
+          // Preserve every original event, order and payload object.
+          yield event;
+        }
+      };
+      Object.defineProperty(response, Symbol.asyncIterator, {
+        configurable: true,
+        value: lateIterator,
+      });
+      expect(Object.getOwnPropertyDescriptor(response, Symbol.asyncIterator)?.value).toBe(
+        lateIterator,
+      );
+      for await (const event of response) {
+        received.push(event);
+      }
+      // Settle the real diagnostics result without replacing any returned value.
+      expect(await response.result()).toBe(fixture.message);
+    });
+    expect(received.map((event) => event.type)).toEqual(["start", "done"]);
+    expect(received[0]).toMatchObject({ type: "start", partial: fixture.message });
+    const terminal = received[1];
+    if (terminal?.type !== "done") {
+      throw new Error("Expected the native done event");
+    }
+    expect(terminal.message).toBe(fixture.message);
+    expect(lateIteratorCalls).toBe(1);
+    expect(lateDoneCalls).toBe(1);
+    expect(fixture.providerDispatches()).toBe(1);
+    expect(events.map((event) => event.type)).toEqual([
+      "model.call.started",
+      "model.call.completed",
+    ]);
+  });
 });

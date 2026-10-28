@@ -122,13 +122,18 @@ def _outil(nom):
 
 def _estimer(**surcharges):
     """L'estimation risquée par l'outil réel (`executer_atomique`, comme les tests de T4.7 pour `m3_creer_devis`)."""
+    contrat_estimation = {
+        "lead_id": LEAD,
+        "conversation_id": "conv-risque-001",
+        "type_travaux": "ravalement",
+        "ville": "Quebec",
+        "canal": "formulaire",
+        "contact": {"nom": "Durand", "telephone": "5145550000"},
+        "urgence_declaree": False,
+    }
     arguments = {
-        "contrat": {
-            "lead_id": LEAD, "conversation_id": "conv-risque-001", "type_travaux": "ravalement", "ville": "Quebec",
-            "canal": "formulaire_web", "contact": {"nom": "Durand", "telephone": "5145550000"},
-            "urgence_declaree": False,
-        },
-        "marqueur": marqueur_m2(LEAD),
+        "contrat": contrat_estimation,
+        "marqueur": marqueur_m2(LEAD, contrat=contrat_estimation),
         # UNE photo, sans objet d'échelle : `MONO_VUE_BORNES_LARGES`, l'incertitude de mesure la plus haute
         "photos": [{
             "photo_id": "p1", "resolution_largeur": 3000, "resolution_hauteur": 2000, "eclairage": 7,

@@ -81,9 +81,11 @@ ACTION_VALIDATION_AU_DEPART = "approbation.valider_au_depart"
 # garde l'empreinte des arguments réels (`empreinte_arguments`, celle de l'idempotence) : elle reste
 # vérifiable sans les révéler.
 ARGUMENTS_MASQUES_DANS_LA_TRACE = frozenset({
+    "texte_libre",  # Note privée M6 : contenu canonique au registre, jamais dans la trace.
     "fix_gps", "adresse", "latitude_microdegres", "longitude_microdegres",
 })
 VALEUR_MASQUEE = "[masqué : donnée personnelle, conservée chiffrée dans le registre du département]"
+VALEUR_NOTE_MASQUEE = "[masqué : note privée conservée dans le registre du département]"
 CONTENU_DOCUMENTAIRE_MASQUE = "[contenu documentaire masqué]"
 _WRITERS_DOCUMENTAIRES_M10 = frozenset({
     "m10_deposer_version_document_appareil", "m10_activer_version_document_appareil",
@@ -423,7 +425,8 @@ def arguments_masques(arguments: Mapping[str, Any]) -> dict[str, Any]:
     Pour la trace d'une validation au départ ET pour tout affichage d'arguments hors de la console
     (l'app du propriétaire, T1.4-f) : une seule règle de masquage."""
     return {
-        cle: VALEUR_MASQUEE if (cle in ARGUMENTS_MASQUES_DANS_LA_TRACE and valeur is not None) else valeur
+        cle: ((VALEUR_NOTE_MASQUEE if cle == "texte_libre" else VALEUR_MASQUEE)
+              if cle in ARGUMENTS_MASQUES_DANS_LA_TRACE and valeur is not None else valeur)
         for cle, valeur in arguments.items()
     }
 

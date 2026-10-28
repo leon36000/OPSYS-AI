@@ -1,8 +1,14 @@
 import { createHash } from "node:crypto";
 import type { StreamFn } from "openclaw/plugin-sdk/agent-core";
-import type { AssistantMessage, Context } from "openclaw/plugin-sdk/llm";
+import {
+  createAssistantMessageEventStream,
+  type AssistantMessage,
+  type Context,
+} from "openclaw/plugin-sdk/llm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
+import { hasModelFallbackStop, resolveModelFallbackError } from "../failover-error.js";
+import { isRecordedModelFallbackStop } from "../model-fallback-stop.js";
 import { makeProviderModelFixture } from "../test-helpers/provider-model-fixture.js";
 import { createZeroUsageFixture } from "../test-helpers/usage-fixtures.js";
 import * as runtimeAdmission from "./opsys-runtime-admission.js";
@@ -269,7 +275,12 @@ describe("OPSYS runtime provider admission", () => {
       { contextWindow: 64, maxTokens: 16 } as never,
       { messages: [] } as never,
     );
-    await expect(stream.result()).rejects.toThrow("could not verify the reconciled provider usage");
+    await expect(stream.result()).rejects.toMatchObject({
+      message: "OPSYS runtime reconciliation failed after known provider usage; fallback is unsafe",
+      cause: expect.objectContaining({
+        message: "OPSYS runtime admission could not verify the reconciled provider usage",
+      }),
+    });
     expect(provider).toHaveBeenCalledOnce();
     expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(2);
   });
@@ -1096,6 +1107,7 @@ describe("OPSYS host-owned completion receipt contract", () => {
   it.each(["rpc failure", "wrong tuple"])(
     "reconciliation %s leaves no completion and is never retried",
     async (cause) => {
+      const transportFailure = new Error("fictional reconciliation outcome UNKNOWN");
       installRuntimeReplies([reservationA]);
       const original = mocks.callOpsysMcpTool.getMockImplementation()!;
       mocks.callOpsysMcpTool.mockImplementation(async (request: RuntimeRequest) => {
@@ -1104,7 +1116,7 @@ describe("OPSYS host-owned completion receipt contract", () => {
           return reply;
         }
         if (cause === "rpc failure") {
-          throw new Error("fictional reconciliation outcome UNKNOWN");
+          throw transportFailure;
         }
         return { ...reply, resultat: { ...reply.resultat, agent_id: "other-profile" } };
       });
@@ -1114,7 +1126,21 @@ describe("OPSYS host-owned completion receipt contract", () => {
       const results = await Promise.allSettled([stream.result(), stream.result()]);
       expect(results[0].status).toBe("rejected");
       expect(results[1]).toEqual(results[0]);
-      await expect(stream.result()).rejects.toThrow();
+      const rejected = results[0];
+      if (rejected.status !== "rejected" || !(rejected.reason instanceof Error)) {
+        throw new Error("Expected the terminal reconciliation wrapper");
+      }
+      const terminal = rejected.reason;
+      expect(isRecordedModelFallbackStop(terminal)).toBe(true);
+      expect(resolveModelFallbackError(terminal).kind).toBe("terminal");
+      expect(hasModelFallbackStop(new Error("outer caller", { cause: terminal }))).toBe(true);
+      if (cause === "rpc failure") {
+        expect(terminal).not.toBe(transportFailure);
+        expect(terminal.cause).toBe(transportFailure);
+        expect(isRecordedModelFallbackStop(transportFailure)).toBe(false);
+        expect(hasModelFallbackStop(transportFailure)).toBe(false);
+      }
+      await expect(stream.result()).rejects.toBe(terminal);
       expect(getCompletion(message, expected())).toBeUndefined();
       expect(fixture.originalResult).toHaveBeenCalledOnce();
       expect(fixture.provider).toHaveBeenCalledOnce();
@@ -1122,4 +1148,205 @@ describe("OPSYS host-owned completion receipt contract", () => {
       expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(2);
     },
   );
+
+  it("reconciles native done before delivery after run abort and shares later results", async () => {
+    installRuntimeReplies([reservationA]);
+    const runId = "completion-native-event-abort";
+    const hostExpected = expected(runId, 0);
+    const custody = runtimeAdmission.createOpsysRuntimeCompletionCustody({
+      ...hostExpected,
+      candidateIndex: 0,
+      streamOrdinals: [0],
+    });
+    const message = messageFixture();
+    const native = createAssistantMessageEventStream();
+    const nativeResult = native.result.bind(native);
+    let providerResultCalls = 0;
+    native.result = () => {
+      providerResultCalls += 1;
+      return nativeResult();
+    };
+    native.push({ type: "start", partial: message });
+    native.push({ type: "done", reason: "stop", message });
+    native.end();
+    let providerDispatches = 0;
+    const provider: StreamFn = () => {
+      providerDispatches += 1;
+      return native;
+    };
+    const controller = new AbortController();
+    const guarded = createOpsysRuntimeAdmissionStreamFn({
+      config,
+      agentId: "opsys-agent-demo",
+      runId,
+      getCandidateIndex: () => 0,
+      signal: controller.signal,
+      completionCustody: custody,
+      streamFn: provider,
+    });
+    try {
+      const stream = await guarded(model, context, { signal: controller.signal });
+      expect(stream).toBe(native);
+      controller.abort(new Error("fictional run cancellation after admitted native response"));
+      const eventTypes: string[] = [];
+      // Do not consume result() until the complete event-only drain has finished.
+      for await (const event of stream) {
+        eventTypes.push(event.type);
+        if (event.type === "done") {
+          expect(event.message).toBe(message);
+          expect(reconciliations()).toHaveLength(1);
+          expect(reconciliations()[0]?.[0]).toMatchObject({
+            server: "opsys_runtime_demo",
+            tool: "opsys_runtime_concilier",
+            args: { reservation_id: "11111111111111111111111111111111", tokens_reels: 3 },
+          });
+          expect(
+            runtimeAdmission.getOpsysRuntimeCompletionReceipt(message, hostExpected),
+          ).toMatchObject({
+            ...hostExpected,
+            candidateIndex: 0,
+            streamOrdinal: 0,
+            tokensReels: 3,
+          });
+          const custodyAtDone = runtimeAdmission.consumeOpsysRuntimeCompletionCustody(custody);
+          expect(custodyAtDone).toHaveLength(1);
+          expect(custodyAtDone?.[0]?.message).toBe(message);
+        }
+      }
+      expect(eventTypes).toEqual(["start", "done"]);
+      const first = stream.result();
+      const second = stream.result();
+      expect(first).toBe(second);
+      const results = await Promise.all([first, second]);
+      expect(results[0]).toBe(message);
+      expect(results[1]).toBe(message);
+      expect(controller.signal.aborted).toBe(true);
+      expect(providerDispatches).toBe(1);
+      expect(providerResultCalls).toBe(1);
+      expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(2);
+      expect(mocks.callOpsysMcpTool.mock.calls[0]?.[0]).toMatchObject({
+        server: "opsys_runtime_demo",
+        tool: "opsys_runtime_admettre",
+        args: {
+          execution_id: "completion-native-event-abort",
+          revision_profil: 1,
+          cle_idempotence: "completion-native-event-abort:0:0",
+          tours: 1,
+          attempt_id: "completion-native-event-abort:0",
+          cycle_id: "completion-native-event-abort:0:0",
+          candidate_index: 0,
+          stream_ordinal: 0,
+          is_fallback_retry: false,
+        },
+      });
+      const reconcileRequest = reconciliations()[0]?.[0];
+      expect(reconcileRequest?.args).toEqual({
+        reservation_id: "11111111111111111111111111111111",
+        tokens_reels: 3,
+      });
+      expect(reconcileRequest?.signal).not.toBe(controller.signal);
+      expect(reconcileRequest?.signal.aborted).toBe(false);
+      expect(runtimeAdmission.consumeOpsysRuntimeCompletionCustody(custody)).toBeUndefined();
+    } finally {
+      runtimeAdmission.closeOpsysRuntimeCompletionCustody(custody);
+    }
+  });
+
+  it("withholds native known-usage error when reconciliation fails and shares the marked failure", async () => {
+    installRuntimeReplies([reservationA]);
+    const rpc = mocks.callOpsysMcpTool.getMockImplementation()!;
+    const transportFailure = new Error("fictional reconciliation transport rejected");
+    mocks.callOpsysMcpTool.mockImplementation(async (request: RuntimeRequest) => {
+      if (request.tool === "opsys_runtime_concilier") {
+        throw transportFailure;
+      }
+      return rpc(request);
+    });
+    const runId = "completion-native-error-reconcile-failure";
+    const hostExpected = expected(runId, 0);
+    const custody = runtimeAdmission.createOpsysRuntimeCompletionCustody({
+      ...hostExpected,
+      candidateIndex: 0,
+      streamOrdinals: [0],
+    });
+    const message: AssistantMessage = {
+      ...messageFixture(),
+      stopReason: "error",
+      errorMessage: "fictional known-usage native error",
+    };
+    const native = createAssistantMessageEventStream();
+    const nativeResult = native.result.bind(native);
+    let providerResultCalls = 0;
+    native.result = () => {
+      providerResultCalls += 1;
+      return nativeResult();
+    };
+    native.push({ type: "start", partial: message });
+    native.push({ type: "error", reason: "error", error: message });
+    native.end();
+    let providerDispatches = 0;
+    const provider: StreamFn = () => {
+      providerDispatches += 1;
+      return native;
+    };
+    const guarded = createOpsysRuntimeAdmissionStreamFn({
+      config,
+      agentId: "opsys-agent-demo",
+      runId,
+      getCandidateIndex: () => 0,
+      completionCustody: custody,
+      streamFn: provider,
+    });
+    try {
+      const stream = await guarded(model, context);
+      expect(stream).toBe(native);
+      const eventTypes: string[] = [];
+      const drain = (async () => {
+        for await (const event of stream) {
+          eventTypes.push(event.type);
+        }
+      })();
+      const results = await Promise.allSettled([drain, stream.result()]);
+      const drained = results[0];
+      const terminalResult = results[1];
+      expect(drained.status).toBe("rejected");
+      expect(terminalResult.status).toBe("rejected");
+      if (
+        drained.status !== "rejected" ||
+        terminalResult.status !== "rejected" ||
+        !(drained.reason instanceof Error)
+      ) {
+        throw new Error("Expected both consumers to reject the terminal reconciliation failure");
+      }
+      const terminal = drained.reason;
+      expect(terminalResult.reason).toBe(terminal);
+      expect(terminal).not.toBe(transportFailure);
+      expect(terminal.cause).toBe(transportFailure);
+      expect(isRecordedModelFallbackStop(terminal)).toBe(true);
+      expect(hasModelFallbackStop(terminal)).toBe(true);
+      expect(resolveModelFallbackError(terminal).kind).toBe("terminal");
+      expect(isRecordedModelFallbackStop(transportFailure)).toBe(false);
+      expect(hasModelFallbackStop(transportFailure)).toBe(false);
+      expect(eventTypes).toEqual(["start"]);
+      expect(
+        runtimeAdmission.getOpsysRuntimeCompletionReceipt(message, hostExpected),
+      ).toBeUndefined();
+      expect(runtimeAdmission.consumeOpsysRuntimeCompletionCustody(custody)).toBeUndefined();
+      expect(providerDispatches).toBe(1);
+      expect(providerResultCalls).toBe(1);
+      expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(2);
+      expect(reconciliations()).toHaveLength(1);
+      expect(reconciliations()[0]?.[0]).toMatchObject({
+        server: "opsys_runtime_demo",
+        tool: "opsys_runtime_concilier",
+        args: { reservation_id: "11111111111111111111111111111111", tokens_reels: 3 },
+      });
+      expect(reconciliations()[0]?.[0].args).toEqual({
+        reservation_id: "11111111111111111111111111111111",
+        tokens_reels: 3,
+      });
+    } finally {
+      runtimeAdmission.closeOpsysRuntimeCompletionCustody(custody);
+    }
+  });
 });

@@ -22,11 +22,21 @@ TYPE_LEAD_INGERE = "lead_ingere"
 
 def _maillons_ingeres(registre_cible) -> list:
     """Retourne les maillons ``lead_ingere`` du registre, dans l'ordre de la chaîne."""
-    return [
-        maillon
-        for maillon in registre_cible.lire()
-        if maillon.get("type_entree") == TYPE_LEAD_INGERE
-    ]
+    # Import local : clients réutilise contact_identique pour l'identité initiale.
+    from .clients import corrections_courantes
+
+    maillons = registre_cible.lire()
+    corrections = corrections_courantes(maillons)
+    liens = {m["lead_id"]: m["client_id"] for m in maillons if m.get("type_entree") == "client_associe"}
+    ingeres = []
+    for maillon in maillons:
+        if maillon.get("type_entree") != TYPE_LEAD_INGERE:
+            continue
+        correction = corrections.get(liens.get(maillon.get("lead_id")))
+        if correction:
+            maillon = {**maillon, "contrat": {**maillon["contrat"], "contact": correction["contact"]}}
+        ingeres.append(maillon)
+    return ingeres
 
 
 def _dans_fenetre(horodatage_a: str, horodatage_b: str) -> bool:

@@ -57,6 +57,7 @@ from . import (
     calendrier_marketing_ui,
     cfo_ui,
     connecteurs_ui,
+    crm_ui,
     estimation_apprentissage_ui,
     finance_snapshot_prive,
     finance_ui,
@@ -126,7 +127,9 @@ class _EntetesSecurite:
         async def envoyer(message: Message) -> None:
             if message["type"] == "http.response.start":
                 entetes = MutableHeaders(scope=message)
-                entetes["Content-Security-Policy"] = CSP
+                # Cumuler toutes les politiques locales et la protection obligatoire de la console.
+                politiques = entetes.getlist("Content-Security-Policy")
+                entetes["Content-Security-Policy"] = ", ".join([*politiques, CSP])
                 entetes["X-Content-Type-Options"] = "nosniff"
                 entetes["X-Frame-Options"] = "DENY"
                 entetes["Referrer-Policy"] = "no-referrer"
@@ -324,6 +327,11 @@ def creer_application(
     app.include_router(
         frontoffice_marketing.creer_router(**callbacks_frontoffice, _formulaire=_formulaire, _objet_json=_objet_json)
     )
+    app.include_router(crm_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        ecriture_api=ecriture_api, formulaire=_formulaire, objet_json=_objet_json,
+        verifier_formulaire=verifier_formulaire,
+    ))
     app.include_router(reception_digest_ui.creer_router(
         session_page=session_page, session_api=session_api, cnx_factory=cnx_factory,
         deps=deps, prefixe=prefixe,
@@ -1204,5 +1212,7 @@ def lancer(argv: list[str] | None = None, environ: Mapping[str, str] | None = No
         print(f"opsys-console : {exc}", file=sys.stderr)
         return 2
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s : %(message)s")
-    uvicorn.run(application, host=args.hote, port=args.port)
+    from .journaux_http import configuration_journaux
+
+    uvicorn.run(application, host=args.hote, port=args.port, log_config=configuration_journaux())
     return 0

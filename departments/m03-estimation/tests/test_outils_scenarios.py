@@ -52,13 +52,18 @@ def _outil():
 
 
 def _arguments(**surcharges):
+    contrat_estimation = {
+        "lead_id": "lead-outil-scenarios-001",
+        "conversation_id": "conv-outil-scenarios-001",
+        "type_travaux": "ravalement",
+        "ville": "Quebec",
+        "canal": "formulaire",
+        "contact": {"nom": "Durand", "telephone": "5145550000"},
+        "urgence_declaree": False,
+    }
     arguments = {
-        "contrat": {
-            "lead_id": "lead-outil-scenarios-001", "conversation_id": "conv-outil-scenarios-001",
-            "type_travaux": "ravalement", "ville": "Quebec", "canal": "formulaire_web",
-            "contact": {"nom": "Durand", "telephone": "5145550000"}, "urgence_declaree": False,
-        },
-        "marqueur": marqueur_m2("lead-outil-scenarios-001"),
+        "contrat": contrat_estimation,
+        "marqueur": marqueur_m2("lead-outil-scenarios-001", contrat=contrat_estimation),
         "photos": [{
             "photo_id": "p1", "resolution_largeur": 3000, "resolution_hauteur": 2000, "eclairage": 7,
             "angle": "face", "reference_echelle": {"type": "porte", "dimensions_connues": True},
@@ -127,7 +132,16 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
     # outil de mutation supplémentaire n'est admis par cette exception.
     lectures_reprise = {
         "m3_lister_devis", "m3_lire_apprentissage_chantier",
-        "m3_auditer_couverture_apprentissage",
+        "m3_auditer_couverture_apprentissage", "m3_lister_devis_lead_admin",
+    }
+    # Catalogue et création de devis CRM07 : ports console uniquement, sans scénario.
+    modeles_console = {
+        "m3_lister_fournisseurs_modele",
+        "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
+        "m3_lire_tarif_modele", "m3_creer_devis_prefill",
+        "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission",
+        "m3_lister_modeles_soumission", "m3_creer_devis_depuis_modele",
+        "m3_document_devis_console",
     }
     baseline_13 = {
         "m3_estimer_projet", "m3_qualifier_photos", "m3_classifier_confiance",
@@ -138,7 +152,9 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
     }
     assert noms[0] == "m3_estimer_projet"
     assert len(noms) == len(set(noms))
-    assert set(noms) - outils_calibration - lectures_reprise == baseline_13
+    assert set(noms) - outils_calibration - lectures_reprise - modeles_console == baseline_13
+    assert set(noms) & modeles_console == modeles_console
+    assert all(not o.roles_appareil for o in outils_m3.outils() if o.nom in modeles_console)
     assert set(noms) & outils_calibration == outils_calibration
     assert set(noms) & lectures_reprise == lectures_reprise
     assert all(o.autonomie is Autonomie.T0 for o in outils_m3.outils() if o.nom in lectures_reprise)

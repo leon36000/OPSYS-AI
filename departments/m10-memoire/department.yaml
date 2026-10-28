@@ -37,7 +37,7 @@ budget:
   alerte_pct: 80
 memoire:
   lecture: [registre_evenements, registre_affaires]
-  ecriture: [registre_evenements, registre_affaires]
+  ecriture: [registre_evenements, registre_affaires, registre_references_configuration]
 kpis:
   - id: taux_revisions_arbitrees
     description: Part des révisions signalées ayant reçu au moins un arbitrage humain consigné.
@@ -68,11 +68,15 @@ kpis:
 # paquet. `m3.devis_envoye` (T4.7) : l'envoi approuvé par le propriétaire, sans montant.
 evenements:
   consomme:
+    - m3.catalogue_reference
+    - m6.catalogue_reference
     - m4.travaux_termines
     - m6.variance_chantier
     - m5.rentabilite_chantier
     - m1.lead_qualifie
     - m2.client_associe
+    - m2.contact_corrige
+    - m6.note_commande_referencee
     - m3.devis_envoye
     - m3.devis_accepte
     - m3.devis_sans_reponse

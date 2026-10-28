@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import unicodedata
 from typing import Any
 
 from . import acces, clients, contrats, readiness, segments, statuts, verdicts
@@ -53,6 +54,7 @@ __all__ = [
 ORDRE_LEADS = "ingestion croissante (le plus ancien d'abord, instants comparés en UTC), puis lead_id croissant"
 LIMITE_DEFAUT = 20
 LIMITE_MAX = 50
+LIMITE_RECHERCHE = 120
 _LIMITE_TEXTE = 80
 _LIMITE_ACTION = 160
 
@@ -139,6 +141,7 @@ def _fiches(maillons: list[dict[str, Any]]) -> dict[str, _Fiche]:
         lead_id = maillon.get("lead_id")
         if isinstance(lead_id, str):
             par_lead.setdefault(lead_id, []).append(maillon)
+    corrections = clients.corrections_courantes(maillons)
     fiches: dict[str, _Fiche] = {}
     for lead_id, siens in par_lead.items():
         ingere = next((m for m in siens if m.get("type_entree") == _TYPE_INGESTION), None)
@@ -146,6 +149,9 @@ def _fiches(maillons: list[dict[str, Any]]) -> dict[str, _Fiche]:
             continue
         vue = Vue(siens)
         contrat = ingere.get("contrat")
+        correction = corrections.get(clients.client_de_lead(vue, lead_id))
+        if correction and isinstance(contrat, dict):
+            contrat = {**contrat, "contact": correction["contact"]}
         fiches[lead_id] = _Fiche(
             lead_id=lead_id,
             vue=vue,
@@ -382,6 +388,21 @@ def _regles_citees(items: list[dict[str, Any]]) -> dict[str, str]:
     return {regle: segments.REGLES[regle] for regle in sorted(citees)}
 
 
+def _normaliser_recherche(texte: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", texte.casefold())
+                   if not unicodedata.combining(c))
+
+
+def _correspond_recherche(fiche: _Fiche, termes: list[str]) -> bool:
+    if not termes:
+        return True
+    contact = fiche.contrat.get("contact")
+    contact = contact if isinstance(contact, dict) else {}
+    valeurs = [fiche.lead_id, *(contact.get(k) for k in ("nom", "courriel", "telephone"))]
+    champs = [_normaliser_recherche(v) for v in valeurs if isinstance(v, str)]
+    return all(any(terme in champ for champ in champs) for terme in termes)
+
+
 def lister(
     maillons: list[dict[str, Any]],
     *,
@@ -394,6 +415,7 @@ def lister(
     decalage: int = 0,
     limite: int = LIMITE_DEFAUT,
     budget_caracteres: int,
+    recherche: str | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Une page de la liste des leads visibles, ``(page, None)`` ou ``(None, verdict)``.
 
@@ -411,6 +433,13 @@ def lister(
     La page : ``leads`` (chacun avec ses ``segments`` : règle citée et donnée déclencheuse), ``regles`` (l'énoncé
     des règles citées), ``segments_non_calculables`` (ce qui manque pour tous les leads), ``total`` (les leads
     visibles qui passent les filtres), ``decalage``, ``affichees``, ``reste``, ``suivant``, ``message``."""
+    if recherche is not None and (not isinstance(recherche, str) or len(recherche) > LIMITE_RECHERCHE):
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="recherche texte de 120 caractères au plus")
+    recherche = recherche.strip() if recherche else None
+    termes = _normaliser_recherche(recherche).split() if recherche else []
+    if recherche and not termes:
+        return None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail="recherche sans caractère exploitable")
     verdict = _valider_demande(statut, segment, decalage, limite, horodatage)
     if verdict is not None:
         return None, verdict
@@ -427,6 +456,7 @@ def lister(
     candidats = [
         f for f in ordonnes
         if (visibles is None or f.lead_id in visibles) and (statut is None or f.statut == statut)
+        and _correspond_recherche(f, termes)
     ]
     resultats: dict[str, dict[str, Any]] = {}
     indetermines = 0
@@ -456,7 +486,7 @@ def lister(
         reste = total - apres
         return {
             "ordre": ORDRE_LEADS,
-            "filtre": {"statut": statut, "segment": segment},
+            "filtre": {"statut": statut, "segment": segment, **({"recherche": recherche} if recherche else {})},
             "total": total,
             "decalage": decalage,
             "affichees": nombre,

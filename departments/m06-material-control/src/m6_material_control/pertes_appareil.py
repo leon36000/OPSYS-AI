@@ -18,8 +18,8 @@ from . import encodage, registre
 
 PLAFOND_LIGNES = 10000
 BORNE_CARACTERES = 5400
-# Ordre de présentation des quatre publications existantes, sans nouvelle taxonomie.
-_ORDRE_HISTORIQUE = ("seuil_absent", "prevu_absent", "declaration_absente", "evaluee")
+# Ordre de présentation stable ; le statut d’unité est ajouté après les quatre slots historiques.
+_ORDRE_HISTORIQUE = ("seuil_absent", "prevu_absent", "declaration_absente", "evaluee", "unites_indeterminees")
 _DECLARATION = frozenset({"CONSOMMATION", "RETOUR", "PERTE", "BRIS"})
 _HASH = re.compile(r"[0-9a-f]{64}")
 _INSTANT = re.compile(
@@ -201,12 +201,13 @@ def _mouvements(mov: list) -> None:
     for position, m in enumerate(mov):
         if (
             not isinstance(m, dict)
-            or not requis <= set(m) <= requis | {"wct_id"}
+            or not requis <= set(m) <= requis | {"wct_id", "unite"}
             or type(m["index"]) is not int
             or m["index"] != position
             or m["type_mouvement"] not in registre.TYPES_MOUVEMENT_VALIDES
             or not texte(m["chantier_id"])
             or not texte(m["materiau_id"])
+            or ("unite" in m and not texte(m["unite"]))
             or ("wct_id" in m and not texte(m["wct_id"]))
             or not _nombre(m["quantite"])
             or (m["cout_unitaire"] is not None and not _nombre(m["cout_unitaire"]))
@@ -346,7 +347,7 @@ def lire(sources: dict, wct_id: str, decalage: int, limite: int) -> dict:
         if any(m["type_mouvement"] not in _DECLARATION for m in lies):
             raise Refus("LIAISON-INCOHERENTE")
         historique = _historique(wct, publications)
-        if historique[3]["presente"] and not lies:
+        if any(h["statut"] == "evaluee" and h["presente"] for h in historique) and not lies:
             raise Refus("LIAISON-INCOHERENTE")
         chantiers = {m["chantier_id"] for m in lies}
         chantiers |= {
@@ -362,7 +363,7 @@ def lire(sources: dict, wct_id: str, decalage: int, limite: int) -> dict:
                 "chantier_id": m["chantier_id"],
                 "materiau_id": m["materiau_id"],
                 "quantite_signee": _quantite_signee(m["quantite"]),
-                "unite": None,
+                "unite": m.get("unite"),
                 "horodatage": None,
                 "reference": {"registre": "principal", "index": m["index"], "hash_maillon": m["hash_maillon"]},
             }
@@ -376,18 +377,18 @@ def lire(sources: dict, wct_id: str, decalage: int, limite: int) -> dict:
                 "declaration_presente": bool(lies),
                 "pertes_bris": [],
                 "historique_variance": historique,
-                "evaluee_terminal": historique[3]["presente"],
+                "evaluee_terminal": any(h["statut"] == "evaluee" and h["presente"] for h in historique),
                 "pagination": {},
                 "couverture": {
                     "mouvements": "PERTE_BRIS_WCT_exact",
-                    "variances": "quatre_statuts_publies_ordre_fixe_sans_chronologie",
+                    "variances": "statuts_publies_ordre_fixe_sans_chronologie",
                     "hors_corpus": [
                         "stock_courant",
                         "reapprovisionnement",
                         "couts",
                         "responsables",
                         "preuves_photos",
-                        "unites_reelles",
+                        "unites_historiques_non_documentees",
                         "dates_perte_bris",
                     ],
                     "plafond_lignes": PLAFOND_LIGNES,

@@ -13,6 +13,10 @@ from opsys import stockage
 from opsys.stockage import codec
 from opsys.stockage import maillons as fabrique_maillons
 from opsys.stockage.schema import META, REGISTRES
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 FICTIF = True
 DEPARTEMENT = "m08-analytics"
@@ -185,7 +189,7 @@ def test_maillon_json_sql_profond_reel_devient_erreur_copie_constante(base):
 
     def tables_reelles(cnx):
         noms = inspect(cnx).get_table_names()
-        assert len(noms) == 49
+        assert set(noms) == TABLES_SQLITE
         return {nom: sorted(repr(tuple(ligne)) for ligne in cnx.execute(text(
             'SELECT * FROM "' + nom.replace('"', '""') + '"',
         ))) for nom in noms}

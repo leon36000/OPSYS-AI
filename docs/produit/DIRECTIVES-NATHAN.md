@@ -122,3 +122,30 @@ de publication suivent les autorisations et les accès réellement disponibles d
 ## Transmission à Codex sur l’infra — 5 octobre 2026, Toronto
 
 Nathan demande un pack complet et un prompt pour reprendre sur son infrastructure connectée à GitHub. Le [cahier consolidé](CAHIER-AMBITIONS-TRANSMISSION-2026-10-05.md) affirme explicitement que chaque département octroie aux agents des capacités/outils/logiciels métier de premier ordre, avec profondeur, autonomie sous permissions et critères mesurables. Le [guide de transmission](../reprise/TRANSFERT-INFRA-2026-10-05/README.md) distingue snapshot local/distant, fichiers originaux/adaptations et ambitions/livraison; il transporte les derniers changements non poussés. Aucun archivage intégral de conversations non reçues, état global terminé ou opération de production n’est induit par ce transfert.
+
+## Corrections et bêta-tests — 21 octobre 2026, Montréal
+
+Après les deux audits indépendants du commit de fusion PR623, Nathan demande de corriger les
+constats établis et d'essayer les capacités d'OPSYS avec une équipe de bêta-testeurs composée
+de Codex, de ses sous-agents, de Claude Code CLI et des agents LiteLLM de PC1. Ces ressources
+peuvent être utilisées après vérification des accès, des budgets et des propriétaires de tests.
+Il demande de rechercher les outils existants de test par agents avant d'en construire un.
+
+**L'ambition n'est pas réduite.** Les dix départements profonds, leur autonomie sous permissions,
+leurs intégrations, la mémoire, le dashboard et les exigences produit restent la cible à atteindre
+et à dépasser par des améliorations démontrées. Une première tranche utilisable ne remplace pas
+cette cible. Les refus corrects et les exports manuels sont des replis, pas la livraison des
+connecteurs ou capacités avancées encore absents.
+
+**Ordre de réalisation précisé : serveur Linux d'abord ; application mobile en dernière phase**,
+après les grandes exigences OPSYS. Cette priorité remplace le calendrier historique « mobile
+d'abord », sans supprimer les quatre profils, le fonctionnement hors ligne ou les exigences
+terrain du produit. VPS Linux prioritaire ; serveur dédié Linux si les contraintes mesurées le
+justifient. Windows et macOS ne sont pas des conditions requises de livraison.
+
+Les essais doivent conserver leurs entrées, oracles, effets, refus et reprises : une proposition
+de scénario par un modèle n'est pas une exécution, et un navigateur qui ouvre une page ne prouve
+pas son workflow métier. Les données restent fictives dans les bases QA. Aucun achat,
+déploiement de production, envoi sensible ou mouvement financier réel n'est autorisé par cette
+campagne. Le [programme de bêta-tests serveur](../programme/BETA-TESTS-SERVEUR-2026-10-22.md)
+précise les parcours et les critères de preuve.

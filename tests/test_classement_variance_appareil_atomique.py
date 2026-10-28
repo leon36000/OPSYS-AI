@@ -18,6 +18,10 @@ from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 from opsys.stockage.schema import EVENEMENTS_SORTANTS, MUTATIONS_APPLIQUEES, REGISTRES
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 MUTATION = "m6_classer_cause_variance_appareil"
 LECTURES = (
@@ -107,7 +111,7 @@ def test_cache_succes_substitue_par_refus_sans_preuve_reste_inconnu(monde, suffi
             reponse=stockage.codec.encoder(altered)
         ))
     stable = fx.fx._tables()
-    assert len(stable) == 49
+    assert set(stable) == TABLES_SQLITE
     stockage.liberer()
     observed = appeler(capacite(), args)
     assert observed.get("issue") == "inconnue", observed
@@ -368,7 +372,7 @@ def test_reponse_perdue_restart_meme_ack_et_un_seul_effet(monde):
     assert {n for n in before if before[n] != after[n]} == {
         "registres_maillons", "approbations", "journal", "mutations_appliquees"
     }
-    assert len(after) == 49 and after["artefacts"] == []
+    assert set(after) == TABLES_SQLITE and after["artefacts"] == []
     assert len(after["approbations"]) == len(before["approbations"]) + 1
     stockage.liberer()
     replay = appeler(capacite(), d)

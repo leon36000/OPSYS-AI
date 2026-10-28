@@ -63,13 +63,18 @@ def _outil(nom):
 
 
 def _estimer(**surcharges):
+    contrat_estimation = {
+        "lead_id": "lead-ev-001",
+        "conversation_id": "conv-ev-001",
+        "type_travaux": "ravalement",
+        "ville": "Quebec",
+        "canal": "formulaire",
+        "contact": {"nom": "Durand", "telephone": "5145550000"},
+        "urgence_declaree": False,
+    }
     arguments = {
-        "contrat": {
-            "lead_id": "lead-ev-001", "conversation_id": "conv-ev-001", "type_travaux": "ravalement",
-            "ville": "Quebec", "canal": "formulaire_web",
-            "contact": {"nom": "Durand", "telephone": "5145550000"}, "urgence_declaree": False,
-        },
-        "marqueur": marqueur_m2("lead-ev-001"),
+        "contrat": contrat_estimation,
+        "marqueur": marqueur_m2("lead-ev-001", contrat=contrat_estimation),
         "photos": [_photo(reference={"type": "porte", "dimensions_connues": True})],
         "seuils": SEUILS,
         "bareme": _bareme(),

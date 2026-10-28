@@ -275,12 +275,18 @@ def _creer_devis_source(lead_id: str) -> tuple[str, str]:
 
     from opsys.outils import executer_atomique
 
+    contrat_estimation = {
+        "lead_id": lead_id,
+        "conversation_id": f"conv-{lead_id}",
+        "type_travaux": "ravalement",
+        "ville": "Quebec",
+        "canal": "formulaire",
+        "contact": {"nom": "Client fictif", "telephone": "555-0101"},
+        "urgence_declaree": False,
+    }
     estimation = executer_atomique(_outil("m3_estimer_projet"), {
-        "contrat": {"lead_id": lead_id, "conversation_id": f"conv-{lead_id}",
-                    "type_travaux": "ravalement", "ville": "Quebec", "canal": "formulaire_web",
-                    "contact": {"nom": "Client fictif", "telephone": "555-0101"},
-                    "urgence_declaree": False},
-        "marqueur": marqueur_m2(lead_id),
+        "contrat": contrat_estimation,
+        "marqueur": marqueur_m2(lead_id, contrat=contrat_estimation),
         "photos": [{"photo_id": "p-fictif", "resolution_largeur": 3000, "resolution_hauteur": 2000,
                     "eclairage": 7, "angle": "face",
                     "reference_echelle": {"type": "porte", "dimensions_connues": True}}],

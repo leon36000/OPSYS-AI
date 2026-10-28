@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 
 import pytest
+from agents_base_qa import provisionner_base_qa
 
 from opsys import appareils, cli, modeles, openclaw
 from opsys.departements import charger_departements, tous_les_outils, verifier_portees
@@ -55,6 +56,9 @@ ADMIN_SEUL = frozenset({
     "m2_arbitrer_doublon", "m2_detecter_doublons", "m2_produire_digest", "m2_signaler_doublon",
     # réassigner un lead (décision humaine) et republier le fait de propriété d'avant T1.4-k2 (T1.4-m)
     "m2_reassigner_lead", "m2_republier_assignations",
+    "m2_corriger_contact_client", "m2_lister_historique_contact_client",
+    "m2_reconcilier_memoire_contact_client",  # correction humaine et lectures privées CRM-04
+    "m3_lister_devis_lead_admin",  # inventaire par lead, distinct du lecteur vendeur
     # Calibration du temps M3 : lecture/évaluation, candidate inactive et demandes de décision N4.
     "m3_evaluer_calibration_cohortes", "m3_proposer_calibration_temps", "m3_evaluer_candidate_calibration",
     "m3_activer_candidate_calibration", "m3_rollback_candidate_calibration",
@@ -71,6 +75,11 @@ ADMIN_SEUL = frozenset({
     # Sources horaires individuelles : aperçu et validation courante privés, aucun accès employé/vendeur.
     "m4_previsualiser_heures_regulieres", "m4_lire_heures_regulieres_validees",
     "m4_volumetrie_pending_review",
+    "m4_confirmer_dates_cedule", "m4_lire_calendrier_plan", "m4_lire_cedule_semaine",
+    "m4_lire_journal_quotidien",  # transport console admin; garde interne refuse MCP/appareil/agent
+    "m4_lire_composition_journaliere_console",  # même transport privé, aucune autorité de compte ajoutée
+    "m4_lire_absences_jour_console",  # liste par jour privée, pas un effectif absent observé
+    "m4_lire_absence_journaliere_console",  # signalements privés; source/origine console, aucun droit de compte
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
     "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # coût réel, marge, créances (T1.5-d)
     "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",  # comptes à payer, saisie par un humain (T4.15)
@@ -97,6 +106,7 @@ ADMIN_SEUL = frozenset({
     # Classement humain des six causes : annotation N3, lecteurs N0, admin DEVICE seulement.
     "m6_lister_variances_classables_wct_appareil", "m6_classer_cause_variance_appareil",
     "m6_lire_historique_classement_variance_appareil",
+    "m6_enregistrer_note_commande", "m6_lire_note_commande", "m6_lister_notes_commande",
     "m7_lister_file_approbation", "m7_lister_demandes_avis",  # avis à relire avant d'écrire au client (T1.5-d)
     "m7_approuver_budget_campagne", "m7_configurer_profil_marque",  # décisions propriétaires Brand/Growth
     "m7_decider_creneau_calendrier", "m7_decider_reponse_avis",  # décisions propriétaires avant tout export
@@ -368,7 +378,9 @@ def test_les_declarations_reelles_passent_opsys_verifier(departements_reels):
     assert verifier_portees(departements_reels) == []
 
 
-def test_opsys_openclaw_configurer_ecrit_le_fragment_roles_json_reel(tmp_path, monkeypatch, capsys):
+def test_opsys_openclaw_configurer_ecrit_le_fragment_roles_json_reel(
+    session, departements_reels, tmp_path, monkeypatch, capsys
+):
     """La commande réelle, sur les départements réels : `roles.json` est `roles_outils`, sans T3."""
     monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", "http://embeddings-test:11434/v1")
     monkeypatch.setenv("OPSYS_EMBEDDINGS_MODELE", "bge-m3")
@@ -378,6 +390,7 @@ def test_opsys_openclaw_configurer_ecrit_le_fragment_roles_json_reel(tmp_path, m
         "fort": {"provider": "anthropic", "model": "claude-sonnet-5"},
         "local": {"provider": "custom", "model": "qwen3:8b", "base_url": "http://ollama:11434/v1"},
     })
+    provisionner_base_qa(session, departements_reels)
     config = tmp_path / "oc"
 
     assert cli.main(["openclaw", "configurer", "--config-dir", str(config)]) == 0

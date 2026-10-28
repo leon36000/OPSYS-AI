@@ -20,6 +20,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from . import (
     __version__,
+    agents_base,
     appareils,
     approbations,
     canaux,
@@ -283,6 +284,20 @@ def _source_du_logiciel(source: str | None) -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _interpreteur_instance(lanceur: str | None) -> Path:
+    """Conserve le lanceur imposé par l'installation, même après passage dans CPython."""
+    declare = os.environ.get("OPSYS_PYTHON_LAUNCHER")
+    if declare is not None and lanceur is not None and Path(declare) != Path(lanceur):
+        raise ValueError("le lanceur demandé diffère du profil Python installé ; réconcilier avant initialisation")
+    choisi = lanceur if lanceur is not None else declare
+    if choisi is None:
+        return Path(sys.executable)
+    chemin = Path(choisi)
+    if not chemin.is_absolute() or not chemin.is_file() or not os.access(chemin, os.X_OK):
+        raise ValueError("lanceur Python déclaré absent, relatif ou non exécutable : aucun repli")
+    return chemin
+
+
 def cmd_instance(args: argparse.Namespace) -> int:
     """Instance locale (PLAN T0.11) : préparation par l'installateur, export et restauration. Voir `opsys.instance`
     et `opsys.exportation`. Le code de sortie 3 de `initialiser` veut dire : installé, mais il manque une décision.
@@ -300,7 +315,8 @@ def cmd_instance(args: argparse.Namespace) -> int:
             return 0
         if args.action == "initialiser":
             resultat = instance.initialiser(
-                home, source=_source_du_logiciel(args.source), python=Path(sys.executable),
+                home, source=_source_du_logiciel(args.source),
+                python=_interpreteur_instance(args.lanceur_python),
                 port_gateway=args.port_gateway, port_moteur=args.port_moteur,
                 mode_fournisseur=args.mode_fournisseur, url_passerelle=args.url_passerelle)
             _afficher(resultat.en_json())
@@ -352,6 +368,26 @@ def cmd_budgets(args: argparse.Namespace) -> int:
     with etat.session() as cnx:
         _afficher([jetons.etat_budget(cnx, d.id, d.budget) for d in deps.values()])
     return 0
+
+
+def cmd_agents_base(args: argparse.Namespace) -> int:
+    """Décision humaine explicite; aucun budget ou plafond choisi par le générateur."""
+    deps = charger_departements()
+    try:
+        with etat.session() as cnx:
+            if _authentifier_action_humaine(cnx, args.par, {"nathan_owner", "admin"}) is None:
+                return 1
+            profils = agents_base.provisionner(
+                cnx, deps, par=args.par, limite_tours=args.limite_tours,
+                limite_reessais=args.limite_reessais, limite_concurrence=args.limite_concurrence,
+                budget_entreprise_jour=args.budget_entreprise_jour,
+                budget_entreprise_mois=args.budget_entreprise_mois,
+            )
+        _afficher(profils)
+        return 0
+    except (ValueError, PermissionError) as erreur:
+        print(f"ERREUR : {erreur}", file=sys.stderr)
+        return 1
 
 
 def cmd_services(args: argparse.Namespace) -> int:
@@ -514,14 +550,18 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
         return 2
     deps = charger_departements()
     dossier = Path(args.config_dir)
-    fichiers = openclaw.generer(deps, dossier, modeles.charger_paliers(), url_mcp=args.url_mcp,
-                                url_passerelle=args.url_passerelle, mode_fournisseur=args.mode_fournisseur,
-                                racine_espaces=args.espaces,
-                                fuseau=args.fuseau,
-                                cnx_factory=etat.session,
-                                contexte_entreprise=_contexte_entreprise(args.contexte_entreprise) or None,
-                                affaire_par_session=args.affaire_par_session or (),
-                                origine_http_mcp_autorisee=args.autoriser_origine_http_mcp)
+    try:
+        fichiers = openclaw.generer(deps, dossier, modeles.charger_paliers(), url_mcp=args.url_mcp,
+                                    url_passerelle=args.url_passerelle, mode_fournisseur=args.mode_fournisseur,
+                                    racine_espaces=args.espaces,
+                                    fuseau=args.fuseau,
+                                    cnx_factory=etat.session,
+                                    contexte_entreprise=_contexte_entreprise(args.contexte_entreprise) or None,
+                                    affaire_par_session=args.affaire_par_session or (),
+                                    origine_http_mcp_autorisee=args.autoriser_origine_http_mcp)
+    except ValueError as erreur:
+        print(str(erreur), file=sys.stderr)
+        return 2
     racine = openclaw.racine_si_absente(dossier)
     for nom, chemin in fichiers.items():
         print(f"{nom}: {chemin}")
@@ -639,6 +679,13 @@ def construire_parseur() -> argparse.ArgumentParser:
     memoire_developpement_cli.ajouter_commandes(sous)
 
     sous.add_parser("departements", help="lister les départements").set_defaults(fn=cmd_departements)
+    bases = sous.add_parser("agents-base", help="profils durables des agents départementaux")
+    bases.add_argument("action", choices=["provisionner"])
+    bases.add_argument("--par", required=True, help="personne active admin ou propriétaire, authentifiée")
+    for nom in ("limite-tours", "limite-reessais", "limite-concurrence",
+                "budget-entreprise-jour", "budget-entreprise-mois"):
+        bases.add_argument(f"--{nom}", type=int, required=True)
+    bases.set_defaults(fn=cmd_agents_base)
 
     v = sous.add_parser("verifier", help="valider manifestes et outils (CI)")
     v.add_argument("--paliers", action="store_true", help="exiger aussi la configuration des paliers")
@@ -770,6 +817,9 @@ def construire_parseur() -> argparse.ArgumentParser:
                      help="restaurer : mettre de côté les fichiers actuels (jamais supprimés) et les remplacer")
     ins.add_argument("--empreinte", help="restaurer : SHA-256 attendu de l'archive (défaut : <archive>.sha256)")
     ins.add_argument("--source", help="initialiser : dépôt du logiciel (défaut : celui du paquet installé)")
+    ins.add_argument("--lanceur-python",
+                     help=("initialiser : lanceur Python absolu préparé par l’installateur "
+                           "(défaut : interpréteur courant)"))
     ins.add_argument("--port-gateway", type=int, help="initialiser : port du Gateway (défaut : 18789)")
     ins.add_argument("--port-moteur", type=int, help="initialiser : port du moteur métier (défaut : 8765)")
     ins.add_argument("--mode-fournisseur", choices=["natif", "litellm"],

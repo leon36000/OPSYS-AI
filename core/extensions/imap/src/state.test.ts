@@ -32,16 +32,16 @@ describe("IMAP durable watcher state", () => {
 
   it("baselines existing mail, resumes its cursor, and resets after UIDVALIDITY changes", async () => {
     const { state } = createImapTestRuntime();
-    expect(await initializeImapCursor(state, "account", "17", 42)).toMatchObject({
+    expect(await initializeImapCursor(state, "account", "17", 42, "INBOX")).toMatchObject({
       kind: "baseline",
       cursor: { uidValidity: "17", lastSeenUid: 41 },
     });
-    await advanceImapCursor(state, "account", "17", 45);
-    expect(await initializeImapCursor(state, "account", "17", 46)).toMatchObject({
+    await advanceImapCursor(state, "account", "17", 45, "INBOX");
+    expect(await initializeImapCursor(state, "account", "17", 46, "INBOX")).toMatchObject({
       kind: "resume",
       cursor: { lastSeenUid: 45 },
     });
-    expect(await initializeImapCursor(state, "account", "18", 8)).toMatchObject({
+    expect(await initializeImapCursor(state, "account", "18", 8, "INBOX")).toMatchObject({
       kind: "reset",
       cursor: { uidValidity: "18", lastSeenUid: 7 },
     });
@@ -66,5 +66,65 @@ describe("IMAP durable watcher state", () => {
     await countImapSkip(state, "account", "temperror");
     await countImapSkip(state, "account", "temperror");
     expect(await state.skips.lookup("account:temperror")).toEqual({ count: 2 });
+  });
+  it("refuses another mailbox even when its UIDVALIDITY matches", async () => {
+    const { state } = createImapTestRuntime();
+    await initializeImapCursor(state, "account", "17", 42, "INBOX");
+    const before = await state.cursors.lookup("account");
+    await expect(initializeImapCursor(state, "account", "17", 8, "Archive")).rejects.toThrow(
+      "IMAP_CURSOR_MAILBOX",
+    );
+    expect(await state.cursors.lookup("account")).toEqual(before);
+  });
+
+  it("preserves an unbound legacy cursor rather than guessing its mailbox", async () => {
+    const { state } = createImapTestRuntime();
+    const legacy = { uidValidity: "17", lastSeenUid: 41, updatedAt: 0 };
+    await state.cursors.register("account", legacy as never);
+    await expect(initializeImapCursor(state, "account", "17", 42, "INBOX")).rejects.toThrow(
+      "IMAP_CURSOR_MAILBOX",
+    );
+    expect(await state.cursors.lookup("account")).toEqual(legacy);
+  });
+
+  it("refuses advancing a cursor from another mailbox without overwriting it", async () => {
+    const { state } = createImapTestRuntime();
+    await initializeImapCursor(state, "account", "17", 42, "INBOX");
+    const before = await state.cursors.lookup("account");
+    await expect(advanceImapCursor(state, "account", "17", 99, "Archive")).rejects.toThrow(
+      "IMAP_CURSOR_MAILBOX",
+    );
+    expect(await state.cursors.lookup("account")).toEqual(before);
+  });
+
+  it("binds only one mailbox when first initialization races", async () => {
+    const { state } = createImapTestRuntime();
+    const results = await Promise.allSettled([
+      initializeImapCursor(state, "account", "17", 42, "INBOX"),
+      initializeImapCursor(state, "account", "17", 8, "Archive"),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect((await state.cursors.lookup("account"))?.mailbox).toBe("INBOX");
+  });
+
+  it.each(["", "inbox\narchive", "inbox\rarchive", "inbox\0archive", "x".repeat(1025)])(
+    "refuses invalid mailbox identity before persisting a cursor: %j",
+    async (mailbox) => {
+      const { state } = createImapTestRuntime();
+      await expect(initializeImapCursor(state, "account", "17", 42, mailbox)).rejects.toThrow(
+        "IMAP_CURSOR_MAILBOX",
+      );
+      expect(await state.cursors.lookup("account")).toBeUndefined();
+    },
+  );
+  it("refuses advancing a cursor from a stale UIDVALIDITY", async () => {
+    const { state } = createImapTestRuntime();
+    await initializeImapCursor(state, "account", "18", 8, "INBOX");
+    const before = await state.cursors.lookup("account");
+    await expect(advanceImapCursor(state, "account", "17", 99, "INBOX")).rejects.toThrow(
+      "IMAP_CURSOR_UIDVALIDITY",
+    );
+    expect(await state.cursors.lookup("account")).toEqual(before);
   });
 });

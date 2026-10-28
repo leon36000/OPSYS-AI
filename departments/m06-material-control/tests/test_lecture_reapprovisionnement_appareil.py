@@ -13,6 +13,10 @@ from sqlalchemy import text
 
 from opsys import contexte, identite, stockage
 from opsys.outils import Autonomie, Niveau, executer_atomique
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 FICTIF = True
 NOM = "m6_lire_reapprovisionnement_appareil"
@@ -119,7 +123,7 @@ def _dto(**args):
     assert r["ok"] and "articles" in r["resultat"], r
     d = r["resultat"]
     assert d["taille_caracteres"] == len(json.dumps(r, ensure_ascii=False)) <= 5400
-    assert before == _tables() and before["artefacts"] == [] and len(before) == 49
+    assert before == _tables() and before["artefacts"] == [] and set(before) == TABLES_SQLITE
     return d
 
 

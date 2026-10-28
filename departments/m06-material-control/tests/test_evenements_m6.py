@@ -266,11 +266,10 @@ def test_lignes_reprend_plusieurs_materiaux_dans_lordre_trie(base_durable):
     assert par_materiau["MAT-B"]["ecart_pourcentage"] == "1.0"
     assert par_materiau["MAT-B"]["critique"] is True  # 1.0 >= seuil configuré 0.30
     # MAT-C : déclaré (non_prevu) sans avoir été prévu -> NON_PREVU, ecart_pourcentage indéfini
-    # (quantité prévue nulle) et unité inconnue (le registre de mouvements ne porte pas d'unité,
-    # comparer_depuis_registre : seule celle du besoin estimé est rapportée, absent ici).
+    # (quantité prévue nulle), mais l'unité réellement déclarée est conservée au registre.
     assert par_materiau["MAT-C"]["quantite_prevue"] == "0.0"
     assert par_materiau["MAT-C"]["ecart_pourcentage"] is None
-    assert par_materiau["MAT-C"]["unite"] is None
+    assert par_materiau["MAT-C"]["unite"] == "boite"
     assert par_materiau["MAT-C"]["critique"] is False
 
 
@@ -751,3 +750,38 @@ def test_wct_id_qui_n_est_pas_un_texte_est_refuse_sans_erreur_technique(base_dur
         resultat = outils_mod.declarer_materiaux_utilises(wct_id, _formulaire_declaration())
 
     assert resultat == {"accepte": False, "verdict": {"code": "REJ-WCT-INCONNU"}}
+
+
+@pytest.mark.parametrize("unite_reelle", ["pi", "boite"])
+def test_besoin_tardif_respecte_unite_declaree_et_idempotence(base_durable, unite_reelle):
+    cas = {"fictif": True, "unite_reelle": unite_reelle}
+    m6 = {o.nom: o for o in outils()}
+    _publier_wct()
+    _receptionner(m6, "C-FICTIF", "MAT-FICTIF", 10.0, "PO-FICTIF")
+    reponse = executer_atomique(m6["m6_declarer_materiaux_utilises"], {
+        "wct_id": "wct-1",
+        "formulaire": {
+            "wct_id": "wct-1", "intervention_id": "int-1", "chantier_id": "C-FICTIF",
+            "lignes_materiaux": [{"type_ligne": "prevu", "materiau_id": "MAT-FICTIF",
+                                  "quantite": 5.0, "quantite_estimee": 5.0, "unite": cas["unite_reelle"]}],
+        },
+    })
+    assert reponse["ok"] and reponse["resultat"]["accepte"]
+    with stockage.transaction():
+        consommateurs()["m4.travaux_termines"](_wct_charge())
+    _enregistrer_besoins(m6, "C-FICTIF", "DEVIS-1", 5.0, "MAT-FICTIF")
+    charges = _charges_publiees()
+    assert len(charges) == 2
+    if unite_reelle == "pi":
+        assert charges[-1]["statut_variance"] == "unites_indeterminees"
+        assert charges[-1]["signal_critique"] is None
+        assert charges[-1]["lignes"] is None
+    else:
+        assert charges[-1]["statut_variance"] == "evaluee"
+        assert charges[-1]["signal_critique"] is False
+    with stockage.transaction():
+        avant = outils_mod._registre_de_l_appel(None).lire()
+        consommateurs()["m4.travaux_termines"](_wct_charge())
+        assert outils_mod._registre_de_l_appel(None).lire() == avant
+        assert avant[-1]["unite"] == unite_reelle
+    assert _charges_publiees() == charges

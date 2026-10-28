@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 163 outils sur 255 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 177 outils sur 306 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (162 outils) : §9.5 + employé + vendeur
+### `admin` (176 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -134,6 +134,12 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M1 | `m1_lire_transfert` (T0), `m1_clore_transfert` (N3) | §7 M1.8, M1.12 et §9.5 M1 « plaintes, transferts, prendre en charge » (T4.5) : l'admin lit le contexte d'une plainte, d'une urgence de sécurité ou d'un transfert (résumé, contact, messages du client) puis le clôt. La clôture est une décision HUMAINE : voir « Les transferts à un humain de M1 » plus bas. Ni l'employé ni le vendeur : le contact et les mots d'un client qui se plaint sont pour le propriétaire. |
 | M2 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | §9.5 M2 : pipeline, leads chauds, doublons. |
 | M2 | `m2_reassigner_lead` (N3), `m2_republier_assignations` (N3) | §9.5 (le propriétaire ou son gestionnaire reprend le dossier d'un vendeur ; T1.4-m). La réassignation est une décision HUMAINE : voir « La réassignation d'un lead » plus bas. La republication remet au bus le fait de propriété que les leads qualifiés avant T1.4-k2 n'ont jamais publié ; outil de mise en service, idempotent, dérivé du registre. Ni l'employé ni le vendeur (un vendeur ne « prend » ni ne « cède » un lead). |
+| M2 | `m2_corriger_contact_client` (N3), `m2_lister_historique_contact_client`, `m2_reconcilier_memoire_contact_client` (N0) | CRM-04 : admin SQL actif, correction avec révision attendue et motif, historique privé et diagnostic de livraison M10. Aucun envoi au client, accès vendeur ou réécriture des documents historiques. |
+| M3 | `m3_lister_devis_lead_admin` (T0/N0) | Sommaires paginés des soumissions d’un lead désigné ; admin SQL actif. Lecture seule, aucune page vide ne prouve l’existence du lead M2. |
+| M4 | `m4_confirmer_dates_cedule` (N3), `m4_lire_calendrier_plan`, `m4_lire_cedule_semaine` (N0) | Calendrier civil explicite d’un plan déjà appliqué, révision et historique ; admin SQL actif. Plan interne seulement, sans confirmation client ni promesse globale de disponibilité. |
+| M4 | `m4_lire_absence_journaliere_console` (N0, transport console privé seulement) | Admin SQL actif et origine/source console, aucun MCP/appareil direct/agent ; source SQLite canonique et session contrôlée par le port privé. Absence signalée seulement, aucune présence/heure/paie déduite ; aucun droit de compte ajouté. |
+| M4 | `m4_lire_journal_quotidien` (N0, transport console privé seulement) | Admin SQL actif, origine/source console et transport MCP absent. Appels d'appareil directs et agents refusés ; les deux répartiteurs génériques ferment avant normalisation/factory/reçu. Prévisions historiques et pointages minimisés, sans durée, absence ni composition d'équipe déduites. Aucun droit de compte ajouté. |
+| M6 | `m6_enregistrer_note_commande` (N3), `m6_lire_note_commande`, `m6_lister_notes_commande` (N0) | Notes privées liées au devis et chantier connus, admin SQL actif. Versionnement et rejeu lié à la personne ; liste bornée sans texte, lecture sans artefact générique. Aucun PO, envoi, dépense ou mouvement de stock. |
 | M3 | `m3_evaluer_calibration_cohortes`, `m3_proposer_calibration_temps` (N2), `m3_evaluer_candidate_calibration` (N2), `m3_activer_candidate_calibration`, `m3_rollback_candidate_calibration` (N4) | Boucle de calibration du temps à partir des cohortes et faits M4 vérifiés. Les candidates restent inactives jusqu'à une décision N4 du seul propriétaire; activation et rollback ne réécrivent jamais les devis ou estimations historiques. Aucun prix, coût ou facteur photo n'est modifié. |
 | M4 | `m4_lister_pending_review`, `m4_volumetrie_pending_review`, `m4_produire_digest` | §9.5 M4 : dispatch du jour, file de complétion. |
 | M3 | `m3_lire_apprentissage_chantier` (T0) | Lecture jointe M3/M4/M6/M5/M8 d’un WCT et d’une coupure UTC; admin appareil actif. Sources relues, marges seulement finales/comparables; aucun GPS, identité terrain ou activation. |
@@ -149,7 +155,7 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M4 | `m4_verifier_preparation` (T0) | §9.5 M4 « dispatch du jour » (T4.10-b, M4.6) : l'admin lit, pour une intervention née d'un devis accepté, si elle peut être planifiée, volet par volet, et ce qui manque (soumission, adresse confirmée, équipe, matériel, météo). Lecture pure : rien n'est écrit, aucun volet non vérifiable n'est présenté comme prêt, aucune date ni aucun créneau n'est promis. Réservé à l'admin : c'est l'état d'un chantier de client (adresse confirmée ou non). L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M4 | `m4_verifier_meteo_creneau` (T0) | §9.5 M4 « dispatch du jour » (T4.13, M4.10, M4.21) : l'admin lit, pour un plan de cédule proposé, la météo de chaque créneau (bloquant, validation requise, ok ou inconnu, avec la prévision, sa source et son heure d'émission) contre les seuils que le propriétaire a déclarés (`opsys-metier meteo declarer`) ; un créneau bloquant donne un report proposé (motif `meteo`) et une nouvelle cédule pour les jours restants. Lecture pure : rien n'est écrit, aucune intervention ne change d'état, aucune cédule n'est rangée ni appliquée ; le report d'une intervention planifiée reste `m4_signaler_report` et l'application d'une cédule `m4_appliquer_cedule` (N3). Une donnée absente (seuil, prévision, date, fournisseur en panne) donne `inconnu`, jamais `ok`. Réservé à l'admin : un plan regroupe des chantiers de clients (adresses confirmées, tournées). L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M4 | `m4_lire_meteo_intervention` (T0) | §9.5 M4 « dispatch du jour » (T4.27-a, M4.10) : l'admin lit la météo du créneau d'UNE intervention, SANS `plan_id` : c'est le créneau que le dernier plan de cédule APPLIQUÉ lui donne (intervention planifiée ou en route), jugé par la même évaluation que `m4_verifier_meteo_creneau` (bloquant, validation requise, ok ou inconnu, avec la prévision, sa source et son heure d'émission) contre les seuils que le propriétaire a déclarés. Lecture pure : rien n'est écrit, aucun statut ne change, aucune cédule n'est rangée, proposée ni appliquée, aucun report n'est proposé (`m4_verifier_meteo_creneau` le fait, avec un `plan_id`). Une donnée absente (seuil, prévision, date, créneau, fournisseur en panne) donne `inconnu`, jamais `ok`. Réservé à l'admin : c'est un chantier de client (adresse confirmée, créneau). L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
-| M4 | `m4_lire_retards_incidents` (T0) | §9.5 M4 « dispatch du jour, retards, incidents » (T4.27-a) : l'admin lit ce que M4 a déjà enregistré : les reports en cours (motif, depuis quand) et les demandes de revue ouvertes (écart métier, anomalie de pointage), avec leur âge en heures (l'heure de l'appareil en référence) et « bloquée » dès 24 h, comme le digest. Le retard sur la cédule n'est PAS mesuré (M4 ne tient aucun calendrier) : le relevé le dit (`non_mesurable`), il n'écrit jamais « aucun retard ». Lecture pure, sans texte libre du terrain ni contact ; les listes sont bornées (le reste est compté). Réservé à l'admin : ce sont les reports et les incidents de tous les employés. L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
+| M4 | `m4_lire_retards_incidents` (T0) | §9.5 M4 « dispatch du jour, retards, incidents » (T4.27-a) : l'admin lit ce que M4 a déjà enregistré : les reports en cours (motif, depuis quand) et les demandes de revue ouvertes (écart métier, anomalie de pointage), avec leur âge en heures (l'heure de l'appareil en référence) et « bloquée » dès 24 h, comme le digest. Le retard sur la cédule n'est PAS mesuré (ce lecteur ne compare pas encore les dates du calendrier civil M4) : le relevé le dit (`non_mesurable`), il n'écrit jamais « aucun retard ». Lecture pure, sans texte libre du terrain ni contact ; les listes sont bornées (le reste est compté). Réservé à l'admin : ce sont les reports et les incidents de tous les employés. L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M5 | `m5_etat_tresorerie`, `m5_lister_attentes_facturation` | §9.5 M5 : trésorerie, cash libre réel, factures à approuver. Identité confirmée en base ; la vue vient du rôle authentifié, jamais des arguments (T1.4-k2, plus bas). T4.16 : `m5_etat_tresorerie` AJOUTE `cash_libre` (avec sa décomposition), `argent_disponible_note` et `mention` sans changer ses clés d'avant ; le cash libre suit la même vue : un rôle sans droit de voir les coûts ne le voit pas. |
 | M5 | `m5_lire_echeances_fiscales` (T0) | §7 M5.5 « calendrier fiscal vivant » (T4.16) : les prochaines échéances TPS/TVQ, les retards et la taxe nette de chaque période. Lecture pure, même règle d'accès que la trésorerie (identité confirmée en base, la vue vient du rôle, `autorise_couts` ne peut que restreindre : sans droit, les dates sans aucun montant). La fréquence de production, la fin d'exercice et la date de dernière remise sont au propriétaire (`department.yaml`, GATE NATHAN) : absentes, refus nommé qui dit quoi déclarer ; une année non déclarée au calendrier est refusée. `aujourd_hui` est un argument requis (M5 n'a pas d'horloge) ; aucun montant ni date limite ne se passe en argument. Ni remise, ni déclaration, ni paiement : le calendrier propose (N5, Nathan et le CPA). |
 | M5 | `m5_lire_calendrier_obligations` (T0), `m5_preparer_decision_capital` (T0) | Échéances et obligations sourcées; comparaison indicative comptant/financement/location. Analyse préparatoire admin seulement, sans déclaration, commande, signature ni paiement. |
@@ -698,7 +704,7 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
   `m4_lire_retards_incidents` dit `origine_heure` (`serveur` ou `appelant`). Reste : `horodatage_reference` est l'heure
   de l'appareil de l'admin qui lit ; `m4_resoudre_demande` et `m4_resoudre_revue_completion` gardent l'heure de leur
   appelant. (3) Le retard sur la cédule
-  n'est pas mesuré (M4 ne tient aucun calendrier) : le relevé le dit (`non_mesurable`). (4) La liste v1 (sans clé) reste
+  n'est pas mesuré (ce lecteur ne compare pas encore les dates du calendrier civil M4) : le relevé le dit (`non_mesurable`). (4) La liste v1 (sans clé) reste
   coupée par le socle à 6 000 caractères : l'app doit lire par pages.
 - **Voie des agents.** Le secret partagé de la passerelle garde l'accès complet aux outils (documenté,
   voulu) : seule la voie du jeton d'appareil passe par `roles.json`, donc par ces contrôles.
@@ -1003,3 +1009,78 @@ Le registre préparatoire M5 est exclu : aucune somme, réconciliation bancaire,
 ou réparation n'est ajoutée. Aucun claim, trace, approbation, journal ou publication n'est permis
 par cette lecture. Les preuves locales, le parcours Gateway authentifié et la CI du futur commit
 restent des qualifications distinctes ; le frontend ne fait pas partie de ce premier jalon.
+
+### Catalogue de matériaux M6 — console privée (27 octobre 2026)
+
+`m6_enregistrer_materiau_console`, `m6_lire_materiau_console` et
+`m6_lister_materiaux_console` passent uniquement par le dispatch interne de la console,
+avec session active et admin SQL revalidé avant lecture, écriture et rejeu. Le domaine
+ne fait pas confiance à un auteur dans les arguments; la réception vient du serveur.
+Les appels génériques, runtime profilé et MCP sont fermés; aucune permission appareil
+n’est ajoutée. SQLite seul est qualifié. Transaction atomique de la version, audit et
+reçu; réponse bornée à l’enveloppe UTF-8 complète. Ce raccord n’ajoute ni commande
+fournisseur, ni coût, ni mouvement de stock, ni endpoint HTTP.
+
+### Tarifs fournisseurs M6 — console privée (27 octobre 2026)
+
+`m6_lister_fournisseurs_tarif_console`, `m6_preparer_tarif_console` et
+`m6_confirmer_tarif_console` passent par le même contrôle de session/admin SQL que le
+catalogue matériaux. Liste nommée sans coordonnées; préparation sans écriture; confirmation
+avec source matériau/fournisseur et dernier tarif du couple revalidés. Montant décimal
+explicite, unité M6, CAD, date civile non future et badge documentaire déclaratif. Rejeu
+autorisé seulement après contrôle d’identité; tarif/audit/reçu dans une transaction.
+Les chemins génériques, runtime et MCP sont fermés. Aucun rôle appareil nouveau.
+
+
+CRM-16 — `m4_lire_composition_journaliere_console` (N0, transport console privé uniquement) :
+admin SQL actif, source/origine console, MCP absent, source canonique SQLite et quota avant
+lecture. Les deux répartiteurs génériques ferment avant factory/normalisation/reçu. Lecture des
+identifiants historiquement déclarés, sans accès conféré ni présence déduite, aucun rôle de
+compte ajouté. Les membres ne sont jamais recopiés dans les artefacts génériques des agents.
+
+
+`m4_declarer_composition_journaliere_console` : T1 humain privé, aucune portée d'appareil.
+Admin SQL/session et réception serveur, identités canoniques, CAS/rejeu privé; les deux
+répartiteurs génériques ferment avant effet. Aucun profil ou droit de compte changé, aucune
+présence/paie déduite; journaux et accusés sans liste de membres.
+
+
+`m4_declarer_absence_journaliere_console` : T1 humain privé sans portée d'appareil.
+Compte humain initial confirmé en SQLite, auteur et heure serveur, session/admin courant,
+CAS/rejeu privé et savepoint. Les deux répartiteurs génériques refusent avant effet; aucun
+rôle de compte ou accès donné. Aucun sujet dans les accusés ou journaux génériques, aucune
+présence, santé, paie ou décision RH automatique.
+
+
+`m4_lire_absences_jour_console` : T0 de transport console privée admin SQL/session,
+source canonique bornée et recapturée. Les agents/MCP/appareils directs et répartiteurs
+génériques refusent avant effet; aucun rôle de personne ajouté. Une dernière déclaration
+par personne du jour, retrait compris; aucune présence, absence observée ou paie déduite.
+
+
+M6 — `m6_lire_historique_prix_console` : T0 de console privée, sans rôle appareil, runtime
+ou MCP. Admin SQL/session courants, réception serveur, SQLite canonique, quotas bruts avant
+décodage; source et métadonnées recapturées et autorité finale. Les deux chemins génériques
+ferment avant factory/normalisation. Historique du couple exact sans conversion ni timestamp
+fictif, pas de nouvel écran, droit de compte, achat ou source externe. Catalogue304/177.
+
+
+Le T0 `m6_preparer_import_tarifs_console` est privé console admin, sans rôle appareil.
+Origine/réception, SQLite canonique, source CSV et trois snapshots bornés, quota hérité et
+session finale sont vérifiés. Les deux répartiteurs génériques ferment avant factory/arguments;
+pas de nouvelle portée, table, prix appliqué, achat, source courriel ou permission de compte.
+
+
+Le T1 `m6_confirmer_import_tarifs_console` est privé console admin SQL/session, sans rôle
+appareil ni nouvelle portée. Deux fermetures génériques avant factory; Meta parent hors
+arguments, clés enfants dérivées, source/préparation approuvées obligatoires. Réutilise les
+writers de saisie sous transaction englobante et contrôle final de session, y compris au
+rejeu. Aucun bouton HTTP de confirmation ni import courriel fourni par cette tranche.
+Catalogue306/177 vérifié nativement; aucune donnée réelle ou action fournisseur.
+
+
+Le POST `/crm/materiaux/tarifs/importer/confirmer` raccorde ce T1 privé sous le même admin
+SQL/session : revue explicite, CSRF, nonce serveur, même fichier et mêmes empreintes, reçu
+clos parent/enfants relu aprèsrendu, rollback global sur refus. Aucun nouveau droit, outil
+appareil, MCP ou agent. Import manuel qualifié localement; courriel/production non autorisés
+par cette tranche. Le T0 conserve son caractère sans effet et exige confirmation explicite.

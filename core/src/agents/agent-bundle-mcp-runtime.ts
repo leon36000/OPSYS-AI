@@ -117,13 +117,22 @@ function opsysRuntimeProfileMeta(
     return undefined;
   }
   const match = /^opsys-agent-([a-z][a-z0-9-]{1,63})$/u.exec(agentId);
-  if (!match) {
+  const department = /^(m(0[1-9]|10)-[a-z][a-z0-9-]+)$/u.exec(agentId);
+  const entry = cfg?.agents?.entries?.[agentId];
+  const isBase = Boolean(
+    department &&
+    (entry?.opsysRuntimeAdmission || entry?.opsysIsolation?.exec === "sandbox-required"),
+  );
+  if (!match && !isBase) {
     return undefined;
   }
-  const binding = cfg?.agents?.entries?.[agentId]?.opsysRuntimeAdmission;
+  const binding = entry?.opsysRuntimeAdmission;
+  const expectedProfile = isBase ? `base-${agentId}` : match?.[1];
   if (
     !binding ||
-    binding.profileId !== match[1] ||
+    binding.profileId !== expectedProfile ||
+    (isBase && serverName !== `opsys_m${Number(department?.[2])}`) ||
+    (!isBase && /^base-m(?:0[1-9]|10)-[a-z][a-z0-9-]+$/u.test(binding.profileId)) ||
     !Number.isSafeInteger(binding.profileRevision) ||
     (binding.profileRevision ?? 0) <= 0
   ) {

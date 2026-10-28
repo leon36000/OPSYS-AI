@@ -744,6 +744,7 @@ def test_point_d_entree_ecoute_sur_8700_et_refuse_sans_configuration(monkeypatch
     assert console.main([]) == 0
     assert (appels["host"], appels["port"]) == ("0.0.0.0", 8700)
     assert appels["app"].title == "Console OPSYS"
+    assert "recherche_privee" in appels["log_config"]["handlers"]["access"]["filters"]
 
     appels.clear()
     monkeypatch.delenv("OPSYS_CONSOLE_SECRET")

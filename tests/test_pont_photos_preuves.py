@@ -12,6 +12,10 @@ import anyio
 import pytest
 
 from opsys import contexte
+from opsys.stockage.schema import META as SCHEMA_META
+
+# Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
 
 JETON = 'BRIDGE-FICTIF-distinct-01234567890123456789'
 SELECTION = {'wct_id': 'WCT-FICTIF', 'preuve': {'index': 0, 'hash_maillon': 'a' * 64}, 'position_photo': 0}
@@ -327,7 +331,7 @@ def test_asgi_sql_cas_pixels_decodes_lecture_unique_et49tables_inchangees(monde)
     messages = executer(factory(), body=body)
     assert messages[0]['status'] == 200
     assert b''.join(m['body'] for m in messages if m['type'] == 'http.response.body') == OCTETS
-    assert len(calls) == 1 and len(avant) == 49 and avant == _sql.fx._tables()
+    assert len(calls) == 1 and set(avant) == TABLES_SQLITE and avant == _sql.fx._tables()
     validation = executer(factory(), body=body, chemin='/mcp/fichiers/m6-preuves/revalider')
     assert validation[0]['status'] == 200 and len(calls) == 1 and avant == _sql.fx._tables()
 

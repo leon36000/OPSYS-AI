@@ -43,6 +43,9 @@ from .politiques import approbation_requise_niveau, validation_au_depart_possibl
 
 _SCHEMA_VIDE = {"type": "object", "properties": {}, "additionalProperties": False}
 logger = logging.getLogger("opsys.capacites")
+_MUTATION_NOTE_M6 = "m6_enregistrer_note_commande"
+_LECTURE_NOTE_M6 = "m6_lire_note_commande"
+_LISTE_NOTES_M6 = "m6_lister_notes_commande"
 _MUTATION_CLASSEMENT_M6 = "m6_classer_cause_variance_appareil"
 _LECTURES_CLASSEMENT_M6 = frozenset({
     "m6_lister_variances_classables_wct_appareil",
@@ -289,6 +292,28 @@ class Capacites:
         ticket_memoire: str | None = None,
     ) -> dict[str, Any]:
         """Revérifie et dispatch un outil Core profilé sous le verrou de sa ligne de profil."""
+        if nom in {"m6_lister_fournisseurs_console", "m6_lire_fournisseur_console",
+                   "m6_enregistrer_fournisseur_console",
+                   "m6_lister_fournisseurs_tarif_console", "m6_preparer_tarif_console", "m6_confirmer_tarif_console",
+                   "m6_lire_historique_prix_console", "m6_preparer_import_tarifs_console",
+                   "m6_confirmer_import_tarifs_console",
+                   "m6_enregistrer_materiau_console", "m6_lire_materiau_console", "m6_lister_materiaux_console",
+                   "m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
+                   "m3_lire_tarif_modele", "m3_creer_devis_prefill",
+                   "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission",
+                   "m3_creer_devis_depuis_modele", "m3_document_devis_console",
+                   "m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",
+                   "m2_lire_rencontres_lead",
+                   "m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
+                   "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
+                   "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
+                   "m4_lire_page_cedule_semaine", "m4_lire_journal_quotidien",
+                   "m4_lire_composition_journaliere_console", "m4_declarer_composition_journaliere_console",
+                   "m4_lire_absence_journaliere_console", "m4_declarer_absence_journaliere_console",
+                   "m4_lire_absences_jour_console"}:
+            # Aucun texte privé dans approbations, reçus ou artefacts génériques.
+            # Le port humain privé de console appelle les outils M4 directement.
+            return {"ok": False, "erreur": "port_console_prive_requis"}
         if nom in _LECTURES_DOCUMENTAIRES_M10:
             return self.refus_lecture_documentaire_appareil("REJ-M10-LECTURE-AUTORITE-INVALIDE")
         if nom in _OUTILS_DOCUMENTAIRES_M10:
@@ -323,6 +348,27 @@ class Capacites:
         Une identité d'appareil seule permet une lecture T0/N0 ; toute autre opération
         exige l'enveloppe d'idempotence avant le répartiteur métier.
         """
+        if nom in {"m6_lister_fournisseurs_console", "m6_lire_fournisseur_console",
+                   "m6_enregistrer_fournisseur_console",
+                   "m6_lister_fournisseurs_tarif_console", "m6_preparer_tarif_console", "m6_confirmer_tarif_console",
+                   "m6_lire_historique_prix_console", "m6_preparer_import_tarifs_console",
+                   "m6_confirmer_import_tarifs_console",
+                   "m6_enregistrer_materiau_console", "m6_lire_materiau_console", "m6_lister_materiaux_console",
+                   "m3_lister_fournisseurs_modele", "m3_enregistrer_lignes_modele", "m3_lire_lignes_modele",
+                   "m3_lire_tarif_modele", "m3_creer_devis_prefill",
+                   "m3_enregistrer_modele_soumission", "m3_lire_modele_soumission", "m3_lister_modeles_soumission",
+                   "m3_creer_devis_depuis_modele", "m3_document_devis_console",
+                   "m2_enregistrer_rendez_vous", "m2_lire_agenda_vendeur", "m2_historique_rendez_vous",
+                   "m2_lire_rencontres_lead",
+                   "m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
+                   "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
+                   "m4_lire_couleurs_calendrier", "m4_resumer_couleurs_calendrier", "m4_lire_apercu_mois",
+                   "m4_lire_page_cedule_semaine", "m4_lire_journal_quotidien",
+                   "m4_lire_composition_journaliere_console", "m4_declarer_composition_journaliere_console",
+                   "m4_lire_absence_journaliere_console", "m4_declarer_absence_journaliere_console",
+                   "m4_lire_absences_jour_console"}:
+            # Refus avant toute normalisation, réclamation ou approbation contenant du texte privé.
+            return {"ok": False, "erreur": "port_console_prive_requis"}
         if nom in _LECTURES_DOCUMENTAIRES_M10:
             return self._appeler_lecture_documents_m10(nom, arguments, meta, ticket_cible, ticket_memoire)
         if nom in _OUTILS_DOCUMENTAIRES_M10:
@@ -334,6 +380,14 @@ class Capacites:
         args = dict(arguments or {})
         appelante = identite_appelante()
         entree = self.index.get(nom)
+        if entree is not None and nom == _MUTATION_NOTE_M6 and meta is None:
+            # Aucun brouillon d'approbation ne doit copier une note privée sans intention authentifiée.
+            with self._cnx_factory():
+                refus = self._garder_note_m6()
+                if refus is not None:
+                    return refus
+            return {"ok": False, "erreur": "idempotence_appareil_requise",
+                    "details": "La note interne exige une intention authentifiée persistée."}
         if entree is not None and nom in {_LECTURE_OBLIGATIONS_M5, _MUTATION_OBLIGATIONS_M5}:
             return self._appeler_obligations_m5(nom, args, meta, ticket_cible, ticket_memoire)
         if nom == _LEGACY_REVUE_M4 and (
@@ -358,7 +412,7 @@ class Capacites:
             return self._appeler_idempotent(nom, args, meta, revalider_humain_cible=True,
                                            demander_n4_humain=True)
         if (
-            nom == "m6_lire_preuves_pertes_wct_appareil"
+            nom in {"m6_lire_preuves_pertes_wct_appareil", _LECTURE_NOTE_M6, _LISTE_NOTES_M6}
             or nom in _LECTURES_CLASSEMENT_M6
             or nom == _LECTURE_RAPPELS_M1
         ) and meta is not None:
@@ -1219,6 +1273,27 @@ class Capacites:
         return r.contexte_mutation(meta)
 
     @staticmethod
+    def _contexte_mutation_note_m6(nom: str, meta: idempotence.Meta) -> AbstractContextManager:
+        if nom != _MUTATION_NOTE_M6:
+            return nullcontext()
+        from m6_material_control import outils as outils_m6
+
+        return outils_m6.contexte_mutation_note_commande(meta)
+
+    @staticmethod
+    def _garder_note_m6(arguments=None, reponse=None):
+        from m6_material_control import notes_commande as n
+        from m6_material_control import outils as outils_m6
+
+        try:
+            outils_m6.autoriser_note_commande()
+            if reponse is not None:
+                outils_m6.verifier_rejeu_note_commande(arguments, reponse)
+        except n.Refus as exc:
+            return {"ok": True, "resultat": n.refuser(exc.suffixe), "rejoue": False}
+        return None
+
+    @staticmethod
     def _contexte_mutation_classement_m6(nom: str, meta: idempotence.Meta) -> AbstractContextManager:
         if nom != _MUTATION_CLASSEMENT_M6:
             return nullcontext()
@@ -1268,8 +1343,14 @@ class Capacites:
             self._cnx_factory() as cnx,
             self._contexte_mutation_rappel_m1(nom, meta),
             self._contexte_mutation_classement_m6(nom, meta),
+            self._contexte_mutation_note_m6(nom, meta),
+            contexte_appel.sortie_bornee(self._limite) if nom == _MUTATION_NOTE_M6 else nullcontext(),
             self._contexte_decision_revue_m4(nom, meta, arguments),
         ):
+            if nom == _MUTATION_NOTE_M6:
+                refus = self._garder_note_m6()
+                if refus is not None:
+                    return refus
             decision_revue = False
             if nom == _PROPOSITION_REVUE_M4:
                 # Autorité avant même la lecture de son claim ; la création historique
@@ -1361,6 +1442,10 @@ class Capacites:
                 refus_rejoue = reclamation.rejouee and reclamation.reponse.get("erreur") == "hors_portee_role"
                 return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
+                if nom == _MUTATION_NOTE_M6:
+                    refus = self._garder_note_m6(arguments, reclamation.reponse)
+                    if refus is not None:
+                        return refus
                 # L'autorité propriétaire COURANTE, relue après le claim, précède toute restitution
                 # d'une décision M9 en cache ; rien n'est écrit, le claim original reste intact.
                 if nom == "m9_decider_demande_approbation":
@@ -1373,10 +1458,22 @@ class Capacites:
                     refus = outils_m4.verifier_identite_rejeu_route_appareil(arguments)
                     if refus is not None:
                         return {"ok": True, "resultat": refus, "rejoue": True}
+                if nom == "m4_confirmer_dates_cedule":
+                    from m4_field_ops import outils as outils_m4
+
+                    refus = outils_m4.verifier_autorite_calendrier()
+                    if refus is not None:
+                        return {"ok": True, "resultat": refus, "rejoue": True}
                 if nom == "m2_enregistrer_interaction":
                     from m2_revenue_crm import outils as outils_m2
 
                     refus = outils_m2.verifier_autorite_rejeu_interaction_appareil(arguments)
+                    if refus is not None:
+                        return {"ok": True, "resultat": refus, "rejoue": True}
+                if nom == "m2_corriger_contact_client":
+                    from m2_revenue_crm import outils as outils_m2
+
+                    refus = outils_m2.verifier_autorite_rejeu_contact_appareil()
                     if refus is not None:
                         return {"ok": True, "resultat": refus, "rejoue": True}
                 if (nom == _PROPOSITION_REVUE_M4 or decision_revue) and type(reclamation.reponse) is not dict:
@@ -1612,9 +1709,9 @@ class Capacites:
                 reponse = executer_atomique(outil, arguments)
             if reponse.get("ok") and (
                 outil.nom not in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6,
-                                 _MUTATION_OBLIGATIONS_M5}
+                                 _MUTATION_OBLIGATIONS_M5, _MUTATION_NOTE_M6}
                 or reponse.get("resultat", {}).get("accepte") is True
-            ):
+            ) and not (outil.nom == _MUTATION_NOTE_M6 and reponse.get("resultat", {}).get("rejoue") is True):
                 approbations.tracer_validation_au_depart(
                     cnx,
                     departement.id,
@@ -1640,6 +1737,16 @@ class Capacites:
         departement: str | None = None,
         origine: str | None = None,
     ) -> dict[str, Any]:
+        if source in {_MUTATION_NOTE_M6, _LECTURE_NOTE_M6, _LISTE_NOTES_M6}:
+            # Notes privées : jamais copiées dans un artefact générique de sortie.
+            from m6_material_control import notes_commande as n
+
+            frames = [{**reponse, "rejoue": flag} for flag in (False, True)]
+            if all(len(json.dumps(frame, ensure_ascii=False)) <= self._limite for frame in frames):
+                return reponse
+            if source == _MUTATION_NOTE_M6 and reponse.get("resultat", {}).get("accepte") is True:
+                raise RuntimeError("confirmation note M6 hors borne dans sa transaction")
+            return {"ok": True, "resultat": n.refuser("SORTIE-TROP-VOLUMINEUSE")}
         if source == _LECTURE_PROVENANCE_M8:
             # Toutes les issues de ce nom sortent ici, avant le fallback artefact.
             # Les cadres d'erreur constants sans données peuvent dépasser quota40.

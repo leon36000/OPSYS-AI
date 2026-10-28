@@ -1,0 +1,77 @@
+{
+  "schema": "opsys.admission-paie-serveur/v1",
+  "generation": {
+    "fichiers": {
+      "__init__.py": "62e53382ff8557e5f7a4892b60b078f84a7b8dd461f5880841c8028ab63cffb2",
+      "contrats.py": "38f125521262f94d5bf18f2f8b46b1a8d7605e1074996d696110c42a10bb8aad",
+      "validation.py": "4a681951ce8ed1e191cd00ffac368e4758500e65592cda74107a6adca062191c",
+      "cotisations_rrq_regulieres.py": "77aa4ccc2f87226a6ad8810068ee4432edcc434375cf5b5ef08c3eb4019c6863",
+      "cotisations_rqap_ae_2026.py": "449ccd75f42b8b72188a0cea6a0eb623439a7d4cfe8f412bfc98bdff64e047ed",
+      "impot_quebec_regulier.py": "3cdf26b79745f01155b6b7335702d6b57c1f3097162c8eef82e743688da8993b",
+      "paie_qc_preparatoire.py": "8ee5aeaf60c37af2053d2c38ad7051826987c1734ef4045b6c1b4f9e9a712583",
+      "impot_federal_qc_2026.py": "6d829f7d59c6843e7cbdd6e28be4a04394cf803884a7515b95cdf5e0bc717b47"
+    },
+    "sha256": "0968673aa8ecca68618b7cb3a8e832e102980f15f990500adabd07aa27d90344"
+  },
+  "capacite": {
+    "schema": "opsys.admission-paie-preparatoire/v1",
+    "qualification_regles": "NON_QUALIFIEE_POUR_PAIE",
+    "actions_financieres_bloquees": true,
+    "annee": 2026,
+    "juridiction": "QC",
+    "frequence": "bihebdomadaire",
+    "periodes_annuelles": 26,
+    "pm": 12,
+    "fenetres": [
+      {
+        "debut": "2026-01-01",
+        "fin": "2026-06-30",
+        "periode_min": 1,
+        "periode_max": 1,
+        "methode": "P1",
+        "calculateur_sha256": "0968673aa8ecca68618b7cb3a8e832e102980f15f990500adabd07aa27d90344",
+        "parametres_sha256": "9f94fdcb05c9d919b4f3c3787d9e2585d15bc0bc69bcbd121394547ef17baca6"
+      },
+      {
+        "debut": "2026-01-01",
+        "fin": "2026-06-30",
+        "periode_min": 2,
+        "periode_max": 26,
+        "methode": "YTD",
+        "calculateur_sha256": "0968673aa8ecca68618b7cb3a8e832e102980f15f990500adabd07aa27d90344",
+        "parametres_sha256": "51ee8ce62ef2c831c0e4ecbfc19bf7b60934706f7e9331a6396d2cec679722c3"
+      },
+      {
+        "debut": "2026-07-01",
+        "fin": "2026-12-31",
+        "periode_min": 2,
+        "periode_max": 26,
+        "methode": "YTD",
+        "calculateur_sha256": "0968673aa8ecca68618b7cb3a8e832e102980f15f990500adabd07aa27d90344",
+        "parametres_sha256": "681c07c759201cdc088d884e26e9b435aa23c46fab9d5259813595f12698e910"
+      }
+    ],
+    "sources": {
+      "arc_jan2026": {
+        "capture": "arc_jan2026.pdf",
+        "sha256": "c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c",
+        "format": "PDF"
+      },
+      "arc_jul2026": {
+        "capture": "arc_jul2026.pdf",
+        "sha256": "69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671",
+        "format": "PDF"
+      },
+      "rq_f2026": {
+        "capture": "rq_f2026.pdf",
+        "sha256": "a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b",
+        "format": "PDF"
+      },
+      "rq_tr26_2026": {
+        "capture": "rq_tr26_2026.pdf",
+        "sha256": "2079c958132de69216157b5c16c0296c89556e6deb69ad1854c9ebddf680c321",
+        "format": "PDF"
+      }
+    }
+  }
+}

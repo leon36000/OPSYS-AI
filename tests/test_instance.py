@@ -89,6 +89,15 @@ def palier_standard():
     modeles.enregistrer_paliers({"standard": {"provider": "anthropic", "model": "claude-sonnet-5"}})
 
 
+@pytest.fixture
+def palier_standard_budgete(palier_standard, session):
+    from agents_base_qa import provisionner_base_qa
+
+    from opsys.departements import charger_departements
+
+    provisionner_base_qa(session, charger_departements())
+
+
 # -- assurer_env ------------------------------------------------------------------------------------------------------
 def test_env_cree_en_0600_avec_les_secrets_manquants(tmp_path, verifier_acces_prive):
     chemin = tmp_path / "core" / ".env"
@@ -217,7 +226,8 @@ def test_sans_paliers_ni_embeddings_le_verdict_dit_quoi_fournir_et_rien_d_autre_
     resultat = _initialiser(opsys_home)
 
     assert resultat.etat == "en_attente"
-    assert len(resultat.manque) == 2
+    assert len(resultat.manque) == 3
+    assert any("agents-base provisionner" in ligne for ligne in resultat.manque)
     assert any("opsys-metier paliers definir" in ligne for ligne in resultat.manque)
     assert any("OPSYS_EMBEDDINGS_URL" in ligne and "OPSYS_EMBEDDINGS_MODELE" in ligne for ligne in resultat.manque)
     assert (etat_core / ".env").is_file()
@@ -226,7 +236,8 @@ def test_sans_paliers_ni_embeddings_le_verdict_dit_quoi_fournir_et_rien_d_autre_
     assert not (opsys_home / "core").exists()  # l'état du core n'est pas sous cet OPSYS_HOME-ci
 
 
-def test_avec_paliers_et_embeddings_la_configuration_du_core_est_generee(opsys_home, etat_core, palier_standard):
+def test_avec_paliers_et_embeddings_la_configuration_du_core_est_generee(
+        opsys_home, etat_core, palier_standard_budgete):
     resultat = _initialiser(opsys_home, environ=EMBEDDINGS, port_gateway=18790, port_moteur=8766)
 
     assert resultat.etat == "pret" and resultat.manque == ()
@@ -262,7 +273,7 @@ def test_avec_paliers_et_embeddings_la_configuration_du_core_est_generee(opsys_h
     assert models["providers"]["anthropic"]["apiKey"] == "${ANTHROPIC_API_KEY}"
 
 
-def test_une_url_litellm_ancienne_seule_ne_bascule_pas_le_mode_natif(opsys_home, etat_core, palier_standard):
+def test_une_url_litellm_ancienne_seule_ne_bascule_pas_le_mode_natif(opsys_home, etat_core, palier_standard_budgete):
     chemin_env = etat_core / ".env"
     chemin_env.parent.mkdir(parents=True, exist_ok=True)
     chemin_env.write_text("OPSYS_PASSERELLE_URL=http://127.0.0.1:4000/v1\n", encoding="utf-8")
@@ -277,7 +288,7 @@ def test_une_url_litellm_ancienne_seule_ne_bascule_pas_le_mode_natif(opsys_home,
     assert instance.lire_env(chemin_env)["OPSYS_PASSERELLE_URL"] == "http://127.0.0.1:4000/v1"
 
 
-def test_mode_litellm_est_opte_et_persiste_seulement_si_explicite(opsys_home, etat_core, palier_standard):
+def test_mode_litellm_est_opte_et_persiste_seulement_si_explicite(opsys_home, etat_core, palier_standard_budgete):
     resultat = _initialiser(
         opsys_home,
         environ={**EMBEDDINGS, "OPSYS_MODE_FOURNISSEUR": "litellm",
@@ -293,7 +304,7 @@ def test_mode_litellm_est_opte_et_persiste_seulement_si_explicite(opsys_home, et
 
 
 def test_la_cli_instance_recoit_le_mode_litellm_seulement_avec_les_deux_options(
-    opsys_home, etat_core, palier_standard, monkeypatch, capsys
+    opsys_home, etat_core, palier_standard_budgete, monkeypatch, capsys
 ):
     for nom, valeur in EMBEDDINGS.items():
         monkeypatch.setenv(nom, valeur)
@@ -318,7 +329,7 @@ def test_mode_litellm_sans_url_echoue_avant_migration_et_ecriture(opsys_home, et
     assert not (etat_core / ".env").exists()
 
 
-def test_une_url_seule_explicitement_fournie_est_refusee(opsys_home, palier_standard):
+def test_une_url_seule_explicitement_fournie_est_refusee(opsys_home, palier_standard_budgete):
     with pytest.raises(instance.ErreurInstance, match="réservée à --mode-fournisseur litellm"):
         _initialiser(
             opsys_home,
@@ -327,7 +338,7 @@ def test_une_url_seule_explicitement_fournie_est_refusee(opsys_home, palier_stan
         )
 
 
-def test_aucun_secret_dans_la_configuration_generee_ni_dans_la_sortie(opsys_home, etat_core, palier_standard,
+def test_aucun_secret_dans_la_configuration_generee_ni_dans_la_sortie(opsys_home, etat_core, palier_standard_budgete,
                                                                      monkeypatch, capsys):
     for nom, valeur in EMBEDDINGS.items():
         monkeypatch.setenv(nom, valeur)
@@ -348,7 +359,7 @@ def test_aucun_secret_dans_la_configuration_generee_ni_dans_la_sortie(opsys_home
         assert secret not in sortie.out + sortie.err
 
 
-def test_initialiser_est_idempotent_et_ne_regenere_aucun_secret(opsys_home, etat_core, palier_standard):
+def test_initialiser_est_idempotent_et_ne_regenere_aucun_secret(opsys_home, etat_core, palier_standard_budgete):
     _initialiser(opsys_home, environ=EMBEDDINGS)
     avant = _contenu_de_tout(etat_core)
 
@@ -359,7 +370,7 @@ def test_initialiser_est_idempotent_et_ne_regenere_aucun_secret(opsys_home, etat
     assert _contenu_de_tout(etat_core) == avant
 
 
-def test_les_reglages_gardes_dans_env_suffisent_a_la_relance(opsys_home, palier_standard):
+def test_les_reglages_gardes_dans_env_suffisent_a_la_relance(opsys_home, palier_standard_budgete):
     _initialiser(opsys_home, environ=EMBEDDINGS)
 
     resultat = _initialiser(opsys_home, environ={})  # l'opérateur ne les redonne pas
@@ -367,7 +378,7 @@ def test_les_reglages_gardes_dans_env_suffisent_a_la_relance(opsys_home, palier_
     assert resultat.etat == "pret"
 
 
-def test_un_bloc_gateway_existant_n_est_jamais_modifie(opsys_home, etat_core, palier_standard):
+def test_un_bloc_gateway_existant_n_est_jamais_modifie(opsys_home, etat_core, palier_standard_budgete):
     _initialiser(opsys_home, environ=EMBEDDINGS, port_gateway=18790)
     racine = etat_core / "opsys.json"
     config = json.loads(racine.read_text(encoding="utf-8"))
@@ -381,7 +392,7 @@ def test_un_bloc_gateway_existant_n_est_jamais_modifie(opsys_home, etat_core, pa
     assert any("19999" in ligne and "18790" in ligne and "opsys.json" in ligne for ligne in resultat.avertissements)
 
 
-def test_metier_json_garde_les_cles_de_l_operateur_et_suit_le_port(opsys_home, etat_core, palier_standard):
+def test_metier_json_garde_les_cles_de_l_operateur_et_suit_le_port(opsys_home, etat_core, palier_standard_budgete):
     _initialiser(opsys_home, environ=EMBEDDINGS, port_moteur=8766)
     chemin = etat_core / "opsys" / "metier.json"
     metier = json.loads(chemin.read_text(encoding="utf-8"))
@@ -471,7 +482,7 @@ def test_l_environnement_du_processus_donne_le_dossier_personnel_du_poste(hote):
 
 
 def test_l_etat_du_core_suit_le_compte_pas_opsys_home_et_les_dossiers_sont_prives(
-        opsys_home, hote, etat_core, palier_standard, verifier_acces_prive):
+        opsys_home, hote, etat_core, palier_standard_budgete, verifier_acces_prive):
     resultat = _initialiser(opsys_home, environ=EMBEDDINGS)
 
     assert resultat.etat == "pret" and resultat.dossier_core == etat_core
@@ -496,6 +507,13 @@ def _instance_par_defaut(hote: Path, monkeypatch) -> Path:
     modeles.enregistrer_paliers({"standard": {"provider": "anthropic", "model": "claude-sonnet-5"}})
     # Le fixture établit l'ACL privée sur le dossier préexistant; initialiser() le laisse intact.
     instance.restreindre_dossier(home)
+    from agents_base_qa import provisionner_base_qa
+
+    from opsys import stockage
+    from opsys.departements import charger_departements
+
+    stockage.migrer()
+    provisionner_base_qa(stockage.transaction, charger_departements())
     return home
 
 
@@ -512,7 +530,7 @@ def test_avec_l_opsys_home_par_defaut_les_donnees_et_l_etat_du_core_sont_dans_le
     assert not any("OPSYS_HOME" in ligne for ligne in resultat.avertissements)  # rien à signaler : un seul dossier
 
 
-def test_un_etat_du_core_fourni_ne_cherche_rien_hors_de_lui(opsys_home, hote, tmp_path, palier_standard):
+def test_un_etat_du_core_fourni_ne_cherche_rien_hors_de_lui(opsys_home, hote, tmp_path, palier_standard_budgete):
     _poser_etat_d_avant(hote)  # un ancien état à côté : sans importance pour un dossier d'état choisi par l'appelant
     autre = tmp_path / "autre-etat"
 
@@ -523,7 +541,7 @@ def test_un_etat_du_core_fourni_ne_cherche_rien_hors_de_lui(opsys_home, hote, tm
 
 
 def test_une_variable_du_core_qui_sortirait_l_etat_du_dossier_canonique_est_ecartee_et_signalee(
-        opsys_home, etat_core, palier_standard):
+        opsys_home, etat_core, palier_standard_budgete):
     resultat = _initialiser(opsys_home, environ={**EMBEDDINGS, "OPENCLAW_STATE_DIR": "/ailleurs/etat",
                                                  "OPENCLAW_PROFILE": "autre"})
 
@@ -562,7 +580,7 @@ def test_l_ancienne_disposition_est_refusee_avec_la_marche_a_suivre_et_rien_n_es
     assert not etat_core.exists() and not (opsys_home / "opsys.db").exists()  # rien n'a été écrit non plus
 
 
-def test_marche_a_suivre_1_deplacer_l_ancien_dossier_garde_les_secrets(opsys_home, etat_core, palier_standard):
+def test_marche_a_suivre_1_deplacer_l_ancien_dossier_garde_les_secrets(opsys_home, etat_core, palier_standard_budgete):
     ancien = _poser_ancienne_disposition(opsys_home)
     with pytest.raises(instance.ErreurInstance):
         _initialiser(opsys_home, environ=EMBEDDINGS)
@@ -576,7 +594,8 @@ def test_marche_a_suivre_1_deplacer_l_ancien_dossier_garde_les_secrets(opsys_hom
     assert not (opsys_home / "core").exists()
 
 
-def test_marche_a_suivre_2_mettre_l_ancien_dossier_de_cote_repart_a_neuf(opsys_home, etat_core, palier_standard):
+def test_marche_a_suivre_2_mettre_l_ancien_dossier_de_cote_repart_a_neuf(
+        opsys_home, etat_core, palier_standard_budgete):
     ancien = _poser_ancienne_disposition(opsys_home)
     avant = _contenu_de_tout(ancien)
     with pytest.raises(instance.ErreurInstance):
@@ -591,7 +610,7 @@ def test_marche_a_suivre_2_mettre_l_ancien_dossier_de_cote_repart_a_neuf(opsys_h
 
 
 def test_un_dossier_core_vide_ou_qui_est_l_etat_du_core_n_est_pas_l_ancienne_disposition(
-        opsys_home, etat_core, palier_standard):
+        opsys_home, etat_core, palier_standard_budgete):
     (opsys_home / "core").mkdir(parents=True)  # laissé vide par une installation interrompue
     assert instance.ancienne_disposition(opsys_home, etat_core) is None
     assert _initialiser(opsys_home, environ=EMBEDDINGS).etat == "pret"
@@ -683,7 +702,7 @@ def test_les_includes_se_lisent_dans_le_fichier_racine_que_le_core_lit(tmp_path)
 
 
 def test_la_cli_configurer_nomme_le_fichier_racine_qui_existe_et_cree_openclaw_json_sinon(
-        palier_standard, tmp_path, monkeypatch, capsys):
+        palier_standard_budgete, tmp_path, monkeypatch, capsys):
     for nom, valeur in EMBEDDINGS.items():
         monkeypatch.setenv(nom, valeur)
     neuf = tmp_path / "docker"
@@ -700,7 +719,7 @@ def test_la_cli_configurer_nomme_le_fichier_racine_qui_existe_et_cree_openclaw_j
 
 
 def test_un_openclaw_json_existant_est_complete_en_place_sans_creer_opsys_json(
-        opsys_home, etat_core, palier_standard):
+        opsys_home, etat_core, palier_standard_budgete):
     etat_core.mkdir(parents=True)
     racine = etat_core / "openclaw.json"
     racine.write_text(json.dumps({"agents": {"defaults": {"nom": "garde"}}}), encoding="utf-8")
@@ -756,7 +775,7 @@ def test_l_etat_reste_a_l_ancien_emplacement_est_refuse_avec_la_marche_a_suivre_
 
 
 def test_deux_etats_l_ancien_et_le_nouveau_sont_un_conflit_qui_ne_fusionne_ni_ne_supprime_rien(
-        opsys_home, hote, etat_core, palier_standard):
+        opsys_home, hote, etat_core, palier_standard_budgete):
     ancien = _poser_etat_d_avant(hote)
     etat_core.mkdir(parents=True)
     (etat_core / ".env").write_text("OPSYS_MCP_JETON=jeton-du-nouvel-etat-fictif-0123456789\n", encoding="utf-8")
@@ -773,7 +792,7 @@ def test_deux_etats_l_ancien_et_le_nouveau_sont_un_conflit_qui_ne_fusionne_ni_ne
 
 
 def test_un_ancien_chemin_qui_est_un_fichier_ou_un_lien_ailleurs_est_refuse_sans_y_toucher(
-        opsys_home, hote, etat_core, tmp_path, palier_standard):
+        opsys_home, hote, etat_core, tmp_path, palier_standard_budgete):
     ancien = hote / ".openclaw-opsys"
     ancien.write_text("pas un dossier\n", encoding="utf-8")
     with pytest.raises(instance.ErreurInstance, match="ancien emplacement inattendu"):
@@ -790,7 +809,7 @@ def test_un_ancien_chemin_qui_est_un_fichier_ou_un_lien_ailleurs_est_refuse_sans
 
 
 def test_apres_doctor_le_lien_laisse_a_l_ancien_chemin_n_est_plus_un_obstacle_et_les_secrets_sont_gardes(
-        opsys_home, hote, etat_core, palier_standard):
+        opsys_home, hote, etat_core, palier_standard_budgete):
     _poser_etat_d_avant(hote)
     with pytest.raises(instance.ErreurInstance):
         _initialiser(opsys_home, environ=EMBEDDINGS)
@@ -808,7 +827,7 @@ def test_apres_doctor_le_lien_laisse_a_l_ancien_chemin_n_est_plus_un_obstacle_et
     assert _initialiser(opsys_home, environ=EMBEDDINGS).etat == "pret"  # relançable
 
 
-def test_un_ancien_dossier_vide_ou_absent_n_est_pas_un_obstacle(opsys_home, hote, etat_core, palier_standard):
+def test_un_ancien_dossier_vide_ou_absent_n_est_pas_un_obstacle(opsys_home, hote, etat_core, palier_standard_budgete):
     ancien = hote / ".openclaw-opsys"
     assert instance.disposition_du_profil_d_avant(etat_core, ancien) is None  # absent
 
@@ -835,7 +854,7 @@ def test_le_classement_de_l_ancien_dossier_suit_celui_de_doctor(hote, etat_core,
 
 
 def test_la_cli_refuse_l_etat_a_l_ancien_emplacement_avec_le_code_1_et_la_marche_a_suivre(
-        opsys_home, hote, palier_standard, capsys, monkeypatch):
+        opsys_home, hote, palier_standard_budgete, capsys, monkeypatch):
     for nom, valeur in EMBEDDINGS.items():
         monkeypatch.setenv(nom, valeur)
     _poser_etat_d_avant(hote)
@@ -848,8 +867,8 @@ def test_la_cli_refuse_l_etat_a_l_ancien_emplacement_avec_le_code_1_et_la_marche
 
 
 # -- la CLI ------------------------------------------------------------------------------------------------------------
-def test_la_cli_rend_3_quand_il_manque_une_decision_et_0_quand_tout_est_pret(opsys_home, palier_standard, monkeypatch,
-                                                                         capsys):
+def test_la_cli_rend_3_quand_il_manque_une_decision_et_0_quand_tout_est_pret(
+        opsys_home, palier_standard_budgete, monkeypatch, capsys):
     argv = ["instance", "initialiser", "--source", str(RACINE)]
 
     assert cli.main(argv) == instance.CODE_EN_ATTENTE
@@ -905,7 +924,7 @@ def test_les_noms_du_dossier_d_instance_recopies_du_core_sont_ceux_du_fork():
 
 
 def test_chaque_cle_de_metier_json_est_documentee_dans_le_fichier_de_config_du_core(opsys_home, etat_core,
-                                                                                    palier_standard):
+                                                                                    palier_standard_budgete):
     _initialiser(opsys_home, environ=EMBEDDINGS)
     metier = json.loads((etat_core / "opsys" / "metier.json").read_text(encoding="utf-8"))
     entete = (RACINE / "core/src/gateway/opsys-metier-config.ts").read_text(encoding="utf-8").split("import ")[0]
@@ -1158,7 +1177,7 @@ exit 0
 
 @pytest.mark.parametrize("port_moteur", [None, 8766], ids=["defaut", "port-superviseur-explicite"])
 def test_mcp_tls_instance_declare_uniquement_origine_de_son_superviseur(
-    opsys_home, etat_core, palier_standard, port_moteur,
+    opsys_home, etat_core, palier_standard_budgete, port_moteur,
 ):
     resultat = _initialiser(opsys_home, environ=EMBEDDINGS, port_moteur=port_moteur)
     assert resultat.etat == "pret"
@@ -1177,7 +1196,7 @@ def test_mcp_tls_instance_declare_uniquement_origine_de_son_superviseur(
 
 
 def test_mcp_tls_superviseur_port_80_declare_origine_canonique_sans_port_implicite(
-    opsys_home, etat_core, palier_standard,
+    opsys_home, etat_core, palier_standard_budgete,
 ):
     resultat = _initialiser(opsys_home, environ=EMBEDDINGS, port_moteur=80)
     assert resultat.etat == "pret" and resultat.port_moteur == 80

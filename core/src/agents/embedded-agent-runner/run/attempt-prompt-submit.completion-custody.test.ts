@@ -243,6 +243,20 @@ describe("OPSYS private completion custody prompt submission plumbing", () => {
     mocks.callOpsysMcpTool.mockClear();
     installReplies();
   });
+  it("refuses a legacy department without a durable profile before provider dispatch", async () => {
+    const fixture = submission(undefined);
+    fixture.input.attempt.agentId = "m02-revenue-crm";
+    fixture.input.attempt.getAdmissionCandidateIndex = () => 0;
+    fixture.input.attempt.config = {
+      agents: { entries: { "m02-revenue-crm": { opsysIsolation: { exec: "sandbox-required" } } } },
+    };
+    await expect(submitEmbeddedAttemptPrompt(fixture.input)).rejects.toThrow(
+      "OPSYS runtime admission is required but missing for agent m02-revenue-crm",
+    );
+    expect(fixture.provider).not.toHaveBeenCalled();
+    expect(mocks.callOpsysMcpTool).not.toHaveBeenCalled();
+    expect(fixture.activeSession.agent.streamFn).toBe(fixture.provider);
+  });
   it("forwards the private handle through one installed factory across two provider streams and restores the base", async () => {
     const api = custodyAPI();
     const handle = api.create(binding([0, 1]));

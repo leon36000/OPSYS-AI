@@ -13,12 +13,16 @@ from sqlalchemy.exc import IntegrityError
 from opsys import approbations, stockage
 from opsys.outils import Niveau
 from opsys.stockage.schema import (
+    EFFACEMENTS_CLES,
     FUSION_AP_OCR_SOURCES,
     FUSION_AP_SAISIES,
     FUSION_PDF_OCR_COMMANDES,
     FUSION_PDF_OCR_QUOTA,
     FUSION_PDF_OCR_RUNS,
     META,
+    PIECES_CLASSEMENTS,
+    PIECES_PROJET,
+    RECEPTIONS_COURRIEL,
 )
 
 FICTIF = True
@@ -41,10 +45,14 @@ def _migration(revision: str, *, descendre: bool = False):
 def _anciennes():
     # Ce scénario compare les tables antérieures à 0024, y compris lors du
     # retour à 0023. Les compartiments OCR/AP OCR ajoutés après 0024 ont des
-    # scénarios distincts de conservation et de rollback.
+    # scénarios distincts de conservation et de rollback. La file de nettoyage
+    # 0027, les pièces/leurs classements 0028/0029 et les originaux courriel 0030 sont absents
+    # du schéma historique 0023. Ne pas ignorer dynamiquement une table manquante :
+    # toute table réellement attendue en 0023 doit encore être lue et comparée.
     nouvelles = {t.name for t in (
-        FUSION_AP_SAISIES, FUSION_AP_OCR_SOURCES,
+        FUSION_AP_SAISIES, FUSION_AP_OCR_SOURCES, EFFACEMENTS_CLES,
         FUSION_PDF_OCR_RUNS, FUSION_PDF_OCR_COMMANDES, FUSION_PDF_OCR_QUOTA,
+        PIECES_PROJET, PIECES_CLASSEMENTS, RECEPTIONS_COURRIEL,
     )}
     with stockage.transaction() as cnx:
         return {nom: [dict(r) for r in cnx.execute(select(t)).mappings()]
@@ -125,3 +133,26 @@ def test_contraintes_refusent_liaison_invalide(ap_m5, champ, valeur):
     assert _anciennes() == before
     with stockage.transaction() as cnx:
         assert cnx.execute(select(FUSION_AP_SAISIES)).all() == []
+
+
+def test_snapshot_historique_0023_sans_parseur(session):
+    """Le comparateur historique ne sélectionne pas les futures tables du logiciel."""
+    from opsys.stockage.schema import JOURNAL
+
+    with stockage.transaction() as cnx:
+        cnx.execute(JOURNAL.insert().values(
+            quand="2026-10-28T00:00:00+00:00", par="admin-fictif", action="qa.migration",
+            cible="historique-fictif", details="{}",
+        ))
+    avant = _anciennes()
+    _migration("0023", descendre=True)
+    assert stockage.revision_courante() == "0023"
+    apres = _anciennes()
+    with stockage.transaction() as cnx:
+        assert set(apres) == set(inspect(cnx).get_table_names()) - {"alembic_version"}
+    assert apres == avant
+    assert len(apres["journal"]) == 1
+    _migration("0024")
+    assert _anciennes() == avant
+    _migration("head")
+    assert _anciennes() == avant

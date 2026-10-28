@@ -364,6 +364,7 @@ def test_recevoir_variance_chantier_evaluee_sans_signal_passe_a_completed_verifi
     "overrides",
     [
         {"statut_variance": "prevu_absent", "signal_critique": None},
+        {"statut_variance": "unites_indeterminees", "signal_critique": None},
         {"statut_variance": "declaration_absente", "signal_critique": None},
         {"statut_variance": "seuil_absent", "signal_critique": None, "seuil_pourcentage": None},
         {"statut_variance": "evaluee", "signal_critique": True},
@@ -635,13 +636,14 @@ def test_m3_cohorte_jointure_positive_depuis_estimation_devis_et_wct_durables(
     """Le parcours durable bout à bout admet une observation réelle et garde la candidate inactive."""
     lead_id = "LEAD-CALIBRATION-R32-POSITIF"
     outils3 = {outil.nom: outil for outil in outils_m3()}
+    contrat_estimation = {
+        "lead_id": lead_id, "conversation_id": "CONV-CALIBRATION-R32-POSITIF",
+        "type_travaux": "renovation_totale", "ville": VILLE, "canal": "formulaire",
+        "contact": {"nom": "Client", "telephone": "5145550101"}, "urgence_declaree": False,
+    }
     estimation = executer_atomique(outils3["m3_estimer_projet"], {
-        "contrat": {
-            "lead_id": lead_id, "conversation_id": "CONV-CALIBRATION-R32-POSITIF",
-            "type_travaux": "renovation_totale", "ville": VILLE, "canal": "formulaire",
-            "contact": {"nom": "Client", "telephone": "5145550101"}, "urgence_declaree": False,
-        },
-        "marqueur": marqueur_m2(lead_id, type_travaux="renovation_totale", ville=VILLE),
+        "contrat": contrat_estimation,
+        "marqueur": marqueur_m2(lead_id, contrat=contrat_estimation),
         "photos": [{
             "photo_id": "photo-calibration-r32", "resolution_largeur": 3000, "resolution_hauteur": 2000,
             "eclairage": 7, "angle": "face", "reference_echelle": {"type": "porte", "dimensions_connues": True},

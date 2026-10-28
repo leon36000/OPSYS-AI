@@ -35,6 +35,11 @@ export function createImapTestRuntime() {
               return false;
             }
             entries.set(key, value);
+            if (options.namespace === "cursor") {
+              const previous = cursorChanged;
+              cursorChanged = createDeferred<void>();
+              previous.resolve();
+            }
             return true;
           },
           lookup: async (key: string) => entries.get(key) as T | undefined,

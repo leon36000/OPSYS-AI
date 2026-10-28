@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from agents_base_qa import provisionner_base_qa
+
 from opsys import openclaw
 from opsys.departements import charger_departements
 
 
-def test_config_opsys_marque_tous_les_agents_et_sandbox_exec_obligatoire(tmp_path):
+def test_config_opsys_marque_tous_les_agents_et_sandbox_exec_obligatoire(tmp_path, session):
     paliers = {
         "rapide": {"provider": "anthropic", "model": "model-fast"},
         "standard": {"provider": "anthropic", "model": "model-standard"},
@@ -18,12 +20,13 @@ def test_config_opsys_marque_tous_les_agents_et_sandbox_exec_obligatoire(tmp_pat
         "OPSYS_EMBEDDINGS_URL": "http://embeddings-test:11434/v1",
         "OPSYS_EMBEDDINGS_MODELE": "embedding-test",
     }
+    provisionner_base_qa(session, charger_departements())
     fichiers = openclaw.generer(
         charger_departements(),
         tmp_path,
         paliers,
         environ=environ,
-    )
+    cnx_factory=session, )
     agents = json.loads(fichiers["agents"].read_text(encoding="utf-8"))
     outils = json.loads(fichiers["tools"].read_text(encoding="utf-8"))
 
@@ -42,6 +45,12 @@ def test_config_opsys_marque_tous_les_agents_et_sandbox_exec_obligatoire(tmp_pat
     }
     assert outils["exec"]["host"] == "sandbox"
     assert agents["entries"]
+    # Fichiers réellement générés, même si la commande Core part d'un autre cwd.
+    for agent_id, entree in agents["entries"].items():
+        workspace = Path(entree["workspace"])
+        assert workspace.is_absolute()
+        assert workspace == (tmp_path / "opsys" / "espaces" / agent_id).resolve()
+        assert (workspace / "SOUL.md").is_file()
     assert all(
         entree["opsysIsolation"] == {"exec": "sandbox-required"}
         for entree in agents["entries"].values()
@@ -78,7 +87,7 @@ def test_generation_refuse_workspace_qui_recouvre_sqlite_ou_secrets(tmp_path):
         raise AssertionError("workspace recouvrant OPSYS_HOME/secrets accepté")
 
 
-def test_generation_refuse_un_workspace_agent_symlink_vers_secrets_avant_ecriture(tmp_path):
+def test_generation_refuse_un_workspace_agent_symlink_vers_secrets_avant_ecriture(tmp_path, session):
     paliers = {
         "rapide": {"provider": "anthropic", "model": "model-fast"},
         "standard": {"provider": "anthropic", "model": "model-standard"},
@@ -98,8 +107,9 @@ def test_generation_refuse_un_workspace_agent_symlink_vers_secrets_avant_ecritur
         "OPSYS_HOME": str(tmp_path / "instance"),
     }
 
+    provisionner_base_qa(session, charger_departements())
     try:
-        openclaw.generer(charger_departements(), config, paliers, environ=environ)
+        openclaw.generer(charger_departements(), config, paliers, environ=environ, cnx_factory=session)
     except ValueError as erreur:
         assert "workspace OPSYS recouvre" in str(erreur)
     else:

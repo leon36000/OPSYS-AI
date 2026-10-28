@@ -76,10 +76,15 @@ PNPM_DIR=""
 SOURCE=""
 SOURCE_GEREE=0
 SOURCE_COMMIT="inconnu"
+GENERATION=""
+GENERATION_SQLITE_HELPER_SHA=""
+PREPARER_GENERATION=0
+PUBLIER_GENERATION=""
 SERVICE_INSTALLE=0
 NODE=""
 VENV=""
 VENV_PY=""
+MOTEUR_PY=""
 AVEC_SERVICE=1
 EN_ATTENTE=0
 PORT_GATEWAY=""
@@ -110,6 +115,8 @@ usage() {
         "install.sh : installe OPSYS (OPSYS-CORE + moteur métier) sur Linux ou macOS." \
         "" \
         "Options : --sans-service   --source CHEMIN   --ref REF   --aide" \
+        "  --preparer-generation : prépare seulement une génération privée, sans publication ni instance" \
+        "  --publier-generation CHEMIN : publie le runtime d’une instance déjà initialisée, Gateway hors ligne ; --source Core construit local requis" \
         "  --avec-ingestion-pdf / --sans-ingestion-pdf (choix persistant, défaut désactivé)" \
         "Variables : OPSYS_HOME, OPSYS_LOGICIEL, OPSYS_BIN, OPSYS_SOURCE, OPSYS_REPO_URL, OPSYS_REF," \
         "  OPSYS_PORT_GATEWAY, OPSYS_PORT_MOTEUR, OPSYS_EMBEDDINGS_URL, OPSYS_EMBEDDINGS_MODELE," \
@@ -224,6 +231,14 @@ analyser_arguments() {
                 OPSYS_REF="$2"
                 shift
                 ;;
+            --preparer-generation)
+                PREPARER_GENERATION=1
+                ;;
+            --publier-generation)
+                [ "$#" -ge 2 ] || die "--publier-generation exige le chemin d’une génération préparée."
+                PUBLIER_GENERATION="$2"
+                shift
+                ;;
             --aide | -h | --help)
                 usage
                 exit 0
@@ -247,6 +262,7 @@ resoudre_chemins() {
     fi
     VENV="$OPSYS_LOGICIEL/venv"
     VENV_PY="$VENV/bin/python"
+    MOTEUR_PY="$VENV_PY"
 
     # Ports : la variable, sinon la valeur de la dernière installation, sinon la valeur par défaut du logiciel.
     # Le dossier d'état du core noté par la dernière installation ne sert qu'à masquer ses secrets dès l'ouverture du
@@ -423,7 +439,114 @@ preparer_source() {
     SOURCE_COMMIT="$(git -C "$SOURCE" rev-parse HEAD 2>/dev/null || printf 'inconnu')"
 }
 
+# Préparation seule : le dépôt reçu n'est jamais checkout/synchronisé/construit.
+# Les chemins du venv éditable restent définitifs dès sa création, sans déplacement ultérieur.
+# Aucun pointeur courant, fichier d'instance, lanceur opérateur ou service n'est publié ici.
+preparer_generation() {
+    local origine racine modes etat
+    origine="${OPSYS_SOURCE:-}"
+    if [ -z "$origine" ]; then
+        origine="$(detecter_depot_voisin)" || die "la préparation exige --source vers un dépôt OPSYS local."
+    fi
+    origine="$(cd "$origine" && pwd -P)" || die "source de génération inaccessible."
+    if [ ! -f "$origine/core/openclaw.mjs" ] || [ ! -f "$origine/pyproject.toml" ] ||
+        [ ! -d "$origine/departments" ]; then
+        die "source de génération OPSYS incomplète."
+    fi
+    SOURCE_COMMIT="$(git -C "$origine" rev-parse --verify 'HEAD^{commit}')" ||
+        die "la préparation exige un commit local vérifiable."
+    etat="$(GIT_OPTIONAL_LOCKS=0 git -C "$origine" status --porcelain --untracked-files=normal)" ||
+        die "état du dépôt reçu impossible à vérifier."
+    [ -z "$etat" ] ||
+        die "source modifiée : préparer depuis un commit propre, sans mutation du dépôt reçu."
+    modes="$(git -C "$origine" ls-tree -r "$SOURCE_COMMIT")" || die "inventaire Source impossible."
+    if grep -Eq '^(120000|160000) ' <<< "$modes"; then
+        die "source avec lien symbolique ou sous-module : ressource extérieure non figée, préparation refusée."
+    fi
+    racine="$OPSYS_LOGICIEL/generations"
+    if [ -L "$racine" ] || [ -L "$OPSYS_LOGICIEL" ]; then
+        die "racine de générations symbolique refusée."
+    fi
+    mkdir -p "$racine"
+    racine="$(cd "$racine" && pwd -P)"
+    GENERATION="$(mktemp -d "$racine/generation-XXXXXXXXXX")" || die "réservation de génération impossible."
+    chmod 700 "$GENERATION"
+    SOURCE="$GENERATION/source"
+    mkdir "$SOURCE"
+    # git archive matérialise des fichiers distincts ; aucun cp -l, worktree partagé ou dépôt mutable lié.
+    git -C "$origine" archive --format=tar "$SOURCE_COMMIT" | tar -xf - -C "$SOURCE" ||
+        die "copie indépendante du commit impossible ; génération incomplète conservée."
+    SOURCE_GEREE=0
+    VENV="$GENERATION/venv"
+    VENV_PY="$VENV/bin/python"
+    MOTEUR_PY="$VENV_PY"
+    UV_LINK_MODE=copy installer_moteur
+    preparer_sqlite_privee
+    # Les symlinks d'interpréteur du venv restent une dépendance système explicitement non qualifiée.
+    # chmod ne suit aucun symlink : en particulier, aucun binaire Python extérieur n'est modifié.
+    find "$GENERATION" -mindepth 1 -type f -exec chmod a-w {} + || die "gel des fichiers impossible."
+    find "$GENERATION" -mindepth 1 -type d -exec chmod a-w {} + || die "gel des répertoires impossible."
+    "$VENV_PY" -I -S -c '
+import hashlib, json, os, stat, subprocess, sys
+from pathlib import Path
+generation, source, venv, python, commit, sqlite_helper, origin = sys.argv[1:]
+# archive peut appliquer export-ignore/export-subst : aucun fichier suivi ne doit
+# disparaître ou changer silencieusement, hors helper dont la provenance est explicite.
+inventory = subprocess.run(["git", "-C", origin, "ls-tree", "-rz", commit],
+                           check=True, stdout=subprocess.PIPE).stdout
+for record in inventory.split(b"\0"):
+    if not record:
+        continue
+    header, relative = record.split(b"\t", 1)
+    mode, kind, expected = header.split()
+    target = Path(source) / os.fsdecode(relative)
+    info = target.lstat()
+    if kind != b"blob" or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+        raise ValueError("fichier Source absent, lié ou non régulier")
+    if relative == b"install/sqlite_runtime.py" and sqlite_helper:
+        continue
+    digest = hashlib.new("sha1" if len(expected) == 40 else "sha256")
+    digest.update(b"blob " + str(info.st_size).encode() + b"\0")
+    with target.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1048576), b""):
+            digest.update(chunk)
+    if digest.hexdigest().encode() != expected:
+        raise ValueError("fichier Source différent du commit déclaré")
+manifest = {"state": "prepared", "publication": "not-published", "generation": generation,
+            "source": source, "venv": venv, "python": python, "commit": commit,
+            "system_python_dependency": "not-qualified", "core_build": "not-prepared",
+            "sqlite_helper_overlay_sha256": sqlite_helper or None}
+# Le nom accepté devient visible seulement après écriture complète et fsync réussis.
+# Un fichier pending éventuel conserve le diagnostic sans annoncer prepared.
+pending = Path(generation) / ".generation.json.pending"
+with pending.open("x") as stream:
+    json.dump(manifest, stream, sort_keys=True)
+    stream.write("\n")
+    stream.flush()
+    os.fsync(stream.fileno())
+os.replace(pending, Path(generation) / "generation.json")
+' "$GENERATION" "$SOURCE" "$VENV" "$MOTEUR_PY" "$SOURCE_COMMIT" "$GENERATION_SQLITE_HELPER_SHA" "$origine" ||
+        die "finalisation de la génération impossible ; aucun pointeur publié."
+    if ! chmod 400 "$GENERATION/generation.json" || ! chmod 500 "$GENERATION"; then
+        rm -f "$GENERATION/generation.json"
+        die "gel final impossible ; génération incomplète, aucun pointeur publié."
+    fi
+    info "génération préparée sans publication : $GENERATION"
+}
+
 # -- 3. Le core et le moteur -----------------------------------------------------------------------------------------------
+publier_generation() {
+    [ "$PREPARER_GENERATION" -eq 0 ] || die "préparer et publier sont deux opérations distinctes."
+    chemin_absolu "génération préparée" "$PUBLIER_GENERATION"
+    [ -n "$OPSYS_SOURCE" ] || die "la publication exige --source vers un Core local déjà construit."
+    SOURCE="$(cd "$OPSYS_SOURCE" && pwd -P)" || die "Core local inaccessible."
+    [ -f "$SOURCE/core/openclaw.mjs" ] || die "point d’entrée du Core local absent."
+    command -v node >/dev/null 2>&1 || die "Node est requis pour le propriétaire de publication du Core."
+    # Le Core garde l’autorité jusqu’à la restauration/nettoyage joints. Aucun Python direct ni repli ici.
+    etape "Publication du runtime de l’instance existante sous propriétaire Gateway" \
+        noyau metier instance publier-generation --generation "$PUBLIER_GENERATION" --logiciel "$OPSYS_LOGICIEL"
+}
+
 version_pnpm_du_core() {
     sed -n 's/.*"packageManager"[[:space:]]*:[[:space:]]*"pnpm@\([^"+]*\)[^"]*".*/\1/p' "$SOURCE/core/package.json" | head -n 1
 }
@@ -511,9 +634,45 @@ installer_moteur() {
             --no-build-isolation
 }
 
+# Le profil privé qualifié est facultatif et explicitement sélectionné. Le chemin retourné est ensuite
+# le SEUL lanceur métier (installation, CLI autonome et deux commandes metier.json), jamais celui de Node.
+# Une sélection déjà installée est revalidée et conservée lors de la mise à jour.
+preparer_sqlite_privee() {
+    local selection="$OPSYS_LOGICIEL/runtime/sqlite-privee"
+    local library="${OPSYS_SQLITE_LIBRARY:-}"
+    if [ -n "$GENERATION" ]; then
+        if [ -z "$library" ] && [ -d "$selection" ]; then
+            library="$selection/libsqlite3.so.0.8.6"
+        fi
+        selection="$GENERATION/runtime/sqlite-privee"
+    fi
+    if [ -z "$library" ] && [ ! -e "$selection" ] && [ ! -L "$selection" ]; then
+        return 0
+    fi
+    if [ -n "$GENERATION" ]; then
+        # Le helper livré par ce bundle est épinglé indépendamment du commit Source reçu.
+        # Sa copie privée conserve cette provenance explicite dans la génération.
+        local helper
+        helper="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/sqlite_runtime.py" ||
+            die "répertoire du helper SQLite inaccessible."
+        GENERATION_SQLITE_HELPER_SHA=75de1b3dbcc96b02ab970187439ad8101e547eebac415bc535773b8f87df6e89
+        if [ ! -f "$helper" ] || [ -L "$helper" ]; then
+            die "helper SQLite qualifié absent du bundle."
+        fi
+        printf '%s  %s\n' "$GENERATION_SQLITE_HELPER_SHA" "$helper" | sha256sum --check --status ||
+            die "helper SQLite différent du composant qualifié."
+        cp "$helper" "$SOURCE/install/sqlite_runtime.py" || die "copie privée du helper SQLite impossible."
+    fi
+    local args=(--root "$selection" --python "$VENV_PY")
+    if [ -n "$library" ]; then args+=(--library "$library"); fi
+    MOTEUR_PY="$("$VENV_PY" -I -S "$SOURCE/install/sqlite_runtime.py" "${args[@]}")" ||
+        die "profil SQLite privé refusé : aucun repli vers SQLite système."
+    [ -x "$MOTEUR_PY" ] || die "lanceur SQLite privé indisponible."
+}
+
 # -- 4. L'instance -----------------------------------------------------------------------------------------------------------
 moteur_opsys() {
-    OPSYS_HOME="$OPSYS_HOME" "$VENV_PY" -m opsys.cli "$@"
+    OPSYS_HOME="$OPSYS_HOME" "$MOTEUR_PY" -m opsys.cli "$@"
 }
 
 # Le dossier d'état du core est celui que le moteur Python calcule (instance.dossier_core : la règle du fork, une seule
@@ -530,7 +689,7 @@ determiner_dossier_core() {
 
 initialiser_instance() {
     local args sortie erreurs code=0
-    args=(instance initialiser --source "$SOURCE")
+    args=(instance initialiser --source "$SOURCE" --lanceur-python "$MOTEUR_PY")
     if [ -n "$PORT_GATEWAY" ]; then args+=(--port-gateway "$PORT_GATEWAY"); fi
     if [ -n "$PORT_MOTEUR" ]; then args+=(--port-moteur "$PORT_MOTEUR"); fi
     erreurs="$(mktemp "${TMPDIR:-/tmp}/opsys-erreurs.XXXXXX")"
@@ -705,7 +864,7 @@ contenu_commande_moteur() {
     printf '%s\n' '#!/usr/bin/env bash' "$MARQUE"
     printf 'DEFAUT=%q\n' "$OPSYS_HOME"
     printf '%s\n' 'OPSYS_HOME="${OPSYS_HOME:-$DEFAUT}"' 'export OPSYS_HOME'
-    printf 'PY=%q\n' "$VENV_PY"
+    printf 'PY=%q\n' "$MOTEUR_PY"
     printf 'DOSSIER_CORE=%q\n' "$DOSSIER_CORE"
     if [ "$INGESTION_PDF" -eq 1 ] && [ -n "$FICHIER_INGESTION" ]; then
         printf 'INGESTION_DEFAUT=%q\n' "$FICHIER_INGESTION"
@@ -871,6 +1030,18 @@ main() {
     trap 'printf "[opsys] terminé par un signal.\n" >&2; exit 143' TERM
 
     analyser_arguments "$@"
+    if [ -n "$PUBLIER_GENERATION" ]; then
+        resoudre_chemins
+        ouvrir_journal
+        publier_generation
+        return 0
+    fi
+    if [ "$PREPARER_GENERATION" -eq 1 ]; then
+        resoudre_chemins
+        ouvrir_journal
+        preparer_generation
+        return 0
+    fi
     verifier_mode_fournisseur
     resoudre_chemins
     verifier_prerequis
@@ -882,6 +1053,7 @@ main() {
     construire_core
     preparer_image_sandbox
     installer_moteur
+    preparer_sqlite_privee
     determiner_dossier_core
     metadonnees_ingestion_pdf check
     initialiser_instance
