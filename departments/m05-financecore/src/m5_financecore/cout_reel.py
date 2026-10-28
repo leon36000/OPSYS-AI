@@ -24,7 +24,7 @@ jamais le prix d'un autre matériau. Deux fournisseurs au livre avec des prix di
 ARRONDI (un seul mode, `ROUND_HALF_UP`, le même que `facturation.py` et M3) :
 - chaque ligne de matériau : quantité × prix unitaire, arrondi au cent ; le coût des matériaux est la somme de ces
   lignes arrondies (comme une ligne de facture) ;
-- la main-d'oeuvre : minutes × taux horaire ÷ 60, UN SEUL arrondi au cent, sur le produit exact ;
+- la main-d'oeuvre issue d'une ventilation : arrondi au cent par ligne (voir `ventilation_couts_visites.py`) ;
 - une marge en pourcentage est le rapport marge ÷ prix, arrondi à 4 décimales (0.2500 = 25 %) ; c'est la marge
   SUR LE PRIX, pas la majoration sur le coût que porte `taux_marge` du devis (recopiée telle quelle, à part).
 
@@ -69,7 +69,6 @@ TYPE_EVENEMENT_RENTABILITE = "m5.rentabilite_chantier"
 
 _CENT = Decimal("0.01")
 _QUATRE_DECIMALES = Decimal("0.0001")
-_MINUTES_PAR_HEURE = Decimal("60")
 _DEVISE = "CAD"
 # Ordre de grandeur au-delà duquel une valeur lue (montant, quantité, prix, durée) est illisible : 10^12.
 # Un chantier de rénovation n'en approche jamais ; ce plafond garde tout calcul dans la précision de
@@ -83,7 +82,7 @@ _STATUT_LIGNE_INDETERMINEE = "LIGNE_INDETERMINEE"
 
 _ARRONDI = (
     "ROUND_HALF_UP au cent : chaque ligne de matériau (quantité x prix unitaire), puis la main-d'oeuvre "
-    "(minutes x taux horaire / 60, un seul arrondi) ; marges en pourcentage du prix, à 4 décimales "
+    "(une ligne ventilée par visite et équipe) ; marges en pourcentage du prix, à 4 décimales "
     "(0.2500 = 25 %)"
 )
 
@@ -91,8 +90,8 @@ _ARRONDI = (
 _HYPOTHESES = (
     "les matériaux sont valorisés au tarif M6 éligible à la date civile de complétion du WCT "
     "(dans sa zone déclarée), avec unité identique confirmée ; ce tarif ne prouve pas le coût du lot acheté",
-    "la main-d'oeuvre est la durée pointée sur site du WCT (pauses déduites) multipliée par le taux horaire "
-    "configuré ; le WCT ne porte pas l'effectif : ce taux est celui de l'équipe intervenante, par heure sur site",
+    "le WCT scalaire ne permet pas de vérifier les équipes présentes à chaque visite : une ventilation "
+    "certifiée et des taux sourcés sont nécessaires pour chiffrer la main-d'oeuvre",
     "le coût réel ne compte que les matériaux et la main-d'oeuvre sur site : ni déplacements, ni frais généraux",
 )
 
@@ -352,10 +351,12 @@ def _main_d_oeuvre(wct_recu: Mapping[str, Any] | None, taux_brut: Any) -> dict[s
     if verdict_taux is not None:
         manques.append(dict(verdict_taux))
     cout = None
-    if duree is not None and taux is not None:
-        cout = _au_cent(Decimal(duree) * taux / _MINUTES_PAR_HEURE)
-        if cout is None:
-            manques.append(_manque("REJ-COUT-TEMPS-POINTE-ABSENT", "durée x taux hors des limites de calcul"))
+    if duree is not None:
+        manques.append(_manque(
+            "REJ-COUT-TEMPS-POINTE-ABSENT",
+            "durée WCT scalaire sans preuve de présence par visite et équipe ; "
+            "demander la ventilation certifiée M4 et les taux applicables sourcés",
+        ))
     return {"statut": "complet" if cout is not None else "non_disponible", "minutes": duree,
             "taux_horaire": taux, "cout": cout, "manque": manques}
 
