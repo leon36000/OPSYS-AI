@@ -486,3 +486,17 @@ def test_le_catalogue_du_socle_porte_le_type_et_son_schema_est_versionne():
     assert set(schema["properties"]) == _CLES
     fichier = Path(evenements.schemas.__file__).parent / "catalogue" / f"{TYPE}.json"
     assert fichier.is_file()
+
+
+def test_catalogue_refuse_une_charge_complete_fictive_sans_marges_requises():
+    """Le contrat bus complet reste exercé sans déclarer complet un WCT scalaire ambigu."""
+    charge = _charge()
+    complete = {**charge, "verdict": "CALCULEE", "cout_reel_complet": True,
+                "cout_reel_cad": "486.00", "cout_connu_cad": "486.00",
+                "marge_reelle_cad": "114.00", "marge_prevue_cad": "120.00",
+                "ecart_marge_cad": "-6.00", "manque": []}
+    assert erreurs_charge(TYPE, complete) == []
+    assert erreurs_charge(TYPE, {**complete, "marge_reelle_cad": None})
+    assert erreurs_charge(TYPE, {**complete, "cout_reel_cad": None})
+    assert erreurs_charge(TYPE, {**complete, "cout_reel_complet": False})
+    assert erreurs_charge(TYPE, {**complete, "marge_prevue_cad": None})

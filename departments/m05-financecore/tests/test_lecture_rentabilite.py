@@ -461,3 +461,14 @@ def test_un_second_wct_pour_le_meme_devis_rend_le_cout_partiel_jamais_le_total_d
     assert "WCT-2" in r["manque"][0]["detail"]
     assert r["marge_reelle"] is None and r["cout_reel"]["cout_total"] is None
     assert r["cout_reel"]["cout_total_connu"] == "486.00"  # celui du premier, dit connu et non total
+
+
+def test_vue_partielle_masque_tous_les_montants_et_prix_fournisseur(par_nom, chantier_complet):
+    """La protection d'accès reste exercée lorsque le WCT scalaire est ambigu."""
+    vue = _lire(par_nom, {"devis_id": "DEVIS-1", "autorise_couts": False})
+    (chantier,) = vue["chantiers"]
+    assert chantier["rentabilite"]["verdict"] == "PARTIELLE"
+    assert chantier["rentabilite"]["montants_masques"] is True
+    texte = json.dumps(vue)
+    for confidentiel in ("336.00", "600.00", "50.00", "gentek"):
+        assert confidentiel not in texte
