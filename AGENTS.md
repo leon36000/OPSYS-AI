@@ -75,6 +75,16 @@ Une ancienne invocation (`opsys verifier`) ne fait rien : elle dit la nouvelle (
 - Secret dans git, `--no-verify`, commit direct ou force-push sur `main`.
 - Ajouter à `core/` du code d'une autre source sans licence vérifiée ni trace dans `core/PROVENANCE.md`.
 
+## Licence et accueil public
+
+Le [LICENSE](LICENSE) racine réserve les droits sur les seuls nouveaux apports
+originaux couverts. Les droits Apache antérieurs, `core/LICENSE` (MIT) et les
+licences tierces restent applicables ; lire [docs/LICENCES.md](docs/LICENCES.md).
+Les personnes et agents mandatés continuent leur travail dans les limites de
+leur autorisation. Le README public succinct ne réduit ni les ambitions ni les
+missions : repères dans [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md).
+Ne pas requalifier rétroactivement les branches ou missions déjà publiées.
+
 ## Briques open source
 
 Réutiliser plutôt que réécrire : c'est le premier chemin à examiner, pas une étape facultative
