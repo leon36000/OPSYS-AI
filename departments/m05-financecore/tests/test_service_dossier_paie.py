@@ -851,3 +851,80 @@ def test_ecritures_concurrentes_une_seule_gagne_sans_ecriture_partielle(base, sr
         lu = journal.lire_dossier(cnx, v1["dossier_id"])
         assert [v["numero"] for v in lu["versions"]] == [1, 2]
         assert _compte_par_registre(cnx) == {("m05-financecore", "dossiers_paie_preparatoires"): 2}
+
+
+def test_revue_complete_et_export_refuses_tant_qu_un_total_est_inconnu(base, src):
+    inconnue = entrees()
+    inconnue["classification"]["regime_ccq"] = "INCONNU"
+    with tx() as cnx:
+        recu = _conserver(cnx, src, e=inconnue)
+        lu = journal.lire_dossier(cnx, recu["dossier_id"])
+        # Composition sans prérequis : aucun cumul « après » n'est proposé à la période suivante.
+        assert lu["versions"][0]["version"]["cumuls_apres_hypothetiques"] is None
+        avant = _lignes(cnx)
+        with pytest.raises(service.ServiceErreur) as exc:
+            _revue(cnx, src, recu, mutation=2)
+        assert exc.value.verdict["code"] == "REJ-DOSSIER-PAIE-REVUE-INVALIDE"
+        assert "net_preparatoire" in exc.value.verdict["detail"]
+        assert _lignes(cnx) == avant
+        assert _revue(cnx, src, recu, mutation=3, decision="A_CORRIGER", note="classification à établir")
+    incomplet = entrees(employeur=False)  # DAS et coût employeur inconnus
+    with tx() as cnx:
+        recu2 = _conserver(cnx, src, e=incomplet, employe=AUTRE_EMPLOYE, mutation=4)
+        with pytest.raises(service.ServiceErreur) as exc2:
+            _revue(cnx, src, recu2, mutation=5)
+        assert "das_complete" in exc2.value.verdict["detail"]
+
+
+def test_cumul_simule_refuse_si_nature_calendrier_ou_ecart_different(base, src):
+    with tx() as cnx:
+        p1 = _conserver(cnx, src, mutation=1)  # dossier fictif, première paie 2026-01-15
+        for modif, mutation in (
+            (lambda e: e.update(fictif=False), 2),
+            (lambda e: e["periode"].update(premiere_date_paie_annee="2026-01-08"), 3),
+        ):
+            e = entrees(2, debut="2026-01-15", fin="2026-01-28", date_paie="2026-01-29")
+            e["cumuls_avant"]["origine"] = "SIMULE_VERSION_PRECEDENTE"
+            e["cumuls_avant"]["source_simulee"] = {
+                "dossier_id": p1["dossier_id"],
+                "numero_version": 1,
+                "hash_version": p1["hash_version"],
+            }
+            modif(e)
+            with pytest.raises(service.ServiceErreur) as exc:
+                _conserver(cnx, src, e=e, mutation=mutation)
+            assert exc.value.verdict["code"].startswith("REJ-DOSSIER-PAIE-")
+
+
+def test_poste_calcule_sans_montant_devient_inconnu_et_aucun_total_calcule():
+    from m5_financecore import dossier_paie_preparatoire as dossier
+
+    sans_montant = dossier._poste("x", "x", "employe", "x", "CALCULE", None, moteur="x")
+    assert dossier._somme([sans_montant]) is None
+    connu = dossier._poste("y", "y", "employe", "y", "NON_APPLICABLE", None, moteur="y")
+    assert dossier._somme([connu]) is not None
+
+
+def test_controle_d_etat_est_rejoue_et_refuse_sans_ecriture(base, src):
+    with tx() as cnx:
+        v1 = _conserver(cnx, src)
+        avant = _lignes(cnx)
+
+        def toujours_refuse(_tous, _courant):
+            raise service.ServiceErreur(d.refus("ETAT-INVALIDE", "précondition devenue fausse"))
+
+        with pytest.raises(service.ServiceErreur):
+            journal.ajouter(
+                cnx,
+                dossier_id=v1["dossier_id"],
+                type_evt="REVUE",
+                mutation_id=_mid(9),
+                acteur=OWNER,
+                horodatage=NOW,
+                version_attendue=1,
+                requete_sha256="0" * 64,
+                verifier_acteur=src.verifier_acteur,
+                contenu={"numero": 1, "hash_version": v1["hash_version"], "decision": "A_CORRIGER", "note": ""},
+                controle=toujours_refuse,
+            )
+        assert _lignes(cnx) == avant

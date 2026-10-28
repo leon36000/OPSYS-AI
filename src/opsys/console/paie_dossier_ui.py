@@ -885,7 +885,10 @@ def creer_router(
                 session, liste_employes(session), _valeurs_de_refus(entrees, employe, data), action=f"{base}/apercu"
             )
             return reponse_html(session, "Aperçu refusé", contenu, verdict_http(verdict))
-        version_attendue = int(data.get("version_attendue") or 0)
+        attendue_texte = data.get("version_attendue") or "0"
+        if not attendue_texte.isdecimal() or len(attendue_texte) > 4:
+            raise HTTPException(400, "version attendue invalide")
+        version_attendue = int(attendue_texte)
         type_version = data.get("type_version") or "CREATION"
         conserver = ""
         if resultat["conservable"]:

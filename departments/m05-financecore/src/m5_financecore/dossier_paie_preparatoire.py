@@ -517,6 +517,8 @@ def _somme(postes: list[dict[str, Any]]) -> Decimal | None:
     with localcontext(_ctx()):
         total = Decimal(0)
         for poste in postes:
+            if poste["etat"] != "NON_APPLICABLE" and poste["montant"] is None:
+                return None  # un poste « connu » sans montant n'est jamais compté pour zéro
             total += _dec(poste["montant"] or "0.00")
         return total
 
@@ -557,7 +559,7 @@ def matrice_et_totaux(
             lib,
             porteur,
             autorite,
-            "INCONNU" if bloque else "CALCULE",
+            "INCONNU" if bloque or montant is None else "CALCULE",
             montant,
             moteur=moteur,
             manque=[raison] if bloque else None,

@@ -410,6 +410,7 @@ def ajouter(
     version_attendue: int,
     requete_sha256: str,
     verifier_acteur: Callable[[Connection, str], None],
+    controle: Callable[[dict[str, dict[str, Any]], dict[str, Any] | None], None] | None = None,
 ) -> dict[str, Any]:
     """Ajoute un événement chiffré si le CAS de version tient; rejeu exact → REJOUEE; sinon refus sans écriture.
 
@@ -443,6 +444,9 @@ def ajouter(
                 return {"statut": "REJOUEE", "rang": existant["rang"], "evenement": existant}
             raise JournalErreur("MUTATION-CONFLIT", "identifiant de mutation déjà utilisé avec une autre requête")
         courant = _projeter(evenements).get(dossier_id)
+        if controle is not None:
+            # Préconditions d'état rejouées à CHAQUE tentative : une écriture concurrente ne les contourne pas.
+            controle(_projeter(evenements), courant)
         numero_courant = len(courant["versions"]) if courant else 0
         if numero_courant != version_attendue:
             raise JournalErreur(

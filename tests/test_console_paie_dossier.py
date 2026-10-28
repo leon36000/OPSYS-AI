@@ -1033,3 +1033,10 @@ def test_redemarrage_meme_donnees_meme_export(env, client):
             export2.content == export1.content
             and export2.headers["x-export-sha256"] == export1.headers["x-export-sha256"]
         )
+
+
+def test_version_attendue_non_numerique_donne_400_et_non_500(env, client):
+    csrf = connecter(client)
+    donnees = champs_formulaire(EMPLOYEE, entrees_periode(20))
+    reponse = post_form(client, "/finance/paie/dossiers/apercu", donnees, csrf, action="apercu", version_attendue="abc")
+    assert reponse.status_code == 400

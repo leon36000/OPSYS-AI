@@ -13,6 +13,7 @@ changé entre-temps, la conservation est refusée et l'aperçu doit être refait
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from datetime import date
 from typing import Any
 
 from sqlalchemy import Connection
@@ -31,6 +32,37 @@ ServiceErreur = dossier.DossierErreur
 
 def _lever(code: str, detail: str) -> ServiceErreur:
     return ServiceErreur(dossier.refus(code, detail))
+
+
+def _controle_etat(
+    etats: frozenset[str], code: str, detail: str
+) -> Callable[[dict[str, Any], dict[str, Any] | None], None]:
+    """Précondition d'état rejouée par le journal à chaque tentative d'écriture (concurrence incluse)."""
+
+    def controle(_tous: dict[str, Any], courant: dict[str, Any] | None) -> None:
+        if courant is None or courant["etat"] not in etats:
+            raise _lever(code, detail)
+
+    return controle
+
+
+def _controle_creation(
+    dossier_id: str, employee_person_id: str, annee: int, periode_annuelle: int
+) -> Callable[[dict[str, Any], dict[str, Any] | None], None]:
+    def controle(tous: dict[str, Any], courant: dict[str, Any] | None) -> None:
+        if courant is not None and courant["etat"] == "REVUE_COMPLETEE":
+            raise _lever("DOSSIER-REVU", "dossier revu : rouvrez-le explicitement avant de conserver une version")
+        for autre in tous.values():
+            ident = autre["versions"][-1]["version"]["identite"]
+            if (
+                autre["dossier_id"] != dossier_id
+                and ident["employee_person_id"] == employee_person_id
+                and ident["annee"] == annee
+                and ident["periode_annuelle"] == periode_annuelle
+            ):
+                raise _lever("DOSSIER-DOUBLON", "un dossier existe déjà pour cet employé et cette période")
+
+    return controle
 
 
 def _resume_admission(admission: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -100,6 +132,17 @@ def _resoudre_cumuls_simules(
             "CUMUL-PERIME",
             "la version simulée n'est plus la version courante de la période précédente : rebase explicite requis",
         )
+    source_entrees = courante["version"]["entrees"]
+    ecart = (date.fromisoformat(periode["date_paie"]) - date.fromisoformat(source_entrees["periode"]["date_paie"])).days
+    if (
+        source_entrees["fictif"] != entrees["fictif"]
+        or source_entrees["periode"]["premiere_date_paie_annee"] != periode["premiere_date_paie_annee"]
+        or ecart != 14
+    ):
+        raise _lever(
+            "CUMUL-INVALIDE",
+            "la source simulée doit être de même nature (fictif), même calendrier de paie et 14 jours plus tôt",
+        )
     apres = courante["version"].get("cumuls_apres_hypothetiques")
     if not isinstance(apres, Mapping) or set(apres) != set(dossier.CHAMPS_CUMULS):
         raise _lever(
@@ -147,7 +190,11 @@ def _construire_version(
         },
         "admission": _resume_admission(admission),
         "calcul": calcul,
-        "cumuls_apres_hypothetiques": dossier.cumuls_apres(entrees, calcul, brut_cad) if brut_cad else None,
+        "cumuls_apres_hypothetiques": (
+            dossier.cumuls_apres(entrees, calcul, brut_cad)
+            if brut_cad and not calcul.get("prerequis_manquants")
+            else None
+        ),
         "parametres": {
             "employeur_hash": dossier.cotisations_employeur_2026.HASH_PARAMETRES,
             "federal_hash": (calcul.get("moteurs") or {}).get("hash_parametres_federal"),
@@ -328,6 +375,15 @@ def conserver_version(
         cnx,
         dossier_id=dossier_id,
         type_evt="VERSION",
+        controle=(
+            _controle_creation(dossier_id, employee_person_id, periode["annee"], periode["periode_annuelle"])
+            if type_version == "CREATION"
+            else _controle_etat(
+                frozenset({"EN_PREPARATION", "A_CORRIGER", "ROUVERT"}),
+                "DOSSIER-REVU",
+                "dossier revu : rouvrez-le explicitement avant de conserver une nouvelle version",
+            )
+        ),
         mutation_id=mutation_id,
         acteur=acteur,
         horodatage=maintenant,
@@ -386,6 +442,11 @@ def rouvrir(
         cnx,
         dossier_id=dossier_id,
         type_evt="REOUVERTURE",
+        controle=_controle_etat(
+            frozenset({"REVUE_COMPLETEE", "A_CORRIGER"}),
+            "ETAT-INVALIDE",
+            "seul un dossier revu ou à corriger peut être rouvert",
+        ),
         mutation_id=mutation_id,
         acteur=acteur,
         horodatage=maintenant,
@@ -550,8 +611,15 @@ def revue(
     if d["etat"] == "REVUE_COMPLETEE":
         raise _lever("ETAT-INVALIDE", "version déjà revue : rouvrez le dossier pour la corriger")
     if decision == "REVUE_COMPLETEE":
-        if derniere["version"]["calcul"]["etat"] != "COMPOSE_PREPARATOIRE":
-            raise _lever("REVUE-INVALIDE", "seule une composition complète peut être revue comme complète")
+        calcul_fige = derniere["version"]["calcul"]
+        inconnus = [cle for cle, t in calcul_fige["totaux"].items() if t["etat"] != "CALCULE"]
+        if calcul_fige["etat"] != "COMPOSE_PREPARATOIRE" or inconnus:
+            raise _lever(
+                "REVUE-INVALIDE",
+                "revue complète impossible tant que tous les totaux ne sont pas calculés (inconnus : "
+                + (", ".join(inconnus) or "composition incomplète")
+                + ") ; utiliser A_CORRIGER",
+            )
         controle = verifier_version(
             cnx,
             dossier_id=dossier_id,
@@ -568,6 +636,9 @@ def revue(
         cnx,
         dossier_id=dossier_id,
         type_evt="REVUE",
+        controle=_controle_etat(
+            frozenset({"EN_PREPARATION", "A_CORRIGER"}), "ETAT-INVALIDE", "version déjà revue ou dossier rouvert"
+        ),
         mutation_id=mutation_id,
         acteur=acteur,
         horodatage=maintenant,
@@ -710,6 +781,11 @@ def exporter(
         cnx,
         dossier_id=dossier_id,
         type_evt="EXPORT",
+        controle=_controle_etat(
+            frozenset({"REVUE_COMPLETEE"}),
+            "EXPORT-REFUSE",
+            "export refusé : la version courante n'a pas de revue complétée",
+        ),
         mutation_id=mutation_id,
         acteur=acteur,
         horodatage=maintenant,
