@@ -92,3 +92,9 @@ sans permission d’écriture ajoutée à `/tmp`. Diagnostic fictif temporaire r
 
 Voir [garde, limites et activation](CRM06-IMAP-GARDE-BOITE.md). Suivi client courriel complet toujours
 MANQUANT, activation d’un ancien état ambigu soumise à une procédure de reprise validée.
+
+## Tranche suivante : contrat original
+
+Le [codec pur](CRM06-COURRIEL-CONTRAT.md) contrôle la capture binaire, son identité et ses bornes.
+60 tests natifs passent après correction causale mémoire et copie privée concurrente. Aucun stockage,
+ACK M1, capacité Host, permission ou rattachement n’est livré par ce seul composant.
