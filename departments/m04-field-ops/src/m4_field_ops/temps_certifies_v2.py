@@ -100,10 +100,14 @@ def _projection(instance_id, intervention_id, wct_id, captures):
     if len(wcts) != 1 or wcts[0][outbox.CLE_WCT].get('wct_id') != wct_id:
         raise Refus('WCT-ABSENT-OU-AMBIGU')
     maillon_wct, wct = wcts[0], wcts[0][outbox.CLE_WCT]
+    rang_wct = next(i for i, m in enumerate(maillons) if m['ligne_id'] == maillon_wct['ligne_id'])
+    statut_precedent = etats.statut_courant(Registre(maillons[:rang_wct]), intervention_id)
     depart = outbox._dernier_depart(principal, intervention_id)
     if (wct_id != encodage.empreinte('wct', intervention_id, maillon_wct['horodatage'])
             or wct['lead_id'] != outbox._extraire_lead_id(principal, intervention_id)
             or type(wct['duree_reelle_minutes']) is not int or wct['duree_reelle_minutes'] < 0
+            or maillon_wct.get('statut_precedent') != statut_precedent
+            or (statut_precedent, maillon_wct['statut']) not in etats.TRANSITIONS_AUTORISEES
             or depart is None or (wct['technicien_id'], wct['horodatage_completion']) != depart[:2]):
         raise Refus('WCT-INVALIDE')
     certifie = visites_chantier.calculer_faits_certifies(principal, visites, intervention_id)
@@ -131,22 +135,20 @@ def _projection(instance_id, intervention_id, wct_id, captures):
         if len(routes) != 1:
             raise Refus('ROUTE-AMBIGUE')
         technicien, equipe = routes[0]['technicien_id'], prev['creneau']['equipe_id']
-        equipe_identifiee = technicien == equipe
         declaration = _declaration(precedentes, prev['creneau']['debut'][:10], equipe)
         inconnus.append({'code': 'presence_individuelle_non_observee', 'visite_id': visite_id})
         if declaration['statut'] != 'declaree':
             inconnus.append({'code': 'composition_indisponible', 'visite_id': visite_id})
-        if not equipe_identifiee:
-            inconnus.append({'code': 'equipe_pointee_indeterminee', 'visite_id': visite_id})
+        # Les registres historiques ne typent pas technicien_id : une personne
+        # et une équipe peuvent être homonymes. L'égalité ne prouve pas le type.
+        inconnus.append({'code': 'equipe_pointee_indeterminee', 'visite_id': visite_id})
         evenements = []
         for fait in faits:
             typ = fait['statut'] if fait['type_entree'] == 'transition_statut' else fait['action']
             evenements.append({'type': typ, 'source_ligne_id': fait['ligne_id'],
                                'horodatage': fait['horodatage'], 'revue_gps': _revue_gps(maillons, fait)})
         sorties.append({'visite_id': visite_id, 'ancre': prev['ancre'], 'equipe_planifiee_id': equipe,
-            'equipe_pointee': {'statut': 'identifiee' if equipe_identifiee else 'inconnue',
-                               'identifiant': equipe if equipe_identifiee else None,
-                               'justification': 'egalite_route_et_prevision' if equipe_identifiee else 'indeterminee'},
+            'equipe_pointee': {'statut': 'inconnue', 'identifiant': None, 'justification': 'indeterminee'},
             'identifiant_pointe': technicien,
             'ouverture': {'source_ligne_id': ouvertures[0]['ligne_id'], 'horodatage': ouvertures[0]['horodatage']},
             'evenements': evenements,
@@ -158,6 +160,22 @@ def _projection(instance_id, intervention_id, wct_id, captures):
                    and m.get('type_entree') == etats.TYPE_TRANSITION and m.get('statut') in outbox.STATUTS_COMPLETION]
     if not transitions or transitions[-1]['statut'] != etats.statut_courant(principal, intervention_id):
         raise Refus('REVUE-INCOHERENTE')
+    precedent = maillon_wct
+    for transition in transitions[1:]:
+        decision = transition.get('decision_revue')
+        motif = transition.get('motif_revue')
+        evenement = transition.get('evenement_id_variance')
+        if (transition.get('statut_precedent') != precedent['statut']
+                or visites_chantier._instant(transition['horodatage'])
+                < visites_chantier._instant(precedent['horodatage'])):
+            raise Refus('REVUE-INCOHERENTE')
+        if decision is not None:
+            if (decision not in ('verifiee', 'correction') or not isinstance(motif, str) or not motif.strip()
+                    or evenement is not None):
+                raise Refus('REVUE-NON-JUSTIFIEE')
+        elif not isinstance(evenement, str) or not evenement.strip():
+            raise Refus('REVUE-NON-JUSTIFIEE')
+        precedent = transition
     statut = transitions[-1]['statut']
     projection = {'version': VERSION, 'instance_id': instance_id, 'chantier_id': None,
         'intervention_id': intervention_id, 'lead_id': wct['lead_id'],
@@ -199,9 +217,12 @@ def projeter(cnx, intervention_id, wct_id, *, source_attendue=None):
         if len(json.dumps(resultat, ensure_ascii=False, allow_nan=False).encode('utf-8')) > min(
                 borne if borne is not None else 65536, 65536):
             raise Refus('SORTIE-TROP-VOLUMINEUSE')
+        captures_finales = _sources(cnx)
         instance_finale = cnx.execute(requete_instance).scalar_one_or_none()
-        if _autoriser(cnx) != auteur or _sources(cnx) != captures or instance_finale != instance_id:
+        if captures_finales != captures or instance_finale != instance_id:
             raise Refus('SOURCE-MODIFIEE')
+        if _autoriser(cnx) != auteur:
+            raise Refus('IDENTITE')
         return resultat
     except Refus:
         raise

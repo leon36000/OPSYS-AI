@@ -268,3 +268,52 @@ def test_revue_verifiee_ne_modifie_pas_le_wct_et_invalide_le_cas(chantier_termin
         assert apres['projection']['revue_chantier']['source_ligne_id'] != avant['projection']['wct']['source_ligne_id']
         assert apres['projection']['wct'] == avant['projection']['wct']
         assert apres['projection']['totaux'] == avant['projection']['totaux']
+
+
+def test_egalite_identifiant_personne_et_equipe_ne_prouve_pas_type_equipe(chantier_termine):
+    cas = chantier_termine
+    with stockage.transaction(cas['url']) as cnx:
+        # Le domaine autorise explicitement une personne homonyme d'une équipe.
+        identite.creer_personne(cnx, cas['equipes'][0], 'Personne fictive homonyme', 'Fictif#12345678')
+        projection = _appel(cnx, cas)['projection']
+        lundi = projection['visites'][0]
+        assert lundi['identifiant_pointe'] == lundi['equipe_planifiee_id']
+        assert lundi['equipe_pointee']['statut'] == 'inconnue'
+        assert lundi['equipe_pointee']['identifiant'] is None
+        assert {'code': 'equipe_pointee_indeterminee', 'visite_id': lundi['visite_id']} in projection['inconnus']
+
+
+def test_wct_rechaine_avec_etat_precedent_impossible_refuse(chantier_termine):
+    from dataclasses import replace
+
+    from m4_field_ops import temps_certifies_v2
+
+    cas = chantier_termine
+    with stockage.transaction(cas['url']) as cnx:
+        captures = temps_certifies_v2._sources(cnx)
+        change, lignes = Registre(), []
+        for ligne in captures[0].lignes:
+            m = {k: v for k, v in ligne.maillon.items() if k not in {'ligne_id', 'precedent_ligne_id'}}
+            if 'wct' in m:
+                m = {**m, 'statut_precedent': 'annulee'}
+                transition = {k: v for k, v in m.items() if k != 'wct'}
+                m['wct'] = {**m['wct'], 'hash_maillon': encodage.empreinte(transition)}
+            change.ajouter(m)
+            lignes.append(replace(ligne, maillon=change.lire()[-1]))
+        falsifie = replace(captures[0], lignes=tuple(lignes))
+        with pytest.raises(temps_certifies_v2.Refus):
+            temps_certifies_v2._projection('instance-fictive', cas['iid'], cas['wct_id'],
+                                            (falsifie, captures[1], captures[2]))
+
+
+def test_transition_verifiee_sans_justification_refusee(chantier_termine):
+    from m4_field_ops import temps_certifies_v2
+
+    cas = chantier_termine
+    with stockage.transaction(cas['url']) as cnx:
+        principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        principal.ajouter({'type_entree': 'transition_statut', 'intervention_id': cas['iid'],
+                          'statut_precedent': 'completed_pending_review', 'statut': 'completed_verified',
+                          'horodatage': '2030-06-07T13:03:00-04:00'})
+        with pytest.raises(temps_certifies_v2.Refus):
+            _appel(cnx, cas)
