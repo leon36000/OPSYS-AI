@@ -26,7 +26,6 @@ from pathlib import Path
 import pytest
 from m9_strategic_intelligence import capture_strategique as cs
 from m9_strategic_intelligence import catalogue_producteurs as cat
-from m9_strategic_intelligence.catalogue_producteurs import Pagination
 
 from opsys import contexte, lecteurs_m9, stockage
 from opsys.departements import charger_departements
@@ -41,9 +40,6 @@ RACINE = "resultat.resultat"  # la réponse du dispatcher est {"ok": true, "resu
 
 # Chemins PROPOSÉS : seulement des champs que le producteur déclare dans sa réponse (voir les tests de chaque lecture).
 PROPOSITIONS = {
-    "m4.interventions": {
-        "pagination": Pagination("curseur", "resultat.page.curseur_suivant", "resultat.page.total"),
-    },
     "m4.cedule_semaine": {
         "instants_metier": (f"{RACINE}.interventions[*].confirme_le",),
         "revisions": (f"{RACINE}.interventions[*].revision", f"{RACINE}.interventions[*].source_ligne_id"),
@@ -166,21 +162,11 @@ def test_m4_interventions_filtre_par_statut(base, horloge):
     assert sorted(_valeurs(planifiees, "resultat[*].intervention_id")) == sorted(set(ids) - {ids[1]})
 
 
-def test_m4_interventions_pagination_le_suivant_est_dans_page_curseur_suivant(base, horloge, monkeypatch):
+def test_m4_interventions_pagination_le_suivant_est_dans_page_curseur_suivant(base, horloge):
     m4 = h.outils_departement(h.M4)
     ids = h.m4_alimenter_interventions(m4, 12)
     c = h.capacites_m9(h.M4)
-    # Catalogue ACTUEL : une seule page est lue ; le producteur dit pourtant qu'il en reste (page.reste, curseur).
-    capture = _capture(c, horloge, "m4.interventions", {"taille_page": 5})
-    assert capture["pages"] == 1
-    premiere = h.lire_capture(c, capture["index"])
-    assert len(_valeurs(premiere, "resultat.interventions[*]")) == 5
-    assert _valeurs(premiere, "resultat.page.reste") == [7] and _valeurs(premiere, "resultat.page.total") == [12]
-    curseur = _valeurs(premiere, "resultat.page.curseur_suivant")
-    assert len(curseur) == 1 and isinstance(curseur[0], str)
-    # Catalogue PROPOSÉ : la capture suit le curseur jusqu'au bout et dit qu'elle est complète.
-    proposee = dataclasses.replace(cat.PAR_ID["m4.interventions"], **PROPOSITIONS["m4.interventions"])
-    monkeypatch.setitem(cat.PAR_ID, "m4.interventions", proposee)
+    # Le catalogue suit `resultat.page.curseur_suivant` (le chemin que M4 déclare) jusqu'à la dernière page.
     complete = _capture(c, horloge, "m4.interventions", {"taille_page": 5})
     assert complete["pages"] == 3 and complete["complete"] is True and complete["verdict"] == "ACCEPTEE"
     lues = [h.lire_capture(c, complete["index"], page) for page in range(3)]
@@ -193,7 +179,7 @@ def test_m4_interventions_pagination_le_suivant_est_dans_page_curseur_suivant(ba
 def test_m4_interventions_page_non_lue_rend_la_capture_partielle(base):
     m4 = h.outils_departement(h.M4)
     h.m4_alimenter_interventions(m4, 7)
-    lecture = dataclasses.replace(cat.PAR_ID["m4.interventions"], **PROPOSITIONS["m4.interventions"])
+    lecture = cat.PAR_ID["m4.interventions"]
     lire = lecteurs_m9.construire_lecteur(charger_departements(), stockage.transaction)
     with (
         stockage.transaction(),

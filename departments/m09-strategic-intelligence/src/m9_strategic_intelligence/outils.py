@@ -83,6 +83,8 @@ from . import (
     observations_chantier,
     outils_conseil,
     outils_direction,
+    outils_graphe,
+    outils_priorites,
     outils_tissu,
     rapport_activite,
     rapport_periode,
@@ -1275,6 +1277,8 @@ def outils(
         *outils_conseil.construire_outils(
             budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible, sessions_cible=sessions_cible
         ),
+        *outils_graphe.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_priorites.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_direction.construire_outils(
             budget_sortie=BUDGET_SORTIE,
             sources_briefing=sources_du_briefing,

@@ -127,7 +127,7 @@ LECTURES: tuple[Lecture, ...] = (
         "m04-field-ops",
         "m4_lister_interventions",
         {"statut", "curseur", "taille_page"},
-        pagination=Pagination("curseur", "resultat.resultat.page.curseur_suivant", "resultat.resultat.page.total"),
+        pagination=Pagination("curseur", "resultat.page.curseur_suivant", "resultat.page.total"),
     ),
     _lecture(
         "m4.cedule_semaine",
