@@ -30,7 +30,9 @@
         "Ports et authenticité des producteurs à qualifier"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "M9 n'a aucun port de lecture M1–M7 : seuls un push de SnapshotModule (m9_etat_consolide, non authentifié) et 2 événements M8 (alerte_proposee, snapshot_chantier WCT M4). Plan : port privé de lecture serveur des outils T0 des producteurs + registre de captures chaîné (temps métier/observation/réception/référence distincts). Raccord partagé (departements.py/capacites.py) en commit distinct."
     },
     {
       "id": "M9.2",
@@ -43,7 +45,9 @@
       "initial_status": "A_REQUALIFIER",
       "gates_to_resolve_or_keep_open": [],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Rien n'existe (etat_consolide = dernier fait par module). Plan : graphe d'impacts à relations déclarées et justifiées par champs réellement capturés (rupture M6→chantier M4→pipeline M2→impacts M5), sans quantité inventée."
     },
     {
       "id": "M9.3",
@@ -59,7 +63,9 @@
         "Contrats M8 à réconcilier"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Registre M8 de métriques durable (metric_id, unité, propriétaire, fraîcheur attendue) + version_definition (empreinte) : deux régimes de version. Aucun paquet de preuves M8.17 en code. Plan : couche sémantique qui refuse d'agréger unités/versions incompatibles et cite le propriétaire."
     },
     {
       "id": "M9.4",
@@ -76,7 +82,9 @@
         "Backend déjà autorisé et budget effectif"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Aucun port Python ne demande un tour d'agent Core ; aucun backend modèle configuré dans l'environnement (gate GATED_DEPENDENCY pour la qualification réelle). Plan : 12 rôles + sélection déterministe des spécialistes + chaîne et budget/refus prouvés sur doubles de protocole identifiés ; adaptateur prêt pour le runtime natif (profils agents.py, admission_agents)."
     },
     {
       "id": "M9.5",
@@ -92,7 +100,9 @@
         "Ordonnanceur natif pour qualification de la planification"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Briefing du matin existant (file approbations + alertes M8 + faits de veille). Planification : generateur automatisations.sh seulement ; exécuteur natif non qualifié (gate)."
     },
     {
       "id": "M9.6",
@@ -106,7 +116,9 @@
       "initial_status": "A_REQUALIFIER",
       "gates_to_resolve_or_keep_open": [],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "rapport_periode/rapport_activite existent (période, pagination). Rapport exécutif hebdomadaire sur sources M1–M8 à construire."
     },
     {
       "id": "M9.7",
@@ -120,7 +132,9 @@
       "initial_status": "A_REQUALIFIER",
       "gates_to_resolve_or_keep_open": [],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Dépend des captures versionnées (lot 1) pour éviter toute reconstruction historique non observée."
     },
     {
       "id": "M9.8",
@@ -135,7 +149,9 @@
         "Ports de simulation métier existants à qualifier"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Aucun moteur de scénarios. M5 (m5_preparer_decision_capital, m5_prevoir_tresorerie) et M4 portent finance/capacité ; pas de projection 12/24 mois ni scénarios côté M5."
     },
     {
       "id": "M9.9",
@@ -150,7 +166,9 @@
         "Prévisions réellement produites par propriétaires"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Prévision hebdomadaire des flux connus M5 seulement ; pas de prévision de leads/capacité produite ailleurs (gate GATED_DEPENDENCY partiel)."
     },
     {
       "id": "M9.10",
@@ -167,7 +185,9 @@
         "Énumération canonique des 21 sections ou arbitrage Nathan"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "PARTIEL",
+      "lot0_finding": "Schéma proposé à 21 sections livré (rapport_decision_v2, mapping 15 clés, validateur d'ancrage, 49 tests). Énumération canonique introuvable : arbitrage Nathan requis (GATED_HUMAN) ; la production du rapport complet dépend des lots 1–3."
     },
     {
       "id": "M9.11",
@@ -180,7 +200,9 @@
       "initial_status": "A_REQUALIFIER",
       "gates_to_resolve_or_keep_open": [],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Rien (échéancier de suivis seulement)."
     },
     {
       "id": "M9.12",
@@ -194,7 +216,9 @@
       "initial_status": "A_REQUALIFIER",
       "gates_to_resolve_or_keep_open": [],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Signaux M6.20 (rupture, hausse de prix) inexistants côté M6 ; M4 fournit retards/incidents/météo ; M5 trésorerie ; radar à composer avec absence de cause explicite."
     },
     {
       "id": "M9.13",
@@ -207,7 +231,9 @@
       "initial_status": "A_REQUALIFIER",
       "gates_to_resolve_or_keep_open": [],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Rien."
     },
     {
       "id": "M9.14",
@@ -222,7 +248,9 @@
         "Accès externes autorisés seulement ; repli import/export explicite"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Aucune veille ; accès externes à autoriser : repli import/export explicite sans réseau."
     },
     {
       "id": "M9.15",
@@ -235,7 +263,9 @@
       "initial_status": "A_REQUALIFIER",
       "gates_to_resolve_or_keep_open": [],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Aucun gabarit de playbook."
     },
     {
       "id": "M9.16",
@@ -250,7 +280,9 @@
       "initial_status": "A_REQUALIFIER",
       "gates_to_resolve_or_keep_open": [],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Suivi de décision sur preuve M8 (ouverture/clôture N3) existe ; plans/OKR révisables à construire."
     },
     {
       "id": "M9.17",
@@ -266,7 +298,9 @@
         "Ports cibles et raccords partagés à intégrer"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Ports cibles existants : m2_preparer_relance, m2_reassigner_lead, m4_planifier_intervention, m4_creer_demande_ecart ; aucun port générique de tâche. Précédent : suivi M9 interne N3."
     },
     {
       "id": "M9.18",
@@ -281,7 +315,9 @@
         "Mesures et coûts réellement fournis"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Mesures/coûts à lire chez M8/M5 ; cout_par_lead M7 toujours None (donnée insuffisante : pas de ROI)."
     },
     {
       "id": "M9.19",
@@ -299,7 +335,9 @@
       "verified_commit": null,
       "permanent_constraints": [
         "Les actes réels sensibles restent humains dans le produit complet ; ce contrôle ne doit pas être levé pour clore une capacité."
-      ]
+      ],
+      "current_status": "EN_COURS",
+      "lot0_finding": "File d'approbation native, liaison_cibles (ticket 120 s), politique M9 en mode ombre ; à étendre aux demandes stratégiques sensibles."
     },
     {
       "id": "M9.20",
@@ -315,7 +353,9 @@
         "Port M10 et intégration native à qualifier"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "M10 ne se lit que par affaire (paquets 4 couches, FINANCIAL/SENSITIVE exclus) ; pas de vue d'entreprise ; effacement T3."
     },
     {
       "id": "M9.21",
@@ -330,7 +370,9 @@
         "Raccord console partagé en commit distinct"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Console M9 en lecture seule (/strategie…) ; tableau exécutif complet à construire (sous-routeur M9, raccords metier.py en commit distinct)."
     },
     {
       "id": "M9.22",
@@ -345,7 +387,9 @@
         "PHASE_MOBILE_FINALE après grandes exigences serveur ; contrat seul ne clôt pas la ligne"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "PHASE_MOBILE_FINALE",
+      "lot0_finding": "Contrat serveur préparé en lot 8 ; écran et synchronisation en phase finale."
     },
     {
       "id": "M9.23",
@@ -360,7 +404,9 @@
         "Qualification réelle conseil séparée des doubles de protocole"
       ],
       "proofs": [],
-      "verified_commit": null
+      "verified_commit": null,
+      "current_status": "EN_COURS",
+      "lot0_finding": "Aucun jeu d'évaluation ; audit de citations déterministe existe."
     }
   ]
 }
