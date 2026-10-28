@@ -1,10 +1,10 @@
 """Catalogue versionné des relations du graphe d'impacts M9.2 : quelles lignes de quelles lectures relient quels objets.
 
-Module pur. Chaque règle relie deux champs de LA MÊME ligne d'une réponse réelle de producteur (constatée par
-``tests/test_m9_graphe_reel.py`` sur des captures produites par les vrais outils M2–M8). ``LIMITES`` dit, règle par
-règle, ce que le champ ne permet pas. Rien n'est inféré : aucune ligne ne porte à la fois un matériau et un devis, un
-chantier ou un lead, donc le matériau n'est PAS un nœud du graphe (manque nommé, voir ``MANQUES``). Une relation sans
-preuve de lecture n'a pas sa place ici.
+Module pur. Chaque règle relie deux champs de LA MÊME ligne d'une réponse réelle de producteur, ou d'une ligne et de
+son parent quand le producteur imbrique (constaté par ``tests/test_m9_graphe_reel.py`` sur des captures produites par
+les vrais outils M2–M8). ``LIMITES`` dit, règle par règle, ce que le champ ne permet pas. Rien n'est inféré : le
+matériau n'est un nœud que lorsqu'il MANQUE à un devis (imbrication M6) ; ni M3, ni M5, ni M8 ne le relient (voir
+``MANQUES``). Une relation sans preuve de lecture n'a pas sa place ici.
 """
 
 from __future__ import annotations
@@ -17,6 +17,9 @@ _R = "resultat.resultat"  # la réponse du dispatcher est {"ok": true, "resultat
 REGLES: tuple[Regle, ...] = (
     Regle("m6_reservation_devis_chantier", "reserve_pour", "m6.disponibilite", f"{_R}.reservations_actives[*]",
           "devis", "devis_id", "chantier", "chantier_id"),
+    # M6 : la ligne manquante est IMBRIQUÉE dans la réservation du devis (``^`` = champ de la réservation).
+    Regle("m6_materiau_manquant_devis", "manque_pour", "m6.disponibilite", f"{_R}.reservations_actives[*]",
+          "materiau", "materiau_id", "devis", "^devis_id", sous_lignes="lignes_manquantes[*]"),
     # M4, liste v1 (sans pagination : la racine de la réponse est la liste) puis page {interventions, page}.
     Regle("m4_devis_intervention", "execute_par", "m4.interventions", "resultat[*]",
           "devis", "devis_id", "intervention", "intervention_id"),
@@ -47,6 +50,8 @@ REGLES: tuple[Regle, ...] = (
 LIMITES: dict[str, str] = {
     "m6_reservation_devis_chantier": "reservations_actives[*].devis_id/chantier_id ; ne nomme pas le matériau (il est "
     "dans lignes_manquantes[*], sans devis) ; seulement les réservations ACTIVES, 15 articles par lecture.",
+    "m6_materiau_manquant_devis": "lignes_manquantes[*] imbriquées dans la réservation ACTIVE du devis : seulement les "
+    "matériaux dont il MANQUE quelque chose (un matériau suffisant n'a pas d'arête) ; quantités jamais propagées.",
     "m4_devis_intervention": "m4_lister_interventions, liste v1 : devis_id nul tant que l'intervention n'est pas née "
     "d'un devis accepté (planifiée à la main).",
     "m4_intervention_lead": "lead_id de la liste M4 v1 ; M4 n'expose ni client ni coordonnées ici.",
@@ -64,7 +69,7 @@ LIMITES: dict[str, str] = {
 }
 
 MANQUES: tuple[str, ...] = (
-    "materiau : aucune ligne d'aucune lecture ne porte un matériau avec un devis, un chantier ou un lead",
+    "materiau : relié aux devis seulement s'il MANQUE (lignes imbriquées de M6) ; ni M3, ni M5, ni M8 ne le relient",
     "lead -> devis : M2 n'expose pas le devis ; seul M4 relie lead et intervention",
     "wct -> lead : aucune lecture ne les relie directement (le chemin passe par l'intervention)",
 )

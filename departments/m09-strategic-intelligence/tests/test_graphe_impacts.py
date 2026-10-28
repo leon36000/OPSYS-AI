@@ -246,3 +246,36 @@ def test_capture_partielle_garde_les_liens_recus_mais_la_regle_reste_inconnue():
     assert [r["raison"] for r in graphe["regles_inconnues"]] == ["PARTIELLE"]
     resultat = gi.propager(graphe, "materiau", "A")
     assert resultat["complet"] is False and {i["objet"]["id"] for i in resultat["impacts"]} == {"W1"}
+
+
+def test_regle_imbriquee_lit_le_parent_avec_le_prefixe_et_cite_la_sous_ligne():
+    regle = gi.Regle(
+        "materiau_manquant_devis",
+        "manque_pour",
+        "m6.disponibilite",
+        "resultat.resultat.reservations[*]",
+        "materiau",
+        "materiau_id",
+        "devis",
+        "^devis_id",
+        sous_lignes="manquantes[*]",
+    )
+    reponse = _ok(
+        reservations=[
+            {"devis_id": "D1", "manquantes": [{"materiau_id": "M1"}, {"materiau_id": "M2"}, {"quantite": "3"}]},
+            {"devis_id": "D2", "manquantes": []},  # rien ne manque : aucune arête, pas d'invention
+            {"manquantes": [{"materiau_id": "M3"}]},  # parent sans devis_id : ligne écartée
+        ]
+    )
+    capture = _capture("m6.disponibilite", reponse)
+    graphe = gi.construire([capture], [regle], connaissance=T0)
+    assert {(a["de"], a["vers"]) for a in graphe["aretes"]} == {
+        ("materiau:M1", "devis:D1"),
+        ("materiau:M2", "devis:D1"),
+    }
+    assert graphe["regles_actives"] == [
+        {"regle": "materiau_manquant_devis", "lecture_id": "m6.disponibilite", "aretes": 2, "lignes_ecartees": 2}
+    ]
+    preuves = sorted((a["preuve"]["ligne"], a["preuve"]["sous_ligne"]) for a in graphe["aretes"])
+    assert preuves == [(0, 0), (0, 1)]
+    assert {i["objet"]["id"] for i in gi.propager(graphe, "materiau", "M1")["impacts"]} == {"D1"}

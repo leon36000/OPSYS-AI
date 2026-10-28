@@ -210,8 +210,13 @@ def test_chaque_regle_cite_des_lignes_reelles_portant_ses_deux_champs(monde):
         assert lignes, f"{regle.id} : aucune ligne à {regle.lignes}"
         for ligne in lignes:
             assert isinstance(ligne, dict), regle.id
-            for champ in (regle.de_champ, regle.vers_champ):
-                assert type(ligne.get(champ)) is str and ligne[champ], f"{regle.id} : {champ} absent de la ligne"
+            enfants = cs.extraire(ligne, regle.sous_lignes) if regle.sous_lignes else [ligne]
+            assert enfants, f"{regle.id} : aucune sous-ligne à {regle.sous_lignes}"
+            for enfant in enfants:
+                for champ in (regle.de_champ, regle.vers_champ):
+                    source = ligne if champ.startswith("^") else enfant
+                    nom = champ.lstrip("^")
+                    assert type(source.get(nom)) is str and source[nom], f"{regle.id} : {champ} absent de la ligne"
 
 
 # =====================================================================================================
@@ -227,6 +232,7 @@ def test_graphe_construit_depuis_la_chaine_reelle_avec_preuves(monde):
     assert refs == {
         f"devis:{DEVIS}", f"chantier:{CHANTIER}", f"intervention:{monde['intervention']}", f"lead:{LEAD}",
         f"wct:{WCT}", "equipe:eq-a", f"rentabilite:{CHANTIER}", f"po:{PO}", "personne:vendeur.fictif",
+        f"materiau:{MATERIAU}",  # relié au devis par la ligne manquante IMBRIQUÉE dans sa réservation M6
     }
     par_regle = {r.id: r for r in REGLES}
     for arete in graphe["aretes"]:
@@ -235,8 +241,14 @@ def test_graphe_construit_depuis_la_chaine_reelle_avec_preuves(monde):
         capture = chaine[preuve["capture_index"]]
         assert capture["hash_maillon"] == preuve["capture_hash"] and capture["lecture_id"] == regle.lecture_id
         ligne = cs.extraire(capture["pages"][preuve["page"]], preuve["chemin"])[preuve["ligne"]]
-        assert f"{regle.de_kind}:{ligne[regle.de_champ]}" == arete["de"]
-        assert f"{regle.vers_kind}:{ligne[regle.vers_champ]}" == arete["vers"]
+        enfant = cs.extraire(ligne, preuve["sous_chemin"])[preuve["sous_ligne"]] if "sous_ligne" in preuve else ligne
+        assert (("sous_ligne" in preuve) == (regle.sous_lignes is not None)), "la preuve cite l'imbrication"
+
+        def valeur(champ, enfant=enfant, ligne=ligne):
+            return ligne[champ[1:]] if champ.startswith("^") else enfant[champ]
+
+        assert f"{regle.de_kind}:{valeur(regle.de_champ)}" == arete["de"]
+        assert f"{regle.vers_kind}:{valeur(regle.vers_champ)}" == arete["vers"]
     assert _graphe(chaine)["graphe_id"] == graphe["graphe_id"], "reproductible"
     assert _graphe(chaine, connaissance="2026-10-28T11:00:00Z")["aretes"] == [], "rien n'était connu avant les captures"
 
@@ -282,7 +294,7 @@ def test_propagation_depuis_le_lead_et_le_chantier_suit_le_sens_declare(monde):
 
 
 # =====================================================================================================
-# 4. Liens NON justifiés : le matériau n'est relié à rien, rien n'est inventé
+# 4. Le matériau n'est relié que par son MANQUE (imbrication M6) ; rien d'autre n'est inventé
 # =====================================================================================================
 def test_aucune_ligne_ne_porte_a_la_fois_un_materiau_et_un_devis_ou_un_chantier(monde):
     page = _page(monde, "m6.disponibilite")
@@ -304,19 +316,26 @@ def test_aucune_ligne_ne_porte_a_la_fois_un_materiau_et_un_devis_ou_un_chantier(
         assert not {k for k in _cles(_page(monde, lecture_id)) if "materiau" in k}, lecture_id
 
 
-def test_le_materiau_n_est_pas_un_noeud_du_graphe_et_une_regle_inventee_ne_cree_rien(monde):
+def test_le_materiau_ne_se_propage_que_via_le_devis_ou_il_manque_et_une_regle_inventee_ne_cree_rien(monde):
     chaine = monde["chaine"]
     graphe = _graphe(chaine)
-    assert not any(n["kind"] == "materiau" for n in graphe["noeuds"])
+    assert [n["id"] for n in graphe["noeuds"] if n["kind"] == "materiau"] == [MATERIAU]
+    atteints = _atteints(gi.propager(graphe, "materiau", MATERIAU, profondeur_max=5))
+    assert atteints[("devis", DEVIS)] == 1 and atteints[("chantier", CHANTIER)] == 2
+    assert atteints[("wct", WCT)] == 2 and atteints[("lead", LEAD)] == 3
+    arete = next(a for a in graphe["aretes"] if a["regle"] == "m6_materiau_manquant_devis")
+    assert (arete["de"], arete["vers"], arete["relation"]) == (f"materiau:{MATERIAU}", f"devis:{DEVIS}", "manque_pour")
+    assert arete["preuve"]["sous_chemin"] == "lignes_manquantes[*]" and arete["preuve"]["sous_ligne"] == 0
+    # sans la lecture M6, le matériau n'est plus un objet connu : refus, jamais « aucun impact »
+    sans_m6 = _graphe([c for c in chaine if c["lecture_id"] != "m6.disponibilite"])
     with pytest.raises(ValueError, match="REJ-GRAPHE-NOEUD-INCONNU"):
-        gi.propager(graphe, "materiau", MATERIAU)  # inconnu, jamais « aucun impact »
+        gi.propager(sans_m6, "materiau", MATERIAU)
     # Une règle « matériau → devis » sur la liste d'articles de M6 est rejetée ligne à ligne : devis_id n'y est pas.
     inventee = gi.Regle("materiau_devis_invente", "utilise_par", "m6.disponibilite", f"{RESULTAT}.articles[*]",
                         "materiau", "materiau_id", "devis", "devis_id")
     avec = _graphe(chaine, (*REGLES, inventee))
     active = next(r for r in avec["regles_actives"] if r["regle"] == "materiau_devis_invente")
     assert active["aretes"] == 0 and active["lignes_ecartees"] == 1
-    assert not any(n["kind"] == "materiau" for n in avec["noeuds"])
     assert {a["id"] for a in avec["aretes"]} == {a["id"] for a in graphe["aretes"]}
 
 
@@ -432,9 +451,14 @@ def test_outils_graphe_sur_le_monde_reel_admin_seulement(tmp_path, monkeypatch):
         for impact in propage["impacts"]:
             for arete_id in impact["chemin"]:
                 assert propage["aretes_citees"][arete_id]["preuve"]["capture_hash"]
-        # un matériau n'est pas un objet connu : refus nommé, jamais « aucun impact »
-        refus = appel(
+        depuis_materiau = appel(
             "m9_propager_impacts", {"connaissance": connaissance, "kind": "materiau", "identifiant": MATERIAU}
+        )["resultat"]
+        assert depuis_materiau["accepte"] is True
+        assert {"devis", "chantier", "lead"} <= {i["objet"]["kind"] for i in depuis_materiau["impacts"]}
+        # un objet qui n'est pas connu : refus nommé, jamais « aucun impact »
+        refus = appel(
+            "m9_propager_impacts", {"connaissance": connaissance, "kind": "fournisseur", "identifiant": "F-1"}
         )
         assert refus["ok"] is False or refus["resultat"].get("accepte") is False
         assert "REJ-GRAPHE-NOEUD-INCONNU" in str(refus)

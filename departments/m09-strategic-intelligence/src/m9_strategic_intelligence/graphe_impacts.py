@@ -50,6 +50,9 @@ class Regle:
     vers_champ: str
     sens: str = "de->vers"  # direction dans laquelle un changement de ``de``/``vers`` se propage
     version: str = VERSION_RELATIONS
+    # Lignes IMBRIQUÉES : ``sous_lignes`` (chemin relatif à chaque ligne) donne des lignes enfants ; un champ
+    # préfixé par « ^ » est lu sur la ligne PARENT. Le lien n'est justifié que par l'imbrication déclarée.
+    sous_lignes: str | None = None
 
     def __post_init__(self) -> None:
         if self.sens not in SENS:
@@ -63,6 +66,11 @@ class Regle:
 
 def _noeud(kind: str, identifiant: str) -> str:
     return f"{kind}:{identifiant}"
+
+
+def _champ(nom: str, enfant: Mapping, parent: Mapping) -> object:
+    """Valeur du champ ``nom`` sur la ligne enfant, ou sur la ligne parent si le nom est préfixé par « ^ »."""
+    return parent.get(nom[1:]) if nom.startswith("^") else enfant.get(nom)
 
 
 def _texte_id(valeur: object) -> str | None:
@@ -116,34 +124,48 @@ def construire(captures: Sequence[Mapping], regles: Sequence[Regle], *, connaiss
                     if not isinstance(ligne, Mapping):
                         ecartees += 1
                         continue
-                    de, vers = _texte_id(ligne.get(regle.de_champ)), _texte_id(ligne.get(regle.vers_champ))
-                    if de is None or vers is None:
-                        ecartees += 1
-                        continue
-                    a, b = _noeud(regle.de_kind, de), _noeud(regle.vers_kind, vers)
-                    noeuds.setdefault(a, {"kind": regle.de_kind, "id": de})
-                    noeuds.setdefault(b, {"kind": regle.vers_kind, "id": vers})
-                    identifiant = hashlib.sha256(
-                        f"{regle.id}|{regle.version}|{a}|{b}|{derniere['hash_maillon']}".encode()
-                    ).hexdigest()[:20]
-                    if identifiant not in aretes:
-                        aretes[identifiant] = {
-                            "id": identifiant,
-                            "de": a,
-                            "vers": b,
-                            "relation": regle.relation,
-                            "sens": regle.sens,
-                            "regle": regle.id,
-                            "version_regle": regle.version,
-                            "preuve": {
-                                "capture_index": derniere["index"],
-                                "capture_hash": derniere["hash_maillon"],
-                                "page": numero_page,
-                                "ligne": numero,
-                                "chemin": regle.lignes,
-                            },
-                        }
-                        creees += 1
+                    if regle.sous_lignes is None:
+                        enfants: list[tuple[int | None, object]] = [(None, ligne)]
+                    else:
+                        enfants = list(enumerate(cs.extraire(ligne, regle.sous_lignes)))
+                    for sous_numero, enfant in enfants:
+                        if not isinstance(enfant, Mapping):
+                            ecartees += 1
+                            continue
+                        de = _texte_id(_champ(regle.de_champ, enfant, ligne))
+                        vers = _texte_id(_champ(regle.vers_champ, enfant, ligne))
+                        if de is None or vers is None:
+                            ecartees += 1
+                            continue
+                        a, b = _noeud(regle.de_kind, de), _noeud(regle.vers_kind, vers)
+                        noeuds.setdefault(a, {"kind": regle.de_kind, "id": de})
+                        noeuds.setdefault(b, {"kind": regle.vers_kind, "id": vers})
+                        identifiant = hashlib.sha256(
+                            f"{regle.id}|{regle.version}|{a}|{b}|{derniere['hash_maillon']}".encode()
+                        ).hexdigest()[:20]
+                        if identifiant not in aretes:
+                            aretes[identifiant] = {
+                                "id": identifiant,
+                                "de": a,
+                                "vers": b,
+                                "relation": regle.relation,
+                                "sens": regle.sens,
+                                "regle": regle.id,
+                                "version_regle": regle.version,
+                                "preuve": {
+                                    "capture_index": derniere["index"],
+                                    "capture_hash": derniere["hash_maillon"],
+                                    "page": numero_page,
+                                    "ligne": numero,
+                                    "chemin": regle.lignes,
+                                    **(
+                                        {"sous_ligne": sous_numero, "sous_chemin": regle.sous_lignes}
+                                        if sous_numero is not None
+                                        else {}
+                                    ),
+                                },
+                            }
+                            creees += 1
         if lus:
             actives.append(
                 {"regle": regle.id, "lecture_id": regle.lecture_id, "aretes": creees, "lignes_ecartees": ecartees}
