@@ -1,0 +1,3 @@
+exec(open('/tmp/opsys-m4-http-suite-kepXNO/live-etape-02.py').read().split('with stockage.transaction():')[0])
+r,f=page(); repl=form(f,'replanifier');Path(os.environ['QA_CLOCK_FILE']).write_text((datetime.fromisoformat(Path(os.environ['QA_CLOCK_FILE']).read_text().strip())+timedelta(minutes=1)).isoformat());r=s.post(p,data=repl,follow_redirects=False,timeout=5);print('REPLANIFIER',r.status_code,r.headers.get('location'));print('REPONSE',r.text[:300]); assert r.status_code==303
+r,f=page();print('APRES_REPLANIFIER',r.status_code,[x.get('operation') for x in f.forms]);print('REPRISE_TEXTE', 'reprise' in r.text.lower())

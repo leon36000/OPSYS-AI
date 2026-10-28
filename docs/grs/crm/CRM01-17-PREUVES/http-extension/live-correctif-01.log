@@ -1,0 +1,12 @@
+OUVERTURE_PAGE_REPRISE 200
+CONTENU <!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reprise du chantier · Console OPSYS</title><link rel="stylesheet" href="/statique/console.css"><script src="/statique/console.js" defer></script></head><body><header class="entete"><div class="marque">OPSYS <span>Console</span></div><nav aria-label="Sections"><a hr
+CHOIX ['eq-a', 'eq-b'] FORMES [['csrf'], ['csrf', 'mutation_id', 'empreinte_attendue', 'debut', 'fin']]
+PROPOSITION 303 /crm/visites/reprise?intervention_id=c1ddea4e7b2f60b1bf43b9e635a8d85019549e5167723539e3969ee353aa81b6&plan_id=19f16e0e9a2ca957ada079fbfad730547df39d54a6c3d59116129a99794a3100
+DETAIL 
+REVUE 200 N3 False
+Traceback (most recent call last):
+  File "/tmp/opsys-m4-http-suite-kepXNO/live-correctif-01.py", line 18, in <module>
+    f=Extra();f.feed(r.text);apply=next(x for x in f.forms if 'empreinte_attendue' in x);r=s.post(base+loc,data=apply,follow_redirects=False,timeout=10);print('APPROBATION_N3',r.status_code,r.headers.get('location'));assert r.status_code==303
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+StopIteration
