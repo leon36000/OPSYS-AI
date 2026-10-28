@@ -5,7 +5,8 @@
 Le secrétariat peut conserver une photo ou un PDF reçu dans le bon dossier M2, avant soumission
 acceptée et avant fin de travaux. Le téléchargement rend l’original conservé, pas une reconstruction.
 **PARTIAL : tranche serveur SQLite qualifiée localement, publication/CI à réconcilier; aucune production.**
-Le classement, les versions, la rétention, les autres rôles et le mobile restent ouverts.
+Le classement manuel et son historique sont maintenant [qualifiés localement](CRM12-CLASSEMENT-PIECES.md).
+Filtres de liste, versions, rétention, autres rôles et mobile restent ouverts.
 [Audit avant le raccord HTTP](CRM12-AUDIT-TRANSPORT-PIECES-RECUES.md),
 [stockage et contrat du port](CRM12-PIECES-RECUES.md).
 
@@ -95,3 +96,8 @@ ou donnée de production et engagement externe restent hors mandat. Réconcilier
 publiée avant publication normale du nouveau lot. Puis traiter le classement et les versions/retrait
 logique avec audit, la politique de conservation et l’exploitation des clés, sans effacement dur.
 Le mobile reste en dernière phase. OPSYS-AI et CRM12 restent PARTIAL.
+
+## Classement compagnon ajouté ensuite
+
+[Le classement manuel](CRM12-CLASSEMENT-PIECES.md) conserve son histoire dans un compagnon séparé;
+l’original reçu et son AAD restent inchangés. Aucune classe financière ou permission M10 déduite.

@@ -45,7 +45,8 @@ def _erreurs():
                 503, 'Le stockage sécurisé des pièces doit être configuré par l’administrateur.') from None
         statut = {'INTROUVABLE': 404, 'SAISIE-CONFLIT': 409, 'TITRE-INVALIDE': 400,
                   'TAILLE-INVALIDE': 400, 'TYPE-INVALIDE': 400, 'SAISIE-INVALIDE': 400,
-                  'PAGINATION-INVALIDE': 400}.get(exc.code, 503)
+                  'PAGINATION-INVALIDE': 400, 'CLASSEMENT-ARGUMENTS': 400,
+                  'REVISION-PERIMEE': 409, 'CLASSEMENT-INCHANGE': 409}.get(exc.code, 503)
         raise HTTPException(statut, 'Pièces reçues indisponibles : ' + exc.code) from None
     except (ValueError, KeyError, TypeError, AttributeError, ArithmeticError, SQLAlchemyError):
         raise HTTPException(503, 'Pièces reçues temporairement indisponibles') from None
@@ -81,7 +82,8 @@ def contenu(vue, csrf, prefixe):
                   f'{piece["taille_octets"]} octets · {pages.e(piece["statut"])}<br>'
                   f'Reçu le {pages.e(piece["recu_le"])} par {pages.e(piece["auteur"])}<br>'
                   f'SHA-256 : {pages.e(piece["source_sha256"])}<br>'
-                  f'<a href="{pages.e(lien)}">Télécharger l’original {type_court}</a></li>')
+                  f'<a href="{pages.e(lien)}">Télécharger l’original {type_court}</a> · '
+                  f'<a href="{pages.e(lien)}/classement">Classement et historique</a></li>')
     corps += '</ul>'
     if not vue['pieces']:
         corps += '<p>Aucune pièce reçue conservée pour ce projet.</p>'

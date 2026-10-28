@@ -990,3 +990,23 @@ PIECES_PROJET = Table(
     CheckConstraint("type_mime IN ('image/jpeg','image/png','application/pdf')", name="pieces_type"),
 )
 Index("ix_pieces_projet_lead", PIECES_PROJET.c.lead_id, PIECES_PROJET.c.recu_le, PIECES_PROJET.c.piece_id)
+
+# Classement administratif compagnon : l’original et son AAD restent immuables.
+PIECES_CLASSEMENTS = Table(
+    "pieces_classements", META,
+    Column("piece_id", String(32), ForeignKey("pieces_projet.piece_id"), primary_key=True),
+    Column("revision", Integer, primary_key=True),
+    Column("lead_id", String(200), nullable=False),
+    Column("categorie", String(24), nullable=False),
+    Column("avant", String(24), nullable=False),
+    Column("motif", String(24), nullable=False),
+    Column("auteur", String(200), nullable=False),
+    Column("mutation_id", String(32), nullable=False),
+    Column("empreinte", String(64), nullable=False),
+    Column("source_sha256", String(64), nullable=False),
+    Column("horodatage", String(40), nullable=False),
+    Column("precedent", String(64), nullable=False),
+    Column("chaine", String(64), nullable=False),
+    UniqueConstraint("auteur", "mutation_id", name="uq_pieces_classements_saisie"),
+    CheckConstraint("revision >= 1 AND revision <= 32", name="classements_revision"),
+)

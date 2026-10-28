@@ -924,6 +924,7 @@ def creer_router(
     from . import (
         absences_personnes,
         absences_quotidiennes,
+        classement_pieces_ui,
         compositions_equipes,
         comptes_terrain,
         documents_chantier,
@@ -948,6 +949,8 @@ def creer_router(
     router.include_router(compositions_equipes.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
         verifier_formulaire=verifier_formulaire))
+    router.include_router(classement_pieces_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(pieces_projet_ui.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(documents_chantier.creer_router(
