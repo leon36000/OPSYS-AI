@@ -503,7 +503,8 @@ def outils(
     def interrompre_visite_console_v2(intervention_id, motif, horodatage, visite_id, source_attendue):
         """Interruption privée d'une visite fermée, sous identité console courante."""
         try:
-            _autoriser_annotation()
+            auteur = _autoriser_annotation()
+            _reception_console(auteur)
         except annotations_calendrier.Refus as exc:
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=exc.suffixe))
         return _signaler_report(intervention_id, motif, horodatage, source_attendue, visite_id, prive=True)
@@ -521,6 +522,11 @@ def outils(
         # première réception, avec son heure : le socle ne ré-exécute rien.
         horodatage_faisant_foi, horodatage_appareil = _heures_de_l_appel(horodatage)
         reg = registre_courant()
+        if not prive:
+            return depuis_couple(etats.transitionner(
+                intervention_id, "reportee", reg, horodatage_faisant_foi, motif=motif,
+                horodatage_appareil=horodatage_appareil,
+            ))
         if prive and etats.statut_courant(reg, intervention_id) != "sur_site":
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail="visite commencée requise"))
         if etats.statut_courant(reg, intervention_id) == "sur_site":
@@ -573,9 +579,10 @@ def outils(
             return _refus(verdicts.construire_verdict("REJ-IDENTITE-APPAREIL-INVALIDE",
                                                       detail="admin console actif requis"))
         reg = registre_courant()
-        horodatage_faisant_foi, horodatage_appareil = _heures_de_l_appel(horodatage)
         try:
-            _autoriser_annotation()
+            auteur = _autoriser_annotation()
+            _reception_console(auteur)
+            horodatage_faisant_foi, horodatage_appareil = _heures_de_l_appel(horodatage)
             source = visites_ecriture.capturer_visites(cnx)
             if source_attendue != visites_ecriture.empreinte_sources(cnx):
                 raise annotations_calendrier.Refus("SOURCE-PERIMEE")
@@ -3097,6 +3104,20 @@ def contexte_annotation_calendrier(meta):
         yield
     finally:
         _META_ANNOTATION.reset(jeton)
+
+
+def _reception_console(auteur):
+    """Les mutations de visite n'acceptent que l'horloge serveur de leur console."""
+    from datetime import datetime
+
+    reception = contexte.horodatage_reception()
+    if (not isinstance(reception, contexte.HorodatageAppareil)
+            or reception.appareil != 'console:' + auteur['personne']
+            or not isinstance(reception.recu_le, datetime)
+            or not isinstance(reception.horodatage_appareil, datetime)
+            or reception.recu_le.utcoffset() is None or reception.horodatage_appareil.utcoffset() is None):
+        raise annotations_calendrier.Refus('HORODATAGE-SERVEUR-REQUIS')
+    return reception
 
 
 def _autoriser_annotation():

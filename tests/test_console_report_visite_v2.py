@@ -38,6 +38,23 @@ def test_interruption_privee_v2_refuse_sans_identite_console():
     assert r['ok'] is True and r['resultat']['accepte'] is False
 
 
+@pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console'])
+def test_mutations_console_exigent_reception_serveur(planning, session, nom):
+    iid = planning[1]['lead-fictif-001']
+    args = {'intervention_id': iid, 'visite_id': 'a' * 64, 'source_attendue': 'b' * 64,
+            'horodatage': '2030-06-03T12:02:00-04:00'}
+    args.update({'motif': 'meteo'} if nom == 'm4_interrompre_visite_console_v2' else {'report_id': 'c' * 64})
+    outil = next(o for o in outils() if o.nom == nom)
+    avant = f.base._instantane_base(session)
+    with (session(),
+          contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+          contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+        resultat = executer_atomique(outil, args)
+    assert resultat['ok'] is True and resultat['resultat']['accepte'] is False
+    assert resultat['resultat']['verdict']['detail'] == 'HORODATAGE-SERVEUR-REQUIS'
+    assert f.base._instantane_base(session) == avant
+
+
 @pytest.mark.parametrize('source,origine,mcp', [
     ('appareil', 'm04-field-ops', False),
     ('console', 'm04-field-ops', False),
@@ -52,6 +69,7 @@ def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, 
         args.update(visite_id='a' * 64, source_attendue='b' * 64, horodatage='2030-06-03T12:02:00-04:00')
         args.update({'motif': 'meteo'} if nom == 'm4_interrompre_visite_console_v2' else {'report_id': 'c' * 64})
     outil = next(o for o in outils() if o.nom == nom)
+    avant = f.base._instantane_base(session)
     with session(), ExitStack() as pile:
         pile.enter_context(contexte.appele_par_appareil(
             contexte.IdentiteAppelante('admin.fictif', 'admin', source=source)))
@@ -60,4 +78,9 @@ def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, 
             pile.enter_context(contexte.transport_mcp())
         resultat = executer_atomique(outil, args)
     assert resultat['ok'] is True and resultat['resultat']['accepte'] is False
-    assert resultat['resultat']['verdict']['code'] in {'REJ-CONTRAT-INVALIDE', 'REJ-IDENTITE-APPAREIL-INVALIDE'}
+    verdict = resultat['resultat']['verdict']
+    assert (verdict['code'], verdict['detail']) in {
+        ('REJ-CONTRAT-INVALIDE', 'IDENTITE'),
+        ('REJ-IDENTITE-APPAREIL-INVALIDE', 'admin console actif requis'),
+    }
+    assert f.base._instantane_base(session) == avant
