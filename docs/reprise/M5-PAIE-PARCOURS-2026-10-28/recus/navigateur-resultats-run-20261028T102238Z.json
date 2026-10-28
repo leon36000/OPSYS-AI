@@ -1,0 +1,96 @@
+{
+  "etapes": [
+    {
+      "nom": "connexion propriétaire",
+      "ok": true,
+      "detail": "http://127.0.0.1:8765/opsys/departements"
+    },
+    {
+      "nom": "liste vide",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "contrôles étiquetés",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "nom": "aperçu composé",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "aperçu montre le net préparatoire calculé",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "mention aucun versement",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "version 1 conservée",
+      "ok": true,
+      "detail": "http://127.0.0.1:8765/opsys/finance/paie/dossiers/89b61c64c0f97aa3961adf290876aa83"
+    },
+    {
+      "nom": "revue enregistrée",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "XSS non exécuté",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "note affichée en texte",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "export json",
+      "ok": true,
+      "detail": "91699d6a4bef31d438c03e5e92e85cb73cc9fed082a8311655f6c65e447afbfc"
+    },
+    {
+      "nom": "export html",
+      "ok": true,
+      "detail": "3446bc2525f9aaf94761bb5f29d95cf6cd18439236515cc160b51e4c39c4a1d4"
+    },
+    {
+      "nom": "export lisible rendu",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "dossier rouvert",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "version 2 conservée",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "comparaison lisible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "vérification des sources",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "aucune erreur console",
+      "ok": true,
+      "detail": "[[],[]]"
+    }
+  ],
+  "erreurs_console": [],
+  "pageerrors": []
+}
