@@ -133,7 +133,7 @@ ADMIN_SEUL = frozenset({
     # Direction quotidienne et périodique M9.5–7 : salle de guerre (lecture) et revues publiées en versions immuables.
     "m9_salle_de_guerre", "m9_apercu_revue", "m9_publier_revue", "m9_lister_revues", "m9_lire_revue",
     # Graphe d'impacts M9.2 et priorisation M9.11 : lectures seules.
-    "m9_apercu_graphe_impacts", "m9_propager_impacts", "m9_prioriser_options",
+    "m9_apercu_graphe_impacts", "m9_propager_impacts", "m9_prioriser_options", "m9_rapprocher_metriques",
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",
