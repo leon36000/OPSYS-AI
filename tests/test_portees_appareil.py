@@ -126,6 +126,10 @@ ADMIN_SEUL = frozenset({
     # Tissu stratégique M9.1 : captures de producteurs par le port serveur (écriture interne T1/N2) et leurs lectures.
     "m9_capturer_producteur", "m9_lister_captures", "m9_lire_capture", "m9_couverture_strategique",
     "m9_verifier_captures",
+    # Conseil M9.4 / dossier / scénarios : lectures et écritures internes T1/N2, admin authentifié seulement.
+    "m9_apercu_dossier_strategique", "m9_evaluer_scenarios", "m9_proposer_profils_conseil", "m9_ouvrir_conseil",
+    "m9_lire_conseil", "m9_lire_entree_tour_conseil", "m9_deposer_tour_conseil", "m9_abandonner_tour_conseil",
+    "m9_cloturer_conseil", "m9_lire_rapport_conseil",
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",
