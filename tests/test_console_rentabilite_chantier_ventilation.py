@@ -43,6 +43,12 @@ def _pieces(cas):
     return recu
 
 
+
+def _ventilation(cnx, session, recu):
+    charge = console.lecture._publication(cnx, recu["wct_id"], "m4.travaux_termines", "m04-field-ops")
+    return console._ventilation_m4(cnx, session, recu, charge["lead_id"])
+
+
 def test_projection_reelle_sans_imputation_ni_divulgation(chantier_termine, sockets_bloques):
     cas = chantier_termine
     recu = _pieces(cas)
@@ -52,7 +58,7 @@ def test_projection_reelle_sans_imputation_ni_divulgation(chantier_termine, sock
                                                  evenement_id_variance='variance-fictive')
         assert erreur is None
         session = SimpleNamespace(utilisateur='admin.fictif', expire=4102444800)
-        resultat = console._ventilation_m4(cnx, session, recu)
+        resultat = _ventilation(cnx, session, recu)
         assert resultat['statut'] == 'INCOMPLET'
         assert resultat['minutes_travail'] == 390 and resultat['cout_main_oeuvre'] is None
         assert resultat['equipes_indeterminees'] == 2
@@ -65,9 +71,9 @@ def test_wct_divergent_ou_recu_ancien_refuse(chantier_termine):
     with stockage.transaction(cas['url']) as cnx:
         session = SimpleNamespace(utilisateur='admin.fictif', expire=4102444800)
         with pytest.raises(console.lecture.Refus):
-            console._ventilation_m4(cnx, session, {**recu, 'empreinte_charge': 'f' * 64})
+            _ventilation(cnx, session, {**recu, 'empreinte_charge': 'f' * 64})
         ancien = {k: v for k, v in recu.items() if k != 'empreinte_charge'}
-        assert console._ventilation_m4(cnx, session, ancien)['statut'] == 'RECU_HISTORIQUE_NON_VERIFIABLE'
+        assert _ventilation(cnx, session, ancien)['statut'] == 'RECU_HISTORIQUE_NON_VERIFIABLE'
 
 
 def test_tarifs_modifies_avant_sortie_refuses(chantier_termine, monkeypatch):
@@ -80,8 +86,9 @@ def test_tarifs_modifies_avant_sortie_refuses(chantier_termine, monkeypatch):
         appels.append(1)
         return snapshot if len(appels) == 1 else {**snapshot, 'source': 'f' * 64}
     monkeypatch.setattr(outils, '_lire_tarifs_equipes', interposer)
-    with stockage.transaction(cas['url']) as cnx, pytest.raises(console.lecture.Refus):
-        console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
+    with stockage.transaction(cas['url']) as cnx, pytest.raises(console.lecture.Refus) as erreur:
+        _ventilation(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
+    assert erreur.value.code == 'SOURCE-MODIFIEE'
 
 
 def test_recu_bus_traite_mais_wct_different_est_refuse(chantier_termine):
@@ -96,7 +103,7 @@ def test_recu_bus_traite_mais_wct_different_est_refuse(chantier_termine):
         cnx.execute(update(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id == cas['wct_id']).values(
             resultat=codec.encoder({'traite': True, 'wct_id': 'autre-fictif', 'statut': 'wct_sans_devis_id'})))
         with pytest.raises(console.lecture.Refus):
-            console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
+            _ventilation(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
 
 
 def test_instance_modifiee_apres_capture_tarifs_refusee(chantier_termine, monkeypatch):
@@ -114,7 +121,7 @@ def test_instance_modifiee_apres_capture_tarifs_refusee(chantier_termine, monkey
         return snapshot
     monkeypatch.setattr(outils, '_lire_tarifs_equipes', modifier_instance)
     with stockage.transaction(cas['url']) as cnx, pytest.raises(console.lecture.Refus):
-        console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
+        _ventilation(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
 
 
 def test_role_admin_revoque_refuse_avant_divulgation(chantier_termine):
@@ -125,7 +132,7 @@ def test_role_admin_revoque_refuse_avant_divulgation(chantier_termine):
     with stockage.transaction(cas['url']) as cnx:
         identite.retirer_role(cnx, 'admin.fictif', 'admin')
         with pytest.raises(PermissionError):
-            console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
+            _ventilation(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
 
 
 def test_producteur_non_installe_donne_un_statut_explicite(chantier_termine, monkeypatch):
@@ -135,5 +142,45 @@ def test_producteur_non_installe_donne_un_statut_explicite(chantier_termine, mon
         raise ModuleNotFoundError(name=nom)
     monkeypatch.setattr(console.importlib, 'import_module', absent)
     with stockage.transaction(cas['url']) as cnx:
-        vue = console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
+        vue = _ventilation(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
     assert vue == {'statut': 'PRODUCTEUR_INDISPONIBLE'}
+
+
+def test_projection_falsifiee_identique_aux_deux_lectures_ne_divulgue_rien(chantier_termine, monkeypatch):
+    from m4_field_ops import temps_certifies_v2
+
+    cas = chantier_termine
+    recu = _pieces(cas)
+    original = temps_certifies_v2.projeter
+    def projection_falsifiee(*args, **kwargs):
+        resultat = original(*args, **kwargs)
+        resultat['projection']['totaux']['travail'] = 999
+        return resultat
+    monkeypatch.setattr(temps_certifies_v2, 'projeter', projection_falsifiee)
+    with stockage.transaction(cas['url']) as cnx, pytest.raises(console.lecture.Refus):
+        _ventilation(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
+
+
+def test_lead_wct_different_de_l_ancre_refuse(chantier_termine):
+    cas = chantier_termine
+    recu = _pieces(cas)
+    with stockage.transaction(cas['url']) as cnx, pytest.raises(console.lecture.Refus):
+        console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800),
+                                recu, 'lead-autre-fictif')
+
+
+def test_lead_projection_meme_recalcule_ne_peut_diverger_du_wct(chantier_termine, monkeypatch):
+    from m4_field_ops import encodage, temps_certifies_v2
+
+    cas = chantier_termine
+    recu = _pieces(cas)
+    original = temps_certifies_v2.projeter
+    def projection_autre_lead(*args, **kwargs):
+        resultat = original(*args, **kwargs)
+        p = resultat['projection']
+        p['lead_id'] = 'lead-autre-fictif'
+        p['empreinte'] = encodage.empreinte('m4.temps_certifies.v2', {k: v for k, v in p.items() if k != 'empreinte'})
+        return resultat
+    monkeypatch.setattr(temps_certifies_v2, 'projeter', projection_autre_lead)
+    with stockage.transaction(cas['url']) as cnx, pytest.raises(console.lecture.Refus):
+        _ventilation(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)

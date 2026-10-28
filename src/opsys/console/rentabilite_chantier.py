@@ -137,7 +137,7 @@ def _wct_publie_et_recu(cnx, recu):
     return charge, encodage.empreinte(dict(ligne))
 
 
-def _ventilation_m4(cnx, session, recu):
+def _ventilation_m4(cnx, session, recu, lead_id):
     """Volet privé complémentaire : pas de mutation et pas de présence individuelle inférée."""
     from m5_financecore import cout_reel
     from m5_financecore import outils as m5
@@ -155,6 +155,8 @@ def _ventilation_m4(cnx, session, recu):
     charge, recu_bus = source_bus
     if charge == 'HISTORIQUE':
         return {'statut': 'RECU_HISTORIQUE_NON_VERIFIABLE'}
+    if not isinstance(lead_id, str) or charge.get('lead_id') != lead_id:
+        raise lecture.Refus('SOURCE-INCOHERENTE')
     identite = contexte.IdentiteAppelante(session.utilisateur, 'admin', source='console')
     try:
         with (contexte.appele_par_appareil(identite),
@@ -163,11 +165,15 @@ def _ventilation_m4(cnx, session, recu):
         with (contexte.appele_par_appareil(identite), contexte.appeler_en_tant_que(M5, origine='console')):
             tarifs = m5._lire_tarifs_equipes()
         p = projection['projection']
+        if p['lead_id'] != lead_id:
+            raise lecture.Refus('SOURCE-INCOHERENTE')
         instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one()
         if instance != p['instance_id']:
             raise lecture.Refus('INSTANCE-NON-QUALIFIEE')
         main = cout_reel._main_d_oeuvre_ventilee(charge, p, tarifs['lignes'], p['instance_id'],
                                                  projection['source'], p['sources'])
+        if main.get('projection_empreinte') != p.get('empreinte') or not main.get('projection_empreinte'):
+            raise lecture.Refus('SOURCE-INCOHERENTE')
         with (contexte.appele_par_appareil(identite),
               contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
             relecture = m4.projeter(cnx, charge['intervention_id'], charge['wct_id'],
@@ -179,11 +185,14 @@ def _ventilation_m4(cnx, session, recu):
                 or _wct_publie_et_recu(cnx, recu) != source_bus):
             raise lecture.Refus('SOURCE-MODIFIEE')
         autorite._admin(cnx, session)
+    except lecture.Refus:
+        raise
     except (m4.Refus, ValueError, KeyError, TypeError, PermissionError):
         raise lecture.Refus('VENTILATION-INDISPONIBLE') from None
     equipes_inconnues = sum(v['equipe_pointee']['statut'] != 'identifiee' for v in p['visites'])
     return {
         'statut': 'COMPLET' if main['statut'] == 'complet' else 'INCOMPLET',
+        'wct_id': charge['wct_id'],
         'minutes_travail': p['totaux']['travail'],
         'minutes_pause': p['totaux']['pause'],
         'minutes_deplacement': p['totaux']['deplacement'],
@@ -243,14 +252,21 @@ def lire(cnx, deps, session, lead_id, devis_id):
             correspondants = [r for r in sources['wct'] if r.get('wct_id') == wct_id]
             if len(correspondants) != 1:
                 raise lecture.Refus('SOURCE-INCOHERENTE')
-            recu_wct = correspondants[0]
-            resultat['ventilation_m4'] = _ventilation_m4(cnx, session, recu_wct)
+            wcts_devis = [r for r in sources['wct'] if r.get('devis_id') == devis_id]
+            if len(wcts_devis) > 1:
+                resultat['ventilation_m4'] = {'statut': 'WCT_MULTIPLES'}
+            elif (deps.get(lecture.M4) is None
+                    or deps[lecture.M4].module_outils != 'm4_field_ops.outils'):
+                resultat['ventilation_m4'] = {'statut': 'PRODUCTEUR_INDISPONIBLE'}
+            else:
+                recu_wct = correspondants[0]
+                resultat['ventilation_m4'] = _ventilation_m4(cnx, session, recu_wct, lead_id)
     autorite._admin(cnx, session)
     if (_references(_capture(cnx)) != refs or _configuration(m5) != config
             or _ancre(cnx, deps, session, lead_id, devis_id) != charge
             or (charge is not None and _reception(cnx, devis_id) != (statut, recu))):
         raise lecture.Refus('SOURCE-MODIFIEE')
-    if recu_wct is not None and _ventilation_m4(cnx, session, recu_wct) != resultat['ventilation_m4']:
+    if recu_wct is not None and _ventilation_m4(cnx, session, recu_wct, lead_id) != resultat['ventilation_m4']:
         raise lecture.Refus('SOURCE-MODIFIEE')
     resultat['source_calculee'] = encodage.empreinte(dict(registres=refs, configuration=config[0],
         acceptation=charge, reception=recu, ventilation=resultat['ventilation_m4']))
@@ -324,6 +340,7 @@ def contenu(vue, prefixe):
         'PUBLICATION_OU_RECEPTION_ABSENTE': 'Ventilation M4 indisponible : publication ou réception non vérifiée.',
         'RECU_HISTORIQUE_NON_VERIFIABLE': 'Ventilation M4 indisponible : reçu historique sans empreinte complète.',
         'WCT_ABSENT': 'Ventilation M4 en attente du WCT.',
+        'WCT_MULTIPLES': 'Ventilation indisponible : plusieurs WCT pour ce devis.',
     }
     corps += '</ul><h3>Ventilation M4 complémentaire</h3>'
     if ventilation['statut'] in ('INCOMPLET', 'COMPLET'):
@@ -333,6 +350,7 @@ def contenu(vue, prefixe):
                   f'<p>Revue : {valeur(ventilation["revue"])} · Équipes indéterminées : '
                   f'{valeur(ventilation["equipes_indeterminees"])}</p>'
                   f'<p>Coût de main-d’œuvre ventilé : {valeur(ventilation["cout_main_oeuvre"])}</p>'
+                  f'<p>Ce WCT seulement : {valeur(ventilation["wct_id"])}</p>'
                   '<p>Consultation complémentaire non inscrite à la trace M5 ; '
                   'les déplacements ne sont pas inclus dans ce coût.</p>')
     else:
