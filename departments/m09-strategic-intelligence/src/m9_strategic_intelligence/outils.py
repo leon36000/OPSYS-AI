@@ -84,6 +84,7 @@ from . import (
     outils_conseil,
     outils_direction,
     outils_graphe,
+    outils_previsions,
     outils_priorites,
     outils_semantique,
     outils_tissu,
@@ -1279,6 +1280,7 @@ def outils(
             budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible, sessions_cible=sessions_cible
         ),
         *outils_graphe.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_previsions.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_semantique.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_priorites.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_direction.construire_outils(
