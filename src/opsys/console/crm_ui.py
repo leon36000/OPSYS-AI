@@ -89,9 +89,9 @@ SECTIONS = (
      "Consultation admin depuis les devis acceptés : calcul M5 actuel, partiel ou en attente, sans mutation."),
     ("factures", "Factures", "M5 — finance", "partiel",
      "Factures client dans M5 ; la correction tracée d'une facture émise n'existe pas encore."),
-    ("fichiers", "Photos et fichiers", "M3 / M4 — documents du chantier", "partiel",
-     "Depuis les devis acceptés : PDF M3 et photos déclarées au chantier. "
-     "Dépôt libre et preuves historiques à raccorder."),
+    ("fichiers", "Photos et fichiers", "Pièces privées / M3 / M4 — documents du projet", "partiel",
+     "Photos et PDF reçus avant travaux via le lien du dossier; documents M3 et photos M4 depuis les devis acceptés. "
+     "Classement et versions restent à compléter."),
 )
 
 
@@ -741,6 +741,8 @@ def creer_router(
                       + rencontres_ui.contenu(lead_id, rencontres, prefixe)
                       + f'<p><a href="{pages.e(_base_soumissions(lead_id, prefixe))}">'
                       + "Voir les soumissions de ce projet</a></p>"
+                      + f'<p><a href="{pages.e(prefixe)}/crm/lead/{pages._segment(lead_id)}/pieces-recues">'
+                      + 'Pièces reçues de ce projet : photos et PDF</a></p>'
                       + formulaire_note(lead_id, session.csrf, prefixe)
                       + edition
                       + f'<p><a href="{pages.e(prefixe)}/crm/lead/{pages._segment(lead_id)}/contact/historique">'
@@ -926,6 +928,7 @@ def creer_router(
         comptes_terrain,
         documents_chantier,
         journal_equipes,
+        pieces_projet_ui,
         preparation_chantier,
         rentabilite_chantier,
         temps_pointes,
@@ -945,6 +948,8 @@ def creer_router(
     router.include_router(compositions_equipes.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre,
         verifier_formulaire=verifier_formulaire))
+    router.include_router(pieces_projet_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(documents_chantier.creer_router(
         session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe, rendre=rendre))
     router.include_router(rentabilite_chantier.creer_router(

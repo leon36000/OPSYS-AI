@@ -50,3 +50,10 @@ M4 conserve désormais localement les preuves des **futures** complétions dans 
 
 ## Raccordement ultérieur des nouvelles preuves
 Le bloc privé M4 des futures complétions est maintenant raccordé à la galerie admin du chantier exact : [consultation et pagination](CRM12-PHOTOS-APRES-CONSULTATION.md). Notes/signature exclues, anciennes absences préservées, origines WCT/preuves distinctes, page de 20 références. Qualification locale 126 tests et navigateur réel, sans addition aux populations précédentes. Dépôt/classement/bibliothèque complète restent PARTIAL.
+
+## Pièces reçues avant travaux
+
+Le dépôt de photos/PDF reçus et leur téléchargement privé depuis le projet sont maintenant
+[qualifiés localement par HTTP et navigateur](CRM12-PIECES-RECUES-HTTP.md), dans un stockage chiffré
+distinct. Aucun devis accepté/WCT nécessaire, aucune mémoire ni preuve terrain inventée.
+Classement, versions, rétention, autres rôles et bibliothèque complète restent PARTIAL.

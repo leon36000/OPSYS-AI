@@ -127,7 +127,9 @@ class _EntetesSecurite:
         async def envoyer(message: Message) -> None:
             if message["type"] == "http.response.start":
                 entetes = MutableHeaders(scope=message)
-                entetes["Content-Security-Policy"] = CSP
+                # Cumuler toutes les politiques locales et la protection obligatoire de la console.
+                politiques = entetes.getlist("Content-Security-Policy")
+                entetes["Content-Security-Policy"] = ", ".join([*politiques, CSP])
                 entetes["X-Content-Type-Options"] = "nosniff"
                 entetes["X-Frame-Options"] = "DENY"
                 entetes["Referrer-Policy"] = "no-referrer"

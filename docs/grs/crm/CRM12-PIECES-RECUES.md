@@ -4,8 +4,8 @@
 
 Conserver le plan PDF ou la photo reçue pour le **projet M2 exact**, même avant acceptation d’une
 soumission et avant fin des travaux. Deux chantiers du même client ont des dossiers distincts.
-**PARTIAL : port serveur SQLite qualifié localement; formulaire HTTP, configuration et navigateur
-non raccordés pour cette tranche.** Aucune bibliothèque complète ni mise en production annoncée.
+**PARTIAL : port serveur SQLite qualifié localement.** Le formulaire privé et le téléchargement
+sont maintenant raccordés : [qualification HTTP et navigateur](CRM12-PIECES-RECUES-HTTP.md). Aucune bibliothèque complète ni mise en production annoncée.
 [Audit avant code](CRM12-AUDIT-PIECES-RECUES-PAR-PROJET.md).
 
 ## Architecture et fichiers
@@ -15,7 +15,7 @@ non raccordés pour cette tranche.** Aucune bibliothèque complète ni mise en p
 - `src/opsys/stockage/migrations/versions/0028_pieces_projet.py` : migration additive depuis 0027.
 - `tests/test_console_pieces_projet.py` : 36 cas fictifs, dont concurrence et migration.
 
-Aucune nouvelle route HTTP ni outil agent/appareil n’est exposé par ce commit. La galerie M3/M4
+La tranche initiale du port (`f7957b74`) n’exposait aucune route HTTP ni nouvel outil agent/appareil. La galerie M3/M4
 existante conserve ses routes et permissions. La primitive native M2 résout le client du lead dans
 son registre canonique; un hash ou un identifiant ressemblant à un projet n’accorde aucun accès.
 Les opportunités récurrentes `<lead>~opp~<wct>` sont résolues intégralement, jamais rabattues à la racine.
