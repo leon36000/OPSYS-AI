@@ -1,0 +1,61 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_lien_visite_hors_premiere_page_conserve_la_source ____________
+
+client_crm = <starlette.testclient.TestClient object at 0xec7d51f48cb0>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...8df4ac76', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xec7d53fc8900>
+
+    def test_lien_visite_hors_premiere_page_conserve_la_source(client_crm, planning, session):
+        import re
+        from datetime import date, timedelta
+        from html import unescape
+    
+        from m4_field_ops import calendrier_civil, encodage, visites_durables
+    
+        _, ids, confirmation, _ = planning
+        iid = ids['lead-fictif-001']
+        with session():
+            reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            prev = Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+            initial = next(x for x in calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions']
+                           if x['intervention_id'] == iid)
+            ancre = {k: initial[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+            for i in range(51):
+                jour = (date(2030, 6, 3) + timedelta(days=i)).isoformat()
+                if i:
+                    datee = calendrier_civil.confirmer(reg, confirmation['plan_id'], {'0': jour}, i,
+                                                        'admin.fictif', '2030-06-02T10:00:00+00:00')
+                    ancre = {**ancre, 'source_ligne_id': datee['ligne_id']}
+                args = {'ancre': ancre, 'revision_attendue': i}
+                resultat = visites_durables.prevoir(reg, prev, **args, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                    mutation={'appareil': 'fictif', 'cle': f'prevision-{i}',
+                              'empreinte_arguments': encodage.empreinte(args)},
+                    horodatage='2030-06-02T10:01:00+00:00')
+        f.base._connecter(client_crm, 'admin.fictif')
+        page = client_crm.get('/crm/journal-equipes?jour=' + jour)
+        assert page.status_code == 200, page.text
+        cible = re.search(r'href="([^"]*#visite-' + resultat['visite_id'] + r')"', page.text)
+        assert cible is not None
+        lien = unescape(cible.group(1)).removeprefix(f.base.PREFIXE)
+        assert 'debut=50' in lien and 'source_attendue=' in lien
+        destination = client_crm.get(lien.split('#')[0])
+        assert destination.status_code == 200 and 'id="visite-' + resultat['visite_id'] + '"' in destination.text
+        from m4_field_ops import composition_journaliere
+        with session():
+            comp = Registre(stockage.maillons('m04-field-ops', composition_journaliere.REGISTRE))
+            args_comp = {'jour': jour, 'equipe_id': initial['equipe_id'], 'membres': ['personne.fictive'],
+                         'revision_attendue': 0, 'statut_declaration': 'declaree'}
+            composition_journaliere.declarer(comp, **args_comp, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                mutation={'appareil': 'fictif', 'cle': 'composition-pagination',
+                          'empreinte_arguments': encodage.empreinte(args_comp)},
+                horodatage='2030-06-02T10:02:00+00:00')
+>       assert client_crm.get(lien.split('#')[0]).status_code == 503
+E       AssertionError: assert 200 == 503
+E        +  where 200 = <Response [200 OK]>.status_code
+E        +    where <Response [200 OK]> = get('/crm/visites?intervention_id=14b0cb396e9f3544c5b4ae44f45326b5d8121c554eafa32d388ba88a17b9fbc7&debut=50&limite=50&source_attendue=fd1e209780607d661105d165ececc5758d5151262f7d82be3d327a2932dcdf66')
+E        +      where get = <starlette.testclient.TestClient object at 0xec7d51f48cb0>.get
+
+tests/test_console_journal_visites.py:115: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_console_journal_visites.py::test_lien_visite_hors_premiere_page_conserve_la_source

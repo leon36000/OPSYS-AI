@@ -1,0 +1,116 @@
+.......F..                                                               [100%]
+=================================== FAILURES ===================================
+_____________ test_http_visites_depuis_chantier_prevision_et_csrf ______________
+
+client_crm = <starlette.testclient.TestClient object at 0xf8217b0affe0>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...579ceb2a', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xf8217e7b85e0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xf8217c3f7cb0>
+
+    def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, session, monkeypatch):
+        from datetime import UTC, datetime
+    
+        from opsys.console import metier
+    
+        class HorlogeFictive(datetime):
+            instant = datetime(2030, 6, 3, 12, 0, 0, tzinfo=UTC)
+            @classmethod
+            def now(cls, tz=None):
+                return cls.instant.astimezone(tz)
+        monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
+        par_nom, ids, _, _ = planning
+        iid = ids['lead-fictif-001']
+        chemin = '/crm/visites?intervention_id=' + iid
+        assert client_crm.get(chemin, follow_redirects=False).status_code == 303
+        f.base._connecter(client_crm, 'admin.fictif')
+        # Cookie fictif à échéance 2100 : l'horloge métier est avancée pour tester le jour de visite.
+        from dataclasses import replace
+    
+        from opsys.console import securite
+        cookie = next(c for c in client_crm.cookies.jar if c.name == securite.NOM_COOKIE)
+        sess = securite.lire_session(cookie.value, f.base.SECRET)
+        cookie.value = securite.signer_session(replace(sess, expire=4102444800), f.base.SECRET)
+        journal = client_crm.get('/crm/journal-equipes?jour=2030-06-03')
+        assert journal.status_code == 200 and ('/crm/visites?intervention_id=' + iid) in journal.text
+        page = client_crm.get(chemin)
+        assert page.status_code == 200, page.text
+        assert 'Prévisions et visites' in page.text and 'Composition' in page.text
+        from html.parser import HTMLParser
+        class Forms(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.forms, self.current = [], None
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'form':
+                    self.current = {}
+                    self.forms.append(self.current)
+                elif tag == 'input' and self.current is not None and 'name' in attrs:
+                    self.current[attrs['name']] = attrs.get('value', '')
+            def handle_endtag(self, tag):
+                if tag == 'form':
+                    self.current = None
+        def formulaire(html, operation):
+            parser = Forms()
+            parser.feed(html)
+            return next(x for x in parser.forms if x.get('operation') == operation)
+        prevoir = formulaire(page.text, 'prevoir')
+        mauvais_csrf = {**prevoir, 'csrf': 'csrf-incorrect-fictif'}
+        assert client_crm.post(chemin, data=mauvais_csrf, follow_redirects=False).status_code == 403
+        cree = client_crm.post(chemin, data=prevoir, follow_redirects=False)
+        assert cree.status_code == 303, cree.text
+        page = client_crm.get(chemin)
+        assert page.status_code == 200 and 'Composition déclarée inconnue' in page.text
+        assert 'Notes de cette prévision' in page.text and prevoir['source_ligne_id'] in page.text
+        ouvrir = formulaire(page.text, 'ouvrir')
+        autre = next(x for x in ids.values() if x != iid)
+        assert client_crm.post('/crm/visites?intervention_id=' + autre, data=ouvrir,
+                               follow_redirects=False).status_code == 400
+        resultat = client_crm.post(chemin, data=ouvrir, follow_redirects=False)
+        assert resultat.status_code == 303, resultat.text
+        page = client_crm.get(chemin)
+        assert page.status_code == 200 and 'Temps pointé : inconnu' in page.text
+        assert formulaire(page.text, 'fermer')
+        from m4_field_ops import calendrier_civil, cedule, composition_journaliere, encodage, etats, pointage
+        from m4_field_ops.registre import Registre
+    
+        from opsys import stockage
+        with session():
+            reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            ligne = next(x for x in calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions']
+                         if x['intervention_id'] == iid)
+            equipe = ligne['equipe_id']
+            assign = {'intervention_id': iid, 'technicien_id': equipe}
+            assert etats.transitionner(iid, 'en_route', reg, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+            ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+                'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+            fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+            for action, instant in [('arrivee', '2030-06-03T09:00:00-04:00'),
+                                    ('pause_debut', '2030-06-03T10:00:00-04:00'),
+                                    ('pause_fin', '2030-06-03T10:30:00-04:00'),
+                                    ('depart', '2030-06-03T12:00:00-04:00')]:
+                assert pointage.enregistrer_pointage(iid, equipe, action, instant,
+                    {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                    assign, fenetre, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
+            declaration = {'jour': '2030-06-03', 'equipe_id': equipe, 'membres': ['personne<script>.fictive'],
+                           'revision_attendue': 0, 'statut_declaration': 'declaree'}
+            declaration_lundi = composition_journaliere.declarer(Registre(stockage.maillons('m04-field-ops',
+                                                                        composition_journaliere.REGISTRE)),
+                **declaration, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                mutation={'appareil': 'test-fictif', 'cle': 'composition-fictive',
+                          'empreinte_arguments': encodage.empreinte(declaration)},
+                horodatage='2030-06-03T12:00:00-04:00')
+        journal_pointe = client_crm.get('/crm/journal-equipes?jour=2030-06-03')
+        assert journal_pointe.status_code == 200
+        assert '#visite-' + ouvrir['visite_id'] in journal_pointe.text
+        HorlogeFictive.instant = datetime(2030, 6, 3, 16, 1, 0, tzinfo=UTC)
+        page = client_crm.get(chemin)
+        fermer = formulaire(page.text, 'fermer')
+        assert 'Composition déclarée : personne&lt;script&gt;.fictive' in page.text
+>       assert declaration_lundi['resultat']['declaration_id'] in page.text
+E       assert 'a9c5eac91be023b1a9dad3653a9d23eb127fdcbdf19f9dfa65b3ac7c3e064bce' in '<!doctype html>\n<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initi...874847c6"><button type="submit">Fermer la visite</button></form></article><nav></nav></section></main></body></html>\n'
+E        +  where '<!doctype html>\n<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initi...874847c6"><button type="submit">Fermer la visite</button></form></article><nav></nav></section></main></body></html>\n' = <Response [200 OK]>.text
+
+tests/test_console_visites_chantier.py:289: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_http_visites_depuis_chantier_prevision_et_csrf

@@ -1,0 +1,41 @@
+E501 Line too long (121 > 120)
+   --> src/opsys/console/journal_visites.py:112:121
+    |
+110 |             for a in journal['avertissements']]
+111 |     if (visites_ecriture.capturer_visites(cnx).empreinte_snapshot_calculee != snapshot.empreinte_snapshot_calculee
+112 |             or composition_durable.capturer(cnx).empreinte_snapshot_calculee != composition.empreinte_snapshot_calculee):
+    |                                                                                                                         ^
+113 |         raise lecture.Refus('SOURCE-MODIFIEE')
+114 |     return journal
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> tests/test_console_visites_chantier.py:544:5
+    |
+543 |   def test_snapshot_initial_inchange_meme_si_metadonnees_changent_pendant_lecture(planning, session, monkeypatch):
+544 | /     from datetime import timedelta
+545 | |
+546 | |     import pytest
+547 | |     from sqlalchemy import select
+548 | |
+549 | |     from m4_field_ops import visites_ecriture
+550 | |     from opsys.console import preparation_chantier, visites_chantier
+551 | |     from opsys.console.securite import Session
+552 | |     from opsys.departements import charger_departements
+553 | |     from opsys.stockage.schema import REGISTRES
+    | |_______________________________________________^
+554 |
+555 |       _, ids, _, _ = planning
+    |
+help: Organize imports
+    |
+546 |     import pytest
+547 +     from m4_field_ops import visites_ecriture
+548 |     from sqlalchemy import select
+549 |
+    -     from m4_field_ops import visites_ecriture
+550 |     from opsys.console import preparation_chantier, visites_chantier
+    |
+
+Found 2 errors.
+[*] 1 fixable with `--fix`.

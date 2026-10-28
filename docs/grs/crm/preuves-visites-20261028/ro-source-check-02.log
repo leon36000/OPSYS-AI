@@ -1,0 +1,3 @@
+source-readonly
+private-tmp-writable
+exit=0

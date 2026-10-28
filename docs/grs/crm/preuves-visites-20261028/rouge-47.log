@@ -1,0 +1,39 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_snapshot_initial_inchange_meme_si_metadonnees_changent_pendant_lecture __
+
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...d0615c5c', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = <function session at 0xf94ad2e44220>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xf94ad038ffe0>
+
+    def test_snapshot_initial_inchange_meme_si_metadonnees_changent_pendant_lecture(planning, session, monkeypatch):
+        from datetime import timedelta
+    
+        import pytest
+        from sqlalchemy import select
+    
+        from m4_field_ops import visites_ecriture
+        from opsys.console import preparation_chantier, visites_chantier
+        from opsys.console.securite import Session
+        from opsys.departements import charger_departements
+        from opsys.stockage.schema import REGISTRES
+    
+        _, ids, _, _ = planning
+        iid = ids['lead-fictif-001']
+        original = visites_ecriture.empreinte_sources
+        appels = []
+        def changer(cnx):
+            appels.append(1)
+            if len(appels) == 1:
+                condition = (REGISTRES.c.departement == 'm04-field-ops') & (REGISTRES.c.registre == 'principal')
+                ligne = cnx.execute(select(REGISTRES).where(condition).limit(1)).mappings().one()
+                cnx.execute(REGISTRES.update().where(condition & (REGISTRES.c.rang == ligne['rang']))
+                            .values(cree_le=ligne['cree_le'] + timedelta(seconds=1)))
+            return original(cnx)
+        monkeypatch.setattr(visites_ecriture, 'empreinte_sources', changer)
+>       with session() as cnx, pytest.raises(preparation_chantier.Refus, match='SOURCE-MODIFIEE'):
+E       Failed: DID NOT RAISE Refus
+
+tests/test_console_visites_chantier.py:568: Failed
+=========================== short test summary info ============================
+FAILED tests/test_console_visites_chantier.py::test_snapshot_initial_inchange_meme_si_metadonnees_changent_pendant_lecture
