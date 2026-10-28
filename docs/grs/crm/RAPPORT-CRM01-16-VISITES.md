@@ -37,6 +37,8 @@ Régression élargie : `commande-regression-40.sh`, `regression-40.xml`, exit 0,
 
 Dernière régression : `commande-regression-41.sh`, `regression-41.xml`, exit 0, 656 tests sans échec, erreur ni saut, population recoupant la précédente. Base `4b3270ea3` avec diff de tests SHA-256 `6751129a545318d340f84646081485805e8d5d60c263143a086a92474246c761` identique avant/après. `refus-tables-01.log` vérifie la lecture et les refus ciblés sans changement dans les tables ; `lint-58.log` : Ruff exit 0 ; `lint-57.log` conserve l'erreur d'ordre d'import corrigée.
 
+Après cette régression, le test de calcul pur sur deux visites distinctes de la même équipe le même jour est vert (`meme-jour-01.log`, exit 0, 13 cas dans le fichier) et Ruff a repassé les fichiers modifiés (`lint-59.log`, exit 0). Cette preuve ne qualifie pas plusieurs occurrences dans un même plan de solveur.
+
 `git diff --check 3ab7692f041892ec2af0cab6f241a715edac2d50 HEAD -- departments/m04-field-ops src/opsys/console tests` : exit 0. Le même contrôle sur tout le diff signale des espaces et fins de lignes dans les journaux bruts de tests historiques, conservés tels quels comme preuves ; il ne passe donc pas globalement.
 
 Le client `claude` est présent et son aide expose `--effort`, mais cette vérification ne démontre pas que Claude Sonnet 5.5 est disponible pour ce compte. La mission a été exécutée dans la session Codex GPT-6 ; aucun identifiant Claude inventé n'a été utilisé.

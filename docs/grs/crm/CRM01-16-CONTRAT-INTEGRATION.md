@@ -15,6 +15,8 @@ Version documentaire 1. Contrat de reprise pour la branche de mission ; ce docum
 
 Les raccords aux fichiers communs sont isolés dans `333415ecd`, `b9290308b` et `5e8c8427d` : `crm_ui.py`, `metier.py` et `journal_equipes.py`. Ils doivent être revus et intégrés par le coordinateur avec leurs dépendances de branche, sans les traiter comme des changements autonomes à cherry-pick aveuglément. Aucun schéma commun, droit global ou fichier M5 n'est modifié ; aucune migration n'a été créée.
 
+La projection de faits explicitement identifiés accepte deux sessions non chevauchantes de la même équipe le même jour et additionne leurs durées séparément (`meme-jour-01.log` : 150 + 45 = 195 minutes). Cette preuve est limitée au calcul pur ; la création de plusieurs occurrences d'un même chantier dans une seule proposition de solveur n'est pas prise en charge ni requise par cette mission.
+
 ## Consommation et vérification
 
 Le WCT existant est conservé en V1. Son total agrégé et son dernier identifiant pointé ne prouvent pas une présence individuelle ni un coût par équipe en cas de reprise avec une autre équipe. La [proposition de contrat M5 V2](CRM01-16-CONTRAT-TEMPS-M5.md) reste à négocier et à mettre en œuvre hors de cette branche ; la compatibilité métier du consommateur M5 n'est pas démontrée. Garder les faits anciens ambigus non attribués et refuser un total incomplet.
