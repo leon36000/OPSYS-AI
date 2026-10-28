@@ -15,15 +15,28 @@ def _t0(deps, session, arguments):
 def lire(cnx, deps, session, jour, *, debut=0, limite=50, source_attendue=None):
     autorite._admin(cnx, session)
     try:
+        from m4_field_ops import encodage
+        from m4_field_ops.registre import Registre
+
+        from . import journal_visites
+
         source = journal_durable.capturer(cnx)
-        arguments = dict(jour=jour, debut=debut, limite=limite, source_attendue=source_attendue)
+        visites, composition = journal_visites.capturer_sources(cnx)
+        source_console = journal_visites.source_journal(source, visites, composition, jour)
+        if (debut and source_attendue is None) or (source_attendue is not None and source_attendue != source_console):
+            raise lecture.Refus('SOURCE-JOURNAL-INVALIDE')
+        source_m4 = encodage.empreinte('journal_quotidien_v1',
+                                      Registre([r.maillon for r in source.lignes]).tete(), jour)
+        arguments = dict(jour=jour, debut=debut, limite=limite,
+                         source_attendue=source_m4 if source_attendue is not None else None)
         attendu = journal_durable.projeter(source, **arguments)
         journal_durable.verifier_sortie(attendu)
         resultat = _t0(deps, session, arguments)
         if resultat != attendu:
             raise lecture.Refus('SOURCE-REPONSE-INCOHERENTE')
-        from . import journal_visites
-        resultat = lecture._sortie(journal_visites.enrichir(cnx, source, resultat))
+        resultat = journal_visites.enrichir(cnx, source, resultat, visites, composition)
+        resultat['source'] = source_console
+        resultat = lecture._sortie(resultat)
         if journal_durable.capturer(cnx).empreinte_snapshot_calculee != source.empreinte_snapshot_calculee:
             raise lecture.Refus('SOURCE-MODIFIEE')
     except journal_durable.Refus as exc:
