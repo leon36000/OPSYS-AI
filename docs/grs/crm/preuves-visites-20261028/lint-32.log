@@ -1,0 +1,28 @@
+I001 [*] Import block is un-sorted or un-formatted
+   --> tests/test_console_reprise_visite.py:253:5
+    |
+251 |           principal = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
+252 |           assert not [w for _, w in outbox.lire_outbox(principal) if w['intervention_id'] == iid]
+253 | /     import base64
+254 | |     import hashlib
+255 | |     from opsys import contexte
+256 | |     from opsys.outils import executer_atomique
+257 | |     from m4_field_ops.outils import outils
+    | |__________________________________________^
+258 |       png_spec = importlib.util.spec_from_file_location('png_reprise_complete',
+259 |           Path(__file__).parents[1] / 'departments/m04-field-ops/tests/conftest.py')
+    |
+help: Organize imports
+    |
+254 |     import hashlib
+255 +
+256 +     from m4_field_ops.outils import outils
+257 +
+258 |     from opsys import contexte
+259 |     from opsys.outils import executer_atomique
+    -     from m4_field_ops.outils import outils
+260 |     png_spec = importlib.util.spec_from_file_location('png_reprise_complete',
+    |
+
+Found 1 error.
+[*] 1 fixable with `--fix`.
