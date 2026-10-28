@@ -45,6 +45,8 @@ Une vérification élargie aux absences et compositions a révélé une régress
 
 Sur la tête `6422bfbe9`, `commande-lecteurs-journal-01.sh` : exit 0, JUnit `lecteurs-journal-01.xml` : 41 tests, zéro échec, erreur ou saut, pour les comptes terrain, assignations, écarts et navigation des temps liés au journal. La [matrice de vérification](CRM01-16-AUDIT-VERIFICATION.md) relie chaque tranche de la mission aux preuves et aux limites.
 
+Le test ciblé `test_deux_previsions_ne_peuvent_pas_etre_ouvertes_simultanement` vérifie deux identités de prévision différentes et l'absence de mutation lors du second refus : `deux-ouvertures-01.log`, exit 0 ; `lint-62.log`, exit 0. Il a été ajouté après la régression 42.
+
 `git diff --check 3ab7692f041892ec2af0cab6f241a715edac2d50 HEAD -- departments/m04-field-ops src/opsys/console tests` : exit 0. Le même contrôle sur tout le diff signale des espaces et fins de lignes dans les journaux bruts de tests historiques, conservés tels quels comme preuves ; il ne passe donc pas globalement.
 
 Le client `claude` est présent et son aide expose `--effort`, mais cette vérification ne démontre pas que Claude Sonnet 5.5 est disponible pour ce compte. La mission a été exécutée dans la session Codex GPT-6 ; aucun identifiant Claude inventé n'a été utilisé.
