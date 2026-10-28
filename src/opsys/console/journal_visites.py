@@ -2,16 +2,33 @@
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
-from m4_field_ops import encodage, etats, pointage, visites_chantier, visites_durables, visites_ecriture
+from m4_field_ops import (
+    composition_durable,
+    encodage,
+    etats,
+    pointage,
+    visites_chantier,
+    visites_durables,
+    visites_ecriture,
+)
 from m4_field_ops.registre import Registre
 
 from . import preparation_chantier as lecture
 
 
-def enrichir(cnx, source, journal):
+def capturer_sources(cnx):
+    return visites_ecriture.capturer_visites(cnx), composition_durable.capturer(cnx)
+
+
+def source_journal(source, visites, composition, jour):
+    return encodage.empreinte('journal_console_v2', source.empreinte_snapshot_calculee,
+                             visites.empreinte_snapshot_calculee, composition.empreinte_snapshot_calculee, jour)
+
+
+def enrichir(cnx, source, journal, snapshot, composition):
     """Décore la projection T0 après comparaison ; ne modifie pas son contrat partagé."""
     principal = Registre([r.maillon for r in source.lignes])
-    snapshot = visites_ecriture.capturer_visites(cnx)
+    from .visites_chantier import source_consultation
     visites = Registre([r.maillon for r in snapshot.lignes])
     _, previsions, _, _, _, _ = visites_durables._charger(principal, visites)
     maillons = principal.lire()
@@ -94,7 +111,7 @@ def enrichir(cnx, source, journal):
         if ident is None:
             continue
         if iid not in sources_lien:
-            sources_lien[iid] = encodage.empreinte('visites_prevues_v1', principal.tete(), visites.tete(), iid)
+            sources_lien[iid] = source_consultation(source, snapshot, composition, iid)
         positions = [p['ligne_id'] for p in par_intervention[iid]]
         index = positions.index(ident)
         params = {'intervention_id': iid}
@@ -106,6 +123,8 @@ def enrichir(cnx, source, journal):
             ('Liens de visite seulement si les sources explicites sont vérifiées ; aucune durée quotidienne calculée.'
              if a == 'Aucune association de pointage à une visite précise ni durée quotidienne calculée.' else a)
             for a in journal['avertissements']]
-    if visites_ecriture.capturer_visites(cnx).empreinte_snapshot_calculee != snapshot.empreinte_snapshot_calculee:
+    comp_final = composition_durable.capturer(cnx)
+    if (visites_ecriture.capturer_visites(cnx).empreinte_snapshot_calculee != snapshot.empreinte_snapshot_calculee
+            or comp_final.empreinte_snapshot_calculee != composition.empreinte_snapshot_calculee):
         raise lecture.Refus('SOURCE-MODIFIEE')
     return journal

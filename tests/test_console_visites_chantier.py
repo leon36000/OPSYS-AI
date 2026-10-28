@@ -273,7 +273,7 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
                 assign, fenetre, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
         declaration = {'jour': '2030-06-03', 'equipe_id': equipe, 'membres': ['personne<script>.fictive'],
                        'revision_attendue': 0, 'statut_declaration': 'declaree'}
-        composition_journaliere.declarer(Registre(stockage.maillons('m04-field-ops',
+        declaration_lundi = composition_journaliere.declarer(Registre(stockage.maillons('m04-field-ops',
                                                                     composition_journaliere.REGISTRE)),
             **declaration, auteur={'personne': 'admin.fictif', 'role': 'admin'},
             mutation={'appareil': 'test-fictif', 'cle': 'composition-fictive',
@@ -286,6 +286,7 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
     page = client_crm.get(chemin)
     fermer = formulaire(page.text, 'fermer')
     assert 'Composition déclarée : personne&lt;script&gt;.fictive' in page.text
+    assert declaration_lundi['resultat']['declaration_id'] in page.text
     assert 'personne<script>.fictive' not in page.text
     assert client_crm.post(chemin, data=fermer, follow_redirects=False).status_code == 303
     assert client_crm.post(chemin, data=fermer, follow_redirects=False).status_code == 303
@@ -374,6 +375,16 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
             assert pointage.enregistrer_pointage(iid, equipe_reprise['id'], action, instant,
                 {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
                 assign_vendredi, fenetre_vendredi, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
+    with session():
+        composition = Registre(stockage.maillons('m04-field-ops', composition_journaliere.REGISTRE))
+        declaration_jour = {'jour': '2030-06-07', 'equipe_id': equipe_reprise['id'],
+                            'membres': ['reprise.fictive'], 'revision_attendue': 0,
+                            'statut_declaration': 'declaree'}
+        declaration_vendredi = composition_journaliere.declarer(composition, **declaration_jour,
+            auteur={'personne': 'admin.fictif', 'role': 'admin'},
+            mutation={'appareil': 'test-fictif', 'cle': 'composition-vendredi-fictive',
+                      'empreinte_arguments': encodage.empreinte(declaration_jour)},
+            horodatage='2030-06-07T17:00:00+00:00')
     journal_vendredi = client_crm.get('/crm/journal-equipes?jour=2030-06-07')
     assert journal_vendredi.status_code == 200
     assert '#visite-' + ouverture_vendredi['visite_id'] in journal_vendredi.text
@@ -387,6 +398,10 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
     page = client_crm.get(chemin)
     assert page.status_code == 200 and 'Pointé : 150 min nettes' in page.text
     assert 'Pointé : 240 min nettes' in page.text and 'Interruption : meteo' in page.text
+    assert 'Composition déclarée : personne&lt;script&gt;.fictive' in page.text
+    assert 'Composition déclarée : reprise.fictive' in page.text
+    assert declaration_lundi['resultat']['declaration_id'] in page.text
+    assert declaration_vendredi['resultat']['declaration_id'] in page.text
     with session():
         from m4_field_ops import visites_chantier, visites_durables
         reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
@@ -523,3 +538,72 @@ def test_outil_completion_session_segmente_sqlite(planning, session, monkeypatch
         assert len([w for _, w in wcts if w['intervention_id'] == iid]) == 1
         assert next(w for _, w in wcts if w['intervention_id'] == iid)['duree_reelle_minutes'] == 180
     assert outil('m4_completer_intervention', args)['resultat']['accepte'] is False
+
+
+def test_snapshot_initial_inchange_meme_si_metadonnees_changent_pendant_lecture(planning, session, monkeypatch):
+    from datetime import timedelta
+
+    import pytest
+    from m4_field_ops import visites_ecriture
+    from sqlalchemy import select
+
+    from opsys.console import preparation_chantier, visites_chantier
+    from opsys.console.securite import Session
+    from opsys.departements import charger_departements
+    from opsys.stockage.schema import REGISTRES
+
+    _, ids, _, _ = planning
+    iid = ids['lead-fictif-001']
+    original = visites_ecriture.empreinte_sources
+    appels = []
+    def changer(cnx):
+        appels.append(1)
+        if len(appels) == 1:
+            condition = (REGISTRES.c.departement == 'm04-field-ops') & (REGISTRES.c.registre == 'principal')
+            ligne = cnx.execute(select(REGISTRES).where(condition).limit(1)).mappings().one()
+            cnx.execute(REGISTRES.update().where(condition & (REGISTRES.c.rang == ligne['rang']))
+                        .values(cree_le=ligne['cree_le'] + timedelta(seconds=1)))
+        return original(cnx)
+    monkeypatch.setattr(visites_ecriture, 'empreinte_sources', changer)
+    with session() as cnx, pytest.raises(preparation_chantier.Refus, match='SOURCE-MODIFIEE'):
+        visites_chantier.lire(cnx, charger_departements(),
+            Session('admin.fictif', frozenset({'admin'}), 'csrf-fictif', 4102444800), iid)
+
+
+def test_composition_courante_est_sourcee_meme_si_historique_pagine(planning, session):
+    from m4_field_ops import calendrier_civil, composition_journaliere, encodage, visites_durables
+    from m4_field_ops.registre import Registre
+
+    from opsys import stockage
+    from opsys.console import visites_chantier
+    from opsys.console.securite import Session
+    from opsys.departements import charger_departements
+
+    _, ids, _, _ = planning
+    iid = ids['lead-fictif-001']
+    with session() as cnx:
+        reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        ligne = next(x for x in calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions']
+                     if x['intervention_id'] == iid)
+        ancre = {k: ligne[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+        prev = Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+        args = {'ancre': ancre, 'revision_attendue': 0}
+        visites_durables.prevoir(reg, prev, **args, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+            mutation={'appareil': 'fictif', 'cle': 'visite-unique', 'empreinte_arguments': encodage.empreinte(args)},
+            horodatage='2030-06-03T07:00:00-04:00')
+        comp = Registre(stockage.maillons('m04-field-ops', composition_journaliere.REGISTRE))
+        for i in range(51):
+            declaration = {'jour': '2030-06-03', 'equipe_id': ligne['equipe_id'],
+                           'membres': [f'personne-{i}.fictive'], 'revision_attendue': i,
+                           'statut_declaration': 'declaree'}
+            recu = composition_journaliere.declarer(comp, **declaration,
+                auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                mutation={'appareil': 'fictif', 'cle': f'composition-{i}',
+                          'empreinte_arguments': encodage.empreinte(declaration)},
+                horodatage='2030-06-03T07:01:00-04:00')
+        vue = visites_chantier.lire(cnx, charger_departements(),
+            Session('admin.fictif', frozenset({'admin'}), 'csrf-fictif', 4102444800), iid)
+    comp = vue['visites'][0]['composition']
+    assert comp['revision'] == 51 and comp['membres'] == ['personne-50.fictive']
+    assert comp['declaration_source'] == recu['resultat']['declaration_id']
+    assert comp['suivant'] == 50 and not any(x['courante'] for x in comp['lignes'])

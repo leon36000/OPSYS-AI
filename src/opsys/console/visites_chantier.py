@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 from m4_field_ops import (
     annotations_calendrier,
     composition_durable,
+    encodage,
     etats,
     journal_durable,
     visites_chantier,
@@ -25,6 +26,12 @@ def url(intervention_id, prefixe):
     return prefixe + '/crm/visites?' + urlencode({'intervention_id': intervention_id})
 
 
+def source_consultation(principal, visites, compositions, intervention_id):
+    return encodage.empreinte('visites_console_v2', principal.empreinte_snapshot_calculee,
+                             visites.empreinte_snapshot_calculee, compositions.empreinte_snapshot_calculee,
+                             intervention_id)
+
+
 def lire(cnx, deps, session, intervention_id, *, debut=0, limite=50, source_attendue=None):
     autorite._admin(cnx, session)
     try:
@@ -32,12 +39,21 @@ def lire(cnx, deps, session, intervention_id, *, debut=0, limite=50, source_atte
         v = visites_ecriture.capturer_visites(cnx)
         c = composition_durable.capturer(cnx)
         reg, prev = Registre([x.maillon for x in p.lignes]), Registre([x.maillon for x in v.lignes])
-        arguments = dict(intervention_id=intervention_id, debut=debut, limite=limite, source_attendue=source_attendue)
+        source_console = source_consultation(p, v, c, intervention_id)
+        if (debut and source_attendue is None) or (source_attendue is not None and source_attendue != source_console):
+            raise lecture.Refus('SOURCE-MODIFIEE')
+        source_m4 = encodage.empreinte('visites_prevues_v1', reg.tete(), prev.tete(), intervention_id)
+        arguments = dict(intervention_id=intervention_id, debut=debut, limite=limite,
+                         source_attendue=source_m4 if source_attendue is not None else None)
         attendu = visites_durables.lire(reg, prev, **arguments)
-        attendu['source_sql'] = visites_ecriture.empreinte_sources(cnx)
+        attendu['source_sql'] = encodage.empreinte('visites_sql_v1', p.empreinte_snapshot_calculee,
+                                                   v.empreinte_snapshot_calculee)
+        if visites_ecriture.empreinte_sources(cnx) != attendu['source_sql']:
+            raise lecture.Refus('SOURCE-MODIFIEE')
         obtenu = lecture._appel(deps, session.utilisateur, M4, NOM, arguments)
         if obtenu != attendu:
             raise lecture.Refus('SOURCE-REPONSE-INCOHERENTE')
+        attendu['source'] = source_console
         _, courantes = annotations_calendrier._sources(reg)
         attendues = [ligne for ligne in courantes.values()
                      if ligne['intervention_id'] == intervention_id and ligne['validite'] == 'date_confirmee']
@@ -107,7 +123,19 @@ def lire(cnx, deps, session, intervention_id, *, debut=0, limite=50, source_atte
                                    for x in calc['sources'] if sources[x].get('type_entree') == 'pointage']
                                   if calc else None)
             jour = ligne['creneau']['debut'][:10]
-            ligne['composition'] = composition_durable.projeter(c, jour, ligne['creneau']['equipe_id'])
+            equipe = ligne['creneau']['equipe_id']
+            composition = composition_durable.projeter(c, jour, equipe)
+            declaration = [x.maillon for x in c.lignes if x.maillon.get('jour') == jour
+                           and x.maillon.get('equipe_id') == equipe
+                           and x.maillon.get('revision') == composition['revision']]
+            if composition['revision']:
+                if (len(declaration) != 1 or
+                        (composition['composition_connue'] and declaration[0]['membres'] != composition['membres'])):
+                    raise lecture.Refus('SOURCE-COMPOSITION-INVALIDE')
+                composition['declaration_source'] = declaration[0]['ligne_id']
+            else:
+                composition['declaration_source'] = None
+            ligne['composition'] = composition
         attendu['ancre_courante'] = ({k: courant[k] for k in (
             'intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')} if courant else None)
         attendu['deja_prevue'] = bool(courant and any(
@@ -168,9 +196,14 @@ def contenu(vue, session, prefixe):
                   f'· Équipe prévue : {pages.e(equipe)} · État : {pages.e(v["etat_visite"])}</p>')
         if composition['composition_connue']:
             membres = ', '.join(composition['membres']) or 'Liste explicitement vide'
-            corps += f'<p>Composition déclarée : {pages.e(membres)} (révision {composition["revision"]}).</p>'
+            corps += (f'<p>Composition déclarée : {pages.e(membres)} '
+                      f'(équipe prévue {pages.e(equipe)}, révision {composition["revision"]}, '
+                      f'source {pages.e(composition["declaration_source"])}).</p>')
         else:
             corps += '<p>Composition déclarée inconnue.</p>'
+            if composition['declaration_source']:
+                corps += (f'<p>Déclaration inconnue : révision {composition["revision"]}, '
+                          f'source {pages.e(composition["declaration_source"])}.</p>')
         lien = compositions_equipes.url_journal(jour, equipe, prefixe)
         if lien:
             corps += f'<p><a href="{pages.e(lien)}">Composition et historique du jour</a></p>'

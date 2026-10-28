@@ -103,8 +103,44 @@ def test_lien_visite_hors_premiere_page_conserve_la_source(client_crm, planning,
     assert 'debut=50' in lien and 'source_attendue=' in lien
     destination = client_crm.get(lien.split('#')[0])
     assert destination.status_code == 200 and 'id="visite-' + resultat['visite_id'] + '"' in destination.text
+    from m4_field_ops import composition_journaliere
+    with session():
+        comp = Registre(stockage.maillons('m04-field-ops', composition_journaliere.REGISTRE))
+        args_comp = {'jour': jour, 'equipe_id': initial['equipe_id'], 'membres': ['personne.fictive'],
+                     'revision_attendue': 0, 'statut_declaration': 'declaree'}
+        composition_journaliere.declarer(comp, **args_comp, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+            mutation={'appareil': 'fictif', 'cle': 'composition-pagination',
+                      'empreinte_arguments': encodage.empreinte(args_comp)},
+            horodatage='2030-06-02T10:02:00+00:00')
+    assert client_crm.get(lien.split('#')[0]).status_code == 503
     with session():
         reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
         reg.ajouter({'type_entree': 'variance_m6_recue', 'intervention_id': 'autre-fictif',
                      'horodatage': '2030-06-02T10:02:00+00:00', 'fictif': True})
     assert client_crm.get(lien.split('#')[0]).status_code == 503
+
+
+def test_pagination_journal_refuse_changement_de_composition(client_crm, planning, session):
+    import re
+    from html import unescape
+
+    from m4_field_ops import calendrier_civil, composition_journaliere, encodage
+
+    f.base._connecter(client_crm, 'admin.fictif')
+    page = client_crm.get('/crm/journal-equipes?jour=2030-06-03&limite=1')
+    assert page.status_code == 200
+    lien = re.search(r'href="([^"]+)"[^>]*>Page suivante</a>', page.text)
+    assert lien is not None
+    suite = unescape(lien.group(1)).removeprefix(f.base.PREFIXE)
+    assert client_crm.get(suite).status_code == 200
+    with session():
+        reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        equipe = calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions'][0]['equipe_id']
+        comp = Registre(stockage.maillons('m04-field-ops', composition_journaliere.REGISTRE))
+        args = {'jour': '2030-06-03', 'equipe_id': equipe, 'membres': ['personne.fictive'],
+                'revision_attendue': 0, 'statut_declaration': 'declaree'}
+        composition_journaliere.declarer(comp, **args, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+            mutation={'appareil': 'fictif', 'cle': 'composition-journal',
+                      'empreinte_arguments': encodage.empreinte(args)},
+            horodatage='2030-06-03T08:00:00-04:00')
+    assert client_crm.get(suite).status_code == 503
