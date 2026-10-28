@@ -213,6 +213,8 @@ def test_http_visites_depuis_chantier_prevision_et_csrf(client_crm, planning, se
     assert journal.status_code == 200 and ('/crm/visites?intervention_id=' + iid) in journal.text
     page = client_crm.get(chemin)
     assert page.status_code == 200, page.text
+    assert page.headers['cache-control'] == 'no-store'
+    assert 'content-security-policy' in page.headers
     assert 'Prévisions et visites' in page.text and 'Composition' in page.text
     from html.parser import HTMLParser
     class Forms(HTMLParser):

@@ -138,6 +138,8 @@ def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, catalogu
     assert catalogue.get(route + '&intervention_id=autre').status_code == 400
     assert catalogue.get('/crm/visites/reprise?intervention_id=%3Cscript%3E').status_code == 400
     page = catalogue.get(route)
+    assert page.headers['cache-control'] == 'no-store'
+    assert 'content-security-policy' in page.headers
     assert page.status_code == 200 and 'eq-reprise-fictive' in page.text, page.text
     champs = Champs(page.text).valeurs
     champs.update(equipe_id='eq-reprise-fictive', debut='08:00', fin='17:00')
