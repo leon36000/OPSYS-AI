@@ -119,11 +119,11 @@ def _anomalie_validee(maillons, point):
             and transition.get('horodatage') == resolution.get('horodatage'))
 
 
-def calculer_faits(registre, intervention_id):
+def calculer_faits(registre, intervention_id, *, ignorer_anciens=False):
     """Lit les faits porteurs d'une identité explicite, sans rétro-attribution.
 
-    Toute source ancienne non identifiée bloque le total. Ce lecteur reste privé :
-    les writers et l'authenticité des identités de visite doivent encore être raccordés.
+    Par défaut toute source ancienne non identifiée bloque le total. Le mode interne
+    de fermeture ne les attribue pas et ne doit pas servir à établir un total global.
     """
     from .registre import Registre, VerificationError
 
@@ -145,6 +145,8 @@ def calculer_faits(registre, intervention_id):
         if action not in {'en_route', 'arrivee', 'depart', 'pause_debut', 'pause_fin'}:
             continue
         ident = m.get('visite_id')
+        if ignorer_anciens and ident is None:
+            continue
         technicien = m.get('technicien_id')
         if (type(ident) is not str or not ident.strip() or type(technicien) is not str
                 or not technicien.strip()):
@@ -307,7 +309,7 @@ def fermer(principal, visites, visite_id, horodatage, *, provenance=None):
                 or ouverture['equipe_id'] != prevision['creneau']['equipe_id']
                 or etats.statut_courant(principal, iid) != 'sur_site'):
             raise ValueError('ouverture ou état incompatible')
-        resultat = calculer_faits(principal, iid)
+        resultat = calculer_faits(principal, iid, ignorer_anciens=True)
         sessions = [v for v in resultat['visites'] if v['visite_id'] == visite_id]
         if len(sessions) != 1:
             raise ValueError('session incomplète')
@@ -328,10 +330,12 @@ def fermer(principal, visites, visite_id, horodatage, *, provenance=None):
         raise ValueError('source de visite invalide') from exc
 
 
-def calculer_faits_certifies(principal, visites, intervention_id):
+def calculer_faits_certifies(principal, visites, intervention_id, *, ignorer_anciens=False):
     """Vérifie les ancres et fermetures explicites avant tout total de chantier.
 
     Les anomalies GPS exigent une demande et une résolution validée reliées au pointage.
+    Le mode interne d'interruption écarte les anciens faits hors session sans les
+    attribuer ; il ne permet pas de calculer un total global certifié.
     """
     from zoneinfo import ZoneInfo
 
@@ -373,6 +377,8 @@ def calculer_faits_certifies(principal, visites, intervention_id):
                 active, dernier_depart, technicien_route = m, None, None
                 utilisees.add(ident)
             elif action in {'en_route', 'arrivee', 'depart', 'pause_debut', 'pause_fin'}:
+                if ignorer_anciens and m.get('visite_id') is None and active is None:
+                    continue
                 if (active is None or m.get('visite_id') != active['visite_id']
                         or _instant(m['horodatage']) < _instant(active['horodatage'])):
                     raise ValueError('fait sans ouverture correspondante')
@@ -398,7 +404,7 @@ def calculer_faits_certifies(principal, visites, intervention_id):
                 active, dernier_depart, technicien_route = None, None, None
         if active is not None or not utilisees:
             raise ValueError('visite ouverte ou absente')
-        resultat = calculer_faits(principal, intervention_id)
+        resultat = calculer_faits(principal, intervention_id, ignorer_anciens=ignorer_anciens)
         if {v['visite_id'] for v in resultat['visites']} != utilisees:
             raise ValueError('sessions incohérentes')
         if principal.tete() != tete_principal or visites.tete() != tete_visites:

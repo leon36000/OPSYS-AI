@@ -730,7 +730,8 @@ def transitionner(
         try:
             if registre_visites is None:
                 raise ValueError("registre de visites absent")
-            visites_chantier.calculer_faits_certifies(registre_cible, registre_visites, intervention_id)
+            visites_chantier.calculer_faits_certifies(registre_cible, registre_visites, intervention_id,
+                                                        ignorer_anciens=True)
             fermetures = [m for m in registre_cible.lire() if m.get("type_entree") == "visite_fermee"
                           and m.get("intervention_id") == intervention_id]
             if (not fermetures or visites_chantier._instant(horodatage_arg)

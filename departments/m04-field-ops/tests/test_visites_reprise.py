@@ -486,3 +486,37 @@ def test_calcul_refuse_ancre_perimee_meme_si_chaine_forgee_est_valide():
     assert principal.valider_chaine()
     with pytest.raises(ValueError):
         visites_chantier.calculer_faits_certifies(principal, visites, iid)
+
+
+def test_fait_ancien_ambigu_ne_bloque_pas_fermeture_ni_ne_devient_une_visite():
+    """Une nouvelle session reste identifiable ; le total chantier ancien reste inconnu."""
+    from m4_field_ops import cedule, etats, pointage, visites_chantier
+    principal, visites, ancre, _, _ = fixture.monde()
+    iid = ancre['intervention_id']
+    principal.ajouter({'type_entree': 'pointage', 'intervention_id': iid,
+                      'technicien_id': 'ancien.fictif', 'action': 'arrivee',
+                      'horodatage': '2030-05-01T09:00:00-04:00'})
+    ancien = principal.lire()[-1].copy()
+    prev = ecrire(principal, visites, ancre)
+    visites_chantier.ouvrir(principal, visites, prev['visite_id'], '2030-06-03T08:00:00-04:00')
+    equipe = fixture.notes._creneau(fixture.notes._sources(principal), ancre)['equipe_id']
+    assign = {'intervention_id': iid, 'technicien_id': equipe}
+    assert etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+    ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+        'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+    fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+    for action, heure in [('arrivee', '09:00:00'), ('depart', '12:00:00')]:
+        assert pointage.enregistrer_pointage(iid, equipe, action, f'2030-06-03T{heure}-04:00',
+            {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+            assign, fenetre, ref, 'Repentigny', 'sel-fictif', principal)[1] is None
+    visites_chantier.fermer(principal, visites, prev['visite_id'], '2030-06-03T12:01:00-04:00')
+    assert ancien in principal.lire() and 'visite_id' not in ancien
+    from m4_field_ops import outbox
+    avant = principal.lire()
+    assert outbox.completer_intervention(iid, '2030-06-03T12:02:00-04:00', principal,
+        ecart_detecte=False, registre_visites=visites)[1] is not None
+    assert principal.lire() == avant and not outbox.lire_outbox(principal)
+    with pytest.raises(ValueError):
+        visites_chantier.calculer_faits_certifies(principal, visites, iid)
+    assert etats.transitionner(iid, 'reportee', principal, '2030-06-03T12:02:00-04:00',
+                               motif='meteo', registre_visites=visites)[1] is None

@@ -571,7 +571,7 @@ def outils(
                     < visites_chantier._instant(reports[-1]["horodatage"])):
                 raise annotations_calendrier.Refus("SOURCE-PERIMEE")
             visites_chantier.calculer_faits_certifies(
-                reg, registre.Registre([r.maillon for r in source.lignes]), intervention_id)
+                reg, registre.Registre([r.maillon for r in source.lignes]), intervention_id, ignorer_anciens=True)
             with cnx.begin_nested():
                 recu, verdict = etats.transitionner(intervention_id, "planifiee", reg, horodatage_faisant_foi,
                                                      horodatage_appareil=horodatage_appareil)
