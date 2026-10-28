@@ -28,6 +28,7 @@ def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, catalogu
 
     from opsys.console import application_chantier, reprise_visite
 
+
     class HorlogeFictive(datetime):
         instant = datetime(2030, 6, 3, 16, 4, tzinfo=UTC)
         @classmethod
@@ -289,6 +290,29 @@ def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, catalogu
         principal = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
         wcts = [w for _, w in outbox.lire_outbox(principal) if w['intervention_id'] == iid]
         assert len(wcts) == 1 and wcts[0]['duree_reelle_minutes'] == 390
+    # Le journal d'audit des nouveaux ports conserve les références utiles, pas les corps privés.
+    import json
+
+    from sqlalchemy import select
+
+    from opsys.stockage.schema import JOURNAL
+
+    autorisees = {
+        'console.proposition_reprise': {'intervention_id', 'plan_id', 'mutation_id'},
+        'console.application_reprise': {'intervention_id', 'plan_id', 'approbation_id', 'mutation_id'},
+        'm4.visite_prevue': {'intervention_id', 'revision', 'empreinte_arguments'},
+        'm4.visite_ouvrir': {'visite_id', 'empreinte_arguments'},
+        'm4.visite_fermer': {'visite_id', 'empreinte_arguments'},
+    }
+    with session() as cnx:
+        lignes_audit = cnx.execute(select(JOURNAL.c.action, JOURNAL.c.details)
+                                   .where(JOURNAL.c.action.in_(autorisees))).all()
+    assert {ligne.action for ligne in lignes_audit} == set(autorisees)
+    for ligne_audit in lignes_audit:
+        assert set(json.loads(ligne_audit.details)) == autorisees[ligne_audit.action]
+    texte_audit = ' '.join(ligne.details for ligne in lignes_audit)
+    for confidentiel in (champs['csrf'], formulaire['csrf'], 'reprise.fictive'):
+        assert confidentiel not in texte_audit
     with session() as cnx:
         identite.retirer_role(cnx, 'admin.fictif', 'admin')
     assert catalogue.get(route, follow_redirects=False).status_code in {303, 403}

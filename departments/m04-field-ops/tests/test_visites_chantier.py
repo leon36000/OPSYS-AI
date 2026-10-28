@@ -2,7 +2,6 @@
 from copy import deepcopy
 
 import pytest
-
 from m4_field_ops import visites_chantier as visites
 
 
