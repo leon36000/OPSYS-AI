@@ -130,6 +130,14 @@ def refus(code: str, detail: str) -> dict[str, str]:
     return {"code": f"REJ-DOSSIER-PAIE-{code}", "detail": detail}
 
 
+class DossierErreur(ValueError):
+    """Refus métier du dossier : `verdict` porte un code `REJ-DOSSIER-PAIE-*` (type unique pour journal et service)."""
+
+    def __init__(self, verdict: Mapping[str, Any]) -> None:
+        super().__init__(str(verdict.get("detail", "")))
+        self.verdict = dict(verdict)
+
+
 def canonique(objet: Any) -> str:
     return json.dumps(objet, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
 

@@ -26,10 +26,7 @@ FournisseurAdmission = Callable[[Mapping[str, Any]], Mapping[str, Any]]
 _CHAMPS_ADMISSION = ("admissible", "motifs", "sources_verifiees", "empreintes_sources", "schema")
 
 
-class ServiceErreur(ValueError):
-    def __init__(self, verdict: Mapping[str, Any]) -> None:
-        super().__init__(str(verdict.get("detail", "")))
-        self.verdict = dict(verdict)
+ServiceErreur = dossier.DossierErreur
 
 
 def _lever(code: str, detail: str) -> ServiceErreur:

@@ -69,12 +69,11 @@ def est_decision_revue(valeur: object) -> bool:
     return isinstance(valeur, str) and valeur in _DECISIONS_REVUE
 
 
-class JournalErreur(ValueError):
-    """Refus métier (CAS, rejeu en conflit, entrée invalide); `verdict` porte le code `REJ-DOSSIER-PAIE-*`."""
+class JournalErreur(dossier.DossierErreur):
+    """Refus du journal (CAS, rejeu en conflit, entrée invalide); `verdict` porte le code `REJ-DOSSIER-PAIE-*`."""
 
     def __init__(self, code: str, detail: str) -> None:
-        super().__init__(detail)
-        self.verdict = dossier.refus(code, detail)
+        super().__init__(dossier.refus(code, detail))
 
 
 class JournalCorrompu(JournalErreur):
