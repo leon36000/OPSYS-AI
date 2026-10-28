@@ -1,6 +1,7 @@
 """Lecture privée M3→M5, calcul propriétaire et sources consommées, aucun effet financier."""
 import copy
 import hashlib
+import importlib
 import json
 
 from m5_financecore import encodage
@@ -10,7 +11,7 @@ from .. import contexte
 from ..outils import Autonomie, executer
 from ..stockage import codec
 from ..stockage.maillons import copier_maillons_avec_metadonnees
-from ..stockage.schema import EVENEMENTS_RECUS
+from ..stockage.schema import EVENEMENTS_RECUS, OPSYS_INSTANCE
 from . import memoire_chantier as autorite
 from . import preparation_chantier as lecture
 
@@ -106,6 +107,96 @@ def _m5(deps, session, devis_id):
     return lecture._sortie(res['resultat'])
 
 
+def _wct_publie_et_recu(cnx, recu):
+    """Lie une charge publiée par M4 à la réception M5 et à son empreinte complète."""
+    ident = recu.get('wct_id')
+    if not isinstance(ident, str) or not ident:
+        raise lecture.Refus('SOURCE-INCOHERENTE')
+    charge = lecture._publication(cnx, ident, 'm4.travaux_termines', 'm04-field-ops')
+    if charge is None:
+        return None
+    condition = ((EVENEMENTS_RECUS.c.evenement_id == ident) & (EVENEMENTS_RECUS.c.consommateur == M5))
+    taille = cnx.execute(select(func.length(cast(EVENEMENTS_RECUS.c.resultat, LargeBinary)))
+                        .where(condition)).scalar_one_or_none()
+    if taille is not None and taille > lecture.MAX_SORTIE_OCTETS:
+        raise lecture.Refus('SOURCE-TROP-VOLUMINEUSE')
+    ligne = cnx.execute(select(EVENEMENTS_RECUS).where(condition)).mappings().one_or_none()
+    if ligne is None or ligne['statut'] != 'traite':
+        return None
+    resultat = codec.decoder(ligne['resultat']) if ligne['resultat'] is not None else None
+    if (not isinstance(resultat, dict) or resultat.get('traite') is not True
+            or (recu.get('devis_id') is None and resultat.get('wct_id') != ident)
+            or (recu.get('devis_id') is not None and resultat.get('devis_id') != recu['devis_id'])
+            or any(recu.get(k) != charge.get(k) for k in
+                   ('wct_id', 'intervention_id', 'devis_id', 'horodatage_completion', 'duree_reelle_minutes'))):
+        raise lecture.Refus('SOURCE-INCOHERENTE')
+    if recu.get('empreinte_charge') is None:
+        return 'HISTORIQUE', None
+    if recu['empreinte_charge'] != encodage.empreinte(charge):
+        raise lecture.Refus('SOURCE-INCOHERENTE')
+    return charge, encodage.empreinte(dict(ligne))
+
+
+def _ventilation_m4(cnx, session, recu):
+    """Volet privé complémentaire : pas de mutation et pas de présence individuelle inférée."""
+    from m5_financecore import cout_reel
+    from m5_financecore import outils as m5
+
+    autorite._admin(cnx, session)
+    try:
+        m4 = importlib.import_module('m4_field_ops.temps_certifies_v2')
+    except ModuleNotFoundError as exc:
+        if exc.name == 'm4_field_ops.temps_certifies_v2':
+            return {'statut': 'PRODUCTEUR_INDISPONIBLE'}
+        raise lecture.Refus('VENTILATION-INDISPONIBLE') from None
+    source_bus = _wct_publie_et_recu(cnx, recu)
+    if source_bus is None:
+        return {'statut': 'PUBLICATION_OU_RECEPTION_ABSENTE'}
+    charge, recu_bus = source_bus
+    if charge == 'HISTORIQUE':
+        return {'statut': 'RECU_HISTORIQUE_NON_VERIFIABLE'}
+    identite = contexte.IdentiteAppelante(session.utilisateur, 'admin', source='console')
+    try:
+        with (contexte.appele_par_appareil(identite),
+              contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+            projection = m4.projeter(cnx, charge['intervention_id'], charge['wct_id'])
+        with (contexte.appele_par_appareil(identite), contexte.appeler_en_tant_que(M5, origine='console')):
+            tarifs = m5._lire_tarifs_equipes()
+        p = projection['projection']
+        instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one()
+        if instance != p['instance_id']:
+            raise lecture.Refus('INSTANCE-NON-QUALIFIEE')
+        main = cout_reel._main_d_oeuvre_ventilee(charge, p, tarifs['lignes'], p['instance_id'],
+                                                 projection['source'], p['sources'])
+        with (contexte.appele_par_appareil(identite),
+              contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+            relecture = m4.projeter(cnx, charge['intervention_id'], charge['wct_id'],
+                                    source_attendue=projection['source'])
+        with (contexte.appele_par_appareil(identite), contexte.appeler_en_tant_que(M5, origine='console')):
+            tarifs_fin = m5._lire_tarifs_equipes()
+        instance_fin = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one()
+        if (relecture != projection or instance_fin != instance or tarifs_fin['source'] != tarifs['source']
+                or _wct_publie_et_recu(cnx, recu) != source_bus):
+            raise lecture.Refus('SOURCE-MODIFIEE')
+        autorite._admin(cnx, session)
+    except (m4.Refus, ValueError, KeyError, TypeError, PermissionError):
+        raise lecture.Refus('VENTILATION-INDISPONIBLE') from None
+    equipes_inconnues = sum(v['equipe_pointee']['statut'] != 'identifiee' for v in p['visites'])
+    return {
+        'statut': 'COMPLET' if main['statut'] == 'complet' else 'INCOMPLET',
+        'minutes_travail': p['totaux']['travail'],
+        'minutes_pause': p['totaux']['pause'],
+        'minutes_deplacement': p['totaux']['deplacement'],
+        'cout_main_oeuvre': main['cout'],
+        'cout_main_oeuvre_connu': main.get('cout_connu'),
+        'equipes_indeterminees': equipes_inconnues,
+        'revue': p['revue_chantier']['statut'],
+        'manque': main['manque'],
+        'empreinte_projection': p['empreinte'],
+        'source': encodage.empreinte(projection['source'], tarifs['source'], recu_bus, encodage.empreinte(charge)),
+    }
+
+
 def lire(cnx, deps, session, lead_id, devis_id):
     from m5_financecore import devis_recus
     from m5_financecore import outils as m5
@@ -119,7 +210,8 @@ def lire(cnx, deps, session, lead_id, devis_id):
     charge = _ancre(cnx, deps, session, lead_id, devis_id)
     statut, recu = _reception(cnx, devis_id) if charge is not None else ('NON_PUBLIE', None)
     resultat = dict(lead_id=lead_id, devis_id=devis_id, reception_m5=statut, chantier=None,
-                    source_calculee=None)
+                    source_calculee=None, ventilation_m4={'statut': 'WCT_ABSENT'})
+    recu_wct = None
     recus = [m for m in _lignes(captures, M5, 'devis_recus') if m.get('devis_id') == devis_id]
     if statut != 'TRAITE':
         if recus:
@@ -146,13 +238,22 @@ def lire(cnx, deps, session, lead_id, devis_id):
                 or vue.get('chantiers') != [attendu_vue]):
             raise lecture.Refus('SOURCE-REPONSE-INCOHERENTE')
         resultat['chantier'] = attendu_vue
+        if etat.get('statut') == 'calculee':
+            wct_id = etat['rentabilite']['wct_id']
+            correspondants = [r for r in sources['wct'] if r.get('wct_id') == wct_id]
+            if len(correspondants) != 1:
+                raise lecture.Refus('SOURCE-INCOHERENTE')
+            recu_wct = correspondants[0]
+            resultat['ventilation_m4'] = _ventilation_m4(cnx, session, recu_wct)
     autorite._admin(cnx, session)
     if (_references(_capture(cnx)) != refs or _configuration(m5) != config
             or _ancre(cnx, deps, session, lead_id, devis_id) != charge
             or (charge is not None and _reception(cnx, devis_id) != (statut, recu))):
         raise lecture.Refus('SOURCE-MODIFIEE')
+    if recu_wct is not None and _ventilation_m4(cnx, session, recu_wct) != resultat['ventilation_m4']:
+        raise lecture.Refus('SOURCE-MODIFIEE')
     resultat['source_calculee'] = encodage.empreinte(dict(registres=refs, configuration=config[0],
-        acceptation=charge, reception=recu))
+        acceptation=charge, reception=recu, ventilation=resultat['ventilation_m4']))
     autorite._admin(cnx, session)
     return lecture._sortie(m5.analyse.avec_mention(resultat))
 
@@ -217,7 +318,26 @@ def contenu(vue, prefixe):
         corps += f'<li>{pages.e(manque.get("code"))} : {pages.e(manque.get("detail"))}</li>'
     corps += '</ul><h3>Hypothèses M5</h3><ul>'
     corps += ''.join(f'<li>{pages.e(h)}</li>' for h in cout['hypotheses'])
-    corps += (f'</ul><p>Arrondi M5 : {pages.e(cout["arrondi"])}</p><details><summary>Source de consultation</summary>'
+    ventilation = vue.get('ventilation_m4', {'statut': 'PRODUCTEUR_INDISPONIBLE'})
+    messages = {
+        'PRODUCTEUR_INDISPONIBLE': 'Ventilation M4 indisponible : producteur non installé.',
+        'PUBLICATION_OU_RECEPTION_ABSENTE': 'Ventilation M4 indisponible : publication ou réception non vérifiée.',
+        'RECU_HISTORIQUE_NON_VERIFIABLE': 'Ventilation M4 indisponible : reçu historique sans empreinte complète.',
+        'WCT_ABSENT': 'Ventilation M4 en attente du WCT.',
+    }
+    corps += '</ul><h3>Ventilation M4 complémentaire</h3>'
+    if ventilation['statut'] in ('INCOMPLET', 'COMPLET'):
+        corps += (f'<p>Travail : {valeur(ventilation["minutes_travail"])} minutes · '
+                  f'Pauses : {valeur(ventilation["minutes_pause"])} minutes · '
+                  f'Déplacements : {valeur(ventilation["minutes_deplacement"])} minutes</p>'
+                  f'<p>Revue : {valeur(ventilation["revue"])} · Équipes indéterminées : '
+                  f'{valeur(ventilation["equipes_indeterminees"])}</p>'
+                  f'<p>Coût de main-d’œuvre ventilé : {valeur(ventilation["cout_main_oeuvre"])}</p>'
+                  '<p>Consultation complémentaire non inscrite à la trace M5 ; '
+                  'les déplacements ne sont pas inclus dans ce coût.</p>')
+    else:
+        corps += f'<p>{pages.e(messages.get(ventilation["statut"], "Ventilation indisponible."))}</p>'
+    corps += (f'<p>Arrondi M5 : {pages.e(cout["arrondi"])}</p><details><summary>Source de consultation</summary>'
               f'<p>Empreinte calculée : {pages.e(vue["source_calculee"])}</p></details></section>')
     return corps
 
