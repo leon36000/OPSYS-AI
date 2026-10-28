@@ -243,6 +243,8 @@ def test_fermeture_de_session_sans_completion_ni_wct():
     assert visites_chantier.visite_active(principal, iid) is None
     apres_fermeture = principal.lire()
     assert pointer('depart', '2030-06-03T12:02:00-04:00')[1] is not None
+    for action in ('pause_debut', 'pause_fin'):
+        assert pointer(action, '2030-06-03T12:02:00-04:00')[1] is not None
     assert principal.lire() == apres_fermeture
     assert etats.statut_courant(principal, iid) == 'sur_site'
     assert not any('wct' in m for m in principal.lire())
