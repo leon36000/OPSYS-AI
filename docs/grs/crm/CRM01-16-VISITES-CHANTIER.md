@@ -25,3 +25,7 @@ Exit 0 (`vert-04`). Python 3.12, dépendances dans `pins-01.txt`. Le runner char
 ## Reprise
 
 Installer/reconstituer le harnais isolé et ses dépendances à partir des pins, confirmer les preuves, puis développer le modèle de visite et son registre durable, les calculs par session et les transitions gardées ; seulement ensuite raccorder et exercer SQL/HTTP/console. Le correctif de garde ne satisfait pas l'objectif métier. Pas de raccord commun préparé, aucune migration, aucun M5, aucune mise en production.
+
+## Tranche suivante : calcul pur non raccordé
+
+`visites_chantier.calculer_sessions` calcule des intervalles explicitement fournis en UTC, contrôle l'unicité des identités, l'ordre, les chevauchements, la précision à la minute et les pauses dans leur visite ; les déplacements restent distincts. L'oracle 390 minutes, le changement d'heure, les refus et l'absence de mutation sont exercés par `test_visites_chantier.py` (`vert-06.log`, exit 0 avec le même harnais et les deux fichiers `test_visites_chantier.py` et `test_visites_temps.py`). `rouge-04.log` est un import absent, non une démonstration métier ; la preuve métier rouge reste `rouge-03.log`. Ce calcul ne vérifie pas encore les sources, ne crée aucun fait, n'est raccordé à aucun writer ni WCT et ne prouve pas une reprise réelle. Les tests sont des entrées fictives, pas des données terrain.
