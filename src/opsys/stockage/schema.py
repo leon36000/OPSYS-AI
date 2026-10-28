@@ -965,3 +965,28 @@ FUSION_PDF_OCR_QUOTA = Table(
     CheckConstraint("lots BETWEEN 0 AND 16", name="lots_borne"),
     CheckConstraint("octets_cipher BETWEEN 0 AND 4194304", name="octets_bornes"),
 )
+
+# Originaux reçus par projet : chiffrement externe, aucune référence CAS globale.
+PIECES_PROJET = Table(
+    "pieces_projet", META,
+    Column("piece_id", String(32), primary_key=True),
+    Column("lead_id", String(200), nullable=False),
+    Column("client_id", String(200), nullable=False),
+    Column("auteur", String(200), nullable=False),
+    Column("mutation_id", String(32), nullable=False),
+    Column("empreinte", String(64), nullable=False),
+    Column("source_sha256", String(64), nullable=False),
+    Column("type_mime", String(32), nullable=False),
+    Column("taille_octets", Integer, nullable=False),
+    Column("recu_le", String(40), nullable=False),
+    Column("version_format", Integer, nullable=False),
+    Column("nonce", String(24), nullable=False),
+    Column("chiffre", Text, nullable=False),
+    Column("titre_nonce", String(24), nullable=False),
+    Column("titre_chiffre", Text, nullable=False),
+    UniqueConstraint("auteur", "mutation_id", name="uq_pieces_projet_saisie"),
+    CheckConstraint("version_format = 1", name="pieces_format"),
+    CheckConstraint("taille_octets > 0 AND taille_octets <= 1048576", name="pieces_taille"),
+    CheckConstraint("type_mime IN ('image/jpeg','image/png','application/pdf')", name="pieces_type"),
+)
+Index("ix_pieces_projet_lead", PIECES_PROJET.c.lead_id, PIECES_PROJET.c.recu_le, PIECES_PROJET.c.piece_id)
