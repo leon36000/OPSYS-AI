@@ -41,13 +41,14 @@ MAX_OCTETS_DEFAUT = 900_000
 MAX_PAGES = 50
 MAX_REVISIONS = 256
 _HEX = re.compile(r"[0-9a-f]{64}")
+_JOUR = re.compile(r"\d{4}-\d{2}-\d{2}")
 VERDICTS = frozenset({"ACCEPTEE", "REFUSEE", "ERREUR"})
 REGLE_CONTRADICTION = "meme_lecture_memes_arguments_meme_revision_meme_instant_empreinte_differente/v1"
 _CHAMPS = frozenset(
     {
         "schema", "index", "hash_precedent", "hash_maillon", "catalogue_version", "lecture_id", "departement", "outil",
         "arguments", "arguments_sha256", "pages", "reponse_sha256", "verdict", "code", "complete", "raison_incomplete",
-        "recu_a", "reference", "instants_metier", "revisions", "limites",
+        "recu_a", "reference", "reference_jour", "instants_metier", "revisions", "limites",
     }
 )  # fmt: skip
 _LIMITES = (
@@ -172,7 +173,18 @@ def construire(
         raise _refus("REJ-CAPTURE-TEMPS", "instant de réception avec fuseau explicite requis")
     if dernier_recu_a is not None and recu < instant(dernier_recu_a):  # type: ignore[operator]
         raise _refus("REJ-CAPTURE-TEMPS", "l'instant de réception ne peut pas précéder la dernière capture connue")
-    if reference is not None and instant(reference) is None:
+    reference_jour = None
+    if lecture.reference_genre == "date" and reference is not None:
+        # Le producteur lit un JOUR civil (AAAA-MM-JJ) : aucun fuseau n'est deviné, la référence reste un jour.
+        try:
+            date.fromisoformat(reference)
+            valide = bool(_JOUR.fullmatch(reference))
+        except (TypeError, ValueError):
+            valide = False
+        if not valide:
+            raise _refus("REJ-CAPTURE-TEMPS", "référence de lecture : jour AAAA-MM-JJ valide requis")
+        reference_jour, reference = reference, None
+    elif reference is not None and instant(reference) is None:
         raise _refus("REJ-CAPTURE-TEMPS", "référence de lecture avec fuseau explicite requise")
     if type(index) is not int or index < 0 or (index == 0) != (hash_precedent == HASH_INITIAL):
         raise _refus("REJ-CAPTURE-CHAINE", "rang et prédécesseur incohérents")
@@ -198,12 +210,22 @@ def construire(
         if any(valeur is not None for valeur in suite):
             complete, raison = False, "page suivante non lue"
     if complete and lecture.incomplets:
-        for page in pages_json:
+        # Une lecture paginée dit « reste » à chaque page intermédiaire : seule la dernière page est jugée.
+        a_juger = pages_json[-1:] if lecture.pagination is not None else pages_json
+        for page in a_juger:
             for marqueur in lecture.incomplets:
                 for valeur in extraire(page, marqueur.chemin):
-                    declare = valeur is True if marqueur.genre == "vrai" else type(valeur) is int and valeur > 0
+                    if marqueur.genre == "vrai":
+                        declare = valeur is True
+                    elif marqueur.genre == "faux":
+                        declare = valeur is False
+                    else:
+                        declare = type(valeur) is int and valeur > 0
                     if declare and complete:
-                        complete, raison = False, f"réponse tronquée déclarée par le producteur ({marqueur.chemin})"
+                        complete, raison = (
+                            False,
+                            f"réponse tronquée ou vide déclarée par le producteur ({marqueur.chemin})",
+                        )
     instants, invalides = [], 0
     revisions: set[str] = set()
     if verdict == "ACCEPTEE":
@@ -240,6 +262,7 @@ def construire(
         "raison_incomplete": raison,
         "recu_a": _iso(recu),
         "reference": _iso(instant(reference)) if reference is not None else None,  # type: ignore[arg-type]
+        "reference_jour": reference_jour,
         "instants_metier": {
             "declares": bool(lecture.instants_metier),
             "nombre": len(instants),
@@ -268,6 +291,9 @@ def valider_capture(capture: object) -> None:
         capture["pages"]
     ):
         raise _refus("REJ-CAPTURE-EMPREINTE", "empreinte d'arguments ou de réponse incohérente")
+    jour = capture["reference_jour"]
+    if jour is not None and (type(jour) is not str or not _JOUR.fullmatch(jour) or capture["reference"] is not None):
+        raise _refus("REJ-CAPTURE-TEMPS", "référence en jour incohérente")
     if instant(capture["recu_a"]) is None or (
         capture["reference"] is not None and instant(capture["reference"]) is None
     ):

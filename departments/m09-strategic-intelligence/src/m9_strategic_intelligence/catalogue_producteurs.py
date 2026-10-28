@@ -40,14 +40,15 @@ class Pagination:
 class Marqueur:
     """Déclaration d'incomplétude PAR LE PRODUCTEUR : où sa réponse dit qu'elle est tronquée.
 
-    ``vrai`` : la valeur trouvée est ``true`` ; ``positif`` : un entier > 0 (ex. ``reste``). Une réponse qui déclare sa
+    ``vrai`` : la valeur est ``true`` ; ``faux`` : elle est ``false`` (ex. ``trouve``) ; ``positif`` : un entier > 0.
+    Une réponse qui déclare sa
     propre troncature ne peut jamais être capturée « complète » (aucune suite lisible par M9 ne se présume)."""
 
     chemin: str
     genre: str  # "vrai" | "positif"
 
     def __post_init__(self) -> None:
-        if self.genre not in ("vrai", "positif") or not _CHEMIN.fullmatch(self.chemin):
+        if self.genre not in ("vrai", "faux", "positif") or not _CHEMIN.fullmatch(self.chemin):
             raise ValueError("marqueur d'incomplétude invalide")
 
 
@@ -63,6 +64,7 @@ class Lecture:
     instants_metier: tuple[str, ...] = ()
     revisions: tuple[str, ...] = ()
     incomplets: tuple[Marqueur, ...] = ()
+    reference_genre: str = "instant"  # "instant" (RFC 3339, fuseau explicite) | "date" (jour civil AAAA-MM-JJ)
 
     def __post_init__(self) -> None:
         chemins = [*self.instants_metier, *self.revisions]
@@ -76,6 +78,8 @@ class Lecture:
             raise ValueError(f"{self.id} : un argument ne peut pas être à la fois fixe et libre")
         if self.pagination is not None and self.pagination.arg_depart not in self.libres:
             raise ValueError(f"{self.id} : l'argument de pagination doit être libre")
+        if self.reference_genre not in ("instant", "date"):
+            raise ValueError(f"{self.id} : genre de référence inconnu")
         if self.reference is not None and self.reference not in self.libres:
             raise ValueError(f"{self.id} : l'argument de référence doit être libre")
 
@@ -87,7 +91,14 @@ def _lecture(id_, departement, outil, libres, **kwargs):
 # Les chemins d'instants/révisions partent de la réponse complète du dispatcher
 # ({"ok": true, "resultat": …}) ; ils ne sont déclarés que là où la forme réelle a été constatée par un test.
 LECTURES: tuple[Lecture, ...] = (
-    _lecture("m1.digest", "m01-front-office", "m1_produire_digest", {"date_reference"}, reference="date_reference"),
+    _lecture(
+        "m1.digest",
+        "m01-front-office",
+        "m1_produire_digest",
+        {"date_reference"},
+        reference="date_reference",
+        reference_genre="date",
+    ),
     _lecture(
         "m2.leads",
         "m02-revenue-crm",
@@ -152,12 +163,18 @@ LECTURES: tuple[Lecture, ...] = (
         "m5_prevoir_tresorerie",
         {"aujourd_hui", "horizon_semaines", "semaine", "depart"},
         reference="aujourd_hui",
+        reference_genre="date",
+        pagination=Pagination("depart", "resultat.resultat.prochain_depart", "resultat.resultat.total"),
+        instants_metier=("resultat.resultat.solde_initial.fraicheur.derniere_piece",),
+        revisions=("resultat.resultat.prevision_id",),
     ),
     _lecture(
         "m5.rentabilite_chantier",
         "m05-financecore",
         "m5_lire_rentabilite_chantier",
         {"chantier_id", "devis_id", "limite"},
+        revisions=("resultat.resultat.chantiers[*].trace.version_entrees",),
+        incomplets=(Marqueur("resultat.resultat.reste", "positif"),),
     ),
     _lecture(
         "m5.comptes_a_recevoir",
@@ -165,8 +182,25 @@ LECTURES: tuple[Lecture, ...] = (
         "m5_lire_comptes_a_recevoir",
         {"aujourd_hui"},
         reference="aujourd_hui",
+        reference_genre="date",
+        instants_metier=("resultat.resultat.factures[*].date_envoi",),
     ),
-    _lecture("m5.comptes_a_payer", "m05-financecore", "m5_lister_comptes_a_payer", {"po_id", "depart", "sans_po"}),
+    _lecture(
+        "m5.comptes_a_payer",
+        "m05-financecore",
+        "m5_lister_comptes_a_payer",
+        {"po_id", "depart", "sans_po"},
+        pagination=Pagination("depart", "resultat.resultat.prochain_depart", "resultat.resultat.total"),
+        instants_metier=(
+            "resultat.resultat.comptes[*].derniere_reception",
+            "resultat.resultat.comptes[*].factures_saisies[*].derniere_modification.horodatage",
+            "resultat.resultat.factures[*].derniere_modification.horodatage",
+        ),
+        revisions=(
+            "resultat.resultat.comptes[*].factures_saisies[*].corrections",
+            "resultat.resultat.factures[*].corrections",
+        ),
+    ),
     _lecture(
         "m6.disponibilite",
         "m06-material-control",
@@ -175,14 +209,42 @@ LECTURES: tuple[Lecture, ...] = (
         incomplets=(Marqueur("resultat.resultat.tronque", "vrai"),),
     ),
     _lecture("m7.performance_campagnes", "m07-marketing", "m7_lire_performance_campagnes", {"debut", "fin"}),
-    _lecture("m8.vue_executive", "m08-analytics", "m8_lire_vue_executive", {"aujourd_hui"}, reference="aujourd_hui"),
-    _lecture("m8.mesures_chantier", "m08-analytics", "m8_lire_mesures_chantier", {"wct_id"}),
+    _lecture(
+        "m8.vue_executive",
+        "m08-analytics",
+        "m8_lire_vue_executive",
+        {"aujourd_hui"},
+        reference="aujourd_hui",
+        reference_genre="date",
+        instants_metier=(
+            "resultat.entonnoir.sources[*].dernier_fait_le",
+            "resultat.marge_reelle.chantiers[*].horodatage_completion",
+        ),
+        revisions=("resultat.cash_libre.constat.sequence",),
+        incomplets=(
+            Marqueur("resultat.entonnoir.devis_en_attente.sans_reponse.reste", "positif"),
+            Marqueur("resultat.entonnoir.devis_en_attente.brouillons_en_retard.reste", "positif"),
+            Marqueur("resultat.marge_reelle.reste", "positif"),
+            Marqueur("resultat.stock_a_commander.reste", "positif"),
+        ),
+    ),
+    _lecture(
+        "m8.mesures_chantier",
+        "m08-analytics",
+        "m8_lire_mesures_chantier",
+        {"wct_id"},
+        instants_metier=("resultat.horodatage_completion",),
+        revisions=("resultat.mesures[*].entrees.version_entrees",),
+        incomplets=(Marqueur("resultat.trouve", "faux"),),
+    ),
     _lecture(
         "m10.paquet_affaire",
         "m10-memoire",
         "m10_paquet_contexte_affaire",
         {"affaire_id", "horodatage"},
         reference="horodatage",
+        instants_metier=("resultat.couches[*].faits[*].horodatage",),
+        incomplets=(Marqueur("resultat.couches[*].tronque", "vrai"),),
     ),
 )
 
