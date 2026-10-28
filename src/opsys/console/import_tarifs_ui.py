@@ -20,7 +20,8 @@ _CHAMPS = {'csrf', 'fournisseur_id', 'source_document', 'separateur', 'source_at
     'mapping_' + k for k in _MAPPING}
 
 
-async def extraire(request):
+async def extraire(request, *, champs_attendus=None):
+    champs_attendus = _CHAMPS if champs_attendus is None else champs_attendus
     if request.query_params:
         raise HTTPException(400, 'Paramètres invalides')
     media, boundary = _media(request)
@@ -39,13 +40,13 @@ async def extraire(request):
     clone = RequeteBrute(request.scope, receive=recevoir)
     form = None
     try:
-        form = await clone.form(max_files=1, max_fields=len(_CHAMPS), max_part_size=16384)
+        form = await clone.form(max_files=1, max_fields=len(champs_attendus), max_part_size=16384)
         items = form.multi_items()
         noms = [k for k, _ in items]
         valeurs = dict(items)
-        if len(noms) != len(set(noms)) or set(noms) != _CHAMPS | {'source_csv'}:
+        if len(noms) != len(set(noms)) or set(noms) != champs_attendus | {'source_csv'}:
             raise HTTPException(400, 'Champs multipart invalides')
-        if any(type(valeurs[k]) is not str for k in _CHAMPS):
+        if any(type(valeurs[k]) is not str for k in champs_attendus):
             raise HTTPException(400, 'Champs texte requis')
         fichier = valeurs['source_csv']
         if not isinstance(fichier, UploadFile) or not fichier.filename:
@@ -53,7 +54,7 @@ async def extraire(request):
         source = await fichier.read(import_tarifs.MAX_SOURCE + 1)
         if len(source) > import_tarifs.MAX_SOURCE:
             raise HTTPException(413, 'CSV supérieur à 1 Mio')
-        return {k: valeurs[k] for k in _CHAMPS}, source.decode('utf-8')
+        return {k: valeurs[k] for k in champs_attendus}, source.decode('utf-8')
     except HTTPException:
         raise
     except Exception:
@@ -128,7 +129,7 @@ def formulaire(session, prefixe, fournisseur_id):
 
 def contenu(vue, prefixe, document):
     corps = (f'<p><a href="{pages.e(prefixe + ROUTE)}">Préparer une autre liste</a></p>'
-             '<h2>Aperçu de la liste de prix</h2><p>Aucun prix appliqué. La confirmation du lot reste à raccorder.</p>'
+             '<h2>Aperçu de la liste de prix</h2><p>Aucun prix appliqué à cette étape de revue.</p>'
              f'<p>Référence déclarée : {pages.e(document)}</p><p>État : {pages.e(vue["statut"])} · '
              f'{vue["candidats_revalides"]} candidat(s) revalidé(s) sur {vue["total_lignes"]}.</p>'
              '<p>Les noms et le prix précédent proviennent des sources courantes. '
@@ -200,7 +201,11 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
                             source_document=champs['source_document'],
                             source_attendue=champs['source_attendue'] or None)
                 vue = lire(cnx, deps, session, args)
-                return fini(cnx, session, contenu(vue, prefixe, args['source_document']), vue)
+                from . import import_tarifs_confirmation_ui as confirmation
+
+                corps = (contenu(vue, prefixe, args['source_document'])
+                         + confirmation.formulaire(session, prefixe, args, vue))
+                return fini(cnx, session, corps, vue)
         except PermissionError:
             raise HTTPException(403, 'Accès admin requis') from None
         except import_tarifs.Refus:
@@ -208,4 +213,9 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
         except (ValueError, TypeError, KeyError, UnicodeError, RecursionError):
             raise HTTPException(503, 'Préparation indisponible; vérifier les sources') from None
 
+    from . import import_tarifs_confirmation_ui
+
+    router.include_router(import_tarifs_confirmation_ui.creer_router(
+        session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+        verifier_formulaire=verifier_formulaire, rendre=rendre))
     return router

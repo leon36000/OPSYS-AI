@@ -133,7 +133,7 @@ def projeter(snapshots, preparation, jour_reference):
                 mapping_sha256=lot['mapping_sha256'], preparation_sha256=preparation['preparation_sha256'],
                 statut='A_REVOIR' if revalides == len(lignes) else 'A_CORRIGER', total_lignes=len(lignes),
                 candidats_revalides=revalides, lignes=lignes,
-                avertissements=['SOURCE_DOCUMENTAIRE_NON_AUTHENTIFIEE', 'CONFIRMATION_NON_IMPLÉMENTÉE'])
+                avertissements=['SOURCE_DOCUMENTAIRE_NON_AUTHENTIFIEE', 'CONFIRMATION_EXPLICITE_REQUISE'])
 
 
 def _autorite(cnx, auteur):

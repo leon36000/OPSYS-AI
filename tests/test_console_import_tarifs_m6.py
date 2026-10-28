@@ -64,7 +64,7 @@ def test_vrai_t0_prive_revalide_csv_et_reproduit_prepare_existant_sans_ecrire(so
     vue = r['resultat']
     assert vue['statut'] == 'A_REVOIR' and vue['candidats_revalides'] == 1
     assert vue['lignes'][0]['preparation_saisie'] == attendu
-    assert 'NOTE-PRIVEE-FICTIVE' not in str(vue) and 'CONFIRMATION_NON_IMPLÉMENTÉE' in vue['avertissements']
+    assert 'NOTE-PRIVEE-FICTIVE' not in str(vue) and 'CONFIRMATION_EXPLICITE_REQUISE' in vue['avertissements']
     with session() as cnx:
         snapshots = module().capturer(cnx)
         prep = import_tarifs_csv.preparer(CSV.encode(), mapping_colonnes=MAPPING, separateur=';',

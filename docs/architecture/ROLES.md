@@ -1077,3 +1077,10 @@ arguments, clés enfants dérivées, source/préparation approuvées obligatoire
 writers de saisie sous transaction englobante et contrôle final de session, y compris au
 rejeu. Aucun bouton HTTP de confirmation ni import courriel fourni par cette tranche.
 Catalogue306/177 vérifié nativement; aucune donnée réelle ou action fournisseur.
+
+
+Le POST `/crm/materiaux/tarifs/importer/confirmer` raccorde ce T1 privé sous le même admin
+SQL/session : revue explicite, CSRF, nonce serveur, même fichier et mêmes empreintes, reçu
+clos parent/enfants relu aprèsrendu, rollback global sur refus. Aucun nouveau droit, outil
+appareil, MCP ou agent. Import manuel qualifié localement; courriel/production non autorisés
+par cette tranche. Le T0 conserve son caractère sans effet et exige confirmation explicite.

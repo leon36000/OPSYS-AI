@@ -48,7 +48,7 @@ def test_formulaire_et_vrai_csv_t0_ancien_prix_sans_aucune_ecriture(sources, ses
     assert page.status_code == 200, page.text
     for texte in ('15.500000', '14.0', 'Prix fourni', 'Prix précédent', 'A_REVOIR', hashlib.sha256(source).hexdigest()):
         assert texte in page.text
-    assert 'NOTE-PRIVEE-FICTIVE' not in page.text and '<button>Confirmer' not in page.text
+    assert 'NOTE-PRIVEE-FICTIVE' not in page.text and ROUTE + '/confirmer' in page.text
     assert page.headers['cache-control'] == 'no-store' and 'content-security-policy' in page.headers
     assert p.h.p.c.m.base._instantane_base(session) == avant
     assert ROUTE in catalogue.get('/crm/materiaux').text

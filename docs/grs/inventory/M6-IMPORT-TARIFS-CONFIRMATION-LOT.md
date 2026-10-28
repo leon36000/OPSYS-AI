@@ -112,3 +112,9 @@ prix réels reste nécessaire au futur point d’entrée; aucun prix d’entrepr
 Prochaine capacité : confirmation HTTP avec revue explicite, CSRF, nonce lié à l’intention
 et reçu historique, sans stocker secrètement les colonnes libres du CSV. Courriel automatique,
 formats fournisseurs réels, navigateur réel, PostgreSQL/mobile et production restent ouverts.
+
+
+Raccord suivant : la [confirmation HTTP](M6-IMPORT-TARIFS-CONFIRMATION-HTTP.md) est maintenant
+qualifiée localement. Le coordinateur et ses writers sont inchangés; le point d’entrée privé
+exige revue explicite/CSRF/mêmeCSV, protège la transaction jusqu’après rendu et affiche le reçu
+historique. Cette preuve ne vaut pas validation de prix d’entreprise réels ni import courriel.
