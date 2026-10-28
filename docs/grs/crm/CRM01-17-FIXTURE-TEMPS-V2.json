@@ -41,9 +41,9 @@
         },
         "equipe_planifiee_id": "equipe-A-fictive",
         "equipe_pointee": {
-          "statut": "identifiee",
-          "identifiant": "equipe-A-fictive",
-          "justification": "egalite_route_et_prevision"
+          "statut": "inconnue",
+          "identifiant": null,
+          "justification": "indeterminee"
         },
         "identifiant_pointe": "equipe-A-fictive",
         "ouverture": {
@@ -124,9 +124,9 @@
         },
         "equipe_planifiee_id": "equipe-B-fictive",
         "equipe_pointee": {
-          "statut": "identifiee",
-          "identifiant": "equipe-B-fictive",
-          "justification": "egalite_route_et_prevision"
+          "statut": "inconnue",
+          "identifiant": null,
+          "justification": "indeterminee"
         },
         "identifiant_pointe": "equipe-B-fictive",
         "ouverture": {
@@ -205,10 +205,18 @@
         "visite_id": "476e2f7bf3bbbc884e8eb49891a5ec4260cb6bcdc0890493c67e898767975264"
       },
       {
+        "code": "equipe_pointee_indeterminee",
+        "visite_id": "476e2f7bf3bbbc884e8eb49891a5ec4260cb6bcdc0890493c67e898767975264"
+      },
+      {
         "code": "presence_individuelle_non_observee",
+        "visite_id": "7dd3e337232d0c78c028ec992e0fca74493534964ef0440478fc93b268d53e3c"
+      },
+      {
+        "code": "equipe_pointee_indeterminee",
         "visite_id": "7dd3e337232d0c78c028ec992e0fca74493534964ef0440478fc93b268d53e3c"
       }
     ],
-    "empreinte": "d8b06fff770867c753ef6d7c9313d8f49bf362759caad281057b9ea21c57b21d"
+    "empreinte": "ecff1a74611af8051673d3134fa83ed00eca4a116d14c9885d9786c97474df2e"
   }
 }
