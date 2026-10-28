@@ -26,6 +26,12 @@ def test_deux_visites_et_deux_tarifs_sommes_avec_provenance():
     assert resultat["lignes"][1]["source"] == "tarif-fictif"
 
 
+def test_reference_de_revision_du_tarif_est_conservee_sur_la_ligne():
+    tarif = taux("A", "100") | {"ligne_id": "a" * 64}
+    resultat = chiffrer_visites([visite("v1", "A", 150, "2030-06-03")], [tarif])
+    assert resultat["lignes"][0]["tarif_ligne_id"] == tarif["ligne_id"]
+
+
 def test_taux_manquant_ou_ambigu_ne_devient_jamais_un_zero():
     visites = [visite("v1", "A", 150, "2030-06-03"), visite("v2", "B", 240, "2030-06-07")]
     for tarifs in ([taux("A", "100")], [taux("A", "100"), taux("B", "120"), taux("B", "121")]):

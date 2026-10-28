@@ -1,7 +1,6 @@
 """Contrat fictif M4 : la fixture ne prouve pas une jonction réelle."""
 import json
 from copy import deepcopy
-from decimal import Decimal
 from pathlib import Path
 
 from m5_financecore import cout_reel, encodage
@@ -33,12 +32,13 @@ def verifier(p):
     p["empreinte"] = encodage.empreinte('m4.temps_certifies.v2', {k: v for k, v in p.items() if k != 'empreinte'})
 
 
-def test_deux_equipes_revue_verifiee_et_tarifs_sourcés():
+def test_revue_verifiee_ne_prouve_pas_les_equipes_pointees():
     p, w, tarifs = pieces()
     verifier(p)
     r = calculer(p, w, tarifs)
-    assert r['complet'] and r['cout_total'] == Decimal('730.00')
-    assert [x['cout'] for x in r['main_d_oeuvre']['lignes']] == [Decimal('250.00'), Decimal('480.00')]
+    assert not r['complet'] and r['cout_total'] is None
+    assert r['main_d_oeuvre']['lignes'] == []
+    assert r['manque']
     assert r['entrees']['ventilation']['empreinte'] == p['empreinte']
 
 
@@ -49,13 +49,13 @@ def test_revue_en_attente_ne_produit_pas_de_total_certifie():
     assert r['main_d_oeuvre']['lignes'] == []
 
 
-def test_tarif_manquant_preserve_la_part_sourcée_sans_inventer_de_total():
+def test_tarif_manquant_ne_permet_pas_imputation_d_une_equipe_inconnue():
     p, w, tarifs = pieces()
     verifier(p)
     r = calculer(p, w, tarifs[:1])
     assert not r['complet'] and r['cout_total'] is None
-    assert r['cout_total_connu'] == Decimal('250.00')
-    assert r['main_d_oeuvre']['lignes'][1]['cout'] is None
+    assert r['main_d_oeuvre']['cout'] is None
+    assert r['main_d_oeuvre']['lignes'] == []
 
 
 def test_source_perimee_et_wct_different_refusent_toute_imputation():
@@ -69,25 +69,22 @@ def test_source_perimee_et_wct_different_refusent_toute_imputation():
         assert r['cout_total'] is None and r['manque']
 
 
-def test_version_rentabilite_inclut_la_source_du_tarif_meme_si_montant_identique():
+def test_tarif_different_ne_certifie_pas_une_equipe_non_identifiee():
     p, w, tarifs = pieces()
     verifier(p)
     nouveau = deepcopy(tarifs)
     nouveau[0]['version'] = '2'
     a, b = calculer(p, w, tarifs), calculer(p, w, nouveau)
-    assert a['cout_total'] == b['cout_total'] == Decimal('730.00')
-    va = cout_reel.calculer_rentabilite(a, None, None, devis_id='fictif', chantier_id=None)['version_entrees']
-    vb = cout_reel.calculer_rentabilite(b, None, None, devis_id='fictif', chantier_id=None)['version_entrees']
-    assert va != vb
+    assert a['cout_total'] is None and b['cout_total'] is None
+    assert a['main_d_oeuvre']['lignes'] == b['main_d_oeuvre']['lignes'] == []
 
 
-def test_version_inclut_le_snapshot_des_tarifs_non_selectionnes():
+def test_tarif_non_selectionne_ne_cree_pas_de_cout_certifie():
     p, w, tarifs = pieces()
     verifier(p)
     ancien = tarifs + [tarifs[0] | {'equipe_id': 'equipe-C-fictive', 'version': '1'}]
     nouveau = deepcopy(ancien)
     nouveau[-1]['version'] = '2'
     a, b = calculer(p, w, ancien), calculer(p, w, nouveau)
-    va = cout_reel.calculer_rentabilite(a, None, None, devis_id='fictif', chantier_id=None)['version_entrees']
-    vb = cout_reel.calculer_rentabilite(b, None, None, devis_id='fictif', chantier_id=None)['version_entrees']
-    assert a['cout_total'] == b['cout_total'] == Decimal('730.00') and va != vb
+    assert a['cout_total'] is None and b['cout_total'] is None
+    assert a['main_d_oeuvre']['lignes'] == b['main_d_oeuvre']['lignes'] == []

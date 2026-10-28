@@ -117,19 +117,11 @@ def _controle_visite(visite: Any, intervention: str) -> tuple[tuple, dict, list,
     )
     _exiger(_texte(v["equipe_planifiee_id"]) and _texte(v["identifiant_pointe"]), "équipe ou pointage absent")
     equipe = _objet(v["equipe_pointee"], {"statut", "identifiant", "justification"}, "équipe pointée")
-    if equipe["statut"] == "identifiee":
-        _exiger(
-            equipe["identifiant"] == v["equipe_planifiee_id"] == v["identifiant_pointe"]
-            and equipe["justification"] == "egalite_route_et_prevision",
-            "équipe pointée incohérente",
-        )
-        equipe_connue = True
-    else:
-        _exiger(
-            equipe == {"statut": "inconnue", "identifiant": None, "justification": "indeterminee"},
-            "équipe pointée invalide",
-        )
-        equipe_connue = False
+    _exiger(
+        equipe == {"statut": "inconnue", "identifiant": None, "justification": "indeterminee"},
+        "V2 ne prouve pas le type de l'identifiant pointé ; équipe inconnue requise",
+    )
+    equipe_connue = False
     debut = _maillon(v["ouverture"], "ouverture")
     fin = _maillon(v["fermeture"], "fermeture")
     evenements = v["evenements"]

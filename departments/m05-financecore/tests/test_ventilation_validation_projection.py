@@ -2,6 +2,7 @@
 
 import copy
 import json
+from pathlib import Path
 
 import pytest
 from m5_financecore import encodage
@@ -226,7 +227,8 @@ FIXTURE = r"""
 
 
 def _cas():
-    projection = json.loads(FIXTURE)["projection"]
+    fixture = Path(__file__).resolve().parents[3] / "docs/grs/crm/CRM01-18-FIXTURE-TEMPS-V2.json"
+    projection = json.loads(fixture.read_text(encoding="utf-8"))["projection"]
     sources = copy.deepcopy(projection["sources"])
     cas = encodage.empreinte(
         "m4.temps_certifies.cas.v2",
@@ -266,7 +268,7 @@ def test_revue_verifiee_avec_sources_stables():
     p["revue_chantier"]["statut"] = "verifiee"
     _signer(p)
     r = _validation(p, sources, cas)
-    assert r["valide"] is True and r["exploitable"] is True
+    assert r["valide"] is True and r["exploitable"] is False
 
 
 @pytest.mark.parametrize(
@@ -368,8 +370,6 @@ def test_completion_doît_correspondre_au_dernier_depart():
 def test_equipe_non_identifiee_ne_permet_pas_de_certifier_un_cout():
     p, sources, cas = _cas()
     p["revue_chantier"]["statut"] = "verifiee"
-    p["visites"][0]["equipe_pointee"] = {"statut": "inconnue", "identifiant": None, "justification": "indeterminee"}
-    p["inconnus"].insert(2, {"code": "equipe_pointee_indeterminee", "visite_id": p["visites"][0]["visite_id"]})
     _signer(p)
     r = _validation(p, sources, cas)
     assert r["valide"] is True and r["exploitable"] is False
@@ -410,3 +410,17 @@ def test_minutes_impossibles_ne_sont_pas_certifiees_meme_si_la_somme_correspond(
     p['revue_chantier']['statut'] = 'verifiee'
     _signer(p)
     assert not _validation(p, sources, cas)['valide']
+
+
+def test_egalite_nom_prevu_et_pointe_ne_prouve_pas_le_type_equipe():
+    p, sources, cas = _cas()
+    p['revue_chantier']['statut'] = 'verifiee'
+    _signer(p)
+    r = _validation(p, sources, cas)
+    assert not r['exploitable']
+
+
+def test_ancienne_fixture_deduisant_le_type_equipe_est_refusee():
+    ancien = json.loads(FIXTURE)["projection"]
+    _, sources, cas = _cas()
+    assert not _validation(ancien, sources, cas)["valide"]

@@ -150,7 +150,7 @@ def chiffrer_visites(visites: Any, tarifs: Any) -> dict[str, Any]:
             date_effet=_date_civile(tarif.get("date_effet")), date_fin=_date_civile(tarif.get("date_fin")),
             date_travail=jour,
         )
-        ligne.update({"visite_id": identifiant, "equipe_id": equipe_id})
+        ligne.update({"visite_id": identifiant, "equipe_id": equipe_id, "tarif_ligne_id": tarif.get("ligne_id")})
         lignes.append(ligne)
         raisons.extend(f"{identifiant} : {raison}" for raison in ligne["raisons"])
     montants = [ligne["cout"] for ligne in lignes if ligne["cout"] is not None]
