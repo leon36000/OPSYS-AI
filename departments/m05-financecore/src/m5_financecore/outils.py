@@ -220,6 +220,7 @@ from . import (
     devis_recus,
     dossier_decision_cfo,
     echeanciers_contrats,
+    encodage,
     etat_financier,
     facturation,
     prevision,
@@ -998,6 +999,7 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     sans devis n'a rien à joindre, jamais deviné (fail-closed, PLAN T1.2-d)."""
     wct_id = charge["wct_id"]
     registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)
+    rang_attendu = len(registre)
     wct_recu = wct_recus.pour_wct_id(wct_id, registre)
     if wct_recu is None:
         wct_recu = wct_recus.construire(
@@ -1006,8 +1008,11 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
             devis_id=charge.get("devis_id"),
             horodatage_completion=charge["horodatage_completion"],
             duree_reelle_minutes=charge.get("duree_reelle_minutes"),
+            empreinte_charge=encodage.empreinte(charge),
         )
-        registre.append(wct_recu)
+        registre.append(wct_recu, rang_attendu=rang_attendu)
+    else:
+        wct_recus.verifier_rejeu(wct_recu, charge)
     if wct_recu["devis_id"] is None:
         return {"traite": True, "wct_id": wct_id, "statut": "wct_sans_devis_id"}
     resultat = _essayer_facture_brouillon(wct_recu["devis_id"])
