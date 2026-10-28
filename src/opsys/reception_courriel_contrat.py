@@ -15,6 +15,7 @@ _CHAMPS = frozenset({
     "version", "instance_id", "source_id", "compte_id", "boite", "uid_validity",
     "uid", "taille_annoncee", "recu_le", "date_interne", "message_id",
 })
+COORDONNEES = ("instance_id", "source_id", "compte_id", "boite", "uid_validity", "uid")
 _MAX_SOURCE = 1_048_576
 _UID_MAX = 4294967295
 _ERREUR = "REJ-M1-COURRIEL-ORIGINAL-INVALIDE"
@@ -68,6 +69,25 @@ def valider_original(arguments: dict, *, source: bytes) -> OriginalCourriel:
     _exiger(type(arguments["version"]) is int and arguments["version"] == 1)
     _exiger(type(arguments["taille_annoncee"]) is int)
     _exiger(1 <= len(source) <= _MAX_SOURCE and arguments["taille_annoncee"] == len(source))
+    identity_id = identifier_source({k: arguments[k] for k in COORDONNEES})
+    _date(arguments["recu_le"])
+    if arguments["date_interne"] is not None:
+        _date(arguments["date_interne"])
+    if arguments["message_id"] is not None:
+        _texte(arguments["message_id"], 1024)
+
+    return OriginalCourriel(
+        arguments=MappingProxyType(arguments), source=source,
+        identite_id=identity_id, source_sha256=sha256(source).hexdigest(), source_octets=len(source),
+    )
+
+
+def identifier_source(coordonnees: dict) -> str:
+    """Identité seule pour une lecture privée; aucune permission ou origine induite."""
+    _exiger(type(coordonnees) is dict and len(coordonnees) == len(COORDONNEES))
+    arguments = dict(coordonnees)
+    _exiger(len(arguments) == len(COORDONNEES) and all(type(k) is str for k in arguments))
+    _exiger(set(arguments) == set(COORDONNEES))
     for key, maximum in (("instance_id", 36), ("source_id", 64), ("compte_id", 64),
                          ("boite", 1024), ("uid_validity", 10)):
         _texte(arguments[key], maximum)
@@ -82,18 +102,9 @@ def valider_original(arguments: dict, *, source: bytes) -> OriginalCourriel:
     _exiger(re.fullmatch("[1-9][0-9]{0,9}", arguments["uid_validity"]) is not None)
     _exiger(int(arguments["uid_validity"]) <= _UID_MAX)
     _exiger(type(arguments["uid"]) is int and 1 <= arguments["uid"] <= _UID_MAX)
-    _date(arguments["recu_le"])
-    if arguments["date_interne"] is not None:
-        _date(arguments["date_interne"])
-    if arguments["message_id"] is not None:
-        _texte(arguments["message_id"], 1024)
-
     identity = sha256(b"opsys:m1:courriel:identite:v1:")
     for value in (arguments["instance_id"], arguments["source_id"], arguments["compte_id"],
                   arguments["boite"], arguments["uid_validity"], str(arguments["uid"])):
         encoded = value.encode("utf-8")
         identity.update(str(len(encoded)).encode("ascii") + b":" + encoded)
-    return OriginalCourriel(
-        arguments=MappingProxyType(arguments), source=source,
-        identite_id=identity.hexdigest(), source_sha256=sha256(source).hexdigest(), source_octets=len(source),
-    )
+    return identity.hexdigest()

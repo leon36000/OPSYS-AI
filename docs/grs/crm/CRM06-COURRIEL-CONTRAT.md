@@ -65,3 +65,8 @@ PARTIAL. Propriétaire SQL chiffré, clé externe, autorité actuelle avant lect
 original/reçu/audit, conflit même identité/autres octets et ACK durable. Puis capture Host privée,
 ACK avant progression IMAP, liaison admin au projet exact et restitution CRM. Tant que ces parcours
 ne sont pas prouvés, aucun suivi automatique complet ni réception réelle n’est annoncé.
+
+## Évolution du propriétaire SQL
+
+Le [stockage privé](CRM06-COURRIEL-STOCKAGE.md) consomme désormais ce codec et son identité partagée.
+Il reste séparé des connecteurs et des permissions Host; ce codec seul ne constitue toujours pas un reçu.

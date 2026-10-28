@@ -22,6 +22,7 @@ from opsys.stockage.schema import (
     META,
     PIECES_CLASSEMENTS,
     PIECES_PROJET,
+    RECEPTIONS_COURRIEL,
 )
 
 FICTIF = True
@@ -45,13 +46,13 @@ def _anciennes():
     # Ce scénario compare les tables antérieures à 0024, y compris lors du
     # retour à 0023. Les compartiments OCR/AP OCR ajoutés après 0024 ont des
     # scénarios distincts de conservation et de rollback. La file de nettoyage
-    # 0027 et les pièces/leurs classements 0028/0029 sont également absents
+    # 0027, les pièces/leurs classements 0028/0029 et les originaux courriel 0030 sont absents
     # du schéma historique 0023. Ne pas ignorer dynamiquement une table manquante :
     # toute table réellement attendue en 0023 doit encore être lue et comparée.
     nouvelles = {t.name for t in (
         FUSION_AP_SAISIES, FUSION_AP_OCR_SOURCES, EFFACEMENTS_CLES,
         FUSION_PDF_OCR_RUNS, FUSION_PDF_OCR_COMMANDES, FUSION_PDF_OCR_QUOTA,
-        PIECES_PROJET, PIECES_CLASSEMENTS,
+        PIECES_PROJET, PIECES_CLASSEMENTS, RECEPTIONS_COURRIEL,
     )}
     with stockage.transaction() as cnx:
         return {nom: [dict(r) for r in cnx.execute(select(t)).mappings()]

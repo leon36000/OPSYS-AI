@@ -14,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     MetaData,
     String,
     Table,
@@ -1009,4 +1010,22 @@ PIECES_CLASSEMENTS = Table(
     Column("chaine", String(64), nullable=False),
     UniqueConstraint("auteur", "mutation_id", name="uq_pieces_classements_saisie"),
     CheckConstraint("revision >= 1 AND revision <= 32", name="classements_revision"),
+)
+
+# Originaux courriel privés non rattachés : aucun fait M1 ou projet implicite.
+RECEPTIONS_COURRIEL = Table(
+    "receptions_courriel", META,
+    Column("identite_id", String(64), primary_key=True),
+    Column("recu_id", String(32), nullable=False, unique=True),
+    Column("source_sha256", String(64), nullable=False),
+    Column("taille_octets", Integer, nullable=False),
+    Column("version_format", Integer, nullable=False),
+    Column("enregistre_le", String(24), nullable=False),
+    Column("cle_reference", String(32), nullable=False),
+    Column("nonce", LargeBinary, nullable=False),
+    Column("chiffre", LargeBinary, nullable=False),
+    CheckConstraint("version_format = 1", name="courriel_version"),
+    CheckConstraint("taille_octets > 0 AND taille_octets <= 1048576", name="courriel_taille"),
+    CheckConstraint("length(nonce) = 12 AND length(chiffre) > 16 AND length(chiffre) <= 1064980",
+                    name="courriel_chiffre"),
 )

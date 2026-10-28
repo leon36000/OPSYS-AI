@@ -98,3 +98,9 @@ MANQUANT, activation d’un ancien état ambigu soumise à une procédure de rep
 Le [codec pur](CRM06-COURRIEL-CONTRAT.md) contrôle la capture binaire, son identité et ses bornes.
 60 tests natifs passent après correction causale mémoire et copie privée concurrente. Aucun stockage,
 ACK M1, capacité Host, permission ou rattachement n’est livré par ce seul composant.
+
+## Fondation SQLite interne
+
+Le [propriétaire chiffré](CRM06-COURRIEL-STOCKAGE.md) ajoute original/reçu/audit atomiques,
+contrôle vivant injecté, vérification de clé et readback SQL avant commit. Aucun connecteur ou
+profil M1 actif ne le consomme; origine fournisseur, fil client et rattachement restent manquants.
