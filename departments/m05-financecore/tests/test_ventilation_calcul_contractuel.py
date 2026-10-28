@@ -41,7 +41,7 @@ class TestCalculContractuel(unittest.TestCase):
             {"unite": "heure-personne"}, {"unite": None}, {"devise": None},
             {"source": ""}, {"version": ""}, {"date_effet": None},
             {"date_fin": date(2026, 10, 27)}, {"minutes": True},
-            {"minutes": 0}, {"taux": float("nan")}, {"taux": "NaN"},
+            {"minutes": -1}, {"taux": float("nan")}, {"taux": "NaN"},
             {"taux": "1e100000"}, {"taux": "0"},
         ]
         for modification in cas:

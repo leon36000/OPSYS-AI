@@ -80,3 +80,42 @@ def test_ecriture_concurrente_annule_toute_la_transaction(base_durable, monkeypa
     with pytest.raises(EcritureConcurrente), stockage.transaction():
         fixtures.outils_mod._recevoir_travaux_termines(charge)
     assert list(stockage.maillons(D, "wct_recus")) == []
+
+
+def test_recu_historique_traite_ne_prouve_pas_la_charge_complete(base_durable, monkeypatch):
+    """Un ancien consommateur peut avoir accepté deux charges distinctes pour le même WCT."""
+    from m5_financecore import wct_recus
+
+    from opsys.evenements.bus import copier_publications_et_recus
+
+    originale = fixtures._wct(wct_id="FICTIF-HISTORIQUE", devis_id=None)
+    divergente = {**originale, "technicien_id": "FICTIF-AUTRE"}
+
+    # Comportement du consommateur historique : premier WCT conservé, les suivants ignorés.
+    def ancienne_reception(charge):
+        registre = stockage.maillons(D, "wct_recus")
+        if wct_recus.pour_wct_id(charge["wct_id"], registre) is None:
+            registre.append(wct_recus.construire(
+                charge["wct_id"], charge["intervention_id"], charge.get("devis_id"),
+                charge["horodatage_completion"], charge.get("duree_reelle_minutes"),
+            ))
+        return {"traite": True, "wct_id": charge["wct_id"], "statut": "wct_sans_devis_id"}
+
+    with monkeypatch.context() as m:
+        m.setattr(fixtures.outils_mod, "_recevoir_travaux_termines", ancienne_reception)
+        assert _livrer(divergente, "FICTIF-EVT-ANTERIEUR", "2026-09-25T17:00:00-04:00")["traites"] == 1
+        assert _livrer(originale, originale["wct_id"], "2026-09-25T17:00:01-04:00")["traites"] == 1
+
+    avec_source = list(stockage.maillons(D, "wct_recus"))
+    assert len(avec_source) == 1 and "empreinte_charge" not in avec_source[0]
+    assert all(avec_source[0][cle] == originale.get(cle) for cle in avec_source[0])
+    with stockage.transaction() as cnx:
+        copie = copier_publications_et_recus(
+            cnx, type_evenement="m4.travaux_termines", consommateur=D,
+        )
+    assert any(p.evenement_id == originale["wct_id"] and p.producteur == "m04-field-ops"
+               and p.charge == originale for p in copie.publications)
+    assert any(r.evenement_id == originale["wct_id"] and r.statut == "traite" for r in copie.recus)
+    # Le reçu canonique n'établit pas quel contenu complet a créé l'ancien maillon.
+    assert _livrer(originale, "FICTIF-EVT-REJEU", "2026-09-25T17:00:02-04:00")["echecs"] == 1
+    assert list(stockage.maillons(D, "wct_recus")) == avec_source

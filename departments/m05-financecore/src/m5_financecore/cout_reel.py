@@ -50,7 +50,7 @@ from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
-from . import encodage, validation
+from . import encodage, validation, validation_projection_visites, ventilation_couts_visites
 
 __all__ = [
     "TYPE_EVENEMENT_RENTABILITE",
@@ -361,6 +361,57 @@ def _main_d_oeuvre(wct_recu: Mapping[str, Any] | None, taux_brut: Any) -> dict[s
             "taux_horaire": taux, "cout": cout, "manque": manques}
 
 
+def _main_d_oeuvre_ventilee(
+    wct: Mapping[str, Any] | None, projection: Any, tarifs: Any,
+    instance_id: Any, source_attendue: Any, sources_actuelles: Any,
+) -> dict[str, Any]:
+    """Utilise des pièces obtenues et revalidées par un adaptateur propriétaire autorisé.
+
+    Cette fonction pure ne peut pas établir l'autorité des paramètres fournis.
+    Aucun chemin public ne doit y relayer des arguments d'un appelant comme des faits.
+    """
+    resultat = {"statut": "non_disponible", "minutes": None, "taux_horaire": None,
+                "cout": None, "cout_connu": None, "lignes": [], "manque": [], "projection_empreinte": None}
+    wct_id = wct.get("wct_id") if wct is not None else None
+    controle = validation_projection_visites.valider_projection(
+        projection, instance_id=instance_id, wct_id=wct_id,
+        source_attendue=source_attendue, sources_actuelles=sources_actuelles,
+    )
+    if not controle["valide"]:
+        resultat["manque"].append(_manque("REJ-COUT-TEMPS-POINTE-ABSENT", "; ".join(controle["raisons"])))
+        return resultat
+    piece = projection["wct"]
+    if wct is None or any((
+        wct.get("intervention_id") != projection["intervention_id"],
+        wct.get("duree_reelle_minutes") != piece["duree_reelle_minutes"],
+        wct.get("horodatage_completion") != piece["horodatage_completion"],
+        wct.get("hash_maillon") != piece["hash_maillon"],
+    )):
+        resultat["manque"].append(_manque(
+            "REJ-COUT-TEMPS-POINTE-ABSENT", "WCT et projection non réconciliés : pièce source complète requise",
+        ))
+        return resultat
+    resultat["projection_empreinte"] = projection["empreinte"]
+    resultat["minutes"] = piece["duree_reelle_minutes"]
+    economie = ventilation_couts_visites.chiffrer_visites(projection["visites"], tarifs)
+    resultat["lignes"] = economie["lignes"]
+    if not controle["exploitable"]:
+        resultat["manque"].append(_manque(
+            "REJ-COUT-TEMPS-POINTE-ABSENT", "revue finale ou équipes pointées à vérifier avant imputation",
+        ))
+    if not economie["complet"]:
+        resultat["manque"].append(_manque(
+            "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "; ".join(economie["raisons"]),
+        ))
+    if controle["exploitable"] and economie["cout_connu"] is not None:
+        resultat["cout_connu"] = economie["cout_connu"]
+        resultat["statut"] = "partiel"
+    if controle["exploitable"] and economie["complet"]:
+        resultat["cout"] = economie["cout_total"]
+        resultat["statut"] = "complet"
+    return resultat
+
+
 # --------------------------------------------------------------------------------- coût réel
 def calculer_cout_reel(
     wct_recu: Mapping[str, Any] | None,
@@ -368,6 +419,12 @@ def calculer_cout_reel(
     livre_de_prix: Iterable[Mapping[str, Any]],
     taux_horaire: Any,
     autres_wct: Iterable[str] = (),
+    *,
+    projection: Any = None,
+    tarifs_equipes: Any = None,
+    instance_id: Any = None,
+    source_attendue: Any = None,
+    sources_actuelles: Any = None,
 ) -> dict[str, Any]:
     """Le coût réel d'un chantier, tel que les pièces lues à la source le permettent.
 
@@ -381,7 +438,10 @@ def calculer_cout_reel(
     livre = list(livre_de_prix)
     autres = sorted({str(identifiant) for identifiant in autres_wct})
     materiaux = _materiaux(signal_variance, livre, _date_completion(wct_recu))
-    main_d_oeuvre = _main_d_oeuvre(wct_recu, taux_horaire)
+    main_d_oeuvre = (
+        _main_d_oeuvre(wct_recu, taux_horaire) if projection is None else
+        _main_d_oeuvre_ventilee(wct_recu, projection, tarifs_equipes, instance_id, source_attendue, sources_actuelles)
+    )
     manque = [*materiaux["manque"], *main_d_oeuvre["manque"]]
     if autres:
         manque.append(_manque(
@@ -390,7 +450,11 @@ def calculer_cout_reel(
             f"(autres : {', '.join(autres)})",
         ))
     complet = materiaux["statut"] == "complet" and main_d_oeuvre["statut"] == "complet" and not autres
-    cout_main_d_oeuvre = main_d_oeuvre["cout"] if main_d_oeuvre["cout"] is not None else Decimal("0")
+    cout_main_d_oeuvre = main_d_oeuvre["cout"]
+    if cout_main_d_oeuvre is None:
+        cout_main_d_oeuvre = main_d_oeuvre.get("cout_connu")
+    if cout_main_d_oeuvre is None:
+        cout_main_d_oeuvre = Decimal("0")
     cout_connu = materiaux["cout_connu"] + cout_main_d_oeuvre
 
     entrees = {
@@ -412,6 +476,13 @@ def calculer_cout_reel(
         "taux_horaire": main_d_oeuvre["taux_horaire"],
         "autres_wct": autres,
     }
+    if projection is not None:
+        entrees["ventilation"] = {
+            "empreinte": main_d_oeuvre.get("projection_empreinte"),
+            "lignes": main_d_oeuvre.get("lignes", []),
+            "statut": main_d_oeuvre["statut"],
+            "manque": main_d_oeuvre["manque"],
+        }
     return {
         "devise": _DEVISE,
         "complet": complet,
