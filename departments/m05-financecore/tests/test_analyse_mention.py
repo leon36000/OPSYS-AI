@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import sys
 from decimal import Decimal
 from pathlib import Path
 
@@ -22,10 +23,14 @@ import m5_financecore.outils as m5_outils
 import pytest
 import yaml
 from m5_financecore import analyse, encodage
+from m5_financecore import dossier_paie_preparatoire as d
 from m5_financecore.analyse import MENTION_ANALYSE_PREPARATOIRE as MENTION
 
 from opsys import contexte, identite, stockage
 from opsys.outils import executer_atomique
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from fixtures_dossier_paie import entrees  # noqa: E402
 
 FICTIF = True
 _RACINE_DEPOT = Path(__file__).resolve().parents[3]
@@ -79,7 +84,9 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
         "m5_constater_cash_libre", "m5_preparer_decision_capital",
         # M5.16 : dossier stratégique préparatoire depuis les sources FinanceCore
         "m5_preparer_dossier_decision_cfo", "m5_preparer_brut_regulier", "m5_preparer_dossier_webras",
-        "m5_prevoir_tresorerie_contrats"}
+        "m5_prevoir_tresorerie_contrats",
+        # Parcours de paie préparatoire composé : aperçu et relecture portent la mention
+        "m5_apercu_dossier_paie", "m5_lire_dossier_paie"}
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
     assert "m5_envoyer_facture" in analyse.SORTIES_HORS_ANALYSE
     assert "m5_enregistrer_paiement_facture" in analyse.SORTIES_HORS_ANALYSE
@@ -199,6 +206,12 @@ def _appels(ident, revision=None):
             "revenu_imposable_cad": "62.50", "reference_revenu_imposable": "Assiette fictive ASS-001",
         },
         "m5_prevoir_tresorerie_contrats": {"aujourd_hui": "2026-09-29"},
+        "m5_apercu_dossier_paie": {
+            "employee_person_id": "employe.fictif",
+            "entrees": entrees(20, premiere="2026-01-02", debut="2026-09-07", fin="2026-09-20", date_paie="2026-09-25",
+                               cumuls=dict.fromkeys(d.CHAMPS_CUMULS, "0.00"), origine="DECLARE_HISTORIQUE"),
+        },
+        "m5_lire_dossier_paie": {"dossier_id": None, "numero": None, "comparer_a": None},
         "m5_saisir_facture_fournisseur": {
             "po_id": "PO-1", "fournisseur_id": "gentek", "numero_facture": "F-1", "date_facture": "2026-09-14",
             "montant_avant_taxes": "300.00", "total_facture": None, "horodatage": "2026-09-20T10:00:00-04:00"},
@@ -242,7 +255,7 @@ def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, n
             for cle in ("paies", "das", "dettes", "reserves")}
         m5_outils._MANIFESTE.write_text(yaml.safe_dump(manifeste), encoding="utf-8")
 
-    if nom in {"m5_preparer_brut_regulier", "m5_preparer_dossier_webras"}:
+    if nom in {"m5_preparer_brut_regulier", "m5_preparer_dossier_webras", "m5_apercu_dossier_paie"}:
         contrat = _appeler(par_nom, "m5_enregistrer_contrat_horaire", {
             "employee_person_id": "employe.fictif", "contrat_id": "PAIE-FICTIF-001",
             "valide_du": "2026-09-01", "valide_jusqu_au": "2026-10-01", "fuseau": "America/Montreal",
@@ -263,7 +276,7 @@ def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, n
                 "contrat_m5": {key: sources["contrat_m5"][key] for key in ("contrat_id", "revision", "ligne_id")},
             }
         reponse = _appeler(par_nom, nom, arguments, OWNER_CONSOLE)
-    elif nom == "m5_prevoir_tresorerie_contrats":
+    elif nom in {"m5_prevoir_tresorerie_contrats", "m5_lire_dossier_paie"}:
         reponse = _appeler(par_nom, nom, _appels(ident)[nom], OWNER_CONSOLE)
     else:
         reponse = _appeler(par_nom, nom, _appels(ident, revision)[nom])

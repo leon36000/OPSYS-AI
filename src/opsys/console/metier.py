@@ -96,6 +96,16 @@ COMMANDES = {
     "m7_decider_creneau_calendrier": "m07-marketing",
     "m7_exporter_creneau_manuel": "m07-marketing",
 }
+# Paie préparatoire composée (M5) : outils propriétaire-console, tous servis avec le port M4 de lecture des heures.
+_LECTURES_PAIE_DOSSIER = frozenset({
+    "m5_apercu_dossier_paie", "m5_lire_dossier_paie", "m5_verifier_dossier_paie", "m5_lire_export_dossier_paie",
+})
+_COMMANDES_PAIE_DOSSIER = frozenset({
+    "m5_conserver_version_dossier_paie", "m5_rouvrir_dossier_paie", "m5_revue_dossier_paie", "m5_exporter_dossier_paie",
+})
+_OUTILS_PAIE_DOSSIER = _LECTURES_PAIE_DOSSIER | _COMMANDES_PAIE_DOSSIER
+LECTURES.update(dict.fromkeys(_LECTURES_PAIE_DOSSIER, "m05-financecore"))
+COMMANDES.update(dict.fromkeys(_COMMANDES_PAIE_DOSSIER, "m05-financecore"))
 DECISIONS_HUMAINES = {
     "m1_clore_transfert",
     "m7_decider_reponse_avis",
@@ -746,7 +756,7 @@ def executer(
         journaliser(cnx, personne.identifiant, "console.action_interne", nom,
                     {"departement": departement, "mutation_id": mutation_id, "ok": reponse_media.get("accepte")})
         return reponse_media
-    if nom in {"m5_preparer_brut_regulier", "m5_preparer_dossier_webras"}:
+    if nom in {"m5_preparer_brut_regulier", "m5_preparer_dossier_webras"} | _OUTILS_PAIE_DOSSIER:
         # Réutilise le même port privé que MCP. `stockage.transaction` rejoint la transaction
         # déjà ouverte par la console (point de sauvegarde), sans créer une identité ou connexion.
         capacites = Capacites(
