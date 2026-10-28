@@ -1,5 +1,7 @@
 """Lecture privée M3→M5, calcul propriétaire et sources consommées, aucun effet financier."""
+import copy
 import hashlib
+import json
 
 from m5_financecore import encodage
 from sqlalchemy import LargeBinary, cast, func, select
@@ -158,12 +160,16 @@ def lire(cnx, deps, session, lead_id, devis_id):
 def contenu(vue, prefixe):
     from . import pages
 
+    vue = _vue_sans_zero_invente(vue)
+
     def valeur(v):
         return 'Non disponible' if v is None else pages.e(v)
 
     base = (f'{prefixe}/crm/lead/{pages._segment(vue["lead_id"])}/soumissions/'
             f'{pages._segment(vue["devis_id"])}')
+    export = base + '/couts-travaux/export.json'
     corps = (f'<p><a href="{pages.e(base)}">Retour à la soumission</a></p><section><h2>Coûts des travaux</h2>'
+        f'<p><a href="{pages.e(export)}">Télécharger les coûts et leurs sources (JSON)</a></p>'
         '<p>Source : M5, devis accepté M3, temps et matériaux reçus par M5. '
         'Prix et taux actuels, sans attestation de dépense payée ou de coût historiquement figé.</p>'
         f'<p>{pages.e(vue["mention"])}</p>'
@@ -216,8 +222,39 @@ def contenu(vue, prefixe):
     return corps
 
 
+def _vue_sans_zero_invente(vue):
+    """Copie la vue pour distinguer une absence de coût d'un zéro attesté."""
+    copie = copy.deepcopy(vue)
+    etat = copie.get('chantier')
+    if isinstance(etat, dict) and etat.get('statut') == 'calculee':
+        rentabilite = etat['rentabilite']
+        cout = rentabilite['cout_reel']
+        materiaux, main = cout['materiaux'], cout['main_d_oeuvre']
+        materiaux_connus = (materiaux['statut'] == 'complet'
+                            or any(ligne.get('cout') is not None for ligne in materiaux['lignes']))
+        if not materiaux_connus:
+            materiaux['cout_connu'] = None
+        if not materiaux_connus and main.get('cout') is None and main.get('cout_connu') is None:
+            cout['cout_total_connu'] = None
+            rentabilite['marge_partielle_plafond'] = None
+            rentabilite['marge_partielle_plafond_pct_du_prix'] = None
+    return copie
+
+
+def _exporter(vue):
+    """Encode la lecture vérifiée, sans convertir une absence de composante en coût nul."""
+    document = {
+        'format': 'opsys.couts-travaux.export.v1',
+        'mention': 'Export préparatoire pour revue ; aucune écriture comptable, facture envoyée ou paiement.',
+        'vue': _vue_sans_zero_invente(vue),
+    }
+    return json.dumps(document, ensure_ascii=False, allow_nan=False, sort_keys=True,
+                      separators=(',', ':')).encode('utf-8')
+
+
 def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre):
     from fastapi import APIRouter, HTTPException, Request
+    from fastapi.responses import Response
 
     router = APIRouter()
 
@@ -242,6 +279,34 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre):
             code = {'INTROUVABLE': 404, 'DEVIS-NON-ACCEPTE': 409}.get(exc.code, 503)
             raise HTTPException(code, 'Coûts indisponibles : ' + exc.code) from None
         except (ValueError, KeyError, TypeError):
+            raise HTTPException(503, 'Sources de coûts indisponibles') from None
+        return reponse
+
+    @router.get('/crm/lead/{lead_id}/soumissions/{devis_id}/couts-travaux/export.json')
+    def export(lead_id: str, devis_id: str, request: Request):
+        session = session_page(request)
+        if request.query_params:
+            raise HTTPException(400, 'Paramètres de consultation invalides')
+        try:
+            with cnx_factory() as cnx:
+                vue = lire(cnx, deps, session, lead_id, devis_id)
+                donnees = _exporter(vue)
+                if len(donnees) > 131072:
+                    raise lecture.Refus('SORTIE-TROP-VOLUMINEUSE')
+                reponse = Response(donnees, media_type='application/json', headers={
+                    'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+                    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; sandbox",
+                    'Content-Disposition': 'attachment; filename="couts-travaux.json"',
+                })
+                if lire(cnx, deps, session, lead_id, devis_id) != vue:
+                    raise lecture.Refus('SOURCE-MODIFIEE')
+                autorite._admin(cnx, session)
+        except PermissionError:
+            raise HTTPException(403, 'Accès admin requis') from None
+        except lecture.Refus as exc:
+            code = {'INTROUVABLE': 404, 'DEVIS-NON-ACCEPTE': 409}.get(exc.code, 503)
+            raise HTTPException(code, 'Coûts indisponibles : ' + exc.code) from None
+        except (ValueError, KeyError, TypeError, OverflowError):
             raise HTTPException(503, 'Sources de coûts indisponibles') from None
         return reponse
 
