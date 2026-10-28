@@ -21,8 +21,11 @@ def capturer_sources(cnx):
 
 
 def source_journal(source, visites, composition, jour):
+    # Sans prévision explicite, aucun lien ne dépend d'une composition : une
+    # déclaration ne doit pas invalider le journal historique non enrichi.
+    source_composition = composition.empreinte_snapshot_calculee if visites.lignes else None
     return encodage.empreinte('journal_console_v2', source.empreinte_snapshot_calculee,
-                             visites.empreinte_snapshot_calculee, composition.empreinte_snapshot_calculee, jour)
+                             visites.empreinte_snapshot_calculee, source_composition, jour)
 
 
 def enrichir(cnx, source, journal, snapshot, composition):

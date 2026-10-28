@@ -124,9 +124,20 @@ def test_pagination_journal_refuse_changement_de_composition(client_crm, plannin
     import re
     from html import unescape
 
-    from m4_field_ops import calendrier_civil, composition_journaliere, encodage
+    from m4_field_ops import calendrier_civil, composition_journaliere, encodage, visites_durables
 
     f.base._connecter(client_crm, 'admin.fictif')
+    # Une prévision explicite rend les liens du journal dépendants des compositions.
+    with session():
+        reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        ligne = calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions'][0]
+        ancre = {k: ligne[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+        args_visite = {'ancre': ancre, 'revision_attendue': 0}
+        prev = Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+        visites_durables.prevoir(reg, prev, **args_visite, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+            mutation={'appareil': 'fictif', 'cle': 'visite-pagination-composition',
+                      'empreinte_arguments': encodage.empreinte(args_visite)},
+            horodatage='2030-06-03T07:00:00-04:00')
     page = client_crm.get('/crm/journal-equipes?jour=2030-06-03&limite=1')
     assert page.status_code == 200
     lien = re.search(r'href="([^"]+)"[^>]*>Page suivante</a>', page.text)
