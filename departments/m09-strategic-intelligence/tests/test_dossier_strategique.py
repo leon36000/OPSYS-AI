@@ -142,3 +142,27 @@ def test_bornes_comptees_jamais_tronquees_en_silence_et_dossier_reproductible():
 def test_question_invalide_refusee(question):
     with pytest.raises(ValueError, match="REJ-DOSSIER-QUESTION"):
         ds.construire([], question=question, domaines=["stock"], reference=REF, connaissance=REF)
+
+
+def test_capture_partielle_donne_ses_faits_reels_et_reste_nommee_partielle():
+    cedule = cs.construire(
+        cat.obtenir("m4.cedule_semaine"),
+        {"debut_semaine": "2026-11-02"},
+        [
+            {
+                "ok": True,
+                "resultat": {"accepte": True, "resultat": {"interventions": [{"revision": 1}], "tronque": True}},
+            }
+        ],
+        recu_a=REF,
+        reference=None,
+        index=0,
+        hash_precedent="",
+    )
+    dossier = ds.construire(
+        [cedule], question="Q", domaines=["capacite"], reference=REF, connaissance=REF, attendues=["m4.cedule_semaine"]
+    )
+    assert dossier["lectures_partielles"] == ["m4.cedule_semaine"]
+    assert dossier["faits"]["m4.cedule_semaine#0:p0.resultat.resultat.interventions[0].revision"] == "1"
+    assert dossier["faits"]["m4.cedule_semaine#0:p0.resultat.resultat.tronque"] == "true"
+    assert dossier["couverture"]["complete"] is False

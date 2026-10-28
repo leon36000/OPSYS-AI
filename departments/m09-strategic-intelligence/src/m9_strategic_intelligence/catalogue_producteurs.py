@@ -37,6 +37,21 @@ class Pagination:
 
 
 @dataclasses.dataclass(frozen=True)
+class Marqueur:
+    """Déclaration d'incomplétude PAR LE PRODUCTEUR : où sa réponse dit qu'elle est tronquée.
+
+    ``vrai`` : la valeur trouvée est ``true`` ; ``positif`` : un entier > 0 (ex. ``reste``). Une réponse qui déclare sa
+    propre troncature ne peut jamais être capturée « complète » (aucune suite lisible par M9 ne se présume)."""
+
+    chemin: str
+    genre: str  # "vrai" | "positif"
+
+    def __post_init__(self) -> None:
+        if self.genre not in ("vrai", "positif") or not _CHEMIN.fullmatch(self.chemin):
+            raise ValueError("marqueur d'incomplétude invalide")
+
+
+@dataclasses.dataclass(frozen=True)
 class Lecture:
     id: str
     departement: str
@@ -47,6 +62,7 @@ class Lecture:
     pagination: Pagination | None = None
     instants_metier: tuple[str, ...] = ()
     revisions: tuple[str, ...] = ()
+    incomplets: tuple[Marqueur, ...] = ()
 
     def __post_init__(self) -> None:
         chemins = [*self.instants_metier, *self.revisions]
@@ -88,17 +104,48 @@ LECTURES: tuple[Lecture, ...] = (
         {"horodatage", "regle", "permises_seulement", "decalage", "limite"},
         reference="horodatage",
     ),
-    _lecture("m3.ecarts", "m03-estimation", "m3_lire_ecarts_estime_reel", {"devis_id", "depuis", "jusqua"}),
-    _lecture("m4.interventions", "m04-field-ops", "m4_lister_interventions", {"statut", "curseur", "taille_page"}),
-    _lecture("m4.cedule_semaine", "m04-field-ops", "m4_lire_cedule_semaine", {"debut_semaine"}),
+    _lecture(
+        "m3.ecarts",
+        "m03-estimation",
+        "m3_lire_ecarts_estime_reel",
+        {"devis_id", "depuis", "jusqua"},
+        instants_metier=("resultat.resultat[*].horodatage_completion",),
+    ),
+    _lecture(
+        "m4.interventions",
+        "m04-field-ops",
+        "m4_lister_interventions",
+        {"statut", "curseur", "taille_page"},
+        pagination=Pagination("curseur", "resultat.resultat.page.curseur_suivant", "resultat.resultat.page.total"),
+    ),
+    _lecture(
+        "m4.cedule_semaine",
+        "m04-field-ops",
+        "m4_lire_cedule_semaine",
+        {"debut_semaine"},
+        instants_metier=("resultat.resultat.interventions[*].confirme_le",),
+        revisions=("resultat.resultat.interventions[*].revision", "resultat.resultat.interventions[*].source_ligne_id"),
+        incomplets=(Marqueur("resultat.resultat.tronque", "vrai"),),
+    ),
     _lecture(
         "m4.retards_incidents",
         "m04-field-ops",
         "m4_lire_retards_incidents",
         {"horodatage_reference"},
         reference="horodatage_reference",
+        instants_metier=("resultat.resultat.reports.liste[*].depuis", "resultat.resultat.incidents.liste[*].depuis"),
+        incomplets=(
+            Marqueur("resultat.resultat.reports.reste", "positif"),
+            Marqueur("resultat.resultat.incidents.reste", "positif"),
+        ),
     ),
-    _lecture("m4.meteo_intervention", "m04-field-ops", "m4_lire_meteo_intervention", {"intervention_id", "date"}),
+    _lecture(
+        "m4.meteo_intervention",
+        "m04-field-ops",
+        "m4_lire_meteo_intervention",
+        {"intervention_id", "date"},
+        instants_metier=("resultat.resultat.creneaux[*].prevision.emise_le",),
+    ),
     _lecture(
         "m5.prevision_tresorerie",
         "m05-financecore",
@@ -120,7 +167,13 @@ LECTURES: tuple[Lecture, ...] = (
         reference="aujourd_hui",
     ),
     _lecture("m5.comptes_a_payer", "m05-financecore", "m5_lister_comptes_a_payer", {"po_id", "depart", "sans_po"}),
-    _lecture("m6.disponibilite", "m06-material-control", "m6_lire_disponibilite", {"materiau_ids"}),
+    _lecture(
+        "m6.disponibilite",
+        "m06-material-control",
+        "m6_lire_disponibilite",
+        {"materiau_ids"},
+        incomplets=(Marqueur("resultat.resultat.tronque", "vrai"),),
+    ),
     _lecture("m7.performance_campagnes", "m07-marketing", "m7_lire_performance_campagnes", {"debut", "fin"}),
     _lecture("m8.vue_executive", "m08-analytics", "m8_lire_vue_executive", {"aujourd_hui"}, reference="aujourd_hui"),
     _lecture("m8.mesures_chantier", "m08-analytics", "m8_lire_mesures_chantier", {"wct_id"}),

@@ -102,10 +102,11 @@ def construire(captures: Sequence[Mapping], regles: Sequence[Regle], *, connaiss
             raison = None
             if derniere["verdict"] != "ACCEPTEE":
                 raison = "REFUSEE"
-            elif not derniere["complete"]:
-                raison = "PARTIELLE"
             elif (regle.lecture_id, derniere["arguments_sha256"]) in en_conflit:
                 raison = "CONTRADICTOIRE"
+            elif not derniere["complete"]:
+                # Les liens reçus sont réels et gardés ; la règle reste INCONNUE (des liens peuvent manquer).
+                inconnues.append(_inconnue(regle, "PARTIELLE", derniere["arguments_sha256"]))
             if raison is not None:
                 inconnues.append(_inconnue(regle, raison, derniere["arguments_sha256"]))
                 continue

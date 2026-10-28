@@ -243,3 +243,34 @@ def test_instants_de_reception_ou_reference_invalides_refuses():
         _capture([_reponse()], recu_a="2026-10-21T12:00:00")
     with pytest.raises(ValueError, match="REJ-CAPTURE-TEMPS"):
         _capture([_reponse()], reference="demain")
+
+
+def test_troncature_declaree_par_le_producteur_rend_la_capture_partielle():
+    cedule = cat.obtenir("m4.cedule_semaine")
+    tronquee = {"ok": True, "resultat": {"accepte": True, "resultat": {"interventions": [], "tronque": True}}}
+    entiere = {"ok": True, "resultat": {"accepte": True, "resultat": {"interventions": [], "tronque": False}}}
+    args = {"debut_semaine": "2026-11-02"}
+    a = cs.construire(cedule, args, [tronquee], recu_a=REF_RECU, reference=None, index=0, hash_precedent="")
+    b = cs.construire(cedule, args, [entiere], recu_a=REF_RECU, reference=None, index=0, hash_precedent="")
+    assert a["complete"] is False and "tronquée" in a["raison_incomplete"] and b["complete"] is True
+    retards = cat.obtenir("m4.retards_incidents")
+    avec_reste = {
+        "ok": True,
+        "resultat": {
+            "accepte": True,
+            "resultat": {"reports": {"liste": [], "reste": 3}, "incidents": {"liste": [], "reste": 0}},
+        },
+    }
+    sans_reste = {
+        "ok": True,
+        "resultat": {
+            "accepte": True,
+            "resultat": {"reports": {"liste": [], "reste": 0}, "incidents": {"liste": [], "reste": 0}},
+        },
+    }
+    for reponse, attendu in ((avec_reste, False), (sans_reste, True)):
+        capture = cs.construire(retards, {}, [reponse], recu_a=REF_RECU, reference=None, index=0, hash_precedent="")
+        assert capture["complete"] is attendu
+
+
+REF_RECU = "2026-10-21T12:00:00Z"

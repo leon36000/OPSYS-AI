@@ -93,16 +93,18 @@ def construire(
     liste = list(attendues) if attendues is not None else [lecture.id for lecture in cat.LECTURES]
     couverture = cs.evaluer_couverture(captures, reference=reference, connaissance=connaissance, attendues=liste)
     connues = cs.connues_a(captures, connaissance)
-    # Citable : capture acceptée et complète dont le temps métier est présent OU non déclaré (une réserve, pas une
-    # exclusion).
-    # Hors dossier, nommés dans les manques : absente, refusée, partielle, contradictoire, ou postérieure à la
-    # référence.
+    # Citable : capture ACCEPTÉE dont le temps métier est présent ou non déclaré (une réserve, pas une exclusion), y
+    # compris
+    # PARTIELLE : les faits reçus sont réels, la lecture reste nommée aux manques et à ``lectures_partielles``.
+    # Hors dossier, nommés dans les manques : absente, refusée, contradictoire, ou postérieure à la référence.
     presentes = {
-        e["lecture_id"] for e in couverture["lectures"] if e["statut"] in ("PRESENTE", "TEMPS_METIER_NON_DECLARE")
+        e["lecture_id"]
+        for e in couverture["lectures"]
+        if e["statut"] in ("PRESENTE", "TEMPS_METIER_NON_DECLARE", "PARTIELLE")
     }
     utiles = []
     for lecture_id in sorted(presentes):
-        siennes = [c for c in connues if c["lecture_id"] == lecture_id and c["verdict"] == "ACCEPTEE" and c["complete"]]
+        siennes = [c for c in connues if c["lecture_id"] == lecture_id and c["verdict"] == "ACCEPTEE"]
         derniers: dict[str, Mapping] = {}
         for capture in siennes:
             derniers[capture["arguments_sha256"]] = capture
@@ -128,6 +130,7 @@ def construire(
         "manques": manques,
         "faits": faits,
         "faits_non_retenus": exces,
+        "lectures_partielles": sorted(e["lecture_id"] for e in couverture["lectures"] if e["statut"] == "PARTIELLE"),
         "temps_metier_non_declare": sorted(
             e["lecture_id"] for e in couverture["lectures"] if e["statut"] == "TEMPS_METIER_NON_DECLARE"
         ),

@@ -197,6 +197,13 @@ def construire(
         suite = extraire(pages_json[-1], lecture.pagination.chemin_suivant)
         if any(valeur is not None for valeur in suite):
             complete, raison = False, "page suivante non lue"
+    if complete and lecture.incomplets:
+        for page in pages_json:
+            for marqueur in lecture.incomplets:
+                for valeur in extraire(page, marqueur.chemin):
+                    declare = valeur is True if marqueur.genre == "vrai" else type(valeur) is int and valeur > 0
+                    if declare and complete:
+                        complete, raison = False, f"réponse tronquée déclarée par le producteur ({marqueur.chemin})"
     instants, invalides = [], 0
     revisions: set[str] = set()
     if verdict == "ACCEPTEE":

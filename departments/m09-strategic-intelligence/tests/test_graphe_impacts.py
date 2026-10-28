@@ -217,3 +217,32 @@ def test_regle_invalide_refusee():
         gi.Regle("x", "r", "m2.leads", "a", "k", "c", "k2", "c2", sens="partout")
     with pytest.raises(ValueError, match="règle incomplète"):
         gi.Regle("x", "", "m2.leads", "a", "k", "c", "k2", "c2")
+
+
+def test_capture_partielle_garde_les_liens_recus_mais_la_regle_reste_inconnue():
+    a = _capture("m6.disponibilite", _ok(liens=[{"materiau_id": "A", "wct_id": "W1"}], tronque=False))
+    lecture = cat.obtenir("m6.disponibilite")
+    assert lecture.incomplets  # m6.disponibilite déclare son marqueur de troncature
+    partielle = cs.construire(
+        lecture,
+        {},
+        [
+            {
+                "ok": True,
+                "resultat": {
+                    "accepte": True,
+                    "resultat": {"liens": [{"materiau_id": "A", "wct_id": "W1"}], "tronque": True},
+                },
+            }
+        ],
+        recu_a=T0,
+        reference=None,
+        index=0,
+        hash_precedent="",
+    )
+    assert a["complete"] is True and partielle["complete"] is False
+    graphe = gi.construire([partielle], [R1], connaissance=T0)
+    assert len(graphe["aretes"]) == 1  # le lien reçu est réel
+    assert [r["raison"] for r in graphe["regles_inconnues"]] == ["PARTIELLE"]
+    resultat = gi.propager(graphe, "materiau", "A")
+    assert resultat["complet"] is False and {i["objet"]["id"] for i in resultat["impacts"]} == {"W1"}
