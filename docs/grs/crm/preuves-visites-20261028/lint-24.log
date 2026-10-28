@@ -1,0 +1,109 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> src/opsys/console/reprise_visite.py:2:1
+   |
+ 1 |   """Proposition privée d'une reprise M4 : aucune affectation ni date civile implicite."""
+ 2 | / from datetime import UTC, datetime
+ 3 | |
+ 4 | | from m4_field_ops import cedule_tournees, encodage, etats, visites_chantier, visites_ecriture
+ 5 | | from m4_field_ops.registre import Registre
+ 6 | |
+ 7 | | from sqlalchemy import LargeBinary, cast, func, select
+ 8 | |
+ 9 | | from .. import contexte, idempotence, stockage
+10 | | from ..etat import journaliser
+11 | | from ..outils import Autonomie, Niveau, executer_atomique
+12 | | from ..stockage.schema import MUTATIONS_APPLIQUEES
+13 | | from . import memoire_chantier as autorite
+14 | | from . import preparation_chantier as lecture
+15 | | from . import proposition_chantier as proposition
+   | |_________________________________________________^
+16 |
+17 |   NOM = 'm4_proposer_cedule'
+   |
+help: Organize imports
+  |
+5 | from m4_field_ops.registre import Registre
+  -
+6 | from sqlalchemy import LargeBinary, cast, func, select
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_console_reprise_visite.py:2:1
+   |
+ 1 |   """Reprise privée : données, profils et SQLite fictifs uniquement."""
+ 2 | / import importlib.util
+ 3 | |
+ 4 | | import pytest
+ 5 | | from pathlib import Path
+ 6 | |
+ 7 | | from m4_field_ops import calendrier_civil, cedule, encodage, etats, pointage, registre, visites_chantier, visites_durables
+ 8 | |
+ 9 | | from opsys import equipes, stockage
+   | |___________________________________^
+10 |
+11 |   spec = importlib.util.spec_from_file_location('fixture_application_reprise',
+   |
+help: Organize imports
+   |
+2  | import importlib.util
+3  + from pathlib import Path
+4  |
+5  | import pytest
+   - from pathlib import Path
+   -
+   - from m4_field_ops import calendrier_civil, cedule, encodage, etats, pointage, registre, visites_chantier, visites_durables
+6  + from m4_field_ops import (
+7  +     calendrier_civil,
+8  +     cedule,
+9  +     encodage,
+10 +     etats,
+11 +     pointage,
+12 +     registre,
+13 +     visites_chantier,
+14 +     visites_durables,
+15 + )
+16 |
+   |
+
+E501 Line too long (122 > 120)
+ --> tests/test_console_reprise_visite.py:7:121
+  |
+5 | from pathlib import Path
+6 |
+7 | from m4_field_ops import calendrier_civil, cedule, encodage, etats, pointage, registre, visites_chantier, visites_durables
+  |                                                                                                                         ^^
+8 |
+9 | from opsys import equipes, stockage
+  |
+
+E501 Line too long (121 > 120)
+  --> tests/test_console_reprise_visite.py:53:121
+   |
+51 |         recu = visites_durables.prevoir(reg, prev, **args,
+52 |             auteur={'personne': 'admin.fictif', 'role': 'admin'},
+53 |             mutation={'appareil': 'fictif', 'cle': 'prevision-fictive', 'empreinte_arguments': encodage.empreinte(args)},
+   |                                                                                                                         ^
+54 |             horodatage='2030-06-03T07:30:00-04:00')
+55 |         visites_chantier.ouvrir(reg, prev, recu['visite_id'], '2030-06-03T08:00:00-04:00')
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> tests/test_console_reprise_visite.py:110:5
+    |
+108 |               if tag == 'input' and 'name' in attrs:
+109 |                   self.valeurs[attrs['name']] = attrs.get('value', '')
+110 | /     from dataclasses import replace
+111 | |     from opsys.console import securite
+    | |______________________________________^
+112 |       cookie = next(c for c in catalogue.cookies.jar if c.name == securite.NOM_COOKIE)
+113 |       sess = securite.lire_session(cookie.value, f.p.m.base.SECRET)
+    |
+help: Organize imports
+    |
+110 |     from dataclasses import replace
+111 +
+112 |     from opsys.console import securite
+    |
+
+Found 5 errors.
+[*] 3 fixable with `--fix`.
