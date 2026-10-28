@@ -6,7 +6,8 @@ import json
 from copy import deepcopy
 from datetime import datetime
 
-from . import annotations_calendrier as notes, encodage
+from . import annotations_calendrier as notes
+from . import encodage
 from .registre import Registre, VerificationError
 
 TYPE = 'visite_prevue'
@@ -51,6 +52,10 @@ def _charger(principal, visites):
             cle = notes._cle(ancre)
             if cle in ancres or m['creneau'] != notes._creneau(sources, ancre):
                 raise Refus('ANCRE-INCOHERENTE')
+            source_datee = sources[0][ancre['source_ligne_id']][1]
+            notes._instant(source_datee['horodatage'])
+            if datetime.fromisoformat(m['horodatage']) < datetime.fromisoformat(source_datee['horodatage']):
+                raise Refus('HORODATAGE-ANTERIEUR')
             intention = m['mutation']['appareil'], m['mutation']['cle']
             if intention in mutations:
                 raise Refus('MUTATION-DOUBLE')
@@ -85,6 +90,10 @@ def prevoir(principal, visites, ancre, revision_attendue, auteur, mutation, horo
     if cle in ancres or cle not in sources[1] or sources[1][cle]['validite'] != 'date_confirmee':
         raise Refus('SOURCE-REMPLACEE')
     creneau = notes._creneau(sources, ancre)
+    source_datee = sources[0][ancre['source_ligne_id']][1]
+    notes._instant(source_datee['horodatage'])
+    if datetime.fromisoformat(horodatage) < datetime.fromisoformat(source_datee['horodatage']):
+        raise Refus('HORODATAGE-ANTERIEUR')
     if precedente and datetime.fromisoformat(horodatage) < datetime.fromisoformat(precedente['horodatage']):
         raise Refus('HORODATAGE-ANTERIEUR')
     if len(lignes) >= MAX_SOURCES:

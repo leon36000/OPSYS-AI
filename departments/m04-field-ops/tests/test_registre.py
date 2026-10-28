@@ -315,6 +315,8 @@ def test_enumere_des_types_est_fige():
         "materiel_pret_recu",  # PLAN T4.14-b : la charge m6.materiel_pret la plus récente d'un devis (materiel.py)
         "heures_regulieres_validees",  # M5.4 : révision individuelle validée N4, sans paie.
         "visite_prevue",  # CRM-01 : prévision explicitement ancrée.
+        "visite_ouverte",  # CRM-01 : ouverture explicite de visite.
+        "visite_fermee",  # CRM-01 : clôture sans WCT.
         "composition_journaliere",  # CRM-16 : histoire déclarative séparée, aucun droit courant.
         "absence_journaliere_declaree",  # CRM-16 : type ratifié par le contrat admin, aucune présence/paie.
     }

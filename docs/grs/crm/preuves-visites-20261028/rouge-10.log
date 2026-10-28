@@ -1,0 +1,34 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_vraies_primitives_attachent_route_et_pointages_a_ouverture ________
+
+    def test_vraies_primitives_attachent_route_et_pointages_a_ouverture():
+        from m4_field_ops import cedule, etats, pointage, visites_chantier
+        principal, visites, ancre, _, _ = fixture.monde()
+        prevision = ecrire(principal, visites, ancre)
+        visites_chantier.ouvrir(principal, visites, prevision['visite_id'], '2030-06-03T08:00:00-04:00')
+        ligne = visites_durables.lire(principal, visites, ancre['intervention_id'])['visites'][0]
+        equipe = ligne['creneau']['equipe_id']
+        assign = {'intervention_id': ancre['intervention_id'], 'technicien_id': equipe}
+        route, erreur = etats.transitionner(ancre['intervention_id'], 'en_route', principal,
+                                            '2030-06-03T08:30:00-04:00', assignation=assign)
+        assert erreur is None
+        ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+            'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+        fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+        for action, instant in [('arrivee', '2030-06-03T09:00:00-04:00'),
+                                ('pause_debut', '2030-06-03T10:00:00-04:00'),
+                                ('pause_fin', '2030-06-03T10:30:00-04:00'),
+                                ('depart', '2030-06-03T12:00:00-04:00')]:
+            recu, erreur = pointage.enregistrer_pointage(
+                ancre['intervention_id'], equipe, action, instant,
+                {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                assign, fenetre, ref, 'Repentigny', 'sel-fictif', principal)
+            assert erreur is None, erreur
+>           assert next(m for m in principal.lire() if m['ligne_id'] == recu['ligne_id'])['visite_id'] == prevision['visite_id']
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'visite_id'
+
+departments/m04-field-ops/tests/test_visites_reprise.py:176: KeyError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_vraies_primitives_attachent_route_et_pointages_a_ouverture

@@ -1,6 +1,6 @@
 """Fondation des prévisions identifiées : toutes les données sont fictives."""
-from copy import deepcopy
 import importlib.util
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -13,11 +13,11 @@ fixture = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fixture)
 
 
-def ecrire(principal, visites, ancre, revision=0, cle='fictif-1'):
+def ecrire(principal, visites, ancre, revision=0, cle='fictif-1', heure=None):
     args = {'ancre': deepcopy(ancre), 'revision_attendue': revision}
     mutation = {'appareil': 'console-fictive', 'cle': cle, 'empreinte_arguments': encodage.empreinte(args)}
     return visites_durables.prevoir(principal, visites, **args, auteur=fixture.AUTEUR,
-                                    mutation=mutation, horodatage=fixture.pur.HORODATAGE)
+                                    mutation=mutation, horodatage=fixture.pur.HORODATAGE if heure is None else heure)
 
 
 def test_prevision_a_ancre_exacte_append_only_et_rejeu():
@@ -78,9 +78,10 @@ def test_registre_semantiquement_altere_meme_rechaine_refuse():
 
 def test_sqlite_reouverture_rejeu_et_rollback_tardif(base_durable):
     from m4_field_ops import visites_ecriture
+    from sqlalchemy import func, select
+
     from opsys import stockage
     from opsys.stockage.schema import JOURNAL
-    from sqlalchemy import func, select
     principal, _, ancre, _, _ = fixture.monde()
     args = {'ancre': ancre, 'revision_attendue': 0}
     mutation = {'appareil': 'console-fictive', 'cle': 'sql-fictif',
@@ -119,3 +120,230 @@ def test_sqlite_reouverture_rejeu_et_rollback_tardif(base_durable):
         assert len(stockage.maillons('m04-field-ops', visites_durables.REGISTRE)) == 1
 
         assert cnx.execute(select(func.count()).select_from(JOURNAL)).scalar_one() == audit_avant
+
+
+def test_ouverture_identifiee_liee_a_prevision_et_unique():
+    from m4_field_ops import visites_chantier
+    principal, visites, ancre, _, _ = fixture.monde()
+    recu = ecrire(principal, visites, ancre)
+    avant = principal.lire()
+    ouvert = visites_chantier.ouvrir(principal, visites, recu['visite_id'],
+                                     '2030-06-03T08:00:00-04:00')
+    assert ouvert['visite_id'] == recu['visite_id']
+    assert principal.lire()[:-1] == avant
+    assert principal.lire()[-1]['type_entree'] == 'visite_ouverte'
+    assert principal.lire()[-1]['intervention_id'] == ancre['intervention_id']
+    with pytest.raises(ValueError):
+        visites_chantier.ouvrir(principal, visites, recu['visite_id'], '2030-06-03T08:01:00-04:00')
+    assert len(principal.lire()) == len(avant) + 1
+
+
+def test_ouverture_refuse_source_remplacee_et_identite_inconnue():
+    from m4_field_ops import visites_chantier
+    principal, visites, ancre, _, _ = fixture.monde()
+    recu = ecrire(principal, visites, ancre)
+    fixture.calendrier_civil.confirmer(principal, ancre['plan_id'], {'0': '2030-06-10'}, 1,
+                                      'admin.fictif', fixture.pur.HORODATAGE)
+    avant = principal.lire()
+    for ident in [recu['visite_id'], 'f' * 64]:
+        with pytest.raises(ValueError):
+            visites_chantier.ouvrir(principal, visites, ident, '2030-06-03T08:00:00-04:00')
+    assert principal.lire() == avant
+
+
+def test_vraies_primitives_attachent_route_et_pointages_a_ouverture():
+    from m4_field_ops import cedule, etats, pointage, visites_chantier
+    principal, visites, ancre, _, _ = fixture.monde()
+    prevision = ecrire(principal, visites, ancre)
+    visites_chantier.ouvrir(principal, visites, prevision['visite_id'], '2030-06-03T08:00:00-04:00')
+    ligne = visites_durables.lire(principal, visites, ancre['intervention_id'])['visites'][0]
+    equipe = ligne['creneau']['equipe_id']
+    assign = {'intervention_id': ancre['intervention_id'], 'technicien_id': equipe}
+    route, erreur = etats.transitionner(ancre['intervention_id'], 'en_route', principal,
+                                        '2030-06-03T08:30:00-04:00', assignation=assign)
+    assert erreur is None
+    ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+        'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+    fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+    for action, instant in [('arrivee', '2030-06-03T09:00:00-04:00'),
+                            ('pause_debut', '2030-06-03T10:00:00-04:00'),
+                            ('pause_fin', '2030-06-03T10:30:00-04:00'),
+                            ('depart', '2030-06-03T12:00:00-04:00')]:
+        recu, erreur = pointage.enregistrer_pointage(
+            ancre['intervention_id'], equipe, action, instant,
+            {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+            assign, fenetre, ref, 'Repentigny', 'sel-fictif', principal)
+        assert erreur is None, erreur
+        assert (next(m for m in principal.lire() if m['ligne_id'] == recu['ligne_id'])['visite_id']
+                == prevision['visite_id'])
+    assert (next(m for m in principal.lire() if m['ligne_id'] == route['ligne_id'])['visite_id']
+            == prevision['visite_id'])
+    assert visites_chantier.calculer_faits(principal, ancre['intervention_id'])['travail_minutes'] == 150
+
+
+def test_fermeture_de_session_sans_completion_ni_wct():
+    from m4_field_ops import cedule, etats, outbox, pointage, visites_chantier
+    principal, visites, ancre, _, _ = fixture.monde()
+    prevision = ecrire(principal, visites, ancre)
+    iid = ancre['intervention_id']
+    visites_chantier.ouvrir(principal, visites, prevision['visite_id'], '2030-06-03T08:00:00-04:00')
+    equipe = visites_durables.lire(principal, visites, iid)['visites'][0]['creneau']['equipe_id']
+    assign = {'intervention_id': iid, 'technicien_id': equipe}
+    assert etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+    ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+        'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+    fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+    def pointer(action, instant):
+        return pointage.enregistrer_pointage(iid, equipe, action, instant,
+            {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+            assign, fenetre, ref, 'Repentigny', 'sel-fictif', principal)
+    assert pointer('arrivee', '2030-06-03T09:00:00-04:00')[1] is None
+    avant = principal.lire()
+    with pytest.raises(ValueError):
+        visites_chantier.fermer(principal, visites, prevision['visite_id'], '2030-06-03T11:00:00-04:00')
+    assert principal.lire() == avant
+    assert pointer('depart', '2030-06-03T12:00:00-04:00')[1] is None
+    fermeture = visites_chantier.fermer(principal, visites, prevision['visite_id'], '2030-06-03T12:01:00-04:00')
+    assert fermeture['visite_id'] == prevision['visite_id']
+    assert visites_chantier.visite_active(principal, iid) is None
+    apres_fermeture = principal.lire()
+    assert pointer('depart', '2030-06-03T12:02:00-04:00')[1] is not None
+    assert principal.lire() == apres_fermeture
+    assert etats.statut_courant(principal, iid) == 'sur_site'
+    assert not any('wct' in m for m in principal.lire())
+    assert visites_chantier.calculer_faits_certifies(principal, visites, iid)['travail_minutes'] == 180
+    assert outbox.calculer_duree_reelle(principal, iid, registre_visites=visites) == (180, None)
+    avant = principal.lire()
+    with pytest.raises(ValueError):
+        visites_chantier.fermer(principal, visites, prevision['visite_id'], '2030-06-03T12:02:00-04:00')
+    assert principal.lire() == avant
+
+
+def test_calcul_certifie_refuse_pointages_orphelins_et_ancre_falsifiee():
+    from m4_field_ops import visites_chantier
+    principal, visites, ancre, _, _ = fixture.monde()
+    prevision = ecrire(principal, visites, ancre)
+    visites_chantier.ouvrir(principal, visites, prevision['visite_id'], '2030-06-03T08:00:00-04:00')
+    maillons = principal.lire()
+    maillons[-1]['source_calendrier'] = 'f' * 64
+    rechaine = Registre()
+    for m in maillons:
+        rechaine.ajouter({k: v for k, v in m.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
+    with pytest.raises(ValueError):
+        visites_chantier.calculer_faits_certifies(rechaine, visites, ancre['intervention_id'])
+    assert visites.taille() == 1
+
+
+def test_depart_gps_arbitre_garde_la_session_et_sa_preuve():
+    from m4_field_ops import cedule, ecarts, etats, pointage, visites_chantier
+    principal, visites, ancre, _, _ = fixture.monde()
+    prev = ecrire(principal, visites, ancre)
+    iid = ancre['intervention_id']
+    visites_chantier.ouvrir(principal, visites, prev['visite_id'], '2030-06-03T08:00:00-04:00')
+    equipe = visites_durables.lire(principal, visites, iid)['visites'][0]['creneau']['equipe_id']
+    assign = {'intervention_id': iid, 'technicien_id': equipe}
+    assert etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+    ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+        'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+    fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+    def pointer(action, instant, gps):
+        return pointage.enregistrer_pointage(iid, equipe, action, instant, gps,
+            {'fictif': True, 'appareil_id': 'fictif'}, assign, fenetre, ref, 'Repentigny', 'sel-fictif', principal)
+    proche, loin = {'latitude': 45.75, 'longitude': -73.45}, {'latitude': 46.81, 'longitude': -71.2}
+    assert pointer('arrivee', '2030-06-03T09:00:00-04:00', proche)[1] is None
+    assert pointer('depart', '2030-06-03T12:00:00-04:00', proche)[1] is None
+    anomalie, erreur = pointer('depart', '2030-06-03T12:05:00-04:00', loin)
+    assert erreur is None and anomalie['demande_id']
+    with pytest.raises(ValueError):
+        visites_chantier.fermer(principal, visites, prev['visite_id'], '2030-06-03T12:06:00-04:00')
+    assert ecarts.resoudre_demande(anomalie['demande_id'], 'validee', '2030-06-03T12:10:00-04:00', principal)[1] is None
+    visites_chantier.fermer(principal, visites, prev['visite_id'], '2030-06-03T12:11:00-04:00')
+    resultat = visites_chantier.calculer_faits_certifies(principal, visites, iid)
+    assert resultat['travail_minutes'] == 185
+    assert anomalie['ligne_id'] in resultat['visites'][0]['sources']
+    bruts = principal.lire()
+    resolution = next(m for m in bruts if m.get('type_entree') == 'resolution_revue')
+    resolution['decision'] = 'rejetee'
+    rechaine = Registre()
+    for m in bruts:
+        rechaine.ajouter({k: v for k, v in m.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
+    with pytest.raises(ValueError):
+        visites_chantier.calculer_faits_certifies(rechaine, visites, iid)
+
+
+def test_reprise_lundi_vendredi_avec_un_seul_wct_et_minutes_reelles():
+    from m4_field_ops import cedule, etats, outbox, pointage, visites_chantier
+    principal, ids, positions = fixture.pur._monde(leads=('ch-01',))
+    plan_initial = fixture.pur._reussi(fixture.pur._proposer(principal, ids, positions))['plan_id']
+    fixture.pur._reussi(fixture.cedule_tournees.appliquer(principal, plan_initial, positions,
+                        fixture.pur.HORODATAGE, 'admin.fictif'))
+    fixture.calendrier_civil.confirmer(principal, plan_initial, {'0': '2030-06-03'}, 0,
+                                      'admin.fictif', fixture.pur.HORODATAGE)
+    ligne = fixture.calendrier_civil.lire_semaine(principal, '2030-06-03')['interventions'][0]
+    ancre = {k: ligne[k] for k in fixture.CHAMPS_ANCRE}
+    visites = Registre()
+    iid = ancre['intervention_id']
+    equipe = fixture.notes._creneau(fixture.notes._sources(principal), ancre)['equipe_id']
+    ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+        'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+    gps = {'latitude': 45.75, 'longitude': -73.45}
+    def session(ancre_jour, revision, cle, jour, pauses):
+        prev = ecrire(principal, visites, ancre_jour, revision=revision, cle=cle, heure=f'{jour}T07:30:00-04:00')
+        equipe_jour = fixture.notes._creneau(fixture.notes._sources(principal), ancre_jour)['equipe_id']
+        assign = {'intervention_id': iid, 'technicien_id': equipe_jour}
+        visites_chantier.ouvrir(principal, visites, prev['visite_id'], f'{jour}T08:00:00-04:00')
+        assert etats.transitionner(iid, 'en_route', principal, f'{jour}T08:30:00-04:00', assignation=assign)[1] is None
+        fenetre = {'debut': f'{jour}T08:00:00-04:00', 'fin': f'{jour}T18:00:00-04:00'}
+        actions = [('arrivee', '09:00:00'), *pauses, ('depart', '12:00:00' if pauses else '13:00:00')]
+        for action, heure in actions:
+            recu, erreur = pointage.enregistrer_pointage(iid, equipe_jour, action, f'{jour}T{heure}-04:00', gps,
+                {'fictif': True, 'appareil_id': 'fictif'}, assign, fenetre, ref,
+                'Repentigny', 'sel-fictif', principal)
+            assert erreur is None, erreur
+        visites_chantier.fermer(principal, visites, prev['visite_id'], f'{jour}T{actions[-1][1][:2]}:01:00-04:00')
+    session(ancre, 0, 'lundi-fictif', '2030-06-03', [('pause_debut', '10:00:00'), ('pause_fin', '10:30:00')])
+    recu, erreur = etats.transitionner(iid, 'reportee', principal, '2030-06-03T12:02:00-04:00',
+                                        motif='meteo', registre_visites=visites)
+    assert erreur is None, erreur
+    assert not outbox.lire_outbox(principal)
+    assert etats.transitionner(iid, 'planifiee', principal, '2030-06-03T12:03:00-04:00')[1] is None
+    autre_equipe = next(e for e in fixture.pur._aide._equipes() if e['id'] != equipe)
+    args = fixture.pur._aide._arguments(ids, equipes=[autre_equipe])
+    plan = fixture.pur._reussi(fixture.pur._proposer(principal, ids, positions, args))['plan_id']
+    fixture.pur._reussi(fixture.cedule_tournees.appliquer(principal, plan, positions,
+                        '2030-06-03T12:04:00-04:00', 'admin.fictif'))
+    datee = fixture.calendrier_civil.confirmer(principal, plan, {'0': '2030-06-07'}, 0,
+                                               'admin.fictif', '2030-06-03T12:05:00-04:00')
+    seconde_ancre = {'intervention_id': iid, 'plan_id': plan,
+                      'source_application_id': next(m['source_application_id'] for m in principal.lire()
+                                                    if m.get('ligne_id') == datee['ligne_id']),
+                      'source_ligne_id': datee['ligne_id']}
+    session(seconde_ancre, 1, 'vendredi-fictif', '2030-06-07', [])
+    resultat = visites_chantier.calculer_faits_certifies(principal, visites, iid)
+    assert (resultat['travail_minutes'], resultat['pause_minutes'], resultat['deplacement_minutes']) == (390, 30, 60)
+    avant_completion = principal.lire()
+    assert outbox.completer_intervention(iid, '2030-06-07T13:02:00-04:00', principal,
+                                        ecart_detecte=False)[1] is not None
+    assert principal.lire() == avant_completion
+    assert outbox.completer_intervention(iid, '2030-06-07T13:00:00-04:00', principal,
+                                        ecart_detecte=False, registre_visites=visites)[1] is not None
+    assert principal.lire() == avant_completion
+    accuse, erreur = outbox.completer_intervention(iid, '2030-06-07T13:02:00-04:00', principal,
+                                                    ecart_detecte=False, registre_visites=visites)
+    assert erreur is None, erreur
+    assert len(outbox.lire_outbox(principal)) == 1
+    assert outbox.lire_outbox(principal)[0][1]['duree_reelle_minutes'] == 390
+    assert outbox.lire_outbox(principal)[0][1]['technicien_id'] == autre_equipe['id']
+    assert autre_equipe['id'] != equipe
+    assert outbox.completer_intervention(iid, '2030-06-07T13:03:00-04:00', principal,
+                                        ecart_detecte=False, registre_visites=visites)[1] is not None
+
+
+def test_prevision_ne_peut_predater_sa_source_civile():
+    principal, visites, ancre, _, _ = fixture.monde()
+    datee = fixture.calendrier_civil.confirmer(principal, ancre['plan_id'], {'0': '2030-06-10'}, 1,
+                                               'admin.fictif', '2030-02-01T00:00:00+00:00')
+    nouvelle = {**ancre, 'source_ligne_id': datee['ligne_id']}
+    with pytest.raises(visites_durables.Refus):
+        ecrire(principal, visites, nouvelle, heure='2030-01-01T00:00:00+00:00')
+    assert visites.taille() == 0

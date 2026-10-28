@@ -191,6 +191,22 @@ def enregistrer_pointage(
         return (None, verdicts.construire_verdict("REJ-PUNCH-SANS-INTERVENTION",
                                                    detail=detail))
 
+    # Les pointages nouveaux ne sont associés qu'à une ouverture explicite.
+    from . import visites_chantier
+    try:
+        visite = visites_chantier.visite_active(registre_cible, intervention_id)
+        if visite and (visite['equipe_id'] != technicien_id or
+                       visites_chantier._instant(horodatage_arg) <
+                       visites_chantier._instant(visite['horodatage'])):
+            raise ValueError('visite incohérente')
+        if visite is None and any(m.get('type_entree') == 'visite_ouverte'
+                                  and m.get('intervention_id') == intervention_id
+                                  for m in registre_cible.lire()):
+            raise ValueError('aucune visite active')
+    except ValueError:
+        return (None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="visite ouverte incohérente"))
+
     # -- 7. Horodatage antérieur au dernier pointage (CA-M4-07)
     derniers_pointages = [
         m for m in registre_cible.lire()
@@ -211,6 +227,7 @@ def enregistrer_pointage(
         m.get("type_entree") == TYPE_POINTAGE
         and m.get("intervention_id") == intervention_id
         and m.get("action") == "depart"
+        and (visite is None or m.get("visite_id") == visite["visite_id"])
         for m in registre_cible.lire()
     ):
         return (None, verdicts.construire_verdict(
@@ -323,6 +340,8 @@ def enregistrer_pointage(
         "ville_tokenisee": token_ville,
         "gps_coherent": coherent,
     }
+    if visite is not None:
+        maillon_pointage["visite_id"] = visite["visite_id"]
     if fix_gps is None:
         # PLAN T4.2 (§4) : mode manuel — aucune donnée géographique écrite. Ce qui n'est jamais
         # inscrit n'a jamais besoin d'être détruit (minimisation la plus forte possible).

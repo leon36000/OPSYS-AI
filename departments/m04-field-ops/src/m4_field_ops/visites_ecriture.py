@@ -2,12 +2,14 @@
 import json
 
 from sqlalchemy import LargeBinary, cast, func, select
+
 from opsys import stockage
 from opsys.etat import journaliser
 from opsys.stockage.maillons import copier_maillons_avec_metadonnees
 from opsys.stockage.schema import REGISTRES
 
-from . import journal_durable, visites_durables as domaine
+from . import journal_durable
+from . import visites_durables as domaine
 from .registre import Registre
 
 DEPARTEMENT = 'm04-field-ops'

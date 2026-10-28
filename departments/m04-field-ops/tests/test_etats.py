@@ -46,7 +46,7 @@ TRANSITIONS_D_AVANT = (
     ("reportee", "planifiee"),
     ("reportee", "annulee"),
 )
-TRANSITIONS_AJOUTEES = (("a_planifier", "planifiee"), ("a_planifier", "annulee"))
+TRANSITIONS_AJOUTEES = (("a_planifier", "planifiee"), ("a_planifier", "annulee"), ("sur_site", "reportee"))
 LEAD_V2 = {
     "schema_version": 2, "lead_id": "L-DEVIS", "conversation_id": "C-DEVIS",
     "contact": {"nom": "Dupont", "telephone": "0102030405"},
@@ -214,6 +214,7 @@ def test_constantes_epinglage():
         ("reportee", "annulee"),
         ("a_planifier", "planifiee"),
         ("a_planifier", "annulee"),
+        ("sur_site", "reportee"),
     )
     assert etats_mod.TYPE_INSCRIPTION == "intervention_inscrite"
     assert etats_mod.TYPE_TRANSITION == "transition_statut"

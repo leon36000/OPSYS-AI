@@ -247,7 +247,7 @@ def calculer_minutes_deplacement(registre_cible, intervention_id):
     return int((dt_arr - dt_route).total_seconds() // 60), None
 
 
-def calculer_duree_reelle(registre_cible, intervention_id):
+def calculer_duree_reelle(registre_cible, intervention_id, *, registre_visites=None):
     """
     Calcule la durée réelle de l'intervention à partir des pointages de terrain.
 
@@ -275,6 +275,19 @@ def calculer_duree_reelle(registre_cible, intervention_id):
         mal formées (voir ``calculer_minutes_pause``). Aucune valeur
         conventionnelle n'est jamais substituée.
     """
+    # Une source segmentée exige sa preuve de visite et ses ancres. Sans elle,
+    # ne pas retomber sur le calcul historique, même avec une seule arrivée.
+    if any(m.get("type_entree") == "visite_ouverte" and m.get("intervention_id") == intervention_id
+           for m in registre_cible.lire()):
+        if registre_visites is None:
+            return None, "REJ-CONTRAT-INVALIDE"
+        from . import visites_chantier
+        try:
+            resultat = visites_chantier.calculer_faits_certifies(registre_cible, registre_visites, intervention_id)
+        except ValueError:
+            return None, "REJ-CONTRAT-INVALIDE"
+        return resultat["travail_minutes"], None
+
     pointages = []
     for maillon in registre_cible.lire():
         if (maillon.get("type_entree") == pointage.TYPE_POINTAGE
@@ -367,6 +380,7 @@ def completer_intervention(
     consentement_marketing=NON_FOURNI, client_satisfait=NON_FOURNI,
     consentement_demande_avis=NON_FOURNI, consentement_recueilli_par=NON_FOURNI,
     consentement_recueilli_le=NON_FOURNI, consentement_version_texte=NON_FOURNI,
+    registre_visites=None,
 ):
     """
     Réalise la complétion et émet le WCT en une unique écriture.
@@ -527,12 +541,22 @@ def completer_intervention(
             )
 
     # 6. Durée réelle
-    duree_minutes, code_duree = calculer_duree_reelle(registre_cible, intervention_id)
+    duree_minutes, code_duree = calculer_duree_reelle(
+        registre_cible, intervention_id, registre_visites=registre_visites)
     if duree_minutes is None:
         return None, verdicts.construire_verdict(
             code_duree,
             detail="durée réelle indéterminable",
         )
+
+    # Sur le parcours segmenté, la complétion suit la dernière fermeture
+    # vérifiée ; elle ne peut pas antidater une visite déjà terminée.
+    if registre_visites is not None:
+        fermetures = [m for m in registre_cible.lire() if m.get("type_entree") == "visite_fermee"
+                      and m.get("intervention_id") == intervention_id]
+        if fermetures and datetime.fromisoformat(horodatage_arg) < datetime.fromisoformat(fermetures[-1]["horodatage"]):
+            return None, verdicts.construire_verdict("REJ-HORODATAGE-ANTERIEUR",
+                                                      detail="complétion avant fermeture de visite")
 
     # 7. Extraction des données terrain (ne fait pas confiance à l'appelant)
     lead_id = _extraire_lead_id(registre_cible, intervention_id)

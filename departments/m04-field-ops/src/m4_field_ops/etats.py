@@ -112,6 +112,7 @@ TRANSITIONS_AUTORISEES = (
     # PLAN T4.10-b : additifs. a_planifier -> planifiee n'a de sens qu'avec un verdict de préparation « pret ».
     ("a_planifier", "planifiee"),
     ("a_planifier", "annulee"),
+    ("sur_site", "reportee"),  # CRM-01 : uniquement après clôture vérifiée.
 )
 
 TYPE_INSCRIPTION = "intervention_inscrite"
@@ -610,7 +611,7 @@ def technicien_assigne(registre_cible, intervention_id):
 
 def transitionner(
     intervention_id, statut_cible, registre_cible, horodatage_arg, motif=None,
-    assignation=None, preparation=None, horodatage_appareil=None,
+    assignation=None, preparation=None, horodatage_appareil=None, registre_visites=None,
 ):
     """
     Effectue une transition d’état pour une intervention existante.
@@ -721,6 +722,27 @@ def transitionner(
                 detail="motif réservé au report",
             )
 
+    # L'interruption d'un travail commencé exige une session intégralement
+    # fermée et ses sources : le statut seul ne prouve jamais un départ.
+    fermeture_visite = None
+    if courant == "sur_site" and statut_cible == "reportee":
+        from . import visites_chantier
+        try:
+            if registre_visites is None:
+                raise ValueError("registre de visites absent")
+            visites_chantier.calculer_faits_certifies(registre_cible, registre_visites, intervention_id)
+            fermetures = [m for m in registre_cible.lire() if m.get("type_entree") == "visite_fermee"
+                          and m.get("intervention_id") == intervention_id]
+            if (not fermetures or visites_chantier._instant(horodatage_arg)
+                    < visites_chantier._instant(fermetures[-1]["horodatage"])):
+                raise ValueError("fermeture ou chronologie invalide")
+            fermeture_visite = fermetures[-1]
+        except ValueError:
+            return None, verdicts.construire_verdict(
+                "REJ-TRANSITION-ILLEGALE", statut=courant, detail="visite fermée et sources vérifiées requises")
+    elif registre_visites is not None:
+        return None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail="registre de visites inattendu")
+
     # 6 bis. planifiee -> en_route exige la PREUVE d'assignation effective
     # d'un technicien (PRD §4). Sans ce contrôle, la machine garantirait
     # SEULEMENT la fermeture de la table (docstring du module), jamais le
@@ -770,6 +792,24 @@ def transitionner(
             detail="preparation réservée à la transition a_planifier -> planifiee",
         )
 
+    # Une visite ouverte est l'unique ancre pour une nouvelle mise en route.
+    visite = None
+    if statut_cible == "en_route":
+        from . import visites_chantier
+        try:
+            visite = visites_chantier.visite_active(registre_cible, intervention_id)
+            if visite and (visite["equipe_id"] != assignation["technicien_id"] or
+                           visites_chantier._instant(horodatage_arg) <
+                           visites_chantier._instant(visite["horodatage"])):
+                raise ValueError("équipe ou chronologie de visite invalide")
+            if visite is None and any(m.get("type_entree") == "visite_ouverte"
+                                      and m.get("intervention_id") == intervention_id
+                                      for m in registre_cible.lire()):
+                raise ValueError("aucune visite active")
+        except ValueError:
+            return None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",
+                                                       detail="visite ouverte incohérente")
+
     # 7. Construction du maillon de transition
     maillon = {
         "type_entree": TYPE_TRANSITION,
@@ -780,6 +820,11 @@ def transitionner(
     }
     if statut_cible == "reportee":
         maillon["motif"] = motif
+        if fermeture_visite is not None:
+            maillon["visite_id"] = fermeture_visite["visite_id"]
+            maillon["source_fermeture"] = fermeture_visite["ligne_id"]
+    if visite is not None:
+        maillon["visite_id"] = visite["visite_id"]
     if statut_cible == "en_route":
         # Preuve de terrain persistée : pointage.py vérifie l'IDENTITÉ du
         # technicien qui pointe (arrivée/départ) contre CE champ, plutôt que

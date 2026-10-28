@@ -1,0 +1,57 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_______________ test_fermeture_de_session_sans_completion_ni_wct _______________
+
+    def test_fermeture_de_session_sans_completion_ni_wct():
+        from m4_field_ops import cedule, etats, pointage, visites_chantier
+        principal, visites, ancre, _, _ = fixture.monde()
+        prevision = ecrire(principal, visites, ancre)
+        iid = ancre['intervention_id']
+        visites_chantier.ouvrir(principal, visites, prevision['visite_id'], '2030-06-03T08:00:00-04:00')
+        equipe = visites_durables.lire(principal, visites, iid)['visites'][0]['creneau']['equipe_id']
+        assign = {'intervention_id': iid, 'technicien_id': equipe}
+        assert etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+        ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+            'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+        fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+        def pointer(action, instant):
+            return pointage.enregistrer_pointage(iid, equipe, action, instant,
+                {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                assign, fenetre, ref, 'Repentigny', 'sel-fictif', principal)
+        assert pointer('arrivee', '2030-06-03T09:00:00-04:00')[1] is None
+        avant = principal.lire()
+        with pytest.raises(ValueError):
+            visites_chantier.fermer(principal, visites, prevision['visite_id'], '2030-06-03T11:00:00-04:00')
+        assert principal.lire() == avant
+        assert pointer('depart', '2030-06-03T12:00:00-04:00')[1] is None
+        fermeture = visites_chantier.fermer(principal, visites, prevision['visite_id'], '2030-06-03T12:01:00-04:00')
+        assert fermeture['visite_id'] == prevision['visite_id']
+        assert visites_chantier.visite_active(principal, iid) is None
+        assert etats.statut_courant(principal, iid) == 'sur_site'
+        assert not any('wct' in m for m in principal.lire())
+>       assert visites_chantier.calculer_faits_certifies(principal, visites, iid)['travail_minutes'] == 180
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'm4_field_ops.visites_chantier' has no attribute 'calculer_faits_certifies'
+
+departments/m04-field-ops/tests/test_visites_reprise.py:208: AttributeError
+______ test_calcul_certifie_refuse_pointages_orphelins_et_ancre_falsifiee ______
+
+    def test_calcul_certifie_refuse_pointages_orphelins_et_ancre_falsifiee():
+        from m4_field_ops import visites_chantier
+        principal, visites, ancre, _, _ = fixture.monde()
+        prevision = ecrire(principal, visites, ancre)
+        visites_chantier.ouvrir(principal, visites, prevision['visite_id'], '2030-06-03T08:00:00-04:00')
+        maillons = principal.lire()
+        maillons[-1]['source_calendrier'] = 'f' * 64
+        rechaine = Registre()
+        for m in maillons:
+            rechaine.ajouter({k: v for k, v in m.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
+        with pytest.raises(ValueError):
+>           visites_chantier.calculer_faits_certifies(rechaine, visites, ancre['intervention_id'])
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'm4_field_ops.visites_chantier' has no attribute 'calculer_faits_certifies'
+
+departments/m04-field-ops/tests/test_visites_reprise.py:226: AttributeError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_fermeture_de_session_sans_completion_ni_wct
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_calcul_certifie_refuse_pointages_orphelins_et_ancre_falsifiee

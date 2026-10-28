@@ -1,0 +1,206 @@
+B905 `zip()` without an explicit `strict=` parameter
+  --> departments/m04-field-ops/src/m4_field_ops/visites_chantier.py:68:40
+   |
+66 |             intervalles.append((debut, fin))
+67 |         intervalles.sort()
+68 |         if any(a[1] > b[0] for a, b in zip(intervalles, intervalles[1:])):
+   |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+69 |             raise ValueError('pauses chevauchées')
+70 |         minutes_pause = sum(_minutes(a, b) for a, b in intervalles)
+   |
+help: Add explicit value for parameter `strict=`
+   |
+67 |         intervalles.sort()
+   -         if any(a[1] > b[0] for a, b in zip(intervalles, intervalles[1:])):
+68 +         if any(a[1] > b[0] for a, b in zip(intervalles, intervalles[1:], strict=False)):
+69 |             raise ValueError('pauses chevauchées')
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+B905 `zip()` without an explicit `strict=` parameter
+  --> departments/m04-field-ops/src/m4_field_ops/visites_chantier.py:76:51
+   |
+74 |                         '_route': route, '_depart': depart})
+75 |     visites.sort(key=lambda v: (v['_route'], v['visite_id']))
+76 |     if any(a['_depart'] > b['_route'] for a, b in zip(visites, visites[1:])):
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+77 |         raise ValueError('visites chevauchées')
+78 |     for v in visites:
+   |
+help: Add explicit value for parameter `strict=`
+   |
+75 |     visites.sort(key=lambda v: (v['_route'], v['visite_id']))
+   -     if any(a['_depart'] > b['_route'] for a, b in zip(visites, visites[1:])):
+76 +     if any(a['_depart'] > b['_route'] for a, b in zip(visites, visites[1:], strict=False)):
+77 |         raise ValueError('visites chevauchées')
+   |
+note: This is an unsafe fix and may change runtime behavior
+
+E501 Line too long (123 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/visites_chantier.py:111:121
+    |
+109 |             or resolution.get('intervention_id') != point.get('intervention_id')
+110 |             or resolution.get('decision') != 'validee' or resolution.get('statut_arbitrage') != 'validee'
+111 |             or resolution.get('resolution_id') != encodage.empreinte('resolution_revue', did, resolution.get('horodatage'))
+    |                                                                                                                         ^^^
+112 |             or _instant(resolution.get('horodatage')) < _instant(demande.get('horodatage'))):
+113 |         return False
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> departments/m04-field-ops/src/m4_field_ops/visites_chantier.py:205:5
+    |
+203 |       Fonction pure : l'adaptateur devra fournir transaction, autorité et rejeu.
+204 |       """
+205 | /     from zoneinfo import ZoneInfo
+206 | |
+207 | |     from . import annotations_calendrier as notes, etats, visites_durables
+    | |__________________________________________________________________________^
+208 |
+209 |       if principal is visites or type(visite_id) is not str:
+    |
+help: Organize imports
+    |
+206 |
+    -     from . import annotations_calendrier as notes, etats, visites_durables
+207 +     from . import annotations_calendrier as notes
+208 +     from . import etats, visites_durables
+209 |
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> departments/m04-field-ops/src/m4_field_ops/visites_durables.py:5:1
+   |
+ 3 |   Ces fonctions pures exigent un adaptateur transactionnel et une autorité vérifiée.
+ 4 |   """
+ 5 | / import json
+ 6 | | from copy import deepcopy
+ 7 | | from datetime import datetime
+ 8 | |
+ 9 | | from . import annotations_calendrier as notes, encodage
+10 | | from .registre import Registre, VerificationError
+   | |_________________________________________________^
+11 |
+12 |   TYPE = 'visite_prevue'
+   |
+help: Organize imports
+   |
+8  |
+   - from . import annotations_calendrier as notes, encodage
+9  + from . import annotations_calendrier as notes
+10 + from . import encodage
+11 | from .registre import Registre, VerificationError
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> departments/m04-field-ops/src/m4_field_ops/visites_ecriture.py:2:1
+   |
+ 1 |   """Adaptateur SQLite transactionnel privé des prévisions explicitement ancrées."""
+ 2 | / import json
+ 3 | |
+ 4 | | from sqlalchemy import LargeBinary, cast, func, select
+ 5 | | from opsys import stockage
+ 6 | | from opsys.etat import journaliser
+ 7 | | from opsys.stockage.maillons import copier_maillons_avec_metadonnees
+ 8 | | from opsys.stockage.schema import REGISTRES
+ 9 | |
+10 | | from . import journal_durable, visites_durables as domaine
+11 | | from .registre import Registre
+   | |______________________________^
+12 |
+13 |   DEPARTEMENT = 'm04-field-ops'
+   |
+help: Organize imports
+   |
+4  | from sqlalchemy import LargeBinary, cast, func, select
+5  +
+6  | from opsys import stockage
+--------------------------------------------------------------------------------
+10 |
+   - from . import journal_durable, visites_durables as domaine
+11 + from . import journal_durable
+12 + from . import visites_durables as domaine
+13 | from .registre import Registre
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> departments/m04-field-ops/tests/test_visites_reprise.py:2:1
+   |
+ 1 |   """Fondation des prévisions identifiées : toutes les données sont fictives."""
+ 2 | / from copy import deepcopy
+ 3 | | import importlib.util
+ 4 | | from pathlib import Path
+ 5 | |
+ 6 | | import pytest
+ 7 | | from m4_field_ops import encodage, visites_durables
+ 8 | | from m4_field_ops.registre import Registre
+   | |__________________________________________^
+ 9 |
+10 |   spec = importlib.util.spec_from_file_location('fixture_notes_visites',
+   |
+help: Organize imports
+  |
+1 | """Fondation des prévisions identifiées : toutes les données sont fictives."""
+2 + import importlib.util
+3 | from copy import deepcopy
+  - import importlib.util
+4 | from pathlib import Path
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> departments/m04-field-ops/tests/test_visites_reprise.py:80:5
+   |
+79 |   def test_sqlite_reouverture_rejeu_et_rollback_tardif(base_durable):
+80 | /     from m4_field_ops import visites_ecriture
+81 | |     from opsys import stockage
+82 | |     from opsys.stockage.schema import JOURNAL
+83 | |     from sqlalchemy import func, select
+   | |_______________________________________^
+84 |       principal, _, ancre, _, _ = fixture.monde()
+85 |       args = {'ancre': ancre, 'revision_attendue': 0}
+   |
+help: Organize imports
+   |
+80 |     from m4_field_ops import visites_ecriture
+81 +     from sqlalchemy import func, select
+82 +
+83 |     from opsys import stockage
+84 |     from opsys.stockage.schema import JOURNAL
+   -     from sqlalchemy import func, select
+85 |     principal, _, ancre, _, _ = fixture.monde()
+   |
+
+E501 Line too long (124 > 120)
+   --> departments/m04-field-ops/tests/test_visites_reprise.py:176:121
+    |
+174 |             assign, fenetre, ref, 'Repentigny', 'sel-fictif', principal)
+175 |         assert erreur is None, erreur
+176 |         assert next(m for m in principal.lire() if m['ligne_id'] == recu['ligne_id'])['visite_id'] == prevision['visite_id']
+    |                                                                                                                         ^^^^
+177 |     assert next(m for m in principal.lire() if m['ligne_id'] == route['ligne_id'])['visite_id'] == prevision['visite_id']
+178 |     assert visites_chantier.calculer_faits(principal, ancre['intervention_id'])['travail_minutes'] == 150
+    |
+
+E501 Line too long (121 > 120)
+   --> departments/m04-field-ops/tests/test_visites_reprise.py:177:121
+    |
+175 |         assert erreur is None, erreur
+176 |         assert next(m for m in principal.lire() if m['ligne_id'] == recu['ligne_id'])['visite_id'] == prevision['visite_id']
+177 |     assert next(m for m in principal.lire() if m['ligne_id'] == route['ligne_id'])['visite_id'] == prevision['visite_id']
+    |                                                                                                                         ^
+178 |     assert visites_chantier.calculer_faits(principal, ancre['intervention_id'])['travail_minutes'] == 150
+    |
+
+E501 Line too long (136 > 120)
+   --> departments/m04-field-ops/tests/test_visites_reprise.py:302:121
+    |
+300 | …te_id'], f'{jour}T{actions[-1][1][:2]}:01:00-04:00')
+301 | …ebut', '10:00:00'), ('pause_fin', '10:30:00')])
+302 | …pal, '2030-06-03T12:02:00-04:00', motif='meteo', registre_visites=visites)
+    |                                                            ^^^^^^^^^^^^^^^^
+303 | …
+304 | …
+    |
+
+Found 11 errors.
+[*] 5 fixable with `--fix` (2 unsafe fixes available with `--fix --unsafe-fixes`).

@@ -1,0 +1,34 @@
+.FF                                                                      [100%]
+=================================== FAILURES ===================================
+_____________ test_ouverture_identifiee_liee_a_prevision_et_unique _____________
+
+    def test_ouverture_identifiee_liee_a_prevision_et_unique():
+        from m4_field_ops import visites_chantier
+        principal, visites, ancre, _, _ = fixture.monde()
+        recu = ecrire(principal, visites, ancre)
+        avant = principal.lire()
+>       ouvert = visites_chantier.ouvrir(principal, visites, recu['visite_id'],
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+                                         '2030-06-03T08:00:00-04:00')
+E       AttributeError: module 'm4_field_ops.visites_chantier' has no attribute 'ouvrir'
+
+departments/m04-field-ops/tests/test_visites_reprise.py:129: AttributeError
+_________ test_ouverture_refuse_source_remplacee_et_identite_inconnue __________
+
+    def test_ouverture_refuse_source_remplacee_et_identite_inconnue():
+        from m4_field_ops import visites_chantier
+        principal, visites, ancre, _, _ = fixture.monde()
+        recu = ecrire(principal, visites, ancre)
+        fixture.calendrier_civil.confirmer(principal, ancre['plan_id'], {'0': '2030-06-10'}, 1,
+                                          'admin.fictif', fixture.pur.HORODATAGE)
+        avant = principal.lire()
+        for ident in [recu['visite_id'], 'f' * 64]:
+            with pytest.raises(ValueError):
+>               visites_chantier.ouvrir(principal, visites, ident, '2030-06-03T08:00:00-04:00')
+                ^^^^^^^^^^^^^^^^^^^^^^^
+E               AttributeError: module 'm4_field_ops.visites_chantier' has no attribute 'ouvrir'
+
+departments/m04-field-ops/tests/test_visites_reprise.py:149: AttributeError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_ouverture_identifiee_liee_a_prevision_et_unique
+FAILED departments/m04-field-ops/tests/test_visites_reprise.py::test_ouverture_refuse_source_remplacee_et_identite_inconnue
