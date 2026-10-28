@@ -234,7 +234,9 @@ def calculer_minutes_deplacement(registre_cible, intervention_id):
         and m.get("intervention_id") == intervention_id
         and m.get("action") == "arrivee"
     ]
-    if not arrivees:
+    # Plusieurs arrivées ne possèdent pas encore d’ancre de visite fiable.
+    # Ne pas mélanger la dernière transition avec la première arrivée.
+    if len(arrivees) != 1:
         return None, "REJ-CONTRAT-INVALIDE"
 
     dt_route = datetime.fromisoformat(horodatage_en_route)
@@ -282,7 +284,10 @@ def calculer_duree_reelle(registre_cible, intervention_id):
     arrivees = [p for p in pointages if p.get("action") == "arrivee"]
     departs = [p for p in pointages if p.get("action") == "depart"]
 
-    if not arrivees or not departs:
+    # Les anciennes sources ne prouvent pas quelles arrivées et quels départs
+    # appartiennent à une visite. Refuser plusieurs arrivées évite de facturer
+    # les jours entre elles ; plusieurs départs restent possibles pour la revue GPS.
+    if len(arrivees) != 1 or not departs:
         return None, "REJ-CONTRAT-INVALIDE"
 
     # Premier arrivée / dernier départ : l'ordre du registre est l'ordre

@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_refuse_duree_continue_sur_deux_arrivees_sans_ancrage ___________
+
+    def test_refuse_duree_continue_sur_deux_arrivees_sans_ancrage():
+        # Oracle métier : lundi 180 - 30 = 150 min, vendredi 240 min, total 390.
+        # Sans identité de visite fiable, l'ancien lecteur doit refuser au lieu d'inventer.
+>       assert outbox.calculer_duree_reelle(_registre_fictif(), 'fictif-1') == (
+            None, 'REJ-CONTRAT-INVALIDE')
+E       AssertionError: assert (5970, None) == (None, 'REJ-CONTRAT-INVALIDE')
+E         
+E         At index 0 diff: 5970 != None
+E         Use -v to get more diff
+
+departments/m04-field-ops/tests/test_visites_temps.py:23: AssertionError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_visites_temps.py::test_refuse_duree_continue_sur_deux_arrivees_sans_ancrage

@@ -1,0 +1,6 @@
+ImportError while loading conftest '/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/conftest.py'.
+departments/m04-field-ops/tests/conftest.py:22: in <module>
+    from opsys import stockage
+src/opsys/stockage/__init__.py:13: in <module>
+    from alembic import command
+E   ModuleNotFoundError: No module named 'alembic'

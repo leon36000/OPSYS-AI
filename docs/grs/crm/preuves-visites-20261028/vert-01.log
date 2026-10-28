@@ -1,0 +1,23 @@
+................................................................F....... [ 50%]
+.......................................................................  [100%]
+=================================== FAILURES ===================================
+________________________ test_lire_outbox_depuis_index _________________________
+
+    def test_lire_outbox_depuis_index():
+        reg, i_id = _intervention_sur_site_avec_pointages()
+        outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+        # Créer une deuxième intervention complétée pour avoir un index plus loin
+        reg2, i_id2 = _intervention_sur_site_avec_pointages()
+        # Copier les maillons dans reg (artificiel mais suffisant)
+        for m in reg2.lire()[1:]:  # skip le premier (marqueur)
+            reg.ajouter(m)
+        outbox_mod.completer_intervention(i_id2, H_COMPLETION, reg, ecart_detecte=False)
+    
+        tout = outbox_mod.lire_outbox(reg)
+>       assert len(tout) == 2
+E       AssertionError: assert 1 == 2
+E        +  where 1 = len([(5, {'wct_id': '76f7de4e92b989beee56b2b155b5382751821a8f2ad4e43a5d48bb3a41cca4af', 'intervention_id': '14bb7b5b6cc1edbb5b0598a9eefbd2bedcf77f74939e6d14d0ef991d5915f336', 'lead_id': 'L1', 'technicien_id': 'T1', ...})])
+
+departments/m04-field-ops/tests/test_outbox.py:837: AssertionError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_outbox.py::test_lire_outbox_depuis_index

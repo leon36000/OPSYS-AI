@@ -1,0 +1,1728 @@
+........................................................................ [ 21%]
+........................................................................ [ 42%]
+...............................................................EEEEEEEEE [ 64%]
+EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE [ 85%]
+EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE                         [100%]
+==================================== ERRORS ====================================
+_________________ ERROR at setup of test_constantes_epinglage __________________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 192
+  def test_constantes_epinglage():
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_a_planifier_est_additif_les_etats_et_les_transitions_d_avant_sont_intacts _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 221
+  def test_a_planifier_est_additif_les_etats_et_les_transitions_d_avant_sont_intacts():
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+____________________ ERROR at setup of test_coherence_table ____________________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 232
+  def test_coherence_table():
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__________________ ERROR at setup of test_inscription_valide ___________________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 247
+  def test_inscription_valide(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___________________ ERROR at setup of test_inscription_loi25 ___________________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 264
+  def test_inscription_loi25(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_inscription_rejet_validation[modif_contrat0-None-REJ-FRONTIERE-VIOLEE] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 275
+  @pytest.mark.parametrize("modif_contrat, modif_marqueur, code_attendu", [
+      ({"prix": 1}, None, "REJ-FRONTIERE-VIOLEE"),
+      ({"lead_id": None}, None, "REJ-CHAMP-MANQUANT"),   # lead_id absent -> champ manquant
+      (None, {"readiness_ok": False}, "REJ-READINESS-NON-FRANCHIE"),
+  ])
+  def test_inscription_rejet_validation(contrat_valide, marqueur_valide, registre_vide,
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_inscription_rejet_validation[modif_contrat1-None-REJ-CHAMP-MANQUANT] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 275
+  @pytest.mark.parametrize("modif_contrat, modif_marqueur, code_attendu", [
+      ({"prix": 1}, None, "REJ-FRONTIERE-VIOLEE"),
+      ({"lead_id": None}, None, "REJ-CHAMP-MANQUANT"),   # lead_id absent -> champ manquant
+      (None, {"readiness_ok": False}, "REJ-READINESS-NON-FRANCHIE"),
+  ])
+  def test_inscription_rejet_validation(contrat_valide, marqueur_valide, registre_vide,
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_inscription_rejet_validation[None-modif_marqueur2-REJ-READINESS-NON-FRANCHIE] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 275
+  @pytest.mark.parametrize("modif_contrat, modif_marqueur, code_attendu", [
+      ({"prix": 1}, None, "REJ-FRONTIERE-VIOLEE"),
+      ({"lead_id": None}, None, "REJ-CHAMP-MANQUANT"),   # lead_id absent -> champ manquant
+      (None, {"readiness_ok": False}, "REJ-READINESS-NON-FRANCHIE"),
+  ])
+  def test_inscription_rejet_validation(contrat_valide, marqueur_valide, registre_vide,
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_____________ ERROR at setup of test_reinscription_meme_horodatage _____________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 299
+  def test_reinscription_meme_horodatage(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__________ ERROR at setup of test_reinscription_horodatage_different ___________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 308
+  def test_reinscription_horodatage_different(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_legale[planifiee-en_route] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_legale[planifiee-reportee] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_legale[planifiee-annulee] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_legale[en_route-sur_site] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_legale[en_route-reportee] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__________ ERROR at setup of test_transition_legale[en_route-annulee] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_legale[sur_site-en_revue] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__________ ERROR at setup of test_transition_legale[en_revue-annulee] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_legale[en_revue-sur_site] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_legale[en_route-en_revue] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_legale[reportee-planifiee] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__________ ERROR at setup of test_transition_legale[reportee-annulee] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_legale[a_planifier-planifiee] ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_legale[a_planifier-annulee] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 332
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
+  def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_illegale[planifiee-planifiee] ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[planifiee-sur_site] ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[planifiee-en_revue] ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[planifiee-completed_pending_review] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___ ERROR at setup of test_transition_illegale[planifiee-completed_verified] ___
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+______ ERROR at setup of test_transition_illegale[planifiee-a_planifier] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[en_route-planifiee] ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[en_route-en_route] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[en_route-completed_pending_review] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___ ERROR at setup of test_transition_illegale[en_route-completed_verified] ____
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_illegale[en_route-a_planifier] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[sur_site-planifiee] ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[sur_site-en_route] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[sur_site-sur_site] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[sur_site-reportee] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_illegale[sur_site-annulee] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_illegale[sur_site-a_planifier] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[en_revue-planifiee] ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[en_revue-en_route] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[en_revue-en_revue] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[en_revue-reportee] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_illegale[en_revue-a_planifier] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[reportee-en_route] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[reportee-sur_site] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[reportee-en_revue] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[reportee-reportee] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[reportee-completed_pending_review] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___ ERROR at setup of test_transition_illegale[reportee-completed_verified] ____
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_illegale[reportee-a_planifier] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_pending_review-planifiee] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_pending_review-en_route] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_pending_review-sur_site] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_pending_review-en_revue] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_pending_review-reportee] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_pending_review-completed_pending_review] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_pending_review-completed_verified] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_pending_review-annulee] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_pending_review-a_planifier] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___ ERROR at setup of test_transition_illegale[completed_verified-planifiee] ___
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___ ERROR at setup of test_transition_illegale[completed_verified-en_route] ____
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___ ERROR at setup of test_transition_illegale[completed_verified-sur_site] ____
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___ ERROR at setup of test_transition_illegale[completed_verified-en_revue] ____
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___ ERROR at setup of test_transition_illegale[completed_verified-reportee] ____
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_verified-completed_pending_review] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[completed_verified-completed_verified] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+____ ERROR at setup of test_transition_illegale[completed_verified-annulee] ____
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__ ERROR at setup of test_transition_illegale[completed_verified-a_planifier] __
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_transition_illegale[annulee-planifiee] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_illegale[annulee-en_route] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_illegale[annulee-sur_site] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_illegale[annulee-en_revue] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_illegale[annulee-reportee] _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[annulee-completed_pending_review] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+____ ERROR at setup of test_transition_illegale[annulee-completed_verified] ____
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_transition_illegale[annulee-annulee] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_illegale[annulee-a_planifier] ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_illegale[a_planifier-en_route] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_illegale[a_planifier-sur_site] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_illegale[a_planifier-en_revue] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_transition_illegale[a_planifier-reportee] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_transition_illegale[a_planifier-completed_pending_review] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__ ERROR at setup of test_transition_illegale[a_planifier-completed_verified] __
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_____ ERROR at setup of test_transition_illegale[a_planifier-a_planifier] ______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 357
+  @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_ILLEGAUX)
+  def test_transition_illegale(contrat_valide, marqueur_valide, registre_vide, etat_courant, etat_cible):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________________ ERROR at setup of test_transition_inexistante _________________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 371
+  def test_transition_inexistante(registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+______________ ERROR at setup of test_transition_statut_invalide _______________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 377
+  def test_transition_statut_invalide(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__________ ERROR at setup of test_report_motif_valide[client_absent] ___________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 384
+  @pytest.mark.parametrize("motif", ["client_absent", "meteo", "decision_admin"])
+  def test_report_motif_valide(contrat_valide, marqueur_valide, registre_vide, motif):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+______________ ERROR at setup of test_report_motif_valide[meteo] _______________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 384
+  @pytest.mark.parametrize("motif", ["client_absent", "meteo", "decision_admin"])
+  def test_report_motif_valide(contrat_valide, marqueur_valide, registre_vide, motif):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__________ ERROR at setup of test_report_motif_valide[decision_admin] __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 384
+  @pytest.mark.parametrize("motif", ["client_absent", "meteo", "decision_admin"])
+  def test_report_motif_valide(contrat_valide, marqueur_valide, registre_vide, motif):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___________________ ERROR at setup of test_report_sans_motif ___________________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 393
+  def test_report_sans_motif(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________________ ERROR at setup of test_report_motif_invalide _________________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 399
+  def test_report_motif_invalide(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+____________ ERROR at setup of test_motif_sur_transition_non_report ____________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 405
+  def test_motif_sur_transition_non_report(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___________ ERROR at setup of test_en_route_sans_assignation_refuse ____________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 412
+  def test_en_route_sans_assignation_refuse(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_en_route_assignation_invalide_refuse[assignation_bad0] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 426
+  @pytest.mark.parametrize("assignation_bad", [
+      {"intervention_id": "AUTRE", "technicien_id": "T1"},
+      {"technicien_id": "T1"},
+      {"intervention_id": "SERA_REMPLACE"},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": ""},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": 42},
+      "T1",
+      None,
+  ])
+  def test_en_route_assignation_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, assignation_bad):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_en_route_assignation_invalide_refuse[assignation_bad1] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 426
+  @pytest.mark.parametrize("assignation_bad", [
+      {"intervention_id": "AUTRE", "technicien_id": "T1"},
+      {"technicien_id": "T1"},
+      {"intervention_id": "SERA_REMPLACE"},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": ""},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": 42},
+      "T1",
+      None,
+  ])
+  def test_en_route_assignation_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, assignation_bad):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_en_route_assignation_invalide_refuse[assignation_bad2] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 426
+  @pytest.mark.parametrize("assignation_bad", [
+      {"intervention_id": "AUTRE", "technicien_id": "T1"},
+      {"technicien_id": "T1"},
+      {"intervention_id": "SERA_REMPLACE"},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": ""},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": 42},
+      "T1",
+      None,
+  ])
+  def test_en_route_assignation_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, assignation_bad):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_en_route_assignation_invalide_refuse[assignation_bad3] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 426
+  @pytest.mark.parametrize("assignation_bad", [
+      {"intervention_id": "AUTRE", "technicien_id": "T1"},
+      {"technicien_id": "T1"},
+      {"intervention_id": "SERA_REMPLACE"},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": ""},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": 42},
+      "T1",
+      None,
+  ])
+  def test_en_route_assignation_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, assignation_bad):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_en_route_assignation_invalide_refuse[assignation_bad4] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 426
+  @pytest.mark.parametrize("assignation_bad", [
+      {"intervention_id": "AUTRE", "technicien_id": "T1"},
+      {"technicien_id": "T1"},
+      {"intervention_id": "SERA_REMPLACE"},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": ""},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": 42},
+      "T1",
+      None,
+  ])
+  def test_en_route_assignation_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, assignation_bad):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_en_route_assignation_invalide_refuse[T1] ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 426
+  @pytest.mark.parametrize("assignation_bad", [
+      {"intervention_id": "AUTRE", "technicien_id": "T1"},
+      {"technicien_id": "T1"},
+      {"intervention_id": "SERA_REMPLACE"},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": ""},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": 42},
+      "T1",
+      None,
+  ])
+  def test_en_route_assignation_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, assignation_bad):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+______ ERROR at setup of test_en_route_assignation_invalide_refuse[None] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 426
+  @pytest.mark.parametrize("assignation_bad", [
+      {"intervention_id": "AUTRE", "technicien_id": "T1"},
+      {"technicien_id": "T1"},
+      {"intervention_id": "SERA_REMPLACE"},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": ""},
+      {"intervention_id": "SERA_REMPLACE", "technicien_id": 42},
+      "T1",
+      None,
+  ])
+  def test_en_route_assignation_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, assignation_bad):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__ ERROR at setup of test_en_route_assignation_valide_persiste_technicien_id ___
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 449
+  def test_en_route_assignation_valide_persiste_technicien_id(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+____ ERROR at setup of test_assignation_sur_transition_non_en_route_refuse _____
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 460
+  def test_assignation_sur_transition_non_en_route_refuse(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+____________ ERROR at setup of test_transition_horodatage_invalide _____________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 471
+  def test_transition_horodatage_invalide(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______________ ERROR at setup of test_statut_courant_inexistant _______________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 480
+  def test_statut_courant_inexistant(registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___________ ERROR at setup of test_statut_courant_apres_inscription ____________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 483
+  def test_statut_courant_apres_inscription(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+______________ ERROR at setup of test_statut_courant_independant _______________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 488
+  def test_statut_courant_independant(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______________ ERROR at setup of test_parcours_complet_valider ________________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 508
+  def test_parcours_complet_valider(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+______ ERROR at setup of test_transition_depuis_terminal_diagnostic_dedie ______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 535
+  def test_transition_depuis_terminal_diagnostic_dedie(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_deux_leads_meme_horodatage_ids_distincts ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 550
+  def test_deux_leads_meme_horodatage_ids_distincts(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_maillon_inscription_porte_traceabilite _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 567
+  def test_maillon_inscription_porte_traceabilite(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_maillon_transition_porte_statut_precedent _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 587
+  def test_maillon_transition_porte_statut_precedent(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_aucune_ville_en_clair_dans_le_registre _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 601
+  def test_aucune_ville_en_clair_dans_le_registre(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+____________ ERROR at setup of test_sel_de_tokenisation_obligatoire ____________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 620
+  def test_sel_de_tokenisation_obligatoire(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_____ ERROR at setup of test_sels_differents_donnent_des_tokens_differents _____
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 632
+  def test_sels_differents_donnent_des_tokens_differents(contrat_valide, marqueur_valide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___________ ERROR at setup of test_en_route_vers_en_revue_est_legale ___________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 646
+  def test_en_route_vers_en_revue_est_legale(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______________ ERROR at setup of test_devis_id_omis_reste_null ________________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 672
+  def test_devis_id_omis_reste_null(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_________ ERROR at setup of test_devis_id_fourni_porte_sur_le_maillon __________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 682
+  def test_devis_id_fourni_porte_sur_le_maillon(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______ ERROR at setup of test_devis_id_invalide_refuse[-REJ-CHAMP-VIDE] _______
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 692
+  @pytest.mark.parametrize("devis_id_bad, code_attendu", [
+      ("", "REJ-CHAMP-VIDE"),
+      (42, "REJ-CONTRAT-INVALIDE"),
+      (["D1"], "REJ-CONTRAT-INVALIDE"),
+  ])
+  def test_devis_id_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, devis_id_bad, code_attendu):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+___ ERROR at setup of test_devis_id_invalide_refuse[42-REJ-CONTRAT-INVALIDE] ___
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 692
+  @pytest.mark.parametrize("devis_id_bad, code_attendu", [
+      ("", "REJ-CHAMP-VIDE"),
+      (42, "REJ-CONTRAT-INVALIDE"),
+      (["D1"], "REJ-CONTRAT-INVALIDE"),
+  ])
+  def test_devis_id_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, devis_id_bad, code_attendu):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_devis_id_invalide_refuse[devis_id_bad2-REJ-CONTRAT-INVALIDE] _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 692
+  @pytest.mark.parametrize("devis_id_bad, code_attendu", [
+      ("", "REJ-CHAMP-VIDE"),
+      (42, "REJ-CONTRAT-INVALIDE"),
+      (["D1"], "REJ-CONTRAT-INVALIDE"),
+  ])
+  def test_devis_id_invalide_refuse(contrat_valide, marqueur_valide, registre_vide, devis_id_bad, code_attendu):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_______________ ERROR at setup of test_lister_interventions_vide _______________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 708
+  def test_lister_interventions_vide(registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_lister_interventions_toutes_sans_filtre ________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 712
+  def test_lister_interventions_toutes_sans_filtre(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+________ ERROR at setup of test_lister_interventions_filtre_par_statut _________
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 739
+  def test_lister_interventions_filtre_par_statut(contrat_valide, marqueur_valide, registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+__ ERROR at setup of test_lister_interventions_statut_inconnu_leve_valueerror __
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 760
+  def test_lister_interventions_statut_inconnu_leve_valueerror(registre_vide):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_lister_interventions_technicien_assigne_seulement_apres_en_route _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 766
+  def test_lister_interventions_technicien_assigne_seulement_apres_en_route(
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+_ ERROR at setup of test_lister_interventions_technicien_assigne_reste_apres_report _
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 791
+  def test_lister_interventions_technicien_assigne_reste_apres_report(
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py, line 57
+  @pytest.fixture(autouse=True)
+  def _services_declares(declarer_services):
+E       fixture 'declarer_services' not found
+>       available fixtures: _services_declares, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, contrat_valide, doctest_namespace, marqueur_valide, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, registre_vide, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-mission/departments/m04-field-ops/tests/test_etats.py:57
+=========================== short test summary info ============================
+ERROR departments/m04-field-ops/tests/test_etats.py::test_constantes_epinglage
+ERROR departments/m04-field-ops/tests/test_etats.py::test_a_planifier_est_additif_les_etats_et_les_transitions_d_avant_sont_intacts
+ERROR departments/m04-field-ops/tests/test_etats.py::test_coherence_table
+ERROR departments/m04-field-ops/tests/test_etats.py::test_inscription_valide
+ERROR departments/m04-field-ops/tests/test_etats.py::test_inscription_loi25
+ERROR departments/m04-field-ops/tests/test_etats.py::test_inscription_rejet_validation[modif_contrat0-None-REJ-FRONTIERE-VIOLEE]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_inscription_rejet_validation[modif_contrat1-None-REJ-CHAMP-MANQUANT]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_inscription_rejet_validation[None-modif_marqueur2-REJ-READINESS-NON-FRANCHIE]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_reinscription_meme_horodatage
+ERROR departments/m04-field-ops/tests/test_etats.py::test_reinscription_horodatage_different
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[planifiee-en_route]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[planifiee-reportee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[planifiee-annulee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[en_route-sur_site]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[en_route-reportee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[en_route-annulee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[sur_site-en_revue]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[en_revue-annulee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[en_revue-sur_site]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[en_route-en_revue]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[reportee-planifiee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[reportee-annulee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[a_planifier-planifiee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_legale[a_planifier-annulee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[planifiee-planifiee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[planifiee-sur_site]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[planifiee-en_revue]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[planifiee-completed_pending_review]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[planifiee-completed_verified]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[planifiee-a_planifier]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[en_route-planifiee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[en_route-en_route]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[en_route-completed_pending_review]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[en_route-completed_verified]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[en_route-a_planifier]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[sur_site-planifiee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[sur_site-en_route]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[sur_site-sur_site]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[sur_site-reportee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[sur_site-annulee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[sur_site-a_planifier]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[en_revue-planifiee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[en_revue-en_route]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[en_revue-en_revue]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[en_revue-reportee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[en_revue-a_planifier]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[reportee-en_route]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[reportee-sur_site]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[reportee-en_revue]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[reportee-reportee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[reportee-completed_pending_review]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[reportee-completed_verified]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[reportee-a_planifier]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_pending_review-planifiee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_pending_review-en_route]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_pending_review-sur_site]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_pending_review-en_revue]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_pending_review-reportee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_pending_review-completed_pending_review]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_pending_review-completed_verified]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_pending_review-annulee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_pending_review-a_planifier]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_verified-planifiee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_verified-en_route]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_verified-sur_site]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_verified-en_revue]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_verified-reportee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_verified-completed_pending_review]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_verified-completed_verified]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_verified-annulee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[completed_verified-a_planifier]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[annulee-planifiee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[annulee-en_route]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[annulee-sur_site]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[annulee-en_revue]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[annulee-reportee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[annulee-completed_pending_review]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[annulee-completed_verified]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[annulee-annulee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[annulee-a_planifier]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[a_planifier-en_route]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[a_planifier-sur_site]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[a_planifier-en_revue]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[a_planifier-reportee]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[a_planifier-completed_pending_review]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[a_planifier-completed_verified]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_illegale[a_planifier-a_planifier]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_inexistante
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_statut_invalide
+ERROR departments/m04-field-ops/tests/test_etats.py::test_report_motif_valide[client_absent]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_report_motif_valide[meteo]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_report_motif_valide[decision_admin]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_report_sans_motif
+ERROR departments/m04-field-ops/tests/test_etats.py::test_report_motif_invalide
+ERROR departments/m04-field-ops/tests/test_etats.py::test_motif_sur_transition_non_report
+ERROR departments/m04-field-ops/tests/test_etats.py::test_en_route_sans_assignation_refuse
+ERROR departments/m04-field-ops/tests/test_etats.py::test_en_route_assignation_invalide_refuse[assignation_bad0]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_en_route_assignation_invalide_refuse[assignation_bad1]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_en_route_assignation_invalide_refuse[assignation_bad2]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_en_route_assignation_invalide_refuse[assignation_bad3]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_en_route_assignation_invalide_refuse[assignation_bad4]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_en_route_assignation_invalide_refuse[T1]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_en_route_assignation_invalide_refuse[None]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_en_route_assignation_valide_persiste_technicien_id
+ERROR departments/m04-field-ops/tests/test_etats.py::test_assignation_sur_transition_non_en_route_refuse
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_horodatage_invalide
+ERROR departments/m04-field-ops/tests/test_etats.py::test_statut_courant_inexistant
+ERROR departments/m04-field-ops/tests/test_etats.py::test_statut_courant_apres_inscription
+ERROR departments/m04-field-ops/tests/test_etats.py::test_statut_courant_independant
+ERROR departments/m04-field-ops/tests/test_etats.py::test_parcours_complet_valider
+ERROR departments/m04-field-ops/tests/test_etats.py::test_transition_depuis_terminal_diagnostic_dedie
+ERROR departments/m04-field-ops/tests/test_etats.py::test_deux_leads_meme_horodatage_ids_distincts
+ERROR departments/m04-field-ops/tests/test_etats.py::test_maillon_inscription_porte_traceabilite
+ERROR departments/m04-field-ops/tests/test_etats.py::test_maillon_transition_porte_statut_precedent
+ERROR departments/m04-field-ops/tests/test_etats.py::test_aucune_ville_en_clair_dans_le_registre
+ERROR departments/m04-field-ops/tests/test_etats.py::test_sel_de_tokenisation_obligatoire
+ERROR departments/m04-field-ops/tests/test_etats.py::test_sels_differents_donnent_des_tokens_differents
+ERROR departments/m04-field-ops/tests/test_etats.py::test_en_route_vers_en_revue_est_legale
+ERROR departments/m04-field-ops/tests/test_etats.py::test_devis_id_omis_reste_null
+ERROR departments/m04-field-ops/tests/test_etats.py::test_devis_id_fourni_porte_sur_le_maillon
+ERROR departments/m04-field-ops/tests/test_etats.py::test_devis_id_invalide_refuse[-REJ-CHAMP-VIDE]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_devis_id_invalide_refuse[42-REJ-CONTRAT-INVALIDE]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_devis_id_invalide_refuse[devis_id_bad2-REJ-CONTRAT-INVALIDE]
+ERROR departments/m04-field-ops/tests/test_etats.py::test_lister_interventions_vide
+ERROR departments/m04-field-ops/tests/test_etats.py::test_lister_interventions_toutes_sans_filtre
+ERROR departments/m04-field-ops/tests/test_etats.py::test_lister_interventions_filtre_par_statut
+ERROR departments/m04-field-ops/tests/test_etats.py::test_lister_interventions_statut_inconnu_leve_valueerror
+ERROR departments/m04-field-ops/tests/test_etats.py::test_lister_interventions_technicien_assigne_seulement_apres_en_route
+ERROR departments/m04-field-ops/tests/test_etats.py::test_lister_interventions_technicien_assigne_reste_apres_report
