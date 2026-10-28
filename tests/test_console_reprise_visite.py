@@ -23,6 +23,86 @@ spec = importlib.util.spec_from_file_location('fixture_application_reprise',
 f = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(f)
 propose, pret, affaire, catalogue, client_crm = f.propose, f.pret, f.affaire, f.catalogue, f.client_crm
+spec_legacy = importlib.util.spec_from_file_location('fixture_reprise_legacy',
+    Path(__file__).with_name('test_console_cedule.py'))
+legacy = importlib.util.module_from_spec(spec_legacy)
+spec_legacy.loader.exec_module(legacy)
+planning = legacy.planning
+
+
+def test_reprise_type_travaux_utilise_plan_historique_ancre(planning, session, monkeypatch):
+    from datetime import UTC, datetime
+    import json
+
+    from opsys.console import reprise_visite
+    from opsys.console.securite import Session
+    from opsys.departements import charger_departements
+    from opsys.stockage.schema import JOURNAL
+    from sqlalchemy import select
+
+    class HorlogeFictive(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2030, 6, 3, 16, 4, tzinfo=UTC).astimezone(tz)
+
+    monkeypatch.setattr(reprise_visite, 'datetime', HorlogeFictive)
+    profil = {'liste': [{**e, 'membres': [e['id'] + '.fictif']} for e in legacy.terrain._equipes()],
+              'services': {'gouttieres': {'duree_min': 90, 'competences': ['gouttieres']}},
+              'cedule': {'facteur_detour_milliemes': 1300, 'vitesse_moyenne_kmh': 50,
+                         'marge_par_trajet_secondes': 60, 'iterations': 10, 'cout_non_cedule_m': 500000},
+              'fenetre_par_defaut': {'jours': [0], 'debut_min': 480, 'fin_min': 1020}}
+    equipes.enregistrer_equipes(profil)
+    iid = planning[1]['lead-fictif-001']
+    with session():
+        reg = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
+        ligne = next(x for x in calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions']
+                     if x['intervention_id'] == iid)
+        ancre = {k: ligne[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+        origine = next(m for m in reg.lire() if m.get('type_entree') == 'cedule_proposee'
+                       and m['plan_id'] == ancre['plan_id'])
+        historique = next(c for c in origine['entree']['chantiers'] if c['id'] == iid)
+        prev = registre.Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+        args = {'ancre': ancre, 'revision_attendue': 0}
+        recu = visites_durables.prevoir(reg, prev, **args, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+            mutation={'appareil': 'console:admin.fictif', 'cle': 'prev-v1-fictive',
+                      'empreinte_arguments': encodage.empreinte(args)}, horodatage='2030-06-03T07:30:00-04:00')
+        visites_chantier.ouvrir(reg, prev, recu['visite_id'], '2030-06-03T08:00:00-04:00')
+        equipe = ligne['equipe_id']
+        assign = {'intervention_id': iid, 'technicien_id': equipe}
+        assert etats.transitionner(iid, 'en_route', reg, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+        ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+            'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+        fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+        for action, heure in [('arrivee', '09:00:00'), ('depart', '12:00:00')]:
+            assert pointage.enregistrer_pointage(iid, equipe, action, f'2030-06-03T{heure}-04:00',
+                {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                assign, fenetre, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
+        visites_chantier.fermer(reg, prev, recu['visite_id'], '2030-06-03T12:01:00-04:00')
+        assert etats.transitionner(iid, 'reportee', reg, '2030-06-03T12:02:00-04:00',
+                                   motif='meteo', registre_visites=prev)[1] is None
+        assert etats.transitionner(iid, 'planifiee', reg, '2030-06-03T12:03:00-04:00')[1] is None
+    auth = Session('admin.fictif', frozenset({'admin'}), 'csrf-fictif', 4102444800)
+    autre_equipe = next(e['id'] for e in profil['liste'] if e['id'] != equipe)
+    with session() as cnx:
+        vue = reprise_visite.preparer(cnx, charger_departements(), auth, iid)
+        assert vue['historique']['source_proposition_id'] == origine['ligne_id']
+        assert vue['historique']['visite_id'] == recu['visite_id']
+        with pytest.raises(reprise_visite.lecture.Refus, match='SOURCE-INCOHERENTE'):
+            reprise_visite._parametres_historiques(reg, prev, iid, 'visite-inconnue')
+        resultat = reprise_visite.proposer(cnx, charger_departements(), auth, iid, autre_equipe,
+                                            480, 1020, vue['empreinte'], 'reprise-v1-fictive')
+        reg = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
+        nouveau = next(m for m in reg.lire() if m.get('type_entree') == 'cedule_proposee'
+                       and m['plan_id'] == resultat['proposition']['plan_id'])
+        chantier = nouveau['entree']['chantiers'][0]
+        audit = cnx.execute(select(JOURNAL.c.details).where(
+            JOURNAL.c.action == 'console.proposition_reprise')).scalar_one()
+        details = json.loads(audit)
+    assert chantier['id'] == iid
+    assert chantier['duree_min'] == historique['duree_min']
+    assert chantier['competences_requises'] == historique['competences_requises']
+    assert details['source_proposition_id'] == origine['ligne_id']
+    assert details['visite_id'] == recu['visite_id']
 
 
 def test_proposition_reprise_choisit_equipe_declaree_et_rejoue(propose, catalogue, session, monkeypatch):
