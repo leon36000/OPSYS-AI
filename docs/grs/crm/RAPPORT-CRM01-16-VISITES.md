@@ -29,6 +29,8 @@ Dernière régression : `commande-regression-36.sh`, exit 0, JUnit `regression-3
 
 Une relance de lint ciblée après ajout de ces assertions a échoué avant analyse (`lint-47.log`, exit 1 : exécutable Ruff absent au chemin choisi). `lint-46.log` reste la dernière analyse réussie sur la base fonctionnelle ; les deux assertions ajoutées ont été exercées par la régression 36.
 
+`git diff --check 3ab7692f041892ec2af0cab6f241a715edac2d50 HEAD -- departments/m04-field-ops src/opsys/console tests` : exit 0. Le même contrôle sur tout le diff signale des espaces et fins de lignes dans les journaux bruts de tests historiques, conservés tels quels comme preuves ; il ne passe donc pas globalement.
+
 Le client `claude` est présent et son aide expose `--effort`, mais cette vérification ne démontre pas que Claude Sonnet 5.5 est disponible pour ce compte. La mission a été exécutée dans la session Codex GPT-6 ; aucun identifiant Claude inventé n'a été utilisé.
 
 Commande de la régression précédente depuis la racine du clone ; la commande isolée plus récente est dans `preuves-visites-20261028/commande-regression-33.sh` :
