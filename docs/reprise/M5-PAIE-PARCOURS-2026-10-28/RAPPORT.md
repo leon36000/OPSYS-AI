@@ -28,9 +28,13 @@
 - **Conventions d'arrondi non prescrites par les sources** : cent demi supérieur pour CNESST et normes par période (documenté dans l'instantané). CNESST et FSS sont des estimations périodiques.
 - **Confidentialité** : la clé AES de chaque dossier est dans la même base (protège contre une lecture du registre seul, pas contre le vol de la base entière). Détruire la clé d'un dossier rend le journal illisible (fail-closed) : l'effacement Loi 25 par destruction de clé n'est **pas** offert (décision humaine, hors mission). Les octets d'export ne sont pas stockés : un export audité n'est relisible qu'avec le même gabarit/code (reproductibilité à code constant).
 - **Idempotence partagée** : un refus transitoire (`SOURCE-REFUSEE`, stockage) est rejoué sous le même `mutation_id` ; le formulaire génère un nouvel identifiant à chaque affichage. Le plafond `MAX_ENTREES` est global (20 000 événements).
-- **Non exercés** : PostgreSQL, VPS, CI GitHub (0 check observé sur la PR au moment du rapport), visites M4 multiples de la mission parallèle, agents autorisés (aucun accès livré).
+- **Non exercés** : VPS, visites M4 multiples de la mission parallèle, agents autorisés (aucun accès livré).
 - Régression ciblée : 46 échecs `test_console_fusion_*` identiques sur la base (prérequis `bwrap` absent), non causés par ce travail.
 
+## CI GitHub (observée)
+Run `ci` n°2296 sur la tête `e9f148c7` : 35 jobs verts, 3 ignorés (`installateur`, `dependency_audit`, `mobile`), `gates` vert, `frontiere-postgresql` vert. Les trois runs précédents (`8fcb21c5`, `55b57e12`, `74d805f0`) étaient rouges ;
+la seule cause relevée sur `74d805f0` (job `socle (1)`) était le compteur d'outils de `docs/architecture/ROLES.md` (306 au lieu de 314), corrigé par `e9f148c7`. La cause des rouges de `8fcb21c5` et `55b57e12` n'a pas été relue séparément.
+
 ## Contrats à intégrer et reprise
-Voir `RACCORD-COORDINATEUR.md` et `CONTRATS.md`. **Prochaine action** : (1) intégrer le commit de raccord ; (2) déposer les quatre PDF d'admission ; (3) laisser tourner la CI complète sur la PR et rejouer `tests/test_console_paie_dossier.py` sur la tête portant les visites M4 ; (4) faire relire par le CPA les règles employeur et le gabarit d'export ; (5) décider si les outils doivent être masqués aux agents (`port_console_prive_requis`).
+Voir `RACCORD-COORDINATEUR.md` et `CONTRATS.md`. **Prochaine action** : (1) intégrer le commit de raccord ; (2) déposer les quatre PDF d'admission ; (3) rejouer `tests/test_console_paie_dossier.py` sur la tête portant les visites M4 ; (4) faire relire par le CPA les règles employeur et le gabarit d'export ; (5) décider si les outils doivent être masqués aux agents (`port_console_prive_requis`).
 Processus QA possédés : serveur console 127.0.0.1:8765 (PID noté dans `recus/recu-fermeture.txt`) fermé ; aucun autre service laissé actif.
