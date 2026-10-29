@@ -271,7 +271,7 @@
      "resultat": "1445 passed, 0 failed, 0 skipped"
     }
    ],
-   "verified_commit": "PENDING",
+   "verified_commit": "08cdde37",
    "current_status": "DONE_VERIFIED",
    "lot0_finding": "Schéma proposé à 21 sections livré (rapport_decision_v2, mapping 15 clés, validateur d'ancrage, 49 tests). Énumération canonique introuvable : arbitrage Nathan requis (GATED_HUMAN) ; la production du rapport complet dépend des lots 1–3.",
    "limite": "Liste des 21 sections RETENUE PAR DÉLÉGATION de Nathan le 2026-10-29 (réponse « Oui tu as toutes les autorisations » à la demande d'arbitrage) ; source canonique (prompt maître du 9 juin 2026) toujours absente, statut RATIFIE refusé, révisable ; contrat historique à 15 clés inchangé. Rapport produit par un conseil réel : sections non renseignées nommées NON_DISPONIBLE."
