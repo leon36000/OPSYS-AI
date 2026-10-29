@@ -13,7 +13,7 @@
 | 1 | Où est M9 ? | `departments/m09-strategic-intelligence/` (modules `src/m9_strategic_intelligence/`, tests, évaluations, contrats, métriques) ; raccords communs `src/opsys/actions_m9.py`, `src/opsys/lecteurs_m9.py` ; console `src/opsys/console/direction_ui.py`. |
 | 2 | Que contient `dept_financier.py` ? | Ce fichier n'existe pas dans OPSYS-AI : il appartenait à l'ancien dépôt. Le M9 d'OPSYS-AI était un harnais pur de 813 lignes (audit du 28 sept. 2026, `docs/departements/M9-audit.md`) ; il compte aujourd'hui plus de 16 000 lignes de code et plus de 80 modules. |
 | 3 | Existe-t-il `module7_strategie` ? | Non, notion de l'ancien dépôt. La stratégie transversale est portée par les modules M9.1–M9.23 ci-dessous. |
-| 4 | Quelles routes existent ? | Pas de routes REST `/api/strategy/*` : OPSYS expose ses capacités en **outils** (contrat d'outil, MCP/Core) — plus de 70 outils M9, tous `admin` strict — et en **pages de console** `/direction/*` (admin seulement). Table de correspondance au §3. |
+| 4 | Quelles routes existent ? | Pas de routes REST `/api/strategy/*` : OPSYS expose ses capacités en **outils** (contrat d'outil, MCP/Core) — 75 outils M9 : 52 `admin` strict (modules `outils_*`, garde statique `tests/test_m9_acces_strict.py`) et 23 historiques d'`outils.py` à la voie d'origine, tous de portée d'appareil `admin` ou fermés aux appareils — et en **pages de console** `/direction/*` (admin seulement). Table de correspondance au §3. |
 | 5 | Quels modèles de base de données ? | Pas de dix-huit tables `strategic_*` : des **registres chaînés append-only** (hash, rang attendu) sur le stockage commun SQLite/PostgreSQL (`opsys.stockage`) : captures, sessions de conseil, publications de revue, veille, actions, plans, expériences. §4. |
 | 6 | Quels tests ? | Département : plus de 60 fichiers de tests ; socle : tests d'intégration `tests/test_m9_*.py` et console `tests/test_console_*m9.py`. Chiffres exacts dans `RAPPORT.md` du dossier de reprise. |
 | 7 | Quelles intégrations M1–M8 ? | 19 lectures T0/N0 de producteurs par un port privé en lecture (`lecteurs_m9`), liste blanche : M1, M2, M3, M4, M5, M6, M7, M8, M10. |
@@ -21,7 +21,7 @@
 | 9 | Un rapport hebdo existe-t-il ? | Oui : revue hebdomadaire/mensuelle/trimestrielle publiée en versions immuables, avec les **vingt sections de direction** (M9.6–7). |
 | 10 | Des projections existent-elles ? | Oui : prévisions des propriétaires consolidées (M9.9), tendances extrapolées par le code (`m9_projeter_tendance`) et scénarios (19 chocs). |
 | 11 | Quelles données sont disponibles ? | Uniquement ce que les producteurs exposent par leurs lectures autorisées. Aucune donnée réelle d'entreprise dans le dépôt ; tous les tests utilisent des fixtures fictives. |
-| 12 | Quelles données sont périmées ? | Dites par la couverture (âge, fraîcheur attendue M8, péremption demandée) ; une lecture absente, refusée, partielle ou contradictoire n'est jamais citée. |
+| 12 | Quelles données sont périmées ? | Dites par la couverture (âge `age_s` ; fraîcheur évaluée seulement si une péremption est demandée via `perime_apres_jours`, au cadrage, à la couverture, aux radars et aux prévisions) ; une lecture absente, refusée, partielle ou contradictoire n'est jamais citée. |
 | 13 | Quels risques techniques ? | §6. |
 | 14 | Quels gates Nathan ? | §7. |
 | 15 | Quelle phase minimale ? | Les phases 0 à 12 du cahier sont livrées (§5), sauf les gates nommés. |

@@ -7,7 +7,8 @@
 - Résultat utilisateur observé : Nathan, admin, ouvre « Direction IA », saisit instant et jour civil, voit briefing, risques, prévisions des
   propriétaires, plans, actions et veille avec sources manquantes nommées ; il note un suivi ou annule un plan ; les actions passent par
   la file d'approbation native. Observé en navigateur Chromium (bureau, mobile 390 px) sur données fictives.
-- **Périmètre visé : M9.1–M9.23. Lignes encore ouvertes : M9.3, 4, 5, 8, 9, 11, 18 (PARTIEL) et M9.22 (PHASE_MOBILE_FINALE). 15 lignes DONE_VERIFIED. M9 n'est pas complet.**
+- **Périmètre visé : M9.1–M9.23 + M9.24 (parcours du cahier GRS du 9 juin, ajouté). Lignes encore ouvertes : M9.3, 4, 5, 8, 9, 11, 18 (PARTIEL) et M9.22 (PHASE_MOBILE_FINALE). 16 lignes DONE_VERIFIED sur 24. M9 n'est pas complet.**
+- Cahier GRS M9 du 9 juin adapté à OPSYS-AI (outils et pages `/direction/*` au lieu de routes REST, registres chaînés au lieu de tables) : audit `docs/grs/strategy/M9-AUDIT-INITIAL-QUADRUPLE-A.md`, 20 documents `docs/grs/strategy/M9-*.md`, rapport final `docs/grs/strategy/M9-FINAL-REPORT.md`. Ajouts : indicateurs exécutifs, cadrage de décision, 20 sections de direction, réaudit du conseil, tendances, interpréteur de questions « et si… », 19 chocs, 17 playbooks, six parcours de bout en bout.
 
 ## Exigences et preuves
 Voir `MATRICE-EXIGENCES.json` (aucune ligne retirée) : par ligne, statut, commit vérifié, tests et limite.
@@ -33,7 +34,7 @@ appelés par le port privé, HTTP console) ; aucune qualification installée (VP
 
 ## Coordination
 - Raccords communs en commits séparés : `actions_m9.py`, `lecteurs_m9.py`, `departements.py`, `capacites.py`, `ROLES.md`,
-  `test_portees_appareil.py`, puis console : `application.py`, `metier.py`, `pages.py`. Aucune extension réelle de droits (tout `admin` strict).
+  `test_portees_appareil.py`, puis console : `application.py`, `metier.py`, `pages.py`. Aucune extension de droits : les 52 outils des modules `outils_*` sont `admin` strict (garde statique `tests/test_m9_acces_strict.py`) ; les 23 outils historiques d'`outils.py` gardent leur voie d'origine (portée d'appareil `admin` ou fermée, voie agent inchangée).
 - Contrat 21 sections : source canonique introuvable ; liste v2 retenue par délégation de Nathan le 2026-10-29 (réponse « Oui tu as toutes les autorisations » à la demande d'arbitrage), statut RETENU_PAR_DELEGATION, jamais RATIFIE, révisable, 15 clés historiques inchangées.
 - CI du SHA de code final `7a0a01d9` : verte (run 2323, 39 checks dont `gates` requis sur `main`, `socle`, `frontiere-postgresql`, 10 `departement`) ; `installateur`, `mobile` et `dependency_audit` ignorés par le workflow, donc non prouvés. Verdict posté en commentaire sur la PR #859. Les commits postérieurs à `7a0a01d9` ne touchent que la documentation.
 

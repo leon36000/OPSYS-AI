@@ -3,7 +3,7 @@
 Mise à jour atomique à chaque jalon (une seule version courante ; l'historique est dans Git).
 
 - Base : `3ab7692f041892ec2af0cab6f241a715edac2d50` ; branche `mission/claude-m9-direction-complete-20261028` (worktree privé).
-- État : **PARTIEL** — 15 lignes DONE_VERIFIED, 7 PARTIEL (gates nommés : M9.3, 4, 5, 8, 9, 11, 18), 1 PHASE_MOBILE_FINALE (M9.22). Voir `MATRICE-EXIGENCES.json`.
+- État : **PARTIEL** — 16 lignes DONE_VERIFIED (dont M9.24), 7 PARTIEL (gates nommés : M9.3, 4, 5, 8, 9, 11, 18), 1 PHASE_MOBILE_FINALE (M9.22). Voir `MATRICE-EXIGENCES.json`.
 - Exécution de référence : SHA `f258a344`, 1 456 tests, 0 échec, 0 skip (`preuves-execution/`), `opsys-metier verifier` OK
   (353 outils, 224 déclarés aux appareils), lint OK.
 - Rouges conservés : 46 échecs de fusion PDF/AP (`preuves-execution/log-reg-console2-*`) **identiques sans les changements M9**
