@@ -136,6 +136,8 @@ ADMIN_SEUL = frozenset({
     "m9_apercu_graphe_impacts", "m9_propager_impacts", "m9_prioriser_options",
     # Couche sémantique M9.3 et prévisions consolidées M9.9 : lectures seules.
     "m9_rapprocher_metriques", "m9_previsions_consolidees",
+    # Radars M9.12–13 : risques mesurés par les propriétaires et occasions sans revenu inventé.
+    "m9_radar_risques", "m9_radar_occasions",
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",

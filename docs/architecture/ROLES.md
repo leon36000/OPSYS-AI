@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 202 outils sur 331 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 204 outils sur 333 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (201 outils) : §9.5 + employé + vendeur
+### `admin` (203 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -196,7 +196,7 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M9 | `m9_auditer_affirmations_conseil` (T0/N0) | Compare tout un lot de citations textuelles structurées à une seule capture serveur du dossier attendu. Admin SQL courant avant lecture ; référence sélectionnée, valeur textuelle exacte, aucune source contradictoire arbitrée. Hypothèses explicitement déclarées, dossier et preuves complets, refus entier sans troncature. Ni vérité, actualité, modèle, conseil, critique sémantique, gouvernance ou approbation attestés. |
 | M9 | `m9_capturer_producteur` (T1, N2), `m9_lister_captures`, `m9_lire_capture`, `m9_couverture_strategique`, `m9_verifier_captures` (T0/N0) | Tissu stratégique M9.1 : lit, par le port serveur `lecteur_producteurs_m9` (liste blanche de lectures T0 des producteurs), puis conserve les réponses dans un registre chaîné aux quatre temps distincts ; couverture et état « connu à… ». **Admin authentifié seulement, y compris en lecture** (copies d'autres départements) : jamais un agent, jamais une identité absente. |
 | M9 | `m9_apercu_dossier_strategique`, `m9_evaluer_scenarios`, `m9_proposer_profils_conseil`, `m9_lire_conseil`, `m9_lire_entree_tour_conseil`, `m9_lire_rapport_conseil` (T0/N0), `m9_ouvrir_conseil`, `m9_deposer_tour_conseil`, `m9_abandonner_tour_conseil`, `m9_cloturer_conseil` (T1, N2) | Dossier stratégique (faits citables des captures), scénarios (sensibilités arithmétiques sur bases citées) et sessions de conseil : M9 n'appelle aucun modèle ; il prépare l'entrée, valide le dépôt d'un tour exécuté par le runtime natif (réservation native réconciliée du bon profil, usage unique), gouverne sans autoriser d'effet. **Admin authentifié seulement.** |
-| M9 | `m9_salle_de_guerre`, `m9_apercu_revue`, `m9_lister_revues`, `m9_lire_revue`, `m9_apercu_graphe_impacts`, `m9_propager_impacts`, `m9_prioriser_options`, `m9_rapprocher_metriques`, `m9_previsions_consolidees` (T0/N0), `m9_publier_revue` (T1, N2) | Salle de guerre quotidienne (lecture seule, vue périmée refusée) et revues hebdomadaire, mensuelle, trimestrielle : période en heure locale du fuseau, rattachement par réception, publication en versions immuables (une arrivée tardive ajoute une version, jamais une réécriture) ; graphe d'impacts prouvé par des lignes capturées, rapprochement des métriques M8 sans agrégation, prévisions des propriétaires citées sans en produire et priorisation explicable sans affectation. **Admin authentifié seulement.** |
+| M9 | `m9_salle_de_guerre`, `m9_apercu_revue`, `m9_lister_revues`, `m9_lire_revue`, `m9_apercu_graphe_impacts`, `m9_propager_impacts`, `m9_prioriser_options`, `m9_rapprocher_metriques`, `m9_previsions_consolidees`, `m9_radar_risques`, `m9_radar_occasions` (T0/N0), `m9_publier_revue` (T1, N2) | Salle de guerre quotidienne (lecture seule, vue périmée refusée) et revues hebdomadaire, mensuelle, trimestrielle : période en heure locale du fuseau, rattachement par réception, publication en versions immuables (une arrivée tardive ajoute une version, jamais une réécriture) ; graphe d'impacts prouvé par des lignes capturées, rapprochement des métriques M8 sans agrégation, prévisions des propriétaires citées sans en produire, radars de risques (signaux des propriétaires, sans cause) et d'occasions (sans revenu inventé) et priorisation explicable sans affectation. **Admin authentifié seulement.** |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision` | §7 M10 mobile : décisions à valider et contradictions. |
 | M10 | `m10_paquet_contexte_affaire` (T0/N0) | Contexte privé du moteur Core selon ADR-0010 : sa déclaration admin ne l'expose pas aux routes publiques. L'origine M1/M2 est fixée par la route interne, jamais par un argument. Le plafond effectif du socle refuse le paquet volumineux avant tout artefact ; aucune donnée partielle prise pour un contexte valide. |
 | M10 | `m10_deposer_version_document_appareil`, `m10_activer_version_document_appareil`, `m10_retirer_document_appareil` (T1/N3) | Mutations documentaires de l’affaire connue du corpus autorisé, admin appareil actif et mode ombre. Intention originale, versions/CAS frais, trace APP/J propre et liaison transactionnelles ; quotas entiers avant claim et après trace. Le rejeu confirme sa version originale, sans nouvel effet, même après v2/retrait. Corps/extraits APP masqués en restitution, titre visible ; aucune purge. Premier backend SQLite ; PG reste fermé, transports DEVICE/Native et client sont des qualifications séparées. |
