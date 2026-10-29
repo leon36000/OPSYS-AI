@@ -3,7 +3,7 @@
 ## Identité et portée
 - Mission / responsable / outil : M9-COMPLETION-INTEGRALE-20261028 / Claude Code (session cloud) / Claude Code.
 - Base / branche : `3ab7692f041892ec2af0cab6f241a715edac2d50` (`codex/restructuration-2026-09-30`) / `mission/claude-m9-direction-complete-20261028`.
-- SHA de code vérifié localement : `f258a344` (1 456 tests, exécution `final2-m9`) ; la CI GitHub se lit sur la PR draft #859. Les commits ultérieurs ne touchent que la documentation et les preuves.
+- SHA de code vérifié localement : `f258a344` (1 456 tests, exécution `final2-m9`), puis `7a0a01d9` (corrections de la relecture : 26 tests du tableau) ; la CI GitHub se lit sur la PR draft #859. Les commits ultérieurs ne touchent que la documentation et les preuves.
 - Résultat utilisateur observé : Nathan, admin, ouvre « Direction IA », saisit instant et jour civil, voit briefing, risques, prévisions des
   propriétaires, plans, actions et veille avec sources manquantes nommées ; il note un suivi ou annule un plan ; les actions passent par
   la file d'approbation native. Observé en navigateur Chromium (bureau, mobile 390 px) sur données fictives.
@@ -18,6 +18,7 @@ appelés par le port privé, HTTP console) ; aucune qualification installée (VP
 - Commandes : `preuves-execution/cmd-*.txt` (pytest sous `taskset` 2 CPU, `ulimit -v` 6 Gio, HOME/OPSYS_HOME privés). Exécution finale :
   1 445 passed, 0 failed, 0 skipped, 274 s. `opsys-metier verifier` exit 0. `ruff check src tests departments/m09-strategic-intelligence` OK.
 - Rouges : régression console élargie = 46 échecs, tous fusion PDF/AP, identiques sur la base sans changements (46/46) ; conservés.
+- Relecture indépendante du tableau (lecture seule) : rien de grave ; deux défauts réels corrigés avec test (filtre perdu à la page suivante des sources, code de refus de repli) ; limite connue : champ POST répété accepté en silence (non exploitable, CSRF).
 - Défauts trouvés et corrigés pendant la QA : refus M9 pris pour un succès par le tableau (corrigé, testé) ; lecture d'une commande
   datée par l'horloge serveur ; lint vu en cours d'édition (relancé vert).
 - Refus et reprises prouvés : rôle admin retiré après connexion -> 403 ; CSRF absent/faux -> 403 sans écriture ; mutation_id rejoué ->
@@ -34,7 +35,7 @@ appelés par le port privé, HTTP console) ; aucune qualification installée (VP
 - Raccords communs en commits séparés : `actions_m9.py`, `lecteurs_m9.py`, `departements.py`, `capacites.py`, `ROLES.md`,
   `test_portees_appareil.py`, puis console : `application.py`, `metier.py`, `pages.py`. Aucune extension réelle de droits (tout `admin` strict).
 - Contrat 21 sections : source canonique introuvable ; liste v2 retenue par délégation de Nathan le 2026-10-29 (réponse « Oui tu as toutes les autorisations » à la demande d'arbitrage), statut RETENU_PAR_DELEGATION, jamais RATIFIE, révisable, 15 clés historiques inchangées.
-- CI du SHA final : à lire sur la PR draft ; SKIP/UNKNOWN conservés.
+- CI du SHA de code final `7a0a01d9` : verte (run 2323, 39 checks dont `gates` requis sur `main`, `socle`, `frontiere-postgresql`, 10 `departement`) ; `installateur`, `mobile` et `dependency_audit` ignorés par le workflow, donc non prouvés. Verdict posté en commentaire sur la PR #859. Les commits postérieurs à `7a0a01d9` ne touchent que la documentation.
 
 ## Verdict et suite
 - Démontré : couches déterministes M9.1–2, 6–7, 12–17, 19–21 ; gouvernance par les vraies approbations ; tableau exécutif en navigateur.

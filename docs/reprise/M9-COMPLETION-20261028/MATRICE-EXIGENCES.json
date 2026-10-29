@@ -544,10 +544,10 @@
      "resultat": "1445 passed, 0 failed, 0 skipped"
     }
    ],
-   "verified_commit": "2696931c",
+   "verified_commit": "7a0a01d9",
    "current_status": "DONE_VERIFIED",
    "lot0_finding": "Console M9 en lecture seule (/strategie…) ; tableau exécutif complet à construire (sous-routeur M9, raccords metier.py en commit distinct).",
-   "limite": "Console admin seulement ; la console ne peut pas capturer ni proposer (ports privés non injectés), elle renvoie à la file native ; QA Chromium bureau et mobile 390 px."
+   "limite": "Console admin seulement ; la console ne peut pas capturer ni proposer (ports privés non injectés), elle renvoie à la file native ; QA Chromium bureau et mobile 390 px. Relecture indépendante en lecture seule (rôle, CSRF, XSS, paramètres, idempotence, fuite, DoS : rien de grave) : deux défauts réels corrigés avec test (filtre de lecture à la page suivante des sources ; code de refus de repli). Limite connue non corrigée : un champ POST répété est accepté en silence par l'assistant de formulaire partagé (première valeur retenue ; non exploitable, jeton CSRF exigé)."
   },
   {
    "id": "M9.22",
@@ -612,6 +612,7 @@
    "DONE_VERIFIED": 15,
    "PARTIEL": 7,
    "PHASE_MOBILE_FINALE": 1
-  }
+  },
+  "ci_github": "verte sur 7a0a01d9 (run 2323, 39 checks dont gates, socle, frontiere-postgresql ; installateur, mobile, dependency_audit ignorés par le workflow) ; verte sur 94cf6495 (run 2322) et 43499e04 (run 2320)"
  }
 }

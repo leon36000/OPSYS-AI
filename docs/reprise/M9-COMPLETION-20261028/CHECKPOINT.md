@@ -16,4 +16,4 @@ sans barème), M9.9 (une seule prévision propriétaire), M9.11 (aucune capacit�
 M9.22 (phase mobile : contrat serveur prêt, aucun écran).
 
 ## Prochaine action
-CI du SHA final sur la PR draft ; corriger tout rouge propre à M9.
+CI verte sur le SHA de code final `7a0a01d9` (run 2323). Lignes restantes : hôte opérateur (M9.5), décision de conception M8 (M9.3), données des missions M4/M5/M7 (M9.8, 9, 11, 18), jonction Core (M9.4), écran mobile (M9.22).
