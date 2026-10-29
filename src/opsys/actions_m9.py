@@ -32,6 +32,7 @@ DEPARTEMENT_M9 = "m09-strategic-intelligence"
 ACTIONS_AUTORISEES: dict[str, frozenset[str]] = {
     "m02-revenue-crm": frozenset({"m2_preparer_relance", "m2_reassigner_lead"}),
     "m04-field-ops": frozenset({"m4_planifier_intervention", "m4_creer_demande_ecart"}),
+    "m10-memoire": frozenset({"m10_journaliser_decision"}),
 }
 STATUTS_NATIFS = frozenset({"en_attente", "en_cours", "refusee", "executee", "echec"})
 MAX_ARGUMENTS_OCTETS = 8_192

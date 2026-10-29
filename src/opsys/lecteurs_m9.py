@@ -58,7 +58,7 @@ LECTURES_AUTORISEES: Mapping[str, frozenset[str]] = {
     "m08-analytics": frozenset(
         {"m8_lire_vue_executive", "m8_lire_mesures_chantier", "m8_lister_definitions_metriques"}
     ),
-    "m10-memoire": frozenset({"m10_paquet_contexte_affaire"}),
+    "m10-memoire": frozenset({"m10_paquet_contexte_affaire", "m10_statut_decision"}),
 }
 
 
