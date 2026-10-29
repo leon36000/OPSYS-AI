@@ -149,6 +149,8 @@ ADMIN_SEUL = frozenset({
     "m9_enregistrer_plan", "m9_annuler_plan", "m9_noter_suivi_plan", "m9_lire_plans",
     # Expériences et ROI M9.18 : mesures des propriétaires, pas de ROI sans coût, association ≠ causalité.
     "m9_definir_experience", "m9_evaluer_experience", "m9_lire_experiences",
+    # Mémoire M10 M9.20 : préparer l'écriture exacte et vérifier, lectures seules (l'écriture passe par la file native).
+    "m9_preparer_memoire_decision", "m9_verifier_memoire_decision",
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",
