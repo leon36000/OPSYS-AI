@@ -1,0 +1,10 @@
+{
+ "croissance_marketing": {
+  "tokens_rapportes_par_le_harnais": 4143,
+  "reservation_refusee": "AdmissionRefusee: admission refusée : budget agent insuffisant; disponible 0 tokens"
+ },
+ "contraintes_inventaire": {
+  "tokens_rapportes_par_le_harnais": 3170,
+  "reservation_refusee": "AdmissionRefusee: admission refusée : budget agent insuffisant; disponible 0 tokens"
+ }
+}

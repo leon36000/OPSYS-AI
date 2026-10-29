@@ -111,12 +111,19 @@
      "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
      "sha_execution": "29f67b6a",
      "resultat": "1445 passed, 0 failed, 0 skipped"
+    },
+    {
+     "conseil_reel": "docs/reprise/M9-COMPLETION-20261028/preuves-conseil-reel/RAPPORT-CONSEIL-REEL.md",
+     "commits": [
+      "1d70014b",
+      "3c1c8885"
+     ]
     }
    ],
    "verified_commit": "b49ff923",
    "current_status": "PARTIEL",
    "lot0_finding": "Aucun port Python ne demande un tour d'agent Core ; aucun backend modèle configuré dans l'environnement (gate GATED_DEPENDENCY pour la qualification réelle). Plan : 12 rôles + sélection déterministe des spécialistes + chaîne et budget/refus prouvés sur doubles de protocole identifiés ; adaptateur prêt pour le runtime natif (profils agents.py, admission_agents).",
-   "limite": "Gates ouverts : jonction Core native et backend/budget effectif ; conseil réel jamais exécuté (GATED_DEPENDENCY), seuls les doubles de protocole et l'admission déterministe sont prouvés."
+   "limite": "Conseil RÉEL exécuté en session (3 rondes, vrais modèles Claude via l'outil Agent) : admission, refus, budget et gouvernance prouvés (preuves-conseil-reel/). Gate ouvert : jonction Core native (runtime non exécutable ici) ; vérité des inférences non prouvée (validation_semantique NON_PROUVEE)."
   },
   {
    "id": "M9.5",
@@ -584,12 +591,16 @@
      "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
      "sha_execution": "29f67b6a",
      "resultat": "1445 passed, 0 failed, 0 skipped"
+    },
+    {
+     "conseil_reel": "docs/reprise/M9-COMPLETION-20261028/preuves-conseil-reel/RAPPORT-CONSEIL-REEL.md",
+     "tests": "departments/m09-strategic-intelligence/tests/test_sessions_conseil.py"
     }
    ],
-   "verified_commit": "e15388ba",
-   "current_status": "PARTIEL",
+   "verified_commit": "3c1c8885",
+   "current_status": "DONE_VERIFIED",
    "lot0_finding": "Aucun jeu d'évaluation ; audit de citations déterministe existe.",
-   "limite": "Couche déterministe : 61/61 (Wilson 95 % [0,9408 ; 1,0000]), attentes indépendantes ; qualification du conseil réel séparée (GATED_DEPENDENCY)."
+   "limite": "Couche déterministe 61/61 (Wilson 95 % [0,9408 ; 1,0000]) + conseil réel séparé des doubles de protocole : 6 sorties réelles sur 3 rondes (2 admises à la 3e ronde sur 2 ; refus de forme et de borne trouvés, corrigés, conservés en régression). Indicatif, un modèle, un scénario ; qualité du conseil non établie."
   }
  ],
  "run_summary": {

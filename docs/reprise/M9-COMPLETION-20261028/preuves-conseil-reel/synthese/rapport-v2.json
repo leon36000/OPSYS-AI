@@ -1,0 +1,401 @@
+{
+ "limites": [
+  "Proposition de schéma non ratifiée : l'énumération des 21 sections attend l'arbitrage de Nathan.",
+  "Validation de FORME et d'ancrage seulement : ni vérité, ni actualité, ni décision validée.",
+  "Aucun chiffre calculé ici : toute valeur cite le propriétaire du calcul (M5, M4, M8…) ou reste absente."
+ ],
+ "rapport_id": "2fe34ca4d5f5c8b43553677e935154b75c2b3892b359f7614f9630127c289937",
+ "schema": "opsys.m9.rapport_decision/v2-proposition",
+ "sections": {
+  "conditions": {
+   "raison": "non produit par cette session (reste à composer depuis scénarios, graphe et plans)",
+   "statut": "NON_DISPONIBLE"
+  },
+  "contradictions": {
+   "raison": "aucune contradiction détectée",
+   "statut": "NON_APPLICABLE"
+  },
+  "decision_recommandee": {
+   "contenu": [
+    {
+     "id": "DR1",
+     "refs": [
+      "D1",
+      "D2",
+      "D3",
+      "H1"
+     ],
+     "texte": "Cette semaine, traiter en premier le lead urgent de Lévis (suivi interne), demander les photos et la valeur des autres leads avant de les prioriser, et ne prendre aucune décision de stock ou d'achat de matériaux tant que les niveaux de stock, la disponibilité datée des équipes et les interventions en cours ne sont pas fournis."
+    }
+   ],
+   "statut": "RENSEIGNEE"
+  },
+  "dependances": {
+   "raison": "non produit par cette session (reste à composer depuis scénarios, graphe et plans)",
+   "statut": "NON_DISPONIBLE"
+  },
+  "diagnostic": {
+   "contenu": [
+    {
+     "id": "D1",
+     "refs": [
+      "E2",
+      "E3",
+      "E4",
+      "E5"
+     ],
+     "texte": "[inférence non validée] Le seul lead que le système qualifie de prioritaire est celui de Lévis, urgence déclarée et statut ouvert : le suivi de ce lead est l'action la plus défendable cette semaine, et elle relève du suivi interne."
+    },
+    {
+     "id": "D2",
+     "refs": [
+      "E1",
+      "E6",
+      "E7"
+     ],
+     "texte": "[inférence non validée] La segmentation des leads reste partielle : sans état des photos ni valeur du client, on ne peut pas classer les autres leads par valeur ou par préparation à la soumission ; il faut obtenir ces données avant d'arbitrer entre eux."
+    },
+    {
+     "id": "D3",
+     "refs": [
+      "H1",
+      "H2",
+      "H3",
+      "E8"
+     ],
+     "texte": "[inférence non validée] Aucune décision d'achat ou de réapprovisionnement de matériaux ne peut être recommandée : le stock est absent des données, la disponibilité des équipes n'a pas d'instant métier et les interventions sont absentes. La réponse correcte est de demander ces données, pas d'en inventer."
+    },
+    {
+     "id": "D4",
+     "refs": [
+      "E10",
+      "E11",
+      "E12",
+      "E16"
+     ],
+     "texte": "[inférence non validée] Le seul lead prioritaire identifié par une règle déterministe est lead-2 : il porte le segment hot_lead parce qu'il déclare une urgence et reste ouvert. Cette semaine, l'action de croissance la plus claire est de le faire contacter en premier."
+    },
+    {
+     "id": "D5",
+     "refs": [
+      "E9",
+      "E15",
+      "E11"
+     ],
+     "texte": "[inférence non validée] Les autres leads reçus sont encore au statut nouveau sans urgence déclarée ; ils relèvent d'un suivi ordinaire de qualification, sans priorité marketing particulière dans les données disponibles."
+    },
+    {
+     "id": "D6",
+     "refs": [
+      "H4"
+     ],
+     "texte": "[inférence non validée] Je ne peux recommander ni hausse, ni baisse, ni réallocation de budget de campagne cette semaine : sans données de campagne ni attribution de source, tout arbitrage serait inventé."
+    },
+    {
+     "id": "D7",
+     "refs": [
+      "E17",
+      "E18",
+      "E19"
+     ],
+     "texte": "[inférence non validée] Les relances de soumissions, la réactivation de leads dormants et les demandes de photos ne peuvent pas être ciblées cette semaine. Les segments correspondants sont non calculables tant que M3 ne fournit pas les faits manquants et que les seuils ne sont pas configurés ; il faut le demander plutôt que présumer."
+    },
+    {
+     "id": "D8",
+     "refs": [
+      "E13",
+      "E14",
+      "E9",
+      "H4"
+     ],
+     "texte": "[inférence non validée] Lévis et l'isolation thermique caractérisent le lead urgent, mais un seul lead ne permet aucune conclusion sur les villes ou types de travaux à privilégier dans les campagnes."
+    },
+    {
+     "id": "D9",
+     "refs": [
+      "E21",
+      "E22",
+      "E23",
+      "E24",
+      "H7",
+      "H9"
+     ],
+     "texte": "[inférence non validée] La lecture de disponibilité a été acceptée et n'est pas tronquée, mais elle ne permet pas à elle seule d'affirmer que le stock couvre les besoins de la semaine : il faut demander les quantités par matériau, leurs réservations et un instant métier daté."
+    },
+    {
+     "id": "D10",
+     "refs": [
+      "H7",
+      "H8",
+      "E21"
+     ],
+     "texte": "[inférence non validée] Aucun achat ni choix de fournisseur ne devrait être décidé cette semaine sur cette base : les données fournisseurs sont absentes et la lecture ne fait qu'indiquer l'état de la disponibilité. Toute commande reste une décision humaine, non exécutée ici."
+    },
+    {
+     "id": "D11",
+     "refs": [
+      "E25",
+      "E26",
+      "H7",
+      "H10"
+     ],
+     "texte": "[inférence non validée] Le lead déclaré urgent est à traiter en priorité, mais la vérification que le stock couvre ses travaux est impossible tant que les quantités de matériaux et les interventions planifiées manquent ; il faut demander ces données avant de promettre une date ou un engagement matériel."
+    }
+   ],
+   "statut": "RENSEIGNEE"
+  },
+  "donnees_manquantes": {
+   "contenu": [
+    {
+     "id": "DM1",
+     "texte": "m6.disponibilite : TEMPS_METIER_NON_DECLARE — le producteur ne déclare aucun instant métier"
+    },
+    {
+     "id": "DM2",
+     "texte": "m4.interventions : ABSENTE — aucune capture connue à l'instant de connaissance"
+    }
+   ],
+   "statut": "RENSEIGNEE"
+  },
+  "donnees_utilisees": {
+   "contenu": [
+    {
+     "id": "E1",
+     "texte": "m2.leads#0:p0.resultat.resultat.total = 3"
+    },
+    {
+     "id": "E2",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[1].lead_id = lead-2"
+    },
+    {
+     "id": "E3",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[1].segments[0].segment = hot_lead"
+    },
+    {
+     "id": "E4",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[1].urgence_declaree = true"
+    },
+    {
+     "id": "E5",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[1].ville = Lévis"
+    },
+    {
+     "id": "E6",
+     "texte": "m2.leads#0:p0.resultat.resultat.segments_non_calculables[0].manque = non calculable, manque l'état des photos du lead (M3 les qualifie, rien n'atteint M2)"
+    },
+    {
+     "id": "E7",
+     "texte": "m2.leads#0:p0.resultat.resultat.segments_non_calculables[3].manque = non calculable, manque la valeur du client (montants à M3 et à M5) et un seuil de valeur"
+    },
+    {
+     "id": "E8",
+     "texte": "m6.disponibilite#1:p0.resultat.resultat.reservations_tronquees = false"
+    },
+    {
+     "id": "E9",
+     "texte": "m2.leads#0:p0.resultat.resultat.total = 3"
+    },
+    {
+     "id": "E10",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[1].segments[0].segment = hot_lead"
+    },
+    {
+     "id": "E11",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[1].urgence_declaree = true"
+    },
+    {
+     "id": "E12",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[1].lead_id = lead-2"
+    },
+    {
+     "id": "E13",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[1].ville = Lévis"
+    },
+    {
+     "id": "E14",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[1].travaux = isolation_thermique"
+    },
+    {
+     "id": "E15",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[0].statut = nouveau"
+    },
+    {
+     "id": "E16",
+     "texte": "m2.leads#0:p0.resultat.resultat.regles.urgence_declaree_lead_ouvert = Urgence déclarée à l'ingestion (contrat : urgence_declaree) sur un lead encore ouvert (statut nouveau ou qualifie)."
+    },
+    {
+     "id": "E17",
+     "texte": "m2.leads#0:p0.resultat.resultat.segments_non_calculables[1].manque = non calculable, manque le fait « devis envoyé » de M3 (m3.devis_envoye, T4.7)"
+    },
+    {
+     "id": "E18",
+     "texte": "m2.leads#0:p0.resultat.resultat.segments_non_calculables[6].manque = non calculable, manque le seuil jours_inactivite_dormant : seuil à configurer (configuration.segments, entier de jours ≥ 1)"
+    },
+    {
+     "id": "E19",
+     "texte": "m2.leads#0:p0.resultat.resultat.segments_non_calculables[0].manque = non calculable, manque l'état des photos du lead (M3 les qualifie, rien n'atteint M2)"
+    },
+    {
+     "id": "E20",
+     "texte": "m6.disponibilite#1:p0.resultat.resultat.tronque = false"
+    },
+    {
+     "id": "E21",
+     "texte": "m6.disponibilite#1:p0.ok = true"
+    },
+    {
+     "id": "E22",
+     "texte": "m6.disponibilite#1:p0.resultat.accepte = true"
+    },
+    {
+     "id": "E23",
+     "texte": "m6.disponibilite#1:p0.resultat.resultat.reservations_tronquees = false"
+    },
+    {
+     "id": "E24",
+     "texte": "m6.disponibilite#1:p0.resultat.resultat.tronque = false"
+    },
+    {
+     "id": "E25",
+     "texte": "m2.leads#0:p0.resultat.resultat.total = 3"
+    },
+    {
+     "id": "E26",
+     "texte": "m2.leads#0:p0.resultat.resultat.leads[1].urgence_declaree = true"
+    }
+   ],
+   "statut": "RENSEIGNEE"
+  },
+  "etat": {
+   "raison": "l'état consolidé n'est pas encore relié à la session",
+   "statut": "NON_DISPONIBLE"
+  },
+  "hypotheses": {
+   "contenu": [
+    {
+     "id": "H1",
+     "texte": "Je constate qu'aucun fait fourni ne décrit le stock de matériaux (niveaux, seuils, commandes) : la partie de la question sur le stock ne peut pas être tranchée avec ces données."
+    },
+    {
+     "id": "H2",
+     "texte": "Je constate que la lecture m6.disponibilite est déclarée TEMPS_METIER_NON_DECLARE : le producteur ne donne aucun instant métier, donc la fraîcheur de la disponibilité des équipes n'est pas établie."
+    },
+    {
+     "id": "H3",
+     "texte": "Je constate que la lecture m4.interventions est ABSENTE : aucune donnée sur les interventions ou chantiers en cours n'est connue, ce qui limite toute décision de charge ou de planification."
+    },
+    {
+     "id": "H4",
+     "texte": "Aucune donnée de performance de campagne (dépenses, clics, coût par lead, source ou canal d'attribution des leads) n'apparaît dans les faits fournis ; la performance des campagnes ne peut donc pas être lue."
+    },
+    {
+     "id": "H5",
+     "texte": "Aucun fait sur le stock de matériaux n'est fourni ; la partie de la question portant sur le stock est hors de ma responsabilité et reste sans réponse de ma part."
+    },
+    {
+     "id": "H6",
+     "texte": "Les manques déclarés hors faits (m6.disponibilite sans instant métier déclaré, m4.interventions sans capture connue) signifient que la disponibilité des équipes ne peut pas être datée avec certitude et qu'aucune intervention n'est connue ; je n'en tire aucune conclusion de marketing."
+    },
+    {
+     "id": "H7",
+     "texte": "Les faits fournis ne contiennent aucune quantité de matériau en stock ni aucune réservation détaillée : seuls des indicateurs de non-troncature de la lecture de disponibilité sont présents."
+    },
+    {
+     "id": "H8",
+     "texte": "Les faits fournis ne contiennent aucune information sur les fournisseurs (délais, prix, ruptures), donc rien ne permet de proposer un achat ou un fournisseur."
+    },
+    {
+     "id": "H9",
+     "texte": "Le producteur de la lecture de disponibilité ne déclare aucun instant métier (statut TEMPS_METIER_NON_DECLARE) : on ne peut pas dater la fraîcheur du stock."
+    },
+    {
+     "id": "H10",
+     "texte": "Aucune capture des interventions n'est connue à l'instant de connaissance (statut ABSENTE) : la charge de travail planifiée est inconnue."
+    }
+   ],
+   "statut": "RENSEIGNEE"
+  },
+  "impacts": {
+   "raison": "non produit par cette session (reste à composer depuis scénarios, graphe et plans)",
+   "statut": "NON_DISPONIBLE"
+  },
+  "incertitudes": {
+   "contenu": [
+    {
+     "id": "IN1",
+     "refs": [
+      "H1",
+      "H2",
+      "H3",
+      "H4",
+      "H5",
+      "H6",
+      "H7",
+      "H8",
+      "H9",
+      "H10"
+     ],
+     "texte": "La validité des inférences n'est pas prouvée"
+    }
+   ],
+   "statut": "RENSEIGNEE"
+  },
+  "memoire_m10": {
+   "raison": "contexte M10 non encore relié à la session",
+   "statut": "NON_DISPONIBLE"
+  },
+  "mesure_succes_suivi": {
+   "raison": "non produit par cette session (reste à composer depuis scénarios, graphe et plans)",
+   "statut": "NON_DISPONIBLE"
+  },
+  "options_alternatives": {
+   "raison": "non produit par cette session (reste à composer depuis scénarios, graphe et plans)",
+   "statut": "NON_DISPONIBLE"
+  },
+  "plan_action": {
+   "raison": "non produit par cette session (reste à composer depuis scénarios, graphe et plans)",
+   "statut": "NON_DISPONIBLE"
+  },
+  "priorites": {
+   "raison": "non produit par cette session (reste à composer depuis scénarios, graphe et plans)",
+   "statut": "NON_DISPONIBLE"
+  },
+  "question": {
+   "contenu": {
+    "texte": "Que devrait faire l'entreprise cette semaine avec les leads reçus et le stock de matériaux ?"
+   },
+   "statut": "RENSEIGNEE"
+  },
+  "risques": {
+   "raison": "non produit par cette session (reste à composer depuis scénarios, graphe et plans)",
+   "statut": "NON_DISPONIBLE"
+  },
+  "scenarios": {
+   "raison": "non produit par cette session (reste à composer depuis scénarios, graphe et plans)",
+   "statut": "NON_DISPONIBLE"
+  },
+  "taches_par_departement": {
+   "raison": "non produit par cette session (reste à composer depuis scénarios, graphe et plans)",
+   "statut": "NON_DISPONIBLE"
+  },
+  "validation": {
+   "contenu": [
+    {
+     "id": "V1",
+     "texte": "a_suivi_urgent (suivi_interne) : PROPOSABLE (aucun)"
+    },
+    {
+     "id": "V2",
+     "texte": "a_info_photos (information) : PROPOSABLE (aucun)"
+    },
+    {
+     "id": "V3",
+     "texte": "a_info_stock (information) : PROPOSABLE (aucun)"
+    }
+   ],
+   "statut": "RENSEIGNEE"
+  }
+ },
+ "statut_contrat": "PROPOSITION_NON_RATIFIEE",
+ "version": 1
+}
