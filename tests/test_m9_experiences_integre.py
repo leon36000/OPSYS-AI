@@ -83,6 +83,11 @@ def test_experience_sur_marges_reelles_m8_sans_cout_puis_avec_cout_m5(tmp_path, 
                 {"id": "prevue", "role": "reference", "ref": prevue, "unite": "CAD"},
             ],
             "contre_exemples": [],
+            "plafond_budget_cad": "0",
+            "duree_jours": 30,
+            "limite_risque": "aucune dépense : mesure de chantiers déjà réalisés",
+            "porteur": "admin.fictif",
+            "plan_retour": "aucune action à défaire : lecture seule des chiffres du propriétaire",
         }
         ok(
             appel(
@@ -99,6 +104,7 @@ def test_experience_sur_marges_reelles_m8_sans_cout_puis_avec_cout_m5(tmp_path, 
             )
         )
         evaluation = sans_cout["experience"]["evaluation"]
+        assert evaluation["budget"]["statut"] == "INCONNU" and evaluation["cadre"]["plafond_budget_cad"] == "0"
         assert evaluation["gain_mesure"] == "-6.00" and evaluation["statut_roi"] == "ROI_NON_CALCULABLE"
         assert evaluation["inference"] == "ASSOCIATION_SEULEMENT" and evaluation["contre_exemples"]["total"] == 1
         assert any("cout" in m for m in evaluation["manques"]) and sans_cout["resultat_ajoute"] is True
@@ -117,6 +123,7 @@ def test_experience_sur_marges_reelles_m8_sans_cout_puis_avec_cout_m5(tmp_path, 
         if cout:
             revise = {
                 **definition,
+                "plafond_budget_cad": "400.00",
                 "mesures": [*definition["mesures"], {"id": "cout", "role": "cout", "ref": cout[0], "unite": "CAD"}],
             }
             ok(
@@ -140,6 +147,9 @@ def test_experience_sur_marges_reelles_m8_sans_cout_puis_avec_cout_m5(tmp_path, 
             )
             assert avec["experience"]["evaluation"]["statut_roi"] == "CALCULE"
             assert avec["experience"]["evaluation"]["roi"] == "-1.0123"  # (-6.00 - 486.00) / 486.00, en Decimal
+            budget = avec["experience"]["evaluation"]["budget"]
+            assert budget == {"statut": "DEPASSE", "plafond_budget_cad": "400.00", "cout_mesure_cad": "486.00"}
+            assert "PLAFOND_BUDGET_DEPASSE" in avec["experience"]["evaluation"]["lacunes"]
             assert avec["experience"]["version"] == 2 and avec["experience"]["versions_total"] == 2
         lues = ok(appel(cap, "m9_lire_experiences", {"connaissance": "2026-10-28T14:00:00Z"}))
         assert lues["experiences"][0]["historique_resultats"], "l'historique des résultats est conservé"

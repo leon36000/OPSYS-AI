@@ -31,6 +31,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import capture_strategique as cs
 from . import catalogue_producteurs as cat
+from . import rapport_direction
 
 VERSION = "2026-10-28.1"
 GRANULARITES = ("hebdomadaire", "mensuelle", "trimestrielle")
@@ -153,6 +154,9 @@ def composer(
     ancre: str,
     fuseau: str,
     connaissance: str,
+    plans: Sequence[Mapping] = (),
+    actions: Sequence[Mapping] = (),
+    experiences: Sequence[Mapping] = (),
 ) -> dict:
     """Revue de la période contenant ``ancre``, telle que M9 la connaît à ``connaissance`` (réception ≤).
 
@@ -256,6 +260,9 @@ def composer(
             for c in tardives
         ],
         "decisions": decisions,
+        "sections_direction": rapport_direction.sections(
+            captures=captures, sessions=sessions, plans=plans, actions=actions, experiences=experiences, periode=periode
+        ),
         "tete_captures": visibles[-1]["hash_maillon"] if visibles else cs.HASH_INITIAL,
         "limites": list(_LIMITES),
     }

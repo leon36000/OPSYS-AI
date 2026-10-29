@@ -49,6 +49,11 @@ def experience(design="AVANT_APRES", **extra):
             {"id": "effectif", "role": "effectif", "ref": EFFECTIF, "unite": "leads"},
         ],
         "contre_exemples": ["chantier C-4 : marge plus basse malgré le matériau alternatif"],
+        "plafond_budget_cad": "500.00",
+        "duree_jours": 30,
+        "limite_risque": "arrêt si la marge réelle passe sous la marge prévue deux chantiers de suite",
+        "porteur": "admin.fictif",
+        "plan_retour": "revenir au matériau de référence sur les prochains devis",
     }
     return {**base, **extra}
 
@@ -173,3 +178,57 @@ def test_revision_exige_motif_et_changement():
     assert deux["version"] == 2
     with pytest.raises(ValueError, match="REJ-EXPERIENCE-INCONNUE"):
         ex.enregistrer_resultat(chaine, "absente", {"entrees_hash": "x"}, recu_a=T, par="a")
+
+
+# --- Cadre de gouvernance obligatoire : plafond, durée, risque, porteur, plan de retour ---------------------------
+@pytest.mark.parametrize("champ", ["plafond_budget_cad", "duree_jours", "limite_risque", "porteur", "plan_retour"])
+def test_chaque_champ_du_cadre_est_obligatoire(champ):
+    exp = experience()
+    del exp[champ]
+    with pytest.raises(ValueError, match="REJ-EXPERIENCE-CHAMP"):
+        ex.definir([], exp, FAITS, recu_a=T, par="admin.fictif")
+
+
+@pytest.mark.parametrize(
+    "modif",
+    [
+        {"plafond_budget_cad": "-5"},
+        {"plafond_budget_cad": "1e3"},
+        {"plafond_budget_cad": 500},
+        {"plafond_budget_cad": "12.345"},
+        {"duree_jours": 0},
+        {"duree_jours": 366},
+        {"duree_jours": True},
+        {"duree_jours": "30"},
+        {"limite_risque": "  "},
+        {"plan_retour": "x" * 301},
+        {"porteur": "Nathan St-Louis"},
+        {"porteur": None},
+    ],
+)
+def test_cadre_invalide_refuse(modif):
+    with pytest.raises(ValueError, match="REJ-EXPERIENCE-CADRE"):
+        ex.definir([], experience(**modif), FAITS, recu_a=T, par="admin.fictif")
+
+
+def test_plafond_respecte_depasse_ou_inconnu_est_dit_et_jamais_suppose():
+    respecte = evaluation(exp=experience(plafond_budget_cad="100.00"))  # coût mesuré 100.00 = plafond
+    assert respecte["budget"] == {"statut": "RESPECTE", "plafond_budget_cad": "100.00", "cout_mesure_cad": "100.00"}
+    assert "PLAFOND_BUDGET_DEPASSE" not in respecte["lacunes"]
+    depasse = evaluation(exp=experience(plafond_budget_cad="99.99"))
+    assert depasse["budget"]["statut"] == "DEPASSE" and "PLAFOND_BUDGET_DEPASSE" in depasse["lacunes"]
+    assert depasse["budget"]["cout_mesure_cad"] == "100.00"
+    inconnu = evaluation(capt=captures(avec_cout=False))
+    assert inconnu["budget"] == {"statut": "INCONNU", "plafond_budget_cad": "500.00", "cout_mesure_cad": None}
+    sans_depense = evaluation(exp=experience(plafond_budget_cad="0"))
+    assert sans_depense["budget"]["statut"] == "DEPASSE", "plafond 0 = aucune dépense : un coût mesuré le dépasse"
+    assert respecte["cadre"]["porteur"] == "admin.fictif" and respecte["cadre"]["duree_jours"] == 30
+
+
+def test_ancienne_definition_sans_cadre_reste_lisible_et_n_invente_aucun_plafond():
+    chaine = []
+    maillon = definir(chaine)
+    ancienne = {k: v for k, v in maillon["definition"].items() if k not in ex._CADRE}
+    res = ex.evaluer(ancienne, captures(), connaissance=CONNAISSANCE)
+    assert res["budget"] == {"statut": "CADRE_NON_DECLARE", "plafond_budget_cad": None}
+    assert res["cadre"] == {nom: None for nom in ex._CADRE} and "PLAFOND_BUDGET_DEPASSE" not in res["lacunes"]

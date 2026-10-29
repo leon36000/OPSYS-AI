@@ -1,5 +1,7 @@
 """M9.15 — playbooks gouvernés : déclencheurs réels, étapes sensibles validées par un humain, critères lus (fictif)."""
 
+import re
+
 import pytest
 from m9_strategic_intelligence import capture_strategique as cs
 from m9_strategic_intelligence import catalogue_producteurs as cat
@@ -54,13 +56,119 @@ def _plan(playbook, chaine, **kwargs):
     return pb.instancier(playbook, radar, connaissance=CONNAISSANCE, **kwargs), radar
 
 
-def test_les_six_gabarits_existent_et_leurs_etapes_sensibles_sont_connues_du_conseil():
-    assert set(pb.CATALOGUE) == {"cash", "baisse_leads", "surcharge", "meteo", "rupture", "hausse_prix"}
-    for gabarit in pb.CATALOGUE.values():
+SIX_D_ORIGINE = {"cash", "baisse_leads", "surcharge", "meteo", "rupture", "hausse_prix"}
+ONZE_NOUVEAUX = {
+    "trop_de_leads",
+    "risque_plaintes",
+    "conversion_devis_faible",
+    "roi_marketing_faible",
+    "debut_de_saison",
+    "reserve_fin_de_saison",
+    "embauche",
+    "achat_equipement",
+    "expansion_ville",
+    "nouveau_service",
+    "relance_avis_clients",
+}
+
+
+def test_les_dix_sept_gabarits_existent_et_leurs_etapes_sensibles_sont_connues_du_conseil():
+    assert set(pb.CATALOGUE) == SIX_D_ORIGINE | ONZE_NOUVEAUX and len(pb.CATALOGUE) == 17
+    for id_, gabarit in pb.CATALOGUE.items():
         sensibles = [e for e in gabarit["etapes"] if e["type"] == "action_sensible"]
-        assert sensibles, "chaque playbook dit où une validation humaine est requise"
+        if id_ in SIX_D_ORIGINE:
+            assert sensibles, "chaque playbook d'origine dit où une validation humaine est requise"
         assert all(e["genre"] in conseil.ACTIONS_SENSIBLES for e in sensibles)
         assert gabarit["succes"] and gabarit["arret"] and gabarit["limites"]
+
+
+def test_champs_obligatoires_de_chaque_gabarit():
+    for id_, gabarit in pb.CATALOGUE.items():
+        assert set(pb.CHAMPS) | {"approbation_requise"} <= set(gabarit), id_
+        assert gabarit["donnees_requises"] and set(gabarit["donnees_requises"]) <= set(cat.PAR_ID), id_
+        assert gabarit["departements"] == sorted(set(gabarit["departements"]))
+        assert all(re.fullmatch(r"m(0[1-9]|10)", d) for d in gabarit["departements"]), id_
+        assert gabarit["risques"] and all(isinstance(r, str) and r for r in gabarit["risques"]), id_
+        assert isinstance(gabarit["plan_retour"], str) and len(gabarit["plan_retour"]) > 20, id_
+        for critere in [*gabarit["succes"], *gabarit["arret"]]:
+            assert critere["lecture"] in gabarit["donnees_requises"], f"{id_}.{critere['id']} hors données requises"
+        for etape in gabarit["etapes"]:
+            if etape["qui"] != "m9":
+                assert etape["qui"][:3] in gabarit["departements"], f"{id_}.{etape['id']} : département non déclaré"
+
+
+def test_approbation_requise_est_derivee_des_etapes_sensibles():
+    for id_, gabarit in pb.CATALOGUE.items():
+        attendu = any(e["type"] == "action_sensible" for e in gabarit["etapes"])
+        assert gabarit["approbation_requise"] is attendu, id_
+    assert pb.CATALOGUE["relance_avis_clients"]["approbation_requise"] is False, "l'envoi reste à la file M7"
+    assert pb.CATALOGUE["embauche"]["approbation_requise"] is True
+    menteur = {"cash": {**pb.CATALOGUE["cash"], "approbation_requise": False}}
+    with pytest.raises(ValueError, match="REJ-PLAYBOOK-GABARIT"):
+        pb.verifier_catalogue(menteur)
+
+
+@pytest.mark.parametrize(
+    "alteration",
+    [
+        lambda g: {k: v for k, v in g.items() if k != "plan_retour"},
+        lambda g: {**g, "plan_retour": "  "},
+        lambda g: {k: v for k, v in g.items() if k != "donnees_requises"},
+        lambda g: {**g, "donnees_requises": ["m2.leads", "m99.inventee"]},
+        lambda g: {**g, "donnees_requises": []},
+        lambda g: {**g, "departements": ["m11"]},
+        lambda g: {**g, "departements": ["m05"]},  # m09 (étape sensible orchestrée par M9) non déclaré
+        lambda g: {**g, "risques": []},
+        lambda g: {**g, "declenche_par": ["regle_inventee"]},
+        lambda g: {**g, "donnees_requises": ["m5.comptes_a_recevoir"]},  # critère sur une lecture non requise
+    ],
+)
+def test_gabarit_incomplet_ou_incoherent_refuse_au_chargement(alteration):
+    with pytest.raises(ValueError, match="REJ-PLAYBOOK-GABARIT"):
+        pb.verifier_catalogue({"cash": alteration(dict(pb.CATALOGUE["cash"]))})
+    assert pb.verifier_catalogue({"cash": pb.CATALOGUE["cash"]})["cash"]["approbation_requise"] is True
+
+
+@pytest.mark.parametrize("playbook", sorted(ONZE_NOUVEAUX))
+def test_nouveaux_gabarits_instancies_sans_effet_et_a_declarer(playbook):
+    plan, _ = _plan(playbook, [])
+    assert plan["declenchement"]["statut"] == "A_DECLARER", "aucun producteur ne mesure ces signaux"
+    for etape in plan["etapes"]:
+        assert etape["effet_autorise"] is False
+        if etape["type"] == "action_sensible":
+            assert etape["statut"] == "VALIDATION_HUMAINE_REQUISE"
+            assert etape["proprietaire_decision"] == conseil.ACTIONS_SENSIBLES[etape["genre"]]
+        else:
+            assert etape["statut"] == "PROPOSABLE"
+    gabarit = pb.CATALOGUE[playbook]
+    for champ in ("donnees_requises", "departements", "risques", "approbation_requise", "plan_retour"):
+        assert plan[champ] == gabarit[champ]
+    for critere in [*plan["succes"], *plan["arret"]]:
+        if critere["cible_a_lier"]:
+            assert critere["cible"] is None and critere["cible_declaree_par_la_personne"] is False
+    # Sans capture, aucun critère n'est réputé satisfait ; une cible non liée reste inconnue.
+    evaluation = pb.evaluer_criteres(plan, [], connaissance=CONNAISSANCE)
+    assert evaluation["verdict"] in {"INCONNU", "EN_COURS"}
+    assert all(c["statut"] != "SATISFAIT" for c in [*evaluation["succes"], *evaluation["arret"]])
+
+
+def test_aucune_etape_d_aucun_gabarit_n_autorise_d_effet():
+    for playbook in pb.CATALOGUE:
+        plan = pb.instancier(playbook, None, connaissance=CONNAISSANCE, declare_par_la_personne=True)
+        assert all(e["effet_autorise"] is False for e in plan["etapes"])
+        assert plan["approbation_requise"] is any(e["statut"] == "VALIDATION_HUMAINE_REQUISE" for e in plan["etapes"])
+
+
+def test_cible_de_la_personne_liee_sur_un_nouveau_gabarit():
+    lecture = _enveloppe({"total": 12, "leads": [{"lead_id": "L1"}]})
+    chaine = _chaine(("m2.leads", lecture, "2026-10-27T12:00:00Z"))
+    sans_cible, _ = _plan("trop_de_leads", chaine, declare_par_la_personne=True)
+    ev = pb.evaluer_criteres(sans_cible, chaine, connaissance=CONNAISSANCE)
+    assert ev["succes"][0]["statut"] == "INCONNU", "sans cible de la personne : jamais de valeur par défaut"
+    lie, _ = _plan("trop_de_leads", chaine, declare_par_la_personne=True, liaisons={"leads_resorbes": "15"})
+    assert pb.evaluer_criteres(lie, chaine, connaissance=CONNAISSANCE)["succes"][0]["statut"] == "SATISFAIT"
+    serre, _ = _plan("trop_de_leads", chaine, declare_par_la_personne=True, liaisons={"leads_resorbes": "10"})
+    assert pb.evaluer_criteres(serre, chaine, connaissance=CONNAISSANCE)["succes"][0]["statut"] == "NON_SATISFAIT"
 
 
 def test_rupture_declenchee_par_une_reservation_partielle_et_etapes_gouvernees():

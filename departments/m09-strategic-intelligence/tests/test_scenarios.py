@@ -15,6 +15,7 @@ FAITS = {
     "m5.comptes_a_recevoir#4:p0.resultat.resultat.revenu": "98000.00",
     "m7.performance_campagnes#5:p0.resultat.resultat.budget": "3000",
     "m2.leads#0:p0.resultat.resultat.texte": "beaucoup",
+    "m5.comptes_a_recevoir#4:p0.resultat.resultat.attendus": "41000.50",
 }
 BASES = {
     "leads_periode": "m2.leads#0:p0.resultat.resultat.total",
@@ -24,6 +25,43 @@ BASES = {
     "cout_materiaux_periode": "m6.disponibilite#3:p0.resultat.resultat.cout",
     "revenu_periode": "m5.comptes_a_recevoir#4:p0.resultat.resultat.revenu",
     "budget_marketing_periode": "m7.performance_campagnes#5:p0.resultat.resultat.budget",
+    "encaissements_attendus_periode": "m5.comptes_a_recevoir#4:p0.resultat.resultat.attendus",
+}
+NEUF_DE_LA_DEFINITION = {
+    "baisse_leads",
+    "hausse_budget_marketing",
+    "hausse_cout_materiaux",
+    "absences",
+    "meteo",
+    "achat_camion",
+    "nouvel_employe",
+    "perte_gros_client",
+    "nouvelle_ville",
+}
+DIX_NOUVEAUX = {
+    "achat_equipement",
+    "achat_batisse",
+    "gain_gros_client",
+    "retard_paiement_client",
+    "saison_morte_faible",
+    "nouveau_service",
+    "concurrent_agressif",
+    "cashflow_serre",
+    "rupture_inventaire",
+    "trop_de_demandes",
+}
+# Paramètres valides de chaque nouveau choc (hypothèses déclarées, fictives).
+PARAMETRES_NOUVEAUX = {
+    "achat_equipement": {"prix": "12000.10"},
+    "achat_batisse": {"prix": "450000", "mise_de_fonds_pct": "12.5"},
+    "gain_gros_client": {"revenu_ajoute": "25000.55"},
+    "retard_paiement_client": {"montant_retarde": "15000", "jours_retard": "45"},
+    "saison_morte_faible": {"baisse_revenu_pct": "30"},
+    "nouveau_service": {"investissement": "20000"},
+    "concurrent_agressif": {"perte_leads_pct": "15"},
+    "cashflow_serre": {"horizon_semaines": "8", "seuil_minimal": "10000"},
+    "rupture_inventaire": {"jours_rupture": "10"},
+    "trop_de_demandes": {"hausse_pct": "250"},
 }
 
 
@@ -31,21 +69,16 @@ def _effet(scenario, identifiant):
     return next(e for e in scenario["effets"] if e["id"] == identifiant)
 
 
-def test_neuf_chocs_de_la_definition_produit_sont_au_catalogue():
-    attendus = {
-        "baisse_leads",
-        "hausse_budget_marketing",
-        "hausse_cout_materiaux",
-        "absences",
-        "meteo",
-        "achat_camion",
-        "nouvel_employe",
-        "perte_gros_client",
-        "nouvelle_ville",
-    }
-    assert set(sc.CHOCS) == attendus
+def test_dix_neuf_chocs_au_catalogue_dont_les_neuf_de_la_definition_produit():
+    assert set(sc.CHOCS) >= NEUF_DE_LA_DEFINITION
+    assert set(sc.CHOCS) == NEUF_DE_LA_DEFINITION | DIX_NOUVEAUX and len(sc.CHOCS) == 19
     for choc in sc.CHOCS.values():
         assert all(effet.base in sc.BASES for effet in choc.effets) and choc.a_calculer_par
+        assert all(effet.operation in sc.OPERATIONS for effet in choc.effets)
+        for parametre in choc.parametres:
+            assert parametre.unite and parametre.minimum <= parametre.maximum, "chaque paramètre est borné et unité"
+        for confie in choc.a_calculer_par:
+            assert confie["proprietaire"].startswith("m") and isinstance(confie["entrees"], list)
 
 
 @pytest.mark.parametrize(
@@ -166,7 +199,7 @@ def test_comparaison_reference_et_ecarts_signes_meme_unite_aucune_moyenne():
     comparaison = sc.comparer([a, b, c], BASES, FAITS)
     assert comparaison["reference"]["cash_libre"]["valeur"] == "52000.40"
     lignes = {(ligne["scenario"], ligne["effet"], ligne["statut"]): ligne for ligne in comparaison["lignes"]}
-    assert lignes[("achat_camion", "cash_apres_achat", "CALCULE")]["ecart"] == "-48000.25" or True
+    assert lignes[("achat_camion", "cash_apres_achat", "CALCULE")]["ecart"] == "-48000.25"
     assert Fraction(lignes[("achat_camion", "cash_apres_achat", "CALCULE")]["ecart"]) == Fraction("4000.15") - Fraction(
         "52000.40"
     )
@@ -174,3 +207,96 @@ def test_comparaison_reference_et_ecarts_signes_meme_unite_aucune_moyenne():
     assert "moyenne" not in comparaison and "classement" not in comparaison
     with pytest.raises(ValueError, match="REJ-SCENARIO-COMPARAISON"):
         sc.comparer([], BASES, FAITS)
+
+
+# --- Dix chocs ajoutés (M9.8) ---------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("choc", "effet", "attendu"),
+    [
+        ("achat_equipement", "cash_apres_achat_equipement", Fraction("52000.40") - Fraction("12000.10")),
+        ("achat_batisse", "cash_apres_mise_de_fonds", Fraction("52000.40") - 450000 * Fraction(125, 1000)),
+        ("gain_gros_client", "revenu_apres_gain", Fraction("98000.00") + Fraction("25000.55")),
+        ("retard_paiement_client", "encaissements_apres_retard", Fraction("41000.50") - 15000),
+        ("saison_morte_faible", "revenu_projete", Fraction("98000.00") * Fraction(70, 100)),
+        ("nouveau_service", "cash_apres_lancement", Fraction("52000.40") - 20000),
+        ("concurrent_agressif", "leads_projetes", Fraction(40) * Fraction(85, 100)),
+        ("trop_de_demandes", "leads_projetes", Fraction(40) * Fraction(350, 100)),
+    ],
+)
+def test_nouveaux_chocs_arithmetiques_calculent_exactement_l_oracle(choc, effet, attendu):
+    scenario = sc.evaluer(choc, PARAMETRES_NOUVEAUX[choc], BASES, FAITS)
+    resultat = _effet(scenario, effet)
+    assert resultat["statut"] == "CALCULE" and resultat["nature"] == "SENSIBILITE_ARITHMETIQUE"
+    assert Fraction(resultat["valeur"]) == attendu
+    assert Fraction(resultat["ecart"]) == attendu - Fraction(resultat["valeur_base"])
+    assert scenario["calculable"] is True and scenario["a_calculer_par"]
+    assert [b["base"] for b in sc.bases_requises(choc)] == [resultat["base"]]
+
+
+@pytest.mark.parametrize("choc", sorted(DIX_NOUVEAUX))
+def test_chaque_nouveau_choc_refuse_sans_base_en_nommant_ce_qui_manque_et_qui_le_possede(choc):
+    scenario = sc.evaluer(choc, PARAMETRES_NOUVEAUX[choc], {}, FAITS)
+    assert scenario["calculable"] is False
+    assert all("valeur" not in effet for effet in scenario["effets"]), "aucune valeur sans base citée"
+    for effet in scenario["effets"]:
+        base = sc.BASES[effet["base"]]
+        assert effet["statut"] == "NON_CALCULE" and base.proprietaire in effet["raison"]
+        assert scenario["bases"][effet["base"]]["etat"] == "BASE_ABSENTE"
+
+
+@pytest.mark.parametrize("choc", ["cashflow_serre", "rupture_inventaire"])
+def test_chocs_sans_sensibilite_honnete_restent_a_calculer_par_le_proprietaire(choc):
+    scenario = sc.evaluer(choc, PARAMETRES_NOUVEAUX[choc], BASES, FAITS)
+    assert scenario["effets"] == [] and scenario["calculable"] is False
+    assert scenario["nature"] == "A_CALCULER_PAR_LE_PROPRIETAIRE" and sc.bases_requises(choc) == []
+    entrees = {e for confie in scenario["a_calculer_par"] for e in confie["entrees"]}
+    assert entrees == set(PARAMETRES_NOUVEAUX[choc]), "les entrées exactes à fournir sont les hypothèses déclarées"
+    assert {c["proprietaire"] for c in scenario["a_calculer_par"]} <= {"m05-financecore", "m06-material-control",
+                                                                       "m04-field-ops"}  # fmt: skip
+    comparaison = sc.comparer([scenario], BASES, FAITS)
+    assert comparaison["lignes"] == [], "rien n'est présenté comme calculé"
+
+
+def test_retard_superieur_aux_encaissements_attendus_est_infaisable_sans_troncature():
+    scenario = sc.evaluer("retard_paiement_client", {"montant_retarde": "50000", "jours_retard": "30"}, BASES, FAITS)
+    effet = _effet(scenario, "encaissements_apres_retard")
+    assert effet["statut"] == "INFAISABLE" and Fraction(effet["valeur"]) == Fraction("41000.50") - 50000
+
+
+def test_nouveaux_chocs_ne_calculent_ni_marge_ni_tresorerie_ni_capacite_ni_roi():
+    interdits = ("marge", "tresorerie", "capacite", "roi", "rentabilite")
+    for choc in DIX_NOUVEAUX:
+        effets = sc.CHOCS[choc].effets
+        assert not any(mot in effet.id for effet in effets for mot in interdits), choc
+        assert all(effet.base != "capacite_jours_personnes" for effet in effets), choc
+
+
+@pytest.mark.parametrize(
+    ("choc", "parametres", "code"),
+    [
+        ("achat_batisse", {"prix": "450000", "mise_de_fonds_pct": "100.01"}, "REJ-SCENARIO-BORNE"),
+        ("trop_de_demandes", {"hausse_pct": "1000.5"}, "REJ-SCENARIO-BORNE"),
+        ("cashflow_serre", {"horizon_semaines": "0", "seuil_minimal": "10"}, "REJ-SCENARIO-BORNE"),
+        ("cashflow_serre", {"horizon_semaines": "53", "seuil_minimal": "10"}, "REJ-SCENARIO-BORNE"),
+        ("retard_paiement_client", {"montant_retarde": "10"}, "REJ-SCENARIO-PARAMETRES"),
+        ("rupture_inventaire", {"jours_rupture": "1e3"}, "REJ-SCENARIO-NOMBRE"),
+        ("gain_gros_client", {"revenu_ajoute": "-1"}, "REJ-SCENARIO-BORNE"),
+    ],
+)
+def test_nouveaux_chocs_bornes_et_parametres_refuses(choc, parametres, code):
+    with pytest.raises(ValueError, match=code):
+        sc.evaluer(choc, parametres, BASES, FAITS)
+    with pytest.raises(ValueError, match=code):
+        sc.valider_parametres(choc, parametres)
+
+
+def test_fonctions_du_catalogue_valident_un_parametre_isole_et_refusent_l_inconnu():
+    assert sc.valider_parametre("trop_de_demandes", "hausse_pct", "999") == sc.decimal("999", nom="x")
+    with pytest.raises(ValueError, match="REJ-SCENARIO-PARAMETRES"):
+        sc.valider_parametre("meteo", "jours_inventes", "1")
+    with pytest.raises(ValueError, match="REJ-SCENARIO-CHOC"):
+        sc.valider_parametre("inconnu", "x", "1")
+    with pytest.raises(ValueError, match="REJ-SCENARIO-CHOC"):
+        sc.bases_requises(["liste"])

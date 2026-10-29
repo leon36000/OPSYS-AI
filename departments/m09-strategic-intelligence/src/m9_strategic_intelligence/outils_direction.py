@@ -23,12 +23,18 @@ from opsys.outils import Autonomie, Niveau, Outil
 
 from . import capture_strategique as cs
 from . import catalogue_producteurs as cat
-from . import revue_periodique, sessions_conseil
+from . import experiences as exp_module
+from . import orchestrateur, revue_periodique, sessions_conseil
+from . import plans as plans_module
+from . import risques as rk
 from .outils_tissu import DEPARTEMENT, MAX_PAGE_OCTETS, borner, exiger_admin_strict
 
 REGISTRE_PUBLICATIONS = "publications_revue"
 REGISTRE_CAPTURES = "captures_strategiques"
 REGISTRE_SESSIONS = "sessions_conseil"
+REGISTRE_PLANS = "plans"
+REGISTRE_ACTIONS = "actions"
+REGISTRE_EXPERIENCES = "experiences"
 MAX_ITEMS_SALLE = 5
 _INSTANT = {"type": "string", "description": "Instant RFC 3339 à fuseau explicite (M9 n'a pas d'horloge)."}
 
@@ -49,6 +55,9 @@ def construire_outils(
     captures_cible: Any = None,
     sessions_cible: Any = None,
     publications_cible: Any = None,
+    plans_cible: Any = None,
+    actions_cible: Any = None,
+    experiences_cible: Any = None,
 ) -> tuple[Outil, ...]:
     def lire(cible: Any, registre: str) -> Any:
         return cible if cible is not None else stockage.maillons(DEPARTEMENT, registre)
@@ -66,6 +75,13 @@ def construire_outils(
         if not ok:
             raise _refus("REJ-SESSION-CHAINE-INVALIDE", f"registre des sessions invalide ({raison})")
         return evenements
+
+    def registre_verifie(cible: Any, registre: str, validateur: Callable, code: str) -> list[dict]:
+        liste = list(lire(cible, registre))
+        ok, raison = validateur(liste)
+        if not ok:
+            raise _refus(code, f"registre « {registre} » invalide ({raison})")
+        return liste
 
     def publications() -> list[dict]:
         liste = list(lire(publications_cible, REGISTRE_PUBLICATIONS))
@@ -99,11 +115,29 @@ def construire_outils(
             "contradictions": len(revue["contradictions"]),
             "decisions": len(revue["decisions"]),
             "captures_de_la_periode": len(revue["captures_de_la_periode"]),
+            "sections_direction": {
+                s: sum(1 for x in revue["sections_direction"]["sections"].values() if x["statut"] == s)
+                for s in ("RENSEIGNEE", "PARTIELLE", "NON_DISPONIBLE")
+            },
         }
 
     def composer(granularite: str, ancre: str, fuseau: str, connaissance: str) -> dict:
         return revue_periodique.composer(
-            captures(), sessions(), granularite=granularite, ancre=ancre, fuseau=fuseau, connaissance=connaissance
+            captures(),
+            sessions(),
+            granularite=granularite,
+            ancre=ancre,
+            fuseau=fuseau,
+            connaissance=connaissance,
+            plans=registre_verifie(
+                plans_cible, REGISTRE_PLANS, plans_module.valider_chaine, "REJ-PLAN-CHAINE-INVALIDE"
+            ),
+            actions=registre_verifie(
+                actions_cible, REGISTRE_ACTIONS, orchestrateur.valider_chaine, "REJ-ACTION-CHAINE-INVALIDE"
+            ),
+            experiences=registre_verifie(
+                experiences_cible, REGISTRE_EXPERIENCES, exp_module.valider_chaine, "REJ-EXPERIENCE-CHAINE-INVALIDE"
+            ),
         )
 
     def apercu_revue(
@@ -232,9 +266,38 @@ def construire_outils(
             if (instant := cs.instant(str(a.get("horodatage_reference", "")))) is not None
             and 0 <= (limite - instant).total_seconds() <= (fenetre + 1) * 86400  # type: ignore[operator]
         ]
+        radar = rk.evaluer(chaine, connaissance=reference)
+        veille = rk.delta(chaine, connaissance=reference)
+        maintenant = cs.instant(reference)
+        nouvelles = sum(
+            1
+            for c in chaine
+            if (recu := cs.instant(c["recu_a"])) is not None and 0 < (maintenant - recu).total_seconds() <= 86400  # type: ignore[operator]
+        )
+        presents = [r for r in radar["risques"] if r["statut"] != "LEVE"]
         contenu = {
             "type": "SALLE_DE_GUERRE",
             "reference": reference,
+            "risques": {
+                "actifs": sum(1 for r in presents if r["statut"] == "ACTIF"),
+                "a_reconfirmer": sum(1 for r in presents if r["statut"] == "A_RECONFIRMER"),
+                "leves": sum(1 for r in radar["risques"] if r["statut"] == "LEVE"),
+                "regles_non_evaluees": len(radar["regles_non_evaluees"]),
+                "premiers": [
+                    {k: r[k] for k in ("regle", "sujet", "gravite", "statut")} for r in presents[:MAX_ITEMS_SALLE]
+                ],
+                "detail": "m9_radar_risques",
+                "grille": radar["grille"]["statut"],
+            },
+            "changements_depuis_la_veille": {
+                "connaissance_precedente": veille["connaissance_precedente"],
+                "risques_apparus": veille["apparus"][:MAX_ITEMS_SALLE],
+                "risques_apparus_total": len(veille["apparus"]),
+                "risques_leves": veille["leves"][:MAX_ITEMS_SALLE],
+                "risques_leves_total": len(veille["leves"]),
+                "gravite_changee": veille["gravite_changee"][:MAX_ITEMS_SALLE],
+                "captures_nouvelles": nouvelles,
+            },
             "decisions_en_attente": {
                 "total": len(decisions),
                 "premieres": [

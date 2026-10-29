@@ -54,9 +54,20 @@ def test_chaque_port_cite_par_un_playbook_est_un_outil_reel():
 
 
 def test_lister_et_evaluer_par_les_vrais_outils_sans_donnee_donne_inconnu_ou_a_declarer(cap):
-    liste = appel(cap, "m9_lister_playbooks", {})
-    assert liste["ok"] is True and len(liste["resultat"]["playbooks"]) == 6
-    assert all(p["etapes_sensibles"] >= 1 for p in liste["resultat"]["playbooks"])
+    fiches, depart, pages = [], 0, 0
+    while depart is not None:
+        liste = appel(cap, "m9_lister_playbooks", {"depart": depart})
+        assert liste["ok"] is True and "tronque" not in liste, "chaque page tient dans la borne de sortie"
+        assert liste["resultat"]["total"] == 17 and liste["resultat"]["playbooks"]
+        fiches += liste["resultat"]["playbooks"]
+        depart, pages = liste["resultat"]["prochain_depart"], pages + 1
+    assert len(fiches) == 17 and pages >= 2
+    par_id = {p["playbook"]: p for p in fiches}
+    assert len(par_id) == 17
+    origine = {"cash", "baisse_leads", "surcharge", "meteo", "rupture", "hausse_prix"}
+    assert all(par_id[id_]["etapes_sensibles"] >= 1 for id_ in origine)
+    assert all((p["etapes_sensibles"] >= 1) is p["approbation_requise"] for p in par_id.values())
+    assert all(p["plan_retour"] and p["donnees_requises"] and p["departements"] for p in par_id.values())
     reponse = appel(cap, "m9_evaluer_playbook", {"playbook_id": "rupture", "connaissance": CONNAISSANCE})
     assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
     plan = reponse["resultat"]["plan"]

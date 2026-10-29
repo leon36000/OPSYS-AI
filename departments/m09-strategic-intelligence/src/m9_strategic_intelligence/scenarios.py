@@ -16,7 +16,8 @@ Ce qu'il ne calcule jamais : marge, trésorerie, rentabilité, ROI, capacité d'
 promise —
 ces effets restent ``A_CALCULER_PAR`` leur propriétaire (M5 finance, M4 capacité, M6 stock, M8 mesure) avec les entrées
 exactes à lui fournir. Le scénario de RÉFÉRENCE est la base inchangée ; la comparaison rend les écarts signés de mêmes
-unités.
+unités. Un choc sans sensibilité honnête (trésorerie serrée, rupture d'inventaire) n'a AUCUN effet calculé : il n'est
+jamais ``calculable`` et ne rend que ses ``a_calculer_par``.
 """
 
 from __future__ import annotations
@@ -68,7 +69,7 @@ class Base:
 
 @dataclasses.dataclass(frozen=True)
 class Effet:
-    """Sensibilité arithmétique : ``operation`` ∈ mult_pct_baisse, mult_pct_hausse, soustraire, soustraire_produit."""
+    """Sensibilité arithmétique : ``operation`` ∈ OPERATIONS (voir ``_appliquer``)."""
 
     id: str
     base: str
@@ -88,7 +89,10 @@ class Choc:
     a_calculer_par: tuple[dict, ...]  # effets que M9 ne calcule pas : propriétaire, outil, entrées à fournir
 
 
-_POURCENT = lambda nom: Parametre(nom, "%", Decimal("0"), Decimal("100"))  # noqa: E731
+OPERATIONS = frozenset(
+    {"mult_pct_baisse", "mult_pct_hausse", "soustraire", "soustraire_produit", "ajouter", "soustraire_pct_de"}
+)
+_POURCENT = lambda nom, haut="100": Parametre(nom, "%", Decimal("0"), Decimal(haut))  # noqa: E731
 _POSITIF = lambda nom, unite, haut="1000000000": Parametre(nom, unite, Decimal("0"), Decimal(haut))  # noqa: E731
 
 BASES: Mapping[str, Base] = {
@@ -101,6 +105,9 @@ BASES: Mapping[str, Base] = {
         Base("jours_ouvrables", "jours", "m04-field-ops", "jours ouvrables de la période"),
         Base("cash_libre", "CAD", "m05-financecore", "cash libre constaté"),
         Base("revenu_periode", "CAD", "m05-financecore", "revenu facturé de la période"),
+        Base(
+            "encaissements_attendus_periode", "CAD", "m05-financecore", "encaissements clients attendus sur la période"
+        ),
     )
 }
 
@@ -236,8 +243,258 @@ CHOCS: Mapping[str, Choc] = {
                 },
             ),
         ),
+        Choc(
+            "achat_equipement",
+            "Achat d'un équipement",
+            (_POSITIF("prix", "CAD"),),
+            (Effet("cash_apres_achat_equipement", "cash_libre", "soustraire", ("prix",), "CAD", 2),),
+            (
+                {
+                    "effet": "décision d'investissement et amortissement",
+                    "proprietaire": "m05-financecore",
+                    "outil": "m5_preparer_decision_capital",
+                    "entrees": ["cash_apres_achat_equipement", "prix"],
+                    "gouvernance": "achat majeur : validation humaine",
+                },
+                {
+                    "effet": "capacité gagnée",
+                    "proprietaire": "m04-field-ops",
+                    "entrees": ["prix"],
+                    "motif": "aucun gain de productivité établi par un producteur",
+                },
+            ),
+        ),
+        Choc(
+            "achat_batisse",
+            "Achat d'une bâtisse",
+            (_POSITIF("prix", "CAD"), _POURCENT("mise_de_fonds_pct")),
+            (
+                Effet(
+                    "cash_apres_mise_de_fonds",
+                    "cash_libre",
+                    "soustraire_pct_de",
+                    ("prix", "mise_de_fonds_pct"),
+                    "CAD",
+                    2,
+                ),
+            ),
+            (
+                {
+                    "effet": "financement, intérêts et charges de la bâtisse",
+                    "proprietaire": "m05-financecore",
+                    "outil": "m5_preparer_decision_capital",
+                    "entrees": ["prix", "mise_de_fonds_pct", "cash_apres_mise_de_fonds"],
+                    "gouvernance": "achat majeur et dette : validation humaine, avis comptable et juridique",
+                },
+            ),
+        ),
+        Choc(
+            "gain_gros_client",
+            "Gain d'un gros client",
+            (_POSITIF("revenu_ajoute", "CAD"),),
+            (Effet("revenu_apres_gain", "revenu_periode", "ajouter", ("revenu_ajoute",), "CAD", 2),),
+            (
+                {
+                    "effet": "capacité d'équipe pour absorber le volume",
+                    "proprietaire": "m04-field-ops",
+                    "entrees": ["revenu_ajoute"],
+                },
+                {"effet": "marge et trésorerie", "proprietaire": "m05-financecore", "entrees": ["revenu_apres_gain"]},
+            ),
+        ),
+        Choc(
+            "retard_paiement_client",
+            "Retard de paiement d'un client",
+            (_POSITIF("montant_retarde", "CAD"), _POSITIF("jours_retard", "jours", "366")),
+            (
+                Effet(
+                    "encaissements_apres_retard",
+                    "encaissements_attendus_periode",
+                    "soustraire",
+                    ("montant_retarde",),
+                    "CAD",
+                    2,
+                    plancher_zero=True,
+                ),
+            ),
+            (
+                {
+                    "effet": "trésorerie semaine par semaine",
+                    "proprietaire": "m05-financecore",
+                    "outil": "m5_prevoir_tresorerie",
+                    "entrees": ["montant_retarde", "jours_retard"],
+                },
+            ),
+        ),
+        Choc(
+            "saison_morte_faible",
+            "Saison morte plus faible",
+            (_POURCENT("baisse_revenu_pct"),),
+            (Effet("revenu_projete", "revenu_periode", "mult_pct_baisse", ("baisse_revenu_pct",), "CAD", 2),),
+            (
+                {
+                    "effet": "trésorerie de la saison morte",
+                    "proprietaire": "m05-financecore",
+                    "outil": "m5_prevoir_tresorerie",
+                    "entrees": ["revenu_projete"],
+                },
+                {"effet": "équipes à occuper", "proprietaire": "m04-field-ops", "entrees": ["baisse_revenu_pct"]},
+            ),
+        ),
+        Choc(
+            "nouveau_service",
+            "Lancement d'un nouveau service",
+            (_POSITIF("investissement", "CAD"),),
+            (Effet("cash_apres_lancement", "cash_libre", "soustraire", ("investissement",), "CAD", 2),),
+            (
+                {
+                    "effet": "demande pour le service",
+                    "proprietaire": "m02-revenue-crm / m07-marketing",
+                    "motif": "aucune donnée de marché fournie pour ce service",
+                    "entrees": ["investissement"],
+                },
+                {
+                    "effet": "prix de vente et estimation",
+                    "proprietaire": "m03-estimation",
+                    "entrees": ["description du service par la personne"],
+                },
+                {
+                    "effet": "capacité et compétences",
+                    "proprietaire": "m04-field-ops",
+                    "entrees": ["description du service par la personne"],
+                },
+            ),
+        ),
+        Choc(
+            "concurrent_agressif",
+            "Concurrent agressif",
+            (_POURCENT("perte_leads_pct"),),
+            (Effet("leads_projetes", "leads_periode", "mult_pct_baisse", ("perte_leads_pct",), "leads", 2),),
+            (
+                {
+                    "effet": "pipeline et revenus",
+                    "proprietaire": "m02-revenue-crm / m05-financecore",
+                    "entrees": ["leads_projetes"],
+                },
+                {
+                    "effet": "positionnement et prix",
+                    "proprietaire": "m07-marketing / m03-estimation",
+                    "outil": "m7_analyser_concurrents",
+                    "entrees": ["perte_leads_pct"],
+                    "gouvernance": "baisse de prix globale : validation humaine",
+                },
+            ),
+        ),
+        Choc(
+            "cashflow_serre",
+            "Trésorerie serrée",
+            (
+                Parametre("horizon_semaines", "semaines", Decimal("1"), Decimal("52")),
+                _POSITIF("seuil_minimal", "CAD"),
+            ),
+            (),
+            (
+                {
+                    "effet": "trésorerie projetée face au seuil de la personne",
+                    "proprietaire": "m05-financecore",
+                    "outil": "m5_prevoir_tresorerie",
+                    "entrees": ["horizon_semaines", "seuil_minimal"],
+                    "motif": "une projection de trésorerie n'est pas une sensibilité arithmétique : M9 ne la calcule "
+                    "pas",
+                },
+            ),
+        ),
+        Choc(
+            "rupture_inventaire",
+            "Rupture d'inventaire",
+            (_POSITIF("jours_rupture", "jours", "366"),),
+            (),
+            (
+                {
+                    "effet": "matériaux manquants et réservations touchées",
+                    "proprietaire": "m06-material-control",
+                    "outil": "m6_lire_disponibilite",
+                    "entrees": ["jours_rupture"],
+                },
+                {
+                    "effet": "interventions à replanifier",
+                    "proprietaire": "m04-field-ops",
+                    "entrees": ["jours_rupture"],
+                    "motif": "une rupture ne bloque pas tous les chantiers : aucune capacité retirée par M9",
+                },
+            ),
+        ),
+        Choc(
+            "trop_de_demandes",
+            "Trop de demandes",
+            (_POURCENT("hausse_pct", "1000"),),
+            (Effet("leads_projetes", "leads_periode", "mult_pct_hausse", ("hausse_pct",), "leads", 2),),
+            (
+                {
+                    "effet": "capacité d'estimation et de pose",
+                    "proprietaire": "m03-estimation / m04-field-ops",
+                    "entrees": ["leads_projetes"],
+                    "motif": "aucune capacité d'équipe publiée par un producteur",
+                },
+            ),
+        ),
     )
 }
+
+
+def _verifier_catalogue() -> None:
+    for choc in CHOCS.values():
+        noms = {p.nom for p in choc.parametres}
+        if len(noms) != len(choc.parametres) or not choc.a_calculer_par:
+            raise ValueError(f"{choc.id} : paramètres en double ou effets à confier absents")
+        for effet in choc.effets:
+            if effet.base not in BASES or effet.operation not in OPERATIONS or not set(effet.parametres) <= noms:
+                raise ValueError(f"{choc.id}.{effet.id} : base, opération ou paramètre inconnu")
+
+
+_verifier_catalogue()
+
+
+def _choc(choc_id: object) -> Choc:
+    if type(choc_id) is not str or choc_id not in CHOCS:
+        raise _refus("REJ-SCENARIO-CHOC", "choc inconnu du catalogue")
+    return CHOCS[choc_id]
+
+
+def bases_requises(choc_id: str) -> list[dict]:
+    """Bases citables qu'exige le choc (nom, unité, propriétaire) ; vide si M9 n'a aucun effet arithmétique honnête."""
+    return [
+        {
+            "base": nom,
+            "unite": BASES[nom].unite,
+            "proprietaire": BASES[nom].proprietaire,
+            "description": BASES[nom].description,
+        }
+        for nom in sorted({effet.base for effet in _choc(choc_id).effets})
+    ]
+
+
+def valider_parametre(choc_id: str, nom: str, texte: object) -> Decimal:
+    """Un paramètre du choc : nom déclaré, décimal textuel sobre, dans ses bornes (refus nommés sinon)."""
+    choc = _choc(choc_id)
+    parametre = next((p for p in choc.parametres if p.nom == nom), None)
+    if parametre is None:
+        raise _refus("REJ-SCENARIO-PARAMETRES", f"paramètres exacts requis : {[p.nom for p in choc.parametres]}")
+    valeur = decimal(texte, nom=parametre.nom)
+    if not parametre.minimum <= valeur <= parametre.maximum:
+        raise _refus(
+            "REJ-SCENARIO-BORNE",
+            f"{parametre.nom} hors de [{parametre.minimum}, {parametre.maximum}] {parametre.unite}",
+        )
+    return valeur
+
+
+def valider_parametres(choc_id: str, parametres: object) -> dict[str, Decimal]:
+    """Tous les paramètres du choc, exactement : ni manquant, ni en trop, chacun valide et borné."""
+    choc = _choc(choc_id)
+    if not isinstance(parametres, Mapping) or set(parametres) != {p.nom for p in choc.parametres}:
+        raise _refus("REJ-SCENARIO-PARAMETRES", f"paramètres exacts requis : {[p.nom for p in choc.parametres]}")
+    return {p.nom: valider_parametre(choc_id, p.nom, parametres[p.nom]) for p in choc.parametres}
 
 
 def _base(nom: str, bases: Mapping[str, str], faits: Mapping[str, str]) -> tuple[Decimal | None, dict]:
@@ -282,6 +539,10 @@ def _appliquer(effet: Effet, base: Decimal, valeurs: Mapping[str, Decimal]) -> D
             brut = base - valeurs[effet.parametres[0]]
         elif effet.operation == "soustraire_produit":
             brut = base - valeurs[effet.parametres[0]] * valeurs[effet.parametres[1]]
+        elif effet.operation == "ajouter":
+            brut = base + valeurs[effet.parametres[0]]
+        elif effet.operation == "soustraire_pct_de":
+            brut = base - valeurs[effet.parametres[0]] * valeurs[effet.parametres[1]] / Decimal(100)
         else:  # pragma: no cover - garde de construction
             raise ValueError("opération inconnue")
         return brut.quantize(Decimal(1).scaleb(-effet.echelle), rounding=ROUND_HALF_UP)
@@ -289,20 +550,8 @@ def _appliquer(effet: Effet, base: Decimal, valeurs: Mapping[str, Decimal]) -> D
 
 def evaluer(choc_id: str, parametres: Mapping[str, str], bases: Mapping[str, str], faits: Mapping[str, str]) -> dict:
     """Un scénario : paramètres validés (unités, bornes), bases sourcées, effets arithmétiques et effets à confier."""
-    choc = CHOCS.get(choc_id)
-    if choc is None:
-        raise _refus("REJ-SCENARIO-CHOC", "choc inconnu du catalogue")
-    if not isinstance(parametres, Mapping) or set(parametres) != {p.nom for p in choc.parametres}:
-        raise _refus("REJ-SCENARIO-PARAMETRES", f"paramètres exacts requis : {[p.nom for p in choc.parametres]}")
-    valeurs: dict[str, Decimal] = {}
-    for parametre in choc.parametres:
-        valeur = decimal(parametres[parametre.nom], nom=parametre.nom)
-        if not parametre.minimum <= valeur <= parametre.maximum:
-            raise _refus(
-                "REJ-SCENARIO-BORNE",
-                f"{parametre.nom} hors de [{parametre.minimum}, {parametre.maximum}] {parametre.unite}",
-            )
-        valeurs[parametre.nom] = valeur
+    choc = _choc(choc_id)
+    valeurs = valider_parametres(choc_id, parametres)
     effets, manques, sources = [], [], {}
     for effet in choc.effets:
         base, source = _base(effet.base, bases, faits)
@@ -346,6 +595,11 @@ def evaluer(choc_id: str, parametres: Mapping[str, str], bases: Mapping[str, str
         "calculable": not manques,
         "limites": list(_LIMITES),
     }
+    if not choc.effets:
+        # Aucune sensibilité arithmétique honnête : tout reste au propriétaire, rien n'est présenté comme calculé.
+        scenario["calculable"] = False
+        scenario["nature"] = "A_CALCULER_PAR_LE_PROPRIETAIRE"
+        scenario["raison"] = "aucun effet arithmétique honnête pour M9 : voir a_calculer_par et ses entrées"
     scenario["scenario_id"] = hashlib.sha256(
         json.dumps(scenario, sort_keys=True, ensure_ascii=False, allow_nan=False).encode()
     ).hexdigest()

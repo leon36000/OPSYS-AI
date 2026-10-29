@@ -182,3 +182,50 @@ def test_ecart_de_marge_positif_ou_illisible_n_est_pas_un_risque():
     assert rk.evaluer(chaine, connaissance=CONNAISSANCE)["risques"] == []
     chaine = _chaine(("m8.mesures_chantier", _mesures("abc"), "2026-10-27T12:00:00Z", {"wct_id": "W1"}))
     assert rk.evaluer(chaine, connaissance=CONNAISSANCE)["risques"] == []
+
+
+# --- Ce qui a changé depuis la veille (delta) -----------------------------------------------------------------------
+def test_delta_apparu_leve_et_gravite_changee_sur_deux_etats_connus():
+    hier = "2026-10-27T10:00:00Z"
+    aujourd_hui = "2026-10-28T10:00:00Z"
+    chaine = _chaine(
+        ("m4.retards_incidents", _retards(bloquee=False, motif="manuel"), hier, {"horodatage_reference": hier}),
+        ("m6.disponibilite", _disponibilite("partiel"), aujourd_hui, {}),
+        (
+            "m4.retards_incidents",
+            _retards(bloquee=True, motif="manuel"),
+            aujourd_hui,
+            {"horodatage_reference": aujourd_hui},
+        ),
+    )
+    res = rk.delta(chaine, connaissance="2026-10-28T12:00:00Z")
+    assert res["connaissance_precedente"] == "2026-10-27T12:00:00Z"
+    assert [(r["regle"], r["sujet"]) for r in res["apparus"]] == [("materiaux_reservation_incomplete", "devis:D1")]
+    assert res["leves"] == [] and res["gravite_changee"][0]["sujet"] == "incident:R1"
+    assert (
+        res["gravite_changee"][0]["gravite_precedente"] == "FAIBLE" and res["gravite_changee"][0]["gravite"] == "ELEVE"
+    )
+    assert res["inchanges"] >= 0 and "pourquoi" in " ".join(res["limites"])
+
+
+def test_delta_un_signal_disparu_est_leve_et_une_capture_future_est_ignoree():
+    hier = "2026-10-27T10:00:00Z"
+    aujourd_hui = "2026-10-28T10:00:00Z"
+    chaine = _chaine(
+        ("m6.disponibilite", _disponibilite("partiel"), hier, {}),
+        ("m6.disponibilite", _disponibilite(None), aujourd_hui, {}),
+    )
+    res = rk.delta(chaine, connaissance="2026-10-28T12:00:00Z")
+    assert [r["sujet"] for r in res["leves"]] == ["devis:D1"] and res["apparus"] == []
+    futur = _chaine(("m6.disponibilite", _disponibilite("partiel"), "2026-10-28T11:00:00Z", {}))
+    assert rk.delta(futur, connaissance="2026-10-28T12:00:00Z")["apparus"][0]["sujet"] == "devis:D1"
+    ancien = rk.delta(futur, connaissance="2026-10-28T10:30:00Z")
+    assert ancien["apparus"] == [], "une capture reçue après l'instant de connaissance n'existe pas encore"
+
+
+@pytest.mark.parametrize("jours", [0, 32, "1", None, True])
+def test_delta_refuse_un_nombre_de_jours_invalide_et_un_instant_sans_fuseau(jours):
+    with pytest.raises(ValueError, match="REJ-RISQUE-DELTA"):
+        rk.delta([], connaissance=CONNAISSANCE, jours=jours)
+    with pytest.raises(ValueError, match="REJ-RISQUE-DELTA"):
+        rk.delta([], connaissance="2026-10-28T13:00:00")

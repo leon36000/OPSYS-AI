@@ -28,6 +28,10 @@ TYPES = frozenset({"SOURCE", "SOURCE_RETIREE", "DOCUMENT", "LIEN"})
 MAX_CONTENU = 20_000
 MAX_EXTRAIT = 280
 LICENCES_CONNUES = frozenset({"CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "OGL-Canada-2.0", "DOMAINE-PUBLIC"})
+CATEGORIES = frozenset(
+    {"concurrent", "marche", "prix", "avis", "seo", "fournisseur", "reglementation", "saisonnalite", "meteo"}
+)
+QUALITES = ("public", "estime", "incertain")  # donnée publiée telle quelle / estimée par la personne / à confirmer
 _ID = re.compile(r"[a-z0-9][a-z0-9_.\-]{0,63}")
 _JOUR = re.compile(r"\d{4}-\d{2}-\d{2}")
 _INJECTION = (
@@ -153,10 +157,20 @@ def etat(chaine: Sequence[Mapping], *, connaissance: str) -> dict:
             ):
                 statut = "PERIME"
         sortie.append({**doc, "statut_courant": statut, "age_jours": age, "citable": statut == "ACCEPTE"})
+    par_categorie: dict[str, dict] = {}
+    for doc in sortie:
+        categorie = sources.get(doc["source_id"], {}).get("categorie", "marche")
+        ligne = par_categorie.setdefault(categorie, {"documents": 0, "citables": 0, "par_qualite": {}})
+        ligne["documents"] += 1
+        ligne["citables"] += 1 if doc["citable"] else 0
+        if doc["citable"]:
+            qualite_doc = doc.get("qualite", "incertain")
+            ligne["par_qualite"][qualite_doc] = ligne["par_qualite"].get(qualite_doc, 0) + 1
     return {
         "type": "ETAT_VEILLE",
         "connaissance": connaissance,
         "sources": [{"source_id": k, **v} for k, v in sorted(sources.items())],
+        "par_categorie": {k: par_categorie[k] for k in sorted(par_categorie)},
         "documents": sortie,
         "liens": liens,
         "limites": list(_LIMITES),
@@ -166,8 +180,11 @@ def etat(chaine: Sequence[Mapping], *, connaissance: str) -> dict:
 def declarer_source(chaine: Sequence[Mapping], source: Mapping, *, recu_a: str, declare_par: str) -> dict:
     """Maillon SOURCE. Une source se redéclare (nouvelle version) tant qu'elle n'est pas retirée."""
     champs = {"source_id", "nom", "url_prefixe", "licences_admises", "perime_apres_jours"}
-    if not isinstance(source, Mapping) or set(source) != champs:
-        raise _refus("REJ-VEILLE-SOURCE", f"source {sorted(champs)} requise")
+    if not isinstance(source, Mapping) or not champs <= set(source) <= champs | {"categorie"}:
+        raise _refus("REJ-VEILLE-SOURCE", f"source {sorted(champs)} requise, « categorie » facultative")
+    categorie = source.get("categorie", "marche")
+    if categorie not in CATEGORIES:
+        raise _refus("REJ-VEILLE-CATEGORIE", f"catégorie parmi {sorted(CATEGORIES)}")
     if type(source["source_id"]) is not str or not _ID.fullmatch(source["source_id"]):
         raise _refus("REJ-VEILLE-SOURCE", "identifiant minuscule sobre requis")
     if type(source["nom"]) is not str or not source["nom"].strip() or len(source["nom"]) > 200:
@@ -189,6 +206,7 @@ def declarer_source(chaine: Sequence[Mapping], source: Mapping, *, recu_a: str, 
         "url_prefixe": prefixe,
         "licences_admises": sorted(set(licences)),
         "perime_apres_jours": peremption,
+        "categorie": categorie,
     }
     return chainage.suivant(
         SCHEMA,
@@ -212,8 +230,11 @@ def importer(
 ) -> tuple[dict | None, dict]:
     """(maillon à ajouter ou ``None`` si identique déjà importé, document décrit). Refus avant écriture."""
     champs = {"source_id", "url", "titre", "publie_le", "version", "licence", "contenu"}
-    if not isinstance(document, Mapping) or set(document) != champs:
-        raise _refus("REJ-VEILLE-DOCUMENT", f"document {sorted(champs)} requis")
+    if not isinstance(document, Mapping) or not champs <= set(document) <= champs | {"qualite"}:
+        raise _refus("REJ-VEILLE-DOCUMENT", f"document {sorted(champs)} requis, « qualite » facultative")
+    qualite = document.get("qualite", "incertain")
+    if qualite not in QUALITES:
+        raise _refus("REJ-VEILLE-QUALITE", f"qualité parmi {list(QUALITES)} ; sans précision : « incertain »")
     if cs.instant(recu_a) is None:
         raise _refus("REJ-CAPTURE-TEMPS", "instant avec fuseau explicite requis")
     source = None
@@ -260,6 +281,7 @@ def importer(
         "publie_le": publie,
         "version": document["version"],
         "licence": document["licence"],
+        "qualite": qualite,
         "taille": len(contenu),
         "statut": "QUARANTAINE" if quarantaine else "ACCEPTE",
         "analyse": analyse,

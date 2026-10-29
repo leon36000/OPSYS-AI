@@ -16,7 +16,10 @@ avec
 * ATTRIBUTION et CAUSALITÉ sont distinguées : seul un design ``ALEATOIRE`` déclaré rend la causalité plausible ; tout
 autre
   design reste une association. L'effectif absent est dit ; aucune incertitude chiffrée n'est produite ;
-* les contre-exemples déclarés par la personne sont comptés et rendus ; un gain négatif en est un de plus.
+* les contre-exemples déclarés par la personne sont comptés et rendus ; un gain négatif en est un de plus ;
+* chaque expérience porte son CADRE de gouvernance, obligatoire : plafond de budget (CAD), durée en jours, limite de
+  risque, porteur et plan de retour. Le coût mesuré est comparé au plafond (RESPECTE, DEPASSE ou INCONNU) ; un plafond
+  dépassé est une lacune nommée. Une ancienne définition sans cadre reste lisible : ``CADRE_NON_DECLARE``.
 """
 
 from __future__ import annotations
@@ -37,7 +40,12 @@ ROLES = frozenset({"reference", "expose", "cout", "effectif"})
 DEVISE = "CAD"
 MAX_MESURES = 16
 _ID = re.compile(r"[a-z0-9][a-z0-9_.\-]{0,63}")
-_CHAMPS = frozenset({"experience_id", "hypothese", "design", "exposition", "reference", "mesures", "contre_exemples"})
+_CADRE = ("plafond_budget_cad", "duree_jours", "limite_risque", "porteur", "plan_retour")
+_CHAMPS = frozenset(
+    {"experience_id", "hypothese", "design", "exposition", "reference", "mesures", "contre_exemples", *_CADRE}
+)
+_OBLIGATOIRES = frozenset({"experience_id", "hypothese", "design", "mesures", *_CADRE})
+_PLAFOND = re.compile(r"\d{1,12}(\.\d{1,2})?")
 _LIMITES = (
     "Valeurs lues chez leurs propriétaires ; M9 ne mesure rien lui-même et ne chiffre aucune incertitude.",
     "Un ROI est une association mesurée, pas une preuve de cause, sauf design aléatoire déclaré (non vérifié par M9).",
@@ -65,6 +73,26 @@ def _mesure(brute: object, faits: Mapping[str, str]) -> dict:
     return {"id": brute["id"], "role": brute["role"], "ref": ref, "unite": brute["unite"], "valeur_deposee": faits[ref]}
 
 
+def _cadre(experience: Mapping) -> dict:
+    """Cadre de gouvernance obligatoire : plafond (CAD, 0 = aucune dépense), durée, risque, porteur, retour."""
+    plafond = experience["plafond_budget_cad"]
+    if type(plafond) is not str or not _PLAFOND.fullmatch(plafond):
+        raise _refus(
+            "REJ-EXPERIENCE-CADRE", 'plafond_budget_cad : montant décimal textuel en CAD requis (ex. "0", "250.00")'
+        )
+    duree = experience["duree_jours"]
+    if type(duree) is not int or not 1 <= duree <= 365:
+        raise _refus("REJ-EXPERIENCE-CADRE", "duree_jours : entier de 1 à 365 requis")
+    for nom in ("limite_risque", "plan_retour"):
+        texte = experience[nom]
+        if type(texte) is not str or not texte.strip() or len(texte) > 300:
+            raise _refus("REJ-EXPERIENCE-CADRE", f"{nom} : texte non vide de 300 caractères au plus requis")
+    porteur = experience["porteur"]
+    if type(porteur) is not str or not _ID.fullmatch(porteur):
+        raise _refus("REJ-EXPERIENCE-CADRE", "porteur : identifiant sobre requis")
+    return {nom: experience[nom] for nom in _CADRE}
+
+
 def definir(
     chaine: Sequence[Mapping],
     experience: Mapping,
@@ -74,11 +102,10 @@ def definir(
     par: str,
     motif_revision: str | None = None,
 ) -> dict:
-    if (
-        not isinstance(experience, Mapping)
-        or not {"experience_id", "hypothese", "design", "mesures"} <= set(experience) <= _CHAMPS
-    ):
-        raise _refus("REJ-EXPERIENCE-CHAMP", f"expérience {sorted(_CHAMPS)} requise")
+    if not isinstance(experience, Mapping) or not _OBLIGATOIRES <= set(experience) <= _CHAMPS:
+        raise _refus(
+            "REJ-EXPERIENCE-CHAMP", f"expérience {sorted(_CHAMPS)} requise dont le cadre {sorted(_CADRE)} obligatoire"
+        )
     exp_id = experience["experience_id"]
     if type(exp_id) is not str or not _ID.fullmatch(exp_id):
         raise _refus("REJ-EXPERIENCE-CHAMP", "identifiant minuscule sobre requis")
@@ -90,6 +117,7 @@ def definir(
         raise _refus("REJ-EXPERIENCE-CHAMP", "hypothèse bornée requise")
     if experience["design"] not in DESIGNS:
         raise _refus("REJ-EXPERIENCE-CHAMP", f"design parmi {sorted(DESIGNS)}")
+    cadre = _cadre(experience)
     mesures_brutes = experience["mesures"]
     if type(mesures_brutes) is not list or not 1 <= len(mesures_brutes) <= MAX_MESURES:
         raise _refus("REJ-EXPERIENCE-MESURE", f"1 à {MAX_MESURES} mesures requises")
@@ -122,6 +150,7 @@ def definir(
         "reference": experience.get("reference"),
         "mesures": mesures,
         "contre_exemples": list(contre),
+        **cadre,
     }
     if precedentes and precedentes[-1]["definition"] == corps:
         raise _refus("REJ-EXPERIENCE-REVISION", "aucun changement : une révision identique n'ajoute rien")
@@ -247,7 +276,22 @@ def evaluer(definition: Mapping, captures: Sequence[Mapping], *, connaissance: s
     if any(v.get("change_depuis_le_depot") for v in lues.values()):
         lacunes.append("SOURCE_CORRIGEE_DEPUIS_LE_DEPOT")
     contre = len(definition["contre_exemples"]) + (1 if gain is not None and gain < 0 else 0)
+    plafond = _decimal(definition.get("plafond_budget_cad"))
+    if plafond is None:
+        budget = {"statut": "CADRE_NON_DECLARE", "plafond_budget_cad": None}
+    elif couts_ok and couts:
+        budget = {
+            "statut": "RESPECTE" if total_cout <= plafond else "DEPASSE",
+            "plafond_budget_cad": str(plafond),
+            "cout_mesure_cad": str(total_cout),
+        }
+    else:
+        budget = {"statut": "INCONNU", "plafond_budget_cad": str(plafond), "cout_mesure_cad": None}
+    if budget["statut"] == "DEPASSE":
+        lacunes.append("PLAFOND_BUDGET_DEPASSE")
     resultat = {
+        "cadre": {nom: definition.get(nom) for nom in _CADRE},
+        "budget": budget,
         "valeurs": lues,
         "gain_mesure": None if gain is None else str(gain),
         "roi": None if roi is None else str(roi.quantize(Decimal("0.0001"))),

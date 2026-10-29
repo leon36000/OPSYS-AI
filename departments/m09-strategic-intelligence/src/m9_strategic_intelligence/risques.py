@@ -23,6 +23,7 @@ import hashlib
 import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, timedelta
 from decimal import Decimal, InvalidOperation
 
 from . import capture_strategique as cs
@@ -260,3 +261,66 @@ def _risque(regle, sujet, trouve, capture, statut, age, contraires, perime) -> d
         "origine_etablie": False,
         "explication": EXPLICATION,
     }
+
+
+def delta(
+    captures: Sequence[Mapping], *, connaissance: str, jours: int = 1, perime_apres_jours: int | None = None
+) -> dict:
+    """Ce qui a changé entre ``connaissance`` moins ``jours`` jours et ``connaissance`` : apparus, levés, restés.
+
+    Les deux radars sont calculés sur ce que M9 connaissait à chaque instant (``cs.connues_a``) : une capture reçue
+    après l'instant précédent n'y figure pas. Un risque absent hier et présent aujourd'hui est APPARU ; présent hier,
+    absent ou LEVÉ aujourd'hui, il est LEVÉ ; un changement de gravité est nommé. Rien n'est expliqué : le radar ne dit
+    jamais pourquoi."""
+    if type(jours) is not int or not 1 <= jours <= 31:
+        raise ValueError("REJ-RISQUE-DELTA : nombre de jours entier de 1 à 31 requis")
+    maintenant = cs.instant(connaissance)
+    if maintenant is None:
+        raise ValueError("REJ-RISQUE-DELTA : instant avec fuseau explicite requis")
+    avant = (maintenant - timedelta(days=jours)).astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    radar_avant = evaluer(captures, connaissance=avant, perime_apres_jours=perime_apres_jours)
+    radar_apres = evaluer(captures, connaissance=connaissance, perime_apres_jours=perime_apres_jours)
+
+    ordre = {"INCONNU": -1, "FAIBLE": 0, "MOYEN": 1, "ELEVE": 2}
+
+    def presents(radar: Mapping) -> dict[tuple[str, str], Mapping]:
+        """Un sujet cité par deux lectures aux arguments différents garde sa gravité la plus haute."""
+        retenus: dict[tuple[str, str], Mapping] = {}
+        for r in radar["risques"]:
+            cle = (r["regle"], r["sujet"])
+            if r["statut"] != "LEVE" and (cle not in retenus or ordre[r["gravite"]] > ordre[retenus[cle]["gravite"]]):
+                retenus[cle] = r
+        return retenus
+
+    hier, aujourd_hui = presents(radar_avant), presents(radar_apres)
+    leves_par_le_radar = {(r["regle"], r["sujet"]) for r in radar_apres["risques"] if r["statut"] == "LEVE"}
+
+    def ligne(r: Mapping) -> dict:
+        return {"regle": r["regle"], "sujet": r["sujet"], "domaine": r["domaine"], "gravite": r["gravite"]}
+
+    apparus = [ligne(aujourd_hui[k]) for k in sorted(aujourd_hui.keys() - hier.keys())]
+    leves = [ligne(hier[k]) for k in sorted(hier.keys() - aujourd_hui.keys())]
+    change = [
+        {**ligne(aujourd_hui[k]), "gravite_precedente": hier[k]["gravite"]}
+        for k in sorted(hier.keys() & aujourd_hui.keys())
+        if hier[k]["gravite"] != aujourd_hui[k]["gravite"]
+    ]
+    resultat = {
+        "type": "DELTA_RISQUES",
+        "version": VERSION,
+        "connaissance": connaissance,
+        "connaissance_precedente": avant,
+        "apparus": apparus,
+        "leves": leves,
+        "gravite_changee": change,
+        "inchanges": len(hier.keys() & aujourd_hui.keys()) - len(change),
+        "leves_par_le_radar": len(leves_par_le_radar),
+        "regles_non_evaluees_precedent": len(radar_avant["regles_non_evaluees"]),
+        "regles_non_evaluees": len(radar_apres["regles_non_evaluees"]),
+        "limites": [
+            "Comparaison de deux états connus de M9, pas de deux états du monde : une règle non évaluée d'un côté peut "
+            "faire apparaître ou disparaître un risque sans que rien n'ait changé chez le propriétaire.",
+            "Le radar ne dit jamais pourquoi un risque est apparu ou levé.",
+        ],
+    }
+    return resultat

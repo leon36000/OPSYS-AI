@@ -114,3 +114,36 @@ def test_radars_sur_le_monde_reel_materiau_en_rupture(tmp_path, monkeypatch):
             assert _appel(cap, nom, arguments, None)["ok"] is False
     finally:
         m2_outils.reinitialiser_registre()
+
+
+def test_salle_de_guerre_montre_les_risques_et_ce_qui_a_change_depuis_la_veille(tmp_path, monkeypatch):
+    try:
+        G._monter_scenario(tmp_path, monkeypatch)
+        cap = B.capacites(G.M2, G.M3, G.M4, G.M5, G.M6, G.M8)
+        _capturer(cap, "m5.prevision_tresorerie", {"aujourd_hui": B.AUJOURD_HUI_M5}, 1)
+        _capturer(cap, "m4.retards_incidents", {"horodatage_reference": "2026-10-28T12:00:00Z"}, 2)
+        _capturer(cap, "m6.disponibilite", {}, 3)
+        # Aujourd'hui : les trois captures arrivées il y a moins de 24 h sont NOUVELLES et le risque matériaux APPARAÎT.
+        salle = _appel(cap, "m9_salle_de_guerre", {"reference": CONNAISSANCE})
+        assert salle["ok"] is True and salle["resultat"]["accepte"] is True, salle
+        res = salle["resultat"]
+        assert res["risques"]["actifs"] >= 1 and res["risques"]["detail"] == "m9_radar_risques"
+        assert res["risques"]["grille"] == "PROPOSEE_NON_VALIDEE_PAR_NATHAN"
+        veille = res["changements_depuis_la_veille"]
+        assert veille["connaissance_precedente"] == "2026-10-27T13:00:00Z"
+        total = _appel(cap, "m9_lister_captures", {})["resultat"]["total"]
+        assert veille["captures_nouvelles"] == total >= 3  # toutes reçues il y a moins de 24 h
+        apparus = {(r["regle"], r["sujet"]) for r in veille["risques_apparus"]}
+        assert ("materiaux_reservation_incomplete", f"devis:{G.DEVIS}") in apparus
+        assert veille["risques_apparus_total"] >= 1 and veille["risques_leves_total"] == 0
+        # Dix jours plus tard : plus aucune capture nouvelle, rien d'apparu ni de levé (le radar ne bouge pas seul).
+        calme = _appel(cap, "m9_salle_de_guerre", {"reference": "2026-11-07T13:00:00Z"})["resultat"]
+        apres = calme["changements_depuis_la_veille"]
+        assert apres["captures_nouvelles"] == 0 and apres["risques_apparus_total"] == 0
+        assert apres["risques_leves_total"] == 0 and calme["risques"]["actifs"] == res["risques"]["actifs"]
+        assert calme["vue"] != res["vue"]
+        # Une vue périmée reste refusée avec les nouvelles sections.
+        refus = _appel(cap, "m9_salle_de_guerre", {"reference": CONNAISSANCE, "vue_attendue": calme["vue"]})
+        assert refus["ok"] is False or refus["resultat"].get("accepte") is False
+    finally:
+        m2_outils.reinitialiser_registre()
