@@ -81,6 +81,7 @@ from . import (
     lecture_alertes,
     lecture_strategique,
     observations_chantier,
+    outils_actions,
     outils_conseil,
     outils_direction,
     outils_graphe,
@@ -308,6 +309,7 @@ def outils(
     alertes_cible: Any = None,
     *,
     lecteur_producteurs_m9: Any = None,
+    proposeur_actions_m9: Any = None,
     captures_cible: Any = None,
     sessions_cible: Any = None,
     publications_cible: Any = None,
@@ -1284,6 +1286,7 @@ def outils(
             budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible, sessions_cible=sessions_cible
         ),
         *outils_graphe.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_actions.construire_outils(budget_sortie=BUDGET_SORTIE, proposeur=proposeur_actions_m9),
         *outils_playbooks.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_veille.construire_outils(budget_sortie=BUDGET_SORTIE, veille_cible=veille_cible),
         *outils_radars.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
