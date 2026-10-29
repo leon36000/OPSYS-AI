@@ -1,0 +1,144 @@
+{
+ "console": [],
+ "alertes": [],
+ "etapes": [
+  [
+   "bureau",
+   "dates vides",
+   true,
+   true
+  ],
+  [
+   "bureau",
+   "tableau",
+   "http://localhost:8765/opsys/direction?connaissance=2026-10-30T01%3A42%3A38Z&jour=2026-10-30",
+   [
+    "Briefing — salle de guerre",
+    "Risques",
+    "Prévisions des propriétaires",
+    "Plans et suites",
+    "Actions proposées et approbations",
+    "Veille"
+   ]
+  ],
+  [
+   "bureau",
+   "débordement horizontal",
+   false
+  ],
+  [
+   "bureau",
+   "XSS rendu en texte",
+   true,
+   0
+  ],
+  [
+   "bureau",
+   "après suivi",
+   "http://localhost:8765/opsys/direction/plans?connaissance=2026-10-30T01%3A42%3A38Z&jour=2026-10-30",
+   "suivis_declares\n1"
+  ],
+  [
+   "bureau",
+   "annulation sans case cochée : reste sur la page",
+   true
+  ],
+  [
+   "bureau",
+   "après annulation",
+   "http://localhost:8765/opsys/direction/plans?connaissance=2026-10-30T01%3A42%3A38Z&jour=2026-10-30",
+   true,
+   0
+  ],
+  [
+   "bureau",
+   "risques",
+   200
+  ],
+  [
+   "bureau",
+   "sources",
+   200
+  ],
+  [
+   "bureau",
+   "actions",
+   200
+  ],
+  [
+   "bureau",
+   "revues",
+   200
+  ],
+  [
+   "bureau",
+   "veille",
+   200
+  ],
+  [
+   "bureau",
+   "scenarios",
+   200
+  ],
+  [
+   "mobile",
+   "dates vides",
+   true,
+   true
+  ],
+  [
+   "mobile",
+   "tableau",
+   "http://localhost:8765/opsys/direction?connaissance=2026-10-30T01%3A42%3A38Z&jour=2026-10-30",
+   [
+    "Briefing — salle de guerre",
+    "Risques",
+    "Prévisions des propriétaires",
+    "Plans et suites",
+    "Actions proposées et approbations",
+    "Veille"
+   ]
+  ],
+  [
+   "mobile",
+   "débordement horizontal",
+   false
+  ],
+  [
+   "mobile",
+   "XSS rendu en texte",
+   true,
+   0
+  ],
+  [
+   "mobile",
+   "risques",
+   200
+  ],
+  [
+   "mobile",
+   "sources",
+   200
+  ],
+  [
+   "mobile",
+   "actions",
+   200
+  ],
+  [
+   "mobile",
+   "revues",
+   200
+  ],
+  [
+   "mobile",
+   "veille",
+   200
+  ],
+  [
+   "mobile",
+   "scenarios",
+   200
+  ]
+ ]
+}

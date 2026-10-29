@@ -58,6 +58,7 @@ from . import (
     cfo_ui,
     connecteurs_ui,
     crm_ui,
+    direction_ui,
     estimation_apprentissage_ui,
     finance_snapshot_prive,
     finance_ui,
@@ -398,6 +399,7 @@ def creer_application(
     app.include_router(calendrier_marketing_ui.creer_router(**callbacks_metier))
     app.include_router(marketing_performance_ui.creer_router(**callbacks_metier))
     app.include_router(strategie_suivis_ui.creer_router(**callbacks_metier))
+    app.include_router(direction_ui.creer_router(**callbacks_metier, verifier_formulaire=verifier_formulaire))
     app.include_router(marketing_cmo_ui.creer_router(**callbacks_metier))
     app.include_router(marketing_growth_ui.creer_router(**callbacks_metier))
     app.include_router(brand_ui.creer_router(**callbacks_metier))
