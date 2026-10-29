@@ -196,17 +196,29 @@ def construire_outils(
         }
 
     def couverture(
-        reference: str, connaissance: str | None = None, attendues: list[str] | None = None
+        reference: str,
+        connaissance: str | None = None,
+        attendues: list[str] | None = None,
+        perime_apres_jours: int | None = None,
     ) -> dict[str, Any]:
         exiger_admin_strict()
+        if perime_apres_jours is not None and (
+            type(perime_apres_jours) is not int or not 1 <= perime_apres_jours <= 3650
+        ):
+            raise _refus("REJ-TISSU-ARGUMENT", "perime_apres_jours : entier de 1 à 3650, ou absent")
         chaine = chaine_verifiee()
         liste = list(attendues) if attendues is not None else [lecture.id for lecture in cat.LECTURES]
         for lecture_id in liste:
             cat.obtenir(lecture_id)
         if len(set(liste)) != len(liste):
             raise _refus("REJ-TISSU-ARGUMENT", "lectures attendues distinctes requises")
+        fraicheurs = None if perime_apres_jours is None else {lecture: perime_apres_jours * 86400 for lecture in liste}
         resultat = cs.evaluer_couverture(
-            chaine, reference=reference, connaissance=connaissance or reference, attendues=liste
+            chaine,
+            reference=reference,
+            connaissance=connaissance or reference,
+            attendues=liste,
+            fraicheur_attendue_s=fraicheurs,
         )
         resultat["catalogue_version"] = cat.CATALOGUE_VERSION
         resultat["tete_registre"] = chaine[-1]["hash_maillon"] if chaine else cs.HASH_INITIAL
@@ -309,6 +321,12 @@ def construire_outils(
                         "items": {"type": "string", "maxLength": 64},
                         "maxItems": 64,
                         "uniqueItems": True,
+                    },
+                    "perime_apres_jours": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 3650,
+                        "description": "Péremption demandée : sans elle, la fraîcheur reste NON_EVALUEE.",
                     },
                 },
                 "required": ["reference"],

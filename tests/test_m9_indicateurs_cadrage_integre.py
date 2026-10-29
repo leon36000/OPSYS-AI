@@ -153,3 +153,24 @@ def test_cadrage_lectures_presentes_et_questions_non_reconnues_ou_refusees(monde
     vendeur = H.IdentiteAppelante("vendeur.fictif", "employee", source="appareil")
     assert _refuse(_appel(monde, "m9_cadrer_decision", {"question": "Camion ?", "reference": CONNAISSANCE}, vendeur))
     assert _refuse(_appel(monde, "m9_cadrer_decision", {"question": "Camion ?", "reference": CONNAISSANCE}, None))
+
+
+def test_peremption_demandee_au_cadrage_et_a_la_couverture_est_validee_par_les_vrais_outils(monde):
+    ok = _ok(
+        _appel(
+            monde,
+            "m9_cadrer_decision",
+            {"question": "Dois-je réduire les dépenses ?", "reference": CONNAISSANCE, "perime_apres_jours": 30},
+        )
+    )
+    assert ok["perime_apres_jours"] == 30
+    assert _refuse(
+        _appel(
+            monde,
+            "m9_cadrer_decision",
+            {"question": "Dois-je réduire les dépenses ?", "reference": CONNAISSANCE, "perime_apres_jours": 0},
+        )
+    )
+    couverture = _ok(_appel(monde, "m9_couverture_strategique", {"reference": CONNAISSANCE, "perime_apres_jours": 30}))
+    assert couverture["lectures"] and couverture["complete"] is False
+    assert _refuse(_appel(monde, "m9_couverture_strategique", {"reference": CONNAISSANCE, "perime_apres_jours": 3651}))

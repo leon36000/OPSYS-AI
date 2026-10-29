@@ -25,7 +25,9 @@ def _refus(code: str, detail: str) -> ValueError:
 
 
 def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tuple[Outil, ...]:
-    def cadrer(question: str, reference: str, connaissance: str | None = None) -> dict[str, Any]:
+    def cadrer(
+        question: str, reference: str, connaissance: str | None = None, perime_apres_jours: int | None = None
+    ) -> dict[str, Any]:
         exiger_admin_strict()
         if cs.instant(reference) is None or (connaissance is not None and cs.instant(connaissance) is None):
             raise _refus("REJ-DECISION-INSTANT", "instants RFC 3339 à fuseau explicite requis")
@@ -35,7 +37,11 @@ def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tupl
         if not ok:
             raise _refus("REJ-CAPTURE-CHAINE-INVALIDE", f"registre des captures invalide ({raison})")
         cadrage = decision_cadrage.cadrer(
-            question, chaine, reference=reference, connaissance=connaissance if connaissance is not None else reference
+            question,
+            chaine,
+            reference=reference,
+            connaissance=connaissance if connaissance is not None else reference,
+            perime_apres_jours=perime_apres_jours,
         )
         return borner({"accepte": True, **cadrage}, budget_sortie)
 
@@ -56,6 +62,7 @@ def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tupl
                     "question": {"type": "string", "maxLength": 500},
                     "reference": _INSTANT,
                     "connaissance": _INSTANT,
+                    "perime_apres_jours": {"type": "integer", "minimum": 1, "maximum": 3650},
                 },
                 "required": ["question", "reference"],
                 "additionalProperties": False,

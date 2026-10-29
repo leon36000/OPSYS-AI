@@ -101,3 +101,41 @@ def test_deterministe_et_injection_dans_la_question_sans_effet():
     assert a == b and a["decision"]["id"] == "achat_vehicule"
     assert a["decision_prise_par_m9"] is False and a["brouillon_approbation"]["statut"] == "BROUILLON_NON_SOUMIS"
     assert "float" not in json.dumps(a) and json.loads(json.dumps(a)) == a
+
+
+# --- Garde de péremption : une donnée trop ancienne n'est jamais passée sous silence ---------------------------
+def _chaine_datee(derniere_piece):
+    chaine, precedent = [], cs.HASH_INITIAL
+    contenu = {"calculable": True, "solde_initial": {"fraicheur": {"derniere_piece": derniere_piece}}}
+    reponse = {"ok": True, "resultat": {"accepte": True, "resultat": contenu}}
+    capture = cs.construire(
+        cat.obtenir("m5.prevision_tresorerie"),
+        {"aujourd_hui": "2026-10-28"},
+        [reponse],
+        recu_a="2026-10-28T12:00:00Z",
+        reference=None,
+        index=0,
+        hash_precedent=precedent,
+    )
+    chaine.append(capture)
+    return chaine
+
+
+def test_lecture_plus_ancienne_que_la_peremption_demandee_est_nommee_et_bloque_le_conseil():
+    chaine = _chaine_datee("2026-10-01T10:00:00Z")  # 27 jours avant la référence
+    sans = dc.cadrer("Dois-je réduire les dépenses ?", chaine, reference=REF, connaissance=REF)
+    assert (
+        all(m["statut"] != "HORS_FENETRE_DE_FRAICHEUR" for m in sans["manques"]) and sans["perime_apres_jours"] is None
+    )
+    avec = dc.cadrer("Dois-je réduire les dépenses ?", chaine, reference=REF, connaissance=REF, perime_apres_jours=7)
+    perimees = [m for m in avec["manques"] if m["statut"] == "HORS_FENETRE_DE_FRAICHEUR"]
+    assert [m["lecture_id"] for m in perimees] == ["m5.prevision_tresorerie"]
+    assert "7 jours" in perimees[0]["manque"] and avec["pret_pour_conseil"] is False
+    large = dc.cadrer("Dois-je réduire les dépenses ?", chaine, reference=REF, connaissance=REF, perime_apres_jours=60)
+    assert all(m["statut"] != "HORS_FENETRE_DE_FRAICHEUR" for m in large["manques"])
+
+
+@pytest.mark.parametrize("jours", [0, -1, 3651, "7", True])
+def test_peremption_invalide_refusee(jours):
+    with pytest.raises(ValueError, match="REJ-DECISION-PEREMPTION"):
+        dc.cadrer("Dois-je réduire les dépenses ?", [], reference=REF, connaissance=REF, perime_apres_jours=jours)

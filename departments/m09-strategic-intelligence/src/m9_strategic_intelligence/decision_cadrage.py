@@ -250,7 +250,14 @@ def classer(question: str) -> dict:
     return {"statut": "RECONNU", "type": gagnants[0], "score": meilleur}
 
 
-def cadrer(question: str, captures: Sequence[Mapping], *, reference: str, connaissance: str) -> dict:
+def cadrer(
+    question: str,
+    captures: Sequence[Mapping],
+    *,
+    reference: str,
+    connaissance: str,
+    perime_apres_jours: int | None = None,
+) -> dict:
     """Cadre la question : type, lectures et couverture, validation humaine, critères, brouillon d'approbation."""
     classement = classer(question)
     base: dict = {
@@ -271,9 +278,21 @@ def cadrer(question: str, captures: Sequence[Mapping], *, reference: str, connai
         base["cadrage_id"] = _identifiant(base)
         return base
     type_ = PAR_ID[classement["type"]]
-    couverture = cs.evaluer_couverture(
-        captures, reference=reference, connaissance=connaissance, attendues=list(type_["lectures_requises"])
+    if perime_apres_jours is not None and (type(perime_apres_jours) is not int or not 1 <= perime_apres_jours <= 3650):
+        raise _refus("REJ-DECISION-PEREMPTION", "perime_apres_jours : entier de 1 à 3650, ou absent")
+    fraicheurs = (
+        None
+        if perime_apres_jours is None
+        else {lecture: perime_apres_jours * 86400 for lecture in type_["lectures_requises"]}
     )
+    couverture = cs.evaluer_couverture(
+        captures,
+        reference=reference,
+        connaissance=connaissance,
+        attendues=list(type_["lectures_requises"]),
+        fraicheur_attendue_s=fraicheurs,
+    )
+    perimees = [e["lecture_id"] for e in couverture["lectures"] if e.get("fraicheur") == "HORS_FENETRE"]
     classes = {
         c: {"verdict": "VALIDATION_HUMAINE_REQUISE", "mandataire": conseil.ACTIONS_SENSIBLES[c]}
         for c in type_["classes_sensibles"]
@@ -289,6 +308,13 @@ def cadrer(question: str, captures: Sequence[Mapping], *, reference: str, connai
         {"lecture_id": e["lecture_id"], "statut": e["statut"], "manque": e.get("manque")}
         for e in couverture["lectures"]
         if e["statut"] != "PRESENTE"
+    ] + [
+        {
+            "lecture_id": lecture,
+            "statut": "HORS_FENETRE_DE_FRAICHEUR",
+            "manque": f"capture plus ancienne que la péremption demandée ({perime_apres_jours} jours)",
+        }
+        for lecture in perimees
     ]
     base |= {
         "decision": {"id": type_["id"], "libelle": type_["libelle"]},
@@ -297,7 +323,8 @@ def cadrer(question: str, captures: Sequence[Mapping], *, reference: str, connai
         "couverture": [{"lecture_id": e["lecture_id"], "statut": e["statut"]} for e in couverture["lectures"]],
         "manques": manques,
         "contradictions": couverture["contradictions"],
-        "pret_pour_conseil": couverture["complete"],
+        "perime_apres_jours": perime_apres_jours,
+        "pret_pour_conseil": couverture["complete"] and not perimees,
         "validation": validation,
         "criteres_proposes": [dict(c) for c in type_["criteres"]],
         "scenarios_a_examiner": list(type_["scenarios"]),

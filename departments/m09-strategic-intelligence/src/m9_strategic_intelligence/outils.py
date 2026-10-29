@@ -95,6 +95,7 @@ from . import (
     outils_priorites,
     outils_questions_scenario,
     outils_radars,
+    outils_reaudit_conseil,
     outils_semantique,
     outils_tendances,
     outils_tissu,
@@ -1314,6 +1315,9 @@ def outils(
         *outils_cadrage_decision.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_tendances.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_questions_scenario.construire_outils(budget_sortie=BUDGET_SORTIE),
+        *outils_reaudit_conseil.construire_outils(
+            budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible, sessions_cible=sessions_cible
+        ),
         *outils_priorites.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_direction.construire_outils(
             budget_sortie=BUDGET_SORTIE,
