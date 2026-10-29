@@ -143,6 +143,8 @@ ADMIN_SEUL = frozenset({
     "m9_lier_veille_decision", "m9_lire_veille", "m9_lire_document_veille",
     # Playbooks M9.15 : gabarits gouvernés, lecture seule.
     "m9_lister_playbooks", "m9_evaluer_playbook",
+    # Orchestrateur M9.17 : propose à la file d'approbation native (T1/N2), réconcilie, lit ; n'exécute rien.
+    "m9_proposer_action", "m9_reconcilier_action", "m9_lire_actions",
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",
