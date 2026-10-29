@@ -450,7 +450,7 @@ def cloturer(evenements: Sequence[Mapping], session_id: str, *, recu_a: str) -> 
 def assembler_rapport(
     dossier: Mapping, projection: Mapping, verdict: Mapping | None, raison_abstention: str | None
 ) -> dict:
-    """Rapport de décision v2 (PROPOSITION non ratifiée) assemblé par le code depuis les seules propositions admises."""
+    """Rapport de décision v2 (retenu par délégation) assemblé par le code depuis les seules propositions admises."""
     sections: dict[str, dict] = {}
     manque = lambda raison: {"statut": "NON_DISPONIBLE", "raison": raison}  # noqa: E731
     sections["question"] = {"statut": "RENSEIGNEE", "contenu": {"texte": dossier["question"]}}

@@ -214,7 +214,7 @@ def test_cloture_recommandation_gouvernee_et_rapport_v2_valide_aucun_effet():
     rapport = cloture["rapport"]
     assert (
         rd.valider_rapport_decision_v2(rapport) == (True, None)
-        and rapport["statut_contrat"] == "PROPOSITION_NON_RATIFIEE"
+        and rapport["statut_contrat"] == "RETENU_PAR_DELEGATION"
     )
     assert rapport["sections"]["decision_recommandee"]["statut"] == "RENSEIGNEE"
     assert any(d["texte"].endswith("= 8400.00") for d in rapport["sections"]["donnees_utilisees"]["contenu"])

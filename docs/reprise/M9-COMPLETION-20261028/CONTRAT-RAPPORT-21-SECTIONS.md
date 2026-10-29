@@ -1,6 +1,6 @@
-# M9.10 — rapport de décision : 21 sections, proposition à arbitrer
+# M9.10 — rapport de décision : 21 sections, retenues par délégation de Nathan
 
-**Statut : `PROPOSITION_NON_RATIFIEE`.** Aucune énumération canonique des 21 sections n'existe dans le dépôt.
+**Statut : `RETENU_PAR_DELEGATION` (2026-10-29).** Aucune énumération canonique des 21 sections n'existe dans le dépôt ; la liste ci-dessous, d'abord proposée, a été retenue après la demande d'arbitrage de la mission, à laquelle Nathan a répondu « Oui tu as toutes les autorisations ». Elle n'est pas ratifiée par une source canonique (le statut `RATIFIE` reste refusé) et reste révisable : Nathan peut l'amender ou verser le prompt maître M9 (courriel du 9 juin 2026).
 
 ## Recherche de la source maîtresse (Lot 0)
 - `docs/produit/DEFINITION-PRODUIT.md` §M9.10 : « rapport en 21 sections » ; douze notions citées seulement (question,
@@ -40,7 +40,7 @@ justifiées par la définition ou le cahier. Chaque section porte son origine da
 | 21 | `memoire_m10` | historique | `memoire_m10` |
 
 ## Règles du schéma (vérifiées par tests)
-- Enveloppe exacte, `statut_contrat = PROPOSITION_NON_RATIFIEE` (un schéma « ratifié » est refusé), empreinte `rapport_id`.
+- Enveloppe exacte, `statut_contrat = RETENU_PAR_DELEGATION`, schéma `opsys.m9.rapport_decision/v2` (un schéma « ratifié » ou l'ancien statut de proposition est refusé), empreinte `rapport_id`.
 - Une section non renseignée dit `NON_DISPONIBLE`/`NON_APPLICABLE` + raison et ne porte **aucun contenu inventé** ;
   une abstention complète (pas de décision recommandée) est un rapport valide.
 - **Règle dure M9 :** aucune option, scénario, impact, dépendance, risque, priorité, recommandation, condition, action,
@@ -49,7 +49,9 @@ justifiées par la définition ou le cahier. Chaque section porte son origine da
 - Un chiffre n'existe qu'en texte avec unité et propriétaire du calcul (`source_calcul`) ; jamais produit par le schéma.
 - `vers_contrat_historique` projette exactement vers les 15 clés et passe le validateur historique inchangé.
 
-## Décision requise de Nathan (gate `GATED_HUMAN`)
-Ratifier, amender ou remplacer cette énumération, ou verser le prompt maître M9 (courriel du 9 juin 2026). Tant que ce
-n'est pas fait, la ligne M9.10 reste ouverte : le code produit et valide la proposition, et ne l'affirme jamais ratifiée.
-Les autres capacités (conseil, scénarios, priorités, suivi) n'attendent pas cet arbitrage.
+## Décision (arbitrage de Nathan, 2026-10-29)
+La mission avait demandé à Nathan de ratifier, amender ou remplacer cette énumération. Sa réponse (« Oui tu as toutes les
+autorisations ») est prise comme délégation : la liste est retenue telle quelle, le code l'affirme `RETENU_PAR_DELEGATION` et jamais
+`RATIFIE`. Reste révisable à tout moment (amendement ou prompt maître versé) sans toucher au contrat historique à 15 clés.
+Les rapports produits avant cette décision (preuves du conseil réel, statut `PROPOSITION_NON_RATIFIEE`) sont conservés tels quels
+comme historique et ne passent plus le validateur actuel.

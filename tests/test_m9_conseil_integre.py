@@ -259,7 +259,7 @@ def test_session_complete_avec_runtime_natif_simule_recommandation_gouvernee_et_
     rapport = json.loads("".join(morceaux))
     assert (
         rapport["rapport_id"] == cloture["cloture"]["rapport_id"]
-        and rapport["statut_contrat"] == "PROPOSITION_NON_RATIFIEE"
+        and rapport["statut_contrat"] == "RETENU_PAR_DELEGATION"
     )
     # Rejeu de la clôture : même résultat, aucun second événement.
     avant = _etat_sql()["registres_maillons"]

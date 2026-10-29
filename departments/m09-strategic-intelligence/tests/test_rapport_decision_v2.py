@@ -121,11 +121,16 @@ def test_les_15_cles_historiques_ont_chacune_une_section_distincte():
 def test_rapport_complet_valide_et_jamais_presente_comme_ratifie():
     rapport = _rapport()
     assert rapport_decision_v2.valider_rapport_decision_v2(rapport) == (True, None)
-    assert rapport["statut_contrat"] == "PROPOSITION_NON_RATIFIEE"
+    assert rapport["statut_contrat"] == "RETENU_PAR_DELEGATION"
     ratifie = copy.deepcopy(rapport)
     ratifie["statut_contrat"] = "RATIFIE"
     ratifie["rapport_id"] = rapport_decision_v2.identifiant(ratifie)
     assert _code(ratifie) == "REJ-RAPPORT-V2-SCHEMA"
+    ancien = copy.deepcopy(rapport)
+    ancien["statut_contrat"] = "PROPOSITION_NON_RATIFIEE"
+    ancien["rapport_id"] = rapport_decision_v2.identifiant(ancien)
+    assert _code(ancien) == "REJ-RAPPORT-V2-SCHEMA"
+    assert any("délégation de Nathan" in x and "source canonique absente" in x for x in rapport["limites"])
 
 
 def test_projection_vers_les_15_cles_passe_le_validateur_historique_inchange():

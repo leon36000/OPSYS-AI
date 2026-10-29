@@ -1,8 +1,10 @@
-"""Rapport de décision M9.10 — schéma versionné à 21 sections, proposé à l'arbitrage de Nathan.
+"""Rapport de décision M9.10 — schéma versionné à 21 sections, retenu par délégation de Nathan.
 
-STATUT : ``PROPOSITION_NON_RATIFIEE``. La définition produit (§M9.10) annonce « un rapport en 21 sections » mais n'en
+STATUT : ``RETENU_PAR_DELEGATION``. La définition produit (§M9.10) annonce « un rapport en 21 sections » mais n'en
 nomme que douze, et le prompt maître M9 du 9 juin 2026 n'est pas dans le dépôt (``docs/departements/M9-audit.md`` §2.6).
-Cette énumération est donc une PROPOSITION d'ingénierie, jamais une exigence ratifiée : chaque section dit d'où elle
+L'énumération est une proposition d'ingénierie que Nathan a retenue le 2026-10-29 en répondant à la demande d'arbitrage
+(« Oui tu as toutes les autorisations ») : elle n'est PAS ratifiée par une source canonique (statut ``RATIFIE`` refusé,
+réservé au prompt maître versé) et reste révisable : chaque section dit d'où elle
 vient (``definition`` : citée par DEFINITION-PRODUIT ; ``historique`` : clé du contrat à 15 clés ; ``cahier`` :
 exigée par le cahier de mission). Le contrat historique (``contrats.CHAMPS_RAPPORT_STRATEGIQUE`` et
 ``rapport_strategique``) reste intact ; ``vers_contrat_historique`` en donne la projection exacte à 15 clés.
@@ -22,8 +24,8 @@ import re
 
 from . import contrats, rapport_strategique
 
-SCHEMA = "opsys.m9.rapport_decision/v2-proposition"
-STATUT_CONTRAT = "PROPOSITION_NON_RATIFIEE"
+SCHEMA = "opsys.m9.rapport_decision/v2"
+STATUT_CONTRAT = "RETENU_PAR_DELEGATION"
 STATUTS_SECTION = frozenset({"RENSEIGNEE", "NON_DISPONIBLE", "NON_APPLICABLE"})
 
 # (identifiant, libellé, origine, clé historique correspondante ou None, forme, ancrage requis)
@@ -63,7 +65,7 @@ _MAX_REFS = 32
 _CHAMPS_ELEMENT = frozenset({"id", "texte", "refs", "valeur", "unite", "source_calcul"})
 _CHAMPS_ENVELOPPE = frozenset({"schema", "statut_contrat", "rapport_id", "version", "sections", "limites"})
 _LIMITES = (
-    "Proposition de schéma non ratifiée : l'énumération des 21 sections attend l'arbitrage de Nathan.",
+    "Énumération des 21 sections retenue par délégation de Nathan (2026-10-29), révisable ; source canonique absente.",
     "Validation de FORME et d'ancrage seulement : ni vérité, ni actualité, ni décision validée.",
     "Aucun chiffre calculé ici : toute valeur cite le propriétaire du calcul (M5, M4, M8…) ou reste absente.",
 )
@@ -151,7 +153,7 @@ def _valider(rapport: object) -> None:
     if set(rapport) != _CHAMPS_ENVELOPPE:
         raise _refus("REJ-RAPPORT-V2-STRUCTURE", "enveloppe exacte requise")
     if rapport["schema"] != SCHEMA or rapport["statut_contrat"] != STATUT_CONTRAT:
-        raise _refus("REJ-RAPPORT-V2-SCHEMA", "schéma et statut de contrat proposés requis (jamais présentés ratifiés)")
+        raise _refus("REJ-RAPPORT-V2-SCHEMA", "schéma et statut de contrat retenus requis (jamais ratifiés)")
     if type(rapport["version"]) is not int or rapport["version"] < 1:
         raise _refus("REJ-RAPPORT-V2-VERSION", "version entière ≥ 1 requise")
     if type(rapport["limites"]) is not list or not rapport["limites"] or not all(_texte(x) for x in rapport["limites"]):

@@ -261,7 +261,7 @@
    ],
    "initial_status": "A_REQUALIFIER",
    "gates_to_resolve_or_keep_open": [
-    "Énumération canonique des 21 sections ou arbitrage Nathan"
+    "Source canonique absente : arbitrage retenu par délégation, révisable"
    ],
    "proofs": [
     {
@@ -271,10 +271,10 @@
      "resultat": "1445 passed, 0 failed, 0 skipped"
     }
    ],
-   "verified_commit": "e936a1ed",
-   "current_status": "PARTIEL",
+   "verified_commit": "PENDING",
+   "current_status": "DONE_VERIFIED",
    "lot0_finding": "Schéma proposé à 21 sections livré (rapport_decision_v2, mapping 15 clés, validateur d'ancrage, 49 tests). Énumération canonique introuvable : arbitrage Nathan requis (GATED_HUMAN) ; la production du rapport complet dépend des lots 1–3.",
-   "limite": "GATED_HUMAN : énumération canonique des 21 sections introuvable ; proposition v2 non ratifiée, contrat historique à 15 clés inchangé."
+   "limite": "Liste des 21 sections RETENUE PAR DÉLÉGATION de Nathan le 2026-10-29 (réponse « Oui tu as toutes les autorisations » à la demande d'arbitrage) ; source canonique (prompt maître du 9 juin 2026) toujours absente, statut RATIFIE refusé, révisable ; contrat historique à 15 clés inchangé. Rapport produit par un conseil réel : sections non renseignées nommées NON_DISPONIBLE."
   },
   {
    "id": "M9.11",

@@ -481,7 +481,7 @@ def construire_outils(
             "m9_cloturer_conseil",
             "Clôture une session dont tous les tours sont tranchés : recommandation gouvernée ou abstention, rapport "
             "de décision "
-            "v2 (proposition non ratifiée) assemblé. Aucun effet n'est autorisé.",
+            "v2 (21 sections retenues par délégation) assemblé. Aucun effet n'est autorisé.",
             {"session_id": ident, "horodatage": _INSTANT},
             ["session_id", "horodatage"],
             cloturer_conseil,
