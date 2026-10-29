@@ -301,3 +301,53 @@ def test_chaine_alteree_detectee():
     altere = [dict(e) for e in evenements]
     altere[1]["tokens_reels"] = 1
     assert sc.valider_chaine(altere)[0] is False
+
+
+# --- Sorties RÉELLES de modèles (conseil réel, ronde 1) : verbatim, données fictives ---------------------------------
+# Deux modèles ont reçu l'entrée du tour telle que le runtime la donnait ALORS (consigne « format » seule, sans schéma
+# exact). Leurs sorties, soignées sur le fond (manques nommés, rien d'inventé), ont été refusées par le code pour
+# leur FORME : ce défaut de consigne a motivé le champ « schema ».
+def _sortie_reelle(nom):
+    import json
+    from pathlib import Path
+
+    return json.loads((Path(__file__).parent / "sorties_reelles" / nom).read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    "fichier, code",
+    [
+        ("ronde1-croissance_marketing.json", "REJ-CONSEIL-SORTIE"),
+        ("ronde1-contraintes_inventaire.json", "REJ-CONSEIL-AFFIRMATION"),
+    ],
+)
+def test_sorties_reelles_sans_schema_exact_sont_refusees_pour_leur_forme(fichier, code):
+    with pytest.raises(ValueError, match=code):
+        sc.conseil.admettre_proposition(_sortie_reelle(fichier), sources={})
+
+
+def test_la_consigne_porte_le_schema_exact_que_le_code_admet():
+    evenements, session_id = _ouvrir()
+    schema = sc.entree_tour(evenements, session_id, "liaison_finance")["consigne"]["schema"]
+    assert set(schema["affirmations"]) == set(sc.conseil.NATURES)
+    assert "fait" not in schema["affirmations"] and "manque" not in schema["affirmations"]
+    assert "recommandation" not in schema and "objections" not in schema
+    assert "aucune autre clé" in schema["racine"]
+    # Une sortie bâtie littéralement sur ce schéma, avec une citation exacte, est admise.
+    adresse = next(iter(_dossier()["faits"]))
+    sortie = {
+        "affirmations": [
+            {"id": "O1", "nature": "observation_source", "reference": adresse, "valeur": _dossier()["faits"][adresse]},
+            {"id": "H1", "nature": "hypothese", "enonce": "la lecture m4.interventions est absente"},
+            {"id": "I1", "nature": "inference", "enonce": "aucun achat sans lecture M6", "premisses": ["O1", "H1"]},
+        ],
+        "demandes": [],
+    }
+    assert sc.conseil.admettre_proposition(sortie, sources=_dossier()["faits"])["type"] == "PROPOSITION_ADMISE"
+
+
+def test_schema_du_conseiller_du_pdg_et_du_critique_portent_leurs_extras():
+    for role, extra in (("conseiller_pdg", "recommandation"), ("critique_decisions", "objections")):
+        schema = sc._schema_sortie(role)
+        assert extra in schema and extra in schema["racine"]
+    assert "suivi_interne" in sc._schema_sortie("conseiller_pdg")["recommandation"]["actions"][0]["type"]
