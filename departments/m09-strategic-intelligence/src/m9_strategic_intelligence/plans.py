@@ -33,7 +33,7 @@ MAX_RESULTATS = 12
 MAX_SOURCES = 12
 _ID = re.compile(r"[a-z0-9][a-z0-9_.\-]{0,63}")
 _JOUR = re.compile(r"\d{4}-\d{2}-\d{2}")
-_ADRESSE = re.compile(r"(?P<lecture>[a-z0-9_.]+)#(?P<rang>\d+):p(?P<page>\d+)\.(?P<chemin>[A-Za-z0-9_.\[\]]+)")
+ADRESSE = re.compile(r"(?P<lecture>[a-z0-9_.]+)#(?P<rang>\d+):p(?P<page>\d+)\.(?P<chemin>[A-Za-z0-9_.\[\]]+)")
 _SEGMENT = re.compile(r"([A-Za-z0-9_]+)(?:\[(\d+)\])?")
 _CHAMPS_RESULTAT = frozenset({"id", "libelle", "lecture", "chemin", "operateur", "cible"})
 _LIMITES = (
@@ -145,7 +145,7 @@ def enregistrer(
     anciennes = courant["versions"][-1]["plan"]["sources"] if courant is not None and courant["versions"] else {}
     instantane = {}
     for adresse in sources:
-        if type(adresse) is not str or not _ADRESSE.fullmatch(adresse):
+        if type(adresse) is not str or not ADRESSE.fullmatch(adresse):
             raise _refus("REJ-PLAN-SOURCE", "source : adresse de fait invalide")
         if adresse in anciennes:
             instantane[adresse] = anciennes[adresse]
@@ -224,7 +224,7 @@ def noter_suivi(chaine: Sequence[Mapping], plan_id: str, resultat_id: str, note:
     )
 
 
-def _valeur_a(page: object, chemin: str) -> object:
+def valeur_a(page: object, chemin: str) -> object:
     courant = page
     for segment in chemin.split("."):
         trouve = _SEGMENT.fullmatch(segment)
@@ -245,7 +245,7 @@ def sources_changees(version: Mapping, captures: Sequence[Mapping], *, connaissa
     en_conflit = {(c["lecture_id"], c["arguments_sha256"]) for c in cs.contradictions(connues)}
     changees = []
     for adresse, ancienne in version["plan"]["sources"].items():
-        parties = _ADRESSE.fullmatch(adresse)
+        parties = ADRESSE.fullmatch(adresse)
         if parties is None:  # adresse validée au dépôt : garde défensive
             continue
         utilisables = [
@@ -263,7 +263,7 @@ def sources_changees(version: Mapping, captures: Sequence[Mapping], *, connaissa
             continue
         page = int(parties["page"])
         pages = utilisables[-1]["pages"]
-        valeur = _valeur_a(pages[page], parties["chemin"]) if page < len(pages) else None
+        valeur = valeur_a(pages[page], parties["chemin"]) if page < len(pages) else None
         courant = criteres.texte(valeur) if valeur is not None else None
         if courant != ancienne:
             changees.append(
