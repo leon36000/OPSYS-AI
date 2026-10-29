@@ -34,6 +34,7 @@ ETATS_FINAUX = frozenset({"REFUSEE", "EXECUTEE_CONFIRMEE", "ECHEC"})
 ACTIONS: dict[str, frozenset[str]] = {
     "m02-revenue-crm": frozenset({"m2_preparer_relance", "m2_reassigner_lead"}),
     "m04-field-ops": frozenset({"m4_planifier_intervention", "m4_creer_demande_ecart"}),
+    "m10-memoire": frozenset({"m10_journaliser_decision"}),
 }
 _SHA = r"[0-9a-f]{64}"
 _SOURCE = re.compile(

@@ -245,6 +245,7 @@ LECTURES: tuple[Lecture, ...] = (
         fixes={"limite": 100},
         pagination=Pagination("curseur", "resultat.curseur_suivant", "resultat.total"),
     ),
+    _lecture("m10.statut_decision", "m10-memoire", "m10_statut_decision", {"decision_id"}),
     _lecture(
         "m10.paquet_affaire",
         "m10-memoire",

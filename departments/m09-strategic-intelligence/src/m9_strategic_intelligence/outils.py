@@ -86,6 +86,7 @@ from . import (
     outils_direction,
     outils_experiences,
     outils_graphe,
+    outils_memoire,
     outils_plans,
     outils_playbooks,
     outils_previsions,
@@ -1291,6 +1292,9 @@ def outils(
         ),
         *outils_graphe.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_actions.construire_outils(budget_sortie=BUDGET_SORTIE, proposeur=proposeur_actions_m9),
+        *outils_memoire.construire_outils(
+            budget_sortie=BUDGET_SORTIE, sessions_cible=sessions_cible, captures_cible=captures_cible
+        ),
         *outils_experiences.construire_outils(
             budget_sortie=BUDGET_SORTIE, experiences_cible=experiences_cible, captures_cible=captures_cible
         ),
