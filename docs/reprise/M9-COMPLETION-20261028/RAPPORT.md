@@ -16,8 +16,8 @@ Code prêt ≠ intégration réelle ≠ qualification installée : les 15 DONE_V
 appelés par le port privé, HTTP console) ; aucune qualification installée (VPS/Core) n'a été faite.
 
 ## Qualité et reprises
-- Commandes : `preuves-execution/cmd-*.txt` (pytest sous `taskset` 2 CPU, `ulimit -v` 6 Gio, HOME/OPSYS_HOME privés). Exécution finale :
-  1 445 passed, 0 failed, 0 skipped, 274 s. `opsys-metier verifier` exit 0. `ruff check src tests departments/m09-strategic-intelligence` OK.
+- Commandes : `preuves-execution/cmd-*.txt` (pytest sous `taskset` 2 CPU, `ulimit -v` 6 Gio, HOME/OPSYS_HOME privés). Exécution finale `final3` (état de code `6d422bff`, périmètre M9 + console + portées + CI départements) :
+  1 731 passed, 0 failed, 0 skipped, 281 s (les exécutions antérieures de 1 445 et 1 456 tests précèdent les ajouts du cahier). `opsys-metier verifier` exit 0 (358 outils, 229 déclarés aux appareils). `ruff check src tests departments/m09-strategic-intelligence` OK.
 - Rouges : régression console élargie = 46 échecs, tous fusion PDF/AP, identiques sur la base sans changements (46/46) ; conservés.
 - Relecture indépendante du tableau (lecture seule) : rien de grave ; deux défauts réels corrigés avec test (filtre perdu à la page suivante des sources, code de refus de repli) ; limite connue : champ POST répété accepté en silence (non exploitable, CSRF).
 - Défauts trouvés et corrigés pendant la QA : refus M9 pris pour un succès par le tableau (corrigé, testé) ; lecture d'une commande
