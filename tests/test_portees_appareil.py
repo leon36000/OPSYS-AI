@@ -141,6 +141,8 @@ ADMIN_SEUL = frozenset({
     # Veille M9.14 : import explicite de documents publics (aucun accès réseau).
     "m9_declarer_source_veille", "m9_retirer_source_veille", "m9_importer_document_veille",
     "m9_lier_veille_decision", "m9_lire_veille", "m9_lire_document_veille",
+    # Playbooks M9.15 : gabarits gouvernés, lecture seule.
+    "m9_lister_playbooks", "m9_evaluer_playbook",
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",
