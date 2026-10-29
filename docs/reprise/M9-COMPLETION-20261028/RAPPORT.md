@@ -3,15 +3,15 @@
 ## Identité et portée
 - Mission / responsable / outil : M9-COMPLETION-INTEGRALE-20261028 / Claude Code (session cloud) / Claude Code.
 - Base / branche : `3ab7692f041892ec2af0cab6f241a715edac2d50` (`codex/restructuration-2026-09-30`) / `mission/claude-m9-direction-complete-20261028`.
-- SHA final de code vérifié : `29f67b6a` (les commits ultérieurs ne touchent que la documentation et les preuves). PR draft : voir la PR liée à la branche.
+- SHA de code vérifié localement : `f258a344` (1 456 tests, exécution `final2-m9`) ; la CI GitHub se lit sur la PR draft #859. Les commits ultérieurs ne touchent que la documentation et les preuves.
 - Résultat utilisateur observé : Nathan, admin, ouvre « Direction IA », saisit instant et jour civil, voit briefing, risques, prévisions des
   propriétaires, plans, actions et veille avec sources manquantes nommées ; il note un suivi ou annule un plan ; les actions passent par
   la file d'approbation native. Observé en navigateur Chromium (bureau, mobile 390 px) sur données fictives.
-- **Périmètre visé : M9.1–M9.23. Lignes encore ouvertes : M9.3, 4, 5, 8, 9, 10, 11, 18, 23 (PARTIEL) et M9.22 (PHASE_MOBILE_FINALE). M9 n'est pas complet.**
+- **Périmètre visé : M9.1–M9.23. Lignes encore ouvertes : M9.3, 4, 5, 8, 9, 11, 18 (PARTIEL) et M9.22 (PHASE_MOBILE_FINALE). 15 lignes DONE_VERIFIED. M9 n'est pas complet.**
 
 ## Exigences et preuves
 Voir `MATRICE-EXIGENCES.json` (aucune ligne retirée) : par ligne, statut, commit vérifié, tests et limite.
-Code prêt ≠ intégration réelle ≠ qualification installée : les 13 DONE_VERIFIED sont prouvés en processus (SQLite, producteurs réels
+Code prêt ≠ intégration réelle ≠ qualification installée : les 15 DONE_VERIFIED sont prouvés en processus (SQLite, producteurs réels
 appelés par le port privé, HTTP console) ; aucune qualification installée (VPS/Core) n'a été faite.
 
 ## Qualité et reprises
@@ -23,7 +23,7 @@ appelés par le port privé, HTTP console) ; aucune qualification installée (VP
 - Refus et reprises prouvés : rôle admin retiré après connexion -> 403 ; CSRF absent/faux -> 403 sans écriture ; mutation_id rejoué ->
   une seule écriture, données différentes -> 409 ; plan annulé -> refus nommé ; chaîne altérée -> REJ-…-CHAINE-INVALIDE ; effets inconnus
   (INCONNU) jamais rejoués.
-- Conseil réel : **non exécuté** (aucun backend/budget autorisé ici). Seuls l'admission déterministe et des doubles de protocole.
+- Conseil réel : **exécuté en session** (3 rondes, 6 sorties de vrais modèles Claude via l'outil Agent, hors runtime Core natif) : voir `preuves-conseil-reel/RAPPORT-CONSEIL-REEL.md`. Refus de forme puis de borne trouvés et corrigés, admission en ronde 3, recommandation gouvernée, budget réel appliqué (usage rapporté ~85 000 jetons > plafond 6 000 : dépôt refusé). Estimation déterministe non mesurée utilisée ensuite, dite telle. Vérité des inférences non prouvée.
 - Évaluation : 61 cas, 6 catégories, attentes indépendantes, 61/61, Wilson 95 % [0,9408 ; 1,0000] ; biais : corpus écrit par la mission,
   couche déterministe seulement, aucun modèle réel mesuré.
 - SQLite : vérifié. PostgreSQL : non exécuté ici (CI). HTTP : vérifié. MCP : non vérifié séparément. Navigateur : vérifié. Core/VPS : non
@@ -33,14 +33,14 @@ appelés par le port privé, HTTP console) ; aucune qualification installée (VP
 ## Coordination
 - Raccords communs en commits séparés : `actions_m9.py`, `lecteurs_m9.py`, `departements.py`, `capacites.py`, `ROLES.md`,
   `test_portees_appareil.py`, puis console : `application.py`, `metier.py`, `pages.py`. Aucune extension réelle de droits (tout `admin` strict).
-- Contrat 21 sections : source introuvable ; proposition v2 non ratifiée, 15 clés historiques inchangées ; décision humaine requise.
+- Contrat 21 sections : source canonique introuvable ; liste v2 retenue par délégation de Nathan le 2026-10-29 (réponse « Oui tu as toutes les autorisations » à la demande d'arbitrage), statut RETENU_PAR_DELEGATION, jamais RATIFIE, révisable, 15 clés historiques inchangées.
 - CI du SHA final : à lire sur la PR draft ; SKIP/UNKNOWN conservés.
 
 ## Verdict et suite
 - Démontré : couches déterministes M9.1–2, 6–7, 12–17, 19–21 ; gouvernance par les vraies approbations ; tableau exécutif en navigateur.
 - Implémenté mais pas démontré en réel : conseil d'agents (backend), planification native, Core/VPS.
 - À construire : écran mobile admin (M9.22 ; contrat serveur prêt dans `CONTRAT-MOBILE-ADMIN-M9.md`) ; réconciliation de version M8 ; prévisions/capacité/coûts chez les propriétaires.
-- Décision humaine : énumération canonique des 21 sections (proposition prête dans `CONTRAT-RAPPORT-21-SECTIONS.md`).
-- Prochaine action : CI de la PR draft, puis arbitrage des 21 sections.
+- Décision humaine : confirmer ou amender la liste des 21 sections retenue par délégation, ou verser le prompt maître M9 ; M9.5 demande l'hôte opérateur (grants cron réels) ; M9.3 une décision de conception chez M8.
+- Prochaine action : CI de la PR draft sur le SHA final ; lignes restantes = producteurs (M4 capacité, M5/M7/M8 données), hôte opérateur (M9.5), phase mobile (M9.22).
 
 Aucun merge, déploiement, acte réel ou validation professionnelle n'est implicite.
