@@ -27,7 +27,7 @@ from typing import Any
 
 from sqlalchemy import Connection
 
-from . import approbations, idempotence, jetons, lecteurs_m9, liaison_cibles, openclaw
+from . import actions_m9, approbations, idempotence, jetons, lecteurs_m9, liaison_cibles, openclaw
 from . import contexte as contexte_appel
 from .contexte import (
     HorodatageAppareil,
@@ -163,7 +163,8 @@ class Capacites:
             }
         if "m09-strategic-intelligence" in self.departements:
             ports_prives["m09-strategic-intelligence"] = {
-                "lecteur_producteurs_m9": lecteurs_m9.construire_lecteur(departements, cnx_factory)
+                "lecteur_producteurs_m9": lecteurs_m9.construire_lecteur(departements, cnx_factory),
+                "proposeur_actions_m9": actions_m9.construire_proposeur(departements, cnx_factory),
             }
         self.index: dict[str, tuple[Departement | None, Outil]] = dict(
             tous_les_outils(self.departements.values(), ports_prives=ports_prives)

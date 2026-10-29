@@ -134,7 +134,8 @@ class Departement:
         port_m9 = (
             self.id == "m09-strategic-intelligence"
             and self.module_outils == "m9_strategic_intelligence.outils"
-            and set(ports) == {"lecteur_producteurs_m9"}
+            and bool(ports)
+            and set(ports) <= {"lecteur_producteurs_m9", "proposeur_actions_m9"}
             and all(callable(port) for port in ports.values())
         )
         if ports and not port_m9 and (
