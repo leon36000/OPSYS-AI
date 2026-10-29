@@ -58,6 +58,9 @@ LECTURES = {
     "m9_lister_revues": "m09-strategic-intelligence",
     "m9_lire_revue": "m09-strategic-intelligence",
     "m9_evaluer_scenarios": "m09-strategic-intelligence",
+    "m9_indicateurs_executifs": "m09-strategic-intelligence",
+    "m9_cadrer_decision": "m09-strategic-intelligence",
+    "m9_projeter_tendance": "m09-strategic-intelligence",
     # CRM secrétariat (répertoire et dossier client) : lectures pures de la vérité commerciale M2.
     "m4_lire_cedule_semaine": "m04-field-ops",
     "m4_lire_calendrier_plan": "m04-field-ops",
@@ -75,7 +78,8 @@ _LECTURES_ADMIN_M9 = frozenset({
     "m9_observations_chantier_periode", "m9_rapport_activite_periode",
     "m9_salle_de_guerre", "m9_radar_risques", "m9_previsions_consolidees", "m9_lire_plans", "m9_lire_actions",
     "m9_lire_veille", "m9_couverture_strategique", "m9_lister_captures", "m9_lire_conseil", "m9_lire_rapport_conseil",
-    "m9_lister_revues", "m9_lire_revue", "m9_evaluer_scenarios",
+    "m9_lister_revues", "m9_lire_revue", "m9_evaluer_scenarios", "m9_indicateurs_executifs", "m9_cadrer_decision",
+    "m9_projeter_tendance",
 })
 # Les lecteurs M2 n'ont de portée que pour `seller` et `admin` (`m2_revenue_crm.acces.ROLES_LEADS`) : la console
 # les appelle avec le rôle `admin` confirmé en base, jamais sans identité d'appareil ni sous `nathan_owner` seul.

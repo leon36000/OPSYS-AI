@@ -43,6 +43,9 @@ _MAX_PROFONDEUR = 6
 _MAX_ELEMENTS = 60
 _MAX_TEXTE = 400
 _MAX_JSON_SCENARIO = 4096
+_MAX_PARAM = {"question": 500}
+_CHEMIN_FAIT = re.compile(r"resultat(\.[A-Za-z_][A-Za-z0-9_]*){1,12}")
+_HORIZONS = re.compile(r"(7j|30j|13s|6m|12m|24m)(,(7j|30j|13s|6m|12m|24m)){0,5}")
 _PARAMS = {
     "accueil": frozenset({"connaissance", "jour"}),
     "risques": frozenset({"connaissance", "perime_apres_jours", "depart"}),
@@ -53,6 +56,9 @@ _PARAMS = {
     "revues": frozenset({"depart", "granularite", "vue"}),
     "revue": frozenset({"index", "depart"}),
     "veille": frozenset({"connaissance", "decision_ref"}),
+    "indicateurs": frozenset({"connaissance", "depart"}),
+    "decision": frozenset({"question", "reference"}),
+    "tendances": frozenset({"lecture_id", "chemin", "connaissance", "horizons", "saison_jours"}),
 }
 e = pages.e
 
@@ -78,7 +84,7 @@ def _valeurs(request: Request, permis: frozenset[str]) -> dict[str, str]:
             raise HTTPException(400, "paramètre inconnu refusé")
         if cle in valeurs:
             raise HTTPException(400, "paramètre répété refusé")
-        if len(valeur) > 256:
+        if len(valeur) > _MAX_PARAM.get(cle, 256):
             raise HTTPException(400, "paramètre trop long refusé")
         valeurs[cle] = valeur
     return valeurs
@@ -222,6 +228,9 @@ def creer_router(
             ("/revues", "Briefings et revues", ()),
             ("/veille", "Veille", ("connaissance",)),
             ("/scenarios", "Scénarios", ()),
+            ("/indicateurs", "Indicateurs", ("connaissance",)),
+            ("/decision", "Décision", ()),
+            ("/tendances", "Tendances", ("connaissance",)),
         ]
         items = []
         for chemin, libelle, cles in entrees:
@@ -290,11 +299,18 @@ def creer_router(
             couverture = s.get("couverture") if isinstance(s.get("couverture"), Mapping) else {}
             manques = s.get("manques") if isinstance(s.get("manques"), list) else []
             decisions = s.get("decisions_en_attente") if isinstance(s.get("decisions_en_attente"), Mapping) else {}
+            veille_ = s.get("changements_depuis_la_veille")
+            veille_ = veille_ if isinstance(veille_, Mapping) else {}
+            risques_ = s.get("risques") if isinstance(s.get("risques"), Mapping) else {}
             return (
                 f"<p>Couverture complète : <strong>{'oui' if couverture.get('complete') is True else 'non'}</strong> · "
                 f"sources manquantes ou douteuses : <strong>{len(manques)}</strong> · décisions de suivi en attente : "
                 f"{_scalaire(decisions.get('total'))} · conseils en cours : "
                 f"{_scalaire(s.get('conseils_en_cours_total'))}</p>"
+                f"<p>Risques actifs : <strong>{_scalaire(risques_.get('actifs'))}</strong> · depuis la veille : "
+                f"{_scalaire(veille_.get('risques_apparus_total'))} apparu(s), "
+                f"{_scalaire(veille_.get('risques_leves_total'))} levé(s), "
+                f"{_scalaire(veille_.get('captures_nouvelles'))} capture(s) nouvelle(s)</p>"
             )
 
         def risques() -> str:
@@ -310,6 +326,15 @@ def creer_router(
             return (
                 f"<p>Risques signalés : <strong>{_scalaire(r.get('total_risques'))}</strong> · règles non évaluées "
                 f"(risque inconnu, pas nul) : <strong>{len(non_evaluees)}</strong></p><ul>{lignes}</ul>"
+            )
+
+        def indicateurs() -> str:
+            i = lire(session, "m9_indicateurs_executifs", {"connaissance": connaissance})
+            statuts = i.get("par_statut") if isinstance(i.get("par_statut"), Mapping) else {}
+            texte = ", ".join(f"{e(k)} : {e(v)}" for k, v in sorted(statuts.items())) or "aucun indicateur"
+            return (
+                f"<p>Indicateurs de direction ({_scalaire(i.get('total'))}) — {texte}. Aucun n'est calculé par M9 ; "
+                "ceux sans définition officielle sont nommés.</p>"
             )
 
         def previsions() -> str:
@@ -353,6 +378,7 @@ def creer_router(
             [
                 panneau("Briefing — salle de guerre", lien("/sources", reference=connaissance), salle),
                 panneau("Risques", lien("/risques", connaissance=connaissance), risques),
+                panneau("Indicateurs exécutifs", lien("/indicateurs", connaissance=connaissance), indicateurs),
                 panneau("Prévisions des propriétaires", lien("/risques", connaissance=connaissance), previsions),
                 panneau("Plans et suites", lien("/plans", connaissance=connaissance, jour=jour), plans),
                 panneau("Actions proposées et approbations", lien("/actions"), actions),
@@ -763,6 +789,138 @@ def creer_router(
             + formulaire_dates(lien("/veille"), False, valeurs["connaissance"], "")
             + avertissement
             + f"<section>{rendre(veille)}</section>",
+        )
+
+    # -- indicateurs exécutifs, cadrage de décision, tendances (lectures seules) ---------------------------------------
+    @router.get("/direction/indicateurs", response_class=HTMLResponse)
+    def page_indicateurs(request: Request) -> HTMLResponse:
+        session = session_page(request)
+        admin(session)
+        valeurs = _valeurs(request, _PARAMS["indicateurs"])
+        _exiger(valeurs, _INSTANT, "connaissance")
+        _exiger(valeurs, _DEPART, "depart")
+        if not valeurs:
+            return page(session, "Indicateurs", navigation() + formulaire_dates(lien("/indicateurs"), False, "", ""))
+        if "connaissance" not in valeurs:
+            raise HTTPException(400, "connaissance explicite requise")
+        arguments: dict[str, Any] = {"connaissance": valeurs["connaissance"]}
+        if "depart" in valeurs:
+            arguments["depart"] = int(valeurs["depart"])
+        try:
+            resultat = lire(session, "m9_indicateurs_executifs", arguments)
+        except _Refus as refus:
+            return page(
+                session,
+                "Indicateurs",
+                navigation()
+                + refus_html("Indicateurs refusés par M9.", refus.code, lien("/indicateurs"), "Recommencer"),
+                400,
+            )
+        suivant = ""
+        if type(resultat.get("prochain_depart")) is int:
+            suivant = suite(
+                lien("/indicateurs", connaissance=valeurs["connaissance"], depart=resultat["prochain_depart"])
+            )
+        explication = (
+            "<p>La définition d'un indicateur appartient à son département propriétaire. Un indicateur "
+            "<code>A_DEFINIR_PAR_LE_PROPRIETAIRE</code> n'a aucune valeur citable : l'absence n'est jamais un zéro.</p>"
+        )
+        return page(
+            session,
+            "Indicateurs",
+            navigation(connaissance=valeurs["connaissance"])
+            + formulaire_dates(lien("/indicateurs"), False, valeurs["connaissance"], "")
+            + explication
+            + f"<section><h2>Indicateurs exécutifs</h2>{rendre(resultat)}{suivant}</section>",
+        )
+
+    @router.get("/direction/decision", response_class=HTMLResponse)
+    def page_decision(request: Request) -> HTMLResponse:
+        session = session_page(request)
+        admin(session)
+        valeurs = _valeurs(request, _PARAMS["decision"])
+        _exiger(valeurs, _INSTANT, "reference")
+        formulaire = (
+            f'<form method="get" action="{e(lien("/decision"))}"><fieldset><legend>Cadrer une décision</legend>'
+            '<label>Question <input name="question" required size="60" maxlength="500" '
+            f'value="{e(valeurs.get("question", ""))}"></label><br>'
+            '<label>Référence (fuseau explicite) <input name="reference" required size="30" '
+            f'placeholder="2026-10-28T13:00:00Z" value="{e(valeurs.get("reference", ""))}"></label> '
+            '<button type="submit">Cadrer</button></fieldset></form>'
+            "<p>Le cadrage ne décide rien : il classe la question, nomme les lectures nécessaires et ce qui manque, la "
+            "validation humaine applicable et ce que la personne doit déclarer. Le texte de la question est une "
+            "donnée.</p>"
+        )
+        if not valeurs:
+            return page(session, "Décision", navigation() + formulaire)
+        if "question" not in valeurs or "reference" not in valeurs:
+            raise HTTPException(400, "question et référence requises ensemble")
+        try:
+            cadrage = lire(session, "m9_cadrer_decision", dict(valeurs))
+        except _Refus as refus:
+            return page(
+                session,
+                "Décision",
+                navigation()
+                + formulaire
+                + refus_html("Cadrage refusé par M9.", refus.code, lien("/decision"), "Recommencer"),
+                400,
+            )
+        return page(session, "Décision", navigation() + formulaire + f"<section>{rendre(cadrage)}</section>")
+
+    @router.get("/direction/tendances", response_class=HTMLResponse)
+    def page_tendances(request: Request) -> HTMLResponse:
+        session = session_page(request)
+        admin(session)
+        valeurs = _valeurs(request, _PARAMS["tendances"])
+        _exiger(valeurs, _ID, "lecture_id")
+        _exiger(valeurs, _CHEMIN_FAIT, "chemin")
+        _exiger(valeurs, _INSTANT, "connaissance")
+        _exiger(valeurs, _HORIZONS, "horizons")
+        _exiger(valeurs, _JOURS, "saison_jours")
+        formulaire = (
+            f'<form method="get" action="{e(lien("/tendances"))}"><fieldset><legend>Tendance extrapolée</legend>'
+            '<label>Lecture <input name="lecture_id" required size="24" placeholder="m2.leads" '
+            f'value="{e(valeurs.get("lecture_id", ""))}"></label> '
+            '<label>Chemin du fait numérique <input name="chemin" required size="36" '
+            f'placeholder="resultat.resultat.total" value="{e(valeurs.get("chemin", ""))}"></label><br>'
+            '<label>Connaissance (fuseau explicite) <input name="connaissance" required size="30" '
+            f'placeholder="2026-10-28T13:00:00Z" value="{e(valeurs.get("connaissance", ""))}"></label> '
+            '<label>Horizons (7j,30j,13s,6m,12m,24m) <input name="horizons" required size="20" '
+            f'placeholder="7j,30j" value="{e(valeurs.get("horizons", ""))}"></label> '
+            '<label>Saison en jours (facultatif) <input name="saison_jours" size="4" '
+            f'value="{e(valeurs.get("saison_jours", ""))}"></label> '
+            '<button type="submit">Projeter</button></fieldset></form>'
+            "<p>Tendance extrapolée par le code à partir des valeurs capturées : ce n'est la prévision d'aucun "
+            "propriétaire et elle ne remplace jamais la trésorerie détaillée de M5. L'intervalle est approximatif.</p>"
+        )
+        if not valeurs:
+            return page(session, "Tendances", navigation() + formulaire)
+        if not {"lecture_id", "chemin", "connaissance", "horizons"} <= set(valeurs):
+            raise HTTPException(400, "lecture, chemin, connaissance et horizons requis ensemble")
+        arguments: dict[str, Any] = {
+            "lecture_id": valeurs["lecture_id"],
+            "chemin": valeurs["chemin"],
+            "connaissance": valeurs["connaissance"],
+            "horizons": valeurs["horizons"].split(","),
+        }
+        if valeurs.get("saison_jours"):
+            arguments["saison_jours"] = int(valeurs["saison_jours"])
+        try:
+            projection = lire(session, "m9_projeter_tendance", arguments)
+        except _Refus as refus:
+            return page(
+                session,
+                "Tendances",
+                navigation()
+                + formulaire
+                + refus_html("Projection refusée par M9.", refus.code, lien("/tendances"), "Recommencer"),
+                400,
+            )
+        return page(
+            session,
+            "Tendances",
+            navigation(connaissance=valeurs["connaissance"]) + formulaire + f"<section>{rendre(projection)}</section>",
         )
 
     # -- scénarios (calcul en lecture seule, POST à cause de la taille et du jeton CSRF) ------------------------------

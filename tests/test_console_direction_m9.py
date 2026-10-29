@@ -394,3 +394,122 @@ def test_code_de_refus_d_une_reponse_d_outil_a_toujours_un_repli_nomme(reponse, 
     from opsys.console import direction_ui
 
     assert direction_ui._refus_de_reponse(reponse) == attendu
+
+
+# --- Indicateurs exécutifs, cadrage de décision, tendances, changements depuis la veille -----------------------------
+NOUVELLES_PAGES = [
+    ("/direction/indicateurs", {"connaissance": CONNAISSANCE}),
+    ("/direction/decision", {"question": "Dois-je acheter un camion ?", "reference": CONNAISSANCE}),
+    (
+        "/direction/tendances",
+        {
+            "lecture_id": "m2.leads",
+            "chemin": "resultat.resultat.total",
+            "connaissance": CONNAISSANCE,
+            "horizons": "7j,30j",
+        },
+    ),
+]
+
+
+def test_nouvelles_pages_refusees_sans_session_et_aux_roles_non_admin(monde):
+    client, _a, _ = monde
+    for chemin, params in NOUVELLES_PAGES:
+        anonyme = client.get(chemin, params=params, follow_redirects=False)
+        assert anonyme.status_code in (303, 307) and "connexion" in anonyme.headers["location"], chemin
+    for identifiant in ("proprio.seul", "vendeur.fictif"):
+        client.cookies.clear()
+        connecter(client, identifiant)
+        for chemin, params in NOUVELLES_PAGES:
+            assert client.get(chemin, params=params).status_code == 403, (identifiant, chemin)
+
+
+def test_indicateurs_decision_et_tendances_lisent_le_vrai_etat_et_echappent_tout(monde):
+    client, _a, _ = monde
+    connecter(client)
+    avant = _etat_registres()
+    indic = client.get("/direction/indicateurs", params={"connaissance": CONNAISSANCE})
+    assert indic.status_code == 200 and "A_DEFINIR_PAR_LE_PROPRIETAIRE" in indic.text
+    assert "DEFINIE_M8" in indic.text and "calcule_par_m9" in indic.text
+    vide = client.get("/direction/indicateurs")
+    assert vide.status_code == 200 and 'name="connaissance"' in vide.text
+    decision = client.get(
+        "/direction/decision", params={"question": "Dois-je acheter un camion ?", "reference": CONNAISSANCE}
+    )
+    assert decision.status_code == 200 and "achat_vehicule" in decision.text and "BROUILLON_NON_SOUMIS" in decision.text
+    assert "VALIDATION_HUMAINE_REQUISE" in decision.text and "decision_prise_par_m9" in decision.text
+    piege = client.get(
+        "/direction/decision", params={"question": f"Dois-je acheter un camion ? {XSS}", "reference": CONNAISSANCE}
+    )
+    assert piege.status_code == 200 and XSS not in piege.text and "&lt;script&gt;" in piege.text
+    inconnue = client.get("/direction/decision", params={"question": "Quel temps demain ?", "reference": CONNAISSANCE})
+    assert inconnue.status_code == 200 and "TYPE_NON_RECONNU" in inconnue.text
+    tendance = client.get("/direction/tendances", params=NOUVELLES_PAGES[2][1])
+    assert tendance.status_code == 200 and "HISTORIQUE_INSUFFISANT" in tendance.text
+    assert "n'est la prévision d'aucun" in tendance.text and "tendance_extrapolee" in tendance.text
+    assert _etat_registres() == avant, "ces lectures n'écrivent rien"
+    for page in (indic, decision, piege, inconnue, tendance):
+        assert page.headers["cache-control"] == "no-store" and "<script>" not in page.text.replace(
+            '<script src="/opsys/statique/console.js" defer></script>', ""
+        )
+
+
+@pytest.mark.parametrize(
+    "chemin, params",
+    [
+        ("/direction/indicateurs", {"connaissance": "hier"}),
+        ("/direction/indicateurs", {"connaissance": CONNAISSANCE, "depart": "-1"}),
+        ("/direction/indicateurs", {"connaissance": CONNAISSANCE, "inconnu": "1"}),
+        ("/direction/decision", {"question": "Camion ?"}),
+        ("/direction/decision", {"question": "Camion ?", "reference": "hier"}),
+        ("/direction/decision", {"question": "x" * 501, "reference": CONNAISSANCE}),
+        ("/direction/decision", {"question": "Camion ?", "reference": CONNAISSANCE, "autre": "1"}),
+        (
+            "/direction/tendances",
+            {"lecture_id": "m2.leads", "chemin": "x", "connaissance": CONNAISSANCE, "horizons": "7j"},
+        ),
+        (
+            "/direction/tendances",
+            {"lecture_id": "m2.leads", "chemin": "resultat.a", "connaissance": CONNAISSANCE, "horizons": "9j"},
+        ),
+        (
+            "/direction/tendances",
+            {"lecture_id": "m2.leads", "chemin": "resultat.a[*].b", "connaissance": CONNAISSANCE, "horizons": "7j"},
+        ),
+        ("/direction/tendances", {"lecture_id": "m2.leads", "chemin": "resultat.a", "connaissance": CONNAISSANCE}),
+        (
+            "/direction/tendances",
+            {
+                "lecture_id": "m2.leads",
+                "chemin": "resultat.a",
+                "connaissance": CONNAISSANCE,
+                "horizons": "7j",
+                "saison_jours": "abc",
+            },
+        ),
+    ],
+)
+def test_nouvelles_pages_refusent_parametres_invalides_sans_lecture(monde, chemin, params):
+    client, _a, _ = monde
+    connecter(client)
+    assert client.get(chemin, params=params).status_code == 400
+
+
+def test_lecture_refusee_par_m9_est_affichee_avec_son_code_sans_fuite(monde):
+    client, _a, _ = monde
+    connecter(client)
+    refus = client.get(
+        "/direction/tendances",
+        params={"lecture_id": "m99.inconnue", "chemin": "resultat.a", "connaissance": CONNAISSANCE, "horizons": "7j"},
+    )
+    assert refus.status_code == 400 and "REJ-" in refus.text and "Traceback" not in refus.text
+
+
+def test_tableau_de_bord_montre_risques_actifs_changements_depuis_la_veille_et_indicateurs(monde):
+    client, _a, _ = monde
+    connecter(client)
+    page = client.get("/direction", params={"connaissance": CONNAISSANCE, "jour": JOUR})
+    assert page.status_code == 200
+    assert "depuis la veille" in page.text and "capture(s) nouvelle(s)" in page.text
+    assert "Indicateurs exécutifs" in page.text and 'href="/opsys/direction/indicateurs' in page.text
+    assert 'href="/opsys/direction/decision' in page.text and 'href="/opsys/direction/tendances' in page.text
