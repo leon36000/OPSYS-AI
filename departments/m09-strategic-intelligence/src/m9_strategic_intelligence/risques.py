@@ -85,9 +85,15 @@ def _signal_incident(ligne: Mapping) -> tuple[str, str, tuple[str, ...]] | None:
 
 
 def _signal_report(ligne: Mapping) -> tuple[str, str, tuple[str, ...]] | None:
-    if type(ligne.get("intervention_id")) is not str:
+    if type(ligne.get("intervention_id")) is not str or ligne.get("motif") == "meteo":
         return None
-    return ("MOYEN" if ligne.get("motif") == "meteo" else "FAIBLE", f"report:{ligne['intervention_id']}", ("motif",))
+    return ("FAIBLE", f"report:{ligne['intervention_id']}", ("motif",))
+
+
+def _signal_meteo(ligne: Mapping) -> tuple[str, str, tuple[str, ...]] | None:
+    if type(ligne.get("intervention_id")) is not str or ligne.get("motif") != "meteo":
+        return None
+    return ("MOYEN", f"report:{ligne['intervention_id']}", ("motif",))
 
 
 def _signal_ecart_marge(ligne: Mapping) -> tuple[str, str, tuple[str, ...]] | None:
@@ -107,6 +113,7 @@ REGLES: tuple[Regle, ...] = (
           f"{_R}.reservations_actives[*]", _signal_reservation),
     Regle("capacite_incident_ouvert", "capacite", "m4.retards_incidents", f"{_R}.incidents.liste[*]", _signal_incident),
     Regle("capacite_report_en_cours", "capacite", "m4.retards_incidents", f"{_R}.reports.liste[*]", _signal_report),
+    Regle("meteo_report_en_cours", "meteo", "m4.retards_incidents", f"{_R}.reports.liste[*]", _signal_meteo),
     Regle("qualite_ecart_marge_negatif", "qualite", "m8.mesures_chantier", "resultat.mesures[*]", _signal_ecart_marge),
 )  # fmt: skip
 

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from urllib.parse import urlsplit
 
 from . import capture_strategique as cs
 from . import chainage
@@ -96,20 +95,19 @@ def _jour(valeur: object, nom: str) -> str:
     return valeur
 
 
+_URL_HTTPS = re.compile(
+    r"https://([a-z0-9](?:[a-z0-9\-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?)*)(?::\d{1,5})?(/[^\s?#@]*)?", re.I
+)
+
+
 def _url_sobre(url: object) -> str:
-    if type(url) is not str or len(url) > 300:
+    """URL https sobre : hôte seul (ni identifiants, ni requête, ni fragment), analysée sans module réseau."""
+    if type(url) is not str or len(url) > 300 or url.strip() != url:
         raise _refus("REJ-VEILLE-URL", "URL https bornée requise")
-    morceaux = urlsplit(url)
-    if (
-        morceaux.scheme != "https"
-        or not morceaux.hostname
-        or morceaux.username
-        or morceaux.password
-        or morceaux.fragment
-    ):
-        raise _refus("REJ-VEILLE-URL", "https sans identifiants ni fragment requis")
-    if morceaux.query:
+    if "?" in url:
         raise _refus("REJ-VEILLE-URL", "aucune chaîne de requête : elle peut porter un jeton ou une donnée privée")
+    if "#" in url or "@" in url or not _URL_HTTPS.fullmatch(url):
+        raise _refus("REJ-VEILLE-URL", "https sans identifiants ni fragment requis")
     return url
 
 

@@ -89,9 +89,10 @@ def test_quatre_domaines_signales_avec_gravite_preuves_et_sans_cause():
     assert r[("cash_alerte_seuil", "tresorerie")]["gravite"] == "ELEVE"
     assert r[("materiaux_reservation_incomplete", "devis:D1")]["gravite"] == "ELEVE"
     assert r[("capacite_incident_ouvert", "incident:R1")]["gravite"] == "ELEVE"
-    assert r[("capacite_report_en_cours", "report:I1")]["gravite"] == "MOYEN"
+    assert r[("meteo_report_en_cours", "report:I1")]["gravite"] == "MOYEN"
+    assert ("capacite_report_en_cours", "report:I1") not in r, "un report météo n'est pas un report de capacité"
     assert r[("qualite_ecart_marge_negatif", "rentabilite_chantier")]["gravite"] == "MOYEN"
-    assert {x["domaine"] for x in res["risques"]} == {"cash", "materiaux", "capacite", "qualite"}
+    assert {x["domaine"] for x in res["risques"]} == {"cash", "materiaux", "capacite", "meteo", "qualite"}
     for risque in res["risques"]:
         assert (
             risque["statut"] == "ACTIF"
