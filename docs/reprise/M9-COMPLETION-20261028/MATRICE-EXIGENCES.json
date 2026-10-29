@@ -89,7 +89,7 @@
    "verified_commit": "7c85c7c8",
    "current_status": "PARTIEL",
    "lot0_finding": "Registre M8 de métriques durable (metric_id, unité, propriétaire, fraîcheur attendue) + version_definition (empreinte) : deux régimes de version. Aucun paquet de preuves M8.17 en code. Plan : couche sémantique qui refuse d'agréger unités/versions incompatibles et cite le propriétaire.",
-   "limite": "Gate M8 ouvert : version_definition des mesures est une empreinte, le registre est un entier -> VERSION_NON_COMPARABLE affiché, jamais fusionné ; à réconcilier chez M8."
+   "limite": "Cause racine établie : le registre M8 (propriétaire, fraîcheur, règles de qualité ; version = nombre d'enregistrements) et le dictionnaire de définitions des mesures (empreinte SHA-256 de la définition chargée) sont deux objets distincts sans lien prévu dans leur conception ; M9 affiche donc VERSION_NON_COMPARABLE (verdict correct, jamais fusionné). La réconciliation demande une décision de conception chez M8 (ex. consigner l'empreinte de la définition source dans l'enregistrement du registre), hors périmètre de M9."
   },
   {
    "id": "M9.4",
@@ -149,7 +149,7 @@
    "verified_commit": "29af9e39",
    "current_status": "PARTIEL",
    "lot0_finding": "Briefing du matin existant (file approbations + alertes M8 + faits de veille). Planification : generateur automatisations.sh seulement ; exécuteur natif non qualifié (gate).",
-   "limite": "Gate ouvert : planification par l'ordonnanceur natif non qualifiée (aucun cron global) ; la salle de guerre est calculée à la demande avec une date explicite."
+   "limite": "Planification NON qualifiée : le seul mécanisme natif (agents_cron_autorite : grants/remises cron SQLite) est appelé par l'hôte opérateur authentifié et crée des grants réels ; la salle de guerre est calculée à la demande avec une date explicite et refuse une vue périmée. Aucun cron global."
   },
   {
    "id": "M9.6",
@@ -607,6 +607,11 @@
   "sha": "29f67b6a",
   "tests": "1445 passed / 0 failed / 0 skipped",
   "verifier": "OK 10 départements, 353 outils, 224 déclarés aux appareils",
-  "lint": "ruff check src tests departments/m09-strategic-intelligence : OK"
+  "lint": "ruff check src tests departments/m09-strategic-intelligence : OK",
+  "decompte": {
+   "DONE_VERIFIED": 15,
+   "PARTIEL": 7,
+   "PHASE_MOBILE_FINALE": 1
+  }
  }
 }
