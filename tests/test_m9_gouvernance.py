@@ -108,12 +108,7 @@ def test_les_outils_de_m9_n_ont_aucun_pouvoir_d_effet_externe():
         assert outil.niveau_effectif in (Niveau.N0, Niveau.N1, Niveau.N2, Niveau.N3), outil.nom
         assert outil.autonomie in (Autonomie.T0, Autonomie.T1), outil.nom
         assert not any(verbe in outil.nom for verbe in verbes_interdits), outil.nom
-        assert (
-            outil.roles_appareil == frozenset({"admin"})
-            or outil.nom.startswith("m9_")
-            and not outil.roles_appareil
-            or True
-        )
+        assert outil.roles_appareil in (frozenset({"admin"}), frozenset()), outil.nom
 
 
 def test_les_neuf_familles_sensibles_exigent_un_humain_dans_le_conseil_et_les_playbooks():

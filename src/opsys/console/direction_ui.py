@@ -264,7 +264,7 @@ def creer_router(
 
     # -- accueil
     # --------------------------------------------------------------------------------------------------------
-    def panneau(titre: str, lien_detail: str, produire: Callable[[], str]) -> str:
+    def panneau(titre: str, lien_detail: str | None, produire: Callable[[], str]) -> str:
         try:
             corps = produire()
         except _Refus as refus:
@@ -276,10 +276,8 @@ def creer_router(
             if exc.status_code == 403:
                 raise
             corps = f'<p class="message message-erreur" role="alert">Panneau indisponible ({exc.status_code}).</p>'
-        return (
-            f'<section class="panneau"><h2>{e(titre)}</h2>{corps}'
-            f'<p><a href="{e(lien_detail)}">Voir le détail et les preuves</a></p></section>'
-        )
+        detail = f'<p><a href="{e(lien_detail)}">Voir le détail et les preuves</a></p>' if lien_detail else ""
+        return f'<section class="panneau"><h2>{e(titre)}</h2>{corps}{detail}</section>'
 
     @router.get("/direction", response_class=HTMLResponse)
     def accueil(request: Request) -> HTMLResponse:
@@ -379,7 +377,7 @@ def creer_router(
                 panneau("Briefing — salle de guerre", lien("/sources", reference=connaissance), salle),
                 panneau("Risques", lien("/risques", connaissance=connaissance), risques),
                 panneau("Indicateurs exécutifs", lien("/indicateurs", connaissance=connaissance), indicateurs),
-                panneau("Prévisions des propriétaires", lien("/risques", connaissance=connaissance), previsions),
+                panneau("Prévisions des propriétaires", None, previsions),
                 panneau("Plans et suites", lien("/plans", connaissance=connaissance, jour=jour), plans),
                 panneau("Actions proposées et approbations", lien("/actions"), actions),
                 panneau("Veille", lien("/veille", connaissance=connaissance), veille),
