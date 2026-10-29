@@ -89,6 +89,7 @@ from . import (
     outils_radars,
     outils_semantique,
     outils_tissu,
+    outils_veille,
     rapport_activite,
     rapport_periode,
     rapport_strategique,
@@ -309,6 +310,7 @@ def outils(
     captures_cible: Any = None,
     sessions_cible: Any = None,
     publications_cible: Any = None,
+    veille_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -1281,6 +1283,7 @@ def outils(
             budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible, sessions_cible=sessions_cible
         ),
         *outils_graphe.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_veille.construire_outils(budget_sortie=BUDGET_SORTIE, veille_cible=veille_cible),
         *outils_radars.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_previsions.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
         *outils_semantique.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
