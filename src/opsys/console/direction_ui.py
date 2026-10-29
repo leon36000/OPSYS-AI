@@ -129,7 +129,8 @@ def _refus_de_reponse(reponse: object) -> str | None:
     resultat = reponse.get("resultat")
     if isinstance(resultat, Mapping) and resultat.get("accepte") is False:
         verdict = resultat.get("verdict")
-        return _code(str(verdict.get("code") if isinstance(verdict, Mapping) else None) or "REJ-DIRECTION-REFUS")
+        code = verdict.get("code") if isinstance(verdict, Mapping) else None
+        return (_code(code) if isinstance(code, str) else "") or "REJ-DIRECTION-REFUS"
     return None
 
 
@@ -430,8 +431,13 @@ def creer_router(
             captures = lire(session, "m9_lister_captures", arguments)
             contenu += f"<section><h2>Captures conservées</h2>{rendre(captures)}</section>"
             if type(captures.get("prochain_depart")) is int and isinstance(captures.get("vue"), str):
+                filtre = {"lecture_id": valeurs["lecture_id"]} if "lecture_id" in valeurs else {}
                 href = lien(
-                    "/sources", reference=valeurs["reference"], depart=captures["prochain_depart"], vue=captures["vue"]
+                    "/sources",
+                    reference=valeurs["reference"],
+                    depart=captures["prochain_depart"],
+                    vue=captures["vue"],
+                    **filtre,
                 )
                 contenu += suite(href)
         except _Refus as refus:

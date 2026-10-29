@@ -350,3 +350,47 @@ def test_scenarios_post_csrf_json_borne_calcul_sur_fait_cite_et_refus_nomme(mond
     trop = client.post("/direction/scenarios", data={**donnees, "bases": json.dumps({"a": "x" * 5000})})
     assert trop.status_code == 400
     assert re.search(r"maxlength=\"4096\"", page.text)
+
+
+def test_pagination_des_sources_garde_le_filtre_de_lecture(monde):
+    """Le lien « Page suivante » reprend lecture_id : la page 2 ne mélange pas d'autres lectures."""
+    client, appel, _ = monde
+    for i in range(30):
+        capture = appel(
+            "m9_capturer_producteur",
+            {
+                "lecture_id": "m2.leads",
+                "arguments": {"horodatage": f"2026-10-21T12:{i:02d}:00Z"},
+                "horodatage": f"2026-10-21T13:{i:02d}:00Z",
+            },
+        )
+        assert capture["ok"] is True and capture["resultat"]["accepte"] is True, capture
+    autre = {"lecture_id": "m6.disponibilite", "arguments": {}, "horodatage": "2026-10-21T14:00:00Z"}
+    assert appel("m9_capturer_producteur", autre)["ok"] is True
+    connecter(client)
+    page1 = client.get("/direction/sources", params={"reference": CONNAISSANCE, "lecture_id": "m2.leads"})
+    assert page1.status_code == 200
+    liens = re.findall(r'href="([^"]*direction/sources[^"]*depart=[^"]*)"', page1.text)
+    assert liens, "30 captures dépassent la borne d'une page : un lien « Page suivante » est attendu"
+    suivant = liens[0].replace("&amp;", "&")
+    assert "lecture_id=m2.leads" in suivant
+    page2 = client.get(suivant.replace("/opsys", "", 1))
+    assert page2.status_code == 200 and "m6.disponibilite" not in page2.text.split("Captures conservées")[-1]
+
+
+@pytest.mark.parametrize(
+    "reponse, attendu",
+    [
+        ({"ok": True, "resultat": {"accepte": True}}, None),
+        ({"ok": True, "resultat": {"accepte": False}}, "REJ-DIRECTION-REFUS"),
+        ({"ok": True, "resultat": {"accepte": False, "verdict": {"code": None}}}, "REJ-DIRECTION-REFUS"),
+        ({"ok": True, "resultat": {"accepte": False, "verdict": {"code": "REJ-PLAN-ANNULE : x"}}}, "REJ-PLAN-ANNULE"),
+        ({"ok": False, "details": ["REJ-VUE-PERIMEE : vue"]}, "REJ-VUE-PERIMEE"),
+        ({"ok": False, "details": []}, "REJ-DIRECTION-ECHEC"),
+        ("pas un objet", "REJ-DIRECTION-REPONSE-INVALIDE"),
+    ],
+)
+def test_code_de_refus_d_une_reponse_d_outil_a_toujours_un_repli_nomme(reponse, attendu):
+    from opsys.console import direction_ui
+
+    assert direction_ui._refus_de_reponse(reponse) == attendu
