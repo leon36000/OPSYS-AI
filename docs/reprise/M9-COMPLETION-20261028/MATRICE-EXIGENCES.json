@@ -554,11 +554,17 @@
    "gates_to_resolve_or_keep_open": [
     "PHASE_MOBILE_FINALE après grandes exigences serveur ; contrat seul ne clôt pas la ligne"
    ],
-   "proofs": [],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_contrat_mobile_admin.py",
+     "resultat": "5 passed (exécution mobile-2)",
+     "note": "contrat seul : ne clôt pas la ligne"
+    }
+   ],
    "verified_commit": null,
    "current_status": "PHASE_MOBILE_FINALE",
    "lot0_finding": "Contrat serveur préparé en lot 8 ; écran et synchronisation en phase finale.",
-   "limite": "Aucun contrat mobile nouveau livré ici ; les lectures admin M9 existent côté serveur, la ligne reste ouverte jusqu'à la phase mobile finale."
+   "limite": "Contrat serveur admin préparé et prouvé (CONTRAT-MOBILE-ADMIN-M9.md, tests/test_m9_contrat_mobile_admin.py : quatre profils, sorties bornées, tous les outils M9 ≤ admin) ; écran, réseau interrompu et vue périmée côté app non construits : la ligne reste ouverte jusqu'à la phase mobile finale."
   },
   {
    "id": "M9.23",

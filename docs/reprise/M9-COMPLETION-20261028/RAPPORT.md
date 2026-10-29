@@ -27,7 +27,7 @@ appelés par le port privé, HTTP console) ; aucune qualification installée (VP
 - Évaluation : 61 cas, 6 catégories, attentes indépendantes, 61/61, Wilson 95 % [0,9408 ; 1,0000] ; biais : corpus écrit par la mission,
   couche déterministe seulement, aucun modèle réel mesuré.
 - SQLite : vérifié. PostgreSQL : non exécuté ici (CI). HTTP : vérifié. MCP : non vérifié séparément. Navigateur : vérifié. Core/VPS : non
-  vérifiés (le sandbox n'exécute pas `core/`). Mobile : non démarré (M9.22).
+  vérifiés (le sandbox n'exécute pas `core/`). Mobile : contrat serveur prêt et testé, aucun écran (M9.22).
 - Processus possédés (serveurs QA éphémères) arrêtés ; preuves archivées dans `preuves-*`.
 
 ## Coordination
@@ -39,7 +39,7 @@ appelés par le port privé, HTTP console) ; aucune qualification installée (VP
 ## Verdict et suite
 - Démontré : couches déterministes M9.1–2, 6–7, 12–17, 19–21 ; gouvernance par les vraies approbations ; tableau exécutif en navigateur.
 - Implémenté mais pas démontré en réel : conseil d'agents (backend), planification native, Core/VPS.
-- À construire : mobile admin (M9.22) ; réconciliation de version M8 ; prévisions/capacité/coûts chez les propriétaires.
+- À construire : écran mobile admin (M9.22 ; contrat serveur prêt dans `CONTRAT-MOBILE-ADMIN-M9.md`) ; réconciliation de version M8 ; prévisions/capacité/coûts chez les propriétaires.
 - Décision humaine : énumération canonique des 21 sections (proposition prête dans `CONTRAT-RAPPORT-21-SECTIONS.md`).
 - Prochaine action : CI de la PR draft, puis arbitrage des 21 sections.
 

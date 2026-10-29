@@ -142,3 +142,6 @@ label=basefusion exit=1 stamp=20261029T010351Z sha=e15388ba
 label=reg-console2 exit=1 stamp=20261029T010359Z sha=e15388ba
 label=basefusion2 exit=1 stamp=20261029T013829Z sha=e15388ba
 label=final-m9 exit=0 stamp=20261029T014323Z sha=29f67b6a
+label=mobile-1 exit=1 stamp=20261029T021621Z sha=fabe5ae9
+label=mobile-2 exit=0 stamp=20261029T021636Z sha=fabe5ae9
+label=mobile-3 exit=0 stamp=20261029T021711Z sha=fabe5ae9
