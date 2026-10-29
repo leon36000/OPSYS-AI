@@ -153,6 +153,7 @@ ADMIN_SEUL = frozenset({
     "m9_preparer_memoire_decision", "m9_verifier_memoire_decision",
     # Direction M9.3/8/9/10 : indicateurs exécutifs, cadrage de décision, tendances extrapolées, questions « et si… ».
     "m9_indicateurs_executifs", "m9_cadrer_decision", "m9_projeter_tendance", "m9_interpreter_question_scenario",
+    "m9_reauditer_conseil",
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",
