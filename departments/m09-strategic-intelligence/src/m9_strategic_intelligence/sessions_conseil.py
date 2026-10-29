@@ -247,7 +247,8 @@ def _schema_sortie(role: str) -> dict:
     """Schéma EXACT de la sortie attendue, sans aucun fait : une sortie qui s'en écarte est refusée tout entière par le
     code, jamais corrigée."""
     schema: dict = {
-        "racine": "uniquement les clés affirmations (1 à 40 éléments) et demandes (liste, peut être vide)"
+        "racine": f"uniquement les clés affirmations (1 à {conseil.MAX_AFFIRMATIONS} éléments) et demandes (liste, "
+        "peut être vide)"
         + (f" et {_EXTRAS[role]}" if role in _EXTRAS else "")
         + " : aucune autre clé (ni role, ni entree_sha256, ni notes)",
         "affirmations": {

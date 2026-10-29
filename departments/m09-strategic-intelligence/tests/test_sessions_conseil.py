@@ -351,3 +351,23 @@ def test_schema_du_conseiller_du_pdg_et_du_critique_portent_leurs_extras():
         schema = sc._schema_sortie(role)
         assert extra in schema and extra in schema["racine"]
     assert "suivi_interne" in sc._schema_sortie("conseiller_pdg")["recommandation"]["actions"][0]["type"]
+
+
+def test_la_borne_d_affirmations_de_la_consigne_est_celle_du_code():
+    racine = sc._schema_sortie("liaison_finance")["racine"]
+    assert f"1 à {sc.conseil.MAX_AFFIRMATIONS} éléments" in racine
+    trop = [{"id": f"H{i}", "nature": "hypothese", "enonce": "x"} for i in range(sc.conseil.MAX_AFFIRMATIONS + 1)]
+    with pytest.raises(ValueError, match="REJ-CONSEIL-SORTIE"):
+        sc.conseil.admettre_proposition({"affirmations": trop}, sources={})
+
+
+def test_ronde_2_reelle_forme_conforme_admise_et_excedent_d_affirmations_refuse():
+    """Avec le schéma dans la consigne : l'inventaire (9 sorties citées exactes) est admis sans source à vérifier ici
+    (la citation exacte est prouvée dans le test d'intégration), la croissance (35 affirmations) dépasse la borne."""
+    croissance = _sortie_reelle("ronde2-croissance_marketing.json")
+    assert len(croissance["affirmations"]) > sc.conseil.MAX_AFFIRMATIONS
+    with pytest.raises(ValueError, match="REJ-CONSEIL-SORTIE"):
+        sc.conseil.admettre_proposition(croissance, sources={})
+    inventaire = _sortie_reelle("ronde2-contraintes_inventaire.json")
+    assert {a["nature"] for a in inventaire["affirmations"]} <= set(sc.conseil.NATURES)
+    assert set(inventaire) == {"affirmations", "demandes"}
