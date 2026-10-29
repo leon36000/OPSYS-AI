@@ -1,412 +1,595 @@
 {
-  "schema": "opsys.mission.requirements.v1",
-  "mission": "M9-COMPLETION-INTEGRALE",
-  "scope_preserved": "M9.1–M9.23",
-  "canonical_source": "docs/produit/DEFINITION-PRODUIT.md §M9",
-  "initial_status_is_not_a_fresh_runtime_verdict": true,
-  "statuses": [
-    "A_REQUALIFIER",
-    "EN_COURS",
-    "PARTIEL",
-    "DONE_VERIFIED",
-    "GATED_DEPENDENCY",
-    "GATED_HUMAN",
-    "PHASE_MOBILE_FINALE"
-  ],
-  "requirements": [
+ "schema": "opsys.mission.requirements.v1",
+ "mission": "M9-COMPLETION-INTEGRALE",
+ "scope_preserved": "M9.1–M9.23",
+ "canonical_source": "docs/produit/DEFINITION-PRODUIT.md §M9",
+ "initial_status_is_not_a_fresh_runtime_verdict": true,
+ "statuses": [
+  "A_REQUALIFIER",
+  "EN_COURS",
+  "PARTIEL",
+  "DONE_VERIFIED",
+  "GATED_DEPENDENCY",
+  "GATED_HUMAN",
+  "PHASE_MOBILE_FINALE"
+ ],
+ "requirements": [
+  {
+   "id": "M9.1",
+   "title": "Tissu de données stratégique",
+   "target": "Snapshots M1–M8 réellement produits, couverture, provenance et fraîcheur métier explicites.",
+   "acceptance": "Parcours par vrai producteur ; sources absentes/périmées/futures, arrivée tardive, autre tenant et faux producteur refusés ou nommés.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/contrats.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/registre.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/dossier_direction.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/diagnostic_temporel.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Ports et authenticité des producteurs à qualifier"
+   ],
+   "proofs": [
     {
-      "id": "M9.1",
-      "title": "Tissu de données stratégique",
-      "target": "Snapshots M1–M8 réellement produits, couverture, provenance et fraîcheur métier explicites.",
-      "acceptance": "Parcours par vrai producteur ; sources absentes/périmées/futures, arrivée tardive, autre tenant et faux producteur refusés ou nommés.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/contrats.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/registre.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/dossier_direction.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/diagnostic_temporel.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Ports et authenticité des producteurs à qualifier"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "M9 n'a aucun port de lecture M1–M7 : seuls un push de SnapshotModule (m9_etat_consolide, non authentifié) et 2 événements M8 (alerte_proposee, snapshot_chantier WCT M4). Plan : port privé de lecture serveur des outils T0 des producteurs + registre de captures chaîné (temps métier/observation/réception/référence distincts). Raccord partagé (departements.py/capacites.py) en commit distinct."
-    },
-    {
-      "id": "M9.2",
-      "title": "Graphe d'état et impacts",
-      "target": "Relations métier versionnées, dépendances et propagation des effets sourcées.",
-      "acceptance": "Rupture M6 → chantiers M4 → pipeline M2 et impacts M5 ; pas de causalité ou quantité inventée.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/etat_consolide.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Rien n'existe (etat_consolide = dernier fait par module). Plan : graphe d'impacts à relations déclarées et justifiées par champs réellement capturés (rupture M6→chantier M4→pipeline M2→impacts M5), sans quantité inventée."
-    },
-    {
-      "id": "M9.3",
-      "title": "Couche sémantique exécutive",
-      "target": "Réutiliser définitions, unités, versions et propriétaires des métriques M8.",
-      "acceptance": "Deux définitions incompatibles ou versions périmées ne sont pas agrégées ; M9 ne refait pas les calculs des propriétaires.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/validation.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/contrats.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Contrats M8 à réconcilier"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Registre M8 de métriques durable (metric_id, unité, propriétaire, fraîcheur attendue) + version_definition (empreinte) : deux régimes de version. Aucun paquet de preuves M8.17 en code. Plan : couche sémantique qui refuse d'agréger unités/versions incompatibles et cite le propriétaire."
-    },
-    {
-      "id": "M9.4",
-      "title": "Conseil d'agents gouverné",
-      "target": "Douze responsabilités disponibles ; superviseur, spécialistes utiles, audit, critique, gouvernance, recommandation.",
-      "acceptance": "Vrai runtime/profils sous limites effectives ; citations et inférences auditées ; provider absent/budget épuisé/injection/timeout sans boucle ou action sensible.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/audit_affirmations.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Jonction Core native",
-        "Backend déjà autorisé et budget effectif"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Aucun port Python ne demande un tour d'agent Core ; aucun backend modèle configuré dans l'environnement (gate GATED_DEPENDENCY pour la qualification réelle). Plan : 12 rôles + sélection déterministe des spécialistes + chaîne et budget/refus prouvés sur doubles de protocole identifiés ; adaptateur prêt pour le runtime natif (profils agents.py, admission_agents)."
-    },
-    {
-      "id": "M9.5",
-      "title": "Salle de guerre quotidienne",
-      "target": "Briefing et alertes exploitables avec état, preuves, manques, décisions et responsabilités.",
-      "acceptance": "Application et navigateur réels ; planification privée via propriétaire natif, refus de vue périmée et aucun cron global.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/briefing_matin.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_alertes.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Ordonnanceur natif pour qualification de la planification"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Briefing du matin existant (file approbations + alertes M8 + faits de veille). Planification : generateur automatisations.sh seulement ; exécuteur natif non qualifié (gate)."
-    },
-    {
-      "id": "M9.6",
-      "title": "Rapport exécutif hebdomadaire",
-      "target": "Synthèse complète fondée sur faits et décisions réels, couverture et bases temporelles visibles.",
-      "acceptance": "Vraies sources, publication versionnée, pagination complète, arrivée tardive et rapport reproductible.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/rapport_periode.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/rapport_activite.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "rapport_periode/rapport_activite existent (période, pagination). Rapport exécutif hebdomadaire sur sources M1–M8 à construire."
-    },
-    {
-      "id": "M9.7",
-      "title": "Revues mensuelle et trimestrielle",
-      "target": "Bilan, tendances, décisions et suites reliés à leurs versions de sources.",
-      "acceptance": "Deux périodes et fuseaux, changement de source, pas de reconstruction historique non observée.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/rapport_periode.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/bilan_suivis.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Dépend des captures versionnées (lot 1) pour éviter toute reconstruction historique non observée."
-    },
-    {
-      "id": "M9.8",
-      "title": "Scénarios et tests de stress",
-      "target": "Hypothèses explicites et chocs métier de la définition produit, effets calculés par code.",
-      "acceptance": "Oracles déterministes, référence/stress, unités, données absentes ; finance M5 et capacité M4 respectées.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/dossier_direction.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Ports de simulation métier existants à qualifier"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Aucun moteur de scénarios. M5 (m5_preparer_decision_capital, m5_prevoir_tresorerie) et M4 portent finance/capacité ; pas de projection 12/24 mois ni scénarios côté M5."
-    },
-    {
-      "id": "M9.9",
-      "title": "Prévisions consolidées",
-      "target": "Consommer et interpréter prévisions métier, horizons et incertitude sans seconde finance.",
-      "acceptance": "Sources et hypothèses versionnées ; réconciliation avec M5, absence de prévision ne devient pas un chiffre LLM.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/dossier_direction.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Prévisions réellement produites par propriétaires"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Prévision hebdomadaire des flux connus M5 seulement ; pas de prévision de leads/capacité produite ailleurs (gate GATED_DEPENDENCY partiel)."
-    },
-    {
-      "id": "M9.10",
-      "title": "Rapport de décision complet",
-      "target": "Nouveau contrat versionné des 21 sections, compatible avec le contrat historique à 15 clés.",
-      "acceptance": "Source maîtresse recherchée ; à défaut proposition exhaustive/mapping et décision tracée, aucun champ silencieusement inventé comme exigence ratifiée.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/contrats.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/rapport_strategique.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/audit_affirmations.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Énumération canonique des 21 sections ou arbitrage Nathan"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "PARTIEL",
-      "lot0_finding": "Schéma proposé à 21 sections livré (rapport_decision_v2, mapping 15 clés, validateur d'ancrage, 49 tests). Énumération canonique introuvable : arbitrage Nathan requis (GATED_HUMAN) ; la production du rapport complet dépend des lots 1–3."
-    },
-    {
-      "id": "M9.11",
-      "title": "Priorisation et allocation",
-      "target": "Classement explicable et proposition de ressources sous contraintes de capacité et permissions.",
-      "acceptance": "Conflits de priorités, contraintes infaisables, hypothèses invalides et alternatives, sans engager automatiquement des personnes.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/echeancier_suivis.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Rien (échéancier de suivis seulement)."
-    },
-    {
-      "id": "M9.12",
-      "title": "Radar de risques",
-      "target": "Risques sourcés, datés et gradués avec éléments contraires et données manquantes.",
-      "acceptance": "Cas cash/capacité/matériaux/qualité, faux positif, source périmée et absence de cause explicites.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_alertes.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_strategique.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Signaux M6.20 (rupture, hausse de prix) inexistants côté M6 ; M4 fournit retards/incidents/météo ; M5 trésorerie ; radar à composer avec absence de cause explicite."
-    },
-    {
-      "id": "M9.13",
-      "title": "Radar d'occasions",
-      "target": "Occasions mesurables, conditions, alternatives et limites de confiance.",
-      "acceptance": "Opportunité sans coûts ou capacité suffisants reste hypothèse ; aucun revenu probable inventé.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_strategique.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Rien."
-    },
-    {
-      "id": "M9.14",
-      "title": "Veille de marché",
-      "target": "Sources publiques autorisées, date/version/provenance et lien aux décisions.",
-      "acceptance": "Document périmé, injection, source indisponible ou licence non admise ; aucune récupération de données privées non autorisée.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/dossier_direction.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Accès externes autorisés seulement ; repli import/export explicite"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Aucune veille ; accès externes à autoriser : repli import/export explicite sans réseau."
-    },
-    {
-      "id": "M9.15",
-      "title": "Playbooks stratégiques",
-      "target": "Cash, baisse de leads, surcharge, météo, rupture et hausse de prix : étapes et conditions gouvernées.",
-      "acceptance": "Vrais états, limites, responsable et critères de succès/arrêt ; aucune action majeure sans validation.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/suivi_decisions.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Aucun gabarit de playbook."
-    },
-    {
-      "id": "M9.16",
-      "title": "Plans d'exécution et OKR",
-      "target": "Objectifs, responsabilités, échéances et résultats reliés aux décisions et sources.",
-      "acceptance": "Révision, retard, annulation et source changée conservent historique ; un suivi enregistré ne vaut pas effet réalisé.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/suivi_decisions.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/echeancier_suivis.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/bilan_suivis.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Suivi de décision sur preuve M8 (ouverture/clôture N3) existe ; plans/OKR révisables à construire."
-    },
-    {
-      "id": "M9.17",
-      "title": "Orchestrateur d'actions",
-      "target": "Créer des tâches contrôlées dans les départements via les vrais ports et contrats existants.",
-      "acceptance": "Révocation, approbation exacte, cible/tenant, concurrence, crash après effet avant ACK et réconciliation sans double effet.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/suivi_decisions.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Ports cibles et raccords partagés à intégrer"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Ports cibles existants : m2_preparer_relance, m2_reassigner_lead, m4_planifier_intervention, m4_creer_demande_ecart ; aucun port générique de tâche. Précédent : suivi M9 interne N3."
-    },
-    {
-      "id": "M9.18",
-      "title": "Expériences et ROI",
-      "target": "Expériences mesurées, référence/exposition, résultats et coûts des propriétaires M8/M5.",
-      "acceptance": "Pas de ROI sur données manquantes ; attribution et causalité distinguées, source corrigée et contre-exemples.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/bilan_suivis.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Mesures et coûts réellement fournis"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Mesures/coûts à lire chez M8/M5 ; cout_par_lead M7 toujours None (donnée insuffisante : pas de ROI)."
-    },
-    {
-      "id": "M9.19",
-      "title": "Gouvernance et validation humaine",
-      "target": "Permissions, portée, source exacte, demande approuvée et rôle courant au point d'effet.",
-      "acceptance": "Dépense, budget, embauche, dette, prix globaux, fiscalité, contrat et suppression refusés sans mandat approprié. Qualification sur données fictives avec vrais mécanismes approbation/refus, sans action réelle sensible.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/suivi_decisions.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/conformite.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [],
-      "proofs": [],
-      "verified_commit": null,
-      "permanent_constraints": [
-        "Les actes réels sensibles restent humains dans le produit complet ; ce contrôle ne doit pas être levé pour clore une capacité."
-      ],
-      "current_status": "EN_COURS",
-      "lot0_finding": "File d'approbation native, liaison_cibles (ticket 120 s), politique M9 en mode ombre ; à étendre aux demandes stratégiques sensibles."
-    },
-    {
-      "id": "M9.20",
-      "title": "Mémoire M10 effective",
-      "target": "Contexte autorisé avant décision et résultat/correction reliés aux bons IDs et versions.",
-      "acceptance": "Vrai M10 consommé ; droits, révisions, retrait, contradictions et absence de mémoire fantôme.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/suivi_decisions.py",
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/dossier_direction.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Port M10 et intégration native à qualifier"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "M10 ne se lit que par affaire (paquets 4 couches, FINANCIAL/SENSITIVE exclus) ; pas de vue d'entreprise ; effacement T3."
-    },
-    {
-      "id": "M9.21",
-      "title": "Tableau de bord exécutif",
-      "target": "Interface complète Nathan pour briefings, sources, risques, scénarios, décisions, approbations et suites.",
-      "acceptance": "Application intégrée HTTP et navigateur, rôle courant, pagination, XSS/CSRF, corps bornés, reprise et preuves consultables.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Raccord console partagé en commit distinct"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Console M9 en lecture seule (/strategie…) ; tableau exécutif complet à construire (sous-routeur M9, raccords metier.py en commit distinct)."
-    },
-    {
-      "id": "M9.22",
-      "title": "Briefing mobile admin",
-      "target": "Briefing, alertes, décisions, scénarios et question stratégique pour Nathan/admin.",
-      "acceptance": "Contrat serveur puis écran réel, réseau interrompu, vue périmée et droits des quatre profils ; aucun coût interne aux autres profils.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "PHASE_MOBILE_FINALE après grandes exigences serveur ; contrat seul ne clôt pas la ligne"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "PHASE_MOBILE_FINALE",
-      "lot0_finding": "Contrat serveur préparé en lot 8 ; écran et synchronisation en phase finale."
-    },
-    {
-      "id": "M9.23",
-      "title": "Évaluation et confiance",
-      "target": "Jeux métier versionnés, attentes indépendantes, fidélité, inférences, abstention, décision et confiance.",
-      "acceptance": "Résultats reproductibles avec effectif/biais/échecs ; coûts/latence mesurés ; aucun auto-jugement unique ou zéro hallucination général.",
-      "reuse_read_first": [
-        "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/audit_affirmations.py"
-      ],
-      "initial_status": "A_REQUALIFIER",
-      "gates_to_resolve_or_keep_open": [
-        "Qualification réelle conseil séparée des doubles de protocole"
-      ],
-      "proofs": [],
-      "verified_commit": null,
-      "current_status": "EN_COURS",
-      "lot0_finding": "Aucun jeu d'évaluation ; audit de citations déterministe existe."
+     "tests": "tests/test_m9_producteurs_a.py, tests/test_m9_producteurs_b.py, tests/test_lecteurs_m9.py, departments/m09-strategic-intelligence/tests/test_capture_strategique.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
     }
-  ]
+   ],
+   "verified_commit": "2fe65333",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "M9 n'a aucun port de lecture M1–M7 : seuls un push de SnapshotModule (m9_etat_consolide, non authentifié) et 2 événements M8 (alerte_proposee, snapshot_chantier WCT M4). Plan : port privé de lecture serveur des outils T0 des producteurs + registre de captures chaîné (temps métier/observation/réception/référence distincts). Raccord partagé (departements.py/capacites.py) en commit distinct.",
+   "limite": "Producteurs lus en processus (SQLite) par le port privé ; authenticité réseau, PostgreSQL et Core non qualifiés ici."
+  },
+  {
+   "id": "M9.2",
+   "title": "Graphe d'état et impacts",
+   "target": "Relations métier versionnées, dépendances et propagation des effets sourcées.",
+   "acceptance": "Rupture M6 → chantiers M4 → pipeline M2 et impacts M5 ; pas de causalité ou quantité inventée.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/etat_consolide.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_graphe_reel.py, departments/m09-strategic-intelligence/tests/test_graphe_impacts.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "fe864a2c",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "Rien n'existe (etat_consolide = dernier fait par module). Plan : graphe d'impacts à relations déclarées et justifiées par champs réellement capturés (rupture M6→chantier M4→pipeline M2→impacts M5), sans quantité inventée.",
+   "limite": "Règles réelles M6→devis (imbriqué) et autres ; aucun impact chiffré, propagation sans quantités."
+  },
+  {
+   "id": "M9.3",
+   "title": "Couche sémantique exécutive",
+   "target": "Réutiliser définitions, unités, versions et propriétaires des métriques M8.",
+   "acceptance": "Deux définitions incompatibles ou versions périmées ne sont pas agrégées ; M9 ne refait pas les calculs des propriétaires.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/validation.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/contrats.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Contrats M8 à réconcilier"
+   ],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_semantique_integre.py, departments/m09-strategic-intelligence/tests/test_semantique_metriques.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "7c85c7c8",
+   "current_status": "PARTIEL",
+   "lot0_finding": "Registre M8 de métriques durable (metric_id, unité, propriétaire, fraîcheur attendue) + version_definition (empreinte) : deux régimes de version. Aucun paquet de preuves M8.17 en code. Plan : couche sémantique qui refuse d'agréger unités/versions incompatibles et cite le propriétaire.",
+   "limite": "Gate M8 ouvert : version_definition des mesures est une empreinte, le registre est un entier -> VERSION_NON_COMPARABLE affiché, jamais fusionné ; à réconcilier chez M8."
+  },
+  {
+   "id": "M9.4",
+   "title": "Conseil d'agents gouverné",
+   "target": "Douze responsabilités disponibles ; superviseur, spécialistes utiles, audit, critique, gouvernance, recommandation.",
+   "acceptance": "Vrai runtime/profils sous limites effectives ; citations et inférences auditées ; provider absent/budget épuisé/injection/timeout sans boucle ou action sensible.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/audit_affirmations.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Jonction Core native",
+    "Backend déjà autorisé et budget effectif"
+   ],
+   "proofs": [
+    {
+     "tests": "departments/m09-strategic-intelligence/tests/test_conseil.py, tests/test_m9_gouvernance.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "b49ff923",
+   "current_status": "PARTIEL",
+   "lot0_finding": "Aucun port Python ne demande un tour d'agent Core ; aucun backend modèle configuré dans l'environnement (gate GATED_DEPENDENCY pour la qualification réelle). Plan : 12 rôles + sélection déterministe des spécialistes + chaîne et budget/refus prouvés sur doubles de protocole identifiés ; adaptateur prêt pour le runtime natif (profils agents.py, admission_agents).",
+   "limite": "Gates ouverts : jonction Core native et backend/budget effectif ; conseil réel jamais exécuté (GATED_DEPENDENCY), seuls les doubles de protocole et l'admission déterministe sont prouvés."
+  },
+  {
+   "id": "M9.5",
+   "title": "Salle de guerre quotidienne",
+   "target": "Briefing et alertes exploitables avec état, preuves, manques, décisions et responsabilités.",
+   "acceptance": "Application et navigateur réels ; planification privée via propriétaire natif, refus de vue périmée et aucun cron global.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/briefing_matin.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_alertes.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Ordonnanceur natif pour qualification de la planification"
+   ],
+   "proofs": [
+    {
+     "tests": "departments/m09-strategic-intelligence/tests/test_revue_periodique.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "29af9e39",
+   "current_status": "PARTIEL",
+   "lot0_finding": "Briefing du matin existant (file approbations + alertes M8 + faits de veille). Planification : generateur automatisations.sh seulement ; exécuteur natif non qualifié (gate).",
+   "limite": "Gate ouvert : planification par l'ordonnanceur natif non qualifiée (aucun cron global) ; la salle de guerre est calculée à la demande avec une date explicite."
+  },
+  {
+   "id": "M9.6",
+   "title": "Rapport exécutif hebdomadaire",
+   "target": "Synthèse complète fondée sur faits et décisions réels, couverture et bases temporelles visibles.",
+   "acceptance": "Vraies sources, publication versionnée, pagination complète, arrivée tardive et rapport reproductible.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/rapport_periode.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/rapport_activite.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [],
+   "proofs": [
+    {
+     "tests": "departments/m09-strategic-intelligence/tests/test_revue_periodique.py, tests/test_console_direction_m9.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "29af9e39",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "rapport_periode/rapport_activite existent (période, pagination). Rapport exécutif hebdomadaire sur sources M1–M8 à construire.",
+   "limite": "Publication en versions immuables ; pas d'envoi externe."
+  },
+  {
+   "id": "M9.7",
+   "title": "Revues mensuelle et trimestrielle",
+   "target": "Bilan, tendances, décisions et suites reliés à leurs versions de sources.",
+   "acceptance": "Deux périodes et fuseaux, changement de source, pas de reconstruction historique non observée.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/rapport_periode.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/bilan_suivis.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [],
+   "proofs": [
+    {
+     "tests": "departments/m09-strategic-intelligence/tests/test_revue_periodique.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "29af9e39",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "Dépend des captures versionnées (lot 1) pour éviter toute reconstruction historique non observée.",
+   "limite": "Revues mensuelle et trimestrielle publiées en versions immuables."
+  },
+  {
+   "id": "M9.8",
+   "title": "Scénarios et tests de stress",
+   "target": "Hypothèses explicites et chocs métier de la définition produit, effets calculés par code.",
+   "acceptance": "Oracles déterministes, référence/stress, unités, données absentes ; finance M5 et capacité M4 respectées.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/dossier_direction.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Ports de simulation métier existants à qualifier"
+   ],
+   "proofs": [
+    {
+     "tests": "departments/m09-strategic-intelligence/tests/test_scenarios.py, tests/test_console_direction_m9.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "314c13fd",
+   "current_status": "PARTIEL",
+   "lot0_finding": "Aucun moteur de scénarios. M5 (m5_preparer_decision_capital, m5_prevoir_tresorerie) et M4 portent finance/capacité ; pas de projection 12/24 mois ni scénarios côté M5.",
+   "limite": "Neuf chocs en sensibilité arithmétique sur bases citées ; finance, capacité et stock restent à calculer par leurs propriétaires (aucun port de simulation métier)."
+  },
+  {
+   "id": "M9.9",
+   "title": "Prévisions consolidées",
+   "target": "Consommer et interpréter prévisions métier, horizons et incertitude sans seconde finance.",
+   "acceptance": "Sources et hypothèses versionnées ; réconciliation avec M5, absence de prévision ne devient pas un chiffre LLM.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/dossier_direction.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Prévisions réellement produites par propriétaires"
+   ],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_previsions_integre.py, departments/m09-strategic-intelligence/tests/test_previsions.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "47895945",
+   "current_status": "PARTIEL",
+   "lot0_finding": "Prévision hebdomadaire des flux connus M5 seulement ; pas de prévision de leads/capacité produite ailleurs (gate GATED_DEPENDENCY partiel).",
+   "limite": "Seule la prévision de trésorerie M5 existe chez un propriétaire ; leads, capacité et matériaux = AUCUNE_PREVISION_PRODUITE ; incertitude non chiffrée."
+  },
+  {
+   "id": "M9.10",
+   "title": "Rapport de décision complet",
+   "target": "Nouveau contrat versionné des 21 sections, compatible avec le contrat historique à 15 clés.",
+   "acceptance": "Source maîtresse recherchée ; à défaut proposition exhaustive/mapping et décision tracée, aucun champ silencieusement inventé comme exigence ratifiée.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/contrats.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/rapport_strategique.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/audit_affirmations.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Énumération canonique des 21 sections ou arbitrage Nathan"
+   ],
+   "proofs": [
+    {
+     "tests": "departments/m09-strategic-intelligence/tests/test_rapport_decision_v2.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "e936a1ed",
+   "current_status": "PARTIEL",
+   "lot0_finding": "Schéma proposé à 21 sections livré (rapport_decision_v2, mapping 15 clés, validateur d'ancrage, 49 tests). Énumération canonique introuvable : arbitrage Nathan requis (GATED_HUMAN) ; la production du rapport complet dépend des lots 1–3.",
+   "limite": "GATED_HUMAN : énumération canonique des 21 sections introuvable ; proposition v2 non ratifiée, contrat historique à 15 clés inchangé."
+  },
+  {
+   "id": "M9.11",
+   "title": "Priorisation et allocation",
+   "target": "Classement explicable et proposition de ressources sous contraintes de capacité et permissions.",
+   "acceptance": "Conflits de priorités, contraintes infaisables, hypothèses invalides et alternatives, sans engager automatiquement des personnes.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/echeancier_suivis.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_priorites_integre.py, departments/m09-strategic-intelligence/tests/test_priorisation.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "7d1ca684",
+   "current_status": "PARTIEL",
+   "lot0_finding": "Rien (échéancier de suivis seulement).",
+   "limite": "Priorisation explicable prouvée ; aucune allocation de capacité d'équipe (aucun producteur ne l'expose), hypothèse déclarée requise."
+  },
+  {
+   "id": "M9.12",
+   "title": "Radar de risques",
+   "target": "Risques sourcés, datés et gradués avec éléments contraires et données manquantes.",
+   "acceptance": "Cas cash/capacité/matériaux/qualité, faux positif, source périmée et absence de cause explicites.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_alertes.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_strategique.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_radars_integre.py, departments/m09-strategic-intelligence/tests/test_risques.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "f303e8c5",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "Signaux M6.20 (rupture, hausse de prix) inexistants côté M6 ; M4 fournit retards/incidents/météo ; M5 trésorerie ; radar à composer avec absence de cause explicite.",
+   "limite": "Signaux publiés par les propriétaires ; gravité = grille proposée non validée ; aucune cause établie ; règle non évaluée = risque inconnu."
+  },
+  {
+   "id": "M9.13",
+   "title": "Radar d'occasions",
+   "target": "Occasions mesurables, conditions, alternatives et limites de confiance.",
+   "acceptance": "Opportunité sans coûts ou capacité suffisants reste hypothèse ; aucun revenu probable inventé.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_strategique.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_radars_integre.py, departments/m09-strategic-intelligence/tests/test_occasions.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "f303e8c5",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "Rien.",
+   "limite": "Occasion = hypothèse sauf coût et capacité cités ; aucun revenu estimé."
+  },
+  {
+   "id": "M9.14",
+   "title": "Veille de marché",
+   "target": "Sources publiques autorisées, date/version/provenance et lien aux décisions.",
+   "acceptance": "Document périmé, injection, source indisponible ou licence non admise ; aucune récupération de données privées non autorisée.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/dossier_direction.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Accès externes autorisés seulement ; repli import/export explicite"
+   ],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_veille_integre.py, departments/m09-strategic-intelligence/tests/test_veille.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "ee28310e",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "Aucune veille ; accès externes à autoriser : repli import/export explicite sans réseau.",
+   "limite": "Repli par import explicite (aucune récupération réseau) ; quarantaine d'injection ; aucun accès externe construit."
+  },
+  {
+   "id": "M9.15",
+   "title": "Playbooks stratégiques",
+   "target": "Cash, baisse de leads, surcharge, météo, rupture et hausse de prix : étapes et conditions gouvernées.",
+   "acceptance": "Vrais états, limites, responsable et critères de succès/arrêt ; aucune action majeure sans validation.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/suivi_decisions.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_playbooks_integre.py, departments/m09-strategic-intelligence/tests/test_playbooks.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "63fea4a3",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "Aucun gabarit de playbook.",
+   "limite": "Six playbooks instanciés ; étapes sensibles = validation humaine ; rien exécuté."
+  },
+  {
+   "id": "M9.16",
+   "title": "Plans d'exécution et OKR",
+   "target": "Objectifs, responsabilités, échéances et résultats reliés aux décisions et sources.",
+   "acceptance": "Révision, retard, annulation et source changée conservent historique ; un suivi enregistré ne vaut pas effet réalisé.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/suivi_decisions.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/echeancier_suivis.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/bilan_suivis.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_plans_integre.py, departments/m09-strategic-intelligence/tests/test_plans.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "155e9911",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "Suivi de décision sur preuve M8 (ouverture/clôture N3) existe ; plans/OKR révisables à construire.",
+   "limite": "Suivi déclaré distinct de l'effet mesuré ; retard calculé depuis le jour civil."
+  },
+  {
+   "id": "M9.17",
+   "title": "Orchestrateur d'actions",
+   "target": "Créer des tâches contrôlées dans les départements via les vrais ports et contrats existants.",
+   "acceptance": "Révocation, approbation exacte, cible/tenant, concurrence, crash après effet avant ACK et réconciliation sans double effet.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/suivi_decisions.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Ports cibles et raccords partagés à intégrer"
+   ],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_actions_integre.py, departments/m09-strategic-intelligence/tests/test_orchestrateur.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "3dd6342a",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "Ports cibles existants : m2_preparer_relance, m2_reassigner_lead, m4_planifier_intervention, m4_creer_demande_ecart ; aucun port générique de tâche. Précédent : suivi M9 interne N3.",
+   "limite": "Cinq outils autorisés (liste blanche) proposés par la file native, jamais exécutés par M9 ; ECHEC confirmé (M2 relance refusée par son propriétaire) prouvé ; console en lecture seule."
+  },
+  {
+   "id": "M9.18",
+   "title": "Expériences et ROI",
+   "target": "Expériences mesurées, référence/exposition, résultats et coûts des propriétaires M8/M5.",
+   "acceptance": "Pas de ROI sur données manquantes ; attribution et causalité distinguées, source corrigée et contre-exemples.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/bilan_suivis.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Mesures et coûts réellement fournis"
+   ],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_experiences_integre.py, departments/m09-strategic-intelligence/tests/test_experiences.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "656c2414",
+   "current_status": "PARTIEL",
+   "lot0_finding": "Mesures/coûts à lire chez M8/M5 ; cout_par_lead M7 toujours None (donnée insuffisante : pas de ROI).",
+   "limite": "Gate ouvert : M8 marges non calculables et M7 cout_par_lead None dans le monde testé ; ROI prouvé sur faits M5 seulement ; aucun ROI sur donnée manquante."
+  },
+  {
+   "id": "M9.19",
+   "title": "Gouvernance et validation humaine",
+   "target": "Permissions, portée, source exacte, demande approuvée et rôle courant au point d'effet.",
+   "acceptance": "Dépense, budget, embauche, dette, prix globaux, fiscalité, contrat et suppression refusés sans mandat approprié. Qualification sur données fictives avec vrais mécanismes approbation/refus, sans action réelle sensible.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/suivi_decisions.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/conformite.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_gouvernance.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "95748c2c",
+   "permanent_constraints": [
+    "Les actes réels sensibles restent humains dans le produit complet ; ce contrôle ne doit pas être levé pour clore une capacité."
+   ],
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "File d'approbation native, liaison_cibles (ticket 120 s), politique M9 en mode ombre ; à étendre aux demandes stratégiques sensibles.",
+   "limite": "Vrais mécanismes d'approbation (rôle relu, arguments exacts une fois) ; aucune action sensible réelle."
+  },
+  {
+   "id": "M9.20",
+   "title": "Mémoire M10 effective",
+   "target": "Contexte autorisé avant décision et résultat/correction reliés aux bons IDs et versions.",
+   "acceptance": "Vrai M10 consommé ; droits, révisions, retrait, contradictions et absence de mémoire fantôme.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/suivi_decisions.py",
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/dossier_direction.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Port M10 et intégration native à qualifier"
+   ],
+   "proofs": [
+    {
+     "tests": "tests/test_m9_memoire_integre.py, departments/m09-strategic-intelligence/tests/test_memoire_m10.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "2bd12276",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "M10 ne se lit que par affaire (paquets 4 couches, FINANCIAL/SENSITIVE exclus) ; pas de vue d'entreprise ; effacement T3.",
+   "limite": "Décision M10 consignée par la file native ; verdicts COHERENT/DIVERGENT/MEMOIRE_FANTOME ; intégration Core non qualifiée."
+  },
+  {
+   "id": "M9.21",
+   "title": "Tableau de bord exécutif",
+   "target": "Interface complète Nathan pour briefings, sources, risques, scénarios, décisions, approbations et suites.",
+   "acceptance": "Application intégrée HTTP et navigateur, rôle courant, pagination, XSS/CSRF, corps bornés, reprise et preuves consultables.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Raccord console partagé en commit distinct"
+   ],
+   "proofs": [
+    {
+     "tests": "tests/test_console_direction_m9.py (18 tests HTTP), docs/reprise/M9-COMPLETION-20261028/preuves-navigateur/",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "2696931c",
+   "current_status": "DONE_VERIFIED",
+   "lot0_finding": "Console M9 en lecture seule (/strategie…) ; tableau exécutif complet à construire (sous-routeur M9, raccords metier.py en commit distinct).",
+   "limite": "Console admin seulement ; la console ne peut pas capturer ni proposer (ports privés non injectés), elle renvoie à la file native ; QA Chromium bureau et mobile 390 px."
+  },
+  {
+   "id": "M9.22",
+   "title": "Briefing mobile admin",
+   "target": "Briefing, alertes, décisions, scénarios et question stratégique pour Nathan/admin.",
+   "acceptance": "Contrat serveur puis écran réel, réseau interrompu, vue périmée et droits des quatre profils ; aucun coût interne aux autres profils.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "PHASE_MOBILE_FINALE après grandes exigences serveur ; contrat seul ne clôt pas la ligne"
+   ],
+   "proofs": [],
+   "verified_commit": null,
+   "current_status": "PHASE_MOBILE_FINALE",
+   "lot0_finding": "Contrat serveur préparé en lot 8 ; écran et synchronisation en phase finale.",
+   "limite": "Aucun contrat mobile nouveau livré ici ; les lectures admin M9 existent côté serveur, la ligne reste ouverte jusqu'à la phase mobile finale."
+  },
+  {
+   "id": "M9.23",
+   "title": "Évaluation et confiance",
+   "target": "Jeux métier versionnés, attentes indépendantes, fidélité, inférences, abstention, décision et confiance.",
+   "acceptance": "Résultats reproductibles avec effectif/biais/échecs ; coûts/latence mesurés ; aucun auto-jugement unique ou zéro hallucination général.",
+   "reuse_read_first": [
+    "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/audit_affirmations.py"
+   ],
+   "initial_status": "A_REQUALIFIER",
+   "gates_to_resolve_or_keep_open": [
+    "Qualification réelle conseil séparée des doubles de protocole"
+   ],
+   "proofs": [
+    {
+     "tests": "departments/m09-strategic-intelligence/tests/test_evaluation.py, docs/reprise/M9-COMPLETION-20261028/preuves-evaluation/EVAL-corpus-v1-20261029T003830Z.json",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
+     "sha_execution": "29f67b6a",
+     "resultat": "1445 passed, 0 failed, 0 skipped"
+    }
+   ],
+   "verified_commit": "e15388ba",
+   "current_status": "PARTIEL",
+   "lot0_finding": "Aucun jeu d'évaluation ; audit de citations déterministe existe.",
+   "limite": "Couche déterministe : 61/61 (Wilson 95 % [0,9408 ; 1,0000]), attentes indépendantes ; qualification du conseil réel séparée (GATED_DEPENDENCY)."
+  }
+ ],
+ "run_summary": {
+  "sha": "29f67b6a",
+  "tests": "1445 passed / 0 failed / 0 skipped",
+  "verifier": "OK 10 départements, 353 outils, 224 déclarés aux appareils",
+  "lint": "ruff check src tests departments/m09-strategic-intelligence : OK"
+ }
 }
