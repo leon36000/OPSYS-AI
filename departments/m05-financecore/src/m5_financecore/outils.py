@@ -1030,7 +1030,8 @@ def _sources_cout_reel_depuis(captures: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _etat_chantier(devis_id: str, sources: dict[str, Any] | None = None) -> dict[str, Any]:
+def _etat_chantier(devis_id: str, sources: dict[str, Any] | None = None, *,
+                   ventilation_verifiee: dict[str, Any] | None = None) -> dict[str, Any]:
     """L'état de coût réel et de rentabilité d'un devis, CALCULÉ à l'instant depuis les pièces lues à la
     source (PLAN T1.5-d) : le devis accepté et le WCT reçus du bus, le dernier signal de variance de M6,
     la facture active du devis, le livre de prix de M6 et le taux horaire configuré. N'écrit RIEN.
@@ -1056,7 +1057,17 @@ def _etat_chantier(devis_id: str, sources: dict[str, Any] | None = None) -> dict
         if m.get("devis_id") == devis_id and m.get("wct_id") not in (None, wct_recu["wct_id"])
     }
     signal = variance_recus.signal_retenu_pour_wct_id(wct_recu["wct_id"], sources["variance"])
-    cout = cout_reel.calculer_cout_reel(wct_recu, signal, sources["livre"], sources["taux"], autres_wct)
+    if ventilation_verifiee is None:
+        cout = cout_reel.calculer_cout_reel(wct_recu, signal, sources["livre"], sources["taux"], autres_wct)
+    else:
+        # Cette fonction privée ne valide pas l'autorité des pièces : seul un
+        # adaptateur de confiance ayant relu les propriétaires peut les fournir.
+        p = ventilation_verifiee['projection']['projection']
+        source_m4 = ventilation_verifiee['projection']['source']
+        cout = cout_reel.calculer_cout_reel(
+            ventilation_verifiee['charge'], signal, sources['livre'], sources['taux'], autres_wct,
+            projection=p, tarifs_equipes=ventilation_verifiee['tarifs']['lignes'], instance_id=p['instance_id'],
+            source_attendue=source_m4, source_relue=source_m4, sources_actuelles=p['sources'])
     chantier_id = chantier_devis or (signal.get("chantier_id") if signal is not None else None) or None
     rentabilite = cout_reel.calculer_rentabilite(
         cout, sources["factures"].get(devis_id), devis_recu, devis_id=devis_id, chantier_id=chantier_id
@@ -1096,11 +1107,21 @@ def _essayer_cout_reel(devis_id: str) -> dict[str, Any]:
     trace = sources["traces"].get(devis_id)
     if trace is not None and trace.get("version_entrees") == rentabilite["version_entrees"]:
         return {"statut": "deja_tracee"}
-    stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE).append(
-        cout_reel.construire_trace(rentabilite, etat["horodatage"])
-    )
-    _publier_rentabilite(rentabilite, sources["nombre_de_traces"].get(devis_id, 0) + 1, etat["horodatage"])
+    _consigner_rentabilite(rentabilite, sources["nombre_de_traces"].get(devis_id, 0) + 1, etat["horodatage"])
     return {"statut": "tracee"}
+
+
+def _consigner_rentabilite(rentabilite: dict[str, Any], sequence: int, horodatage: Any, *,
+                           rang_attendu: int | None = None, provenance: dict[str, Any] | None = None,
+                           publier: bool = True) -> dict[str, Any]:
+    """Point d'écriture privé M5 ; ses appelants doivent établir l'autorité et les sources."""
+    trace = cout_reel.construire_trace(rentabilite, horodatage)
+    if provenance is not None:
+        trace['provenance_v3'] = provenance
+    stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE).append(trace, rang_attendu=rang_attendu)
+    if publier:
+        _publier_rentabilite(rentabilite, sequence, horodatage)
+    return trace
 
 
 def _publier_rentabilite(rentabilite: dict[str, Any], sequence: int, horodatage: Any) -> None:

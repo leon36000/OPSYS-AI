@@ -502,6 +502,8 @@ def calculer_cout_reel(
             "statut": main_d_oeuvre["statut"],
             "manque": main_d_oeuvre["manque"],
         }
+        if isinstance(projection, dict) and projection.get("version") == "opsys.m4.temps_certifies.v3":
+            entrees["ventilation"]["source_m4"] = source_attendue
     return {
         "devise": _DEVISE,
         "complet": complet,
