@@ -356,7 +356,11 @@ def test_un_signal_evalue_prime_sur_un_signal_plus_ancien_livre_apres(base_durab
         consommateurs["m6.variance_chantier"](_variance(statut="declaration_absente"))
 
     derniere = _traces()[-1]
-    assert derniere["verdict"] == "CALCULEE", "le signal évalué fait foi, pas le dernier arrivé"
+    assert derniere["verdict"] == "PARTIELLE"
+    assert derniere["rentabilite"]["cout_reel"]["materiaux"]["cout_connu"] == Decimal("336.00"), (
+        "le signal évalué fait foi, pas le dernier arrivé"
+    )
+    assert _codes(derniere) == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
 
 
 def test_un_signal_delirant_ne_bloque_jamais_la_facture_brouillon(base_durable, taux_configure):
