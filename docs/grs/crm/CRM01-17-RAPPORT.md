@@ -16,7 +16,7 @@ La tête observée avant cette mise à jour documentaire était `4cd319007b54259
 
 Les détails, scripts, commandes, SHA et sorties non écrasées sont dans `CRM01-17-CHECKPOINT.md`, `CRM01-17-RAPPORT-V3.md` et `CRM01-17-JONCTION-INDEPENDANTE.md`. Les sections ci-dessous conservent les jalons antérieurs : leurs conclusions sur l'absence de navigateur et l'ancien refus M5 V3 sont historiques et remplacées par le tableau actuel.
 
-La prochaine étape est la coordination du contrat de service fiable et révocable avec le propriétaire du socle et les consommateurs, puis la qualification à chaque usage d'une trace aval ; `CRM01-17-FRONTIERE-M4-M5.md` et `CRM01-17-INVALIDATION-M4-M5.md` précisent les dépendances. M5 avait publié `d5ff2f858cbf195689b4a89ed34a2120814977fd` après la composition vérifiée : cette nouvelle tête doit être qualifiée séparément. Aucun changement M5, migration, paie, fusion ni déploiement par cette mission.
+La prochaine étape est la coordination du contrat de service fiable et révocable avec le propriétaire du socle et les consommateurs, puis la qualification à chaque usage d'une trace aval ; `CRM01-17-FRONTIERE-M4-M5.md` et `CRM01-17-INVALIDATION-M4-M5.md` précisent les dépendances. Une composition avec M5 `d5ff2f858cbf195689b4a89ed34a2120814977fd` a ensuite exécuté 131 tests : 128 réussis et 3 échecs dans les tests de publication d'événements M5, sans erreur ni skip. Les neuf scénarios de jonction/fraîcheur locale passent ; les échecs du bus restent à réconcilier par le propriétaire M5. Voir `CRM01-17-JONCTION-INDEPENDANTE.md` et `CRM01-17-PREUVES/jonction-m5-d5ff/`. Aucun changement M5, migration, paie, fusion ni déploiement par cette mission.
 
 ## Jalon historique avant provenance V3
 
