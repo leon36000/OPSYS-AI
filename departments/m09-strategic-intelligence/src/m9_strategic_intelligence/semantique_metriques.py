@@ -18,8 +18,10 @@ courante, ou
   numérote ses versions en entiers, et aucune LIAISON fiable ne relie cette empreinte à une révision du registre : M9
   n'affirme ni la péremption ni la compatibilité. Une liaison est une ligne publiée par M8 ``{metric_id, revision,
   empreinte}`` (``cataloguer_liaisons``) ; la révision entière et l'empreinte restent DEUX informations distinctes.
-  Avec liaison : révision courante → ``COMPATIBLE`` ; révision plus ancienne → ``VERSION_PERIMEE`` ; révision absente du
-  registre → ``VERSION_NON_COMPARABLE`` (la liaison ne vaut rien contre un registre qui ne la contient pas) ;
+  Avec liaison : révision courante → ``COMPATIBLE`` ; révision plus ancienne → ``VERSION_PERIMEE`` ; révision au-delà de
+  la courante → ``VERSION_NON_COMPARABLE`` (la liaison ne vaut rien contre un registre qui ne la contient pas). Une
+  révision plus ancienne est tenue pour avoir existé parce que M8 numérote ses révisions 1..N sans trou (nombre
+  d'enregistrements successifs, ``m8_analytics.registre_metriques.lister``) ;
 * ``COMPATIBLE`` — même métrique, même unité, même version que la définition courante.
 
 Les groupes de sortie sont clés par ``(metric_id, unité, version)`` : deux groupes ne sont jamais additionnés, moyennés
@@ -102,6 +104,8 @@ def cataloguer_liaisons(liaisons: Sequence[Mapping], catalogue: Mapping[str, Map
     et une empreinte de 64 hexadécimaux minuscules. Deux lignes qui disent des choses différentes de la même empreinte
     ou de la même révision sont une CONTRADICTION du propriétaire : refus, jamais un choix silencieux. Une liaison
     d'une métrique absente du catalogue est ignorée (l'observation correspondante reste ``SANS_DEFINITION``)."""
+    if not isinstance(liaisons, Sequence) or isinstance(liaisons, (str, bytes)):
+        raise _refus("REJ-SEMANTIQUE-LIAISON", "liste de liaisons requise")
     par_empreinte: dict[tuple[str, str], int] = {}
     par_revision: dict[tuple[str, int], str] = {}
     for ligne in liaisons:
@@ -157,7 +161,8 @@ def classer(
     if unite_observee is not None and unite_observee != definition["unite"]:
         return resultat | {"statut": "UNITE_DIVERGENTE"}
     declaree = observation.get("version_definition")
-    if declaree in (None, ""):
+    if declaree in (None, "") or type(declaree) in (bool, float):
+        # Un booléen ou un flottant n'est pas une version : ``True == 1`` et ``1.0 == 1`` ne prouvent rien.
         return resultat | {"statut": "VERSION_NON_DECLAREE"}
     courante = definition.get("version_definition", definition["version"])
     if type(declaree) is str and _EMPREINTE.fullmatch(declaree) and type(courante) is int:

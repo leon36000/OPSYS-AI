@@ -138,3 +138,14 @@ def test_liaisons_contradictoires_ou_mal_formees_sont_refusees_jamais_choisies()
     assert sm.cataloguer_liaisons([_liaison(), _liaison(), _liaison("inconnue")], catalogue) == {
         ("marge_reelle", "b" * 64): 2
     }
+
+
+def test_une_version_booleenne_ou_flottante_n_est_pas_une_version_et_les_liaisons_non_liste_sont_refusees():
+    """Défauts trouvés en relecture : ``True == 1`` et ``1.0 == 1`` donnaient COMPATIBLE ; ``None`` levait TypeError."""
+    catalogue = sm.cataloguer([{"metric_id": "m", "unite": "CAD", "version": 1}])
+    for version in (True, 1.0):
+        observation = {"metric_id": "m", "valeur": "1", "unite": "CAD", "version_definition": version}
+        assert sm.classer(observation, catalogue)["statut"] == "VERSION_NON_DECLAREE", version
+    for pas_liste in (None, "texte", b"", 3):
+        with pytest.raises(ValueError, match="REJ-SEMANTIQUE-LIAISON"):
+            sm.cataloguer_liaisons(pas_liste, catalogue)
