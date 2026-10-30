@@ -1,18 +1,21 @@
 """La V3 propriétaire ne confère pas au bus une identité d'administrateur."""
-from contextlib import nullcontext
 import importlib.util
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
 from m4_field_ops import temps_certifies_v2, temps_certifies_v3
+
 from opsys import contexte, stockage
 
 ROOT = Path(__file__).resolve().parents[1]
-spec_cf = importlib.util.spec_from_file_location('qa_transport_cf', ROOT / 'departments/m04-field-ops/tests/conftest.py')
+spec_cf = importlib.util.spec_from_file_location(
+    'qa_transport_cf', ROOT / 'departments/m04-field-ops/tests/conftest.py')
 cf = importlib.util.module_from_spec(spec_cf)
 spec_cf.loader.exec_module(cf)
 base_durable = cf.base_durable
-spec = importlib.util.spec_from_file_location('qa_transport_v3', ROOT / 'departments/m04-field-ops/tests/test_temps_certifies_v3.py')
+spec = importlib.util.spec_from_file_location(
+    'qa_transport_v3', ROOT / 'departments/m04-field-ops/tests/test_temps_certifies_v3.py')
 v3_tests = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(v3_tests)
 chantier_termine = v3_tests.chantier_termine
