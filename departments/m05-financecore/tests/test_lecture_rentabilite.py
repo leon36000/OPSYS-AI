@@ -178,7 +178,9 @@ def test_le_detail_dit_ses_hypotheses_et_son_arrondi(par_nom, chantier_complet):
 
     cout = chantier["rentabilite"]["cout_reel"]
     assert "ROUND_HALF_UP" in cout["arrondi"]
-    assert len(cout["hypotheses"]) == 3 and "effectif" in " ".join(cout["hypotheses"])
+    hypotheses = " ".join(cout["hypotheses"])
+    assert len(cout["hypotheses"]) == 3
+    assert "WCT scalaire" in hypotheses and "taux sourcés" in hypotheses
 
 
 def test_le_detail_d_un_chantier_tient_dans_la_limite_de_troncature_du_core(par_nom, chantier_complet):
