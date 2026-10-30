@@ -14,13 +14,14 @@ si elle est présentée comme telle.
 
 from __future__ import annotations
 
+import datetime as dt
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 
 from . import catalogue_producteurs as cat
 
 ORIGINE_EXTRAPOLATION = "tendance_extrapolee"
-_DECIMAL = re.compile(r"-?[0-9]{1,12}(?:\.[0-9]{1,4})?")
+_DECIMAL = re.compile(r"[0-9]{1,12}(?:\.[0-9]{1,4})?")  # quantités et montants dépensés : jamais négatifs
 _DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 _IDENTIFIANT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}")
 # Catégories fermées de signaux de plainte de M1 (``opsys.taxonomie.CATEGORIES_SIGNAL_PLAINTE``) ; un test compare.
@@ -95,7 +96,7 @@ def _valide(genre: str, valeur: object) -> bool:
     if genre == "decimal":
         return type(valeur) is str and _DECIMAL.fullmatch(valeur) is not None
     if genre == "date":
-        return type(valeur) is str and _DATE.fullmatch(valeur) is not None
+        return _date(valeur) is not None
     if genre == "identifiant":
         return type(valeur) is str and _IDENTIFIANT.fullmatch(valeur) is not None
     if genre == "entier":
@@ -105,18 +106,68 @@ def _valide(genre: str, valeur: object) -> bool:
     if genre == "booleen":
         return type(valeur) is bool
     if genre == "couverture":
-        return valeur in COUVERTURES
+        return type(valeur) is str and valeur in COUVERTURES
     if genre == "categorie":
-        return valeur in CATEGORIES_PLAINTE
+        return type(valeur) is str and valeur in CATEGORIES_PLAINTE
     if genre == "empreinte":
         return type(valeur) is str and re.fullmatch(r"[0-9a-f]{64}", valeur) is not None
     if genre == "textes":
-        return isinstance(valeur, Sequence) and not isinstance(valeur, str) and all(type(t) is str for t in valeur)
+        return type(valeur) is list and all(type(t) is str and t.strip() for t in valeur)
     return False
 
 
+def _date(valeur: object) -> dt.date | None:
+    """Date civile réelle ``AAAA-MM-JJ`` (``2026-99-99`` est refusée), sinon ``None``."""
+    if type(valeur) is not str or _DATE.fullmatch(valeur) is None:
+        return None
+    try:
+        return dt.date.fromisoformat(valeur)
+    except ValueError:
+        return None
+
+
+def _coherence(domaine: str, charge: Mapping) -> list[str]:
+    """Règles entre champs d'une charge dont chaque champ a déjà la bonne forme. Rien n'est corrigé : tout écart est
+    rendu nommé."""
+    erreurs: list[str] = []
+    debut, fin = _date(charge.get("debut")), _date(charge.get("fin"))
+    if debut is not None and fin is not None and fin < debut:
+        erreurs.append("fin antérieure au début")
+    if domaine == "capacite_equipe":
+        if charge["calculable"] is False and not charge["manque"]:
+            erreurs.append("calculable faux sans manque nommé")
+        ids = [ligne["equipe_id"] for ligne in charge["equipes"]]
+        if len(set(ids)) != len(ids):
+            erreurs.append("equipe_id en double")
+    elif domaine == "depenses_marketing":
+        for i, ligne in enumerate(charge["lignes"]):
+            jour = _date(ligne["constate_le"])
+            if debut is not None and fin is not None and jour is not None and not debut <= jour <= fin:
+                erreurs.append(f"lignes[{i}].constate_le hors de la période")
+        if charge["couverture"] != "COMPLETE" and not charge["manque"]:
+            erreurs.append("couverture non complète sans manque nommé")
+    elif domaine == "plaintes_structurees":
+        categories = [ligne["categorie"] for ligne in charge["categories"]]
+        if len(set(categories)) != len(categories):
+            erreurs.append("catégorie en double")
+        elif sum(ligne["ouvertes"] for ligne in charge["categories"]) != charge["ouvertes_total"]:
+            erreurs.append("ouvertes_total différent de la somme des catégories")
+    elif domaine == "liaisons_versions":
+        par_empreinte: dict[tuple, int] = {}
+        par_revision: dict[tuple, str] = {}
+        for ligne in charge["liaisons_versions"]:
+            metrique, revision, empreinte = ligne["metric_id"], ligne["revision"], ligne["empreinte"]
+            if par_empreinte.setdefault((metrique, empreinte), revision) != revision:
+                erreurs.append(f"{metrique} : une même empreinte pour deux révisions")
+            if par_revision.setdefault((metrique, revision), empreinte) != empreinte:
+                erreurs.append(f"{metrique} : deux empreintes pour la révision {revision}")
+    return sorted(set(erreurs))
+
+
 def valider_charge(domaine: str, charge: object) -> dict:
-    """Conformité d'une charge candidate. ``manques`` = champs absents ; ``erreurs`` = champs présents mais invalides.
+    """Conformité d'une charge candidate. ``manques`` = champs absents ; ``erreurs`` = champs présents mais invalides,
+    puis, si la forme est bonne, les incohérences entre champs (période inversée, doublons, total différent de la
+    somme, liaisons contradictoires, calcul impossible ou couverture partielle sans manque nommé).
 
     Rien n'est complété : un champ absent reste absent et nommé. ``conforme`` n'est vrai que sans manque ni erreur ;
     une charge non objet n'est jamais conforme."""
@@ -146,6 +197,8 @@ def valider_charge(domaine: str, charge: object) -> dict:
                     manques.append(f"{nom_liste}[{i}].{champ}")
                 elif not _valide(genre, ligne[champ]):
                     erreurs.append(f"{nom_liste}[{i}].{champ} : {genre} attendu")
+    if not manques and not erreurs:
+        erreurs = _coherence(domaine, charge)
     return {"domaine": domaine, "conforme": not manques and not erreurs, "manques": manques, "erreurs": erreurs}
 
 

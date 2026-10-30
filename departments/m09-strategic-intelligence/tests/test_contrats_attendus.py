@@ -116,3 +116,64 @@ def test_une_extrapolation_de_m9_n_est_jamais_une_prevision_de_proprietaire():
     # Dite pour ce qu'elle est, elle passe ; une vraie prévision de propriétaire n'est pas visée.
     ca.refuser_extrapolation(extrapolation, presentee_comme_prevision_de_proprietaire=False)
     ca.refuser_extrapolation({"prevision_id": "a" * 64}, presentee_comme_prevision_de_proprietaire=True)
+
+
+def _erreurs(domaine, charge):
+    verdict = ca.valider_charge(domaine, charge)
+    assert verdict["conforme"] is False, (domaine, charge)
+    return " | ".join(verdict["erreurs"])
+
+
+def test_types_non_hachables_dates_impossibles_et_negatifs_sont_des_erreurs_nommees():
+    """Défauts trouvés en relecture : TypeError non nommée, dates impossibles et montants négatifs acceptés."""
+    couverture = _depenses()
+    couverture["couverture"] = []
+    assert "couverture" in _erreurs("depenses_marketing", couverture)
+    categorie = _plaintes()
+    categorie["categories"][0]["categorie"] = {"x": 1}
+    assert "categorie" in _erreurs("plaintes_structurees", categorie)
+    for date in ("2026-99-99", "0000-00-00", "2026-02-30"):
+        impossible = _depenses()
+        impossible["debut"] = date
+        assert "debut" in _erreurs("depenses_marketing", impossible), date
+    negatif = _depenses()
+    negatif["lignes"][0]["montant_cad"] = "-450"
+    assert "montant_cad" in _erreurs("depenses_marketing", negatif)
+    heures = _capacite()
+    heures["equipes"][0]["heures_disponibles"] = "-5"
+    assert "heures_disponibles" in _erreurs("capacite_equipe", heures)
+    octets = _capacite()
+    octets["manque"] = b""
+    assert "manque" in _erreurs("capacite_equipe", octets)
+
+
+def test_incoherences_entre_champs_sont_des_erreurs_nommees():
+    inverse = _depenses()
+    inverse["debut"], inverse["fin"] = "2026-10-31", "2026-10-01"
+    assert "fin antérieure au début" in _erreurs("depenses_marketing", inverse)
+    hors_periode = _depenses()
+    hors_periode["lignes"][0]["constate_le"] = "2026-11-02"
+    assert "hors de la période" in _erreurs("depenses_marketing", hors_periode)
+    partielle = _depenses()
+    partielle["manque"] = []
+    assert "sans manque nommé" in _erreurs("depenses_marketing", partielle)
+    doublon = _plaintes()
+    doublon["categories"][1]["categorie"] = "garantie"
+    assert "catégorie en double" in _erreurs("plaintes_structurees", doublon)
+    total = _plaintes()
+    total["ouvertes_total"] = 99
+    assert "somme des catégories" in _erreurs("plaintes_structurees", total)
+    calcul = _capacite()
+    calcul["calculable"] = False
+    assert "sans manque nommé" in _erreurs("capacite_equipe", calcul)
+    equipes = _capacite()
+    equipes["equipes"].append(dict(equipes["equipes"][0]))
+    assert "equipe_id en double" in _erreurs("capacite_equipe", equipes)
+    contradiction = _liaisons()
+    contradiction["liaisons_versions"].append(
+        {"metric_id": "m8_marge_reelle_cad", "revision": 3, "empreinte": "a" * 64}
+    )
+    assert "deux révisions" in _erreurs("liaisons_versions", contradiction)
+    revision = _liaisons()
+    revision["liaisons_versions"].append({"metric_id": "m8_marge_reelle_cad", "revision": 2, "empreinte": "b" * 64})
+    assert "deux empreintes" in _erreurs("liaisons_versions", revision)
