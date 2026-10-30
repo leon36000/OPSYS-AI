@@ -172,8 +172,34 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
     # Les taux fictifs sont écrits dans le registre privé réel : ils ne prouvent
     # pas que les personnes pointées représentent une équipe historique.
     from m5_financecore import outils as m5
-    with (session(), contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+    with (session() as cnx,
+          contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
           contexte.appeler_en_tant_que('m05-financecore', origine='console')):
+        initial = m5._lire_tarifs_equipes()
+        tarif = dict(equipe_id=equipe1, taux='100', unite='heure-equipe', devise='CAD',
+                     source='tarif-fictif', version='1', date_effet='2030-01-01',
+                     date_fin='2030-12-31', remplace_id=None)
+        for index, faux in enumerate(({'devise': 'USD'}, {'unite': 'heure-personne'},
+                                     {'version': ''}, {'source': ''}, {'date_fin': '2029-12-31'})):
+            with pytest.raises(ValueError):
+                m5._inscrire_tarif_equipe(tarif | faux, mutation_id=f'FICTIF-INVALIDE-{index}',
+                                          source_attendue=initial['source'])
+            assert m5._lire_tarifs_equipes() == initial
+        # Un tarif valide mais expiré n'est pas celui de la visite réelle. Un
+        # savepoint permet de vérifier ce cas sans conserver la donnée d'essai.
+        savepoint = cnx.begin_nested()
+        m5._inscrire_tarif_equipe(tarif | {'date_effet': '2029-01-01', 'date_fin': '2029-12-31'},
+                                  mutation_id='FICTIF-EXPIRE', source_attendue=initial['source'])
+        source_apres_expire = m5._lire_tarifs_equipes()['source']
+        m5._inscrire_tarif_equipe(tarif | {'equipe_id': equipe2_id, 'taux': '120'},
+                                  mutation_id='FICTIF-VALIDE', source_attendue=source_apres_expire)
+        from opsys.console import rentabilite_chantier as port_m5
+        recu = next(x for x in stockage.maillons('m05-financecore', 'wct_recus') if x['wct_id'] == wct_id)
+        vue_expiree = port_m5._ventilation_m4(cnx, f.AUTH, recu, affaire['lead'])
+        assert vue_expiree['statut'] == 'INCOMPLET' and vue_expiree['cout_main_oeuvre'] is None
+        assert vue_expiree['cout_main_oeuvre_connu'] == Decimal('480.00')  # seule la seconde équipe
+        savepoint.rollback()
+        assert m5._lire_tarifs_equipes() == initial
         for index, (equipe, taux) in enumerate(((equipe1, '100'), (equipe2_id, '120'))):
             snapshot = m5._lire_tarifs_equipes()
             m5._inscrire_tarif_equipe(dict(equipe_id=equipe, taux=taux, unite='heure-equipe', devise='CAD',
