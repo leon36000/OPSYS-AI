@@ -1,0 +1,23 @@
+E501 Line too long (122 > 120)
+  --> departments/m04-field-ops/src/m4_field_ops/equipes_pointees_v3.py:82:121
+   |
+80 |         pointe_id = detail['resultat']['ligne_id']
+81 |         apres = principal.lire()
+82 |         pointes = [m for m in apres[len(avant):] if m.get('ligne_id') == pointe_id and m.get('type_entree') == 'pointage']
+   |                                                                                                                         ^^
+83 |         if (apres[:len(avant)] != avant or len(pointes) != 1 or pointes[0].get('visite_id') != visite_id
+84 |                 or pointes[0].get('technicien_id') != equipe_id or _profil() != profil
+   |
+
+E501 Line too long (136 > 120)
+  --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v3.py:95:121
+   |
+93 | …source:
+94 | …
+95 | …fier(cnx, json.loads(json.dumps(recu['projection'])), snapshot) != audits:
+   |                                                            ^^^^^^^^^^^^^^^^
+96 | …
+97 | …
+   |
+
+Found 6 errors (4 fixed, 2 remaining).

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="3" time="1.535" timestamp="2026-10-30T01:01:18.255888-04:00" hostname="gx10-e526"><testcase classname="departments.m04-field-ops.tests.test_temps_certifies_v3" name="test_v3_preserve_inconnus_legacy_et_projection_v2" time="0.587" /><testcase classname="departments.m04-field-ops.tests.test_temps_certifies_v3" name="test_v3_relecture_source_perimee_et_autorite_revoquee" time="0.417" /><testcase classname="departments.m04-field-ops.tests.test_temps_certifies_v3" name="test_pointage_v3_enregistre_preuve_typee_avec_autorite" time="0.299"><failure message="AssertionError: assert ('inconnue' == 'identifiee'&#10;  &#10;  - identifiee&#10;  + inconnue)">base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-pc6/pytest-9/test_pointage_v3_enregistre_pr0/opsys.db'
+tmp_path = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-pc6/pytest-9/test_pointage_v3_enregistre_pr0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0xf562105518e0&gt;
+
+    def test_pointage_v3_enregistre_preuve_typee_avec_autorite(base_durable, tmp_path, monkeypatch):
+        from datetime import UTC, datetime
+    
+        from m4_field_ops import calendrier_civil, cedule, cedule_tournees, equipes_pointees_v3, etats, visites_chantier
+        from m4_field_ops.registre import Registre
+        from opsys import equipes, identite
+    
+        monkeypatch.setenv('OPSYS_HOME', str(tmp_path / 'opsys'))
+        domaine = _base._base
+        initial, ids, positions = domaine.fixture.pur._monde(leads=('ch-01',))
+        equipes.enregistrer_equipes({'liste': [{**e, 'membres': [e['id'] + '.fictif']}
+                                             for e in domaine.fixture.pur._aide._equipes()]})
+        with stockage.transaction(base_durable) as cnx:
+            identite.creer_personne(cnx, 'admin.fictif', 'Admin fictif', 'Fictif#12345678', roles=['admin'])
+            principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            for maillon in initial.lire():
+                principal.ajouter({k: v for k, v in maillon.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
+            plan = domaine.fixture.pur._reussi(domaine.fixture.pur._proposer(principal, ids, positions))['plan_id']
+            domaine.fixture.pur._reussi(cedule_tournees.appliquer(principal, plan, positions,
+                                                                 domaine.fixture.pur.HORODATAGE, 'admin.fictif'))
+            calendrier_civil.confirmer(principal, plan, {'0': '2030-06-03'}, 0, 'admin.fictif', '2030-06-02T09:00:00+00:00')
+            ligne = calendrier_civil.lire_semaine(principal, '2030-06-03')['interventions'][0]
+            ancre = {k: ligne[k] for k in domaine.fixture.CHAMPS_ANCRE}
+            iid, equipe = ancre['intervention_id'], ligne['equipe_id']
+            visites = Registre(stockage.maillons('m04-field-ops', 'visites_chantier'))
+            prev = domaine.ecrire(principal, visites, ancre, heure='2030-06-03T07:30:00-04:00')
+            visites_chantier.ouvrir(principal, visites, prev['visite_id'], '2030-06-03T08:00:00-04:00')
+            assignation = {'intervention_id': iid, 'technicien_id': equipe}
+            assert etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:30:00-04:00',
+                                       assignation=assignation)[1] is None
+            source = equipes_pointees_v3.empreinte_sources(cnx)
+            arguments = {'intervention_id': iid, 'technicien_id': equipe, 'action': 'arrivee',
+                         'horodatage': '2030-06-03T09:00:00-04:00', 'fix_gps': None,
+                         'attestation': {'fictif': True, 'appareil_id': 'fictif'},
+                         'fenetre_travail': {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'},
+                         'referentiel_villes': {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+                             'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}},
+                         'ville': 'Repentigny', 'sel': 'sel-fictif'}
+            instant = datetime(2030, 6, 3, 13, tzinfo=UTC)
+            with (contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+                  contexte.appeler_en_tant_que('m04-field-ops', origine='console'),
+                  contexte.receptionne_de(contexte.HorodatageAppareil('console:admin.fictif', instant, instant))):
+                recu = equipes_pointees_v3.enregistrer(cnx, arguments, prev['visite_id'], equipe,
+                                                       'mutation-fictive-1', source)
+                maillons = principal.lire()
+                pointe = next(m for m in maillons if m['ligne_id'] == recu['pointage_id'])
+                preuve = next(m for m in maillons if m['ligne_id'] == recu['preuve_id'])
+                assert pointe['visite_id'] == prev['visite_id']
+                assert preuve['pointage_id'] == pointe['ligne_id']
+                assert preuve['sujet'] == {'type': 'equipe', 'id': equipe}
+                assert preuve['auteur'] == {'personne': 'admin.fictif', 'role': 'admin'}
+                assert preuve['visite_id'] == prev['visite_id']
+                assert equipes_pointees_v3.enregistrer(cnx, arguments, prev['visite_id'], equipe,
+                                                       'mutation-fictive-1', source)['rejoue'] is True
+                from datetime import timedelta
+    
+                from m4_field_ops import ecarts, outbox, temps_certifies_v3
+    
+                demande = next(m for m in principal.lire() if m.get('type_entree') == 'demande_revue'
+                               and m.get('pointage_ligne_id') == recu['pointage_id'])
+                assert ecarts.resoudre_demande(demande['demande_id'], 'validee',
+                                               '2030-06-03T09:01:00-04:00', principal)[1] is None
+                arguments['action'] = 'depart'
+                arguments['horodatage'] = '2030-06-03T10:00:00-04:00'
+                source_depart = equipes_pointees_v3.empreinte_sources(cnx)
+                depart = instant + timedelta(hours=1)
+                with contexte.receptionne_de(contexte.HorodatageAppareil('console:admin.fictif', depart, depart)):
+                    recu_depart = equipes_pointees_v3.enregistrer(cnx, arguments, prev['visite_id'], equipe,
+                                                                  'mutation-fictive-2', source_depart)
+                demande_depart = next(m for m in principal.lire() if m.get('type_entree') == 'demande_revue'
+                                      and m.get('pointage_ligne_id') == recu_depart['pointage_id'])
+                assert ecarts.resoudre_demande(demande_depart['demande_id'], 'validee',
+                                               '2030-06-03T10:01:00-04:00', principal)[1] is None
+                visites_chantier.fermer(principal, visites, prev['visite_id'], '2030-06-03T10:02:00-04:00')
+                wct, erreur = outbox.completer_intervention(iid, '2030-06-03T10:03:00-04:00', principal,
+                    ecart_detecte=False, verification_en_attente=True, registre_visites=visites)
+                assert erreur is None, erreur
+                projection = temps_certifies_v3.projeter(cnx, iid, wct['wct_id'])['projection']
+                declaree = projection['visites'][0]['equipe_pointee']
+&gt;               assert declaree['statut'] == 'identifiee' and declaree['identifiant'] == equipe
+E               AssertionError: assert ('inconnue' == 'identifiee'
+E                 
+E                 - identifiee
+E                 + inconnue)
+
+departments/m04-field-ops/tests/test_temps_certifies_v3.py:139: AssertionError</failure></testcase></testsuite></testsuites>

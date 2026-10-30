@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.119" timestamp="2026-10-30T00:57:17.028124-04:00" hostname="gx10-e526"><testcase classname="" name="departments.m04-field-ops.tests.test_temps_certifies_v3" time="0.000"><error message="collection failure">ImportError while importing test module '/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/departments/m04-field-ops/tests/test_temps_certifies_v3.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+departments/m04-field-ops/tests/test_temps_certifies_v3.py:7: in &lt;module&gt;
+    from test_temps_certifies_v2 import _appel, chantier_termine  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'test_temps_certifies_v2'</error></testcase></testsuite></testsuites>
