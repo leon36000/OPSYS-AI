@@ -126,3 +126,20 @@ def test_connaissance_anterieure_au_registre_le_refuse_et_non_admin_refuse(monde
     )
     assert _rapprocher(monde, identite=None)["ok"] is False
     assert comptable.role == "admin"
+
+
+def test_le_vrai_m8_ne_publie_pas_de_liaison_donc_l_empreinte_reste_non_comparable(monde):
+    """Contrat consommateur M9.3 : tant que M8 ne publie pas ``liaisons_versions``, rien n'est supposé relié.
+
+    Le producteur réel (registre durable + mesures portant une empreinte) ne fournit aucune liaison ; M9 le dit
+    (``liaisons_versions == 0``) et classe la mesure ``VERSION_NON_COMPARABLE`` avec la raison ``AUCUNE_LIAISON``.
+    """
+    _capturer_mesures(monde, 1)
+    _definir("m8_marge_reelle_cad", "CAD")
+    registre = _capturer_registre(monde, 2)
+    page = H.page(registre["index"])
+    assert H.valeurs(page, "resultat.liaisons_versions[*]") == []  # M8 n'a pas ce champ : aucune liaison inventée
+    res = _rapprocher(monde)["resultat"]
+    assert res["liaisons_versions"] == 0
+    marge = next(o for o in res["observations"] if o["metric_id"] == "m8_marge_reelle_cad")
+    assert marge["statut"] == "VERSION_NON_COMPARABLE" and marge["raison"] == "AUCUNE_LIAISON"
