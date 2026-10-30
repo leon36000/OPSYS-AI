@@ -422,27 +422,30 @@ def test_un_second_travaux_termines_pour_le_meme_devis_rend_le_cout_partiel():
     cout = cout_reel.calculer_cout_reel(_wct(), _signal(), [_prix()], "50.00", autres_wct=["WCT-2", "WCT-2"])
 
     assert cout["complet"] is False and cout["cout_total"] is None
-    assert cout["cout_total_connu"] == Decimal("486.00")  # celui du premier WCT, dit connu et jamais total
-    (manque,) = cout["manque"]
+    assert cout["cout_total_connu"] == Decimal("336.00")  # matériaux seulement ; main-d'œuvre inconnue
+    manque = next(e for e in cout["manque"] if e["code"] == "REJ-COUT-PLUSIEURS-WCT")
+    assert _codes(cout) == ["REJ-COUT-TEMPS-POINTE-ABSENT", "REJ-COUT-PLUSIEURS-WCT"]
     assert manque["code"] == "REJ-COUT-PLUSIEURS-WCT" and "2 travaux terminés" in manque["detail"]
     assert "WCT-2" in manque["detail"]
     assert cout["entrees"]["autres_wct"] == ["WCT-2"]  # dédoublonné, et compté dans la version des entrées
 
 
 def test_l_absence_d_autre_wct_ne_change_ni_le_cout_ni_le_manque():
-    assert _cout()["complet"] is True and _cout()["entrees"]["autres_wct"] == []
+    cout = _cout()
+    assert cout["complet"] is False and cout["entrees"]["autres_wct"] == []
+    assert _codes(cout) == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
 
 
 # =========================================================================================
 # 5. Rentabilité partielle : jamais une marge quand le coût ne l'est pas
 # =========================================================================================
 def test_cout_partiel_pas_de_marge_reelle_seulement_un_plafond_dit_plafond():
-    r = _rentabilite(cout=_cout(livre=[]))  # matériaux sans prix : coût connu = main-d'oeuvre, 150,00 $
+    r = _rentabilite(cout=_cout(livre=[]))  # matériaux sans prix et main-d'œuvre non attribuable
 
     assert r["verdict"] == "PARTIELLE"
     assert r["marge_reelle"] is None and r["marge_reelle_pct_du_prix"] is None
-    assert r["marge_partielle_plafond"] == Decimal("450.00")  # 600 - 150 : ce qui manque n'y est pas soustrait
-    assert r["marge_partielle_plafond_pct_du_prix"] == Decimal("0.7500")
+    assert r["marge_partielle_plafond"] == Decimal("600.00")  # rien de connu à soustraire du prix
+    assert r["marge_partielle_plafond_pct_du_prix"] == Decimal("1.0000")
     assert r["ecart_marge"] is None and r["ecart_marge_points"] is None and r["en_perte"] is False
     assert "REJ-COUT-PRIX-NON-DISPONIBLE" in _codes(r)
     assert r["cout_reel"]["complet"] is False and r["cout_reel"]["cout_total"] is None
@@ -573,8 +576,8 @@ def test_le_resume_d_une_liste_tient_en_une_ligne_de_chiffres_et_de_codes():
     resume = cout_reel.resumer(_rentabilite(cout=_cout(livre=[])))
 
     assert resume["verdict"] == "PARTIELLE" and resume["cout_reel_complet"] is False
-    assert resume["cout_total"] is None and resume["cout_total_connu"] == Decimal("150.00")
-    assert resume["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+    assert resume["cout_total"] is None and resume["cout_total_connu"] == Decimal("0")
+    assert resume["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert "cout_reel" not in resume and "lignes" not in resume
     assert "devis_id" not in resume and "chantier_id" not in resume  # l'appelant les porte déjà
 
@@ -586,7 +589,8 @@ def test_la_vue_masquee_ne_porte_aucun_montant_ni_detail_de_manque():
 
     masque = cout_reel.masquer_montants(r)
 
-    assert masque["montants_masques"] is True and masque["manque"] == ["REJ-COUT-PRIX-AMBIGU"]
+    assert masque["montants_masques"] is True
+    assert masque["manque"] == ["REJ-COUT-PRIX-AMBIGU", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert not list(_tous_les_montants(masque))
     texte = json.dumps(masque, default=str)
     assert "8.0" not in texte and "9.0" not in texte and "gentek" not in texte and "kaycan" not in texte
