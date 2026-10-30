@@ -202,10 +202,11 @@ def test_prix_absent_du_livre_donne_une_ligne_prix_non_disponible_et_un_cout_par
     (ligne,) = cout["materiaux"]["lignes"]
     assert ligne["statut"] == "PRIX_NON_DISPONIBLE" and ligne["prix_unitaire"] is None and ligne["cout"] is None
     assert cout["complet"] is False and cout["cout_total"] is None  # jamais une somme partielle prise pour un total
-    assert cout["cout_total_connu"] == Decimal("150.00")  # la main-d'oeuvre seule, dite connue
+    assert cout["cout_total_connu"] == Decimal("0")  # durée scalaire non attribuable à une équipe
     assert cout["materiaux"]["statut"] == "partiel"
-    (manque,) = cout["manque"]
+    manque = next(e for e in cout["manque"] if e["code"] == "REJ-COUT-PRIX-NON-DISPONIBLE")
     assert manque["code"] == "REJ-COUT-PRIX-NON-DISPONIBLE" and manque["materiau"] == MATERIAU
+    assert _codes(cout) == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
 
 
 def test_le_prix_d_un_autre_materiau_n_est_jamais_utilise():
@@ -222,7 +223,7 @@ def test_deux_fournisseurs_aux_prix_differents_donnent_un_prix_ambigu_jamais_une
     ligne = cout["materiaux"]["lignes"][0]
     assert ligne["statut"] == "PRIX_AMBIGU" and ligne["prix_unitaire"] is None and ligne["cout"] is None
     assert [s["fournisseur_id"] for s in ligne["sources_prix"]] == ["gentek-fictif", "kaycan-fictif"]
-    assert _codes(cout) == ["REJ-COUT-PRIX-AMBIGU"] and cout["complet"] is False
+    assert _codes(cout) == ["REJ-COUT-PRIX-AMBIGU", "REJ-COUT-TEMPS-POINTE-ABSENT"] and cout["complet"] is False
 
 
 def test_deux_fournisseurs_au_meme_prix_donnent_ce_prix():
@@ -230,7 +231,7 @@ def test_deux_fournisseurs_au_meme_prix_donnent_ce_prix():
 
     cout = _cout(livre=livre)
 
-    assert cout["materiaux"]["lignes"][0]["cout"] == Decimal("336.00") and cout["complet"] is True
+    assert cout["materiaux"]["lignes"][0]["cout"] == Decimal("336.00") and cout["complet"] is False
 
 
 def test_le_dernier_prix_ecrit_d_un_fournisseur_fait_foi():
@@ -256,7 +257,8 @@ def test_une_entree_de_livre_inutilisable_n_est_jamais_prise_pour_un_prix(entree
 
 
 def test_la_devise_cad_est_reconnue_sans_egard_a_la_casse():
-    assert _cout(livre=[_prix(devise=" cad ")])["complet"] is True
+    cout = _cout(livre=[_prix(devise=" cad ")])
+    assert cout["materiaux"]["cout_connu"] == Decimal("336.00") and cout["complet"] is False
 
 
 def test_un_prix_du_livre_en_texte_decimal_reste_exact():
@@ -277,7 +279,7 @@ def test_variance_non_evaluee_les_materiaux_reels_sont_inconnus(statut, lignes):
     assert cout["materiaux"]["statut"] == "non_disponible" and cout["materiaux"]["lignes"] == []
     assert "REJ-COUT-MATERIAUX-REELS-ABSENTS" in _codes(cout)
     assert statut in cout["manque"][0]["detail"] and cout["complet"] is False
-    assert cout["cout_total"] is None and cout["cout_total_connu"] == Decimal("150.00")
+    assert cout["cout_total"] is None and cout["cout_total_connu"] == Decimal("0")
 
 
 def test_aucun_signal_de_variance_recu_les_materiaux_reels_sont_inconnus():
@@ -297,7 +299,7 @@ def test_evaluee_sans_aucune_ligne_est_un_cout_de_materiaux_nul_et_complet():
     cout = _cout(signal=_signal([]))
 
     assert cout["materiaux"]["statut"] == "complet" and cout["materiaux"]["cout_connu"] == Decimal("0")
-    assert cout["complet"] is True and cout["cout_total"] == Decimal("150.00")
+    assert cout["complet"] is False and cout["cout_total"] is None
 
 
 @pytest.mark.parametrize("ligne", [
@@ -316,13 +318,14 @@ def test_une_ligne_de_variance_indeterminee_n_est_jamais_chiffree(ligne):
 
     assert cout["materiaux"]["lignes"][0]["statut"] == "LIGNE_INDETERMINEE"
     assert cout["materiaux"]["lignes"][0]["cout"] is None
-    assert _codes(cout) == ["REJ-COUT-LIGNE-INDETERMINEE"] and cout["complet"] is False
+    assert _codes(cout) == ["REJ-COUT-LIGNE-INDETERMINEE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert cout["complet"] is False
 
 
 def test_une_ligne_a_quantite_nulle_coute_zero_c_est_un_materiau_prevu_non_utilise():
     cout = _cout(signal=_signal([_ligne(reelle="0.0")]))
 
-    assert cout["materiaux"]["lignes"][0]["cout"] == Decimal("0.00") and cout["complet"] is True
+    assert cout["materiaux"]["lignes"][0]["cout"] == Decimal("0.00") and cout["complet"] is False
 
 
 def test_un_manque_de_ligne_n_empeche_pas_de_chiffrer_les_autres_lignes():
@@ -355,7 +358,7 @@ def test_taux_horaire_absent_ou_invalide_donne_le_verdict_taux_a_configurer(taux
 
     assert cout["main_d_oeuvre"]["statut"] == "non_disponible" and cout["main_d_oeuvre"]["cout"] is None
     assert cout["main_d_oeuvre"]["taux_horaire"] is None
-    assert _codes(cout) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert _codes(cout) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert cout["complet"] is False and cout["cout_total"] is None
     assert cout["cout_total_connu"] == Decimal("336.00")  # les matériaux, eux, sont chiffrés
 
