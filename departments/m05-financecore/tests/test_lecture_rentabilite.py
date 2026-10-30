@@ -295,10 +295,10 @@ def test_un_cout_partiel_est_rendu_partiel_avec_la_liste_de_ce_qui_manque(par_no
 
     r = chantier["rentabilite"]
     assert r["verdict"] == "PARTIELLE" and r["cout_reel"]["complet"] is False
-    assert [e["code"] for e in r["manque"]] == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+    assert [e["code"] for e in r["manque"]] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert r["manque"][0]["materiau"] == MATERIAU
     assert r["marge_reelle"] is None and r["cout_reel"]["cout_total"] is None
-    assert r["marge_partielle_plafond"] == "450.00" and r["cout_reel"]["cout_total_connu"] == "150.00"
+    assert r["marge_partielle_plafond"] == "600.00" and r["cout_reel"]["cout_total_connu"] == "0"
 
 
 def test_la_lecture_montre_l_etat_d_aujourd_hui_et_dit_quand_la_trace_est_en_retard(par_nom, chantier_complet):
@@ -410,7 +410,8 @@ def test_sans_appareil_autorise_couts_est_obligatoire_et_explicite(par_nom, chan
     assert _appeler(par_nom, {"autorise_couts": "true"}, identite_appelante=None)["erreur"] == "arguments_invalides"
 
     vue = _lire(par_nom, {"autorise_couts": True, "role": "gestionnaire"}, identite_appelante=None)
-    assert vue["role"] == "gestionnaire" and vue["chantiers"][0]["rentabilite"]["marge_reelle"] == "114.00"
+    assert vue["role"] == "gestionnaire" and vue["chantiers"][0]["rentabilite"]["marge_reelle"] is None
+    assert vue["chantiers"][0]["rentabilite"]["cout_total_connu"] == "336.00"
     sans_montant = _lire(par_nom, {"autorise_couts": False}, identite_appelante=None)
     assert sans_montant["chantiers"][0]["rentabilite"]["montants_masques"] is True
 
@@ -457,10 +458,10 @@ def test_un_second_wct_pour_le_meme_devis_rend_le_cout_partiel_jamais_le_total_d
 
     r = chantier["rentabilite"]
     assert r["verdict"] == "PARTIELLE" and r["cout_reel"]["complet"] is False
-    assert [e["code"] for e in r["manque"]] == ["REJ-COUT-PLUSIEURS-WCT"]
-    assert "WCT-2" in r["manque"][0]["detail"]
+    assert [e["code"] for e in r["manque"]] == ["REJ-COUT-TEMPS-POINTE-ABSENT", "REJ-COUT-PLUSIEURS-WCT"]
+    assert "WCT-2" in r["manque"][1]["detail"]
     assert r["marge_reelle"] is None and r["cout_reel"]["cout_total"] is None
-    assert r["cout_reel"]["cout_total_connu"] == "486.00"  # celui du premier, dit connu et non total
+    assert r["cout_reel"]["cout_total_connu"] == "336.00"  # matériaux connus du premier WCT uniquement
 
 
 def test_vue_partielle_masque_tous_les_montants_et_prix_fournisseur(par_nom, chantier_complet):
