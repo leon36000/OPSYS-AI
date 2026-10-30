@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/../preuves-m4-v2/fixture-v3-01.py", line 4, in <module>
+    from m4_field_ops import encodage
+ModuleNotFoundError: No module named 'm4_field_ops'

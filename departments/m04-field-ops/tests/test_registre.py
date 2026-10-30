@@ -317,6 +317,7 @@ def test_enumere_des_types_est_fige():
         "visite_prevue",  # CRM-01 : prévision explicitement ancrée.
         "visite_ouverte",  # CRM-01 : ouverture explicite de visite.
         "visite_fermee",  # CRM-01 : clôture sans WCT.
+        "pointage_equipe_v3",  # CRM01-17 V3 : preuve typée transactionnelle, voir contrat de mission.
         "composition_journaliere",  # CRM-16 : histoire déclarative séparée, aucun droit courant.
         "absence_journaliere_declaree",  # CRM-16 : type ratifié par le contrat admin, aucune présence/paie.
     }

@@ -1,0 +1,7 @@
+OPERATIONS [None, 'fermer']
+FERMER_HTTP 409
+Traceback (most recent call last):
+  File "/tmp/opsys-m4-http-KS6hGL/live-reprise-02.py", line 24, in <module>
+    r,f=page(); print('OPERATIONS', [x.get('operation') for x in f.forms]);r=s.post(p,data=form(f,'fermer'),follow_redirects=False,timeout=5);print('FERMER_HTTP',r.status_code);assert r.status_code==303,r.text
+                                                                                                                                                                                        ^^^^^^^^^^^^^^^^^^
+AssertionError: {"detail":"Visite modifiée ou opération impossible ; relire le chantier"}

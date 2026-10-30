@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="23" time="21.267" timestamp="2026-10-28T18:31:20.592608-04:00" hostname="gx10-e526"><testcase classname="tests.test_console_visites_chantier" name="test_outils_visites_privatives_enregistres" time="0.003" /><testcase classname="tests.test_console_visites_chantier" name="test_outils_refusent_agents_et_appareils_sans_console" time="0.001" /><testcase classname="tests.test_console_visites_chantier" name="test_outils_console_sql_admin_prevision_et_ouverture" time="1.207" /><testcase classname="tests.test_console_visites_chantier" name="test_port_console_admin_verifie_metier_et_rejeu" time="0.924" /><testcase classname="tests.test_console_visites_chantier" name="test_http_visites_depuis_chantier_prevision_et_csrf" time="2.016" /><testcase classname="tests.test_console_visites_chantier" name="test_outil_completion_session_segmente_sqlite" time="0.720" /><testcase classname="tests.test_console_visites_chantier" name="test_snapshot_initial_inchange_meme_si_metadonnees_changent_pendant_lecture" time="0.547" /><testcase classname="tests.test_console_visites_chantier" name="test_composition_courante_est_sourcee_meme_si_historique_pagine" time="0.977" /><testcase classname="tests.test_console_reprise_visite" name="test_proposition_reprise_choisit_equipe_declaree_et_rejoue" time="3.057" /><testcase classname="tests.test_console_report_visite_v2" name="test_contrats_report_v1_et_interruption_privee_v2_distincts" time="0.002" /><testcase classname="tests.test_console_report_visite_v2" name="test_interruption_privee_v2_refuse_sans_identite_console" time="0.001" /><testcase classname="tests.test_console_report_visite_v2" name="test_mutations_console_exigent_reception_serveur[m4_interrompre_visite_console_v2]" time="0.657" /><testcase classname="tests.test_console_report_visite_v2" name="test_mutations_console_exigent_reception_serveur[m4_replanifier_visite_console]" time="0.524" /><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_interrompre_visite_console_v2-appareil-m04-field-ops-False]" time="0.648" /><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_interrompre_visite_console_v2-console-m04-field-ops-False]" time="0.604" /><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_interrompre_visite_console_v2-console-console-True]" time="0.619" /><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_replanifier_visite_console-appareil-m04-field-ops-False]" time="0.625" /><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_replanifier_visite_console-console-m04-field-ops-False]" time="0.627" /><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_replanifier_visite_console-console-console-True]" time="0.525" /><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_lire_visites_console-appareil-m04-field-ops-False]" time="0.713" /><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_lire_visites_console-console-m04-field-ops-False]" time="1.352" /><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_lire_visites_console-console-console-True]" time="1.364" /><testcase classname="tests.test_console_logs_visites" name="test_serveur_http_access_log_sans_cookie_ni_csrf" time="1.463"><failure message="PermissionError: [Errno 1] Operation not permitted">client_crm = &lt;starlette.testclient.TestClient object at 0xf8340e36a5d0&gt;
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...25dc1c60', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0xf8340e1abf20&gt;
+
+    def test_serveur_http_access_log_sans_cookie_ni_csrf(client_crm, planning, monkeypatch):
+        import logging
+        import socket
+        import threading
+        import time
+        from dataclasses import replace
+        from datetime import UTC, datetime
+        from html.parser import HTMLParser
+    
+        import httpx
+        import uvicorn
+    
+        from opsys.console import metier, securite
+    
+        class HorlogeFictive(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2030, 6, 3, 12, tzinfo=UTC).astimezone(tz)
+    
+        monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
+    
+        class Formulaires(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.forms, self.courant = [], None
+    
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'form':
+                    self.courant = {}
+                    self.forms.append(self.courant)
+                elif tag == 'input' and self.courant is not None and 'name' in attrs:
+                    self.courant[attrs['name']] = attrs.get('value', '')
+    
+            def handle_endtag(self, tag):
+                if tag == 'form':
+                    self.courant = None
+    
+        class Capture(logging.Handler):
+            def __init__(self):
+                super().__init__()
+                self.messages = []
+    
+            def emit(self, record):
+                self.messages.append(record.getMessage())
+    
+        f.f.base._connecter(client_crm, 'admin.fictif')
+        cookie = next(c for c in client_crm.cookies.jar if c.name == securite.NOM_COOKIE)
+        session_fictive = securite.lire_session(cookie.value, f.f.base.SECRET)
+        cookie.value = securite.signer_session(replace(session_fictive, expire=4102444800), f.f.base.SECRET)
+        cookies = dict(client_crm.cookies)
+        assert cookies and all(cookies.values())
+        logger = logging.getLogger('uvicorn.access')
+        capture = Capture()
+        ancien_niveau = logger.level
+        logger.setLevel(logging.INFO)
+        logger.addHandler(capture)
+&gt;       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_logs_visites.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;socket.socket fd=-1, family=0, type=0, proto=0&gt;
+family = &lt;AddressFamily.AF_INET: 2&gt;, type = &lt;SocketKind.SOCK_STREAM: 1&gt;
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+&gt;       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError</failure></testcase></testsuite></testsuites>

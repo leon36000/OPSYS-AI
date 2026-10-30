@@ -1,0 +1,2 @@
+exec(open('/tmp/opsys-m4-http-suite-kepXNO/live-relecture-base-01.py').read().split('with stockage.transaction():')[0])
+r,f=page();print('LECTURE',r.status_code,'DEUX_DUREES_60',r.text.count('Pointé : 60 min nettes'),'TERMINE', 'Terminé — en attente de revue' in r.text);print('OPERATIONS',[x.get('operation') for x in f.forms]);assert r.text.count('Pointé : 60 min nettes')==2;assert 'Terminé — en attente de revue' in r.text

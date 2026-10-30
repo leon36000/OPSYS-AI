@@ -1,0 +1,6 @@
+M5 classification commit 5ec72e067d1e00b917f49d95151b0d4f9a41c039
+M5 code d5ff2f858cbf195689b4a89ed34a2120814977fd
+JUnit independant m5-complet-d5ff-indep-01.xml
+17 identifiants classe/test en echec dans chaque source
+uniquement inventaire 0
+uniquement JUnit 0

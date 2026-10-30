@@ -1,0 +1,8 @@
+OUVERTURE_PAGE_REPRISE 200
+CONTENU <!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reprise du chantier · Console OPSYS</title><link rel="stylesheet" href="/statique/console.css"><script src="/statique/console.js" defer></script></head><body><header class="entete"><div class="marque">OPSYS <span>Console</span></div><nav aria-label="Sections"><a hr
+CHOIX ['eq-a', 'eq-b'] FORMES [['csrf'], ['csrf', 'mutation_id', 'empreinte_attendue', 'debut', 'fin']]
+PROPOSITION 303 /crm/visites/reprise?intervention_id=c1ddea4e7b2f60b1bf43b9e635a8d85019549e5167723539e3969ee353aa81b6&plan_id=e5972a185fd9b08d877d11b74487c57a1c545794c5225b4a89f14fcf5f3e8b0c
+DETAIL 
+REVUE 200 N3 True
+APPROBATION_N3 303 /crm/cedule/plan/e5972a185fd9b08d877d11b74487c57a1c545794c5225b4a89f14fcf5f3e8b0c

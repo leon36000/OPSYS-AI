@@ -1,0 +1,323 @@
+"""QA exploratoire à usage local : lien réel M3/M4/M5, sources fictives."""
+import importlib.util
+from pathlib import Path
+
+import pytest
+from datetime import datetime
+from decimal import Decimal
+
+from m4_field_ops import (calendrier_civil, cedule, cedule_tournees, ecarts, equipes_pointees_v3,
+                          etats, outbox, preparation, visites_chantier)
+from m4_field_ops.registre import Registre
+from opsys import contexte, evenements, stockage
+from opsys.outils import executer_atomique
+
+spec = importlib.util.spec_from_file_location('qa_preparation_console', Path(__file__).with_name('test_console_preparation_chantier.py'))
+f = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(f)
+client_crm, catalogue, affaire = f.client_crm, f.catalogue, f.affaire
+
+spec_cf = importlib.util.spec_from_file_location('qa_m4_cf', Path(__file__).parents[1] / 'departments/m04-field-ops/tests/conftest.py')
+cf = importlib.util.module_from_spec(spec_cf)
+spec_cf.loader.exec_module(cf)
+deposer_photo_test = cf.deposer_photo_test
+
+spec_v2 = importlib.util.spec_from_file_location('qa_v2_m4', Path(__file__).parents[1] / 'departments/m04-field-ops/tests/test_temps_certifies_v2.py')
+v2 = importlib.util.module_from_spec(spec_v2)
+spec_v2.loader.exec_module(v2)
+
+
+@pytest.fixture(autouse=True)
+def devis_avec_chantier(monkeypatch):
+    def creer(deps, lead_id, devis_id):
+        m3 = f.b._outils(deps, 'm03-estimation')
+        f.b._ok(executer_atomique(m3['m3_creer_devis'], {
+            'devis_id': devis_id, 'lead_id': lead_id, 'chantier_id': 'DEPOT-FICTIF',
+            'lignes': [
+                {'description': 'Gouttières fictives', 'quantite': '40', 'unite': 'pi',
+                 'cout_unitaire': '8.00', 'reference_besoin_materiau': f.b.MATERIAU_ID},
+                {'description': 'Main-d’œuvre fictive', 'quantite': '1', 'unite': 'forfait',
+                 'cout_unitaire': '160.00', 'reference_besoin_materiau': None}],
+            'taux_marge': '0.25', 'horodatage': '2026-09-29T15:00:00-04:00', 'prix_total': '600.00'}))
+        f.b._ok(executer_atomique(m3['m3_marquer_devis_accepte'], {
+            'devis_id': devis_id, 'approbateur': 'Admin fictif', 'horodatage': f.b.ACCEPTE_LE}))
+        return f'm3-devis-accepte-{devis_id}'
+    monkeypatch.setattr(f.b, '_devis_accepte', creer)
+
+
+def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monkeypatch):
+    m6 = f.b._outils(affaire['deps'], 'm06-material-control')
+    bon = dict(po_id='PO-QA-FICTIF', chantier_id='DEPOT-FICTIF', horodatage=f.b.ACCEPTE_LE,
+               lignes_demandees=[dict(materiau_id=f.b.MATERIAU_ID, quantite_demandee=40)])
+    reception = dict(po_id=bon['po_id'], chantier_id=bon['chantier_id'], horodatage=f.b.ACCEPTE_LE,
+                     lignes_recues=[dict(materiau_id=f.b.MATERIAU_ID, quantite_recue=40)])
+    catalogue_fictif = dict(version='v1', unite_monetaire='CAD',
+                            postes={f.b.MATERIAU_ID: dict(cout_unitaire=8, libelle='FICTIF')})
+    with contexte.appele_par_appareil(contexte.IdentiteAppelante(f.AUTH.utilisateur, 'admin', source='console')):
+        f.b._ok(executer_atomique(m6['m6_receptionner_commande'], dict(
+            bon_demande=bon, reception_po=reception, catalogue_materiaux=catalogue_fictif)))
+    assert f.b._drainer(affaire['deps'], f.b.DEBUT)['echecs'] == 0
+    spec_prep = importlib.util.spec_from_file_location('qa_prep_m4', Path(__file__).parents[1] / 'departments/m04-field-ops/tests/test_preparation.py')
+    prep_test = importlib.util.module_from_spec(spec_prep)
+    spec_prep.loader.exec_module(prep_test)
+    with session():
+        reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        inscriptions = [x for x in etats.lister_interventions(reg) if x['devis_id'] == affaire['devis']]
+        assert len(inscriptions) == 1
+        iid = inscriptions[0]['intervention_id']
+        pure = v2._base.fixture.pur
+        from opsys import equipes
+        equipes.enregistrer_equipes({'liste': [{**e, 'membres': [e['id'] + '.fictif']}
+                                             for e in pure._aide._equipes()]})
+        positions = pure._aide.Positions({affaire['lead']: pure._aide.SITES['ch-01']})
+        profil = prep_test._profil(liste=[{**x, 'membres': ['fictif']} for x in pure._aide._equipes()])
+        prep, refus = preparation.evaluer(reg, iid, positions, prep_test._lecteur(profil), prep_test._lecteur_meteo())
+        assert refus is None
+        assert prep['pret']
+        accuse, refus = etats.transitionner(iid, 'planifiee', reg, '2030-01-01T00:00:00+00:00', preparation=prep)
+        assert refus is None, refus
+        args = pure._aide._arguments({affaire['lead']: iid})
+        args.pop('durees_par_type_travaux')
+        args.pop('competences_par_type_travaux')
+        args['durees_par_service'] = {'gouttieres': 150}
+        args['competences_par_service'] = {'gouttieres': []}
+        resultat, refus = cedule_tournees.proposer(reg, args, positions, pure.HORODATAGE, moteur='dp')
+        assert refus is None, refus
+        plan1 = resultat['plan_id']
+        assert cedule_tournees.appliquer(reg, plan1, positions, pure.HORODATAGE, 'admin.fictif')[1] is None
+        calendrier_civil.confirmer(reg, plan1, {'0': '2030-06-03'}, 0, 'admin.fictif', pure.HORODATAGE)
+        ligne = calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions'][0]
+        ancre = {k: ligne[k] for k in v2._base.fixture.CHAMPS_ANCRE}
+        visites = Registre(stockage.maillons('m04-field-ops', 'visites_chantier'))
+        ref = {cedule.tokeniser_ville('sel-fictif', 'Laval'): {
+            'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+        def session_visite(ancre_jour, revision, jour, pauses):
+            prev = v2._base.ecrire(reg, visites, ancre_jour, revision=revision, cle=f'qa-{jour}',
+                                   heure=f'{jour}T07:30:00-04:00')
+            equipe = v2._base.fixture.notes._creneau(v2._base.fixture.notes._sources(reg), ancre_jour)['equipe_id']
+            assign = {'intervention_id': iid, 'technicien_id': equipe}
+            visites_chantier.ouvrir(reg, visites, prev['visite_id'], f'{jour}T08:00:00-04:00')
+            assert etats.transitionner(iid, 'en_route', reg, f'{jour}T08:30:00-04:00', assignation=assign)[1] is None
+            fenetre = {'debut': f'{jour}T08:00:00-04:00', 'fin': f'{jour}T18:00:00-04:00'}
+            actions = [('arrivee', '09:00:00'), *pauses, ('depart', '12:00:00' if pauses else '13:00:00')]
+            for action, heure in actions:
+                instant = datetime.fromisoformat(f'{jour}T{heure}-04:00')
+                arguments = dict(intervention_id=iid, technicien_id=equipe, action=action,
+                    horodatage=instant.isoformat(), fix_gps=None,
+                    attestation={'fictif': True, 'appareil_id': 'fictif'}, fenetre_travail=fenetre,
+                    referentiel_villes=ref, ville='Laval', sel='sel-fictif')
+                with (contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+                      contexte.appeler_en_tant_que('m04-field-ops', origine='console'),
+                      contexte.receptionne_de(contexte.HorodatageAppareil('console:admin.fictif', instant, instant))):
+                    recu = equipes_pointees_v3.enregistrer(stockage.connexion_courante(), arguments, prev['visite_id'],
+                        equipe, f'{jour}-{action}', equipes_pointees_v3.empreinte_sources(stockage.connexion_courante()))
+                if action in ('arrivee', 'depart'):
+                    demande = next(m for m in reg.lire() if m.get('type_entree') == 'demande_revue'
+                                   and m.get('pointage_ligne_id') == recu['pointage_id'])
+                    _, erreur = ecarts.resoudre_demande(demande['demande_id'], 'validee', instant.isoformat(), reg)
+                    assert erreur is None, erreur
+            visites_chantier.fermer(reg, visites, prev['visite_id'], f'{jour}T{actions[-1][1][:2]}:01:00-04:00')
+            return equipe
+        equipe1 = session_visite(ancre, 0, '2030-06-03', [('pause_debut', '10:00:00'), ('pause_fin', '10:30:00')])
+        assert etats.transitionner(iid, 'reportee', reg, '2030-06-03T12:02:00-04:00',
+                                   motif='meteo', registre_visites=visites)[1] is None
+        assert etats.transitionner(iid, 'planifiee', reg, '2030-06-03T12:03:00-04:00')[1] is None
+        equipe2 = next(x for x in pure._aide._equipes() if x['id'] != equipe1)
+        args['equipes'] = [equipe2]
+        plan2, refus = cedule_tournees.proposer(reg, args, positions, '2030-06-03T12:04:00-04:00', moteur='dp')
+        assert refus is None, refus
+        assert cedule_tournees.appliquer(reg, plan2['plan_id'], positions, '2030-06-03T12:04:00-04:00', 'admin.fictif')[1] is None
+        datee = calendrier_civil.confirmer(reg, plan2['plan_id'], {'0': '2030-06-07'}, 0, 'admin.fictif', '2030-06-03T12:05:00-04:00')
+        ancre2 = {'intervention_id': iid, 'plan_id': plan2['plan_id'],
+                  'source_application_id': next(m['source_application_id'] for m in reg.lire()
+                                                if m.get('ligne_id') == datee['ligne_id']),
+                  'source_ligne_id': datee['ligne_id']}
+        equipe2_id = session_visite(ancre2, 1, '2030-06-07', [])
+
+
+    # Complétion par l'outil propriétaire : photo réellement déposée en fixture.
+    m4 = {o.nom: o for o in affaire['deps']['m04-field-ops'].charger_outils()}
+    with (contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+          contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+        photo = deposer_photo_test(m4)
+        completion = executer_atomique(m4['m4_completer_intervention'], dict(
+            intervention_id=iid, horodatage='2030-06-07T13:02:00-04:00',
+            preuves_completion=dict(checklist_complete=True, photos_apres=[photo], notes='FICTIF', signature=None)))
+    assert completion['ok'] and completion['resultat']['accepte'], completion
+    wct_id = completion['resultat']['resultat']['wct_id']
+    with session():
+        reg = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        _, erreur = outbox.resoudre_revue_completion(iid, 'verifiee', '2030-06-07T13:04:00-04:00', reg,
+                                                      motif='Revue fictive')
+        assert erreur is None, erreur
+    assert evenements.charge_publiee('m4.travaux_termines', wct_id)['devis_id'] == affaire['devis']
+    r = evenements.repartir({'m05-financecore': affaire['deps']['m05-financecore']}, maintenant='2030-06-08T12:00:00-04:00')
+    assert r['traites'] >= 1 and r['echecs'] == 0, r
+    # Les taux fictifs sont écrits dans le registre privé réel : ils ne prouvent
+    # pas que les personnes pointées représentent une équipe historique.
+    from m5_financecore import outils as m5
+    with (session(), contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+          contexte.appeler_en_tant_que('m05-financecore', origine='console')):
+        for index, (equipe, taux) in enumerate(((equipe1, '100'), (equipe2_id, '120'))):
+            snapshot = m5._lire_tarifs_equipes()
+            m5._inscrire_tarif_equipe(dict(equipe_id=equipe, taux=taux, unite='heure-equipe', devise='CAD',
+                source='tarif-fictif', version='1', date_effet='2030-01-01', date_fin='2030-12-31', remplace_id=None),
+                mutation_id=f'FICTIF-HTTP-TARIF-{index}', source_attendue=snapshot['source'])
+        assert len(m5._lire_tarifs_equipes()['lignes']) == 2
+    avant = f.m.base._instantane_base(session)
+    url = f"/crm/lead/{affaire['lead']}/soumissions/{affaire['devis']}/couts-travaux"
+    page = catalogue.get(url)
+    assert page.status_code == 200
+    assert 'Ventilation M4 complémentaire' in page.text and '390 minutes' in page.text
+    assert 'Équipes indéterminées : 0' in page.text and '730.00' in page.text
+    export = catalogue.get(url + '/export.json')
+    assert export.status_code == 200, export.text
+    volet = export.json()['vue']['ventilation_m4']
+    assert volet['statut'] == 'COMPLET' and volet['minutes_travail'] == 390
+    assert volet['equipes_indeterminees'] == 0 and volet['cout_main_oeuvre'] == '730.00'
+    assert volet['wct_id'] == wct_id and volet['revue'] == 'verifiee'
+    assert 'composition_declaree' not in export.text and 'membres' not in export.text
+    assert export.headers['cache-control'] == 'no-store'
+    assert f.m.base._instantane_base(session) == avant
+    source = export.json()['vue']['source_calculee']
+    trace_url = url + '/tracer'
+    import re
+    csrf = re.search(r'name="csrf" value="([^"]+)"', page.text).group(1)
+    mutation = re.search(r'name="mutation_id" value="([^"]+)"', page.text).group(1)
+    commande = {'csrf': csrf, 'source_attendue': source, 'mutation_id': mutation}
+    from opsys.console import rentabilite_chantier as port
+    with session() as cnx:
+        sauvegarde = cnx.begin_nested()
+        stockage.maillons('m05-financecore', 'rentabilite_mutations_v3').append({
+            'mutation_id': mutation,
+            'intention': {'lead_id': affaire['lead'], 'devis_id': affaire['devis'],
+                          'source_attendue': source, 'auteur': 'admin.fictif'},
+            'version_entrees': 'faux'})
+        with pytest.raises(port.lecture.Refus, match='RECU-INVALIDE'):
+            port.tracer_ventilation(cnx, affaire['deps'], f.AUTH, affaire['lead'], affaire['devis'], source, mutation)
+        sauvegarde.rollback()
+        sauvegarde = cnx.begin_nested()
+        stockage.maillons('m05-financecore', 'rentabilite_mutations_v3').append('recu-invalide')
+        with pytest.raises(port.lecture.Refus, match='RECU-INVALIDE'):
+            port.tracer_ventilation(cnx, affaire['deps'], f.AUTH, affaire['lead'], affaire['devis'], source, mutation)
+        sauvegarde.rollback()
+    assert catalogue.post(trace_url, data={**commande, 'csrf': 'incorrect'}).status_code == 403
+    assert f.m.base._instantane_base(session) == avant
+    consigner_initial = m5._consigner_rentabilite
+    def interposer_ecriture(*args, **kwargs):
+        stockage.maillons('m05-financecore', 'rentabilite').append({'type_entree': 'concurrent-fictif'})
+        return consigner_initial(*args, **kwargs)
+    with monkeypatch.context() as remplacement:
+        remplacement.setattr(m5, '_consigner_rentabilite', interposer_ecriture)
+        assert catalogue.post(trace_url, data=commande).status_code == 409
+    assert f.m.base._instantane_base(session) == avant
+    from opsys import identite
+    def revoquer_apres_trace(*args, **kwargs):
+        resultat = consigner_initial(*args, **kwargs)
+        identite.retirer_role(stockage.connexion_courante(), 'admin.fictif', 'admin')
+        return resultat
+    with monkeypatch.context() as remplacement:
+        remplacement.setattr(m5, '_consigner_rentabilite', revoquer_apres_trace)
+        assert catalogue.post(trace_url, data=commande).status_code == 403
+    assert f.m.base._instantane_base(session) == avant
+    reponse = catalogue.post(trace_url, data=commande, follow_redirects=False)
+    assert reponse.status_code == 303, reponse.text
+    with session():
+        traces = list(stockage.maillons('m05-financecore', 'rentabilite'))
+    trace = [t for t in traces if t.get('devis_id') == affaire['devis']][-1]
+    assert trace['rentabilite']['cout_reel']['main_d_oeuvre']['cout'] == Decimal('730.00')
+    assert trace['verdict'] == 'PARTIELLE'  # la variance M6 est encore inconnue
+    vue_apres = catalogue.get(url + '/export.json').json()['vue']
+    assert vue_apres['chantier']['trace']['a_jour'] is True
+    assert vue_apres['chantier']['rentabilite']['cout_reel']['main_d_oeuvre']['cout'] == '730.00'
+    assert catalogue.post(trace_url, data=commande, follow_redirects=False).status_code == 303
+    assert catalogue.post(trace_url, data={**commande, 'source_attendue': 'f' * 64},
+                          follow_redirects=False).status_code == 409
+    with session():
+        assert list(stockage.maillons('m05-financecore', 'rentabilite')) == traces
+    # Déclaration et prix fictifs via les outils M6, puis vraie livraison de la variance.
+    m6deps = affaire['deps']['m06-material-control']
+    assert evenements.repartir({'m06-material-control': m6deps},
+                               maintenant='2030-06-08T12:00:00-04:00')['echecs'] == 0
+    with contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')):
+        prix = executer_atomique(m6['m6_enregistrer_prix'], dict(
+            materiau_id=f.b.MATERIAU_ID, fournisseur_id='FICTIF', prix_unitaire=8.0,
+            devise='CAD', date_effet='2030-01-01', source_document='QA-FICTIF', unite='pi'))
+        assert prix['ok'] and prix['resultat']['accepte'], prix
+        declaree = executer_atomique(m6['m6_declarer_materiaux_utilises'], dict(
+            wct_id=wct_id, formulaire=dict(wct_id=wct_id, intervention_id=iid, chantier_id='DEPOT-FICTIF',
+                lignes_materiaux=[dict(type_ligne='prevu', materiau_id=f.b.MATERIAU_ID,
+                                       quantite=40, quantite_estimee=40, unite='pi')])))
+        assert declaree['ok'] and declaree['resultat']['accepte'], declaree
+    assert evenements.repartir({'m05-financecore': affaire['deps']['m05-financecore']},
+                               maintenant='2030-06-08T12:00:00-04:00')['echecs'] == 0
+    page2 = catalogue.get(url)
+    export2 = catalogue.get(url + '/export.json').json()['vue']
+    assert export2['chantier']['rentabilite']['verdict'] == 'CALCULEE', export2['chantier']['rentabilite']['manque']
+    csrf2 = re.search(r'name="csrf" value="([^"]+)"', page2.text).group(1)
+    mutation2 = re.search(r'name="mutation_id" value="([^"]+)"', page2.text).group(1)
+    assert catalogue.post(trace_url, data={'csrf': csrf2, 'source_attendue': export2['source_calculee'],
+                                          'mutation_id': mutation2}, follow_redirects=False).status_code == 303
+    from sqlalchemy import select
+    from opsys.stockage import codec
+    from opsys.stockage.schema import EVENEMENTS_SORTANTS
+    with session() as cnx:
+        charges = sorted([codec.decoder(x) for x in cnx.execute(select(EVENEMENTS_SORTANTS.c.charge).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == 'm5.rentabilite_chantier')).scalars()], key=lambda x: x['sequence'])
+        assert charges[-1]['verdict'] == 'PARTIELLE'  # la trace V3 historique n'est pas diffusée comme actuelle
+        derniere_trace = list(stockage.maillons('m05-financecore', 'rentabilite'))[-1]
+        assert derniere_trace['verdict'] == 'CALCULEE'
+        assert derniere_trace['rentabilite']['cout_reel']['cout_total'] == Decimal('1050.00')
+        assert derniere_trace['rentabilite']['marge_reelle'] == Decimal('-450.00')
+    # Une composition d'un autre jour et d'une autre équipe change le CAS M4 global.
+    from m4_field_ops import composition_journaliere, encodage
+    args_autres = {'jour': '2030-06-11', 'equipe_id': 'autre-equipe-fictive',
+                   'membres': ['autre.fictif'], 'revision_attendue': 0, 'statut_declaration': 'declaree'}
+    with session():
+        compositions = Registre(stockage.maillons('m04-field-ops', composition_journaliere.REGISTRE))
+        composition_journaliere.declarer(compositions, **args_autres,
+            auteur={'personne': 'admin.fictif', 'role': 'admin'},
+            mutation={'appareil': 'fictif', 'cle': 'ailleurs-fictif',
+                      'empreinte_arguments': encodage.empreinte(args_autres)},
+            horodatage='2030-06-11T08:00:00-04:00')
+    apres_m4 = catalogue.get(url + '/export.json').json()['vue']
+    assert apres_m4['chantier']['trace']['a_jour'] is False, apres_m4
+    assert apres_m4['ventilation_m4']['minutes_travail'] == 390
+    assert apres_m4['ventilation_m4']['cout_main_oeuvre'] == '730.00'
+    assert apres_m4['historique_v3']['traces'][0]['provenance'] == derniere_trace['provenance_v3']
+    print('QA_SOURCE_M4_TRANSVERSALE TRACE_PERIMEE HISTORIQUE_CONSERVE 390_MIN 730_CAD')
+    # Une révision de tarif maintient l'événement aval dans l'état conservateur.
+    with (session(), contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+          contexte.appeler_en_tant_que('m05-financecore', origine='console')):
+        snapshot = m5._lire_tarifs_equipes()
+        premier = next(x for x in snapshot['lignes'] if x['equipe_id'] == equipe1)
+        revision = {k: premier[k] for k in ('equipe_id', 'taux', 'unite', 'devise', 'source', 'version',
+                                            'date_effet', 'date_fin', 'remplace_id')}
+        revision.update(taux='101', source='tarif-revise-fictif', version='2', remplace_id=premier['ligne_id'])
+        m5._inscrire_tarif_equipe(revision, mutation_id='FICTIF-REVISION', source_attendue=snapshot['source'])
+    actualisee = catalogue.get(url + '/export.json').json()['vue']
+    assert actualisee['chantier']['trace']['a_jour'] is False
+    assert actualisee['ventilation_m4']['cout_main_oeuvre'] == '732.50'
+    assert actualisee['historique_v3']['nombre'] == 2
+    assert actualisee['historique_v3']['traces'][0]['provenance'] == derniere_trace['provenance_v3']
+    with session() as cnx:
+        charges = sorted([codec.decoder(x) for x in cnx.execute(select(EVENEMENTS_SORTANTS.c.charge).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == 'm5.rentabilite_chantier')).scalars()], key=lambda x: x['sequence'])
+        assert charges[-1]['verdict'] == 'PARTIELLE', 'invalidation aval manquante après révision du tarif'
+    # Relecture et rejeu du répartiteur ne doublent pas la réception.
+    with session():
+        recus_avant = list(stockage.maillons('m05-financecore', 'wct_recus'))
+    assert len([x for x in recus_avant if x['wct_id'] == wct_id]) == 1
+    rejeu = evenements.repartir({'m05-financecore': affaire['deps']['m05-financecore']},
+                                maintenant='2030-06-08T12:01:00-04:00')
+    assert rejeu['echecs'] == 0
+    with session():
+        assert list(stockage.maillons('m05-financecore', 'wct_recus')) == recus_avant
+    # Révocation SQL effective : la page et l'export deviennent inaccessibles.
+    with session() as cnx:
+        identite.retirer_role(cnx, 'admin.fictif', 'admin')
+    apres_revocation = f.m.base._instantane_base(session)
+    assert catalogue.get(url).status_code == 403
+    assert catalogue.get(url + '/export.json').status_code == 403
+    assert catalogue.post(trace_url, data=commande).status_code == 403
+    assert f.m.base._instantane_base(session) == apres_revocation

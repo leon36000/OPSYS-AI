@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.393" timestamp="2026-10-28T18:40:49.485812-04:00" hostname="gx10-e526"><testcase classname="tests.test_console_reprise_visite" name="test_reprise_type_travaux_utilise_plan_historique_ancre" time="0.523"><failure message="opsys.console.preparation_chantier.Refus: PROPOSITION-REFUSEE">planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...f07ca6dc', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+session = &lt;function session at 0xfd283cd06980&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0xfd283a4c98b0&gt;
+
+    def test_reprise_type_travaux_utilise_plan_historique_ancre(planning, session, monkeypatch):
+        from datetime import UTC, datetime
+    
+        from opsys.console import reprise_visite
+        from opsys.console.securite import Session
+        from opsys.departements import charger_departements
+    
+        class HorlogeFictive(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2030, 6, 3, 16, 4, tzinfo=UTC).astimezone(tz)
+    
+        monkeypatch.setattr(reprise_visite, 'datetime', HorlogeFictive)
+        profil = {'liste': [{**e, 'membres': [e['id'] + '.fictif']} for e in legacy.terrain._equipes()],
+                  'services': {'gouttieres': {'duree_min': 90, 'competences': ['gouttieres']}},
+                  'cedule': {'facteur_detour_milliemes': 1300, 'vitesse_moyenne_kmh': 50,
+                             'marge_par_trajet_secondes': 60, 'iterations': 10, 'cout_non_cedule_m': 500000},
+                  'fenetre_par_defaut': {'jours': [0], 'debut_min': 480, 'fin_min': 1020}}
+        equipes.enregistrer_equipes(profil)
+        iid = planning[1]['lead-fictif-001']
+        with session():
+            reg = registre.Registre(stockage.maillons('m04-field-ops', 'principal'))
+            ligne = next(x for x in calendrier_civil.lire_semaine(reg, '2030-06-03')['interventions']
+                         if x['intervention_id'] == iid)
+            ancre = {k: ligne[k] for k in ('intervention_id', 'plan_id', 'source_application_id', 'source_ligne_id')}
+            origine = next(m for m in reg.lire() if m.get('type_entree') == 'cedule_proposee'
+                           and m['plan_id'] == ancre['plan_id'])
+            historique = next(c for c in origine['entree']['chantiers'] if c['id'] == iid)
+            prev = registre.Registre(stockage.maillons('m04-field-ops', visites_durables.REGISTRE))
+            args = {'ancre': ancre, 'revision_attendue': 0}
+            recu = visites_durables.prevoir(reg, prev, **args, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                mutation={'appareil': 'console:admin.fictif', 'cle': 'prev-v1-fictive',
+                          'empreinte_arguments': encodage.empreinte(args)}, horodatage='2030-06-03T07:30:00-04:00')
+            visites_chantier.ouvrir(reg, prev, recu['visite_id'], '2030-06-03T08:00:00-04:00')
+            equipe = ligne['equipe_id']
+            assign = {'intervention_id': iid, 'technicien_id': equipe}
+            assert etats.transitionner(iid, 'en_route', reg, '2030-06-03T08:30:00-04:00', assignation=assign)[1] is None
+            ref = {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+                'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}}
+            fenetre = {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'}
+            for action, heure in [('arrivee', '09:00:00'), ('depart', '12:00:00')]:
+                assert pointage.enregistrer_pointage(iid, equipe, action, f'2030-06-03T{heure}-04:00',
+                    {'latitude': 45.75, 'longitude': -73.45}, {'fictif': True, 'appareil_id': 'fictif'},
+                    assign, fenetre, ref, 'Repentigny', 'sel-fictif', reg)[1] is None
+            visites_chantier.fermer(reg, prev, recu['visite_id'], '2030-06-03T12:01:00-04:00')
+            assert etats.transitionner(iid, 'reportee', reg, '2030-06-03T12:02:00-04:00',
+                                       motif='meteo', registre_visites=prev)[1] is None
+            assert etats.transitionner(iid, 'planifiee', reg, '2030-06-03T12:03:00-04:00')[1] is None
+        auth = Session('admin.fictif', frozenset({'admin'}), 'csrf-fictif', 4102444800)
+        autre_equipe = next(e['id'] for e in profil['liste'] if e['id'] != equipe)
+        with session() as cnx:
+            vue = reprise_visite.preparer(cnx, charger_departements(), auth, iid)
+&gt;           resultat = reprise_visite.proposer(cnx, charger_departements(), auth, iid, autre_equipe,
+                                                480, 1020, vue['empreinte'], 'reprise-v1-fictive')
+
+tests/test_console_reprise_visite.py:85: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cnx = &lt;sqlalchemy.engine.base.Connection object at 0xfd283b363c20&gt;
+deps = {'m01-front-office': Departement(id='m01-front-office', code='M1', nom='Front Office', mission="Recevoir chaque demand...ger', 'admin', 'nathan_owner'}), &lt;Niveau.N4: 'N4'&gt;: frozenset({'manager', 'admin', 'nathan_owner'})}), canaux=()), ...}
+session = Session(utilisateur='admin.fictif', roles=frozenset({'admin'}), expire=4102444800)
+intervention_id = '14b0cb396e9f3544c5b4ae44f45326b5d8121c554eafa32d388ba88a17b9fbc7'
+equipe_id = 'eq-b', debut_min = 480, fin_min = 1020
+empreinte_attendue = '132b60be18df4cafecd9deb938d733fadbbc516405c5eb68446891adf9af6f37'
+mutation_id = 'reprise-v1-fictive'
+
+    def proposer(cnx, deps, session, intervention_id, equipe_id, debut_min, fin_min, empreinte_attendue, mutation_id):
+        with cnx.begin_nested():
+            autorite._admin(cnx, session)
+            lecture._borner(cnx, lecture.M4, 'principal')
+            try:
+                Registre(stockage.maillons(lecture.M4, 'principal')).assert_chaine()
+            except VerificationError:
+                raise lecture.Refus('SOURCE-INCOHERENTE') from None
+            if (type(intervention_id) is not str or lecture.IDENTIFIANT.fullmatch(intervention_id) is None
+                    or type(empreinte_attendue) is not str or proposition.EMPREINTE.fullmatch(empreinte_attendue) is None
+                    or type(mutation_id) is not str or not 1 &lt;= len(mutation_id) &lt;= 200 or not mutation_id.strip()
+                    or type(equipe_id) is not str or type(debut_min) is not int or type(fin_min) is not int
+                    or not 0 &lt;= debut_min &lt; fin_min &lt;= 1440):
+                raise lecture.Refus('ARGUMENTS')
+            maintenant = datetime.now(UTC)
+            meta = idempotence.Meta(mutation_id, 'console:' + session.utilisateur, maintenant.isoformat())
+            intention = dict(intervention_id=intervention_id, equipe_id=equipe_id, debut_min=debut_min,
+                             fin_min=fin_min, empreinte=empreinte_attendue)
+            _recu_borne(cnx, meta)
+            try:
+                recu = idempotence.reclamer(cnx, meta, NOM, intention, maintenant)
+            except idempotence.MutationConflit:
+                raise lecture.Refus('MUTATION-CONFLIT') from None
+            if recu.rejouee:
+                if (not isinstance(recu.reponse, dict) or set(recu.reponse) != {'ok', 'proposition', 'rejoue'}
+                        or recu.reponse.get('ok') is not True or recu.reponse.get('rejoue') is not False):
+                    raise lecture.Refus('RECU-INDISPONIBLE')
+                entree, sortie = proposition._verifier_proposition(recu.reponse['proposition'], intervention_id)
+                _verifier_intention(entree, intervention_id, equipe_id, debut_min, fin_min)
+                autorite._admin(cnx, session)
+                return lecture._sortie(dict(ok=True, proposition=sortie, rejoue=True))
+            courant = preparer(cnx, deps, session, intervention_id)
+            if maintenant &lt; visites_chantier._instant(courant['report_horodatage']):
+                raise lecture.Refus('HORODATAGE-INVALIDE')
+            if courant['empreinte'] != empreinte_attendue:
+                raise lecture.Refus('SOURCE-MODIFIEE')
+            if equipe_id not in courant['equipes']:
+                raise lecture.Refus('EQUIPE-INCONNUE')
+            profils = proposition._profils()
+            equipes = [e for e in cedule_tournees._equipes_du_profil(profils['equipes']) if e['id'] == equipe_id]
+            dep = deps.get(lecture.M4)
+            outil = None if dep is None or dep.module_outils != lecture.MODULES[lecture.M4] else next(
+                (o for o in dep.charger_outils() if o.nom == NOM), None)
+            if outil is None or outil.autonomie != Autonomie.T1 or outil.niveau_effectif != Niveau.N1:
+                raise lecture.Refus('SOURCE-INDISPONIBLE')
+            args = dict(intervention_ids=[intervention_id], equipes=equipes,
+                chantiers=[dict(intervention_id=intervention_id,
+                    fenetre=dict(jours=[0], debut_min=debut_min, fin_min=fin_min), creneau_fige=None)],
+                moteur='auto', horodatage=maintenant.isoformat())
+            avant = Registre(stockage.maillons(lecture.M4, 'principal')).lire()
+            if Registre(avant).tete() != courant['tete']:
+                raise lecture.Refus('SOURCE-MODIFIEE')
+            with (contexte.appele_par_appareil(contexte.IdentiteAppelante(session.utilisateur, 'admin', source='console')),
+                  contexte.appeler_en_tant_que(lecture.M4, origine='console'),
+                  contexte.receptionne_de(contexte.HorodatageAppareil(meta.appareil, maintenant, maintenant))):
+                reponse = executer_atomique(outil, args)
+            res = reponse.get('resultat') if reponse.get('ok') is True else None
+            if not isinstance(res, dict) or res.get('accepte') is not True or not isinstance(res.get('resultat'), dict):
+&gt;               raise lecture.Refus('PROPOSITION-REFUSEE')
+E               opsys.console.preparation_chantier.Refus: PROPOSITION-REFUSEE
+
+src/opsys/console/reprise_visite.py:151: Refus</failure></testcase></testsuite></testsuites>

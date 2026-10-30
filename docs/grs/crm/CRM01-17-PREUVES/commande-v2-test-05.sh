@@ -1,0 +1,3 @@
+#!/bin/sh
+QA="$PWD/../preuves-m4-v2"
+env HOME="$QA/home" OPSYS_HOME="$QA/opsys" XDG_CONFIG_HOME="$QA/xdg" XDG_CACHE_HOME="$QA/xdg" XDG_DATA_HOME="$QA/xdg" TMPDIR="$QA/tmp" PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONDONTWRITEBYTECODE=1 timeout 90s systemd-run --user --scope --quiet -p MemoryMax=2G -p TasksMax=64 -p CPUQuota=200% taskset -c 0,1 bwrap --unshare-net --unshare-pid --ro-bind / / --dev /dev --proc /proc --bind "$QA" "$QA" --chdir "$PWD" -- python3 "$QA/runner-tests.py" "$QA/venv/bin/python" -m pytest -p no:cacheprovider -q --junitxml="$QA/logs/v2-test-05.xml" departments/m04-field-ops/tests/test_temps_certifies_v2.py

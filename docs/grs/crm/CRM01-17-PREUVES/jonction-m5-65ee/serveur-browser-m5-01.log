@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-02/serveur-browser-m5-01.py", line 8, in <module>
+    from opsys.console import application
+  File "/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-02/repo/src/opsys/console/application.py", line 51, in <module>
+    from . import (
+  File "/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-02/repo/src/opsys/console/connecteurs_ui.py", line 16, in <module>
+    from m1_front_office import voicemail_stt
+ModuleNotFoundError: No module named 'm1_front_office'

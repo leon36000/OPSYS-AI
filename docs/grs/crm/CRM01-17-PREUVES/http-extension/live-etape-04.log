@@ -1,0 +1,8 @@
+OUVERTURE_PAGE_REPRISE 503
+CONTENU {"detail":"Reprise indisponible : PROFIL-INDISPONIBLE"}
+CHOIX [] FORMES []
+Traceback (most recent call last):
+  File "/tmp/opsys-m4-http-suite-kepXNO/live-etape-04.py", line 14, in <module>
+    f=Extra();f.feed(r.text);print('CHOIX',f.options,'FORMES',[list(x) for x in f.forms]);assert r.status_code==200
+                                                                                                 ^^^^^^^^^^^^^^^^^^
+AssertionError

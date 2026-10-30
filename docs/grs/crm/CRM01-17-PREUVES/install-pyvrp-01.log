@@ -1,0 +1,59 @@
+Collecting pyvrp==0.14.0
+  Downloading pyvrp-0.14.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl.metadata (6.9 kB)
+Collecting matplotlib>=2.2.0 (from pyvrp==0.14.0)
+  Downloading matplotlib-3.11.2-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl.metadata (80 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 80.3/80.3 kB 1.6 MB/s eta 0:00:00
+Collecting numpy>=1.26.0 (from pyvrp==0.14.0)
+  Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (6.6 kB)
+Collecting tqdm>=4.64.1 (from pyvrp==0.14.0)
+  Downloading tqdm-4.70.1-py3-none-any.whl.metadata (57 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.4/57.4 kB 6.7 MB/s eta 0:00:00
+Collecting vrplib>=1.4.0 (from pyvrp==0.14.0)
+  Downloading vrplib-2.2.0-py3-none-any.whl.metadata (10.0 kB)
+Collecting contourpy>=1.0.1 (from matplotlib>=2.2.0->pyvrp==0.14.0)
+  Downloading contourpy-1.4.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl.metadata (3.8 kB)
+Collecting cycler>=0.10 (from matplotlib>=2.2.0->pyvrp==0.14.0)
+  Downloading cycler-0.12.1-py3-none-any.whl.metadata (3.8 kB)
+Collecting fonttools>=4.28.2 (from matplotlib>=2.2.0->pyvrp==0.14.0)
+  Downloading fonttools-4.68.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl.metadata (139 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 139.9/139.9 kB 3.8 MB/s eta 0:00:00
+Collecting kiwisolver>=1.3.1 (from matplotlib>=2.2.0->pyvrp==0.14.0)
+  Downloading kiwisolver-1.5.1-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl.metadata (5.2 kB)
+Requirement already satisfied: packaging>=20.0 in /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/venv/lib/python3.12/site-packages (from matplotlib>=2.2.0->pyvrp==0.14.0) (26.3)
+Collecting pillow>=9 (from matplotlib>=2.2.0->pyvrp==0.14.0)
+  Downloading pillow-13.0.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl.metadata (9.1 kB)
+Collecting pyparsing>=3 (from matplotlib>=2.2.0->pyvrp==0.14.0)
+  Downloading pyparsing-3.3.3-py3-none-any.whl.metadata (5.9 kB)
+Collecting python-dateutil>=2.7 (from matplotlib>=2.2.0->pyvrp==0.14.0)
+  Downloading python_dateutil-3.0.0-py2.py3-none-any.whl.metadata (8.2 kB)
+Collecting six>=1.6 (from python-dateutil>=2.7->matplotlib>=2.2.0->pyvrp==0.14.0)
+  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting tzdata (from python-dateutil>=2.7->matplotlib>=2.2.0->pyvrp==0.14.0)
+  Downloading tzdata-2026.6-py2.py3-none-any.whl.metadata (1.4 kB)
+Downloading pyvrp-0.14.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl (1.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 13.6 MB/s eta 0:00:00
+Downloading matplotlib-3.11.2-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl (10.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 99.2 MB/s eta 0:00:00
+Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (15.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.7/15.7 MB 167.9 MB/s eta 0:00:00
+Downloading tqdm-4.70.1-py3-none-any.whl (80 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 80.2/80.2 kB 288.5 MB/s eta 0:00:00
+Downloading vrplib-2.2.0-py3-none-any.whl (15 kB)
+Downloading contourpy-1.4.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl (356 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 356.3/356.3 kB 328.0 MB/s eta 0:00:00
+Downloading cycler-0.12.1-py3-none-any.whl (8.3 kB)
+Downloading fonttools-4.68.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl (5.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.5/5.5 MB 182.6 MB/s eta 0:00:00
+Downloading kiwisolver-1.5.1-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 277.5 MB/s eta 0:00:00
+Downloading pillow-13.0.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl (6.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.5/6.5 MB 261.4 MB/s eta 0:00:00
+Downloading pyparsing-3.3.3-py3-none-any.whl (126 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 126.4/126.4 kB 303.3 MB/s eta 0:00:00
+Downloading python_dateutil-3.0.0-py2.py3-none-any.whl (94 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 94.7/94.7 kB 260.1 MB/s eta 0:00:00
+Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Downloading tzdata-2026.6-py2.py3-none-any.whl (348 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 348.2/348.2 kB 328.6 MB/s eta 0:00:00
+Installing collected packages: tzdata, tqdm, six, pyparsing, pillow, numpy, kiwisolver, fonttools, cycler, vrplib, python-dateutil, contourpy, matplotlib, pyvrp
+Successfully installed contourpy-1.4.0 cycler-0.12.1 fonttools-4.68.0 kiwisolver-1.5.1 matplotlib-3.11.2 numpy-2.5.4 pillow-13.0.0 pyparsing-3.3.3 python-dateutil-3.0.0 pyvrp-0.14.0 six-1.17.0 tqdm-4.70.1 tzdata-2026.6 vrplib-2.2.0

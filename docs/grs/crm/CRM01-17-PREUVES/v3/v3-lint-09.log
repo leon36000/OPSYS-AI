@@ -1,0 +1,12 @@
+E501 Line too long (137 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v3.py:152:121
+    |
+150 | …
+151 | …
+152 | …an=False).encode()) > min(limite if limite is not None else 65536, 65536):
+    |                                                           ^^^^^^^^^^^^^^^^^
+153 | …EUSE')
+154 | …
+    |
+
+Found 1 error.

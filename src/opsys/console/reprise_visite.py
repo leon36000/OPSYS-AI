@@ -1,7 +1,7 @@
 """Proposition privée d'une reprise M4 : aucune affectation ni date civile implicite."""
 from datetime import UTC, datetime
 
-from m4_field_ops import cedule_tournees, encodage, etats, visites_chantier, visites_ecriture
+from m4_field_ops import cedule_tournees, encodage, etats, visites_chantier, visites_durables, visites_ecriture
 from m4_field_ops.registre import Registre, VerificationError
 from sqlalchemy import LargeBinary, cast, func, select
 
@@ -14,6 +14,45 @@ from . import preparation_chantier as lecture
 from . import proposition_chantier as proposition
 
 NOM = 'm4_proposer_cedule'
+
+
+def _parametres_historiques(principal, prev, intervention_id, visite_id):
+    """Résout uniquement la proposition liée à la visite interrompue."""
+    lignes = principal.lire()
+    inscriptions = [m for m in lignes if m.get('type_entree') == etats.TYPE_INSCRIPTION
+                    and m.get('intervention_id') == intervention_id]
+    if len(inscriptions) != 1:
+        raise lecture.Refus('SOURCE-INCOHERENTE')
+    try:
+        cle, nature = etats.travaux_de(inscriptions[0])
+        if cle != 'type_travaux':
+            return None
+        _, previsions, _, _, _, _ = visites_durables._charger(principal, prev)
+        correspondances = [p for p in previsions if p['ligne_id'] == visite_id
+                           and p['ancre']['intervention_id'] == intervention_id]
+        if len(correspondances) != 1:
+            raise ValueError
+        prevision = correspondances[0]
+        sources = [m for m in lignes if m.get('ligne_id') == prevision['creneau']['source_proposition_id']
+                   and m.get('type_entree') == cedule_tournees.TYPE_PROPOSEE
+                   and m.get('plan_id') == prevision['ancre']['plan_id']]
+        if len(sources) != 1:
+            raise ValueError
+        chantiers = [c for c in sources[0]['entree']['chantiers'] if c['id'] == intervention_id]
+        if len(chantiers) != 1:
+            raise ValueError
+        chantier = chantiers[0]
+        duree, competences = chantier['duree_min'], chantier['competences_requises']
+        creneau = prevision['creneau']
+        if (type(nature) is not str or not nature or type(duree) is not int or duree <= 0
+                or duree != creneau['fin_min'] - creneau['debut_min']
+                or type(competences) is not list or any(type(c) is not str or not c for c in competences)
+                or len(competences) != len(set(competences))):
+            raise ValueError
+        return dict(type_travaux=nature, duree_min=duree, competences=competences,
+                    source_proposition_id=sources[0]['ligne_id'], visite_id=visite_id)
+    except (KeyError, TypeError, ValueError, VerificationError, visites_durables.Refus):
+        raise lecture.Refus('SOURCE-INCOHERENTE') from None
 
 
 
@@ -71,6 +110,7 @@ def preparer(cnx, deps, session, intervention_id):
             or lignes.index(fermetures[-1]) >= lignes.index(reports[-1])):
         raise lecture.Refus('SOURCE-INCOHERENTE')
     visites_chantier.calculer_faits_certifies(principal, prev, intervention_id, ignorer_anciens=True)
+    historique = _parametres_historiques(principal, prev, intervention_id, reports[-1]['visite_id'])
     profil = proposition._profils()
     equipe = profil['equipes']
     if not isinstance(equipe, dict) or not isinstance(equipe.get('liste'), list):
@@ -87,7 +127,7 @@ def preparer(cnx, deps, session, intervention_id):
     return lecture._sortie(dict(empreinte=empreinte, equipes=noms,
         profils_source=idempotence.empreinte_arguments(profil), tete=principal.tete(),
         visite_source=source.empreinte_snapshot_calculee, report_horodatage=reports[-1]['horodatage'],
-        report_id=reports[-1]['ligne_id']))
+        report_id=reports[-1]['ligne_id'], historique=historique))
 
 
 def proposer(cnx, deps, session, intervention_id, equipe_id, debut_min, fin_min, empreinte_attendue, mutation_id):
@@ -139,6 +179,10 @@ def proposer(cnx, deps, session, intervention_id, equipe_id, debut_min, fin_min,
             chantiers=[dict(intervention_id=intervention_id,
                 fenetre=dict(jours=[0], debut_min=debut_min, fin_min=fin_min), creneau_fige=None)],
             moteur='auto', horodatage=maintenant.isoformat())
+        historique = courant['historique']
+        if historique is not None:
+            args['durees_par_type_travaux'] = {historique['type_travaux']: historique['duree_min']}
+            args['competences_par_type_travaux'] = {historique['type_travaux']: historique['competences']}
         avant = Registre(stockage.maillons(lecture.M4, 'principal')).lire()
         if Registre(avant).tete() != courant['tete']:
             raise lecture.Refus('SOURCE-MODIFIEE')
@@ -155,6 +199,11 @@ def proposer(cnx, deps, session, intervention_id, equipe_id, debut_min, fin_min,
         _verifier_intention(entree, intervention_id, equipe_id, debut_min, fin_min)
         if entree['entree']['equipes'] != equipes:
             raise lecture.Refus('SOURCE-INCOHERENTE')
+        if historique is not None:
+            chantier = entree['entree']['chantiers'][0]
+            if (chantier['duree_min'] != historique['duree_min']
+                    or chantier['competences_requises'] != historique['competences']):
+                raise lecture.Refus('SOURCE-INCOHERENTE')
         if (apres[:len(avant)] != avant or len(ajouts) != (0 if sortie['deja_proposee'] else 1)
                 or (ajouts and ajouts[0]['ligne_id'] != entree['ligne_id'])
                 or entree['empreinte_profil'] != encodage.empreinte('profil-equipes', profils['equipes'])
@@ -163,8 +212,10 @@ def proposer(cnx, deps, session, intervention_id, equipe_id, debut_min, fin_min,
             raise lecture.Refus('SOURCE-MODIFIEE')
         autorite._admin(cnx, session)
         resultat = lecture._sortie(dict(ok=True, proposition=sortie, rejoue=False))
-        journaliser(cnx, session.utilisateur, 'console.proposition_reprise', NOM,
-                    dict(intervention_id=intervention_id, plan_id=sortie['plan_id'], mutation_id=mutation_id))
+        audit = dict(intervention_id=intervention_id, plan_id=sortie['plan_id'], mutation_id=mutation_id)
+        if historique is not None:
+            audit.update(source_proposition_id=historique['source_proposition_id'], visite_id=historique['visite_id'])
+        journaliser(cnx, session.utilisateur, 'console.proposition_reprise', NOM, audit)
         idempotence.finaliser(cnx, meta, resultat)
         _controle_final(cnx, apres, courant)
         autorite._admin(cnx, session)
@@ -412,6 +463,10 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre, verifier_f
                         corps += (f'<form method="post" action="{pages.e(cible(iid, plan))}">{commun}'
                                   '<button type="submit">Confirmer l’affectation interne N3</button></form>')
                 else:
+                    if vue['historique'] is not None:
+                        corps += ('<p>La durée et les compétences proviennent du plan de la visite interrompue. '
+                                  'Cette durée est une prévision historique complète, '
+                                  'pas une estimation du travail restant.</p>')
                     options = ''.join(f'<option value="{pages.e(e)}">{pages.e(e)}</option>' for e in vue['equipes'])
                     corps += (f'<form method="post" action="{pages.e(cible(iid))}">{commun}'
                               f'<label>Équipe déclarée <select name="equipe_id">{options}</select></label>'

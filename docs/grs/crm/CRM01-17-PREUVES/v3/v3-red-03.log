@@ -1,0 +1,15 @@
+..F                                                                      [100%]
+=================================== FAILURES ===================================
+________________ test_v3_ne_permet_pas_attribution_retroactive _________________
+
+chantier_termine = {'url': 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-p...003cc97370', 'wct_id': '2f5e22bd949a07a4f35098b80e720c5e7632cea25aacfa5fbf62d51a4397b9f9', 'equipes': ['eq-a', 'eq-b']}
+
+    def test_v3_ne_permet_pas_attribution_retroactive(chantier_termine):
+        import pytest
+    
+>       from m4_field_ops import equipes_pointees_v3
+E       ImportError: cannot import name 'equipes_pointees_v3' from 'm4_field_ops' (/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/departments/m04-field-ops/src/m4_field_ops/__init__.py)
+
+departments/m04-field-ops/tests/test_temps_certifies_v3.py:62: ImportError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_temps_certifies_v3.py::test_v3_ne_permet_pas_attribution_retroactive

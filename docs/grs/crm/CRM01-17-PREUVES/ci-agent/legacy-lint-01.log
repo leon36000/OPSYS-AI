@@ -1,0 +1,46 @@
+E501 Line too long (130 > 120)
+   --> src/opsys/console/reprise_visite.py:468:121
+    |
+466 |                     if vue['historique'] is not None:
+467 |                         corps += ('<p>La durée et les compétences proviennent du plan de la visite interrompue. '
+468 |                                   'Cette durée est une prévision historique complète, pas une estimation du travail restant.</p>')
+    |                                                                                                                         ^^^^^^^^^^
+469 |                     options = ''.join(f'<option value="{pages.e(e)}">{pages.e(e)}</option>' for e in vue['equipes'])
+470 |                     corps += (f'<form method="post" action="{pages.e(cible(iid))}">{commun}'
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_console_reprise_visite.py:34:5
+   |
+33 |   def test_reprise_type_travaux_utilise_plan_historique_ancre(planning, session, monkeypatch):
+34 | /     from datetime import UTC, datetime
+35 | |     import json
+36 | |
+37 | |     from opsys.console import reprise_visite
+38 | |     from opsys.console.securite import Session
+39 | |     from opsys.departements import charger_departements
+40 | |     from opsys.stockage.schema import JOURNAL
+41 | |     from sqlalchemy import select
+   | |_________________________________^
+42 |
+43 |       class HorlogeFictive(datetime):
+   |
+help: Organize imports
+   |
+33 | def test_reprise_type_travaux_utilise_plan_historique_ancre(planning, session, monkeypatch):
+34 +     import json
+35 |     from datetime import UTC, datetime
+   -     import json
+36 |
+37 +     from sqlalchemy import select
+38 +
+39 |     from opsys.console import reprise_visite
+40 |     from opsys.console.securite import Session
+41 |     from opsys.departements import charger_departements
+42 |     from opsys.stockage.schema import JOURNAL
+   -     from sqlalchemy import select
+43 |
+   |
+
+Found 2 errors.
+[*] 1 fixable with the `--fix` option.

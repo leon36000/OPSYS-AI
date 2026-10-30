@@ -1,0 +1,9 @@
+ANONYME 303 /connexion
+CONNEXION 303 /departements
+VISITES 200 True True
+OPERATIONS [(None, '/deconnexion'), ('prevoir', '/crm/visites?intervention_id=c1ddea4e7b2f60b1bf43b9e635a8d85019549e5167723539e3969ee353aa81b6')]
+CSRF_INVALIDE 403
+PREVOIR 303
+APRES_PREVISION 200 True [(None, '/deconnexion'), ('ouvrir', '/crm/visites?intervention_id=c1ddea4e7b2f60b1bf43b9e635a8d85019549e5167723539e3969ee353aa81b6')]
+OUVRIR 303
+APRES_OUVERTURE 200 True [(None, '/deconnexion'), ('fermer', '/crm/visites?intervention_id=c1ddea4e7b2f60b1bf43b9e635a8d85019549e5167723539e3969ee353aa81b6')]

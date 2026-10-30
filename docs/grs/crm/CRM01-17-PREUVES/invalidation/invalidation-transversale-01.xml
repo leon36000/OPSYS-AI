@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.096" timestamp="2026-10-30T01:35:33.954324-04:00" hostname="gx10-e526"><testcase classname="" name="preuves-m4-v2.invalidation-transversale-01" time="0.000"><error message="collection failure">ImportError while importing test module '/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/invalidation-transversale-01.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../preuves-m4-v2/invalidation-transversale-01.py:6: in &lt;module&gt;
+    from m4_field_ops import composition_journaliere, encodage, temps_certifies_v2, temps_certifies_v3
+E   ModuleNotFoundError: No module named 'm4_field_ops'</error></testcase></testsuite></testsuites>
