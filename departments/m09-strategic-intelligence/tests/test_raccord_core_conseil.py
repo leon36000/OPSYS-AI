@@ -23,6 +23,7 @@ def _depot(role="strategie_ventes", reservation_id="res-1", session="s1", **surc
         "resultat": "ok",
         "session_id": session,
         "role": role,
+        "issue": "ADMIS",
         "reservation": reservation | surcharge,
     }
 
@@ -103,3 +104,50 @@ def test_le_verificateur_ne_modifie_pas_la_trace_et_la_sequence_est_ordonnee():
     assert rc.agent_id("strategie_ventes") == "m9-strategie-ventes" and all(rc.agent_id(r) for r in conseil.PAR_ID)
     with pytest.raises(ValueError, match="REJ-TOUR-INCONNU"):
         rc.agent_id("inconnu")
+
+
+def test_r5_exige_entree_puis_depot_admis_de_meme_session_et_meme_role():
+    """Défaut trouvé en relecture : une entrée et un dépôt sans lien donnaient COMPLETE."""
+    sans_lien = [_depot(session="s2"), _entree(role="liaison_finance", session="s1")]
+    assert rc.verifier_trace(sans_lien)["verdict"] == "INCOMPLETE"
+    autre_role = [_entree(role="liaison_finance"), _depot(role="strategie_ventes")]
+    assert rc.verifier_trace(autre_role)["verdict"] == "INCOMPLETE"
+    entree_apres = [_depot(), _entree()]
+    assert rc.verifier_trace(entree_apres)["verdict"] == "INCOMPLETE"
+    refuse = _depot()
+    refuse["issue"] = "REFUSE"  # l'outil répond accepte même quand l'admission refuse la sortie
+    assert rc.verifier_trace([_entree(), refuse])["verdict"] == "INCOMPLETE"
+    sans_issue = _depot()
+    del sans_issue["issue"]
+    assert rc.verifier_trace([_entree(), sans_issue])["verdict"] == "ECART"
+
+
+def test_r1_tout_succes_d_agent_sur_un_outil_m9_est_un_ecart():
+    for outil in ("m9_ouvrir_conseil", "m9_cloturer_conseil", "m9_salle_de_guerre"):
+        trace = _cycle() + [{"acteur": "agent", "outil": outil, "resultat": "ok"}]
+        verdict = rc.verifier_trace(trace)
+        assert verdict["verdict"] == "ECART" and _regles(verdict)["R1"] == "ECART", outil
+    autre = _cycle() + [{"acteur": "agent", "outil": "outil_hors_m9", "resultat": "ok"}]
+    assert _regles(rc.verifier_trace(autre))["R1"] == "CONFORME"
+
+
+def test_r2_forme_complete_de_la_reservation_et_du_depot_jamais_une_exception_non_nommee():
+    sans_id = _depot()
+    del sans_id["reservation"]["id"]
+    negatif = _depot(tokens_reels=-10)
+    sans_session = _depot()
+    del sans_session["session_id"]
+    role_non_hachable = _depot()
+    role_non_hachable["role"] = []
+    plafond_nul = _depot(tokens_plafond=0)
+    for nom, depot in {"id": sans_id, "negatif": negatif, "session": sans_session, "role": role_non_hachable,
+                       "plafond": plafond_nul}.items():  # fmt: skip
+        verdict = rc.verifier_trace([_entree(), depot])
+        assert verdict["verdict"] == "ECART" and _regles(verdict)["R2"] == "ECART", nom
+
+
+def test_une_trace_fidele_a_la_sequence_avec_l_acteur_runtime_est_acceptee():
+    reconciliation = {"acteur": "runtime", "outil": rc.OUTIL_RECONCILIATION, "resultat": "ok"}
+    trace = [_entree(), reconciliation, _depot()]
+    assert rc.verifier_trace(trace)["verdict"] == "COMPLETE"
+    assert {e["acteur"] for e in rc.SEQUENCE} <= rc.ACTEURS

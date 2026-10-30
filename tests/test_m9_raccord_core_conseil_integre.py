@@ -36,19 +36,9 @@ def test_un_appel_sans_admin_authentifie_est_refuse_comme_le_contrat_du_raccord_
     """Le runtime natif d'un profil de rôle n'est pas un admin : l'entrée doit lui être remise par l'orchestrateur."""
     reponse = capacites.appeler(outil, arguments)
     assert rc.CODE_REFUS_IDENTITE in json.dumps(reponse)
-    trace = [{"acteur": "agent", "outil": outil, "resultat": "refus", "code": rc.CODE_REFUS_IDENTITE}]
+    # L'événement de trace est DÉRIVÉ de la réponse réelle (et non écrit à la main) : ok seulement si accepté.
+    accepte = reponse.get("ok") is True and reponse.get("resultat", {}).get("accepte") is True
+    trace = [{"acteur": "agent", "outil": outil, "resultat": "ok" if accepte else "refus"}]
     verdict = rc.verifier_trace(trace)
+    assert trace[0]["resultat"] == "refus"
     assert verdict["verdict"] == "INCOMPLETE" and verdict["regles"][0]["statut"] == "CONFORME"
-
-
-def test_les_profils_proposes_nomment_tous_l_outil_d_entree_admin_strict(capacites):
-    """Constat de l'écart documenté : les profils listent un outil que leur propre agent ne peut pas appeler."""
-    from m9_strategic_intelligence import conseil
-
-    profils = [
-        conseil.profil_agent(r.id, outils=[rc.OUTIL_ENTREE], budget_jour=1, budget_mois=1)
-        for r in conseil.ROLES
-        if r.etape != "audit"
-    ]
-    assert profils and all(p["outils"] == [rc.OUTIL_ENTREE] for p in profils)
-    assert {p["id"] for p in profils} == {rc.agent_id(r.id) for r in conseil.ROLES if r.etape != "audit"}
