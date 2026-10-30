@@ -67,8 +67,8 @@ fait donc qu'écrire l'entrée de chaque tour et valider ce qui est déposé.
 
 ## Outils et pages de console
 
-`m9_proposer_profils_conseil` (déclarations de profils : déclencheur manuel, 3 tours, 1 réessai, concurrence 1 ; aucune
-création ni grant), `m9_ouvrir_conseil`, `m9_lire_conseil`, `m9_lire_entree_tour_conseil`, `m9_deposer_tour_conseil`,
+`m9_proposer_profils_conseil` (déclarations de profils : déclencheur manuel, 3 tours, 1 réessai, concurrence 1, aucun
+outil — l'entrée du tour, réservée à l'admin, est remise par l'orchestrateur ; aucune création ni grant), `m9_ouvrir_conseil`, `m9_lire_conseil`, `m9_lire_entree_tour_conseil`, `m9_deposer_tour_conseil`,
 `m9_abandonner_tour_conseil`, `m9_cloturer_conseil`, `m9_lire_rapport_conseil`, `m9_auditer_affirmations_conseil`.
 Écritures T1/N2 internes ; tout en admin strict. Page `/direction/conseil?session_id=…` (déroulé et rapport « proposition
 non ratifiée », hors barre de navigation) ; la salle de guerre compte les conseils en cours.

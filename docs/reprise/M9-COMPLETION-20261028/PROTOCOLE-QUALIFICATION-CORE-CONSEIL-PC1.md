@@ -13,11 +13,12 @@ pas cette jonction. M9.4 reste PARTIEL tant qu'une trace issue de PC1 n'a pas re
   Le dépôt exige une réservation du profil du rôle (`m9-<role>`), `conciliee`, dans son plafond, à usage unique ; au plus
   deux dépôts par tour.
 
-## Écart attendu, à constater (pas à corriger ici)
-Les profils proposés listent `m9_lire_entree_tour_conseil`, outil qui exige un admin authentifié. Un agent natif qui
-l'appelle doit être **refusé** (`REJ-IDENTITE-APPAREIL-INVALIDE`) : l'entrée est alors remise au tour par
-l'orchestrateur admin. Si PC1 constate le contraire (succès d'un agent), le vérificateur le classe `ECART` (règle R1).
-Faire lire l'entrée par l'agent lui-même serait un élargissement de droits : décision du propriétaire.
+## Identité de lecture de l'entrée (écart corrigé sans élargir de droits)
+`m9_lire_entree_tour_conseil` exige un admin authentifié. Les profils proposés listaient cet outil alors que leur agent
+aurait été refusé à l'appel ; ils n'ont désormais **aucun outil** (`entree_du_tour` le dit) : l'orchestrateur admin lit
+l'entrée et la remet au tour. Un agent qui tenterait quand même l'appel est refusé (`REJ-IDENTITE-APPAREIL-INVALIDE`,
+constaté sur le vrai `Capacites`). Si PC1 observe un succès d'agent, le vérificateur le classe `ECART` (règle R1).
+Faire lire l'entrée par l'agent lui-même serait un élargissement de droits : décision du propriétaire, non prise ici.
 
 ## Pré-requis (à PC1)
 1. Dépôt au SHA qualifié ; `pip install -e ".[dev]"` ; `(cd core && pnpm install --frozen-lockfile && pnpm build)` (Node 24).
@@ -30,9 +31,9 @@ Faire lire l'entrée par l'agent lui-même serait un élargissement de droits : 
 ## Déroulé (chaque ligne produit un événement de trace)
 | # | Acteur | Action | Observation attendue |
 |---|---|---|---|
-| 1 | admin | Créer et activer les profils de `m9_proposer_profils_conseil` (déclenchement manuel) | profils `m9-<role>` actifs, aucun cron |
+| 1 | admin | Créer et activer les profils de `m9_proposer_profils_conseil` (déclenchement manuel) | profils `m9-<role>` actifs, sans outil, aucun cron |
 | 2 | admin | `m9_ouvrir_conseil` sur un dossier de captures fictives | un tour en attente par rôle |
-| 3 | agent | Tour du rôle déclenché dans le runtime natif ; l'agent tente `m9_lire_entree_tour_conseil` | refus `REJ-IDENTITE-APPAREIL-INVALIDE` |
+| 3 | agent | (contrôle négatif) appel direct de `m9_lire_entree_tour_conseil` par l'identité du runtime | refus `REJ-IDENTITE-APPAREIL-INVALIDE` |
 | 4 | admin | `m9_lire_entree_tour_conseil` puis remise de l'entrée au tour | entrée reproductible (sha256) |
 | 5 | runtime | Tour exécuté sous réservation ; usage réel réconcilié | réservation `conciliee`, `tokens_reels` ≤ plafond |
 | 6 | admin | `m9_deposer_tour_conseil` avec l'identifiant de réservation | dépôt admis ou refusé par le code |
@@ -41,7 +42,9 @@ Faire lire l'entrée par l'agent lui-même serait un élargissement de droits : 
 
 ## Trace et verdict
 Consigner un fichier `trace.json` (nom distinct par exécution, jamais écrasé) : liste d'événements
-`{acteur: admin|agent, outil, resultat: ok|refus, code?, session_id?, role?, reservation?: {id, profil, statut, tokens_reels, tokens_plafond}}`.
+`{acteur: admin|agent|runtime, outil, resultat: ok|refus, code?, session_id?, role?, issue?: ADMIS|REFUSE, reservation?: {id, profil, statut, tokens_reels, tokens_plafond}}`,
+dans l'ordre d'exécution. Un dépôt porte l'`issue` renvoyée par l'outil (il répond `accepte` même quand la sortie est
+refusée) ; seul un dépôt `ADMIS` précédé d'une entrée admin de même session et même rôle ferme un cycle.
 ```bash
 python - <<'PY'
 import json
@@ -49,7 +52,8 @@ from m9_strategic_intelligence import raccord_core_conseil as rc
 print(json.dumps(rc.verifier_trace(json.load(open("trace.json"))), ensure_ascii=False, indent=1))
 PY
 ```
-Verdicts : `COMPLETE` (cycle entier sans écart) · `INCOMPLETE` (cycle non observé) · `ECART` (règle R1–R4 violée).
+Verdicts : `COMPLETE` (cycle entier sans écart) · `INCOMPLETE` (cycle non observé) · `ECART` (règle R1–R4 violée :
+succès d'agent sur un outil M9, dépôt incomplet ou hors réservation conforme, réservation partagée, plus de deux dépôts).
 Le vérificateur juge la cohérence d'une trace, pas son origine : joindre les journaux du Gateway et du moteur
 (`<travail>/journaux/`) et leurs empreintes.
 

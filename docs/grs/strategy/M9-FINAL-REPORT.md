@@ -38,7 +38,7 @@ point de raccord Core et protocole PC1 non exécuté (M9.4), analyse de CI en le
 
 ## 3. Preuves
 
-Régression finale `final4` (code `5fc21927`) : 1 759 tests, 0 échec, 0 ignoré. Voir `docs/reprise/M9-COMPLETION-20261028/preuves-execution/` et `RAPPORT.md` (commandes, JUnit et journaux
+Régression finale `final5` (code `29aac432`) : 1 767 tests, 0 échec, 0 ignoré. Voir `docs/reprise/M9-COMPLETION-20261028/preuves-execution/` et `RAPPORT.md` (commandes, JUnit et journaux
 aux noms distincts, jamais écrasés). Conseil réel : `preuves-conseil-reel/RAPPORT-CONSEIL-REEL.md`. Évaluation : 61 cas, 61/61,
 corpus écrit par la mission, couche déterministe seulement. Navigateur : Chromium bureau et 390 px, données fictives.
 CI GitHub : lue par SHA sur la PR #859 ; un verdict postérieur à un commit n'est pas reporté sur un autre.

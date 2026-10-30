@@ -20,5 +20,11 @@ planifié sans cette identité est refusé à l'appel. Le mandat suit le propri�
 
 ## Ce qui n'est PAS qualifié
 Le CronService natif de Core et son admission runtime ; une base PostgreSQL ; l'hôte opérateur ; un déclenchement réel.
-Limite à décider : le briefing prend `maintenant` en argument, M9 n'ayant pas d'horloge. Le job doit recevoir l'instant
-planifié du déclencheur natif et non le laisser produire par un modèle ; à vérifier à la qualification Core.
+Instant de référence : le briefing prend `maintenant` en argument (M9 n'a pas d'horloge). Le mandat natif est un tour
+d'agent (`payload.kind = agentTurn`, message fixe) ; Core ajoute au message deux lignes d'heure calculées par le code
+(`resolveCronStyleNow`, `core/src/agents/current-time.ts:23-32`, appelé par `core/src/cron/isolated-agent/run-prepare.ts:520-567`) :
+`Current time: …` au fuseau de la configuration (`agents.defaults.userTimezone`) et `Reference UTC: AAAA-MM-JJ HH:MM UTC`,
+à la minute.
+L'agent RECOPIE cet instant : M9 refuse un format invalide mais ne peut pas détecter une recopie erronée d'un instant
+bien formé. Limite assumée et à constater à la qualification Core (comparer `maintenant` reçu et heure du déclenchement
+dans la trace).
