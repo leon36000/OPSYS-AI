@@ -16,8 +16,8 @@ Code prêt ≠ intégration réelle ≠ qualification installée : les 15 DONE_V
 appelés par le port privé, HTTP console) ; aucune qualification installée (VPS/Core) n'a été faite.
 
 ## Qualité et reprises
-- Commandes : `preuves-execution/cmd-*.txt` (pytest sous `taskset` 2 CPU, `ulimit -v` 6 Gio, HOME/OPSYS_HOME privés). Exécution finale `final3` (état de code `6d422bff`, périmètre M9 + console + portées + CI départements) :
-  1 731 passed, 0 failed, 0 skipped, 281 s (les exécutions antérieures de 1 445 et 1 456 tests précèdent les ajouts du cahier). `opsys-metier verifier` exit 0 (358 outils, 229 déclarés aux appareils). `ruff check src tests departments/m09-strategic-intelligence` OK.
+- Commandes : `preuves-execution/cmd-*.txt` (pytest sous `taskset` 2 CPU, `ulimit -v` 6 Gio, HOME/OPSYS_HOME privés). Exécution finale `final4` (état de code `5fc21927`, périmètre M9 + console + portées + CI départements) :
+  1 759 passed, 0 failed, 0 skipped, 282 s (les exécutions antérieures de 1 445 et 1 456 tests précèdent les ajouts du cahier). `opsys-metier verifier` exit 0 (358 outils, 229 déclarés aux appareils). `ruff check src tests departments/m09-strategic-intelligence` OK.
 - Rouges : régression console élargie = 46 échecs, tous fusion PDF/AP, identiques sur la base sans changements (46/46) ; conservés.
 - Relecture indépendante du tableau (lecture seule) : rien de grave ; deux défauts réels corrigés avec test (filtre perdu à la page suivante des sources, code de refus de repli) ; limite connue : champ POST répété accepté en silence (non exploitable, CSRF).
 - Défauts trouvés et corrigés pendant la QA : refus M9 pris pour un succès par le tableau (corrigé, testé) ; lecture d'une commande
@@ -37,6 +37,13 @@ appelés par le port privé, HTTP console) ; aucune qualification installée (VP
   `test_portees_appareil.py`, puis console : `application.py`, `metier.py`, `pages.py`. Aucune extension de droits : les 52 outils des modules `outils_*` sont `admin` strict (garde statique `tests/test_m9_acces_strict.py`) ; les 23 outils historiques d'`outils.py` gardent leur voie d'origine (portée d'appareil `admin` ou fermée, voie agent inchangée).
 - Contrat 21 sections : source canonique introuvable ; liste v2 retenue par délégation de Nathan le 2026-10-29 (réponse « Oui tu as toutes les autorisations » à la demande d'arbitrage), statut RETENU_PAR_DELEGATION, jamais RATIFIE, révisable, 15 clés historiques inchangées.
 - CI du SHA de code final `7a0a01d9` : verte (run 2323, 39 checks dont `gates` requis sur `main`, `socle`, `frontiere-postgresql`, 10 `departement`) ; `installateur`, `mobile` et `dependency_audit` ignorés par le workflow, donc non prouvés. Verdict posté en commentaire sur la PR #859. Les commits postérieurs à `7a0a01d9` ne touchent que la documentation.
+
+## Suite des orientations du coordinateur (SHA `5fc21927`, CI à lire après le push)
+- M9.3 : liaison explicite révision/empreinte faite côté consommateur (contradictions refusées, historique sans liaison non comparable) ; M8 doit publier `liaisons_versions` (aujourd'hui 0).
+- M9.5 : qualification fictive isolée (autorisation, révocation, reprise, rejeu, double effet) ; aucun grant réel ni hôte opérateur (`QUALIFICATION-PLANIFICATION-M9-5.md`).
+- Contrats consommateur M4 capacité, M7 dépenses, M1 plaintes structurées, refus d'extrapolation comme prévision (`CONTRATS-PRODUCTEURS-ATTENDUS.md`) : lectures absentes chez les propriétaires, constatées.
+- M9.4 : point de raccord, vérificateur de trace et protocole PC1 livrés, NON exécutés (`PROTOCOLE-QUALIFICATION-CORE-CONSEIL-PC1.md`) ; écart d'identité constaté.
+- Analyse des filtres de CI en lecture seule (`ANALYSE-FILTRES-CI.md`) : proposition séparée, workflow global inchangé.
 
 ## Verdict et suite
 - Démontré : couches déterministes M9.1–2, 6–7, 12–17, 19–21 ; gouvernance par les vraies approbations ; tableau exécutif en navigateur.

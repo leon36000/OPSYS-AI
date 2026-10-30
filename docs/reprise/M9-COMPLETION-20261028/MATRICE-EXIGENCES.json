@@ -32,9 +32,9 @@
    "proofs": [
     {
      "tests": "tests/test_m9_producteurs_a.py, tests/test_m9_producteurs_b.py, tests/test_lecteurs_m9.py, departments/m09-strategic-intelligence/tests/test_capture_strategique.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
    "verified_commit": "2fe65333",
@@ -55,9 +55,9 @@
    "proofs": [
     {
      "tests": "tests/test_m9_graphe_reel.py, departments/m09-strategic-intelligence/tests/test_graphe_impacts.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
    "verified_commit": "fe864a2c",
@@ -76,24 +76,30 @@
    ],
    "initial_status": "A_REQUALIFIER",
    "gates_to_resolve_or_keep_open": [
-    "Contrats M8 à réconcilier"
+    "Publication par M8 de resultat.liaisons_versions"
    ],
    "proofs": [
     {
      "tests": "tests/test_m9_semantique_integre.py, departments/m09-strategic-intelligence/tests/test_semantique_metriques.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_metriques_executives.py, tests/test_m9_indicateurs_cadrage_integre.py",
      "cahier": "docs/grs/strategy/M9-AUDIT-INITIAL-QUADRUPLE-A.md"
+    },
+    {
+     "tests": "Contrat consommateur de liaison révision/empreinte : departments/m09-strategic-intelligence/tests/test_semantique_metriques.py, tests/test_m9_semantique_integre.py ; contrat : CONTRATS-PRODUCTEURS-ATTENDUS.md",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
-   "verified_commit": "0d2e691d",
+   "verified_commit": "5fc21927",
    "current_status": "PARTIEL",
    "lot0_finding": "Registre M8 de métriques durable (metric_id, unité, propriétaire, fraîcheur attendue) + version_definition (empreinte) : deux régimes de version. Aucun paquet de preuves M8.17 en code. Plan : couche sémantique qui refuse d'agréger unités/versions incompatibles et cite le propriétaire.",
-   "limite": "Registre des 17 indicateurs exécutifs du cahier relié aux définitions officielles (4 chez M8, 3 chez leur propriétaire, 1 signal M9, 9 sans définition nommés) ; garde de dérive contre le dictionnaire M8. Le lien registre ↔ mesures M8 reste une décision de conception chez M8. | Cause racine établie : le registre M8 (propriétaire, fraîcheur, règles de qualité ; version = nombre d'enregistrements) et le dictionnaire de définitions des mesures (empreinte SHA-256 de la définition chargée) sont deux objets distincts sans lien prévu dans leur conception ; M9 affiche donc VERSION_NON_COMPARABLE (verdict correct, jamais fusionné). La réconciliation demande une décision de conception chez M8 (ex. consigner l'empreinte de la définition source dans l'enregistrement du registre), hors périmètre de M9."
+   "limite": "Liaison explicite côté M9 faite et testée (révision entière et empreinte restent deux informations ; contradictions refusées ; historique sans liaison non comparable). Reste : M8 doit publier resultat.liaisons_versions (producteur, à coordonner avec son propriétaire, commits séparés). Aujourd'hui liaisons_versions = 0. | Registre des 17 indicateurs exécutifs du cahier relié aux définitions officielles (4 chez M8, 3 chez leur propriétaire, 1 signal M9, 9 sans définition nommés) ; garde de dérive contre le dictionnaire M8. Le lien registre ↔ mesures M8 reste une décision de conception chez M8. | Cause racine établie : le registre M8 (propriétaire, fraîcheur, règles de qualité ; version = nombre d'enregistrements) et le dictionnaire de définitions des mesures (empreinte SHA-256 de la définition chargée) sont deux objets distincts sans lien prévu dans leur conception ; M9 affiche donc VERSION_NON_COMPARABLE (verdict correct, jamais fusionné). La réconciliation demande une décision de conception chez M8 (ex. consigner l'empreinte de la définition source dans l'enregistrement du registre), hors périmètre de M9."
   },
   {
    "id": "M9.4",
@@ -106,15 +112,14 @@
    ],
    "initial_status": "A_REQUALIFIER",
    "gates_to_resolve_or_keep_open": [
-    "Jonction Core native",
-    "Backend déjà autorisé et budget effectif"
+    "Exécution du protocole sur PC1 (verdict COMPLETE attendu) et décision sur l'identité de lecture d'entrée"
    ],
    "proofs": [
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_conseil.py, tests/test_m9_gouvernance.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "conseil_reel": "docs/reprise/M9-COMPLETION-20261028/preuves-conseil-reel/RAPPORT-CONSEIL-REEL.md",
@@ -126,12 +131,18 @@
     {
      "tests": "tests/test_m9_reaudit_conseil_integre.py, departments/m09-strategic-intelligence/tests/test_reaudit_conseil.py",
      "cahier": "docs/grs/strategy/M9-AUDIT-INITIAL-QUADRUPLE-A.md"
+    },
+    {
+     "tests": "Point de raccord et vérificateur de trace : departments/m09-strategic-intelligence/tests/test_raccord_core_conseil.py, tests/test_m9_raccord_core_conseil_integre.py ; protocole : PROTOCOLE-QUALIFICATION-CORE-CONSEIL-PC1.md",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
-   "verified_commit": "21b6aec8",
+   "verified_commit": "5fc21927",
    "current_status": "PARTIEL",
    "lot0_finding": "Aucun port Python ne demande un tour d'agent Core ; aucun backend modèle configuré dans l'environnement (gate GATED_DEPENDENCY pour la qualification réelle). Plan : 12 rôles + sélection déterministe des spécialistes + chaîne et budget/refus prouvés sur doubles de protocole identifiés ; adaptateur prêt pour le runtime natif (profils agents.py, admission_agents).",
-   "limite": "Réaudit des citations d'un conseil clos (m9_reauditer_conseil) : source plus récente différente ⇒ inférences et recommandation à revoir. Jonction Core native toujours non exécutable ici. | Conseil RÉEL exécuté en session (3 rondes, vrais modèles Claude via l'outil Agent) : admission, refus, budget et gouvernance prouvés (preuves-conseil-reel/). Gate ouvert : jonction Core native (runtime non exécutable ici) ; vérité des inférences non prouvée (validation_semantique NON_PROUVEE)."
+   "limite": "Protocole PC1 livré mais NON exécuté : aucune trace issue du Core natif. Écart d'identité constaté (les profils proposés listent un outil d'entrée réservé à l'admin) ; décision de droits au propriétaire. Les rondes de modèles déjà jouées restent des preuves distinctes de cette jonction. | Réaudit des citations d'un conseil clos (m9_reauditer_conseil) : source plus récente différente ⇒ inférences et recommandation à revoir. Jonction Core native toujours non exécutable ici. | Conseil RÉEL exécuté en session (3 rondes, vrais modèles Claude via l'outil Agent) : admission, refus, budget et gouvernance prouvés (preuves-conseil-reel/). Gate ouvert : jonction Core native (runtime non exécutable ici) ; vérité des inférences non prouvée (validation_semantique NON_PROUVEE)."
   },
   {
    "id": "M9.5",
@@ -144,24 +155,30 @@
    ],
    "initial_status": "A_REQUALIFIER",
    "gates_to_resolve_or_keep_open": [
-    "Ordonnanceur natif pour qualification de la planification"
+    "Activation réelle sur l'hôte opérateur (non autorisée par cette réponse)"
    ],
    "proofs": [
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_revue_periodique.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "tests/test_m9_radars_integre.py (salle de guerre : risques actifs et changements depuis la veille), departments/m09-strategic-intelligence/tests/test_risques.py (delta)",
      "cahier": "docs/grs/strategy/M9-AUDIT-INITIAL-QUADRUPLE-A.md"
+    },
+    {
+     "tests": "Qualification fictive isolée : tests/test_m9_planification_cron_fictive.py (7 tests) ; QUALIFICATION-PLANIFICATION-M9-5.md",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
-   "verified_commit": "0d2e691d",
+   "verified_commit": "5fc21927",
    "current_status": "PARTIEL",
    "lot0_finding": "Briefing du matin existant (file approbations + alertes M8 + faits de veille). Planification : generateur automatisations.sh seulement ; exécuteur natif non qualifié (gate).",
-   "limite": "Salle de guerre avec risques actifs et changements depuis la veille (delta du radar à deux instants connus). | Planification NON qualifiée : le seul mécanisme natif (agents_cron_autorite : grants/remises cron SQLite) est appelé par l'hôte opérateur authentifié et crée des grants réels ; la salle de guerre est calculée à la demande avec une date explicite et refuse une vue périmée. Aucun cron global."
+   "limite": "Autorisation, révocation, reprise, rejeu et absence de double effet qualifiés sur base fictive ; aucun grant réel. CronService natif de Core, PostgreSQL et hôte opérateur non qualifiés ; l'instant planifié doit venir du déclencheur natif, pas d'un modèle. | Salle de guerre avec risques actifs et changements depuis la veille (delta du radar à deux instants connus). | Planification NON qualifiée : le seul mécanisme natif (agents_cron_autorite : grants/remises cron SQLite) est appelé par l'hôte opérateur authentifié et crée des grants réels ; la salle de guerre est calculée à la demande avec une date explicite et refuse une vue périmée. Aucun cron global."
   },
   {
    "id": "M9.6",
@@ -177,9 +194,9 @@
    "proofs": [
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_revue_periodique.py, tests/test_console_direction_m9.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_rapport_direction.py, tests/test_m9_rapport_direction_integre.py",
@@ -205,9 +222,9 @@
    "proofs": [
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_revue_periodique.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_rapport_direction.py",
@@ -234,19 +251,25 @@
    "proofs": [
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_scenarios.py, tests/test_console_direction_m9.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_scenarios.py, test_question_scenario.py, tests/test_m9_questions_scenario_integre.py",
      "cahier": "docs/grs/strategy/M9-AUDIT-INITIAL-QUADRUPLE-A.md"
+    },
+    {
+     "tests": "Contrats attendus M5/M4 : departments/m09-strategic-intelligence/tests/test_contrats_attendus.py ; CONTRATS-PRODUCTEURS-ATTENDUS.md",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
-   "verified_commit": "0d2e691d",
+   "verified_commit": "5fc21927",
    "current_status": "PARTIEL",
    "lot0_finding": "Aucun moteur de scénarios. M5 (m5_preparer_decision_capital, m5_prevoir_tresorerie) et M4 portent finance/capacité ; pas de projection 12/24 mois ni scénarios côté M5.",
-   "limite": "19 chocs du cahier (8 avec calcul arithmétique sur bases citées, cashflow serré et rupture d'inventaire renvoyés à leur propriétaire) et interpréteur de questions « et si… » déterministe, borné en temps, injection sans effet. Les simulations finance/capacité/stock restent chez leurs propriétaires. | Neuf chocs en sensibilité arithmétique sur bases citées ; finance, capacité et stock restent à calculer par leurs propriétaires (aucun port de simulation métier)."
+   "limite": "Contrats consommateur prêts ; aucun producteur ne publie encore de port de simulation. | 19 chocs du cahier (8 avec calcul arithmétique sur bases citées, cashflow serré et rupture d'inventaire renvoyés à leur propriétaire) et interpréteur de questions « et si… » déterministe, borné en temps, injection sans effet. Les simulations finance/capacité/stock restent chez leurs propriétaires. | Neuf chocs en sensibilité arithmétique sur bases citées ; finance, capacité et stock restent à calculer par leurs propriétaires (aucun port de simulation métier)."
   },
   {
    "id": "M9.9",
@@ -263,19 +286,25 @@
    "proofs": [
     {
      "tests": "tests/test_m9_previsions_integre.py, departments/m09-strategic-intelligence/tests/test_previsions.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_tendances.py, tests/test_m9_tendances_integre.py",
      "cahier": "docs/grs/strategy/M9-AUDIT-INITIAL-QUADRUPLE-A.md"
+    },
+    {
+     "tests": "Contrats attendus et refus d'extrapolation : departments/m09-strategic-intelligence/tests/test_contrats_attendus.py",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
-   "verified_commit": "0d2e691d",
+   "verified_commit": "5fc21927",
    "current_status": "PARTIEL",
    "lot0_finding": "Prévision hebdomadaire des flux connus M5 seulement ; pas de prévision de leads/capacité produite ailleurs (gate GATED_DEPENDENCY partiel).",
-   "limite": "Prévision de trésorerie M5 consolidée + tendances extrapolées par le code (moyenne mobile, droite, saisonnier naïf ; six points minimum, intervalle approximatif dit tel) : jamais une prévision de propriétaire. Une seule prévision de propriétaire existe (M5). | Seule la prévision de trésorerie M5 existe chez un propriétaire ; leads, capacité et matériaux = AUCUNE_PREVISION_PRODUITE ; incertitude non chiffrée."
+   "limite": "Une extrapolation de M9 ne peut pas être présentée comme prévision de propriétaire (REJ-CONTRAT-EXTRAPOLATION) ; seule la prévision de trésorerie de M5 existe. | Prévision de trésorerie M5 consolidée + tendances extrapolées par le code (moyenne mobile, droite, saisonnier naïf ; six points minimum, intervalle approximatif dit tel) : jamais une prévision de propriétaire. Une seule prévision de propriétaire existe (M5). | Seule la prévision de trésorerie M5 existe chez un propriétaire ; leads, capacité et matériaux = AUCUNE_PREVISION_PRODUITE ; incertitude non chiffrée."
   },
   {
    "id": "M9.10",
@@ -294,9 +323,9 @@
    "proofs": [
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_rapport_decision_v2.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_decision_cadrage.py, tests/test_m9_indicateurs_cadrage_integre.py",
@@ -321,15 +350,21 @@
    "proofs": [
     {
      "tests": "tests/test_m9_priorites_integre.py, departments/m09-strategic-intelligence/tests/test_priorisation.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
+    },
+    {
+     "tests": "Contrat m4.capacite_equipe : test_contrats_attendus.py ; CONTRATS-PRODUCTEURS-ATTENDUS.md",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
-   "verified_commit": "7d1ca684",
+   "verified_commit": "5fc21927",
    "current_status": "PARTIEL",
    "lot0_finding": "Rien (échéancier de suivis seulement).",
-   "limite": "Priorisation explicable prouvée ; aucune allocation de capacité d'équipe (aucun producteur ne l'expose), hypothèse déclarée requise."
+   "limite": "Contrat consommateur prêt ; la lecture de capacité d'équipe est absente chez M4 (constaté dans le catalogue et le port privé). | Priorisation explicable prouvée ; aucune allocation de capacité d'équipe (aucun producteur ne l'expose), hypothèse déclarée requise."
   },
   {
    "id": "M9.12",
@@ -345,9 +380,9 @@
    "proofs": [
     {
      "tests": "tests/test_m9_radars_integre.py, departments/m09-strategic-intelligence/tests/test_risques.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_risques.py",
@@ -372,9 +407,9 @@
    "proofs": [
     {
      "tests": "tests/test_m9_radars_integre.py, departments/m09-strategic-intelligence/tests/test_occasions.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
    "verified_commit": "f303e8c5",
@@ -397,9 +432,9 @@
    "proofs": [
     {
      "tests": "tests/test_m9_veille_integre.py, departments/m09-strategic-intelligence/tests/test_veille.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_veille.py",
@@ -424,9 +459,9 @@
    "proofs": [
     {
      "tests": "tests/test_m9_playbooks_integre.py, departments/m09-strategic-intelligence/tests/test_playbooks.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_playbooks.py, tests/test_m9_playbooks_integre.py",
@@ -453,9 +488,9 @@
    "proofs": [
     {
      "tests": "tests/test_m9_plans_integre.py, departments/m09-strategic-intelligence/tests/test_plans.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
    "verified_commit": "155e9911",
@@ -479,9 +514,9 @@
    "proofs": [
     {
      "tests": "tests/test_m9_actions_integre.py, departments/m09-strategic-intelligence/tests/test_orchestrateur.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
    "verified_commit": "3dd6342a",
@@ -504,19 +539,25 @@
    "proofs": [
     {
      "tests": "tests/test_m9_experiences_integre.py, departments/m09-strategic-intelligence/tests/test_experiences.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_experiences.py, tests/test_m9_experiences_integre.py",
      "cahier": "docs/grs/strategy/M9-AUDIT-INITIAL-QUADRUPLE-A.md"
+    },
+    {
+     "tests": "Contrat m7.depenses_marketing : test_contrats_attendus.py ; CONTRATS-PRODUCTEURS-ATTENDUS.md",
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
-   "verified_commit": "0d2e691d",
+   "verified_commit": "5fc21927",
    "current_status": "PARTIEL",
    "lot0_finding": "Mesures/coûts à lire chez M8/M5 ; cout_par_lead M7 toujours None (donnée insuffisante : pas de ROI).",
-   "limite": "Cadre de gouvernance obligatoire (plafond de budget, durée, limite de risque, porteur, plan de retour) ; plafond comparé au coût mesuré. Mesures et coûts restent chez M5/M7/M8. | Gate ouvert : M8 marges non calculables et M7 cout_par_lead None dans le monde testé ; ROI prouvé sur faits M5 seulement ; aucun ROI sur donnée manquante."
+   "limite": "Contrat consommateur prêt ; M7 déclare DEPENSES_NON_BRANCHEES et ne publie aucune dépense. | Cadre de gouvernance obligatoire (plafond de budget, durée, limite de risque, porteur, plan de retour) ; plafond comparé au coût mesuré. Mesures et coûts restent chez M5/M7/M8. | Gate ouvert : M8 marges non calculables et M7 cout_par_lead None dans le monde testé ; ROI prouvé sur faits M5 seulement ; aucun ROI sur donnée manquante."
   },
   {
    "id": "M9.19",
@@ -533,9 +574,9 @@
    "proofs": [
     {
      "tests": "tests/test_m9_gouvernance.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
    "verified_commit": "95748c2c",
@@ -562,9 +603,9 @@
    "proofs": [
     {
      "tests": "tests/test_m9_memoire_integre.py, departments/m09-strategic-intelligence/tests/test_memoire_m10.py",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     }
    ],
    "verified_commit": "2bd12276",
@@ -587,9 +628,9 @@
    "proofs": [
     {
      "tests": "tests/test_console_direction_m9.py (18 tests HTTP), docs/reprise/M9-COMPLETION-20261028/preuves-navigateur/",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "tests": "tests/test_console_direction_m9.py (42 tests HTTP)",
@@ -640,9 +681,9 @@
    "proofs": [
     {
      "tests": "departments/m09-strategic-intelligence/tests/test_evaluation.py, docs/reprise/M9-COMPLETION-20261028/preuves-evaluation/EVAL-corpus-v1-20261029T003830Z.json",
-     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final-m9-20261029T014323Z.xml",
-     "sha_execution": "29f67b6a",
-     "resultat": "1445 passed, 0 failed, 0 skipped"
+     "execution": "docs/reprise/M9-COMPLETION-20261028/preuves-execution/junit-final4-20261030T051813Z.xml",
+     "sha_execution": "5fc21927",
+     "resultat": "1759 passed, 0 failed, 0 skipped"
     },
     {
      "conseil_reel": "docs/reprise/M9-COMPLETION-20261028/preuves-conseil-reel/RAPPORT-CONSEIL-REEL.md",
@@ -652,7 +693,7 @@
    "verified_commit": "3c1c8885",
    "current_status": "DONE_VERIFIED",
    "lot0_finding": "Aucun jeu d'évaluation ; audit de citations déterministe existe.",
-   "limite": "Couche déterministe 61/61 (Wilson 95 % [0,9408 ; 1,0000]) + conseil réel séparé des doubles de protocole : 6 sorties réelles sur 3 rondes (2 admises à la 3e ronde sur 2 ; refus de forme et de borne trouvés, corrigés, conservés en régression). Indicatif, un modèle, un scénario ; qualité du conseil non établie."
+   "limite": "Couche déterministe 61/61 (Wilson 95 % [0,9408 ; 1,0000]) + conseil réel séparé des doubles de protocole : 6 sorties réelles sur 3 rondes (2 admises à la 3e ronde sur 2 ; refus de forme et de borne trouvés, corrigés, conservés en régression). Indicatif, un modèle, un scénario ; qualité du conseil non établie. Non établi : justesse des inférences, généralisation à d'autres modèles ou scénarios, coût en production."
   },
   {
    "id": "M9.24",
@@ -671,19 +712,25 @@
    ],
    "verified_commit": "21b6aec8",
    "current_status": "DONE_VERIFIED",
-   "limite": "Seul le tour de modèle du conseil est simulé dans les parcours (le conseil réel est dans preuves-conseil-reel/). M7 ne publie aucune dépense, M4 aucune capacité d'équipe, M1 aucune plainte structurée : M9 ne crée aucun risque de réputation et le nomme absent."
+   "limite": "Seul le tour de modèle du conseil est simulé dans les parcours (le conseil réel est dans preuves-conseil-reel/). M7 ne publie aucune dépense, M4 aucune capacité d'équipe, M1 aucune plainte structurée : M9 ne crée aucun risque de réputation et le nomme absent. Bornes : les parcours vérifient que l'absence d'un producteur est NOMMÉE (capacité M4, dépenses M7, plaintes M1), pas que la valeur existe ; aucun résultat chiffré n'est présenté comme réel."
   }
  ],
  "run_summary": {
-  "sha": "29f67b6a",
-  "tests": "1445 passed / 0 failed / 0 skipped",
-  "verifier": "OK 10 départements, 353 outils, 224 déclarés aux appareils",
+  "sha": "5fc21927",
+  "tests": "1759 passed, 0 failed, 0 skipped (exécution final4)",
+  "verifier": "OK 10 départements, 358 outils, 229 déclarés aux appareils",
   "lint": "ruff check src tests departments/m09-strategic-intelligence : OK",
   "decompte": {
    "DONE_VERIFIED": 16,
    "PARTIEL": 7,
    "PHASE_MOBILE_FINALE": 1
   },
-  "ci_github": "verte sur 7a0a01d9 (run 2323, 39 checks dont gates, socle, frontiere-postgresql ; installateur, mobile, dependency_audit ignorés par le workflow) ; verte sur 94cf6495 (run 2322) et 43499e04 (run 2320)"
+  "ci_github": "verte sur 4c961d5c (run 2326, 38 jobs dont gates ; installateur, mobile, dependency_audit ignorés par le workflow) ; la CI de 5fc21927 est à lire après le push"
+ },
+ "documents_complementaires": {
+  "analyse_filtres_ci": "docs/reprise/M9-COMPLETION-20261028/ANALYSE-FILTRES-CI.md (lecture seule ; aucune modification du workflow)",
+  "contrats_producteurs": "docs/reprise/M9-COMPLETION-20261028/CONTRATS-PRODUCTEURS-ATTENDUS.md",
+  "protocole_pc1": "docs/reprise/M9-COMPLETION-20261028/PROTOCOLE-QUALIFICATION-CORE-CONSEIL-PC1.md",
+  "planification": "docs/reprise/M9-COMPLETION-20261028/QUALIFICATION-PLANIFICATION-M9-5.md"
  }
 }

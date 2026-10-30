@@ -30,9 +30,15 @@ cela et n'en ajoute pas (ADR-0012). Correspondance retenue — détail dans [l'a
 - 17 playbooks, veille avec catégories et qualité des données, expériences sous cadre de gouvernance obligatoire.
 - Pages console : indicateurs, décision, tendances ; garde d'accès admin strict testée statiquement.
 
+## 2 bis. Suite des orientations du coordinateur
+Liaison révision/empreinte côté M9 (M9.3), qualification fictive de la planification (M9.5), contrats attendus M4/M7/M1,
+point de raccord Core et protocole PC1 non exécuté (M9.4), analyse de CI en lecture seule : voir
+`docs/reprise/M9-COMPLETION-20261028/` (`CONTRATS-PRODUCTEURS-ATTENDUS.md`, `QUALIFICATION-PLANIFICATION-M9-5.md`,
+`PROTOCOLE-QUALIFICATION-CORE-CONSEIL-PC1.md`, `ANALYSE-FILTRES-CI.md`). Les 7 lignes PARTIEL restent PARTIEL.
+
 ## 3. Preuves
 
-Régression finale : voir `docs/reprise/M9-COMPLETION-20261028/preuves-execution/` et `RAPPORT.md` (commandes, JUnit et journaux
+Régression finale `final4` (code `5fc21927`) : 1 759 tests, 0 échec, 0 ignoré. Voir `docs/reprise/M9-COMPLETION-20261028/preuves-execution/` et `RAPPORT.md` (commandes, JUnit et journaux
 aux noms distincts, jamais écrasés). Conseil réel : `preuves-conseil-reel/RAPPORT-CONSEIL-REEL.md`. Évaluation : 61 cas, 61/61,
 corpus écrit par la mission, couche déterministe seulement. Navigateur : Chromium bureau et 390 px, données fictives.
 CI GitHub : lue par SHA sur la PR #859 ; un verdict postérieur à un commit n'est pas reporté sur un autre.
@@ -41,9 +47,9 @@ CI GitHub : lue par SHA sur la PR #859 ; un verdict postérieur à un commit n'e
 
 | Ligne | Gate | Qui peut le lever |
 |---|---|---|
-| M9.3 | registre M8 (version entière) et empreintes de mesures sans lien de conception → `VERSION_NON_COMPARABLE` | décision de conception chez M8 |
-| M9.4 | jonction Core native non exécutable dans ce bac à sable ; conseil réel fait en session seulement | CI Core / installation |
-| M9.5 | planification quotidienne : grants cron réels | hôte opérateur |
+| M9.3 | liaison révision/empreinte prête côté M9 ; M8 ne publie pas `liaisons_versions` → `VERSION_NON_COMPARABLE` | M8 (producteur, commits séparés) |
+| M9.4 | raccord et protocole PC1 livrés, non exécutés ; écart d'identité à trancher ; conseil réel fait en session seulement | qualification Core sur PC1 |
+| M9.5 | qualification fictive faite ; CronService natif et grants réels non qualifiés | hôte opérateur |
 | M9.8 | simulations finance, capacité, stock : pas de port de simulation chez les producteurs | M4 / M5 / M7 |
 | M9.9 | une seule prévision de propriétaire (trésorerie M5) | M4 / M5 / M7 |
 | M9.11 | aucune capacité d'équipe exposée aux lectures | M4 |
