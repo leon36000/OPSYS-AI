@@ -244,11 +244,12 @@ def test_sans_prix_au_livre_la_ligne_est_prix_non_disponible_et_le_cout_partiel(
 
     derniere = _traces()[-1]
     r = derniere["rentabilite"]
-    assert derniere["verdict"] == "PARTIELLE" and _codes(derniere) == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+    assert derniere["verdict"] == "PARTIELLE"
+    assert _codes(derniere) == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert r["cout_reel"]["complet"] is False and r["cout_reel"]["cout_total"] is None
     assert r["cout_reel"]["materiaux"]["lignes"][0]["statut"] == "PRIX_NON_DISPONIBLE"
-    assert r["cout_reel"]["cout_total_connu"] == Decimal("150.00")
-    assert r["marge_reelle"] is None and r["marge_partielle_plafond"] == Decimal("450.00")
+    assert r["cout_reel"]["cout_total_connu"] == Decimal("0")
+    assert r["marge_reelle"] is None and r["marge_partielle_plafond"] == Decimal("600.00")
 
 
 def test_taux_horaire_absent_du_manifeste_livre_le_verdict_est_taux_a_configurer(base_durable):
@@ -261,7 +262,7 @@ def test_taux_horaire_absent_du_manifeste_livre_le_verdict_est_taux_a_configurer
     _livrer()
 
     derniere = _traces()[-1]
-    assert _codes(derniere) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert _codes(derniere) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     r = derniere["rentabilite"]
     assert r["cout_reel"]["materiaux"]["cout_connu"] == Decimal("336.00")  # les matériaux sont chiffrés
     assert r["cout_reel"]["main_d_oeuvre"]["cout"] is None and r["cout_reel"]["cout_total"] is None
@@ -282,7 +283,7 @@ def test_un_manifeste_illisible_ou_un_taux_nul_donne_taux_a_configurer_sans_pann
         _publier(piece)
     _livrer()
 
-    assert _codes(_traces()[-1]) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert _codes(_traces()[-1]) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "REJ-COUT-TEMPS-POINTE-ABSENT"]
 
 
 def test_manifeste_absent_du_disque_donne_taux_a_configurer_sans_panne(base_durable, tmp_path, monkeypatch):
@@ -299,7 +300,8 @@ def test_deux_fournisseurs_aux_prix_differents_le_cout_dit_prix_ambigu(base_dura
     _livrer()
 
     derniere = _traces()[-1]
-    assert _codes(derniere) == ["REJ-COUT-PRIX-AMBIGU"] and derniere["verdict"] == "PARTIELLE"
+    assert _codes(derniere) == ["REJ-COUT-PRIX-AMBIGU", "REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert derniere["verdict"] == "PARTIELLE"
 
 
 def test_devis_ou_wct_recus_avant_t1_5_d_donnent_des_manques_pas_une_panne(base_durable, taux_configure):
@@ -401,11 +403,11 @@ def test_un_tarif_m6_sans_unite_garde_la_cascade_partielle_sans_marge(base_durab
 
     trace = _traces()[-1]
     assert trace["verdict"] == "PARTIELLE"
-    assert _codes(trace) == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+    assert _codes(trace) == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     r = trace["rentabilite"]
     assert r["marge_reelle"] is None
     assert r["cout_reel"]["cout_total"] is None
-    assert r["cout_reel"]["cout_total_connu"] == Decimal("150.00")
+    assert r["cout_reel"]["cout_total_connu"] == Decimal("0")
 
 
 def test_un_prix_ajoute_au_livre_apres_coup_ajoute_une_trace_sans_effacer_la_precedente(base_durable, taux_configure):
