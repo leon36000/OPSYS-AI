@@ -1,5 +1,7 @@
 # M4 → M5 : provenance d'équipe V3
 
+**Jalon historique :** les constats ci-dessous sur le refus M5 `cc2cd7e29`, l'absence de jonction positive et les prochaines étapes ont été dépassés par les compositions vérifiées et les relectures navigateur documentées dans [CRM01-17-JONCTION-INDEPENDANTE.md](CRM01-17-JONCTION-INDEPENDANTE.md). Le verdict courant et les limites de diffusion aval figurent dans [CRM01-17-RAPPORT.md](CRM01-17-RAPPORT.md).
+
 **Producteur M4 vérifié ; jonction M5 partielle.** Branche `mission/m4-visites-integration-20261028`, PR draft #855, base du jalon `356791f223e0e4e68ffb1d190a01eb391bbf7f97`. Contrat et fixture au commit `8f6d9a572` ; propriétaire M4, fait typé, producteur et tests au commit `d83a19d4e242297400bdb65c62c331781bd5f2cd`. Aucun fichier M5 n'a été modifié ; aucune fusion, écriture comptable, paie ni production.
 
 Le contrat [CRM01-17-CONTRAT-TEMPS-V3.md](CRM01-17-CONTRAT-TEMPS-V3.md) décrit l'API privée, l'objet V3 et les limites de confiance. Le nouveau port M4 écrit le pointage et son attestation d'équipe dans le même savepoint, avec contrôle admin, horloge serveur, CAS, audit et rejeu. La V3 revalide les pointages, la visite, la route, les audits et les préfixes de source SQL ; un ancien fait sans provenance complète reste inconnu. Il s'agit d'une déclaration d'équipe authentifiée, pas d'une preuve de présence de chaque personne ni d'une signature cryptographique. Le profil complet historique n'est pas archivé ; seule son empreinte est disponible.
