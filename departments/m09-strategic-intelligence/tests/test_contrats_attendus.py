@@ -37,15 +37,10 @@ def _plaintes():
     }
 
 
-def _liaisons():
-    return {"liaisons_versions": [{"metric_id": "m8_marge_reelle_cad", "revision": 2, "empreinte": "a" * 64}]}
-
-
 EXEMPLES = {
     "capacite_equipe": _capacite,
     "depenses_marketing": _depenses,
     "plaintes_structurees": _plaintes,
-    "liaisons_versions": _liaisons,
 }
 
 
@@ -54,7 +49,7 @@ def test_chaque_contrat_a_un_exemple_conforme_et_un_proprietaire_connu():
     for domaine, fabrique in EXEMPLES.items():
         verdict = ca.valider_charge(domaine, fabrique())
         assert verdict["conforme"] is True and verdict["manques"] == [] and verdict["erreurs"] == [], domaine
-        proprietaires = {"m01-front-office", "m04-field-ops", "m07-marketing", "m08-analytics"}
+        proprietaires = {"m01-front-office", "m04-field-ops", "m07-marketing"}
         assert ca.CONTRATS[domaine]["proprietaire"] in proprietaires
 
 
@@ -89,12 +84,6 @@ def test_un_flottant_un_enum_hors_liste_une_charge_non_objet_sont_refuses():
     assert ca.valider_charge("depenses_marketing", couverture)["conforme"] is False
     for pas_objet in (None, [], "texte", 3):
         assert ca.valider_charge("capacite_equipe", pas_objet)["conforme"] is False
-    empreinte = _liaisons()
-    empreinte["liaisons_versions"][0]["empreinte"] = "A" * 64
-    assert ca.valider_charge("liaisons_versions", empreinte)["conforme"] is False
-    revision = _liaisons()
-    revision["liaisons_versions"][0]["revision"] = 0
-    assert ca.valider_charge("liaisons_versions", revision)["conforme"] is False
 
 
 def test_les_trois_lectures_manquantes_sont_absentes_du_catalogue_et_dites_telles():
@@ -102,7 +91,6 @@ def test_les_trois_lectures_manquantes_sont_absentes_du_catalogue_et_dites_telle
     etats = {r["domaine"]: r["etat"] for r in ca.resume()}
     assert etats["capacite_equipe"] == etats["depenses_marketing"] == etats["plaintes_structurees"]
     assert etats["capacite_equipe"] == "ABSENT_CHEZ_LE_PROPRIETAIRE"
-    assert etats["liaisons_versions"] == "CHAMP_NON_VERIFIE_CHEZ_LE_PROPRIETAIRE"
     for domaine in ("capacite_equipe", "depenses_marketing", "plaintes_structurees"):
         assert ca.CONTRATS[domaine]["lecture_id"] not in cat.PAR_ID, domaine
     assert all(r["limite"] and r["outil_attendu"] for r in ca.resume())
@@ -169,11 +157,3 @@ def test_incoherences_entre_champs_sont_des_erreurs_nommees():
     equipes = _capacite()
     equipes["equipes"].append(dict(equipes["equipes"][0]))
     assert "equipe_id en double" in _erreurs("capacite_equipe", equipes)
-    contradiction = _liaisons()
-    contradiction["liaisons_versions"].append(
-        {"metric_id": "m8_marge_reelle_cad", "revision": 3, "empreinte": "a" * 64}
-    )
-    assert "deux révisions" in _erreurs("liaisons_versions", contradiction)
-    revision = _liaisons()
-    revision["liaisons_versions"].append({"metric_id": "m8_marge_reelle_cad", "revision": 2, "empreinte": "b" * 64})
-    assert "deux empreintes" in _erreurs("liaisons_versions", revision)

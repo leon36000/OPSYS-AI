@@ -1,8 +1,8 @@
 """Contrats attendus des propriétaires : ce que M9 sait lire le jour où ils publient, sans rien fabriquer d'ici là.
 
 Module pur. Pour chaque donnée qui manque aujourd'hui à M9 (capacité d'équipe M4, dépenses marketing M7, plaintes
-structurées M1, liaison de versions de métriques M8), ce module fixe la FORME que le propriétaire devra publier et
-valide une charge candidate contre elle. Il ne produit aucune valeur : une charge incomplète est rendue avec la liste
+structurées M1), ce module fixe la FORME que le propriétaire devra publier et valide une charge
+candidate contre elle. Il ne produit aucune valeur : une charge incomplète est rendue avec la liste
 de ce qui manque, jamais complétée ; un nombre doit arriver en TEXTE décimal exact (un flottant est refusé) ; une
 valeur hors de l'énuméré fermé est refusée.
 
@@ -10,6 +10,8 @@ L'état d'un contrat se lit sur le catalogue des lectures de M9 (``catalogue_pro
 attendue n'y figure pas, le contrat est ``ABSENT_CHEZ_LE_PROPRIETAIRE`` et M9 le dit. Une extrapolation de M9
 (``origine == "tendance_extrapolee"``) n'est jamais une prévision de propriétaire : ``refuser_extrapolation`` la refuse
 si elle est présentée comme telle.
+
+Le contrat M8 → M9 des définitions versionnées est dans ``preuves_definition`` (preuve propre à chaque observation).
 """
 
 from __future__ import annotations
@@ -64,31 +66,12 @@ CONTRATS: dict[str, dict] = {
         "limite": "Jamais le texte d'un message ni une identité : des comptes par catégorie fermée. Sans cette "
         "lecture, M9 ne crée aucun risque de réputation.",
     },
-    "liaisons_versions": {
-        "champ_de_lecture_existante": True,
-        "proprietaire": "m08-analytics",
-        "lecture_id": "m8.definitions_metriques",
-        "outil_attendu": "m8_lister_definitions_metriques",
-        "racine": {},
-        "liste": (
-            "liaisons_versions",
-            {"metric_id": "identifiant", "revision": "entier_positif", "empreinte": "empreinte"},
-        ),
-        "limite": "La révision entière du registre et l'empreinte de la définition restent deux informations "
-        "distinctes ; une mesure historique sans liaison fiable reste non comparable.",
-    },
 }
 
 
 def etat(domaine: str) -> str:
-    """``PUBLIE`` si la lecture attendue figure au catalogue de M9 ; sinon ``ABSENT_CHEZ_LE_PROPRIETAIRE``.
-
-    Le contrat d'un CHAMP dans une lecture qui existe déjà (``champ_de_lecture_existante``) ne peut pas être jugé
-    publié par le seul catalogue : il reste ``CHAMP_NON_VERIFIE_CHEZ_LE_PROPRIETAIRE`` tant qu'un test sur le vrai
-    producteur ne l'a pas constaté."""
+    """``PUBLIE`` si la lecture attendue figure au catalogue de M9 ; sinon ``ABSENT_CHEZ_LE_PROPRIETAIRE``."""
     contrat = CONTRATS[domaine]
-    if contrat.get("champ_de_lecture_existante"):
-        return "CHAMP_NON_VERIFIE_CHEZ_LE_PROPRIETAIRE"
     return "PUBLIE" if contrat["lecture_id"] in cat.PAR_ID else "ABSENT_CHEZ_LE_PROPRIETAIRE"
 
 
@@ -101,16 +84,12 @@ def _valide(genre: str, valeur: object) -> bool:
         return type(valeur) is str and _IDENTIFIANT.fullmatch(valeur) is not None
     if genre == "entier":
         return type(valeur) is int and valeur >= 0
-    if genre == "entier_positif":
-        return type(valeur) is int and valeur >= 1
     if genre == "booleen":
         return type(valeur) is bool
     if genre == "couverture":
         return type(valeur) is str and valeur in COUVERTURES
     if genre == "categorie":
         return type(valeur) is str and valeur in CATEGORIES_PLAINTE
-    if genre == "empreinte":
-        return type(valeur) is str and re.fullmatch(r"[0-9a-f]{64}", valeur) is not None
     if genre == "textes":
         return type(valeur) is list and all(type(t) is str and t.strip() for t in valeur)
     return False
@@ -152,22 +131,13 @@ def _coherence(domaine: str, charge: Mapping) -> list[str]:
             erreurs.append("catégorie en double")
         elif sum(ligne["ouvertes"] for ligne in charge["categories"]) != charge["ouvertes_total"]:
             erreurs.append("ouvertes_total différent de la somme des catégories")
-    elif domaine == "liaisons_versions":
-        par_empreinte: dict[tuple, int] = {}
-        par_revision: dict[tuple, str] = {}
-        for ligne in charge["liaisons_versions"]:
-            metrique, revision, empreinte = ligne["metric_id"], ligne["revision"], ligne["empreinte"]
-            if par_empreinte.setdefault((metrique, empreinte), revision) != revision:
-                erreurs.append(f"{metrique} : une même empreinte pour deux révisions")
-            if par_revision.setdefault((metrique, revision), empreinte) != empreinte:
-                erreurs.append(f"{metrique} : deux empreintes pour la révision {revision}")
     return sorted(set(erreurs))
 
 
 def valider_charge(domaine: str, charge: object) -> dict:
     """Conformité d'une charge candidate. ``manques`` = champs absents ; ``erreurs`` = champs présents mais invalides,
     puis, si la forme est bonne, les incohérences entre champs (période inversée, doublons, total différent de la
-    somme, liaisons contradictoires, calcul impossible ou couverture partielle sans manque nommé).
+    somme, calcul impossible ou couverture partielle sans manque nommé).
 
     Rien n'est complété : un champ absent reste absent et nommé. ``conforme`` n'est vrai que sans manque ni erreur ;
     une charge non objet n'est jamais conforme."""
