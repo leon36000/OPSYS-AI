@@ -1,6 +1,6 @@
 # Contrat privé M4 — temps certifiés V3
 
-**Statut : proposition de travail en vérification ; ne pas traiter la fixture comme une preuve de transport ou d'intégration M5.** La V3 est une nouvelle interface privée, sans modification du WCT V1 ni de l'objet V2. Elle appartient à M4 ; tout consommateur économique appartient à M5. Le contrat décrit le code de la branche M4, sous réserve des résultats de vérification et de la coordination de jonction.
+**Statut : contrat du producteur privé publié pour qualification de la jonction ; la fixture ne prouve ni le transport ni l'intégration M5.** La V3 est une nouvelle interface privée, sans modification du WCT V1 ni de l'objet V2. Elle appartient à M4 ; tout consommateur économique appartient à M5. Le contrat décrit le code de la branche M4, sous réserve des résultats de vérification et de la coordination de jonction.
 
 ## Production, sources et autorité
 
