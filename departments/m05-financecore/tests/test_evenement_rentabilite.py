@@ -134,16 +134,17 @@ def test_un_cout_partiel_ne_porte_jamais_de_marge_seulement_ce_qui_manque():
     assert charge["marge_reelle_cad"] is None and charge["ecart_marge_cad"] is None
     assert "plafond" not in json.dumps(charge)  # ... qui ne sort JAMAIS de M5
     assert charge["marge_prevue_cad"] == "120.00"  # la marge prévue est celle de M3, elle reste dite
-    assert charge["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert charge["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER",
+                                "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert erreurs_charge(TYPE, charge) == []
 
 
-def test_un_cout_partiel_avec_un_seul_manque_donne_le_plancher_pas_le_total():
-    r = _rentabilite(signal=_signal(statut="declaration_absente"))  # matériaux réels inconnus, main-d'oeuvre connue
+def test_un_cout_partiel_donne_le_plancher_pas_le_total():
+    r = _rentabilite(signal=_signal(statut="declaration_absente"))  # matériaux et main-d'œuvre inconnus
     charge = _charge(r)
 
-    assert charge["manque"] == ["REJ-COUT-MATERIAUX-REELS-ABSENTS"]
-    assert charge["cout_connu_cad"] == "150.00" and charge["cout_reel_cad"] is None
+    assert charge["manque"] == ["REJ-COUT-MATERIAUX-REELS-ABSENTS", "REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert charge["cout_connu_cad"] == "0" and charge["cout_reel_cad"] is None
     assert charge["marge_reelle_cad"] is None and charge["ecart_marge_cad"] is None
     assert erreurs_charge(TYPE, charge) == []
 
@@ -392,7 +393,8 @@ def test_un_cout_partiel_publie_ce_qui_manque_et_aucune_marge_pour_chaque_versio
         assert charge["cout_reel_cad"] is None
         assert erreurs_charge(TYPE, charge) == []
     derniere = publies[-1][2]
-    assert derniere["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert derniere["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER",
+                                 "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert derniere["marge_prevue_cad"] == "120.00"
 
 
