@@ -64,3 +64,9 @@ Contrat/fixture `8f6d9a572`, producteur et port privé `d83a19d4e242297400bdb65c
 La branche M5 lue à `cc2cd7e29b82a0607768b5c22732d11f6e89dd10` refuse encore `opsys.m4.temps_certifies.v3` (preuve `v3/m5-v3-compat-01.log`). Aucun changement M5 ni adaptation de transport n'a été effectué. La jonction et un coût complet restent non démontrés.
 
 Le calcul pur M5 sur la projection M4 fictive et des taux fictifs donne 250 + 480 = 730 CAD (`v3/m5-v3-calcul-pur-01.log`, exit 0). Le validateur M5 refuse simultanément V3 : ce test d'arithmétique contourne la validation et ne démontre ni une jonction de confiance ni un coût certifié.
+
+## Jonction indépendante et navigateur — reprise du 30 octobre
+
+La composition isolée M4 `24479141f0c4dfbfe194f9e330fb4041d310cc3c` + M5 `7f4e311af16d3702f69cfbe64e51ff8ca4746e3e`, sans fichier commun divergent, a été vérifiée par `jonction-v3-independante/jonction-indep-03.xml` : 3 tests verts, aucun skip. Cette preuve actualise les constats antérieurs fondés sur l'ancien M5 : le vrai outil M4 publie son WCT, le vrai répartiteur et consommateur M5 le reçoivent, le port V3 est relu et la ventilation fictive fournit 150 + 240 minutes et 730 CAD de main-d'œuvre, avec taux sourcés fictifs. Rejeu, rôle révoqué et source changée pendant lecture sont refusés. La revue de complétion est effectuée par primitive et la session console simulée ; ni la cascade financière durable ni la fraîcheur M8/M10 ne sont démontrées.
+
+Le navigateur intégré devenu disponible a permis une relecture après redémarrage : deux visites distinctes, motif météo, 150/240 minutes, journal, grille et refus du temps individuel ambigu observés. Il ne s'agit pas d'une saisie complète au navigateur ni d'un écran M5. L'onglet et le serveur QA ont été fermés. Les commandes, périmètres et échecs intermédiaires sont dans `CRM01-17-JONCTION-INDEPENDANTE.md`.
