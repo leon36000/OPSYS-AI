@@ -363,7 +363,7 @@ def _main_d_oeuvre(wct_recu: Mapping[str, Any] | None, taux_brut: Any) -> dict[s
 
 def _main_d_oeuvre_ventilee(
     wct: Mapping[str, Any] | None, projection: Any, tarifs: Any,
-    instance_id: Any, source_attendue: Any, sources_actuelles: Any,
+    instance_id: Any, source_attendue: Any, sources_actuelles: Any, source_relue: Any = None,
 ) -> dict[str, Any]:
     """Utilise des pièces obtenues et revalidées par un adaptateur propriétaire autorisé.
 
@@ -374,10 +374,16 @@ def _main_d_oeuvre_ventilee(
                 "cout": None, "cout_connu": None, "lignes": [], "manque": [], "projection_empreinte": None,
                 "tarifs_empreinte": None}
     wct_id = wct.get("wct_id") if wct is not None else None
-    controle = validation_projection_visites.valider_projection(
-        projection, instance_id=instance_id, wct_id=wct_id,
-        source_attendue=source_attendue, sources_actuelles=sources_actuelles,
-    )
+    if isinstance(projection, dict) and projection.get("version") == "opsys.m4.temps_certifies.v3":
+        controle = validation_projection_visites.valider_projection_v3(
+            projection, instance_id=instance_id, wct_id=wct_id, source_attendue=source_attendue,
+            source_relue=source_relue, sources_actuelles=sources_actuelles,
+        )
+    else:
+        controle = validation_projection_visites.valider_projection(
+            projection, instance_id=instance_id, wct_id=wct_id,
+            source_attendue=source_attendue, sources_actuelles=sources_actuelles,
+        )
     if not controle["valide"]:
         resultat["manque"].append(_manque("REJ-COUT-TEMPS-POINTE-ABSENT", "; ".join(controle["raisons"])))
         return resultat
@@ -435,6 +441,7 @@ def calculer_cout_reel(
     instance_id: Any = None,
     source_attendue: Any = None,
     sources_actuelles: Any = None,
+    source_relue: Any = None,
 ) -> dict[str, Any]:
     """Le coût réel d'un chantier, tel que les pièces lues à la source le permettent.
 
@@ -450,7 +457,8 @@ def calculer_cout_reel(
     materiaux = _materiaux(signal_variance, livre, _date_completion(wct_recu))
     main_d_oeuvre = (
         _main_d_oeuvre(wct_recu, taux_horaire) if projection is None else
-        _main_d_oeuvre_ventilee(wct_recu, projection, tarifs_equipes, instance_id, source_attendue, sources_actuelles)
+        _main_d_oeuvre_ventilee(wct_recu, projection, tarifs_equipes, instance_id, source_attendue,
+                                sources_actuelles, source_relue)
     )
     manque = [*materiaux["manque"], *main_d_oeuvre["manque"]]
     if autres:

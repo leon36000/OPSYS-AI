@@ -61,3 +61,28 @@ def test_empreinte_ne_protege_pas_une_source_perimee():
         source_attendue='a' * 64, source_relue='a' * 64, sources_actuelles=source_perimee,
     )
     assert not resultat['valide']
+
+
+def test_calcul_pur_v3_fictif_valide_les_deux_tarifs_sans_authentifier_la_fixture():
+    from decimal import Decimal
+
+    from m5_financecore import cout_reel
+
+    p = _projection()
+    wct = {'wct_id': p['wct']['wct_id'], 'intervention_id': p['intervention_id'],
+           'hash_maillon': p['wct']['hash_maillon'], 'duree_reelle_minutes': p['wct']['duree_reelle_minutes'],
+           'horodatage_completion': p['wct']['horodatage_completion']}
+    tarifs = [{'equipe_id': equipe, 'taux': taux, 'unite': 'heure-equipe', 'devise': 'CAD',
+               'source': 'fictif', 'version': '1', 'date_effet': '2030-01-01', 'date_fin': '2030-12-31'}
+              for equipe, taux in [('equipe-A-fictive', '100'), ('equipe-B-fictive', '120')]]
+    r = cout_reel.calculer_cout_reel(
+        wct, {'statut_variance': 'evaluee', 'lignes': []}, [], None, projection=p, tarifs_equipes=tarifs,
+        instance_id=p['instance_id'], source_attendue='a' * 64, source_relue='a' * 64,
+        sources_actuelles=p['sources'],
+    )
+    assert r['complet'] and r['cout_total'] == Decimal('730.00')
+    sans_relecture = cout_reel.calculer_cout_reel(
+        wct, {'statut_variance': 'evaluee', 'lignes': []}, [], None, projection=p, tarifs_equipes=tarifs,
+        instance_id=p['instance_id'], source_attendue='a' * 64, sources_actuelles=p['sources'],
+    )
+    assert not sans_relecture['complet'] and sans_relecture['cout_total'] is None
