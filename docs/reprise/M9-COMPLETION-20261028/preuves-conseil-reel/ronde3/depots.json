@@ -1,0 +1,138 @@
+{
+ "croissance_marketing": {
+  "tokens_reconcilies_estimation_deterministe": 3671,
+  "reservation_id": "f530f457602736b573c364e17ddf7de0",
+  "reconciliation": {
+   "id": "f530f457602736b573c364e17ddf7de0",
+   "agent_id": "m9-croissance-marketing",
+   "departement": "m09-strategic-intelligence",
+   "cle_idempotence": "cle-r3-croissance_marketing",
+   "tokens_plafond": 6000,
+   "tokens_reels": 3671,
+   "execution_id": "exec-r3-croissance_marketing",
+   "jour": "2026-10-29",
+   "mois": "2026-10",
+   "tours": 1,
+   "reessais": 0,
+   "statut": "conciliee",
+   "cree_le": "2026-10-29T03:43:07+00:00",
+   "modifie_le": "2026-10-29T03:43:07+00:00",
+   "depassement_plafond": false
+  },
+  "depot": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "rejoue": false,
+    "issue": "ADMIS",
+    "session_id": "bb1317fd68ab73cdfda41ab0cc50ca49",
+    "question": "Que devrait faire l'entreprise cette semaine avec les leads reçus et le stock de matériaux ?",
+    "importance": "courante",
+    "dossier_id": "f128ebcede4fac8a5aeda8f2c1a6dd31cb62e23677031490eeecf1e9209389b7",
+    "tours": [
+     {
+      "role": "conseiller_pdg",
+      "statut": "EN_ATTENTE",
+      "depots": 0,
+      "refus": [],
+      "reservation_id": null,
+      "tokens_reels": null,
+      "affirmations": 0
+     },
+     {
+      "role": "croissance_marketing",
+      "statut": "DEPOSE",
+      "depots": 2,
+      "refus": [
+       "REJ-CONSEIL-SORTIE"
+      ],
+      "reservation_id": "f530f457602736b573c364e17ddf7de0",
+      "tokens_reels": 3671,
+      "affirmations": 20
+     },
+     {
+      "role": "contraintes_inventaire",
+      "statut": "DEPOSE",
+      "depots": 1,
+      "refus": [],
+      "reservation_id": "7e544d1f089f62f349a40fd6f79c6ba5",
+      "tokens_reels": 3119,
+      "affirmations": 13
+     }
+    ],
+    "specialistes_tranches": false,
+    "critique_ouvert": false,
+    "toutes_tranchees": false,
+    "cloture": null
+   }
+  }
+ },
+ "conseiller_pdg": {
+  "tokens_reconcilies_estimation_deterministe": 3807,
+  "reservation_id": "3a20e8bf1c0b255afd1463a3971b5455",
+  "reconciliation": {
+   "id": "3a20e8bf1c0b255afd1463a3971b5455",
+   "agent_id": "m9-conseiller-pdg",
+   "departement": "m09-strategic-intelligence",
+   "cle_idempotence": "cle-r3-conseiller_pdg",
+   "tokens_plafond": 6000,
+   "tokens_reels": 3807,
+   "execution_id": "exec-r3-conseiller_pdg",
+   "jour": "2026-10-29",
+   "mois": "2026-10",
+   "tours": 1,
+   "reessais": 0,
+   "statut": "conciliee",
+   "cree_le": "2026-10-29T03:43:07+00:00",
+   "modifie_le": "2026-10-29T03:43:07+00:00",
+   "depassement_plafond": false
+  },
+  "depot": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "rejoue": false,
+    "issue": "ADMIS",
+    "session_id": "bb1317fd68ab73cdfda41ab0cc50ca49",
+    "question": "Que devrait faire l'entreprise cette semaine avec les leads reçus et le stock de matériaux ?",
+    "importance": "courante",
+    "dossier_id": "f128ebcede4fac8a5aeda8f2c1a6dd31cb62e23677031490eeecf1e9209389b7",
+    "tours": [
+     {
+      "role": "conseiller_pdg",
+      "statut": "DEPOSE",
+      "depots": 1,
+      "refus": [],
+      "reservation_id": "3a20e8bf1c0b255afd1463a3971b5455",
+      "tokens_reels": 3807,
+      "affirmations": 14
+     },
+     {
+      "role": "croissance_marketing",
+      "statut": "DEPOSE",
+      "depots": 2,
+      "refus": [
+       "REJ-CONSEIL-SORTIE"
+      ],
+      "reservation_id": "f530f457602736b573c364e17ddf7de0",
+      "tokens_reels": 3671,
+      "affirmations": 20
+     },
+     {
+      "role": "contraintes_inventaire",
+      "statut": "DEPOSE",
+      "depots": 1,
+      "refus": [],
+      "reservation_id": "7e544d1f089f62f349a40fd6f79c6ba5",
+      "tokens_reels": 3119,
+      "affirmations": 13
+     }
+    ],
+    "specialistes_tranches": true,
+    "critique_ouvert": false,
+    "toutes_tranchees": true,
+    "cloture": null
+   }
+  }
+ }
+}

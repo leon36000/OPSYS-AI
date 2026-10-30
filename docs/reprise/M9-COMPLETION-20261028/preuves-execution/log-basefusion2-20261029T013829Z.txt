@@ -1,0 +1,1449 @@
+FFF.FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF.........F..........F......... [ 64%]
+..................FFF..................                                  [100%]
+=================================== FAILURES ===================================
+________ test_revue_ap_privee_ne_lit_pas_sur_get_et_echappe_apres_post _________
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21ee5f9010>
+
+    def test_revue_ap_privee_ne_lit_pas_sur_get_et_echappe_apres_post(client_ap):
+        client = client_ap
+>       lot_id, revision_pdf = _lot_ap(client)
+                               ^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:137: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ee5f9010>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+________ test_boite_ap_bornee_privee_lie_a_revue_sans_clair_ni_ecriture ________
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21ecad9e50>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21eed53230>
+
+    def test_boite_ap_bornee_privee_lie_a_revue_sans_clair_ni_ecriture(client_ap, monkeypatch):
+>       lot_id, revision_pdf = _lot_ap(client_ap)
+                               ^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:175: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ecad9e50>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+___________ test_boite_ap_indique_source_perimee_et_revalide_au_clic ___________
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21ec4c47d0>
+
+    def test_boite_ap_indique_source_perimee_et_revalide_au_clic(client_ap):
+>       lot_id, revision_pdf = _lot_ap(client_ap)
+                               ^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:207: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ec4c47d0>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+_ test_formulaire_refuse_csrf_doublon_taille_et_reference_forgee_sans_ecriture _
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21ee675940>
+
+    def test_formulaire_refuse_csrf_doublon_taille_et_reference_forgee_sans_ecriture(client_ap):
+        client = client_ap
+>       lot_id, revision_pdf = _lot_ap(client)
+                               ^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:242: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ee675940>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+_____________ test_percent_malforme_refuse_sans_brouillon_ap[%ZZ] ______________
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21e7f367b0>
+sequence = '%ZZ'
+
+    @pytest.mark.parametrize("sequence", ["%ZZ", "%", "%0"])
+    def test_percent_malforme_refuse_sans_brouillon_ap(client_ap, sequence):
+        client = client_ap
+>       lot_id, revision_pdf = _lot_ap(client)
+                               ^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:290: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21e7f367b0>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+______________ test_percent_malforme_refuse_sans_brouillon_ap[%] _______________
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21e7148490>
+sequence = '%'
+
+    @pytest.mark.parametrize("sequence", ["%ZZ", "%", "%0"])
+    def test_percent_malforme_refuse_sans_brouillon_ap(client_ap, sequence):
+        client = client_ap
+>       lot_id, revision_pdf = _lot_ap(client)
+                               ^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:290: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21e7148490>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+______________ test_percent_malforme_refuse_sans_brouillon_ap[%0] ______________
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21eedaabe0>
+sequence = '%0'
+
+    @pytest.mark.parametrize("sequence", ["%ZZ", "%", "%0"])
+    def test_percent_malforme_refuse_sans_brouillon_ap(client_ap, sequence):
+        client = client_ap
+>       lot_id, revision_pdf = _lot_ap(client)
+                               ^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:290: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21eedaabe0>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+_ test_revision_stale_et_role_revoque_apres_dechiffrement_ne_rendent_pas_de_clair _
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21e6d0b020>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21e7f6c410>
+
+    def test_revision_stale_et_role_revoque_apres_dechiffrement_ne_rendent_pas_de_clair(client_ap, monkeypatch):
+        client = client_ap
+>       lot_id, revision_pdf = _lot_ap(client)
+                               ^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:308: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21e6d0b020>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+_ test_lecture_atomique_associe_champs_et_revision_pendant_modification_concurrente _
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21eceb09e0>
+
+    def test_lecture_atomique_associe_champs_et_revision_pendant_modification_concurrente(client_ap):
+>       lot_id, revision_pdf = _lot_ap(client_ap)
+                               ^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:346: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21eceb09e0>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+____ test_employe_cle_absente_et_cipher_corrompu_ne_peuvent_lire_les_champs ____
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21ec1c6030>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ecfcfaf0>
+
+    def test_employe_cle_absente_et_cipher_corrompu_ne_peuvent_lire_les_champs(client_ap, monkeypatch):
+        client = client_ap
+>       lot_id, revision_pdf = _lot_ap(client)
+                               ^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:394: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ec1c6030>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+_______ test_role_revoque_pendant_rendu_ne_recoit_pas_le_html_dechiffre ________
+
+client_ap = <starlette.testclient.TestClient object at 0x7f21eea74af0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ece27450>
+
+    def test_role_revoque_pendant_rendu_ne_recoit_pas_le_html_dechiffre(client_ap, monkeypatch):
+        client = client_ap
+>       lot_id, revision_pdf = _lot_ap(client)
+                               ^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap.py:420: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21eea74af0>
+
+    def _lot_ap(client: TestClient) -> tuple[str, int]:
+        lot = fusion_pdf.creer(
+            stockage.transaction,
+            "nathan",
+            mutation_id="ap-ui-pdf-fictif-1",
+            pdf_octets=_pdf_fictif(),
+        )
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap.py:84: AssertionError
+_______ test_verification_m5_http_privee_observe_sans_aucun_effet_metier _______
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21eecd8c00>
+
+    def test_verification_m5_http_privee_observe_sans_aucun_effet_metier(client_ap_m5):
+        _reception_m5()  # Établie avant la comparaison de toutes les tables.
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:164: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21eecd8c00>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_verification_m5_refus_et_formulaires_invalides_sans_ecriture[overrides0-jeton CSRF absent ou invalide-403] _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21e71d6140>
+overrides = {'csrf': 'bad'}, code = 'jeton CSRF absent ou invalide'
+status = 403
+
+    @pytest.mark.parametrize("overrides,code,status", [
+        ({"csrf": "bad"}, "jeton CSRF absent ou invalide", 403),
+        ({"correspondance_confirmee": "non"}, "CORRESPONDANCE_NON_ATTESTEE", 400),
+        ({"po_id": "PO-ABSENT"}, "REJ-AP-FACTURE-PO-SANS-RECEPTION", 409),
+        ({"fournisseur_id": "autre"}, "REJ-AP-FACTURE-FOURNISSEUR-DIFFERENT-DU-PO", 409),
+    ])
+    def test_verification_m5_refus_et_formulaires_invalides_sans_ecriture(client_ap_m5, overrides, code, status):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:193: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21e71d6140>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_verification_m5_refus_et_formulaires_invalides_sans_ecriture[overrides1-CORRESPONDANCE_NON_ATTESTEE-400] _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21e726b680>
+overrides = {'correspondance_confirmee': 'non'}
+code = 'CORRESPONDANCE_NON_ATTESTEE', status = 400
+
+    @pytest.mark.parametrize("overrides,code,status", [
+        ({"csrf": "bad"}, "jeton CSRF absent ou invalide", 403),
+        ({"correspondance_confirmee": "non"}, "CORRESPONDANCE_NON_ATTESTEE", 400),
+        ({"po_id": "PO-ABSENT"}, "REJ-AP-FACTURE-PO-SANS-RECEPTION", 409),
+        ({"fournisseur_id": "autre"}, "REJ-AP-FACTURE-FOURNISSEUR-DIFFERENT-DU-PO", 409),
+    ])
+    def test_verification_m5_refus_et_formulaires_invalides_sans_ecriture(client_ap_m5, overrides, code, status):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:193: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21e726b680>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_verification_m5_refus_et_formulaires_invalides_sans_ecriture[overrides2-REJ-AP-FACTURE-PO-SANS-RECEPTION-409] _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ee544f30>
+overrides = {'po_id': 'PO-ABSENT'}, code = 'REJ-AP-FACTURE-PO-SANS-RECEPTION'
+status = 409
+
+    @pytest.mark.parametrize("overrides,code,status", [
+        ({"csrf": "bad"}, "jeton CSRF absent ou invalide", 403),
+        ({"correspondance_confirmee": "non"}, "CORRESPONDANCE_NON_ATTESTEE", 400),
+        ({"po_id": "PO-ABSENT"}, "REJ-AP-FACTURE-PO-SANS-RECEPTION", 409),
+        ({"fournisseur_id": "autre"}, "REJ-AP-FACTURE-FOURNISSEUR-DIFFERENT-DU-PO", 409),
+    ])
+    def test_verification_m5_refus_et_formulaires_invalides_sans_ecriture(client_ap_m5, overrides, code, status):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:193: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ee544f30>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_verification_m5_refus_et_formulaires_invalides_sans_ecriture[overrides3-REJ-AP-FACTURE-FOURNISSEUR-DIFFERENT-DU-PO-409] _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21e71f09e0>
+overrides = {'fournisseur_id': 'autre'}
+code = 'REJ-AP-FACTURE-FOURNISSEUR-DIFFERENT-DU-PO', status = 409
+
+    @pytest.mark.parametrize("overrides,code,status", [
+        ({"csrf": "bad"}, "jeton CSRF absent ou invalide", 403),
+        ({"correspondance_confirmee": "non"}, "CORRESPONDANCE_NON_ATTESTEE", 400),
+        ({"po_id": "PO-ABSENT"}, "REJ-AP-FACTURE-PO-SANS-RECEPTION", 409),
+        ({"fournisseur_id": "autre"}, "REJ-AP-FACTURE-FOURNISSEUR-DIFFERENT-DU-PO", 409),
+    ])
+    def test_verification_m5_refus_et_formulaires_invalides_sans_ecriture(client_ap_m5, overrides, code, status):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:193: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21e71f09e0>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_____ test_verification_m5_refuse_admin_sans_finance_et_revisions_perimees _____
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ec8b1f20>
+
+    def test_verification_m5_refuse_admin_sans_finance_et_revisions_perimees(client_ap_m5):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:205: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ec8b1f20>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements0-AP_TAXES_IMPRIMEES_INCOHERENTES] _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ec7db460>
+changements = {'taxe_imprimee': '14.99'}
+code = 'AP_TAXES_IMPRIMEES_INCOHERENTES'
+
+    @pytest.mark.parametrize("changements,code", [
+        ({"taxe_imprimee": "14.99"}, "AP_TAXES_IMPRIMEES_INCOHERENTES"),
+        ({"total_imprime": "114.99"}, "REJ-AP-FACTURE-TOTAL-INCOHERENT"),
+        ({"devise": "USD"}, "REJ-AP-DEVISE-NON-CAD"),
+        ({"sous_total_imprime": "100.00 CAD"}, "AP_MONTANTS_A_REVOIR"),
+        ({"taxe_imprimee": "14,98"}, "AP_MONTANTS_A_REVOIR"),
+        ({"total_imprime": "1e3"}, "AP_MONTANTS_A_REVOIR"),
+    ])
+    def test_verification_m5_refuse_taxes_et_total_imprimes_incoherents(client_ap_m5, changements, code):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5, changements=changements)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:232: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ec7db460>
+changements = {'taxe_imprimee': '14.99'}
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements1-REJ-AP-FACTURE-TOTAL-INCOHERENT] _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ee4c89e0>
+changements = {'total_imprime': '114.99'}
+code = 'REJ-AP-FACTURE-TOTAL-INCOHERENT'
+
+    @pytest.mark.parametrize("changements,code", [
+        ({"taxe_imprimee": "14.99"}, "AP_TAXES_IMPRIMEES_INCOHERENTES"),
+        ({"total_imprime": "114.99"}, "REJ-AP-FACTURE-TOTAL-INCOHERENT"),
+        ({"devise": "USD"}, "REJ-AP-DEVISE-NON-CAD"),
+        ({"sous_total_imprime": "100.00 CAD"}, "AP_MONTANTS_A_REVOIR"),
+        ({"taxe_imprimee": "14,98"}, "AP_MONTANTS_A_REVOIR"),
+        ({"total_imprime": "1e3"}, "AP_MONTANTS_A_REVOIR"),
+    ])
+    def test_verification_m5_refuse_taxes_et_total_imprimes_incoherents(client_ap_m5, changements, code):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5, changements=changements)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:232: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ee4c89e0>
+changements = {'total_imprime': '114.99'}
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements2-REJ-AP-DEVISE-NON-CAD] _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ecfdc9e0>
+changements = {'devise': 'USD'}, code = 'REJ-AP-DEVISE-NON-CAD'
+
+    @pytest.mark.parametrize("changements,code", [
+        ({"taxe_imprimee": "14.99"}, "AP_TAXES_IMPRIMEES_INCOHERENTES"),
+        ({"total_imprime": "114.99"}, "REJ-AP-FACTURE-TOTAL-INCOHERENT"),
+        ({"devise": "USD"}, "REJ-AP-DEVISE-NON-CAD"),
+        ({"sous_total_imprime": "100.00 CAD"}, "AP_MONTANTS_A_REVOIR"),
+        ({"taxe_imprimee": "14,98"}, "AP_MONTANTS_A_REVOIR"),
+        ({"total_imprime": "1e3"}, "AP_MONTANTS_A_REVOIR"),
+    ])
+    def test_verification_m5_refuse_taxes_et_total_imprimes_incoherents(client_ap_m5, changements, code):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5, changements=changements)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:232: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ecfdc9e0>
+changements = {'devise': 'USD'}
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements3-AP_MONTANTS_A_REVOIR] _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ecc75f20>
+changements = {'sous_total_imprime': '100.00 CAD'}
+code = 'AP_MONTANTS_A_REVOIR'
+
+    @pytest.mark.parametrize("changements,code", [
+        ({"taxe_imprimee": "14.99"}, "AP_TAXES_IMPRIMEES_INCOHERENTES"),
+        ({"total_imprime": "114.99"}, "REJ-AP-FACTURE-TOTAL-INCOHERENT"),
+        ({"devise": "USD"}, "REJ-AP-DEVISE-NON-CAD"),
+        ({"sous_total_imprime": "100.00 CAD"}, "AP_MONTANTS_A_REVOIR"),
+        ({"taxe_imprimee": "14,98"}, "AP_MONTANTS_A_REVOIR"),
+        ({"total_imprime": "1e3"}, "AP_MONTANTS_A_REVOIR"),
+    ])
+    def test_verification_m5_refuse_taxes_et_total_imprimes_incoherents(client_ap_m5, changements, code):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5, changements=changements)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:232: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ecc75f20>
+changements = {'sous_total_imprime': '100.00 CAD'}
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements4-AP_MONTANTS_A_REVOIR] _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21e757f460>
+changements = {'taxe_imprimee': '14,98'}, code = 'AP_MONTANTS_A_REVOIR'
+
+    @pytest.mark.parametrize("changements,code", [
+        ({"taxe_imprimee": "14.99"}, "AP_TAXES_IMPRIMEES_INCOHERENTES"),
+        ({"total_imprime": "114.99"}, "REJ-AP-FACTURE-TOTAL-INCOHERENT"),
+        ({"devise": "USD"}, "REJ-AP-DEVISE-NON-CAD"),
+        ({"sous_total_imprime": "100.00 CAD"}, "AP_MONTANTS_A_REVOIR"),
+        ({"taxe_imprimee": "14,98"}, "AP_MONTANTS_A_REVOIR"),
+        ({"total_imprime": "1e3"}, "AP_MONTANTS_A_REVOIR"),
+    ])
+    def test_verification_m5_refuse_taxes_et_total_imprimes_incoherents(client_ap_m5, changements, code):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5, changements=changements)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:232: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21e757f460>
+changements = {'taxe_imprimee': '14,98'}
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements5-AP_MONTANTS_A_REVOIR] _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21eea20270>
+changements = {'total_imprime': '1e3'}, code = 'AP_MONTANTS_A_REVOIR'
+
+    @pytest.mark.parametrize("changements,code", [
+        ({"taxe_imprimee": "14.99"}, "AP_TAXES_IMPRIMEES_INCOHERENTES"),
+        ({"total_imprime": "114.99"}, "REJ-AP-FACTURE-TOTAL-INCOHERENT"),
+        ({"devise": "USD"}, "REJ-AP-DEVISE-NON-CAD"),
+        ({"sous_total_imprime": "100.00 CAD"}, "AP_MONTANTS_A_REVOIR"),
+        ({"taxe_imprimee": "14,98"}, "AP_MONTANTS_A_REVOIR"),
+        ({"total_imprime": "1e3"}, "AP_MONTANTS_A_REVOIR"),
+    ])
+    def test_verification_m5_refuse_taxes_et_total_imprimes_incoherents(client_ap_m5, changements, code):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5, changements=changements)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:232: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21eea20270>
+changements = {'total_imprime': '1e3'}
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+________ test_verification_m5_refuse_une_facture_deja_saisie_sans_effet ________
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ecc809e0>
+
+    def test_verification_m5_refuse_une_facture_deja_saisie_sans_effet(client_ap_m5):
+        _reception_m5()
+        _facture_existante_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:243: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ecc809e0>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+____ test_verification_m5_rejette_query_champs_dupliques_et_injection_html _____
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ec159f20>
+
+    def test_verification_m5_rejette_query_champs_dupliques_et_injection_html(client_ap_m5):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:253: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ec159f20>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_________ test_verification_m5_revalide_identite_apres_appel_bloquant __________
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ee9249e0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21e7f76350>
+
+    def test_verification_m5_revalide_identite_apres_appel_bloquant(client_ap_m5, monkeypatch):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:274: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ee9249e0>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+___ test_verification_m5_ne_rend_pas_les_details_d_une_exception_inattendue ____
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21eea20380>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ece315c0>
+
+    def test_verification_m5_ne_rend_pas_les_details_d_une_exception_inattendue(client_ap_m5, monkeypatch):
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:292: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21eea20380>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_______ test_role_finance_revoque_pendant_rendu_html_masque_le_resultat ________
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ecfb9f20>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ec882900>
+
+    def test_role_finance_revoque_pendant_rendu_html_masque_le_resultat(client_ap_m5, monkeypatch):
+        from opsys.console import pages
+    
+        _reception_m5()
+>       lot_id, revision_pdf = _lot_avec_brouillon(client_ap_m5)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5.py:306: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ecfb9f20>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+E       AssertionError: assert 'ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E         
+E         - EXTRAIT_PREPARATOIRE
+E         + ERREUR_REPRENABLE
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_____ test_reference_retrouvee_apres_reconnexion_get_sans_post_ni_ecriture _____
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21e760b460>
+
+    def test_reference_retrouvee_apres_reconnexion_get_sans_post_ni_ecriture(client_ap_m5):
+>       lot_id, facture_id, receipt = _confirmation(client_ap_m5)
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_reference.py:83: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_ap_m5_reference.py:45: in _confirmation
+    lot_id, revision_pdf = _BASE._lot_avec_brouillon(client)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21e760b460>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+__ test_reference_reflète_correction_et_annulation_m5_sans_effacer_l_origine ___
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ee65c270>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21e73d73f0>
+
+    def test_reference_reflète_correction_et_annulation_m5_sans_effacer_l_origine(client_ap_m5, monkeypatch):
+>       lot_id, facture_id, _ = _confirmation(client_ap_m5)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_reference.py:107: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_ap_m5_reference.py:45: in _confirmation
+    lot_id, revision_pdf = _BASE._lot_avec_brouillon(client)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ee65c270>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_______ test_admin_sans_finance_ne_lit_pas_et_n_affiche_pas_la_reference _______
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21eedab460>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21e743b150>
+
+    def test_admin_sans_finance_ne_lit_pas_et_n_affiche_pas_la_reference(client_ap_m5, monkeypatch):
+        _BASE._reception_m5()
+>       lot_id, _ = _BASE._lot_avec_brouillon(client_ap_m5)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_reference.py:166: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21eedab460>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+______ test_ids_de_reference_sont_echappes_et_aucun_detail_m5_n_est_rendu ______
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ecefa250>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21e7662190>
+
+    def test_ids_de_reference_sont_echappes_et_aucun_detail_m5_n_est_rendu(client_ap_m5, monkeypatch):
+>       lot_id, _, _ = _confirmation(client_ap_m5)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_reference.py:176: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_ap_m5_reference.py:45: in _confirmation
+    lot_id, revision_pdf = _BASE._lot_avec_brouillon(client)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ecefa250>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+____ test_retrait_finance_en_lecture_ou_rendu_refuse_le_html_prive[lecture] ____
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ec41b8a0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ecf9d470>
+etape = 'lecture'
+
+    @pytest.mark.parametrize("etape", ["lecture", "rendu"])
+    def test_retrait_finance_en_lecture_ou_rendu_refuse_le_html_prive(client_ap_m5, monkeypatch, etape):
+>       lot_id, facture_id, _ = _confirmation(client_ap_m5)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_reference.py:196: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_ap_m5_reference.py:45: in _confirmation
+    lot_id, revision_pdf = _BASE._lot_avec_brouillon(client)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ec41b8a0>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_____ test_retrait_finance_en_lecture_ou_rendu_refuse_le_html_prive[rendu] _____
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21eea21480>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ecaaa890>
+etape = 'rendu'
+
+    @pytest.mark.parametrize("etape", ["lecture", "rendu"])
+    def test_retrait_finance_en_lecture_ou_rendu_refuse_le_html_prive(client_ap_m5, monkeypatch, etape):
+>       lot_id, facture_id, _ = _confirmation(client_ap_m5)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_reference.py:196: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_ap_m5_reference.py:45: in _confirmation
+    lot_id, revision_pdf = _BASE._lot_avec_brouillon(client)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21eea21480>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+____ test_corruption_de_la_reference_est_503_et_ne_devient_pas_une_absence _____
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ec73cc00>
+
+    def test_corruption_de_la_reference_est_503_et_ne_devient_pas_une_absence(client_ap_m5):
+>       lot_id, facture_id, _ = _confirmation(client_ap_m5)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_reference.py:229: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_ap_m5_reference.py:45: in _confirmation
+    lot_id, revision_pdf = _BASE._lot_avec_brouillon(client)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ec73cc00>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+__ test_observation_puis_saisie_confirmee_et_rejeu_creent_une_seule_reference __
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21e75b6250>
+
+    def test_observation_puis_saisie_confirmee_et_rejeu_creent_une_seule_reference(client_ap_m5):
+>       lot_id, revision_pdf, url, fields, observation = _preparer_confirmation(client_ap_m5)
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_saisie.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_ap_m5_saisie.py:55: in _preparer_confirmation
+    lot_id, revision_pdf = _BASE._lot_avec_brouillon(client)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21e75b6250>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_ test_saisie_m5_refuse_csrf_confirmation_hash_query_et_champs_inconnus_sans_effet _
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ec2d38a0>
+
+    def test_saisie_m5_refuse_csrf_confirmation_hash_query_et_champs_inconnus_sans_effet(client_ap_m5):
+>       lot_id, _, url, fields, _ = _preparer_confirmation(client_ap_m5)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_saisie.py:106: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_ap_m5_saisie.py:55: in _preparer_confirmation
+    lot_id, revision_pdf = _BASE._lot_avec_brouillon(client)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ec2d38a0>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_______ test_saisie_m5_refuse_admin_sans_finance_sans_appeler_le_backend _______
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21ec4e8f30>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21eca419b0>
+
+    def test_saisie_m5_refuse_admin_sans_finance_sans_appeler_le_backend(client_ap_m5, monkeypatch):
+        _BASE._reception_m5()
+>       lot_id, _ = _BASE._lot_avec_brouillon(client_ap_m5)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_saisie.py:134: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21ec4e8f30>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+_______ test_saisie_m5_ne_rend_pas_le_recu_si_role_revoque_apres_commit ________
+
+client_ap_m5 = <starlette.testclient.TestClient object at 0x7f21e6ef8c00>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21e6e39710>
+
+    def test_saisie_m5_ne_rend_pas_le_recu_si_role_revoque_apres_commit(client_ap_m5, monkeypatch):
+>       lot_id, _, url, fields, _ = _preparer_confirmation(client_ap_m5)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_fusion_ap_m5_saisie.py:149: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_ap_m5_saisie.py:55: in _preparer_confirmation
+    lot_id, revision_pdf = _BASE._lot_avec_brouillon(client)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x7f21e6ef8c00>
+changements = None
+
+    def _lot_avec_brouillon(client: TestClient, *, changements: dict[str, str] | None = None) -> tuple[str, int]:
+        lot = fusion_pdf.creer(stockage.transaction, "nathan", mutation_id="ap-m5-pdf-fictif-1", pdf_octets=_pdf())
+        extrait = fusion_pdf.preparer(stockage.transaction, "nathan", lot["lot_id"], lot["revision"])
+>       assert extrait["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_console_fusion_ap_m5.py:133: AssertionError
+__________ test_hub_et_admission_rejeu_prive_et_preparation_explicite __________
+
+client_pdf = <starlette.testclient.TestClient object at 0x7f21ece86250>
+pdf_fictif = b'%PDF-1.4\n%\x93\x8c\x8b\x9e ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R\n>>\nend...rtLab generated PDF document -- digest (opensource)\n\n/Info 6 0 R\n/Root 5 0 R\n/Size 9\n>>\nstartxref\n1973\n%%EOF\n'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21f1f435b0>
+
+    def test_hub_et_admission_rejeu_prive_et_preparation_explicite(client_pdf, pdf_fictif, monkeypatch):
+        client = client_pdf
+        hub = client.get("/fusion")
+        assert hub.status_code == 200 and "/fusion-operationnelle" in hub.text and "/fusion/pdf" in hub.text
+        lire_resultat_original = fusion_pdf.lire_resultat
+        monkeypatch.setattr(fusion_pdf, "lire_resultat", lambda *_: pytest.fail("GET implicite du résultat"))
+        page = client.get("/fusion/pdf")
+        assert page.status_code == 200 and "private" in page.headers["cache-control"]
+        assert MARKER not in page.text
+        csrf = _csrf(page.text)
+    
+        first = _admettre(client, csrf, pdf_fictif)
+        assert first.status_code == 303, first.text
+        lot_id = _lot_id(first.headers["location"])
+        assert MARKER not in first.text
+        quota, rows = _quota_et_lots()
+        assert quota.lots == 1 and len(rows) == 1
+        assert rows[0]["source_cipher"].encode() != pdf_fictif
+        assert pdf_fictif not in rows[0]["source_cipher"].encode()
+    
+        replay = _admettre(client, csrf, pdf_fictif)
+        assert replay.status_code == 303 and _lot_id(replay.headers["location"]) == lot_id
+        assert _quota_et_lots()[0].lots == 1
+    
+        detail = client.get(f"/fusion/pdf/lots/{lot_id}")
+        assert detail.status_code == 200 and MARKER not in detail.text
+        assert "Préparer les extraits" in detail.text
+        assert detail.headers["cache-control"] == "private, no-store, max-age=0"
+    
+        prepared = client.post(
+            f"/fusion/pdf/lots/{lot_id}/preparer",
+            data={"csrf": csrf, "revision_attendue": "1"},
+            follow_redirects=False,
+        )
+        assert prepared.status_code == 303, prepared.text
+        with stockage.transaction() as cnx:
+            row = cnx.execute(select(FUSION_PDF_LOTS).where(FUSION_PDF_LOTS.c.lot_id == lot_id)).one()
+>           assert row.statut == "EXTRAIT_PREPARATOIRE" and row.revision == 2
+E           AssertionError: assert ('ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E             
+E             - EXTRAIT_PREPARATOIRE
+E             + ERREUR_REPRENABLE)
+
+tests/test_console_fusion_pdf.py:132: AssertionError
+_______ test_admin_partage_les_lots_de_la_meme_sqlite_sans_acces_employe _______
+
+client_pdf = <starlette.testclient.TestClient object at 0x7f21ec5bdf20>
+pdf_fictif = b'%PDF-1.4\n%\x93\x8c\x8b\x9e ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R\n>>\nend...rtLab generated PDF document -- digest (opensource)\n\n/Info 6 0 R\n/Root 5 0 R\n/Size 9\n>>\nstartxref\n1973\n%%EOF\n'
+
+    def test_admin_partage_les_lots_de_la_meme_sqlite_sans_acces_employe(client_pdf, pdf_fictif):
+        client = client_pdf
+        csrf = _csrf(client.get("/fusion/pdf"))
+        cree = _admettre(client, csrf, pdf_fictif, mutation="auteur-owner-fictif")
+        assert cree.status_code == 303
+        lot_id = _lot_id(cree.headers["location"])
+        csrf_admin = _connecter(client, ADMIN)
+        listing = client.get("/fusion/pdf")
+        assert listing.status_code == 200 and lot_id in listing.text and OWNER in listing.text
+        detail = client.get(f"/fusion/pdf/lots/{lot_id}")
+        assert detail.status_code == 200 and OWNER in detail.text
+        refuse = client.post(
+            f"/fusion/pdf/lots/{lot_id}/preparer",
+            data={"csrf": csrf_admin, "revision_attendue": "1"},
+            follow_redirects=False,
+        )
+        assert refuse.status_code == 303, refuse.text
+>       assert client.get(f"/fusion/pdf/lots/{lot_id}/extraits?page=1").status_code == 200
+E       AssertionError: assert 409 == 200
+E        +  where 409 = <Response [409 Conflict]>.status_code
+E        +    where <Response [409 Conflict]> = get('/fusion/pdf/lots/f56639f8-ac30-4715-b282-4ccf68bac289/extraits?page=1')
+E        +      where get = <starlette.testclient.TestClient object at 0x7f21ec5bdf20>.get
+
+tests/test_console_fusion_pdf.py:160: AssertionError
+___ test_retrait_role_apres_worker_masque_reponse_mais_conserve_etat_durable ___
+
+client_pdf = <starlette.testclient.TestClient object at 0x7f21ec9be580>
+pdf_fictif = b'%PDF-1.4\n%\x93\x8c\x8b\x9e ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R\n>>\nend...rtLab generated PDF document -- digest (opensource)\n\n/Info 6 0 R\n/Root 5 0 R\n/Size 9\n>>\nstartxref\n1973\n%%EOF\n'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ec4b5710>
+
+    def test_retrait_role_apres_worker_masque_reponse_mais_conserve_etat_durable(client_pdf, pdf_fictif, monkeypatch):
+        client = client_pdf
+        csrf = _csrf(client.get("/fusion/pdf"))
+        cree = _admettre(client, csrf, pdf_fictif, mutation="retrait-post-worker-fictif")
+        assert cree.status_code == 303
+        lot_id = _lot_id(cree.headers["location"])
+        preparer_original = fusion_pdf.preparer
+    
+        def preparer_puis_retirer_role(fabrique, acteur, identifiant, revision):
+            resultat = preparer_original(fabrique, acteur, identifiant, revision)
+            with stockage.transaction() as cnx:
+                identite.retirer_role(cnx, OWNER, "nathan_owner")
+            return resultat
+    
+        monkeypatch.setattr(fusion_pdf, "preparer", preparer_puis_retirer_role)
+        response = client.post(
+            f"/fusion/pdf/lots/{lot_id}/preparer",
+            data={"csrf": csrf, "revision_attendue": "1"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 403
+        with stockage.transaction() as cnx:
+            saved = cnx.execute(select(FUSION_PDF_LOTS).where(FUSION_PDF_LOTS.c.lot_id == lot_id)).one()
+>           assert saved.statut == "EXTRAIT_PREPARATOIRE" and saved.revision == 2
+E           AssertionError: assert ('ERREUR_REPRENABLE' == 'EXTRAIT_PREPARATOIRE'
+E             
+E             - EXTRAIT_PREPARATOIRE
+E             + ERREUR_REPRENABLE)
+
+tests/test_console_fusion_pdf.py:270: AssertionError
+____ test_cle_absente_et_cipher_resultat_corrompu_retournent_codes_stables _____
+
+client_pdf = <starlette.testclient.TestClient object at 0x7f21ecefb460>
+pdf_fictif = b'%PDF-1.4\n%\x93\x8c\x8b\x9e ReportLab Generated PDF document (opensource)\n1 0 obj\n<<\n/F1 2 0 R /F2 3 0 R\n>>\nend...rtLab generated PDF document -- digest (opensource)\n\n/Info 6 0 R\n/Root 5 0 R\n/Size 9\n>>\nstartxref\n1973\n%%EOF\n'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ec583690>
+
+    def test_cle_absente_et_cipher_resultat_corrompu_retournent_codes_stables(client_pdf, pdf_fictif, monkeypatch):
+        client = client_pdf
+        csrf = _csrf(client.get("/fusion/pdf"))
+        cree = _admettre(client, csrf, pdf_fictif, mutation="resultat-protege-fictif")
+        assert cree.status_code == 303
+        lot_id = _lot_id(cree.headers["location"])
+        prepared = client.post(
+            f"/fusion/pdf/lots/{lot_id}/preparer",
+            data={"csrf": csrf, "revision_attendue": "1"},
+            follow_redirects=False,
+        )
+        assert prepared.status_code == 303
+    
+        monkeypatch.delenv("OPSYS_INGESTION_CLE")
+        cle_absente = client.get(f"/fusion/pdf/lots/{lot_id}/extraits?page=1")
+>       assert cle_absente.status_code == 503 and "CLE_INDISPONIBLE" in cle_absente.text
+E       assert (409 == 503)
+E        +  where 409 = <Response [409 Conflict]>.status_code
+
+tests/test_console_fusion_pdf.py:392: AssertionError
+_____ test_parcours_console_ocr_m5_verification_pure_n3_reference_et_rejeu _____
+
+request = <FixtureRequest for <Function test_parcours_console_ocr_m5_verification_pure_n3_reference_et_rejeu>>
+client_ocr = <starlette.testclient.TestClient object at 0x7f21ec4e89e0>
+moteur_ocr_fictif = PosixPath('/tmp/claude-0/-home-user-OPSYS-AI/dabfe10a-2e6a-58d8-bdac-b0fffeab8b8b/scratchpad/m9/qa-basefusion2-20261029T013829Z/tmp/pytest-of-root/pytest-0/test_parcours_console_ocr_m5_v0/bundle-administrateur-fictif')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ecf9cc20>
+tmp_path = PosixPath('/tmp/claude-0/-home-user-OPSYS-AI/dabfe10a-2e6a-58d8-bdac-b0fffeab8b8b/scratchpad/m9/qa-basefusion2-20261029T013829Z/tmp/pytest-of-root/pytest-0/test_parcours_console_ocr_m5_v0')
+
+    def test_parcours_console_ocr_m5_verification_pure_n3_reference_et_rejeu(
+        request, client_ocr, moteur_ocr_fictif, monkeypatch, tmp_path,
+    ):
+>       lot, run, editor = _preparer_parcours_m5_ui(
+            request, client_ocr, monkeypatch, tmp_path, moteur_ocr_fictif, "parcours-m5-ocr-ui-fictif",
+        )
+
+tests/test_console_fusion_pdf_ocr.py:313: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_pdf_ocr.py:234: in _preparer_parcours_m5_ui
+    _M5.ap_m5.__wrapped__(request.getfixturevalue("nathan"), monkeypatch, tmp_path)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+nathan = 'nathan'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ecf9cc20>
+tmp_path = PosixPath('/tmp/claude-0/-home-user-OPSYS-AI/dabfe10a-2e6a-58d8-bdac-b0fffeab8b8b/scratchpad/m9/qa-basefusion2-20261029T013829Z/tmp/pytest-of-root/pytest-0/test_parcours_console_ocr_m5_v0')
+
+    @pytest.fixture
+    def ap_m5(nathan, monkeypatch, tmp_path):
+        monkeypatch.setenv("OPSYS_INGESTION_CLE", base64.b64encode(b"v" * 32).decode())
+        taux = tmp_path / "taux-fictif.yaml"
+        taux.write_bytes(Path(outils._CHEMIN_TAUX_FISCAUX).read_bytes())
+        monkeypatch.setattr(outils, "_CHEMIN_TAUX_FISCAUX", taux)
+        pdf = fusion_pdf.creer(stockage.transaction, nathan, mutation_id="ap-m5-fictif",
+                               pdf_octets=_facture_pdf_fictive())
+        pdf = fusion_pdf.preparer(stockage.transaction, nathan, pdf["lot_id"], pdf["revision"])
+>       assert pdf["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_fusion_ap_m5.py:42: AssertionError
+_ test_parcours_console_ocr_m5_source_alteree_avant_confirmation_n3_refuse_sans_append[pdf_perime] _
+
+request = <FixtureRequest for <Function test_parcours_console_ocr_m5_source_alteree_avant_confirmation_n3_refuse_sans_append[pdf_perime]>>
+client_ocr = <starlette.testclient.TestClient object at 0x7f21ec4ea360>
+moteur_ocr_fictif = PosixPath('/tmp/claude-0/-home-user-OPSYS-AI/dabfe10a-2e6a-58d8-bdac-b0fffeab8b8b/scratchpad/m9/qa-basefusion2-20261029T013829Z/tmp/pytest-of-root/pytest-0/test_parcours_console_ocr_m5_s0/bundle-administrateur-fictif')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ecca1f60>
+tmp_path = PosixPath('/tmp/claude-0/-home-user-OPSYS-AI/dabfe10a-2e6a-58d8-bdac-b0fffeab8b8b/scratchpad/m9/qa-basefusion2-20261029T013829Z/tmp/pytest-of-root/pytest-0/test_parcours_console_ocr_m5_s0')
+alteration = 'pdf_perime'
+
+    @pytest.mark.parametrize("alteration", ["pdf_perime", "revision_aad_corrompue"])
+    def test_parcours_console_ocr_m5_source_alteree_avant_confirmation_n3_refuse_sans_append(
+        request, client_ocr, moteur_ocr_fictif, monkeypatch, tmp_path, alteration,
+    ):
+>       lot, run, editor = _preparer_parcours_m5_ui(
+            request, client_ocr, monkeypatch, tmp_path, moteur_ocr_fictif, "parcours-m5-ocr-stale-fictif",
+        )
+
+tests/test_console_fusion_pdf_ocr.py:363: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_pdf_ocr.py:234: in _preparer_parcours_m5_ui
+    _M5.ap_m5.__wrapped__(request.getfixturevalue("nathan"), monkeypatch, tmp_path)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+nathan = 'nathan'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21ecca1f60>
+tmp_path = PosixPath('/tmp/claude-0/-home-user-OPSYS-AI/dabfe10a-2e6a-58d8-bdac-b0fffeab8b8b/scratchpad/m9/qa-basefusion2-20261029T013829Z/tmp/pytest-of-root/pytest-0/test_parcours_console_ocr_m5_s0')
+
+    @pytest.fixture
+    def ap_m5(nathan, monkeypatch, tmp_path):
+        monkeypatch.setenv("OPSYS_INGESTION_CLE", base64.b64encode(b"v" * 32).decode())
+        taux = tmp_path / "taux-fictif.yaml"
+        taux.write_bytes(Path(outils._CHEMIN_TAUX_FISCAUX).read_bytes())
+        monkeypatch.setattr(outils, "_CHEMIN_TAUX_FISCAUX", taux)
+        pdf = fusion_pdf.creer(stockage.transaction, nathan, mutation_id="ap-m5-fictif",
+                               pdf_octets=_facture_pdf_fictive())
+        pdf = fusion_pdf.preparer(stockage.transaction, nathan, pdf["lot_id"], pdf["revision"])
+>       assert pdf["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_fusion_ap_m5.py:42: AssertionError
+_ test_parcours_console_ocr_m5_source_alteree_avant_confirmation_n3_refuse_sans_append[revision_aad_corrompue] _
+
+request = <FixtureRequest for <Function test_parcours_console_ocr_m5_source_alteree_avant_confirmation_n3_refuse_sans_append[revision_aad_corrompue]>>
+client_ocr = <starlette.testclient.TestClient object at 0x7f21e6e97020>
+moteur_ocr_fictif = PosixPath('/tmp/claude-0/-home-user-OPSYS-AI/dabfe10a-2e6a-58d8-bdac-b0fffeab8b8b/scratchpad/m9/qa-basefusion2-20261029T013829Z/tmp/pytest-of-root/pytest-0/test_parcours_console_ocr_m5_s1/bundle-administrateur-fictif')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21eca5c0c0>
+tmp_path = PosixPath('/tmp/claude-0/-home-user-OPSYS-AI/dabfe10a-2e6a-58d8-bdac-b0fffeab8b8b/scratchpad/m9/qa-basefusion2-20261029T013829Z/tmp/pytest-of-root/pytest-0/test_parcours_console_ocr_m5_s1')
+alteration = 'revision_aad_corrompue'
+
+    @pytest.mark.parametrize("alteration", ["pdf_perime", "revision_aad_corrompue"])
+    def test_parcours_console_ocr_m5_source_alteree_avant_confirmation_n3_refuse_sans_append(
+        request, client_ocr, moteur_ocr_fictif, monkeypatch, tmp_path, alteration,
+    ):
+>       lot, run, editor = _preparer_parcours_m5_ui(
+            request, client_ocr, monkeypatch, tmp_path, moteur_ocr_fictif, "parcours-m5-ocr-stale-fictif",
+        )
+
+tests/test_console_fusion_pdf_ocr.py:363: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_console_fusion_pdf_ocr.py:234: in _preparer_parcours_m5_ui
+    _M5.ap_m5.__wrapped__(request.getfixturevalue("nathan"), monkeypatch, tmp_path)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+nathan = 'nathan'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f21eca5c0c0>
+tmp_path = PosixPath('/tmp/claude-0/-home-user-OPSYS-AI/dabfe10a-2e6a-58d8-bdac-b0fffeab8b8b/scratchpad/m9/qa-basefusion2-20261029T013829Z/tmp/pytest-of-root/pytest-0/test_parcours_console_ocr_m5_s1')
+
+    @pytest.fixture
+    def ap_m5(nathan, monkeypatch, tmp_path):
+        monkeypatch.setenv("OPSYS_INGESTION_CLE", base64.b64encode(b"v" * 32).decode())
+        taux = tmp_path / "taux-fictif.yaml"
+        taux.write_bytes(Path(outils._CHEMIN_TAUX_FISCAUX).read_bytes())
+        monkeypatch.setattr(outils, "_CHEMIN_TAUX_FISCAUX", taux)
+        pdf = fusion_pdf.creer(stockage.transaction, nathan, mutation_id="ap-m5-fictif",
+                               pdf_octets=_facture_pdf_fictive())
+        pdf = fusion_pdf.preparer(stockage.transaction, nathan, pdf["lot_id"], pdf["revision"])
+>       assert pdf["statut"] == "EXTRAIT_PREPARATOIRE"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+tests/test_fusion_ap_m5.py:42: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_console_fusion_ap.py::test_revue_ap_privee_ne_lit_pas_sur_get_et_echappe_apres_post
+FAILED tests/test_console_fusion_ap.py::test_boite_ap_bornee_privee_lie_a_revue_sans_clair_ni_ecriture
+FAILED tests/test_console_fusion_ap.py::test_boite_ap_indique_source_perimee_et_revalide_au_clic
+FAILED tests/test_console_fusion_ap.py::test_formulaire_refuse_csrf_doublon_taille_et_reference_forgee_sans_ecriture
+FAILED tests/test_console_fusion_ap.py::test_percent_malforme_refuse_sans_brouillon_ap[%ZZ]
+FAILED tests/test_console_fusion_ap.py::test_percent_malforme_refuse_sans_brouillon_ap[%]
+FAILED tests/test_console_fusion_ap.py::test_percent_malforme_refuse_sans_brouillon_ap[%0]
+FAILED tests/test_console_fusion_ap.py::test_revision_stale_et_role_revoque_apres_dechiffrement_ne_rendent_pas_de_clair
+FAILED tests/test_console_fusion_ap.py::test_lecture_atomique_associe_champs_et_revision_pendant_modification_concurrente
+FAILED tests/test_console_fusion_ap.py::test_employe_cle_absente_et_cipher_corrompu_ne_peuvent_lire_les_champs
+FAILED tests/test_console_fusion_ap.py::test_role_revoque_pendant_rendu_ne_recoit_pas_le_html_dechiffre
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_http_privee_observe_sans_aucun_effet_metier
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refus_et_formulaires_invalides_sans_ecriture[overrides0-jeton CSRF absent ou invalide-403]
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refus_et_formulaires_invalides_sans_ecriture[overrides1-CORRESPONDANCE_NON_ATTESTEE-400]
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refus_et_formulaires_invalides_sans_ecriture[overrides2-REJ-AP-FACTURE-PO-SANS-RECEPTION-409]
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refus_et_formulaires_invalides_sans_ecriture[overrides3-REJ-AP-FACTURE-FOURNISSEUR-DIFFERENT-DU-PO-409]
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refuse_admin_sans_finance_et_revisions_perimees
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements0-AP_TAXES_IMPRIMEES_INCOHERENTES]
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements1-REJ-AP-FACTURE-TOTAL-INCOHERENT]
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements2-REJ-AP-DEVISE-NON-CAD]
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements3-AP_MONTANTS_A_REVOIR]
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements4-AP_MONTANTS_A_REVOIR]
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refuse_taxes_et_total_imprimes_incoherents[changements5-AP_MONTANTS_A_REVOIR]
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_refuse_une_facture_deja_saisie_sans_effet
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_rejette_query_champs_dupliques_et_injection_html
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_revalide_identite_apres_appel_bloquant
+FAILED tests/test_console_fusion_ap_m5.py::test_verification_m5_ne_rend_pas_les_details_d_une_exception_inattendue
+FAILED tests/test_console_fusion_ap_m5.py::test_role_finance_revoque_pendant_rendu_html_masque_le_resultat
+FAILED tests/test_console_fusion_ap_m5_reference.py::test_reference_retrouvee_apres_reconnexion_get_sans_post_ni_ecriture
+FAILED tests/test_console_fusion_ap_m5_reference.py::test_reference_reflète_correction_et_annulation_m5_sans_effacer_l_origine
+FAILED tests/test_console_fusion_ap_m5_reference.py::test_admin_sans_finance_ne_lit_pas_et_n_affiche_pas_la_reference
+FAILED tests/test_console_fusion_ap_m5_reference.py::test_ids_de_reference_sont_echappes_et_aucun_detail_m5_n_est_rendu
+FAILED tests/test_console_fusion_ap_m5_reference.py::test_retrait_finance_en_lecture_ou_rendu_refuse_le_html_prive[lecture]
+FAILED tests/test_console_fusion_ap_m5_reference.py::test_retrait_finance_en_lecture_ou_rendu_refuse_le_html_prive[rendu]
+FAILED tests/test_console_fusion_ap_m5_reference.py::test_corruption_de_la_reference_est_503_et_ne_devient_pas_une_absence
+FAILED tests/test_console_fusion_ap_m5_saisie.py::test_observation_puis_saisie_confirmee_et_rejeu_creent_une_seule_reference
+FAILED tests/test_console_fusion_ap_m5_saisie.py::test_saisie_m5_refuse_csrf_confirmation_hash_query_et_champs_inconnus_sans_effet
+FAILED tests/test_console_fusion_ap_m5_saisie.py::test_saisie_m5_refuse_admin_sans_finance_sans_appeler_le_backend
+FAILED tests/test_console_fusion_ap_m5_saisie.py::test_saisie_m5_ne_rend_pas_le_recu_si_role_revoque_apres_commit
+FAILED tests/test_console_fusion_pdf.py::test_hub_et_admission_rejeu_prive_et_preparation_explicite
+FAILED tests/test_console_fusion_pdf.py::test_admin_partage_les_lots_de_la_meme_sqlite_sans_acces_employe
+FAILED tests/test_console_fusion_pdf.py::test_retrait_role_apres_worker_masque_reponse_mais_conserve_etat_durable
+FAILED tests/test_console_fusion_pdf.py::test_cle_absente_et_cipher_resultat_corrompu_retournent_codes_stables
+FAILED tests/test_console_fusion_pdf_ocr.py::test_parcours_console_ocr_m5_verification_pure_n3_reference_et_rejeu
+FAILED tests/test_console_fusion_pdf_ocr.py::test_parcours_console_ocr_m5_source_alteree_avant_confirmation_n3_refuse_sans_append[pdf_perime]
+FAILED tests/test_console_fusion_pdf_ocr.py::test_parcours_console_ocr_m5_source_alteree_avant_confirmation_n3_refuse_sans_append[revision_aad_corrompue]

@@ -45,6 +45,22 @@ LECTURES = {
     "m9_rapport_periode": "m09-strategic-intelligence",
     "m9_observations_chantier_periode": "m09-strategic-intelligence",
     "m9_rapport_activite_periode": "m09-strategic-intelligence",
+    "m9_salle_de_guerre": "m09-strategic-intelligence",
+    "m9_radar_risques": "m09-strategic-intelligence",
+    "m9_previsions_consolidees": "m09-strategic-intelligence",
+    "m9_lire_plans": "m09-strategic-intelligence",
+    "m9_lire_actions": "m09-strategic-intelligence",
+    "m9_lire_veille": "m09-strategic-intelligence",
+    "m9_couverture_strategique": "m09-strategic-intelligence",
+    "m9_lister_captures": "m09-strategic-intelligence",
+    "m9_lire_conseil": "m09-strategic-intelligence",
+    "m9_lire_rapport_conseil": "m09-strategic-intelligence",
+    "m9_lister_revues": "m09-strategic-intelligence",
+    "m9_lire_revue": "m09-strategic-intelligence",
+    "m9_evaluer_scenarios": "m09-strategic-intelligence",
+    "m9_indicateurs_executifs": "m09-strategic-intelligence",
+    "m9_cadrer_decision": "m09-strategic-intelligence",
+    "m9_projeter_tendance": "m09-strategic-intelligence",
     # CRM secrétariat (répertoire et dossier client) : lectures pures de la vérité commerciale M2.
     "m4_lire_cedule_semaine": "m04-field-ops",
     "m4_lire_calendrier_plan": "m04-field-ops",
@@ -60,6 +76,10 @@ LECTURES = {
 _LECTURES_ADMIN_M9 = frozenset({
     "m9_lister_suivis_decision", "m9_lire_suivi_decision", "m9_bilan_suivis_decision", "m9_rapport_periode",
     "m9_observations_chantier_periode", "m9_rapport_activite_periode",
+    "m9_salle_de_guerre", "m9_radar_risques", "m9_previsions_consolidees", "m9_lire_plans", "m9_lire_actions",
+    "m9_lire_veille", "m9_couverture_strategique", "m9_lister_captures", "m9_lire_conseil", "m9_lire_rapport_conseil",
+    "m9_lister_revues", "m9_lire_revue", "m9_evaluer_scenarios", "m9_indicateurs_executifs", "m9_cadrer_decision",
+    "m9_projeter_tendance",
 })
 # Les lecteurs M2 n'ont de portée que pour `seller` et `admin` (`m2_revenue_crm.acces.ROLES_LEADS`) : la console
 # les appelle avec le rôle `admin` confirmé en base, jamais sans identité d'appareil ni sous `nathan_owner` seul.
@@ -72,8 +92,11 @@ _LECTURES_ADMIN_M4 = frozenset({"m4_lire_cedule_semaine", "m4_lire_calendrier_pl
 _LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3 | _LECTURES_ADMIN_M4
 _COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction", "m2_corriger_contact_client"})
 _COMMANDES_ADMIN_M4 = frozenset({"m4_confirmer_dates_cedule"})
-_OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2 | _COMMANDES_ADMIN_M4
+_COMMANDES_ADMIN_M9 = frozenset({"m9_noter_suivi_plan", "m9_annuler_plan"})
+_OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2 | _COMMANDES_ADMIN_M4 | _COMMANDES_ADMIN_M9
 COMMANDES = {
+    "m9_noter_suivi_plan": "m09-strategic-intelligence",
+    "m9_annuler_plan": "m09-strategic-intelligence",
     "m4_confirmer_dates_cedule": "m04-field-ops",
     "m2_corriger_contact_client": "m02-revenue-crm",
     "m2_enregistrer_interaction": "m02-revenue-crm",

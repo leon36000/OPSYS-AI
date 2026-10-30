@@ -123,6 +123,37 @@ ADMIN_SEUL = frozenset({
     "m9_lister_demandes_approbation", "m9_produire_briefing_matin", "m9_produire_lecture_strategique",
     "m9_preparer_dossier_direction",  # dossier préparatoire sourcé T0/N0, admin seulement
     "m9_diagnostiquer_dossier_direction",  # dossier serveur et diagnostic temporel T0/N0, admin seulement
+    # Tissu stratégique M9.1 : captures de producteurs par le port serveur (écriture interne T1/N2) et leurs lectures.
+    "m9_capturer_producteur", "m9_lister_captures", "m9_lire_capture", "m9_couverture_strategique",
+    "m9_verifier_captures",
+    # Conseil M9.4 / dossier / scénarios : lectures et écritures internes T1/N2, admin authentifié seulement.
+    "m9_apercu_dossier_strategique", "m9_evaluer_scenarios", "m9_proposer_profils_conseil", "m9_ouvrir_conseil",
+    "m9_lire_conseil", "m9_lire_entree_tour_conseil", "m9_deposer_tour_conseil", "m9_abandonner_tour_conseil",
+    "m9_cloturer_conseil", "m9_lire_rapport_conseil",
+    # Direction quotidienne et périodique M9.5–7 : salle de guerre (lecture) et revues publiées en versions immuables.
+    "m9_salle_de_guerre", "m9_apercu_revue", "m9_publier_revue", "m9_lister_revues", "m9_lire_revue",
+    # Graphe d'impacts M9.2 et priorisation M9.11 : lectures seules.
+    "m9_apercu_graphe_impacts", "m9_propager_impacts", "m9_prioriser_options",
+    # Couche sémantique M9.3 et prévisions consolidées M9.9 : lectures seules.
+    "m9_rapprocher_metriques", "m9_previsions_consolidees",
+    # Radars M9.12–13 : risques mesurés par les propriétaires et occasions sans revenu inventé.
+    "m9_radar_risques", "m9_radar_occasions",
+    # Veille M9.14 : import explicite de documents publics (aucun accès réseau).
+    "m9_declarer_source_veille", "m9_retirer_source_veille", "m9_importer_document_veille",
+    "m9_lier_veille_decision", "m9_lire_veille", "m9_lire_document_veille",
+    # Playbooks M9.15 : gabarits gouvernés, lecture seule.
+    "m9_lister_playbooks", "m9_evaluer_playbook",
+    # Orchestrateur M9.17 : propose à la file d'approbation native (T1/N2), réconcilie, lit ; n'exécute rien.
+    "m9_proposer_action", "m9_reconcilier_action", "m9_lire_actions",
+    # Plans et OKR M9.16 : révisables, annulables, historique conservé ; un suivi n'est pas un effet.
+    "m9_enregistrer_plan", "m9_annuler_plan", "m9_noter_suivi_plan", "m9_lire_plans",
+    # Expériences et ROI M9.18 : mesures des propriétaires, pas de ROI sans coût, association ≠ causalité.
+    "m9_definir_experience", "m9_evaluer_experience", "m9_lire_experiences",
+    # Mémoire M10 M9.20 : préparer l'écriture exacte et vérifier, lectures seules (l'écriture passe par la file native).
+    "m9_preparer_memoire_decision", "m9_verifier_memoire_decision",
+    # Direction M9.3/8/9/10 : indicateurs exécutifs, cadrage de décision, tendances extrapolées, questions « et si… ».
+    "m9_indicateurs_executifs", "m9_cadrer_decision", "m9_projeter_tendance", "m9_interpreter_question_scenario",
+    "m9_reauditer_conseil",
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",
