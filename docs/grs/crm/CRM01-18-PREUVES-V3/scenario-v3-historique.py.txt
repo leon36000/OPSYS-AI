@@ -95,6 +95,13 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
             prev = v2._base.ecrire(reg, visites, ancre_jour, revision=revision, cle=f'qa-{jour}',
                                    heure=f'{jour}T07:30:00-04:00')
             equipe = v2._base.fixture.notes._creneau(v2._base.fixture.notes._sources(reg), ancre_jour)['equipe_id']
+            if jour == '2030-06-03':
+                # Un compte personne partage le même identifiant que cette équipe fictive.
+                # Il ne devient pas présent et ne constitue pas la preuve du pointage d'équipe.
+                from opsys import identite as identites
+                identites.creer_personne(stockage.connexion_courante(), equipe, 'Homonyme fictif',
+                                          'Fictif#12345678', roles=['employee'])
+                assert identites.personne(stockage.connexion_courante(), equipe) is not None
             assign = {'intervention_id': iid, 'technicien_id': equipe}
             visites_chantier.ouvrir(reg, visites, prev['visite_id'], f'{jour}T08:00:00-04:00')
             assert etats.transitionner(iid, 'en_route', reg, f'{jour}T08:30:00-04:00', assignation=assign)[1] is None
@@ -151,6 +158,15 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                                                       motif='Revue fictive')
         assert erreur is None, erreur
     assert evenements.charge_publiee('m4.travaux_termines', wct_id)['devis_id'] == affaire['devis']
+    from m4_field_ops import temps_certifies_v3
+    with (session() as cnx,
+          contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+          contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+        projection = temps_certifies_v3.projeter(cnx, iid, wct_id)['projection']
+        premiere = projection['visites'][0]
+        assert premiere['equipe_pointee']['identifiant'] == equipe1
+        assert premiere['equipe_pointee']['statut'] == 'identifiee'
+        assert premiere['presence_individuelle']['statut'] == 'inconnue'
     r = evenements.repartir({'m05-financecore': affaire['deps']['m05-financecore']}, maintenant='2030-06-08T12:00:00-04:00')
     assert r['traites'] >= 1 and r['echecs'] == 0, r
     # Les taux fictifs sont écrits dans le registre privé réel : ils ne prouvent
