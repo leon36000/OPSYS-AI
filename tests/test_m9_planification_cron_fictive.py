@@ -204,10 +204,31 @@ def test_reprise_apres_lease_echue_bornee_a_trois_prises_et_ack_perime_refuse(ma
         )
         == reprise
     )  # fmt: skip
-    with pytest.raises(module.DeclencheurRefuse, match="LEASE-PERIMEE|LEASE"):
+    with pytest.raises(module.DeclencheurRefuse, match="LEASE-PERIMEE"):
         _acquitter(mandat, plan)  # l'ancienne lease est fencée
     assert _acquitter(mandat, reprise)["etat"] == "remise"
     assert _valider(mandat) is None
+
+
+def test_reprises_bornees_a_trois_prises_par_epoque(mandat, monkeypatch):
+    """Borne de reprise : préparation initiale comprise, trois prises au plus ; la quatrième est refusée."""
+    module, owner = mandat[3], mandat[4]
+    horloge = [dt.datetime(2026, 10, 29, 12, tzinfo=dt.UTC)]
+    monkeypatch.setattr(module, "_maintenant", lambda: horloge[0])
+    plan = _preparer(mandat, lease_secondes=10)
+    for attendue in (2, 3):
+        horloge[0] += dt.timedelta(seconds=11)
+        plan = owner.renouveler(
+            mandat[1], capabilite=CAPACITE, epoch=1, lease_epoch=plan["lease_epoch"], declaration=mandat[2],
+            lease_secondes=10,
+        )  # fmt: skip
+        assert plan["lease_epoch"] == attendue
+    horloge[0] += dt.timedelta(seconds=11)
+    with pytest.raises(module.DeclencheurRefuse, match="TENTATIVES-EPUISEES"):
+        owner.renouveler(
+            mandat[1], capabilite=CAPACITE, epoch=1, lease_epoch=plan["lease_epoch"], declaration=mandat[2],
+            lease_secondes=10,
+        )  # fmt: skip
 
 
 def _etat_registres():
