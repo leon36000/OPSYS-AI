@@ -14,14 +14,10 @@ mesure ;
 * ``VERSION_PERIMEE`` / ``VERSION_NON_DECLAREE`` — la version de définition ayant produit la valeur n'est pas la
 courante, ou
   n'est pas déclarée (la comparabilité ne peut pas être affirmée) ;
-* ``VERSION_NON_COMPARABLE`` — l'observation porte une EMPREINTE de définition (64 hexadécimaux) alors que le registre
-  numérote ses versions en entiers, et aucune LIAISON fiable ne relie cette empreinte à une révision du registre : M9
-  n'affirme ni la péremption ni la compatibilité. Une liaison est une ligne publiée par M8 ``{metric_id, revision,
-  empreinte}`` (``cataloguer_liaisons``) ; la révision entière et l'empreinte restent DEUX informations distinctes.
-  Avec liaison : révision courante → ``COMPATIBLE`` ; révision plus ancienne → ``VERSION_PERIMEE`` ; révision au-delà de
-  la courante → ``VERSION_NON_COMPARABLE`` (la liaison ne vaut rien contre un registre qui ne la contient pas). Une
-  révision plus ancienne est tenue pour avoir existé parce que M8 numérote ses révisions 1..N sans trou (nombre
-  d'enregistrements successifs, ``m8_analytics.registre_metriques.lister``) ;
+* ``VERSION_NON_COMPARABLE`` — l'observation porte une EMPREINTE de définition (64 hexadécimaux) : elle n'est comparée
+  que par SA PROPRE preuve de définition vérifiée dans l'historique publié du registre qu'elle nomme
+  (``preuves_definition``). Sans historique, sans preuve propre ou avec une preuve qui ne se vérifie pas, elle reste
+  non comparable avec une raison nommée ; aucune liaison globale ne la rend comparable ;
 * ``COMPATIBLE`` — même métrique, même unité, même version que la définition courante.
 
 Les groupes de sortie sont clés par ``(metric_id, unité, version)`` : deux groupes ne sont jamais additionnés, moyennés
@@ -36,6 +32,8 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 
+from . import preuves_definition
+
 STATUTS = frozenset(
     {
         "COMPATIBLE",
@@ -47,13 +45,12 @@ STATUTS = frozenset(
     }
 )
 _EMPREINTE = re.compile(r"[0-9a-f]{64}")
-RAISONS_NON_COMPARABLE = frozenset({"AUCUNE_LIAISON", "REVISION_INCONNUE_DU_REGISTRE"})
 _LIMITES = (
     "M9 ne calcule ni n'agrège aucune métrique : les groupes sont des juxtapositions de valeurs de leurs "
     "propriétaires.",
     "Compatible = même identifiant, même unité, même version de définition que la définition courante du registre M8.",
-    "Une empreinte de définition n'est comparée à la révision du registre que par une liaison publiée par M8 ; sans "
-    "liaison fiable, la mesure reste non comparable.",
+    "Une empreinte de définition n'est comparée que par la preuve propre de l'observation, vérifiée dans l'historique "
+    "publié de son registre ; sans elle, la mesure reste non comparable.",
 )
 
 
@@ -97,48 +94,7 @@ def _rang(version: object) -> tuple[int, str]:
     return (0, str(version))
 
 
-def cataloguer_liaisons(liaisons: Sequence[Mapping], catalogue: Mapping[str, Mapping]) -> dict[tuple[str, str], int]:
-    """Liaisons ``(metric_id, empreinte) → révision`` publiées par le propriétaire du registre.
-
-    Une ligne ``{metric_id, revision, empreinte}`` exige un identifiant, une révision entière >= 1 (jamais un booléen)
-    et une empreinte de 64 hexadécimaux minuscules. Deux lignes qui disent des choses différentes de la même empreinte
-    ou de la même révision sont une CONTRADICTION du propriétaire : refus, jamais un choix silencieux. Une liaison
-    d'une métrique absente du catalogue est ignorée (l'observation correspondante reste ``SANS_DEFINITION``)."""
-    if not isinstance(liaisons, Sequence) or isinstance(liaisons, (str, bytes)):
-        raise _refus("REJ-SEMANTIQUE-LIAISON", "liste de liaisons requise")
-    par_empreinte: dict[tuple[str, str], int] = {}
-    par_revision: dict[tuple[str, int], str] = {}
-    for ligne in liaisons:
-        if not isinstance(ligne, Mapping):
-            raise _refus("REJ-SEMANTIQUE-LIAISON", "ligne objet requise")
-        metric_id = ligne.get("metric_id")
-        revision = ligne.get("revision")
-        empreinte = ligne.get("empreinte")
-        if (
-            type(metric_id) is not str
-            or not metric_id
-            or type(revision) is not int
-            or revision < 1
-            or type(empreinte) is not str
-            or not _EMPREINTE.fullmatch(empreinte)
-        ):
-            raise _refus(
-                "REJ-SEMANTIQUE-LIAISON", "metric_id, révision entière >= 1 et empreinte de 64 hexadécimaux requis"
-            )
-        if par_empreinte.setdefault((metric_id, empreinte), revision) != revision:
-            raise _refus(
-                "REJ-SEMANTIQUE-LIAISON-CONTRADICTION", f"{metric_id} : une même empreinte pour deux révisions"
-            )
-        if par_revision.setdefault((metric_id, revision), empreinte) != empreinte:
-            raise _refus(
-                "REJ-SEMANTIQUE-LIAISON-CONTRADICTION", f"{metric_id} : deux empreintes pour la révision {revision}"
-            )
-    return {cle: revision for cle, revision in par_empreinte.items() if cle[0] in catalogue}
-
-
-def classer(
-    observation: Mapping, catalogue: Mapping[str, Mapping], liaisons: Mapping[tuple[str, str], int] | None = None
-) -> dict:
+def classer(observation: Mapping, catalogue: Mapping[str, Mapping], historique: Mapping | None = None) -> dict:
     metric_id = observation.get("metric_id")
     valeur = observation.get("valeur")
     if type(metric_id) is not str or not metric_id or type(valeur) is not str:
@@ -151,6 +107,7 @@ def classer(
         "valeur": valeur,
         "unite": observation.get("unite"),
         "version_definition": observation.get("version_definition"),
+        "preuve_definition": observation.get("preuve_definition"),
         "source": observation.get("source"),
     }
     if definition is None:
@@ -165,25 +122,11 @@ def classer(
         # Un booléen ou un flottant n'est pas une version : ``True == 1`` et ``1.0 == 1`` ne prouvent rien.
         return resultat | {"statut": "VERSION_NON_DECLAREE"}
     courante = definition.get("version_definition", definition["version"])
-    if type(declaree) is str and _EMPREINTE.fullmatch(declaree) and type(courante) is int:
-        revision = (liaisons or {}).get((metric_id, declaree))
-        if revision is None:
-            return resultat | {
-                "statut": "VERSION_NON_COMPARABLE",
-                "version_courante": courante,
-                "raison": "AUCUNE_LIAISON",
-            }
-        if revision > courante:
-            return resultat | {
-                "statut": "VERSION_NON_COMPARABLE",
-                "version_courante": courante,
-                "revision_liee": revision,
-                "raison": "REVISION_INCONNUE_DU_REGISTRE",
-            }
-        resultat["revision_liee"] = revision
-        if revision < courante:
-            return resultat | {"statut": "VERSION_PERIMEE", "version_courante": courante}
-        return resultat | {"statut": "COMPATIBLE", "unite": definition["unite"]}
+    if type(declaree) is str and _EMPREINTE.fullmatch(declaree):
+        verdict = preuves_definition.verifier_preuve(observation, historique)
+        if verdict["statut"] == "COMPATIBLE":
+            return resultat | verdict | {"unite": definition["unite"]}
+        return resultat | verdict | {"version_courante": courante}
     if declaree != courante:
         return resultat | {
             "statut": "VERSION_PERIMEE",
@@ -193,12 +136,10 @@ def classer(
 
 
 def rapprocher(
-    observations: Sequence[Mapping],
-    catalogue: Mapping[str, Mapping],
-    liaisons: Mapping[tuple[str, str], int] | None = None,
+    observations: Sequence[Mapping], catalogue: Mapping[str, Mapping], historique: Mapping | None = None
 ) -> dict:
     """Classe chaque observation et les range en groupes ``(metric_id, unité, version)`` jamais fusionnés."""
-    classees = [classer(observation, catalogue, liaisons) for observation in observations]
+    classees = [classer(observation, catalogue, historique) for observation in observations]
     groupes: dict[tuple, dict] = {}
     for element in classees:
         cle = (element["metric_id"], element.get("unite"), element.get("version_definition"), element["statut"])

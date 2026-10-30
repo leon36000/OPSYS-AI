@@ -1,11 +1,12 @@
 """Outil de la couche sémantique M9.3 : rapprocher les mesures des producteurs des définitions du registre M8.
 
-Lecture seule. Les définitions viennent d'une capture complète de ``m8.definitions_metriques``, avec les liaisons
-``resultat.liaisons_versions[*]`` (révision entière ↔ empreinte de définition) si M8 les publie ; les observations, des
+Lecture seule. Les définitions viennent d'une capture complète de ``m8.definitions_metriques`` ; les observations, des
 lignes ``resultat.mesures[*]`` des captures complètes de ``m8.mesures_chantier`` (une mesure non calculable n'est jamais
 une observation : elle est rendue avec ce qui manque). M9 ne recalcule rien et n'additionne jamais deux groupes. Sans
-capture complète du registre, le rapprochement est REFUSÉ : aucune définition n'est supposée ; sans liaison, une mesure
-portant une empreinte reste non comparable.
+capture complète du registre, le rapprochement est REFUSÉ : aucune définition n'est supposée. Aucun historique
+versionné de définitions n'est encore consommé (``historique_definitions = NON_CONSOMME``) : une mesure portant une
+empreinte reste non comparable ; aucune projection de liaisons globales n'est appliquée (contrat successeur dans
+``preuves_definition``, à raccorder quand M8 publiera son historique).
 """
 
 from __future__ import annotations
@@ -67,13 +68,6 @@ def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tupl
             for ligne in cs.extraire(page, "resultat.definitions[*]")
         ]
         catalogue = semantique_metriques.cataloguer(definitions)
-        lignes_liaisons = [
-            ligne
-            for capture in registres
-            for page in capture["pages"]
-            for ligne in cs.extraire(page, "resultat.liaisons_versions[*]")
-        ]
-        liaisons = semantique_metriques.cataloguer_liaisons(lignes_liaisons, catalogue)
         observations: list[dict] = []
         non_calculables: list[dict] = []
         lectures_ecartees: list[dict] = []
@@ -101,6 +95,7 @@ def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tupl
                                 "valeur": mesure["valeur"],
                                 "unite": mesure.get("unite"),
                                 "version_definition": mesure.get("version_definition"),
+                                "preuve_definition": mesure.get("preuve_definition"),
                                 "source": source_mesure,
                             }
                         )
@@ -112,7 +107,9 @@ def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tupl
                                 "source": source_mesure,
                             }
                         )
-        resultat = semantique_metriques.rapprocher(observations, catalogue, liaisons)
+        # Aucun historique versionné de définitions n'est consommé (contrat successeur non raccordé) : une mesure à
+        # empreinte reste non comparable, jamais rapprochée par une liaison globale.
+        resultat = semantique_metriques.rapprocher(observations, catalogue, None)
         statuts: dict[str, int] = {}
         for observation in resultat["observations"]:
             statuts[observation["statut"]] = statuts.get(observation["statut"], 0) + 1
@@ -120,7 +117,7 @@ def construire_outils(*, budget_sortie: int, captures_cible: Any = None) -> tupl
             "accepte": True,
             "connaissance": connaissance,
             "definitions_connues": len(catalogue),
-            "liaisons_versions": len(liaisons),
+            "historique_definitions": "NON_CONSOMME",
             "registre_capture": [c["index"] for c in registres],
             "type": resultat["type"],
             "statuts": statuts,

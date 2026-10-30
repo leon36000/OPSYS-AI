@@ -85,67 +85,31 @@ def test_empreinte_de_definition_face_a_une_version_entiere_n_est_ni_perimee_ni_
     assert court["statut"] == "VERSION_PERIMEE"
 
 
-def _liaison(metric_id="marge_reelle", revision=2, empreinte="b" * 64):
-    return {"metric_id": metric_id, "revision": revision, "empreinte": empreinte}
+def test_une_empreinte_sans_preuve_propre_ne_devient_jamais_compatible_meme_si_un_historique_la_contient():
+    """Écart de revue : une liaison globale publiée rendait COMPATIBLE une ancienne observation sans preuve propre."""
+    from m9_strategic_intelligence import preuves_definition as pd
 
-
-def _observation(empreinte, metric_id="marge_reelle", unite="CAD"):
-    return {"metric_id": metric_id, "valeur": "1", "unite": unite, "version_definition": empreinte}
-
-
-def test_liaison_fiable_distingue_courante_perimee_et_revision_inconnue():
     catalogue = sm.cataloguer(_definitions())
-    liaisons = sm.cataloguer_liaisons(
-        [_liaison(revision=2, empreinte="b" * 64), _liaison(revision=1, empreinte="c" * 64),
-         _liaison(revision=9, empreinte="d" * 64)],
-        catalogue,
-    )  # fmt: skip
-    courante = sm.classer(_observation("b" * 64), catalogue, liaisons)
-    assert courante["statut"] == "COMPATIBLE" and courante["revision_liee"] == 2
-    perimee = sm.classer(_observation("c" * 64), catalogue, liaisons)
-    assert perimee["statut"] == "VERSION_PERIMEE" and perimee["revision_liee"] == 1 and perimee["version_courante"] == 2
-    inconnue = sm.classer(_observation("d" * 64), catalogue, liaisons)
-    assert inconnue["statut"] == "VERSION_NON_COMPARABLE" and inconnue["raison"] == "REVISION_INCONNUE_DU_REGISTRE"
-    sans = sm.classer(_observation("e" * 64), catalogue, liaisons)
-    assert sans["statut"] == "VERSION_NON_COMPARABLE" and sans["raison"] == "AUCUNE_LIAISON"
-    assert {inconnue["raison"], sans["raison"]} == sm.RAISONS_NON_COMPARABLE
+    empreinte = "b" * 64
+    publications = [{"cle": {"metric_id": "marge_reelle"}, "revision": 1, "empreinte": empreinte}]
+    historique = pd.assembler_historique([{
+        "registre": "surveillance", "vue": pd.vue_de("surveillance", publications), "total": 1, "depart": 0,
+        "prochain_depart": None, "publications": publications,
+    }])  # fmt: skip
+    observation = {"metric_id": "marge_reelle", "valeur": "1", "unite": "CAD", "version_definition": empreinte}
+    sans_preuve = sm.classer(observation, catalogue, historique)
+    assert sans_preuve["statut"] == "VERSION_NON_COMPARABLE" and sans_preuve["raison"] == "PREUVE_PROPRE_ABSENTE"
+    assert sm.classer(observation, catalogue)["raison"] == "HISTORIQUE_ABSENT"
+    prouvee = observation | {"preuve_definition": {
+        "registre": "surveillance", "cle": {"metric_id": "marge_reelle"}, "revision": 1, "empreinte": empreinte,
+    }}  # fmt: skip
+    compatible = sm.classer(prouvee, catalogue, historique)
+    assert compatible["statut"] == "COMPATIBLE" and compatible["valeur_verifiee"] is False
 
 
-def test_l_historique_sans_liaison_reste_non_comparable_meme_si_d_autres_metriques_sont_liees():
-    catalogue = sm.cataloguer(_definitions())
-    liaisons = sm.cataloguer_liaisons([_liaison("marge_reelle", 2, "b" * 64)], catalogue)
-    # Même empreinte, autre métrique : la liaison est propre à (métrique, empreinte), elle ne se transpose pas.
-    autre = sm.classer(_observation("b" * 64, "ecart_duree", "minutes"), catalogue, liaisons)
-    assert autre["statut"] == "VERSION_NON_COMPARABLE" and autre["raison"] == "AUCUNE_LIAISON"
-    resultat = sm.rapprocher([_observation("b" * 64), _observation("f" * 64)], catalogue, liaisons)
-    assert [e["statut"] for e in resultat["observations"]] == ["COMPATIBLE", "VERSION_NON_COMPARABLE"]
-    assert len(resultat["comparables_ensemble"]) == 1 and resultat["comparables_ensemble"][0]["agregable"] is False
-
-
-def test_liaisons_contradictoires_ou_mal_formees_sont_refusees_jamais_choisies():
-    catalogue = sm.cataloguer(_definitions())
-    with pytest.raises(ValueError, match="REJ-SEMANTIQUE-LIAISON-CONTRADICTION"):
-        sm.cataloguer_liaisons([_liaison(revision=1), _liaison(revision=2)], catalogue)  # même empreinte, 2 révisions
-    with pytest.raises(ValueError, match="REJ-SEMANTIQUE-LIAISON-CONTRADICTION"):
-        sm.cataloguer_liaisons([_liaison(empreinte="b" * 64), _liaison(empreinte="c" * 64)], catalogue)
-    for mauvaise in (
-        _liaison(revision=True), _liaison(revision=0), _liaison(revision="2"), _liaison(empreinte="B" * 64),
-        _liaison(empreinte="b" * 63), _liaison(metric_id=""), "texte",
-    ):  # fmt: skip
-        with pytest.raises(ValueError, match="REJ-SEMANTIQUE-LIAISON"):
-            sm.cataloguer_liaisons([mauvaise], catalogue)
-    # Une liaison identique répétée est idempotente ; celle d'une métrique inconnue du registre est ignorée.
-    assert sm.cataloguer_liaisons([_liaison(), _liaison(), _liaison("inconnue")], catalogue) == {
-        ("marge_reelle", "b" * 64): 2
-    }
-
-
-def test_une_version_booleenne_ou_flottante_n_est_pas_une_version_et_les_liaisons_non_liste_sont_refusees():
-    """Défauts trouvés en relecture : ``True == 1`` et ``1.0 == 1`` donnaient COMPATIBLE ; ``None`` levait TypeError."""
+def test_une_version_booleenne_ou_flottante_n_est_pas_une_version():
+    """Défaut trouvé en relecture : ``True == 1`` et ``1.0 == 1`` donnaient COMPATIBLE."""
     catalogue = sm.cataloguer([{"metric_id": "m", "unite": "CAD", "version": 1}])
     for version in (True, 1.0):
         observation = {"metric_id": "m", "valeur": "1", "unite": "CAD", "version_definition": version}
         assert sm.classer(observation, catalogue)["statut"] == "VERSION_NON_DECLAREE", version
-    for pas_liste in (None, "texte", b"", 3):
-        with pytest.raises(ValueError, match="REJ-SEMANTIQUE-LIAISON"):
-            sm.cataloguer_liaisons(pas_liste, catalogue)

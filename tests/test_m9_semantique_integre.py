@@ -128,18 +128,72 @@ def test_connaissance_anterieure_au_registre_le_refuse_et_non_admin_refuse(monde
     assert comptable.role == "admin"
 
 
-def test_le_vrai_m8_ne_publie_pas_de_liaison_donc_l_empreinte_reste_non_comparable(monde):
-    """Contrat consommateur M9.3 : tant que M8 ne publie pas ``liaisons_versions``, rien n'est supposé relié.
-
-    Le producteur réel (registre durable + mesures portant une empreinte) ne fournit aucune liaison ; M9 le dit
-    (``liaisons_versions == 0``) et classe la mesure ``VERSION_NON_COMPARABLE`` avec la raison ``AUCUNE_LIAISON``.
-    """
+def test_le_vrai_m8_ne_fournit_aucune_preuve_propre_donc_l_empreinte_reste_non_comparable(monde):
+    """Contrat successeur M9.3 sur le vrai producteur : les mesures M8 portent une empreinte de définition mais aucune
+    preuve propre, et aucun historique versionné n'est consommé. M9 ne projette aucune liaison : non comparable,
+    raison nommée, valeur jamais vérifiée par la preuve de définition."""
     _capturer_mesures(monde, 1)
     _definir("m8_marge_reelle_cad", "CAD")
     registre = _capturer_registre(monde, 2)
     page = H.page(registre["index"])
-    assert H.valeurs(page, "resultat.liaisons_versions[*]") == []  # M8 n'a pas ce champ : aucune liaison inventée
+    assert H.valeurs(page, "resultat.liaisons_versions[*]") == []  # aucune liaison globale chez M8 aujourd'hui
     res = _rapprocher(monde)["resultat"]
-    assert res["liaisons_versions"] == 0
+    assert res["historique_definitions"] == "NON_CONSOMME"
     marge = next(o for o in res["observations"] if o["metric_id"] == "m8_marge_reelle_cad")
-    assert marge["statut"] == "VERSION_NON_COMPARABLE" and marge["raison"] == "AUCUNE_LIAISON"
+    assert marge["statut"] == "VERSION_NON_COMPARABLE" and marge["raison"] == "HISTORIQUE_ABSENT"
+    assert marge["valeur_verifiee"] is False and marge["preuve_definition"] is None
+
+
+def test_parcours_m8_reel_vers_contrat_successeur_avec_historique_simule(monde):
+    """Mesure RÉELLE de M8 (empreinte calculée par M8) face à un historique de définitions SIMULÉ au format du contrat
+    successeur (le candidat producteur M8 n'est pas intégré) : A/B/A, historique sans preuve de même empreinte,
+    recalcul explicitement lié, collision de modules, révision inconnue."""
+    from m9_strategic_intelligence import preuves_definition as pd
+    from m9_strategic_intelligence import semantique_metriques as sm
+
+    mesures = _capturer_mesures(monde, 1)
+    page = H.page(mesures["index"])
+    reelle = next(m for m in H.valeurs(page, "resultat.mesures[*]") if m["metric_id"] == "m8_marge_reelle_cad")
+    a = reelle["version_definition"]  # empreinte réelle produite par M8
+    assert len(a) == 64 and "preuve_definition" not in reelle
+    b = "b" * 64 if a != "b" * 64 else "c" * 64
+    cle = {"famille": "finance", "module": "m08", "id": "m8_marge_reelle_cad"}
+    homonyme = {"famille": "terrain", "module": "m04", "id": "m8_marge_reelle_cad"}
+    publications = [
+        {"cle": cle, "revision": 1, "empreinte": a},
+        {"cle": homonyme, "revision": 1, "empreinte": b},
+        {"cle": cle, "revision": 2, "empreinte": b},
+        {"cle": cle, "revision": 3, "empreinte": a},
+    ]
+    vue = pd.vue_de("dictionnaire", publications)
+    pages = [
+        {"registre": "dictionnaire", "vue": vue, "total": 4, "depart": 0, "prochain_depart": 2,
+         "publications": publications[:2]},
+        {"registre": "dictionnaire", "vue": vue, "total": 4, "depart": 2, "prochain_depart": None,
+         "publications": publications[2:]},
+    ]  # fmt: skip
+    historique = pd.assembler_historique(pages)
+    catalogue = sm.cataloguer([{"metric_id": "m8_marge_reelle_cad", "unite": reelle["unite"], "version": 1}])
+    observation = {k: reelle[k] for k in ("metric_id", "valeur", "unite", "version_definition")}
+
+    def preuve(revision, quelle_cle=cle, empreinte=a):
+        return {"registre": "dictionnaire", "cle": quelle_cle, "revision": revision, "empreinte": empreinte}
+
+    statuts = {
+        "historique_sans_preuve": sm.classer(observation, catalogue, historique),
+        "recalcul_lie": sm.classer(observation | {"preuve_definition": preuve(3)}, catalogue, historique),
+        "ancienne_meme_contenu": sm.classer(observation | {"preuve_definition": preuve(1)}, catalogue, historique),
+        "homonyme": sm.classer(observation | {"preuve_definition": preuve(1, homonyme)}, catalogue, historique),
+        "inconnue": sm.classer(observation | {"preuve_definition": preuve(9)}, catalogue, historique),
+    }
+    assert statuts["historique_sans_preuve"]["raison"] == "PREUVE_PROPRE_ABSENTE"
+    assert statuts["recalcul_lie"]["statut"] == "COMPATIBLE" and statuts["recalcul_lie"]["valeur"] == "114.00"
+    assert statuts["ancienne_meme_contenu"]["statut"] == "VERSION_PERIMEE"
+    assert statuts["ancienne_meme_contenu"]["meme_contenu_que_la_courante"] is True
+    assert statuts["homonyme"]["raison"] == "EMPREINTE_DIFFERENTE_A_CETTE_REVISION"
+    assert statuts["inconnue"]["raison"] == "REVISION_INCONNUE"
+    assert all(s["valeur_verifiee"] is False for s in statuts.values())
+    corrompu = [dict(p) for p in pages]
+    corrompu[1] = dict(corrompu[1], publications=[dict(publications[2], empreinte=a), publications[3]])
+    with pytest.raises(ValueError, match="REJ-HISTORIQUE-CORROMPU"):
+        pd.assembler_historique(corrompu)
