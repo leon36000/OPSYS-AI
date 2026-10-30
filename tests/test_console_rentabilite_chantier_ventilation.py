@@ -184,3 +184,23 @@ def test_lead_projection_meme_recalcule_ne_peut_diverger_du_wct(chantier_termine
     monkeypatch.setattr(temps_certifies_v2, 'projeter', projection_autre_lead)
     with stockage.transaction(cas['url']) as cnx, pytest.raises(console.lecture.Refus):
         _ventilation(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
+
+
+def test_port_v3_proprietaire_est_relu_pour_faits_historiques(chantier_termine, monkeypatch):
+    """Une ancienne visite reste indéterminée même lorsque V3 est disponible."""
+    from m4_field_ops import temps_certifies_v3
+
+    appels = []
+    original = temps_certifies_v3.projeter
+
+    def noter(*args, **kwargs):
+        appels.append(kwargs.get('source_attendue'))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(temps_certifies_v3, 'projeter', noter)
+    cas = chantier_termine
+    recu = _pieces(cas)
+    with stockage.transaction(cas['url']) as cnx:
+        resultat = _ventilation(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu)
+    assert resultat['statut'] == 'INCOMPLET' and resultat['equipes_indeterminees'] == 2
+    assert len(appels) == 2 and appels[0] is None and isinstance(appels[1], str)

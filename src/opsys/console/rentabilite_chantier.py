@@ -144,7 +144,13 @@ def _ventilation_m4(cnx, session, recu, lead_id):
 
     autorite._admin(cnx, session)
     try:
-        m4 = importlib.import_module('m4_field_ops.temps_certifies_v2')
+        m4_v2 = importlib.import_module('m4_field_ops.temps_certifies_v2')
+        try:
+            m4 = importlib.import_module('m4_field_ops.temps_certifies_v3')
+        except ModuleNotFoundError as exc:
+            if exc.name != 'm4_field_ops.temps_certifies_v3':
+                raise
+            m4 = m4_v2
     except ModuleNotFoundError as exc:
         if exc.name == 'm4_field_ops.temps_certifies_v2':
             return {'statut': 'PRODUCTEUR_INDISPONIBLE'}
@@ -170,10 +176,6 @@ def _ventilation_m4(cnx, session, recu, lead_id):
         instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one()
         if instance != p['instance_id']:
             raise lecture.Refus('INSTANCE-NON-QUALIFIEE')
-        main = cout_reel._main_d_oeuvre_ventilee(charge, p, tarifs['lignes'], p['instance_id'],
-                                                 projection['source'], p['sources'])
-        if main.get('projection_empreinte') != p.get('empreinte') or not main.get('projection_empreinte'):
-            raise lecture.Refus('SOURCE-INCOHERENTE')
         with (contexte.appele_par_appareil(identite),
               contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
             relecture = m4.projeter(cnx, charge['intervention_id'], charge['wct_id'],
@@ -184,10 +186,14 @@ def _ventilation_m4(cnx, session, recu, lead_id):
         if (relecture != projection or instance_fin != instance or tarifs_fin['source'] != tarifs['source']
                 or _wct_publie_et_recu(cnx, recu) != source_bus):
             raise lecture.Refus('SOURCE-MODIFIEE')
+        main = cout_reel._main_d_oeuvre_ventilee(charge, p, tarifs['lignes'], p['instance_id'],
+                                                 projection['source'], p['sources'], relecture['source'])
+        if main.get('projection_empreinte') != p.get('empreinte') or not main.get('projection_empreinte'):
+            raise lecture.Refus('SOURCE-INCOHERENTE')
         autorite._admin(cnx, session)
     except lecture.Refus:
         raise
-    except (m4.Refus, ValueError, KeyError, TypeError, PermissionError):
+    except (m4_v2.Refus, ValueError, KeyError, TypeError, PermissionError):
         raise lecture.Refus('VENTILATION-INDISPONIBLE') from None
     equipes_inconnues = sum(v['equipe_pointee']['statut'] != 'identifiee' for v in p['visites'])
     return {
