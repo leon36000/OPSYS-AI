@@ -92,3 +92,5 @@ Composition M5 `bbf15e466fe2c6c374a5abcebddc08783058ae83` : `jonction-m5-bbf/jon
 `jonction-m5-bbf/audit-m4-m5-01.xml` passe : après corruption SQL fictive d'un audit de pointage M4, l'export console M5 répond 503 sans divulguer de coût certifié ; après restauration, il répond 200 et retrouve l'analyse et 390 minutes. Injection de test, pas action métier. Aucun résultat n'établit une invalidation des consommateurs du bus.
 
 Le scénario M5 `db424d7f924f15c5619a2580f253d75f6269e2ec` a été reproduit sur le code de la composition précédente : `jonction-m5-bbf/autorite-v3-db424-01.xml`, 3 tests verts sans skip. Le port V3 refuse les transports appareil et MCP ainsi que l'origine non console, même avec une source obtenue par une session autorisée. Aucun rôle de service n'en découle.
+
+Le scénario M5 `da17853d44bf5565a315a836472a81923105cdb8` a été reproduit indépendamment : `jonction-m5-bbf/tarifs-v3-da178-01.xml`, 1 test vert sans skip. Les tarifs invalides sont refusés sans écriture ; un tarif expiré laisse le coût total inconnu et seulement 480 CAD fictifs connus pour la seconde équipe. Le code d'exécution M5 n'a pas changé depuis la composition `bbf15e466`.
