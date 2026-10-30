@@ -105,7 +105,7 @@ def _maillon(valeur: Any, nom: str) -> datetime:
     return _instant(o["horodatage"])
 
 
-def _controle_visite(visite: Any, intervention: str) -> tuple[tuple, dict, list, bool]:
+def _controle_visite(visite: Any, intervention: str, version: int = 2) -> tuple[tuple, dict, list, bool]:
     v = _objet(visite, _VISITE, "visite")
     ident = v["visite_id"]
     _exiger(_hash(ident), "visite : identifiant invalide")
@@ -116,12 +116,16 @@ def _controle_visite(visite: Any, intervention: str) -> tuple[tuple, dict, list,
         "ancre : référence invalide",
     )
     _exiger(_texte(v["equipe_planifiee_id"]) and _texte(v["identifiant_pointe"]), "équipe ou pointage absent")
-    equipe = _objet(v["equipe_pointee"], {"statut", "identifiant", "justification"}, "équipe pointée")
-    _exiger(
-        equipe == {"statut": "inconnue", "identifiant": None, "justification": "indeterminee"},
-        "V2 ne prouve pas le type de l'identifiant pointé ; équipe inconnue requise",
-    )
-    equipe_connue = False
+    equipe = v["equipe_pointee"]
+    _exiger(isinstance(equipe, dict), "équipe pointée invalide")
+    equipe_connue = version == 3 and equipe.get("statut") == "identifiee"
+    if equipe_connue:
+        _objet(equipe, {"statut", "identifiant", "justification", "preuves"}, "équipe pointée")
+        _exiger(equipe["identifiant"] == v["identifiant_pointe"] and _texte(equipe["identifiant"])
+                and equipe["justification"] == "pointages_attestes_v3", "équipe non attestée")
+    else:
+        _exiger(equipe == {"statut": "inconnue", "identifiant": None, "justification": "indeterminee"},
+                "équipe inconnue requise")
     debut = _maillon(v["ouverture"], "ouverture")
     fin = _maillon(v["fermeture"], "fermeture")
     evenements = v["evenements"]
@@ -146,6 +150,17 @@ def _controle_visite(visite: Any, intervention: str) -> tuple[tuple, dict, list,
             )
         else:
             _exiger(gps is None, "revue GPS inattendue")
+    if equipe_connue:
+        preuves = equipe["preuves"]
+        pointages = [e["source_ligne_id"] for e in evenements if e["type"] != "en_route"]
+        _exiger(type(preuves) is list and len(preuves) == len(pointages), "preuves de pointage incomplètes")
+        for preuve, pointage in zip(preuves, pointages, strict=True):
+            preuve = _objet(preuve, {"pointage_id", "preuve_id", "auteur", "profil_empreinte", "audit_id"}, "preuve")
+            auteur = _objet(preuve["auteur"], {"personne", "role"}, "auteur")
+            _exiger(preuve["pointage_id"] == pointage and _hash(preuve["preuve_id"])
+                    and _hash(preuve["profil_empreinte"]) and type(preuve["audit_id"]) is int
+                    and preuve["audit_id"] > 0 and _texte(auteur["personne"]) and auteur["role"] == "admin",
+                    "preuve de pointage invalide")
     _exiger(ordre[:2] == ["en_route", "arrivee"] and ordre[-1] == "depart", "séquence route-arrivée-départ invalide")
     phase = "presence"
     nombre_pauses = 0
@@ -229,6 +244,8 @@ def valider_projection(
     wct_id: Any,
     source_attendue: Any,
     sources_actuelles: Any,
+    _version: int = 2,
+    _source_relue: Any = None,
 ) -> dict[str, Any]:
     """Valide le contrat et son CAS ; l'autorité des arguments relève de l'appelant.
 
@@ -237,13 +254,15 @@ def valider_projection(
     il ne dispense pas de vérifier les taux ni la provenance de l'appel au port M4.
     """
     try:
+        _exiger(type(_version) is int and _version in {2, 3}, "version non prise en charge")
         _json_strict(projection)
         _exiger(
             len(json.dumps(projection, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) <= 65536,
             "projection supérieure à 65536 octets",
         )
         p = _objet(projection, _CHAMPS, "projection")
-        _exiger(p["version"] == _VERSION, "version non prise en charge")
+        _exiger(p["version"] == (_VERSION if _version == 2 else "opsys.m4.temps_certifies.v3"),
+                "version non prise en charge")
         _exiger(_texte(instance_id) and p["instance_id"] == instance_id, "instance différente")
         _exiger(_texte(p["intervention_id"]) and _texte(p["lead_id"]), "identités absentes")
         _exiger(p["chantier_id"] is None or _texte(p["chantier_id"]), "chantier invalide")
@@ -281,12 +300,20 @@ def valider_projection(
             wct_id,
             *(sources[k]["empreinte_snapshot"] for k in ("principal", "visites", "compositions")),
         )
-        _exiger(_hash(source_attendue) and source_attendue == cas, "source CAS périmée ou absente")
-        empreinte = encodage.empreinte("m4.temps_certifies.v2", {k: v for k, v in p.items() if k != "empreinte"})
+        _exiger(_hash(source_attendue) and (source_attendue == cas if _version == 2
+                else _hash(_source_relue) and source_attendue == _source_relue), "source CAS périmée ou absente")
+        domaine = "m4.temps_certifies.v2" if _version == 2 else "m4.temps_certifies.v3"
+        empreinte = encodage.empreinte(domaine, {k: v for k, v in p.items() if k != "empreinte"})
         _exiger(_hash(p["empreinte"]) and p["empreinte"] == empreinte, "empreinte incorrecte")
         visites = p["visites"]
         _exiger(type(visites) is list and 0 < len(visites) <= 1000, "visites absentes ou hors limites")
-        controle = [_controle_visite(v, p["intervention_id"]) for v in visites]
+        controle = [_controle_visite(v, p["intervention_id"], _version) for v in visites]
+        if _version == 3:
+            preuves = [preuve for v in visites if v["equipe_pointee"]["statut"] == "identifiee"
+                       for preuve in v["equipe_pointee"]["preuves"]]
+            _exiger(len({p["preuve_id"] for p in preuves}) == len(preuves)
+                    and len({p["pointage_id"] for p in preuves}) == len(preuves)
+                    and len({p["audit_id"] for p in preuves}) == len(preuves), "preuves ou audits répétés")
         cles = [c[0] for c in controle]
         _exiger(cles == sorted(cles) and len({c[1] for c in cles}) == len(cles), "ordre ou doublon de visite")
         _exiger(all(a[2] <= b[0] for a, b in zip(cles, cles[1:], strict=False)), "visites chevauchées")
@@ -314,3 +341,11 @@ def valider_projection(
         return {"valide": True, "exploitable": not raisons, "raisons": raisons}
     except (ValueError, TypeError, OverflowError, RecursionError) as exc:
         return {"valide": False, "exploitable": False, "raisons": [str(exc)]}
+
+
+def valider_projection_v3(projection: Any, *, instance_id: Any, wct_id: Any, source_attendue: Any,
+                          source_relue: Any, sources_actuelles: Any) -> dict[str, Any]:
+    """Validation structurelle ; seul un appelant du port propriétaire peut authentifier les sources."""
+    return valider_projection(projection, instance_id=instance_id, wct_id=wct_id,
+                              source_attendue=source_attendue, sources_actuelles=sources_actuelles,
+                              _version=3, _source_relue=source_relue)
