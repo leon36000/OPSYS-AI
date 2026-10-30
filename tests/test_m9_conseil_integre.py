@@ -359,3 +359,19 @@ def test_ouverture_idempotente_et_registre_altere_refuse(monde):
             .values(maillon="{}")
         )
     assert _refuse(_appel(capacites, "m9_lire_conseil", {"session_id": premiere["session_id"]}))
+
+
+def test_les_profils_proposes_n_ont_aucun_outil_que_leur_agent_ne_pourrait_pas_appeler(monde):
+    """L'entrée d'un tour exige l'admin authentifié : un profil d'agent ne la reçoit pas en outil (sinon il serait
+    refusé à l'appel). L'orchestrateur admin la lit et la remet ; aucun droit n'est élargi."""
+    capacites, departements = monde
+    proposition = _ok(_appel(capacites, "m9_proposer_profils_conseil", {}))
+    assert proposition["profils"] and all(profil["outils"] == [] for profil in proposition["profils"])
+    assert "orchestrateur admin" in proposition["entree_du_tour"]
+    sans_admin = capacites.appeler("m9_lire_entree_tour_conseil", {"session_id": "s", "role": "r"})
+    assert "REJ-IDENTITE-APPAREIL-INVALIDE" in json.dumps(sans_admin)
+    # Les profils proposés restent créables et activables tels quels par un administrateur.
+    _creer_profils(departements, ["liaison_finance"])
+    with stockage.transaction() as cnx:
+        cree = agents.obtenir(cnx, "m9-liaison-finance")
+    assert cree is not None and cree["outils"] == [] and cree["actif"] is True

@@ -163,10 +163,12 @@ def construire_outils(
 
     def proposer_profils() -> dict[str, Any]:
         exiger_admin_strict()
+        # Aucun outil : l'entrée du tour exige un admin authentifié (``m9_lire_entree_tour_conseil``) ; l'agent ne
+        # pourrait pas l'appeler. L'orchestrateur admin la lit et la remet au tour ; aucun droit n'est élargi.
         profils = [
             conseil.profil_agent(
                 role.id,
-                outils=["m9_lire_entree_tour_conseil"],
+                outils=[],
                 budget_jour=3 * role.enveloppe_tokens,
                 budget_mois=60 * role.enveloppe_tokens,
             )
@@ -179,6 +181,8 @@ def construire_outils(
                 "type": "PROFILS_CONSEIL_PROPOSES",
                 "profils": profils,
                 "creation": "déclarations seulement : un administrateur les crée (agents.creer) et les active",
+                "entree_du_tour": "remise par l'orchestrateur admin (m9_lire_entree_tour_conseil) ; le profil "
+                "n'a aucun outil",
             },
             budget_sortie,
         )
@@ -413,9 +417,9 @@ def construire_outils(
         ),
         outil(
             "m9_proposer_profils_conseil",
-            "Rend les déclarations de profils d'agents des rôles du conseil (manuel, tours et réessais bornés). "
-            "Aucune création, "
-            "aucun grant : un administrateur les crée et les active.",
+            "Rend les déclarations de profils d'agents des rôles du conseil (manuel, tours et réessais bornés, aucun "
+            "outil : l'entrée du tour est remise par l'admin). Aucune création, aucun grant : un administrateur les "
+            "crée et les active.",
             {},
             [],
             proposer_profils,
