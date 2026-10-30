@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="4.731" timestamp="2026-10-30T02:07:02.577462-04:00" hostname="gx10-e526"><testcase classname="tests.test_qa_m5_v3_source_transversale" name="test_probe_preparation" time="3.877" /></testsuite></testsuites>
