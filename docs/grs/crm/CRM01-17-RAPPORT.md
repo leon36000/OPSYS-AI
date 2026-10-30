@@ -18,6 +18,8 @@ Les détails, scripts, commandes, SHA et sorties non écrasées sont dans `CRM01
 
 La prochaine étape est la coordination du contrat de service fiable et révocable avec le propriétaire du socle et les consommateurs, puis la qualification à chaque usage d'une trace aval ; `CRM01-17-FRONTIERE-M4-M5.md` et `CRM01-17-INVALIDATION-M4-M5.md` précisent les dépendances. Une composition avec M5 `d5ff2f858cbf195689b4a89ed34a2120814977fd` a ensuite exécuté 131 tests : 128 réussis et 3 échecs dans les tests de publication d'événements M5, sans erreur ni skip. Les neuf scénarios de jonction/fraîcheur locale passent ; les échecs du bus restent à réconcilier par le propriétaire M5. Voir `CRM01-17-JONCTION-INDEPENDANTE.md` et `CRM01-17-PREUVES/jonction-m5-d5ff/`. Aucun changement M5, migration, paie, fusion ni déploiement par cette mission.
 
+La régression complète M5 sur cette composition a été reproduite indépendamment : **2 714 tests, 17 échecs, aucun skip, exit 1** ; les 17 cas correspondent à l'inventaire M5 publié `5ec72e067`. Ils couvrent cascade, événements et lecture et maintiennent le verdict partiel. La suite complète M4 demeure verte sur le code M4 indiqué ci-dessus.
+
 ## Jalon historique avant provenance V3
 
 | Exigence | Preuve | Résultat / limite |

@@ -72,3 +72,14 @@ Une quatrième composition utilise la même base et M4 `24479141f0c4dfbfe194f9e3
 - `test_un_retour_a_une_version_anterieure_publie_un_evenement_distinct` attend une marge publiée calculée à partir du taux ; la marge est inconnue.
 
 Ces tests de bus emploient le WCT scalaire sans projection typée vérifiée ; l'échec est cohérent avec la politique conservatrice actuelle mais reste une régression de tests à réconcilier par le propriétaire M5, et ne démontre pas qu'une cascade complète publiée fonctionne. Pas de correction des fichiers M5 dans cette mission. Le lot se reproduit avec le harnais de la section précédente, la nouvelle composition, les six chemins QA (`test_qa_jonction_v3_indep.py`, `test_qa_v3_concurrence.py`, trois scénarios M5 et `test_qa_m5_v3_source_transversale.py`) et les deux fichiers M5 `test_cout_reel.py` et `test_evenement_rentabilite.py`. L'XML SHA-256 est `ff927c1cb1d85d761492ecf6b4d44719414d61a77fc2093e6b65d3ccd8adc3f4` ; aucun échec n'a été écarté pour annoncer un lot vert.
+
+### Suite M5 complète indépendante
+
+Sur cette même composition et les mêmes sources en lecture seule, la commande ci-dessous a exécuté l'intégralité de `departments/m05-financecore/tests`. `m5-complet-d5ff-indep-01.xml` : **2 714 tests, 2 697 réussis, 17 échecs, 0 erreur, 0 skip, exit 1**, 135,512 s. Les échecs se répartissent en 12 cas de cascade, trois d'événement et deux de lecture. Les 17 couples classe/test sont identiques à ceux de l'inventaire publié par M5 au commit documentaire `5ec72e067d1e00b917f49d95151b0d4f9a41c039`, qui ne modifie pas le code `d5ff2f858` : différence vide dans les deux sens (`comparaison-inventaire-01.txt`). Cette reproduction indépendante confirme les échecs ; elle ne préjuge pas de leur résolution. SHA-256 XML `25a29f0bf79d0de8a211d828b890d667962a7697948f6dffe3ab9bda37003ea6`, log `8571a9c5920f74c68c611615dab5580f054b435a9db030d29544a7afa666a866`.
+
+```sh
+QA="$PWD/../preuves-m4-v2/jonction-v3-independante-04"
+VENV="$PWD/../preuves-m4-v2/venv"
+RUNNER="$PWD/../preuves-m4-v2/runner-tests.py"
+env HOME="$QA/home" OPSYS_HOME="$QA/opsys" XDG_CONFIG_HOME="$QA/xdg" XDG_CACHE_HOME="$QA/xdg" XDG_DATA_HOME="$QA/xdg" TMPDIR="$QA/tmp" PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONDONTWRITEBYTECODE=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 timeout 600s systemd-run --user --scope --quiet -p MemoryMax=2G -p TasksMax=64 -p CPUQuota=200% bwrap --unshare-net --unshare-pid --ro-bind / / --dev /dev --proc /proc --bind "$QA" "$QA" --chdir "$QA/repo" -- python3 "$RUNNER" "$VENV/bin/python" -m pytest -p no:cacheprovider -q departments/m05-financecore/tests --junitxml="$QA/m5-complet-d5ff-indep-01.xml"
+```

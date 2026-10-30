@@ -1,0 +1,431 @@
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 18%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 50%]
+....................................FFFFFFF...........F..F.FFF.......... [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+......F..FF............................................................. [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+......................................................................F. [ 69%]
+..F..................................................................... [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................... [ 98%]
+..................................................                       [100%]
+=================================== FAILURES ===================================
+_ test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[devis-wct-variance] _
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i0/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i0/department.yaml')
+ordre = ('devis', 'wct', 'variance')
+
+    @pytest.mark.parametrize("ordre", list(itertools.permutations(["devis", "wct", "variance"])),
+                             ids=lambda ordre: "-".join(ordre))
+    def test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet(base_durable, taux_configure, ordre):
+        _prix_au_livre_m6()
+        for piece in ordre:
+            _publier(piece)
+            _livrer()
+    
+        traces = _traces()
+        derniere = traces[-1]
+        r = derniere["rentabilite"]
+>       assert derniere["verdict"] == "CALCULEE" and r["manque"] == []
+E       AssertionError: assert ('PARTIELLE' == 'CALCULEE'
+E         
+E         - CALCULEE
+E         + PARTIELLE)
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:160: AssertionError
+_ test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[devis-variance-wct] _
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i1/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i1/department.yaml')
+ordre = ('devis', 'variance', 'wct')
+
+    @pytest.mark.parametrize("ordre", list(itertools.permutations(["devis", "wct", "variance"])),
+                             ids=lambda ordre: "-".join(ordre))
+    def test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet(base_durable, taux_configure, ordre):
+        _prix_au_livre_m6()
+        for piece in ordre:
+            _publier(piece)
+            _livrer()
+    
+        traces = _traces()
+        derniere = traces[-1]
+        r = derniere["rentabilite"]
+>       assert derniere["verdict"] == "CALCULEE" and r["manque"] == []
+E       AssertionError: assert ('PARTIELLE' == 'CALCULEE'
+E         
+E         - CALCULEE
+E         + PARTIELLE)
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:160: AssertionError
+_ test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[wct-devis-variance] _
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i2/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i2/department.yaml')
+ordre = ('wct', 'devis', 'variance')
+
+    @pytest.mark.parametrize("ordre", list(itertools.permutations(["devis", "wct", "variance"])),
+                             ids=lambda ordre: "-".join(ordre))
+    def test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet(base_durable, taux_configure, ordre):
+        _prix_au_livre_m6()
+        for piece in ordre:
+            _publier(piece)
+            _livrer()
+    
+        traces = _traces()
+        derniere = traces[-1]
+        r = derniere["rentabilite"]
+>       assert derniere["verdict"] == "CALCULEE" and r["manque"] == []
+E       AssertionError: assert ('PARTIELLE' == 'CALCULEE'
+E         
+E         - CALCULEE
+E         + PARTIELLE)
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:160: AssertionError
+_ test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[wct-variance-devis] _
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i3/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i3/department.yaml')
+ordre = ('wct', 'variance', 'devis')
+
+    @pytest.mark.parametrize("ordre", list(itertools.permutations(["devis", "wct", "variance"])),
+                             ids=lambda ordre: "-".join(ordre))
+    def test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet(base_durable, taux_configure, ordre):
+        _prix_au_livre_m6()
+        for piece in ordre:
+            _publier(piece)
+            _livrer()
+    
+        traces = _traces()
+        derniere = traces[-1]
+        r = derniere["rentabilite"]
+>       assert derniere["verdict"] == "CALCULEE" and r["manque"] == []
+E       AssertionError: assert ('PARTIELLE' == 'CALCULEE'
+E         
+E         - CALCULEE
+E         + PARTIELLE)
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:160: AssertionError
+_ test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[variance-devis-wct] _
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i4/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i4/department.yaml')
+ordre = ('variance', 'devis', 'wct')
+
+    @pytest.mark.parametrize("ordre", list(itertools.permutations(["devis", "wct", "variance"])),
+                             ids=lambda ordre: "-".join(ordre))
+    def test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet(base_durable, taux_configure, ordre):
+        _prix_au_livre_m6()
+        for piece in ordre:
+            _publier(piece)
+            _livrer()
+    
+        traces = _traces()
+        derniere = traces[-1]
+        r = derniere["rentabilite"]
+>       assert derniere["verdict"] == "CALCULEE" and r["manque"] == []
+E       AssertionError: assert ('PARTIELLE' == 'CALCULEE'
+E         
+E         - CALCULEE
+E         + PARTIELLE)
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:160: AssertionError
+_ test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[variance-wct-devis] _
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i5/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_les_trois_pieces_dans_n_i5/department.yaml')
+ordre = ('variance', 'wct', 'devis')
+
+    @pytest.mark.parametrize("ordre", list(itertools.permutations(["devis", "wct", "variance"])),
+                             ids=lambda ordre: "-".join(ordre))
+    def test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet(base_durable, taux_configure, ordre):
+        _prix_au_livre_m6()
+        for piece in ordre:
+            _publier(piece)
+            _livrer()
+    
+        traces = _traces()
+        derniere = traces[-1]
+        r = derniere["rentabilite"]
+>       assert derniere["verdict"] == "CALCULEE" and r["manque"] == []
+E       AssertionError: assert ('PARTIELLE' == 'CALCULEE'
+E         
+E         - CALCULEE
+E         + PARTIELLE)
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:160: AssertionError
+____ test_chaque_piece_apporte_ce_qu_elle_sait_la_derniere_complete_l_etat _____
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_chaque_piece_apporte_ce_q0/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_chaque_piece_apporte_ce_q0/department.yaml')
+
+    def test_chaque_piece_apporte_ce_qu_elle_sait_la_derniere_complete_l_etat(base_durable, taux_configure):
+        _prix_au_livre_m6()
+        _publier("devis")
+        _livrer()
+        assert _traces() == [], "sans WCT : rien à calculer, un statut d'attente"
+    
+        _publier("wct")
+        _livrer()
+        (apres_wct,) = _traces()
+        assert apres_wct["verdict"] == "PARTIELLE"
+>       assert _codes(apres_wct) == ["REJ-COUT-MATERIAUX-REELS-ABSENTS"]  # la variance de M6 n'est pas encore là
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert ['REJ-COUT-MA...OINTE-ABSENT'] == ['REJ-COUT-MA...EELS-ABSENTS']
+E         
+E         Left contains one more item: 'REJ-COUT-TEMPS-POINTE-ABSENT'
+E         Use -v to get more diff
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:183: AssertionError
+_ test_un_devis_sans_chantier_est_trace_avec_le_chantier_que_la_variance_de_m6_connait _
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_un_devis_sans_chantier_es0/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_un_devis_sans_chantier_es0/department.yaml')
+
+    def test_un_devis_sans_chantier_est_trace_avec_le_chantier_que_la_variance_de_m6_connait(base_durable, taux_configure):
+        """M3 peut accepter un devis avant que M4 planifie (`chantier_id` nul) : pas de facture (attente nommée), mais la
+        déclaration de M6 connaît le chantier, et le coût réel se calcule."""
+        _prix_au_livre_m6()
+        evenements.publier("m3.devis_accepte", "m03-estimation", _devis_accepte(chantier_id=None))
+        evenements.publier("m4.travaux_termines", "m04-field-ops", _wct())
+        evenements.publier("m6.variance_chantier", _M6, _variance(), evenement_id="m6-variance-WCT-1-evaluee")
+        _livrer()
+    
+        derniere = _traces()[-1]
+        assert derniere["chantier_id"] == "CHANTIER-1"
+>       assert derniere["rentabilite"]["cout_reel"]["cout_total"] == Decimal("486.00")
+E       AssertionError: assert None == Decimal('486.00')
+E        +  where Decimal('486.00') = Decimal('486.00')
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:342: AssertionError
+_______ test_un_tarif_futur_ne_change_ni_la_trace_ni_la_marge_historique _______
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_un_tarif_futur_ne_change_0/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_un_tarif_futur_ne_change_0/department.yaml')
+
+    def test_un_tarif_futur_ne_change_ni_la_trace_ni_la_marge_historique(base_durable, taux_configure):
+        _prix_au_livre_m6()
+        for piece in ("devis", "wct", "variance"):
+            _publier(piece)
+        _livrer()
+        avant = _traces()
+    
+        _prix_au_livre_m6(prix=80, date_effet="2027-01-01")
+    
+        assert _essayer() == {"statut": "deja_tracee"}
+        assert _traces() == avant
+        with stockage.transaction():
+            r = outils_mod._etat_chantier("DEVIS-1")["rentabilite"]
+>       assert r["cout_reel"]["cout_total"] == Decimal("486.00")
+E       AssertionError: assert None == Decimal('486.00')
+E        +  where Decimal('486.00') = Decimal('486.00')
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:398: AssertionError
+_ test_un_prix_ajoute_au_livre_apres_coup_ajoute_une_trace_sans_effacer_la_precedente _
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_un_prix_ajoute_au_livre_a0/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_un_prix_ajoute_au_livre_a0/department.yaml')
+
+    def test_un_prix_ajoute_au_livre_apres_coup_ajoute_une_trace_sans_effacer_la_precedente(base_durable, taux_configure):
+        for piece in ("devis", "wct", "variance"):
+            _publier(piece)
+        _livrer()
+        historique = _traces()
+        avant = historique[-1]
+>       assert _codes(avant) == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+E       AssertionError: assert ['REJ-COUT-PR...OINTE-ABSENT'] == ['REJ-COUT-PR...N-DISPONIBLE']
+E         
+E         Left contains one more item: 'REJ-COUT-TEMPS-POINTE-ABSENT'
+E         Use -v to get more diff
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:423: AssertionError
+__________ test_le_taux_change_une_nouvelle_version_l_ancienne_reste ___________
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_le_taux_change_une_nouvel0/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_le_taux_change_une_nouvel0/department.yaml')
+
+    def test_le_taux_change_une_nouvelle_version_l_ancienne_reste(base_durable, taux_configure):
+        _prix_au_livre_m6()
+        for piece in ("devis", "wct", "variance"):
+            _publier(piece)
+        _livrer()
+        taux_configure.write_text(yaml.safe_dump({"configuration": {"taux_horaire_main_d_oeuvre": "60.00"}}),
+                                  encoding="utf-8")
+    
+        assert _essayer() == {"statut": "tracee"}
+    
+        *_, ancienne, nouvelle = _traces()
+>       assert ancienne["rentabilite"]["cout_reel"]["cout_total"] == Decimal("486.00")
+E       AssertionError: assert None == Decimal('486.00')
+E        +  where Decimal('486.00') = Decimal('486.00')
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:448: AssertionError
+______ test_la_facture_envoyee_rend_le_prix_definitif_dans_un_nouvel_etat ______
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_la_facture_envoyee_rend_l0/opsys-m5-cout-reel.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_la_facture_envoyee_rend_l0/department.yaml')
+
+    def test_la_facture_envoyee_rend_le_prix_definitif_dans_un_nouvel_etat(base_durable, taux_configure):
+        _prix_au_livre_m6()
+        for piece in ("devis", "wct", "variance"):
+            _publier(piece)
+        _livrer()
+        avant = _traces()
+        assert avant[-1]["rentabilite"]["prix_definitif"] is False
+        envoyer = next(o for o in outils_mod.outils() if o.nom == "m5_envoyer_facture")
+        reponse = executer_atomique(envoyer, {"facture_id": "fac-DEVIS-1", "horodatage": COMPLETION})
+        assert reponse["ok"] and reponse["resultat"]["accepte"], reponse
+    
+        # La transition trace et publie immédiatement; un rattrapage est désormais un rejeu.
+        assert len(_traces()) == len(avant) + 1
+        assert _traces()[:len(avant)] == avant
+        assert _essayer() == {"statut": "deja_tracee"}
+        assert len(_traces()) == len(avant) + 1
+    
+        derniere = _traces()[-1]["rentabilite"]
+        assert (derniere["statut_facture"], derniere["prix_definitif"]) == ("ENVOYEE", True)
+>       assert derniere["marge_reelle"] == Decimal("114.00")
+E       AssertionError: assert None == Decimal('114.00')
+E        +  where Decimal('114.00') = Decimal('114.00')
+
+departments/m05-financecore/tests/test_cout_reel_cascade.py:471: AssertionError
+___ test_une_trace_calculee_publie_la_marge_reelle_dans_la_meme_transaction ____
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_une_trace_calculee_publie0/opsys-m5-rentabilite.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_une_trace_calculee_publie0/department.yaml')
+
+    def test_une_trace_calculee_publie_la_marge_reelle_dans_la_meme_transaction(base_durable, taux_configure):
+        _prix_au_livre_m6()
+        _cascade()
+    
+        traces = _traces()
+        publies = _publies()
+        assert len(publies) == len(traces) >= 1, "un événement par trace, ni plus ni moins"
+        derniere, (evenement_id, producteur, charge) = traces[-1], publies[-1]
+        assert producteur == _DEPARTEMENT and evenement_id == charge["evenement_id"]
+        assert charge["sequence"] == len(traces) and charge["version_entrees"] == derniere["version_entrees"]
+        assert (charge["devis_id"], charge["chantier_id"], charge["wct_id"]) == ("DEVIS-1", "CHANTIER-1", "WCT-1")
+        assert charge["horodatage_completion"] == COMPLETION  # celui du WCT, aucune horloge de M5
+>       assert charge["verdict"] == "CALCULEE" and derniere["verdict"] == "CALCULEE"
+E       AssertionError: assert ('PARTIELLE' == 'CALCULEE'
+E         
+E         - CALCULEE
+E         + PARTIELLE)
+
+departments/m05-financecore/tests/test_evenement_rentabilite.py:377: AssertionError
+_ test_un_prix_ajoute_apres_coup_publie_un_nouvel_etat_qui_remplace_le_partiel _
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_un_prix_ajoute_apres_coup0/opsys-m5-rentabilite.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_un_prix_ajoute_apres_coup0/department.yaml')
+
+    def test_un_prix_ajoute_apres_coup_publie_un_nouvel_etat_qui_remplace_le_partiel(base_durable, taux_configure):
+        _cascade()  # pas de prix au livre : partiel
+        (_, _, partiel) = _publies()[-1]
+>       assert partiel["verdict"] == "PARTIELLE" and partiel["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+E       AssertionError: assert ('PARTIELLE' == 'PARTIELLE'
+E         
+E           PARTIELLE and ['REJ-COUT-PR...OINTE-ABSENT'] == ['REJ-COUT-PR...N-DISPONIBLE']
+E         
+E         Left contains one more item: 'REJ-COUT-TEMPS-POINTE-ABSENT'
+E         Use -v to get more diff)
+
+departments/m05-financecore/tests/test_evenement_rentabilite.py:422: AssertionError
+_____ test_un_retour_a_une_version_anterieure_publie_un_evenement_distinct _____
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_un_retour_a_une_version_a0/opsys-m5-rentabilite.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-1/test_un_retour_a_une_version_a0/department.yaml')
+
+    def test_un_retour_a_une_version_anterieure_publie_un_evenement_distinct(base_durable, taux_configure):
+        """Taux 50 -> 60 -> 50 : la troisième trace a la version de la première. Sans le rang dans l'identifiant, le
+        bus avalerait son événement (no-op) et M8 et M10 resteraient sur la marge du taux à 60."""
+        _prix_au_livre_m6()
+        _cascade()
+        depart = len(_publies())
+        premier_etat = _publies()[-1][2]
+>       assert premier_etat["marge_reelle_cad"] == "114.00"
+E       AssertionError: assert None == '114.00'
+
+departments/m05-financecore/tests/test_evenement_rentabilite.py:442: AssertionError
+_____________ test_l_admin_lit_le_cout_reel_et_la_marge_d_un_devis _____________
+
+par_nom = {'m5_etat_tresorerie': Outil(nom='m5_etat_tresorerie', description="État financier de bout en bout : solde, argent dis...T1'>, niveau=None, roles_appareil=frozenset(), portee_contexte=None, cible_contexte=None, identite_contexte=None), ...}
+chantier_complet = None
+
+    def test_l_admin_lit_le_cout_reel_et_la_marge_d_un_devis(par_nom, chantier_complet):
+        vue = _lire(par_nom, {"devis_id": "DEVIS-1"})
+    
+        assert vue["role"] == "admin" and (vue["nombre"], vue["affichees"], vue["reste"]) == (1, 1, 0)
+        (chantier,) = vue["chantiers"]
+        assert (chantier["devis_id"], chantier["chantier_id"], chantier["statut"]) == ("DEVIS-1", "CHANTIER-1", "calculee")
+        r = chantier["rentabilite"]
+>       assert r["verdict"] == "CALCULEE" and r["manque"] == []
+E       AssertionError: assert ('PARTIELLE' == 'CALCULEE'
+E         
+E         - CALCULEE
+E         + PARTIELLE)
+
+departments/m05-financecore/tests/test_lecture_rentabilite.py:162: AssertionError
+___ test_sans_filtre_une_ligne_par_devis_et_les_attentes_sans_aucun_montant ____
+
+par_nom = {'m5_etat_tresorerie': Outil(nom='m5_etat_tresorerie', description="État financier de bout en bout : solde, argent dis...T1'>, niveau=None, roles_appareil=frozenset(), portee_contexte=None, cible_contexte=None, identite_contexte=None), ...}
+chantier_complet = None
+
+    def test_sans_filtre_une_ligne_par_devis_et_les_attentes_sans_aucun_montant(par_nom, chantier_complet):
+        evenements.publier("m3.devis_accepte", "m03-estimation", _devis_accepte("DEVIS-2", "CHANTIER-2"))
+        _livrer("2026-09-25T18:00:00-04:00")  # DEVIS-2 : le WCT n'est pas encore arrivé
+    
+        vue = _lire(par_nom)
+    
+        assert (vue["nombre"], vue["affichees"], vue["reste"]) == (2, 2, 0)
+        deux, un = vue["chantiers"]  # le plus récemment reçu d'abord
+>       assert un["devis_id"] == "DEVIS-1" and un["rentabilite"]["marge_reelle"] == "114.00"
+E       AssertionError: assert ('DEVIS-1' == 'DEVIS-1'
+E         
+E           DEVIS-1 and None == '114.00')
+
+departments/m05-financecore/tests/test_lecture_rentabilite.py:212: AssertionError
+=========================== short test summary info ============================
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[devis-wct-variance]
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[devis-variance-wct]
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[wct-devis-variance]
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[wct-variance-devis]
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[variance-devis-wct]
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet[variance-wct-devis]
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_chaque_piece_apporte_ce_qu_elle_sait_la_derniere_complete_l_etat
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_un_devis_sans_chantier_est_trace_avec_le_chantier_que_la_variance_de_m6_connait
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_un_tarif_futur_ne_change_ni_la_trace_ni_la_marge_historique
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_un_prix_ajoute_au_livre_apres_coup_ajoute_une_trace_sans_effacer_la_precedente
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_le_taux_change_une_nouvelle_version_l_ancienne_reste
+FAILED departments/m05-financecore/tests/test_cout_reel_cascade.py::test_la_facture_envoyee_rend_le_prix_definitif_dans_un_nouvel_etat
+FAILED departments/m05-financecore/tests/test_evenement_rentabilite.py::test_une_trace_calculee_publie_la_marge_reelle_dans_la_meme_transaction
+FAILED departments/m05-financecore/tests/test_evenement_rentabilite.py::test_un_prix_ajoute_apres_coup_publie_un_nouvel_etat_qui_remplace_le_partiel
+FAILED departments/m05-financecore/tests/test_evenement_rentabilite.py::test_un_retour_a_une_version_anterieure_publie_un_evenement_distinct
+FAILED departments/m05-financecore/tests/test_lecture_rentabilite.py::test_l_admin_lit_le_cout_reel_et_la_marge_d_un_devis
+FAILED departments/m05-financecore/tests/test_lecture_rentabilite.py::test_sans_filtre_une_ligne_par_devis_et_les_attentes_sans_aucun_montant
