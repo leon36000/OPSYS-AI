@@ -24,7 +24,7 @@ jamais le prix d'un autre matériau. Deux fournisseurs au livre avec des prix di
 ARRONDI (un seul mode, `ROUND_HALF_UP`, le même que `facturation.py` et M3) :
 - chaque ligne de matériau : quantité × prix unitaire, arrondi au cent ; le coût des matériaux est la somme de ces
   lignes arrondies (comme une ligne de facture) ;
-- la main-d'oeuvre : minutes × taux horaire ÷ 60, UN SEUL arrondi au cent, sur le produit exact ;
+- la main-d'oeuvre issue d'une ventilation : arrondi au cent par ligne (voir `ventilation_couts_visites.py`) ;
 - une marge en pourcentage est le rapport marge ÷ prix, arrondi à 4 décimales (0.2500 = 25 %) ; c'est la marge
   SUR LE PRIX, pas la majoration sur le coût que porte `taux_marge` du devis (recopiée telle quelle, à part).
 
@@ -50,7 +50,7 @@ from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
-from . import encodage, validation
+from . import encodage, validation, validation_projection_visites, ventilation_couts_visites
 
 __all__ = [
     "TYPE_EVENEMENT_RENTABILITE",
@@ -69,7 +69,6 @@ TYPE_EVENEMENT_RENTABILITE = "m5.rentabilite_chantier"
 
 _CENT = Decimal("0.01")
 _QUATRE_DECIMALES = Decimal("0.0001")
-_MINUTES_PAR_HEURE = Decimal("60")
 _DEVISE = "CAD"
 # Ordre de grandeur au-delà duquel une valeur lue (montant, quantité, prix, durée) est illisible : 10^12.
 # Un chantier de rénovation n'en approche jamais ; ce plafond garde tout calcul dans la précision de
@@ -83,7 +82,7 @@ _STATUT_LIGNE_INDETERMINEE = "LIGNE_INDETERMINEE"
 
 _ARRONDI = (
     "ROUND_HALF_UP au cent : chaque ligne de matériau (quantité x prix unitaire), puis la main-d'oeuvre "
-    "(minutes x taux horaire / 60, un seul arrondi) ; marges en pourcentage du prix, à 4 décimales "
+    "(une ligne ventilée par visite et équipe) ; marges en pourcentage du prix, à 4 décimales "
     "(0.2500 = 25 %)"
 )
 
@@ -91,8 +90,8 @@ _ARRONDI = (
 _HYPOTHESES = (
     "les matériaux sont valorisés au tarif M6 éligible à la date civile de complétion du WCT "
     "(dans sa zone déclarée), avec unité identique confirmée ; ce tarif ne prouve pas le coût du lot acheté",
-    "la main-d'oeuvre est la durée pointée sur site du WCT (pauses déduites) multipliée par le taux horaire "
-    "configuré ; le WCT ne porte pas l'effectif : ce taux est celui de l'équipe intervenante, par heure sur site",
+    "le WCT scalaire ne permet pas de vérifier les équipes présentes à chaque visite : une ventilation "
+    "certifiée et des taux sourcés sont nécessaires pour chiffrer la main-d'oeuvre",
     "le coût réel ne compte que les matériaux et la main-d'oeuvre sur site : ni déplacements, ni frais généraux",
 )
 
@@ -352,12 +351,81 @@ def _main_d_oeuvre(wct_recu: Mapping[str, Any] | None, taux_brut: Any) -> dict[s
     if verdict_taux is not None:
         manques.append(dict(verdict_taux))
     cout = None
-    if duree is not None and taux is not None:
-        cout = _au_cent(Decimal(duree) * taux / _MINUTES_PAR_HEURE)
-        if cout is None:
-            manques.append(_manque("REJ-COUT-TEMPS-POINTE-ABSENT", "durée x taux hors des limites de calcul"))
+    if duree is not None:
+        manques.append(_manque(
+            "REJ-COUT-TEMPS-POINTE-ABSENT",
+            "durée WCT scalaire sans preuve de présence par visite et équipe ; "
+            "demander la ventilation certifiée M4 et les taux applicables sourcés",
+        ))
     return {"statut": "complet" if cout is not None else "non_disponible", "minutes": duree,
             "taux_horaire": taux, "cout": cout, "manque": manques}
+
+
+def _main_d_oeuvre_ventilee(
+    wct: Mapping[str, Any] | None, projection: Any, tarifs: Any,
+    instance_id: Any, source_attendue: Any, sources_actuelles: Any, source_relue: Any = None,
+) -> dict[str, Any]:
+    """Utilise des pièces obtenues et revalidées par un adaptateur propriétaire autorisé.
+
+    Cette fonction pure ne peut pas établir l'autorité des paramètres fournis.
+    Aucun chemin public ne doit y relayer des arguments d'un appelant comme des faits.
+    """
+    resultat = {"statut": "non_disponible", "minutes": None, "taux_horaire": None,
+                "cout": None, "cout_connu": None, "lignes": [], "manque": [], "projection_empreinte": None,
+                "tarifs_empreinte": None}
+    wct_id = wct.get("wct_id") if wct is not None else None
+    if isinstance(projection, dict) and projection.get("version") == "opsys.m4.temps_certifies.v3":
+        controle = validation_projection_visites.valider_projection_v3(
+            projection, instance_id=instance_id, wct_id=wct_id, source_attendue=source_attendue,
+            source_relue=source_relue, sources_actuelles=sources_actuelles,
+        )
+    else:
+        controle = validation_projection_visites.valider_projection(
+            projection, instance_id=instance_id, wct_id=wct_id,
+            source_attendue=source_attendue, sources_actuelles=sources_actuelles,
+        )
+    if not controle["valide"]:
+        resultat["manque"].append(_manque("REJ-COUT-TEMPS-POINTE-ABSENT", "; ".join(controle["raisons"])))
+        return resultat
+    piece = projection["wct"]
+    if wct is None or any((
+        wct.get("intervention_id") != projection["intervention_id"],
+        wct.get("duree_reelle_minutes") != piece["duree_reelle_minutes"],
+        wct.get("horodatage_completion") != piece["horodatage_completion"],
+        wct.get("hash_maillon") != piece["hash_maillon"],
+    )):
+        resultat["manque"].append(_manque(
+            "REJ-COUT-TEMPS-POINTE-ABSENT", "WCT et projection non réconciliés : pièce source complète requise",
+        ))
+        return resultat
+    resultat["projection_empreinte"] = projection["empreinte"]
+    resultat["minutes"] = piece["duree_reelle_minutes"]
+    if not controle["exploitable"]:
+        resultat["manque"].append(_manque(
+            "REJ-COUT-TEMPS-POINTE-ABSENT", "revue finale ou équipes pointées à vérifier avant imputation",
+        ))
+        return resultat
+    if isinstance(tarifs, list) and len(tarifs) <= 10000:
+        try:
+            resultat["tarifs_empreinte"] = encodage.empreinte("m5.tarifs-equipes.v1", tarifs)
+        except (TypeError, ValueError, OverflowError, RecursionError):
+            resultat["manque"].append(_manque(
+                "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "instantané des tarifs illisible",
+            ))
+            return resultat
+    economie = ventilation_couts_visites.chiffrer_visites(projection["visites"], tarifs)
+    resultat["lignes"] = economie["lignes"]
+    if not economie["complet"]:
+        resultat["manque"].append(_manque(
+            "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "; ".join(economie["raisons"]),
+        ))
+    if controle["exploitable"] and economie["cout_connu"] is not None:
+        resultat["cout_connu"] = economie["cout_connu"]
+        resultat["statut"] = "partiel"
+    if controle["exploitable"] and economie["complet"]:
+        resultat["cout"] = economie["cout_total"]
+        resultat["statut"] = "complet"
+    return resultat
 
 
 # --------------------------------------------------------------------------------- coût réel
@@ -367,6 +435,13 @@ def calculer_cout_reel(
     livre_de_prix: Iterable[Mapping[str, Any]],
     taux_horaire: Any,
     autres_wct: Iterable[str] = (),
+    *,
+    projection: Any = None,
+    tarifs_equipes: Any = None,
+    instance_id: Any = None,
+    source_attendue: Any = None,
+    sources_actuelles: Any = None,
+    source_relue: Any = None,
 ) -> dict[str, Any]:
     """Le coût réel d'un chantier, tel que les pièces lues à la source le permettent.
 
@@ -380,7 +455,11 @@ def calculer_cout_reel(
     livre = list(livre_de_prix)
     autres = sorted({str(identifiant) for identifiant in autres_wct})
     materiaux = _materiaux(signal_variance, livre, _date_completion(wct_recu))
-    main_d_oeuvre = _main_d_oeuvre(wct_recu, taux_horaire)
+    main_d_oeuvre = (
+        _main_d_oeuvre(wct_recu, taux_horaire) if projection is None else
+        _main_d_oeuvre_ventilee(wct_recu, projection, tarifs_equipes, instance_id, source_attendue,
+                                sources_actuelles, source_relue)
+    )
     manque = [*materiaux["manque"], *main_d_oeuvre["manque"]]
     if autres:
         manque.append(_manque(
@@ -389,7 +468,11 @@ def calculer_cout_reel(
             f"(autres : {', '.join(autres)})",
         ))
     complet = materiaux["statut"] == "complet" and main_d_oeuvre["statut"] == "complet" and not autres
-    cout_main_d_oeuvre = main_d_oeuvre["cout"] if main_d_oeuvre["cout"] is not None else Decimal("0")
+    cout_main_d_oeuvre = main_d_oeuvre["cout"]
+    if cout_main_d_oeuvre is None:
+        cout_main_d_oeuvre = main_d_oeuvre.get("cout_connu")
+    if cout_main_d_oeuvre is None:
+        cout_main_d_oeuvre = Decimal("0")
     cout_connu = materiaux["cout_connu"] + cout_main_d_oeuvre
 
     entrees = {
@@ -411,6 +494,16 @@ def calculer_cout_reel(
         "taux_horaire": main_d_oeuvre["taux_horaire"],
         "autres_wct": autres,
     }
+    if projection is not None:
+        entrees["ventilation"] = {
+            "empreinte": main_d_oeuvre.get("projection_empreinte"),
+            "tarifs_empreinte": main_d_oeuvre.get("tarifs_empreinte"),
+            "lignes": main_d_oeuvre.get("lignes", []),
+            "statut": main_d_oeuvre["statut"],
+            "manque": main_d_oeuvre["manque"],
+        }
+        if isinstance(projection, dict) and projection.get("version") == "opsys.m4.temps_certifies.v3":
+            entrees["ventilation"]["source_m4"] = source_attendue
     return {
         "devise": _DEVISE,
         "complet": complet,

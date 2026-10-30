@@ -1,0 +1,93 @@
+"""QA de composition : faits M4 réels, calcul M5 pur, données fictives."""
+import importlib.util
+from decimal import Decimal
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from m4_field_ops import temps_certifies_v3
+from m5_financecore import cout_reel, outils
+
+from opsys import contexte, evenements, stockage
+from opsys.console import rentabilite_chantier
+from opsys.departements import charger_departements
+
+ROOT = Path(__file__).resolve().parents[1]
+spec_conftest = importlib.util.spec_from_file_location('qa_v3_conftest', ROOT / 'departments/m04-field-ops/tests/conftest.py')
+conftest = importlib.util.module_from_spec(spec_conftest)
+spec_conftest.loader.exec_module(conftest)
+base_durable = conftest.base_durable
+spec = importlib.util.spec_from_file_location('qa_v3_producteur', ROOT / 'departments/m04-field-ops/tests/test_temps_certifies_v3.py')
+producteur = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(producteur)
+
+
+def test_port_reel_produit_deux_equipes_pour_calcul_pur_m5(base_durable, tmp_path, monkeypatch):
+    original = temps_certifies_v3.projeter
+    controles = []
+
+    def intercepter(cnx, intervention_id, wct_id, **kwargs):
+        sortie = original(cnx, intervention_id, wct_id, **kwargs)
+        p = sortie['projection']
+        if p['revue_chantier']['statut'] == 'verifiee' and not controles:
+            relue = original(cnx, intervention_id, wct_id, source_attendue=sortie['source'])
+            assert relue == sortie
+            wct = {'wct_id': wct_id, 'intervention_id': intervention_id,
+                   'hash_maillon': p['wct']['hash_maillon'], 'duree_reelle_minutes': p['wct']['duree_reelle_minutes'],
+                   'horodatage_completion': p['wct']['horodatage_completion']}
+            equipes = [v['equipe_pointee']['identifiant'] for v in p['visites']]
+            assert len(equipes) == 2 and equipes[0] != equipes[1]
+            with contexte.appeler_en_tant_que('m05-financecore', origine='console'):
+                for index, (equipe, taux) in enumerate(zip(equipes, ('100', '120'), strict=True)):
+                    tarif = {'equipe_id': equipe, 'taux': taux, 'unite': 'heure-equipe', 'devise': 'CAD',
+                             'source': 'qa-fictif', 'version': '1', 'date_effet': '2030-01-01',
+                             'date_fin': '2030-12-31', 'remplace_id': None}
+                    source = outils._lire_tarifs_equipes()['source']
+                    outils._inscrire_tarif_equipe(tarif, mutation_id=f'tarif-fictif-{index}', source_attendue=source)
+                tarifs = outils._lire_tarifs_equipes()['lignes']
+            resultat = cout_reel.calculer_cout_reel(
+                wct, {'statut_variance': 'evaluee', 'lignes': []}, [], None, projection=p,
+                tarifs_equipes=tarifs, instance_id=p['instance_id'], source_attendue=sortie['source'],
+                source_relue=relue['source'], sources_actuelles=relue['projection']['sources'])
+            assert resultat['complet'] and resultat['cout_total'] == Decimal('730.00')
+            assert [v['minutes']['travail'] for v in p['visites']] == [150, 240]
+            partiel = cout_reel.calculer_cout_reel(
+                wct, {'statut_variance': 'evaluee', 'lignes': []}, [], None, projection=p,
+                tarifs_equipes=tarifs[:1], instance_id=p['instance_id'], source_attendue=sortie['source'],
+                source_relue=relue['source'], sources_actuelles=relue['projection']['sources'])
+            assert not partiel['complet'] and partiel['cout_total'] is None
+            from m4_field_ops import outbox
+
+            wct_publie = next(m[outbox.CLE_WCT] for m in stockage.maillons('m04-field-ops', 'principal')
+                              if m.get(outbox.CLE_WCT, {}).get('wct_id') == wct_id)
+            evenements.publier('m4.travaux_termines', 'm04-field-ops', wct_publie, evenement_id=wct_id)
+            dep = charger_departements()['m05-financecore']
+            repartition = evenements.repartir({'m05-financecore': dep}, maintenant='2030-06-07T18:00:00-04:00')
+            assert repartition['traites'] == 1 and repartition['echecs'] == 0
+            recu = next(m for m in stockage.maillons('m05-financecore', 'wct_recus') if m['wct_id'] == wct_id)
+            # Désactiver temporairement l'interception : la console doit appeler elle-même le vrai port M4.
+            with monkeypatch.context() as m:
+                m.setattr(temps_certifies_v3, 'projeter', original)
+                vue = rentabilite_chantier._ventilation_m4(
+                    cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu, p['lead_id'])
+            assert vue['statut'] == 'COMPLET' and vue['cout_main_oeuvre'] == Decimal('730.00')
+            with monkeypatch.context() as m:
+                def relecture_perimee(*args, **options):
+                    donnees = original(*args, **options)
+                    if options.get('source_attendue'):
+                        return {**donnees, 'source': 'f' * 64}
+                    return donnees
+                m.setattr(temps_certifies_v3, 'projeter', relecture_perimee)
+                with pytest.raises(rentabilite_chantier.lecture.Refus, match='SOURCE-MODIFIEE'):
+                    rentabilite_chantier._ventilation_m4(
+                        cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800), recu, p['lead_id'])
+            avant = list(stockage.maillons('m05-financecore', 'wct_recus'))
+            evenements.publier('m4.travaux_termines', 'm04-field-ops', wct_publie, evenement_id=wct_id)
+            evenements.repartir({'m05-financecore': dep}, maintenant='2030-06-07T18:00:00-04:00')
+            assert list(stockage.maillons('m05-financecore', 'wct_recus')) == avant
+            controles.append((sortie['source'], resultat['cout_total']))
+        return sortie
+
+    monkeypatch.setattr(temps_certifies_v3, 'projeter', intercepter)
+    producteur.test_pointage_v3_enregistre_preuve_typee_avec_autorite(base_durable, tmp_path, monkeypatch)
+    assert len(controles) == 1

@@ -1,0 +1,278 @@
+{
+  "fictif": true,
+  "description": "Fixture V3 purement fictive ; les références de preuve sont synthétiques, sans base réelle.",
+  "projection": {
+    "version": "opsys.m4.temps_certifies.v3",
+    "instance_id": "00000000-0000-4000-8000-000000000001",
+    "chantier_id": null,
+    "intervention_id": "573a0a925ae3caa1aa0669bc038867b5c96190ca06ed26384ac0df625c4689f3",
+    "lead_id": "lead-fictif-001",
+    "wct": {
+      "wct_id": "481805f0d46ef8f6dac56f0adedc9b31b63182392cda015f67b1df5ca78c37f0",
+      "source_ligne_id": "3a1c4ddd88a80c94ce1e4d5ad633e0d751a053619d46b9803ffdad6ae2b8df29",
+      "hash_maillon": "d9586ad19c672eea1fff657d52778c449fcbe6880f1c6bce31ac2b490d4b0638",
+      "horodatage_transition": "2030-06-07T13:05:00-04:00",
+      "horodatage_completion": "2030-06-07T17:00:00+00:00",
+      "statut": "completed_pending_review",
+      "duree_reelle_minutes": 390
+    },
+    "sources": {
+      "principal": {
+        "tete": "3a1c4ddd88a80c94ce1e4d5ad633e0d751a053619d46b9803ffdad6ae2b8df29",
+        "empreinte_snapshot": "212b51d01b26fa03d14e48f2cd4097d31ce5502ae8aa1e5978cc623ad5211bda"
+      },
+      "visites": {
+        "tete": "7dd3e337232d0c78c028ec992e0fca74493534964ef0440478fc93b268d53e3c",
+        "empreinte_snapshot": "f41fbf02634a7fb6a1d7d6f5d18a65a996ad851795492d6834a161ae751e74bd"
+      },
+      "compositions": {
+        "tete": "e37e140195984aeb1712caff6ac74638f4c290ab0e2d569db75a0507814e6e05",
+        "empreinte_snapshot": "84b2f7a6daddfbefa6d6aca6f70a8631e39d1a55e634d5df3fc5d21646bba683"
+      }
+    },
+    "visites": [
+      {
+        "visite_id": "476e2f7bf3bbbc884e8eb49891a5ec4260cb6bcdc0890493c67e898767975264",
+        "ancre": {
+          "intervention_id": "573a0a925ae3caa1aa0669bc038867b5c96190ca06ed26384ac0df625c4689f3",
+          "plan_id": "77f93e493c104702eaf1eb5c5a613fe50d4636c6ade83b38e739b6e35e8ecb8c",
+          "source_application_id": "7eb254b3f4301c951c6deb201f19c6d055c19e8374b440add9eaa47f2109edd3",
+          "source_ligne_id": "b8301f002b5e781043547d0f205bfb1529ae9825af2fb63386840c4d3e674043"
+        },
+        "equipe_planifiee_id": "equipe-A-fictive",
+        "equipe_pointee": {
+          "statut": "identifiee",
+          "identifiant": "equipe-A-fictive",
+          "justification": "pointages_attestes_v3",
+          "preuves": [
+            {
+              "pointage_id": "ef82cf9597d685cf0f802d627620b85f628a60be09910e018cb70b2787bc39a5",
+              "preuve_id": "0f5a6186c9811fa347962d652181179004afd371c4d96727d357551915a3220a",
+              "auteur": {
+                "personne": "admin.fictif",
+                "role": "admin"
+              },
+              "profil_empreinte": "1a43d9e749ed4915f42e9d755b41522551398d46c868c80e9442820324aa47c5",
+              "audit_id": 100
+            },
+            {
+              "pointage_id": "a6465ad577b2a359cc9aab0ff82121fd6770c3a915ce21ee11b43af05a0864c8",
+              "preuve_id": "572cd534aaa12311d61aa601a9cc2e8f24c05fc9db47699b592e3c392b64657c",
+              "auteur": {
+                "personne": "admin.fictif",
+                "role": "admin"
+              },
+              "profil_empreinte": "1a43d9e749ed4915f42e9d755b41522551398d46c868c80e9442820324aa47c5",
+              "audit_id": 101
+            },
+            {
+              "pointage_id": "789c44cd2159b048a49d01d8b2127a1d43aa02d5c5d1b2cf7f3e8ffa0c7dc58f",
+              "preuve_id": "15fc68b94df3eeef9b78cc85b21c04874086286392d80a55626a1df5185e45bb",
+              "auteur": {
+                "personne": "admin.fictif",
+                "role": "admin"
+              },
+              "profil_empreinte": "1a43d9e749ed4915f42e9d755b41522551398d46c868c80e9442820324aa47c5",
+              "audit_id": 102
+            },
+            {
+              "pointage_id": "218d99234b6655863ed7d3d909a8661af853a817768fba86d458c8dadf76b7cc",
+              "preuve_id": "4cc346d00682fc177fa67225bc1091a76f47fff6f9b0867b9c0f0bc4ede273b0",
+              "auteur": {
+                "personne": "admin.fictif",
+                "role": "admin"
+              },
+              "profil_empreinte": "1a43d9e749ed4915f42e9d755b41522551398d46c868c80e9442820324aa47c5",
+              "audit_id": 103
+            }
+          ]
+        },
+        "identifiant_pointe": "equipe-A-fictive",
+        "ouverture": {
+          "source_ligne_id": "275a4c86d44062ec363ce17f049b5e6c9445ffd733fa029054608e96f4a9b36a",
+          "horodatage": "2030-06-03T08:00:00-04:00"
+        },
+        "evenements": [
+          {
+            "type": "en_route",
+            "source_ligne_id": "b26c7b3f525b6194a268a9be7f06a089976b6c6e304a6a5c76e1a539322319fc",
+            "horodatage": "2030-06-03T08:30:00-04:00",
+            "revue_gps": null
+          },
+          {
+            "type": "arrivee",
+            "source_ligne_id": "ef82cf9597d685cf0f802d627620b85f628a60be09910e018cb70b2787bc39a5",
+            "horodatage": "2030-06-03T09:00:00-04:00",
+            "revue_gps": {
+              "statut": "coherent",
+              "demande_ligne_id": null,
+              "resolution_ligne_id": null
+            }
+          },
+          {
+            "type": "pause_debut",
+            "source_ligne_id": "a6465ad577b2a359cc9aab0ff82121fd6770c3a915ce21ee11b43af05a0864c8",
+            "horodatage": "2030-06-03T10:00:00-04:00",
+            "revue_gps": null
+          },
+          {
+            "type": "pause_fin",
+            "source_ligne_id": "789c44cd2159b048a49d01d8b2127a1d43aa02d5c5d1b2cf7f3e8ffa0c7dc58f",
+            "horodatage": "2030-06-03T10:30:00-04:00",
+            "revue_gps": null
+          },
+          {
+            "type": "depart",
+            "source_ligne_id": "218d99234b6655863ed7d3d909a8661af853a817768fba86d458c8dadf76b7cc",
+            "horodatage": "2030-06-03T12:00:00-04:00",
+            "revue_gps": {
+              "statut": "coherent",
+              "demande_ligne_id": null,
+              "resolution_ligne_id": null
+            }
+          }
+        ],
+        "fermeture": {
+          "source_ligne_id": "c1bd9eb79ef3292f1a839516f42fc706fd734c614913ccade65d10f4d3f00e8b",
+          "horodatage": "2030-06-03T12:01:00-04:00"
+        },
+        "composition_declaree": {
+          "statut": "declaree",
+          "jour": "2030-06-03",
+          "equipe_id": "equipe-A-fictive",
+          "source_ligne_id": "dceb3072bd89ff8f1557e6b4d2d66aae79b80a16d47c63dafa978682a3bf90c5",
+          "revision": 1,
+          "horodatage": "2030-06-03T07:45:00-04:00",
+          "membres": [
+            "lundi-personne.fictive"
+          ]
+        },
+        "presence_individuelle": {
+          "statut": "inconnue"
+        },
+        "minutes": {
+          "travail": 150,
+          "pause": 30,
+          "deplacement": 30
+        }
+      },
+      {
+        "visite_id": "7dd3e337232d0c78c028ec992e0fca74493534964ef0440478fc93b268d53e3c",
+        "ancre": {
+          "intervention_id": "573a0a925ae3caa1aa0669bc038867b5c96190ca06ed26384ac0df625c4689f3",
+          "plan_id": "7eb6abe3ecb3934b104674f725ab0a2432c402f6e5bc8cd5bb38d460d9a0351d",
+          "source_application_id": "1f27f4db0a4ec755879a78d907430b2fd13cb9f6770d6d150c2a51a692e80fba",
+          "source_ligne_id": "18a3aea9e2fb935f12a62a74fcc4f48a7c879621f07050ff414d6580050ff1f4"
+        },
+        "equipe_planifiee_id": "equipe-B-fictive",
+        "equipe_pointee": {
+          "statut": "identifiee",
+          "identifiant": "equipe-B-fictive",
+          "justification": "pointages_attestes_v3",
+          "preuves": [
+            {
+              "pointage_id": "ce790cd910dbfb3082369ca28408b2a0a140aa0f73cb8d5cee933e561a8db637",
+              "preuve_id": "57ab6ad43471e46c798f754a93a978470f6f5aea9c13285bc02fa5c0491d3faf",
+              "auteur": {
+                "personne": "admin.fictif",
+                "role": "admin"
+              },
+              "profil_empreinte": "c81a7920541a00b9f649b15ab96d33ed2aebd6f8517265587feeb6c6b6038424",
+              "audit_id": 110
+            },
+            {
+              "pointage_id": "d21edee78ff85628c52230c91e5c1223c0275aff025a4202061ea73cc54ccc8e",
+              "preuve_id": "449c18e507849ac9dae67f1c222141defaaef04b2c7cfa538a6ff01b41c82d6d",
+              "auteur": {
+                "personne": "admin.fictif",
+                "role": "admin"
+              },
+              "profil_empreinte": "c81a7920541a00b9f649b15ab96d33ed2aebd6f8517265587feeb6c6b6038424",
+              "audit_id": 111
+            }
+          ]
+        },
+        "identifiant_pointe": "equipe-B-fictive",
+        "ouverture": {
+          "source_ligne_id": "799cb0514b8f0ba2d70dc58042a84fe7257ceee1347f7c6eaa9249803d29aa60",
+          "horodatage": "2030-06-07T08:00:00-04:00"
+        },
+        "evenements": [
+          {
+            "type": "en_route",
+            "source_ligne_id": "39a7f96640920023ae45c22b721fc0f75ba165abe628540f050b724e56fbdb01",
+            "horodatage": "2030-06-07T12:30:00+00:00",
+            "revue_gps": null
+          },
+          {
+            "type": "arrivee",
+            "source_ligne_id": "ce790cd910dbfb3082369ca28408b2a0a140aa0f73cb8d5cee933e561a8db637",
+            "horodatage": "2030-06-07T13:00:00+00:00",
+            "revue_gps": {
+              "statut": "coherent",
+              "demande_ligne_id": null,
+              "resolution_ligne_id": null
+            }
+          },
+          {
+            "type": "depart",
+            "source_ligne_id": "d21edee78ff85628c52230c91e5c1223c0275aff025a4202061ea73cc54ccc8e",
+            "horodatage": "2030-06-07T17:00:00+00:00",
+            "revue_gps": {
+              "statut": "coherent",
+              "demande_ligne_id": null,
+              "resolution_ligne_id": null
+            }
+          }
+        ],
+        "fermeture": {
+          "source_ligne_id": "c82636cfd096fc9de1e91b6835f15968909191d534b5dd9cd817f9bf8f5fdcae",
+          "horodatage": "2030-06-07T13:01:00-04:00"
+        },
+        "composition_declaree": {
+          "statut": "declaree",
+          "jour": "2030-06-07",
+          "equipe_id": "equipe-B-fictive",
+          "source_ligne_id": "e37e140195984aeb1712caff6ac74638f4c290ab0e2d569db75a0507814e6e05",
+          "revision": 1,
+          "horodatage": "2030-06-07T07:45:00-04:00",
+          "membres": [
+            "vendredi-personne.fictive"
+          ]
+        },
+        "presence_individuelle": {
+          "statut": "inconnue"
+        },
+        "minutes": {
+          "travail": 240,
+          "pause": 0,
+          "deplacement": 30
+        }
+      }
+    ],
+    "totaux": {
+      "travail": 390,
+      "pause": 30,
+      "deplacement": 60
+    },
+    "revue_chantier": {
+      "statut": "en_attente",
+      "source_ligne_id": "3a1c4ddd88a80c94ce1e4d5ad633e0d751a053619d46b9803ffdad6ae2b8df29"
+    },
+    "inconnus": [
+      {
+        "code": "chantier_id_indisponible",
+        "visite_id": null
+      },
+      {
+        "code": "presence_individuelle_non_observee",
+        "visite_id": "476e2f7bf3bbbc884e8eb49891a5ec4260cb6bcdc0890493c67e898767975264"
+      },
+      {
+        "code": "presence_individuelle_non_observee",
+        "visite_id": "7dd3e337232d0c78c028ec992e0fca74493534964ef0440478fc93b268d53e3c"
+      }
+    ],
+    "empreinte": "d7cbef1120fc8fb92c7dcb9df97b9ecb0ec7cd3b2b743dd014dd7abb43c76911"
+  }
+}

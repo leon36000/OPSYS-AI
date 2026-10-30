@@ -78,9 +78,12 @@ def _devis(**surcharges):
     return {**base, **surcharges}
 
 
-def _rentabilite(signal="defaut", livre="defaut", taux="50.00", facture="defaut", devis="defaut"):
+def _rentabilite(signal="defaut", livre="defaut", taux="50.00", facture="defaut", devis="defaut", cout_v3=None):
     cout = cout_reel.calculer_cout_reel(
         _wct(), _signal() if signal == "defaut" else signal, [_prix()] if livre == "defaut" else livre, taux)
+    if cout_v3 is not None:
+        cout = cout_v3(signal=_signal() if signal == "defaut" else signal,
+                        livre=[_prix()] if livre == "defaut" else livre, taux=taux, completion=COMPLETION)
     return cout_reel.calculer_rentabilite(
         cout, _facture() if facture == "defaut" else facture, _devis() if devis == "defaut" else devis,
         devis_id="DEVIS-1", chantier_id="CH-1")
@@ -90,8 +93,8 @@ def _charge(rentabilite=None, sequence=1):
     return cout_reel.charge_evenement(_rentabilite() if rentabilite is None else rentabilite, sequence, COMPLETION)
 
 
-def test_la_marge_calculee_sort_en_texte_decimal_avec_tout_ce_qui_l_explique():
-    r = _rentabilite()
+def test_la_marge_calculee_sort_en_texte_decimal_avec_tout_ce_qui_l_explique(cout_v3):
+    r = _rentabilite(cout_v3=cout_v3)
     charge = _charge(r, sequence=1)
 
     assert set(charge) == _CLES
@@ -134,22 +137,23 @@ def test_un_cout_partiel_ne_porte_jamais_de_marge_seulement_ce_qui_manque():
     assert charge["marge_reelle_cad"] is None and charge["ecart_marge_cad"] is None
     assert "plafond" not in json.dumps(charge)  # ... qui ne sort JAMAIS de M5
     assert charge["marge_prevue_cad"] == "120.00"  # la marge prévue est celle de M3, elle reste dite
-    assert charge["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert charge["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER",
+                                "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert erreurs_charge(TYPE, charge) == []
 
 
-def test_un_cout_partiel_avec_un_seul_manque_donne_le_plancher_pas_le_total():
-    r = _rentabilite(signal=_signal(statut="declaration_absente"))  # matériaux réels inconnus, main-d'oeuvre connue
+def test_un_cout_partiel_donne_le_plancher_pas_le_total():
+    r = _rentabilite(signal=_signal(statut="declaration_absente"))  # matériaux et main-d'œuvre inconnus
     charge = _charge(r)
 
-    assert charge["manque"] == ["REJ-COUT-MATERIAUX-REELS-ABSENTS"]
-    assert charge["cout_connu_cad"] == "150.00" and charge["cout_reel_cad"] is None
+    assert charge["manque"] == ["REJ-COUT-MATERIAUX-REELS-ABSENTS", "REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert charge["cout_connu_cad"] == "0" and charge["cout_reel_cad"] is None
     assert charge["marge_reelle_cad"] is None and charge["ecart_marge_cad"] is None
     assert erreurs_charge(TYPE, charge) == []
 
 
-def test_un_cout_complet_sans_facture_reste_partiel_et_sans_marge():
-    r = _rentabilite(facture=None)
+def test_un_cout_complet_sans_facture_reste_partiel_et_sans_marge(cout_v3):
+    r = _rentabilite(facture=None, cout_v3=cout_v3)
     charge = _charge(r)
 
     assert charge["cout_reel_complet"] is True and charge["cout_reel_cad"] == "486.00"
@@ -159,8 +163,8 @@ def test_un_cout_complet_sans_facture_reste_partiel_et_sans_marge():
     assert erreurs_charge(TYPE, charge) == []
 
 
-def test_un_devis_sans_cout_prevu_donne_la_marge_reelle_sans_ecart():
-    r = _rentabilite(devis={"devis_id": "DEVIS-1", "chantier_id": "CH-1", "prix_total": "600.00"})
+def test_un_devis_sans_cout_prevu_donne_la_marge_reelle_sans_ecart(cout_v3):
+    r = _rentabilite(devis={"devis_id": "DEVIS-1", "chantier_id": "CH-1", "prix_total": "600.00"}, cout_v3=cout_v3)
     charge = _charge(r)
 
     assert charge["verdict"] == "CALCULEE" and charge["marge_reelle_cad"] == "114.00"
@@ -169,12 +173,12 @@ def test_un_devis_sans_cout_prevu_donne_la_marge_reelle_sans_ecart():
     assert erreurs_charge(TYPE, charge) == []
 
 
-def test_un_chantier_en_perte_porte_une_marge_negative_et_un_zero_sans_signe():
-    perte = _charge(_rentabilite(facture=_facture("400.00")))  # 400,00 - 486,00
+def test_un_chantier_en_perte_porte_une_marge_negative_et_un_zero_sans_signe(cout_v3):
+    perte = _charge(_rentabilite(facture=_facture("400.00"), cout_v3=cout_v3))  # 400,00 - 486,00
     assert perte["marge_reelle_cad"] == "-86.00" and perte["ecart_marge_cad"] == "-206.00"
     assert erreurs_charge(TYPE, perte) == []
 
-    nulle = _charge(_rentabilite(facture=_facture("486.00")))
+    nulle = _charge(_rentabilite(facture=_facture("486.00"), cout_v3=cout_v3))
     assert nulle["marge_reelle_cad"] == "0.00" and nulle["ecart_marge_cad"] == "-120.00"  # jamais « -0.00 »
 
 
@@ -218,8 +222,8 @@ def test_le_catalogue_refuse_une_marge_sur_un_cout_partiel():
     assert erreurs_charge(TYPE, {**partiel, "cout_reel_complet": True}), "un coût complet porte son total"
 
 
-def test_le_catalogue_refuse_une_calculee_sans_marge_et_un_ecart_sans_ses_deux_marges():
-    complete = _charge()
+def test_le_catalogue_refuse_une_calculee_sans_marge_et_un_ecart_sans_ses_deux_marges(cout_v3):
+    complete = _charge(_rentabilite(cout_v3=cout_v3))
     assert erreurs_charge(TYPE, complete) == []
 
     assert erreurs_charge(TYPE, {**complete, "marge_reelle_cad": None})
@@ -392,7 +396,8 @@ def test_un_cout_partiel_publie_ce_qui_manque_et_aucune_marge_pour_chaque_versio
         assert charge["cout_reel_cad"] is None
         assert erreurs_charge(TYPE, charge) == []
     derniere = publies[-1][2]
-    assert derniere["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert derniere["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER",
+                                 "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert derniere["marge_prevue_cad"] == "120.00"
 
 
@@ -486,3 +491,17 @@ def test_le_catalogue_du_socle_porte_le_type_et_son_schema_est_versionne():
     assert set(schema["properties"]) == _CLES
     fichier = Path(evenements.schemas.__file__).parent / "catalogue" / f"{TYPE}.json"
     assert fichier.is_file()
+
+
+def test_catalogue_refuse_une_charge_complete_fictive_sans_marges_requises():
+    """Le contrat bus complet reste exercé sans déclarer complet un WCT scalaire ambigu."""
+    charge = _charge()
+    complete = {**charge, "verdict": "CALCULEE", "cout_reel_complet": True,
+                "cout_reel_cad": "486.00", "cout_connu_cad": "486.00",
+                "marge_reelle_cad": "114.00", "marge_prevue_cad": "120.00",
+                "ecart_marge_cad": "-6.00", "manque": []}
+    assert erreurs_charge(TYPE, complete) == []
+    assert erreurs_charge(TYPE, {**complete, "marge_reelle_cad": None})
+    assert erreurs_charge(TYPE, {**complete, "cout_reel_cad": None})
+    assert erreurs_charge(TYPE, {**complete, "cout_reel_complet": False})
+    assert erreurs_charge(TYPE, {**complete, "marge_prevue_cad": None})

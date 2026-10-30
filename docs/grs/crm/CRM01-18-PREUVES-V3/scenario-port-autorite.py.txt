@@ -1,0 +1,40 @@
+"""La V3 propriétaire ne confère pas au bus une identité d'administrateur."""
+import importlib.util
+from contextlib import nullcontext
+from pathlib import Path
+
+import pytest
+from m4_field_ops import temps_certifies_v2, temps_certifies_v3
+
+from opsys import contexte, stockage
+
+ROOT = Path(__file__).resolve().parents[1]
+spec_cf = importlib.util.spec_from_file_location(
+    'qa_transport_cf', ROOT / 'departments/m04-field-ops/tests/conftest.py')
+cf = importlib.util.module_from_spec(spec_cf)
+spec_cf.loader.exec_module(cf)
+base_durable = cf.base_durable
+spec = importlib.util.spec_from_file_location(
+    'qa_transport_v3', ROOT / 'departments/m04-field-ops/tests/test_temps_certifies_v3.py')
+v3_tests = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(v3_tests)
+chantier_termine = v3_tests.chantier_termine
+
+
+@pytest.mark.parametrize(('source', 'origine', 'mcp'), [
+    ('appareil', 'console', False),
+    ('console', 'm04-field-ops', False),
+    ('console', 'console', True),
+])
+def test_port_v3_refuse_les_transports_non_autorises(chantier_termine, source, origine, mcp):
+    cas = chantier_termine
+    with stockage.transaction(cas['url']) as cnx:
+        with (contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+              contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+            autorise = temps_certifies_v3.projeter(cnx, cas['iid'], cas['wct_id'])
+        assert autorise['projection']['wct']['wct_id'] == cas['wct_id']
+        with (contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source=source)),
+              contexte.appeler_en_tant_que('m04-field-ops', origine=origine),
+              contexte.transport_mcp() if mcp else nullcontext(),
+              pytest.raises(temps_certifies_v2.Refus, match='IDENTITE')):
+            temps_certifies_v3.projeter(cnx, cas['iid'], cas['wct_id'], source_attendue=autorise['source'])
