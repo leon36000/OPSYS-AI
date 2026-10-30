@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import ast
 import json
-from copy import deepcopy
-from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -70,38 +68,6 @@ def _cout(wct=None, signal=None, livre=None, taux="50.00"):
     )
 
 
-def _cout_v3(*, minutes=180, taux='50.00', signal=None, livre=None):
-    """Fixture structurelle fictive : elle ne prouve pas l'origine du producteur M4."""
-    fichier = Path(__file__).parents[3] / 'docs/grs/crm/CRM01-18-FIXTURE-TEMPS-V3.json'
-    p = json.loads(fichier.read_text())['projection']
-    visite = deepcopy(p['visites'][1])
-    p['intervention_id'] = 'INT-1'
-    visite['ancre']['intervention_id'] = p['intervention_id']
-    arrivee = datetime.fromisoformat('2030-06-07T13:00:00+00:00')
-    depart = arrivee + timedelta(minutes=minutes)
-    visite['evenements'][2]['horodatage'] = depart.isoformat()
-    visite['fermeture']['horodatage'] = (depart + timedelta(minutes=1)).isoformat()
-    visite['minutes']['travail'] = minutes
-    p['visites'] = [visite]
-    p['totaux'] = {'travail': minutes, 'pause': 0, 'deplacement': 30}
-    p['wct'].update(wct_id='WCT-1', duree_reelle_minutes=minutes, horodatage_completion=depart.isoformat(),
-                    horodatage_transition=(depart + timedelta(minutes=2)).isoformat())
-    p['revue_chantier']['statut'] = 'verifiee'
-    p['inconnus'] = [{'code': 'chantier_id_indisponible', 'visite_id': None},
-                     {'code': 'presence_individuelle_non_observee', 'visite_id': visite['visite_id']}]
-    p['empreinte'] = encodage.empreinte('m4.temps_certifies.v3', {k: v for k, v in p.items() if k != 'empreinte'})
-    wct = {'wct_id': p['wct']['wct_id'], 'intervention_id': p['intervention_id'],
-           'hash_maillon': p['wct']['hash_maillon'], 'duree_reelle_minutes': minutes,
-           'horodatage_completion': p['wct']['horodatage_completion']}
-    tarif = {'equipe_id': visite['equipe_pointee']['identifiant'], 'taux': taux, 'unite': 'heure-equipe',
-             'devise': 'CAD', 'source': 'tarif-fictif', 'version': '1',
-             'date_effet': '2030-01-01', 'date_fin': '2030-12-31'}
-    return cout_reel.calculer_cout_reel(
-        wct, _signal() if signal is None else signal, [_prix()] if livre is None else livre, None,
-        projection=p, tarifs_equipes=[tarif], instance_id=p['instance_id'], source_attendue='a' * 64,
-        source_relue='a' * 64, sources_actuelles=p['sources'])
-
-
 @pytest.mark.parametrize('minutes', [1, 60, 180])
 def test_wct_v1_scalaire_ne_certifie_pas_le_cout_de_main_d_oeuvre(minutes):
     cout = _cout(wct=_wct(duree_reelle_minutes=minutes))
@@ -137,8 +103,8 @@ def _tous_les_montants(valeur):
 # =========================================================================================
 # 1. Le cas complet : chaque chiffre vient d'une source, le calcul est exact
 # =========================================================================================
-def test_cout_complet_materiaux_et_main_d_oeuvre():
-    cout = _cout_v3()
+def test_cout_complet_materiaux_et_main_d_oeuvre(cout_v3):
+    cout = cout_v3()
 
     assert cout["complet"] is True and cout["manque"] == []
     (ligne,) = cout["materiaux"]["lignes"]
@@ -169,8 +135,8 @@ def test_aucun_montant_n_est_un_float():
     assert not [m for m in montants if isinstance(m, float)]
 
 
-def test_rentabilite_prix_moins_cout_marge_reelle_contre_prevue():
-    r = _rentabilite(cout=_cout_v3())
+def test_rentabilite_prix_moins_cout_marge_reelle_contre_prevue(cout_v3):
+    r = _rentabilite(cout=cout_v3())
 
     assert r["verdict"] == "CALCULEE" and r["manque"] == []
     assert r["prix_facture"] == Decimal("600.00")  # avant taxes : la TPS et la TVQ ne sont pas un revenu
@@ -183,8 +149,8 @@ def test_rentabilite_prix_moins_cout_marge_reelle_contre_prevue():
     assert (r["devis_id"], r["chantier_id"], r["wct_id"]) == ("DEVIS-1", "CH-1", "WCT-1")
 
 
-def test_un_chantier_a_perte_est_dit_a_perte():
-    r = _rentabilite(cout=_cout_v3(taux="200.00"), facture=_facture(montant="600.00"))  # 336 + 600 = 936 > 600
+def test_un_chantier_a_perte_est_dit_a_perte(cout_v3):
+    r = _rentabilite(cout=cout_v3(taux="200.00"), facture=_facture(montant="600.00"))  # 336 + 600 = 936 > 600
 
     assert r["marge_reelle"] == Decimal("-336.00") and r["en_perte"] is True
 
@@ -204,8 +170,8 @@ def test_ligne_de_materiau_arrondie_half_up_au_cent():
     assert cout["materiaux"]["lignes"][0]["cout"] == Decimal("0.13")  # 0,125 : half-even donnerait 0,12
 
 
-def test_main_d_oeuvre_arrondie_une_seule_fois_half_up():
-    cout = _cout_v3(minutes=1, signal=_signal([]), taux="0.30")
+def test_main_d_oeuvre_arrondie_une_seule_fois_half_up(cout_v3):
+    cout = cout_v3(minutes=1, signal=_signal([]), taux="0.30")
 
     assert cout["main_d_oeuvre"]["cout"] == Decimal("0.01")  # 1 min x 0,30 $/h = 0,005 $ : half-even donnerait 0,00
 
@@ -219,8 +185,8 @@ def test_la_somme_des_lignes_arrondies_fait_le_cout_des_materiaux():
     assert cout["materiaux"]["cout_connu"] == Decimal("0.26")  # 0,13 + 0,13, comme deux lignes de facture
 
 
-def test_pourcentage_de_marge_arrondi_half_up_a_quatre_decimales():
-    cout = _cout_v3(signal=_signal([]), taux="31.00", minutes=60)  # coût 31,00 $
+def test_pourcentage_de_marge_arrondi_half_up_a_quatre_decimales(cout_v3):
+    cout = cout_v3(signal=_signal([]), taux="31.00", minutes=60)  # coût 31,00 $
 
     r = _rentabilite(cout=cout, facture=_facture(montant="32.00"))
 
@@ -228,8 +194,8 @@ def test_pourcentage_de_marge_arrondi_half_up_a_quatre_decimales():
     assert r["marge_reelle_pct_du_prix"] == Decimal("0.0313")  # 1/32 = 0,03125 : half-even donnerait 0,0312
 
 
-def test_un_prix_nul_ne_donne_aucun_pourcentage_jamais_une_division_par_zero():
-    cout = _cout_v3(signal=_signal([]), taux="1.00", minutes=60)
+def test_un_prix_nul_ne_donne_aucun_pourcentage_jamais_une_division_par_zero(cout_v3):
+    cout = cout_v3(signal=_signal([]), taux="1.00", minutes=60)
 
     r = _rentabilite(cout=cout, facture=_facture(montant="0.00"))
 
@@ -515,8 +481,8 @@ def test_montant_de_facture_illisible_est_dit_illisible():
     pytest.param(_devis(prix_total=None), id="sans_prix_total"),
     pytest.param(_devis(cout_total="beaucoup"), id="cout_total_illisible"),
 ])
-def test_marge_prevue_absente_est_dite_absente_et_la_marge_reelle_reste_calculee(devis):
-    r = _rentabilite(cout=_cout_v3(), devis=devis)
+def test_marge_prevue_absente_est_dite_absente_et_la_marge_reelle_reste_calculee(devis, cout_v3):
+    r = _rentabilite(cout=cout_v3(), devis=devis)
 
     assert r["marge_prevue"] is None and r["cout_prevu"] is None and r["ecart_marge"] is None
     assert "REJ-RENTABILITE-MARGE-PREVUE-ABSENTE" in _codes(r)
@@ -603,8 +569,8 @@ def test_la_version_est_une_empreinte_sha256_de_l_encodage_canonique():
 # =========================================================================================
 # 8. Trace, résumé et vue masquée
 # =========================================================================================
-def test_la_trace_est_un_maillon_derive_avec_la_version_et_le_calcul_complet():
-    r = _rentabilite(cout=_cout_v3())
+def test_la_trace_est_un_maillon_derive_avec_la_version_et_le_calcul_complet(cout_v3):
+    r = _rentabilite(cout=cout_v3())
 
     trace = cout_reel.construire_trace(r, "2026-09-15T15:00:00+00:00")
 
