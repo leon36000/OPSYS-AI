@@ -374,8 +374,8 @@ def test_sans_le_droit_de_voir_les_couts_aucun_montant_ne_sort(par_nom, chantier
 
     (chantier,) = vue["chantiers"]
     assert chantier["rentabilite"] == {
-        "devis_id": "DEVIS-1", "chantier_id": "CHANTIER-1", "verdict": "CALCULEE", "statut_facture": "BROUILLON",
-        "cout_reel_complet": True, "manque": [], "montants_masques": True}
+        "devis_id": "DEVIS-1", "chantier_id": "CHANTIER-1", "verdict": "PARTIELLE", "statut_facture": "BROUILLON",
+        "cout_reel_complet": False, "manque": ["REJ-COUT-TEMPS-POINTE-ABSENT"], "montants_masques": True}
     texte = json.dumps(vue)
     for chiffre in ("486.00", "336.00", "150.00", "114.00", "120.00", "600.00", "50.00", "gentek"):
         assert chiffre not in texte, chiffre

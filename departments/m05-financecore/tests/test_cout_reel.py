@@ -332,7 +332,9 @@ def test_un_manque_de_ligne_n_empeche_pas_de_chiffrer_les_autres_lignes():
     cout = _cout(signal=signal, livre=livre)
 
     assert cout["materiaux"]["cout_connu"] == Decimal("20.00") and cout["complet"] is False
-    assert [(e["code"], e["materiau"]) for e in cout["manque"]] == [("REJ-COUT-PRIX-NON-DISPONIBLE", "b")]
+    assert [(e["code"], e.get("materiau")) for e in cout["manque"]] == [
+        ("REJ-COUT-PRIX-NON-DISPONIBLE", "b"), ("REJ-COUT-TEMPS-POINTE-ABSENT", None),
+    ]
 
 
 # =========================================================================================
