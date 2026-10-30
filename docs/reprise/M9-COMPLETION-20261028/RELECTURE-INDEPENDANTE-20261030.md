@@ -25,3 +25,29 @@ fusionnés, conforme au principe) ; unité non déclarée prise à la définitio
 
 Également corrigé hors relecture : les profils proposés du conseil n'ont plus d'outil que leur agent ne pourrait pas
 appeler (`3b28afd5`), sans élargir de droits.
+
+## Tableau consolidé au commit `a1fa7493` (13 constats + 3 écarts de la revue du coordinateur sur `328fbd88`)
+
+Statuts : **CT** corrigé et testé · **OG** restant ouvert avec gate · **DJ** documenté et justifié.
+
+| # | Constat | Statut | Commit | Preuve ou gate |
+|---|---|---|---|---|
+| 1 | Entrée et dépôt sans lien → `COMPLETE` | CT | `d6bbd3dc` | `test_r5_exige_entree_puis_depot_admis…` |
+| 2 | Dépôt à sortie refusée compté comme cycle | CT | `d6bbd3dc` | même test (`issue` exigée, seul `ADMIS` ferme un cycle) |
+| 3 | Succès d'agent sur un autre outil M9 non vu | CT | `d6bbd3dc` | `test_r1_tout_succes_d_agent…` |
+| 4 | Réservation sans identifiant, usage négatif, dépôt sans session | CT | `d6bbd3dc` | `test_r2_forme_complete…` |
+| 5 | Rôle non hachable → `TypeError` | CT | `d6bbd3dc` | `test_r2_forme_complete…` |
+| 6 | Acteur `runtime` de la séquence refusé | CT | `d6bbd3dc` | `test_une_trace_fidele…` |
+| 7 | Contrats : type non hachable → `TypeError` | CT | `214453b1` | `test_types_non_hachables…` |
+| 8 | Contrats : doublons, total ≠ somme, liaisons contradictoires conformes | CT | `214453b1`, `a1fa7493` | `test_incoherences_entre_champs…` ; la partie « liaisons » a quitté ce module (remplacée par `preuves_definition`, où une même révision publiée deux fois est `REJ-HISTORIQUE-CORROMPU`) |
+| 9 | Dates impossibles, négatifs, calcul faux sans manque, octets | CT | `214453b1` | `test_types_non_hachables…`, `test_incoherences…` |
+| 10 | Révision liée inférieure mais absente du registre → périmée | CT | `0089537a` | remplacé : l'historique complet est exigé (`REVISION_INCONNUE`, `REJ-HISTORIQUE-TROU`) — `test_revision_inconnue_ou_historique_troue…` |
+| 11 | `True`/`1.0` pris pour la version `1` | CT | `32f33a4f` | `test_une_version_booleenne_ou_flottante…` |
+| 12 | Borne des trois reprises non testée | CT | `29aac432` | `test_reprises_bornees_a_trois_prises…` |
+| 13 | Verdict d'intégration sur trace écrite à la main | CT | `d6bbd3dc` | événement dérivé de la réponse réelle de `Capacites` |
+| R1 | Observation ancienne sans preuve propre rendue `COMPATIBLE` par une liaison globale | CT (consommateur) | `0089537a` | `test_historique_sans_preuve_propre…`, `test_une_empreinte_sans_preuve_propre…`, parcours intégré |
+| R2 | A(v1)→B(v2)→A(v3) refusé ; révision choisie arbitrairement | CT (consommateur) | `0089537a` | `test_aba_une_meme_empreinte…`, parcours intégré |
+| R3 | Révisions dictionnaire (famille/module/id) et surveillance (`metric_id`) transposables | CT (consommateur) + **OG** (producteur) | `0089537a` | `test_registres_jamais_transposes`, `test_collision_d_identifiants…` ; gate : publication M8 de l'historique et de la preuve par mesure, raccord commun du catalogue — coordonné par Root |
+
+Non retenus comme défauts : groupes distincts pour version entière et empreinte (jamais fusionnés) ; unité non
+déclarée prise à la définition (comportement antérieur, documenté).

@@ -38,7 +38,7 @@ point de raccord Core et protocole PC1 non exécuté (M9.4), analyse de CI en le
 
 ## 3. Preuves
 
-Régression finale `final5` (code `29aac432`) : 1 767 tests, 0 échec, 0 ignoré. Voir `docs/reprise/M9-COMPLETION-20261028/preuves-execution/` et `RAPPORT.md` (commandes, JUnit et journaux
+Régression finale `final6` (code `a1fa7493`) : 1 776 tests, 0 échec, 0 ignoré. Voir `docs/reprise/M9-COMPLETION-20261028/preuves-execution/` et `RAPPORT.md` (commandes, JUnit et journaux
 aux noms distincts, jamais écrasés). Conseil réel : `preuves-conseil-reel/RAPPORT-CONSEIL-REEL.md`. Évaluation : 61 cas, 61/61,
 corpus écrit par la mission, couche déterministe seulement. Navigateur : Chromium bureau et 390 px, données fictives.
 CI GitHub : lue par SHA sur la PR #859 ; un verdict postérieur à un commit n'est pas reporté sur un autre.
@@ -47,7 +47,7 @@ CI GitHub : lue par SHA sur la PR #859 ; un verdict postérieur à un commit n'e
 
 | Ligne | Gate | Qui peut le lever |
 |---|---|---|
-| M9.3 | liaison révision/empreinte prête côté M9 ; M8 ne publie pas `liaisons_versions` → `VERSION_NON_COMPARABLE` | M8 (producteur, commits séparés) |
+| M9.3 | contrat successeur prêt côté M9 (preuve propre par observation, historique vérifié) ; M8 ne publie ni historique ni preuve → `VERSION_NON_COMPARABLE` | M8 (producteur, Root, commits séparés) |
 | M9.4 | raccord et protocole PC1 livrés, non exécutés ; écart d'identité à trancher ; conseil réel fait en session seulement | qualification Core sur PC1 |
 | M9.5 | qualification fictive faite ; CronService natif et grants réels non qualifiés | hôte opérateur |
 | M9.8 | simulations finance, capacité, stock : pas de port de simulation chez les producteurs | M4 / M5 / M7 |

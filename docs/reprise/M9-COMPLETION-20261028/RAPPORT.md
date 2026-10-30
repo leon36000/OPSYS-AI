@@ -16,8 +16,8 @@ Code prêt ≠ intégration réelle ≠ qualification installée : les 15 DONE_V
 appelés par le port privé, HTTP console) ; aucune qualification installée (VPS/Core) n'a été faite.
 
 ## Qualité et reprises
-- Commandes : `preuves-execution/cmd-*.txt` (pytest sous `taskset` 2 CPU, `ulimit -v` 6 Gio, HOME/OPSYS_HOME privés). Exécution finale `final5` (état de code `29aac432`, périmètre M9 + console + portées + CI départements) :
-  1 767 passed, 0 failed, 0 skipped, 312 s (les exécutions antérieures de 1 445 et 1 456 tests précèdent les ajouts du cahier). `opsys-metier verifier` exit 0 (358 outils, 229 déclarés aux appareils). `ruff check src tests departments/m09-strategic-intelligence` OK.
+- Commandes : `preuves-execution/cmd-*.txt` (pytest sous `taskset` 2 CPU, `ulimit -v` 6 Gio, HOME/OPSYS_HOME privés). Exécution finale `final6` (état de code `a1fa7493`, périmètre M9 + console + portées + CI départements) :
+  1 776 passed, 0 failed, 0 skipped, 338 s (les exécutions antérieures de 1 445 et 1 456 tests précèdent les ajouts du cahier). `opsys-metier verifier` exit 0 (358 outils, 229 déclarés aux appareils). `ruff check src tests departments/m09-strategic-intelligence` OK.
 - Rouges : régression console élargie = 46 échecs, tous fusion PDF/AP, identiques sur la base sans changements (46/46) ; conservés.
 - Relecture indépendante du tableau (lecture seule) : rien de grave ; deux défauts réels corrigés avec test (filtre perdu à la page suivante des sources, code de refus de repli) ; limite connue : champ POST répété accepté en silence (non exploitable, CSRF).
 - Défauts trouvés et corrigés pendant la QA : refus M9 pris pour un succès par le tableau (corrigé, testé) ; lecture d'une commande
@@ -39,8 +39,8 @@ appelés par le port privé, HTTP console) ; aucune qualification installée (VP
 - CI du SHA de code final `7a0a01d9` : verte (run 2323, 39 checks dont `gates` requis sur `main`, `socle`, `frontiere-postgresql`, 10 `departement`) ; `installateur`, `mobile` et `dependency_audit` ignorés par le workflow, donc non prouvés. Verdict posté en commentaire sur la PR #859. Les commits postérieurs à `7a0a01d9` ne touchent que la documentation.
 
 ## Suite des orientations du coordinateur (SHA `5fc21927`, CI à lire après le push)
-- M9.3 : liaison explicite révision/empreinte faite côté consommateur (contradictions refusées, historique sans liaison non comparable) ; M8 doit publier `liaisons_versions` (aujourd'hui 0).
-- M9.5 : qualification fictive isolée (autorisation, révocation, reprise, rejeu, double effet) ; aucun grant réel ni hôte opérateur (`QUALIFICATION-PLANIFICATION-M9-5.md`).
+- M9.3 : contrat successeur (`CONTRAT-HISTORIQUE-DEFINITIONS-M8-M9.md`) — preuve de définition propre à chaque observation, historique paginé vérifié, A/B/A légitime, registres jamais transposés ; projection de liaisons globales retirée. Producteur M8 non intégré (MR !1 non lu ici).
+- M9.5 : proposition d'injection déterministe de l'instant planifié (`PROPOSITION-REFERENCE-TEMPORELLE-M9-5.md`), non activée ; qualification fictive isolée (autorisation, révocation, reprise, rejeu, double effet) ; aucun grant réel ni hôte opérateur (`QUALIFICATION-PLANIFICATION-M9-5.md`).
 - Contrats consommateur M4 capacité, M7 dépenses, M1 plaintes structurées, refus d'extrapolation comme prévision (`CONTRATS-PRODUCTEURS-ATTENDUS.md`) : lectures absentes chez les propriétaires, constatées.
 - M9.4 : point de raccord, vérificateur de trace et protocole PC1 livrés, NON exécutés (`PROTOCOLE-QUALIFICATION-CORE-CONSEIL-PC1.md`) ; écart d'identité constaté.
 - Analyse des filtres de CI en lecture seule (`ANALYSE-FILTRES-CI.md`) : proposition séparée, workflow global inchangé.
