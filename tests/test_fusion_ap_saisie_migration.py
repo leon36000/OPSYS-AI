@@ -14,6 +14,7 @@ from opsys import approbations, stockage
 from opsys.outils import Niveau
 from opsys.stockage.schema import (
     CONFIGURATION_PUBLICATIONS,
+    COUT_CERTIFIE_RECONCILIATIONS,
     EFFACEMENTS_CLES,
     FUSION_AP_OCR_SOURCES,
     FUSION_AP_SAISIES,
@@ -27,6 +28,7 @@ from opsys.stockage.schema import (
     SERVICE_ATTESTATIONS_M4,
     SERVICE_AUDIT,
     SERVICE_POLITIQUES,
+    SERVICE_POLITIQUES_JOURNAL,
     SERVICE_RECALCUL_ATTESTATIONS,
     SERVICE_RECALCUL_INTENTIONS,
     SERVICE_RECALCUL_RESULTATS,
@@ -56,7 +58,8 @@ def _anciennes():
     # retour à 0023. Les compartiments OCR/AP OCR ajoutés après 0024 ont des
     # scénarios distincts de conservation et de rollback. La file de nettoyage
     # 0027, les pièces/leurs classements 0028/0029, les originaux courriel 0030, les publications de
-    # configuration 0031, le service Core 0032-0034 et les attentes WCT 0035 sont absents du schéma
+    # configuration 0031, le service Core 0032-0034, les attentes WCT 0035 et les journaux
+    # opérateur/réconciliateur 0036 sont absents du schéma
     # historique 0023. Ne pas ignorer dynamiquement une table manquante :
     # toute table réellement attendue en 0023 doit encore être lue et comparée.
     nouvelles = {t.name for t in (
@@ -65,6 +68,7 @@ def _anciennes():
         PIECES_PROJET, PIECES_CLASSEMENTS, RECEPTIONS_COURRIEL, CONFIGURATION_PUBLICATIONS,
         SERVICE_POLITIQUES, SERVICE_AUDIT, SERVICE_ATTESTATIONS_M4, SERVICE_RECALCUL_INTENTIONS,
         SERVICE_RECALCUL_ATTESTATIONS, SERVICE_RECALCUL_RESULTATS, WCT_ATTENTES, WCT_ATTENTES_AUDIT,
+        SERVICE_POLITIQUES_JOURNAL, COUT_CERTIFIE_RECONCILIATIONS,
     )}
     with stockage.transaction() as cnx:
         return {nom: [dict(r) for r in cnx.execute(select(t)).mappings()]

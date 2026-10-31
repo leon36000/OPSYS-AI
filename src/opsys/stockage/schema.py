@@ -12,6 +12,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     LargeBinary,
@@ -1227,4 +1228,63 @@ WCT_ATTENTES_AUDIT = Table(
         "action IN ('attente','prete','terminee','expiree','refusee')",
         name="wct_attente_audit_action",
     ),
+)
+
+
+# Opérateur Core des politiques de service (D1, migration 0036) : chaque octroi, renouvellement ou révocation fait
+# par un admin de la console, append-only, lié à la révision de politique qu'il a créée. Aucun octroi initial.
+SERVICE_POLITIQUES_JOURNAL = Table(
+    "service_politiques_journal",
+    META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("instance_id", String(36), nullable=False),
+    Column("consommateur", String(128), nullable=False),
+    Column("operation", String(64), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("action", String(16), nullable=False),
+    Column("acteur", String(256), nullable=False),
+    Column("motif", String(500), nullable=False),
+    Column("epoch", BigInteger, nullable=False),
+    Column("expire_le", BigInteger, nullable=False),
+    ForeignKeyConstraint(
+        ["instance_id", "consommateur", "operation", "revision"],
+        [
+            "service_politiques.instance_id",
+            "service_politiques.consommateur",
+            "service_politiques.operation",
+            "service_politiques.revision",
+        ],
+        name="service_pol_journal_revision_fk",
+    ),
+    UniqueConstraint("instance_id", "consommateur", "operation", "revision", name="service_pol_journal_revision"),
+    CheckConstraint(
+        "action IN ('octroi','renouvellement','revocation')",
+        name="service_pol_journal_action",
+    ),
+    CheckConstraint("revision > 0 AND epoch > 0 AND expire_le > 0", name="service_pol_journal_bornes"),
+)
+
+# Journal du réconciliateur du coût certifié (E8, mode actif seulement) : une ligne par exécution de l'acteur
+# système qui a publié, ou par refus distinct (même intention et même code journalisés une seule fois).
+COUT_CERTIFIE_RECONCILIATIONS = Table(
+    "cout_certifie_reconciliations",
+    META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("instance_id", String(36), nullable=False),
+    Column("acteur", String(256), nullable=False),
+    Column("wct_id", String(64), nullable=False),
+    Column("devis_id", String(256), nullable=False),
+    Column("intention_id", String(64), nullable=False),
+    Column("statut", String(16), nullable=False),
+    Column("code", String(64)),
+    Column("epoch", BigInteger, nullable=False),
+    CheckConstraint(
+        "statut IN ('publiee','deja_executee','rien_a_faire','refus')",
+        name="cout_certifie_reconciliation_statut",
+    ),
+    CheckConstraint(
+        "length(wct_id)=64 AND length(intention_id)=64 AND epoch > 0",
+        name="cout_certifie_reconciliation_bornes",
+    ),
+    Index("ix_cout_certifie_reconciliations_intention", "intention_id", "statut"),
 )

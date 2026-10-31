@@ -81,6 +81,7 @@ from . import (
     obligations_rapprochement_ui,
     pages,
     paie_ui,
+    politiques_service_ui,
     reception_digest_ui,
     ressources,
     securite,
@@ -341,6 +342,7 @@ def creer_application(
         voicemail_ui.creer_router(session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe)
     )
     app.include_router(finance_ui.creer_router(**callbacks_metier))
+    app.include_router(politiques_service_ui.creer_router(**callbacks_metier))
     app.include_router(
         banque_ui.creer_router(
             session_page=session_page,
