@@ -30,7 +30,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 from harnais_e2e import DT_TZ, JETON_MCP, iso
-from harnais_e2e_chantier import MATERIAU_ID, AppEmploye, Chantier, receptionner_materiel_args
+from harnais_e2e_chantier import MATERIAU_ID, QUANTITE_PREVUE, AppEmploye, Chantier, receptionner_materiel_args
 from m1_front_office import outils as m1_outils
 from m5_financecore import facturation as m5_facturation
 from m5_financecore import outils as m5_outils
@@ -844,6 +844,141 @@ def _qualifier_partiel_affaire(moteur, facture_id, chantier, wct_id, tmp_path, m
     }, sort_keys=True))
 
 
+def _service_m4_et_tarif_fictifs(chantier):
+    """Politique et tarif d'équipe de test, dans la seule base SQLite éphémère."""
+    from sqlalchemy import insert
+
+    from opsys import contexte
+    from opsys.stockage.schema import OPSYS_INSTANCE, SERVICE_POLITIQUES
+
+    with (stockage.transaction() as cnx,
+          contexte.appele_par_appareil(contexte.IdentiteAppelante('nathan', 'admin', source='console')),
+          contexte.appeler_en_tant_que('m05-financecore', origine='console')):
+        source = m5_outils._lire_tarifs_equipes()['source']
+        m5_outils._inscrire_tarif_equipe({
+            'equipe_id': 'eq-verticale-fictive', 'taux': '50.00', 'unite': 'heure-equipe',
+            'devise': 'CAD', 'source': 'tarif-vertical-fictif', 'version': '1',
+            'date_effet': chantier.debut.date().isoformat(), 'date_fin': chantier.debut.date().isoformat(),
+            'remplace_id': None,
+        }, mutation_id='tarif-equipe-vertical-fictif', source_attendue=source)
+        instance_id = cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one()
+        cnx.execute(insert(SERVICE_POLITIQUES).values(
+            instance_id=instance_id, consommateur='m05-financecore', operation='m4.verifier_v3',
+            revision=1, active=True, expire_le=int(time.time()) + 3600))
+
+
+def _journee_equipe_certifiee(moteur, affaire, chantier):
+    """Déclarations admin explicites sur une vraie visite, sans déduire de présence individuelle."""
+    from harnais_e2e_chantier import SEL, VILLE
+    from m4_field_ops import encodage, equipes_pointees_v3, visites_ecriture
+    from m4_field_ops import outils as m4_outils
+    from m4_field_ops.registre import Registre
+
+    from opsys import contexte
+
+    admin = affaire['admin']
+    app = AppEmploye(moteur, affaire['employe'], chantier, derive_appareil_s=0)
+    with stockage.transaction():
+        principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        applications = [m for m in principal.lire() if m.get('type_entree') == 'cedule_appliquee']
+        assert len(applications) == 1
+        plan_id = applications[0]['plan_id']
+    datee = _app(moteur, admin, 'm4_confirmer_dates_cedule', {
+        'plan_id': plan_id, 'calendrier': {'0': chantier.debut.date().isoformat()}, 'revision_attendue': 0,
+    }, cle='date-verticale-equipe')
+    assert datee.metier['accepte'] is True, datee.corps
+    with stockage.transaction():
+        principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        date = next(m for m in principal.lire() if m.get('ligne_id') == datee.resultat['ligne_id'])
+        ancre = {'intervention_id': chantier.intervention_id, 'plan_id': plan_id,
+                 'source_application_id': date['source_application_id'], 'source_ligne_id': date['ligne_id']}
+    def admin_console(cnx, instant):
+        return (contexte.appele_par_appareil(contexte.IdentiteAppelante('nathan', 'admin', source='console')),
+                contexte.appeler_en_tant_que('m04-field-ops', origine='console'),
+                contexte.receptionne_de(contexte.HorodatageAppareil('console:nathan', instant, instant)))
+    instant = moteur.horloge.maintenant
+    with stockage.transaction() as cnx:
+        c1, c2, c3 = admin_console(cnx, instant)
+        with c1, c2, c3:
+            args = {'ancre': ancre, 'revision_attendue': 0}
+            mutation = {'appareil': 'console:nathan', 'cle': 'visite-verticale-fictive',
+                        'empreinte_arguments': encodage.empreinte(args)}
+            recu = visites_ecriture.enregistrer(cnx, args, {'personne': 'nathan', 'role': 'admin'}, mutation,
+                                                instant.isoformat(), m4_outils._autoriser_annotation)
+            visite_id = recu['visite_id']
+            args = {'operation': 'ouvrir', 'visite_id': visite_id,
+                    'source_attendue': visites_ecriture.empreinte_sources(cnx)}
+            mutation = {'appareil': 'console:nathan', 'cle': 'ouverture-verticale-fictive',
+                        'empreinte_arguments': encodage.empreinte(args)}
+            visites_ecriture.executer_evenement(cnx, args, {'personne': 'nathan', 'role': 'admin'}, mutation,
+                                                instant.isoformat(), m4_outils._autoriser_annotation)
+    assert app.chantiers_du_jour().resultat[0]['intervention_id'] == chantier.intervention_id
+    app.attendre(minutes=1)
+    assert app.donner_consentement_gps().metier['accepte'] is True
+    app.attendre(minutes=29)
+    route = _app(moteur, admin, 'm4_demarrer_route', {
+        'intervention_id': chantier.intervention_id, 'technicien_id': 'eq-verticale-fictive',
+        'horodatage': iso(moteur.horloge.maintenant),
+    }, cle='route-equipe-verticale')
+    assert route.metier['accepte'] is True, route.corps
+    app.attendre(minutes=30)
+    def pointer_equipe(action):
+        instant = moteur.horloge.maintenant
+        with stockage.transaction() as cnx:
+            c1, c2, c3 = admin_console(cnx, instant)
+            with c1, c2, c3:
+                args = {'intervention_id': chantier.intervention_id, 'technicien_id': 'eq-verticale-fictive',
+                        'action': action, 'horodatage': instant.isoformat(), 'fix_gps': None,
+                        'attestation': {'fictif': True, 'appareil_id': 'console:nathan'},
+                        'fenetre_travail': chantier.fenetre, 'referentiel_villes': chantier.referentiel_villes,
+                        'ville': VILLE, 'sel': SEL}
+                recu = equipes_pointees_v3.enregistrer(cnx, args, visite_id, 'eq-verticale-fictive',
+                    'pointage-equipe-verticale-' + action, equipes_pointees_v3.empreinte_sources(cnx))
+                principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+                demandes = [m for m in principal.lire() if m.get('type_entree') == 'demande_revue'
+                            and m.get('pointage_ligne_id') == recu['pointage_id']]
+        for demande in demandes:
+            reponse = _app(moteur, admin, 'm4_resoudre_demande', {'demande_id': demande['demande_id'],
+                'decision': 'validee', 'horodatage': instant.isoformat(), 'motif': 'Contrôle fictif.'},
+                cle='controle-pointage-' + action)
+            assert reponse.metier['accepte'] is True, reponse.corps
+    pointer_equipe('arrivee')
+    app.attendre(hours=2, minutes=55)
+    from harnais_e2e_chantier import png_minimal
+    photo = app.deposer_fichier(png_minimal(largeur=4))
+    signature = app.deposer_fichier(png_minimal(largeur=2))
+    app.attendre(minutes=5)
+    pointer_equipe('depart')
+    instant = moteur.horloge.maintenant
+    with stockage.transaction() as cnx:
+        c1, c2, c3 = admin_console(cnx, instant)
+        with c1, c2, c3:
+            args = {'operation': 'fermer', 'visite_id': visite_id,
+                    'source_attendue': visites_ecriture.empreinte_sources(cnx)}
+            mutation = {'appareil': 'console:nathan', 'cle': 'fermeture-verticale-fictive',
+                        'empreinte_arguments': encodage.empreinte(args)}
+            visites_ecriture.executer_evenement(cnx, args, {'personne': 'nathan', 'role': 'admin'}, mutation,
+                                                instant.isoformat(), m4_outils._autoriser_annotation)
+    app.attendre(minutes=5)
+    return app, app.terminer(photo, signature)
+
+
+def test_verticale_sans_preuve_equipe_reste_partielle(moteur, affaire, finance_fictive):
+    chantier, _, _ = _preparer_affaire(moteur, affaire)
+    app = AppEmploye(moteur, affaire["employe"], chantier)
+    completion = app.journee_jusqu_a_la_completion()
+    assert completion.metier["accepte"] is True
+    _drainer(moteur)
+    with stockage.transaction():
+        traces = [m for m in stockage.maillons("m05-financecore", "rentabilite")
+                  if m.get("wct_id") == completion.resultat["wct_id"]]
+    assert traces
+    resultat = traces[-1]["rentabilite"]
+    assert resultat["verdict"] == "PARTIELLE"
+    assert resultat["cout_reel"]["main_d_oeuvre"]["cout"] is None
+    assert any(m["code"] == "REJ-COUT-TEMPS-POINTE-ABSENT" for m in resultat["manque"])
+
+
 @pytest.mark.parametrize(
     "quantite,prix_present,marge_attendue",
     [
@@ -855,6 +990,8 @@ def _qualifier_partiel_affaire(moteur, facture_id, chantier, wct_id, tmp_path, m
 def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
     moteur, affaire, finance_fictive, quantite, prix_present, marge_attendue, tmp_path, monkeypatch, record_property
 ):
+    # Les approbations utilisent aussi l'horloge serveur simulée du harnais.
+    monkeypatch.setattr(approbations, "_maintenant", lambda: iso(moteur.horloge.maintenant))
     chantier, lead, _ = _preparer_affaire(moteur, affaire)
     admin = affaire["admin"]
     if prix_present:
@@ -873,8 +1010,8 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
                 "unite": "pi",
             },
         )
-    app = AppEmploye(moteur, affaire["employe"], chantier)
-    completion = app.journee_jusqu_a_la_completion()
+    _service_m4_et_tarif_fictifs(chantier)
+    app, completion = _journee_equipe_certifiee(moteur, affaire, chantier)
     assert completion.metier["accepte"] is True, completion.corps
     wct_id = completion.resultat["wct_id"]
     assert completion.resultat["intervention_id"] == chantier.intervention_id
@@ -883,7 +1020,25 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
     wcts = [charge for _, charge in _evenements("m4.travaux_termines") if charge["wct_id"] == wct_id]
     assert len(wcts) == 1
     assert (wcts[0]["lead_id"], wcts[0]["devis_id"]) == (lead["lead_id"], chantier.devis_id)
-    declaration = app.declarer_materiaux(wct_id, quantite)
+    # Le départ précède de cinq minutes la clôture serveur : une revue à cette
+    # ancienne heure doit refuser sans écrire, avant la vraie livraison M6.
+    from m4_field_ops import outbox as m4_outbox
+    from m4_field_ops.registre import Registre as M4Registre
+    with stockage.transaction():
+        reg = M4Registre(stockage.maillons("m04-field-ops", "principal"))
+        avant_revue = reg.tete()
+        _, refus = m4_outbox.confirmer_verification(
+            chantier.intervention_id, wcts[0]["horodatage_completion"], reg,
+            evenement_id_variance="controle-negatif-fictif")
+        assert refus["code"] == "REJ-HORODATAGE-ANTERIEUR"
+        assert reg.tete() == avant_revue
+    # Le WCT est attribué à une équipe : M6 autorise ici un admin authentifié.
+    declaration = _app(moteur, admin, 'm6_declarer_materiaux_utilises', {
+        'wct_id': wct_id, 'formulaire': {'wct_id': wct_id,
+            'intervention_id': chantier.intervention_id, 'chantier_id': chantier.chantier_id,
+            'lignes_materiaux': [{'type_ligne': 'prevu', 'materiau_id': MATERIAU_ID,
+                'quantite': quantite, 'unite': 'pi', 'quantite_estimee': QUANTITE_PREVUE}]}},
+        cle='materiaux-equipe-verticale')
     assert declaration.metier["accepte"] is True, declaration.corps
     _drainer(moteur)
     statut = app.statut().resultat["statut"]
@@ -978,6 +1133,31 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         niveau_attendu="N4",
     )
     _drainer(moteur)
+    # Exercice explicite du candidat interne V2, sans route ou droit réel.
+    from sqlalchemy import insert
+
+    from opsys import service_capability, service_recalcul_m4
+    from opsys.console.securite import Session
+    from opsys.stockage.schema import OPSYS_INSTANCE, SERVICE_POLITIQUES
+
+    session_qa = Session('nathan', frozenset({'admin'}), 'csrf-fictif', time.time() + 3600)
+    with stockage.transaction() as cnx:
+        instance_id = cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one()
+        with pytest.raises(service_capability.RefusAutorite):
+            service_recalcul_m4._executer_qa(
+                cnx, session_qa, wct_id=wct_id, devis_id=chantier.devis_id, intention_id='a' * 64)
+        cnx.execute(insert(SERVICE_POLITIQUES).values(
+            instance_id=instance_id, consommateur='m05-financecore', operation='m4.recalculer_v3',
+            revision=1, active=True, expire_le=int(time.time()) + 3600))
+        with pytest.raises(service_capability.RefusAutorite, match='NON_QUALIFIE'):
+            service_recalcul_m4.ouvrir(cnx, session_qa, wct_id=wct_id,
+                                       devis_id=chantier.devis_id, intention_id='a' * 64)
+        recalcul = service_recalcul_m4._executer_qa(
+            cnx, session_qa, wct_id=wct_id, devis_id=chantier.devis_id, intention_id='a' * 64)
+        assert recalcul['statut'] == 'publiee'
+        assert recalcul['attestation']['operation'] == 'm4.recalculer_v3'
+
+    _drainer(moteur)
     avant = _empreinte(moteur)
     finales = _mesures(moteur, admin, wct_id)
     # Attendu indépendant : 600 - (quantité × 8 + 3 h × 50), ou inconnu sans prix.
@@ -1000,7 +1180,7 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
     assert apprentissage_final["variance_materiaux"]["cause"] is None
     rentabilite = apprentissage_final["rentabilite"]
     assert rentabilite["prix_definitif"] is True
-    assert rentabilite["montant_marge_reelle_cad"] == marge_attendue
+    assert rentabilite["montant_marge_reelle_cad"] == marge_attendue, rentabilite
     assert rentabilite["statut"] == ("qualifiee" if prix_present else "exclue")
     if prix_present:
         assert rentabilite["cout_reel_complet"] is True and rentabilite["exclusions"] == []
