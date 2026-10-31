@@ -256,11 +256,22 @@ _M4_HEURES = re.compile(r"\d{1,9}\.\d{2,4}")
 _M4_RACINE = {
     "contrat", "version", "semaine_debut", "fuseau", "unite", "portee", "lu_a", "calculable", "manque", "equipes",
     "jours_dates", "sources", "avertissements", "heures_disponibles", "heures_planifiees", "minutes_disponibles",
-    "minutes_planifiees", "duree_jour_personne_minutes", "jours_personnes_disponibles", "jours_personnes_planifiees",
+    "minutes_planifiees", "duree_jour_personne_minutes", "jours_personnes_base", "jours_personnes_disponibles",
+    "jours_personnes_planifiees",
 }  # fmt: skip
-# Jours-personnes : écrits par M4 SEULEMENT si le profil déclare la durée d'un jour-personne ; M9 ne convertit jamais.
-_M4_CONVERSION = {"duree_jour_personne_minutes", "jours_personnes_disponibles", "jours_personnes_planifiees"}
-_M4_JOURS_PERSONNES_EQUIPE = {"jours_personnes_disponibles", "jours_personnes_planifiees"}
+# Jours-personnes : écrits par M4 SEULEMENT si le profil déclare la durée d'un jour-personne ; M9 ne convertit jamais,
+# il REFAIT la conversion annoncée pour la refuser si elle ne tombe pas juste (DECISIONS-ARCHITECTE-r3) :
+# minutes × effectif_planifie / durée quand l'équipe déclare un effectif, minutes / durée quand il vaut null (non
+# déclaré, jamais 1 supposé) ; ``jours_personnes_base`` dit laquelle vaut, et un total partiel est null.
+_M4_CONVERSION = {
+    "duree_jour_personne_minutes", "jours_personnes_base", "jours_personnes_disponibles", "jours_personnes_planifiees",
+}  # fmt: skip
+_M4_JOURS_PERSONNES_EQUIPE = {"jours_personnes_disponibles", "jours_personnes_planifiees", "effectif_planifie"}
+M4_EFFECTIF_MAX = 50
+M4_BASE_DECLARE = "effectif_planifie_declare"
+M4_BASE_NON_DECLARE = "effectif_non_declare"
+M4_BASE_PARTIEL = "effectif_partiellement_declare"
+M4_BASES = (M4_BASE_DECLARE, M4_BASE_NON_DECLARE, M4_BASE_PARTIEL)
 _M4_REQUISES = _M4_RACINE - {"heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees"}
 _M4_REQUISES -= _M4_CONVERSION
 _M4_TOTAUX = {"heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees"}
@@ -279,9 +290,11 @@ def heures_texte(minutes: int) -> str:
     return f"{entier}.{decimales.rstrip('0').ljust(2, '0')}"
 
 
-def jours_personnes_texte(minutes: int, duree: int) -> str:
-    """Jours-personnes comme M4 les écrit : minutes / durée déclarée au dix-millième, au moins deux décimales."""
-    valeur = (Decimal(minutes) / Decimal(duree)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+def jours_personnes_texte(minutes: int, duree: int, effectif: int | None = None) -> str:
+    """Jours-personnes comme M4 les écrit : minutes (× effectif planifié s'il est déclaré, aucune multiplication s'il
+    vaut ``None``) / durée déclarée, au dix-millième, au moins deux décimales."""
+    produit = minutes if effectif is None else minutes * effectif
+    valeur = (Decimal(produit) / Decimal(duree)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
     entier, decimales = format(valeur, "f").split(".")
     return f"{entier}.{decimales.rstrip('0').ljust(2, '0')}"
 
@@ -389,9 +402,9 @@ def valider_m4_capacite(page: object, arguments: Mapping | None) -> list[str]:
     if not equipes or presents != _M4_TOTAUX or (datee and not jours):
         erreurs.append("calculable vrai : équipes, totaux et journées datées requis")
         return erreurs
-    duree = charge.get("duree_jour_personne_minutes")
-    if conversion and (conversion != _M4_CONVERSION or not _entier(duree, 1, 1440)):
-        erreurs.append("jours-personnes : durée déclarée (1 à 1440) et totaux convertis ensemble")
+    duree, base = charge.get("duree_jour_personne_minutes"), charge.get("jours_personnes_base")
+    if conversion and (conversion != _M4_CONVERSION or not _entier(duree, 1, 1440) or base not in M4_BASES):
+        erreurs.append("jours-personnes : durée déclarée (1 à 1440), base fermée et totaux convertis ensemble")
         return erreurs
     cles_equipe = _M4_EQUIPE | _M4_JOURS_PERSONNES_EQUIPE if conversion else _M4_EQUIPE
     if isinstance(sources, Mapping) and (
@@ -399,6 +412,8 @@ def valider_m4_capacite(page: object, arguments: Mapping | None) -> list[str]:
     ):
         erreurs.append("sources : un profil et une cédule appliquée sont requis pour un calcul")
     identifiants, somme = [], {"minutes_disponibles": 0, "minutes_planifiees": 0}
+    produit = {"minutes_disponibles": 0, "minutes_planifiees": 0}  # minutes × effectif, si tous déclarés
+    effectifs: list[int | None] = []
     for position, ligne in enumerate(equipes):
         nom = f"equipes[{position}]"
         if not _cles(ligne, cles_equipe, cles_equipe, nom, erreurs):
@@ -407,19 +422,42 @@ def valider_m4_capacite(page: object, arguments: Mapping | None) -> list[str]:
             erreurs.append(f"{nom}.equipe_id : identifiant sobre attendu")
         else:
             identifiants.append(ligne["equipe_id"])
+        effectif = ligne.get("effectif_planifie")
+        if conversion and effectif is not None and not _entier(effectif, 1, M4_EFFECTIF_MAX):
+            erreurs.append(f"{nom}.effectif_planifie : entier de 1 à {M4_EFFECTIF_MAX} ou null (non déclaré)")
+            return erreurs
+        effectifs.append(effectif)
         for cle in somme:
             minutes = _m4_valeur(ligne, cle, nom, erreurs)
             somme[cle] += minutes or 0
+            produit[cle] += (minutes or 0) * (effectif or 0)
             jours_cle = cle.replace("minutes", "jours_personnes")
-            if conversion and minutes is not None and ligne[jours_cle] != jours_personnes_texte(minutes, duree):
-                erreurs.append(f"{nom}.{jours_cle} : conversion déclarée exacte des minutes attendue")
+            if (
+                conversion
+                and minutes is not None
+                and ligne[jours_cle] != jours_personnes_texte(minutes, duree, effectif)
+            ):
+                erreurs.append(f"{nom}.{jours_cle} : conversion déclarée exacte (× effectif s'il est déclaré) attendue")
     if len(set(identifiants)) != len(identifiants):
         erreurs.append("equipes : equipe_id en double")
+    attendue = None
+    if conversion:
+        declares = sum(1 for effectif in effectifs if effectif is not None)
+        attendue = (
+            M4_BASE_DECLARE if declares == len(effectifs) else M4_BASE_NON_DECLARE if not declares else M4_BASE_PARTIEL
+        )
+        if base != attendue:
+            erreurs.append("jours_personnes_base : ne correspond pas aux effectifs planifiés des équipes")
     for cle, total in somme.items():
+        jours_cle = cle.replace("minutes", "jours_personnes")
         if charge[cle] != total or charge[cle.replace("minutes", "heures")] != heures_texte(total):
             erreurs.append(f"{cle} : le total n'est pas la somme des équipes")
-        elif conversion and charge[cle.replace("minutes", "jours_personnes")] != jours_personnes_texte(total, duree):
-            erreurs.append(f"{cle.replace('minutes', 'jours_personnes')} : conversion déclarée du total attendue")
+        elif conversion and charge[jours_cle] != (
+            None
+            if attendue == M4_BASE_PARTIEL
+            else jours_personnes_texte(produit[cle] if attendue == M4_BASE_DECLARE else total, duree)
+        ):
+            erreurs.append(f"{jours_cle} : conversion déclarée du total attendue (null si l'effectif est partiel)")
     return erreurs
 
 

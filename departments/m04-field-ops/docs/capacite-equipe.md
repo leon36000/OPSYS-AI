@@ -26,10 +26,26 @@ d'appareil est refusé par le core, un employé ou un vendeur par le double cont
   déclaré ; un jour absent est inconnu. `heures_planifiees` suit la même règle que la portée datée (créneaux datés de la
   cédule appliquée) : une intervention active sans date reste un manque, car sa semaine est inconnue.
 * Jours-personnes, **seulement** si le profil déclare `duree_jour_personne_minutes` (jamais supposé) et que la semaine
-  est calculable, dans les deux portées : `jours_personnes_*` = minutes / durée (`Decimal`, dix-millième, demi vers le
-  haut, au moins deux décimales) ; `duree_jour_personne_minutes` et les minutes exactes sont écrites à côté. Aucun
-  membre n'est compté : c'est la conversion déclarée des heures d'une équipe, pas un effectif. L'unité de la charge
-  reste `heures_declarees`.
+  est calculable, dans les deux portées (`Decimal`, dix-millième, demi vers le haut, au moins deux décimales ;
+  `duree_jour_personne_minutes` et les minutes exactes sont écrites à côté). L'unité de la charge reste
+  `heures_declarees` : l'heure d'**équipe** est l'unité de référence, les jours-personnes en sont une conversion
+  déclarée (DECISIONS-ARCHITECTE-r3) :
+  * équipe qui déclare `effectif_planifie` (profil, entier 1 à 50) : `jours_personnes_*` = minutes de l'équipe ×
+    effectif planifié / durée. L'effectif est une **capacité prévisionnelle déclarée, jamais une présence constatée** :
+    il n'est ni lu ni déduit des membres déclarés (une équipe de 2 membres peut en prévoir 3), des pointages ou des
+    absences ;
+  * équipe sans effectif déclaré : `effectif_planifie: null` sur sa ligne — **dit**, jamais un 1 supposé — et
+    `jours_personnes_*` = minutes / durée, sans multiplication (le calcul d'avant) : des jours de quart d'équipe ;
+  * `jours_personnes_base` (racine, code fermé) dit la règle de la charge : `effectif_planifie_declare` (toutes les
+    équipes), `effectif_non_declare` (aucune) ou `effectif_partiellement_declare` (certaines) ; dans ce dernier cas
+    chaque équipe garde sa conversion et les totaux `jours_personnes_*` de la racine valent `null` (jours de personnes
+    et jours d'équipe ne s'additionnent pas ; les heures, elles, restent totalisées). Deux avertissements de plus
+    expliquent la conversion et la base retenue.
+
+  Pourquoi `null` plutôt qu'un 1 implicite : `effectif_planifie: 1` est une **déclaration** (« une personne prévue »),
+  que le propriétaire peut faire ; l'absence de déclaration n'en est pas une. Écrire 1 donnerait le même chiffre mais
+  ferait passer des jours d'équipe pour des jours de personnes prévues. Un lecteur qui trouve 1 avec la base
+  `effectif_non_declare` refuse la charge.
 * Absence ≠ zéro, tout ou rien : un seul manque rend la semaine non calculable pour toutes les équipes.
 
 ## Charge
@@ -51,10 +67,14 @@ d'appareil est refusé par le core, un employé ou un vendeur par le double cont
 }
 ```
 
-Avec `duree_jour_personne_minutes: 480` déclaré, la charge calculable porte en plus
-`"duree_jour_personne_minutes": 480, "jours_personnes_disponibles": "2.25", "jours_personnes_planifiees": "0.625"` (à la
-racine) et `jours_personnes_disponibles` / `jours_personnes_planifiees` sur chaque équipe ; sans la déclaration, aucune
-de ces clés n'existe (la charge est identique à celle d'avant).
+Avec `duree_jour_personne_minutes: 480` déclaré et aucun effectif planifié, la charge calculable porte en plus
+`"duree_jour_personne_minutes": 480, "jours_personnes_base": "effectif_non_declare", "jours_personnes_disponibles":
+"2.25", "jours_personnes_planifiees": "0.625"` (à la racine) et `effectif_planifie: null`, `jours_personnes_disponibles` /
+`jours_personnes_planifiees` sur chaque équipe. Si `eq-a` déclare `effectif_planifie: 2` et `eq-b` `effectif_planifie:
+3` : `eq-a` porte `"effectif_planifie": 2, "jours_personnes_disponibles": "2.25"` (540 × 2 / 480), `eq-b`
+`"3.375"`, la racine `"jours_personnes_base": "effectif_planifie_declare", "jours_personnes_disponibles": "5.625"`
+((1080 + 1620) / 480) ; les heures et minutes ne changent pas. Sans la durée, aucune de ces clés n'existe, effectif
+déclaré ou non (la charge est identique à celle d'avant).
 
 Arguments : `debut_semaine` (lundi, AAAA-MM-JJ, obligatoire), `horodatage_reference` (ISO 8601 avec fuseau, facultatif :
 recopié en `lu_a`, M4 n'a pas d'horloge), `portee` (`journees_datees_seulement` par défaut, ou `semaine_type` ; toute
@@ -90,5 +110,7 @@ intervention ne date plus rien. Les créneaux annulés, reportés ou à replanif
 Refuser toute unité autre que `heures_declarees` et toute portée hors des deux admises, vérifier que la portée rendue
 est celle demandée, lire `calculable` avant tout chiffre, nommer `portee` (borne basse datée, ou semaine type déclarée)
 et l'âge via `lu_a`/`sources`, ne jamais convertir lui-même en jours-personnes (seuls les `jours_personnes_*` écrits par
-M4 sur déclaration existent) ni déduire une présence. `verifier_charge` (module M4)
-rejoue ces contrôles côté producteur.
+M4 sur déclaration existent) ni déduire une présence ni un effectif. Il refait la conversion annoncée pour refuser une
+charge incohérente : effectif hors de 1 à 50 ou non entier, jours qui ne valent pas minutes × effectif / durée (ou
+minutes / durée si `null`), base qui contredit les effectifs, total converti écrit en base partielle ou manquant
+ailleurs. `verifier_charge` (module M4) rejoue ces contrôles côté producteur.

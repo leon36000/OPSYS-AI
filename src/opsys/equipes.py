@@ -23,8 +23,8 @@ avoir besoin) ::
       fenetre_par_defaut:             # fenêtre offerte à un chantier dont le client n'en a donné aucune
         {jours: [0], debut_min: 480, fin_min: 1020}
 
-Capacité des semaines futures (DECISIONS-ARCHITECTE-r1 §3), quatre ajouts FACULTATIFS : un profil qui ne les porte pas
-reste valide et se lit, s'écrit et s'empreinte exactement comme avant ::
+Capacité des semaines futures (DECISIONS-ARCHITECTE-r1 §3, effectif planifié : r3), cinq ajouts FACULTATIFS : un profil
+qui ne les porte pas reste valide et se lit, s'écrit et s'empreinte exactement comme avant ::
 
     equipes:
       liste:
@@ -35,6 +35,8 @@ reste valide et se lit, s'écrit et s'empreinte exactement comme avant ::
             lundi: [{debut: "07:00", fin: "12:00"}, {debut: "12:30", fin: "15:30"}]  # plages sans chevauchement
             samedi: []                  # jour FERMÉ : zéro déclaré ; fin "24:00" admise
             # un jour absent n'est pas fermé : il est INCONNU (M4 ne calcule pas la semaine)
+          effectif_planifie: 2          # personnes PRÉVUES par jour de quart (entier 1 à 50) : capacité prévisionnelle
+                                        # déclarée, jamais une présence constatée ; ni lue ni déduite de `membres`
       conges:                         # congés/absences planifiés au niveau de l'ÉQUIPE (jamais d'une personne)
         - {equipes: [eq-repentigny], du: "2030-07-22", au: "2030-08-02", motif: conge, libelle: "texte libre"}
       feries:                         # jours fériés DÉCLARÉS (aucune liste n'est fournie par OPSYS)
@@ -45,6 +47,11 @@ reste valide et se lit, s'écrit et s'empreinte exactement comme avant ::
 `motif` est fermé (`conge`, `ferie`, `formation`, `autre`) ; `libelle` est un texte libre facultatif, gardé au profil,
 jamais recopié dans une sortie de M4 ni au journal d'audit. Un férié s'applique à toutes les équipes ; un congé aux
 équipes qu'il nomme, qui doivent être déclarées dans `liste`. Aucune de ces données ne décrit une personne.
+
+`effectif_planifie` (DECISIONS-ARCHITECTE-r3) est un NOMBRE PRÉVU que le propriétaire déclare pour l'équipe, pas une
+liste de personnes ni un compte de ses `membres` : une équipe de trois membres peut planifier deux personnes par quart,
+et un membre déclaré n'est pas présent pour autant (déclaration d'équipe ≠ présence individuelle). Aucun code ne le
+déduit des membres, des pointages ni des absences ; absent, il n'est jamais supposé (M4 dit qu'il n'est pas déclaré).
 
 Ce que le profil n'est pas : aucune donnée de ressources humaines ni de santé, aucune évaluation, aucun classement
 d'employé (DEFINITION-PRODUIT M4, garde-fous humains). Un membre est un identifiant de personne OPSYS, pas une fiche.
@@ -95,7 +102,8 @@ _CLES_ADMISES = CLES_PROFIL + CLES_PROFIL_CAPACITE
 
 CLES_EQUIPE = ("id", "membres", "competences", "depot", "quarts")
 CLE_SEMAINE_TYPE = "semaine_type"
-CLES_EQUIPE_OPTIONNELLES = (CLE_SEMAINE_TYPE,)
+CLE_EFFECTIF_PLANIFIE = "effectif_planifie"
+CLES_EQUIPE_OPTIONNELLES = (CLE_SEMAINE_TYPE, CLE_EFFECTIF_PLANIFIE)
 JOURS_SEMAINE = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")  # index = date.weekday()
 FUSEAU_SEMAINE_TYPE = "America/Montreal"
 CLES_PLAGE = ("debut", "fin")
@@ -121,6 +129,7 @@ JOUR_MAX = 9999
 GRAINE_MAX = 2**32 - 1
 _EQUIPES_MAX = 100
 _MEMBRES_MAX = 50
+EFFECTIF_PLANIFIE_MAX = 50  # borne raisonnable d'une équipe de chantier ; indépendante du nombre de membres
 _COMPETENCES_MAX = 50
 _SERVICES_MAX = 100
 _QUARTS_MAX = 400
@@ -302,6 +311,10 @@ def _normaliser_equipe(brut: Any, chemin: str) -> dict[str, Any]:
     }
     if CLE_SEMAINE_TYPE in objet:
         propre[CLE_SEMAINE_TYPE] = _normaliser_semaine_type(objet[CLE_SEMAINE_TYPE], f"{chemin}.{CLE_SEMAINE_TYPE}")
+    if CLE_EFFECTIF_PLANIFIE in objet:
+        # Déclaré tel quel, jamais comparé ni ramené au nombre de `membres` : c'est une prévision, pas une présence.
+        propre[CLE_EFFECTIF_PLANIFIE] = _entier(
+            objet[CLE_EFFECTIF_PLANIFIE], f"{chemin}.{CLE_EFFECTIF_PLANIFIE}", 1, EFFECTIF_PLANIFIE_MAX)
     return propre
 
 
@@ -583,6 +596,9 @@ def enregistrer_equipes(profil: Any, chemin: Path | None = None, par: str | None
     semaine_type = [equipe["id"] for equipe in equipes if CLE_SEMAINE_TYPE in equipe]
     if semaine_type:
         details["semaine_type_equipes"] = semaine_type
+    effectifs = {equipe["id"]: equipe[CLE_EFFECTIF_PLANIFIE] for equipe in equipes if CLE_EFFECTIF_PLANIFIE in equipe}
+    if effectifs:
+        details["effectif_planifie_par_equipe"] = effectifs
     if CLE_CONGES in propre:
         details["conges_declares"] = len(propre[CLE_CONGES])
     if CLE_FERIES in propre:
