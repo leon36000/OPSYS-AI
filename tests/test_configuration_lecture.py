@@ -152,3 +152,59 @@ def test_borne_sortie_utf8():
     with pytest.raises(lecture.ConfigurationLectureErreur) as erreur:
         lecture.verifier_sortie(("é" * 32769).encode("utf-8"))
     assert erreur.value.statut == 413
+
+
+def _profil_entreprise(tmp_path, texte):
+    path = tmp_path / "entreprise-fictive.yaml"
+    path.write_text(texte, encoding="utf-8")
+    return path
+
+
+def test_avatars_par_defaut_projetes_sans_profil(session, tmp_path):
+    with session() as cnx:
+        result = lecture.lire(cnx, charger_departements(), {}, _fichier(tmp_path, "paliers: {}\n"),
+                              tmp_path / "absent.yaml")
+    assert result["avatars"] == {"statut": "defaut", "personnalises": []}
+    m1 = next(d for d in result["departements"] if d["code"] == "M1")
+    assert m1["avatar"]["nom"] == "Léa" and m1["avatar"]["voix"] == "voix.lea.defaut"
+    assert m1["avatar"]["canaux"] == {"messagerie": "disponible", "voix": "prevu", "audiovisuel": "prevu"}
+    assert m1["avatar"]["sources"] == {"nom": "manifeste", "voix": "manifeste", "visage": "manifeste"}
+    assert [d["avatar"]["nom"] for d in result["departements"]] == [
+        "Léa", "Victor", "Mathis", "Gabriel", "Sophie", "Rosalie", "Chloé", "Olivier", "Athéna", "Mnémo",
+    ]
+
+
+def test_avatar_personnalise_par_le_client_projete_avec_sa_provenance(session, tmp_path):
+    profil = _profil_entreprise(tmp_path, "avatars:\n  m01-front-office:\n    nom: Julie\n")
+    with session() as cnx:
+        result = lecture.lire(cnx, charger_departements(), {}, _fichier(tmp_path, "paliers: {}\n"), profil)
+    assert result["avatars"] == {"statut": "personnalise", "personnalises": ["m01-front-office"]}
+    m1 = next(d for d in result["departements"] if d["code"] == "M1")
+    assert m1["avatar"]["nom"] == "Julie" and m1["avatar"]["sources"]["nom"] == "entreprise"
+    assert m1["avatar"]["voix"] == "voix.lea.defaut"
+
+
+@pytest.mark.parametrize("texte", [
+    "avatars:\n  m02-revenue-crm:\n    nom: Léa\n",           # doublon avec M1
+    "avatars:\n  m01-front-office:\n    nom: Julie 2\n",      # caractère refusé
+    "avatars:\n  m01-front-office:\n    role: Patronne\n",    # champ non personnalisable
+    "avatars: [\n",                                          # YAML illisible
+])
+def test_avatars_invalides_ne_montrent_aucune_identite_ni_chemin(session, tmp_path, texte):
+    profil = _profil_entreprise(tmp_path, texte)
+    with session() as cnx:
+        result = lecture.lire(cnx, charger_departements(), {}, _fichier(tmp_path, "paliers: {}\n"), profil)
+    assert result["avatars"] == {"statut": "profil_invalide"}
+    assert all(d["avatar"] is None for d in result["departements"])
+    texte_sortie = json.dumps(result, ensure_ascii=False)
+    assert str(tmp_path) not in texte_sortie and "Léa" not in texte_sortie and "Julie" not in texte_sortie
+
+
+def test_profil_entreprise_trop_volumineux_refuse_avant_lecture(session, tmp_path, monkeypatch):
+    profil = _profil_entreprise(tmp_path, "# " + "x" * lecture.MAX_OCTETS + "\n")
+    monkeypatch.setattr(lecture.avatars, "identites_effectives",
+                        lambda *_a, **_k: pytest.fail("profil trop volumineux : aucune lecture"))
+    with session() as cnx:
+        result = lecture.lire(cnx, charger_departements(), {}, _fichier(tmp_path, "paliers: {}\n"), profil)
+    assert result["avatars"] == {"statut": "profil_trop_volumineux"}
+    assert all(d["avatar"] is None for d in result["departements"])
