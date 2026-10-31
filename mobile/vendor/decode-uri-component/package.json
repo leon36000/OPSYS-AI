@@ -1,0 +1,36 @@
+{
+  "name": "@opsys-ai/decode-uri-component",
+  "description": "A better decodeURIComponent (copie CommonJS privée de decode-uri-component 0.5.1, utilisée par query-string 7 via expo-router)",
+  "version": "0.5.1-opsys.1",
+  "homepage": "https://github.com/SamVerschueren/decode-uri-component",
+  "author": "Sam Verschueren <sam.verschueren@gmail.com> (github.com/SamVerschueren)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leon36000/OPSYS-AI",
+    "directory": "mobile/vendor/decode-uri-component"
+  },
+  "bugs": {
+    "url": "https://github.com/SamVerschueren/decode-uri-component/issues"
+  },
+  "license": "MIT",
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
+  "main": "index.js",
+  "types": "index.d.ts",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=14.16"
+  },
+  "keywords": [
+    "decode",
+    "uri",
+    "component",
+    "decodeuricomponent",
+    "components",
+    "decoder",
+    "url"
+  ],
+  "private": true
+}

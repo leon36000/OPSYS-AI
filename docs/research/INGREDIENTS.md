@@ -547,6 +547,16 @@ Aucune autre version verrouillée n’est modifiée. Le seuil npm high reste act
 13 alertes moderate restent ouvertes. Le catalogue npm ignore les identités privées :
 la revue et les régressions qualifient les correctifs, pas le seul décompte d’audit.
 
+### Audit npm mobile — 31 octobre 2026
+
+| Brique | Licence vérifiée | Adoption et preuve | Limites |
+|---|---|---|---|
+| decode-uri-component 0.5.1 (GHSA-vcc3-ghjq-m6fr, GHSA-qr28-fpjm-wq7f) | MIT, LICENSE conservée | Copie privée CommonJS `@opsys-ai/decode-uri-component` 0.5.1-opsys.1 : logique de la release npm corrigée inchangée, seul `export default` devient `module.exports` (query-string 7, via expo-router 57, la charge avec `require()`). Vecteurs quadratique/exponentiel testés dans `npm run test:dependencies` | Le catalogue npm ne voit pas la correction (identité privée) ; à retirer au passage à Expo SDK 58 |
+| zod 4.6.7 en override `^4.6.6` (GHSA-mrhx-c7xc-m3w5) | MIT | Remplace zod 3.25.76 demandé par `@expo/cli` 57 ; ce dernier ne l'emploie que pour les schémas des plugins DevTools (serveur de développement), qualifiés sous zod 4 | Majeure transitive hors plage déclarée ; aucun effet sur le bundle de l'app ; à retirer au passage à SDK 58 |
+
+Le seuil `npm audit --audit-level=high` reste actif et passe ; les avis moderate/low restants (glob, minimatch,
+uuid, deepmerge et leurs dépendants jest/expo) ne sont pas traités ici.
+
 
 ## OCR de factures scannées — recherche du 4 octobre 2026
 

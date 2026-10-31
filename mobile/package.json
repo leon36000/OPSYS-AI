@@ -49,10 +49,13 @@
     "jest-expo": "57.0.5",
     "typescript": "6.0.3",
     "braces": "file:./vendor/braces",
-    "node-forge": "file:./vendor/node-forge"
+    "node-forge": "file:./vendor/node-forge",
+    "decode-uri-component": "file:./vendor/decode-uri-component"
   },
   "overrides": {
     "braces": "$braces",
-    "node-forge": "$node-forge"
+    "node-forge": "$node-forge",
+    "decode-uri-component": "$decode-uri-component",
+    "zod": "^4.6.6"
   }
 }

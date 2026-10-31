@@ -77,3 +77,65 @@ test("shell-quote retains ordinary quoted arguments and comments", () => {
   assert.deepEqual(shellQuote.parse(shellQuote.quote(["echo", "argument fictif avec espaces"])), ["echo", "argument fictif avec espaces"]);
   assert.doesNotThrow(() => shellQuote.quote(["echo", { comment: "fictif" }, "fin fictive sans retour"]));
 });
+
+// GHSA-vcc3-ghjq-m6fr / GHSA-qr28-fpjm-wq7f : decode-uri-component <=0.5.0, chargé par query-string 7 (expo-router).
+// La release corrigée 0.5.1 n'existe qu'en ESM ; query-string 7 l'appelle via require() : copie CommonJS privée.
+{
+  const requireQueryString = createRequire(requireMobile.resolve("query-string/package.json"));
+  const decode = requireQueryString("decode-uri-component");
+  test("query-string resolves the qualified private decode-uri-component copy", () => {
+    const pkg = requireQueryString("decode-uri-component/package.json");
+    assert.equal(pkg.name, "@opsys-ai/decode-uri-component");
+    assert.equal(fs.realpathSync(requireQueryString.resolve("decode-uri-component")), fs.realpathSync(requireMobile.resolve("decode-uri-component")));
+    assert.equal(typeof decode, "function");
+    for (const [file, sha256] of Object.entries(provenance.forks.find(f => f.alias === "decode-uri-component").files_sha256)) {
+      const content = fs.readFileSync(path.join(root, "vendor", "decode-uri-component", file));
+      assert.equal(crypto.createHash("sha256").update(content).digest("hex"), sha256, file);
+    }
+  });
+  test("decode-uri-component keeps ordinary and lenient decoding", () => {
+    assert.equal(decode("st%C3%A5le"), "ståle");
+    assert.equal(decode("a%20b%2"), "a b%2");
+    assert.equal(decode("%E0%A4%A"), "%E0%A4%A");
+    assert.equal(decode("%C2"), "�");
+    assert.throws(() => decode(1), TypeError);
+  });
+  for (const [name, input] of [["invalid lead bytes", n => "%C0".repeat(n) + "%"], ["truncated sequences", n => "%E0%A4".repeat(n) + "%"], ["BOM pairs", n => "%FE%FF".repeat(n) + "%"]]) {
+    test(`decode-uri-component stays linear on malformed input (${name})`, () => {
+      const start = process.hrtime.bigint();
+      assert.equal(typeof decode(input(20000)), "string");
+      assert.ok(Number(process.hrtime.bigint() - start) / 1e6 < 2000);
+    });
+  }
+  test("query-string 7 parses malformed values through the private copy", () => {
+    assert.deepEqual({ ...requireMobile("query-string").parse("a=%E0%A4%A&b=%C3%A5") }, { a: "%E0%A4%A", b: "å" });
+  });
+}
+
+// GHSA-mrhx-c7xc-m3w5 : zod <4.6.6, requis par @expo/cli (schémas des plugins DevTools, serveur de développement uniquement).
+// @expo/cli 57 déclare zod ^3.25.76 ; l'override ^4.6.6 est qualifié sur les deux modules qui l'utilisent réellement.
+{
+  const cliDir = path.dirname(requireMobile.resolve("@expo/cli/package.json"));
+  const requireCli = createRequire(path.join(cliDir, "package.json"));
+  const server = file => require(path.join(cliDir, "build/src/start/server", file));
+  const plugin = { packageName: "p", packageRoot: "/r", bannerTitle: true, cliExtensions: { description: "d", entryPoint: "e", commands: [{ name: "go", title: "Go", environments: ["cli", "mcp"], parameters: [{ name: "x", type: "number" }] }] } };
+  test("@expo/cli resolves a patched zod", () => {
+    const [major, minor, patch] = requireCli("zod/package.json").version.split(".").map(Number);
+    assert.ok(major > 4 || (major === 4 && (minor > 6 || (minor === 6 && patch >= 6))));
+  });
+  test("@expo/cli DevTools plugin schemas keep their behavior under zod 4", () => {
+    const { PluginSchema, DevToolsPluginOutputSchema } = server("DevToolsPlugin.schema.js");
+    assert.equal(PluginSchema.safeParse(plugin).success, true);
+    assert.equal(PluginSchema.safeParse({ ...plugin, packageName: "" }).success, false);
+    assert.equal(PluginSchema.safeParse({ ...plugin, cliExtensions: { ...plugin.cliExtensions, commands: [] } }).success, false);
+    assert.equal(DevToolsPluginOutputSchema.safeParse([{ type: "text", text: "t", level: "info" }, { type: "image", url: "https://exemple.invalid/a.png" }]).success, true);
+    assert.equal(DevToolsPluginOutputSchema.safeParse([{ type: "image", url: "pas une url" }]).success, false);
+  });
+  test("@expo/cli MCP extension schema stays strict under zod 4", () => {
+    const schema = server("createMCPDevToolsExtensionSchema.js").createMCPDevToolsExtensionSchema(plugin);
+    assert.equal(schema.safeParse({ command: "go", x: 1 }).success, true);
+    assert.equal(schema.safeParse({ command: "inconnue" }).success, false);
+    assert.equal(schema.safeParse({ command: "go", extra: 1 }).success, false);
+    assert.equal(schema.safeParse({ command: "go", x: "a" }).success, false);
+  });
+}

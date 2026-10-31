@@ -91,6 +91,25 @@
         "lib/xhr.js": "d9abf523180b6d03b2cc99909eef3488a6b4bc1f822d7fb9d1e945abf555cb42",
         "package.json": "9b4845d5aff033bc9300749e03421592b81325534a9a7ce3434b8b83bd1424ec"
       }
+    },
+    {
+      "alias": "decode-uri-component",
+      "name": "@opsys-ai/decode-uri-component",
+      "version": "0.5.1-opsys.1",
+      "original_registry_version": "0.5.1",
+      "upstream_patch": "https://github.com/advisories/GHSA-qr28-fpjm-wq7f",
+      "commit": "58ed85f5adc7cfaee5e49e4d52b067f172d0bcb6",
+      "registry_integrity": "sha512-vWHQkXgg2cE3BB4rR0c+PYw9BCQzLoNIRMI7AunIkZst74tw/vpPp7VLoYtsR/cy1f55g3XDWUslfeCZjiZJyA==",
+      "upstream_index_js_sha256": "6a86ac891edf15c5efa0841ebb31935e3669d58b98318b57d7b08a4530317cb0",
+      "license": "MIT",
+      "changes": "Release npm 0.5.1 corrigée (GHSA-vcc3-ghjq-m6fr et GHSA-qr28-fpjm-wq7f, <=0.5.0) dont la logique est conservée telle quelle; seule adaptation : export default remplacé par module.exports (CommonJS), car query-string 7.1.3 (expo-router) la charge avec require() et l'appelle comme une fonction, ce que le paquet ESM seul ne permet pas; index.d.ts adapté en export =; package.json explicite OPSYS",
+      "known_limit": "Copie privée : le catalogue npm ne la reconnaît pas comme corrigée; maintenance OPSYS jusqu'au passage à Expo SDK 58 (expo-router 58 n'utilise plus query-string)",
+      "files_sha256": {
+        "LICENSE": "ed7a9a0f74e43951b2520efe1a4349cb9ed5f3dff0b0f268e2e51a4d38df7ea4",
+        "index.d.ts": "52c08a531c67ba88e66093417b8eddbd9e28dcbc7c822fcd2afbb7698f61a903",
+        "index.js": "d0eb4978780fd41f409f14d5b6504cb903ef5767d7f6d54d8006010973d65a6b",
+        "package.json": "a05aafaa626af9fbab5b50f9e4b1d1b31ad064c5108e86b4630c23c75214466b"
+      }
     }
   ]
 }
