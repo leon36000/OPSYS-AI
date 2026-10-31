@@ -1228,3 +1228,118 @@ WCT_ATTENTES_AUDIT = Table(
         name="wct_attente_audit_action",
     ),
 )
+
+# -- Plateforme : registre de fournisseurs et coffre de secrets (migration 0036) ---------------------
+# Profil de licence du client (singleton) confronté au bloc licence de chaque fournisseur.
+FOURNISSEURS_PROFIL = Table(
+    "fournisseurs_profil", META,
+    Column("id", Integer, primary_key=True, autoincrement=False),
+    Column("usage_commercial", Boolean, nullable=False),
+    Column("revenu_annuel_usd", BigInteger, nullable=True),
+    Column("territoires", Text, nullable=False),
+    Column("heberge_pour_tiers", Boolean, nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    Column("modifie_par", String(64), nullable=False),
+    CheckConstraint("id = 1", name="singleton"),
+    CheckConstraint("revenu_annuel_usd IS NULL OR revenu_annuel_usd >= 0", name="revenu_positif"),
+    CheckConstraint("revision > 0", name="revision_positive"),
+)
+# Définition figée (JSON canonique, sans aucune valeur de secret) d'un fournisseur configuré.
+FOURNISSEURS_CONFIGURATIONS = Table(
+    "fournisseurs_configurations", META,
+    Column("identifiant", String(80), primary_key=True),
+    Column("capacite", String(24), nullable=False),
+    Column("definition", Text, nullable=False),
+    Column("actif", Boolean, nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("dernier_test", Text, nullable=True),
+    Column("modifie_le", Text, nullable=False),
+    Column("modifie_par", String(64), nullable=False),
+    CheckConstraint(
+        "capacite IN ('llm','embeddings','reranker','ocr','stt','tts','avatar','image','video','recherche_web')",
+        name="capacite_valide",
+    ),
+    CheckConstraint("revision > 0", name="revision_positive"),
+)
+# Sélection par capacité : portée '*' = défaut global, sinon code de département (m07-marketing…).
+FOURNISSEURS_SELECTIONS = Table(
+    "fournisseurs_selections", META,
+    Column("capacite", String(24), primary_key=True),
+    Column("portee", String(64), primary_key=True),
+    Column("identifiant", String(80), ForeignKey("fournisseurs_configurations.identifiant"), nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    Column("modifie_par", String(64), nullable=False),
+)
+# Coffre : métadonnées seulement ; la valeur n'existe que chiffrée dans coffre_versions.
+COFFRE_SECRETS = Table(
+    "coffre_secrets", META,
+    Column("nom", String(80), primary_key=True),
+    Column("service", String(32), nullable=False),
+    Column("etat", String(16), nullable=False),
+    Column("version_active", Integer, nullable=True),
+    Column("cree_le", Text, nullable=False),
+    Column("cree_par", String(64), nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    Column("modifie_par", String(64), nullable=False),
+    Column("revoque_le", Text, nullable=True),
+    Column("revoque_par", String(64), nullable=True),
+    CheckConstraint("etat IN ('actif','revoque')", name="etat_valide"),
+    CheckConstraint(
+        "(etat = 'actif' AND version_active IS NOT NULL AND revoque_le IS NULL) OR "
+        "(etat = 'revoque' AND version_active IS NULL AND revoque_le IS NOT NULL)",
+        name="etat_coherent",
+    ),
+)
+# Chiffrement d'enveloppe AES-256-GCM : clé de donnée par version, enveloppée par la clé maîtresse
+# (hors base). Une version remplacée ou révoquée perd immédiatement ses octets chiffrés.
+COFFRE_VERSIONS = Table(
+    "coffre_versions", META,
+    Column("nom", String(80), ForeignKey("coffre_secrets.nom"), primary_key=True),
+    Column("version", Integer, primary_key=True, autoincrement=False),
+    Column("etat", String(16), nullable=False),
+    Column("algorithme", String(40), nullable=False),
+    Column("empreinte_cle_maitresse", String(32), nullable=True),
+    Column("nonce_cle", LargeBinary, nullable=True),
+    Column("cle_enveloppee", LargeBinary, nullable=True),
+    Column("nonce_valeur", LargeBinary, nullable=True),
+    Column("valeur_chiffree", LargeBinary, nullable=True),
+    Column("cree_le", Text, nullable=False),
+    Column("purge_le", Text, nullable=True),
+    CheckConstraint("etat IN ('active','remplacee','revoquee')", name="etat_valide"),
+    CheckConstraint("version > 0", name="version_positive"),
+    CheckConstraint(
+        "(etat = 'active' AND valeur_chiffree IS NOT NULL AND cle_enveloppee IS NOT NULL AND nonce_cle IS NOT NULL "
+        "AND nonce_valeur IS NOT NULL AND empreinte_cle_maitresse IS NOT NULL AND purge_le IS NULL) OR "
+        "(etat <> 'active' AND valeur_chiffree IS NULL AND cle_enveloppee IS NULL AND nonce_cle IS NULL "
+        "AND nonce_valeur IS NULL AND purge_le IS NOT NULL)",
+        name="octets_selon_etat",
+    ),
+)
+# Jetons opaques remis aux agents : seule l'empreinte SHA-256 est conservée, liée à un porteur et un usage.
+COFFRE_JETONS = Table(
+    "coffre_jetons", META,
+    Column("empreinte", String(64), primary_key=True),
+    Column("nom", String(80), ForeignKey("coffre_secrets.nom"), nullable=False),
+    Column("porteur", String(80), nullable=False),
+    Column("usage", String(120), nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("cree_par", String(64), nullable=False),
+    Column("expire_epoch", BigInteger, nullable=False),
+    Column("revoque", Boolean, nullable=False),
+    Index("ix_coffre_jetons_nom", "nom"),
+)
+# Journal d'accès append-only (déclencheurs de la migration 0036) : jamais de valeur ni de jeton.
+COFFRE_ACCES = Table(
+    "coffre_acces", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("quand", Text, nullable=False),
+    Column("nom", String(80), nullable=False),
+    Column("action", String(32), nullable=False),
+    Column("acteur", String(80), nullable=False),
+    Column("usage", String(120), nullable=True),
+    Column("resultat", String(8), nullable=False),
+    Column("code", String(48), nullable=True),
+    CheckConstraint("resultat IN ('ok','refus')", name="resultat_valide"),
+    Index("ix_coffre_acces_nom", "nom", "id"),
+)

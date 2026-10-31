@@ -22,7 +22,8 @@ def test_upgrade_preserve_politique_audit_sans_grant(tmp_path):
     cfg = stockage._config()
     from alembic.script import ScriptDirectory
 
-    assert ScriptDirectory.from_config(cfg).get_heads() == ["0035"]
+    # 0036 (registre de fournisseurs, coffre) succède à 0035 sans toucher aux tables WCT.
+    assert ScriptDirectory.from_config(cfg).get_heads() == ["0036"]
     with engine.begin() as cnx:
         cfg.attributes["connection"] = cnx
         command.upgrade(cfg, "0033")
