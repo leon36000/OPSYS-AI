@@ -36,6 +36,10 @@ minimumReleaseAgeExclude:
   - "proxy-addr@2.0.8"
   # GHSA-gfr2-rv44-r23c: exact reviewed security patch; cooldown ends 2026-10-23T01:25:15Z.
   - "markdown-it@15.0.3"
+  # GHSA-4528-x5fx-h6hg (high) : seul correctif joi 18.3.1, publié 2026-10-28T09:59:49Z ; remove after 2026-11-04T10:00Z.
+  - "joi@18.3.1"
+  # GHSA-mrwp-f3q8-3g9p (high) : seul correctif follow-redirects 1.16.2, publié 2026-10-25T21:32:25Z ; remove after 2026-11-01T21:33Z.
+  - "follow-redirects@1.16.2"
   # Reviewed running-adapter evidence contract; remove after 2026-09-23.
   - "@openclaw/crabline@0.1.27"
   # Reviewed Opus WASM stack repair; remove after 2026-09-21.
@@ -86,28 +90,33 @@ overrides:
   "@aws-sdk/core": 3.978.0
   "@aws-sdk/credential-provider-node": 3.972.83
   "@aws-sdk/xml-builder": 3.972.40
-  "@hono/node-server": 2.1.1
+  "@hono/node-server": 2.1.3
   axios: 1.20.0
-  fast-uri: 4.1.5
-  follow-redirects: 1.16.1
+  # GHSA-27r3-jxmh-p828 : correctif body-parser 2.4.0 pour Express 5 et ses consommateurs transitifs (mûri 9 jours).
+  body-parser: 2.4.0
+  # GHSA-xcx6-jx8p-x3h5 : @azure/identity 4.13.2 et teams.apps 2.0.16 bornent MSAL Node à ^5 ; OPSYS n'utilise que les flux client-credentials / identité managée, hors ruptures 6.x-7.x (boucle locale et code d'autorisation).
+  "@azure/msal-node": 7.1.0
+  fast-uri: 4.2.3
+  follow-redirects: 1.16.2
   defu: 6.1.7
   fast-xml-parser: 5.11.1
   request: "npm:@cypress/request@4.0.1"
   request-promise: "npm:@cypress/request-promise@5.0.0"
   basic-ftp: 6.2.1
   brace-expansion: 5.0.12
-  "mailauth@5.0.3>joi": 18.2.9
+  "mailauth@5.0.3>joi": 18.3.1
   file-type: 22.1.0
   form-data: 4.0.6
   "werift-ice@0.2.2>ip": "npm:neoip@3.1.0"
-  ip-address: 10.7.1
-  "mailauth@5.0.3>nodemailer": 10.0.9
+  ip-address: 10.7.4
+  "mailauth@5.0.3>nodemailer": 10.1.4
+  "mailparser@3.9.26>nodemailer": 10.1.4
   # Mailauth pins vulnerable Undici; remove when its direct dependency is fixed.
-  "mailauth@5.0.3>undici": 8.10.2
+  "mailauth@5.0.3>undici": 8.12.2
   minimatch: 10.2.6
   path-to-regexp: 8.4.2
   proxy-addr: 2.0.8
-  qs: 6.16.0
+  qs: 6.16.1
   node-domexception: "npm:@nolyfill/domexception@1.0.28"
   typebox: 1.3.30
   tar: 7.5.22
