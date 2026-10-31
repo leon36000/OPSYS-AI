@@ -11,7 +11,7 @@ from typing import Any
 
 from opsys import evenements, stockage
 
-from . import etats, outbox, registre
+from . import annotations_calendrier, etats, outbox, registre, visites_ecriture
 
 _DEPARTEMENT = "m04-field-ops"
 _REGISTRE = "principal"
@@ -95,7 +95,17 @@ def lire_projections(wct_ids: Any, registre_cible: Any = None) -> dict[str, Any]
         except (KeyError, TypeError, ValueError):
             refus.append({"wct_id": wct_id, "motif": "chronologie_invalide"})
             continue
-        duree, code = outbox.calculer_duree_reelle(registre_cible, intervention_id)
+        registre_visites = None
+        if outbox._source_visites_explicite(registre_cible, intervention_id):
+            try:
+                source = visites_ecriture.capturer_visites(stockage.connexion_courante())
+                registre_visites = registre.Registre([ligne.maillon for ligne in source.lignes])
+            except annotations_calendrier.Refus:
+                refus.append({"wct_id": wct_id, "motif": "source_visites_non_valide"})
+                continue
+        duree, code = outbox.calculer_duree_reelle(
+            registre_cible, intervention_id, registre_visites=registre_visites,
+        )
         if code is not None or duree != wct.get("duree_reelle_minutes"):
             refus.append({"wct_id": wct_id, "motif": "duree_recalculee_divergente"})
             continue
