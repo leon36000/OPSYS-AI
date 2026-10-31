@@ -1,0 +1,41 @@
+# Gabarit du profil des équipes (contenu de la clé `equipes` de $OPSYS_HOME/entreprise.yaml).
+# fictif: true — TOUTES LES VALEURS CI-DESSOUS SONT FICTIVES ET À REMPLACER (équipes, personnes, dépôt, heures, congé).
+#
+# Déclaration : `opsys-metier equipes declarer --depuis gabarit-profil-equipes.yaml --par <ton nom>` (voir
+# docs/architecture/TAXONOMIE.md). La déclaration REMPLACE la clé entière. Chaque sous-clé est facultative : ce qui
+# manque, M4 le dit au lieu de l'inventer.
+#
+# Capacité des semaines futures (m4_lire_capacite_equipe, portee=semaine_type ; DECISIONS-ARCHITECTE-r1 §3) :
+#   * `semaine_type` par équipe : heures LOCALES (America/Montreal) "HH:MM" ENTRE GUILLEMETS (sans guillemets, YAML
+#     lit 12:30 comme le nombre 750 et la déclaration est refusée). Plusieurs plages par jour, sans chevauchement.
+#     `[]` = jour FERMÉ (zéro déclaré). Un jour absent est INCONNU : la semaine n'est pas calculable.
+#   * `conges` : absences planifiées de l'ÉQUIPE (jamais d'une personne), dates incluses, motif fermé
+#     (conge, ferie, formation, autre). `libelle` est libre, facultatif, et n'est jamais recopié par M4.
+#   * `feries` : OPSYS ne fournit AUCUNE liste de jours fériés. Le propriétaire déclare ceux qui s'appliquent à son
+#     entreprise d'après la source officielle (CNESST, « Jours fériés, chômés et payés », et sa convention s'il y a
+#     lieu), année par année : `annees` dit les années dont la liste `jours` est COMPLÈTE. Sans année déclarée pour
+#     une semaine, sa capacité n'est pas calculable (absence n'est pas zéro). Forme, à décommenter et compléter :
+#       feries:
+#         annees: [AAAA]
+#         jours:
+#           - {date: "AAAA-MM-JJ", libelle: "nom du jour férié selon la CNESST"}
+#   * `duree_jour_personne_minutes` : facultatif ; sans lui, aucun jour-personne n'est exposé. Avec lui,
+#     jours-personnes = minutes déclarées de l'équipe / cette durée (aucun membre n'est compté).
+liste:
+  - id: eq-exemple-nord
+    membres: [personne.exemple.a, personne.exemple.b]   # identifiants de PERSONNES OPSYS existantes
+    competences: [gouttieres]
+    depot: {id: depot-exemple, latitude_microdegres: 45500000, longitude_microdegres: -73600000}
+    quarts: [{jour: 0, debut_min: 420, fin_min: 930}]   # numéro de journée de la cédule (solveur), inchangé
+    semaine_type:
+      fuseau: America/Montreal
+      lundi: [{debut: "07:00", fin: "12:00"}, {debut: "12:30", fin: "15:30"}]
+      mardi: [{debut: "07:00", fin: "15:30"}]
+      mercredi: [{debut: "07:00", fin: "15:30"}]
+      jeudi: [{debut: "07:00", fin: "15:30"}]
+      vendredi: [{debut: "07:00", fin: "12:00"}]
+      samedi: []
+      dimanche: []
+conges:
+  - {equipes: [eq-exemple-nord], du: "2030-07-22", au: "2030-08-02", motif: conge, libelle: "exemple fictif"}
+duree_jour_personne_minutes: 480

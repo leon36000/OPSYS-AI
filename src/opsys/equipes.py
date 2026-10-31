@@ -23,6 +23,29 @@ avoir besoin) ::
       fenetre_par_defaut:             # fenêtre offerte à un chantier dont le client n'en a donné aucune
         {jours: [0], debut_min: 480, fin_min: 1020}
 
+Capacité des semaines futures (DECISIONS-ARCHITECTE-r1 §3), quatre ajouts FACULTATIFS : un profil qui ne les porte pas
+reste valide et se lit, s'écrit et s'empreinte exactement comme avant ::
+
+    equipes:
+      liste:
+        - id: eq-repentigny
+          ...
+          semaine_type:                 # quarts par JOUR DE SEMAINE, heures locales (texte "HH:MM", entre guillemets)
+            fuseau: America/Montreal    # obligatoire ; le seul fuseau admis
+            lundi: [{debut: "07:00", fin: "12:00"}, {debut: "12:30", fin: "15:30"}]  # plages sans chevauchement
+            samedi: []                  # jour FERMÉ : zéro déclaré ; fin "24:00" admise
+            # un jour absent n'est pas fermé : il est INCONNU (M4 ne calcule pas la semaine)
+      conges:                         # congés/absences planifiés au niveau de l'ÉQUIPE (jamais d'une personne)
+        - {equipes: [eq-repentigny], du: "2030-07-22", au: "2030-08-02", motif: conge, libelle: "texte libre"}
+      feries:                         # jours fériés DÉCLARÉS (aucune liste n'est fournie par OPSYS)
+        annees: [2030]                # années dont la liste ci-dessous est COMPLÈTE
+        jours: [{date: "2030-06-24", libelle: "texte libre"}]
+      duree_jour_personne_minutes: 480   # conversion explicite heures déclarées -> jours-personnes, jamais supposée
+
+`motif` est fermé (`conge`, `ferie`, `formation`, `autre`) ; `libelle` est un texte libre facultatif, gardé au profil,
+jamais recopié dans une sortie de M4 ni au journal d'audit. Un férié s'applique à toutes les équipes ; un congé aux
+équipes qu'il nomme, qui doivent être déclarées dans `liste`. Aucune de ces données ne décrit une personne.
+
 Ce que le profil n'est pas : aucune donnée de ressources humaines ni de santé, aucune évaluation, aucun classement
 d'employé (DEFINITION-PRODUIT M4, garde-fous humains). Un membre est un identifiant de personne OPSYS, pas une fiche.
 Une compétence est un code que le propriétaire choisit (« gouttieres »), pas une certification d'employé.
@@ -39,7 +62,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Callable, Iterable, Mapping
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -61,8 +86,25 @@ CLE_SERVICES_EQUIPES = "services"
 CLE_CEDULE = "cedule"
 CLE_FENETRE_PAR_DEFAUT = "fenetre_par_defaut"
 CLES_PROFIL = (CLE_LISTE, CLE_SERVICES_EQUIPES, CLE_CEDULE, CLE_FENETRE_PAR_DEFAUT)
+# Capacité des semaines futures (facultatif ; absent = comportement d'avant, empreinte comprise)
+CLE_CONGES = "conges"
+CLE_FERIES = "feries"
+CLE_DUREE_JOUR_PERSONNE = "duree_jour_personne_minutes"
+CLES_PROFIL_CAPACITE = (CLE_CONGES, CLE_FERIES, CLE_DUREE_JOUR_PERSONNE)
+_CLES_ADMISES = CLES_PROFIL + CLES_PROFIL_CAPACITE
 
 CLES_EQUIPE = ("id", "membres", "competences", "depot", "quarts")
+CLE_SEMAINE_TYPE = "semaine_type"
+CLES_EQUIPE_OPTIONNELLES = (CLE_SEMAINE_TYPE,)
+JOURS_SEMAINE = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")  # index = date.weekday()
+FUSEAU_SEMAINE_TYPE = "America/Montreal"
+CLES_PLAGE = ("debut", "fin")
+CLES_CONGE = ("equipes", "du", "au", "motif")
+CLES_CONGE_OPTIONNELLES = ("libelle",)
+MOTIFS_CONGE = ("conge", "ferie", "formation", "autre")
+CLES_FERIES = ("annees", "jours")
+CLES_JOUR_FERIE = ("date",)
+CLES_JOUR_FERIE_OPTIONNELLES = ("libelle",)
 CLES_DEPOT = ("id", "latitude_microdegres", "longitude_microdegres")
 CLES_QUART = ("jour", "debut_min", "fin_min")
 CLES_SERVICE = ("duree_min", "competences")
@@ -85,6 +127,15 @@ _QUARTS_MAX = 400
 _JOURS_MAX = 400
 _LATITUDE_MAX = 90_000_000
 _LONGITUDE_MAX = 180_000_000
+_PLAGES_PAR_JOUR_MAX = 8
+_CONGES_MAX = 500
+_CONGE_JOURS_MAX = 366
+_FERIES_ANNEES_MAX = 50
+_FERIES_JOURS_MAX = 50 * 30
+_LIBELLE_MAX = 120
+_ANNEE_MIN, _ANNEE_MAX = 1900, 2199  # mêmes bornes que les dates civiles de M4
+_HEURE = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])|24:00")
+_CONTROLE = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]")
 
 
 # ---------------------------------------------------------------------------
@@ -182,9 +233,61 @@ def _normaliser_quarts(brut: Any, chemin: str) -> list[dict[str, int]]:
     return [quarts[jour] for jour in sorted(quarts)]
 
 
+def _minute_de(valeur: Any, chemin: str) -> int:
+    if not isinstance(valeur, str):
+        raise ProfilInvalide(
+            f"{chemin} : une heure locale \"HH:MM\" en texte est attendue, ENTRE GUILLEMETS dans le YAML (reçu "
+            f"{valeur!r} ; sans guillemets, YAML lit 12:30 comme le nombre 750)"
+        )
+    if _HEURE.fullmatch(valeur) is None:
+        raise ProfilInvalide(f"{chemin} : heure \"HH:MM\" de 00:00 à 23:59, ou 24:00 en fin de plage (reçu {valeur!r})")
+    heures, minutes = valeur.split(":")
+    return int(heures) * 60 + int(minutes)
+
+
+def _normaliser_plages(brut: Any, chemin: str) -> list[dict[str, str]]:
+    """Plages d'un jour de semaine, triées ; `[]` = jour FERMÉ (zéro déclaré). Refuse le chevauchement."""
+    plages: list[tuple[int, int, dict[str, str]]] = []
+    for position, plage in enumerate(_liste(brut, chemin, _PLAGES_PAR_JOUR_MAX, non_vide=False)):
+        cible = f"{chemin}[{position}]"
+        objet = _objet(plage, cible, CLES_PLAGE)
+        debut, fin = _minute_de(objet["debut"], f"{cible}.debut"), _minute_de(objet["fin"], f"{cible}.fin")
+        if debut == MINUTES_PAR_JOUR:
+            raise ProfilInvalide(f"{cible}.debut : 24:00 n'est admis qu'en fin de plage")
+        if debut >= fin:
+            raise ProfilInvalide(f"{cible} : debut ({objet['debut']}) doit précéder fin ({objet['fin']}) le même jour")
+        plages.append((debut, fin, {"debut": objet["debut"], "fin": objet["fin"]}))
+    plages.sort(key=lambda plage: (plage[0], plage[1]))
+    for avant, apres in zip(plages, plages[1:], strict=False):
+        if apres[0] < avant[1]:
+            raise ProfilInvalide(
+                f"{chemin} : les plages {avant[2]['debut']}-{avant[2]['fin']} et {apres[2]['debut']}-{apres[2]['fin']} "
+                "se chevauchent"
+            )
+    return [plage[2] for plage in plages]
+
+
+def _normaliser_semaine_type(brut: Any, chemin: str) -> dict[str, Any]:
+    """Semaine type d'une équipe : `fuseau` (America/Montreal seulement) et, par jour de semaine nommé, ses plages.
+    Un jour absent reste INCONNU (jamais lu comme fermé) : M4 le dit au lieu de calculer."""
+    objet = _objet(brut, chemin, ("fuseau",), JOURS_SEMAINE)
+    if objet["fuseau"] != FUSEAU_SEMAINE_TYPE:
+        raise ProfilInvalide(
+            f"{chemin}.fuseau : seul {FUSEAU_SEMAINE_TYPE!r} est admis (heures locales du Québec ; reçu "
+            f"{objet['fuseau']!r})"
+        )
+    propre: dict[str, Any] = {"fuseau": FUSEAU_SEMAINE_TYPE}
+    for jour in JOURS_SEMAINE:
+        if jour in objet:
+            propre[jour] = _normaliser_plages(objet[jour], f"{chemin}.{jour}")
+    if len(propre) == 1:
+        raise ProfilInvalide(f"{chemin} : déclare au moins un jour ({', '.join(JOURS_SEMAINE)}) ; [] = jour fermé")
+    return propre
+
+
 def _normaliser_equipe(brut: Any, chemin: str) -> dict[str, Any]:
-    objet = _objet(brut, chemin, CLES_EQUIPE)
-    return {
+    objet = _objet(brut, chemin, CLES_EQUIPE, CLES_EQUIPE_OPTIONNELLES)
+    propre = {
         "id": _identifiant(objet["id"], f"{chemin}.id", "identifiant d'équipe"),
         "membres": _textes(
             objet["membres"], f"{chemin}.membres", identite.identifiant_valide, _MEMBRES_MAX, non_vide=True,
@@ -197,6 +300,9 @@ def _normaliser_equipe(brut: Any, chemin: str) -> dict[str, Any]:
         "depot": _normaliser_depot(objet["depot"], f"{chemin}.depot"),
         "quarts": _normaliser_quarts(objet["quarts"], f"{chemin}.quarts"),
     }
+    if CLE_SEMAINE_TYPE in objet:
+        propre[CLE_SEMAINE_TYPE] = _normaliser_semaine_type(objet[CLE_SEMAINE_TYPE], f"{chemin}.{CLE_SEMAINE_TYPE}")
+    return propre
 
 
 def _normaliser_liste(brut: Any) -> list[dict[str, Any]]:
@@ -287,6 +393,93 @@ def _normaliser_fenetre(brut: Any) -> dict[str, Any]:
     return {"jours": sorted(jours), "debut_min": debut, "fin_min": fin}
 
 
+def _date_civile(valeur: Any, chemin: str) -> date:
+    """Date civile : texte AAAA-MM-JJ (ou date YAML non guillemetée), jamais un instant ; rendue en texte ISO."""
+    if isinstance(valeur, date) and not isinstance(valeur, datetime):
+        jour = valeur
+    elif isinstance(valeur, str):
+        try:
+            jour = date.fromisoformat(valeur)
+        except ValueError:
+            jour = None
+        if jour is None or jour.isoformat() != valeur:
+            raise ProfilInvalide(f"{chemin} : date AAAA-MM-JJ attendue (reçu {valeur!r})")
+    else:
+        raise ProfilInvalide(f"{chemin} : date AAAA-MM-JJ attendue (reçu {valeur!r})")
+    if not _ANNEE_MIN <= jour.year <= _ANNEE_MAX:
+        raise ProfilInvalide(f"{chemin} : année entre {_ANNEE_MIN} et {_ANNEE_MAX} (reçu {jour.year})")
+    return jour
+
+
+def _libelle(valeur: Any, chemin: str) -> str:
+    """Texte libre du propriétaire : borné, sans caractère de contrôle. Gardé au profil, jamais recopié par M4."""
+    if not isinstance(valeur, str) or not valeur.strip() or len(valeur) > _LIBELLE_MAX or _CONTROLE.search(valeur):
+        raise ProfilInvalide(
+            f"{chemin} : texte d'une ligne, 1 à {_LIBELLE_MAX} caractères, sans caractère de contrôle"
+        )
+    return valeur
+
+
+def _normaliser_conges(brut: Any, equipes_declarees: set[str] | None) -> list[dict[str, Any]]:
+    chemin = f"{CLE_EQUIPES}.{CLE_CONGES}"
+    if equipes_declarees is None:
+        raise ProfilInvalide(f"{chemin} : un congé nomme des équipes ; déclare d'abord {CLE_EQUIPES}.{CLE_LISTE}")
+    conges: list[dict[str, Any]] = []
+    for position, conge in enumerate(_liste(brut, chemin, _CONGES_MAX, non_vide=True)):
+        cible = f"{chemin}[{position}]"
+        objet = _objet(conge, cible, CLES_CONGE, CLES_CONGE_OPTIONNELLES)
+        nommees = _textes(
+            objet["equipes"], f"{cible}.equipes", identite.identifiant_valide, _EQUIPES_MAX, non_vide=True,
+            decrire="identifiant d'une équipe déclarée",
+        )
+        inconnues = sorted(set(nommees) - equipes_declarees)
+        if inconnues:
+            raise ProfilInvalide(f"{cible}.equipes : équipes non déclarées dans {CLE_EQUIPES}.{CLE_LISTE} {inconnues}")
+        du, au = _date_civile(objet["du"], f"{cible}.du"), _date_civile(objet["au"], f"{cible}.au")
+        if au < du:
+            raise ProfilInvalide(f"{cible} : au ({au.isoformat()}) précède du ({du.isoformat()})")
+        if (au - du).days + 1 > _CONGE_JOURS_MAX:
+            raise ProfilInvalide(f"{cible} : {_CONGE_JOURS_MAX} jours au plus par congé (découpe la plage)")
+        if objet["motif"] not in MOTIFS_CONGE:
+            raise ProfilInvalide(f"{cible}.motif : un de {', '.join(MOTIFS_CONGE)} (reçu {objet['motif']!r})")
+        propre = {"equipes": nommees, "du": du.isoformat(), "au": au.isoformat(), "motif": objet["motif"]}
+        if "libelle" in objet:
+            propre["libelle"] = _libelle(objet["libelle"], f"{cible}.libelle")
+        conges.append(propre)
+    canon = sorted(conges, key=lambda c: (c["du"], c["au"], c["equipes"], c["motif"], c.get("libelle", "")))
+    if any(avant == apres for avant, apres in zip(canon, canon[1:], strict=False)):
+        raise ProfilInvalide(f"{chemin} : congé déclaré en double")
+    return canon
+
+
+def _normaliser_feries(brut: Any) -> dict[str, Any]:
+    chemin = f"{CLE_EQUIPES}.{CLE_FERIES}"
+    objet = _objet(brut, chemin, CLES_FERIES)
+    brutes = _liste(objet["annees"], f"{chemin}.annees", _FERIES_ANNEES_MAX, non_vide=True)
+    annees = [
+        _entier(annee, f"{chemin}.annees[{position}]", _ANNEE_MIN, _ANNEE_MAX) for position, annee in enumerate(brutes)
+    ]
+    if len(set(annees)) != len(annees):
+        raise ProfilInvalide(f"{chemin}.annees : années en double")
+    jours: dict[str, dict[str, str]] = {}
+    for position, jour in enumerate(_liste(objet["jours"], f"{chemin}.jours", _FERIES_JOURS_MAX, non_vide=False)):
+        cible = f"{chemin}.jours[{position}]"
+        entree = _objet(jour, cible, CLES_JOUR_FERIE, CLES_JOUR_FERIE_OPTIONNELLES)
+        civil = _date_civile(entree["date"], f"{cible}.date")
+        if civil.year not in annees:
+            raise ProfilInvalide(
+                f"{cible}.date : {civil.isoformat()} hors des années déclarées complètes {sorted(annees)} ; "
+                f"ajoute {civil.year} à {chemin}.annees"
+            )
+        if civil.isoformat() in jours:
+            raise ProfilInvalide(f"{cible}.date : {civil.isoformat()} déclaré deux fois")
+        propre = {"date": civil.isoformat()}
+        if "libelle" in entree:
+            propre["libelle"] = _libelle(entree["libelle"], f"{cible}.libelle")
+        jours[civil.isoformat()] = propre
+    return {"annees": sorted(annees), "jours": [jours[cle] for cle in sorted(jours)]}
+
+
 def normaliser_equipes(brut: Any) -> dict[str, Any]:
     """Valide une déclaration d'équipes et la rend CANONIQUE (équipes, membres, compétences, quarts et services triés ;
     listes et dictionnaires simples, sérialisables en YAML). Refuse la déclaration vide, la clé inconnue, l'équipe sans
@@ -296,9 +489,9 @@ def normaliser_equipes(brut: Any) -> dict[str, Any]:
         raise ProfilInvalide(f"'{CLE_EQUIPES}' doit être un objet (clés : {', '.join(CLES_PROFIL)})")
     if not brut:
         raise ProfilInvalide(f"'{CLE_EQUIPES}' est vide : déclare au moins une des clés {', '.join(CLES_PROFIL)}")
-    inconnues = sorted(str(cle) for cle in set(brut) - set(CLES_PROFIL))
+    inconnues = sorted(str(cle) for cle in set(brut) - set(_CLES_ADMISES))
     if inconnues:
-        raise ProfilInvalide(f"'{CLE_EQUIPES}' : clés inconnues {inconnues} (attendu : {', '.join(CLES_PROFIL)})")
+        raise ProfilInvalide(f"'{CLE_EQUIPES}' : clés inconnues {inconnues} (attendu : {', '.join(_CLES_ADMISES)})")
     propre: dict[str, Any] = {}
     if CLE_LISTE in brut:
         propre[CLE_LISTE] = _normaliser_liste(brut[CLE_LISTE])
@@ -308,6 +501,14 @@ def normaliser_equipes(brut: Any) -> dict[str, Any]:
         propre[CLE_CEDULE] = _normaliser_cedule(brut[CLE_CEDULE])
     if CLE_FENETRE_PAR_DEFAUT in brut:
         propre[CLE_FENETRE_PAR_DEFAUT] = _normaliser_fenetre(brut[CLE_FENETRE_PAR_DEFAUT])
+    if CLE_CONGES in brut:
+        declarees = {equipe["id"] for equipe in propre[CLE_LISTE]} if CLE_LISTE in propre else None
+        propre[CLE_CONGES] = _normaliser_conges(brut[CLE_CONGES], declarees)
+    if CLE_FERIES in brut:
+        propre[CLE_FERIES] = _normaliser_feries(brut[CLE_FERIES])
+    if CLE_DUREE_JOUR_PERSONNE in brut:
+        propre[CLE_DUREE_JOUR_PERSONNE] = _entier(
+            brut[CLE_DUREE_JOUR_PERSONNE], f"{CLE_EQUIPES}.{CLE_DUREE_JOUR_PERSONNE}", 1, MINUTES_PAR_JOUR)
     return propre
 
 
@@ -370,16 +571,26 @@ def enregistrer_equipes(profil: Any, chemin: Path | None = None, par: str | None
     chacune, les services et l'empreinte du profil, jamais le nom d'un membre."""
     propre = normaliser_equipes(profil)
     equipes = propre.get(CLE_LISTE, [])
-    return _ecrire_cle_du_profil(
-        CLE_EQUIPES, propre, chemin, par, "entreprise.equipes",
-        {
-            "equipes": [equipe["id"] for equipe in equipes],
-            "membres_par_equipe": {equipe["id"]: len(equipe["membres"]) for equipe in equipes},
-            "services": sorted(propre.get(CLE_SERVICES_EQUIPES, {})),
-            "cedule_declaree": CLE_CEDULE in propre,
-            "empreinte": empreinte_equipes(propre),
-        },
-    )
+    details: dict[str, Any] = {
+        "equipes": [equipe["id"] for equipe in equipes],
+        "membres_par_equipe": {equipe["id"]: len(equipe["membres"]) for equipe in equipes},
+        "services": sorted(propre.get(CLE_SERVICES_EQUIPES, {})),
+        "cedule_declaree": CLE_CEDULE in propre,
+        "empreinte": empreinte_equipes(propre),
+    }
+    # Capacité (facultatif) : écrit seulement si déclaré, pour qu'un profil d'avant garde un journal identique.
+    # Ni libellé de congé ou de férié, ni date : des comptes et des identifiants d'équipe.
+    semaine_type = [equipe["id"] for equipe in equipes if CLE_SEMAINE_TYPE in equipe]
+    if semaine_type:
+        details["semaine_type_equipes"] = semaine_type
+    if CLE_CONGES in propre:
+        details["conges_declares"] = len(propre[CLE_CONGES])
+    if CLE_FERIES in propre:
+        details["feries_annees"] = list(propre[CLE_FERIES]["annees"])
+        details["feries_declares"] = len(propre[CLE_FERIES]["jours"])
+    if CLE_DUREE_JOUR_PERSONNE in propre:
+        details[CLE_DUREE_JOUR_PERSONNE] = propre[CLE_DUREE_JOUR_PERSONNE]
+    return _ecrire_cle_du_profil(CLE_EQUIPES, propre, chemin, par, "entreprise.equipes", details)
 
 
 # ---------------------------------------------------------------------------
