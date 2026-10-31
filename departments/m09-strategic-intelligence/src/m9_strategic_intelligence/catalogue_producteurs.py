@@ -85,6 +85,10 @@ class Lecture:
     # détecter une contradiction : deux lectures du même contenu ne se contredisent pas parce qu'elles datent d'un
     # autre jour.
     volatils: tuple[str, ...] = ()
+    # Empreinte de CONTENU que le producteur déclare (M1) : deux lectures aux mêmes arguments (donc au même jour et à
+    # la même période) dont cette empreinte diffère sont une contradiction ; la même empreinte avec une autre tête de
+    # registre n'est qu'un rafraîchissement. Sans elle, la règle générale (révision et instant) s'applique.
+    empreinte_contenu: str | None = None
     # Fenêtre de fraîcheur DÉCLARÉE par le propriétaire dans la réponse (M8) : chemin de la valeur (secondes) et de sa
     # version. Les deux ou aucun. La valeur n'est retenue que si elle est valide (voir ``capture_strategique``) ; une
     # déclaration absente ou invalide laisse la fraîcheur ``NON_EVALUEE``.
@@ -93,6 +97,8 @@ class Lecture:
 
     def __post_init__(self) -> None:
         chemins = [*self.instants_metier, *self.revisions, *self.volatils]
+        if self.empreinte_contenu is not None:
+            chemins.append(self.empreinte_contenu)
         if (self.fraicheur_attendue is None) != (self.fraicheur_version is None):
             raise ValueError(f"{self.id} : fenêtre de fraîcheur et version déclarées ensemble ou pas du tout")
         if self.fraicheur_attendue is not None:
@@ -131,6 +137,36 @@ LECTURES: tuple[Lecture, ...] = (
         {"date_reference"},
         reference="date_reference",
         reference_genre="date",
+    ),
+    # Contrat v1 de M1 (departments/m01-front-office/contracts/m1-plaintes-structurees.v1.yaml) : la charge est dans
+    # ``resultat.resultat``. Instants métier : la réception de chaque plainte (rien à dater quand il n'y en a pas).
+    # NON_BRANCHEE est une incomplétude déclarée. Citables : l'état, le motif, la période et les comptes NON NULS (un
+    # zéro dit « aucune déclarée par la source », jamais « zéro plainte »), jamais un pseudonyme de plainte, une
+    # révision ni un texte de limite.
+    _lecture(
+        "m1.plaintes_structurees",
+        "m01-front-office",
+        "m1_lire_plaintes_structurees",
+        {"date_reference", "jours"},
+        reference="date_reference",
+        reference_genre="date",
+        instants_metier=("resultat.resultat.plaintes[*].recue_le",),
+        incomplets=(Marqueur("resultat.resultat.etat", "egal", "NON_BRANCHEE"),),
+        empreinte_contenu="resultat.resultat.revision.empreinte_contenu",
+        zero_non_citable=True,
+        citables=(
+            "resultat.resultat.etat",
+            "resultat.resultat.motif",
+            "resultat.resultat.lecture.date_lecture",
+            "resultat.resultat.periode.debut",
+            "resultat.resultat.periode.fin",
+            "resultat.resultat.periode.jours",
+            "resultat.resultat.comptes.declarees",
+            "resultat.resultat.comptes.sans_categorie",
+            "resultat.resultat.comptes.par_categorie.*",
+            "resultat.resultat.comptes.par_type.*",
+            "resultat.resultat.comptes.par_statut.*",
+        ),
     ),
     _lecture(
         "m2.leads",

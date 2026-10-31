@@ -45,6 +45,7 @@ _HEX = re.compile(r"[0-9a-f]{64}")
 _JOUR = re.compile(r"\d{4}-\d{2}-\d{2}")
 VERDICTS = frozenset({"ACCEPTEE", "REFUSEE", "ERREUR"})
 REGLE_CONTRADICTION = "meme_lecture_memes_arguments_meme_revision_meme_instant_empreinte_differente/v1"
+REGLE_CONTRADICTION_CONTENU = "meme_lecture_memes_arguments_empreinte_de_contenu_declaree_differente/v1"
 _CHAMPS = frozenset(
     {
         "schema", "index", "hash_precedent", "hash_maillon", "catalogue_version", "lecture_id", "departement", "outil",
@@ -368,11 +369,18 @@ def _sans_chemin(document: object, morceaux: list[str]) -> object:
     return {**document, tete: _sans_chemin(document[tete], reste)}
 
 
+def _est_hex(valeur: object) -> bool:
+    return type(valeur) is str and _HEX.fullmatch(valeur) is not None
+
+
 def empreinte_comparable(capture: Mapping) -> str:
     """Empreinte de la réponse à comparer pour une contradiction : celle de la capture, ou, quand le catalogue déclare
     des métadonnées de lecture volatiles (horloge du producteur), celle des pages privées de ces métadonnées. Deux
     lectures du même contenu faites à deux moments ne se contredisent pas."""
     lecture = catalogue_producteurs.PAR_ID.get(capture["lecture_id"])
+    if lecture is not None and lecture.empreinte_contenu is not None:
+        declarees = {v for page in capture["pages"] for v in extraire(page, lecture.empreinte_contenu)}
+        return next(iter(declarees)) if len(declarees) == 1 and all(_est_hex(v) for v in declarees) else ""
     if lecture is None or not lecture.volatils:
         return capture["reponse_sha256"]
     pages = capture["pages"]
@@ -390,13 +398,20 @@ def contradictions(captures: Sequence[Mapping]) -> list[dict]:
     for capture in captures:
         if capture["verdict"] != "ACCEPTEE":
             continue
+        lecture = catalogue_producteurs.PAR_ID.get(capture["lecture_id"])
+        if lecture is not None and lecture.empreinte_contenu is not None:
+            # Le producteur déclare une empreinte de contenu : mêmes arguments (donc même jour, même période)
+            # suffisent ; sans empreinte lisible, la comparaison est impossible et rien n'est affirmé.
+            if empreinte_comparable(capture):
+                groupes.setdefault((*_cle_lecture(capture), "contenu", None), []).append(capture)
+            continue
         marque = (capture["revisions"] and tuple(capture["revisions"])) or None
         horodatage = capture["instants_metier"]["max"]
         if marque is None and horodatage is None:
             continue
         groupes.setdefault((*_cle_lecture(capture), marque, horodatage), []).append(capture)
     resultat = []
-    for (lecture_id, arguments_sha, _marque, _horodatage), membres in groupes.items():
+    for (lecture_id, arguments_sha, marque, _horodatage), membres in groupes.items():
         for position, a in enumerate(membres):
             for b in membres[position + 1 :]:
                 if empreinte_comparable(a) != empreinte_comparable(b):
@@ -408,7 +423,7 @@ def contradictions(captures: Sequence[Mapping]) -> list[dict]:
                             "index_b": b["index"],
                             "hash_a": a["hash_maillon"],
                             "hash_b": b["hash_maillon"],
-                            "regle": REGLE_CONTRADICTION,
+                            "regle": REGLE_CONTRADICTION_CONTENU if marque == "contenu" else REGLE_CONTRADICTION,
                         }
                     )
     return sorted(resultat, key=lambda c: (c["index_a"], c["index_b"]))

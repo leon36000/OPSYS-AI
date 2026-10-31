@@ -39,7 +39,7 @@ PORT = "lecteur_producteurs_m9"
 # (département -> outils de lecture T0 autorisés). Les outils qui acceptent des DONNÉES de l'appelant pour les calculer
 # (calculateurs) n'y figurent pas : une lecture ne doit pas laisser M9 injecter la matière d'un producteur.
 LECTURES_AUTORISEES: Mapping[str, frozenset[str]] = {
-    "m01-front-office": frozenset({"m1_produire_digest"}),
+    "m01-front-office": frozenset({"m1_produire_digest", "m1_lire_plaintes_structurees"}),
     "m02-revenue-crm": frozenset({"m2_lister_leads", "m2_lister_relances"}),
     "m03-estimation": frozenset({"m3_lire_ecarts_estime_reel"}),
     "m04-field-ops": frozenset(

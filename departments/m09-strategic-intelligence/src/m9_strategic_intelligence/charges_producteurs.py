@@ -396,7 +396,204 @@ def valider_m4_capacite(page: object, arguments: Mapping | None) -> list[str]:
     return erreurs
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# M1 — m1.plaintes_structurees (contrat v1, charge dans ``resultat.resultat``)
+# ---------------------------------------------------------------------------------------------------------------------
+M1_CATEGORIES = ("insatisfaction", "degat", "garantie", "avocat", "securite")
+M1_ETATS = frozenset({"CONNUE", "AUCUNE_DECLAREE_PAR_SOURCE", "NON_BRANCHEE"})
+_M1_MOTIFS = {
+    "CONNUE": {"TRANSFERTS_DE_PLAINTE_AU_REGISTRE"},
+    "AUCUNE_DECLAREE_PAR_SOURCE": {"REGISTRE_LU_SANS_TRANSFERT_DE_PLAINTE"},
+    "NON_BRANCHEE": {"VOCABULAIRE_A_CONFIGURER", "PROFIL_INVALIDE", "AUCUN_SIGNAL_AU_REGISTRE"},
+}
+_M1_RACINE = {
+    "contrat", "schema_version", "etat", "motif", "lecture", "periode", "source", "plaintes", "comptes", "revision",
+    "limites",
+}  # fmt: skip
+_M1_PLAINTE = {
+    "plainte_id", "type", "categories", "gravite", "date_survenance", "recue_le", "lue_le", "source", "declenchee_par",
+    "statut", "close_le",
+}  # fmt: skip
+_M1_COMPTES = {"declarees", "par_categorie", "sans_categorie", "par_type", "par_statut"}
+_M1_SOURCE = {
+    "departement", "registre", "vocabulaire", "categories_sans_vocabulaire", "signaux_recus_jusqua_la_lecture",
+    "signaux_recus_dans_la_periode",
+}  # fmt: skip
+_M1_REVISION = {"empreinte_contenu", "registre_sequence", "registre_tete", "registre_dernier_horodatage"}
+_M1_PSEUDONYME = re.compile(r"pl-[0-9a-f]{20}")
+_M1_MAX_PLAINTES = 5000
+M1_JOURS_PAR_DEFAUT = 7
+
+
+def _m1_comptes(charge: Mapping, etat: str, erreurs: list[str]) -> None:
+    comptes = charge["comptes"]
+    if not _cles(comptes, _M1_COMPTES, _M1_COMPTES, "comptes", erreurs):
+        return
+    par_categorie, par_type, par_statut = comptes["par_categorie"], comptes["par_type"], comptes["par_statut"]
+    if not _cles(par_categorie, set(M1_CATEGORIES), set(M1_CATEGORIES), "comptes.par_categorie", erreurs) or not _cles(
+        par_type, {"plainte", "urgence"}, {"plainte", "urgence"}, "comptes.par_type", erreurs
+    ) or not _cles(par_statut, {"ouvert", "clos"}, {"ouvert", "clos"}, "comptes.par_statut", erreurs):
+        return
+    tous = [comptes["declarees"], comptes["sans_categorie"], *par_categorie.values(), *par_type.values(),
+            *par_statut.values()]  # fmt: skip
+    plaintes = charge["plaintes"]
+    sans_vocabulaire = charge["source"]["categories_sans_vocabulaire"]
+    if etat == "NON_BRANCHEE":
+        if any(valeur is not None for valeur in tous):
+            erreurs.append("comptes : NON_BRANCHEE n'a aucun compte (null, jamais zéro)")
+        return
+    if not all(_entier(valeur, 0, _M1_MAX_PLAINTES) for valeur in tous if valeur is not None):
+        erreurs.append("comptes : entiers positifs ou nuls bornés (ou null)")
+        return
+    if any(comptes[c] is None for c in ("declarees", "sans_categorie")) or any(
+        v is None for v in (*par_type.values(), *par_statut.values())
+    ):
+        erreurs.append("comptes : les totaux d'une source branchée sont des entiers")
+        return
+    declarees = comptes["declarees"]
+    if sum(par_type.values()) != declarees or sum(par_statut.values()) != declarees:
+        erreurs.append("comptes : types et statuts doivent totaliser les plaintes déclarées")
+    for categorie, valeur in par_categorie.items():
+        if valeur is None and categorie not in sans_vocabulaire:
+            erreurs.append("comptes.par_categorie : inconnu (null) seulement pour une catégorie sans vocabulaire")
+        elif valeur is not None and valeur > declarees:
+            erreurs.append("comptes.par_categorie : une catégorie ne dépasse pas le total déclaré")
+    if etat == "AUCUNE_DECLAREE_PAR_SOURCE":
+        if declarees != 0 or plaintes:
+            erreurs.append("comptes : AUCUNE_DECLAREE_PAR_SOURCE n'a ni plainte ni compte non nul")
+        return
+    if declarees != len(plaintes):
+        erreurs.append("comptes.declarees : différent du nombre de plaintes listées")
+        return
+    for type_ in ("plainte", "urgence"):
+        if par_type[type_] != sum(1 for p in plaintes if p["type"] == type_):
+            erreurs.append("comptes.par_type : différent des plaintes listées")
+    for statut in ("ouvert", "clos"):
+        if par_statut[statut] != sum(1 for p in plaintes if p["statut"] == statut):
+            erreurs.append("comptes.par_statut : différent des plaintes listées")
+    if comptes["sans_categorie"] != sum(1 for p in plaintes if not p["categories"]):
+        erreurs.append("comptes.sans_categorie : différent des plaintes listées")
+    for categorie, valeur in par_categorie.items():
+        if valeur is not None and valeur != sum(1 for p in plaintes if categorie in p["categories"]):
+            erreurs.append("comptes.par_categorie : différent des plaintes listées")
+
+
+def _m1_plaintes(charge: Mapping, fin: dt.date, debut: dt.date, erreurs: list[str]) -> None:
+    plaintes = charge["plaintes"]
+    identifiants = []
+    for position, plainte in enumerate(plaintes):
+        nom = f"plaintes[{position}]"
+        if not _cles(plainte, _M1_PLAINTE, _M1_PLAINTE, nom, erreurs):
+            return
+        if type(plainte["plainte_id"]) is not str or _M1_PSEUDONYME.fullmatch(plainte["plainte_id"]) is None:
+            erreurs.append(f"{nom}.plainte_id : pseudonyme du contrat attendu")
+        else:
+            identifiants.append(plainte["plainte_id"])
+        if plainte["type"] not in ("plainte", "urgence"):
+            erreurs.append(f"{nom}.type : plainte ou urgence")
+        categories = plainte["categories"]
+        if not isinstance(categories, list) or len(set(map(str, categories))) != len(categories) or not all(
+            c in M1_CATEGORIES for c in categories
+        ):
+            erreurs.append(f"{nom}.categories : catégories fermées du contrat")
+        if plainte["gravite"] is not None:
+            erreurs.append(f"{nom}.gravite : toujours null en v1 (aucune source ne la déclare)")
+        survenance = _date(plainte["date_survenance"])
+        if survenance is None or not debut <= survenance <= fin:
+            erreurs.append(f"{nom}.date_survenance : jour réel de la période")
+        if not _instant_ok(plainte["recue_le"]):
+            erreurs.append(f"{nom}.recue_le : instant avec fuseau")
+        if plainte["lue_le"] != charge["periode"]["fin"]:
+            erreurs.append(f"{nom}.lue_le : jour de lecture")
+        if plainte["source"] not in ("sms", "courriel", "formulaire", "texte", "telephone", "inconnue"):
+            erreurs.append(f"{nom}.source : canal fermé du contrat")
+        if plainte["declenchee_par"] not in ("regles", "agent", "inconnue"):
+            erreurs.append(f"{nom}.declenchee_par : valeur fermée du contrat")
+        if plainte["statut"] not in ("ouvert", "clos"):
+            erreurs.append(f"{nom}.statut : ouvert ou clos")
+        elif plainte["statut"] == "ouvert" and plainte["close_le"] is not None:
+            erreurs.append(f"{nom}.close_le : null pour une plainte ouverte")
+        if plainte["close_le"] is not None and not _instant_ok(plainte["close_le"]):
+            erreurs.append(f"{nom}.close_le : instant avec fuseau ou null")
+    if len(set(identifiants)) != len(identifiants):
+        erreurs.append("plaintes : pseudonyme en double")
+
+
+def valider_m1_plaintes(page: object, arguments: Mapping | None) -> list[str]:
+    """Erreurs (sans valeur reçue) de la réponse du dispatcher pour ``m1_lire_plaintes_structurees``."""
+    erreurs: list[str] = []
+    interne = page.get("resultat") if isinstance(page, Mapping) else None
+    charge = interne.get("resultat") if isinstance(interne, Mapping) else None
+    if not _cles(charge, _M1_RACINE, _M1_RACINE, "charge", erreurs):
+        return erreurs
+    if charge["contrat"] != "m1.plaintes_structurees" or charge["schema_version"] != 1:
+        erreurs.append("charge : contrat m1.plaintes_structurees v1 attendu")
+    etat = charge["etat"]
+    if etat not in M1_ETATS:
+        erreurs.append("etat : état du contrat attendu")
+        return erreurs
+    if charge["motif"] not in _M1_MOTIFS[etat]:
+        erreurs.append("motif : motif cohérent avec l'état attendu")
+    lecture, periode, source = charge["lecture"], charge["periode"], charge["source"]
+    if not (_cles(lecture, {"date_lecture"}, {"date_lecture"}, "lecture", erreurs)
+            and _cles(periode, {"debut", "fin", "jours"}, {"debut", "fin", "jours"}, "periode", erreurs)
+            and _cles(source, _M1_SOURCE, _M1_SOURCE, "source", erreurs)):  # fmt: skip
+        return erreurs
+    fin, debut = _date(periode["fin"]), _date(periode["debut"])
+    jours = periode["jours"]
+    if fin is None or debut is None or not _entier(jours, 1, 92) or (fin - debut).days + 1 != jours:
+        erreurs.append("periode : jours de 1 à 92, début et fin inclus cohérents")
+        return erreurs
+    if lecture["date_lecture"] != periode["fin"]:
+        erreurs.append("lecture.date_lecture : égale à la fin de période")
+    if arguments is not None and (
+        periode["fin"] != arguments.get("date_reference") or jours != arguments.get("jours", M1_JOURS_PAR_DEFAUT)
+    ):
+        erreurs.append("periode : différente de la période demandée")
+    if source["departement"] != "m01-front-office" or source["registre"] != "principal":
+        erreurs.append("source : département et registre du contrat")
+    if source["vocabulaire"] not in ("CONFIGURE", "A_CONFIGURER", "INVALIDE"):
+        erreurs.append("source.vocabulaire : valeur fermée du contrat")
+    sans = source["categories_sans_vocabulaire"]
+    if not isinstance(sans, list) or not all(c in M1_CATEGORIES for c in sans) or len(set(map(str, sans))) != len(sans):
+        erreurs.append("source.categories_sans_vocabulaire : catégories fermées distinctes")
+        return erreurs
+    if not _entier(source["signaux_recus_jusqua_la_lecture"]) or not _entier(source["signaux_recus_dans_la_periode"]):
+        erreurs.append("source : comptes de signaux entiers positifs ou nuls")
+    plaintes = charge["plaintes"]
+    if not isinstance(plaintes, list) or len(plaintes) > _M1_MAX_PLAINTES:
+        erreurs.append("plaintes : liste bornée attendue")
+        return erreurs
+    if etat == "CONNUE" and not plaintes:
+        erreurs.append("plaintes : CONNUE exige au moins une plainte")
+    if etat != "CONNUE" and plaintes:
+        erreurs.append("plaintes : vide hors de l'état CONNUE")
+    _m1_plaintes(charge, fin, debut, erreurs)
+    _m1_comptes(charge, etat, erreurs)
+    revision = charge["revision"]
+    if _cles(revision, _M1_REVISION, _M1_REVISION, "revision", erreurs):
+        if type(revision["empreinte_contenu"]) is not str or _HEX64.fullmatch(revision["empreinte_contenu"]) is None:
+            erreurs.append("revision.empreinte_contenu : condensat attendu")
+        if not _entier(revision["registre_sequence"]):
+            erreurs.append("revision.registre_sequence : entier positif ou nul")
+        if revision["registre_tete"] is not None and (
+            type(revision["registre_tete"]) is not str or not 0 < len(revision["registre_tete"]) <= 128
+        ):
+            erreurs.append("revision.registre_tete : identifiant texte ou null")
+        if revision["registre_dernier_horodatage"] is not None and not _instant_ok(
+            revision["registre_dernier_horodatage"]
+        ):
+            erreurs.append("revision.registre_dernier_horodatage : instant avec fuseau ou null")
+    limites = charge["limites"]
+    if not isinstance(limites, list) or len(limites) > 50 or not all(
+        isinstance(x, Mapping) and set(x) == {"code", "detail"} for x in limites
+    ):
+        erreurs.append("limites : liste de {code, detail}")
+    return erreurs
+
+
 VALIDATEURS: dict[str, Callable[[object, Mapping | None], list[str]]] = {
+    "m1.plaintes_structurees": valider_m1_plaintes,
     "m4.capacite_equipe": valider_m4_capacite,
     "m7.depenses_marketing": valider_m7_depenses,
 }
