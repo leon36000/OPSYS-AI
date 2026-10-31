@@ -91,7 +91,8 @@ def _qualifier(cnx, projection, captures):
             if (pid not in pointages or not isinstance(sujet, dict) or set(sujet) != {'type', 'id'}
                     or sujet['type'] != 'equipe' or sujet['id'] != visite['identifiant_pointe']
                     or not isinstance(auteur, dict) or set(auteur) != {'personne', 'role'}
-                    or auteur['role'] != 'admin' or not isinstance(auteur['personne'], str) or not auteur['personne']
+                    or auteur['role'] not in equipes_pointees_v3.ROLES_AUTEUR
+                    or not isinstance(auteur['personne'], str) or not auteur['personne']
                     or not isinstance(preuve.get('profil_empreinte'), str)
                     or not _HEX.fullmatch(preuve['profil_empreinte'])
                     or not _HEX.fullmatch(preuve.get('source_attendue', ''))

@@ -71,9 +71,9 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 231 outils sur 366 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 232 outils sur 368 sont déclarés.
 
-### `employee` (16 outils) : §9.3, le terrain
+### `employee` (17 outils) : §9.3, le terrain
 
 Chaque outil qui porte une identité ou une intervention ne s'exécute que pour la personne authentifiée et
 pour SES interventions (section « Contrôle d'accès par personne et par intervention » plus bas, T1.4-k).
@@ -84,6 +84,7 @@ pour SES interventions (section « Contrôle d'accès par personne et par interv
 | `m4_demarrer_route` | §9.3 Exécution : « en route ». Sa propre intervention, sous son propre identifiant. |
 | `m4_signaler_report` | Client absent, météo (§9.3 Exécution). Le motif `decision_admin` reste celui de l'admin (non appliqué par le code : voir *Ce qui reste*). |
 | `m4_pointer` | §9.3 « Punch (M4.4) : entrée et sortie ». Sa propre intervention, sous son propre identifiant. |
+| `m4_declarer_pointage_equipe_appareil` (T1) | D4 (DÉCISIONS-ARCHITECTE r1 §2) : arrivée, pause ou départ de L'ÉQUIPE déclarée de la visite active (pointage d'équipe V3). Membre déclaré de cette équipe dans le profil, personne du jeton revérifiée en base (aucun champ de personne dans le corps) ; heure de réception du serveur, aucun GPS, revue de l'admin ; idempotent par `mutation_id`. Jamais une présence individuelle ; l'admin dispatche (preuve `admin`). |
 | `m4_creer_demande_ecart` | §9.3 « demande de support ou de changement » ; l'admin l'arbitre. Sa propre intervention. |
 | `m4_deposer_fichier`, `m4_etat_fichier` | §9.2 « photos envoyées en arrière-plan », §9.3 photos avant/après, signature du client. Aucune intervention portée (adressés par contenu) : identité confirmée seulement. |
 | `m4_completer_intervention` | §9.7 « Terminer ». Sa propre intervention. |
@@ -122,9 +123,9 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (230 outils) : §9.5 + employé + vendeur
+### `admin` (231 outils) : §9.5 + employé + vendeur
 
-Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
+Les 17 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
 | Département | Outils réservés à l'admin | Pourquoi |
 |---|---|---|
@@ -498,6 +499,7 @@ envoie un autre technicien, c'est lui qui a l'intervention. Une intervention que
 | Outil (appel d'appareil) | `employee` | `admin` |
 |---|---|---|
 | `m4_pointer`, `m4_demarrer_route` | `technicien_id` = sa personne ET intervention assignée | libre |
+| `m4_declarer_pointage_equipe_appareil` | membre déclaré de l'équipe de la visite active (`REJ-EQUIPE-NON-MEMBRE`, `REJ-EQUIPE-VISITE-AUTRE-EQUIPE`) | toute équipe déclarée de la visite |
 | `m4_signaler_report`, `m4_creer_demande_ecart`, `m4_completer_intervention` | intervention assignée | libre |
 | `m4_lister_interventions` | la liste est filtrée à ses interventions ; avec `curseur` ou `taille_page` (T4.27-a), la pagination se fait APRÈS ce filtre : `total`, `reste` et `curseur_suivant` ne comptent que les siennes | toutes |
 | `m4_statut_intervention` | son intervention : le statut ; une autre : `statut: null` (comme une inconnue) | toujours le statut |
@@ -529,6 +531,12 @@ le profil par l'adaptateur, jamais dans un argument) :
   qui n'en est pas membre (`opsys-metier equipes declarer` vérifie aussi que chaque membre est une personne OPSYS existante
   et active) : aucune équipe ne donne accès à quelqu'un qui n'en est pas membre ;
 - aucune donnée de ressources humaines, de santé ni d'évaluation dans le profil : le schéma est fermé.
+- D4 (DÉCISIONS-ARCHITECTE r1 §2) : un membre déclaré déclare les pointages d'ÉQUIPE V3 de la visite active de son
+  équipe (`m4_declarer_pointage_equipe_appareil`), sujet = l'équipe, auteur = sa personne (`membre_equipe`) ; tout
+  membre déclare (le profil ne désigne aucun chef). Un pointage individuel n'est jamais requalifié : `m4_pointer`
+  appelé directement garde la règle « son propre identifiant ». La console admin a la même déclaration
+  (`/crm/visites`, opération `pointer_equipe`, CSRF, rôle relu en base). M5 n'admet encore que des preuves `admin`
+  pour chiffrer la main-d'oeuvre : une preuve `membre_equipe` laisse le coût inconnu tant que M5 ne l'accepte pas.
 
 Ordre des contrôles : identité confirmée, puis `technicien_id`, puis assignation ; toujours AVANT toute
 écriture, y compris la clé de chiffrement GPS que `m4_pointer` crée pour un technicien (un refus n'en laisse

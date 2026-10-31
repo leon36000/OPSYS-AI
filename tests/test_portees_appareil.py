@@ -28,6 +28,7 @@ FICTIF = True  # aucune donnée réelle ici : des noms d'outils et un dossier de
 # (tests/test_acces_par_intervention.py).
 EMPLOYE = frozenset({
     "m4_completer_intervention", "m4_creer_demande_ecart", "m4_definir_consentement_gps",
+    "m4_declarer_pointage_equipe_appareil",  # D4 : membre de l'équipe déclarée de la visite (pointage d'équipe V3)
     "m4_demarrer_route", "m4_deposer_fichier", "m4_etat_fichier", "m4_lister_interventions", "m4_pointer",
     "m4_signaler_report", "m4_statut_intervention", "m6_declarer_materiaux_utilises",
     "m6_lire_contexte_materiaux_appareil", "m6_declarer_materiaux_avec_preuves_appareil",
