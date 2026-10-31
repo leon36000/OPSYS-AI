@@ -3718,7 +3718,19 @@ def lire_rentabilite_chantier(
                 detail=f"limite doit être un entier de 1 à {_LIMITE_LECTURE_MAX}",
             )
         )
-    sources = _sources_cout_reel()
+    # Une portée de relecture Core ne peut être transmise par les arguments publics.
+    from opsys import service_lecture_m4
+
+    cap_lecture = service_lecture_m4.courante()
+    if cap_lecture is not None and (type(devis_id) is not str or not devis_id):
+        raise PermissionError("un devis précis est requis pour la relecture M4")
+    if cap_lecture is None:
+        sources = _sources_cout_reel()
+        etat_revalide = None
+    else:
+        from . import port_lecture_courante_m4
+
+        etat_revalide, sources = port_lecture_courante_m4.calculer(devis_id, cap_lecture)
     filtre = devis_id is not None or chantier_id is not None
     recus = list(
         dict.fromkeys(  # ordre de réception, sans doublon
@@ -3729,7 +3741,7 @@ def lire_rentabilite_chantier(
     for candidat in reversed(recus):  # le plus récemment reçu d'abord
         if devis_id is not None and candidat != devis_id:
             continue
-        etat = _etat_chantier(candidat, sources)
+        etat = _etat_chantier(candidat, sources) if cap_lecture is None else etat_revalide
         if chantier_id is not None and etat["chantier_id"] != chantier_id:
             continue
         etats.append(etat)
