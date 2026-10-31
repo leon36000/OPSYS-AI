@@ -267,7 +267,50 @@ def etat_cout_certifie(devis_id, sources=None):
         "statut": statut, "devis_id": devis_id, "wct_id": rentabilite["wct_id"], "empreinte_etat": empreinte,
         "perime_signale": perime_signale, "sequence_certifiee": sequence,
         "version_certifiee": None if certifiee is None else certifiee.get("version_entrees"),
+        "empreinte_projection_certifiee": None if certifiee is None
+        else (certifiee.get("provenance_service_v1") or {}).get("empreinte_projection"),
+        "signature_main_d_oeuvre_certifiee": None if certifiee is None else signature_main_d_oeuvre(certifiee),
     }
+
+
+def signature_main_d_oeuvre(trace):
+    """Empreinte de ce que la projection M4 CHIFFRE dans une trace (statut, minutes, taux, coût, lignes par visite
+    et équipe, manques), sans les empreintes de provenance (`projection_empreinte`, `tarifs_empreinte`) : celles-ci
+    changent à chaque écriture M4 ou M5, même sans rapport avec ce chantier."""
+    corps = trace.get("rentabilite") if isinstance(trace, dict) else None
+    cout = corps.get("cout_reel") if isinstance(corps, dict) else None
+    mo = cout.get("main_d_oeuvre") if isinstance(cout, dict) else None
+    if not isinstance(mo, dict):
+        return None
+    return encodage.empreinte("m5.signature-main-d-oeuvre.v1", {
+        k: v for k, v in mo.items() if k not in ("projection_empreinte", "tarifs_empreinte")})
+
+
+def signature_main_d_oeuvre_derniere(devis_id):
+    """Signature de la DERNIÈRE trace du devis (celle que le moteur vient d'écrire dans un savepoint)."""
+    traces = [t for t in stockage.maillons("m05-financecore", "rentabilite") if t.get("devis_id") == devis_id]
+    return signature_main_d_oeuvre(traces[-1]) if traces else None
+
+
+def certifies_a_jour(sources=None):
+    """Devis dont le dernier certifié est `a_jour` côté M5 : ceux dont une correction purement M4 pourrait avoir
+    changé la projection (le réconciliateur la relit sous politique). Ordre de réception des WCT."""
+    sources = outils._sources_cout_reel() if sources is None else sources
+    vus, etats = set(), []
+    for recu in sources["wct"]:
+        devis_id = recu.get("devis_id")
+        if type(devis_id) is not str or not devis_id or devis_id in vus:
+            continue
+        vus.add(devis_id)
+        etat = etat_cout_certifie(devis_id, sources)
+        if etat["statut"] == "a_jour" and etat["signature_main_d_oeuvre_certifiee"]:
+            etats.append(etat)
+    return etats
+
+
+def marquer_a_recalculer(devis_id):
+    """Marque le devis « à recalculer » (trace partielle `REJ-COUT-CERTIFIE-A-RECALCULER`, mécanisme E1)."""
+    return outils._marquer_cout_certifie_a_recalculer(devis_id)
 
 
 def candidats_cout_certifie(sources=None):

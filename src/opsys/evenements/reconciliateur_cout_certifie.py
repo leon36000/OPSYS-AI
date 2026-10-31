@@ -60,7 +60,12 @@ _M5 = "m05-financecore"
 _LOG = logging.getLogger("opsys.reconciliateur_cout_certifie")
 
 _VERROU = threading.Lock()
-_MEMOIRE: dict[str, Any] = {"signature": None, "epoch": 0.0, "refus": {}, "derniere": None}
+_MEMOIRE: dict[str, Any] = {"signature": None, "epoch": 0.0, "refus": {}, "derniere": None, "verifies": {}}
+# Refus du moteur qui disent « ce certifié ne peut plus être reproduit à partir des sources actuelles » : périmé.
+_REFUS_PERIMANTS = frozenset({
+    "WCT_ANTERIEUR_MODELE_VISITES", "SOURCE_M4_REFUSEE", "REVUE_EN_ATTENTE", "EQUIPE_INCONNUE",
+    "PROJECTION_NON_EXPLOITABLE", "COUT_NON_CERTIFIE", "TARIF_ABSENT",
+})
 
 
 class _Ombre(Exception):
@@ -82,7 +87,7 @@ def mode() -> str:
 def reinitialiser() -> None:
     """Oublie la mémoire de convergence (tests, redémarrage)."""
     with _VERROU:
-        _MEMOIRE.update(signature=None, epoch=0.0, refus={}, derniere=None)
+        _MEMOIRE.update(signature=None, epoch=0.0, refus={}, derniere=None, verifies={})
 
 
 def derniere_execution() -> dict[str, Any] | None:
@@ -115,6 +120,58 @@ def _signature(cnx) -> str:
         select(func.count()).where(EVENEMENTS_RECUS.c.consommateur == _M5, EVENEMENTS_RECUS.c.statut == "traite")
     ).one())).encode())
     return h.hexdigest()
+
+
+def _signature_m4(cnx) -> str:
+    h = hashlib.sha256()
+    for ligne in cnx.execute(
+        select(REGISTRES.c.registre, func.count(), func.max(REGISTRES.c.rang))
+        .where(REGISTRES.c.departement == "m04-field-ops")
+        .group_by(REGISTRES.c.registre)
+        .order_by(REGISTRES.c.registre)
+    ).all():
+        h.update(repr(tuple(ligne)).encode())
+    return h.hexdigest()
+
+
+def _verifier_m4(acteur, etat, mode_courant, signature_m4) -> dict[str, Any]:
+    """r5 / point 2 : après une écriture M4, rejoue le moteur qualifié pour ce devis DANS UN SAVEPOINT TOUJOURS
+    ANNULÉ (zéro écriture) et compare ce que la projection M4 actuelle chiffre (`signature_main_d_oeuvre`) à la
+    dernière trace certifiée. Différent (déclaration d'équipe ou pointages V3 corrigés), ou plus certifiable : le
+    certifié est périmé ; en mode actif, M5 le marque « à recalculer » (mécanisme E1) et il est repris aussitôt.
+    Identique (écriture M4 sans rapport, simple relecture) : rien n'est écrit."""
+    from m5_financecore import port_service_m4 as port
+
+    from .. import moteur_recalcul_m4 as moteur
+    from .. import service_acteur_systeme as systeme
+
+    devis_id, wct_id = etat["devis_id"], etat["wct_id"]
+    attendue = etat["signature_main_d_oeuvre_certifiee"]
+    intention = hashlib.sha256(
+        ("opsys.reconciliateur.verification-m4.v1\0" + signature_m4 + "\0" + devis_id).encode()).hexdigest()
+    with transaction() as cnx:
+        relu = port.etat_cout_certifie(devis_id)
+        if relu["statut"] != "a_jour" or relu["signature_main_d_oeuvre_certifiee"] != attendue:
+            return {"statut": "change_entre_temps", "devis_id": devis_id}
+        try:
+            with cnx.begin_nested():
+                reponse = moteur.recalculer(cnx, acteur, acteur=systeme.IDENTIFIANT, wct_id=wct_id,
+                                            devis_id=devis_id, intention_id=intention)
+                nouvelle = (port.signature_main_d_oeuvre_derniere(devis_id) if reponse["statut"] == "publiee"
+                            else attendue)
+                raise _Ombre({"nouvelle": nouvelle})
+        except _Ombre as ombre:
+            code, nouvelle = None, ombre.resultat["nouvelle"]
+        except moteur.RefusRecalculM4 as exc:
+            if exc.code not in _REFUS_PERIMANTS:
+                return {"statut": "refus", "code": exc.code, "devis_id": devis_id}
+            code, nouvelle = exc.code, None
+        if nouvelle == attendue:
+            return {"statut": "inchange", "devis_id": devis_id}
+        resultat = {"statut": "perime_m4", "code": code, "devis_id": devis_id, "wct_id": wct_id}
+        if mode_courant == "actif":
+            resultat["marque"] = port.marquer_a_recalculer(devis_id)
+        return resultat
 
 
 def intention_pour(etat: Mapping[str, Any]) -> str:
@@ -217,11 +274,41 @@ def reconcilier(departements: Mapping[str, Any] | None = None, *, limite: int = 
                 resume["raison"] = "etat_inchange"
                 return resume
             refus_connus = dict(_MEMOIRE["refus"]) if _MEMOIRE["signature"] == signature else {}
+            verifies = dict(_MEMOIRE["verifies"])
+        signature_m4 = _signature_m4(cnx)
+        certifies = port.certifies_a_jour()
         candidats = port.candidats_cout_certifie()
-    resume["candidats"] = len(candidats)
     from .. import service_acteur_systeme as systeme
 
     complet = True
+    resume.update(verifications_m4=0, perimes_m4=0)
+    for etat in certifies:
+        cle_m4 = (signature_m4, etat["signature_main_d_oeuvre_certifiee"])
+        if verifies.get(etat["devis_id"]) == cle_m4:
+            continue
+        if resume["verifications_m4"] >= limite:
+            complet = False
+            break
+        resume["verifications_m4"] += 1
+        try:
+            with systeme.contexte_reconciliateur() as acteur:
+                verdict = _verifier_m4(acteur, etat, mode_courant, signature_m4)
+        except Exception:  # noqa: BLE001 — même règle que les candidats
+            resume["erreurs"] += 1
+            _LOG.exception("réconciliateur : défaut de relecture M4 (aucune écriture conservée)")
+            continue
+        if verdict["statut"] == "perime_m4":
+            resume["perimes_m4"] += 1
+            _LOG.info("réconciliateur %s : acteur=%s devis=%s wct=%s -> projection M4 changée depuis le certifié%s",
+                      mode_courant, systeme.IDENTIFIANT, etat["devis_id"], etat["wct_id"],
+                      f" ({verdict['code']})" if verdict.get("code") else "")
+        if verdict["statut"] in ("inchange", "perime_m4") and not (
+                verdict["statut"] == "perime_m4" and mode_courant == "actif"):
+            verifies[etat["devis_id"]] = cle_m4
+    if resume["perimes_m4"] and mode_courant == "actif":
+        with transaction():
+            candidats = port.candidats_cout_certifie()  # les devis que la relecture M4 vient de marquer
+    resume["candidats"] = len(candidats)
     for etat in candidats:
         cle = (etat["devis_id"], intention_pour(etat))
         if cle in refus_connus:
@@ -254,7 +341,8 @@ def reconcilier(departements: Mapping[str, Any] | None = None, *, limite: int = 
     with _VERROU:
         # La signature n'est mémorisée qu'après un balayage COMPLET, et seulement si rien n'a été publié dans ce tour
         # (une publication change les registres : le tour suivant le constate et converge, sans moteur).
-        if complet and (mode_courant == "ombre" or resume["publiees"] == 0):
+        _MEMOIRE["verifies"] = verifies
+        if complet and (mode_courant == "ombre" or (resume["publiees"] == 0 and resume["perimes_m4"] == 0)):
             _MEMOIRE.update(signature=signature, epoch=epoch, refus=refus_connus)
         elif _MEMOIRE["signature"] == signature:
             _MEMOIRE["refus"] = refus_connus

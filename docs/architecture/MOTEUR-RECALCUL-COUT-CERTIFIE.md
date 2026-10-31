@@ -67,14 +67,32 @@ Pour activer en production (SQLite) : un admin octroie `m4.verifier_v3` et `m4.r
 le réconciliateur tourne d'abord en `ombre` (journal « aurait publié ») ; passer `OPSYS_COUT_CERTIFIE_RECONCILIATEUR=actif`
 pour qu'il publie. PostgreSQL reste refusé (D5).
 
+### Décisions r5
+
+- **Publication certifiée découplée de la livraison** (`service_capability.publication_isolee`) : la voie V1 de la
+  livraison du WCT publie dans son propre point de sauvegarde. Un échec n'annule que la publication ; le reçu WCT,
+  la facture brouillon et la trace ordinaire restent, la livraison est `traite` sans réessai ni quarantaine. Le
+  reçu du bus porte `service_m4 = echec_publication` et un code typé (`TARIFS_ILLISIBLES`, `AUTORITE_PERDUE`,
+  `SOURCE_INVALIDE`, `ECHEC_PUBLICATION`) ; M5 marque le devis « à recalculer » (trace PARTIELLE
+  `REJ-COUT-CERTIFIE-A-RECALCULER`, mécanisme E1, persistante jusqu'au prochain certifié) ; D3 dit
+  `perime_recalcul_en_attente` ; le réconciliateur reprend hors livraison.
+- **Correction purement M4 après certification = périmé** : après toute écriture M4 (signature des registres M4),
+  le réconciliateur rejoue le moteur qualifié pour chaque certifié `a_jour` dans un point de sauvegarde toujours
+  annulé et compare ce que la projection M4 actuelle CHIFFRE (`port_service_m4.signature_main_d_oeuvre` : statut,
+  minutes, taux, coût, lignes par visite et équipe, manques — sans les empreintes de provenance, qui changent à
+  chaque écriture M4) à la dernière trace certifiée. Différent, ou plus certifiable (équipe inconnue, revue en
+  attente, visite non relisible...) : marque E1 puis recalcul ; identique : rien n'est écrit. Choisi plutôt qu'un
+  événement M4 consommé par la cascade : M4 ne publie pas ces corrections (et relève d'un autre chantier), et M5 ne
+  peut pas relire une projection hors portée de service ; le réconciliateur a déjà l'autorité (politiques + acteur
+  système) et réutilise exactement l'état E1 que D3 affiche.
+
 ### Limites connues
 
-- Octroyer `m4.verifier_v3` active aussi la voie V1 **à la livraison** du WCT (`service_capability.courante`,
-  `_recevoir_travaux_termines`) : une exception de `port_service_m4.publier` dans cette livraison annule toujours le
-  savepoint de livraison (reçu WCT et facture brouillon compris), puis réessai/quarantaine (constat 8). Le
-  réconciliateur, lui, ne tourne jamais dans une livraison. Découpler la V1 de la livraison reste à faire.
-- Intention déterministe calculée sur l'état M5 (version des entrées, tarifs, nombre de traces) : un changement
-  purement M4 après certification (correction d'une déclaration d'équipe déjà vérifiée) n'est pas détecté par le
-  statut D3 ; la signature des registres M4 relance le balayage, mais l'état M5 inchangé reste `a_jour`.
-- Mémoire de convergence par processus : deux processus (serveur MCP + CLI) restent sérialisés par SQLite ; une
-  exécution concurrente rend `a_jour` ou `deja_executee`, jamais une seconde écriture.
+- Mode `ombre` : la correction M4 et l'échec de publication sont constatés et journalisés, rien n'est marqué ; D3
+  ne montre le périmé qu'en mode `actif` (ou par la marque écrite en livraison, qui ne dépend pas du mode).
+- Coût de la relecture M4 : un moteur rejoué (annulé) par certifié à jour après chaque écriture M4, borné à 5 par
+  tour et mémorisé par signature ; à mesurer sur une instance à fort volume.
+- Aucune surface ne permet aujourd'hui de corriger des pointages V3 après fermeture de visite (`VISITE-INACTIVE`) :
+  le test positif de correction M4 injecte la correction au producteur M4 ; la surface E3 relève d'un autre chantier.
+- Mémoire de convergence par processus : deux processus restent sérialisés par SQLite ; une exécution concurrente
+  rend `a_jour` ou `deja_executee`, jamais une seconde écriture.

@@ -19,6 +19,8 @@ from pathlib import Path
 import m2_revenue_crm.outils as m2_outils
 import m5_financecore.outils as m5_outils
 import pytest
+from m4_field_ops import composition_journaliere, encodage
+from m4_field_ops.registre import Registre
 from sqlalchemy import select
 
 from opsys import identite, service_politiques, stockage
@@ -162,3 +164,104 @@ def test_sans_politique_la_livraison_reste_l_ordinaire(base_durable, monkeypatch
     resultat = codec.decoder(_recu_wct(wct_id)["resultat"])
     assert "service_m4" not in resultat and _statut() == "inconnu"
     assert CODE_PERIME not in rg._evenement_courant_m5(DEVIS)["manque"]
+
+
+# -------------------------------------------------------------------------------------------
+# 2. Correction purement M4 après certification
+# -------------------------------------------------------------------------------------------
+def _declarer_composition(jour: str, cle: str, revision: int = 0) -> None:
+    args = dict(jour=jour, equipe_id=cm.EQUIPE, membres=["membre-t15d-fictif"], revision_attendue=revision,
+                statut_declaration="declaree")
+    with stockage.transaction():
+        reg = Registre(stockage.maillons("m04-field-ops", composition_journaliere.REGISTRE))
+        composition_journaliere.declarer(
+            reg, **args, auteur={"personne": cm.ADMIN_CERTIFIE, "role": "admin"},
+            mutation={"appareil": f"console:{cm.ADMIN_CERTIFIE}", "cle": cle,
+                      "empreinte_arguments": encodage.empreinte(args)},
+            horodatage=(BASE + dt.timedelta(hours=8)).isoformat())
+
+
+def _retirer_l_equipe_etablie(monkeypatch):
+    """Correction M4 INJECTÉE au producteur (`temps_certifies_v3._qualifier`) : la déclaration d'équipe de la visite
+    n'établit plus l'équipe (statut `inconnue`). Injection, parce que M4 refuse aujourd'hui tout pointage tardif sur
+    une visite fermée (`VISITE-INACTIVE`, mesuré) et que la surface de correction (E3) relève d'un autre chantier ;
+    tout le reste (bus, moteur, M5, réconciliateur) est réel."""
+    from m4_field_ops import temps_certifies_v3
+
+    original = temps_certifies_v3._qualifier
+
+    def qualifier(cnx, projection, captures):
+        audits = original(cnx, projection, captures)
+        for visite in projection.get("visites", ()):
+            visite["equipe_pointee"] = {"statut": "inconnue", "identifiant": None, "justification": "indeterminee"}
+        return audits
+
+    monkeypatch.setattr(temps_certifies_v3, "_qualifier", qualifier)
+    return lambda: monkeypatch.setattr(temps_certifies_v3, "_qualifier", original)
+
+
+def test_relecture_et_ecritures_m4_sans_effet_sur_le_chiffrage_ne_rendent_rien_perime(base_durable):
+    _octroyer("m4.recalculer_v3")
+    deps = charger_departements()
+    _chantier(deps)
+    cm._drainer_sans_echec(deps, BASE + dt.timedelta(hours=4))
+    assert _statut() == "a_jour" and len(_certifiees()) == 1
+    traces, journal = rg._traces_m5(DEVIS), _journal()
+    # Écritures M4 réelles sans effet sur ce qui est chiffré : déclaration d'équipe d'un autre jour, puis du jour du
+    # chantier (composition), et une simple relecture forcée (mémoire oubliée).
+    for jour, cle in (((BASE + dt.timedelta(days=3)).date().isoformat(), "composition-autre-jour-r5"),
+                      (BASE.date().isoformat(), "composition-jour-chantier-r5")):
+        _declarer_composition(jour, cle)
+        rg._drainer(deps, 5)
+        derniere = rc.derniere_execution()
+        assert derniere["verifications_m4"] == 1 and derniere["perimes_m4"] == 0, derniere
+    rc.reinitialiser()
+    assert rc.reconcilier(deps)["perimes_m4"] == 0
+    assert rg._traces_m5(DEVIS) == traces and _journal() == journal and _statut() == "a_jour"
+
+
+def test_correction_m4_apres_certification_rend_perime_puis_reprise(base_durable, monkeypatch):
+    _octroyer("m4.recalculer_v3")
+    deps = charger_departements()
+    _chantier(deps)
+    cm._drainer_sans_echec(deps, BASE + dt.timedelta(hours=4))
+    assert _statut() == "a_jour" and len(_certifiees()) == 1
+    traces, avant = rg._traces_m5(DEVIS), len(_journal())
+    retablir = _retirer_l_equipe_etablie(monkeypatch)
+    _declarer_composition((BASE + dt.timedelta(days=3)).date().isoformat(), "composition-declencheur-r5")
+    rg._drainer(deps, 10)
+    nouvelles = rg._traces_m5(DEVIS)[len(traces):]
+    assert len(nouvelles) == 1 and nouvelles[0]["verdict"] == "PARTIELLE", nouvelles  # marque E1, publiée
+    courant = rg._evenement_courant_m5(DEVIS)
+    assert CODE_PERIME in courant["manque"] and courant["marge_reelle_cad"] is None
+    assert _statut() == "perime_recalcul_en_attente"
+    assert [(j["statut"], j["code"]) for j in _journal()[avant:]] == [("refus", "EQUIPE_INCONNUE")], _journal()
+    # (recalcul refusé, journalisé une fois : jamais un coût estimé ni une équipe supposée)
+    # Pas de boucle : un tour de plus n'écrit rien.
+    figees, journal = rg._traces_m5(DEVIS), _journal()
+    rc.reinitialiser()
+    rc.reconcilier(deps)
+    assert rg._traces_m5(DEVIS) == figees and _journal() == journal
+    # La déclaration est rétablie : le réconciliateur republie un certifié (sur la projection relue).
+    retablir()
+    _declarer_composition((BASE + dt.timedelta(days=4)).date().isoformat(), "composition-retablie-r5")
+    rg._drainer(deps, 20)
+    assert len(_certifiees()) == 2 and _statut() == "a_jour"
+    assert rg._evenement_courant_m5(DEVIS)["verdict"] == "CALCULEE"
+
+
+def test_mode_ombre_constate_la_correction_m4_sans_rien_ecrire(base_durable, monkeypatch, caplog):
+    _octroyer("m4.recalculer_v3")
+    deps = charger_departements()
+    _chantier(deps)
+    cm._drainer_sans_echec(deps, BASE + dt.timedelta(hours=4))
+    assert _statut() == "a_jour"
+    monkeypatch.setenv(rc.ENV_MODE, "ombre")
+    _retirer_l_equipe_etablie(monkeypatch)
+    _declarer_composition((BASE + dt.timedelta(days=3)).date().isoformat(), "composition-ombre-r5")
+    traces = rg._traces_m5(DEVIS)
+    with caplog.at_level("INFO", logger="opsys.reconciliateur_cout_certifie"):
+        resume = rc.reconcilier(deps)
+    assert resume["perimes_m4"] == 1, resume
+    assert any("projection M4 changée" in m for m in caplog.messages)
+    assert rg._traces_m5(DEVIS) == traces and _statut() == "a_jour"  # ombre : constat seulement, aucune écriture
