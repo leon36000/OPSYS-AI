@@ -5,6 +5,13 @@ Front Office IA — reception omnicanale, voix 0->5, qualification, adjointe
 Statut: PARTIAL (EPIC E — vague 1 livrée en mode ombre : registre, machine à états des phases
 voix 0->5, garde-fou des interdits absolus, qualification, adaptateurs, digest.)
 
+## Plaintes structurées — `m1_lire_plaintes_structurees`
+
+Lecture T0/N0 (admin confirmé, aucun rôle d'appareil, aucun événement) des plaintes de la période, avec un état qui
+distingue plaintes connues, aucune déclarée par la source et non branché (une absence n'est jamais un zéro), une
+révision pour détecter deux lectures contradictoires et aucune donnée personnelle. Contrat et limites :
+[`docs/PLAINTES-STRUCTUREES.md`](docs/PLAINTES-STRUCTUREES.md). Ouverture à M9 : décision du socle, non prise ici.
+
 ## Résumé privé de réception — tranche du 4 octobre 2026
 
 Le port canonique `m1_produire_digest` existe ; son exposition dans la console

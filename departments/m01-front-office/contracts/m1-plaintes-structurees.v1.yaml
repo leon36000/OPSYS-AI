@@ -1,0 +1,91 @@
+# CONTRAT m1.plaintes_structurees v1 — lecture seule (outil m1_lire_plaintes_structurees), pas un événement du bus.
+# Ce que M1 DIT des plaintes de sa période, jamais plus : état explicite (une absence n'est pas un zéro), lecture datée,
+# révision pour détecter deux lectures contradictoires du même jour, aucune donnée personnelle (Loi 25).
+# Évolution = v2 ; un champ ne s'ajoute pas en silence (test_plaintes_structurees compare ce fichier à la sortie).
+schema_version: 1
+fields:
+  - name: contrat
+    type: str
+    required: true
+    constraints: ["vaut exactement m1.plaintes_structurees"]
+  - name: schema_version
+    type: int
+    required: true
+    constraints: ["vaut exactement 1"]
+  - name: etat
+    type: str
+    required: true
+    constraints:
+      - "enum fermé : CONNUE, AUCUNE_DECLAREE_PAR_SOURCE, NON_BRANCHEE"
+      - "CONNUE : au moins une plainte ou urgence au registre pour la période"
+      - "AUCUNE_DECLAREE_PAR_SOURCE : M1 reçoit (vocabulaire configuré, signaux au registre) et n'a reconnu ni escaladé aucune plainte ; ce n'est PAS « aucune plainte »"
+      - "NON_BRANCHEE : M1 ne peut pas se prononcer ; tous les comptes valent null, jamais 0"
+  - name: motif
+    type: str
+    required: true
+    constraints:
+      - "enum fermé : TRANSFERTS_DE_PLAINTE_AU_REGISTRE, REGISTRE_LU_SANS_TRANSFERT_DE_PLAINTE, VOCABULAIRE_A_CONFIGURER, PROFIL_INVALIDE, AUCUN_SIGNAL_AU_REGISTRE"
+  - name: lecture
+    type: dict
+    required: true
+    fields:
+      - {name: date_lecture, type: str, required: true, constraints: ["AAAA-MM-JJ : le jour de la lecture, fourni par l'appelant (M1 n'a aucune horloge)"]}
+  - name: periode
+    type: dict
+    required: true
+    fields:
+      - {name: debut, type: str, required: true, constraints: ["AAAA-MM-JJ, inclus"]}
+      - {name: fin, type: str, required: true, constraints: ["AAAA-MM-JJ, inclus ; égale la date de lecture"]}
+      - {name: jours, type: int, required: true, constraints: ["1 à 92"]}
+  - name: source
+    type: dict
+    required: true
+    constraints: ["éclaire l'état ; n'est pas une affirmation sur les plaintes (hors empreinte)"]
+    fields:
+      - {name: departement, type: str, required: true, constraints: ["vaut m01-front-office"]}
+      - {name: registre, type: str, required: true, constraints: ["vaut principal"]}
+      - {name: vocabulaire, type: str, required: true, constraints: ["enum fermé : CONFIGURE, A_CONFIGURER, INVALIDE"]}
+      - {name: categories_sans_vocabulaire, type: list, required: true, constraints: ["sous-ensemble de insatisfaction, degat, garantie, avocat, securite"]}
+      - {name: signaux_recus_jusqua_la_lecture, type: int, required: true}
+      - {name: signaux_recus_dans_la_periode, type: int, required: true}
+  - name: plaintes
+    type: list
+    required: true
+    constraints: ["triée par recue_le (instant) puis plainte_id ; vide si état ≠ CONNUE"]
+    fields:
+      - {name: plainte_id, type: str, required: true, constraints: ["pseudonyme à sens unique pl-<20 hex> ; aucun lien lisible avec transfert, conversation ou personne"]}
+      - {name: type, type: str, required: true, constraints: ["enum fermé : plainte, urgence"]}
+      - {name: categories, type: list, required: true, constraints: ["sous-ensemble de insatisfaction, degat, garantie, avocat, securite ; vide si escalade de l'agent sans catégorie"]}
+      - {name: gravite, type: str, required: true, constraints: ["toujours null en v1 : aucune source ne déclare de gravité à M1"]}
+      - {name: date_survenance, type: str, required: true, constraints: ["AAAA-MM-JJ ; date de RÉCEPTION par M1, pas du fait reproché"]}
+      - {name: recue_le, type: str, required: true, constraints: ["instant RFC 3339 avec fuseau, fourni par la plateforme"]}
+      - {name: lue_le, type: str, required: true, constraints: ["date de lecture AAAA-MM-JJ (égale periode.fin)"]}
+      - {name: source, type: str, required: true, constraints: ["enum fermé : sms, courriel, formulaire, texte, telephone, inconnue"]}
+      - {name: declenchee_par, type: str, required: true, constraints: ["enum fermé : regles, agent, inconnue"]}
+      - {name: statut, type: str, required: true, constraints: ["enum fermé : ouvert, clos — tel qu'à la fin du jour de lecture"]}
+      - {name: close_le, type: str, required: true, constraints: ["instant de clôture ou null ; null si ouvert à la fin du jour de lecture"]}
+  - name: comptes
+    type: dict
+    required: true
+    constraints: ["null = INCONNU (jamais 0) ; un 0 signifie « aucune déclarée par la source », pas « aucune plainte »"]
+    fields:
+      - {name: declarees, type: int, required: true, constraints: ["null si NON_BRANCHEE"]}
+      - {name: par_categorie, type: dict, required: true, constraints: ["clés : les cinq catégories ; null pour une catégorie sans vocabulaire et sans plainte ; une plainte à plusieurs catégories compte dans chacune"]}
+      - {name: sans_categorie, type: int, required: true}
+      - {name: par_type, type: dict, required: true, constraints: ["clés : plainte, urgence"]}
+      - {name: par_statut, type: dict, required: true, constraints: ["clés : ouvert, clos"]}
+  - name: revision
+    type: dict
+    required: true
+    constraints:
+      - "même (lecture datée, période) et empreinte_contenu différente = CONTRADICTION à signaler, jamais à fusionner"
+      - "même empreinte_contenu avec une autre tête de registre = simple rafraîchissement"
+    fields:
+      - {name: empreinte_contenu, type: str, required: true, constraints: ["sha256 de etat, motif, lecture, periode, plaintes, comptes"]}
+      - {name: registre_sequence, type: int, required: true, constraints: ["nombre de maillons du registre à la lecture"]}
+      - {name: registre_tete, type: str, required: true, constraints: ["ligne_id du dernier maillon, ou null si registre vide"]}
+      - {name: registre_dernier_horodatage, type: str, required: true, constraints: ["instant le plus récent du registre (comparé comme instant), ou null"]}
+  - name: limites
+    type: list
+    required: true
+    constraints: ["liste constante de {code, detail} écrits dans le code ; aucun texte du registre"]

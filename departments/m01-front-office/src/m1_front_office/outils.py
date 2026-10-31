@@ -85,6 +85,7 @@ from . import (
     phases_voix,
     photos,
     plaintes,
+    plaintes_structurees,
     provenance,
     qualification,
     questions,
@@ -912,18 +913,44 @@ def _refus_lecture_admin() -> dict[str, Any] | None:
     return None
 
 
+def _date_calendaire_valide(date_reference: Any) -> bool:
+    try:
+        return (isinstance(date_reference, str)
+                and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", date_reference, re.ASCII) is not None
+                and dt.date.fromisoformat(date_reference).isoformat() == date_reference)
+    except ValueError:
+        return False
+
+
 def produire_digest(date_reference: str) -> str | dict[str, Any]:
     refus = _refus_lecture_admin()
     if refus is not None:
         return refus
-    try:
-        if (not isinstance(date_reference, str)
-                or re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", date_reference, re.ASCII) is None
-                or dt.date.fromisoformat(date_reference).isoformat() != date_reference):
-            raise ValueError
-    except ValueError:
+    if not _date_calendaire_valide(date_reference):
         return _verdict_refus("REJ-DIGEST-DATE-INVALIDE", "date_reference doit être une date calendaire YYYY-MM-DD")
     return digest.produire_digest(_obtenir_registre().lire(), date_reference)
+
+
+def lire_plaintes_structurees(
+    date_reference: str, jours: int = plaintes_structurees.JOURS_DEFAUT
+) -> dict[str, Any]:
+    """Les plaintes de M1 sous forme structurée, datée et sans donnée personnelle (`m1.plaintes_structurees`,
+    `plaintes_structurees.py`). Lecture seule : même garde que le digest (admin confirmé), aucune écriture, aucun
+    événement, aucun droit d'appareil. Un refus de date ou de période n'a lu ni le registre ni le profil."""
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
+    if not _date_calendaire_valide(date_reference):
+        return _verdict_refus("REJ-DIGEST-DATE-INVALIDE", "date_reference doit être une date calendaire YYYY-MM-DD")
+    if not plaintes_structurees.periode_valide(jours):
+        return _verdict_refus(
+            "REJ-PLAINTES-PERIODE-INVALIDE",
+            f"jours doit être un entier de 1 à {plaintes_structurees.JOURS_MAX}",
+        )
+    signaux, verdict_profil = taxonomie.charger_signaux_plainte()
+    return {"accepte": True, "resultat": plaintes_structurees.lire(
+        _obtenir_registre().lire(), date_reference=date_reference, jours=jours, signaux=signaux,
+        verdict_profil=verdict_profil)}
 
 
 def emettre_notification(canal: str, message: str) -> dict[str, Any]:
@@ -2370,6 +2397,33 @@ def outils() -> tuple[Outil, ...]:
             fonction=produire_digest,
             # §9.5 M1 (appels manqués, rappels, messages urgents) : digest du registre anti-perte.
             roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m1_lire_plaintes_structurees",
+            description=(
+                "Lit les plaintes de M1 sous forme structurée pour les `jours` jours civils finissant à "
+                "`date_reference` (lecture datée, aucune horloge) : par plainte un pseudonyme, le type, les "
+                "catégories, la date de réception, la source, le statut ; un ÉTAT (CONNUE, AUCUNE_DECLAREE_PAR_SOURCE, "
+                "NON_BRANCHEE : une absence n'est jamais un zéro, un compte inconnu vaut null), des limites écrites et "
+                "une révision pour détecter deux lectures contradictoires du même jour. Aucune donnée personnelle, "
+                "aucun texte du client. Lecture seule."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "date_reference": {"type": "string", "description": "Jour de la lecture, AAAA-MM-JJ (inclus)."},
+                    "jours": {
+                        "type": "integer",
+                        "description": f"Longueur de la période en jours civils, 1 à {plaintes_structurees.JOURS_MAX} "
+                                       f"(défaut {plaintes_structurees.JOURS_DEFAUT}).",
+                    },
+                },
+                "required": ["date_reference"],
+                "additionalProperties": False,
+            },
+            fonction=lire_plaintes_structurees,
+            # T0/N0 : lecture pure. Aucun `roles_appareil` : fermé à tous les appareils, comme tout outil sans
+            # déclaration ; aucun droit n'est ajouté. L'ouverture à un lecteur (M9) est une décision du socle.
         ),
         Outil(
             nom="m1_transferer",
