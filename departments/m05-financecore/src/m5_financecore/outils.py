@@ -199,6 +199,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+
 from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
@@ -900,8 +901,9 @@ def _valider_tarif_equipe(tarif: Any) -> dict[str, Any]:
 
 def _instantane_tarifs_equipes() -> dict[str, Any]:
     """Copie bornée puis chaîne vérifiée dans la transaction déjà admise."""
-    from opsys.stockage.schema import OPSYS_INSTANCE, REGISTRES
     from sqlalchemy import LargeBinary, cast, func, select
+
+    from opsys.stockage.schema import OPSYS_INSTANCE, REGISTRES
 
     cnx = stockage.connexion_courante()
     requete_instance = select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)
@@ -4142,9 +4144,10 @@ def _snapshot_couts_marketing(nom: str) -> list[dict]:
     import json
     import math
 
+    from sqlalchemy import LargeBinary, cast, func, select
+
     from opsys.stockage import codec
     from opsys.stockage.schema import REGISTRES
-    from sqlalchemy import LargeBinary, cast, func, select
 
     if nom not in {_NOM_REGISTRE_COMPTES_A_PAYER, couts_marketing.REGISTRE}:
         raise couts_marketing.CoutErreur("REGISTRE-INVALIDE")

@@ -1,10 +1,20 @@
+import pytest
 from alembic import command
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
-import pytest
+
 from opsys import stockage
-from opsys.stockage.schema import (OPSYS_INSTANCE, SERVICE_POLITIQUES, SERVICE_AUDIT, EVENEMENTS_SORTANTS, EVENEMENTS_RECUS,
-    WCT_ATTENTES, WCT_ATTENTES_AUDIT, SERVICE_RECALCUL_INTENTIONS, SERVICE_RECALCUL_RESULTATS)
+from opsys.stockage.schema import (
+    EVENEMENTS_RECUS,
+    EVENEMENTS_SORTANTS,
+    OPSYS_INSTANCE,
+    SERVICE_AUDIT,
+    SERVICE_POLITIQUES,
+    SERVICE_RECALCUL_INTENTIONS,
+    SERVICE_RECALCUL_RESULTATS,
+    WCT_ATTENTES,
+    WCT_ATTENTES_AUDIT,
+)
 
 
 def test_upgrade_preserve_politique_audit_sans_grant(tmp_path):

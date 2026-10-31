@@ -1,9 +1,10 @@
 """Vrai bus M5 : ancien WCT sans capacité ne devient ni erreur ni coût complet."""
 
-from opsys import stockage
 from test_cout_reel_cascade import _codes, _livrer, _publier, _traces
 from test_cout_reel_cascade import base_durable as base_durable
 from test_cout_reel_cascade import taux_configure as taux_configure
+
+from opsys import stockage
 
 
 def test_legacy_recu_partiel_et_rejeu(base_durable, taux_configure):

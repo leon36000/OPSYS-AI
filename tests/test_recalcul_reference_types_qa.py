@@ -1,4 +1,5 @@
 import pytest
+
 from opsys import service_recalcul_m4 as r
 from opsys.service_capability import RefusAutorite
 

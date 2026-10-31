@@ -19,6 +19,7 @@ from pathlib import Path
 import m5_financecore.outils as outils_mod
 import pytest
 import yaml
+
 from opsys import evenements, stockage
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique

@@ -18,6 +18,7 @@ from m4_field_ops import (
     visites_chantier,
 )
 from m4_field_ops.registre import Registre
+
 from opsys import contexte, evenements, stockage
 from opsys.outils import executer_atomique
 
@@ -283,6 +284,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
         assert premiere["presence_individuelle"]["statut"] == "inconnue"
     # Deux tarifs fictifs établis par le vrai port de déclaration M5.
     import os
+
     from m5_financecore import outils as m5
 
     def enregistrer_tarifs():
@@ -312,11 +314,12 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
     if ordre not in ("ordre_DWT", "ordre_WDT", "ordre_WTD"):
         enregistrer_tarifs()
     # Politique fictive uniquement dans cette base isolée.
-    import time
     import os
+    import time
+
+    from sqlalchemy import insert, select
 
     from opsys.stockage.schema import OPSYS_INSTANCE, SERVICE_POLITIQUES
-    from sqlalchemy import insert, select
 
     with session() as cnx:
         instance_id = cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one()
@@ -330,13 +333,15 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
             )
     import os
 
+    from sqlalchemy import update
+
     from opsys import service_capability as sc
     from opsys.stockage.schema import EVENEMENTS_SORTANTS, JOURNAL
-    from sqlalchemy import update
 
     mode = os.environ.get("QA_CASE", "positif")
     if mode.startswith("ordre_"):
         import datetime as dt_qa
+
         from opsys.evenements import repartiteur
         from opsys.stockage.schema import EVENEMENTS_RECUS, WCT_ATTENTES
         moment = dt_qa.datetime.now(dt_qa.UTC)
@@ -398,7 +403,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
         moment = dt_qa.datetime.now(dt_qa.UTC)
         cas_attente = os.environ.get("QA_NEGATIVE", "")
         if cas_attente in ('quota', 'queue_passtarvation', 'review_readers'):
-            from opsys.stockage.schema import WCT_ATTENTES, EVENEMENTS_RECUS
+            from opsys.stockage.schema import EVENEMENTS_RECUS, WCT_ATTENTES
             nombre_faux = 1000 if cas_attente == 'quota' else (199 if cas_attente == 'review_readers' else 200)
             fake_events = [dict(evenement_id=f'{i + 1:064x}', type_evenement='m4.travaux_termines', producteur='m04-field-ops', charge='{}', cree_le=moment.isoformat()) for i in range(nombre_faux)]
             fake_waits = [dict(evenement_id=f'{i + 1:064x}', consommateur='m05-financecore', instance_id=instance_id,
@@ -411,8 +416,8 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
         temps_livraison = moment.replace(tzinfo=None) if cas_attente == 'naive' else moment
         statut = repartiteur._livrer_une_paire(evenement, "m05-financecore", consumer, temps_livraison)
         if cas_attente in ('no_policy', 'quota', 'naive'):
-            from opsys.stockage.schema import WCT_ATTENTES, EVENEMENTS_RECUS
             from opsys.stockage import codec
+            from opsys.stockage.schema import EVENEMENTS_RECUS, WCT_ATTENTES
             assert statut == 'traite'
             with session() as cnx:
                 recu = cnx.execute(select(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id == wct_id,
@@ -432,7 +437,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                     )
                 ).scalar_one()
             pytest.fail("WCT avant devis: " + str(detail))
-        from opsys.stockage.schema import WCT_ATTENTES, EVENEMENTS_RECUS
+        from opsys.stockage.schema import EVENEMENTS_RECUS, WCT_ATTENTES
         with session() as cnx:
             recus = list(stockage.maillons("m05-financecore", "wct_recus"))
             assert len(recus) == 1 and recus[0]["wct_id"] == wct_id
@@ -480,7 +485,9 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
         assert evenements.etat()['comptes'].get('attente_piece', 0) >= 1
         requetes_source = []
         if cas_attente == 'source_api':
-            import copy, threading
+            import copy
+            import threading
+
             from m3_estimation import service_attente_devis as service_m3
             from m5_financecore import service_attente_devis as service_m5
             class FausseRequete:
@@ -1102,7 +1109,12 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
     if mode == 'v2_apres_tarif':
         from opsys import service_history_m4, service_recalcul_m4
         from opsys.stockage import codec
-        from opsys.stockage.schema import EVENEMENTS_RECUS, SERVICE_RECALCUL_INTENTIONS, SERVICE_RECALCUL_ATTESTATIONS, SERVICE_RECALCUL_RESULTATS
+        from opsys.stockage.schema import (
+            EVENEMENTS_RECUS,
+            SERVICE_RECALCUL_ATTESTATIONS,
+            SERVICE_RECALCUL_INTENTIONS,
+            SERVICE_RECALCUL_RESULTATS,
+        )
         with session() as cnx:
             ancien = list(stockage.maillons('m05-financecore','rentabilite_service_v1'))
             assert len(ancien) == 1
@@ -1387,9 +1399,10 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
         ).status_code
         == 303
     )
+    from sqlalchemy import select
+
     from opsys.stockage import codec
     from opsys.stockage.schema import EVENEMENTS_SORTANTS
-    from sqlalchemy import select
 
     with session() as cnx:
         charges = sorted(
