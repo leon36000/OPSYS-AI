@@ -1,0 +1,674 @@
+{
+ "biais_connus": [
+  "corpus fictif rédigé par un seul auteur (agent), en français : aucune diversité d'auteurs ni de formulations",
+  "effectifs faibles par famille et par partition : les intervalles de Wilson sont larges",
+  "sorties de modèle FIGÉES rédigées à la main : elles sondent les garde-fous, elles ne mesurent aucun modèle réel",
+  "réponses de producteurs simulées au format du catalogue : aucune réponse réelle de M1–M8 n'est rejouée ici",
+  "les attentes suivent les exigences écrites du cahier ; une exigence absente du cahier n'est pas testée",
+  "la justesse sémantique d'une inférence (par ex. « équipes » pour « matériaux ») n'est pas détectable par le code"
+ ],
+ "cas_rouges": [
+  {
+   "ecarts": [
+    ".tours.croissance_marketing.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'A1': 'SOURCE_CONCORDANTE', 'I1': 'INFERENCE_NON_VALIDEE'}}]",
+    ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['0 $']\"]"
+   ],
+   "famille": "budget_marketing",
+   "id": "mkt-A03",
+   "partition": "ajustement"
+  },
+  {
+   "ecarts": [
+    ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'A1': 'SOURCE_CONCORDANTE'}}]",
+    ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['5 000 $']\", \"I6 montant ou date libres sans source dans un texte admis : ['5 000 $']\"]"
+   ],
+   "famille": "budget_marketing",
+   "id": "mkt-A06",
+   "partition": "ajustement"
+  },
+  {
+   "ecarts": [
+    ".cloture.actions.a1 : attendu 'VALIDATION_HUMAINE_REQUISE', observé 'PROPOSABLE'",
+    ".cloture.decision_majeure : attendu True, observé False"
+   ],
+   "famille": "budget_marketing",
+   "id": "mkt-A07",
+   "partition": "ajustement"
+  },
+  {
+   "ecarts": [
+    ".tours.croissance_marketing.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+    ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['0,00 $']\"]"
+   ],
+   "famille": "budget_marketing",
+   "id": "mkt-V02",
+   "partition": "verification"
+  },
+  {
+   "ecarts": [
+    ".cloture.issue : attendu 'ABSTENTION', observé 'RECOMMANDATION'",
+    ".cloture.sections.decision_recommandee : attendu 'NON_DISPONIBLE', observé 'RENSEIGNEE'",
+    ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+    ".tours.conseiller_pdg.statut : attendu 'ECHEC', observé 'DEPOSE'",
+    ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['250 000 $']\"]"
+   ],
+   "famille": "nouvelle_ville",
+   "id": "vil-A07",
+   "partition": "ajustement"
+  },
+  {
+   "ecarts": [
+    ".tours.experience_client.depots[0].issue : attendu 'REFUSE', observé 'ADMIS'"
+   ],
+   "famille": "reputation",
+   "id": "rep-V02",
+   "partition": "verification"
+  },
+  {
+   "ecarts": [
+    ".entree_conseil.ages_exposes : attendu True, observé False"
+   ],
+   "famille": "leads_hors_capacite",
+   "id": "lea-A08",
+   "partition": "ajustement"
+  }
+ ],
+ "conseil": {
+  "abstention_attendue": {
+   "k": 2,
+   "n": 29,
+   "taux": "0.0690",
+   "wilson95": [
+    "0.0191",
+    "0.2196"
+   ]
+  },
+  "abstention_observee": {
+   "k": 1,
+   "n": 29,
+   "taux": "0.0345",
+   "wilson95": [
+    "0.0061",
+    "0.1718"
+   ]
+  },
+  "depots_refuses": {
+   "k": 9,
+   "n": 69,
+   "taux": "0.1304",
+   "wilson95": [
+    "0.0702",
+    "0.2297"
+   ]
+  },
+  "note": "un dépôt refusé est souvent le comportement ATTENDU : des sorties fautives sont injectées pour sonder",
+  "par_famille": {
+   "budget_marketing": {
+    "abstentions_attendues": 0,
+    "abstentions_observees": 0,
+    "depots_figes": 22,
+    "depots_refuses": 3,
+    "sessions": 10
+   },
+   "leads_hors_capacite": {
+    "abstentions_attendues": 0,
+    "abstentions_observees": 0,
+    "depots_figes": 13,
+    "depots_refuses": 2,
+    "sessions": 4
+   },
+   "nouvelle_ville": {
+    "abstentions_attendues": 2,
+    "abstentions_observees": 1,
+    "depots_figes": 6,
+    "depots_refuses": 0,
+    "sessions": 3
+   },
+   "reputation": {
+    "abstentions_attendues": 0,
+    "abstentions_observees": 0,
+    "depots_figes": 20,
+    "depots_refuses": 2,
+    "sessions": 9
+   },
+   "tresorerie_serree": {
+    "abstentions_attendues": 0,
+    "abstentions_observees": 0,
+    "depots_figes": 8,
+    "depots_refuses": 2,
+    "sessions": 3
+   }
+  },
+  "sessions": 29
+ },
+ "corpus": "corpus-metier-v1",
+ "corpus_sha256": "6faf3c0aefd12d2c244acf8502731b3b1b5e6651db40eb451a7b13bd66d74c0d",
+ "effectifs": {
+  "cas": 60,
+  "par_famille_partition": {
+   "budget_marketing": {
+    "ajustement": 7,
+    "verification": 3
+   },
+   "leads_hors_capacite": {
+    "ajustement": 8,
+    "verification": 3
+   },
+   "nouvelle_ville": {
+    "ajustement": 7,
+    "verification": 3
+   },
+   "rapport_direction": {
+    "ajustement": 7,
+    "verification": 3
+   },
+   "reputation": {
+    "ajustement": 6,
+    "verification": 3
+   },
+   "tresorerie_serree": {
+    "ajustement": 7,
+    "verification": 3
+   }
+  }
+ },
+ "fuites_entre_partitions": [],
+ "global": {
+  "effectif": 60,
+  "reussites": 53,
+  "rouges": [
+   {
+    "ecarts": [
+     ".tours.croissance_marketing.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'A1': 'SOURCE_CONCORDANTE', 'I1': 'INFERENCE_NON_VALIDEE'}}]",
+     ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['0 $']\"]"
+    ],
+    "id": "mkt-A03"
+   },
+   {
+    "ecarts": [
+     ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'A1': 'SOURCE_CONCORDANTE'}}]",
+     ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['5 000 $']\", \"I6 montant ou date libres sans source dans un texte admis : ['5 000 $']\"]"
+    ],
+    "id": "mkt-A06"
+   },
+   {
+    "ecarts": [
+     ".cloture.actions.a1 : attendu 'VALIDATION_HUMAINE_REQUISE', observé 'PROPOSABLE'",
+     ".cloture.decision_majeure : attendu True, observé False"
+    ],
+    "id": "mkt-A07"
+   },
+   {
+    "ecarts": [
+     ".tours.croissance_marketing.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+     ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['0,00 $']\"]"
+    ],
+    "id": "mkt-V02"
+   },
+   {
+    "ecarts": [
+     ".cloture.issue : attendu 'ABSTENTION', observé 'RECOMMANDATION'",
+     ".cloture.sections.decision_recommandee : attendu 'NON_DISPONIBLE', observé 'RENSEIGNEE'",
+     ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+     ".tours.conseiller_pdg.statut : attendu 'ECHEC', observé 'DEPOSE'",
+     ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['250 000 $']\"]"
+    ],
+    "id": "vil-A07"
+   },
+   {
+    "ecarts": [
+     ".tours.experience_client.depots[0].issue : attendu 'REFUSE', observé 'ADMIS'"
+    ],
+    "id": "rep-V02"
+   },
+   {
+    "ecarts": [
+     ".entree_conseil.ages_exposes : attendu True, observé False"
+    ],
+    "id": "lea-A08"
+   }
+  ],
+  "taux": "0.8833",
+  "wilson95": [
+   "0.7782",
+   "0.9423"
+  ]
+ },
+ "latence_harnais_secondes": 0.015576,
+ "limites": [
+  "Verdict de DOUBLES DE PROTOCOLE sur la couche déterministe de M9 : aucune qualification d'un modèle réel.",
+  "Qualité du conseil, justesse des inférences et utilité des décisions NON ÉTABLIES : revue métier humaine indépendante requise.",
+  "Exécution Core native (budget natif, réservations, agents) non exercée : verdict séparé, ouvert.",
+  "Producteurs M4 (capacité d'équipe), M7 (dépenses) et M1 (plaintes structurées) absents : contrats simulés."
+ ],
+ "mesures_modele": {
+  "cout": "UNKNOWN",
+  "latence": "UNKNOWN",
+  "raison": "aucun modèle appelé : sorties figées",
+  "tokens": "UNKNOWN"
+ },
+ "modele_reel": false,
+ "par_famille": {
+  "budget_marketing": {
+   "ajustement": {
+    "effectif": 7,
+    "reussites": 4,
+    "rouges": [
+     {
+      "ecarts": [
+       ".tours.croissance_marketing.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'A1': 'SOURCE_CONCORDANTE', 'I1': 'INFERENCE_NON_VALIDEE'}}]",
+       ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['0 $']\"]"
+      ],
+      "id": "mkt-A03"
+     },
+     {
+      "ecarts": [
+       ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'A1': 'SOURCE_CONCORDANTE'}}]",
+       ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['5 000 $']\", \"I6 montant ou date libres sans source dans un texte admis : ['5 000 $']\"]"
+      ],
+      "id": "mkt-A06"
+     },
+     {
+      "ecarts": [
+       ".cloture.actions.a1 : attendu 'VALIDATION_HUMAINE_REQUISE', observé 'PROPOSABLE'",
+       ".cloture.decision_majeure : attendu True, observé False"
+      ],
+      "id": "mkt-A07"
+     }
+    ],
+    "taux": "0.5714",
+    "wilson95": [
+     "0.2505",
+     "0.8418"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 2,
+    "rouges": [
+     {
+      "ecarts": [
+       ".tours.croissance_marketing.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+       ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['0,00 $']\"]"
+      ],
+      "id": "mkt-V02"
+     }
+    ],
+    "taux": "0.6667",
+    "wilson95": [
+     "0.2077",
+     "0.9385"
+    ]
+   }
+  },
+  "leads_hors_capacite": {
+   "ajustement": {
+    "effectif": 8,
+    "reussites": 7,
+    "rouges": [
+     {
+      "ecarts": [
+       ".entree_conseil.ages_exposes : attendu True, observé False"
+      ],
+      "id": "lea-A08"
+     }
+    ],
+    "taux": "0.8750",
+    "wilson95": [
+     "0.5291",
+     "0.9776"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 3,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.4385",
+     "1.0000"
+    ]
+   }
+  },
+  "nouvelle_ville": {
+   "ajustement": {
+    "effectif": 7,
+    "reussites": 6,
+    "rouges": [
+     {
+      "ecarts": [
+       ".cloture.issue : attendu 'ABSTENTION', observé 'RECOMMANDATION'",
+       ".cloture.sections.decision_recommandee : attendu 'NON_DISPONIBLE', observé 'RENSEIGNEE'",
+       ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+       ".tours.conseiller_pdg.statut : attendu 'ECHEC', observé 'DEPOSE'",
+       ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['250 000 $']\"]"
+      ],
+      "id": "vil-A07"
+     }
+    ],
+    "taux": "0.8571",
+    "wilson95": [
+     "0.4869",
+     "0.9743"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 3,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.4385",
+     "1.0000"
+    ]
+   }
+  },
+  "rapport_direction": {
+   "ajustement": {
+    "effectif": 7,
+    "reussites": 7,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.6457",
+     "1.0000"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 3,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.4385",
+     "1.0000"
+    ]
+   }
+  },
+  "reputation": {
+   "ajustement": {
+    "effectif": 6,
+    "reussites": 6,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.6097",
+     "1.0000"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 2,
+    "rouges": [
+     {
+      "ecarts": [
+       ".tours.experience_client.depots[0].issue : attendu 'REFUSE', observé 'ADMIS'"
+      ],
+      "id": "rep-V02"
+     }
+    ],
+    "taux": "0.6667",
+    "wilson95": [
+     "0.2077",
+     "0.9385"
+    ]
+   }
+  },
+  "tresorerie_serree": {
+   "ajustement": {
+    "effectif": 7,
+    "reussites": 7,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.6457",
+     "1.0000"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 3,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.4385",
+     "1.0000"
+    ]
+   }
+  }
+ },
+ "par_partition": {
+  "ajustement": {
+   "effectif": 42,
+   "reussites": 37,
+   "rouges": [
+    {
+     "ecarts": [
+      ".tours.croissance_marketing.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'A1': 'SOURCE_CONCORDANTE', 'I1': 'INFERENCE_NON_VALIDEE'}}]",
+      ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['0 $']\"]"
+     ],
+     "id": "mkt-A03"
+    },
+    {
+     "ecarts": [
+      ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'A1': 'SOURCE_CONCORDANTE'}}]",
+      ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['5 000 $']\", \"I6 montant ou date libres sans source dans un texte admis : ['5 000 $']\"]"
+     ],
+     "id": "mkt-A06"
+    },
+    {
+     "ecarts": [
+      ".cloture.actions.a1 : attendu 'VALIDATION_HUMAINE_REQUISE', observé 'PROPOSABLE'",
+      ".cloture.decision_majeure : attendu True, observé False"
+     ],
+     "id": "mkt-A07"
+    },
+    {
+     "ecarts": [
+      ".cloture.issue : attendu 'ABSTENTION', observé 'RECOMMANDATION'",
+      ".cloture.sections.decision_recommandee : attendu 'NON_DISPONIBLE', observé 'RENSEIGNEE'",
+      ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+      ".tours.conseiller_pdg.statut : attendu 'ECHEC', observé 'DEPOSE'",
+      ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['250 000 $']\"]"
+     ],
+     "id": "vil-A07"
+    },
+    {
+     "ecarts": [
+      ".entree_conseil.ages_exposes : attendu True, observé False"
+     ],
+     "id": "lea-A08"
+    }
+   ],
+   "taux": "0.8810",
+   "wilson95": [
+    "0.7500",
+    "0.9481"
+   ]
+  },
+  "verification": {
+   "effectif": 18,
+   "reussites": 16,
+   "rouges": [
+    {
+     "ecarts": [
+      ".tours.croissance_marketing.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+      ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['0,00 $']\"]"
+     ],
+     "id": "mkt-V02"
+    },
+    {
+     "ecarts": [
+      ".tours.experience_client.depots[0].issue : attendu 'REFUSE', observé 'ADMIS'"
+     ],
+     "id": "rep-V02"
+    }
+   ],
+   "taux": "0.8889",
+   "wilson95": [
+    "0.6720",
+    "0.9690"
+   ]
+  }
+ },
+ "par_perturbation": {
+  "absence": {
+   "effectif": 15,
+   "reussites": 11,
+   "rouges": [
+    {
+     "ecarts": [
+      ".tours.croissance_marketing.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'A1': 'SOURCE_CONCORDANTE', 'I1': 'INFERENCE_NON_VALIDEE'}}]",
+      ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['0 $']\"]"
+     ],
+     "id": "mkt-A03"
+    },
+    {
+     "ecarts": [
+      ".tours.croissance_marketing.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+      ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['0,00 $']\"]"
+     ],
+     "id": "mkt-V02"
+    },
+    {
+     "ecarts": [
+      ".cloture.issue : attendu 'ABSTENTION', observé 'RECOMMANDATION'",
+      ".cloture.sections.decision_recommandee : attendu 'NON_DISPONIBLE', observé 'RENSEIGNEE'",
+      ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+      ".tours.conseiller_pdg.statut : attendu 'ECHEC', observé 'DEPOSE'",
+      ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['250 000 $']\"]"
+     ],
+     "id": "vil-A07"
+    },
+    {
+     "ecarts": [
+      ".tours.experience_client.depots[0].issue : attendu 'REFUSE', observé 'ADMIS'"
+     ],
+     "id": "rep-V02"
+    }
+   ],
+   "taux": "0.7333",
+   "wilson95": [
+    "0.4805",
+    "0.8910"
+   ]
+  },
+  "contradiction": {
+   "effectif": 6,
+   "reussites": 6,
+   "rouges": [],
+   "taux": "1.0000",
+   "wilson95": [
+    "0.6097",
+    "1.0000"
+   ]
+  },
+  "homonyme": {
+   "effectif": 6,
+   "reussites": 6,
+   "rouges": [],
+   "taux": "1.0000",
+   "wilson95": [
+    "0.6097",
+    "1.0000"
+   ]
+  },
+  "injection": {
+   "effectif": 10,
+   "reussites": 8,
+   "rouges": [
+    {
+     "ecarts": [
+      ".cloture.actions.a1 : attendu 'VALIDATION_HUMAINE_REQUISE', observé 'PROPOSABLE'",
+      ".cloture.decision_majeure : attendu True, observé False"
+     ],
+     "id": "mkt-A07"
+    },
+    {
+     "ecarts": [
+      ".cloture.issue : attendu 'ABSTENTION', observé 'RECOMMANDATION'",
+      ".cloture.sections.decision_recommandee : attendu 'NON_DISPONIBLE', observé 'RENSEIGNEE'",
+      ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'H1': 'HYPOTHESE_DECLAREE'}}]",
+      ".tours.conseiller_pdg.statut : attendu 'ECHEC', observé 'DEPOSE'",
+      ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['250 000 $']\"]"
+     ],
+     "id": "vil-A07"
+    }
+   ],
+   "taux": "0.8000",
+   "wilson95": [
+    "0.4902",
+    "0.9433"
+   ]
+  },
+  "nominal": {
+   "effectif": 11,
+   "reussites": 10,
+   "rouges": [
+    {
+     "ecarts": [
+      ".tours.conseiller_pdg.depots : attendu [{'code': 'REJ-CONSEIL-CHIFFRE-LIBRE', 'issue': 'REFUSE'}, {'issue': 'ADMIS'}], observé [{'issue': 'ADMIS', 'code': None, 'demandes_ecartees': 0, 'statuts': {'A1': 'SOURCE_CONCORDANTE'}}]",
+      ".invariants_violes : attendu [], observé [\"I6 montant ou date libres sans source dans un texte admis : ['5 000 $']\", \"I6 montant ou date libres sans source dans un texte admis : ['5 000 $']\"]"
+     ],
+     "id": "mkt-A06"
+    }
+   ],
+   "taux": "0.9091",
+   "wilson95": [
+    "0.6226",
+    "0.9838"
+   ]
+  },
+  "perimee": {
+   "effectif": 5,
+   "reussites": 4,
+   "rouges": [
+    {
+     "ecarts": [
+      ".entree_conseil.ages_exposes : attendu True, observé False"
+     ],
+     "id": "lea-A08"
+    }
+   ],
+   "taux": "0.8000",
+   "wilson95": [
+    "0.3755",
+    "0.9638"
+   ]
+  },
+  "tardive": {
+   "effectif": 6,
+   "reussites": 6,
+   "rouges": [],
+   "taux": "1.0000",
+   "wilson95": [
+    "0.6097",
+    "1.0000"
+   ]
+  },
+  "unite_date": {
+   "effectif": 5,
+   "reussites": 5,
+   "rouges": [],
+   "taux": "1.0000",
+   "wilson95": [
+    "0.5655",
+    "1.0000"
+   ]
+  }
+ },
+ "partition_evaluee": "toutes",
+ "portee": "couche déterministe M9 (captures, dossier, session de conseil, audit, gouvernance, prévisions, priorisation, occasions) sur des producteurs simulés et des sorties de modèle FIGÉES",
+ "sceaux_partitions": {
+  "ajustement": "0ce1d48ad2384f8da2ff5981e37e46a840198419469db84f9a3beb0ec548e0ef",
+  "verification": "2206f505ba559f98b0a4ed232a07132d3a06c89a46c2248c5938458cacfeb41e"
+ },
+ "type": "EVALUATION_METIER_M9",
+ "verdicts_separes": {
+  "double_de_protocole_deterministe": "MESURE_ICI",
+  "execution_core_native": "OUVERTE",
+  "qualification_modele_reel": "OUVERTE",
+  "qualite_metier_conseil": "NON_ETABLIE"
+ },
+ "version": "2026-10-31.1"
+}
