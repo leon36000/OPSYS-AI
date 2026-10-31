@@ -54,7 +54,7 @@ LECTURES_AUTORISEES: Mapping[str, frozenset[str]] = {
         }
     ),
     "m06-material-control": frozenset({"m6_lire_disponibilite"}),
-    "m07-marketing": frozenset({"m7_lire_performance_campagnes"}),
+    "m07-marketing": frozenset({"m7_lire_performance_campagnes", "m7_lire_depenses_marketing"}),
     "m08-analytics": frozenset(
         {"m8_lire_vue_executive", "m8_lire_mesures_chantier", "m8_lister_definitions_metriques"}
     ),

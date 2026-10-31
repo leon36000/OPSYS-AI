@@ -17,16 +17,6 @@ def _capacite():
     }
 
 
-def _depenses():
-    return {
-        "debut": "2026-10-01",
-        "fin": "2026-10-31",
-        "couverture": "PARTIELLE",
-        "manque": ["CANAL_NON_RAPPORTE"],
-        "lignes": [{"canal": "recherche", "montant_cad": "450.00", "constate_le": "2026-10-15", "source_ref": "ref:7"}],
-    }
-
-
 def _plaintes():
     return {
         "debut": "2026-10-01",
@@ -39,13 +29,12 @@ def _plaintes():
 
 EXEMPLES = {
     "capacite_equipe": _capacite,
-    "depenses_marketing": _depenses,
     "plaintes_structurees": _plaintes,
 }
 
 
 def test_chaque_contrat_a_un_exemple_conforme_et_un_proprietaire_connu():
-    assert set(EXEMPLES) == set(ca.CONTRATS)
+    assert set(EXEMPLES) | {"depenses_marketing"} == set(ca.CONTRATS)  # M7 : contrat réel
     for domaine, fabrique in EXEMPLES.items():
         verdict = ca.valider_charge(domaine, fabrique())
         assert verdict["conforme"] is True and verdict["manques"] == [] and verdict["erreurs"] == [], domaine
@@ -61,15 +50,9 @@ def test_un_champ_absent_est_nomme_jamais_complete():
         verdict = ca.valider_charge(domaine, charge)
         assert verdict["conforme"] is False and champ in verdict["manques"], domaine
         assert champ not in charge  # le validateur ne complète rien
-    ligne = _depenses()
-    del ligne["lignes"][0]["montant_cad"]
-    assert ca.valider_charge("depenses_marketing", ligne)["manques"] == ["lignes[0].montant_cad"]
 
 
 def test_un_flottant_un_enum_hors_liste_une_charge_non_objet_sont_refuses():
-    flottant = _depenses()
-    flottant["lignes"][0]["montant_cad"] = 450.0
-    assert "lignes[0].montant_cad : decimal attendu" in ca.valider_charge("depenses_marketing", flottant)["erreurs"]
     categorie = _plaintes()
     categorie["categories"][0]["categorie"] = "inventee"
     assert ca.valider_charge("plaintes_structurees", categorie)["conforme"] is False
@@ -79,19 +62,16 @@ def test_un_flottant_un_enum_hors_liste_une_charge_non_objet_sont_refuses():
     entier_bool = _plaintes()
     entier_bool["ouvertes_total"] = True
     assert ca.valider_charge("plaintes_structurees", entier_bool)["conforme"] is False
-    couverture = _depenses()
-    couverture["couverture"] = "TOTALE"
-    assert ca.valider_charge("depenses_marketing", couverture)["conforme"] is False
     for pas_objet in (None, [], "texte", 3):
         assert ca.valider_charge("capacite_equipe", pas_objet)["conforme"] is False
 
 
-def test_les_trois_lectures_manquantes_sont_absentes_du_catalogue_et_dites_telles():
-    """Le jour où un propriétaire publie la lecture, ce test échoue : c'est le signal de brancher le consommateur."""
+def test_etat_des_contrats_se_lit_sur_le_catalogue():
+    """Le jour où un propriétaire publie la lecture, l'état passe à PUBLIE : signal de brancher le consommateur."""
     etats = {r["domaine"]: r["etat"] for r in ca.resume()}
-    assert etats["capacite_equipe"] == etats["depenses_marketing"] == etats["plaintes_structurees"]
-    assert etats["capacite_equipe"] == "ABSENT_CHEZ_LE_PROPRIETAIRE"
-    for domaine in ("capacite_equipe", "depenses_marketing", "plaintes_structurees"):
+    assert etats["depenses_marketing"] == "PUBLIE" and ca.CONTRATS["depenses_marketing"]["lecture_id"] in cat.PAR_ID
+    assert etats["capacite_equipe"] == etats["plaintes_structurees"] == "ABSENT_CHEZ_LE_PROPRIETAIRE"
+    for domaine in ("capacite_equipe", "plaintes_structurees"):
         assert ca.CONTRATS[domaine]["lecture_id"] not in cat.PAR_ID, domaine
     assert all(r["limite"] and r["outil_attendu"] for r in ca.resume())
 
@@ -114,19 +94,9 @@ def _erreurs(domaine, charge):
 
 def test_types_non_hachables_dates_impossibles_et_negatifs_sont_des_erreurs_nommees():
     """Défauts trouvés en relecture : TypeError non nommée, dates impossibles et montants négatifs acceptés."""
-    couverture = _depenses()
-    couverture["couverture"] = []
-    assert "couverture" in _erreurs("depenses_marketing", couverture)
     categorie = _plaintes()
     categorie["categories"][0]["categorie"] = {"x": 1}
     assert "categorie" in _erreurs("plaintes_structurees", categorie)
-    for date in ("2026-99-99", "0000-00-00", "2026-02-30"):
-        impossible = _depenses()
-        impossible["debut"] = date
-        assert "debut" in _erreurs("depenses_marketing", impossible), date
-    negatif = _depenses()
-    negatif["lignes"][0]["montant_cad"] = "-450"
-    assert "montant_cad" in _erreurs("depenses_marketing", negatif)
     heures = _capacite()
     heures["equipes"][0]["heures_disponibles"] = "-5"
     assert "heures_disponibles" in _erreurs("capacite_equipe", heures)
@@ -136,15 +106,6 @@ def test_types_non_hachables_dates_impossibles_et_negatifs_sont_des_erreurs_nomm
 
 
 def test_incoherences_entre_champs_sont_des_erreurs_nommees():
-    inverse = _depenses()
-    inverse["debut"], inverse["fin"] = "2026-10-31", "2026-10-01"
-    assert "fin antérieure au début" in _erreurs("depenses_marketing", inverse)
-    hors_periode = _depenses()
-    hors_periode["lignes"][0]["constate_le"] = "2026-11-02"
-    assert "hors de la période" in _erreurs("depenses_marketing", hors_periode)
-    partielle = _depenses()
-    partielle["manque"] = []
-    assert "sans manque nommé" in _erreurs("depenses_marketing", partielle)
     doublon = _plaintes()
     doublon["categories"][1]["categorie"] = "garantie"
     assert "catégorie en double" in _erreurs("plaintes_structurees", doublon)

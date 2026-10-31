@@ -33,7 +33,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from . import catalogue_producteurs
+from . import catalogue_producteurs, charges_producteurs
 
 SCHEMA = "opsys.m9.capture/v1"
 HASH_INITIAL = ""
@@ -202,8 +202,20 @@ def construire(
         if v != "ACCEPTEE":
             verdict, code = v, c
             break
+    detail_refus = None
+    if verdict == "ACCEPTEE":
+        # Producteur à CONTRAT : une charge qui viole son contrat est un refus conservé (aucun fait citable), jamais
+        # une donnée « acceptée sous réserve ». Les messages nomment le champ, jamais la valeur reçue.
+        for page in pages_json:
+            erreurs = charges_producteurs.valider(lecture.id, page, arguments)
+            if erreurs:
+                verdict, code = "REFUSEE", "charge_invalide"
+                detail_refus = "; ".join(erreurs[:3])[:300]
+                break
     complete, raison = True, None
-    if verdict != "ACCEPTEE":
+    if detail_refus is not None:
+        complete, raison = False, f"charge non conforme au contrat du producteur : {detail_refus}"
+    elif verdict != "ACCEPTEE":
         complete, raison = False, "réponse refusée ou en erreur : aucun fait reçu"
     elif lecture.pagination is not None:
         suite = extraire(pages_json[-1], lecture.pagination.chemin_suivant)
@@ -219,6 +231,10 @@ def construire(
                         declare = valeur is True
                     elif marqueur.genre == "faux":
                         declare = valeur is False
+                    elif marqueur.genre == "egal":
+                        declare = type(valeur) is str and valeur == marqueur.valeur
+                    elif marqueur.genre == "autre_que":
+                        declare = type(valeur) is str and valeur != marqueur.valeur
                     else:
                         declare = type(valeur) is int and valeur > 0
                     if declare and complete:
@@ -339,6 +355,31 @@ def _cle_lecture(capture: Mapping) -> tuple[str, str]:
     return capture["lecture_id"], capture["arguments_sha256"]
 
 
+def _sans_chemin(document: object, morceaux: list[str]) -> object:
+    """Copie du document sans la clé désignée par ``morceaux`` (chemin sans ``[*]``) ; le reste est inchangé."""
+    if not morceaux or not isinstance(document, Mapping):
+        return document
+    tete, reste = morceaux[0], morceaux[1:]
+    if tete not in document:
+        return document
+    if not reste:
+        return {cle: valeur for cle, valeur in document.items() if cle != tete}
+    return {**document, tete: _sans_chemin(document[tete], reste)}
+
+
+def empreinte_comparable(capture: Mapping) -> str:
+    """Empreinte de la réponse à comparer pour une contradiction : celle de la capture, ou, quand le catalogue déclare
+    des métadonnées de lecture volatiles (horloge du producteur), celle des pages privées de ces métadonnées. Deux
+    lectures du même contenu faites à deux moments ne se contredisent pas."""
+    lecture = catalogue_producteurs.PAR_ID.get(capture["lecture_id"])
+    if lecture is None or not lecture.volatils:
+        return capture["reponse_sha256"]
+    pages = capture["pages"]
+    for chemin in lecture.volatils:
+        pages = [_sans_chemin(page, chemin.split(".")) for page in pages]
+    return empreinte(pages)
+
+
 def contradictions(captures: Sequence[Mapping]) -> list[dict]:
     """Paires de captures ACCEPTÉES, même lecture et mêmes arguments, même révision déclarée et même instant métier max,
     dont les réponses diffèrent. Les deux preuves sont citées ; aucune n'est choisie. Sans révision ni instant déclarés,
@@ -357,7 +398,7 @@ def contradictions(captures: Sequence[Mapping]) -> list[dict]:
     for (lecture_id, arguments_sha, _marque, _horodatage), membres in groupes.items():
         for position, a in enumerate(membres):
             for b in membres[position + 1 :]:
-                if a["reponse_sha256"] != b["reponse_sha256"]:
+                if empreinte_comparable(a) != empreinte_comparable(b):
                     resultat.append(
                         {
                             "lecture_id": lecture_id,

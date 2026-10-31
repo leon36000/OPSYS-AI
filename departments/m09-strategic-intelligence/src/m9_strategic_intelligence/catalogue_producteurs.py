@@ -20,11 +20,13 @@ devinée :
 from __future__ import annotations
 
 import dataclasses
+import functools
 import re
 from collections.abc import Mapping
 
-CATALOGUE_VERSION = "2026-10-28.1"
+CATALOGUE_VERSION = "2026-10-31.1"
 _CHEMIN = re.compile(r"[A-Za-z0-9_]+(\[\*\])?(\.[A-Za-z0-9_]+(\[\*\])?)*")
+_CHEMIN_CITABLE = re.compile(r"(?:[A-Za-z0-9_]+|\*)(\[\*\])?(\.(?:[A-Za-z0-9_]+|\*)(\[\*\])?)*")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -40,16 +42,23 @@ class Pagination:
 class Marqueur:
     """Déclaration d'incomplétude PAR LE PRODUCTEUR : où sa réponse dit qu'elle est tronquée.
 
-    ``vrai`` : la valeur est ``true`` ; ``faux`` : elle est ``false`` (ex. ``trouve``) ; ``positif`` : un entier > 0.
-    Une réponse qui déclare sa
-    propre troncature ne peut jamais être capturée « complète » (aucune suite lisible par M9 ne se présume)."""
+    ``vrai`` : la valeur est ``true`` ; ``faux`` : elle est ``false`` (ex. ``trouve``, ``calculable``) ; ``positif`` :
+    un
+    entier > 0 ; ``egal`` : le texte vaut ``valeur`` (ex. un état ``NON_BRANCHEE``) ; ``autre_que`` : tout texte
+    différent
+    de ``valeur`` (ex. un statut qui n'est pas ``CONNUE``). Une réponse qui déclare sa propre incomplétude ne peut
+    jamais
+    être capturée « complète » (aucune suite lisible par M9 ne se présume)."""
 
     chemin: str
-    genre: str  # "vrai" | "positif"
+    genre: str  # "vrai" | "faux" | "positif" | "egal" | "autre_que"
+    valeur: str | None = None
 
     def __post_init__(self) -> None:
-        if self.genre not in ("vrai", "faux", "positif") or not _CHEMIN.fullmatch(self.chemin):
+        if self.genre not in ("vrai", "faux", "positif", "egal", "autre_que") or not _CHEMIN.fullmatch(self.chemin):
             raise ValueError("marqueur d'incomplétude invalide")
+        if (self.genre in ("egal", "autre_que")) != (type(self.valeur) is str and bool(self.valeur)):
+            raise ValueError("marqueur d'incomplétude : valeur de comparaison requise pour egal/autre_que, seulement")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -65,15 +74,30 @@ class Lecture:
     revisions: tuple[str, ...] = ()
     incomplets: tuple[Marqueur, ...] = ()
     reference_genre: str = "instant"  # "instant" (RFC 3339, fuseau explicite) | "date" (jour civil AAAA-MM-JJ)
+    # Citations : ``None`` = tout scalaire de la réponse est citable (lectures historiques). Sinon, SEULS les chemins
+    # listés le sont (un segment ``*`` = une clé quelconque, ``[*]`` = un rang) ; tout le reste (texte libre du
+    # producteur,
+    # libellés saisis, pseudonymes, condensats) n'atteint jamais le conseil. ``zero_non_citable`` : un compte nul n'est
+    # pas une valeur citable (il dit « aucune déclarée par la source », jamais « zéro »).
+    citables: tuple[str, ...] | None = None
+    zero_non_citable: bool = False
+    # Métadonnées de lecture (horloge du producteur, condensats de registre) retirées de l'empreinte comparée pour
+    # détecter une contradiction : deux lectures du même contenu ne se contredisent pas parce qu'elles datent d'un
+    # autre jour.
+    volatils: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        chemins = [*self.instants_metier, *self.revisions]
+        chemins = [*self.instants_metier, *self.revisions, *self.volatils]
         if self.pagination is not None:
             chemins.append(self.pagination.chemin_suivant)
             if self.pagination.chemin_total is not None:
                 chemins.append(self.pagination.chemin_total)
-        if not all(_CHEMIN.fullmatch(chemin) for chemin in chemins):
+        if not all(_CHEMIN.fullmatch(chemin) for chemin in chemins) or not all(
+            _CHEMIN_CITABLE.fullmatch(chemin) for chemin in (self.citables or ())
+        ):
             raise ValueError(f"{self.id} : chemin de réponse invalide")
+        if self.citables is not None and not self.citables:
+            raise ValueError(f"{self.id} : liste de chemins citables vide (None pour tout citer)")
         if set(self.fixes) & set(self.libres):
             raise ValueError(f"{self.id} : un argument ne peut pas être à la fois fixe et libre")
         if self.pagination is not None and self.pagination.arg_depart not in self.libres:
@@ -209,6 +233,39 @@ LECTURES: tuple[Lecture, ...] = (
         incomplets=(Marqueur("resultat.resultat.tronque", "vrai"),),
     ),
     _lecture("m7.performance_campagnes", "m07-marketing", "m7_lire_performance_campagnes", {"debut", "fin"}),
+    # Contrat v1 de M7 (departments/m07-marketing/docs/M7-DEPENSES-MARKETING.md). La charge est à la RACINE du résultat
+    # (pas d'enveloppe ``accepte``). Instant métier : le relevé le plus récent que M7 utilise (null si aucun). Sont
+    # citables les seuls statuts, montants, bornes basses, périodes, codes de manque : jamais un libellé de campagne
+    # saisi,
+    # un texte libre de M7, ni les métadonnées de lecture (``observation_source``, horloge de lecture : volatile).
+    _lecture(
+        "m7.depenses_marketing",
+        "m07-marketing",
+        "m7_lire_depenses_marketing",
+        {"debut", "fin"},
+        instants_metier=("resultat.releve_le_plus_recent",),
+        incomplets=(Marqueur("resultat.statut", "autre_que", "CONNUE"),),
+        volatils=("resultat.observation_source",),
+        citables=(
+            "resultat.statut",
+            "resultat.total_cad",
+            "resultat.au_moins_cad",
+            "resultat.base_taxes",
+            "resultat.devise",
+            "resultat.periode.debut",
+            "resultat.periode.fin",
+            "resultat.canaux_attendus[*]",
+            "resultat.canaux[*].canal",
+            "resultat.canaux[*].statut",
+            "resultat.canaux[*].montant_cad",
+            "resultat.canaux[*].au_moins_cad",
+            "resultat.canaux[*].base_taxes",
+            "resultat.canaux[*].manque[*]",
+            "resultat.manque[*].portee",
+            "resultat.manque[*].code",
+            "resultat.releve_le_plus_recent",
+        ),
+    ),
     _lecture(
         "m8.vue_executive",
         "m08-analytics",
@@ -260,6 +317,23 @@ LECTURES: tuple[Lecture, ...] = (
 PAR_ID: Mapping[str, Lecture] = {lecture.id: lecture for lecture in LECTURES}
 if len(PAR_ID) != len(LECTURES):  # pragma: no cover - garde de construction
     raise ValueError("identifiants de lecture en double")
+
+
+@functools.cache
+def _motif_citable(chemin: str) -> re.Pattern:
+    morceaux = []
+    for segment in chemin.split("."):
+        rang = segment.endswith("[*]")
+        nom = segment[:-3] if rang else segment
+        morceaux.append((r"[A-Za-z0-9_]+" if nom == "*" else re.escape(nom)) + (r"\[\d+\]" if rang else ""))
+    return re.compile(r"\.".join(morceaux))
+
+
+def est_citable(lecture: Lecture, chemin_aplati: str) -> bool:
+    """Le scalaire à ``chemin_aplati`` (``a.b[0].c``, rangs numériques) est-il une matière citable de cette lecture ?"""
+    if lecture.citables is None:
+        return True
+    return any(_motif_citable(motif).fullmatch(chemin_aplati) for motif in lecture.citables)
 
 
 def lectures_par_departement() -> dict[str, frozenset[str]]:

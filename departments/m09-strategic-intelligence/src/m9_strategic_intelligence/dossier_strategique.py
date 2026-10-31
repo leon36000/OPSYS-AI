@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
+from decimal import Decimal, InvalidOperation
 
 from . import capture_strategique as cs
 from . import catalogue_producteurs as cat
@@ -60,15 +61,27 @@ def _aplatir(document: object, chemin: str, sortie: list[tuple[str, str]], profo
             sortie.append((chemin, texte))
 
 
+def _est_zero(texte: str) -> bool:
+    try:
+        return Decimal(texte) == 0
+    except InvalidOperation:
+        return False
+
+
 def faits_citables(captures: Sequence[Mapping], *, max_faits: int = MAX_FAITS) -> tuple[dict[str, str], int]:
     """(faits ``adresse → texte``, nombre de faits non retenus). Captures déjà filtrées (acceptées, complètes)."""
     faits: dict[str, str] = {}
     exces = 0
     for capture in sorted(captures, key=lambda c: (c["lecture_id"], c["index"])):
+        lecture = cat.PAR_ID[capture["lecture_id"]]
         for numero_page, page in enumerate(capture["pages"]):
             paires: list[tuple[str, str]] = []
             _aplatir(page, "", paires)
             for chemin, texte in paires:
+                if not cat.est_citable(lecture, chemin):
+                    continue  # champ hors de la liste sûre du catalogue : ni fait, ni « fait non retenu »
+                if lecture.zero_non_citable and _est_zero(texte):
+                    continue  # un compte nul dit « aucune déclarée par la source », jamais « zéro »
                 adresse = f"{capture['lecture_id']}#{capture['index']}:p{numero_page}.{chemin}"
                 if len(faits) >= max_faits:
                     exces += 1

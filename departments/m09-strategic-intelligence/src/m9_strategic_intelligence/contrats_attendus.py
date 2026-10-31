@@ -1,8 +1,10 @@
-"""Contrats attendus des propriétaires : ce que M9 sait lire le jour où ils publient, sans rien fabriquer d'ici là.
+"""Contrats des propriétaires : ce que M9 sait lire, sans rien fabriquer.
 
-Module pur. Pour chaque donnée qui manque aujourd'hui à M9 (capacité d'équipe M4, dépenses marketing M7, plaintes
-structurées M1), ce module fixe la FORME que le propriétaire devra publier et valide une charge
-candidate contre elle. Il ne produit aucune valeur : une charge incomplète est rendue avec la liste
+Module pur. Pour chaque donnée que M9 attendait d'un propriétaire (capacité d'équipe M4, dépenses marketing M7, plaintes
+structurées M1), ce module nomme le contrat et valide une charge contre lui. Une fois la lecture publiée et branchée, la
+validation est celle du contrat RÉEL du propriétaire (``charges_producteurs``, la même que la capture applique) ; tant
+qu'elle ne l'est pas, c'est la forme attendue. Il ne produit aucune valeur : une charge incomplète est rendue avec la
+liste
 de ce qui manque, jamais complétée ; un nombre doit arriver en TEXTE décimal exact (un flottant est refusé) ; une
 valeur hors de l'énuméré fermé est refusée.
 
@@ -21,6 +23,7 @@ import re
 from collections.abc import Mapping
 
 from . import catalogue_producteurs as cat
+from . import charges_producteurs
 
 ORIGINE_EXTRAPOLATION = "tendance_extrapolee"
 _DECIMAL = re.compile(r"[0-9]{1,12}(?:\.[0-9]{1,4})?")  # quantités et montants dépensés : jamais négatifs
@@ -49,13 +52,10 @@ CONTRATS: dict[str, dict] = {
         "proprietaire": "m07-marketing",
         "lecture_id": "m7.depenses_marketing",
         "outil_attendu": "m7_lire_depenses_marketing",
-        "racine": {"debut": "date", "fin": "date", "couverture": "couverture", "manque": "textes"},
-        "liste": (
-            "lignes",
-            {"canal": "identifiant", "montant_cad": "decimal", "constate_le": "date", "source_ref": "identifiant"},
-        ),
-        "limite": "Sans dépense publiée par M7, M9 ne calcule ni coût par lead ni ROI : il nomme "
-        "DEPENSES_NON_BRANCHEES.",
+        "reel": {"enveloppe_accepte": False},
+        "limite": "Branché sur le contrat réel de M7 (schéma opsys.m7.depenses_marketing/v1) : un total n'existe que "
+        "statut CONNUE ; NON_BRANCHEE ne donne aucun montant. M7 n'a encore aucune ingestion ni saisie réelle de "
+        "relevés : tant qu'aucun relevé n'est inscrit, la lecture dit NON_BRANCHEE.",
     },
     "plaintes_structurees": {
         "proprietaire": "m01-front-office",
@@ -118,13 +118,6 @@ def _coherence(domaine: str, charge: Mapping) -> list[str]:
         ids = [ligne["equipe_id"] for ligne in charge["equipes"]]
         if len(set(ids)) != len(ids):
             erreurs.append("equipe_id en double")
-    elif domaine == "depenses_marketing":
-        for i, ligne in enumerate(charge["lignes"]):
-            jour = _date(ligne["constate_le"])
-            if debut is not None and fin is not None and jour is not None and not debut <= jour <= fin:
-                erreurs.append(f"lignes[{i}].constate_le hors de la période")
-        if charge["couverture"] != "COMPLETE" and not charge["manque"]:
-            erreurs.append("couverture non complète sans manque nommé")
     elif domaine == "plaintes_structurees":
         categories = [ligne["categorie"] for ligne in charge["categories"]]
         if len(set(categories)) != len(categories):
@@ -134,7 +127,7 @@ def _coherence(domaine: str, charge: Mapping) -> list[str]:
     return sorted(set(erreurs))
 
 
-def valider_charge(domaine: str, charge: object) -> dict:
+def valider_charge(domaine: str, charge: object, arguments: Mapping | None = None) -> dict:
     """Conformité d'une charge candidate. ``manques`` = champs absents ; ``erreurs`` = champs présents mais invalides,
     puis, si la forme est bonne, les incohérences entre champs (période inversée, doublons, total différent de la
     somme, calcul impossible ou couverture partielle sans manque nommé).
@@ -146,6 +139,12 @@ def valider_charge(domaine: str, charge: object) -> dict:
     erreurs: list[str] = []
     if not isinstance(charge, Mapping):
         return {"domaine": domaine, "conforme": False, "manques": ["charge"], "erreurs": ["charge non objet"]}
+    if "reel" in contrat:
+        # Contrat publié : la validation est celle que la capture applique à la réponse du producteur.
+        enveloppe = contrat["reel"]["enveloppe_accepte"]
+        page = {"resultat": {"accepte": True, "resultat": charge}} if enveloppe else {"resultat": charge}
+        erreurs = charges_producteurs.valider(contrat["lecture_id"], page, arguments)
+        return {"domaine": domaine, "conforme": not erreurs, "manques": [], "erreurs": erreurs}
     for champ, genre in contrat["racine"].items():
         if champ not in charge:
             manques.append(champ)
