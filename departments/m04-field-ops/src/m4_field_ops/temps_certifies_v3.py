@@ -3,15 +3,23 @@ import json
 import re
 from hashlib import sha256
 
-from sqlalchemy import select
-
 from opsys import contexte
 from opsys.stockage.schema import JOURNAL, OPSYS_INSTANCE, REGISTRES
+from sqlalchemy import select
 
 from . import encodage, equipes_pointees_v3, temps_certifies_v2
 
 VERSION = 'opsys.m4.temps_certifies.v3'
 _HEX = re.compile('[0-9a-f]{64}\\Z')
+
+
+def _objet_json_unique(paires):
+    resultat = {}
+    for cle, valeur in paires:
+        if cle in resultat:
+            raise temps_certifies_v2.Refus('AUDIT-INVALIDE')
+        resultat[cle] = valeur
+    return resultat
 
 
 def _audits(cnx, preuve):
@@ -24,7 +32,9 @@ def _audits(cnx, preuve):
                'equipe_id': preuve['sujet']['id'], 'profil_empreinte': preuve['profil_empreinte'],
                'role': preuve['auteur']['role'], 'source_attendue': preuve['source_attendue'],
                'source_rangs': preuve['source_rangs']}
-    if row.par != preuve['auteur']['personne'] or json.loads(row.details) != attendu:
+    details = json.loads(row.details, object_pairs_hook=_objet_json_unique)
+    if (row.par != preuve['auteur']['personne']
+            or encodage.encoder_canonique(details) != encodage.encoder_canonique(attendu)):
         raise temps_certifies_v2.Refus('AUDIT-INVALIDE')
     return {'id': row.id, 'par': row.par, 'details': attendu}
 
