@@ -1,0 +1,686 @@
+{
+ "schema": "opsys.mission.requirements.v1",
+ "mission": "MATRICE-EXIGENCES-M4",
+ "module": "M4",
+ "scope_preserved": "M4.1–M4.24",
+ "canonical_source": "docs/produit/DEFINITION-PRODUIT.md §7 M4",
+ "base_sha": "83efcd82bd86938d700887605124622e11efbeaa",
+ "date": "2026-10-31",
+ "initial_status_is_not_a_fresh_runtime_verdict": true,
+ "initial_status_source": "docs analyse d'écarts du 2026-10-31 (ANALYSE-ECARTS-MODULES.md) ; current_status = vérifié dans le code et les tests de la base_sha",
+ "statuses": [
+  "FAIT_PROUVE",
+  "PARTIEL",
+  "SIMULE",
+  "ABSENT",
+  "INCONNU"
+ ],
+ "proof_levels": {
+  "T": "test unitaire ou de module en processus, sans parcours de bout en bout",
+  "S": "parcours en processus Python sur base SQLite réelle et bus d'événements réel, sans HTTP",
+  "H": "HTTP MCP réel avec la porte d'appareil réécrite en Python (tests/fixtures/harnais_e2e.py) : pas le Core natif",
+  "P": "test PostgreSQL présent ; son exécution (CI) n'est pas rejouée ni affirmée par cette matrice",
+  "N": "Core/Gateway natif TypeScript réel",
+  "B": "navigateur réel",
+  "M": "téléphone ou émulateur (jamais atteint)"
+ },
+ "run_summary": {
+  "suite_du_departement": "departments/m04-field-ops/tests rejoué le 2026-10-31 sur la base_sha : 3304 passed, 0 failed, 20 skipped (pyvrp absent)",
+  "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
+  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
+ },
+ "requirements": [
+  {
+   "id": "M4.1",
+   "title": "Modèle de données terrain",
+   "target": "Équipes, employés, véhicules, équipements, jobs, visites, routes, GPS, sessions de travail, incidents, complétions.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/registre.py",
+    "departments/m04-field-ops/src/m4_field_ops/visites_chantier.py",
+    "departments/m04-field-ops/src/m4_field_ops/etats.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_registre.py",
+      "departments/m04-field-ops/tests/test_contrats.py",
+      "departments/m04-field-ops/tests/test_equipes_cedule.py",
+      "departments/m04-field-ops/tests/test_visites_chantier.py",
+      "departments/m04-field-ops/tests/test_pointage.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Interventions, visites, pointages, équipes, complétions présents ; véhicules et équipements ne sont modélisés que comme paramètre de tournées (tournees.py) ; incidents peu structurés."
+  },
+  {
+   "id": "M4.2",
+   "title": "Profils d'équipes et d'employés",
+   "target": "Compétences, disponibilité, charge, fiabilité.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/acces.py",
+    "departments/m04-field-ops/src/m4_field_ops/admissibilite.py",
+    "departments/m04-field-ops/src/m4_field_ops/capacite_equipe.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [
+    "Décision 6 : calendrier hebdomadaire et conversion des heures d'équipe"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_acces.py",
+      "departments/m04-field-ops/tests/test_admissibilite.py",
+      "departments/m04-field-ops/tests/test_capacite_equipe.py",
+      "departments/m04-field-ops/tests/test_capacite_equipe_outil.py"
+     ],
+     "docs": [
+      "departments/m04-field-ops/docs/capacite-equipe.md"
+     ],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Fiabilité et charge non calculées ; le profil n'a pas de calendrier hebdomadaire (capacite-equipe.md)."
+  },
+  {
+   "id": "M4.3",
+   "title": "Compétences, rôles et certifications",
+   "target": "Admissibilité des équipes par job.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/admissibilite.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_admissibilite.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Admissibilité testée ; aucune notion de certification (grep certification dans src M4 : 0).",
+   "verification": "grep certification : 0"
+  },
+  {
+   "id": "M4.4",
+   "title": "Disponibilités et feuilles de temps",
+   "target": "Punch in/out, pauses, temps de déplacement, dépassement d'heures ; M4 prépare, M5 valide la paie.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/pointage.py",
+    "departments/m04-field-ops/src/m4_field_ops/temps_certifies_v3.py",
+    "departments/m04-field-ops/src/m4_field_ops/heures_regulieres.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_pointage.py",
+      "departments/m04-field-ops/tests/test_temps.py",
+      "departments/m04-field-ops/tests/test_temps_certifies_v2.py",
+      "departments/m04-field-ops/tests/test_temps_certifies_v3.py",
+      "departments/m04-field-ops/tests/test_heures_regulieres.py",
+      "tests/e2e/test_liste_employe_appareil.py",
+      "tests/e2e/test_lectures_admin_m4_appareil.py"
+     ],
+     "docs": [
+      "departments/m04-field-ops/docs/heures-regulieres-validees.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Arrivée/départ, pauses (pause_debut/pause_fin) et catégories travail/déplacement/pause présents ; le dépassement d'heures existe (temps.depassement_detecte) mais le seuil est fourni par l'appelant et aucun dépassement n'est signalé sans seuil ; M4 prépare, ni paie ni écriture comptable."
+  },
+  {
+   "id": "M4.5",
+   "title": "Réception d'un job depuis M2/M3",
+   "target": "Une soumission acceptée devient une intervention à planifier.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/outils.py",
+    "departments/m04-field-ops/src/m4_field_ops/etats.py"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_consommer_devis_accepte.py",
+      "tests/test_cascade_devis_accepte.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "FAIT_PROUVE",
+   "limite": "SQLite + bus réel (S) ; idempotence et ordre inversé couverts ; ni natif, ni PostgreSQL rejoué ici."
+  },
+  {
+   "id": "M4.6",
+   "title": "Préparation du job",
+   "target": "Client confirmé, adresse validée, soumission acceptée, matériel connu, équipe admissible, météo, dépôt/finance.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/preparation.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_preparation.py",
+      "tests/e2e/test_manques_m4_appareil.py",
+      "departments/m04-field-ops/tests/test_materiel_pret_recu.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Cinq volets (soumission, adresse, équipe, matériel, météo) ; volet dépôt/finance absent."
+  },
+  {
+   "id": "M4.7",
+   "title": "Cédule intelligente",
+   "target": "Fenêtres client, durées, compétences, véhicules, urgence, météo, regroupement de jobs proches.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/cedule.py",
+    "departments/m04-field-ops/src/m4_field_ops/cedule_tournees.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_cedule.py",
+      "departments/m04-field-ops/tests/test_cedule_tournees.py",
+      "departments/m04-field-ops/tests/test_apercu_mois.py",
+      "departments/m04-field-ops/tests/test_pages_semaine.py",
+      "tests/test_console_cedule.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Cédule déterministe, aperçu mois/semaine, regroupement par tournées ; fenêtres client et contraintes véhicules non démontrées."
+  },
+  {
+   "id": "M4.8",
+   "title": "Optimisation de tournées (VRP)",
+   "target": "Fenêtres horaires ; meilleure solution et jobs non planifiés avec raisons.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/tournees.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Extra pyvrp absent de l'environnement local"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_tournees.py",
+      "departments/m04-field-ops/tests/test_cedule_tournees.py",
+      "departments/m04-field-ops/tests/test_matrice_grande_capacite.py"
+     ],
+     "docs": [
+      "docs/grs/field/M4-AUDIT-MATRICE-GRANDE-CAPACITE.md"
+     ],
+     "niveau": "T (skipped localement)"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "test_tournees.py est ignoré localement (20 skips : « could not import pyvrp ») : la preuve du solveur n'a pas été rejouée ici ; capacité 256 points « PARTIAL » selon l'audit ; aucun plan de 200 jobs en production."
+  },
+  {
+   "id": "M4.9",
+   "title": "Couche de fournisseurs de routage",
+   "target": "Cache, moteurs auto-hébergés, services cloud, repli approximatif.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/distances.py",
+    "departments/m04-field-ops/src/m4_field_ops/distances_osrm.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Fournisseurs de routage payants (Google, Mapbox) : gate Nathan"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_distances.py",
+      "departments/m04-field-ops/tests/test_distances_osrm.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Haversine + sidecar OSRM optionnel ; OSRM non démarré dans les preuves ; fournisseurs payants absents."
+  },
+  {
+   "id": "M4.10",
+   "title": "Météo et risques terrain",
+   "target": "Vent, pluie, neige, verglas, chaleur ; météo critique = blocage ou validation.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/meteo.py",
+    "departments/m04-field-ops/src/m4_field_ops/meteo_open_meteo.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_meteo.py",
+      "departments/m04-field-ops/tests/test_meteo_open_meteo.py",
+      "departments/m04-field-ops/tests/test_meteo_geomet.py",
+      "departments/m04-field-ops/tests/test_meteo_manuelle.py",
+      "departments/m04-field-ops/tests/test_meteo_http.py",
+      "tests/e2e/test_meteo_bloquante_appareil.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Fournisseurs open-meteo/geomet/manuel testés (réseau simulé) ; aucun appel réseau réel démontré."
+  },
+  {
+   "id": "M4.11",
+   "title": "Score d'équipe et d'adéquation",
+   "target": "Signaux opérationnels : adéquation, fatigue, équilibre de charge, tendance.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucune occurrence adéquation/fatigue dans src M4.",
+   "verification": "grep fatigue|adéquation|adequation dans src M4 : 0"
+  },
+  {
+   "id": "M4.12",
+   "title": "Tableau de dispatch",
+   "target": "Vue jour, semaine, carte, équipes, jobs bloqués, en retard, file de complétion.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "src/opsys/console/cedule_ui.py",
+    "src/opsys/console/journal_equipes.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_console_cedule.py",
+      "tests/test_console_mois_cedule.py",
+      "tests/test_console_journal_equipes.py",
+      "departments/m04-field-ops/tests/test_journal_quotidien.py",
+      "tests/test_approbations_completion_m4.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Consoles privées cédule/journaux/approbations testées ; pas de carte ; aucun navigateur (B)."
+  },
+  {
+   "id": "M4.13",
+   "title": "GPS en direct et géorepérage",
+   "target": "GPS actif seulement pendant les heures de travail, consentement, accès admin journalisé.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/consentement.py",
+    "departments/m04-field-ops/src/m4_field_ops/pointage.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Politique de géolocalisation en PROPOSITION"
+   ],
+   "decisions_nathan": [
+    "Validation de la politique de géolocalisation"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_geolocalisation_gps.py",
+      "departments/m04-field-ops/tests/test_consentement.py",
+      "departments/m04-field-ops/tests/test_localisation.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Pointage géolocalisé, consentement GPS versionné, lecture admin journalisée ; géorepérage absent (0 occurrence) ; suivi en direct dépend du mobile.",
+   "verification": "grep geofenc|géorepérage : 0"
+  },
+  {
+   "id": "M4.14",
+   "title": "ETA client et fenêtre de suivi",
+   "target": "Lien sécurisé, expiration automatique, aucun historique complet.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [
+    "Rôle client inexistant côté serveur (ROLES.md)",
+    "Notifications SMS via M1 (Twilio)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucun code ; aucun rôle `client`."
+  },
+  {
+   "id": "M4.15",
+   "title": "App terrain hors ligne d'abord",
+   "target": "File locale, synchronisation, photos en arrière-plan.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Phase mobile reportée à la fin (DEFINITION P14) ; aucun appareil"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_outbox.py",
+      "mobile/src/outbox/depot.test.ts",
+      "mobile/src/m4/pointage.test.ts",
+      "mobile/src/m4/completion.test.ts"
+     ],
+     "docs": [],
+     "niveau": "T (Jest)"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Outbox serveur et tests Jest du client (non rejoués ici) ; ne prouvent ni rendu téléphone ni pont natif Expo SQLite."
+  },
+  {
+   "id": "M4.16",
+   "title": "Exécution du job (machine à états)",
+   "target": "18 statuts (draft … closed, plus paused, blocked, cancelled, rescheduled), chaque transition auditée.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/etats.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_etats.py",
+      "departments/m04-field-ops/tests/test_etats_a_planifier.py",
+      "departments/m04-field-ops/tests/test_verdicts.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "La machine du code compte 9 états (planifiee, en_route, sur_site, en_revue, reportee, completed_pending_review, completed_verified, annulee, a_planifier) et 19 transitions autorisées ; les états draft, ready_to_schedule, scheduled, confirmed, materials_ready, assigned, started, paused, blocked, invoiced, closed de la définition n'existent pas sous ces noms.",
+   "ecart_analyse": "L'analyse d'écarts marquait l'écart de 18 statuts INCONNU ; vérifié dans etats.py : 9 états, correspondance partielle avec la définition."
+  },
+  {
+   "id": "M4.17",
+   "title": "Déclencheur de fin de travaux",
+   "target": "Cascade vers M6/M5/M2/M7/M3/M8/M9/M10.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/outbox.py",
+    "src/opsys/service_recalcul_m4.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Coût certifié M4→M5 non routé en production : service_recalcul_m4.ouvrir / service_lecture_m4.ouvrir lèvent *_NON_QUALIFIE"
+   ],
+   "decisions_nathan": [
+    "Décision 2 : routage et qualification du coût certifié"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "tests/e2e/test_travaux_termines_appareil.py",
+      "tests/test_cascade_travaux_termines.py",
+      "departments/m04-field-ops/tests/test_cascade_travaux_termines_variance.py",
+      "tests/test_cascade_marge_m5_m8_m10.py",
+      "tests/test_qa_m4_core_m5.py"
+     ],
+     "docs": [],
+     "niveau": "S+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "WCT, déclaration M6 et consommateurs prouvés en S/H ; le coût complet M5 n'est pas routé en production, la facture brouillon M5 automatique n'est pas prouvée comme conséquence du WCT.",
+   "verification": "service_recalcul_m4.py:386 et service_lecture_m4.py:499 lèvent *_NON_QUALIFIE"
+  },
+  {
+   "id": "M4.18",
+   "title": "Matériel utilisé et synchronisation avec M6",
+   "target": "Formulaire des matériaux utilisés à la fin du chantier, synchronisé avec M6.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [
+    "Décision 3 : déclaration des matériaux par équipe"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "tests/e2e/test_travaux_termines_appareil.py",
+      "tests/e2e/test_materiel_pret_appareil.py",
+      "departments/m04-field-ops/tests/test_materiel.py",
+      "departments/m04-field-ops/tests/test_materiel_pret_recu.py"
+     ],
+     "docs": [],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "FAIT_PROUVE",
+   "limite": "Formulaire M6 par la porte d'appareil et lecture de m6.materiel_pret prouvés (H, porte Python, pas Core natif). Pour un WCT d'équipe, l'employé est refusé (REJ-INTERVENTION-NON-ASSIGNEE) tant que la décision 3 n'est pas prise."
+  },
+  {
+   "id": "M4.19",
+   "title": "Preuves terrain",
+   "target": "Photos avant/pendant/après, signature, note, GPS d'arrivée, temps.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/preuves.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_preuves.py",
+      "departments/m04-field-ops/tests/test_preuves_completion_durables.py",
+      "mobile/src/signature/dataUrl.test.ts"
+     ],
+     "docs": [
+      "docs/grs/field/M4-AUDIT-PERSISTANCE-PREUVES-COMPLETION.md"
+     ],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Preuves de complétion durables côté serveur ; signature client côté serveur non confirmée ; client mobile Jest seulement."
+  },
+  {
+   "id": "M4.20",
+   "title": "Incidents, retards, avenants",
+   "target": "Un avenant qui augmente le prix exige validation humaine + M3/M5/M2.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/retards.py",
+    "departments/m04-field-ops/src/m4_field_ops/ecarts.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_retards.py",
+      "departments/m04-field-ops/tests/test_retards_outil.py",
+      "departments/m04-field-ops/tests/test_ecarts.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Retards et demandes d'écart avec revue humaine ; avenants absents (0 occurrence) ; incidents peu structurés.",
+   "verification": "grep avenant dans src M4 : 0"
+  },
+  {
+   "id": "M4.21",
+   "title": "Replanification et dépannage",
+   "target": "Replanifier après météo, absence, retard ; dépannage.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_etats.py",
+      "departments/m04-field-ops/tests/test_cedule.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Transition reportee→planifiee et cédule ; dépannage absent."
+  },
+  {
+   "id": "M4.22",
+   "title": "Analytique terrain vers M8/M9",
+   "target": "Signaux opérationnels vers M8 et M9.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [
+    "departments/m04-field-ops/src/m4_field_ops/capacite_equipe.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_cascade_mesure_m8_m9.py",
+      "tests/test_m9_snapshots_chantier_bus.py",
+      "departments/m04-field-ops/tests/test_capacite_equipe_outil.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "m8.snapshot_chantier et producteur m4_lire_capacite_equipe présents ; la consommation par M9 doit être lue dans la matrice M9."
+  },
+  {
+   "id": "M4.23",
+   "title": "Pont temps → paie vers M5",
+   "target": "Export des temps vers M5.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_heures_pont_m5.py",
+      "departments/m04-field-ops/tests/test_heures_regulieres.py",
+      "departments/m04-field-ops/tests/test_paie_horloge_appareil.py"
+     ],
+     "docs": [
+      "departments/m04-field-ops/docs/heures-regulieres-validees.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Heures régulières validées et lecture privée M5 ; ni paie ni écriture comptable."
+  },
+  {
+   "id": "M4.24",
+   "title": "Intégration mémoire",
+   "target": "Décisions de cédule et fin de travaux dans M10.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M4) : Réception de jobs, préparation, cédule, optimisation en production, météo, dispatch, mobile employé, GPS, ETA respectueux de la vie privée, machine à états, déclencheur de fin de travaux avec synchronisation M6 et facture brouillon M5, incidents et replanification, export des temps vers M5 ; tests unitaires, d'intégration et E2E verts ; aucune promesse impossible, aucun GPS abusif, aucune action financière ou RH sensible sans validation.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_cascade_travaux_termines.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "M10 consomme m4.travaux_termines ; décisions de cédule non écrites en M10."
+  }
+ ]
+}

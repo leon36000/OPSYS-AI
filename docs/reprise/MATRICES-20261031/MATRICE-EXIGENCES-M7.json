@@ -1,0 +1,453 @@
+{
+ "schema": "opsys.mission.requirements.v1",
+ "mission": "MATRICE-EXIGENCES-M7",
+ "module": "M7",
+ "scope_preserved": "M7.1–M7.15",
+ "canonical_source": "docs/produit/DEFINITION-PRODUIT.md §7 M7 ; docs/produit/PERIMETRE-MODULES.md M7.1–M7.15 ; docs/grs/marketing/M7-MATRICE-CAPACITES-2026-09-30.md",
+ "base_sha": "83efcd82bd86938d700887605124622e11efbeaa",
+ "date": "2026-10-31",
+ "initial_status_is_not_a_fresh_runtime_verdict": true,
+ "initial_status_source": "docs analyse d'écarts du 2026-10-31 (ANALYSE-ECARTS-MODULES.md) ; current_status = vérifié dans le code et les tests de la base_sha",
+ "statuses": [
+  "FAIT_PROUVE",
+  "PARTIEL",
+  "SIMULE",
+  "ABSENT",
+  "INCONNU"
+ ],
+ "proof_levels": {
+  "T": "test unitaire ou de module en processus, sans parcours de bout en bout",
+  "S": "parcours en processus Python sur base SQLite réelle et bus d'événements réel, sans HTTP",
+  "H": "HTTP MCP réel avec la porte d'appareil réécrite en Python (tests/fixtures/harnais_e2e.py) : pas le Core natif",
+  "P": "test PostgreSQL présent ; son exécution (CI) n'est pas rejouée ni affirmée par cette matrice",
+  "N": "Core/Gateway natif TypeScript réel",
+  "B": "navigateur réel",
+  "M": "téléphone ou émulateur (jamais atteint)"
+ },
+ "run_summary": {
+  "suite_du_departement": "departments/m07-marketing/tests rejoué le 2026-10-31 sur la base_sha : 1210 passed, 0 failed, 0 skipped",
+  "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
+  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
+ },
+ "requirements": [
+  {
+   "id": "M7.1",
+   "title": "Brand Core / identité de marque",
+   "target": "Voix, promesse, zones desservies, messages interdits, garde-fous de marque.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Validation de la marque par Nathan : profile.yaml est un GABARIT"
+   ],
+   "decisions_nathan": [
+    "Validation du profil de marque"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/test_brand_schema.py",
+      "departments/m07-marketing/tests/test_brand_e2e.py",
+      "departments/m07-marketing/tests/test_brand_profil_client.py",
+      "tests/test_console_brand.py",
+      "tests/test_console_marketing_marque_inbox.py"
+     ],
+     "docs": [
+      "docs/grs/marketing/M7-MARQUE-USINE-R44A.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Schéma, console et révisions durables testés ; le profil source est un gabarit non validé."
+  },
+  {
+   "id": "M7.2",
+   "title": "Centre de commande des réseaux sociaux",
+   "target": "Comptes, calendrier, brouillons, publication assistée ; à défaut paquet manuel.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [
+    "departments/m07-marketing/src/m7_marketing/social/postiz_adapter.py",
+    "src/opsys/console/calendrier_marketing_ui.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "OAuth Google Ads / Search Console / GBP / Meta / TikTok / LinkedIn / YouTube non fournis (gates DEFINITION §7 M7)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/test_postiz_adapter.py",
+      "tests/test_console_calendrier_marketing.py",
+      "departments/m07-marketing/tests/usine/test_calendrier_durable.py",
+      "departments/m07-marketing/tests/usine/test_paquet.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Export manuel durable et calendrier testés ; l'adaptateur Postiz est en dry-run/refus ; aucune API sociale, aucune publication réelle exercée."
+  },
+  {
+   "id": "M7.3",
+   "title": "Usine à contenu (chantier → contenu)",
+   "target": "Détecter un chantier terminé, photos et notes, variantes par plateforme, contrôle de marque et de confidentialité, validation, export, mesure.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/usine/test_chantier.py",
+      "departments/m07-marketing/tests/usine/test_revision_humaine.py",
+      "departments/m07-marketing/tests/usine/test_controle_texte.py",
+      "departments/m07-marketing/tests/test_evenements_travaux_termines.py",
+      "tests/e2e/test_usine_contenu_appareil.py",
+      "tests/test_stop_retire_consentement_marketing.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Flux WCT M4 → consentement → texte → décisions → export prouvé (S/H) ; consentement client à fournir ; exports ≠ publications."
+  },
+  {
+   "id": "M7.4",
+   "title": "Moteur de croissance organique",
+   "target": "Métriques, plan 30 jours ; aucun faux abonné, like, pod ou spam.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/test_growth_lecture.py",
+      "tests/test_console_growth.py",
+      "departments/m07-marketing/tests/test_brand_growth_local.py"
+     ],
+     "docs": [
+      "docs/grs/marketing/M7-GROWTH-SAISIE-HUMAINE-2026-10-03.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Saisie humaine privée de métriques ; aucun import analytics réel ; aucune croissance calculée."
+  },
+  {
+   "id": "M7.5",
+   "title": "Réputation",
+   "target": "Suivi des avis Google, demandes d'avis, brouillons de réponse, alerte d'avis négatif.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "OAuth Google Ads / Search Console / GBP / Meta / TikTok / LinkedIn / YouTube non fournis (gates DEFINITION §7 M7)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/reputation/test_inbox_durable.py",
+      "departments/m07-marketing/tests/reputation/test_reputation_classifier.py",
+      "departments/m07-marketing/tests/reputation/test_demande_avis.py",
+      "departments/m07-marketing/tests/test_lister_demandes_avis.py",
+      "tests/e2e/test_demande_d_avis_appareil.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Import manuel durable ; fixture d'avis réelle absente (1 skip déclaré par l'analyse) ; aucune lecture GBP."
+  },
+  {
+   "id": "M7.6",
+   "title": "SEO local et contenu SEO",
+   "target": "Search Console, positions, pages locales.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [
+    "departments/m07-marketing/src/m7_marketing/seo/seo_audit.py",
+    "departments/m07-marketing/src/m7_marketing/site/generator.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "OAuth Google Ads / Search Console / GBP / Meta / TikTok / LinkedIn / YouTube non fournis (gates DEFINITION §7 M7)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/test_seo_audit.py",
+      "departments/m07-marketing/tests/test_site_generator.py",
+      "departments/m07-marketing/tests/test_site_guardrail.py",
+      "departments/m07-marketing/tests/aeo/test_aeo_rules.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Audit local et génération de site sans réseau ; aucun compte GSC/GBP ; aucune donnée d'impressions/clics."
+  },
+  {
+   "id": "M7.7",
+   "title": "Médias payants et intelligence publicitaire",
+   "target": "Lecture des campagnes et coûts, simulation, approbation de toute modification.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [
+    "departments/m07-marketing/src/m7_marketing/ads/ads_loader.py"
+   ],
+   "initial_status": "SIMULE",
+   "gates_to_resolve_or_keep_open": [
+    "OAuth Google Ads / Search Console / GBP / Meta / TikTok / LinkedIn / YouTube non fournis (gates DEFINITION §7 M7)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/ads/test_ads_intelligence.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "SIMULE",
+   "limite": "ads_loader refuse toute donnée qui n'est pas marquée fictif: true ; aucune lecture ni écriture de compte publicitaire.",
+   "verification": "ads_loader.py:27 exige fictif: true"
+  },
+  {
+   "id": "M7.8",
+   "title": "ROI et attribution",
+   "target": "Marketing → leads → ventes → profit.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [
+    "departments/m07-marketing/src/m7_marketing/performance_campagnes.py",
+    "departments/m07-marketing/src/m7_marketing/depenses_marketing.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Coût certifié M4→M5 non routé en production"
+   ],
+   "decisions_nathan": [
+    "Décision 6 : qui saisit les dépenses marketing"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/roi/test_roi.py",
+      "departments/m07-marketing/tests/attribution/test_attribution.py",
+      "departments/m07-marketing/tests/test_performance_campagnes.py",
+      "departments/m07-marketing/tests/test_depenses_marketing.py",
+      "tests/test_console_couts_marketing.py",
+      "tests/e2e/test_formulaire_utm_bout_en_bout.py"
+     ],
+     "docs": [
+      "docs/grs/marketing/M7-ROI-CANONIQUE-AUDIT.md",
+      "docs/grs/marketing/M7-COUTS-AFFECTES.md"
+     ],
+     "niveau": "T+S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Chaîne lead/UTM et coûts affectés testés ; ROI « non calculé » tant que le coût certifié et les relevés de dépenses manquent ; impressions/clics sans source."
+  },
+  {
+   "id": "M7.9",
+   "title": "Veille concurrentielle",
+   "target": "Sources publiques légales avec niveau de confiance.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [],
+   "initial_status": "SIMULE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/competitive/test_loader.py",
+      "departments/m07-marketing/tests/competitive/test_rules.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "SIMULE",
+   "limite": "Slug local et fictif: true, sans réseau."
+  },
+  {
+   "id": "M7.10",
+   "title": "Marketing local hors ligne",
+   "target": "Camions, pancartes, dépliants, QR, UTM, programme de référence.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [
+    "departments/m07-marketing/src/m7_marketing/local.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/test_local_lecture_couts.py",
+      "departments/m07-marketing/tests/utm/test_utm_generateur.py",
+      "departments/m07-marketing/tests/utm/test_utm_integration.py",
+      "departments/m07-marketing/tests/test_brand_growth_local.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Campagnes locales en brouillon, UTM déterministe ; coûts et attribution manuels."
+  },
+  {
+   "id": "M7.11",
+   "title": "Conseiller CMO stratégique",
+   "target": "Diagnostic, plans 30/60/90, rapport hebdomadaire, campagnes saisonnières.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [
+    "departments/m07-marketing/src/m7_marketing/plan_cmo.py",
+    "departments/m07-marketing/src/m7_marketing/cmo_strategie.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m07-marketing/tests/test_cmo_strategie.py",
+      "departments/m07-marketing/tests/workflows/test_campagne_saisonniere.py",
+      "tests/test_console_performance_marketing.py"
+     ],
+     "docs": [
+      "docs/grs/marketing/M7-RAPPORT-ACQUISITION-SOURCEE.md",
+      "docs/grs/marketing/M7-CMO-PROGRAMME-DURABLE-2026-10-03.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Plans et rapport d'acquisition sourcé ; aucune stratégie fondée sur des données réelles de canal."
+  },
+  {
+   "id": "M7.12",
+   "title": "Tableau de bord marketing",
+   "target": "Calendrier, briefs, bibliothèque, qualité, approbations, avis, campagnes, ROI, connecteurs.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [
+    "src/opsys/console/frontoffice_marketing.py",
+    "src/opsys/console/calendrier_marketing_ui.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_console_calendrier_marketing.py",
+      "tests/test_console_performance_marketing.py",
+      "tests/test_console_marketing_marque_usine.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Consoles privées ; aucun navigateur (B) ; pas de surface connecteurs."
+  },
+  {
+   "id": "M7.13",
+   "title": "Mobile marketing",
+   "target": "Admin valide ; vendeur et employé fournissent photos/notes ; l'employé ne publie pas.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Phase mobile finale (DEFINITION P14)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "mobile/src/m7/contrat.test.ts",
+      "mobile/src/m7/controle.test.ts",
+      "mobile/src/m7/decisionOutbox.test.ts"
+     ],
+     "docs": [
+      "docs/grs/marketing/M7-MOBILE-REVUE-TEXTES-2026-10-04.md"
+     ],
+     "niveau": "T (Jest)"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Tests Jest sous mobile/src/m7 (non rejoués ici) ; file « À voir » générique ; pas de surface M7 dédiée."
+  },
+  {
+   "id": "M7.14",
+   "title": "E2E marketing",
+   "target": "Chantier Repentigny → variantes → contrôles → approbation → export ou publication → mesure → rapport.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/e2e/test_marketing_admin_appareil.py",
+      "tests/e2e/test_usine_contenu_appareil.py",
+      "tests/e2e/test_formulaire_utm_bout_en_bout.py"
+     ],
+     "docs": [],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Chaîne jusqu'à l'export prouvée (H) ; publication réelle non qualifiée ; pas de mesure de plateforme."
+  },
+  {
+   "id": "M7.15",
+   "title": "Docs et traces",
+   "target": "Outils/API, sources et permissions, workflows, tests, limites OAuth/plateforme, coûts, statut fin.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M7) : Brand Core, usine à contenu, calendrier social et approbations fonctionnels ; chantier → contenu ; au moins un workflow automatisé ; lecture réelle ou simulée explicitement de Matomo/SerpBear ; ROI lié à M2 et M5 ; moteur de réputation ; plan stratégique fondé sur les données ; publications publiques toujours validées ; export manuel si accès absents ; E2E vert (chantier de gouttières terminé → 5 contenus → approbation → publication ou export → mesure).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [],
+     "docs": [
+      "docs/grs/marketing/M7-MATRICE-CAPACITES-2026-09-30.md",
+      "docs/grs/marketing/M7-GAPMAP-REPRISE-2026-10-03.md"
+     ],
+     "niveau": "-"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Matrice de département datée du 30 septembre avec actualisations ; la présente matrice la complète sans la remplacer."
+  }
+ ]
+}

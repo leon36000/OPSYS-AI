@@ -1,0 +1,406 @@
+{
+ "schema": "opsys.mission.requirements.v1",
+ "mission": "MATRICE-EXIGENCES-M2",
+ "module": "M2",
+ "scope_preserved": "M2.1–M2.15",
+ "canonical_source": "docs/produit/DEFINITION-PRODUIT.md §7 M2",
+ "base_sha": "83efcd82bd86938d700887605124622e11efbeaa",
+ "date": "2026-10-31",
+ "initial_status_is_not_a_fresh_runtime_verdict": true,
+ "initial_status_source": "docs analyse d'écarts du 2026-10-31 (ANALYSE-ECARTS-MODULES.md) ; current_status = vérifié dans le code et les tests de la base_sha",
+ "statuses": [
+  "FAIT_PROUVE",
+  "PARTIEL",
+  "SIMULE",
+  "ABSENT",
+  "INCONNU"
+ ],
+ "proof_levels": {
+  "T": "test unitaire ou de module en processus, sans parcours de bout en bout",
+  "S": "parcours en processus Python sur base SQLite réelle et bus d'événements réel, sans HTTP",
+  "H": "HTTP MCP réel avec la porte d'appareil réécrite en Python (tests/fixtures/harnais_e2e.py) : pas le Core natif",
+  "P": "test PostgreSQL présent ; son exécution (CI) n'est pas rejouée ni affirmée par cette matrice",
+  "N": "Core/Gateway natif TypeScript réel",
+  "B": "navigateur réel",
+  "M": "téléphone ou émulateur (jamais atteint)"
+ },
+ "run_summary": {
+  "suite_du_departement": "departments/m02-revenue-crm/tests rejoué le 2026-10-31 sur la base_sha : 1899 passed, 0 failed, 0 skipped",
+  "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
+  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
+ },
+ "requirements": [
+  {
+   "id": "M2.1",
+   "title": "Intégrité et audit du CRM",
+   "target": "Orphelins, champs requis, garde anti-régression.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/registre.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/frontieres.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_registre.py",
+      "departments/m02-revenue-crm/tests/test_registre_durable.py",
+      "departments/m02-revenue-crm/tests/test_isolation_modules.py",
+      "departments/m02-revenue-crm/tests/test_conformite_m1.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Registre hash-chaîné et frontières testés ; aucun outil d'audit d'orphelins ou de champs requis identifié (grep orphelin/champs requis : commentaires seulement).",
+   "verification": "outils m2_* relus : aucun outil d'audit d'intégrité"
+  },
+  {
+   "id": "M2.2",
+   "title": "Client 360",
+   "target": "Fiche totale : interactions, photos, soumissions, factures, chantiers, plaintes, valeur, préférences, mémoire.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/clients.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/interactions.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/contact_memoire.py",
+    "src/opsys/console/crm_ui.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_clients.py",
+      "departments/m02-revenue-crm/tests/test_outils_agent.py",
+      "tests/test_console_crm.py",
+      "tests/test_contact_m2_m10.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Neuf sections avec état « affichée / source non branchée / non disponible » : photos, factures, plaintes, valeur, préférences sont « source non branchée ». M2 n'est pas source financière."
+  },
+  {
+   "id": "M2.3",
+   "title": "Profil de propriété",
+   "target": "Type de bâtiment, étages, matériaux, historique, accès, photos, services potentiels.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [
+    "Définition du profil de propriété avec M3 (M3.2)"
+   ],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucun module ; les occurrences de « propriété » désignent le propriétaire d'un lead.",
+   "verification": "grep profil_propriete|type_batiment|etages dans src M2 : 0"
+  },
+  {
+   "id": "M2.4",
+   "title": "Lead scoring 2.0",
+   "target": "Qualité, urgence, conversion, rentabilité, préparation, risque.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [
+    "Politique de profilage Loi 25 « à venir » non rédigée"
+   ],
+   "decisions_nathan": [
+    "Poids et seuils du scoring ; feu vert profilage"
+   ],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucun score dans M2 (grep scor : 0) ; le score de M1 reste dans M1.",
+   "verification": "grep -rniE scor departments/m02-revenue-crm/src : 0"
+  },
+  {
+   "id": "M2.5",
+   "title": "Préparation à l'estimation",
+   "target": "Le lead est-il prêt pour M3 ? Que manque-t-il ?",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/readiness.py",
+    "src/opsys/readiness_m2.py"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_readiness.py",
+      "tests/test_estimation_readiness_m2_durable.py",
+      "tests/e2e/test_readiness_m2_m3_concurrente.py"
+     ],
+     "docs": [
+      "docs/verification/m3-20261026.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "FAIT_PROUVE",
+   "limite": "Périmètre SQLite/processus (S). Le test test_readiness_binds_exact_frozen_contract couvre le défaut du contrat canonique altéré ; la variante PostgreSQL de concurrence est présente mais non rejouée ici ; le certificat natif antérieur reste « product_bug:true, fixed:false » dans le checkpoint : à rapprocher d'un rejeu natif.",
+   "verification": "tests rejoués : suite M2 (1899 verts) ; test_estimation_readiness_m2_durable.py rejoué avec la liste des tests du socle"
+  },
+  {
+   "id": "M2.6",
+   "title": "Prochaine meilleure action",
+   "target": "Avec explication.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/suggestions.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_suggestions.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Peu de règles (texte fixe citant sa règle) ; pas de classement par valeur."
+  },
+  {
+   "id": "M2.7",
+   "title": "Relances",
+   "target": "Séquences, dormants, ancien client, saisonnier, avis, référence.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/relances.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/consentements.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/gabarits_relance.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Politique de consentement SMS en PROPOSITION (validation écrite de Nathan)",
+    "Envoi réel T2.1-c inexistant"
+   ],
+   "decisions_nathan": [
+    "Délais de relance (configuration.relances vide à dessein)",
+    "Politique de consentement SMS en PROPOSITION (validation écrite de Nathan)"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_relances.py",
+      "departments/m02-revenue-crm/tests/test_relances_outils.py",
+      "departments/m02-revenue-crm/tests/test_consentements.py",
+      "departments/m02-revenue-crm/tests/test_gabarits_relance.py",
+      "tests/e2e/test_relances_vendeur_appareil.py",
+      "tests/test_cascade_relances.py"
+     ],
+     "docs": [],
+     "niveau": "S+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Deux règles seulement ; délais vides à dessein (REJ-RELANCES-A-CONFIGURER) ; M2 prépare mais n'envoie rien."
+  },
+  {
+   "id": "M2.8",
+   "title": "Intelligence des soumissions",
+   "target": "Statut, probabilité d'acceptation, objections, raison de perte, passage à M4 et M5.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/statuts.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_cascade_devis_accepte.py",
+      "departments/m02-revenue-crm/tests/test_consommer_devis_accepte.py",
+      "departments/m02-revenue-crm/tests/test_consommer_devis_envoye.py",
+      "departments/m02-revenue-crm/tests/test_statuts.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Conversion sur m3.devis_accepte, devis_envoye, devis_sans_reponse ; motif obligatoire pour « perdu ». Ni probabilité d'acceptation ni objections."
+  },
+  {
+   "id": "M2.9",
+   "title": "Coach de vente IA",
+   "target": "Coaching de vente.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucune occurrence (grep coach : 0).",
+   "verification": "grep -rniE coach departments/m02-revenue-crm/src : 0"
+  },
+  {
+   "id": "M2.10",
+   "title": "Attribution des sources et retour vers M7",
+   "target": "UTM jusqu'à M8 ; qualité des leads, conversion et raisons de perte renvoyées à M7.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/department.yaml"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/e2e/test_formulaire_utm_bout_en_bout.py",
+      "tests/test_utm_derive_m2.py"
+     ],
+     "docs": [],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "UTM porté M1→M2→M8 ; M2 ne publie que client_associe, lead_assigne, contact_corrige : aucun événement de retour vers M7.",
+   "verification": "department.yaml M2 evenements.publie relu"
+  },
+  {
+   "id": "M2.11",
+   "title": "Segmentation (14 segments)",
+   "target": "hot_lead, needs_photos, estimate_ready, quote_sent, quote_stale, won_pending_schedule, active_job, invoice_pending, past_customer, high_value_customer, referral_candidate, complaint_risk, dormant_lead, seasonal_opportunity.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/segments.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/liste_leads.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [
+    "Seuils dormant_lead et quote_stale (configuration.segments vide à dessein)"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_segments.py",
+      "departments/m02-revenue-crm/tests/test_liste_leads.py",
+      "departments/m02-revenue-crm/tests/test_lister_leads_outil.py",
+      "tests/e2e/test_liste_leads_vendeur.py"
+     ],
+     "docs": [],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "8 segments calculables sur 14 ; 6 rendent « non calculable, manque X » (needs_photos, quote_sent, high_value_customer, referral_candidate, complaint_risk, seasonal_opportunity) ; quote_sent reste non calculable bien que M2 consomme m3.devis_envoye ; deux segments sans seuil configuré.",
+   "verification": "segments.py::_MANQUES_STRUCTURELS relu"
+  },
+  {
+   "id": "M2.12",
+   "title": "Graphe d'identité et doublons",
+   "target": "Fusion proposée, jamais automatique, journalisée.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/doublons.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_doublons.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Détection et arbitrage humain (m2_arbitrer_doublon) ; pas de graphe d'identité ni d'exécution de fusion."
+  },
+  {
+   "id": "M2.13",
+   "title": "SLA et prévention de perte de leads",
+   "target": "SLA et alertes proactives.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/agenda_vendeurs.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_segments.py",
+      "departments/m02-revenue-crm/tests/test_agenda_vendeurs.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Segments hot_lead/dormant_lead et agenda vendeur ; SLA non configurés ; pas d'alertes proactives."
+  },
+  {
+   "id": "M2.14",
+   "title": "Références et affaires répétées",
+   "target": "Réouverture d'opportunité pour affaire répétée, références.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_cascade_opportunite_m10.py",
+      "departments/m02-revenue-crm/tests/test_evenements.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Réouverture d'opportunité <lead>~opp~<wct> ; referral_candidate non calculable."
+  },
+  {
+   "id": "M2.15",
+   "title": "Analytique et prévisions commerciales",
+   "target": "Analytique et prévisions du pipeline.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucune prévision dans M2 (grep prévision : 0) ; M8 couvre l'entonnoir (entonnoir.py).",
+   "verification": "grep prévision|prevision dans src M2 : 0"
+  }
+ ]
+}

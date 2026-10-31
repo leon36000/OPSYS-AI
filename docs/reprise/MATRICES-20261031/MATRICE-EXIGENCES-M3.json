@@ -1,0 +1,516 @@
+{
+ "schema": "opsys.mission.requirements.v1",
+ "mission": "MATRICE-EXIGENCES-M3",
+ "module": "M3",
+ "scope_preserved": "M3.1–M3.18",
+ "canonical_source": "docs/produit/DEFINITION-PRODUIT.md §7 M3",
+ "base_sha": "83efcd82bd86938d700887605124622e11efbeaa",
+ "date": "2026-10-31",
+ "initial_status_is_not_a_fresh_runtime_verdict": true,
+ "initial_status_source": "docs analyse d'écarts du 2026-10-31 (ANALYSE-ECARTS-MODULES.md) ; current_status = vérifié dans le code et les tests de la base_sha",
+ "statuses": [
+  "FAIT_PROUVE",
+  "PARTIEL",
+  "SIMULE",
+  "ABSENT",
+  "INCONNU"
+ ],
+ "proof_levels": {
+  "T": "test unitaire ou de module en processus, sans parcours de bout en bout",
+  "S": "parcours en processus Python sur base SQLite réelle et bus d'événements réel, sans HTTP",
+  "H": "HTTP MCP réel avec la porte d'appareil réécrite en Python (tests/fixtures/harnais_e2e.py) : pas le Core natif",
+  "P": "test PostgreSQL présent ; son exécution (CI) n'est pas rejouée ni affirmée par cette matrice",
+  "N": "Core/Gateway natif TypeScript réel",
+  "B": "navigateur réel",
+  "M": "téléphone ou émulateur (jamais atteint)"
+ },
+ "run_summary": {
+  "suite_du_departement": "departments/m03-estimation/tests rejoué le 2026-10-31 sur la base_sha : 2491 passed, 0 failed, 9 skipped (8 tests de test_mesure_plan.py : extra vision-photo absent ; 1 garde de CI) en excluant test_gardes_des_outils.py (32 tests d'outils de preuve de mutation) : ce fichier échoue (« n'a pas restauré son entrée capturée ») aussi en exécution isolée, cause non investiguée, donc non concluant",
+  "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
+  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
+ },
+ "requirements": [
+  {
+   "id": "M3.1",
+   "title": "Intake depuis M2 et vérification de préparation",
+   "target": "Un lead n'entre en estimation que si la préparation canonique M2 est valide.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/estimation.py",
+    "src/opsys/readiness_m2.py"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_estimation_readiness_m2_durable.py",
+      "tests/e2e/test_m3_ecritures_concurrentes.py",
+      "departments/m03-estimation/tests/test_ecritures_concurrentes.py",
+      "tests/test_besoins_profil_estimation_durable.py"
+     ],
+     "docs": [
+      "docs/verification/m3-20261026.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "FAIT_PROUVE",
+   "limite": "SQLite/processus (S) ; variante PostgreSQL de concurrence présente, non rejouée ici ; le certificat natif antérieur (contrat canonique altéré accepté) n'est pas rapproché d'un rejeu natif.",
+   "verification": "test_readiness_binds_exact_frozen_contract présent dans test_estimation_readiness_m2_durable.py"
+  },
+  {
+   "id": "M3.2",
+   "title": "Contexte de la propriété et du site",
+   "target": "Adresse, distance, accès, historique.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [
+    "Budgets d'API externes (géocodage, Street View)"
+   ],
+   "decisions_nathan": [
+    "Budgets API géospatiaux"
+   ],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucun géocodage/Street View dans M3 ; l'index local de localisation vit dans M4 (localisation.py).",
+   "verification": "grep geocod|street view|nominatim dans src M3 : 0"
+  },
+  {
+   "id": "M3.3",
+   "title": "Pipeline de vision",
+   "target": "Qualité d'image, classification, détection, segmentation, annotation, sans halluciner.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/mesure_plan.py",
+    "departments/m03-estimation/src/m3_estimation/politique_photos.py"
+   ],
+   "initial_status": "SIMULE",
+   "gates_to_resolve_or_keep_open": [
+    "Politique photos non contractuelles : STATUT_VALIDATION = proposition (aucune collecte réelle tant que non valide)"
+   ],
+   "decisions_nathan": [
+    "Validation de la politique photos"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_mesure_plan.py",
+      "departments/m03-estimation/tests/test_politique_photos.py",
+      "departments/m03-estimation/tests/test_qualite_photos.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "SIMULE",
+   "limite": "Homographie OpenCV sur image synthétique ; ModeSource.PHOTO_REELLE refusée ; 8 tests de test_mesure_plan.py sont ignorés localement (extra vision-photo absent). Aucune photo réelle lue."
+  },
+  {
+   "id": "M3.4",
+   "title": "Qualité des photos et confiance des mesures",
+   "target": "Résolution, flou, angles, échelle, complétude ; demande précise de photos manquantes.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/qualite_photos.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_qualite_photos.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Travaille sur des métadonnées déclarées (largeur, hauteur, seuils fournis), pas sur l'image : flou, angle et échelle non mesurés."
+  },
+  {
+   "id": "M3.5",
+   "title": "Détection et segmentation (Grounding DINO + SAM2)",
+   "target": "Détection et segmentation avec replis (mesure manuelle, OpenCV de base, annotation humaine).",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [
+    "SAM2 en production sur GPU"
+   ],
+   "decisions_nathan": [
+    "GPU et budgets pour SAM2"
+   ],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucun code SAM2/Grounding DINO (seule mention : commentaire de politique_photos.py) ; repli manuel partiel via champs d'échelle.",
+   "verification": "grep sam2|grounding dans src M3 : mention de roadmap uniquement"
+  },
+  {
+   "id": "M3.6",
+   "title": "Moteur de mesure avec bornes d'incertitude",
+   "target": "Une photo sans échelle = plage ou hypothèse.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/hierarchie_echelle.py",
+    "departments/m03-estimation/src/m3_estimation/blocage_prix.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_hierarchie_echelle.py",
+      "departments/m03-estimation/tests/test_blocage_prix.py",
+      "departments/m03-estimation/tests/test_mesure_plan.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Garde correcte et testée (prix bloqué sans référence d'échelle) ; mesure réelle absente."
+  },
+  {
+   "id": "M3.7",
+   "title": "Estimation géospatiale (Québec)",
+   "target": "Normalisation d'adresse, distance, région.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [
+    "Budgets d'API externes"
+   ],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Voir M3.2."
+  },
+  {
+   "id": "M3.8",
+   "title": "Estimateurs par service",
+   "target": "Gouttières et descentes, revêtement, soffite/fascia, réparation.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/estimation.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Barème, seuils de revue, taux et minimum rentable vides à dessein (configuration M3)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_estimation.py",
+      "departments/m03-estimation/tests/test_estimation_risquee.py",
+      "departments/m03-estimation/tests/test_estimation_scenarios.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Un poste de barème par service fourni par l'appelant ; pas d'estimateurs distincts par service ; aucun barème dans le dépôt (jamais codé en dur)."
+  },
+  {
+   "id": "M3.9",
+   "title": "Matériaux et main-d'œuvre",
+   "target": "Prix de M6 ; à défaut grille interne versionnée fallback_price_book.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/besoins_materiaux.py",
+    "departments/m03-estimation/src/m3_estimation/provenance_tarifs.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Unité des prix M6 non déclarée"
+   ],
+   "decisions_nathan": [
+    "Confirmation de l'unité des prix M6"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_besoins_materiaux.py",
+      "tests/test_cascade_besoins_materiaux.py",
+      "departments/m03-estimation/tests/test_provenance_tarifs_devis.py",
+      "departments/m03-estimation/tests/test_gate_besoins_materiaux.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Besoins publiés vers M6 (m3.besoins_materiaux) prouvés en S ; unité des prix non déclarée ; main-d'œuvre : seuls les paramètres fournis."
+  },
+  {
+   "id": "M3.10",
+   "title": "Risque et complexité",
+   "target": "Hauteur, accès, pente, arbres, photos faibles, distance, urgence, petit chantier non rentable.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/revue_devis.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Barème, seuils de revue, taux et minimum rentable vides à dessein (configuration M3)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_revue_devis.py",
+      "departments/m03-estimation/tests/test_estimation_risquee.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "11 critères de revue ; seuils vides donc critères « non évaluables » ; hauteur, pente, arbres absents."
+  },
+  {
+   "id": "M3.11",
+   "title": "Prix et marge",
+   "target": "Minimum rentable, plages, scénarios prudent/normal/agressif ; jamais sous le minimum sans alerte rouge.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/scenarios.py",
+    "departments/m03-estimation/src/m3_estimation/plancher.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Barème, seuils de revue, taux et minimum rentable vides à dessein (configuration M3)"
+   ],
+   "decisions_nathan": [
+    "minimum_rentable_cad, taux et scénarios de prix"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_scenarios.py",
+      "departments/m03-estimation/tests/test_plancher.py",
+      "departments/m03-estimation/tests/test_estimation_scenarios.py",
+      "departments/m03-estimation/tests/test_outils_scenarios.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Mécanique testée ; minimum rentable et taux vides donc aucun prix chiffré par défaut."
+  },
+  {
+   "id": "M3.12",
+   "title": "Incertitude par Monte Carlo",
+   "target": "P50, P80, facteurs dominants.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/monte_carlo.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_monte_carlo.py",
+      "departments/m03-estimation/tests/test_monte_carlo_quantiles.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Graine fixe, tests à réponses connues ; lois par poste = bornes du barème fourni ; qualification empirique non faite ; facteurs dominants limités."
+  },
+  {
+   "id": "M3.13",
+   "title": "Soumission brouillon",
+   "target": "Description, matériaux, exclusions, hypothèses, prix, délai, options.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/soumission.py",
+    "departments/m03-estimation/src/m3_estimation/soumission_pdf.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_soumission.py",
+      "departments/m03-estimation/tests/test_soumission_pdf.py",
+      "departments/m03-estimation/tests/test_soumission_pdf_outil.py",
+      "departments/m03-estimation/tests/test_modeles_soumission.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Le contenu client est une liste blanche (identité, date, lignes, prix total, titre/description/clauses du modèle) : exclusions, hypothèses, délai et options n'y figurent pas. Jamais envoyé automatiquement. Tests PDF conditionnés à l'extra pypdf.",
+   "verification": "soumission.py::contenu_client relu"
+  },
+  {
+   "id": "M3.14",
+   "title": "Revue et approbation humaine",
+   "target": "Validation obligatoire selon seuils ; envoi par le propriétaire (N4).",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/revue_devis.py"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [
+    "Barème, seuils de revue, taux et minimum rentable vides à dessein (configuration M3)"
+   ],
+   "decisions_nathan": [
+    "Seuils de validation obligatoire"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_revue_devis.py",
+      "departments/m03-estimation/tests/test_envoi_devis_capacites.py",
+      "departments/m03-estimation/tests/test_composition_envoi_n4_postcommit_reouverture.py",
+      "core/src/agents/agent-bundle-mcp-runtime.opsys-m3-n4-postcommit.python-http.integration.test.ts"
+     ],
+     "docs": [],
+     "niveau": "S+N(CI)"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Le mécanisme N4 (nathan_owner seul) est prouvé ; le test Core TS ↔ HTTP Python est présent mais non rejoué ici. Les déclencheurs de validation dépendent de seuils vides ; la livraison au client passe par M1 (absente).",
+   "ecart_analyse": "L'analyse d'écarts la déclarait FAIT_PROUVE (mécanisme). Les critères de validation obligatoire de la cible restent « non évaluables » sans seuils : rétrogradée PARTIEL."
+  },
+  {
+   "id": "M3.15",
+   "title": "Apprentissage estimé vs réel",
+   "target": "Calibration après chantier.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "departments/m03-estimation/src/m3_estimation/estime_vs_reel.py",
+    "departments/m03-estimation/src/m3_estimation/calibration_cohortes.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Coût réel certifié M4→M5 non routé en production"
+   ],
+   "decisions_nathan": [
+    "Décision 2 : routage du coût certifié"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_estime_vs_reel.py",
+      "departments/m03-estimation/tests/test_estime_vs_reel_repartiteur.py",
+      "departments/m03-estimation/tests/test_calibration_cohortes.py",
+      "departments/m03-estimation/tests/test_calibration_promotion.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Aucune calibration activée ; dépend du coût réel (M5) partiel."
+  },
+  {
+   "id": "M3.16",
+   "title": "Base de connaissances de construction (RAG)",
+   "target": "Construction QC, prix fournisseurs, historique.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Cognee en production (non décidé)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_memoire_ingestion.py",
+      "tests/test_memoire_embeddings_procedures.py",
+      "tests/test_memoire_embeddings_procedures_local_postgres.py"
+     ],
+     "docs": [
+      "docs/programme/LOT-INGESTION-PROCEDURES-M3.md"
+     ],
+     "niveau": "T+P"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Ingestion de procédures versionnée (store M10) ; contenu réel de connaissances absent ; variante PostgreSQL non rejouée ici."
+  },
+  {
+   "id": "M3.17",
+   "title": "Tableau de bord et mobile",
+   "target": "Vendeur/admin : lead prêt, photos, scénarios, approbation, risques, marge.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [
+    "src/opsys/console/devis_modele_ui.py",
+    "src/opsys/console/estimation_apprentissage_ui.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_console_devis_modele.py",
+      "tests/test_console_estimation_apprentissage.py",
+      "mobile/src/m3/devis.test.ts"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Consoles privées testées ; mobile Jest seulement (non rejoué ici, pas de téléphone) ; aucun navigateur."
+  },
+  {
+   "id": "M3.18",
+   "title": "Intégration mémoire",
+   "target": "Hypothèses d'estimation et catalogues dans M10.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M3) : Photos insuffisantes bloquent tout prix final ; estimateurs, coûts, prix/marge, Monte Carlo, soumission brouillon et approbation fonctionnels ; SAM2 branché ou porte documentée avec repli ; E2E verts (gouttières avec photos suffisantes, photos insuffisantes, revêtement, estimation risquée, estimé vs réel, contexte géospatial).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_cascade_amont_m10.py",
+      "tests/test_cascade_catalogues_m10.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Devis et catalogue de référence consommés par M10 ; hypothèses d'estimation non écrites en M10."
+  }
+ ]
+}

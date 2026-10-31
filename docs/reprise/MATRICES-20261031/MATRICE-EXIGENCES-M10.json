@@ -1,0 +1,578 @@
+{
+ "schema": "opsys.mission.requirements.v1",
+ "mission": "MATRICE-EXIGENCES-M10",
+ "module": "M10",
+ "scope_preserved": "M10.1–M10.20",
+ "canonical_source": "docs/produit/PERIMETRE-MODULES.md M10.1–M10.15 ; docs/produit/DEFINITION-PRODUIT.md §7 M10 (preuve de complétion : M10.16–M10.20 sont des lignes d'extension nommées ici)",
+ "base_sha": "83efcd82bd86938d700887605124622e11efbeaa",
+ "date": "2026-10-31",
+ "initial_status_is_not_a_fresh_runtime_verdict": true,
+ "initial_status_source": "docs analyse d'écarts du 2026-10-31 (ANALYSE-ECARTS-MODULES.md) ; current_status = vérifié dans le code et les tests de la base_sha",
+ "statuses": [
+  "FAIT_PROUVE",
+  "PARTIEL",
+  "SIMULE",
+  "ABSENT",
+  "INCONNU"
+ ],
+ "proof_levels": {
+  "T": "test unitaire ou de module en processus, sans parcours de bout en bout",
+  "S": "parcours en processus Python sur base SQLite réelle et bus d'événements réel, sans HTTP",
+  "H": "HTTP MCP réel avec la porte d'appareil réécrite en Python (tests/fixtures/harnais_e2e.py) : pas le Core natif",
+  "P": "test PostgreSQL présent ; son exécution (CI) n'est pas rejouée ni affirmée par cette matrice",
+  "N": "Core/Gateway natif TypeScript réel",
+  "B": "navigateur réel",
+  "M": "téléphone ou émulateur (jamais atteint)"
+ },
+ "run_summary": {
+  "suite_du_departement": "departments/m10-memoire/tests rejoué le 2026-10-31 sur la base_sha : 1464 passed, 0 failed, 0 skipped",
+  "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
+  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
+ },
+ "requirements": [
+  {
+   "id": "M10.1",
+   "title": "Événements append-only",
+   "target": "Tâche, prompt, plan, code, test, bug, décision, runtime ; auteur, horodatage, source, résultat, statut, impact.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/registre.py",
+    "departments/m10-memoire/src/m10_memoire/amont.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_registre.py",
+      "departments/m10-memoire/tests/test_registre_durable.py",
+      "departments/m10-memoire/tests/test_amont.py",
+      "departments/m10-memoire/tests/test_evenements.py",
+      "tests/test_cascade_amont_m10.py",
+      "tests/test_cascade_opportunite_m10.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Registres Affaires/Événements hash-chaînés ; M10 consomme 12 types d'événements ; il ne consomme ni m5.cash_libre_constate, ni m6.reception_enregistree, ni m6.materiel_pret, ni m7.contenu_exporte, ni m8.*.",
+   "verification": "department.yaml M10 evenements.consomme relu (12 types)"
+  },
+  {
+   "id": "M10.2",
+   "title": "Entités et relations",
+   "target": "Modules, services, fichiers, routes, tests, agents, clients, chantiers ; implements/fixes/tests/supersedes/contradicts, temporalité.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/liaison.py",
+    "departments/m10-memoire/src/m10_memoire/catalogue_references.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Cognee en production : non décidé (gate DEFINITION §10)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_liaison.py",
+      "tests/test_liaison_cibles.py",
+      "departments/m10-memoire/tests/test_catalogue_references.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Relations en base (liaison session-affaire, références, relation_type de la mémoire de développement) ; pas de graphe de connaissances (voir M10.17)."
+  },
+  {
+   "id": "M10.3",
+   "title": "Prompt registry",
+   "target": "Prompt exact ou référence protégée, hash, version, auteur, but, module, résultats ; secrets expurgés.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/developpement.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_developpement.py",
+      "departments/m10-memoire/tests/test_memoire_developpement_api.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "enregistrer_prompt avec expurgation de secrets testée (journal de développement) ; liens prompt→plan→changements partiels ; domaine développement uniquement."
+  },
+  {
+   "id": "M10.4",
+   "title": "Plan registry",
+   "target": "Objectifs, étapes, responsables, fichiers, risques, écarts, statut ; liens prompt→plan→changes.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/developpement.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_developpement.py",
+      "departments/m10-memoire/tests/test_memoire_developpement_api.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "enregistrer_plan présent et testé ; audit signalant un postflight dont le plan est absent ; étendue du modèle de plan non confirmée au-delà du journal."
+  },
+  {
+   "id": "M10.5",
+   "title": "Décisions et ADR",
+   "target": "Contexte, options, raisons, conséquences, autorité, source ; révision et remplacement ; contradictions proposées.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/decisions.py",
+    "departments/m10-memoire/src/m10_memoire/revision.py",
+    "departments/m10-memoire/src/m10_memoire/signaux.py"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_decisions.py",
+      "departments/m10-memoire/tests/test_revision.py",
+      "departments/m10-memoire/tests/test_signaux.py",
+      "departments/m10-memoire/tests/test_dossier_revision.py",
+      "departments/m10-memoire/tests/test_humain.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Décisions à raison obligatoire, révision sans fusion, signaux ouvert/pris/clos par un humain (S) ; statuts stale/superseded/contradicted/archived partiellement exercés ; aucun détecteur transversal automatique de contradictions.",
+   "ecart_analyse": "L'analyse d'écarts classait la ligne « décisions à raison obligatoire, révision sans fusion, statuts » FAIT_PROUVE ; la cible PERIMETRE M10.5 inclut les contradictions proposées et le remplacement, partiellement exercés : PARTIEL."
+  },
+  {
+   "id": "M10.6",
+   "title": "Code memory",
+   "target": "Repo/Git, symboles, routes, imports, diffs, snapshots hashés, tests, analyse d'impact ; collecte incrémentale.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/developpement.py",
+    "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_developpement.py",
+      "departments/m10-memoire/tests/test_consolidation_developpement.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "scanner_depot borné (500 fichiers / 8 Mo, refuse symlinks et chemins privés), fraîcheur et hash ; symboles/routes/imports/analyse d'impact non confirmés ; rappel lexical et relationnel sans promesse d'exhaustivité."
+  },
+  {
+   "id": "M10.7",
+   "title": "Erreurs et validation",
+   "target": "Symptôme, cause, fix, prévention, test, commandes, environnement, résultats, gotchas récupérables.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/developpement.py",
+    "departments/m10-memoire/src/m10_memoire/faits_candidats.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_developpement.py",
+      "departments/m10-memoire/tests/test_faits_candidats.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Postflight avec faits done vs partial en contradiction et faits candidats (outil, résultat, code) ; la structure symptôme/cause/fix/prévention n'est pas confirmée."
+  },
+  {
+   "id": "M10.8",
+   "title": "Recherche",
+   "target": "Lexicale + sémantique + relations, filtres module/domaine/permission/fraîcheur/statut/autorité, citations, classement évalué.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/recherche_affaire.py",
+    "src/opsys/memoire/store.py",
+    "src/opsys/memoire/evaluation.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_recherche_affaire_appareil.py",
+      "tests/test_memoire_store.py",
+      "tests/test_memoire_evaluation.py",
+      "tests/test_memoire_query_confidentialite.py",
+      "tests/test_memoire_evaluation_postgres.py"
+     ],
+     "docs": [],
+     "niveau": "T+P"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Recherche d'affaire bornée et store pgvector + tsvector ; embeddings locaux ; RAG « premium » non mesuré en production ; golden set de rappel non retrouvé ; variantes PostgreSQL présentes, non rejouées ici."
+  },
+  {
+   "id": "M10.9",
+   "title": "Paquets de contexte",
+   "target": "Must-know, important, preuves, deep-dive ; budget explicite et sources consultables.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/paquets.py",
+    "departments/m10-memoire/src/m10_memoire/confidentialite.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_paquets.py",
+      "departments/m10-memoire/tests/test_paquet_affaire.py",
+      "departments/m10-memoire/tests/test_paquet_appareil_borne.py",
+      "departments/m10-memoire/tests/test_preparation_paquets.py",
+      "tests/test_openclaw_contexte.py",
+      "core/src/context-engine/opsys-contexte-engine.test.ts"
+     ],
+     "docs": [],
+     "niveau": "T+N(CI)"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Quatre couches, budget 4 000 caractères ; une seule composition native avec réponse de modèle déclarée au checkpoint (M9, 0 appel d'outil) ; les tests Core TS sont présents mais non rejoués ici ; autres départements non qualifiés."
+  },
+  {
+   "id": "M10.10",
+   "title": "Preflight",
+   "target": "Directives, module, décisions/plans, fichiers, gotchas, tests, dépendances/risques/gates, go/no-go motivé.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/contexte.py",
+    "departments/m10-memoire/src/m10_memoire/developpement.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_contexte.py",
+      "departments/m10-memoire/tests/test_developpement.py",
+      "tests/test_openclaw_contexte.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Contexte PREFLIGHT d'affaire et preflight de développement (ancre de fichier exacte, contradictions bornées) testés en processus ; go/no-go motivé non confirmé."
+  },
+  {
+   "id": "M10.11",
+   "title": "Postflight",
+   "target": "Changements, tests, erreurs, décisions, snapshots, relations, candidats ; aucune sortie LLM promue en vérité canon.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/faits_candidats.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_faits_candidats.py",
+      "tests/test_runtime_depot_postflight.py",
+      "departments/m10-memoire/tests/test_developpement.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Dépôt de faits candidats par le moteur de contexte (statut candidat, idempotent, jamais promu automatiquement) ; ils n'entrent ni dans le paquet ni dans la consolidation ; hook natif non qualifié.",
+   "ecart_analyse": "L'en-tête du README M10 disait « POSTFLIGHT applicatif hors périmètre v1 » alors que faits_candidats.py et m10_deposer_faits_candidats existent : en-tête corrigé."
+  },
+  {
+   "id": "M10.12",
+   "title": "Consolidation",
+   "target": "Scan incrémental, doublons, obsolescence, contradictions, orphelins, rapports ; reprise après crash.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/consolidation.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Planification native de la consolidation non démarrée (departmental_scheduler runtime_GO:false au checkpoint)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_consolidation.py",
+      "departments/m10-memoire/tests/test_consolidation_developpement.py",
+      "tests/test_memoire_cron.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Consolidation nocturne idempotente par jour (cron 0 3 * * * déclaré) ; cron natif non démarré ; détection de doublons/obsolescence/orphelins non confirmée."
+  },
+  {
+   "id": "M10.13",
+   "title": "Self model",
+   "target": "Identité OPSYS et mémoire développement, mission, modules, limites, règles, état sourcé, erreurs, priorités.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py",
+    "src/opsys/console/memoire_jobs_ui.py"
+   ],
+   "initial_status": "INCONNU",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_consolidation_developpement.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Le rapport de consolidation de développement porte un self_model (identité, modules, preuves ; completion « not_evaluated » dans le test) ; aucun modèle de soi « affaires ».",
+   "ecart_analyse": "L'analyse d'écarts classait le modèle de soi INCONNU ; vérifié : self_model existe dans consolidation_developpement.py (domaine développement) et est testé : PARTIEL.",
+   "verification": "consolidation_developpement.py:468 ; test_consolidation_developpement.py:106"
+  },
+  {
+   "id": "M10.14",
+   "title": "Gouvernance, permissions, Loi 25",
+   "target": "Principal authentifié, domaines/tenant, confidentialité, rétention/révision/effacement, secrets en référence, audit d'accès.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Politique de rétention et d'effacement par sujet à décider (Loi 25)"
+   ],
+   "decisions_nathan": [
+    "Rétention et effacement par sujet"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_confidentialite.py",
+      "departments/m10-memoire/tests/test_classification.py",
+      "tests/test_memoire_query_confidentialite.py",
+      "tests/test_effacement_cles.py",
+      "departments/m10-memoire/tests/test_garde_mobile_admin.py"
+     ],
+     "docs": [
+      "docs/exploitation/MAINTENANCE-EFFACEMENT-CLES.md"
+     ],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Sept niveaux de confidentialité (CLIENT_PRIVATE réservé à M1/M2), garde de requête F13, effacement de clés ; rétention configurable et effacement par sujet non confirmés ; pas de suppression dure par défaut (tombstones non retrouvées)."
+  },
+  {
+   "id": "M10.15",
+   "title": "API, MCP, CLI, UI, mobile et évaluation",
+   "target": "Recherche, registres, contexte, audit, événements récents, contradictions, qualité des sources ; rappel/précision/fraîcheur mesurés.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_outils_agent.py",
+      "tests/e2e/test_memoire_admin_appareil.py",
+      "tests/test_memoire_outils.py",
+      "tests/test_memoire_evaluation.py",
+      "tests/test_console_memoire_chantier.py",
+      "mobile/src/m10/service.test.ts"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Outils d'agent, console et lecture par appareil prouvés (H, porte Python) ; mobile Jest non rejoué ; aucun navigateur ni téléphone ; pas de mesure de rappel en production."
+  },
+  {
+   "id": "M10.16",
+   "title": "Audit « non-oubli » (extension §7)",
+   "target": "Audit que rien d'important n'a été oublié.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "departments/m10-memoire/src/m10_memoire/audit.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_audit.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "m10_auditer_non_oubli ne vérifie que WCT et variance ; pas d'audit sur toute la chaîne d'événements."
+  },
+  {
+   "id": "M10.17",
+   "title": "Graphe de connaissances (extension §7)",
+   "target": "Graphe avec repli sur relations en base.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [
+    "Cognee en production : non décidé (gate DEFINITION §10)"
+   ],
+   "decisions_nathan": [
+    "Décision Cognee / graphe"
+   ],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Cognee : 0 occurrence ; repli « relations en base » seulement (voir M10.2).",
+   "verification": "grep cognee dans departments/m10-memoire et src/opsys/memoire"
+  },
+  {
+   "id": "M10.18",
+   "title": "Documents d'affaire et provenance PDF (extension §7)",
+   "target": "Documents d'affaire versionnés, provenance PDF, lecture sourcée.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m10-memoire/tests/test_documents_affaire.py",
+      "departments/m10-memoire/tests/test_provenance_pdf.py",
+      "departments/m10-memoire/tests/test_outils_documents_affaire_appareil.py",
+      "tests/test_trace_documentaire_m10.py"
+     ],
+     "docs": [
+      "docs/architecture/M10-LECTURE-DOCUMENTAIRE.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "SQLite d'abord ; le PDF reste l'autorité ; pas de qualification téléphone ni complétude M10 (déclaré par M10-LECTURE-DOCUMENTAIRE.md)."
+  },
+  {
+   "id": "M10.19",
+   "title": "E2E « réponses sourcées » (extension §7)",
+   "target": "Question → réponse avec sources via la mémoire.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/e2e/test_memoire_admin_appareil.py",
+      "departments/m10-memoire/tests/test_recherche_affaire_appareil.py"
+     ],
+     "docs": [],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Parcours HTTP via la porte d'appareil Python ; une réponse native de modèle déclarée (M9 contexte) ; aucun parcours navigateur/téléphone."
+  },
+  {
+   "id": "M10.20",
+   "title": "Synchronisation relationnelle + vectorielle (extension §7)",
+   "target": "Base relationnelle et vectorielle synchronisées.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M10) : Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.",
+   "reuse_read_first": [
+    "src/opsys/memoire/store.py",
+    "src/opsys/memoire/embeddings.py",
+    "src/opsys/memoire/schema.sql"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_memoire_store.py",
+      "tests/test_memoire_embeddings.py",
+      "tests/test_memoire_embeddings_local.py",
+      "tests/test_memoire_autorite.py",
+      "tests/test_memoire_autorite_postgres.py"
+     ],
+     "docs": [],
+     "niveau": "T+P"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Schéma pgvector vector(1024) + tsvector français, embeddings locaux ; variantes PostgreSQL présentes, non rejouées ici ; la base vectorielle n'est jamais l'autorité métier."
+  }
+ ]
+}

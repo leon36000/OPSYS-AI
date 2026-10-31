@@ -1,0 +1,644 @@
+{
+ "schema": "opsys.mission.requirements.v1",
+ "mission": "MATRICE-EXIGENCES-M1",
+ "module": "M1",
+ "scope_preserved": "M1.1–M1.20",
+ "canonical_source": "docs/produit/DEFINITION-PRODUIT.md §7 M1 ; docs/produit/PERIMETRE-MODULES.md M1.1–M1.20",
+ "base_sha": "83efcd82bd86938d700887605124622e11efbeaa",
+ "date": "2026-10-31",
+ "initial_status_is_not_a_fresh_runtime_verdict": true,
+ "initial_status_source": "docs analyse d'écarts du 2026-10-31 (ANALYSE-ECARTS-MODULES.md) ; current_status = vérifié dans le code et les tests de la base_sha",
+ "statuses": [
+  "FAIT_PROUVE",
+  "PARTIEL",
+  "SIMULE",
+  "ABSENT",
+  "INCONNU"
+ ],
+ "proof_levels": {
+  "T": "test unitaire ou de module en processus, sans parcours de bout en bout",
+  "S": "parcours en processus Python sur base SQLite réelle et bus d'événements réel, sans HTTP",
+  "H": "HTTP MCP réel avec la porte d'appareil réécrite en Python (tests/fixtures/harnais_e2e.py) : pas le Core natif",
+  "P": "test PostgreSQL présent ; son exécution (CI) n'est pas rejouée ni affirmée par cette matrice",
+  "N": "Core/Gateway natif TypeScript réel",
+  "B": "navigateur réel",
+  "M": "téléphone ou émulateur (jamais atteint)"
+ },
+ "run_summary": {
+  "suite_du_departement": "departments/m01-front-office/tests rejoué le 2026-10-31 sur la base_sha : 1766 passed, 0 failed, 0 skipped",
+  "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
+  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
+ },
+ "requirements": [
+  {
+   "id": "M1.1",
+   "title": "Hub d'intake omnicanal",
+   "target": "Toute demande (téléphone, SMS, courriel, formulaire, webchat, social, GBP, WhatsApp, messagerie vocale, saisie, portail) devient une interaction tracée, avec identité et déduplication.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/src/m1_front_office/outils.py",
+    "departments/m01-front-office/src/m1_front_office/reception.py",
+    "src/opsys/console/formulaire_recepteur.py",
+    "src/opsys/reception_sms_receipt.py",
+    "src/opsys/reception_courriel_stockage.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Identifiants Twilio / SIP / STT réels non fournis (gate DEFINITION §10)",
+    "Politiques Loi 25 (SMS, enregistrement d'appels, photos) : toutes en PROPOSITION, validation écrite de Nathan (T3) non faite"
+   ],
+   "decisions_nathan": [
+    "Où publier le formulaire et son récepteur public (M1-canaux §13.7)",
+    "Identifiants des canaux réels"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_canal_sms_bout_en_bout.py",
+      "departments/m01-front-office/tests/test_recevoir_message_canal.py",
+      "tests/e2e/test_formulaire_utm_bout_en_bout.py",
+      "tests/test_formulaire_recepteur.py",
+      "tests/test_console_formulaire.py",
+      "tests/test_runtime_reception_sms_mcp.py",
+      "tests/test_reception_sms_receipt.py",
+      "tests/test_reception_courriel_stockage.py",
+      "departments/m01-front-office/tests/test_import_appels_durable.py"
+     ],
+     "docs": [
+      "docs/departements/M1-canaux.md"
+     ],
+     "niveau": "S+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Canaux prouvés en processus/HTTP-harnais : SMS (réception privée Host, intention/codec), formulaire (pont HMAC interne, pas le navigateur), appel manqué importé par l'hôte, courriel = stockage d'originaux chiffrés sans qualification. Aucun code pour webchat, Facebook/Instagram, GBP, WhatsApp, portail ; aucun fournisseur de téléphonie.",
+   "verification": "grep webchat/whatsapp/facebook dans src M1 : 0 ; tests de réception SMS/courriel/formulaire présents et rejoués verts (suite M1 locale) pour ceux sous departments/m01"
+  },
+  {
+   "id": "M1.2",
+   "title": "Agent vocal de réception",
+   "target": "Streaming STT/LLM/TTS, interruption, silence, faible confiance, supervision, repli humain ; latence mesurée.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/src/m1_front_office/phases_voix.py",
+    "departments/m01-front-office/src/m1_front_office/consentement.py",
+    "departments/m01-front-office/src/m1_front_office/garde_fou.py"
+   ],
+   "initial_status": "SIMULE",
+   "gates_to_resolve_or_keep_open": [
+    "Identifiants Twilio / SIP / STT réels non fournis (gate DEFINITION §10)",
+    "Politique d'enregistrement d'appels non validée"
+   ],
+   "decisions_nathan": [
+    "Validation de la politique d'enregistrement d'appels",
+    "Fournisseur SIP/STT/TTS"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_phases_voix.py",
+      "departments/m01-front-office/tests/test_consentement.py",
+      "departments/m01-front-office/tests/test_garde_fou.py"
+     ],
+     "docs": [
+      "docs/departements/M1-canaux.md"
+     ],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "SIMULE",
+   "limite": "Machine à états des phases 0→5, consentement et garde-fou des interdits, testés en processus. Aucun runtime STT/TTS/SIP/VAD, aucune mesure de latence ; le module voice-call du Core n'est pas câblé (M1-canaux §7).",
+   "verification": "grep twilio|sip : fournisseurs listés dans outils.py seulement pour l'import d'appel par l'hôte (mock/twilio/telnyx/plivo), aucun pipeline"
+  },
+  {
+   "id": "M1.3",
+   "title": "Qualification par service",
+   "target": "Questions obligatoires par service, détection d'infos manquantes, demande de photos, score de lead.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/src/m1_front_office/qualification.py",
+    "departments/m01-front-office/src/m1_front_office/questions.py",
+    "departments/m01-front-office/src/m1_front_office/score.py",
+    "departments/m01-front-office/src/m1_front_office/conversation.py",
+    "departments/m01-front-office/src/m1_front_office/photos.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Profil d'entreprise (services, zone, vocabulaire, destinataires) vide par défaut : à renseigner par le propriétaire",
+    "Politique photos non contractuelles en PROPOSITION : la demande de photos reste fermée"
+   ],
+   "decisions_nathan": [
+    "Services, zone, fenêtre de conversation, questions et poids de score du profil d'entreprise",
+    "Validation de la politique photos"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_qualification.py",
+      "departments/m01-front-office/tests/test_qualification_champs.py",
+      "departments/m01-front-office/tests/test_questions_par_service.py",
+      "departments/m01-front-office/tests/test_conversation.py",
+      "departments/m01-front-office/tests/test_score_de_lead.py",
+      "tests/test_lead_v2_bout_en_bout.py",
+      "departments/m01-front-office/tests/test_reponse_au_choix_du_service.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Règles déterministes à mots-clés ; sans profil d'entreprise rien ne qualifie (verdicts « à configurer »). Le score reste dans M1 (le contrat LeadQualifie v2 ne le porte pas).",
+   "verification": "contrat lead v2 : aucun champ score/photos/transcription"
+  },
+  {
+   "id": "M1.4",
+   "title": "Sauvetage d'appel manqué",
+   "target": "Interaction, SMS si politique active, tâche de rappel durable, suivi jusqu'au contact.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/src/m1_front_office/rappels_appareil.py",
+    "departments/m01-front-office/src/m1_front_office/outils.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Identifiants Twilio / SIP / STT réels non fournis (gate DEFINITION §10)",
+    "Politiques Loi 25 (SMS, enregistrement d'appels, photos) : toutes en PROPOSITION, validation écrite de Nathan (T3) non faite"
+   ],
+   "decisions_nathan": [
+    "Politique SMS de rappel"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_suivi_rappels.py",
+      "departments/m01-front-office/tests/test_rappels_appareil.py",
+      "departments/m01-front-office/tests/test_import_appels_durable.py",
+      "tests/test_console_suivi_rappel.py",
+      "tests/test_rappels_appareil_atomique.py"
+     ],
+     "docs": [
+      "departments/m01-front-office/docs/RAPPELS-APPAREIL.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "L'appel manqué est importé par l'hôte (aucun fournisseur téléphonique) ; tâche de rappel et suivi humain prouvés ; aucun SMS de rappel ; aucun contact réussi n'est certifié.",
+   "verification": "m1_importer_appel_manuellement, m1_lister_rappels_appareil, m1_prendre_en_charge_rappel_appareil déclarés"
+  },
+  {
+   "id": "M1.5",
+   "title": "Messagerie vocale intelligente",
+   "target": "Audio autorisé, transcription, résumé, contact/service/urgence, tâches.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/src/m1_front_office/voicemail_stt.py",
+    "src/opsys/console/voicemail_ui.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Identifiants Twilio / SIP / STT réels non fournis (gate DEFINITION §10)",
+    "Consentement d'enregistrement : politique non validée"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_voicemail_stt.py",
+      "departments/m01-front-office/tests/test_stt_frontiere_locale.py",
+      "tests/test_console_voicemail_upload.py",
+      "departments/m01-front-office/tests/test_composition_voicemail_commit_reouverture.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Transcription prouvée contre un serveur STT local fictif ; aucun STT réel, aucune qualité audio validée ; extraction (contact/service/urgence) et création de tâche non démontrées de bout en bout.",
+   "verification": "tests à serveur STT fictif (voicemail_process_fixture.py)"
+  },
+  {
+   "id": "M1.6",
+   "title": "Tri des courriels",
+   "target": "Catégories (demande, client, facture, fournisseur, plainte, spam, emploi, partenariat, document), brouillon de réponse, routage.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "src/opsys/reception_courriel_stockage.py",
+    "src/opsys/reception_courriel_contrat.py"
+   ],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [
+    "Comptes IMAP de test",
+    "Politiques Loi 25 (SMS, enregistrement d'appels, photos) : toutes en PROPOSITION, validation écrite de Nathan (T3) non faite"
+   ],
+   "decisions_nathan": [
+    "Comptes courriel à brancher"
+   ],
+   "proofs": [
+    {
+     "tests": [],
+     "docs": [
+      "docs/departements/M1-canaux.md"
+     ],
+     "niveau": "-"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Seul existe le stockage d'originaux chiffrés (src/opsys/reception_courriel_*.py) : aucun classifieur, brouillon ni routage. Aucun test de triage (grep triage dans src et dans M1 : 0).",
+   "verification": "grep -ri triage src departments/m01-front-office : 0 fichier"
+  },
+  {
+   "id": "M1.7",
+   "title": "Assistant SMS / messages",
+   "target": "Photos, rappels, suivi, paiement fourni par M5 ; opt-in, STOP, message exact approuvé, résultat d'envoi inconnu sans rejeu.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/src/m1_front_office/retrait.py",
+    "departments/m01-front-office/src/m1_front_office/adaptateurs.py",
+    "departments/m01-front-office/src/m1_front_office/outils.py"
+   ],
+   "initial_status": "SIMULE",
+   "gates_to_resolve_or_keep_open": [
+    "Identifiants Twilio / SIP / STT réels non fournis (gate DEFINITION §10)",
+    "Politiques Loi 25 (SMS, enregistrement d'appels, photos) : toutes en PROPOSITION, validation écrite de Nathan (T3) non faite"
+   ],
+   "decisions_nathan": [
+    "Validation de la politique de consentement SMS",
+    "Envoi réel T2.1-c"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_retrait_publie.py",
+      "departments/m02-revenue-crm/tests/test_consommer_retrait_consentement.py",
+      "departments/m01-front-office/tests/test_adaptateurs.py",
+      "tests/test_canal_conversation.py",
+      "tests/test_console_agents_sms.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "SIMULE",
+   "limite": "STOP/retrait de consentement publié par lead_id et consommé par M2 et M7 (S) ; l'émission de notification va vers un bus en mémoire (adaptateurs.creer_bus(mode_ombre=True)) : aucun envoi SMS réel.",
+   "verification": "outils.py::emettre_notification instancie le bus en mode ombre"
+  },
+  {
+   "id": "M1.8",
+   "title": "Plaintes et urgences",
+   "target": "Empathie, preuves, priorité, escalade ; jamais d'admission légale ni de promesse inventée.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/src/m1_front_office/plaintes.py",
+    "departments/m01-front-office/src/m1_front_office/plaintes_structurees.py",
+    "departments/m01-front-office/src/m1_front_office/transferts.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Profil d'entreprise (services, zone, vocabulaire, destinataires) vide par défaut : à renseigner par le propriétaire"
+   ],
+   "decisions_nathan": [
+    "Vocabulaire des plaintes",
+    "Pseudonymisation des plaintes pour M9 (Loi 25)"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_plaintes.py",
+      "departments/m01-front-office/tests/test_plaintes_reception.py",
+      "departments/m01-front-office/tests/test_plaintes_structurees.py",
+      "tests/e2e/test_plainte_urgence_appareil.py",
+      "tests/test_taxonomie_plaintes.py",
+      "departments/m01-front-office/tests/test_garde_fou_avis_legal.py"
+     ],
+     "docs": [
+      "departments/m01-front-office/docs/PLAINTES-STRUCTUREES.md"
+     ],
+     "niveau": "S+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Vocabulaire vide par défaut (rien n'est reconnu) ; détection par mots, pas par sens ; aucun envoi ; aucun lien tâche M2 ni signal M10 pour un transfert.",
+   "verification": "m1_escalader_plainte, m1_lire_plaintes_structurees déclarés"
+  },
+  {
+   "id": "M1.9",
+   "title": "Rappels et rendez-vous via la cédule M4",
+   "target": "Disponibilité M4 vérifiée, conflit, événement réellement créé avant toute confirmation.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/department.yaml"
+   ],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [
+    "Identifiants Twilio / SIP / STT réels non fournis (gate DEFINITION §10)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "M1 ne consomme aucun événement et ne lit pas M4 (department.yaml : evenements.publie seulement). La règle « ne jamais confirmer sans créer l'événement » n'est respectée que par absence de confirmation.",
+   "verification": "department.yaml M1 : pas de clé evenements.consomme"
+  },
+  {
+   "id": "M1.10",
+   "title": "Statut client après vérification d'identité",
+   "target": "Statut soumission/visite/facture ; si incertain « Je vais vérifier avec l'équipe » ; aucune donnée d'un autre client.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [
+    "Mécanisme d'identité du correspondant inexistant"
+   ],
+   "decisions_nathan": [
+    "Règle de vérification d'identité du correspondant"
+   ],
+   "proofs": [
+    {
+     "tests": [],
+     "docs": [
+      "docs/departements/M1-canaux.md"
+     ],
+     "niveau": "-"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucune lecture bornée M2/M3/M4/M5 depuis M1, aucun mécanisme d'identité (le formulaire admet que l'usurpation de courriel est possible, M1-canaux §13.4)."
+  },
+  {
+   "id": "M1.11",
+   "title": "Adjointe administrative / digest",
+   "target": "Digest quotidien, tâches, leads sans suivi, messages urgents, documents/photos manquants.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/src/m1_front_office/digest.py",
+    "departments/m01-front-office/src/m1_front_office/suivi.py",
+    "src/opsys/console/reception_digest_ui.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_digest.py",
+      "departments/m01-front-office/tests/test_suivi_conversation.py",
+      "tests/test_console_reception_digest.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Digest et suivi de conversations prouvés en processus et via la console ; documents/photos manquants non couverts hors questions de qualification ; cron 07:00 lun-ven déclaré, non démarré en natif.",
+   "verification": "planification digest-front-office déclarée dans department.yaml"
+  },
+  {
+   "id": "M1.12",
+   "title": "Transfert humain avec contexte",
+   "target": "Type fermé, résumé, historique, prochaines actions, lien CRM/conversation, destinataire par rôle.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/src/m1_front_office/transferts.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Profil d'entreprise (services, zone, vocabulaire, destinataires) vide par défaut : à renseigner par le propriétaire"
+   ],
+   "decisions_nathan": [
+    "destinataires_transfert du profil d'entreprise"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_transferts.py",
+      "departments/m01-front-office/tests/test_outils_transfert.py",
+      "tests/e2e/test_transferts_admin_appareil.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Destinataires vides par défaut ; le rôle destinataire est affiché mais pas appliqué ; aucune tâche M2 ni signal M10 créés à la suite d'un transfert.",
+   "verification": "README M1 / M1-canaux §10.7"
+  },
+  {
+   "id": "M1.13",
+   "title": "Boucle d'apprentissage",
+   "target": "Délais de réponse, conversions, questions fréquentes, objections, raisons de perte, scripts.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucun code de délai de réponse ni de raison de perte dans M1 ; M8 n'attribue que par utm_content.",
+   "verification": "grep delai_de_reponse|raison_de_perte|temps_de_reponse dans src M1 : 0"
+  },
+  {
+   "id": "M1.14",
+   "title": "Pont CRM M2",
+   "target": "Client/lead/activité/tâche/transcription/photos vers M2 via les contrats existants, sans nouveau CRM.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "src/opsys/evenements/catalogue/m1.lead_qualifie.json"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_lead_v2_bout_en_bout.py",
+      "tests/test_canal_sms_bout_en_bout.py",
+      "departments/m01-front-office/tests/test_rejeu_contradictoire_m1_m2.py",
+      "departments/m02-revenue-crm/tests/test_consommer_lead_de_m1.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Seul le lead (contrat LeadQualifie v2) est transmis et consommé par M2, en SQLite + bus réel (S, non natif, non PostgreSQL, non navigateur). Le contrat ne porte ni tâche, ni transcription, ni photos, ni score.",
+   "ecart_analyse": "L'analyse d'écarts la déclarait FAIT_PROUVE (périmètre lead). La cible PERIMETRE M1.14 cite aussi activité/tâche/transcription/photos, absents du contrat v2 (schéma m1.lead_qualifie.json) : rétrogradée PARTIEL.",
+   "verification": "schéma m1.lead_qualifie.json relu : champs contact, service, ville, urgence, canal, source, utm, campagne seulement"
+  },
+  {
+   "id": "M1.15",
+   "title": "Boucle M7 (UTM → lead → qualité) et STOP → M7",
+   "target": "Campagne/UTM → lead → qualité, conversion, raison de perte, avec attribution explicite ; retrait de consentement vers M7.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "src/opsys/console/formulaire_recepteur.py"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [
+    "Garder les utm le temps de la visite (Loi 25)",
+    "Borne de longueur des utm"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "tests/e2e/test_formulaire_utm_bout_en_bout.py",
+      "departments/m01-front-office/tests/test_utm_formulaire.py",
+      "departments/m01-front-office/tests/test_retrait_publie.py",
+      "departments/m01-front-office/tests/test_formulaire_site.py"
+     ],
+     "docs": [
+      "docs/departements/M1-canaux.md"
+     ],
+     "niveau": "S+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Aller (lien M7 → formulaire → M1 → M2 → M8) et STOP → M7 prouvés en SQLite + HTTP-harnais ; l'utm est déclaré par le navigateur du visiteur (attribue, ne prouve pas). Le retour qualité/conversion/raison de perte vers M7 n'existe pas : la cible complète est PARTIEL.",
+   "ecart_analyse": "L'analyse d'écarts la déclarait FAIT_PROUVE ; le retour qualité/conversion/perte de la cible n'existe pas (aucun événement M2→M7) : rétrogradée PARTIEL."
+  },
+  {
+   "id": "M1.16",
+   "title": "Intégration mémoire M10",
+   "target": "Événements, préférences utiles, plaintes, promesses humaines, erreurs et contexte avant action complexe écrits dans M10.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/department.yaml"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_cascade_amont_m10.py",
+      "tests/test_canal_sms_bout_en_bout.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "M10 consomme m1.lead_qualifie (S). Transferts, plaintes, promesses : rien n'est écrit dans M10 par M1.",
+   "verification": "department.yaml M10 : evenements.consomme contient m1.lead_qualifie seulement pour M1"
+  },
+  {
+   "id": "M1.17",
+   "title": "Tableau de bord de réception",
+   "target": "Inbox, appels, tâches, intake, transferts, scripts/politiques, connecteurs, laboratoire vocal.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "src/opsys/console/reception_digest_ui.py",
+    "src/opsys/console/voicemail_ui.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_console_reception_digest.py",
+      "tests/test_console_suivi_rappel.py",
+      "tests/test_console_voicemail_upload.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Consoles privées digest, rappels, dépôt vocal ; pas d'inbox omnicanale ni de laboratoire vocal ; aucun parcours navigateur (B) déclaré pour M1.",
+   "verification": "aucune surface inbox/connecteurs dans console/"
+  },
+  {
+   "id": "M1.18",
+   "title": "Mobile (4 profils)",
+   "target": "Admin prend en charge/approuve ; vendeur reçoit le dossier ; employé signale ; client fournit demande/photos ; droits séparés.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Phase mobile finale (directive du 21 octobre 2026)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "mobile/src/m1/rappelsAppareil.test.ts",
+      "mobile/src/m1/service.test.ts",
+      "mobile/src/m1/contrat.test.ts",
+      "mobile/src/m1/lectures.test.ts"
+     ],
+     "docs": [],
+     "niveau": "T (Jest)"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Tests Jest du client mobile (non rejoués par cette tâche) ; ne prouvent ni le rendu sur téléphone ni le pont natif Expo SQLite (mobile/README.md) ; l'écran client est un squelette ; phase mobile reportée à la fin (DEFINITION P14)."
+  },
+  {
+   "id": "M1.19",
+   "title": "Bac à sable vocal",
+   "target": "Faux appel, STT/TTS, interruptions, transfert, consentement et écritures CRM démontrés.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [
+    "departments/m01-front-office/src/m1_front_office/phases_voix.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Identifiants Twilio / SIP / STT réels non fournis (gate DEFINITION §10)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucun faux appel ni pipeline STT/TTS : seule la machine à états des phases (cf. M1.2) est testée.",
+   "ecart_analyse": "L'analyse d'écarts regroupait M1.19-M1.20 sous PARTIEL ; vérification : aucun bac à sable vocal dans M1 ni dans la console (grep sandbox|bac à sable|faux appel) : ABSENT.",
+   "verification": "grep sandbox|bac à sable|faux appel dans departments/m01-front-office : seul test_suivi_conversation.py (sans lien vocal)"
+  },
+  {
+   "id": "M1.20",
+   "title": "E2E de réception",
+   "target": "Soumission gouttières, appel manqué, courriel revêtement, plainte, facture avec identité, sandbox vocal.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M1) : Toutes les interactions capturées ; pont CRM réel ; qualification, tri de courriels, appel manqué et messagerie vocale fonctionnels ; garde-fous bloquant prix et promesses ; escalade de plaintes ; scripts versionnés ; E2E verts (appel de soumission, appel manqué, courriel de revêtement, plainte, demande de facture, bac à sable vocal).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Identifiants Twilio / SIP / STT réels non fournis (gate DEFINITION §10)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_lead_v2_bout_en_bout.py",
+      "tests/test_canal_sms_bout_en_bout.py",
+      "tests/e2e/test_formulaire_utm_bout_en_bout.py",
+      "tests/e2e/test_plainte_urgence_appareil.py",
+      "tests/e2e/test_transferts_admin_appareil.py"
+     ],
+     "docs": [],
+     "niveau": "S+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Prouvés : soumission par SMS/formulaire (S/H) et plainte/urgence (H). Manquent : appel manqué de bout en bout réel, courriel revêtement, facture avec identité, bac à sable vocal."
+  }
+ ]
+}
