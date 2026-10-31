@@ -94,16 +94,24 @@ def _historique_service(cnx, captures, devis_id, session):
     if not traces:
         return {'nombre': 0, 'traces': [], 'reste': 0}
     lecture._borner(cnx, M5, 'rentabilite_service_v1')
+    lecture._borner(cnx, M5, 'rentabilite_recalcul_v2')
     from m5_financecore import outils as m5
     recus = list(m5.stockage.maillons(M5, 'rentabilite_service_v1'))
-    if len(recus) > 1000 or any(not isinstance(r, dict) for r in recus):
+    recus_v2 = list(m5.stockage.maillons(M5, 'rentabilite_recalcul_v2'))
+    if (len(recus) > 1000 or any(not isinstance(r, dict) for r in recus)
+            or len(recus_v2) > 1000 or any(not isinstance(r, dict) for r in recus_v2)):
         raise lecture.Refus('RECU-SERVICE-INVALIDE')
     instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one()
     resultat = []
     for ligne in list(reversed(traces))[:10]:
         trace = ligne.maillon
         correspondants = [r for r in recus if r.get('trace_rang') == ligne.rang]
-        if len(correspondants) != 1:
+        recalculs = [r for r in recus_v2 if r.get('trace_rang') == ligne.rang]
+        if not correspondants and len(recalculs) == 1:
+            # Trace du recalcul certifié V2 (moteur qualifié, E6/E8) : reçu v2 et attestation Core distincts.
+            resultat.append(_historique_recalcul_v2(cnx, session, instance, ligne, trace, recalculs[0]))
+            continue
+        if len(correspondants) != 1 or recalculs:
             raise lecture.Refus('RECU-SERVICE-INVALIDE')
         recu = correspondants[0]
         noms = {'type', 'instance_id', 'wct_id', 'reference_core', 'trace_rang', 'trace_empreinte', 'empreinte'}
@@ -135,6 +143,34 @@ def _historique_service(cnx, captures, devis_id, session):
             'horodatage': trace.get('horodatage'), 'verdict': trace.get('verdict'),
             'provenance': provenance, **verification}))
     return {'nombre': len(traces), 'traces': resultat, 'reste': len(traces)-len(resultat)}
+
+def _historique_recalcul_v2(cnx, session, instance, ligne, trace, recu):
+    """Reçu `publication_recalcul_v2` d'une trace : liaison vérifiée par Core (`lire_historique_v2`), jamais dite
+    courante ici (la fraîcheur est le statut D3 `cout_certifie`)."""
+    from opsys import service_capability, service_recalcul_m4
+
+    noms = {'type', 'instance_id', 'wct_id', 'reference_core', 'trace_rang', 'trace_empreinte', 'empreinte'}
+    reference = recu.get('reference_core')
+    try:
+        if (set(recu) != noms or recu['type'] != 'publication_recalcul_v2' or recu['instance_id'] != instance
+                or recu['wct_id'] != trace.get('wct_id') or recu['trace_rang'] != ligne.rang
+                or recu['trace_empreinte'] != encodage.empreinte(trace)
+                or recu['empreinte'] != encodage.empreinte('m5.publication_recalcul.v2',
+                                                           {k: v for k, v in recu.items() if k != 'empreinte'})):
+            raise lecture.Refus('RECU-SERVICE-INVALIDE')
+        service_recalcul_m4.valider_reference_v2(reference)
+        histoire = service_recalcul_m4.lire_historique_v2(cnx, session, reference['intention_id'])
+        if (service_recalcul_m4._reference_canonique(histoire['attestation'])
+                != service_recalcul_m4._reference_canonique(reference)
+                or reference['trace_rang'] != ligne.rang or reference['trace_empreinte'] != recu['trace_empreinte']):
+            raise lecture.Refus('RECU-SERVICE-INVALIDE')
+    except service_capability.RefusAutorite:
+        raise lecture.Refus('RECU-SERVICE-INVALIDE') from None
+    return lecture._sortie({'version_entrees': trace.get('version_entrees'), 'horodatage': trace.get('horodatage'),
+                            'verdict': trace.get('verdict'), 'provenance': trace['provenance_service_v1'],
+                            'preuve_core': 'liaison_historique_verifiee', 'fraicheur': 'historique_non_revalidee',
+                            'tarifs': 'declaration_m5_non_verifiee_par_core', 'acteur': reference['acteur']})
+
 
 def _configuration(m5):
     try:
@@ -599,6 +635,7 @@ def contenu(vue, prefixe, csrf=None):
         corps += '<p role="alert">Prix non définitif : facture absente ou brouillon selon M5.</p>'
     corps += ('<p>Trace de calcul locale à jour</p>' if etat['trace']['a_jour'] else
               '<p role="alert">Trace de calcul antérieure : le calcul actuel n’a pas réécrit cette trace.</p>')
+    corps += _contenu_cout_certifie(etat.get('cout_certifie') or {'statut': 'inconnu'}, base, csrf, valeur)
     chiffres = [('Coût prévu du devis', r['cout_prevu']), ('Prix prévu du devis', r['prix_prevu']),
         ('Coût total calculé', cout['cout_total']), ('Coût total connu', cout['cout_total_connu']),
         ('Matériaux connus', materiaux['cout_connu']), ('Main-d’œuvre', cout['main_d_oeuvre']['cout']),
@@ -677,6 +714,60 @@ def contenu(vue, prefixe, csrf=None):
     corps += (f'<p>Arrondi M5 : {pages.e(cout["arrondi"])}</p><details><summary>Source de consultation</summary>'
               f'<p>Empreinte calculée : {pages.e(vue["source_calculee"])}</p></details></section>')
     return corps
+
+
+_LIBELLES_CERTIFIE = {
+    'a_jour': 'À jour : dernière trace certifiée publiée, aucune pièce n’a changé depuis.',
+    'perime_recalcul_en_attente': 'Périmé — recalcul en attente : une pièce a changé depuis la dernière trace '
+                                  'certifiée ; elle n’est pas présentée comme le coût actuel.',
+    'inconnu': 'Inconnu : aucun coût certifié n’a été publié pour ce devis (équipe, revue ou tarif à établir).',
+}
+
+
+def _contenu_cout_certifie(certifie, base, csrf, valeur):
+    """D3 : dernière trace certifiée et son statut explicite ; jamais un certifié périmé présenté comme à jour."""
+    from . import pages
+
+    statut = certifie.get('statut')
+    corps = ('<h3>Coût certifié (projection M4 vérifiée × tarif d’équipe)</h3>'
+             f'<p data-statut-certifie="{pages.e(statut)}"'
+             f'{"" if statut == "a_jour" else " role=" + chr(34) + "alert" + chr(34)}>'
+             f'{pages.e(_LIBELLES_CERTIFIE.get(statut, "Statut inconnu"))}</p>')
+    derniere = certifie.get('derniere_trace_certifiee')
+    if derniere:
+        resume = derniere.get('rentabilite') or {}
+        corps += ('<table><thead><tr><th>Dernière trace certifiée</th><th>Valeur M5</th></tr></thead><tbody>'
+                  + ''.join(f'<tr><th>{pages.e(nom)}</th><td>{valeur(v)}</td></tr>' for nom, v in (
+                      ('Rang de la trace', derniere.get('sequence')), ('Complétion WCT', derniere.get('horodatage')),
+                      ('Verdict', derniere.get('verdict')), ('Coût total certifié', resume.get('cout_total')),
+                      ('Prix de facture', resume.get('prix_facture')), ('Marge réelle', resume.get('marge_reelle'))))
+                  + '</tbody></table>')
+    if statut != 'a_jour' and csrf is not None:
+        corps += (f'<form method="post" action="{pages.e(base + "/couts-travaux/recalcul-certifie")}">'
+                  f'<input type="hidden" name="csrf" value="{pages.e(csrf)}">'
+                  '<button type="submit">Recalculer le coût certifié maintenant</button></form>'
+                  '<p>Le recalcul automatique (acteur système opsys-systeme) le fait aussi dès que les politiques '
+                  'de service sont actives.</p>')
+    return corps
+
+
+def recalculer_certifie(cnx, deps, session, lead_id, devis_id):
+    """Option 4a (E6) : recalcul certifié à la demande, sous la session de l'admin, par la porte qualifiée. Seuls
+    le lead et le devis du chemin entrent ; l'intention est dérivée de l'état M5 relu (rejeu = `deja_executee`)."""
+    from m5_financecore import port_service_m4
+
+    from .. import service_recalcul_m4
+
+    lire(cnx, deps, session, lead_id, devis_id)  # mêmes contrôles d'admin, d'identifiants et de liaison lead/devis
+    etat = port_service_m4.etat_cout_certifie(devis_id)
+    if etat['statut'] == 'non_calculable':
+        raise lecture.Refus('COUT-NON-CALCULABLE')
+    if etat['statut'] == 'a_jour':
+        return {'statut': 'a_jour'}
+    intention = hashlib.sha256(('opsys.console.recalcul-certifie.v1\0' + session.utilisateur + '\0'
+                                + etat['empreinte_etat']).encode('utf-8')).hexdigest()
+    return service_recalcul_m4.ouvrir(cnx, session, wct_id=etat['wct_id'], devis_id=devis_id,
+                                      intention_id=intention)
 
 
 def _vue_sans_zero_invente(vue):
@@ -766,6 +857,37 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre):
         except (ValueError, KeyError, TypeError, OverflowError):
             raise HTTPException(503, 'Sources de coûts indisponibles') from None
         return reponse
+
+    @router.post('/crm/lead/{lead_id}/soumissions/{devis_id}/couts-travaux/recalcul-certifie')
+    async def recalcul_certifie(lead_id: str, devis_id: str, request: Request):
+        from fastapi.responses import RedirectResponse
+
+        from . import cedule_plan_ui, pages, securite
+
+        session = session_page(request)
+        if request.query_params:
+            raise HTTPException(400, 'Paramètres de recalcul invalides')
+        champs = await cedule_plan_ui.formulaire(request)
+        if not securite.csrf_valide(champs.get('csrf'), session):
+            raise HTTPException(403, 'Jeton CSRF absent ou invalide')
+        if set(champs) != {'csrf'}:
+            raise HTTPException(400, 'Champs de recalcul invalides')
+        try:
+            with cnx_factory() as cnx:
+                recalculer_certifie(cnx, deps, session, lead_id, devis_id)
+        except PermissionError as exc:  # refus typé du moteur (`code`) ou admin absent
+            refus = getattr(exc, 'code', None)
+            if type(refus) is str and refus not in {'AUTORITE_REFUSEE', 'ACTEUR_INVALIDE'}:
+                raise HTTPException(409, 'Recalcul certifié refusé : ' + refus) from None
+            raise HTTPException(403, 'Accès admin requis') from None
+        except lecture.Refus as exc:
+            code = {'INTROUVABLE': 404, 'COUT-NON-CALCULABLE': 409}.get(exc.code, 503)
+            raise HTTPException(code, 'Recalcul indisponible : ' + exc.code) from None
+        except (ValueError, KeyError, TypeError, OverflowError):
+            raise HTTPException(503, 'Sources de coûts indisponibles') from None
+        chemin = (f'{prefixe}/crm/lead/{pages._segment(lead_id)}/soumissions/'
+                  f'{pages._segment(devis_id)}/couts-travaux')
+        return RedirectResponse(chemin, status_code=303, headers={'Cache-Control': 'no-store'})
 
     @router.post('/crm/lead/{lead_id}/soumissions/{devis_id}/couts-travaux/tracer')
     async def tracer(lead_id: str, devis_id: str, request: Request):

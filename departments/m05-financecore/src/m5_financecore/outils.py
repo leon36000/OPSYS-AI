@@ -1045,9 +1045,6 @@ def _sources_cout_reel_depuis(captures: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-STATUTS_COUT_CERTIFIE = ("a_jour", "perime_recalcul_en_attente", "inconnu")
-
-
 def _statut_cout_certifie(devis_id: str, rentabilite_ordinaire: Mapping[str, Any] | None,
                           sources: Mapping[str, Any]) -> tuple[str, dict[str, Any] | None, int | None]:
     """D3 : le statut du DERNIER coût certifié d'un devis, jamais un certifié périmé présenté comme à jour.
@@ -3751,7 +3748,31 @@ def _vue_chantier(etat: dict[str, Any], sources: dict[str, Any], autorise_couts:
         "statut": "calculee",
         "rentabilite": contenu,
         "trace": trace_vue,
+        "cout_certifie": _vue_cout_certifie(etat["devis_id"], rentabilite, sources, autorise_couts, detail),
     }
+
+
+def _vue_cout_certifie(devis_id: str, rentabilite: dict[str, Any], sources: dict[str, Any], autorise_couts: bool,
+                       detail: bool) -> dict[str, Any]:
+    """D3 : la DERNIÈRE trace certifiée (main-d'oeuvre d'une projection M4 vérifiée) et son statut explicite,
+    `a_jour`, `perime_recalcul_en_attente` ou `inconnu` ; jamais un certifié périmé présenté comme à jour.
+    `rentabilite` ci-dessus reste le calcul ordinaire d'aujourd'hui ; ce bloc dit ce que la voie certifiée a publié.
+    Sans droit de voir les coûts : verdict et codes seulement. En liste : une ligne (`resumer`)."""
+    statut, certifiee, sequence = _statut_cout_certifie(devis_id, rentabilite, sources)
+    vue: dict[str, Any] = {"statut": statut}
+    if certifiee is None:
+        return vue
+    corps = certifiee["rentabilite"]
+    derniere: dict[str, Any] = {
+        "sequence": sequence, "horodatage": certifiee.get("horodatage"), "verdict": certifiee.get("verdict"),
+        "rentabilite": cout_reel.masquer_montants(corps) if not autorise_couts else cout_reel.resumer(corps),
+    }
+    if detail:
+        provenance = certifiee.get("provenance_service_v1") or {}
+        derniere["version_entrees"] = certifiee.get("version_entrees")
+        derniere["provenance"] = {k: provenance.get(k) for k in ("version", "wct_id", "empreinte_projection")}
+    vue["derniere_trace_certifiee"] = derniere
+    return vue
 
 
 def lire_rentabilite_chantier(
