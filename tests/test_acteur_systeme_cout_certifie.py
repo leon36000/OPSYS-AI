@@ -132,6 +132,17 @@ def test_le_moteur_refuse_l_acteur_systeme_hors_contexte_et_sans_ecriture(base_d
         fil.start()
         fil.join(30)
     assert resultat == {"code": moteur.AUTORITE_REFUSEE}
+    # même fil, contexte d'exécution vierge (jeton sorti de son contexte) : refusé
+    import contextvars
+
+    def hors_de_son_contexte(jeton):
+        with stockage.transaction() as cnx:
+            moteur.recalculer(cnx, jeton, acteur=systeme.IDENTIFIANT, wct_id=wct_id, devis_id=DEVIS,
+                              intention_id=_intention("contexte-vierge"))
+
+    with systeme.contexte_reconciliateur() as actif, pytest.raises(moteur.RefusRecalculM4) as exc:
+        contextvars.Context().run(hors_de_son_contexte, actif)
+    assert exc.value.code == moteur.AUTORITE_REFUSEE
     # un acteur déclaré différent est refusé
     with systeme.contexte_reconciliateur() as actif, stockage.transaction() as cnx, pytest.raises(
             moteur.RefusRecalculM4) as exc:

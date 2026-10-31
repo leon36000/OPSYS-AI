@@ -217,12 +217,21 @@ def test_un_refus_est_journalise_une_seule_fois_et_ne_reecrit_rien(base_durable)
     assert rejoue["refus"] == 1 and _empreinte_base() == avant  # même refus : pas de seconde ligne
 
 
-def test_deux_executions_simultanees_n_ecrivent_qu_une_fois(base_durable):
+def test_deux_executions_simultanees_n_ecrivent_qu_une_fois(base_durable, monkeypatch):
+    """Les deux exécutions ont la MÊME liste de candidats (lue avant que l'une n'écrive : barrière) ; la seconde,
+    sérialisée par BEGIN IMMEDIATE, relit l'état sous verrou, le trouve à jour, et n'écrit rien."""
     deps = charger_departements()
     _chantier(deps)
     cm._drainer_sans_echec(deps, BASE + dt.timedelta(hours=4))
     _octroyer("m4.recalculer_v3")
     barriere, resumes = threading.Barrier(2), []
+    traiter, barriere_traitement = rc._traiter, threading.Barrier(2)
+
+    def attendre_puis_traiter(*a, **k):
+        barriere_traitement.wait(timeout=30)  # les deux balayages sont faits avant toute écriture
+        return traiter(*a, **k)
+
+    monkeypatch.setattr(rc, "_traiter", attendre_puis_traiter)
 
     def executer():
         barriere.wait(timeout=30)
@@ -235,6 +244,8 @@ def test_deux_executions_simultanees_n_ecrivent_qu_une_fois(base_durable):
         fil.join(120)
     assert len(resumes) == 2 and sum(r["erreurs"] for r in resumes) == 0, resumes
     assert sum(r["publiees"] for r in resumes) == 1, resumes
+    assert sorted(r["candidats"] for r in resumes) == [1, 1], resumes
+    assert sorted((r["publiees"], r["a_jour"]) for r in resumes) == [(0, 1), (1, 0)], resumes
     assert len(_intentions()) == 1 and len(_certifiees()) == 1
     assert [j["statut"] for j in _journal()] == ["publiee"]
 
