@@ -44,7 +44,8 @@ def test_unite_du_tarif_absente_ou_differente_interdit_un_cout_complet(unite):
 
     assert resultat["complet"] is False, "unité du tarif inconnue/incompatible mais coût déclaré complet"
     assert resultat["cout_total"] is None
-    assert resultat["cout_total_connu"] == Decimal("150.00")
+    assert resultat["cout_total_connu"] == Decimal("0")
+    assert resultat["main_d_oeuvre"]["cout"] is None
     assert "unité" in resultat["manque"][0]["detail"]
 
 
@@ -53,8 +54,11 @@ def test_tarif_futur_ne_reecrit_pas_la_valorisation_du_wct_passe():
     avant = _calcul(wct, signal, [prix])
     apres = _calcul(wct, signal, [prix, {**prix, "prix_unitaire": 80, "date_effet": "2027-01-01"}])
 
-    assert avant["complet"] is True and avant["cout_total"] == Decimal("486.00")
-    assert apres["cout_total"] == avant["cout_total"], "le tarif futur remplace silencieusement le coût historique"
+    assert avant["complet"] is False and avant["cout_total"] is None
+    assert avant["materiaux"]["cout_connu"] == Decimal("336.00")
+    assert apres["materiaux"]["cout_connu"] == avant["materiaux"]["cout_connu"], (
+        "le tarif futur remplace silencieusement le coût historique"
+    )
     assert apres["entrees"] == avant["entrees"]
 
 
@@ -91,8 +95,8 @@ def test_tarif_du_jour_et_revisions_eligibles_gardent_la_precedence_append_only(
 
     resultat = _calcul(wct, signal, livre)
 
-    assert resultat["complet"] is True
-    assert resultat["cout_total"] == Decimal("570.00")  # dernière révision éligible : 42 * 10 + 150
+    assert resultat["complet"] is False and resultat["cout_total"] is None
+    assert resultat["materiaux"]["cout_connu"] == Decimal("420.00")  # dernière révision éligible : 42 * 10
 
 
 def test_le_tarif_futur_devient_utilisable_pour_un_wct_apres_sa_date_effet():
@@ -100,8 +104,8 @@ def test_le_tarif_futur_devient_utilisable_pour_un_wct_apres_sa_date_effet():
     wct["horodatage_completion"] = "2027-01-01T15:00:00+00:00"
     resultat = _calcul(wct, signal, [prix, {**prix, "prix_unitaire": 80, "date_effet": "2027-01-01"}])
 
-    assert resultat["complet"] is True
-    assert resultat["cout_total"] == Decimal("3510.00")
+    assert resultat["complet"] is False and resultat["cout_total"] is None
+    assert resultat["materiaux"]["cout_connu"] == Decimal("3360.00")
 
 
 def test_un_fournisseur_sans_unite_ne_disparait_pas_derriere_un_tarif_utilisable():

@@ -200,3 +200,58 @@ def copier_maillons_avec_metadonnees(
         return SnapshotMaillons(departement, registre, tuple(lignes), sha256(texte.encode("utf-8")).hexdigest())
     except (ValueError, TypeError, ArithmeticError, AttributeError, RecursionError, SQLAlchemyError):
         raise ValueError("copie des maillons avec métadonnées invalide") from None
+
+
+def copier_maillons_stricts(
+    cnx: Connection, *, departement: str, registre: str, max_lignes: int,
+    max_octets_ligne: int, max_octets_total: int,
+) -> SnapshotMaillons:
+    """Snapshot SQLite borné, transaction courante ; rangs contigus depuis zéro.
+
+    Codec typé inchangé, mais JSON ambigu et nombres non finis refusés.
+    Aucun contrôle de droit n'est ajouté à cette lecture.
+    """
+    from sqlalchemy import LargeBinary, cast
+    if (not isinstance(cnx, Connection) or cnx is not connexion_courante() or cnx.closed
+            or cnx.dialect.name != 'sqlite' or not cnx.in_transaction()
+            or not cnx.connection.dbapi_connection.in_transaction):
+        raise ValueError('transaction SQLite courante requise')
+    if (type(departement) is not str or not departement.strip()
+            or type(registre) is not str or not registre.strip()):
+        raise ValueError('source de registre invalide')
+    if (type(max_lignes) is not int or not 1 <= max_lignes <= 10000
+            or type(max_octets_ligne) is not int or not 1 <= max_octets_ligne <= 1048576
+            or type(max_octets_total) is not int or not 1 <= max_octets_total <= 16777216
+            or max_octets_ligne > max_octets_total):
+        raise ValueError('bornes invalides')
+    condition = (REGISTRES.c.departement == departement) & (REGISTRES.c.registre == registre)
+    try:
+        meta = cnx.execute(select(REGISTRES.c.rang, func.length(cast(REGISTRES.c.maillon, LargeBinary)))
+            .where(condition).order_by(REGISTRES.c.rang).limit(max_lignes + 1)).all()
+        if len(meta) > max_lignes:
+            raise ValueError('trop de lignes')
+        total = 0
+        for attendu, (rang, taille) in enumerate(meta):
+            if (type(rang) is not int or rang != attendu or type(taille) is not int
+                    or taille < 0 or taille > max_octets_ligne):
+                raise ValueError('rang ou taille invalide')
+            total += taille
+        if total > max_octets_total:
+            raise ValueError('registre trop volumineux')
+        rows = cnx.execute(select(REGISTRES.c.rang, REGISTRES.c.cree_le, REGISTRES.c.maillon)
+            .where(condition).order_by(REGISTRES.c.rang).limit(max_lignes + 1)).mappings().all()
+        if len(rows) != len(meta):
+            raise ValueError('registre modifié')
+        lignes, source = [], []
+        for ligne, (rang, taille) in zip(rows, meta, strict=True):
+            raw = ligne['maillon']
+            if (type(ligne['rang']) is not int or ligne['rang'] != rang
+                    or not isinstance(ligne['cree_le'], dt.datetime) or type(raw) is not str
+                    or len(raw.encode('utf-8')) != taille):
+                raise ValueError('ligne invalide')
+            lignes.append(MaillonLu(rang, ligne['cree_le'], codec.decoder_strict(raw)))
+            source.append({'rang': rang, 'cree_le': ligne['cree_le'].isoformat(), 'maillon': raw})
+        texte = json.dumps(source, sort_keys=True, ensure_ascii=False, separators=(',', ':'), allow_nan=False)
+        return SnapshotMaillons(departement, registre, tuple(lignes), sha256(texte.encode('utf-8')).hexdigest())
+    except (ValueError, TypeError, ArithmeticError, AttributeError, RecursionError, SQLAlchemyError, UnicodeError):
+        raise ValueError('copie stricte des maillons invalide') from None

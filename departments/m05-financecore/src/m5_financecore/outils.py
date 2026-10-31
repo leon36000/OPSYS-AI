@@ -199,7 +199,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
@@ -220,6 +219,7 @@ from . import (
     devis_recus,
     dossier_decision_cfo,
     echeanciers_contrats,
+    encodage,
     etat_financier,
     facturation,
     prevision,
@@ -837,6 +837,164 @@ def _livre_de_prix_m6() -> tuple[dict[str, Any], ...]:
     return tuple(dict(entree) for entree in maillons if isinstance(entree, Mapping))
 
 
+# Source privée M5 : les tarifs d'équipe ne sont ni des salaires, ni des mouvements financiers.
+# Aucun outil ou route ne l'expose tant qu'un raccord console n'a pas repris son admission.
+_NOM_REGISTRE_TARIFS_EQUIPES = "tarifs_equipes"
+_CHAMPS_TARIF_EQUIPE = frozenset({
+    "equipe_id", "taux", "unite", "devise", "source", "version", "date_effet", "date_fin", "remplace_id",
+})
+
+
+def _autoriser_tarifs_equipes() -> str:
+    cnx = stockage.connexion_courante()
+    appelante = contexte.identite_appelante()
+    if (cnx is None or not cnx.in_transaction() or cnx.dialect.name != "sqlite"
+            or appelante is None or appelante.role != "admin" or appelante.source != "console"
+            or contexte.departement_origine_appelante() != "console" or contexte.appel_provient_du_mcp()):
+        raise PermissionError("tarifs d'équipe : identité admin console et transaction SQLite requises")
+    confirmee = approbations.signataire_valide(cnx, appelante)
+    if confirmee is None:
+        raise PermissionError("tarifs d'équipe : identité inactive ou non autorisée")
+    return confirmee.personne
+
+
+def _valider_tarif_equipe(tarif: Any) -> dict[str, Any]:
+    if type(tarif) is not dict or set(tarif) != _CHAMPS_TARIF_EQUIPE:
+        raise ValueError("tarif d'équipe : champs invalides")
+    for cle in ("equipe_id", "source", "version"):
+        valeur = tarif[cle]
+        if not isinstance(valeur, str) or not valeur.strip() or len(valeur) > 256 or valeur != valeur.strip():
+            raise ValueError(f"tarif d'équipe : {cle} invalide")
+    if tarif["unite"] != "heure-equipe" or tarif["devise"] != "CAD":
+        raise ValueError("tarif d'équipe : unité ou devise non prise en charge")
+    texte = tarif["taux"]
+    if not isinstance(texte, str) or len(texte) > 32:
+        raise ValueError("tarif d'équipe : taux décimal textuel requis")
+    try:
+        montant = Decimal(texte)
+    except InvalidOperation:
+        raise ValueError("tarif d'équipe : taux invalide") from None
+    if (not montant.is_finite() or montant <= 0 or montant.adjusted() > 11
+            or montant.as_tuple().exponent < -12 or texte != texte.strip()):
+        raise ValueError("tarif d'équipe : taux invalide ou hors limites")
+    from datetime import date
+
+    dates = []
+    for cle in ("date_effet", "date_fin"):
+        valeur = tarif[cle]
+        try:
+            jour = date.fromisoformat(valeur) if isinstance(valeur, str) else None
+        except ValueError:
+            jour = None
+        if jour is None or jour.isoformat() != valeur:
+            raise ValueError(f"tarif d'équipe : {cle} invalide")
+        dates.append(jour)
+    if dates[0] > dates[1]:
+        raise ValueError("tarif d'équipe : période inversée")
+    remplace = tarif["remplace_id"]
+    if remplace is not None and (not isinstance(remplace, str) or len(remplace) != 64
+                                 or any(c not in "0123456789abcdef" for c in remplace)):
+        raise ValueError("tarif d'équipe : référence de révision invalide")
+    return dict(tarif)
+
+
+def _instantane_tarifs_equipes() -> dict[str, Any]:
+    """Copie bornée puis chaîne vérifiée dans la transaction déjà admise."""
+    from opsys.stockage.schema import OPSYS_INSTANCE, REGISTRES
+    from sqlalchemy import LargeBinary, cast, func, select
+
+    cnx = stockage.connexion_courante()
+    requete_instance = select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)
+    instance = cnx.execute(requete_instance).scalar_one_or_none()
+    if not isinstance(instance, str) or not instance.strip():
+        raise ValueError("tarifs d'équipe : instance non qualifiée")
+    filtre = (REGISTRES.c.departement == _DEPARTEMENT) & (REGISTRES.c.registre == _NOM_REGISTRE_TARIFS_EQUIPES)
+    taille = func.length(cast(REGISTRES.c.maillon, LargeBinary))
+    nombre, premier, dernier, total, maximum = cnx.execute(select(
+        func.count(), func.min(REGISTRES.c.rang), func.max(REGISTRES.c.rang),
+        func.coalesce(func.sum(taille), 0), func.coalesce(func.max(taille), 0),
+    ).where(filtre)).one()
+    if nombre > 1000 or total > 8 * 1024 * 1024 or maximum > 65536:
+        raise ValueError("tarifs d'équipe : registre hors limites")
+    if nombre and (premier != 0 or dernier != nombre - 1):
+        raise ValueError("tarifs d'équipe : rangs incomplets")
+    historique = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_TARIFS_EQUIPES))
+    actifs: dict[str, dict[str, Any]] = {}
+    mutations: set[str] = set()
+    precedent = None
+    for maillon in historique:
+        if (type(maillon) is not dict or set(maillon) != {"tarif", "mutation_id", "auteur", "precedent", "ligne_id"}
+                or maillon["precedent"] != precedent):
+            raise ValueError("tarifs d'équipe : chaîne invalide")
+        tarif = _valider_tarif_equipe(maillon["tarif"])
+        if (not isinstance(maillon["mutation_id"], str) or not maillon["mutation_id"].strip()
+                or maillon["mutation_id"] in mutations or not isinstance(maillon["auteur"], str)
+                or not maillon["auteur"].strip()):
+            raise ValueError("tarifs d'équipe : identité ou mutation invalide")
+        corps = {cle: valeur for cle, valeur in maillon.items() if cle != "ligne_id"}
+        if maillon["ligne_id"] != encodage.empreinte("m5.tarif-equipe.v1", corps):
+            raise ValueError("tarifs d'équipe : empreinte invalide")
+        remplace = tarif["remplace_id"]
+        if remplace is not None:
+            if remplace not in actifs or actifs[remplace]["equipe_id"] != tarif["equipe_id"]:
+                raise ValueError("tarifs d'équipe : révision incohérente")
+            if any(actifs[remplace][cle] != tarif[cle] for cle in ("date_effet", "date_fin")):
+                raise ValueError("tarifs d'équipe : une révision doit conserver sa période")
+            if (actifs[remplace]["source"], actifs[remplace]["version"]) == (tarif["source"], tarif["version"]):
+                raise ValueError("tarifs d'équipe : révision sans nouvelle source ou version")
+            del actifs[remplace]
+        if any(a["equipe_id"] == tarif["equipe_id"] and a["date_effet"] <= tarif["date_fin"]
+               and tarif["date_effet"] <= a["date_fin"] for a in actifs.values()):
+            raise ValueError("tarifs d'équipe : périodes ambiguës")
+        actifs[maillon["ligne_id"]] = tarif
+        mutations.add(maillon["mutation_id"])
+        precedent = maillon["ligne_id"]
+    if cnx.execute(requete_instance).scalar_one_or_none() != instance:
+        raise ValueError("tarifs d'équipe : instance modifiée")
+    return {"source": encodage.empreinte("m5.tarifs-equipes.snapshot.v1", instance, historique),
+            "historique": historique, "lignes": [{**tarif, "ligne_id": ident} for ident, tarif in actifs.items()]}
+
+
+def _lire_tarifs_equipes() -> dict[str, Any]:
+    auteur = _autoriser_tarifs_equipes()
+    resultat = _instantane_tarifs_equipes()
+    if _autoriser_tarifs_equipes() != auteur:
+        raise PermissionError("tarifs d'équipe : autorité modifiée")
+    return resultat
+
+
+def _inscrire_tarif_equipe(tarif: Any, *, mutation_id: str, source_attendue: str) -> dict[str, Any]:
+    """Enregistre une déclaration humaine, jamais un chiffre généré automatiquement."""
+    auteur = _autoriser_tarifs_equipes()
+    tarif = _valider_tarif_equipe(tarif)
+    if not isinstance(mutation_id, str) or not mutation_id.strip() or len(mutation_id) > 256:
+        raise ValueError("tarifs d'équipe : mutation invalide")
+    snapshot = _instantane_tarifs_equipes()
+    for maillon in snapshot["historique"]:
+        if maillon["mutation_id"] == mutation_id:
+            if maillon["tarif"] != tarif or maillon["auteur"] != auteur:
+                raise ValueError("tarifs d'équipe : mutation divergente")
+            if _autoriser_tarifs_equipes() != auteur:
+                raise PermissionError("tarifs d'équipe : autorité modifiée")
+            return dict(maillon)
+    if len(snapshot["historique"]) >= 1000:
+        raise ValueError("tarifs d'équipe : registre hors limites")
+    if source_attendue != snapshot["source"]:
+        raise ValueError("tarifs d'équipe : source périmée")
+    historique = snapshot["historique"]
+    corps = {"tarif": tarif, "mutation_id": mutation_id, "auteur": auteur,
+             "precedent": historique[-1]["ligne_id"] if historique else None}
+    maillon = {**corps, "ligne_id": encodage.empreinte("m5.tarif-equipe.v1", corps)}
+    # Valider l'historique résultant par la même lecture avant de confirmer la transaction.
+    with stockage.transaction():
+        registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_TARIFS_EQUIPES)
+        registre.append(maillon, rang_attendu=len(historique))
+        _instantane_tarifs_equipes()
+        if _autoriser_tarifs_equipes() != auteur:
+            raise PermissionError("tarifs d'équipe : autorité modifiée")
+    return dict(maillon)
+
+
 def _sources_cout_reel() -> dict[str, Any]:
     """Lit UNE fois chaque source du coût réel (PLAN T1.5-d) : les registres reçus (devis, WCT, variance), la
     facture ACTIVE de chaque devis, le livre de prix de M6, le taux horaire configuré et le dernier état tracé de
@@ -870,7 +1028,8 @@ def _sources_cout_reel_depuis(captures: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _etat_chantier(devis_id: str, sources: dict[str, Any] | None = None) -> dict[str, Any]:
+def _etat_chantier(devis_id: str, sources: dict[str, Any] | None = None, *,
+                   ventilation_verifiee: dict[str, Any] | None = None) -> dict[str, Any]:
     """L'état de coût réel et de rentabilité d'un devis, CALCULÉ à l'instant depuis les pièces lues à la
     source (PLAN T1.5-d) : le devis accepté et le WCT reçus du bus, le dernier signal de variance de M6,
     la facture active du devis, le livre de prix de M6 et le taux horaire configuré. N'écrit RIEN.
@@ -896,7 +1055,17 @@ def _etat_chantier(devis_id: str, sources: dict[str, Any] | None = None) -> dict
         if m.get("devis_id") == devis_id and m.get("wct_id") not in (None, wct_recu["wct_id"])
     }
     signal = variance_recus.signal_retenu_pour_wct_id(wct_recu["wct_id"], sources["variance"])
-    cout = cout_reel.calculer_cout_reel(wct_recu, signal, sources["livre"], sources["taux"], autres_wct)
+    if ventilation_verifiee is None:
+        cout = cout_reel.calculer_cout_reel(wct_recu, signal, sources["livre"], sources["taux"], autres_wct)
+    else:
+        # Cette fonction privée ne valide pas l'autorité des pièces : seul un
+        # adaptateur de confiance ayant relu les propriétaires peut les fournir.
+        p = ventilation_verifiee['projection']['projection']
+        source_m4 = ventilation_verifiee['projection']['source']
+        cout = cout_reel.calculer_cout_reel(
+            ventilation_verifiee['charge'], signal, sources['livre'], sources['taux'], autres_wct,
+            projection=p, tarifs_equipes=ventilation_verifiee['tarifs']['lignes'], instance_id=p['instance_id'],
+            source_attendue=source_m4, source_relue=source_m4, sources_actuelles=p['sources'])
     chantier_id = chantier_devis or (signal.get("chantier_id") if signal is not None else None) or None
     rentabilite = cout_reel.calculer_rentabilite(
         cout, sources["factures"].get(devis_id), devis_recu, devis_id=devis_id, chantier_id=chantier_id
@@ -936,11 +1105,25 @@ def _essayer_cout_reel(devis_id: str) -> dict[str, Any]:
     trace = sources["traces"].get(devis_id)
     if trace is not None and trace.get("version_entrees") == rentabilite["version_entrees"]:
         return {"statut": "deja_tracee"}
-    stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE).append(
-        cout_reel.construire_trace(rentabilite, etat["horodatage"])
-    )
-    _publier_rentabilite(rentabilite, sources["nombre_de_traces"].get(devis_id, 0) + 1, etat["horodatage"])
+    _consigner_rentabilite(rentabilite, sources["nombre_de_traces"].get(devis_id, 0) + 1, etat["horodatage"])
     return {"statut": "tracee"}
+
+
+def _consigner_rentabilite(rentabilite: dict[str, Any], sequence: int, horodatage: Any, *,
+                           rang_attendu: int | None = None, provenance: dict[str, Any] | None = None,
+                           provenance_service: dict[str, Any] | None = None, publier: bool = True) -> dict[str, Any]:
+    """Point d'écriture privé M5 ; ses appelants doivent établir l'autorité et les sources."""
+    trace = cout_reel.construire_trace(rentabilite, horodatage)
+    if provenance is not None and provenance_service is not None:
+        raise ValueError('provenances incompatibles')
+    if provenance is not None:
+        trace['provenance_v3'] = provenance
+    if provenance_service is not None:
+        trace['provenance_service_v1'] = provenance_service
+    stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE).append(trace, rang_attendu=rang_attendu)
+    if publier:
+        _publier_rentabilite(rentabilite, sequence, horodatage)
+    return trace
 
 
 def _publier_rentabilite(rentabilite: dict[str, Any], sequence: int, horodatage: Any) -> None:
@@ -998,6 +1181,7 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     sans devis n'a rien à joindre, jamais deviné (fail-closed, PLAN T1.2-d)."""
     wct_id = charge["wct_id"]
     registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)
+    rang_attendu = len(registre)
     wct_recu = wct_recus.pour_wct_id(wct_id, registre)
     if wct_recu is None:
         wct_recu = wct_recus.construire(
@@ -1006,12 +1190,25 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
             devis_id=charge.get("devis_id"),
             horodatage_completion=charge["horodatage_completion"],
             duree_reelle_minutes=charge.get("duree_reelle_minutes"),
+            empreinte_charge=encodage.empreinte(charge),
         )
-        registre.append(wct_recu)
+        registre.append(wct_recu, rang_attendu=rang_attendu)
+    else:
+        wct_recus.verifier_rejeu(wct_recu, charge)
     if wct_recu["devis_id"] is None:
         return {"traite": True, "wct_id": wct_id, "statut": "wct_sans_devis_id"}
     resultat = _essayer_facture_brouillon(wct_recu["devis_id"])
-    return {**resultat, "cout_reel": _essayer_cout_reel(wct_recu["devis_id"])["statut"]}
+    cout = _essayer_cout_reel(wct_recu["devis_id"])["statut"]
+    # Sans capacité qualifiée, l'ancien résultat partiel reste la vérité connue.
+    from opsys import service_capability
+    try:
+        cap = service_capability.courante()
+    except (service_capability.RefusAutorite, ValueError):
+        return {**resultat, "cout_reel": cout}
+    # Une perte de source après acquisition remonte au répartiteur et annule la livraison.
+    from .port_service_m4 import publier
+    publication = publier(wct_recu["devis_id"], cap=cap)
+    return {**resultat, "cout_reel": cout, "service_m4": publication["statut"]}
 
 
 def lister_attentes_facturation() -> dict[str, Any]:
@@ -3945,10 +4142,9 @@ def _snapshot_couts_marketing(nom: str) -> list[dict]:
     import json
     import math
 
-    from sqlalchemy import LargeBinary, cast, func, select
-
     from opsys.stockage import codec
     from opsys.stockage.schema import REGISTRES
+    from sqlalchemy import LargeBinary, cast, func, select
 
     if nom not in {_NOM_REGISTRE_COMPTES_A_PAYER, couts_marketing.REGISTRE}:
         raise couts_marketing.CoutErreur("REGISTRE-INVALIDE")

@@ -68,6 +68,13 @@ def _cout(wct=None, signal=None, livre=None, taux="50.00"):
     )
 
 
+@pytest.mark.parametrize('minutes', [1, 60, 180])
+def test_wct_v1_scalaire_ne_certifie_pas_le_cout_de_main_d_oeuvre(minutes):
+    cout = _cout(wct=_wct(duree_reelle_minutes=minutes))
+    assert not cout['complet'] and cout['cout_total'] is None and cout['main_d_oeuvre']['cout'] is None
+    assert 'REJ-COUT-TEMPS-POINTE-ABSENT' in _codes(cout)
+
+
 def _rentabilite(cout=None, facture="defaut", devis="defaut"):
     return cout_reel.calculer_rentabilite(
         _cout() if cout is None else cout,
@@ -96,8 +103,8 @@ def _tous_les_montants(valeur):
 # =========================================================================================
 # 1. Le cas complet : chaque chiffre vient d'une source, le calcul est exact
 # =========================================================================================
-def test_cout_complet_materiaux_et_main_d_oeuvre():
-    cout = _cout()
+def test_cout_complet_materiaux_et_main_d_oeuvre(cout_v3):
+    cout = cout_v3()
 
     assert cout["complet"] is True and cout["manque"] == []
     (ligne,) = cout["materiaux"]["lignes"]
@@ -106,7 +113,9 @@ def test_cout_complet_materiaux_et_main_d_oeuvre():
     assert ligne["cout"] == Decimal("336.00")  # 42 pi x 8,00 $
     assert cout["materiaux"]["statut"] == "complet" and cout["materiaux"]["cout_connu"] == Decimal("336.00")
     mo = cout["main_d_oeuvre"]
-    assert (mo["minutes"], mo["taux_horaire"], mo["cout"]) == (180, Decimal("50.00"), Decimal("150.00"))
+    assert (mo["minutes"], mo["cout"]) == (180, Decimal("150.00"))
+    assert mo['lignes'][0]['taux'] == Decimal('50.00') and mo['lignes'][0]['unite'] == 'heure-equipe'
+    assert mo['lignes'][0]['source'] == 'tarif-fictif' and mo['lignes'][0]['version'] == '1'
     assert cout["cout_total"] == cout["cout_total_connu"] == Decimal("486.00")
     assert cout["devise"] == "CAD"
 
@@ -126,8 +135,8 @@ def test_aucun_montant_n_est_un_float():
     assert not [m for m in montants if isinstance(m, float)]
 
 
-def test_rentabilite_prix_moins_cout_marge_reelle_contre_prevue():
-    r = _rentabilite()
+def test_rentabilite_prix_moins_cout_marge_reelle_contre_prevue(cout_v3):
+    r = _rentabilite(cout=cout_v3())
 
     assert r["verdict"] == "CALCULEE" and r["manque"] == []
     assert r["prix_facture"] == Decimal("600.00")  # avant taxes : la TPS et la TVQ ne sont pas un revenu
@@ -140,8 +149,8 @@ def test_rentabilite_prix_moins_cout_marge_reelle_contre_prevue():
     assert (r["devis_id"], r["chantier_id"], r["wct_id"]) == ("DEVIS-1", "CH-1", "WCT-1")
 
 
-def test_un_chantier_a_perte_est_dit_a_perte():
-    r = _rentabilite(cout=_cout(taux="200.00"), facture=_facture(montant="600.00"))  # 336 + 600 = 936 > 600
+def test_un_chantier_a_perte_est_dit_a_perte(cout_v3):
+    r = _rentabilite(cout=cout_v3(taux="200.00"), facture=_facture(montant="600.00"))  # 336 + 600 = 936 > 600
 
     assert r["marge_reelle"] == Decimal("-336.00") and r["en_perte"] is True
 
@@ -161,8 +170,8 @@ def test_ligne_de_materiau_arrondie_half_up_au_cent():
     assert cout["materiaux"]["lignes"][0]["cout"] == Decimal("0.13")  # 0,125 : half-even donnerait 0,12
 
 
-def test_main_d_oeuvre_arrondie_une_seule_fois_half_up():
-    cout = _cout(wct=_wct(duree_reelle_minutes=1), signal=_signal([]), taux="0.30")
+def test_main_d_oeuvre_arrondie_une_seule_fois_half_up(cout_v3):
+    cout = cout_v3(minutes=1, signal=_signal([]), taux="0.30")
 
     assert cout["main_d_oeuvre"]["cout"] == Decimal("0.01")  # 1 min x 0,30 $/h = 0,005 $ : half-even donnerait 0,00
 
@@ -176,8 +185,8 @@ def test_la_somme_des_lignes_arrondies_fait_le_cout_des_materiaux():
     assert cout["materiaux"]["cout_connu"] == Decimal("0.26")  # 0,13 + 0,13, comme deux lignes de facture
 
 
-def test_pourcentage_de_marge_arrondi_half_up_a_quatre_decimales():
-    cout = _cout(signal=_signal([]), taux="31.00", wct=_wct(duree_reelle_minutes=60))  # coût 31,00 $
+def test_pourcentage_de_marge_arrondi_half_up_a_quatre_decimales(cout_v3):
+    cout = cout_v3(signal=_signal([]), taux="31.00", minutes=60)  # coût 31,00 $
 
     r = _rentabilite(cout=cout, facture=_facture(montant="32.00"))
 
@@ -185,8 +194,8 @@ def test_pourcentage_de_marge_arrondi_half_up_a_quatre_decimales():
     assert r["marge_reelle_pct_du_prix"] == Decimal("0.0313")  # 1/32 = 0,03125 : half-even donnerait 0,0312
 
 
-def test_un_prix_nul_ne_donne_aucun_pourcentage_jamais_une_division_par_zero():
-    cout = _cout(signal=_signal([]), taux="1.00", wct=_wct(duree_reelle_minutes=60))
+def test_un_prix_nul_ne_donne_aucun_pourcentage_jamais_une_division_par_zero(cout_v3):
+    cout = cout_v3(signal=_signal([]), taux="1.00", minutes=60)
 
     r = _rentabilite(cout=cout, facture=_facture(montant="0.00"))
 
@@ -202,10 +211,11 @@ def test_prix_absent_du_livre_donne_une_ligne_prix_non_disponible_et_un_cout_par
     (ligne,) = cout["materiaux"]["lignes"]
     assert ligne["statut"] == "PRIX_NON_DISPONIBLE" and ligne["prix_unitaire"] is None and ligne["cout"] is None
     assert cout["complet"] is False and cout["cout_total"] is None  # jamais une somme partielle prise pour un total
-    assert cout["cout_total_connu"] == Decimal("150.00")  # la main-d'oeuvre seule, dite connue
+    assert cout["cout_total_connu"] == Decimal("0")  # durée scalaire non attribuable à une équipe
     assert cout["materiaux"]["statut"] == "partiel"
-    (manque,) = cout["manque"]
+    manque = next(e for e in cout["manque"] if e["code"] == "REJ-COUT-PRIX-NON-DISPONIBLE")
     assert manque["code"] == "REJ-COUT-PRIX-NON-DISPONIBLE" and manque["materiau"] == MATERIAU
+    assert _codes(cout) == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
 
 
 def test_le_prix_d_un_autre_materiau_n_est_jamais_utilise():
@@ -222,7 +232,7 @@ def test_deux_fournisseurs_aux_prix_differents_donnent_un_prix_ambigu_jamais_une
     ligne = cout["materiaux"]["lignes"][0]
     assert ligne["statut"] == "PRIX_AMBIGU" and ligne["prix_unitaire"] is None and ligne["cout"] is None
     assert [s["fournisseur_id"] for s in ligne["sources_prix"]] == ["gentek-fictif", "kaycan-fictif"]
-    assert _codes(cout) == ["REJ-COUT-PRIX-AMBIGU"] and cout["complet"] is False
+    assert _codes(cout) == ["REJ-COUT-PRIX-AMBIGU", "REJ-COUT-TEMPS-POINTE-ABSENT"] and cout["complet"] is False
 
 
 def test_deux_fournisseurs_au_meme_prix_donnent_ce_prix():
@@ -230,7 +240,7 @@ def test_deux_fournisseurs_au_meme_prix_donnent_ce_prix():
 
     cout = _cout(livre=livre)
 
-    assert cout["materiaux"]["lignes"][0]["cout"] == Decimal("336.00") and cout["complet"] is True
+    assert cout["materiaux"]["lignes"][0]["cout"] == Decimal("336.00") and cout["complet"] is False
 
 
 def test_le_dernier_prix_ecrit_d_un_fournisseur_fait_foi():
@@ -256,7 +266,8 @@ def test_une_entree_de_livre_inutilisable_n_est_jamais_prise_pour_un_prix(entree
 
 
 def test_la_devise_cad_est_reconnue_sans_egard_a_la_casse():
-    assert _cout(livre=[_prix(devise=" cad ")])["complet"] is True
+    cout = _cout(livre=[_prix(devise=" cad ")])
+    assert cout["materiaux"]["cout_connu"] == Decimal("336.00") and cout["complet"] is False
 
 
 def test_un_prix_du_livre_en_texte_decimal_reste_exact():
@@ -277,7 +288,7 @@ def test_variance_non_evaluee_les_materiaux_reels_sont_inconnus(statut, lignes):
     assert cout["materiaux"]["statut"] == "non_disponible" and cout["materiaux"]["lignes"] == []
     assert "REJ-COUT-MATERIAUX-REELS-ABSENTS" in _codes(cout)
     assert statut in cout["manque"][0]["detail"] and cout["complet"] is False
-    assert cout["cout_total"] is None and cout["cout_total_connu"] == Decimal("150.00")
+    assert cout["cout_total"] is None and cout["cout_total_connu"] == Decimal("0")
 
 
 def test_aucun_signal_de_variance_recu_les_materiaux_reels_sont_inconnus():
@@ -297,7 +308,7 @@ def test_evaluee_sans_aucune_ligne_est_un_cout_de_materiaux_nul_et_complet():
     cout = _cout(signal=_signal([]))
 
     assert cout["materiaux"]["statut"] == "complet" and cout["materiaux"]["cout_connu"] == Decimal("0")
-    assert cout["complet"] is True and cout["cout_total"] == Decimal("150.00")
+    assert cout["complet"] is False and cout["cout_total"] is None
 
 
 @pytest.mark.parametrize("ligne", [
@@ -316,13 +327,14 @@ def test_une_ligne_de_variance_indeterminee_n_est_jamais_chiffree(ligne):
 
     assert cout["materiaux"]["lignes"][0]["statut"] == "LIGNE_INDETERMINEE"
     assert cout["materiaux"]["lignes"][0]["cout"] is None
-    assert _codes(cout) == ["REJ-COUT-LIGNE-INDETERMINEE"] and cout["complet"] is False
+    assert _codes(cout) == ["REJ-COUT-LIGNE-INDETERMINEE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert cout["complet"] is False
 
 
 def test_une_ligne_a_quantite_nulle_coute_zero_c_est_un_materiau_prevu_non_utilise():
     cout = _cout(signal=_signal([_ligne(reelle="0.0")]))
 
-    assert cout["materiaux"]["lignes"][0]["cout"] == Decimal("0.00") and cout["complet"] is True
+    assert cout["materiaux"]["lignes"][0]["cout"] == Decimal("0.00") and cout["complet"] is False
 
 
 def test_un_manque_de_ligne_n_empeche_pas_de_chiffrer_les_autres_lignes():
@@ -332,7 +344,9 @@ def test_un_manque_de_ligne_n_empeche_pas_de_chiffrer_les_autres_lignes():
     cout = _cout(signal=signal, livre=livre)
 
     assert cout["materiaux"]["cout_connu"] == Decimal("20.00") and cout["complet"] is False
-    assert [(e["code"], e["materiau"]) for e in cout["manque"]] == [("REJ-COUT-PRIX-NON-DISPONIBLE", "b")]
+    assert [(e["code"], e.get("materiau")) for e in cout["manque"]] == [
+        ("REJ-COUT-PRIX-NON-DISPONIBLE", "b"), ("REJ-COUT-TEMPS-POINTE-ABSENT", None),
+    ]
 
 
 # =========================================================================================
@@ -353,7 +367,7 @@ def test_taux_horaire_absent_ou_invalide_donne_le_verdict_taux_a_configurer(taux
 
     assert cout["main_d_oeuvre"]["statut"] == "non_disponible" and cout["main_d_oeuvre"]["cout"] is None
     assert cout["main_d_oeuvre"]["taux_horaire"] is None
-    assert _codes(cout) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert _codes(cout) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert cout["complet"] is False and cout["cout_total"] is None
     assert cout["cout_total_connu"] == Decimal("336.00")  # les matériaux, eux, sont chiffrés
 
@@ -417,27 +431,30 @@ def test_un_second_travaux_termines_pour_le_meme_devis_rend_le_cout_partiel():
     cout = cout_reel.calculer_cout_reel(_wct(), _signal(), [_prix()], "50.00", autres_wct=["WCT-2", "WCT-2"])
 
     assert cout["complet"] is False and cout["cout_total"] is None
-    assert cout["cout_total_connu"] == Decimal("486.00")  # celui du premier WCT, dit connu et jamais total
-    (manque,) = cout["manque"]
+    assert cout["cout_total_connu"] == Decimal("336.00")  # matériaux seulement ; main-d'œuvre inconnue
+    manque = next(e for e in cout["manque"] if e["code"] == "REJ-COUT-PLUSIEURS-WCT")
+    assert _codes(cout) == ["REJ-COUT-TEMPS-POINTE-ABSENT", "REJ-COUT-PLUSIEURS-WCT"]
     assert manque["code"] == "REJ-COUT-PLUSIEURS-WCT" and "2 travaux terminés" in manque["detail"]
     assert "WCT-2" in manque["detail"]
     assert cout["entrees"]["autres_wct"] == ["WCT-2"]  # dédoublonné, et compté dans la version des entrées
 
 
 def test_l_absence_d_autre_wct_ne_change_ni_le_cout_ni_le_manque():
-    assert _cout()["complet"] is True and _cout()["entrees"]["autres_wct"] == []
+    cout = _cout()
+    assert cout["complet"] is False and cout["entrees"]["autres_wct"] == []
+    assert _codes(cout) == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
 
 
 # =========================================================================================
 # 5. Rentabilité partielle : jamais une marge quand le coût ne l'est pas
 # =========================================================================================
 def test_cout_partiel_pas_de_marge_reelle_seulement_un_plafond_dit_plafond():
-    r = _rentabilite(cout=_cout(livre=[]))  # matériaux sans prix : coût connu = main-d'oeuvre, 150,00 $
+    r = _rentabilite(cout=_cout(livre=[]))  # matériaux sans prix et main-d'œuvre non attribuable
 
     assert r["verdict"] == "PARTIELLE"
     assert r["marge_reelle"] is None and r["marge_reelle_pct_du_prix"] is None
-    assert r["marge_partielle_plafond"] == Decimal("450.00")  # 600 - 150 : ce qui manque n'y est pas soustrait
-    assert r["marge_partielle_plafond_pct_du_prix"] == Decimal("0.7500")
+    assert r["marge_partielle_plafond"] == Decimal("600.00")  # rien de connu à soustraire du prix
+    assert r["marge_partielle_plafond_pct_du_prix"] == Decimal("1.0000")
     assert r["ecart_marge"] is None and r["ecart_marge_points"] is None and r["en_perte"] is False
     assert "REJ-COUT-PRIX-NON-DISPONIBLE" in _codes(r)
     assert r["cout_reel"]["complet"] is False and r["cout_reel"]["cout_total"] is None
@@ -464,8 +481,8 @@ def test_montant_de_facture_illisible_est_dit_illisible():
     pytest.param(_devis(prix_total=None), id="sans_prix_total"),
     pytest.param(_devis(cout_total="beaucoup"), id="cout_total_illisible"),
 ])
-def test_marge_prevue_absente_est_dite_absente_et_la_marge_reelle_reste_calculee(devis):
-    r = _rentabilite(devis=devis)
+def test_marge_prevue_absente_est_dite_absente_et_la_marge_reelle_reste_calculee(devis, cout_v3):
+    r = _rentabilite(cout=cout_v3(), devis=devis)
 
     assert r["marge_prevue"] is None and r["cout_prevu"] is None and r["ecart_marge"] is None
     assert "REJ-RENTABILITE-MARGE-PREVUE-ABSENTE" in _codes(r)
@@ -552,8 +569,8 @@ def test_la_version_est_une_empreinte_sha256_de_l_encodage_canonique():
 # =========================================================================================
 # 8. Trace, résumé et vue masquée
 # =========================================================================================
-def test_la_trace_est_un_maillon_derive_avec_la_version_et_le_calcul_complet():
-    r = _rentabilite()
+def test_la_trace_est_un_maillon_derive_avec_la_version_et_le_calcul_complet(cout_v3):
+    r = _rentabilite(cout=cout_v3())
 
     trace = cout_reel.construire_trace(r, "2026-09-15T15:00:00+00:00")
 
@@ -568,8 +585,8 @@ def test_le_resume_d_une_liste_tient_en_une_ligne_de_chiffres_et_de_codes():
     resume = cout_reel.resumer(_rentabilite(cout=_cout(livre=[])))
 
     assert resume["verdict"] == "PARTIELLE" and resume["cout_reel_complet"] is False
-    assert resume["cout_total"] is None and resume["cout_total_connu"] == Decimal("150.00")
-    assert resume["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+    assert resume["cout_total"] is None and resume["cout_total_connu"] == Decimal("0")
+    assert resume["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert "cout_reel" not in resume and "lignes" not in resume
     assert "devis_id" not in resume and "chantier_id" not in resume  # l'appelant les porte déjà
 
@@ -581,7 +598,8 @@ def test_la_vue_masquee_ne_porte_aucun_montant_ni_detail_de_manque():
 
     masque = cout_reel.masquer_montants(r)
 
-    assert masque["montants_masques"] is True and masque["manque"] == ["REJ-COUT-PRIX-AMBIGU"]
+    assert masque["montants_masques"] is True
+    assert masque["manque"] == ["REJ-COUT-PRIX-AMBIGU", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert not list(_tous_les_montants(masque))
     texte = json.dumps(masque, default=str)
     assert "8.0" not in texte and "9.0" not in texte and "gentek" not in texte and "kaycan" not in texte

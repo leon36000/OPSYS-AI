@@ -7,9 +7,8 @@ voir `outils._recevoir_travaux_termines` — et horodatage_completion, la seule 
 pour la facture, faute d'horloge propre, DA-M5-06) dans un registre durable DÉDIÉ, DISTINCT de
 celui des factures et de celui des devis reçus (`devis_recus.py`).
 
-Idempotent par wct_id : le WCT est immuable une fois écrit côté M4 (CA-M4-11, patron déjà
-documenté par M6 `wct_recus.py`) — une redélivrance pour le MÊME wct_id porte toujours la même
-charge, donc un second enregistrement est un NO-OP silencieux, jamais une erreur ni un doublon.
+Idempotent par wct_id et empreinte de la charge complète. Une charge divergente est refusée ;
+un ancien reçu sans empreinte ne permet pas de prouver l'identité et exige une vérification.
 
 Module pur (AGENTS.md, ADR-0009) : aucun import `opsys`.
 """
@@ -19,7 +18,9 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-__all__ = ["construire", "pour_wct_id", "pour_devis_id"]
+from . import encodage
+
+__all__ = ["construire", "pour_wct_id", "pour_devis_id", "verifier_rejeu"]
 
 
 def construire(
@@ -28,6 +29,7 @@ def construire(
     devis_id: Any,
     horodatage_completion: Any,
     duree_reelle_minutes: Any = None,
+    empreinte_charge: str | None = None,
 ) -> dict[str, Any]:
     """Le maillon WCT reçu — construction pure, sans écriture (l'appelant, `outils.py`, vérifie
     d'abord `pour_wct_id` et n'ajoute que si absent : l'idempotence vit là, pas ici).
@@ -36,13 +38,25 @@ def construire(
     calculée (premier arrivé au dernier départ, pauses déduites) : la SEULE source de la main-d'oeuvre
     réelle (`cout_reel.py`). Un maillon écrit avant ce changement ne la porte pas : `.get()` rend alors
     `None`, et le coût réel dit « temps pointé absent » au lieu d'en deviner un."""
-    return {
+    resultat = {
         "wct_id": wct_id,
         "intervention_id": intervention_id,
         "devis_id": devis_id,
         "horodatage_completion": horodatage_completion,
         "duree_reelle_minutes": duree_reelle_minutes,
     }
+    if empreinte_charge is not None:
+        resultat["empreinte_charge"] = empreinte_charge
+    return resultat
+
+
+def verifier_rejeu(recu: Mapping[str, Any], charge: Mapping[str, Any]) -> None:
+    """Refuse toute divergence et tout reçu historique dont la charge complète est inconnue."""
+    empreinte = recu.get("empreinte_charge")
+    if empreinte is None:
+        raise ValueError("WCT historique sans empreinte complète : vérification des pièces requise")
+    if empreinte != encodage.empreinte(dict(charge)):
+        raise ValueError("WCT divergent : même identifiant et charge différente")
 
 
 def pour_wct_id(wct_id: Any, maillons_existants: Iterable[Mapping[str, Any]]) -> dict[str, Any] | None:

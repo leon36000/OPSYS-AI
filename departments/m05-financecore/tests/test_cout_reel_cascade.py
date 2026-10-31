@@ -19,7 +19,6 @@ from pathlib import Path
 import m5_financecore.outils as outils_mod
 import pytest
 import yaml
-
 from opsys import evenements, stockage
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
@@ -148,47 +147,52 @@ def _essayer(devis_id="DEVIS-1"):
 # =========================================================================================
 @pytest.mark.parametrize("ordre", list(itertools.permutations(["devis", "wct", "variance"])),
                          ids=lambda ordre: "-".join(ordre))
-def test_les_trois_pieces_dans_n_importe_quel_ordre_donnent_le_meme_etat_complet(base_durable, taux_configure, ordre):
+def test_les_trois_pieces_dans_n_importe_quel_ordre_restent_partielles_sans_equipe(base_durable, taux_configure, ordre):
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     _prix_au_livre_m6()
     for piece in ordre:
         _publier(piece)
         _livrer()
-
     traces = _traces()
     derniere = traces[-1]
     r = derniere["rentabilite"]
-    assert derniere["verdict"] == "CALCULEE" and r["manque"] == []
+    assert derniere["verdict"] == "PARTIELLE"
+    assert _codes(derniere) == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert r["prix_facture"] == Decimal("600.00")
-    assert r["cout_reel"]["cout_total"] == Decimal("486.00")  # 42 pi x 8,00 + 180 min x 50,00 $/h
-    assert r["marge_reelle"] == Decimal("114.00") and r["marge_reelle_pct_du_prix"] == Decimal("0.1900")
-    assert r["marge_prevue"] == Decimal("120.00") and r["ecart_marge"] == Decimal("-6.00")
+    assert r["cout_reel"]["materiaux"]["cout_connu"] == Decimal("336.00")
+    assert r["cout_reel"]["main_d_oeuvre"]["cout"] is None
+    assert r["cout_reel"]["cout_total"] is None and r["marge_reelle"] is None
     assert (derniere["devis_id"], derniere["chantier_id"], derniere["wct_id"]) == ("DEVIS-1", "CHANTIER-1", "WCT-1")
-    assert derniere["horodatage"] == COMPLETION  # celui du WCT : aucune horloge
+    assert derniere["horodatage"] == COMPLETION
     versions = [t["version_entrees"] for t in traces]
-    assert len(versions) == len(set(versions)) <= 3, "une trace par version des entrées, jamais deux fois la même"
+    assert len(versions) == len(set(versions)) <= 3
     with stockage.transaction():
         assert outils_mod._etat_chantier("DEVIS-1")["rentabilite"]["version_entrees"] == derniere["version_entrees"]
+    avant = _traces()
+    _livrer()
+    assert _traces() == avant
 
 
-def test_chaque_piece_apporte_ce_qu_elle_sait_la_derniere_complete_l_etat(base_durable, taux_configure):
+def test_chaque_piece_apporte_ce_qu_elle_sait_sans_completer_le_temps(base_durable, taux_configure):
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     _prix_au_livre_m6()
     _publier("devis")
     _livrer()
-    assert _traces() == [], "sans WCT : rien à calculer, un statut d'attente"
-
+    assert _traces() == []
     _publier("wct")
     _livrer()
     (apres_wct,) = _traces()
     assert apres_wct["verdict"] == "PARTIELLE"
-    assert _codes(apres_wct) == ["REJ-COUT-MATERIAUX-REELS-ABSENTS"]  # la variance de M6 n'est pas encore là
-    assert apres_wct["rentabilite"]["prix_facture"] == Decimal("600.00")  # la facture brouillon, elle, existe
-    assert apres_wct["rentabilite"]["cout_reel"]["cout_total_connu"] == Decimal("150.00")  # la main-d'oeuvre
-
+    assert _codes(apres_wct) == ["REJ-COUT-MATERIAUX-REELS-ABSENTS", "REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert apres_wct["rentabilite"]["prix_facture"] == Decimal("600.00")
+    assert apres_wct["rentabilite"]["cout_reel"]["main_d_oeuvre"]["cout"] is None
     _publier("variance")
     _livrer()
     avant, apres = _traces()
-    assert avant["version_entrees"] == apres_wct["version_entrees"]
-    assert apres["verdict"] == "CALCULEE" and apres["rentabilite"]["marge_reelle"] == Decimal("114.00")
+    assert avant == apres_wct and apres["verdict"] == "PARTIELLE"
+    assert _codes(apres) == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert apres["rentabilite"]["cout_reel"]["materiaux"]["cout_connu"] == Decimal("336.00")
+    assert apres['rentabilite']['marge_reelle'] is None
 
 
 def test_rejeu_et_redelivrance_ne_tracent_rien_de_plus(base_durable, taux_configure):
@@ -244,11 +248,12 @@ def test_sans_prix_au_livre_la_ligne_est_prix_non_disponible_et_le_cout_partiel(
 
     derniere = _traces()[-1]
     r = derniere["rentabilite"]
-    assert derniere["verdict"] == "PARTIELLE" and _codes(derniere) == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+    assert derniere["verdict"] == "PARTIELLE"
+    assert _codes(derniere) == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert r["cout_reel"]["complet"] is False and r["cout_reel"]["cout_total"] is None
     assert r["cout_reel"]["materiaux"]["lignes"][0]["statut"] == "PRIX_NON_DISPONIBLE"
-    assert r["cout_reel"]["cout_total_connu"] == Decimal("150.00")
-    assert r["marge_reelle"] is None and r["marge_partielle_plafond"] == Decimal("450.00")
+    assert r["cout_reel"]["cout_total_connu"] == Decimal("0")
+    assert r["marge_reelle"] is None and r["marge_partielle_plafond"] == Decimal("600.00")
 
 
 def test_taux_horaire_absent_du_manifeste_livre_le_verdict_est_taux_a_configurer(base_durable):
@@ -261,7 +266,7 @@ def test_taux_horaire_absent_du_manifeste_livre_le_verdict_est_taux_a_configurer
     _livrer()
 
     derniere = _traces()[-1]
-    assert _codes(derniere) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert _codes(derniere) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     r = derniere["rentabilite"]
     assert r["cout_reel"]["materiaux"]["cout_connu"] == Decimal("336.00")  # les matériaux sont chiffrés
     assert r["cout_reel"]["main_d_oeuvre"]["cout"] is None and r["cout_reel"]["cout_total"] is None
@@ -282,7 +287,7 @@ def test_un_manifeste_illisible_ou_un_taux_nul_donne_taux_a_configurer_sans_pann
         _publier(piece)
     _livrer()
 
-    assert _codes(_traces()[-1]) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert _codes(_traces()[-1]) == ["REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "REJ-COUT-TEMPS-POINTE-ABSENT"]
 
 
 def test_manifeste_absent_du_disque_donne_taux_a_configurer_sans_panne(base_durable, tmp_path, monkeypatch):
@@ -299,7 +304,8 @@ def test_deux_fournisseurs_aux_prix_differents_le_cout_dit_prix_ambigu(base_dura
     _livrer()
 
     derniere = _traces()[-1]
-    assert _codes(derniere) == ["REJ-COUT-PRIX-AMBIGU"] and derniere["verdict"] == "PARTIELLE"
+    assert _codes(derniere) == ["REJ-COUT-PRIX-AMBIGU", "REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert derniere["verdict"] == "PARTIELLE"
 
 
 def test_devis_ou_wct_recus_avant_t1_5_d_donnent_des_manques_pas_une_panne(base_durable, taux_configure):
@@ -327,20 +333,19 @@ def test_devis_ou_wct_recus_avant_t1_5_d_donnent_des_manques_pas_une_panne(base_
 
 
 def test_un_devis_sans_chantier_est_trace_avec_le_chantier_que_la_variance_de_m6_connait(base_durable, taux_configure):
-    """M3 peut accepter un devis avant que M4 planifie (`chantier_id` nul) : pas de facture (attente nommée), mais la
-    déclaration de M6 connaît le chantier, et le coût réel se calcule."""
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     _prix_au_livre_m6()
     evenements.publier("m3.devis_accepte", "m03-estimation", _devis_accepte(chantier_id=None))
     evenements.publier("m4.travaux_termines", "m04-field-ops", _wct())
     evenements.publier("m6.variance_chantier", _M6, _variance(), evenement_id="m6-variance-WCT-1-evaluee")
     _livrer()
-
-    derniere = _traces()[-1]
-    assert derniere["chantier_id"] == "CHANTIER-1"
-    assert derniere["rentabilite"]["cout_reel"]["cout_total"] == Decimal("486.00")
-    assert derniere["verdict"] == "PARTIELLE" and _codes(derniere) == ["REJ-RENTABILITE-FACTURE-ABSENTE"]
-    r = derniere["rentabilite"]
-    assert r["marge_reelle"] is None and r["marge_prevue"] == Decimal("120.00")
+    trace = _traces()[-1]
+    assert trace["chantier_id"] == "CHANTIER-1" and trace["verdict"] == "PARTIELLE"
+    assert _codes(trace) == ["REJ-COUT-TEMPS-POINTE-ABSENT", "REJ-RENTABILITE-FACTURE-ABSENTE"]
+    r = trace["rentabilite"]
+    assert r["cout_reel"]["materiaux"]["cout_connu"] == Decimal("336.00")
+    assert r["cout_reel"]["cout_total"] is None and r["marge_reelle"] is None
+    assert r['marge_prevue'] == Decimal('120.00')
 
 
 def test_un_signal_evalue_prime_sur_un_signal_plus_ancien_livre_apres(base_durable, taux_configure):
@@ -354,7 +359,11 @@ def test_un_signal_evalue_prime_sur_un_signal_plus_ancien_livre_apres(base_durab
         consommateurs["m6.variance_chantier"](_variance(statut="declaration_absente"))
 
     derniere = _traces()[-1]
-    assert derniere["verdict"] == "CALCULEE", "le signal évalué fait foi, pas le dernier arrivé"
+    assert derniere["verdict"] == "PARTIELLE"
+    assert derniere["rentabilite"]["cout_reel"]["materiaux"]["cout_connu"] == Decimal("336.00"), (
+        "le signal évalué fait foi, pas le dernier arrivé"
+    )
+    assert _codes(derniere) == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
 
 
 def test_un_signal_delirant_ne_bloque_jamais_la_facture_brouillon(base_durable, taux_configure):
@@ -377,20 +386,18 @@ def test_un_signal_delirant_ne_bloque_jamais_la_facture_brouillon(base_durable, 
 # 3. L'état suit ses entrées : un prix, une facture envoyée, jamais une réécriture
 # =========================================================================================
 def test_un_tarif_futur_ne_change_ni_la_trace_ni_la_marge_historique(base_durable, taux_configure):
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     _prix_au_livre_m6()
     for piece in ("devis", "wct", "variance"):
         _publier(piece)
     _livrer()
     avant = _traces()
-
     _prix_au_livre_m6(prix=80, date_effet="2027-01-01")
-
-    assert _essayer() == {"statut": "deja_tracee"}
-    assert _traces() == avant
-    with stockage.transaction():
-        r = outils_mod._etat_chantier("DEVIS-1")["rentabilite"]
-    assert r["cout_reel"]["cout_total"] == Decimal("486.00")
-    assert r["marge_reelle"] == Decimal("114.00")
+    assert _essayer() == {"statut": "deja_tracee"} and _traces() == avant
+    r = avant[-1]["rentabilite"]
+    assert r["cout_reel"]["materiaux"]["cout_connu"] == Decimal("336.00")
+    assert r["cout_reel"]["cout_total"] is None and r["marge_reelle"] is None
+    assert _codes(avant[-1]) == ['REJ-COUT-TEMPS-POINTE-ABSENT']
 
 
 def test_un_tarif_m6_sans_unite_garde_la_cascade_partielle_sans_marge(base_durable, taux_configure):
@@ -401,49 +408,56 @@ def test_un_tarif_m6_sans_unite_garde_la_cascade_partielle_sans_marge(base_durab
 
     trace = _traces()[-1]
     assert trace["verdict"] == "PARTIELLE"
-    assert _codes(trace) == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+    assert _codes(trace) == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     r = trace["rentabilite"]
     assert r["marge_reelle"] is None
     assert r["cout_reel"]["cout_total"] is None
-    assert r["cout_reel"]["cout_total_connu"] == Decimal("150.00")
+    assert r["cout_reel"]["cout_total_connu"] == Decimal("0")
 
 
 def test_un_prix_ajoute_au_livre_apres_coup_ajoute_une_trace_sans_effacer_la_precedente(base_durable, taux_configure):
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     for piece in ("devis", "wct", "variance"):
         _publier(piece)
     _livrer()
     historique = _traces()
     avant = historique[-1]
-    assert _codes(avant) == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
-
-    _prix_au_livre_m6()  # M6 saisit le prix plus tard
+    assert _codes(avant) == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
+    _prix_au_livre_m6()
     assert _essayer() == {"statut": "tracee"}
     assert _essayer() == {"statut": "deja_tracee"}
-
     traces = _traces()
-    assert traces[:len(historique)] == historique, "l'historique n'est jamais réécrit"
-    assert len(traces) == len(historique) + 1
+    assert traces[: len(historique)] == historique and len(traces) == len(historique) + 1
     seconde = traces[-1]
-    assert seconde["verdict"] == "CALCULEE" and seconde["rentabilite"]["marge_reelle"] == Decimal("114.00")
-    assert avant["version_entrees"] != seconde["version_entrees"]
+    assert seconde["verdict"] == "PARTIELLE" and seconde["rentabilite"]["marge_reelle"] is None
+    assert seconde["rentabilite"]["cout_reel"]["materiaux"]["cout_connu"] == Decimal("336.00")
+    assert _codes(seconde) == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert avant['version_entrees'] != seconde['version_entrees']
 
 
 def test_le_taux_change_une_nouvelle_version_l_ancienne_reste(base_durable, taux_configure):
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     _prix_au_livre_m6()
     for piece in ("devis", "wct", "variance"):
         _publier(piece)
     _livrer()
-    taux_configure.write_text(yaml.safe_dump({"configuration": {"taux_horaire_main_d_oeuvre": "60.00"}}),
-                              encoding="utf-8")
-
+    avant = _traces()
+    taux_configure.write_text(
+        yaml.safe_dump({"configuration": {"taux_horaire_main_d_oeuvre": "60.00"}}), encoding="utf-8"
+    )
     assert _essayer() == {"statut": "tracee"}
-
-    *_, ancienne, nouvelle = _traces()
-    assert ancienne["rentabilite"]["cout_reel"]["cout_total"] == Decimal("486.00")
-    assert nouvelle["rentabilite"]["cout_reel"]["cout_total"] == Decimal("516.00")  # 42 x 8 + 3 h x 60 $/h
+    traces = _traces()
+    assert traces[: len(avant)] == avant and len(traces) == len(avant) + 1
+    for trace in (avant[-1], traces[-1]):
+        assert trace["verdict"] == "PARTIELLE"
+        assert trace["rentabilite"]["cout_reel"]["cout_total"] is None
+        assert trace["rentabilite"]["cout_reel"]["materiaux"]["cout_connu"] == Decimal("336.00")
+        assert _codes(trace) == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert avant[-1]['version_entrees'] != traces[-1]['version_entrees']
 
 
 def test_la_facture_envoyee_rend_le_prix_definitif_dans_un_nouvel_etat(base_durable, taux_configure):
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     _prix_au_livre_m6()
     for piece in ("devis", "wct", "variance"):
         _publier(piece)
@@ -453,16 +467,12 @@ def test_la_facture_envoyee_rend_le_prix_definitif_dans_un_nouvel_etat(base_dura
     envoyer = next(o for o in outils_mod.outils() if o.nom == "m5_envoyer_facture")
     reponse = executer_atomique(envoyer, {"facture_id": "fac-DEVIS-1", "horodatage": COMPLETION})
     assert reponse["ok"] and reponse["resultat"]["accepte"], reponse
-
-    # La transition trace et publie immédiatement; un rattrapage est désormais un rejeu.
-    assert len(_traces()) == len(avant) + 1
-    assert _traces()[:len(avant)] == avant
-    assert _essayer() == {"statut": "deja_tracee"}
-    assert len(_traces()) == len(avant) + 1
-
-    derniere = _traces()[-1]["rentabilite"]
-    assert (derniere["statut_facture"], derniere["prix_definitif"]) == ("ENVOYEE", True)
-    assert derniere["marge_reelle"] == Decimal("114.00")
+    traces = _traces()
+    assert traces[: len(avant)] == avant and len(traces) == len(avant) + 1
+    assert _essayer() == {"statut": "deja_tracee"} and _traces() == traces
+    der = traces[-1]["rentabilite"]
+    assert (der["statut_facture"], der["prix_definitif"]) == ("ENVOYEE", True)
+    assert der['marge_reelle'] is None and _codes(traces[-1]) == ['REJ-COUT-TEMPS-POINTE-ABSENT']
 
 
 # =========================================================================================

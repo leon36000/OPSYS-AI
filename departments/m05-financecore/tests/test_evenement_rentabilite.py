@@ -24,13 +24,12 @@ import m5_financecore.outils as outils_mod
 import pytest
 import yaml
 from m5_financecore import cout_reel
-from sqlalchemy import select
-
 from opsys import evenements, stockage
 from opsys.departements import charger_departements
 from opsys.evenements.schemas import erreurs_charge
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
+from sqlalchemy import select
 
 FICTIF = True
 _DEPARTEMENT = "m05-financecore"
@@ -78,9 +77,12 @@ def _devis(**surcharges):
     return {**base, **surcharges}
 
 
-def _rentabilite(signal="defaut", livre="defaut", taux="50.00", facture="defaut", devis="defaut"):
+def _rentabilite(signal="defaut", livre="defaut", taux="50.00", facture="defaut", devis="defaut", cout_v3=None):
     cout = cout_reel.calculer_cout_reel(
         _wct(), _signal() if signal == "defaut" else signal, [_prix()] if livre == "defaut" else livre, taux)
+    if cout_v3 is not None:
+        cout = cout_v3(signal=_signal() if signal == "defaut" else signal,
+                        livre=[_prix()] if livre == "defaut" else livre, taux=taux, completion=COMPLETION)
     return cout_reel.calculer_rentabilite(
         cout, _facture() if facture == "defaut" else facture, _devis() if devis == "defaut" else devis,
         devis_id="DEVIS-1", chantier_id="CH-1")
@@ -90,8 +92,8 @@ def _charge(rentabilite=None, sequence=1):
     return cout_reel.charge_evenement(_rentabilite() if rentabilite is None else rentabilite, sequence, COMPLETION)
 
 
-def test_la_marge_calculee_sort_en_texte_decimal_avec_tout_ce_qui_l_explique():
-    r = _rentabilite()
+def test_la_marge_calculee_sort_en_texte_decimal_avec_tout_ce_qui_l_explique(cout_v3):
+    r = _rentabilite(cout_v3=cout_v3)
     charge = _charge(r, sequence=1)
 
     assert set(charge) == _CLES
@@ -134,22 +136,23 @@ def test_un_cout_partiel_ne_porte_jamais_de_marge_seulement_ce_qui_manque():
     assert charge["marge_reelle_cad"] is None and charge["ecart_marge_cad"] is None
     assert "plafond" not in json.dumps(charge)  # ... qui ne sort JAMAIS de M5
     assert charge["marge_prevue_cad"] == "120.00"  # la marge prévue est celle de M3, elle reste dite
-    assert charge["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert charge["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER",
+                                "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert erreurs_charge(TYPE, charge) == []
 
 
-def test_un_cout_partiel_avec_un_seul_manque_donne_le_plancher_pas_le_total():
-    r = _rentabilite(signal=_signal(statut="declaration_absente"))  # matériaux réels inconnus, main-d'oeuvre connue
+def test_un_cout_partiel_donne_le_plancher_pas_le_total():
+    r = _rentabilite(signal=_signal(statut="declaration_absente"))  # matériaux et main-d'œuvre inconnus
     charge = _charge(r)
 
-    assert charge["manque"] == ["REJ-COUT-MATERIAUX-REELS-ABSENTS"]
-    assert charge["cout_connu_cad"] == "150.00" and charge["cout_reel_cad"] is None
+    assert charge["manque"] == ["REJ-COUT-MATERIAUX-REELS-ABSENTS", "REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert charge["cout_connu_cad"] == "0" and charge["cout_reel_cad"] is None
     assert charge["marge_reelle_cad"] is None and charge["ecart_marge_cad"] is None
     assert erreurs_charge(TYPE, charge) == []
 
 
-def test_un_cout_complet_sans_facture_reste_partiel_et_sans_marge():
-    r = _rentabilite(facture=None)
+def test_un_cout_complet_sans_facture_reste_partiel_et_sans_marge(cout_v3):
+    r = _rentabilite(facture=None, cout_v3=cout_v3)
     charge = _charge(r)
 
     assert charge["cout_reel_complet"] is True and charge["cout_reel_cad"] == "486.00"
@@ -159,8 +162,8 @@ def test_un_cout_complet_sans_facture_reste_partiel_et_sans_marge():
     assert erreurs_charge(TYPE, charge) == []
 
 
-def test_un_devis_sans_cout_prevu_donne_la_marge_reelle_sans_ecart():
-    r = _rentabilite(devis={"devis_id": "DEVIS-1", "chantier_id": "CH-1", "prix_total": "600.00"})
+def test_un_devis_sans_cout_prevu_donne_la_marge_reelle_sans_ecart(cout_v3):
+    r = _rentabilite(devis={"devis_id": "DEVIS-1", "chantier_id": "CH-1", "prix_total": "600.00"}, cout_v3=cout_v3)
     charge = _charge(r)
 
     assert charge["verdict"] == "CALCULEE" and charge["marge_reelle_cad"] == "114.00"
@@ -169,12 +172,12 @@ def test_un_devis_sans_cout_prevu_donne_la_marge_reelle_sans_ecart():
     assert erreurs_charge(TYPE, charge) == []
 
 
-def test_un_chantier_en_perte_porte_une_marge_negative_et_un_zero_sans_signe():
-    perte = _charge(_rentabilite(facture=_facture("400.00")))  # 400,00 - 486,00
+def test_un_chantier_en_perte_porte_une_marge_negative_et_un_zero_sans_signe(cout_v3):
+    perte = _charge(_rentabilite(facture=_facture("400.00"), cout_v3=cout_v3))  # 400,00 - 486,00
     assert perte["marge_reelle_cad"] == "-86.00" and perte["ecart_marge_cad"] == "-206.00"
     assert erreurs_charge(TYPE, perte) == []
 
-    nulle = _charge(_rentabilite(facture=_facture("486.00")))
+    nulle = _charge(_rentabilite(facture=_facture("486.00"), cout_v3=cout_v3))
     assert nulle["marge_reelle_cad"] == "0.00" and nulle["ecart_marge_cad"] == "-120.00"  # jamais « -0.00 »
 
 
@@ -218,8 +221,8 @@ def test_le_catalogue_refuse_une_marge_sur_un_cout_partiel():
     assert erreurs_charge(TYPE, {**partiel, "cout_reel_complet": True}), "un coût complet porte son total"
 
 
-def test_le_catalogue_refuse_une_calculee_sans_marge_et_un_ecart_sans_ses_deux_marges():
-    complete = _charge()
+def test_le_catalogue_refuse_une_calculee_sans_marge_et_un_ecart_sans_ses_deux_marges(cout_v3):
+    complete = _charge(_rentabilite(cout_v3=cout_v3))
     assert erreurs_charge(TYPE, complete) == []
 
     assert erreurs_charge(TYPE, {**complete, "marge_reelle_cad": None})
@@ -358,25 +361,23 @@ def test_m5_declare_publier_la_rentabilite():
     assert publie == (TYPE, "m5.cash_libre_constate"), "la marge (T1.5-d), puis le cash libre constaté (T4.19-b)"
 
 
-def test_une_trace_calculee_publie_la_marge_reelle_dans_la_meme_transaction(base_durable, taux_configure):
+def test_une_trace_partielle_publie_les_inconnus_dans_la_meme_transaction(base_durable, taux_configure):
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     _prix_au_livre_m6()
     _cascade()
-
     traces = _traces()
     publies = _publies()
-    assert len(publies) == len(traces) >= 1, "un événement par trace, ni plus ni moins"
+    assert len(publies) == len(traces) >= 1
     derniere, (evenement_id, producteur, charge) = traces[-1], publies[-1]
     assert producteur == _DEPARTEMENT and evenement_id == charge["evenement_id"]
     assert charge["sequence"] == len(traces) and charge["version_entrees"] == derniere["version_entrees"]
     assert (charge["devis_id"], charge["chantier_id"], charge["wct_id"]) == ("DEVIS-1", "CHANTIER-1", "WCT-1")
-    assert charge["horodatage_completion"] == COMPLETION  # celui du WCT, aucune horloge de M5
-    assert charge["verdict"] == "CALCULEE" and derniere["verdict"] == "CALCULEE"
-    assert (charge["cout_reel_cad"], charge["marge_reelle_cad"]) == ("486.00", "114.00")
-    assert (charge["marge_prevue_cad"], charge["ecart_marge_cad"]) == ("120.00", "-6.00")
-    assert charge["manque"] == []
-    # Ce que l'événement dit est ce que la trace dit : les mêmes chiffres, jamais un second calcul.
-    assert Decimal(charge["marge_reelle_cad"]) == derniere["rentabilite"]["marge_reelle"]
-    assert Decimal(charge["ecart_marge_cad"]) == derniere["rentabilite"]["ecart_marge"]
+    assert charge["horodatage_completion"] == COMPLETION
+    assert charge["verdict"] == derniere["verdict"] == "PARTIELLE"
+    assert charge["cout_reel_cad"] is None and charge["marge_reelle_cad"] is None
+    assert charge["marge_prevue_cad"] == "120.00" and charge["ecart_marge_cad"] is None
+    assert charge["manque"] == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert derniere["rentabilite"]["marge_reelle"] is None
     assert len({p[0] for p in publies}) == len(publies)
 
 
@@ -392,7 +393,8 @@ def test_un_cout_partiel_publie_ce_qui_manque_et_aucune_marge_pour_chaque_versio
         assert charge["cout_reel_cad"] is None
         assert erreurs_charge(TYPE, charge) == []
     derniere = publies[-1][2]
-    assert derniere["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert derniere["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER",
+                                 "REJ-COUT-TEMPS-POINTE-ABSENT"]
     assert derniere["marge_prevue_cad"] == "120.00"
 
 
@@ -411,45 +413,43 @@ def test_un_rejeu_ou_une_redelivrance_ne_publie_rien_de_plus(base_durable, taux_
     assert all(p[2]["prix_definitif"] is False for p in avant)  # BROUILLON reste explicitement provisoire au rejeu
 
 
-def test_un_prix_ajoute_apres_coup_publie_un_nouvel_etat_qui_remplace_le_partiel(base_durable, taux_configure):
-    _cascade()  # pas de prix au livre : partiel
+def test_un_prix_ajoute_apres_coup_publie_un_nouvel_etat_qui_reste_partiel(base_durable, taux_configure):
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
+    _cascade()
     (_, _, partiel) = _publies()[-1]
-    assert partiel["verdict"] == "PARTIELLE" and partiel["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
-
+    assert partiel["verdict"] == "PARTIELLE"
+    assert partiel["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
     _prix_au_livre_m6()
     assert _essayer() == {"statut": "tracee"}
-
     publies = _publies()
-    (_, _, complet) = publies[-1]
-    assert complet["sequence"] == partiel["sequence"] + 1 and complet["verdict"] == "CALCULEE"
-    assert complet["marge_reelle_cad"] == "114.00" and complet["manque"] == []
-    assert partiel["prix_definitif"] is False and complet["prix_definitif"] is False
-    assert publies[-2][2]["marge_reelle_cad"] is None, "l'historique reste : le partiel n'a jamais porté de marge"
+    nouveau = publies[-1][2]
+    assert nouveau["sequence"] == partiel["sequence"] + 1 and nouveau["verdict"] == "PARTIELLE"
+    assert nouveau["marge_reelle_cad"] is None and nouveau["cout_reel_cad"] is None
+    assert nouveau["manque"] == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert partiel["prix_definitif"] is False and nouveau["prix_definitif"] is False
+    assert publies[-2][2] == partiel
 
 
 def test_un_retour_a_une_version_anterieure_publie_un_evenement_distinct(base_durable, taux_configure):
-    """Taux 50 -> 60 -> 50 : la troisième trace a la version de la première. Sans le rang dans l'identifiant, le
-    bus avalerait son événement (no-op) et M8 et M10 resteraient sur la marge du taux à 60."""
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     _prix_au_livre_m6()
     _cascade()
     depart = len(_publies())
-    premier_etat = _publies()[-1][2]
-    assert premier_etat["marge_reelle_cad"] == "114.00"
-
-    taux_configure.write_text(yaml.safe_dump({"configuration": {"taux_horaire_main_d_oeuvre": "60.00"}}),
-                              encoding="utf-8")
-    assert _essayer() == {"statut": "tracee"}
-    taux_configure.write_text(yaml.safe_dump({"configuration": {"taux_horaire_main_d_oeuvre": "50.00"}}),
-                              encoding="utf-8")
-    assert _essayer() == {"statut": "tracee"}
-
+    premier = _publies()[-1][2]
+    assert premier["marge_reelle_cad"] is None
+    for taux in ("60.00", "50.00"):
+        taux_configure.write_text(
+            yaml.safe_dump({"configuration": {"taux_horaire_main_d_oeuvre": taux}}), encoding="utf-8"
+        )
+        assert _essayer() == {"statut": "tracee"}
     publies = _publies()
     assert len(publies) == depart + 2
     deuxieme, troisieme = publies[-2][2], publies[-1][2]
-    assert deuxieme["marge_reelle_cad"] == "84.00"  # 3 h x 60,00 $ : 30,00 $ de plus de main-d'oeuvre
-    assert troisieme["version_entrees"] == premier_etat["version_entrees"], "la même version qu'au départ"
-    assert troisieme["evenement_id"] != premier_etat["evenement_id"]
-    assert troisieme["sequence"] == depart + 2 and troisieme["marge_reelle_cad"] == "114.00"
+    assert deuxieme["marge_reelle_cad"] is None and troisieme["marge_reelle_cad"] is None
+    assert deuxieme["verdict"] == troisieme["verdict"] == "PARTIELLE"
+    assert troisieme["version_entrees"] == premier["version_entrees"]
+    assert troisieme["evenement_id"] != premier["evenement_id"]
+    assert troisieme["sequence"] == depart + 2
     assert deuxieme["prix_definitif"] is False and troisieme["prix_definitif"] is False
     assert len({p[0] for p in publies}) == len(publies)
 
@@ -486,3 +486,17 @@ def test_le_catalogue_du_socle_porte_le_type_et_son_schema_est_versionne():
     assert set(schema["properties"]) == _CLES
     fichier = Path(evenements.schemas.__file__).parent / "catalogue" / f"{TYPE}.json"
     assert fichier.is_file()
+
+
+def test_catalogue_refuse_une_charge_complete_fictive_sans_marges_requises():
+    """Le contrat bus complet reste exercé sans déclarer complet un WCT scalaire ambigu."""
+    charge = _charge()
+    complete = {**charge, "verdict": "CALCULEE", "cout_reel_complet": True,
+                "cout_reel_cad": "486.00", "cout_connu_cad": "486.00",
+                "marge_reelle_cad": "114.00", "marge_prevue_cad": "120.00",
+                "ecart_marge_cad": "-6.00", "manque": []}
+    assert erreurs_charge(TYPE, complete) == []
+    assert erreurs_charge(TYPE, {**complete, "marge_reelle_cad": None})
+    assert erreurs_charge(TYPE, {**complete, "cout_reel_cad": None})
+    assert erreurs_charge(TYPE, {**complete, "cout_reel_complet": False})
+    assert erreurs_charge(TYPE, {**complete, "marge_prevue_cad": None})

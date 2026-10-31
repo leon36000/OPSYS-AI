@@ -15,6 +15,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from .. import contexte
+from . import memoire_chantier as autorite
 from . import metier, pages, securite
 from .securite import Session
 
@@ -472,6 +474,8 @@ def creer_router(
         contenu = (
             f'<p><a class="bouton" href="{pages.e(prefixe)}/finance/cfo">'
             "Préparer un dossier de décision</a></p>"
+            f'<p><a class="bouton" href="{pages.e(prefixe)}/finance/tarifs-equipes">'
+            "Consulter les tarifs des équipes</a></p>"
             f'<p><a class="bouton" href="{pages.e(prefixe)}/finance/rapprochement-bancaire">'
             "Prévisualiser un rapprochement bancaire</a></p>"
             f'<p><a class="bouton" href="{pages.e(prefixe)}/finance/paie">'
@@ -546,5 +550,132 @@ def creer_router(
             raise HTTPException(400, "objet JSON attendu")
         reponse, _ = executer_decision(session, data)
         return JSONResponse(reponse)
+
+    def _tarifs(session: Session, data: Mapping[str, Any] | None) -> JSONResponse:
+        """Port privé : seule la session console vérifiée peut déclarer un tarif."""
+        dep = deps.get('m05-financecore')
+        if dep is None or dep.module_outils != 'm5_financecore.outils':
+            raise HTTPException(503, 'Source des tarifs indisponible')
+        try:
+            from m5_financecore import outils as m5
+        except ImportError:
+            raise HTTPException(503, 'Source des tarifs indisponible') from None
+        try:
+            with cnx_factory() as cnx:
+                autorite._admin(cnx, session)
+                with (contexte.appele_par_appareil(
+                        contexte.IdentiteAppelante(session.utilisateur, 'admin', source='console')),
+                      contexte.appeler_en_tant_que('m05-financecore', origine='console')):
+                    if data is None:
+                        resultat = m5._lire_tarifs_equipes()
+                    else:
+                        if set(data) != {'tarif', 'mutation_id', 'source_attendue'}:
+                            raise HTTPException(400, 'Champs de déclaration invalides')
+                        resultat = m5._inscrire_tarif_equipe(
+                            data['tarif'], mutation_id=data['mutation_id'], source_attendue=data['source_attendue'])
+                    reponse = JSONResponse(resultat, headers={'Cache-Control': 'no-store',
+                        'X-Content-Type-Options': 'nosniff'})
+                    if len(reponse.body) > 131072:
+                        raise HTTPException(503, 'Source des tarifs trop volumineuse')
+                    if data is None and m5._lire_tarifs_equipes() != resultat:
+                        raise HTTPException(409, 'Source des tarifs modifiée')
+                    autorite._admin(cnx, session)
+        except PermissionError:
+            raise HTTPException(403, 'Accès admin requis') from None
+        except ValueError as exc:
+            detail = str(exc).lower()
+            integrity = ('chaîne invalide', 'empreinte invalide', 'rangs incomplets')
+            if data is None or any(mot in detail for mot in integrity):
+                code = 503
+            else:
+                code = 409 if any(mot in detail for mot in ('périmée', 'divergente', 'ambigu', 'révision')) else 400
+            raise HTTPException(code, 'Déclaration de tarif refusée') from None
+        return reponse
+
+    @router.get('/api/finance/tarifs-equipes')
+    def lire_tarifs_equipes(request: Request) -> JSONResponse:
+        session = session_api(request)
+        if request.query_params:
+            raise HTTPException(400, 'Paramètres de consultation invalides')
+        return _tarifs(session, None)
+
+    @router.post('/api/finance/tarifs-equipes')
+    async def declarer_tarif_equipe(request: Request) -> JSONResponse:
+        session = ecriture_api(request)
+        if request.query_params:
+            raise HTTPException(400, 'Paramètres de déclaration invalides')
+        data = await objet_json(request)
+        if not isinstance(data, Mapping):
+            raise HTTPException(400, 'Objet JSON requis')
+        return _tarifs(session, data)
+
+    @router.get('/finance/tarifs-equipes')
+    def page_tarifs_equipes(request: Request) -> HTMLResponse:
+        import json
+
+        session = session_page(request)
+        if request.query_params:
+            raise HTTPException(400, 'Paramètres de consultation invalides')
+        try:
+            with cnx_factory() as cnx:
+                autorite._admin(cnx, session)
+                vue = json.loads(_tarifs(session, None).body)
+                champs = (('equipe_id', 'Équipe'), ('taux', 'Taux CAD par heure-équipe'),
+                          ('source', 'Source'), ('version', 'Version'), ('date_effet', 'Date de début'),
+                          ('date_fin', 'Date de fin'), ('remplace_id', 'Référence à remplacer (facultatif)'))
+                colonnes = ('equipe_id', 'taux', 'devise', 'unite', 'source', 'version',
+                            'date_effet', 'date_fin', 'ligne_id')
+                lignes = ''.join(
+                    '<tr>' + ''.join(f'<td>{pages.e(ligne.get(k))}</td>' for k in
+                        colonnes)
+                    + '</tr>' for ligne in vue['lignes'])
+                formulaire_html = ''.join(
+                    f'<label>{pages.e(libelle)} <input name="{nom}"'
+                    f'{"" if nom == "remplace_id" else " required"}></label>'
+                    for nom, libelle in champs)
+                corps = ('<p>Déclarations préparatoires. Aucun paiement ni écriture comptable.</p>'
+                    '<table><thead><tr><th>Équipe</th><th>Taux</th><th>Devise</th><th>Unité</th>'
+                    '<th>Source</th><th>Version</th><th>Début</th><th>Fin</th><th>Référence</th></tr></thead>'
+                    f'<tbody>{lignes}</tbody></table><form method="post" '
+                    f'action="{pages.e(prefixe)}/finance/tarifs-equipes">'
+                    f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">'
+                    f'<input type="hidden" name="source_attendue" value="{pages.e(vue["source"])}">'
+                    f'<input type="hidden" name="mutation_id" value="{uuid.uuid4().hex}">'
+                    f'{formulaire_html}<button type="submit">Déclarer le tarif</button></form>')
+                reponse = HTMLResponse(pages.gabarit('Tarifs des équipes', corps, prefixe=prefixe,
+                                                    session=session, actif='finance'))
+                if len(reponse.body) > 131072:
+                    raise HTTPException(503, 'Présentation des tarifs trop volumineuse')
+                if json.loads(_tarifs(session, None).body) != vue:
+                    raise HTTPException(409, 'Source des tarifs modifiée')
+                autorite._admin(cnx, session)
+                reponse.headers['Cache-Control'] = 'no-store'
+                reponse.headers['X-Content-Type-Options'] = 'nosniff'
+                return reponse
+        except PermissionError:
+            raise HTTPException(403, "Accès admin requis") from None
+        except ValueError:
+            raise HTTPException(503, "Source des tarifs indisponible") from None
+
+    @router.post('/finance/tarifs-equipes')
+    async def declarer_tarif_equipe_form(request: Request) -> HTMLResponse:
+        from fastapi.responses import RedirectResponse
+
+        session = session_page(request)
+        if request.query_params:
+            raise HTTPException(400, 'Paramètres de déclaration invalides')
+        champs = await formulaire(request)
+        if not isinstance(champs, Mapping) or not securite.csrf_valide(champs.get('csrf'), session):
+            raise HTTPException(403, 'Jeton CSRF absent ou invalide')
+        noms = {'csrf', 'mutation_id', 'source_attendue', 'equipe_id', 'taux', 'source', 'version',
+                'date_effet', 'date_fin', 'remplace_id'}
+        if set(champs) != noms:
+            raise HTTPException(400, 'Champs de déclaration invalides')
+        tarif = {k: champs[k] for k in ('equipe_id', 'taux', 'source', 'version', 'date_effet', 'date_fin')}
+        tarif.update(unite='heure-equipe', devise='CAD', remplace_id=champs['remplace_id'] or None)
+        _tarifs(session, {'tarif': tarif, 'mutation_id': champs['mutation_id'],
+                          'source_attendue': champs['source_attendue']})
+        return RedirectResponse(f'{prefixe}/finance/tarifs-equipes', status_code=303,
+                                headers={'Cache-Control': 'no-store'})
 
     return router
