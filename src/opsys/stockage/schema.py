@@ -734,6 +734,39 @@ OPSYS_INSTANCE = Table(
     CheckConstraint("id = 1", name="opsys_instance_singleton"),
 )
 
+# Private native-publication attempt ledger, never a second configuration selector.
+CONFIGURATION_PUBLICATIONS = Table(
+    "configuration_publications", META,
+    Column("id", String(64), primary_key=True),
+    Column("instance_id", String(36), ForeignKey("opsys_instance.instance_id"), nullable=False),
+    Column("cible_hash", String(64), nullable=False),
+    Column("operation", String(16), nullable=False),
+    Column("base_hash", String(64), nullable=False),
+    Column("candidat_hash", String(64), nullable=False),
+    Column("source_hash", String(64), nullable=False),
+    Column("fichiers_hash", String(64), nullable=False),
+    Column("sql_hash", String(64), nullable=False),
+    Column("liaison_hash", String(64), nullable=False),
+    Column("capacite_hash", String(64), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("bail_jusqua", BigInteger, nullable=False),
+    Column("etat", String(24), nullable=False),
+    Column("observation_hash", String(64)),
+    CheckConstraint("operation = 'publish'", name="publication_operation"),
+    CheckConstraint("version > 0 AND version <= 2147483647 AND bail_jusqua > 0", name="publication_version_bail"),
+    CheckConstraint("etat IN ('preparee','dispatch_reserve','incertaine','candidat_observe','annulee')",
+                    name="publication_etat"),
+    CheckConstraint("length(id) = 64 AND length(instance_id) = 36 AND length(cible_hash) = 64 AND "
+                    "length(base_hash) = 64 AND length(candidat_hash) = 64 AND length(source_hash) = 64 AND "
+                    "length(fichiers_hash) = 64 AND length(sql_hash) = 64 AND length(liaison_hash) = 64 AND "
+                    "length(capacite_hash) = 64 AND (observation_hash IS NULL OR length(observation_hash) = 64)",
+                    name="publication_empreintes"),
+)
+Index("uq_configuration_publication_active", CONFIGURATION_PUBLICATIONS.c.instance_id,
+      CONFIGURATION_PUBLICATIONS.c.cible_hash, unique=True,
+      sqlite_where=text("etat IN ('preparee','dispatch_reserve','incertaine')"),
+      postgresql_where=text("etat IN ('preparee','dispatch_reserve','incertaine')"))
+
 AGENTS_CONFIGURABLES_COMMANDES = Table(
     "agents_configurables_commandes",
     META,
