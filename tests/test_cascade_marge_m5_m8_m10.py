@@ -443,12 +443,13 @@ def _recalculer_cout_certifie(wct_id: str, devis_id: str, etiquette: str) -> dic
 
     Pourquoi ce recalcul : à la livraison du WCT, M4 est toujours `completed_pending_review` (la variance M6 n'arrive
     qu'après), donc la projection n'est pas exploitable ; et les pièces suivantes (variance, facture, prix) ne
-    déclenchent qu'un calcul sur la durée scalaire, qui ne chiffre plus la main-d'oeuvre. Seul le candidat interne
-    `service_recalcul_m4` (couture QA `_executer_qa`, politique `m4.recalculer_v3`, non routé en production)
+    déclenchent qu'un calcul sur la durée scalaire, qui ne chiffre plus la main-d'oeuvre. Seule la porte
+    `service_recalcul_m4.ouvrir` (porte qualifiée E6 : moteur certifié, politiques `m4.recalculer_v3` et
+    `m4.verifier_v3`, session console d'un admin actif ; le réconciliateur fait la même chose sans geste humain)
     republie le coût sur la projection vérifiée, comme le fait aussi l'e2e `test_verticale_affaire_durable.py`."""
     _poser_politique("m4.recalculer_v3")
     with stockage.transaction() as cnx:
-        recalcul = service_recalcul_m4._executer_qa(
+        recalcul = service_recalcul_m4.ouvrir(
             cnx, _session_admin_certifie(), wct_id=wct_id, devis_id=devis_id,
             intention_id=hashlib.sha256(etiquette.encode("utf-8")).hexdigest())
     assert recalcul["statut"] == "publiee"
@@ -458,16 +459,16 @@ def _recalculer_cout_certifie(wct_id: str, devis_id: str, etiquette: str) -> dic
 
 @contextlib.contextmanager
 def _relecture_m5_sur_projection_certifiee(monkeypatch, wct_id: str, devis_id: str):
-    """Fait relire à M5 son coût sur la projection M4 vérifiée (couture QA `_ouvrir_qa` de la relecture courante,
-    politique `m4.relire_faits_pour_m5_v1`) quand M3 lit la rentabilité : sans elle, la lecture ordinaire de M5
-    ne voit que la durée scalaire. Même couture que l'e2e, au niveau départements (session admin de console)."""
+    """Fait relire à M5 son coût sur la projection M4 vérifiée (porte qualifiée `service_lecture_m4.ouvrir` de la
+    relecture courante, politique `m4.relire_faits_pour_m5_v1`) quand M3 lit la rentabilité : sans elle, la lecture
+    ordinaire de M5 ne voit que la durée scalaire. Même porte que l'e2e, au niveau départements (session admin)."""
     _poser_politique("m4.relire_faits_pour_m5_v1")
     original = m5_outils.lire_rentabilite_chantier
 
     def lire_sous_portee(*args, **kwargs):
         if kwargs.get("devis_id") != devis_id:
             return original(*args, **kwargs)
-        with stockage.transaction() as cnx, service_lecture_m4._ouvrir_qa(
+        with stockage.transaction() as cnx, service_lecture_m4.ouvrir(
                 cnx, _session_admin_certifie(), wct_id=wct_id, devis_id=devis_id):
             return original(*args, **kwargs)
 

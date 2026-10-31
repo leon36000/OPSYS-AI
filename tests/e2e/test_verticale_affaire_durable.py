@@ -959,26 +959,26 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         niveau_attendu="N4",
     )
     _drainer(moteur)
-    # Exercice explicite du candidat interne V2, sans route ou droit réel.
+    # Porte qualifiée E6 : sans politique `m4.recalculer_v3`, refus typé et AUCUNE écriture ; avec, publication.
     from sqlalchemy import insert
 
-    from opsys import service_capability, service_recalcul_m4
+    from opsys import moteur_recalcul_m4, service_capability, service_recalcul_m4
     from opsys.console.securite import Session
     from opsys.stockage.schema import OPSYS_INSTANCE, SERVICE_POLITIQUES
 
     session_qa = Session('nathan', frozenset({'admin'}), 'csrf-fictif', time.time() + 3600)
+    avant_refus = _empreinte(moteur)
     with stockage.transaction() as cnx:
         instance_id = cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one()
-        with pytest.raises(service_capability.RefusAutorite):
-            service_recalcul_m4._executer_qa(
+        with pytest.raises(moteur_recalcul_m4.RefusRecalculM4, match='POLITIQUE_ABSENTE: m4.recalculer_v3'):
+            service_recalcul_m4.ouvrir(
                 cnx, session_qa, wct_id=wct_id, devis_id=chantier.devis_id, intention_id='a' * 64)
+    assert _empreinte(moteur) == avant_refus
+    with stockage.transaction() as cnx:
         cnx.execute(insert(SERVICE_POLITIQUES).values(
             instance_id=instance_id, consommateur='m05-financecore', operation='m4.recalculer_v3',
             revision=1, active=True, expire_le=int(time.time()) + 3600))
-        with pytest.raises(service_capability.RefusAutorite, match='NON_QUALIFIE'):
-            service_recalcul_m4.ouvrir(cnx, session_qa, wct_id=wct_id,
-                                       devis_id=chantier.devis_id, intention_id='a' * 64)
-        recalcul = service_recalcul_m4._executer_qa(
+        recalcul = service_recalcul_m4.ouvrir(
             cnx, session_qa, wct_id=wct_id, devis_id=chantier.devis_id, intention_id='a' * 64)
         assert recalcul['statut'] == 'publiee'
         assert recalcul['attestation']['operation'] == 'm4.recalculer_v3'
@@ -988,7 +988,7 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
                 instance_id=instance_id, consommateur='m05-financecore', operation='m4.relire_faits_pour_m5_v1',
                 revision=1, active=True, expire_le=int(time.time()) + 3600))
 
-    # QA : couture non routée dans le thread M5 appelé par la vraie requête MCP.
+    # Porte qualifiée `ouvrir_appareil` dans le thread M5 appelé par la vraie requête MCP.
     # L'identité et l'appareil viennent du contexte serveur, jamais des arguments M3.
     from opsys import service_lecture_m4
     lire_m5_original = m5_outils.lire_rentabilite_chantier
@@ -998,7 +998,7 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         try:
             with (
                 stockage.transaction() as cnx,
-                service_lecture_m4._ouvrir_appareil_qa(cnx, wct_id=wct_id, devis_id=chantier.devis_id),
+                service_lecture_m4.ouvrir_appareil(cnx, wct_id=wct_id, devis_id=chantier.devis_id),
             ):
                 return lire_m5_original(*args, **kwargs)
         except service_capability.RefusAutorite:

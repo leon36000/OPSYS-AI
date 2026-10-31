@@ -1341,7 +1341,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
             assert baseline["resultat"]["chantiers"][0]["rentabilite"]["cout_reel"]["complet"] is False
             with (
                 pytest.raises(sc.RefusAutorite),
-                service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis']),
+                service_lecture_m4.ouvrir(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis']),
             ):
                 pass
             cnx.execute(
@@ -1390,7 +1390,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
 
                 with (
                     pytest.raises(sc.RefusAutorite),
-                    service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis']),
+                    service_lecture_m4.ouvrir(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis']),
                 ):
                     if cas_lecture in ("wct_type", "devis_type", "trace_type"):
                         nom = {"wct_type": "wct_recus", "devis_type": "devis_recus", "trace_type": "rentabilite"}[
@@ -1590,7 +1590,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                     return original_capture(connexion)
 
                 monkeypatch.setattr(port_lecture, "_capturer", capturer_avec_ecrivain)
-            with service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]):
+            with service_lecture_m4.ouvrir(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]):
                 fresh = m5.lire_rentabilite_chantier(devis_id=affaire["devis"], autorise_couts=True)
                 chantier = fresh["resultat"]["chantiers"][0]
                 assert chantier["rentabilite"]["cout_reel"]["main_d_oeuvre"]["cout"] == Decimal("730.00")
@@ -1784,10 +1784,10 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
             assert charges[-1]["verdict"] == "PARTIELLE"
             assert service_history_m4.lire_historique(cnx, f.AUTH, ancien[0]) == histoire_v1
             with pytest.raises(sc.RefusAutorite):
-                service_recalcul_m4._executer_qa(
+                service_recalcul_m4.ouvrir(
                     cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"], intention_id="b" * 64
                 )
-            with pytest.raises(sc.RefusAutorite, match="NON_QUALIFIE"):
+            with pytest.raises(sc.RefusAutorite, match="POLITIQUE_ABSENTE: m4.recalculer_v3"):
                 service_recalcul_m4.ouvrir(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"], intention_id="b" * 64)
             cnx.execute(
                 insert(SERVICE_POLITIQUES).values(
@@ -1822,7 +1822,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                     monkeypatch.setattr(port, "publier", fausser_resultat)
                 traces_avant = list(stockage.maillons("m05-financecore", "rentabilite"))
                 with pytest.raises(sc.RefusAutorite):
-                    service_recalcul_m4._executer_qa(
+                    service_recalcul_m4.ouvrir(
                         cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"], intention_id="b" * 64
                     )
                 assert list(stockage.maillons("m05-financecore", "rentabilite")) == traces_avant
@@ -1831,7 +1831,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                 assert not cnx.execute(select(SERVICE_RECALCUL_RESULTATS)).all()
                 assert not list(stockage.maillons("m05-financecore", "rentabilite_recalcul_v2"))
             else:
-                reponse = service_recalcul_m4._executer_qa(
+                reponse = service_recalcul_m4.ouvrir(
                     cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"], intention_id="b" * 64
                 )
                 assert reponse["statut"] == "publiee"
@@ -1863,7 +1863,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                         if os.environ.get("QA_NEGATIVE") in ("fresh_v2_bool", "reference_v2_fausse"):
                             with (
                                 pytest.raises(sc.RefusAutorite),
-                                service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis']),
+                                service_lecture_m4.ouvrir(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis']),
                             ):
                                 filtre = (REGISTRES.c.departement == "m05-financecore") & (
                                     REGISTRES.c.registre == "rentabilite_recalcul_v2"
@@ -1880,7 +1880,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                                 cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(valeur)))
                                 m5.lire_rentabilite_chantier(devis_id=affaire["devis"], autorise_couts=True)
                         else:
-                            with service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]):
+                            with service_lecture_m4.ouvrir(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]):
                                 actuel = m5.lire_rentabilite_chantier(devis_id=affaire["devis"], autorise_couts=True)
                                 chantier = actuel["resultat"]["chantiers"][0]
                                 assert chantier["rentabilite"]["cout_reel"]["main_d_oeuvre"]["cout"] == Decimal(
@@ -1903,7 +1903,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                     ref_v1 = ancien[0]["reference_core"]
                     ref_v2 = reponse["attestation"]
                     with contexte.appeler_en_tant_que("m05-financecore"):
-                        with lecture._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]) as cap:
+                        with lecture.ouvrir(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]) as cap:
                             cap.projection_m4()
                             with contexte.appeler_en_tant_que("m03-estimation"), pytest.raises(sc.RefusAutorite):
                                 cap.verifier_reference_publication(ref_v1)
@@ -1925,7 +1925,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                                 with pytest.raises(sc.RefusAutorite):
                                     cap.verifier_reference_publication(ref)
                         with pytest.raises(sc.RefusAutorite):  # noqa: SIM117
-                            with lecture._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]) as cap2:
+                            with lecture.ouvrir(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]) as cap2:
                                 cap2.projection_m4()
                                 cap2.verifier_reference_publication(ref_v2)
                                 cnx.execute(
@@ -1938,7 +1938,7 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                         ).scalar_one()
                         assert v2_audit == "usage"
                 assert (
-                    service_recalcul_m4._executer_qa(
+                    service_recalcul_m4.ouvrir(
                         cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"], intention_id="b" * 64
                     )["statut"]
                     == "deja_executee"

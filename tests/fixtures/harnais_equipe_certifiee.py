@@ -372,9 +372,9 @@ def revue_completion_verifiee(
     assert app.statut().resultat["statut"] == "completed_verified"
 
 
-# -- les deux coutures QA qui rendent la voie certifiée VISIBLE ---------------------------------------------
-# Elles ne sont routées par aucune route de production (`ouvrir` refuse : « décision et revue » manquantes) ; ce sont
-# les mêmes coutures que `tests/e2e/test_verticale_affaire_durable.py` et `tests/test_qa_m4_core_m5.py`. Sans elles,
+# -- les deux portes qualifiées (E6) qui rendent la voie certifiée VISIBLE à la demande ---------------------------
+# `service_recalcul_m4.ouvrir` et `service_lecture_m4.ouvrir`, sous session console d'un admin actif et politiques
+# actives (les mêmes que `tests/e2e/test_verticale_affaire_durable.py` et `tests/test_qa_m4_core_m5.py`). Sans elles,
 # la cascade du bus trace un coût partiel (le signal de variance de M6 n'arrive qu'après le WCT, et seul le WCT porte
 # une capacité de service) et la lecture de l'admin reste partielle.
 def _session_qa() -> Session:
@@ -390,12 +390,12 @@ def _politique(operation: str) -> None:
 
 
 def recalcul_certifie_qa(chantier: Chantier, wct_id: str, *, suffixe: str = "") -> dict[str, Any]:
-    """Une fois le WCT ET la variance reçus par M5 : le recalcul qualifié `m4.recalculer_v3` (couture QA) refait le
+    """Une fois le WCT ET la variance reçus par M5 : le recalcul qualifié `m4.recalculer_v3` (porte `ouvrir`) refait le
     coût depuis la projection M4 vérifiée et le tarif d'équipe, le trace (ventilation V3) et le publie."""
     _politique("m4.recalculer_v3")
     intention = hashlib.sha256(f"intention-recalcul-{chantier.lead_id}-{suffixe}".encode()).hexdigest()
     with stockage.transaction() as cnx:
-        recalcul = service_recalcul_m4._executer_qa(
+        recalcul = service_recalcul_m4.ouvrir(
             cnx, _session_qa(), wct_id=wct_id, devis_id=chantier.devis_id, intention_id=intention)
     assert recalcul["statut"] == "publiee", recalcul
     assert recalcul["attestation"]["operation"] == "m4.recalculer_v3"
@@ -404,7 +404,7 @@ def recalcul_certifie_qa(chantier: Chantier, wct_id: str, *, suffixe: str = "") 
 
 def lecture_m5_sous_portee_qa(moteur: Any, monkeypatch: Any, chantier: Chantier, wct_id: str) -> None:
     """La lecture `m5_lire_rentabilite_chantier` d'UN devis s'exécute sous la portée de relecture M4
-    (`m4.relire_faits_pour_m5_v1`, couture QA) : elle revalide la projection et rend le coût certifié. Les autres
+    (`m4.relire_faits_pour_m5_v1`, porte qualifiée) : elle revalide la projection et rend le coût certifié. Les autres
     lectures (autre devis, devis inconnu, arguments invalides) restent l'ordinaire. Une portée refusée n'autorise
     aucune donnée : la lecture ordinaire, partielle, est rendue. Le serveur MCP lie la fonction de l'outil à son
     démarrage : il est donc redémarré (même base, mêmes appareils) pour prendre la couture."""
@@ -416,7 +416,7 @@ def lecture_m5_sous_portee_qa(moteur: Any, monkeypatch: Any, chantier: Chantier,
             return original(*args, **kwargs)
         try:
             with (stockage.transaction() as cnx,
-                  service_lecture_m4._ouvrir_qa(cnx, _session_qa(), wct_id=wct_id, devis_id=chantier.devis_id)):
+                  service_lecture_m4.ouvrir(cnx, _session_qa(), wct_id=wct_id, devis_id=chantier.devis_id)):
                 return original(*args, **kwargs)
         except service_capability.RefusAutorite:
             return original(*args, **kwargs)

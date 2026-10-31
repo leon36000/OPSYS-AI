@@ -1,6 +1,7 @@
-"""Candidat privé, NON branché : moteur de recalcul certifié SQLite (E2 de CONCEPTION-ROUTAGE-COUT-CERTIFIE).
+"""Moteur de recalcul certifié SQLite (E2, branché en E6/E8 de CONCEPTION-ROUTAGE-COUT-CERTIFIE).
 
-Dérivé de `service_recalcul_m4._executer_qa` : mêmes gardes (double politique, intention idempotente, savepoint,
+Dérivé de l'ancienne couture QA `_executer_qa` (retirée en E6) : mêmes gardes (double politique, intention
+idempotente, savepoint,
 portée vérifiée avant et après chaque lecture, attestation v2), auxquelles E2 ajoute :
 
 1. le verrou d'écriture `BEGIN IMMEDIATE` est VÉRIFIÉ (écouteur `begin` de l'engine), à l'entrée et à chaque
@@ -20,10 +21,10 @@ Règle produit : « déclaration d'équipe ≠ présence individuelle » ; un hi
 aucune attribution supposée, aucun coût estimé : un coût dont la main-d'oeuvre n'est pas chiffrée par une projection
 M4 exploitable et un tarif d'équipe sourcé est REFUSÉ, jamais publié comme partiel sous provenance certifiée.
 
-NON branché : `service_recalcul_m4.ouvrir` et `service_lecture_m4.ouvrir` restent fermés (`*_NON_QUALIFIE`). Aucune
-route, aucun outil, aucun rôle, aucun droit, aucune politique créée ici ; PostgreSQL est refusé. L'autorité d'appel
-est celle de `_executer_qa` : une session console d'une personne `admin` active. Un acteur automatique sans session
-(Option 3, E8) est une décision de droit (D2) qui n'est PAS prise ici.
+Branchement (E6/E8) : deux appelants seulement. `service_recalcul_m4.ouvrir` (session console d'un admin actif,
+à la demande) et le réconciliateur `opsys.evenements.reconciliateur_cout_certifie` (acteur système `opsys-systeme`,
+D2, dans son seul contexte). L'autorité est la paire de politiques octroyées par l'opérateur Core (D1) ; aucun
+outil d'agent, aucun rôle d'appareil n'y mène. PostgreSQL est refusé (D5).
 """
 
 from __future__ import annotations

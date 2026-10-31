@@ -1,9 +1,9 @@
-"""Candidat privé, non routé : portée de recalcul SQLite sous double politique.
+"""Portée de recalcul SQLite sous double politique, et sa porte publique `ouvrir` (E6).
 
-La session vient exclusivement du serveur. Ce module est une convention entre
-composants de confiance, pas une frontière contre du Python arbitraire.
-Les intentions et attestations sont conservées par Core ; le port M5 vérifie
-ses registres et sa trace. Ne pas router sans décision et qualification.
+La session vient exclusivement du serveur (console) ; l'acteur système du réconciliateur est accepté par le moteur
+dans son seul contexte (D2). Ce module est une convention entre composants de confiance, pas une frontière contre
+du Python arbitraire. Les intentions et attestations sont conservées par Core ; le port M5 vérifie ses registres et
+sa trace. PostgreSQL reste refusé (D5).
 """
 
 import json
@@ -393,108 +393,18 @@ def lire_historique_v2(cnx, session, intention_id):
 
 
 def ouvrir(cnx, session, *, wct_id, devis_id, intention_id):
-    """Porte publique fermée : la décision de droit et la route manquent."""
-    raise sc.RefusAutorite("RECALCUL_M4_NON_QUALIFIE")
+    """Porte publique du recalcul certifié à la demande, pour une personne `admin` active de la console (E6).
 
+    Délègue au moteur qualifié (`opsys.moteur_recalcul_m4.recalculer`) avec l'acteur de la session : refus typé
+    sans les politiques `m4.recalculer_v3` ET `m4.verifier_v3` actives (octroi par l'opérateur, D1), sur
+    PostgreSQL, sans verrou `BEGIN IMMEDIATE`, hors transaction, ou dans une autre portée de service. Seuls
+    `wct_id`, `devis_id` et `intention_id` entrent : tout le reste est relu à la source. L'acteur système du
+    réconciliateur n'entre jamais par cette porte (il appelle le moteur dans son propre contexte)."""
+    from . import moteur_recalcul_m4 as moteur
+    from .console.securite import Session
 
-def _executer_qa(cnx, session, *, wct_id, devis_id, intention_id):
-    """Mécanique privée ; ne pas router ni activer sans décision et revue."""
-    if (
-        type(wct_id) is not str
-        or not _HEX.fullmatch(wct_id)
-        or type(devis_id) is not str
-        or not 1 <= len(devis_id) <= 256
-        or type(intention_id) is not str
-        or not _HEX.fullmatch(intention_id)
-    ):
-        raise sc.RefusAutorite("identifiant invalide")
-    if (
-        cnx is not stockage.connexion_courante()
-        or cnx.engine.dialect.name != "sqlite"
-        or cnx.get_transaction() is None
-        or not cnx.connection.dbapi_connection.in_transaction
-        or sc._COURANTE.get() is not None
-    ):
-        raise sc.RefusAutorite("transaction ou contexte invalide")
-    _admin(cnx, session)
-    instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one_or_none()
-    if (
-        type(instance) is not str
-        or not instance
-        or type(session.utilisateur) is not str
-        or not 1 <= len(session.utilisateur) <= 256
-    ):
-        raise sc.RefusAutorite("instance ou acteur invalide")
-    politique, service = _politiques(cnx, instance)
-    intention = dict(
-        intention_id=intention_id, instance_id=instance, acteur=session.utilisateur, wct_id=wct_id, devis_id=devis_id
+    if type(session) is not Session:
+        raise moteur.RefusRecalculM4(moteur.ACTEUR_INVALIDE, "session console d'un admin requise")
+    return moteur.recalculer(
+        cnx, session, acteur=session.utilisateur, wct_id=wct_id, devis_id=devis_id, intention_id=intention_id
     )
-    ancienne = cnx.execute(select(INTENTIONS).where(INTENTIONS.c.intention_id == intention_id)).mappings().one_or_none()
-    if ancienne is not None:
-        if dict(ancienne) != intention:
-            raise sc.RefusAutorite("intention en conflit")
-        historique = lire_historique_v2(cnx, session, intention_id)
-        if _politiques(cnx, instance) != (politique, service):
-            raise sc.RefusAutorite("politique modifiée")
-        return {"statut": "deja_executee", "historique": historique}
-    try:
-        with cnx.begin_nested():
-            cnx.execute(insert(INTENTIONS).values(**intention))
-            evt, recu = _valider_source(cnx, wct_id, devis_id)
-            p = _PorteeRecalcul(cnx, session, evt, recu, instance, politique)
-            token = sc._COURANTE.set(p)
-            try:
-                p._verifier()
-                base = sc._base(cnx)
-                faits = sc._figer_faits(sc._faits_m4_verifies(p))
-                p._verifier()
-                audit = cnx.execute(
-                    insert(SERVICE_AUDIT).values(
-                        instance_id=instance,
-                        consommateur=sc._CONSOMMATEUR,
-                        operation=_OPERATION,
-                        revision=politique.revision,
-                        evenement_id=wct_id,
-                        action="usage",
-                    )
-                ).inserted_primary_key[0]
-                cap = _CapaciteRecalcul(
-                    p,
-                    base,
-                    instance,
-                    service.revision,
-                    service.expire_le,
-                    faits,
-                    intention=intention,
-                    audit_recalcul=audit,
-                )
-                from m5_financecore.port_service_m4 import publier
-
-                result = publier(devis_id, cap=cap)
-                if (
-                    type(result) is not dict
-                    or result.get("statut") != "publiee"
-                    or type(result.get("_controle_final")) is not type(lambda: None)
-                    or type(result.get("attestation")) is not dict
-                ):
-                    raise sc.RefusAutorite("publication v2 incomplète")
-                version = result.get("version")
-                if type(version) is not str or len(version) > 256:
-                    raise sc.RefusAutorite("version invalide")
-                cnx.execute(insert(RESULTATS).values(intention_id=intention_id, statut="publiee", version=version))
-                # Après toutes les écritures propres, y compris audit/intention/résultat,
-                # M5 revalide projection et ses registres avant fermeture du savepoint.
-                result["_controle_final"]()
-                p._verifier()
-                if _politiques(cnx, instance) != (politique, service):
-                    raise sc.RefusAutorite("politique modifiée")
-                histoire = lire_historique_v2(cnx, session, intention_id)
-                if _reference_canonique(histoire["attestation"]) != _reference_canonique(result["attestation"]):
-                    raise sc.RefusAutorite("attestation divergente")
-                p._verifier()
-                return {"statut": "publiee", "version": version, "attestation": histoire["attestation"]}
-            finally:
-                p.fermee = True
-                sc._COURANTE.reset(token)
-    except IntegrityError as exc:
-        raise sc.RefusAutorite("intention concurrente ou incohérente") from exc

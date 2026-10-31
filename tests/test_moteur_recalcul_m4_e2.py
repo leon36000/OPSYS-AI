@@ -604,23 +604,51 @@ def test_panne_apres_commit_la_reprise_ne_republie_rien(base_durable):
 
 
 # -------------------------------------------------------------------------------------------
-# `ouvrir` reste fermé ; le moteur n'est branché nulle part
+# E6 : `ouvrir` délègue au moteur qualifié ; le moteur n'a que deux appelants de production
 # -------------------------------------------------------------------------------------------
-def test_ouvrir_reste_ferme_dans_les_deux_services(base_durable):
+def test_ouvrir_qualifie_refuse_sans_politique_puis_publie_avec(base_durable):
     from opsys import service_lecture_m4
 
+    deps, wct_id = _chantier()
+    avant = _empreinte_base()
+    with stockage.transaction() as cnx, pytest.raises(moteur.RefusRecalculM4) as exc:
+        service_recalcul_m4.ouvrir(cnx, cm._session_admin_certifie(), wct_id=wct_id, devis_id=DEVIS,
+                                   intention_id=_intention("ouvrir"))
+    assert exc.value.code == moteur.POLITIQUE_ABSENTE and "m4.recalculer_v3" in str(exc.value)
+    with stockage.transaction() as cnx, (
+            pytest.raises(sc.RefusAutorite, match="politique de lecture absente")), service_lecture_m4.ouvrir(
+            cnx, cm._session_admin_certifie(), wct_id=wct_id, devis_id=DEVIS):
+        pytest.fail("la lecture ne doit pas s'ouvrir sans politique")  # pragma: no cover
+    assert _empreinte_base() == avant
+    # aucun autre acteur qu'une session console : ni None, ni objet quelconque
+    for intrus in (None, object()):
+        with stockage.transaction() as cnx, pytest.raises(sc.RefusAutorite):
+            service_recalcul_m4.ouvrir(cnx, intrus, wct_id=wct_id, devis_id=DEVIS, intention_id=_intention("x"))
+        with stockage.transaction() as cnx, pytest.raises(sc.RefusAutorite), service_lecture_m4.ouvrir(
+                cnx, intrus, wct_id=wct_id, devis_id=DEVIS):
+            pytest.fail("aucune lecture")  # pragma: no cover
+    assert _empreinte_base() == avant
+    cm._poser_politique("m4.recalculer_v3")
     with stockage.transaction() as cnx:
-        with pytest.raises(sc.RefusAutorite, match="RECALCUL_M4_NON_QUALIFIE"):
-            service_recalcul_m4.ouvrir(cnx, cm._session_admin_certifie(), wct_id="a" * 64, devis_id=DEVIS,
-                                       intention_id="b" * 64)
-        with (pytest.raises(sc.RefusAutorite, match="LECTURE_M4_NON_QUALIFIEE"),
-              service_lecture_m4.ouvrir(cnx, cm._session_admin_certifie(), wct_id="a" * 64, devis_id=DEVIS)):
-            pytest.fail("la lecture ne doit pas s'ouvrir")  # pragma: no cover
+        reponse = service_recalcul_m4.ouvrir(cnx, cm._session_admin_certifie(), wct_id=wct_id, devis_id=DEVIS,
+                                             intention_id=_intention("ouvrir"))
+    assert reponse["statut"] == "publiee" and reponse["attestation"]["acteur"] == cm.ADMIN_CERTIFIE
+    cm._poser_politique("m4.relire_faits_pour_m5_v1")
+    with stockage.transaction() as cnx, contexte_m5(), service_lecture_m4.ouvrir(
+            cnx, cm._session_admin_certifie(), wct_id=wct_id, devis_id=DEVIS) as cap:
+        assert cap.projection_m4()["faits"][3] == wct_id
 
 
-def test_aucune_route_outil_ou_role_n_appelle_le_moteur():
-    """Le nouveau module n'est référencé par aucun autre code de production, et importer le serveur MCP, la CLI, la
-    console et les capacités ne le charge pas."""
+def contexte_m5():
+    from opsys import contexte
+
+    return contexte.appeler_en_tant_que("m05-financecore")
+
+
+def test_seules_les_deux_portes_de_production_appellent_le_moteur():
+    """Le moteur n'est référencé que par `service_recalcul_m4.ouvrir` (console admin) et le réconciliateur (acteur
+    système) ; aucun outil, rôle ni manifeste ; importer le serveur MCP, la CLI, la console et les capacités ne le
+    charge pas (import paresseux)."""
     import subprocess
     import sys as _sys
 
@@ -632,7 +660,9 @@ def test_aucune_route_outil_ou_role_n_appelle_le_moteur():
             if (chemin.suffix in {".py", ".ts", ".yaml", ".yml", ".json"} and chemin.is_file()
                     and "moteur_recalcul_m4" in chemin.read_text(encoding="utf-8", errors="ignore")):
                 reference.append(chemin.relative_to(RACINE).as_posix())
-    assert reference == [], reference
+    autorises = {"src/opsys/evenements/reconciliateur_cout_certifie.py", "src/opsys/moteur_recalcul_m4.py",
+                 "src/opsys/service_recalcul_m4.py"}
+    assert "src/opsys/service_recalcul_m4.py" in reference and set(reference) <= autorises, reference
     assert (RACINE / "src" / "opsys" / "moteur_recalcul_m4.py").is_file()
     code = (
         "import sys, opsys.serveur_mcp, opsys.cli, opsys.capacites, opsys.console.application\n"
