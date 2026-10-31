@@ -52,6 +52,7 @@ packages = [
     "opsys",
     "opsys.console",
     "opsys.evenements",
+    "opsys.fournisseurs",
     "opsys.garde_fou_texte",
     "opsys.secrets_coffre",
     "opsys.memoire", "opsys.stockage", "opsys.stockage.migrations", "opsys.stockage.migrations.versions",
