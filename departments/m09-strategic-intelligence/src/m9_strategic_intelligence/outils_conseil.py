@@ -105,15 +105,6 @@ def construire_outils(
         adresses = sorted(construit["faits"])
         if type(depart) is not int or not 0 <= depart <= len(adresses):
             raise _refus("REJ-TISSU-DEPART", "départ entre 0 et le nombre de faits requis ; reprendre à 0")
-        page: dict[str, str] = {}
-        for adresse in adresses[depart:]:
-            essai = {**page, adresse: construit["faits"][adresse]}
-            if len(cs.canonique(essai)) > budget_sortie - 3500:
-                break
-            page = essai
-        if adresses[depart:] and not page:
-            raise _refus("REJ-TISSU-BORNE", "un fait dépasse la borne de sortie")
-        suivant = depart + len(page)
         resume = {
             k: construit[k]
             for k in (
@@ -134,6 +125,18 @@ def construire_outils(
         }
         resume["manques"] = construit["manques"]
         resume["contradictions"] = len(construit["contradictions"])
+        # Le résumé (couverture, manques) grandit avec le catalogue : la page de faits prend ce qui reste du budget,
+        # moins 400 caractères pour les champs de pagination et l'enveloppe.
+        reste_faits = budget_sortie - len(cs.canonique(resume)) - 400
+        page: dict[str, str] = {}
+        for adresse in adresses[depart:]:
+            essai = {**page, adresse: construit["faits"][adresse]}
+            if len(cs.canonique(essai)) > reste_faits:
+                break
+            page = essai
+        if adresses[depart:] and not page:
+            raise _refus("REJ-TISSU-BORNE", "un fait dépasse la borne de sortie")
+        suivant = depart + len(page)
         return borner(
             {
                 "accepte": True,
