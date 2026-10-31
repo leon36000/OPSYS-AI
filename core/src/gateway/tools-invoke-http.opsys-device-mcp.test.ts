@@ -16,7 +16,7 @@
 // The configuration mimics the generated OPSYS one: two departments, each with its own agent (none
 // marked default, each denying the other's `opsys_mN__*` tools) and its own MCP server. Both servers
 // list a tool named `m4_pointer`, the collision the device door must not fall for.
-import { randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -52,7 +52,7 @@ const runBeforeToolCallHook = async (args: { params: unknown }) => {
 
 // The tools each fake department server lists (`tools/list`). `m4_pointer` is on BOTH servers.
 const TOOLS_BY_SERVER: Record<string, string[]> = {
-  opsys_m2: ["m2_lire_leads", "m4_pointer"],
+  opsys_m2: ["m2_lire_leads", "m4_pointer", "m3_lire_apprentissage_chantier"],
   opsys_m4: ["m4_pointer", "m4_lister_interventions"],
 };
 
@@ -339,6 +339,55 @@ type InvokeBody = {
 };
 
 describe("tools invoke HTTP: a device token reaches the department MCP tool by the bare name the app sends", () => {
+  it("attests only the verified admin device and exact read arguments", async () => {
+    const secret = "qa-device-attestation-secret-01234567890123456789";
+    const mcpToken = "qa-mcp-bearer-distinct-01234567890123456789";
+    const generation = "ab".repeat(16);
+    const proof = createHmac("sha256", secret).update("opsys.device.generation.v1").digest("hex");
+    const generationServer = createServer((req, res) => {
+      if (req.url !== "/internal/opsys-device-generation" || req.headers.authorization !== `Bearer ${mcpToken}` ||
+          req.headers["x-opsys-gateway-proof"] !== proof) {
+        res.writeHead(403).end();
+        return;
+      }
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ generation }));
+    });
+    await new Promise<void>((resolve) => generationServer.listen(0, "127.0.0.1", resolve));
+    const generationPort = (generationServer.address() as AddressInfo).port;
+    vi.stubEnv("OPSYS_MCP_DEVICE_ATTESTATION_SECRET", secret);
+    vi.stubEnv("OPSYS_MCP_JETON", mcpToken);
+    vi.stubEnv("OPSYS_MCP_DEVICE_GENERATION_URL", `http://127.0.0.1:${generationPort}/internal/opsys-device-generation`);
+    try {
+      await withPairedDevice(DEVICE_ID, async (deviceToken, state) => {
+        writeOpsysFragments(state, {
+          roles: { roles: { ...ROLES_FRAGMENT.roles, admin: ["m3_lire_apprentissage_chantier"] },
+                   serveurs: { ...ROLES_FRAGMENT.serveurs, m3_lire_apprentissage_chantier: "opsys_m2" } },
+          appareils: { appareils: { [DEVICE_ID]: { personne: "nathan.fictif", role: "admin" } } },
+        });
+        resetOpsysDeviceRolesCacheForTesting();
+        const args = { wct_id: "f".repeat(64), coupure_utc: "2030-06-08T12:00:00-04:00" };
+        const forged = await invokeAsApp(deviceToken, {
+          tool: "m3_lire_apprentissage_chantier", deviceId: "autre-appareil", args,
+        });
+        expect(forged.status).toBe(403);
+        const response = await invokeAsApp(deviceToken, { tool: "m3_lire_apprentissage_chantier", args });
+        expect(response.status).toBe(200);
+        const meta = runtimes.at(-1)?.toolCalls[0]?.meta as Record<string, string>;
+        expect(meta["opsys/personne"]).toBe("nathan.fictif");
+        expect(meta["opsys/role"]).toBe("admin");
+        const [content, signature] = meta["opsys/attestationAppareil"].split(".");
+        expect(signature).toBe(createHmac("sha256", secret).update(content).digest("hex"));
+        const packet = JSON.parse(Buffer.from(content, "base64url").toString("utf8")) as unknown[];
+        expect(packet.slice(0, 6)).toEqual([1, generation, DEVICE_ID, "nathan.fictif", "admin",
+                                          "m3_lire_apprentissage_chantier"]);
+        expect(packet[6]).toBe(createHash("sha256").update(JSON.stringify([args.wct_id, args.coupure_utc])).digest("hex"));
+      });
+    } finally {
+      vi.unstubAllEnvs();
+      await new Promise<void>((resolve, reject) => generationServer.close((err) => err ? reject(err) : resolve()));
+    }
+  });
+
   it.each(["personne", "role", "serveur", "scope"] as const)(
     "refuses an in-flight %s change without redirecting and admits a fresh legitimate request",
     async (changed) => {
