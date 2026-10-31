@@ -267,11 +267,15 @@ def assembler(
     situation: dict[str, Any], faits_chantier: list[dict[str, Any]], attentes_m6: list[dict[str, Any]] | None,
     raison_manque_m6: str | None, budget_caracteres: int | None = None, *,
     faits_cash_libre: list[dict[str, Any]] | None = None, aujourd_hui: str | None = None,
+    fraicheur_attendue: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """La vue exécutive : ``situation`` est celle de ``entonnoir.situation``, ``faits_chantier`` le registre des
     chantiers terminés (marge réelle de M5), ``attentes_m6`` ce que M6 publie (``None`` s'il n'a pas pu être lu),
     ``faits_cash_libre`` le registre des constats du cash libre de M5 (aucun : « manque »), ``aujourd_hui`` (AAAA-MM-JJ,
-    de l'appelant : M8 n'a pas d'horloge) pour l'âge du constat. Lecture pure : rien n'est écrit, rien n'est publié."""
+    de l'appelant : M8 n'a pas d'horloge) pour l'âge du constat. ``fraicheur_attendue`` : les clés que
+    ``fraicheur_lectures.declarer`` ajoute quand le propriétaire a déclaré une fenêtre (vide : la vue est inchangée,
+    aucune clé de plus) ; elles entrent dans la vue AVANT la borne, qui les mesure. Lecture pure : rien n'est écrit,
+    rien n'est publié."""
     manques: list[dict[str, str]] = []
     vue = {
         "vue": "executive",
@@ -282,6 +286,8 @@ def assembler(
         "cash_libre": section_cash_libre(faits_cash_libre or [], aujourd_hui, manques),
         "manques": manques,
     }
+    if fraicheur_attendue:
+        vue.update(fraicheur_attendue)
     return _borner(vue, budget_caracteres)
 
 
