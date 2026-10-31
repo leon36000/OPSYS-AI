@@ -5,6 +5,8 @@ import { normalizeOptionalString } from "@openclaw/normalization-core/string-coe
 import { getRuntimeConfig } from "../config/io.js";
 import type { GatewayOperatorRoleDefinition } from "../config/types.gateway.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
+import { projectOperatorGrant } from "../infra/device-pairing-binding.js";
+import { capturePublishedOperatorGrant } from "../infra/device-pairing-publication.js";
 import { verifyDeviceToken } from "../infra/device-pairing-tokens.js";
 import { listDevicePairing } from "../infra/device-pairing.js";
 import { verifyPairingToken } from "../infra/pairing-token.js";
@@ -151,7 +153,11 @@ function resolveControlUiReadAuthToken(
 }
 
 /** A device-token HTTP auth match: which paired device presented it, and its granted scopes. */
-type VerifiedHttpOperatorDeviceToken = { deviceId: string; scopes: string[] };
+type VerifiedHttpOperatorDeviceToken = {
+  deviceId: string;
+  scopes: string[];
+  isCurrent: () => boolean;
+};
 
 async function verifyHttpOperatorDeviceToken(
   token: string,
@@ -168,6 +174,11 @@ async function verifyHttpOperatorDeviceToken(
     ) {
       continue;
     }
+    // Bind to the exact grant/scopes observed in the paired snapshot, not merely the token.
+    const observedGrant = projectOperatorGrant(device);
+    if (!observedGrant) {
+      return null;
+    }
     const verified = await verifyDeviceToken({
       deviceId: device.deviceId,
       token,
@@ -182,7 +193,13 @@ async function verifyHttpOperatorDeviceToken(
     // each paired device's stored token above. Callers that need to know WHICH device
     // authenticated (OPSYS-AI PLAN T1.4-c4: `/tools/invoke` resolves the OPSYS person/role from
     // this deviceId, never from the request body) rely on this match, not on client-declared input.
-    return verified.ok ? { deviceId: device.deviceId, scopes: [...operatorToken.scopes] } : null;
+    if (!verified.ok) {
+      return null;
+    }
+    const isCurrent = capturePublishedOperatorGrant(device.deviceId, token, observedGrant);
+    return isCurrent()
+      ? { deviceId: device.deviceId, scopes: [...operatorToken.scopes], isCurrent }
+      : null;
   }
   return null;
 }
@@ -209,6 +226,7 @@ type HttpOperatorCredentialResult = {
   authResult: GatewayAuthResult;
   authGeneration?: string;
   deviceOperatorScopes?: string[];
+  deviceTokenCurrent?: () => boolean;
   /** The paired device that authenticated, when `authResult.method === "device-token"`. */
   deviceId?: string;
 };
@@ -249,6 +267,7 @@ async function checkHttpOperatorCredentials(
     let resolvedAuthResult = authResult;
     let deviceScopes: string[] | undefined;
     let matchedDeviceId: string | undefined;
+    let deviceTokenCurrent: (() => boolean) | undefined;
     if (
       !authResult.ok &&
       authResult.reason !== PROXY_ATTRIBUTION_REQUIRED_REASON &&
@@ -284,6 +303,7 @@ async function checkHttpOperatorCredentials(
         if (verifiedDevice) {
           deviceScopes = verifiedDevice.scopes;
           matchedDeviceId = verifiedDevice.deviceId;
+          deviceTokenCurrent = verifiedDevice.isCurrent;
           params.rateLimiter?.reset(clientIp, AUTH_RATE_LIMIT_SCOPE_DEVICE_TOKEN);
           resolvedAuthResult = { ok: true, method: "device-token" };
         } else {
@@ -300,6 +320,7 @@ async function checkHttpOperatorCredentials(
       authGeneration,
       ...(deviceScopes ? { deviceOperatorScopes: deviceScopes } : {}),
       ...(matchedDeviceId ? { deviceId: matchedDeviceId } : {}),
+      ...(deviceTokenCurrent ? { deviceTokenCurrent } : {}),
     };
   };
 
@@ -334,14 +355,18 @@ export async function authorizeControlUiReadRequestOrReply(
     );
   }
   const token = resolveControlUiReadAuthToken(params.req, params.allowQueryToken);
-  const { authResult, authGeneration, deviceOperatorScopes } = await checkHttpOperatorCredentials(
-    { ...params, cfg, auth, token, rateLimiter: token ? params.rateLimiter : undefined },
-    authorizeControlUiReadHttpGatewayConnect,
-  );
+  const { authResult, authGeneration, deviceOperatorScopes, deviceTokenCurrent } =
+    await checkHttpOperatorCredentials(
+      { ...params, cfg, auth, token, rateLimiter: token ? params.rateLimiter : undefined },
+      authorizeControlUiReadHttpGatewayConnect,
+    );
   if (!authResult.ok) {
     sendGatewayAuthFailure(params.res, authResult);
     return null;
   }
+  const hasCurrentDeviceAuthority = () =>
+    hasCurrentClientAuthority() &&
+    (authResult.method !== "device-token" || deviceTokenCurrent?.() === true);
   const profileAuth = await checkAuthenticatedHttpUserProfile({
     authResult,
     cfg,
@@ -357,7 +382,7 @@ export async function authorizeControlUiReadRequestOrReply(
   if (!bindHttpOperatorAccessAuthority(params.res, authenticatedProfile.operatorAccessAuthority)) {
     return null;
   }
-  if (!hasCurrentClientAuthority()) {
+  if (!hasCurrentDeviceAuthority()) {
     sendUnauthorized(params.res);
     return null;
   }
@@ -392,7 +417,7 @@ export async function authorizeControlUiReadRequestOrReply(
   return bindHttpResponseAuthority(
     { authMethod, operatorScopes, ...authenticatedProfile },
     params.res,
-    hasCurrentClientAuthority,
+    hasCurrentDeviceAuthority,
   );
 }
 
@@ -597,20 +622,24 @@ export async function checkGatewayHttpRequestAuth(
   const cfg = params.cfg ?? getRuntimeConfig();
   const hasCurrentClientAuthority = captureHttpRequestAuthority(params);
   const token = getBearerToken(params.req);
-  const { authResult, deviceOperatorScopes, deviceId }: HttpOperatorCredentialResult =
-    allowDeviceToken
-      ? await checkHttpOperatorCredentials({ ...params, cfg, token }, authorizeHttpGatewayConnect)
-      : {
-          authResult: await authorizeHttpGatewayConnect({
-            auth: params.auth,
-            connectAuth: token ? { token, password: token } : null,
-            req: params.req,
-            trustedProxies: params.trustedProxies,
-            allowRealIpFallback: params.allowRealIpFallback,
-            rateLimiter: params.rateLimiter,
-            browserOriginPolicy: resolveHttpBrowserOriginPolicy(params.req, cfg),
-          }),
-        };
+  const {
+    authResult,
+    deviceOperatorScopes,
+    deviceId,
+    deviceTokenCurrent,
+  }: HttpOperatorCredentialResult = allowDeviceToken
+    ? await checkHttpOperatorCredentials({ ...params, cfg, token }, authorizeHttpGatewayConnect)
+    : {
+        authResult: await authorizeHttpGatewayConnect({
+          auth: params.auth,
+          connectAuth: token ? { token, password: token } : null,
+          req: params.req,
+          trustedProxies: params.trustedProxies,
+          allowRealIpFallback: params.allowRealIpFallback,
+          rateLimiter: params.rateLimiter,
+          browserOriginPolicy: resolveHttpBrowserOriginPolicy(params.req, cfg),
+        }),
+      };
   if (!authResult.ok) {
     return { ok: false, authResult };
   }
@@ -628,7 +657,10 @@ export async function checkGatewayHttpRequestAuth(
     return profileAuth;
   }
   const authenticatedProfile = profileAuth.profile;
-  if (!hasCurrentClientAuthority()) {
+  if (
+    !hasCurrentClientAuthority() ||
+    (authResult.method === "device-token" && deviceTokenCurrent?.() !== true)
+  ) {
     return { ok: false, authResult: { ok: false, reason: "unauthorized" } };
   }
   return {
@@ -636,6 +668,7 @@ export async function checkGatewayHttpRequestAuth(
     requestAuth: {
       hasCurrentClientAuthority: () =>
         hasCurrentClientAuthority() &&
+        (authResult.method !== "device-token" || deviceTokenCurrent?.() === true) &&
         hasCurrentGatewayOperatorAccess(authenticatedProfile.operatorAccessAuthority),
       authMethod: authResult.method,
       ...(authResult.user ? { user: authResult.user } : {}),

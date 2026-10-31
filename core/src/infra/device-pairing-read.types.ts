@@ -11,7 +11,13 @@ export type DevicePairingReadCommand =
     };
 
 export type DevicePairingBinding = { identity: string; generation?: string };
-export type DevicePairingBindingFact = { deviceId: string; binding: DevicePairingBinding | null };
+export type OperatorGrantProjection = { tokenHash: string; securityHash: string };
+// Optional for wire compatibility; missing is UNKNOWN and must fail closed for operator authority.
+export type DevicePairingBindingFact = {
+  deviceId: string;
+  binding: DevicePairingBinding | null;
+  operatorGrant?: OperatorGrantProjection | null;
+};
 export type DevicePairingReadReply = {
   ok: true;
   sourceAdmitted: true;
@@ -38,6 +44,7 @@ export type DevicePairingCommitReceipt = {
   beforeRevision: string;
   revision: string;
   changed: DevicePairingBindingFact[];
+  operatorGrantVersion?: 1;
   tokensReplaced?: { deviceId: string; roles: string[] };
   workerEnvironment?: CloudWorkerSetupCompletionPublication;
 };

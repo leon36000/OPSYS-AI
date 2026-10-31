@@ -3,9 +3,12 @@ import {
   type OpenClawStateDatabase,
 } from "../state/openclaw-state-db.js";
 import { executeDeviceBootstrapMutation } from "./device-bootstrap.worker-kernel.js";
-import { prepareDevicePairingBinding } from "./device-pairing-binding.js";
+import { prepareDevicePairingBinding, projectOperatorGrant } from "./device-pairing-binding.js";
 import { executeDevicePairingCoreMutation } from "./device-pairing-core.worker.js";
-import { withDevicePairingMutationAdmission } from "./device-pairing-mutation.worker.js";
+import {
+  requestDevicePairingMutationAdmission,
+  withDevicePairingMutationAdmission,
+} from "./device-pairing-mutation.worker.js";
 import { executeDevicePairingNodeMutation } from "./device-pairing-node.worker.js";
 import type { DevicePairingCommitReceipt } from "./device-pairing-read.types.js";
 import { resolveDevicePairingStoreRevision } from "./device-pairing-store-cache.js";
@@ -95,8 +98,23 @@ export function executeDevicePairingMutationInWorker(
               changed.push(prepareDevicePairingBinding(deviceId, after[deviceId] ?? null));
             }
           }
+          const operatorChanged = [
+            ...new Set([...Object.keys(before), ...Object.keys(after)]),
+          ].filter(
+            (deviceId) =>
+              JSON.stringify(projectOperatorGrant(before[deviceId] ?? null)) !==
+              JSON.stringify(projectOperatorGrant(after[deviceId] ?? null)),
+          );
+          if (operatorChanged.length > 0) {
+            // Block only affected grants before the worker can request commit admission.
+            requestDevicePairingMutationAdmission({
+              kind: "operator-grant-change-v1",
+              deviceIds: operatorChanged,
+            });
+          }
           deferSqliteWorkerCommitReceipt(database.db, {
             kind: "devicePairing",
+            operatorGrantVersion: 1,
             beforeRevision: resolveDevicePairingStoreRevision(before),
             revision: resolveDevicePairingStoreRevision(after),
             changed,

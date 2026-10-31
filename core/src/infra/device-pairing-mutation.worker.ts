@@ -17,7 +17,10 @@ export function requestDevicePairingMutationAdmission(facts: DevicePairingAdmiss
 
 export function withDevicePairingMutationAdmission<T>(operate: () => T): T {
   return admission.run([], () => {
-    requestSqliteWorkerOperationAdmission({ stage: "transaction", facts: [] });
+    requestSqliteWorkerOperationAdmission({
+      stage: "transaction",
+      facts: [{ kind: "operator-grant-protocol-v1" }],
+    });
     const result = operate();
     requestSqliteWorkerOperationAdmission({ stage: "commit", facts: admission.getStore() });
     return result;
