@@ -10,7 +10,8 @@ dont la date civile est confirmée (``cedule_datee``). Une équipe est une unit�
 du quart de l'équipe (unité ``heures_declarees``), JAMAIS des heures-personnes. Les membres déclarés ne sont ni lus ni
 comptés : la déclaration d'une équipe ne vaut pas la présence d'une personne, et aucune présence individuelle n'est
 déduite (ni absence signalée, ni pointage, ni position). Les absences signalées (``absences_journalieres``) ne sont PAS
-déduites : elles sont individuelles, le profil ne porte aucun congé.
+déduites : elles sont individuelles ; seuls les congés d'ÉQUIPE et les fériés déclarés au profil le sont (portée
+``semaine_type`` ci-dessous).
 
 CE QUE LE PROFIL NE DIT PAS, et que ce module dit au lieu de l'inventer. Le ``jour`` d'un quart est le numéro de journée
 d'un plan de cédule, pas un jour de semaine (docs/architecture/TAXONOMIE.md, « reste à faire ») : seule une journée
@@ -18,6 +19,21 @@ DATÉE par un administrateur (``m4_confirmer_dates_cedule``) relie ce numéro à
 datée n'a donc AUCUNE disponibilité connue (non calculable, jamais zéro) ; une semaine partiellement datée ne compte que
 ses journées datées (``portee`` = ``journees_datees_seulement``) : une borne basse de la capacité ouverte, pas de la
 capacité totale.
+
+PORTÉE ``semaine_type`` (DECISIONS-ARCHITECTE-r1 §3), demandée explicitement (``portee``) : la semaine n'a pas à être
+datée. ``heures_disponibles`` = pour chaque jour civil de la semaine, les plages de la SEMAINE TYPE déclarée de l'équipe
+pour ce jour de semaine (heures locales America/Montreal, durée réelle écoulée), sauf un jour férié déclaré (toutes les
+équipes) ou un congé déclaré de l'équipe : zéro DÉCLARÉ ce jour-là. Un jour fermé (``[]``) est un zéro déclaré ; un
+jour absent de la semaine type, une équipe sans semaine type, une année dont les fériés ne sont pas déclarés ou une
+heure locale sautée/répétée au changement d'heure rendent la semaine non calculable (jamais zéro). Les congés et
+fériés sont ceux de l'ÉQUIPE et de l'entreprise ; une absence individuelle n'est toujours ni lue ni déduite.
+``heures_planifiees`` garde la même règle que la portée datée (créneaux datés de la cédule appliquée ; une
+intervention active sans date reste un manque : on ignore dans quelle semaine elle tombera).
+
+JOURS-PERSONNES, seulement si le profil déclare ``duree_jour_personne_minutes`` (jamais supposé) et que la semaine est
+calculable : ``jours_personnes_*`` = minutes / cette durée, en texte décimal au dix-millième (arrondi demi vers le
+haut) ; la durée et les minutes exactes sont écrites à côté. Aucun membre n'est compté : c'est la conversion déclarée
+des heures d'une équipe, pas un effectif.
 
 Absence ≠ zéro, tout ou rien : dès qu'une équipe, une journée ou la cédule laisse un manque, ``calculable`` est faux, la
 liste ``equipes`` est vide, aucun total n'est écrit, et ``manque`` nomme chaque cause par un code fermé. Les seules
@@ -38,6 +54,9 @@ CONTRAT = "m4.capacite_equipe"
 VERSION = 1
 UNITE = "heures_declarees"
 PORTEE = "journees_datees_seulement"
+PORTEE_SEMAINE_TYPE = "semaine_type"
+PORTEES = (PORTEE, PORTEE_SEMAINE_TYPE)
+JOURS_SEMAINE = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")  # index = date.weekday()
 
 MANQUE_PROFIL_NON_DECLARE = "profil_equipes_non_declare"
 MANQUE_PROFIL_INVALIDE = "profil_equipes_invalide"
@@ -48,6 +67,11 @@ MANQUE_SANS_DATE = "interventions_planifiees_sans_date"  # suffixe ":N"
 MANQUE_A_RECONFIRMER = "creneaux_a_reconfirmer"  # suffixe ":N"
 MANQUE_QUART_AMBIGU = "quart_ambigu"  # suffixes ":equipe:date"
 MANQUE_EQUIPE_NON_DECLAREE = "equipe_planifiee_non_declaree"  # suffixe ":equipe"
+# portée semaine_type
+MANQUE_SEMAINE_TYPE_NON_DECLAREE = "semaine_type_non_declaree"  # suffixe ":equipe"
+MANQUE_JOUR_NON_DECLARE = "semaine_type_jour_non_declare"  # suffixes ":equipe:jour"
+MANQUE_FERIES_NON_DECLARES = "feries_non_declares"  # suffixe ":annee"
+MANQUE_HEURE_LOCALE = "heure_locale_ambigue"  # suffixes ":equipe:date"
 
 AVERTISSEMENTS = (
     "Heures d'horloge du quart déclaré de chaque équipe (une équipe = une unité de cédule), "
@@ -56,6 +80,14 @@ AVERTISSEMENTS = (
     "ni aucun pointage n'est déduit.",
     "Seules les journées datées par un administrateur comptent : une borne basse de la capacité ouverte, "
     "pas la capacité totale de la semaine.",
+)
+AVERTISSEMENTS_SEMAINE_TYPE = AVERTISSEMENTS[:2] + (
+    "Portée semaine_type : semaine type déclarée de chaque équipe, moins ses congés d'équipe et les fériés déclarés ; "
+    "ni la présence des personnes ni une cédule future.",
+)
+AVERTISSEMENT_JOURS_PERSONNES = (
+    "Jours-personnes = minutes déclarées de l'équipe / duree_jour_personne_minutes déclarée, au dix-millième ; "
+    "aucun membre n'est compté."
 )
 
 _CODE_VERDICT_NON_DECLARE = "REJ-EQUIPES-NON-CONFIGUREES"
@@ -69,26 +101,41 @@ _CLES_RACINE = frozenset({
     "contrat", "version", "semaine_debut", "fuseau", "unite", "portee", "lu_a", "calculable", "manque", "equipes",
     "jours_dates", "sources", "avertissements", "heures_disponibles", "heures_planifiees",
     "minutes_disponibles", "minutes_planifiees",
+    "duree_jour_personne_minutes", "jours_personnes_disponibles", "jours_personnes_planifiees",
 })
 _CLES_EQUIPE = frozenset({
     "equipe_id", "heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees",
 })
+_CLES_JOURS_PERSONNES = frozenset({"jours_personnes_disponibles", "jours_personnes_planifiees"})
+_DUREE_MAX = 1440
 
 
 class ChargeIncoherente(ValueError):
     """La charge produite (ou présentée) ne respecte pas le contrat ``m4.capacite_equipe`` v1."""
 
 
+def _quotient(minutes: int, diviseur: int) -> str:
+    if type(minutes) is not int or minutes < 0:
+        raise ValueError("minutes entières positives ou nulles requises")
+    valeur = (Decimal(minutes) / Decimal(diviseur)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    texte = format(valeur, "f")
+    entier, decimales = texte.split(".")
+    return f"{entier}.{decimales.rstrip('0').ljust(2, '0')}"
+
+
 def heures(minutes: int) -> str:
     """Texte décimal des heures : ``minutes / 60`` arrondi au dix-millième (demi vers le haut), au moins deux décimales
     (``"9.00"``, ``"0.1667"``). Les minutes entières exactes sont écrites à côté (``minutes_*``) : l'arrondi ne cache
     rien."""
-    if type(minutes) is not int or minutes < 0:
-        raise ValueError("minutes entières positives ou nulles requises")
-    valeur = (Decimal(minutes) / Decimal(60)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-    texte = format(valeur, "f")
-    entier, decimales = texte.split(".")
-    return f"{entier}.{decimales.rstrip('0').ljust(2, '0')}"
+    return _quotient(minutes, 60)
+
+
+def jours_personnes(minutes: int, duree_jour_personne_minutes: int) -> str:
+    """Texte décimal de ``minutes / duree_jour_personne_minutes`` (``Decimal``, dix-millième, demi vers le haut, au
+    moins deux décimales) : la conversion DÉCLARÉE par le profil. Durée et minutes exactes sont écrites à côté."""
+    if type(duree_jour_personne_minutes) is not int or not 1 <= duree_jour_personne_minutes <= _DUREE_MAX:
+        raise ValueError("duree_jour_personne_minutes : entier de 1 à 1440 requis")
+    return _quotient(minutes, duree_jour_personne_minutes)
 
 
 def _identifiant_sur(valeur: Any) -> str | None:
@@ -147,6 +194,55 @@ def _jours_dates(
     return par_date, revision, confirme[1] if confirme else None
 
 
+def _minute(texte: str) -> int:
+    heures_texte, minutes_texte = texte.split(":")
+    return int(heures_texte) * 60 + int(minutes_texte)
+
+
+def _disponibles_semaine_type(
+    profil: dict[str, Any], equipes_ids: list[str], lundi: date, manque: list[str],
+) -> dict[str, int]:
+    """Minutes déclarées par équipe pour la semaine de ``lundi`` d'après la semaine type, moins fériés et congés.
+    Ajoute à ``manque`` ce que le profil ne dit pas ; aucune valeur n'est devinée."""
+    jours = [lundi + timedelta(days=decalage) for decalage in range(7)]
+    feries = profil.get("feries")
+    annees = set(feries["annees"]) if feries else set()
+    feries_dates = {date.fromisoformat(jour["date"]) for jour in feries["jours"]} if feries else set()
+    for annee in sorted({jour.year for jour in jours} - annees):
+        manque.append(f"{MANQUE_FERIES_NON_DECLARES}:{annee}")
+    en_conge: dict[str, set[date]] = {}
+    for conge in profil.get("conges", ()):
+        du, au = date.fromisoformat(conge["du"]), date.fromisoformat(conge["au"])
+        for equipe in conge["equipes"]:
+            en_conge.setdefault(equipe, set()).update(jour for jour in jours if du <= jour <= au)
+    semaines = {equipe["id"]: equipe.get("semaine_type") for equipe in profil.get("liste", ())}
+    disponibles: dict[str, int] = {}
+    for equipe in equipes_ids:
+        semaine = semaines.get(equipe)
+        if not isinstance(semaine, dict):
+            manque.append(_suffixe_equipe(MANQUE_SEMAINE_TYPE_NON_DECLAREE, equipe))
+            continue
+        total = 0
+        for jour in jours:
+            nom = JOURS_SEMAINE[jour.weekday()]
+            if nom not in semaine:
+                manque.append(f"{_suffixe_equipe(MANQUE_JOUR_NON_DECLARE, equipe)}:{nom}")
+                continue
+            if jour in feries_dates or jour in en_conge.get(equipe, ()):
+                continue  # zéro DÉCLARÉ ce jour-là (férié de l'entreprise ou congé de l'équipe)
+            for plage in semaine[nom]:
+                try:
+                    debut = calendrier_civil.instant_local(jour.isoformat(), _minute(plage["debut"]))
+                    fin = calendrier_civil.instant_local(jour.isoformat(), _minute(plage["fin"]))
+                except ValueError:
+                    manque.append(f"{_suffixe_equipe(MANQUE_HEURE_LOCALE, equipe)}:{jour.isoformat()}")
+                    continue
+                # Durée écoulée RÉELLE : en UTC (deux instants du même ZoneInfo se soustraient à l'horloge murale).
+                total += int((fin.astimezone(UTC) - debut.astimezone(UTC)).total_seconds() // 60)
+        disponibles[equipe] = total
+    return disponibles
+
+
 def calculer(
     registre_cible: Any,
     profil: dict[str, Any] | None,
@@ -154,16 +250,20 @@ def calculer(
     empreinte_profil: str | None,
     debut_semaine: str,
     horodatage_reference: str | None = None,
+    portee: str = PORTEE,
 ) -> dict[str, Any]:
     """Charge ``m4.capacite_equipe`` de la semaine qui commence le lundi ``debut_semaine`` (AAAA-MM-JJ, Montréal).
 
     ``profil`` / ``verdict_profil`` : ce que rend ``opsys.equipes.charger_equipes()`` (le verdict n'est lu que par son
     ``code``). ``horodatage_reference`` : l'instant de lecture que l'appelant donne (ISO 8601 avec fuseau) et que la
-    charge recopie en ``lu_a`` ; M4 n'a pas d'horloge. Lecture seule : rien n'est écrit au registre.
+    charge recopie en ``lu_a`` ; M4 n'a pas d'horloge. ``portee`` : ``journees_datees_seulement`` (défaut, contrat
+    d'origine inchangé) ou ``semaine_type``. Lecture seule : rien n'est écrit au registre.
 
     Lève ``ValueError`` (semaine ou instant invalide), ``cedule_tournees.PreuvePlanInvalide`` et
     ``registre.VerificationError`` (preuve du registre incohérente) : l'appelant les traduit en refus, jamais en
     capacité."""
+    if portee not in PORTEES:
+        raise ValueError(f"portee : {' ou '.join(PORTEES)}")
     lundi, debut_w, fin_w = _semaine(debut_semaine)
     reference = None if horodatage_reference is None else horodatage.valider_horodatage(horodatage_reference)
 
@@ -215,7 +315,7 @@ def calculer(
             manque.append(f"{MANQUE_A_RECONFIRMER}:{a_reconfirmer}")
         if sans_date_actives:
             manque.append(f"{MANQUE_SANS_DATE}:{sans_date_actives}")
-        if not par_date:
+        if not par_date and portee == PORTEE:
             manque.append(MANQUE_AUCUNE_JOURNEE_DATEE)
         if equipes_declarees:  # sans profil exploitable, le manque est déjà dit : pas de second bruit
             for equipe in sorted(set(planifiees) - set(equipes_declarees)):
@@ -223,15 +323,19 @@ def calculer(
 
     # -- la disponibilité déclarée, sur les journées datées ----------------------------------------------------------
     disponibles: dict[str, int] = {}
-    for equipe, quarts in sorted(equipes_declarees.items()):
-        total = 0
-        for jour_civil, numeros in sorted(par_date.items()):
-            valeurs = {quarts.get(numero, 0) for numero in numeros}
-            if len(valeurs) != 1:
-                manque.append(f"{_suffixe_equipe(MANQUE_QUART_AMBIGU, equipe)}:{jour_civil.isoformat()}")
-                continue
-            total += valeurs.pop()
-        disponibles[equipe] = total
+    if portee == PORTEE_SEMAINE_TYPE:
+        if equipes_declarees:
+            disponibles = _disponibles_semaine_type(profil, sorted(equipes_declarees), lundi, manque)
+    else:
+        for equipe, quarts in sorted(equipes_declarees.items()):
+            total = 0
+            for jour_civil, numeros in sorted(par_date.items()):
+                valeurs = {quarts.get(numero, 0) for numero in numeros}
+                if len(valeurs) != 1:
+                    manque.append(f"{_suffixe_equipe(MANQUE_QUART_AMBIGU, equipe)}:{jour_civil.isoformat()}")
+                    continue
+                total += valeurs.pop()
+            disponibles[equipe] = total
 
     charge: dict[str, Any] = {
         "contrat": CONTRAT,
@@ -239,11 +343,11 @@ def calculer(
         "semaine_debut": lundi.isoformat(),
         "fuseau": calendrier_civil.FUSEAU,
         "unite": UNITE,
-        "portee": PORTEE,
+        "portee": portee,
         "lu_a": reference,
         "jours_dates": [jour_civil.isoformat() for jour_civil in sorted(par_date)],
         "sources": sources,
-        "avertissements": list(AVERTISSEMENTS),
+        "avertissements": list(AVERTISSEMENTS if portee == PORTEE else AVERTISSEMENTS_SEMAINE_TYPE),
     }
     manque = sorted(set(manque))
     if manque:
@@ -266,6 +370,17 @@ def calculer(
             "heures_disponibles": heures(total_dispo), "heures_planifiees": heures(total_plan),
             "minutes_disponibles": total_dispo, "minutes_planifiees": total_plan,
         })
+        duree = profil.get("duree_jour_personne_minutes") if isinstance(profil, dict) else None
+        if duree is not None:  # jamais supposée : absente, aucun jour-personne n'est écrit
+            for ligne in lignes_equipes:
+                ligne["jours_personnes_disponibles"] = jours_personnes(ligne["minutes_disponibles"], duree)
+                ligne["jours_personnes_planifiees"] = jours_personnes(ligne["minutes_planifiees"], duree)
+            charge.update({
+                "duree_jour_personne_minutes": duree,
+                "jours_personnes_disponibles": jours_personnes(total_dispo, duree),
+                "jours_personnes_planifiees": jours_personnes(total_plan, duree),
+            })
+            charge["avertissements"].append(AVERTISSEMENT_JOURS_PERSONNES)
     verifier_charge(charge)
     return charge
 
@@ -298,6 +413,8 @@ def verifier_charge(charge: Any) -> None:
         raise ChargeIncoherente("contrat ou version inconnus")
     if charge["unite"] != UNITE:
         raise ChargeIncoherente(f"unité {charge['unite']!r} refusée : seule {UNITE!r} est admise, rien n'est converti")
+    if "portee" in charge and charge["portee"] not in PORTEES:
+        raise ChargeIncoherente(f"portée inconnue : {' ou '.join(PORTEES)} seulement")
     semaine = charge["semaine_debut"]
     if not isinstance(semaine, str) or _DATE.fullmatch(semaine) is None:
         raise ChargeIncoherente("semaine_debut : date AAAA-MM-JJ attendue")
@@ -314,7 +431,9 @@ def verifier_charge(charge: Any) -> None:
     if not isinstance(equipes, list):
         raise ChargeIncoherente("equipes : liste attendue")
     valeurs = {"heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees"}
+    conversion = {"duree_jour_personne_minutes"} | _CLES_JOURS_PERSONNES
     if not calculable:
+        valeurs = valeurs | conversion
         if not manque:
             raise ChargeIncoherente("calculable faux sans manque nommé")
         if equipes or valeurs & set(charge):
@@ -326,11 +445,18 @@ def verifier_charge(charge: Any) -> None:
         raise ChargeIncoherente("calculable vrai sans aucune équipe")
     if valeurs - set(charge):
         raise ChargeIncoherente("calculable vrai : totaux manquants")
+    presentes = conversion & set(charge)
+    if presentes and presentes != conversion:
+        raise ChargeIncoherente("jours-personnes : durée déclarée et totaux convertis vont ensemble")
+    duree = charge.get("duree_jour_personne_minutes")
+    if presentes and (type(duree) is not int or not 1 <= duree <= _DUREE_MAX):
+        raise ChargeIncoherente("duree_jour_personne_minutes : entier de 1 à 1440 attendu")
+    cles_equipe = _CLES_EQUIPE | _CLES_JOURS_PERSONNES if presentes else _CLES_EQUIPE
     identifiants: list[str] = []
     somme = {"minutes_disponibles": 0, "minutes_planifiees": 0}
     for position, ligne in enumerate(equipes):
-        if not isinstance(ligne, dict) or set(ligne) != _CLES_EQUIPE:
-            raise ChargeIncoherente(f"equipes[{position}] : clés {sorted(_CLES_EQUIPE)} attendues")
+        if not isinstance(ligne, dict) or set(ligne) != cles_equipe:
+            raise ChargeIncoherente(f"equipes[{position}] : clés {sorted(cles_equipe)} attendues")
         if _identifiant_sur(ligne["equipe_id"]) is None:
             raise ChargeIncoherente(f"equipes[{position}].equipe_id : identifiant attendu")
         identifiants.append(ligne["equipe_id"])
@@ -342,8 +468,13 @@ def verifier_charge(charge: Any) -> None:
             heures_cle = cle.replace("minutes", "heures")
             if not _decimal(ligne[heures_cle]) or ligne[heures_cle] != heures(minutes):
                 raise ChargeIncoherente(f"equipes[{position}].{heures_cle} : texte décimal de {cle} attendu")
+            jours_cle = cle.replace("minutes", "jours_personnes")
+            if presentes and ligne[jours_cle] != jours_personnes(minutes, duree):
+                raise ChargeIncoherente(f"equipes[{position}].{jours_cle} : conversion déclarée de {cle} attendue")
     if len(set(identifiants)) != len(identifiants):
         raise ChargeIncoherente("equipe_id en double")
     for cle, total in somme.items():
         if charge[cle] != total or charge[cle.replace("minutes", "heures")] != heures(total):
             raise ChargeIncoherente(f"{cle} : le total n'est pas la somme des équipes")
+        if presentes and charge[cle.replace("minutes", "jours_personnes")] != jours_personnes(total, duree):
+            raise ChargeIncoherente(f"{cle} : jours-personnes du total attendus")

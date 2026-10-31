@@ -13,11 +13,23 @@ d'appareil est refusé par le core, un employé ou un vendeur par le double cont
 * Unité fermée `heures_declarees` : heures d'horloge du quart d'une équipe (une équipe = une unité de cédule), **jamais**
   des heures-personnes ni des jours-personnes. Aucune conversion ; un lecteur refuse toute autre unité.
 * **Déclaration d'équipe ≠ présence individuelle.** Les membres ne sont ni lus ni comptés ni écrits ; aucune absence
-  signalée, aucun pointage, aucune position n'est déduit ; le profil ne porte aucun congé. Un quart partiel est un quart
-  plus court dans le profil.
-* `portee: "journees_datees_seulement"` : le `jour` d'un quart est un numéro de journée de plan, pas un jour de semaine
-  (le profil n'a pas de calendrier hebdomadaire). Seules les journées datées par un admin relient ce numéro à une date.
-  Le chiffre est donc une **borne basse de la capacité ouverte**, pas la capacité totale de la semaine.
+  signalée, aucun pointage, aucune position n'est déduit. Seuls les congés d'**équipe** et les fériés déclarés au profil
+  sont soustraits (portée `semaine_type`). Un quart partiel est un quart plus court dans le profil.
+* `portee: "journees_datees_seulement"` (défaut, inchangée) : le `jour` d'un quart est un numéro de journée de plan, pas
+  un jour de semaine. Seules les journées datées par un admin relient ce numéro à une date. Le chiffre est donc une
+  **borne basse de la capacité ouverte**, pas la capacité totale de la semaine. La semaine type et les congés n'y
+  changent rien.
+* `portee: "semaine_type"` (argument `portee`, DECISIONS-ARCHITECTE-r1 §3) : calculable pour une **semaine future non
+  datée**. Pour chaque jour civil, les plages de la semaine type de l'équipe pour ce jour de semaine (heures locales
+  America/Montreal, **durée écoulée réelle** : 25 h pour 00:00-24:00 le jour du retour à l'heure normale), sauf un férié
+  déclaré (toutes les équipes) ou un congé de l'équipe : zéro déclaré ce jour-là. Un jour fermé (`[]`) est un zéro
+  déclaré ; un jour absent est inconnu. `heures_planifiees` suit la même règle que la portée datée (créneaux datés de la
+  cédule appliquée) : une intervention active sans date reste un manque, car sa semaine est inconnue.
+* Jours-personnes, **seulement** si le profil déclare `duree_jour_personne_minutes` (jamais supposé) et que la semaine
+  est calculable, dans les deux portées : `jours_personnes_*` = minutes / durée (`Decimal`, dix-millième, demi vers le
+  haut, au moins deux décimales) ; `duree_jour_personne_minutes` et les minutes exactes sont écrites à côté. Aucun
+  membre n'est compté : c'est la conversion déclarée des heures d'une équipe, pas un effectif. L'unité de la charge
+  reste `heures_declarees`.
 * Absence ≠ zéro, tout ou rien : un seul manque rend la semaine non calculable pour toutes les équipes.
 
 ## Charge
@@ -39,8 +51,14 @@ d'appareil est refusé par le core, un employé ou un vendeur par le double cont
 }
 ```
 
+Avec `duree_jour_personne_minutes: 480` déclaré, la charge calculable porte en plus
+`"duree_jour_personne_minutes": 480, "jours_personnes_disponibles": "2.25", "jours_personnes_planifiees": "0.625"` (à la
+racine) et `jours_personnes_disponibles` / `jours_personnes_planifiees` sur chaque équipe ; sans la déclaration, aucune
+de ces clés n'existe (la charge est identique à celle d'avant).
+
 Arguments : `debut_semaine` (lundi, AAAA-MM-JJ, obligatoire), `horodatage_reference` (ISO 8601 avec fuseau, facultatif :
-recopié en `lu_a`, M4 n'a pas d'horloge). Heures en texte décimal (minutes/60 arrondi au dix-millième, au moins deux
+recopié en `lu_a`, M4 n'a pas d'horloge), `portee` (`journees_datees_seulement` par défaut, ou `semaine_type` ; toute
+autre valeur est refusée par le schéma de l'outil). Heures en texte décimal (minutes/60 arrondi au dix-millième, au moins deux
 décimales) ; les `minutes_*` entières exactes sont écrites à côté. Une semaine ou un instant invalide est un refus
 (`REJ-CONTRAT-INVALIDE`), jamais une capacité.
 
@@ -55,6 +73,13 @@ Non calculable : `calculable: false`, `equipes: []`, aucun total ni valeur, `man
 | `creneaux_a_reconfirmer:N` | N créneaux de la semaine dont la date n'est plus valide (équipe réassignée, etc.) |
 | `quart_ambigu:<équipe>:<date>` | une même date reliée à deux numéros de journée aux quarts différents |
 | `equipe_planifiee_non_declaree:<équipe>` | une équipe porte des créneaux mais n'est plus au profil |
+| `semaine_type_non_declaree:<équipe>` | portée `semaine_type` : l'équipe n'a pas de semaine type |
+| `semaine_type_jour_non_declare:<équipe>:<jour>` | portée `semaine_type` : ce jour de semaine est absent (inconnu, pas fermé) |
+| `feries_non_declares:<année>` | portée `semaine_type` : la liste des fériés de cette année n'est pas déclarée complète |
+| `heure_locale_ambigue:<équipe>:<date>` | portée `semaine_type` : une plage commence ou finit sur une heure sautée ou répétée |
+
+`aucune_journee_datee_dans_la_semaine` ne s'applique qu'à la portée datée. Les libellés de congé et de férié ne sortent
+jamais : seuls les codes, les identifiants d'équipe, les noms de jour fermés et les dates ISO.
 
 Seuls ces codes, des identifiants déjà validés et des dates ISO sortent : jamais un nom d'équipe libre ni un détail de
 verdict (un identifiant d'équipe mal formé n'est pas recopié). Un plan appliqué qui ne détient plus aucune
@@ -62,6 +87,8 @@ intervention ne date plus rien. Les créneaux annulés, reportés ou à replanif
 
 ## Ce que le lecteur (M9) doit faire
 
-Refuser toute unité autre que `heures_declarees`, lire `calculable` avant tout chiffre, nommer `portee` (borne basse) et
-l'âge via `lu_a`/`sources`, ne jamais convertir en jours-personnes ni déduire une présence. `verifier_charge` (module M4)
+Refuser toute unité autre que `heures_declarees` et toute portée hors des deux admises, vérifier que la portée rendue
+est celle demandée, lire `calculable` avant tout chiffre, nommer `portee` (borne basse datée, ou semaine type déclarée)
+et l'âge via `lu_a`/`sources`, ne jamais convertir lui-même en jours-personnes (seuls les `jours_personnes_*` écrits par
+M4 sur déclaration existent) ni déduire une présence. `verifier_charge` (module M4)
 rejoue ces contrôles côté producteur.
