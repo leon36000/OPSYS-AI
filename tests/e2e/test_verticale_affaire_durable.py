@@ -990,6 +990,8 @@ def test_verticale_sans_preuve_equipe_reste_partielle(moteur, affaire, finance_f
 def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
     moteur, affaire, finance_fictive, quantite, prix_present, marge_attendue, tmp_path, monkeypatch, record_property
 ):
+    # Secret QA distinct du jeton MCP : aucune configuration réelle n'est activée.
+    monkeypatch.setenv("OPSYS_MCP_DEVICE_ATTESTATION_SECRET", "attestation-qa-fictive-" + "a" * 40)
     # Les approbations utilisent aussi l'horloge serveur simulée du harnais.
     monkeypatch.setattr(approbations, "_maintenant", lambda: iso(moteur.horloge.maintenant))
     chantier, lead, _ = _preparer_affaire(moteur, affaire)
@@ -1156,7 +1158,27 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
             cnx, session_qa, wct_id=wct_id, devis_id=chantier.devis_id, intention_id='a' * 64)
         assert recalcul['statut'] == 'publiee'
         assert recalcul['attestation']['operation'] == 'm4.recalculer_v3'
+        # Politique distincte, exclusivement fictive dans la base QA.
+        if os.environ.get("QA_FRESH_NEG") != "no_policy":
+            cnx.execute(insert(SERVICE_POLITIQUES).values(
+                instance_id=instance_id, consommateur='m05-financecore', operation='m4.relire_faits_pour_m5_v1',
+                revision=1, active=True, expire_le=int(time.time()) + 3600))
 
+    # QA : couture non routée dans le thread M5 appelé par la vraie requête MCP.
+    # L'identité et l'appareil viennent du contexte serveur, jamais des arguments M3.
+    from opsys import service_lecture_m4
+    lire_m5_original = m5_outils.lire_rentabilite_chantier
+    def lire_m5_sous_portee_qa(*args, **kwargs):
+        if kwargs.get("devis_id") != chantier.devis_id:
+            return lire_m5_original(*args, **kwargs)
+        try:
+            with stockage.transaction() as cnx:
+                with service_lecture_m4._ouvrir_appareil_qa(cnx, wct_id=wct_id, devis_id=chantier.devis_id):
+                    return lire_m5_original(*args, **kwargs)
+        except service_capability.RefusAutorite:
+            # QA : une portée refusée n'autorise aucune donnée ; garder la lecture ordinaire partielle.
+            return lire_m5_original(*args, **kwargs)
+    monkeypatch.setattr(m5_outils, "lire_rentabilite_chantier", lire_m5_sous_portee_qa)
     _drainer(moteur)
     avant = _empreinte(moteur)
     finales = _mesures(moteur, admin, wct_id)
@@ -1166,6 +1188,12 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         assert finales["m8_marge_reelle_cad"]["statut"] == "non_calculable"
     assert _empreinte(moteur) == avant
     apprentissage_final = _apprentissage(moteur, admin, wct_id)
+    if os.environ.get("QA_FRESH_NEG") in ("no_policy", "bad_proof"):
+        assert apprentissage_final["statut"] == "observee", apprentissage_final
+        assert apprentissage_final["rentabilite"]["statut"] == "exclue", apprentissage_final
+        assert apprentissage_final["rentabilite"]["cout_reel_complet"] is False
+        assert apprentissage_final["rentabilite"]["montant_marge_reelle_cad"] is None
+        return
     assert apprentissage_final["statut"] == "observee", apprentissage_final
     _, devis_accepte = _evenements("m3.devis_accepte")[0]
     assert apprentissage_final["sources"]["devis_id"] == chantier.devis_id
