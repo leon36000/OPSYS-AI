@@ -1,0 +1,473 @@
+{
+ "corpus": "corpus-metier-v2",
+ "reussites": 55,
+ "effectif": 77,
+ "wilson95": [
+  "0.6051",
+  "0.8031"
+ ],
+ "cas": [
+  {
+   "id": "dir-A01",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "dir-A02",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "dir-A03",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "dir-A04",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "dir-A05",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "dir-A06",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "dir-A07",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "dir-V01",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "dir-V02",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "dir-V03",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "mkt-A01",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "mkt-A02",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "mkt-A03",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "mkt-A04",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "mkt-A05",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "mkt-A06",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "mkt-A07",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": null
+  },
+  {
+   "id": "mkt-V01",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "mkt-V02",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "mkt-V03",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "tre-A01",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "tre-A02",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "tre-A03",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "tre-A04",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "tre-A05",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "tre-V01",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "tre-V02",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "tre-A06",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "tre-A07",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "tre-V03",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "lea-A01",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "lea-A02",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "lea-A03",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "lea-A04",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "lea-A05",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "lea-V01",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "lea-V02",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "lea-A06",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "lea-A07",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "lea-V03",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "vil-A01",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "vil-A02",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "vil-A03",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "vil-A04",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "vil-A05",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "vil-V01",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "vil-V02",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "vil-A06",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "vil-A07",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "vil-V03",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "rep-A01",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "rep-A02",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "rep-A03",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "rep-A04",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "rep-A05",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "rep-A06",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "rep-V01",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "rep-V02",
+   "partition": "verification",
+   "ok": false,
+   "erreur": null
+  },
+  {
+   "id": "rep-V03",
+   "partition": "verification",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "lea-A08",
+   "partition": "ajustement",
+   "ok": true,
+   "erreur": null
+  },
+  {
+   "id": "mkt-A08",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "mkt-A09",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "mkt-A10",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "mkt-V04",
+   "partition": "verification",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "mkt-V05",
+   "partition": "verification",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "lea-A09",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "lea-A10",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "lea-V04",
+   "partition": "verification",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "lea-V05",
+   "partition": "verification",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "rep-A07",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "rep-A08",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "rep-A09",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "rep-V04",
+   "partition": "verification",
+   "ok": false,
+   "erreur": "ValueError: REJ-CAPTURE-LECTURE : lecture absente du catalogue des producteurs"
+  },
+  {
+   "id": "vil-A08",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": null
+  },
+  {
+   "id": "vil-A09",
+   "partition": "ajustement",
+   "ok": false,
+   "erreur": null
+  },
+  {
+   "id": "vil-V04",
+   "partition": "verification",
+   "ok": false,
+   "erreur": null
+  },
+  {
+   "id": "vil-V05",
+   "partition": "verification",
+   "ok": false,
+   "erreur": null
+  }
+ ]
+}

@@ -1,0 +1,398 @@
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 14%]
+........................................................................ [ 18%]
+........................................................................ [ 21%]
+........................................................................ [ 25%]
+.......................s....s........................................... [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+........................................................................ [ 43%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 65%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+........................................................................ [ 83%]
+.......................................F...F.F.......................... [ 87%]
+.F...................................................................... [ 91%]
+....FF...........F....F.F............................................... [ 94%]
+...........................F.FF......................................... [ 98%]
+...............................                                          [100%]
+=================================== FAILURES ===================================
+________ test_parcours_1_rapport_hebdomadaire_conseil_memoire_et_audit _________
+
+tmp_path = PosixPath('/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_parcours_1_rapport_hebdom0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xf305d00c1010>
+nettoyage = PosixPath('/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_parcours_1_rapport_hebdom0')
+
+    def test_parcours_1_rapport_hebdomadaire_conseil_memoire_et_audit(tmp_path, monkeypatch, nettoyage):
+        # RÉEL : le monde « rupture de matériau » (M1→M2, M3, M4 cédulé et daté, M5, M6, M8) et ses huit captures.
+        monde = G._monter_scenario(tmp_path, monkeypatch)
+        cap = B.capacites(M2, M3, M4, M5, M6, M8, M10)
+        capturer(cap, "m5.prevision_tresorerie", {"aujourd_hui": B.AUJOURD_HUI_M5}, "2026-10-28T12:01:01Z")
+        capturer(cap, "m8.vue_executive", {"aujourd_hui": "2026-10-28"}, "2026-10-28T12:01:02Z")
+        attendues = [*G.ARGUMENTS, "m5.prevision_tresorerie", "m8.vue_executive", "m7.performance_campagnes"]
+        question = "Quelles priorités pour la semaine prochaine ?"
+        domaines = ["strategie", "stock", "marge"]
+        faits = faits_du_dossier(cap, question=question, domaines=domaines, attendues=attendues)
+        dispo = adresse(faits, "m6.disponibilite", ".articles[0].disponible")
+>       marge = adresse(faits, "m5.rentabilite_chantier", ".rentabilite.marge_reelle")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_m9_e2e_cahier.py:346: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+faits = {'m2.leads#0:p0.ok': 'true', 'm2.leads#0:p0.resultat.accepte': 'true', 'm2.leads#0:p0.resultat.resultat.affichees': '1', 'm2.leads#0:p0.resultat.resultat.decalage': '0', ...}
+lecture = 'm5.rentabilite_chantier', suffixe = '.rentabilite.marge_reelle'
+
+    def adresse(faits: dict, lecture: str, suffixe: str) -> str:
+>       (trouvee,) = [a for a in faits if a.startswith(f"{lecture}#") and a.endswith(suffixe)]
+        ^^^^^^^^^^
+E       ValueError: not enough values to unpack (expected 1, got 0)
+
+tests/test_m9_e2e_cahier.py:136: ValueError
+----------------------------- Captured stdout call -----------------------------
+/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_parcours_1_rapport_hebdom0/home/entreprise.yaml
+/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_parcours_1_rapport_hebdom0/home/entreprise.yaml
+__________ test_parcours_5_nouvelle_ville_scenario_experience_et_plan __________
+
+tmp_path = PosixPath('/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_parcours_5_nouvelle_ville0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xf305cfc08830>
+nettoyage = PosixPath('/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_parcours_5_nouvelle_ville0')
+
+    def test_parcours_5_nouvelle_ville_scenario_experience_et_plan(tmp_path, monkeypatch, nettoyage):
+        # RÉEL : trois leads à Terrebonne et deux à Repentigny (M1 → M2), un chantier terminé dont M5 calcule la
+        # rentabilité et un cash libre constaté par M5 (relayé par M8).
+        _installer(tmp_path, monkeypatch)
+        B.declarer_m5(tmp_path, monkeypatch)
+        leads_par_le_bus("L-TBN", 3, "Terrebonne")
+        leads_par_le_bus("L-REP", 2, "Repentigny")
+        B.alimenter_m8()
+        cap = B.capacites(M2, M5, M8)
+        leads = capturer(cap, "m2.leads", {"horodatage": "2026-10-28T12:00:00Z"}, "2026-10-28T12:00:01Z")
+        capturer(cap, "m5.rentabilite_chantier", {}, "2026-10-28T12:00:02Z")
+        capturer(cap, "m8.vue_executive", {"aujourd_hui": "2026-10-28"}, "2026-10-28T12:00:03Z")
+        faits = faits_du_dossier(cap)
+        villes = {a: v for a, v in faits.items() if a.startswith("m2.leads#") and a.endswith(".ville")}
+        assert sorted(villes.values()) == ["Repentigny"] * 2 + ["Terrebonne"] * 3
+        # M2 expose la ville de CHAQUE lead, aucun agrégat par ville : M9 ne compte pas à sa place.
+        assert not [c for c in cles(B.page(leads["index"])) if "ville" in c and c != "ville"]
+        terrebonne = next(a for a, v in villes.items() if v == "Terrebonne")
+    
+        cadrage = cadrer(cap, "Dois-je prioriser la ville de Terrebonne ?")
+        assert cadrage["decision"]["id"] == "priorite_ville" and cadrage["scenarios_a_examiner"] == ["nouvelle_ville"]
+        statuts = {c["lecture_id"]: c["statut"] for c in cadrage["couverture"]}
+        assert statuts["m2.leads"] == "PRESENTE" and statuts["m5.rentabilite_chantier"] == "TEMPS_METIER_NON_DECLARE"
+        assert (statuts["m7.performance_campagnes"], statuts["m4.interventions"]) == ("ABSENTE", "ABSENTE")
+        assert cadrage["pret_pour_conseil"] is False and cadrage["playbooks_a_examiner"] == ["expansion_ville"]
+    
+        ville = interpreter(
+            cap, "Et si on ouvre une nouvelle ville avec un investissement de 5000 $ et 10 leads supplémentaires ?"
+        )
+        assert ville["parametres"] == {"leads_supplementaires": "10", "investissement": "5000"}
+        cash = adresse(faits, "m8.vue_executive", "cash_libre.constat.cash_libre_cad")
+        assert faits[cash] == "12559.40", "cash libre constaté par M5, relayé par M8"
+        (scenario,) = evaluer_scenarios(cap, {"cash_libre": cash}, [ville])["scenarios"]
+        (apres,) = scenario["effets"]
+        assert (apres["statut"], apres["valeur"]) == ("CALCULE", str(Decimal("12559.40") - Decimal("5000")))
+        assert scenario["a_calculer_par"][0]["proprietaire"] == "m02-revenue-crm / m07-marketing", "demande locale"
+    
+>       reelle = adresse(faits, "m5.rentabilite_chantier", ".rentabilite.marge_reelle")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_m9_e2e_cahier.py:733: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+faits = {'m2.leads#0:p0.ok': 'true', 'm2.leads#0:p0.resultat.accepte': 'true', 'm2.leads#0:p0.resultat.resultat.affichees': '5', 'm2.leads#0:p0.resultat.resultat.decalage': '0', ...}
+lecture = 'm5.rentabilite_chantier', suffixe = '.rentabilite.marge_reelle'
+
+    def adresse(faits: dict, lecture: str, suffixe: str) -> str:
+>       (trouvee,) = [a for a in faits if a.startswith(f"{lecture}#") and a.endswith(suffixe)]
+        ^^^^^^^^^^
+E       ValueError: not enough values to unpack (expected 1, got 0)
+
+tests/test_m9_e2e_cahier.py:136: ValueError
+______ test_experience_sur_marges_reelles_m8_sans_cout_puis_avec_cout_m5 _______
+
+tmp_path = PosixPath('/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_experience_sur_marges_ree0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xf305cff6c680>
+
+    def test_experience_sur_marges_reelles_m8_sans_cout_puis_avec_cout_m5(tmp_path, monkeypatch):
+        try:
+            G._monter_scenario(tmp_path, monkeypatch)
+            cap = B.capacites(G.M2, G.M3, G.M4, G.M5, G.M6, G.M8)
+            faits, depart = {}, 0
+            while depart is not None:
+                page = ok(
+                    appel(
+                        cap,
+                        "m9_apercu_dossier_strategique",
+                        {"question": "Expérience", "domaines": ["strategie"], "reference": REF, "depart": depart},
+                    )
+                )
+                faits.update(page["faits"])
+                depart = page["prochain_depart"]
+            # Chiffres RÉELS du propriétaire M5 (rentabilité du chantier) : marge réelle contre marge prévue.
+>           reelle = _fait(faits, "m5.rentabilite_chantier", ".rentabilite.marge_reelle")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_m9_experiences_integre.py:74: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+faits = {'m2.leads#0:p0.ok': 'true', 'm2.leads#0:p0.resultat.accepte': 'true', 'm2.leads#0:p0.resultat.resultat.affichees': '1', 'm2.leads#0:p0.resultat.resultat.decalage': '0', ...}
+lecture = 'm5.rentabilite_chantier', suffixe = '.rentabilite.marge_reelle'
+
+    def _fait(faits, lecture, suffixe):
+>       (adresse,) = [a for a in faits if a.startswith(f"{lecture}#") and a.endswith(suffixe)]
+        ^^^^^^^^^^
+E       ValueError: not enough values to unpack (expected 1, got 0)
+
+tests/test_m9_experiences_integre.py:54: ValueError
+----------------------------- Captured stdout call -----------------------------
+/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_experience_sur_marges_ree0/opsys-home/entreprise.yaml
+/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_experience_sur_marges_ree0/opsys-home/entreprise.yaml
+_______ test_indicateurs_avec_les_vraies_mesures_et_le_vrai_registre_m8 ________
+
+monde = <opsys.capacites.Capacites object at 0xf305d12ed970>
+
+    def test_indicateurs_avec_les_vraies_mesures_et_le_vrai_registre_m8(monde):
+        _capturer(monde, "m8.mesures_chantier", {"wct_id": H.WCT_ID}, 1)
+        _definir("m8_marge_reelle_cad")
+        _capturer(monde, "m8.definitions_metriques", {}, 2)
+        lignes, entete = _tous_les_indicateurs(monde)
+        par_id = {i["id"]: i for i in lignes}
+        assert entete["registre_m8_capture"] is True
+        marge = par_id["gross_margin"]
+        assert marge["metriques_m8"]["m8_marge_reelle_cad"] == "AU_REGISTRE"
+        assert marge["metriques_m8"]["m8_marge_prevue_cad"] == "ABSENTE_DU_REGISTRE"
+        reelle = [f for f in marge["faits"] if f["metric_id"] == "m8_marge_reelle_cad"]
+>       assert reelle and reelle[0]["valeur"] == "114.00" and reelle[0]["adresse"].startswith("m8.mesures_chantier#")
+E       AssertionError: assert ([{'adresse': 'm8.mesures_chantier#0:p0.resultat.mesures[3].valeur', 'metric_id': 'm8_marge_reelle_cad', 'valeur': 'null'}] and 'null' == '114.00'
+E         
+E         - 114.00
+E         + null)
+
+tests/test_m9_indicateurs_cadrage_integre.py:112: AssertionError
+__________ test_m5_rentabilite_chantier_capturee_avec_la_marge_reelle __________
+
+chantier_m5 = PosixPath('/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_m5_rentabilite_chantier_c0')
+
+    def test_m5_rentabilite_chantier_capturee_avec_la_marge_reelle(chantier_m5):
+        cap = H.capacites(H.M5)
+        capture = _acceptee(H.capturer(cap, H.ADMIN, "m5.rentabilite_chantier", {}, recu(1)), "m5.rentabilite_chantier")
+        assert capture["reference"] is None and capture["pages"] == 1
+        page = _page_ok()
+        assert H.valeurs(page, "resultat.resultat.role") == ["admin"]
+        assert H.valeurs(page, "resultat.resultat.nombre") == [1]
+        (chantier,) = H.valeurs(page, "resultat.resultat.chantiers[*]")
+        assert (chantier["devis_id"], chantier["chantier_id"], chantier["statut"]) == (
+            "DEVIS-B1", "CHANTIER-B1", "calculee")
+        rentabilite = chantier["rentabilite"]
+>       assert (rentabilite["verdict"], rentabilite["manque"], rentabilite["cout_reel_complet"]) == ("CALCULEE", [], True)
+E       AssertionError: assert ('PARTIELLE',...SENT'], False) == ('CALCULEE', [], True)
+E         
+E         At index 0 diff: 'PARTIELLE' != 'CALCULEE'
+E         Use -v to get more diff
+
+tests/test_m9_producteurs_b.py:358: AssertionError
+_ test_m5_rentabilite_ne_declare_aucun_instant_et_la_revision_n_est_rendue_qu_avec_un_filtre _
+
+chantier_m5 = PosixPath('/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_m5_rentabilite_ne_declare0')
+
+    def test_m5_rentabilite_ne_declare_aucun_instant_et_la_revision_n_est_rendue_qu_avec_un_filtre(chantier_m5):
+        """Aucun instant métier dans la réponse (ni la date du WCT ni celle de la facture). `version_entrees` (empreinte
+        des pièces du calcul) n'est rendue qu'en vue détaillée, donc avec `devis_id` ou `chantier_id`."""
+        cap = H.capacites(H.M5)
+        _acceptee(H.capturer(cap, H.ADMIN, "m5.rentabilite_chantier", {}, recu(1)), "m5.rentabilite_chantier")
+        _acceptee(H.capturer(cap, H.ADMIN, "m5.rentabilite_chantier", {"devis_id": H.DEVIS_ID}, recu(2)),
+                  "m5.rentabilite_chantier")
+        chemin = "resultat.resultat.chantiers[*].trace.version_entrees"
+        assert H.valeurs(H.page(0), chemin) == []
+        (version,) = H.valeurs(H.page(1), chemin)
+        assert len(version) == 64 and set(version) <= set("0123456789abcdef")
+        detail = H.valeurs(H.page(1), "resultat.resultat.chantiers[*].rentabilite")[0]
+>       assert "version_entrees" not in detail and detail["marge_reelle"] == "114.00"  # le détail rend plus de champs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert ('version_entrees' not in {'chantier_id': 'CHANTIER-B1', 'cout_prevu': '480.00', 'cout_reel': {'arrondi': "ROUND_HALF_UP au cent : chaque ligne ...0.2500 = 25 %)", 'complet': False, 'cout_total': None, 'cout_total_connu': '336.00', ...}, 'devis_id': 'DEVIS-B1', ...} and None == '114.00')
+
+tests/test_m9_producteurs_b.py:379: AssertionError
+_____ test_m8_vue_executive_capturee_entonnoir_marge_reelle_et_cash_libre ______
+
+m8 = PosixPath('/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_m8_vue_executive_capturee0')
+
+    def test_m8_vue_executive_capturee_entonnoir_marge_reelle_et_cash_libre(m8):
+        cap = H.capacites(H.M8)
+        capture = _acceptee(H.capturer(cap, H.ADMIN, "m8.vue_executive", {}, recu(1)), "m8.vue_executive")
+        assert capture["reference"] is None
+        page = _page_ok()
+        mesures = {m["metric_id"]: m["valeur"] for m in H.valeurs(page, "resultat.entonnoir.mesures[*]")}
+        assert mesures["m8_leads_recus"] == "1" and mesures["m8_devis_envoyes"] == "2"
+        assert mesures["m8_devis_acceptes"] == "1" and mesures["m8_taux_acceptation_pct"] == "50.00"
+        assert H.valeurs(page, "resultat.entonnoir.devis_en_attente.sans_reponse.devis") == [["DEVIS-B2"]]
+        (marge,) = H.valeurs(page, "resultat.marge_reelle.chantiers[*]")
+>       assert (marge["wct_id"], marge["marge_reelle_cad"], marge["prix_definitif"]) == ("WCT-B1", "114.00", True)
+E       AssertionError: assert ('WCT-B1', None, True) == ('WCT-B1', '114.00', True)
+E         
+E         At index 1 diff: None != '114.00'
+E         Use -v to get more diff
+
+tests/test_m9_producteurs_b.py:609: AssertionError
+_ test_m8_mesures_chantier_capturees_avec_marge_reelle_et_version_des_entrees __
+
+m8 = PosixPath('/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_m8_mesures_chantier_captu0')
+
+    def test_m8_mesures_chantier_capturees_avec_marge_reelle_et_version_des_entrees(m8):
+        cap = H.capacites(H.M8)
+        _acceptee(H.capturer(cap, H.ADMIN, "m8.mesures_chantier", {"wct_id": H.WCT_ID}, recu(1)), "m8.mesures_chantier")
+        page = _page_ok()
+        assert H.valeurs(page, "resultat.trouve") == [True]
+        assert (H.valeurs(page, "resultat.wct_id"), H.valeurs(page, "resultat.devis_id")) == (["WCT-B1"], ["DEVIS-B1"])
+        par_metrique = {m["metric_id"]: m for m in H.valeurs(page, "resultat.mesures[*]")}
+        assert par_metrique["m8_ecart_duree_minutes"]["valeur"] == "120.00"
+        assert par_metrique["m8_marge_prevue_cad"]["valeur"] == "120.00"
+>       assert par_metrique["m8_marge_reelle_cad"]["valeur"] == "114.00"
+E       AssertionError: assert None == '114.00'
+
+tests/test_m9_producteurs_b.py:698: AssertionError
+_____ test_m7_performance_campagnes_capturee_marge_m5_sans_depense_ni_roi ______
+
+m7 = PosixPath('/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-racc/pytest-of-pc6/pytest-24/test_m7_performance_campagnes_0')
+
+    def test_m7_performance_campagnes_capturee_marge_m5_sans_depense_ni_roi(m7):
+        cap = H.capacites(H.M7)
+        capture = _acceptee(H.capturer(cap, H.ADMIN, "m7.performance_campagnes", dict(PERIODE), recu(1)),
+                            "m7.performance_campagnes")
+        assert capture["reference"] is None and capture["pages"] == 1
+        page = _page_ok()
+        assert H.valeurs(page, "resultat.type") == ["PERFORMANCE_CAMPAGNES"]
+        assert H.valeurs(page, "resultat.periode") == [PERIODE]  # écho des arguments, pas un fait du producteur
+        (campagne,) = H.valeurs(page, "resultat.campagnes[*]")
+        assert (campagne["source"], campagne["campagne"]) == ("google", "automne")
+        assert (campagne["leads_associes_observes"], campagne["devis_acceptes"]) == (1, 1)
+>       assert (campagne["chantiers_marge_constatee"], campagne["marge_constatee_M5_cad"]) == (1, "114.00")
+E       AssertionError: assert (0, None) == (1, '114.00')
+E         
+E         At index 0 diff: 0 != 1
+E         Use -v to get more diff
+
+tests/test_m9_producteurs_b.py:748: AssertionError
+__________________ test_mesures_reelles_face_au_registre_reel __________________
+
+monde = <opsys.capacites.Capacites object at 0xf305d0041cd0>
+
+    def test_mesures_reelles_face_au_registre_reel(monde):
+        mesures = _capturer_mesures(monde, 1)
+        page = H.page(mesures["index"])
+        par_metrique = {m["metric_id"]: m for m in H.valeurs(page, "resultat.mesures[*]")}
+>       assert par_metrique["m8_marge_reelle_cad"]["valeur"] == "114.00"
+E       AssertionError: assert None == '114.00'
+
+tests/test_m9_semantique_integre.py:96: AssertionError
+_ test_le_vrai_m8_ne_fournit_aucune_preuve_propre_donc_l_empreinte_reste_non_comparable _
+
+monde = <opsys.capacites.Capacites object at 0xf305d06a7770>
+
+    def test_le_vrai_m8_ne_fournit_aucune_preuve_propre_donc_l_empreinte_reste_non_comparable(monde):
+        """Contrat successeur M9.3 sur le vrai producteur : les mesures M8 portent une empreinte de définition mais aucune
+        preuve propre, et aucun historique versionné n'est consommé. M9 ne projette aucune liaison : non comparable,
+        raison nommée, valeur jamais vérifiée par la preuve de définition."""
+        _capturer_mesures(monde, 1)
+        _definir("m8_marge_reelle_cad", "CAD")
+        registre = _capturer_registre(monde, 2)
+        page = H.page(registre["index"])
+        assert H.valeurs(page, "resultat.liaisons_versions[*]") == []  # aucune liaison globale chez M8 aujourd'hui
+        res = _rapprocher(monde)["resultat"]
+        assert res["historique_definitions"] == "NON_CONSOMME"
+>       marge = next(o for o in res["observations"] if o["metric_id"] == "m8_marge_reelle_cad")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       StopIteration
+
+tests/test_m9_semantique_integre.py:142: StopIteration
+_____ test_parcours_m8_reel_vers_contrat_successeur_avec_historique_simule _____
+
+monde = <opsys.capacites.Capacites object at 0xf305d06a12b0>
+
+    def test_parcours_m8_reel_vers_contrat_successeur_avec_historique_simule(monde):
+        """Mesure RÉELLE de M8 (empreinte calculée par M8) face à un historique de définitions SIMULÉ au format du contrat
+        successeur (le candidat producteur M8 n'est pas intégré) : A/B/A, historique sans preuve de même empreinte,
+        recalcul explicitement lié, collision de modules, révision inconnue."""
+        from m9_strategic_intelligence import preuves_definition as pd
+        from m9_strategic_intelligence import semantique_metriques as sm
+    
+        mesures = _capturer_mesures(monde, 1)
+        page = H.page(mesures["index"])
+        reelle = next(m for m in H.valeurs(page, "resultat.mesures[*]") if m["metric_id"] == "m8_marge_reelle_cad")
+        a = reelle["version_definition"]  # empreinte réelle produite par M8
+        assert len(a) == 64 and "preuve_definition" not in reelle
+        b = "b" * 64 if a != "b" * 64 else "c" * 64
+        cle = {"famille": "finance", "module": "m08", "id": "m8_marge_reelle_cad"}
+        homonyme = {"famille": "terrain", "module": "m04", "id": "m8_marge_reelle_cad"}
+        publications = [
+            {"cle": cle, "revision": 1, "empreinte": a},
+            {"cle": homonyme, "revision": 1, "empreinte": b},
+            {"cle": cle, "revision": 2, "empreinte": b},
+            {"cle": cle, "revision": 3, "empreinte": a},
+        ]
+        vue = pd.vue_de("dictionnaire", publications)
+        pages = [
+            {"registre": "dictionnaire", "vue": vue, "total": 4, "depart": 0, "prochain_depart": 2,
+             "publications": publications[:2]},
+            {"registre": "dictionnaire", "vue": vue, "total": 4, "depart": 2, "prochain_depart": None,
+             "publications": publications[2:]},
+        ]  # fmt: skip
+        historique = pd.assembler_historique(pages)
+        catalogue = sm.cataloguer([{"metric_id": "m8_marge_reelle_cad", "unite": reelle["unite"], "version": 1}])
+        observation = {k: reelle[k] for k in ("metric_id", "valeur", "unite", "version_definition")}
+    
+        def preuve(revision, quelle_cle=cle, empreinte=a):
+            return {"registre": "dictionnaire", "cle": quelle_cle, "revision": revision, "empreinte": empreinte}
+    
+        statuts = {
+>           "historique_sans_preuve": sm.classer(observation, catalogue, historique),
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            "recalcul_lie": sm.classer(observation | {"preuve_definition": preuve(3)}, catalogue, historique),
+            "ancienne_meme_contenu": sm.classer(observation | {"preuve_definition": preuve(1)}, catalogue, historique),
+            "homonyme": sm.classer(observation | {"preuve_definition": preuve(1, homonyme)}, catalogue, historique),
+            "inconnue": sm.classer(observation | {"preuve_definition": preuve(9)}, catalogue, historique),
+        }
+
+tests/test_m9_semantique_integre.py:183: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+observation = {'metric_id': 'm8_marge_reelle_cad', 'valeur': None, 'unite': 'CAD', 'version_definition': '6a6458233e3eaffe9e1e842bf709aa35cc71e382e1e827795aa427fbee19e0dd'}
+catalogue = {'m8_marge_reelle_cad': {'metric_id': 'm8_marge_reelle_cad', 'unite': 'CAD', 'version': 1}}
+historique = {'registre': 'dictionnaire', 'vue': 'aabb1eeca3ff9afe2191639cb85211f8b6a435a1bb75a3869927db8a92b09fdb', 'total': 4, 'c...ictionnaire:terrain/m04/m8_marge_reelle_cad': {1: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'}}}
+
+    def classer(observation: Mapping, catalogue: Mapping[str, Mapping], historique: Mapping | None = None) -> dict:
+        metric_id = observation.get("metric_id")
+        valeur = observation.get("valeur")
+        if type(metric_id) is not str or not metric_id or type(valeur) is not str:
+>           raise _refus(
+                "REJ-SEMANTIQUE-OBSERVATION", "metric_id et valeur textuelle requis (une valeur n'est jamais recalculée)"
+            )
+E           ValueError: REJ-SEMANTIQUE-OBSERVATION : metric_id et valeur textuelle requis (une valeur n'est jamais recalculée)
+
+departments/m09-strategic-intelligence/src/m9_strategic_intelligence/semantique_metriques.py:101: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_m9_e2e_cahier.py::test_parcours_1_rapport_hebdomadaire_conseil_memoire_et_audit
+FAILED tests/test_m9_e2e_cahier.py::test_parcours_5_nouvelle_ville_scenario_experience_et_plan
+FAILED tests/test_m9_experiences_integre.py::test_experience_sur_marges_reelles_m8_sans_cout_puis_avec_cout_m5
+FAILED tests/test_m9_indicateurs_cadrage_integre.py::test_indicateurs_avec_les_vraies_mesures_et_le_vrai_registre_m8
+FAILED tests/test_m9_producteurs_b.py::test_m5_rentabilite_chantier_capturee_avec_la_marge_reelle
+FAILED tests/test_m9_producteurs_b.py::test_m5_rentabilite_ne_declare_aucun_instant_et_la_revision_n_est_rendue_qu_avec_un_filtre
+FAILED tests/test_m9_producteurs_b.py::test_m8_vue_executive_capturee_entonnoir_marge_reelle_et_cash_libre
+FAILED tests/test_m9_producteurs_b.py::test_m8_mesures_chantier_capturees_avec_marge_reelle_et_version_des_entrees
+FAILED tests/test_m9_producteurs_b.py::test_m7_performance_campagnes_capturee_marge_m5_sans_depense_ni_roi
+FAILED tests/test_m9_semantique_integre.py::test_mesures_reelles_face_au_registre_reel
+FAILED tests/test_m9_semantique_integre.py::test_le_vrai_m8_ne_fournit_aucune_preuve_propre_donc_l_empreinte_reste_non_comparable
+FAILED tests/test_m9_semantique_integre.py::test_parcours_m8_reel_vers_contrat_successeur_avec_historique_simule
+12 failed, 1961 passed, 2 skipped in 138.61s (0:02:18)
+EXIT 1
