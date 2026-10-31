@@ -371,8 +371,9 @@ def rechiffrer(cnx: Connection, *, acteur: str, ancienne: CleMaitresse, nouvelle
     if any(v["empreinte_cle_maitresse"] != ancienne.empreinte for v in versions):
         raise CoffreErreur("COFFRE_CLE_MAITRESSE_DIFFERENTE", "versions enveloppées par une autre clé : refus", 409)
     aesgcm, _ = _aes()
-    for v in versions:
-        donnee = _ouvrir_cle(ancienne, v)
+    # Toutes les clés de donnée sont ouvertes AVANT la première écriture : un chiffré illisible refuse tout.
+    ouvertes = [(v, _ouvrir_cle(ancienne, v)) for v in versions]
+    for v, donnee in ouvertes:
         nonce = secrets.token_bytes(12)
         cnx.execute(update(COFFRE_VERSIONS).where(
             (COFFRE_VERSIONS.c.nom == v["nom"]) & (COFFRE_VERSIONS.c.version == v["version"])).values(

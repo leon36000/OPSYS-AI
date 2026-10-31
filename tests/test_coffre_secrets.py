@@ -344,3 +344,22 @@ def test_postgresql_coffre_chiffre_append_only_et_descente(monkeypatch, tmp_path
                 command.downgrade(cfg, "0035")
         finally:
             stockage.liberer()
+
+
+def test_rechiffrement_tout_ou_rien(session, admin, cle_fichier, tmp_path):
+    _definir(session, nom="google.ads")
+    _definir(session, nom="meta.ads", valeur=VALEUR_2)
+    with session() as cnx:  # corrompt la seconde clé enveloppée (ordre de lecture non garanti : les deux noms testés)
+        cnx.execute(COFFRE_VERSIONS.update().where(COFFRE_VERSIONS.c.nom == "meta.ads").values(
+            cle_enveloppee=b"\x00" * 48))
+        avant = {r["nom"]: bytes(r["cle_enveloppee"]) for r in cnx.execute(select(COFFRE_VERSIONS)).mappings()}
+    dossier = tmp_path / "autre"
+    dossier.mkdir(mode=0o700)
+    nouvelle = cle_maitresse.generer_fichier(dossier / "coffre.cle")
+    with pytest.raises(CoffreErreur) as exc:
+        coffre.avec_journal(session, coffre.rechiffrer, acteur=admin, ancienne=cle_fichier[1], nouvelle=nouvelle)
+    assert exc.value.code == "COFFRE_CHIFFRE_CORROMPU"
+    with session() as cnx:
+        apres = {r["nom"]: bytes(r["cle_enveloppee"]) for r in cnx.execute(select(COFFRE_VERSIONS)).mappings()}
+        empreintes = set(cnx.execute(select(COFFRE_VERSIONS.c.empreinte_cle_maitresse)).scalars())
+    assert apres == avant and empreintes == {cle_fichier[1].empreinte}
