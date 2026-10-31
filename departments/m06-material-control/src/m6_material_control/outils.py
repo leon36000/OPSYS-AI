@@ -87,6 +87,7 @@ import yaml
 from sqlalchemy import select
 
 from opsys import approbations, contexte, evenements, fichiers, idempotence, stockage
+from opsys import equipes as equipes_entreprise
 from opsys.etat import journaliser
 from opsys.evenements.schemas import erreurs_charge
 from opsys.outils import Autonomie, Niveau, Outil
@@ -1146,7 +1147,11 @@ def _declarant_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
                 "hors transaction)"
             ),
         )
-    return acces.acteur_de(confirmee.personne, confirmee.role)
+    # Les équipes de la personne, lues dans le profil des équipes (jamais dans un argument) ; sans profil valide,
+    # aucune (fail-closed : un WCT d'équipe n'est alors déclarable par aucun employé).
+    profil, _ = equipes_entreprise.charger_equipes()
+    equipes_de_la_personne = equipes_entreprise.equipes_de(profil, confirmee.personne)
+    return acces.acteur_de(confirmee.personne, confirmee.role, equipes_de_la_personne)
 
 
 def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict[str, Any]:
@@ -1206,6 +1211,12 @@ def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict
     resultat, code = materiel.soumettre_materiaux_utilises(wct, formulaire, registre_cible)
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
+    if acteur is not None and acteur.role == "employee" and acces.lien_declarant(
+            wct.get("technicien_id"), acteur) == "equipe":
+        # Audit nominatif (DÉCISIONS-ARCHITECTE r1 §2) : la déclaration d'un WCT d'équipe nomme le membre qui l'a faite.
+        journaliser(stockage.connexion_courante(), acteur.personne, "m6.materiaux_declares_membre_equipe", wct_id,
+                    {"equipe_id": wct["technicien_id"], "intervention_id": wct["intervention_id"],
+                     "role": "membre_equipe", "lignes": len(formulaire["lignes_materiaux"])})
     _reevaluer_si_wct_connu_par_wct_id(wct_id)
     # T4.14 : les matériaux du chantier sont déclarés. La réservation de son devis est clôturée (ce qu'elle retenait
     # redevient disponible), et celles des autres chantiers se réconcilient avec le stock qui reste : AVANT le
@@ -1936,7 +1947,8 @@ def _admission_m4_contexte(intervention_id: str, acteur: acces.Acteur) -> dict[s
     reg = registre_m4.Registre(copies)
     if not reg.valider_chaine():
         raise contexte_materiaux_appareil.Refus("SOURCE-INVALIDE")
-    if acteur.role == "employee" and etats_m4.technicien_assigne(reg, intervention_id) != acteur.personne:
+    if acteur.role == "employee" and acces.lien_declarant(etats_m4.technicien_assigne(reg, intervention_id),
+                                                           acteur) is None:
         raise contexte_materiaux_appareil.Refus("INTERVENTION-NON-ASSIGNEE")
     if not outbox_m4.verifier_invariants_outbox(reg)[0]:
         raise contexte_materiaux_appareil.Refus("SOURCE-INVALIDE")
@@ -1967,7 +1979,7 @@ def _wct_m4_contexte(wct_id: str, admission: dict[str, Any], acteur: acces.Acteu
         raise contexte_materiaux_appareil.Refus("SOURCE-INVALIDE")
     if charge != admission["completion"] or charge["wct_id"] != wct_id:
         raise contexte_materiaux_appareil.Refus("LIAISON-INCOHERENTE")
-    if acteur.role == "employee" and charge["technicien_id"] != acteur.personne:
+    if acteur.role == "employee" and acces.lien_declarant(charge["technicien_id"], acteur) is None:
         raise contexte_materiaux_appareil.Refus("INTERVENTION-NON-ASSIGNEE")
     return {
         **admission,

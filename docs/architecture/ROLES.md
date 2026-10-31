@@ -89,7 +89,7 @@ pour SES interventions (section « Contrôle d'accès par personne et par interv
 | `m4_deposer_fichier`, `m4_etat_fichier` | §9.2 « photos envoyées en arrière-plan », §9.3 photos avant/après, signature du client. Aucune intervention portée (adressés par contenu) : identité confirmée seulement. |
 | `m4_completer_intervention` | §9.7 « Terminer ». Sa propre intervention. |
 | `m4_definir_consentement_gps` | POLITIQUE-geolocalisation §4 « l'employé peut retirer son consentement via l'app employé », §7 droit de retrait à tout moment. SON consentement seulement (`technicien_id` = sa personne), jamais celui d'un autre. |
-| `m6_declarer_materiaux_utilises` | §9.3 Inventaire et §9.7 étape 3 : formulaire des matériaux utilisés, « aucun coût affiché ». Le WCT de sa propre intervention seulement. |
+| `m6_declarer_materiaux_utilises` | §9.3 Inventaire et §9.7 étape 3 : formulaire des matériaux utilisés, « aucun coût affiché ». Le WCT de sa propre intervention, ou celui de l'ÉQUIPE dont il est membre déclaré (audit nominatif `m6.materiaux_declares_membre_equipe`). |
 | `m6_declarer_materiaux_avec_preuves_appareil` (T1/N3) | Déclaration DEVICE employee/admin active et WCT courant avant claim/rejeu ; mêmes mouvements/cascades historiques, notes de PERTE/BRIS et CAS associés atomiquement. ACK entier préflight au quota effectif min5400, sans coût ni artefact ; un rejeu hors quota réduit reste une issue de transport inconnue, même clé conservée. |
 | `m6_lire_contexte_materiaux_appareil` (T0/N0) | Contexte et prévu du WCT choisi : identité active et rôle employee/admin courants ; employé individuellement assigné admis par M4 avant bus WCT/prévu M6. IDs intervention/WCT exacts, chantier selon `acces.chantier_attendu`, références natives M4/M3/M6 et estimé sans coût. Pages courantes, enveloppe5400, sources10000 ; aucun cache ajouté, quantité réelle, écriture ou artefact. |
 | `m7_enregistrer_consentement_reference` | Consentement qu'il recueille pour une référence; n'autorise pas l'employé à préparer ou publier un contenu public. |
@@ -512,7 +512,7 @@ envoie un autre technicien, c'est lui qui a l'intervention. Une intervention que
 | `m4_lire_meteo_intervention` | hors portée (T4.27-a) ; refusé aussi dans l'outil (`REJ-IDENTITE-APPAREIL-INVALIDE`) | lecture seule ; une prévision saisie à la main (`previsions_saisies.saisi_par`) nomme sa propre personne, sinon `REJ-IDENTITE-FOURNIE-DIFFERENTE` |
 | `m4_lire_retards_incidents` | hors portée (T4.27-a) ; refusé aussi dans l'outil (`REJ-IDENTITE-APPAREIL-INVALIDE`) | lecture seule, aucune personne à nommer |
 | `m4_deposer_fichier`, `m4_etat_fichier` | identité confirmée seulement | idem |
-| `m6_declarer_materiaux_utilises` | le WCT doit porter son `technicien_id` | tous les WCT |
+| `m6_declarer_materiaux_utilises` | le WCT doit porter son `technicien_id`, ou celui d'une équipe dont il est membre déclaré | tous les WCT |
 
 ### Les équipes du profil de l'entreprise (T4.12)
 
@@ -548,7 +548,9 @@ M6 relit le WCT à la source (T1.4-i) et le confronte au formulaire, dans cet or
 
 1. identité d'appareil confirmée ; WCT connu (`REJ-WCT-INCONNU`) ;
 2. `employee` : le `technicien_id` du WCT (le technicien du dernier pointage de départ) doit être sa
-   personne, sinon `REJ-INTERVENTION-NON-ASSIGNEE` ;
+   personne, ou une ÉQUIPE dont il est membre déclaré dans le profil (WCT d'équipe : pointages V3, la
+   déclaration est alors journalisée sous son nom, `m6.materiaux_declares_membre_equipe`), sinon
+   `REJ-INTERVENTION-NON-ASSIGNEE` ;
 3. `intervention_id` du formulaire = celui du WCT (`REJ-FORMULAIRE-MATERIAUX-INTERVENTION-INCOHERENTE`),
    pour tous les appelants ;
 4. `chantier_id` du formulaire = celui que la source impose (`REJ-FORMULAIRE-MATERIAUX-CHANTIER-INCOHERENT`).

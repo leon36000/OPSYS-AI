@@ -12,6 +12,12 @@ OPSYS (voir ``m4_field_ops.acces`` : un seul lien, tenu côté M4). Un ``employe
 pour un WCT dont ce technicien est lui ; l'``admin`` déclare pour tous (il reprend un dossier) ; sans
 identité d'appareil (agent, console) le comportement est inchangé, documenté dans ROLES.md.
 
+L'ÉQUIPE (DÉCISIONS-ARCHITECTE r1 §2, « Matériaux »). Un WCT d'équipe porte l'identifiant de l'ÉQUIPE pour
+``technicien_id`` (pointages d'équipe V3, M4). Les membres DÉCLARÉS de cette équipe (``Acteur.equipes``, lues par
+l'adaptateur dans le profil des équipes de l'entreprise, jamais dans un argument) déclarent alors pour ce WCT ; un
+non-membre reste refusé du même ``REJ-INTERVENTION-NON-ASSIGNEE``. Profil absent ou invalide : aucune équipe, donc
+aucun accès par équipe (fail-closed). L'adaptateur journalise la personne qui déclare (audit nominatif).
+
 CHANTIER. Le WCT ne porte aucun ``chantier_id`` (il vient de M4, où un chantier EST une intervention) :
 celui du formulaire ne peut donc être confronté qu'à ce que M6 tient de la source, par le devis du
 WCT (``devis_id`` -> besoins prévus, écrits à partir de ``m3.devis_accepte``). S'il y est connu, le
@@ -37,6 +43,7 @@ __all__ = [
     "Acteur",
     "acteur_de",
     "controler_declarant",
+    "lien_declarant",
     "chantier_attendu",
     "controler_chantier",
 ]
@@ -44,13 +51,15 @@ __all__ = [
 
 @dataclasses.dataclass(frozen=True)
 class Acteur:
-    """Personne et rôle d'un jeton d'appareil, DÉJÀ confirmés par la base (voir ``outils.py``)."""
+    """Personne et rôle d'un jeton d'appareil, DÉJÀ confirmés par la base (voir ``outils.py``), et les équipes dont
+    la personne est membre selon le profil de l'entreprise (vide sans profil valide)."""
 
     personne: str
     role: str
+    equipes: tuple = ()
 
 
-def acteur_de(personne: str, role: str) -> tuple[Acteur | None, dict | None]:
+def acteur_de(personne: str, role: str, equipes: tuple = ()) -> tuple[Acteur | None, dict | None]:
     """``(Acteur, None)`` pour un rôle de terrain (``employee``, ``admin``), sinon ``(None, verdict)``.
 
     Fail-closed : la déclaration n'est ouverte qu'à ces deux rôles (``Outil.roles_appareil``) ; un
@@ -60,22 +69,34 @@ def acteur_de(personne: str, role: str) -> tuple[Acteur | None, dict | None]:
             "REJ-IDENTITE-APPAREIL-INVALIDE",
             detail=f"rôle d'appareil {role!r} sans portée sur la déclaration des matériaux utilisés",
         )
-    return Acteur(personne=personne, role=role), None
+    return Acteur(personne=personne, role=role, equipes=tuple(equipes)), None
 
 
 def _accede_a_tout(acteur: Acteur | None) -> bool:
     return acteur is None or acteur.role == ROLE_ADMIN
 
 
+def lien_declarant(technicien_id: object, acteur: Acteur | None) -> str | None:
+    """Ce qui lie l'``employee`` au technicien d'un WCT : ``"personne"`` (lui-même), ``"equipe"`` (une équipe dont
+    il est membre déclaré) ou ``None`` (rien). ``admin`` et l'absence d'acteur ne sont pas concernés."""
+    if acteur is None or not isinstance(technicien_id, str) or not technicien_id:
+        return None
+    if technicien_id == acteur.personne:
+        return "personne"
+    if technicien_id in acteur.equipes:
+        return "equipe"
+    return None
+
+
 def controler_declarant(wct: dict, acteur: Acteur | None) -> dict | None:
     """``None`` si l'acteur peut déclarer pour ce WCT, sinon un verdict.
 
-    ``employee`` : le ``technicien_id`` du WCT doit être SA personne. Un WCT d'un autre technicien, ou
-    sans technicien, donne le même refus (``REJ-INTERVENTION-NON-ASSIGNEE``) : rien sur les autres
-    n'est révélé."""
+    ``employee`` : le ``technicien_id`` du WCT doit être SA personne, ou une équipe dont il est membre déclaré. Un WCT
+    d'un autre technicien ou d'une autre équipe, ou sans technicien, donne le même refus
+    (``REJ-INTERVENTION-NON-ASSIGNEE``) : rien sur les autres n'est révélé."""
     if _accede_a_tout(acteur):
         return None
-    if wct.get("technicien_id") != acteur.personne:
+    if lien_declarant(wct.get("technicien_id"), acteur) is None:
         return verdicts.construire_verdict(
             "REJ-INTERVENTION-NON-ASSIGNEE",
             detail="ce chantier n'est pas assigné à la personne authentifiée",
