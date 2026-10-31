@@ -123,8 +123,20 @@ def classer(candidats: Sequence[object]) -> list[dict]:
     return propres
 
 
+# Lectures dont la capacité n'est PAS en jours-personnes : la citer comme capacité d'allocation mélangerait des unités.
+# M4 (m4.capacite_equipe) publie des heures d'horloge d'équipe et interdit toute conversion en jours-personnes.
+UNITES_INCOMPATIBLES = {"m4.capacite_equipe": "heures_declarees"}
+
+
 def allouer(candidats: Sequence[object], *, capacite: str | None, source_capacite: str | None = None) -> dict:
     """Classement, puis allocation gloutonne dans l'ordre des rangs sur ``capacite`` (jours-personnes)."""
+    if type(source_capacite) is str and source_capacite.split("#", 1)[0] in UNITES_INCOMPATIBLES:
+        unite = UNITES_INCOMPATIBLES[source_capacite.split("#", 1)[0]]
+        raise _refus(
+            "REJ-PRIORITE-UNITE",
+            f"la capacité citée est en {unite}, l'allocation compte des jours-personnes : "
+            "aucune conversion n'est faite",
+        )
     classes = classer(candidats)
     par_id = {c["id"]: c for c in classes}
     resultat: dict = {

@@ -17,3 +17,8 @@ M9.22 (phase mobile : contrat serveur prêt, aucun écran).
 
 ## Prochaine action
 CI verte sur le SHA de code final `7a0a01d9` (run 2323). Lignes restantes : hôte opérateur (M9.5), décision de conception M8 (M9.3), données des missions M4/M5/M7 (M9.8, 9, 11, 18), jonction Core (M9.4), écran mobile (M9.22).
+
+## Tranche 1 « qualité du conseil » (2026-10-31, branche `claude/m9-corpus-metier-tranche1`)
+Corpus métier de 60 cas fictifs (42 ajustement / 18 vérification), harnais hors ligne sur doubles de protocole, deux défauts prouvés corrigés (montants libres, âge des
+lectures) : 53/60 → 58/60, deux limites connues conservées rouges. Détail et SHA : `QUALITE-CONSEIL-TRANCHE1.md`. **M9 reste PARTIEL** ; qualité métier, modèle réel et Core natif :
+non établis / ouverts.

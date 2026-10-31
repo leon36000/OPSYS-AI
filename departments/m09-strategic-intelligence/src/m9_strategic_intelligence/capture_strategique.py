@@ -33,17 +33,19 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from . import catalogue_producteurs
+from . import catalogue_producteurs, charges_producteurs, encodage
 
 SCHEMA = "opsys.m9.capture/v1"
 HASH_INITIAL = ""
 MAX_OCTETS_DEFAUT = 900_000
 MAX_PAGES = 50
 MAX_REVISIONS = 256
+FRAICHEUR_MAX_S = 3650 * 86400  # 3650 jours : la borne que M9 applique à ses propres péremptions
 _HEX = re.compile(r"[0-9a-f]{64}")
 _JOUR = re.compile(r"\d{4}-\d{2}-\d{2}")
 VERDICTS = frozenset({"ACCEPTEE", "REFUSEE", "ERREUR"})
 REGLE_CONTRADICTION = "meme_lecture_memes_arguments_meme_revision_meme_instant_empreinte_differente/v1"
+REGLE_CONTRADICTION_CONTENU = "meme_lecture_memes_arguments_empreinte_de_contenu_declaree_differente/v1"
 _CHAMPS = frozenset(
     {
         "schema", "index", "hash_precedent", "hash_maillon", "catalogue_version", "lecture_id", "departement", "outil",
@@ -202,8 +204,20 @@ def construire(
         if v != "ACCEPTEE":
             verdict, code = v, c
             break
+    detail_refus = None
+    if verdict == "ACCEPTEE":
+        # Producteur à CONTRAT : une charge qui viole son contrat est un refus conservé (aucun fait citable), jamais
+        # une donnée « acceptée sous réserve ». Les messages nomment le champ, jamais la valeur reçue.
+        for page in pages_json:
+            erreurs = charges_producteurs.valider(lecture.id, page, arguments)
+            if erreurs:
+                verdict, code = "REFUSEE", "charge_invalide"
+                detail_refus = "; ".join(erreurs[:3])[:300]
+                break
     complete, raison = True, None
-    if verdict != "ACCEPTEE":
+    if detail_refus is not None:
+        complete, raison = False, f"charge non conforme au contrat du producteur : {detail_refus}"
+    elif verdict != "ACCEPTEE":
         complete, raison = False, "réponse refusée ou en erreur : aucun fait reçu"
     elif lecture.pagination is not None:
         suite = extraire(pages_json[-1], lecture.pagination.chemin_suivant)
@@ -219,6 +233,10 @@ def construire(
                         declare = valeur is True
                     elif marqueur.genre == "faux":
                         declare = valeur is False
+                    elif marqueur.genre == "egal":
+                        declare = type(valeur) is str and valeur == marqueur.valeur
+                    elif marqueur.genre == "autre_que":
+                        declare = type(valeur) is str and valeur != marqueur.valeur
                     else:
                         declare = type(valeur) is int and valeur > 0
                     if declare and complete:
@@ -339,6 +357,38 @@ def _cle_lecture(capture: Mapping) -> tuple[str, str]:
     return capture["lecture_id"], capture["arguments_sha256"]
 
 
+def _sans_chemin(document: object, morceaux: list[str]) -> object:
+    """Copie du document sans la clé désignée par ``morceaux`` (chemin sans ``[*]``) ; le reste est inchangé."""
+    if not morceaux or not isinstance(document, Mapping):
+        return document
+    tete, reste = morceaux[0], morceaux[1:]
+    if tete not in document:
+        return document
+    if not reste:
+        return {cle: valeur for cle, valeur in document.items() if cle != tete}
+    return {**document, tete: _sans_chemin(document[tete], reste)}
+
+
+def _est_hex(valeur: object) -> bool:
+    return type(valeur) is str and _HEX.fullmatch(valeur) is not None
+
+
+def empreinte_comparable(capture: Mapping) -> str:
+    """Empreinte de la réponse à comparer pour une contradiction : celle de la capture, ou, quand le catalogue déclare
+    des métadonnées de lecture volatiles (horloge du producteur), celle des pages privées de ces métadonnées. Deux
+    lectures du même contenu faites à deux moments ne se contredisent pas."""
+    lecture = catalogue_producteurs.PAR_ID.get(capture["lecture_id"])
+    if lecture is not None and lecture.empreinte_contenu is not None:
+        declarees = {v for page in capture["pages"] for v in extraire(page, lecture.empreinte_contenu)}
+        return next(iter(declarees)) if len(declarees) == 1 and all(_est_hex(v) for v in declarees) else ""
+    if lecture is None or not lecture.volatils:
+        return capture["reponse_sha256"]
+    pages = capture["pages"]
+    for chemin in lecture.volatils:
+        pages = [_sans_chemin(page, chemin.split(".")) for page in pages]
+    return empreinte(pages)
+
+
 def contradictions(captures: Sequence[Mapping]) -> list[dict]:
     """Paires de captures ACCEPTÉES, même lecture et mêmes arguments, même révision déclarée et même instant métier max,
     dont les réponses diffèrent. Les deux preuves sont citées ; aucune n'est choisie. Sans révision ni instant déclarés,
@@ -348,16 +398,23 @@ def contradictions(captures: Sequence[Mapping]) -> list[dict]:
     for capture in captures:
         if capture["verdict"] != "ACCEPTEE":
             continue
+        lecture = catalogue_producteurs.PAR_ID.get(capture["lecture_id"])
+        if lecture is not None and lecture.empreinte_contenu is not None:
+            # Le producteur déclare une empreinte de contenu : mêmes arguments (donc même jour, même période)
+            # suffisent ; sans empreinte lisible, la comparaison est impossible et rien n'est affirmé.
+            if empreinte_comparable(capture):
+                groupes.setdefault((*_cle_lecture(capture), "contenu", None), []).append(capture)
+            continue
         marque = (capture["revisions"] and tuple(capture["revisions"])) or None
         horodatage = capture["instants_metier"]["max"]
         if marque is None and horodatage is None:
             continue
         groupes.setdefault((*_cle_lecture(capture), marque, horodatage), []).append(capture)
     resultat = []
-    for (lecture_id, arguments_sha, _marque, _horodatage), membres in groupes.items():
+    for (lecture_id, arguments_sha, marque, _horodatage), membres in groupes.items():
         for position, a in enumerate(membres):
             for b in membres[position + 1 :]:
-                if a["reponse_sha256"] != b["reponse_sha256"]:
+                if empreinte_comparable(a) != empreinte_comparable(b):
                     resultat.append(
                         {
                             "lecture_id": lecture_id,
@@ -366,10 +423,38 @@ def contradictions(captures: Sequence[Mapping]) -> list[dict]:
                             "index_b": b["index"],
                             "hash_a": a["hash_maillon"],
                             "hash_b": b["hash_maillon"],
-                            "regle": REGLE_CONTRADICTION,
+                            "regle": REGLE_CONTRADICTION_CONTENU if marque == "contenu" else REGLE_CONTRADICTION,
                         }
                     )
     return sorted(resultat, key=lambda c: (c["index_a"], c["index_b"]))
+
+
+def fraicheur_declaree(capture: Mapping) -> tuple[int | None, bool]:
+    """``(fenêtre en secondes, déclaration ignorée)`` que le PROPRIÉTAIRE a écrite dans la réponse conservée.
+
+    Seule une déclaration entièrement valide est retenue : valeur ``type(x) is int`` de 1 à ``FRAICHEUR_MAX_S`` (ni
+    booléen, ni décimal, ni texte), lue une seule fois, ET version qui se recalcule à l'identique de l'outil et de la
+    fenêtre (``encodage.empreinte``). Toute autre déclaration (absente de ce côté, invalide, incohérente, refusée par le
+    propriétaire) est IGNORÉE : la fraîcheur reste NON_EVALUEE, jamais HORS_FENETRE. Le second terme dit qu'une
+    déclaration était présente mais n'a pas été retenue. Sans déclaration, ``(None, False)``."""
+    lecture = catalogue_producteurs.PAR_ID.get(capture["lecture_id"])
+    if lecture is None or lecture.fraicheur_attendue is None or capture["verdict"] != "ACCEPTEE":
+        return None, False
+    refusee = lecture.fraicheur_attendue.rsplit(".", 1)[0] + ".fraicheur_attendue_refusee"
+    fenetres, versions, refus = [], [], []
+    for page in capture["pages"]:
+        fenetres += extraire(page, lecture.fraicheur_attendue)
+        versions += extraire(page, lecture.fraicheur_version)
+        refus += extraire(page, refusee)
+    if not fenetres and not versions and not refus:
+        return None, False
+    if len(fenetres) != 1 or len(versions) != 1 or refus:
+        return None, True
+    secondes, version = fenetres[0], versions[0]
+    if type(secondes) is not int or not 1 <= secondes <= FRAICHEUR_MAX_S or type(version) is not str:
+        return None, True
+    attendue = encodage.empreinte({"lecture": lecture.outil, "fraicheur_attendue_s": secondes})
+    return (secondes, False) if version == attendue else (None, True)
 
 
 def evaluer_couverture(
@@ -385,8 +470,8 @@ def evaluer_couverture(
     Une lecture attendue est : ABSENTE (aucune capture connue), REFUSEE (la dernière est un refus/erreur), PARTIELLE
     (page non lue), CONTRADICTOIRE, TEMPS_METIER_NON_DECLARE, FUTURE (tous ses faits postérieurs à la référence) ou
     PRESENTE. ``age_s`` = référence − dernier instant métier (signé, informatif) ; ``fraicheur`` n'est ÉVALUÉE que si
-    une
-    attente de fraîcheur est fournie pour cette lecture (propriétaire des définitions : M8), sinon ``NON_EVALUEE``."""
+    une attente de fraîcheur existe pour cette lecture : celle de l'appelant (``fraicheur_attendue_s``), à défaut
+    la fenêtre que le PROPRIÉTAIRE a déclarée dans sa réponse (M8, ``fraicheur_declaree``) ; sinon ``NON_EVALUEE``."""
     ref = instant(reference)
     if ref is None:
         raise _refus("REJ-CAPTURE-TEMPS", "référence avec fuseau explicite requise")
@@ -432,7 +517,15 @@ def evaluer_couverture(
             else:
                 entree["statut"] = "PRESENTE"
         attente = fraicheurs.get(lecture_id)
+        declaree, ignoree = fraicheur_declaree(derniere)
         if "age_s" in entree:
+            if attente is not None:
+                entree |= {"fraicheur_attendue_s": attente, "fraicheur_source": "APPELANT"}
+            elif declaree is not None:
+                attente = declaree
+                entree |= {"fraicheur_attendue_s": declaree, "fraicheur_source": "PRODUCTEUR"}
+            if ignoree and declaree is None:
+                entree["fraicheur_declaration_ignoree"] = True
             if attente is None:
                 entree["fraicheur"] = "NON_EVALUEE"
             else:

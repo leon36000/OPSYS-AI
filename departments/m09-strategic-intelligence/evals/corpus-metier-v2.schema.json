@@ -1,0 +1,368 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://opsys.invalid/m9/evals/corpus-metier-v2.schema.json",
+ "title": "Corpus métier M9 v2 (fictif, doubles de protocole et pages capturées des vrais producteurs)",
+ "type": "object",
+ "required": [
+  "version",
+  "fictif",
+  "description",
+  "double_protocole",
+  "contrats_simules",
+  "contrats_reels",
+  "producteurs_absents",
+  "cas"
+ ],
+ "additionalProperties": false,
+ "properties": {
+  "version": {
+   "const": "corpus-metier-v2"
+  },
+  "fictif": {
+   "const": true
+  },
+  "description": {
+   "type": "string",
+   "minLength": 1
+  },
+  "double_protocole": {
+   "type": "object",
+   "required": [
+    "statut",
+    "note"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "statut": {
+     "const": "DOUBLE_DE_PROTOCOLE_REDIGE_A_LA_MAIN"
+    },
+    "note": {
+     "type": "string",
+     "minLength": 1
+    }
+   }
+  },
+  "contrats_simules": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "string",
+    "minLength": 1
+   }
+  },
+  "producteurs_absents": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "string",
+    "minLength": 1
+   }
+  },
+  "cas": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "$ref": "#/$defs/cas"
+   }
+  },
+  "contrats_reels": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "string",
+    "minLength": 1
+   }
+  }
+ },
+ "$defs": {
+  "capture": {
+   "type": "object",
+   "required": [
+    "lecture",
+    "pages",
+    "recu_a"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "lecture": {
+     "type": "string",
+     "pattern": "^m[0-9]+\\.[a-z_]+$"
+    },
+    "arguments": {
+     "type": "object"
+    },
+    "pages": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object"
+     }
+    },
+    "recu_a": {
+     "type": "string",
+     "minLength": 1
+    },
+    "reference": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   }
+  },
+  "rouge_connu": {
+   "type": "object",
+   "required": [
+    "classe",
+    "raison",
+    "proposition"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "classe": {
+     "enum": [
+      "limite_connue"
+     ]
+    },
+    "raison": {
+     "type": "string",
+     "minLength": 1
+    },
+    "proposition": {
+     "type": "string",
+     "minLength": 1
+    }
+   }
+  },
+  "cas": {
+   "type": "object",
+   "required": [
+    "id",
+    "famille",
+    "partition",
+    "perturbations",
+    "chemin",
+    "scenario",
+    "regle",
+    "justification",
+    "entree",
+    "attentes"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[a-z]{3}-[AV][0-9]{2}$"
+    },
+    "famille": {
+     "enum": [
+      "rapport_direction",
+      "budget_marketing",
+      "tresorerie_serree",
+      "leads_hors_capacite",
+      "nouvelle_ville",
+      "reputation"
+     ]
+    },
+    "partition": {
+     "enum": [
+      "ajustement",
+      "verification"
+     ]
+    },
+    "perturbations": {
+     "type": "array",
+     "minItems": 1,
+     "uniqueItems": true,
+     "items": {
+      "enum": [
+       "nominal",
+       "absence",
+       "tardive",
+       "contradiction",
+       "perimee",
+       "unite_date",
+       "homonyme",
+       "injection"
+      ]
+     }
+    },
+    "chemin": {
+     "enum": [
+      "conseil",
+      "direction",
+      "previsions",
+      "priorisation",
+      "occasions"
+     ]
+    },
+    "scenario": {
+     "type": "string",
+     "minLength": 1
+    },
+    "regle": {
+     "type": "string",
+     "minLength": 1
+    },
+    "justification": {
+     "type": "string",
+     "minLength": 1
+    },
+    "entree": {
+     "type": "object"
+    },
+    "attentes": {
+     "type": "object",
+     "minProperties": 1
+    },
+    "double_protocole": {
+     "type": "object"
+    },
+    "rouge_connu": {
+     "$ref": "#/$defs/rouge_connu"
+    }
+   },
+   "allOf": [
+    {
+     "if": {
+      "properties": {
+       "chemin": {
+        "const": "conseil"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "double_protocole"
+      ],
+      "properties": {
+       "entree": {
+        "required": [
+         "question",
+         "domaines",
+         "importance",
+         "budget_tokens",
+         "reference",
+         "connaissance",
+         "attendues",
+         "ouverture_a",
+         "captures"
+        ],
+        "properties": {
+         "importance": {
+          "enum": [
+           "courante",
+           "majeure"
+          ]
+         },
+         "budget_tokens": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "captures": {
+          "type": "array",
+          "items": {
+           "$ref": "#/$defs/capture"
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "chemin": {
+        "const": "direction"
+       }
+      }
+     },
+     "then": {
+      "properties": {
+       "entree": {
+        "required": [
+         "question",
+         "modules_attendus",
+         "snapshots",
+         "affirmations"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "chemin": {
+        "const": "previsions"
+       }
+      }
+     },
+     "then": {
+      "properties": {
+       "entree": {
+        "required": [
+         "captures",
+         "connaissance"
+        ],
+        "properties": {
+         "captures": {
+          "type": "array",
+          "items": {
+           "$ref": "#/$defs/capture"
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "chemin": {
+        "const": "priorisation"
+       }
+      }
+     },
+     "then": {
+      "properties": {
+       "entree": {
+        "required": [
+         "candidats",
+         "captures",
+         "reference",
+         "connaissance",
+         "attendues"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "chemin": {
+        "const": "occasions"
+       }
+      }
+     },
+     "then": {
+      "properties": {
+       "entree": {
+        "required": [
+         "occasions",
+         "captures",
+         "reference",
+         "connaissance",
+         "attendues"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  }
+ }
+}

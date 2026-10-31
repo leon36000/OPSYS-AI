@@ -39,11 +39,17 @@ PORT = "lecteur_producteurs_m9"
 # (département -> outils de lecture T0 autorisés). Les outils qui acceptent des DONNÉES de l'appelant pour les calculer
 # (calculateurs) n'y figurent pas : une lecture ne doit pas laisser M9 injecter la matière d'un producteur.
 LECTURES_AUTORISEES: Mapping[str, frozenset[str]] = {
-    "m01-front-office": frozenset({"m1_produire_digest"}),
+    "m01-front-office": frozenset({"m1_produire_digest", "m1_lire_plaintes_structurees"}),
     "m02-revenue-crm": frozenset({"m2_lister_leads", "m2_lister_relances"}),
     "m03-estimation": frozenset({"m3_lire_ecarts_estime_reel"}),
     "m04-field-ops": frozenset(
-        {"m4_lister_interventions", "m4_lire_cedule_semaine", "m4_lire_retards_incidents", "m4_lire_meteo_intervention"}
+        {
+            "m4_lister_interventions",
+            "m4_lire_cedule_semaine",
+            "m4_lire_retards_incidents",
+            "m4_lire_meteo_intervention",
+            "m4_lire_capacite_equipe",
+        }
     ),
     "m05-financecore": frozenset(
         {
@@ -54,7 +60,7 @@ LECTURES_AUTORISEES: Mapping[str, frozenset[str]] = {
         }
     ),
     "m06-material-control": frozenset({"m6_lire_disponibilite"}),
-    "m07-marketing": frozenset({"m7_lire_performance_campagnes"}),
+    "m07-marketing": frozenset({"m7_lire_performance_campagnes", "m7_lire_depenses_marketing"}),
     "m08-analytics": frozenset(
         {"m8_lire_vue_executive", "m8_lire_mesures_chantier", "m8_lister_definitions_metriques"}
     ),
