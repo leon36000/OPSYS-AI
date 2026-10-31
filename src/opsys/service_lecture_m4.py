@@ -61,6 +61,10 @@ def _canonique(valeur):
 
 def _verifier_acteur(cnx, session, appareil):
     if appareil is None:
+        from .console.securite import Session
+
+        if type(session) is not Session:  # lecture : jamais l'acteur système, jamais un objet quelconque
+            raise sc.RefusAutorite("session serveur non qualifiée")
         try:
             recalcul._admin(cnx, session)
         except (AttributeError, PermissionError, TypeError) as exc:

@@ -150,10 +150,16 @@ def _valider_parametres(session, acteur, wct_id, devis_id, intention_id):
         raise RefusRecalculM4(IDENTIFIANT_INVALIDE, "wct_id : 64 caractères hexadécimaux minuscules")
     if type(devis_id) is not str or not 1 <= len(devis_id) <= 256:
         raise RefusRecalculM4(IDENTIFIANT_INVALIDE, "devis_id : texte de 1 à 256 caractères")
-    # Même nature que la console : `Session` (utilisateur, rôles, expiration) ; ni None, ni objet quelconque.
+    # Même nature que la console : `Session` (utilisateur, rôles, expiration), ou l'acteur système du réconciliateur
+    # (D2) ; ni None, ni objet quelconque, ni une personne qui prendrait le nom de l'acteur système.
+    from . import service_acteur_systeme as systeme
     from .console.securite import Session
 
-    if type(session) is not Session or session.utilisateur != acteur:
+    if systeme.est_acteur_systeme(session):
+        if acteur != systeme.IDENTIFIANT:
+            raise RefusRecalculM4(ACTEUR_INVALIDE, "l'acteur système s'appelle opsys-systeme")
+        return
+    if type(session) is not Session or session.utilisateur != acteur or acteur == systeme.IDENTIFIANT:
         raise RefusRecalculM4(ACTEUR_INVALIDE, "acteur absent de la session ou différent de son utilisateur")
 
 

@@ -13,7 +13,7 @@ Règles (DECISIONS-ARCHITECTE-r1 §2, D1) :
   l'identité d'un département ou d'un appareil est refusé avant tout accès ;
 - chaque octroi ou renouvellement expire 90 jours plus tard (`DUREE_S`) ; on renouvelle explicitement ;
 - la révocation est immédiate : elle ajoute une révision inactive, et chaque garde (`service_capability`,
-  `moteur_recalcul_m4`, `service_lecture_m4`) relit la DERNIÈRE révision à chaque vérification ;
+  moteur de recalcul, `service_lecture_m4`) relit la DERNIÈRE révision à chaque vérification ;
 - chaque geste écrit une ligne du journal append-only `service_politiques_journal` (acteur, motif, instant,
   révision, expiration), liée par clé étrangère à la révision qu'il a créée ; la révocation écrit aussi l'audit
   `revocation` historique de `service_audit` ;

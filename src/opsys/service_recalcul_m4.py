@@ -40,6 +40,17 @@ def _politique(cnx, instance):
 
 
 def _admin(cnx, session):
+    """Autorité d'appel rejouée à chaque garde : une personne `admin` active (session console), ou l'acteur système
+    `opsys-systeme` dans le seul contexte du réconciliateur (D2). Rien d'autre."""
+    from . import service_acteur_systeme as systeme
+
+    if systeme.est_acteur_systeme(session):
+        systeme.verifier(cnx, session)
+        return
+    from .console.securite import Session
+
+    if type(session) is not Session or session.utilisateur == systeme.IDENTIFIANT:
+        raise PermissionError("admin actif requis")
     from .console.memoire_chantier import _admin as verifier
 
     verifier(cnx, session)
