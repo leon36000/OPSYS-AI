@@ -30,6 +30,7 @@ from ..departements import Departement
 from ..service_capability import _livraison
 from ..stockage import codec, transaction
 from ..stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
+from . import attente_wct
 from .schemas import types_connus
 
 __all__ = ["etat", "repartir", "verifier_coherence"]
@@ -71,12 +72,27 @@ def _candidats(
         ouverts = []
         for consommateur, _ in abonnes:
             consommateurs.add(consommateur)
-            recu_clos = select(1).where(
-                (EVENEMENTS_RECUS.c.evenement_id == EVENEMENTS_SORTANTS.c.evenement_id)
-                & (EVENEMENTS_RECUS.c.consommateur == consommateur)
-                & EVENEMENTS_RECUS.c.statut.in_(_STATUTS_CLOS)
-            ).correlate(EVENEMENTS_SORTANTS).exists()
-            ouverts.append(~recu_clos)
+            recu_clos = (
+                select(1)
+                .where(
+                    (EVENEMENTS_RECUS.c.evenement_id == EVENEMENTS_SORTANTS.c.evenement_id)
+                    & (EVENEMENTS_RECUS.c.consommateur == consommateur)
+                    & EVENEMENTS_RECUS.c.statut.in_(_STATUTS_CLOS)
+                )
+                .correlate(EVENEMENTS_SORTANTS)
+                .exists()
+            )
+            attente_suspendue = (
+                select(1)
+                .where(
+                    (attente_wct.ATTENTES.c.evenement_id == EVENEMENTS_SORTANTS.c.evenement_id)
+                    & (attente_wct.ATTENTES.c.consommateur == consommateur)
+                    & (attente_wct.ATTENTES.c.etat != "prete")
+                )
+                .correlate(EVENEMENTS_SORTANTS)
+                .exists()
+            )
+            ouverts.append(~recu_clos & ~attente_suspendue)
         if ouverts:
             ouverts_par_type.append(and_(EVENEMENTS_SORTANTS.c.type_evenement == type_evenement, or_(*ouverts)))
     if not ouverts_par_type:
@@ -88,23 +104,44 @@ def _candidats(
             requete = select(EVENEMENTS_SORTANTS).where(or_(*ouverts_par_type))
             if curseur is not None:
                 cree_le, ident = curseur
-                requete = requete.where(or_(
-                    EVENEMENTS_SORTANTS.c.cree_le > cree_le,
-                    and_(EVENEMENTS_SORTANTS.c.cree_le == cree_le, EVENEMENTS_SORTANTS.c.evenement_id > ident),
-                ))
-            evenements = cnx.execute(requete.order_by(
-                EVENEMENTS_SORTANTS.c.cree_le, EVENEMENTS_SORTANTS.c.evenement_id
-            ).limit(100)).mappings().all()
+                requete = requete.where(
+                    or_(
+                        EVENEMENTS_SORTANTS.c.cree_le > cree_le,
+                        and_(EVENEMENTS_SORTANTS.c.cree_le == cree_le, EVENEMENTS_SORTANTS.c.evenement_id > ident),
+                    )
+                )
+            evenements = (
+                cnx.execute(
+                    requete.order_by(EVENEMENTS_SORTANTS.c.cree_le, EVENEMENTS_SORTANTS.c.evenement_id).limit(100)
+                )
+                .mappings()
+                .all()
+            )
             if not evenements:
                 return candidats
             ids = [ligne["evenement_id"] for ligne in evenements]
-            recus = cnx.execute(select(EVENEMENTS_RECUS).where(
-                EVENEMENTS_RECUS.c.evenement_id.in_(ids)
-                & EVENEMENTS_RECUS.c.consommateur.in_(sorted(consommateurs))
-            )).mappings().all()
+            recus = (
+                cnx.execute(
+                    select(EVENEMENTS_RECUS).where(
+                        EVENEMENTS_RECUS.c.evenement_id.in_(ids)
+                        & EVENEMENTS_RECUS.c.consommateur.in_(sorted(consommateurs))
+                    )
+                )
+                .mappings()
+                .all()
+            )
             recus_index = {(r["evenement_id"], r["consommateur"]): r for r in recus}
+            suspendues = set(
+                cnx.execute(
+                    select(attente_wct.ATTENTES.c.evenement_id, attente_wct.ATTENTES.c.consommateur).where(
+                        attente_wct.ATTENTES.c.evenement_id.in_(ids), attente_wct.ATTENTES.c.etat != "prete"
+                    )
+                ).all()
+            )
             for evenement in evenements:
                 for consommateur, fonction in par_type.get(evenement["type_evenement"], ()):
+                    if (evenement["evenement_id"], consommateur) in suspendues:
+                        continue
                     recu = recus_index.get((evenement["evenement_id"], consommateur))
                     if recu is not None:
                         if recu["statut"] in _STATUTS_CLOS:
@@ -144,33 +181,50 @@ def _livrer_une_paire(
             par_connexion[cnx] = actives
             actives.add(paire)
             charge = codec.decoder(evenement["charge"])
-            existant = cnx.execute(select(
-                EVENEMENTS_RECUS.c.tentatives, EVENEMENTS_RECUS.c.statut, EVENEMENTS_RECUS.c.prochaine_tentative
-            ).where(cible)).fetchone()
+            if not attente_wct.peut_livrer(cnx, evenement_id, consommateur, maintenant_dt):
+                return None
+            existant = cnx.execute(
+                select(
+                    EVENEMENTS_RECUS.c.tentatives, EVENEMENTS_RECUS.c.statut, EVENEMENTS_RECUS.c.prochaine_tentative
+                ).where(cible)
+            ).fetchone()
             if existant is None:
                 try:
                     with cnx.begin_nested():
-                        cnx.execute(insert(EVENEMENTS_RECUS).values(
-                            evenement_id=evenement_id, consommateur=consommateur, statut="echec",
-                            tentatives=0, prochaine_tentative=None, resultat=None, derniere_erreur=None,
-                        ))
+                        cnx.execute(
+                            insert(EVENEMENTS_RECUS).values(
+                                evenement_id=evenement_id,
+                                consommateur=consommateur,
+                                statut="echec",
+                                tentatives=0,
+                                prochaine_tentative=None,
+                                resultat=None,
+                                derniere_erreur=None,
+                            )
+                        )
                 except IntegrityError:
                     return None  # réclamée entre-temps par un autre appel concurrent
                 tentatives_avant = 0
             else:
                 prochaine = existant.prochaine_tentative
-                if (existant.statut != "echec"
-                        or (prochaine and dt.datetime.fromisoformat(prochaine) > maintenant_dt)):
+                if existant.statut != "echec" or (prochaine and dt.datetime.fromisoformat(prochaine) > maintenant_dt):
                     return None  # le reçu a changé depuis la sélection ; respecter son backoff courant
                 # Le temps est comparé en Python (les offsets ISO ne se comparent pas comme du texte).
                 # La réclamation lie ensuite atomiquement le statut, le compteur et l'échéance lus :
                 # un autre essai entre SELECT et UPDATE invalide aussi ce candidat ancien.
-                meme_echeance = (EVENEMENTS_RECUS.c.prochaine_tentative.is_(None) if prochaine is None
-                                 else EVENEMENTS_RECUS.c.prochaine_tentative == prochaine)
+                meme_echeance = (
+                    EVENEMENTS_RECUS.c.prochaine_tentative.is_(None)
+                    if prochaine is None
+                    else EVENEMENTS_RECUS.c.prochaine_tentative == prochaine
+                )
                 reclamation = cnx.execute(
                     update(EVENEMENTS_RECUS)
-                    .where(cible & (EVENEMENTS_RECUS.c.statut == "echec")
-                           & (EVENEMENTS_RECUS.c.tentatives == existant.tentatives) & meme_echeance)
+                    .where(
+                        cible
+                        & (EVENEMENTS_RECUS.c.statut == "echec")
+                        & (EVENEMENTS_RECUS.c.tentatives == existant.tentatives)
+                        & meme_echeance
+                    )
                     .values(statut="echec")
                 )
                 if reclamation.rowcount != 1:
@@ -178,25 +232,62 @@ def _livrer_une_paire(
                 tentatives_avant = existant.tentatives
 
             try:
-                with cnx.begin_nested(), _livraison(cnx, evenement, consommateur, tentatives_avant):
-                    resultat_fonction = fonction(dict(charge))
-                    # L'encodage reste dans le même savepoint que le consommateur.
-                    resultat_encode = codec.encoder(dict(resultat_fonction))
+                with cnx.begin_nested():
+                    reprise_attente = attente_wct.terminer(cnx, evenement_id, consommateur, maintenant_dt)
+                    if reprise_attente:
+                        attente_wct.revalider_terminee(cnx, evenement_id, consommateur, maintenant_dt)
+                    with _livraison(cnx, evenement, consommateur, tentatives_avant):
+                        resultat_fonction = fonction(dict(charge))
+                        if reprise_attente and resultat_fonction.get("service_m4") not in ("publiee", "deja_tracee"):
+                            raise ValueError("reprise sans publication M4 qualifiée")
+                        attendre = attente_wct.inscrire(cnx, evenement, consommateur, resultat_fonction, maintenant_dt)
+                        if reprise_attente:
+                            attente_wct.revalider_terminee(cnx, evenement_id, consommateur, maintenant_dt)
+                        if attendre in ("quota", "horodatage_invalide"):
+                            resultat_fonction = {**resultat_fonction, "attente_non_creee": attendre}
+                        # L'encodage reste dans le même savepoint que le consommateur.
+                        resultat_encode = codec.encoder(dict(resultat_fonction))
             except Exception as exc:  # noqa: BLE001 — un consommateur ne doit jamais arrêter le répartiteur
                 tentatives = tentatives_avant + 1
                 en_quarantaine = tentatives >= _MAX_TENTATIVES
-                cnx.execute(update(EVENEMENTS_RECUS).where(cible).values(
-                    statut="quarantaine" if en_quarantaine else "echec",
-                    tentatives=tentatives,
-                    prochaine_tentative=None if en_quarantaine else _backoff(tentatives, maintenant_dt),
-                    derniere_erreur=f"{type(exc).__name__}: {exc}",
-                ))
+                cnx.execute(
+                    update(EVENEMENTS_RECUS)
+                    .where(cible)
+                    .values(
+                        statut="quarantaine" if en_quarantaine else "echec",
+                        tentatives=tentatives,
+                        prochaine_tentative=None if en_quarantaine else _backoff(tentatives, maintenant_dt),
+                        derniere_erreur=f"{type(exc).__name__}: {exc}",
+                    )
+                )
+                if en_quarantaine:
+                    attente_wct.quarantaine(cnx, evenement_id, consommateur, maintenant_dt)
                 return "quarantaine" if en_quarantaine else "echec"
 
-            cnx.execute(update(EVENEMENTS_RECUS).where(cible).values(
-                statut="traite", tentatives=tentatives_avant + 1, prochaine_tentative=None,
-                resultat=resultat_encode, derniere_erreur=None,
-            ))
+            if attendre == "attente":
+                cnx.execute(
+                    update(EVENEMENTS_RECUS)
+                    .where(cible)
+                    .values(
+                        statut="echec",
+                        tentatives=tentatives_avant,
+                        prochaine_tentative=None,
+                        resultat=resultat_encode,
+                        derniere_erreur=None,
+                    )
+                )
+                return "attente"
+            cnx.execute(
+                update(EVENEMENTS_RECUS)
+                .where(cible)
+                .values(
+                    statut="traite",
+                    tentatives=tentatives_avant + 1,
+                    prochaine_tentative=None,
+                    resultat=resultat_encode,
+                    derniere_erreur=None,
+                )
+            )
             return "traite"
     finally:
         # Après commit/rollback aussi : aucun état en vol ne survit à la sortie de cette livraison.
@@ -224,6 +315,8 @@ def repartir(
     if limite == 0:
         return resume
     maintenant_dt = dt.datetime.fromisoformat(maintenant) if maintenant else dt.datetime.now(dt.UTC)
+    with transaction() as cnx:
+        attente_wct.reconcilier(cnx, maintenant_dt)
     par_type = _consommateurs_par_type(departements)
     if not par_type:
         return resume
@@ -233,26 +326,57 @@ def repartir(
             resume["ignores"] += 1
             continue
         resume["livres"] += 1
-        resume[{"traite": "traites", "echec": "echecs", "quarantaine": "quarantaines"}[resultat]] += 1
+        if resultat == "attente":
+            resume["attentes"] = resume.get("attentes", 0) + 1
+        else:
+            resume[{"traite": "traites", "echec": "echecs", "quarantaine": "quarantaines"}[resultat]] += 1
     return resume
 
 
 def etat() -> dict[str, Any]:
     """Comptes des reçus par statut et liste de quarantaine (`opsys-metier evenements etat`)."""
     with transaction() as cnx:
-        comptes = dict(cnx.execute(
-            select(EVENEMENTS_RECUS.c.statut, func.count()).group_by(EVENEMENTS_RECUS.c.statut)
-        ).all())
-        quarantaine = cnx.execute(
-            select(
-                EVENEMENTS_RECUS.c.evenement_id, EVENEMENTS_RECUS.c.consommateur,
-                EVENEMENTS_RECUS.c.tentatives, EVENEMENTS_RECUS.c.derniere_erreur,
-                EVENEMENTS_SORTANTS.c.type_evenement, EVENEMENTS_SORTANTS.c.producteur,
+        comptes = dict(
+            cnx.execute(select(EVENEMENTS_RECUS.c.statut, func.count()).group_by(EVENEMENTS_RECUS.c.statut)).all()
+        )
+        # L'inbox utilise la réclamation existante `echec`, mais une attente
+        # métier ouverte n'est pas un échec de livraison pour l'observateur.
+        suspendues = cnx.execute(
+            select(attente_wct.ATTENTES.c.etat, func.count())
+            .select_from(
+                attente_wct.ATTENTES.join(
+                    EVENEMENTS_RECUS,
+                    and_(
+                        EVENEMENTS_RECUS.c.evenement_id == attente_wct.ATTENTES.c.evenement_id,
+                        EVENEMENTS_RECUS.c.consommateur == attente_wct.ATTENTES.c.consommateur,
+                    ),
+                )
             )
-            .join(EVENEMENTS_SORTANTS, EVENEMENTS_SORTANTS.c.evenement_id == EVENEMENTS_RECUS.c.evenement_id)
-            .where(EVENEMENTS_RECUS.c.statut == "quarantaine")
-            .order_by(EVENEMENTS_SORTANTS.c.cree_le)
-        ).mappings().all()
+            .where(attente_wct.ATTENTES.c.etat.in_(("attente", "prete")), EVENEMENTS_RECUS.c.statut == "echec")
+            .group_by(attente_wct.ATTENTES.c.etat)
+        ).all()
+        for etat_attente, nombre in suspendues:
+            comptes["echec"] = comptes.get("echec", 0) - nombre
+            if comptes["echec"] == 0:
+                comptes.pop("echec")
+            comptes["attente_piece" if etat_attente == "attente" else "reprise_prete"] = nombre
+        quarantaine = (
+            cnx.execute(
+                select(
+                    EVENEMENTS_RECUS.c.evenement_id,
+                    EVENEMENTS_RECUS.c.consommateur,
+                    EVENEMENTS_RECUS.c.tentatives,
+                    EVENEMENTS_RECUS.c.derniere_erreur,
+                    EVENEMENTS_SORTANTS.c.type_evenement,
+                    EVENEMENTS_SORTANTS.c.producteur,
+                )
+                .join(EVENEMENTS_SORTANTS, EVENEMENTS_SORTANTS.c.evenement_id == EVENEMENTS_RECUS.c.evenement_id)
+                .where(EVENEMENTS_RECUS.c.statut == "quarantaine")
+                .order_by(EVENEMENTS_SORTANTS.c.cree_le)
+            )
+            .mappings()
+            .all()
+        )
     return {
         "comptes": comptes,
         "quarantaine": [dict(ligne) for ligne in quarantaine],
@@ -288,7 +412,5 @@ def verifier_coherence(departements: Mapping[str, Departement]) -> list[str]:
         # Orpheline : présente dans consommateurs() mais absente de evenements.consomme — y compris
         # quand ce dernier est entièrement vide (un département qui ne déclare rien mais publie).
         for orpheline in sorted(set(fonctions) - set(dep.evenements_consomme)):
-            problemes.append(
-                f"{dep.id} : consommateurs()[{orpheline!r}] orpheline (absente de evenements.consomme)"
-            )
+            problemes.append(f"{dep.id} : consommateurs()[{orpheline!r}] orpheline (absente de evenements.consomme)")
     return problemes

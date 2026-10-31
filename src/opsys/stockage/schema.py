@@ -1105,29 +1105,126 @@ SERVICE_ATTESTATIONS_M4 = Table(
 
 
 # Recalcul privé : registres append-only ; pas de politique ni de droit initial.
-SERVICE_RECALCUL_INTENTIONS = Table('service_recalcul_intentions', META,
-    Column('intention_id', String(64), primary_key=True),
-    Column('instance_id', String(36), nullable=False),
-    Column('acteur', String(256), nullable=False),
-    Column('wct_id', String(64), nullable=False),
-    Column('devis_id', String(256), nullable=False),
-    CheckConstraint('length(intention_id)=64 AND length(wct_id)=64', name='recalcul_intention_identifiants'))
-SERVICE_RECALCUL_ATTESTATIONS = Table('service_recalcul_attestations_v2', META,
-    Column('intention_id', String(64), ForeignKey('service_recalcul_intentions.intention_id'), primary_key=True),
-    Column('audit_recalcul_id', Integer, ForeignKey('service_audit.id'), nullable=False, unique=True),
-    Column('audit_service_id', Integer, ForeignKey('service_audit.id'), nullable=False, unique=True),
-    Column('revision_recalcul', Integer, nullable=False),
-    Column('revision_service', Integer, nullable=False),
-    Column('trace_rang', Integer, nullable=False),
-    Column('trace_empreinte', String(64), nullable=False),
-    Column('source_m4', String(64), nullable=False),
-    Column('projection_m4', String(64), nullable=False),
-    Column('wct_hash', String(64), nullable=False),
-    Column('version_m4', String(64), nullable=False),
-    CheckConstraint('revision_recalcul>0 AND revision_service>0 AND trace_rang>=0', name='recalcul_attestation_bornes'),
-    CheckConstraint('length(trace_empreinte)=64 AND length(source_m4)=64 AND length(projection_m4)=64 AND length(wct_hash)=64', name='recalcul_attestation_hashes'))
-SERVICE_RECALCUL_RESULTATS = Table('service_recalcul_resultats', META,
-    Column('intention_id', String(64), ForeignKey('service_recalcul_intentions.intention_id'), primary_key=True),
-    Column('statut', String(32), nullable=False),
-    Column('version', String(256)),
-    CheckConstraint("statut IN ('publiee','deja_tracee','en_attente_devis_accepte','en_attente_travaux_termines')", name='recalcul_resultat_statut'))
+SERVICE_RECALCUL_INTENTIONS = Table(
+    "service_recalcul_intentions",
+    META,
+    Column("intention_id", String(64), primary_key=True),
+    Column("instance_id", String(36), nullable=False),
+    Column("acteur", String(256), nullable=False),
+    Column("wct_id", String(64), nullable=False),
+    Column("devis_id", String(256), nullable=False),
+    CheckConstraint(
+        "length(intention_id)=64 AND length(wct_id)=64",
+        name="recalcul_intention_identifiants",
+    ),
+)
+SERVICE_RECALCUL_ATTESTATIONS = Table(
+    "service_recalcul_attestations_v2",
+    META,
+    Column(
+        "intention_id",
+        String(64),
+        ForeignKey("service_recalcul_intentions.intention_id"),
+        primary_key=True,
+    ),
+    Column(
+        "audit_recalcul_id",
+        Integer,
+        ForeignKey("service_audit.id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column(
+        "audit_service_id",
+        Integer,
+        ForeignKey("service_audit.id"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("revision_recalcul", Integer, nullable=False),
+    Column("revision_service", Integer, nullable=False),
+    Column("trace_rang", Integer, nullable=False),
+    Column("trace_empreinte", String(64), nullable=False),
+    Column("source_m4", String(64), nullable=False),
+    Column("projection_m4", String(64), nullable=False),
+    Column("wct_hash", String(64), nullable=False),
+    Column("version_m4", String(64), nullable=False),
+    CheckConstraint(
+        "revision_recalcul>0 AND revision_service>0 AND trace_rang>=0",
+        name="recalcul_attestation_bornes",
+    ),
+    CheckConstraint(
+        "length(trace_empreinte)=64 AND length(source_m4)=64 AND length(projection_m4)=64 AND length(wct_hash)=64",
+        name="recalcul_attestation_hashes",
+    ),
+)
+SERVICE_RECALCUL_RESULTATS = Table(
+    "service_recalcul_resultats",
+    META,
+    Column(
+        "intention_id",
+        String(64),
+        ForeignKey("service_recalcul_intentions.intention_id"),
+        primary_key=True,
+    ),
+    Column("statut", String(32), nullable=False),
+    Column("version", String(256)),
+    CheckConstraint(
+        "statut IN ('publiee','deja_tracee','en_attente_devis_accepte','en_attente_travaux_termines')",
+        name="recalcul_resultat_statut",
+    ),
+)
+
+
+# File métier privée avant clôture WCT. Aucun droit initial créé.
+WCT_ATTENTES = Table(
+    "wct_attentes",
+    META,
+    Column(
+        "evenement_id",
+        String(128),
+        ForeignKey("evenements_sortants.evenement_id"),
+        primary_key=True,
+    ),
+    Column("consommateur", String(64), nullable=False),
+    Column("instance_id", String(36), nullable=False),
+    Column("devis_id", String(128), nullable=False),
+    Column("lead_id", String(128), nullable=False),
+    Column("recu_sha256", String(64), nullable=False),
+    Column("etat", String(16), nullable=False),
+    Column("cree_epoch", BigInteger, nullable=False),
+    Column("expire_epoch", BigInteger, nullable=False),
+    Column("source_m3", String(64)),
+    Column("source_m5", String(64)),
+    Column("revision_politique", Integer, nullable=False),
+    CheckConstraint(
+        "etat IN ('attente','prete','terminee','expiree','refusee')",
+        name="wct_attente_etat",
+    ),
+    CheckConstraint(
+        "expire_epoch > cree_epoch AND revision_politique > 0",
+        name="wct_attente_bornes",
+    ),
+    Index("ix_wct_attentes_etat_expire", "etat", "expire_epoch"),
+    Index("ix_wct_attentes_devis", "etat", "devis_id"),
+)
+WCT_ATTENTES_AUDIT = Table(
+    "wct_attentes_audit",
+    META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "evenement_id",
+        String(128),
+        ForeignKey("wct_attentes.evenement_id"),
+        nullable=False,
+    ),
+    Column("action", String(16), nullable=False),
+    Column("epoch", BigInteger, nullable=False),
+    Column("revision_politique", Integer, nullable=False),
+    Column("source_m3", String(64)),
+    Column("source_m5", String(64)),
+    CheckConstraint(
+        "action IN ('attente','prete','terminee','expiree','refusee')",
+        name="wct_attente_audit_action",
+    ),
+)
