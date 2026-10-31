@@ -46,7 +46,7 @@ spec_v2.loader.exec_module(v2)
 def devis_avec_chantier(monkeypatch):
     import os
 
-    if os.environ.get("QA_CASE") == "wct_avant_devis":
+    if os.environ.get("QA_CASE") in ("wct_avant_devis", "ordre_TDW", "ordre_WDT", "ordre_WTD", "ordre_TWD"):
         drainer_original = f.b._drainer
 
         def drainer_sans_m5(deps, *args, **kwargs):
@@ -282,48 +282,52 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
         assert premiere["equipe_pointee"]["statut"] == "identifiee"
         assert premiere["presence_individuelle"]["statut"] == "inconnue"
     # Deux tarifs fictifs établis par le vrai port de déclaration M5.
+    import os
     from m5_financecore import outils as m5
 
-    with (
-        session(),
-        contexte.appele_par_appareil(contexte.IdentiteAppelante("admin.fictif", "admin", source="console")),
-        contexte.appeler_en_tant_que("m05-financecore", origine="console"),
-    ):
-        for index, (equipe, taux) in enumerate(((equipe1, "100"), (equipe2_id, "120"))):
-            snapshot = m5._lire_tarifs_equipes()
-            m5._inscrire_tarif_equipe(
-                dict(
-                    equipe_id=equipe,
-                    taux=taux,
-                    unite="heure-equipe",
-                    devise="CAD",
-                    source="tarif-fictif",
-                    version="1",
-                    date_effet="2030-01-01",
-                    date_fin="2030-12-31",
-                    remplace_id=None,
-                ),
-                mutation_id=f"FICTIF-AVANT-{index}",
-                source_attendue=snapshot["source"],
-            )
+    def enregistrer_tarifs():
+        with (
+            session(),
+            contexte.appele_par_appareil(contexte.IdentiteAppelante("admin.fictif", "admin", source="console")),
+            contexte.appeler_en_tant_que("m05-financecore", origine="console"),
+        ):
+            for index, (equipe, taux) in enumerate(((equipe1, "100"), (equipe2_id, "120"))):
+                snapshot = m5._lire_tarifs_equipes()
+                m5._inscrire_tarif_equipe(
+                    dict(
+                        equipe_id=equipe,
+                        taux=taux,
+                        unite="heure-equipe",
+                        devise="CAD",
+                        source="tarif-fictif",
+                        version="1",
+                        date_effet="2030-01-01",
+                        date_fin="2030-12-31",
+                        remplace_id=None,
+                    ),
+                    mutation_id=f"FICTIF-AVANT-{index}",
+                    source_attendue=snapshot["source"],
+                )
+    ordre = os.environ.get("QA_CASE", "")
+    if ordre not in ("ordre_DWT", "ordre_WDT", "ordre_WTD"):
+        enregistrer_tarifs()
     # Politique fictive uniquement dans cette base isolée.
     import time
+    import os
 
     from opsys.stockage.schema import OPSYS_INSTANCE, SERVICE_POLITIQUES
     from sqlalchemy import insert, select
 
     with session() as cnx:
         instance_id = cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one()
-        cnx.execute(
-            insert(SERVICE_POLITIQUES).values(
-                instance_id=instance_id,
-                consommateur="m05-financecore",
-                operation="m4.verifier_v3",
-                revision=1,
-                active=True,
-                expire_le=int(time.time()) + 120,
+        if os.environ.get("QA_NEGATIVE") != "no_policy":
+            cnx.execute(
+                insert(SERVICE_POLITIQUES).values(
+                    instance_id=instance_id, consommateur="m05-financecore", operation="m4.verifier_v3",
+                    revision=1, active=True,
+                    expire_le=int(time.time()) + (10 * 86400 if os.environ.get("QA_CASE", "").startswith(("wct_avant_devis", "ordre_")) else 120),
+                )
             )
-        )
     import os
 
     from opsys import service_capability as sc
@@ -331,6 +335,53 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
     from sqlalchemy import update
 
     mode = os.environ.get("QA_CASE", "positif")
+    if mode.startswith("ordre_"):
+        import datetime as dt_qa
+        from opsys.evenements import repartiteur
+        from opsys.stockage.schema import EVENEMENTS_RECUS, WCT_ATTENTES
+        moment = dt_qa.datetime.now(dt_qa.UTC)
+        with session() as cnx:
+            wct_evt = dict(cnx.execute(select(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.evenement_id == wct_id)).mappings().one())
+            devis_evt = dict(cnx.execute(select(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.evenement_id == 'm3-devis-accepte-' + affaire['devis'])).mappings().one())
+        consommateurs = affaire['deps']['m05-financecore'].charger_consommateurs()
+        def livrer_devis():
+            assert repartiteur._livrer_une_paire(devis_evt, 'm05-financecore', consommateurs['m3.devis_accepte'], moment) == 'traite'
+        def livrer_wct():
+            return repartiteur._livrer_une_paire(wct_evt, 'm05-financecore', consommateurs['m4.travaux_termines'], moment)
+        if mode == 'ordre_TDW': livrer_devis()
+        if mode in ('ordre_WDT', 'ordre_WTD', 'ordre_TWD'):
+            assert livrer_wct() == 'attente'
+            with session() as cnx:
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'attente'
+                assert len(list(stockage.maillons('m05-financecore','wct_recus'))) == 1
+            if mode == 'ordre_WTD': enregistrer_tarifs()
+            livrer_devis()
+            if mode == 'ordre_WDT': enregistrer_tarifs()
+            plus_tard = moment + dt_qa.timedelta(days=2)
+            monkeypatch.setattr(sc, 'time', lambda: plus_tard.timestamp())
+            reprise = evenements.repartir({'m05-financecore':affaire['deps']['m05-financecore']}, maintenant=plus_tard.isoformat())
+            assert reprise['echecs'] == 0
+            with session() as cnx:
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'terminee'
+        else:
+            assert livrer_wct() == 'traite'
+        with session() as cnx:
+            recu_wct = dict(cnx.execute(select(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                EVENEMENTS_RECUS.c.consommateur == 'm05-financecore')).mappings().one())
+            traces_service = list(stockage.maillons('m05-financecore','rentabilite_service_v1'))
+            assert recu_wct['statut'] == 'traite' and len(traces_service) == 1
+            trace = list(stockage.maillons('m05-financecore','rentabilite'))[-1]
+            main = trace['rentabilite']['cout_reel']['main_d_oeuvre']['cout']
+            if mode == 'ordre_DWT': assert main is None and trace['verdict'] == 'PARTIELLE'
+            else: assert main == Decimal('730.00')
+        if mode == 'ordre_DWT':
+            enregistrer_tarifs()
+            assert livrer_wct() is None
+            with session() as cnx:
+                assert dict(cnx.execute(select(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                    EVENEMENTS_RECUS.c.consommateur == 'm05-financecore')).mappings().one()) == recu_wct
+                assert list(stockage.maillons('m05-financecore','rentabilite_service_v1')) == traces_service
+        return
     if mode == "wct_avant_devis":
         import datetime as dt_qa
 
@@ -344,8 +395,34 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
             )
             assert not list(stockage.maillons("m05-financecore", "devis_recus"))
         consumer = affaire["deps"]["m05-financecore"].charger_consommateurs()["m4.travaux_termines"]
-        statut = repartiteur._livrer_une_paire(evenement, "m05-financecore", consumer, dt_qa.datetime.now(dt_qa.UTC))
-        if statut != "traite":
+        moment = dt_qa.datetime.now(dt_qa.UTC)
+        cas_attente = os.environ.get("QA_NEGATIVE", "")
+        if cas_attente in ('quota', 'queue_passtarvation', 'review_readers'):
+            from opsys.stockage.schema import WCT_ATTENTES, EVENEMENTS_RECUS
+            nombre_faux = 1000 if cas_attente == 'quota' else (199 if cas_attente == 'review_readers' else 200)
+            fake_events = [dict(evenement_id=f'{i + 1:064x}', type_evenement='m4.travaux_termines', producteur='m04-field-ops', charge='{}', cree_le=moment.isoformat()) for i in range(nombre_faux)]
+            fake_waits = [dict(evenement_id=f'{i + 1:064x}', consommateur='m05-financecore', instance_id=instance_id,
+                devis_id=f'devis-{i}', lead_id=f'lead-{i}', recu_sha256='0'*64, etat='attente', cree_epoch=int(moment.timestamp()),
+                expire_epoch=int(moment.timestamp())+604800, revision_politique=1, source_m3=None) for i in range(nombre_faux)]
+            with session() as cnx:
+                cnx.execute(insert(EVENEMENTS_SORTANTS), fake_events)
+                cnx.execute(insert(EVENEMENTS_RECUS), [dict(evenement_id=f'{i + 1:064x}', consommateur='m05-financecore', statut='echec', tentatives=0) for i in range(nombre_faux)])
+                cnx.execute(insert(WCT_ATTENTES), fake_waits)
+        temps_livraison = moment.replace(tzinfo=None) if cas_attente == 'naive' else moment
+        statut = repartiteur._livrer_une_paire(evenement, "m05-financecore", consumer, temps_livraison)
+        if cas_attente in ('no_policy', 'quota', 'naive'):
+            from opsys.stockage.schema import WCT_ATTENTES, EVENEMENTS_RECUS
+            from opsys.stockage import codec
+            assert statut == 'traite'
+            with session() as cnx:
+                recu = cnx.execute(select(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                    EVENEMENTS_RECUS.c.consommateur == 'm05-financecore')).mappings().one()
+                assert recu['statut'] == 'traite' and len(list(stockage.maillons('m05-financecore','wct_recus'))) == 1
+                assert cnx.execute(select(WCT_ATTENTES).where(WCT_ATTENTES.c.evenement_id == wct_id)).first() is None
+                if cas_attente in ('quota', 'naive'):
+                    assert codec.decoder(recu['resultat'])['attente_non_creee'] == ('quota' if cas_attente == 'quota' else 'horodatage_invalide')
+            return
+        if statut != "attente":
             from opsys.stockage.schema import EVENEMENTS_RECUS
 
             with session() as cnx:
@@ -355,21 +432,282 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                     )
                 ).scalar_one()
             pytest.fail("WCT avant devis: " + str(detail))
-        with session():
+        from opsys.stockage.schema import WCT_ATTENTES, EVENEMENTS_RECUS
+        with session() as cnx:
             recus = list(stockage.maillons("m05-financecore", "wct_recus"))
             assert len(recus) == 1 and recus[0]["wct_id"] == wct_id
             assert not list(stockage.maillons("m05-financecore", "rentabilite_service_v1"))
-        suite = evenements.repartir(
-            {"m05-financecore": affaire["deps"]["m05-financecore"]}, maintenant="2030-06-15T12:00:00-04:00"
-        )
+            attente = cnx.execute(select(WCT_ATTENTES).where(WCT_ATTENTES.c.evenement_id == wct_id)).mappings().one()
+            recu_bus = cnx.execute(select(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                EVENEMENTS_RECUS.c.consommateur == "m05-financecore")).mappings().one()
+            assert attente['etat'] == 'attente' and recu_bus['statut'] == 'echec'
+            assert recu_bus['tentatives'] == 0 and recu_bus['resultat'] is not None
+            assert {'devis_id':affaire['devis'], 'statut':'en_attente_devis_accepte'} in m5.lister_attentes_facturation()['attentes_devis']
+        if cas_attente == 'review_readers':
+            from opsys.evenements.bus import copier_cohorte_provenance_m5_m8
+            with session() as cnx:
+                cohorte, _ = copier_cohorte_provenance_m5_m8(cnx, type_evenement='m5.rentabilite_chantier')
+                assert all(r.consommateur == 'm08-analytics' for r in cohorte.recus)
+                assert all(pub.type_evenement == 'm5.rentabilite_chantier' for pub in cohorte.publications)
+                assert not any(r.evenement_id == wct_id for r in cohorte.recus)
+            lecture = evenements.etat()
+            assert lecture['comptes'].get('attente_piece') == 200, lecture
+            assert lecture['comptes'].get('echec', 0) == 0 and not lecture['quarantaine'], lecture
+            def echouer(charge):
+                raise RuntimeError('echec QA explicite')
+            for i in range(5):
+                maintenant = moment + dt_qa.timedelta(seconds=i * 120)
+                etat = repartiteur._livrer_une_paire(evenement, 'qa-autre', echouer, maintenant)
+                assert etat == ('quarantaine' if i == 4 else 'echec'), etat
+                lecture = evenements.etat()
+                assert lecture['comptes'].get('attente_piece') == 200, lecture
+                if i < 4:
+                    assert lecture['comptes'].get('echec') == 1 and not lecture['quarantaine'], lecture
+                else:
+                    assert lecture['comptes'].get('echec', 0) == 0 and lecture['comptes'].get('quarantaine') == 1, lecture
+                    assert lecture['quarantaine'][0]['tentatives'] == 5, lecture
+            print('LECTURE 200 attentes; 0 erreur; autre consommateur echec puis quarantaine apres 5 essais')
+            return
+        if cas_attente == 'horloge_future':
+            futur_non_autorise = (moment + dt_qa.timedelta(days=30)).isoformat()
+            evenements.repartir({}, maintenant=futur_non_autorise)
+            with session() as cnx:
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'attente'
+        if cas_attente == 'restart_wait':
+            stockage.liberer()
+            with session() as cnx:
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'attente'
+        assert evenements.etat()['comptes'].get('attente_piece', 0) >= 1
+        requetes_source = []
+        if cas_attente == 'source_api':
+            import copy, threading
+            from m3_estimation import service_attente_devis as service_m3
+            from m5_financecore import service_attente_devis as service_m5
+            class FausseRequete:
+                def _verifier(self): raise AssertionError('requête arbitraire accédée')
+            with pytest.raises(ValueError): service_m3.verifier(FausseRequete())
+            with pytest.raises(ValueError): service_m5.verifier(FausseRequete())
+            original = service_m3.verifier
+            def verifier_requete(req):
+                requetes_source.append(req)
+                with pytest.raises(sc.RefusAutorite): copy.copy(req)
+                with monkeypatch.context() as local:
+                    local.setattr(sc, 'monotonic', lambda: req.echeance + 1)
+                    with pytest.raises(sc.RefusAutorite): req._verifier()
+                refus = []
+                def autre_thread():
+                    try: req._verifier()
+                    except sc.RefusAutorite: refus.append(True)
+                fil = threading.Thread(target=autre_thread)
+                fil.start(); fil.join(timeout=5)
+                assert not fil.is_alive() and refus == [True]
+                return original(req)
+            monkeypatch.setattr(service_m3, 'verifier', verifier_requete)
+        if cas_attente == 'other_consumer':
+            appels = []
+            class AutreConsommateur:
+                id = 'qa-autre'
+                evenements_consomme = ['m4.travaux_termines']
+                def charger_consommateurs(self):
+                    def recevoir(charge):
+                        appels.append(charge['wct_id'])
+                        return {'traite':True}
+                    return {'m4.travaux_termines':recevoir}
+            assert evenements.repartir({'qa-autre':AutreConsommateur()}, maintenant=moment.isoformat())['traites'] >= 1
+            assert appels == [wct_id]
+        if cas_attente == 'revoke':
+            with session() as cnx: sc._revoquer(cnx, instance_id, 'm05-financecore')
+        assert repartiteur._livrer_une_paire(evenement, "m05-financecore", consumer, moment) is None
+        jours = 8 if cas_attente == 'expire' else 2
+        plus_tard = (moment + dt_qa.timedelta(days=jours)).isoformat()
+        # Horloge de politique fictive avancée aussi ; la capacité conserve son délai monotone réel de 30 s.
+        monkeypatch.setattr(sc, 'time', lambda: moment.timestamp() + jours * 86400)
+        suite = evenements.repartir({"m05-financecore": affaire["deps"]["m05-financecore"]}, maintenant=plus_tard)
         assert suite["echecs"] == 0
         with session():
             devis = list(stockage.maillons("m05-financecore", "devis_recus"))
-            traces = list(stockage.maillons("m05-financecore", "rentabilite"))
             assert any(d["devis_id"] == affaire["devis"] for d in devis)
-            assert traces and traces[-1]["verdict"] == "PARTIELLE"
-            assert not list(stockage.maillons("m05-financecore", "rentabilite_service_v1"))
             assert list(stockage.maillons("m05-financecore", "wct_recus")) == recus
+        if cas_attente == 'restart_piece':
+            stockage.liberer()
+            with session() as cnx:
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'attente'
+        if cas_attente == 'partial_poison':
+            with session() as cnx:
+                filtre = (EVENEMENTS_RECUS.c.evenement_id == wct_id) & (EVENEMENTS_RECUS.c.consommateur == 'm05-financecore')
+                raw = cnx.execute(select(EVENEMENTS_RECUS.c.resultat).where(filtre)).scalar_one()
+                cnx.execute(update(EVENEMENTS_RECUS).where(filtre).values(resultat='{"devis_id":"faux",' + raw[1:]))
+        if cas_attente == 'wct_poison':
+            from opsys.stockage import codec
+            with session() as cnx:
+                raw = cnx.execute(select(EVENEMENTS_SORTANTS.c.charge).where(EVENEMENTS_SORTANTS.c.evenement_id == wct_id)).scalar_one()
+                assert raw.startswith('{')
+                double = '{"wct_id":"faux",' + raw[1:]
+                cnx.execute(update(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.evenement_id == wct_id).values(charge=double))
+        if cas_attente in ('poison', 'm5_json_double'):
+            from opsys.stockage.schema import REGISTRES
+            with session() as cnx:
+                filtre = (REGISTRES.c.departement == 'm05-financecore') & (REGISTRES.c.registre == 'devis_recus') & (REGISTRES.c.rang == 0)
+                raw = cnx.execute(select(REGISTRES.c.maillon).where(filtre)).scalar_one()
+                valeur = '{}' if cas_attente == 'poison' else '{"devis_id":"faux",' + raw[1:]
+                cnx.execute(update(REGISTRES).where(filtre).values(maillon=valeur))
+        if cas_attente == 'm3_json_double':
+            with session() as cnx:
+                eid = 'm3-devis-accepte-' + affaire['devis']
+                raw = cnx.execute(select(EVENEMENTS_SORTANTS.c.charge).where(EVENEMENTS_SORTANTS.c.evenement_id == eid)).scalar_one()
+                cnx.execute(update(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.evenement_id == eid).values(
+                    charge='{"devis_id":"faux",' + raw[1:]))
+        if cas_attente == 'badlink':
+            from opsys.stockage import codec
+            with session() as cnx:
+                eid = 'm3-devis-accepte-' + affaire['devis']
+                raw = cnx.execute(select(EVENEMENTS_SORTANTS.c.charge).where(EVENEMENTS_SORTANTS.c.evenement_id == eid)).scalar_one()
+                faux = codec.decoder(raw)
+                faux['lead_id'] = 'autre-fictif'
+                cnx.execute(update(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.evenement_id == eid).values(charge=codec.encoder(faux)))
+        if cas_attente in ('source_m3', 'source_m3_tardive', 'm3_ambigu'):
+            from opsys.evenements import attente_wct
+            from opsys.stockage.schema import REGISTRES
+            with session() as cnx:
+                if cas_attente == 'source_m3_tardive':
+                    attente_wct.reconcilier(cnx, dt_qa.datetime.fromisoformat(plus_tard))
+                    assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'prete'
+                if cas_attente == 'm3_ambigu':
+                    registre_m3 = stockage.maillons('m03-estimation', 'devis')
+                    acceptee = next(x for x in registre_m3 if x.get('devis_id') == affaire['devis'] and x.get('statut') == 'accepte')
+                    registre_m3.append(acceptee)
+                else:
+                    cnx.execute(update(REGISTRES).where(REGISTRES.c.departement == 'm03-estimation',
+                        REGISTRES.c.registre == 'devis', REGISTRES.c.rang == 0).values(maillon='{}'))
+        if cas_attente == 'revoke_ready':
+            from opsys.evenements import attente_wct
+            with session() as cnx:
+                attente_wct.reconcilier(cnx, dt_qa.datetime.fromisoformat(plus_tard))
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'prete'
+                sc._revoquer(cnx, instance_id, 'm05-financecore')
+        if cas_attente in ('trigger_m3', 'trigger_m5', 'trigger_policy', 'trigger_inbox', 'late_m3'):
+            from opsys.evenements import attente_wct
+            from opsys.stockage.schema import REGISTRES
+            cible_dep = 'm05-financecore' if cas_attente == 'trigger_m5' else 'm03-estimation'
+            cible_reg = 'devis_recus' if cas_attente == 'trigger_m5' else 'devis'
+            with session() as cnx:
+                attente_wct.reconcilier(cnx, dt_qa.datetime.fromisoformat(plus_tard))
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'prete'
+                avant_raw = cnx.execute(select(REGISTRES.c.maillon).where(REGISTRES.c.departement == cible_dep,
+                    REGISTRES.c.registre == cible_reg, REGISTRES.c.rang == 0)).scalar_one()
+                avant_inbox = cnx.execute(select(EVENEMENTS_RECUS.c.resultat).where(EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                    EVENEMENTS_RECUS.c.consommateur == 'm05-financecore')).scalar_one()
+                if cas_attente == 'trigger_inbox':
+                    cnx.exec_driver_sql("CREATE TRIGGER qa_attaque_source AFTER INSERT ON wct_attentes_audit WHEN NEW.action='terminee' BEGIN "
+                        "UPDATE evenements_recus SET resultat='{}' WHERE evenement_id=NEW.evenement_id AND consommateur='m05-financecore'; END")
+                elif cas_attente == 'trigger_policy':
+                    cnx.exec_driver_sql("CREATE TRIGGER qa_attaque_source AFTER INSERT ON wct_attentes_audit WHEN NEW.action='terminee' BEGIN "
+                        "INSERT INTO service_politiques(instance_id,consommateur,operation,revision,active,expire_le) "
+                        "SELECT instance_id,consommateur,operation,2,0,expire_le FROM service_politiques WHERE operation='m4.verifier_v3' AND revision=1; END")
+                elif cas_attente != 'late_m3':
+                    cnx.exec_driver_sql("CREATE TRIGGER qa_attaque_source AFTER INSERT ON wct_attentes_audit WHEN NEW.action='terminee' BEGIN "
+                        "UPDATE registres_maillons SET maillon='{}' WHERE departement='" + cible_dep + "' AND registre='" + cible_reg + "' AND rang=0; END")
+            publier_original = m5._publier_rentabilite
+            if cas_attente == 'late_m3':
+                def publier_modifier_m3(*args, **kw):
+                    sortie = publier_original(*args, **kw)
+                    stockage.connexion_courante().execute(update(REGISTRES).where(REGISTRES.c.departement == cible_dep,
+                        REGISTRES.c.registre == cible_reg, REGISTRES.c.rang == 0).values(maillon='{}'))
+                    return sortie
+                monkeypatch.setattr(m5, '_publier_rentabilite', publier_modifier_m3)
+            assert repartiteur._livrer_une_paire(evenement, 'm05-financecore', consumer,
+                dt_qa.datetime.fromisoformat(plus_tard)) == 'echec'
+            with session() as cnx:
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'prete'
+                assert cnx.execute(select(REGISTRES.c.maillon).where(REGISTRES.c.departement == cible_dep,
+                    REGISTRES.c.registre == cible_reg, REGISTRES.c.rang == 0)).scalar_one() == avant_raw
+                assert not list(stockage.maillons('m05-financecore','rentabilite_service_v1'))
+                assert cnx.execute(select(EVENEMENTS_RECUS.c.resultat).where(EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                    EVENEMENTS_RECUS.c.consommateur == 'm05-financecore')).scalar_one() == avant_inbox
+                if cas_attente != 'late_m3': cnx.exec_driver_sql('DROP TRIGGER qa_attaque_source')
+            if cas_attente == 'late_m3': monkeypatch.setattr(m5, '_publier_rentabilite', publier_original)
+            plus_tard = (dt_qa.datetime.fromisoformat(plus_tard) + dt_qa.timedelta(seconds=10)).isoformat()
+        if cas_attente == 'crash':
+            from opsys.evenements import attente_wct
+            with session() as cnx:
+                attente_wct.reconcilier(cnx, dt_qa.datetime.fromisoformat(plus_tard))
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'prete'
+            def consommer_puis_interrompre(charge):
+                consumer(charge)
+                raise RuntimeError('interruption fictive après écriture')
+            assert repartiteur._livrer_une_paire(evenement, 'm05-financecore', consommer_puis_interrompre,
+                dt_qa.datetime.fromisoformat(plus_tard)) == 'echec'
+            with session() as cnx:
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'prete'
+                assert not list(stockage.maillons('m05-financecore', 'rentabilite_service_v1'))
+            plus_tard = (dt_qa.datetime.fromisoformat(plus_tard) + dt_qa.timedelta(seconds=10)).isoformat()
+        if cas_attente in ('quarantaine', 'expire_prete', 'review_hidden_failure'):
+            from opsys.evenements import attente_wct
+            with session() as cnx:
+                attente_wct.reconcilier(cnx, dt_qa.datetime.fromisoformat(plus_tard))
+                assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'prete'
+            if cas_attente in ('quarantaine', 'review_hidden_failure'):
+                def echouer(_charge): raise RuntimeError('échec fictif')
+                base = dt_qa.datetime.fromisoformat(plus_tard)
+                for i in range(5):
+                    monkeypatch.setattr(sc, 'time', lambda: (base + dt_qa.timedelta(seconds=30 * i)).timestamp())
+                    statut_echec = repartiteur._livrer_une_paire(evenement, 'm05-financecore', echouer,
+                        base + dt_qa.timedelta(seconds=30 * i))
+                    assert statut_echec == ('quarantaine' if i == 4 else 'echec')
+                    if cas_attente == 'review_hidden_failure' and i < 4:
+                        observation = evenements.etat()
+                        assert observation['comptes'].get('echec', 0) == 1, observation
+                with session() as cnx:
+                    assert cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one() == 'refusee'
+                    assert cnx.execute(select(EVENEMENTS_RECUS.c.statut).where(EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                        EVENEMENTS_RECUS.c.consommateur == 'm05-financecore')).scalar_one() == 'quarantaine'
+                    assert not list(stockage.maillons('m05-financecore', 'rentabilite_service_v1'))
+                return
+            plus_tard = (moment + dt_qa.timedelta(days=8)).isoformat()
+            monkeypatch.setattr(sc, 'time', lambda: moment.timestamp() + 8 * 86400)
+        if cas_attente == 'concurrent':
+            import threading
+            barriere = threading.Barrier(2)
+            erreurs = []
+            def repartir_concurrent():
+                try:
+                    barriere.wait(timeout=5)
+                    evenements.repartir({"m05-financecore": affaire["deps"]["m05-financecore"]}, maintenant=plus_tard)
+                except Exception as exc: erreurs.append(repr(exc))
+            fils = [threading.Thread(target=repartir_concurrent) for _ in range(2)]
+            for fil in fils: fil.start()
+            for fil in fils: fil.join(timeout=25)
+            assert not any(fil.is_alive() for fil in fils) and not erreurs, erreurs
+        reprise = evenements.repartir({"m05-financecore": affaire["deps"]["m05-financecore"]}, maintenant=plus_tard)
+        assert reprise["echecs"] == 0
+        if cas_attente in ('expire', 'expire_prete', 'revoke', 'revoke_ready', 'poison', 'badlink', 'source_m3', 'source_m3_tardive', 'm3_ambigu', 'wct_poison', 'm3_json_double', 'm5_json_double', 'partial_poison'):
+            with session() as cnx:
+                etat_attente = cnx.execute(select(WCT_ATTENTES.c.etat).where(WCT_ATTENTES.c.evenement_id == wct_id)).scalar_one()
+                assert etat_attente == ('expiree' if cas_attente in ('expire', 'expire_prete') else 'refusee')
+                recu_bus = cnx.execute(select(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                    EVENEMENTS_RECUS.c.consommateur == 'm05-financecore')).mappings().one()
+                assert recu_bus['statut'] == ('echec' if cas_attente == 'partial_poison' else 'traite')
+                assert not list(stockage.maillons('m05-financecore', 'rentabilite_service_v1'))
+                assert list(stockage.maillons('m05-financecore', 'wct_recus')) == recus
+            return
+        with session() as cnx:
+            attente = cnx.execute(select(WCT_ATTENTES).where(WCT_ATTENTES.c.evenement_id == wct_id)).mappings().one()
+            recu_bus = cnx.execute(select(EVENEMENTS_RECUS).where(EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                EVENEMENTS_RECUS.c.consommateur == "m05-financecore")).mappings().one()
+            assert attente['etat'] == 'terminee' and recu_bus['statut'] == 'traite'
+            from opsys.stockage.schema import WCT_ATTENTES_AUDIT
+            audits = cnx.execute(select(WCT_ATTENTES_AUDIT).where(WCT_ATTENTES_AUDIT.c.evenement_id == wct_id)
+                .order_by(WCT_ATTENTES_AUDIT.c.id)).mappings().all()
+            assert [x['action'] for x in audits] == ['attente', 'prete', 'terminee']
+            assert audits[1]['source_m3'] and audits[1]['source_m3'] == audits[2]['source_m3']
+            assert audits[1]['source_m5'] and audits[1]['source_m5'] == audits[2]['source_m5']
+            assert len(list(stockage.maillons("m05-financecore", "rentabilite_service_v1"))) == 1
+            assert list(stockage.maillons("m05-financecore", "wct_recus")) == recus
+            trace = list(stockage.maillons("m05-financecore", "rentabilite"))[-1]
+            assert trace['rentabilite']['cout_reel']['main_d_oeuvre']['cout'] == Decimal('730.00')
+        if cas_attente == 'source_api':
+            assert requetes_source
+            with pytest.raises(sc.RefusAutorite): requetes_source[-1]._verifier()
         return
     with session() as cnx:
         traces_avant = list(stockage.maillons("m05-financecore", "rentabilite"))
@@ -652,6 +990,20 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
             ).scalar_one()
         pytest.fail("livraison fictive: " + str(detail))
     assert r["traites"] >= 1 and r["echecs"] == 0, r
+    if mode == 'console_sans_policy':
+        from opsys.stockage.schema import WCT_ATTENTES
+        with session() as cnx:
+            assert not list(stockage.maillons('m05-financecore','rentabilite_service_v1'))
+            assert not cnx.execute(select(WCT_ATTENTES)).all()
+            traces = list(stockage.maillons('m05-financecore','rentabilite'))
+            assert traces and traces[-1]['verdict'] == 'PARTIELLE'
+        url = f"/crm/lead/{affaire['lead']}/soumissions/{affaire['devis']}/couts-travaux/export.json"
+        response = catalogue.get(url)
+        assert response.status_code == 200, response.text
+        vue_sans_politique = response.json()['vue']
+        assert vue_sans_politique['historique_service']['nombre'] == 0
+        assert vue_sans_politique['chantier']['trace']['a_jour'] is False or vue_sans_politique['chantier']['rentabilite']['verdict'] == 'PARTIELLE'
+        return
     from opsys.stockage.schema import SERVICE_AUDIT
 
     with session() as cnx:
@@ -747,6 +1099,75 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
     with session():
         assert list(stockage.maillons("m05-financecore", "rentabilite")) == apres
         assert list(stockage.maillons("m05-financecore", "rentabilite_service_v1")) == recus_apres
+    if mode == 'v2_apres_tarif':
+        from opsys import service_history_m4, service_recalcul_m4
+        from opsys.stockage import codec
+        from opsys.stockage.schema import EVENEMENTS_RECUS, SERVICE_RECALCUL_INTENTIONS, SERVICE_RECALCUL_ATTESTATIONS, SERVICE_RECALCUL_RESULTATS
+        with session() as cnx:
+            ancien = list(stockage.maillons('m05-financecore','rentabilite_service_v1'))
+            assert len(ancien) == 1
+            histoire_v1 = service_history_m4.lire_historique(cnx, f.AUTH, ancien[0])
+            assert histoire_v1['fraicheur'] == 'historique_non_revalidee'
+            reception_avant = dict(cnx.execute(select(EVENEMENTS_RECUS).where(
+                EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                EVENEMENTS_RECUS.c.consommateur == 'm05-financecore')).mappings().one())
+        with (session(), contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+              contexte.appeler_en_tant_que('m05-financecore', origine='console')):
+            snapshot = m5._lire_tarifs_equipes()
+            premier = next(x for x in snapshot['lignes'] if x['equipe_id'] == equipe1)
+            revision = {k: premier[k] for k in ('equipe_id','taux','unite','devise','source','version','date_effet','date_fin','remplace_id')}
+            revision.update(taux='101', source='tarif-revise-fictif', version='2', remplace_id=premier['ligne_id'])
+            m5._inscrire_tarif_equipe(revision, mutation_id='FICTIF-REVISION-V2', source_attendue=snapshot['source'])
+        with session() as cnx:
+            charges = sorted([codec.decoder(x) for x in cnx.execute(select(EVENEMENTS_SORTANTS.c.charge).where(
+                EVENEMENTS_SORTANTS.c.type_evenement == 'm5.rentabilite_chantier')).scalars()], key=lambda x: x['sequence'])
+            assert charges[-1]['verdict'] == 'PARTIELLE'
+            assert service_history_m4.lire_historique(cnx, f.AUTH, ancien[0]) == histoire_v1
+            with pytest.raises(sc.RefusAutorite):
+                service_recalcul_m4._executer_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis'], intention_id='b'*64)
+            with pytest.raises(sc.RefusAutorite, match='NON_QUALIFIE'):
+                service_recalcul_m4.ouvrir(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis'], intention_id='b'*64)
+            cnx.execute(insert(SERVICE_POLITIQUES).values(instance_id=instance_id, consommateur='m05-financecore',
+                operation='m4.recalculer_v3', revision=1, active=True, expire_le=int(time.time()) + 120))
+            cas = os.environ.get('QA_NEGATIVE', '')
+            if cas in ('typed_frontiere_m5','typed_frontiere_core'):
+                from m5_financecore import port_service_m4 as port
+                if cas == 'typed_frontiere_m5':
+                    original = service_recalcul_m4._CapaciteRecalcul.attester_recalcul_m4
+                    def fausser(cap, enveloppe, rang, empreinte):
+                        ref = original(cap, enveloppe, rang, empreinte)
+                        assert type(ref['revision_recalcul']) is int and ref['revision_recalcul'] == 1
+                        return {**ref, 'revision_recalcul':True}
+                    monkeypatch.setattr(service_recalcul_m4._CapaciteRecalcul, 'attester_recalcul_m4', fausser)
+                else:
+                    original = port.publier
+                    def fausser_resultat(*args, **kwargs):
+                        resultat = original(*args, **kwargs)
+                        return {**resultat, 'attestation':{**resultat['attestation'], 'revision_recalcul':True}}
+                    monkeypatch.setattr(port, 'publier', fausser_resultat)
+                traces_avant = list(stockage.maillons('m05-financecore','rentabilite'))
+                with pytest.raises(sc.RefusAutorite):
+                    service_recalcul_m4._executer_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis'], intention_id='b'*64)
+                assert list(stockage.maillons('m05-financecore','rentabilite')) == traces_avant
+                assert not cnx.execute(select(SERVICE_RECALCUL_INTENTIONS)).all()
+                assert not cnx.execute(select(SERVICE_RECALCUL_ATTESTATIONS)).all()
+                assert not cnx.execute(select(SERVICE_RECALCUL_RESULTATS)).all()
+                assert not list(stockage.maillons('m05-financecore','rentabilite_recalcul_v2'))
+            else:
+                reponse = service_recalcul_m4._executer_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis'], intention_id='b'*64)
+                assert reponse['statut'] == 'publiee'
+                assert reponse['attestation']['operation'] == 'm4.recalculer_v3'
+                traces = list(stockage.maillons('m05-financecore','rentabilite'))
+                assert traces[-1]['rentabilite']['cout_reel']['main_d_oeuvre']['cout'] == Decimal('732.50')
+                assert list(stockage.maillons('m05-financecore','rentabilite_service_v1')) == ancien
+                assert service_history_m4.lire_historique(cnx, f.AUTH, ancien[0]) == histoire_v1
+                historique_v2 = service_recalcul_m4.lire_historique_v2(cnx, f.AUTH, 'b'*64)
+                assert historique_v2['statut'] == 'historique_non_revalidee'
+                assert historique_v2['attestation'] == reponse['attestation']
+                assert service_recalcul_m4._executer_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis'], intention_id='b'*64)['statut'] == 'deja_executee'
+            assert dict(cnx.execute(select(EVENEMENTS_RECUS).where(
+                EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                EVENEMENTS_RECUS.c.consommateur == 'm05-financecore')).mappings().one()) == reception_avant
     return
     # Les taux fictifs sont écrits dans le registre privé réel : ils ne prouvent
     # pas que les personnes pointées représentent une équipe historique.
