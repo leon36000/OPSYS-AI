@@ -16,10 +16,9 @@ FICTIF = True
 M9 = Path(__file__).resolve().parents[1]
 CORPUS = json.loads((M9 / "evals" / "corpus-metier-v1.json").read_text(encoding="utf-8"))
 SOURCE = M9 / "src" / "m9_strategic_intelligence" / "evaluation_metier.py"
-# État APRÈS correction des montants libres (mêmes entrées figées) : restent l'âge des lectures non exposé au conseil
-# (lea-A08, corrigé au commit suivant) et deux limites connues déclarées dans le corpus.
+# État APRÈS les deux corrections (mêmes entrées figées) : ne restent que les deux limites connues déclarées dans le
+# corpus (avant correction : 7 rouges, voir preuves-evaluation-metier/EVAL-METIER-avant-correction-*.json).
 ROUGES_ATTENDUS = {
-    "lea-A08",  # l'âge des lectures n'est pas exposé au conseil
     "mkt-A07",  # limite connue : type d'action déclaré par le modèle
     "rep-V02",  # limite connue : entier nu en texte libre
 }
