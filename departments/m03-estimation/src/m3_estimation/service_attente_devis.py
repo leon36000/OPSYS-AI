@@ -25,6 +25,18 @@ def verifier(requete):
 
     if type(requete) is not attente_wct._RequeteSource:
         raise ValueError("requête source non qualifiée")
+    return _verifier_commun(requete)["empreinte"]
+
+
+def _verifier_commun(requete):
+    """Contrôles M3 communs, réservés aux deux types de portée Core."""
+    from opsys.evenements import attente_wct
+
+    if type(requete) is not attente_wct._RequeteSource:
+        from opsys import service_lecture_m4
+
+        if type(requete) is not getattr(service_lecture_m4, "_RequeteDevisM3", None):
+            raise ValueError("requête source non qualifiée")
     cnx, evenement_id, devis_id, lead_id = requete._verifier()
     if (
         cnx is not stockage.connexion_courante()
@@ -98,4 +110,7 @@ def verifier(requete):
     if any(a.empreinte_snapshot_calculee != b.empreinte_snapshot_calculee for a, b in zip(avant, apres, strict=True)):
         raise ValueError("source M3 modifiée")
     requete._verifier()
-    return hashlib.sha256(_canon({"charge": charge, "devis": devis, "estimation": source})).hexdigest()
+    return {
+        "charge": charge,
+        "empreinte": hashlib.sha256(_canon({"charge": charge, "devis": devis, "estimation": source})).hexdigest(),
+    }
