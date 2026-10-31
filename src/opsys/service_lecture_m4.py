@@ -20,7 +20,15 @@ from . import service_capability as sc
 from . import service_recalcul_m4 as recalcul
 from .stockage import codec
 from .stockage.moteur import _debuter_sqlite
-from .stockage.schema import OPSYS_INSTANCE, SERVICE_POLITIQUES
+from .stockage.schema import (
+    OPSYS_INSTANCE,
+    SERVICE_ATTESTATIONS_M4,
+    SERVICE_AUDIT,
+    SERVICE_POLITIQUES,
+    SERVICE_RECALCUL_ATTESTATIONS,
+    SERVICE_RECALCUL_INTENTIONS,
+    SERVICE_RECALCUL_RESULTATS,
+)
 
 _OPERATION = "m4.relire_faits_pour_m5_v1"
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
@@ -180,13 +188,156 @@ class _RequeteDevisM3:
         raise sc.RefusAutorite("sérialisation interdite")
 
 
+def empreinte_trace_v1(trace):
+    """Empreinte pure bornée ; ne lit aucun registre et ne confère aucune autorité."""
+    from .service_history_m4 import _hash_trace
+
+    if type(trace) is not dict:
+        raise sc.RefusAutorite("trace V1 invalide")
+    return _hash_trace(trace)
+
+
+def _audit(cnx, identifiant, instance, wct_id, operation, revision):
+    ligne = cnx.execute(select(SERVICE_AUDIT).where(SERVICE_AUDIT.c.id == identifiant)).mappings().one_or_none()
+    if (
+        ligne is None
+        or type(ligne["id"]) is not int
+        or ligne["id"] != identifiant
+        or ligne["instance_id"] != instance
+        or ligne["evenement_id"] != wct_id
+        or ligne["consommateur"] != sc._CONSOMMATEUR
+        or ligne["operation"] != operation
+        or type(ligne["revision"]) is not int
+        or ligne["revision"] != revision
+        or ligne["action"] != "usage"
+    ):
+        raise sc.RefusAutorite("audit historique invalide")
+
+
+def _reference_historique(p, reference):
+    p._verifier()
+    if type(reference) is not dict or type(reference.get("schema")) is not str:
+        raise sc.RefusAutorite("référence historique invalide")
+    if reference["schema"] == "opsys.core.m4.audit-usage.v1":
+        if (
+            set(reference) != {"schema", "id", "instance_id", "evenement_id", "operation", "revision"}
+            or any(type(reference[k]) is not str for k in ("schema", "instance_id", "evenement_id", "operation"))
+            or type(reference["id"]) is not int
+            or not 0 < reference["id"] <= 2**63 - 1
+            or type(reference["revision"]) is not int
+            or not 0 < reference["revision"] <= 2**63 - 1
+            or reference["instance_id"] != p.instance
+            or reference["evenement_id"] != p.wct_id
+            or reference["operation"] != "m4.verifier_v3"
+        ):
+            raise sc.RefusAutorite("référence V1 invalide")
+        _audit(p.cnx, reference["id"], p.instance, p.wct_id, "m4.verifier_v3", reference["revision"])
+        row = (
+            p.cnx.execute(select(SERVICE_ATTESTATIONS_M4).where(SERVICE_ATTESTATIONS_M4.c.audit_id == reference["id"]))
+            .mappings()
+            .one_or_none()
+        )
+        if (
+            row is None
+            or row["instance_id"] != p.instance
+            or row["evenement_id"] != p.wct_id
+            or type(row["audit_id"]) is not int
+            or row["audit_id"] != reference["id"]
+            or type(row["revision"]) is not int
+            or row["revision"] != reference["revision"]
+            or type(row["trace_rang"]) is not int
+            or not 0 <= row["trace_rang"] < 1000
+            or any(
+                type(row[k]) is not str or not _HEX.fullmatch(row[k])
+                for k in ("trace_sha256", "source_m4", "projection_sha256")
+            )
+            or type(row["version_m4"]) is not str
+            or not 1 <= len(row["version_m4"]) <= 64
+        ):
+            raise sc.RefusAutorite("attestation historique V1 invalide")
+        resultat = {
+            "schema": "opsys.core.m4.historique-v1",
+            "statut": "historique_non_revalide",
+            "instance_id": p.instance,
+            "wct_id": p.wct_id,
+            **{
+                key: row[key]
+                for key in (
+                    "audit_id",
+                    "revision",
+                    "trace_rang",
+                    "trace_sha256",
+                    "source_m4",
+                    "projection_sha256",
+                    "version_m4",
+                )
+            },
+        }
+    elif reference["schema"] == "opsys.core.m4.recalcul-attestation.v2":
+        recalcul.valider_reference_v2(reference)
+        if (
+            reference["instance_id"] != p.instance
+            or reference["wct_id"] != p.wct_id
+            or reference["devis_id"] != p.devis_id
+        ):
+            raise sc.RefusAutorite("référence V2 hors portée")
+        ident = reference["intention_id"]
+        intention = (
+            p.cnx.execute(
+                select(SERVICE_RECALCUL_INTENTIONS).where(SERVICE_RECALCUL_INTENTIONS.c.intention_id == ident)
+            )
+            .mappings()
+            .one_or_none()
+        )
+        attestation = (
+            p.cnx.execute(
+                select(SERVICE_RECALCUL_ATTESTATIONS).where(SERVICE_RECALCUL_ATTESTATIONS.c.intention_id == ident)
+            )
+            .mappings()
+            .one_or_none()
+        )
+        publication = (
+            p.cnx.execute(select(SERVICE_RECALCUL_RESULTATS).where(SERVICE_RECALCUL_RESULTATS.c.intention_id == ident))
+            .mappings()
+            .one_or_none()
+        )
+        if intention is None or attestation is None or publication is None:
+            raise sc.RefusAutorite("preuve historique V2 absente")
+        canonique = recalcul._reference(dict(intention), dict(attestation))
+        if recalcul._reference_canonique(canonique) != recalcul._reference_canonique(reference):
+            raise sc.RefusAutorite("preuve historique V2 divergente")
+        if (
+            publication["statut"] != "publiee"
+            or type(publication["version"]) is not str
+            or not 1 <= len(publication["version"]) <= 256
+        ):
+            raise sc.RefusAutorite("résultat historique V2 invalide")
+        for ident_audit, operation, revision in (
+            (reference["audit_recalcul_id"], "m4.recalculer_v3", reference["revision_recalcul"]),
+            (reference["audit_service_id"], "m4.verifier_v3", reference["revision_service"]),
+        ):
+            _audit(p.cnx, ident_audit, p.instance, p.wct_id, operation, revision)
+        resultat = {
+            "schema": "opsys.core.m4.historique-v2",
+            "statut": "historique_non_revalide",
+            "reference": copy.deepcopy(canonique),
+            "version_resultat": publication["version"],
+        }
+    else:
+        raise sc.RefusAutorite("version historique inconnue")
+    p._verifier()
+    _canonique(resultat)
+    return resultat
+
+
 class _Capacite:
-    __slots__ = ("portee", "devis_id", "_liaison", "_enveloppes", "_occupee", "_preuves_m3")
+    __slots__ = ("portee", "devis_id", "_liaison", "_enveloppes", "_occupee", "_preuves_m3", "_historiques")
 
     def __init__(self, portee):
         self.portee, self.devis_id = portee, portee.devis_id
         self._liaison, self._enveloppes, self._occupee = object(), [], False
         self._preuves_m3 = []
+        self._historiques = []
 
     def __copy__(self):
         raise sc.RefusAutorite("copie interdite")
@@ -299,6 +450,14 @@ class _Capacite:
             raise sc.RefusAutorite("source M3 modifiée")
         return copy.deepcopy(preuve)
 
+    def verifier_reference_publication(self, reference):
+        if contexte.DEPARTEMENT_APPELANT.get() != sc._CONSOMMATEUR or len(self._historiques) >= 16:
+            raise sc.RefusAutorite("lecture historique réservée à M5")
+        resultat = _reference_historique(self.portee, reference)
+        copie = json.loads(_canonique(reference))
+        self._historiques.append((copie, _canonique(resultat)))
+        return copy.deepcopy(resultat)
+
     def _final(self):
         if not self._enveloppes:
             raise sc.RefusAutorite("aucune projection vérifiée")
@@ -320,6 +479,9 @@ class _Capacite:
             # avant de libérer la portée, même en cas de mutation réentrante.
             for enveloppe, _ in self._enveloppes:
                 self._verifier_projection(enveloppe)
+        for reference, attendu in self._historiques:
+            if _canonique(_reference_historique(self.portee, reference)) != attendu:
+                raise sc.RefusAutorite("preuve historique modifiée")
         self.portee._verifier()
 
 
