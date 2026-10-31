@@ -1,0 +1,9 @@
+DATES_PAGE 200
+DATES_FORMES [['csrf'], ['csrf', 'revision_attendue', 'mutation_id', 'empreinte_memoire_attendue', 'date_0']]
+CONFIRMATION_DATE 303 /crm/cedule/plan/e5972a185fd9b08d877d11b74487c57a1c545794c5225b4a89f14fcf5f3e8b0c
+APRES_DATE 200 OPERATIONS [None, 'prevoir']
+Traceback (most recent call last):
+  File "/tmp/opsys-m4-http-suite-kepXNO/live-correctif-03.py", line 6, in <module>
+    prevoir=form(f,'prevoir');r=s.post(p,data=prevoir,follow_redirects=False,timeout=5);print('PREVOIR_REPRISE',r.status_code);assert r.status_code==303,r.text
+            ^^^^^^^^^^^^^^^^^
+TypeError: 'dict' object is not callable

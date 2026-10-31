@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 177 outils sur 306 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 179 outils sur 311 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (176 outils) : §9.5 + employé + vendeur
+### `admin` (178 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -139,6 +139,8 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M4 | `m4_confirmer_dates_cedule` (N3), `m4_lire_calendrier_plan`, `m4_lire_cedule_semaine` (N0) | Calendrier civil explicite d’un plan déjà appliqué, révision et historique ; admin SQL actif. Plan interne seulement, sans confirmation client ni promesse globale de disponibilité. |
 | M4 | `m4_lire_absence_journaliere_console` (N0, transport console privé seulement) | Admin SQL actif et origine/source console, aucun MCP/appareil direct/agent ; source SQLite canonique et session contrôlée par le port privé. Absence signalée seulement, aucune présence/heure/paie déduite ; aucun droit de compte ajouté. |
 | M4 | `m4_lire_journal_quotidien` (N0, transport console privé seulement) | Admin SQL actif, origine/source console et transport MCP absent. Appels d'appareil directs et agents refusés ; les deux répartiteurs génériques ferment avant normalisation/factory/reçu. Prévisions historiques et pointages minimisés, sans durée, absence ni composition d'équipe déduites. Aucun droit de compte ajouté. |
+| M4 | `m4_lire_visites_console` (T0), `m4_replanifier_visite_console` (T1) | Déclarés au catalogue admin comme le journal privé, mais exécutables seulement avec admin SQL actif, origine et source console et sans transport MCP ; appareils directs et agents refusés. La replanification exige les sources courantes et ne complète pas le chantier. Aucun nouveau droit de compte. |
+| M4 | `m4_interrompre_visite_console_v2` (T1, non projeté aux appareils) | Port privé distinct du contrat v1 gelé `m4_signaler_report` : admin SQL actif, origine et source console, transport MCP absent, source et visite fermée vérifiées. L'heure de réception du serveur fait foi ; aucun WCT n'est créé. |
 | M6 | `m6_enregistrer_note_commande` (N3), `m6_lire_note_commande`, `m6_lister_notes_commande` (N0) | Notes privées liées au devis et chantier connus, admin SQL actif. Versionnement et rejeu lié à la personne ; liste bornée sans texte, lecture sans artefact générique. Aucun PO, envoi, dépense ou mouvement de stock. |
 | M3 | `m3_evaluer_calibration_cohortes`, `m3_proposer_calibration_temps` (N2), `m3_evaluer_candidate_calibration` (N2), `m3_activer_candidate_calibration`, `m3_rollback_candidate_calibration` (N4) | Boucle de calibration du temps à partir des cohortes et faits M4 vérifiés. Les candidates restent inactives jusqu'à une décision N4 du seul propriétaire; activation et rollback ne réécrivent jamais les devis ou estimations historiques. Aucun prix, coût ou facteur photo n'est modifié. |
 | M4 | `m4_lister_pending_review`, `m4_volumetrie_pending_review`, `m4_produire_digest` | §9.5 M4 : dispatch du jour, file de complétion. |

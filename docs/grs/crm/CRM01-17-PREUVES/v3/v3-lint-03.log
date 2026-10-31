@@ -1,0 +1,26 @@
+E501 Line too long (121 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v3.py:99:121
+    |
+ 97 |             raise temps_certifies_v2.Refus('SOURCE-PERIMEE')
+ 98 |         copie = json.loads(json.dumps(recu['projection']))
+ 99 |         instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one_or_none()
+    |                                                                                                                         ^
+100 |         if (temps_certifies_v2._sources(cnx) != captures or _qualifier(cnx, copie, snapshot) != audits
+101 |                 or instance != projection['instance_id']):
+    |
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> departments/m04-field-ops/tests/test_temps_certifies_v3.py:228:5
+    |
+226 |               savepoint.rollback()
+227 |       stockage.liberer()
+228 | /     with stockage.transaction(base_durable) as cnx:
+229 | |         with (contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+230 | |               contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+    | |________________________________________________________________________________^
+231 |               assert temps_certifies_v3.projeter(cnx, iid, wct['wct_id'],
+232 |                                                   source_attendue=sortie_v3['source']) == sortie_v3
+    |
+help: Combine `with` statements
+
+Found 3 errors (1 fixed, 2 remaining).

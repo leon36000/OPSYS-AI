@@ -1,0 +1,17 @@
+..F                                                                      [100%]
+=================================== FAILURES ===================================
+____________ test_pointage_v3_enregistre_preuve_typee_avec_autorite ____________
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-pc6/pytest-8/test_pointage_v3_enregistre_pr0/opsys.db'
+tmp_path = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-pc6/pytest-8/test_pointage_v3_enregistre_pr0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xe597fa2b7560>
+
+    def test_pointage_v3_enregistre_preuve_typee_avec_autorite(base_durable, tmp_path, monkeypatch):
+        from datetime import UTC, datetime
+    
+>       from m4_field_ops import calendrier_civil, cedule, cedule_tournees, equipes_pointees_v3, etats, visites_chantier
+E       ImportError: cannot import name 'equipes_pointees_v3' from 'm4_field_ops' (/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/departments/m04-field-ops/src/m4_field_ops/__init__.py)
+
+departments/m04-field-ops/tests/test_temps_certifies_v3.py:63: ImportError
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_temps_certifies_v3.py::test_pointage_v3_enregistre_preuve_typee_avec_autorite

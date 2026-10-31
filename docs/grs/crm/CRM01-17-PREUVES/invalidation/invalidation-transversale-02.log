@@ -1,0 +1,42 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________________ test_composition_sans_lien_change_cas_v3 ___________________
+
+chantier_termine = {'url': 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-p...003cc97370', 'wct_id': '2f5e22bd949a07a4f35098b80e720c5e7632cea25aacfa5fbf62d51a4397b9f9', 'equipes': ['eq-a', 'eq-b']}
+
+    def test_composition_sans_lien_change_cas_v3(chantier_termine):
+        cas = chantier_termine
+        with (stockage.transaction(cas['url']) as cnx,
+              contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+              contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+>           avant = temps_certifies_v3.projeter(cnx, cas['iid'], cas['wct_id'])
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+../preuves-m4-v2/invalidation-transversale-01.py:27: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+departments/m04-field-ops/src/m4_field_ops/temps_certifies_v3.py:128: in projeter
+    auteur = temps_certifies_v2._autoriser(cnx)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:36: in _autoriser
+    from .outils import _autoriser_annotation
+departments/m04-field-ops/src/m4_field_ops/outils.py:55: in <module>
+    from . import (
+departments/m04-field-ops/src/m4_field_ops/revue_completion_sources.py:10: in <module>
+    from opsys import contrats_variance_m6 as variance_materiaux
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Interface explicite vers les contrats canoniques de variance matériaux M6.
+    
+    Aucun outil/factory M6 ni calcul recopié : validateurs et projections sont les
+    fonctions originales. Leur import reste transitivement lié aux adaptateurs SQL
+    M6 ; cette interface ne revendique pas un graphe d’import strictement pur.
+    Les appelants fournissent leurs copies de sources et gardent leurs propres accès.
+    """
+    
+>   from m6_material_control import besoins_prevus
+E   ModuleNotFoundError: No module named 'm6_material_control'
+
+src/opsys/contrats_variance_m6.py:9: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED ../preuves-m4-v2/invalidation-transversale-01.py::test_composition_sans_lien_change_cas_v3
+1 failed in 1.03s

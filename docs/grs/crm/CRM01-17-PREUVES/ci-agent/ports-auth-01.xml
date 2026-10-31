@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="9" failures="0" skipped="0" tests="11" time="0.731" timestamp="2026-10-28T18:11:19.517079-04:00" hostname="gx10-e526"><testcase classname="tests.test_console_report_visite_v2" name="test_contrats_report_v1_et_interruption_privee_v2_distincts" time="0.001" /><testcase classname="tests.test_console_report_visite_v2" name="test_interruption_privee_v2_refuse_sans_identite_console" time="0.001" /><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_interrompre_visite_console_v2-appareil-m04-field-ops-False]" time="0.000"><error message="failed on setup with &quot;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41&#10;  @pytest.mark.parametrize('source,origine,mcp', [&#10;      ('appareil', 'm04-field-ops', False),&#10;      ('console', 'm04-field-ops', False),&#10;      ('console', 'console', True),&#10;  ])&#10;  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',&#10;                                   'm4_lire_visites_console'])&#10;  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):&#10;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26&#10;  @pytest.fixture&#10;  def planning(client_crm):&#10;E       fixture 'client_crm' not found&#10;&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26&quot;">file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41
+  @pytest.mark.parametrize('source,origine,mcp', [
+      ('appareil', 'm04-field-ops', False),
+      ('console', 'm04-field-ops', False),
+      ('console', 'console', True),
+  ])
+  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',
+                                   'm4_lire_visites_console'])
+  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26
+  @pytest.fixture
+  def planning(client_crm):
+E       fixture 'client_crm' not found
+&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26</error></testcase><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_interrompre_visite_console_v2-console-m04-field-ops-False]" time="0.000"><error message="failed on setup with &quot;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41&#10;  @pytest.mark.parametrize('source,origine,mcp', [&#10;      ('appareil', 'm04-field-ops', False),&#10;      ('console', 'm04-field-ops', False),&#10;      ('console', 'console', True),&#10;  ])&#10;  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',&#10;                                   'm4_lire_visites_console'])&#10;  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):&#10;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26&#10;  @pytest.fixture&#10;  def planning(client_crm):&#10;E       fixture 'client_crm' not found&#10;&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26&quot;">file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41
+  @pytest.mark.parametrize('source,origine,mcp', [
+      ('appareil', 'm04-field-ops', False),
+      ('console', 'm04-field-ops', False),
+      ('console', 'console', True),
+  ])
+  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',
+                                   'm4_lire_visites_console'])
+  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26
+  @pytest.fixture
+  def planning(client_crm):
+E       fixture 'client_crm' not found
+&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26</error></testcase><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_interrompre_visite_console_v2-console-console-True]" time="0.000"><error message="failed on setup with &quot;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41&#10;  @pytest.mark.parametrize('source,origine,mcp', [&#10;      ('appareil', 'm04-field-ops', False),&#10;      ('console', 'm04-field-ops', False),&#10;      ('console', 'console', True),&#10;  ])&#10;  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',&#10;                                   'm4_lire_visites_console'])&#10;  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):&#10;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26&#10;  @pytest.fixture&#10;  def planning(client_crm):&#10;E       fixture 'client_crm' not found&#10;&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26&quot;">file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41
+  @pytest.mark.parametrize('source,origine,mcp', [
+      ('appareil', 'm04-field-ops', False),
+      ('console', 'm04-field-ops', False),
+      ('console', 'console', True),
+  ])
+  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',
+                                   'm4_lire_visites_console'])
+  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26
+  @pytest.fixture
+  def planning(client_crm):
+E       fixture 'client_crm' not found
+&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26</error></testcase><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_replanifier_visite_console-appareil-m04-field-ops-False]" time="0.000"><error message="failed on setup with &quot;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41&#10;  @pytest.mark.parametrize('source,origine,mcp', [&#10;      ('appareil', 'm04-field-ops', False),&#10;      ('console', 'm04-field-ops', False),&#10;      ('console', 'console', True),&#10;  ])&#10;  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',&#10;                                   'm4_lire_visites_console'])&#10;  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):&#10;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26&#10;  @pytest.fixture&#10;  def planning(client_crm):&#10;E       fixture 'client_crm' not found&#10;&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26&quot;">file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41
+  @pytest.mark.parametrize('source,origine,mcp', [
+      ('appareil', 'm04-field-ops', False),
+      ('console', 'm04-field-ops', False),
+      ('console', 'console', True),
+  ])
+  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',
+                                   'm4_lire_visites_console'])
+  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26
+  @pytest.fixture
+  def planning(client_crm):
+E       fixture 'client_crm' not found
+&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26</error></testcase><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_replanifier_visite_console-console-m04-field-ops-False]" time="0.000"><error message="failed on setup with &quot;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41&#10;  @pytest.mark.parametrize('source,origine,mcp', [&#10;      ('appareil', 'm04-field-ops', False),&#10;      ('console', 'm04-field-ops', False),&#10;      ('console', 'console', True),&#10;  ])&#10;  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',&#10;                                   'm4_lire_visites_console'])&#10;  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):&#10;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26&#10;  @pytest.fixture&#10;  def planning(client_crm):&#10;E       fixture 'client_crm' not found&#10;&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26&quot;">file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41
+  @pytest.mark.parametrize('source,origine,mcp', [
+      ('appareil', 'm04-field-ops', False),
+      ('console', 'm04-field-ops', False),
+      ('console', 'console', True),
+  ])
+  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',
+                                   'm4_lire_visites_console'])
+  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26
+  @pytest.fixture
+  def planning(client_crm):
+E       fixture 'client_crm' not found
+&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26</error></testcase><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_replanifier_visite_console-console-console-True]" time="0.000"><error message="failed on setup with &quot;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41&#10;  @pytest.mark.parametrize('source,origine,mcp', [&#10;      ('appareil', 'm04-field-ops', False),&#10;      ('console', 'm04-field-ops', False),&#10;      ('console', 'console', True),&#10;  ])&#10;  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',&#10;                                   'm4_lire_visites_console'])&#10;  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):&#10;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26&#10;  @pytest.fixture&#10;  def planning(client_crm):&#10;E       fixture 'client_crm' not found&#10;&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26&quot;">file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41
+  @pytest.mark.parametrize('source,origine,mcp', [
+      ('appareil', 'm04-field-ops', False),
+      ('console', 'm04-field-ops', False),
+      ('console', 'console', True),
+  ])
+  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',
+                                   'm4_lire_visites_console'])
+  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26
+  @pytest.fixture
+  def planning(client_crm):
+E       fixture 'client_crm' not found
+&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26</error></testcase><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_lire_visites_console-appareil-m04-field-ops-False]" time="0.000"><error message="failed on setup with &quot;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41&#10;  @pytest.mark.parametrize('source,origine,mcp', [&#10;      ('appareil', 'm04-field-ops', False),&#10;      ('console', 'm04-field-ops', False),&#10;      ('console', 'console', True),&#10;  ])&#10;  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',&#10;                                   'm4_lire_visites_console'])&#10;  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):&#10;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26&#10;  @pytest.fixture&#10;  def planning(client_crm):&#10;E       fixture 'client_crm' not found&#10;&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26&quot;">file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41
+  @pytest.mark.parametrize('source,origine,mcp', [
+      ('appareil', 'm04-field-ops', False),
+      ('console', 'm04-field-ops', False),
+      ('console', 'console', True),
+  ])
+  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',
+                                   'm4_lire_visites_console'])
+  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26
+  @pytest.fixture
+  def planning(client_crm):
+E       fixture 'client_crm' not found
+&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26</error></testcase><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_lire_visites_console-console-m04-field-ops-False]" time="0.000"><error message="failed on setup with &quot;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41&#10;  @pytest.mark.parametrize('source,origine,mcp', [&#10;      ('appareil', 'm04-field-ops', False),&#10;      ('console', 'm04-field-ops', False),&#10;      ('console', 'console', True),&#10;  ])&#10;  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',&#10;                                   'm4_lire_visites_console'])&#10;  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):&#10;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26&#10;  @pytest.fixture&#10;  def planning(client_crm):&#10;E       fixture 'client_crm' not found&#10;&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26&quot;">file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41
+  @pytest.mark.parametrize('source,origine,mcp', [
+      ('appareil', 'm04-field-ops', False),
+      ('console', 'm04-field-ops', False),
+      ('console', 'console', True),
+  ])
+  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',
+                                   'm4_lire_visites_console'])
+  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26
+  @pytest.fixture
+  def planning(client_crm):
+E       fixture 'client_crm' not found
+&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26</error></testcase><testcase classname="tests.test_console_report_visite_v2" name="test_ports_refusent_transport_non_console_meme_admin_sql[m4_lire_visites_console-console-console-True]" time="0.000"><error message="failed on setup with &quot;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41&#10;  @pytest.mark.parametrize('source,origine,mcp', [&#10;      ('appareil', 'm04-field-ops', False),&#10;      ('console', 'm04-field-ops', False),&#10;      ('console', 'console', True),&#10;  ])&#10;  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',&#10;                                   'm4_lire_visites_console'])&#10;  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):&#10;file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26&#10;  @pytest.fixture&#10;  def planning(client_crm):&#10;E       fixture 'client_crm' not found&#10;&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26&quot;">file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_report_visite_v2.py, line 41
+  @pytest.mark.parametrize('source,origine,mcp', [
+      ('appareil', 'm04-field-ops', False),
+      ('console', 'm04-field-ops', False),
+      ('console', 'console', True),
+  ])
+  @pytest.mark.parametrize('nom', ['m4_interrompre_visite_console_v2', 'm4_replanifier_visite_console',
+                                   'm4_lire_visites_console'])
+  def test_ports_refusent_transport_non_console_meme_admin_sql(planning, session, nom, source, origine, mcp):
+file /home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py, line 26
+  @pytest.fixture
+  def planning(client_crm):
+E       fixture 'client_crm' not found
+&gt;       available fixtures: _instance_isolee, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, declarer_services, departements_demo, doctest_namespace, monkeypatch, nathan, opsys_home, planning, pytestconfig, racine_demo, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, verifier_acces_prive
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/opsys-m4-v2/tests/test_console_cedule.py:26</error></testcase></testsuite></testsuites>

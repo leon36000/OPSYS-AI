@@ -1,0 +1,5 @@
+catalogue 311 déclarés 179
+comptes [('admin', 178), ('employee', 16), ('seller', 15)]
+m4_lire_visites_console ['admin'] ['admin']
+m4_replanifier_visite_console ['admin'] ['admin']
+m4_interrompre_visite_console_v2 [] []

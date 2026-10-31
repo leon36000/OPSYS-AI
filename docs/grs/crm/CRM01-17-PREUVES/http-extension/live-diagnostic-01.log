@@ -1,0 +1,11 @@
+OUVERTURE_PAGE_REPRISE 200
+CONTENU <!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reprise du chantier · Console OPSYS</title><link rel="stylesheet" href="/statique/console.css"><script src="/statique/console.js" defer></script></head><body><header class="entete"><div class="marque">OPSYS <span>Console</span></div><nav aria-label="Sections"><a hr
+CHOIX ['eq-a', 'eq-b'] FORMES [['csrf'], ['csrf', 'mutation_id', 'empreinte_attendue', 'debut', 'fin']]
+PROPOSITION 409 None
+DETAIL {"detail":"Reprise indisponible : PROPOSITION-REFUSEE"}
+Traceback (most recent call last):
+  File "/tmp/opsys-m4-http-suite-kepXNO/live-diagnostic-01.py", line 16, in <module>
+    form.update(equipe_id=next((x for x in f.options if x!='eq-a'),f.options[0]),debut='08:00',fin='16:00');r=s.post(u,data=form,follow_redirects=False,timeout=10);print('PROPOSITION',r.status_code,r.headers.get('location'));print('DETAIL',r.text[:300]);assert r.status_code==303
+                                                                                                                                                                                                                                                                     ^^^^^^^^^^^^^^^^^^
+AssertionError

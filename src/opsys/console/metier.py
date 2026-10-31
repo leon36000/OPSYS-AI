@@ -72,11 +72,12 @@ _LECTURES_ADMIN_M4 = frozenset({"m4_lire_cedule_semaine", "m4_lire_calendrier_pl
 _LECTURES_ADMIN = _LECTURES_ADMIN_M9 | _LECTURES_ADMIN_M2 | _LECTURES_ADMIN_M3 | _LECTURES_ADMIN_M4
 _COMMANDES_ADMIN_M2 = frozenset({"m2_enregistrer_interaction", "m2_corriger_contact_client"})
 _COMMANDES_ADMIN_M4 = frozenset({"m4_confirmer_dates_cedule", "m4_signaler_report",
-                                  "m4_replanifier_visite_console"})
+                                  "m4_replanifier_visite_console", "m4_interrompre_visite_console_v2"})
 _OUTILS_ADMIN = _LECTURES_ADMIN | _COMMANDES_ADMIN_M2 | _COMMANDES_ADMIN_M4
 COMMANDES = {
     "m4_confirmer_dates_cedule": "m04-field-ops",
     "m4_signaler_report": "m04-field-ops",
+    "m4_interrompre_visite_console_v2": "m04-field-ops",
     "m4_replanifier_visite_console": "m04-field-ops",
     "m2_corriger_contact_client": "m02-revenue-crm",
     "m2_enregistrer_interaction": "m02-revenue-crm",
@@ -821,10 +822,12 @@ def executer(
         role = "nathan_owner" if "nathan_owner" in personne.roles and nom not in _OUTILS_ADMIN else "admin"
         with (
             contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, role, source="console")),
-            contexte.appeler_en_tant_que(departement, origine=departement),
+            contexte.appeler_en_tant_que(departement, origine=("console" if nom in {
+                "m4_replanifier_visite_console", "m4_interrompre_visite_console_v2"} else departement)),
             contexte.receptionne_de(contexte.HorodatageAppareil(
                 f"console:{personne.identifiant}", maintenant, maintenant,
-            )) if nom in {"m4_confirmer_dates_cedule", "m4_signaler_report", "m4_replanifier_visite_console"}
+            )) if nom in {"m4_confirmer_dates_cedule", "m4_signaler_report", "m4_replanifier_visite_console",
+                          "m4_interrompre_visite_console_v2"}
             else nullcontext(),
         ):
             reponse = executer_atomique(outil, charge)

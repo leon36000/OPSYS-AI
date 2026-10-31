@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="1.204" timestamp="2026-10-28T18:31:49.440921-04:00" hostname="gx10-e526"><testcase classname="departments.m04-field-ops.tests.test_jonction_m4_m5_temp" name="test_jonction_producteur_reel_et_consommateur_refuse_total_inconnu" time="0.564" /><testcase classname="departments.m04-field-ops.tests.test_jonction_m4_m5_temp" name="test_m5_refuse_identification_equipe_sans_provenance_typee" time="0.390"><failure message="AssertionError: {'valide': True, 'exploitable': False, 'raisons': ['revue du chantier en attente']}&#10;assert not True">chantier_termine = {'url': 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-jonction-m4-m5/tmp/py...003cc97370', 'wct_id': '2f5e22bd949a07a4f35098b80e720c5e7632cea25aacfa5fbf62d51a4397b9f9', 'equipes': ['eq-a', 'eq-b']}
+
+    def test_m5_refuse_identification_equipe_sans_provenance_typee(chantier_termine):
+        cas = chantier_termine
+        with stockage.transaction(cas['url']) as cnx:
+            export = _appel(cnx, cas)
+            p = deepcopy(export['projection'])
+            for v in p['visites']:
+                v['equipe_pointee'] = {'statut': 'identifiee', 'identifiant': v['equipe_planifiee_id'], 'justification': 'egalite_route_et_prevision'}
+            p['inconnus'] = [i for i in p['inconnus'] if i['code'] != 'equipe_pointee_indeterminee']
+            p['empreinte'] = encodage.empreinte('m4.temps_certifies.v2', {k: v for k,v in p.items() if k != 'empreinte'})
+            validation = validation_projection_visites.valider_projection(p, instance_id=p['instance_id'], wct_id=cas['wct_id'], source_attendue=export['source'], sources_actuelles=p['sources'])
+&gt;           assert not validation['valide'], validation
+E           AssertionError: {'valide': True, 'exploitable': False, 'raisons': ['revue du chantier en attente']}
+E           assert not True
+
+departments/m04-field-ops/tests/test_jonction_m4_m5_temp.py:38: AssertionError</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,93 @@
+......................F                                                  [100%]
+=================================== FAILURES ===================================
+_______________ test_serveur_http_access_log_sans_cookie_ni_csrf _______________
+
+client_crm = <starlette.testclient.TestClient object at 0xf8340e36a5d0>
+planning = ({'m4_planifier_intervention': Outil(nom='m4_planifier_intervention', description="Inscrit une intervention à partir d...25dc1c60', 'calendrier': {'0': '2030-06-03'}, ...}, '6a2f70d28b04ac46540f095e25e5afae1c8cf88f882d3b51acc555840b5811cf')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xf8340e1abf20>
+
+    def test_serveur_http_access_log_sans_cookie_ni_csrf(client_crm, planning, monkeypatch):
+        import logging
+        import socket
+        import threading
+        import time
+        from dataclasses import replace
+        from datetime import UTC, datetime
+        from html.parser import HTMLParser
+    
+        import httpx
+        import uvicorn
+    
+        from opsys.console import metier, securite
+    
+        class HorlogeFictive(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2030, 6, 3, 12, tzinfo=UTC).astimezone(tz)
+    
+        monkeypatch.setattr(metier, 'datetime', HorlogeFictive)
+    
+        class Formulaires(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.forms, self.courant = [], None
+    
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'form':
+                    self.courant = {}
+                    self.forms.append(self.courant)
+                elif tag == 'input' and self.courant is not None and 'name' in attrs:
+                    self.courant[attrs['name']] = attrs.get('value', '')
+    
+            def handle_endtag(self, tag):
+                if tag == 'form':
+                    self.courant = None
+    
+        class Capture(logging.Handler):
+            def __init__(self):
+                super().__init__()
+                self.messages = []
+    
+            def emit(self, record):
+                self.messages.append(record.getMessage())
+    
+        f.f.base._connecter(client_crm, 'admin.fictif')
+        cookie = next(c for c in client_crm.cookies.jar if c.name == securite.NOM_COOKIE)
+        session_fictive = securite.lire_session(cookie.value, f.f.base.SECRET)
+        cookie.value = securite.signer_session(replace(session_fictive, expire=4102444800), f.f.base.SECRET)
+        cookies = dict(client_crm.cookies)
+        assert cookies and all(cookies.values())
+        logger = logging.getLogger('uvicorn.access')
+        capture = Capture()
+        ancien_niveau = logger.level
+        logger.setLevel(logging.INFO)
+        logger.addHandler(capture)
+>       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_console_logs_visites.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+=========================== short test summary info ============================
+FAILED tests/test_console_logs_visites.py::test_serveur_http_access_log_sans_cookie_ni_csrf

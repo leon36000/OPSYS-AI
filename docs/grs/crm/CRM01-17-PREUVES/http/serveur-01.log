@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/opsys-m4-http-KS6hGL/serveur-browser-01.py", line 10, in <module>
+    from opsys import contexte, identite, stockage
+ImportError: cannot import name 'contexte' from 'opsys' (unknown location)
+SERVEUR_EXIT=1

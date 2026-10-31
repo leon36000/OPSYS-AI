@@ -1,0 +1,69 @@
+..QA_WCT_PRODUCTION=1 RECU_M5=1 V3=390 COUT_FICTIF=730 REJEU=OK REVOCATION=OK SOURCE=OK
+.QA_CONCURRENCE SOURCE_PERIMEE POINTAGE=1 PREUVE=1
+.QA_CONCURRENCE REJEU_IDENTIQUE POINTAGE=1 PREUVE=1
+....QA_SOURCE_M4_TRANSVERSALE TRACE_PERIMEE HISTORIQUE_CONSERVE 390_MIN 730_CAD
+QA_SOURCE_M4_PERIMEE_409 MODIFICATION_TARDIVE_409 ROLLBACK_OK
+QA_CONCURRENCE_M4_M5 COMMIT_M5_PUIS_M4 RELECTURE_PERIMEE
+..................................................................................................................F..FF....
+=================================== FAILURES ===================================
+___ test_une_trace_calculee_publie_la_marge_reelle_dans_la_meme_transaction ____
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-0/test_une_trace_calculee_publie0/opsys-m5-rentabilite.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-0/test_une_trace_calculee_publie0/department.yaml')
+
+    def test_une_trace_calculee_publie_la_marge_reelle_dans_la_meme_transaction(base_durable, taux_configure):
+        _prix_au_livre_m6()
+        _cascade()
+    
+        traces = _traces()
+        publies = _publies()
+        assert len(publies) == len(traces) >= 1, "un événement par trace, ni plus ni moins"
+        derniere, (evenement_id, producteur, charge) = traces[-1], publies[-1]
+        assert producteur == _DEPARTEMENT and evenement_id == charge["evenement_id"]
+        assert charge["sequence"] == len(traces) and charge["version_entrees"] == derniere["version_entrees"]
+        assert (charge["devis_id"], charge["chantier_id"], charge["wct_id"]) == ("DEVIS-1", "CHANTIER-1", "WCT-1")
+        assert charge["horodatage_completion"] == COMPLETION  # celui du WCT, aucune horloge de M5
+>       assert charge["verdict"] == "CALCULEE" and derniere["verdict"] == "CALCULEE"
+E       AssertionError: assert ('PARTIELLE' == 'CALCULEE'
+E         
+E         - CALCULEE
+E         + PARTIELLE)
+
+departments/m05-financecore/tests/test_evenement_rentabilite.py:377: AssertionError
+_ test_un_prix_ajoute_apres_coup_publie_un_nouvel_etat_qui_remplace_le_partiel _
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-0/test_un_prix_ajoute_apres_coup0/opsys-m5-rentabilite.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-0/test_un_prix_ajoute_apres_coup0/department.yaml')
+
+    def test_un_prix_ajoute_apres_coup_publie_un_nouvel_etat_qui_remplace_le_partiel(base_durable, taux_configure):
+        _cascade()  # pas de prix au livre : partiel
+        (_, _, partiel) = _publies()[-1]
+>       assert partiel["verdict"] == "PARTIELLE" and partiel["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
+E       AssertionError: assert ('PARTIELLE' == 'PARTIELLE'
+E         
+E           PARTIELLE and ['REJ-COUT-PR...OINTE-ABSENT'] == ['REJ-COUT-PR...N-DISPONIBLE']
+E         
+E         Left contains one more item: 'REJ-COUT-TEMPS-POINTE-ABSENT'
+E         Use -v to get more diff)
+
+departments/m05-financecore/tests/test_evenement_rentabilite.py:422: AssertionError
+_____ test_un_retour_a_une_version_anterieure_publie_un_evenement_distinct _____
+
+base_durable = 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-0/test_un_retour_a_une_version_a0/opsys-m5-rentabilite.db'
+taux_configure = PosixPath('/home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/jonction-v3-independante-04/tmp/pytest-of-pc6/pytest-0/test_un_retour_a_une_version_a0/department.yaml')
+
+    def test_un_retour_a_une_version_anterieure_publie_un_evenement_distinct(base_durable, taux_configure):
+        """Taux 50 -> 60 -> 50 : la troisième trace a la version de la première. Sans le rang dans l'identifiant, le
+        bus avalerait son événement (no-op) et M8 et M10 resteraient sur la marge du taux à 60."""
+        _prix_au_livre_m6()
+        _cascade()
+        depart = len(_publies())
+        premier_etat = _publies()[-1][2]
+>       assert premier_etat["marge_reelle_cad"] == "114.00"
+E       AssertionError: assert None == '114.00'
+
+departments/m05-financecore/tests/test_evenement_rentabilite.py:442: AssertionError
+=========================== short test summary info ============================
+FAILED departments/m05-financecore/tests/test_evenement_rentabilite.py::test_une_trace_calculee_publie_la_marge_reelle_dans_la_meme_transaction
+FAILED departments/m05-financecore/tests/test_evenement_rentabilite.py::test_un_prix_ajoute_apres_coup_publie_un_nouvel_etat_qui_remplace_le_partiel
+FAILED departments/m05-financecore/tests/test_evenement_rentabilite.py::test_un_retour_a_une_version_anterieure_publie_un_evenement_distinct

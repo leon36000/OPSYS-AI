@@ -1,0 +1,68 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+____ test_egalite_identifiant_personne_et_equipe_ne_prouve_pas_type_equipe _____
+
+chantier_termine = {'url': 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-p...003cc97370', 'wct_id': '2f5e22bd949a07a4f35098b80e720c5e7632cea25aacfa5fbf62d51a4397b9f9', 'equipes': ['eq-a', 'eq-b']}
+
+    def test_egalite_identifiant_personne_et_equipe_ne_prouve_pas_type_equipe(chantier_termine):
+        cas = chantier_termine
+        with stockage.transaction(cas['url']) as cnx:
+            # Le domaine autorise explicitement une personne homonyme d'une équipe.
+            identite.creer_personne(cnx, cas['equipes'][0], 'Personne fictive homonyme', 'Fictif#12345678')
+            projection = _appel(cnx, cas)['projection']
+            lundi = projection['visites'][0]
+            assert lundi['identifiant_pointe'] == lundi['equipe_planifiee_id']
+>           assert lundi['equipe_pointee']['statut'] == 'inconnue'
+E           AssertionError: assert 'identifiee' == 'inconnue'
+E             
+E             - inconnue
+E             + identifiee
+
+departments/m04-field-ops/tests/test_temps_certifies_v2.py:281: AssertionError
+___________ test_wct_rechaine_avec_etat_precedent_impossible_refuse ____________
+
+chantier_termine = {'url': 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-p...003cc97370', 'wct_id': '2f5e22bd949a07a4f35098b80e720c5e7632cea25aacfa5fbf62d51a4397b9f9', 'equipes': ['eq-a', 'eq-b']}
+
+    def test_wct_rechaine_avec_etat_precedent_impossible_refuse(chantier_termine):
+        from dataclasses import replace
+    
+        from m4_field_ops import temps_certifies_v2
+    
+        cas = chantier_termine
+        with stockage.transaction(cas['url']) as cnx:
+            captures = temps_certifies_v2._sources(cnx)
+            change, lignes = Registre(), []
+            for ligne in captures[0].lignes:
+                m = {k: v for k, v in ligne.maillon.items() if k not in {'ligne_id', 'precedent_ligne_id'}}
+                if 'wct' in m:
+                    m = {**m, 'statut_precedent': 'annulee'}
+                    transition = {k: v for k, v in m.items() if k != 'wct'}
+                    m['wct'] = {**m['wct'], 'hash_maillon': encodage.empreinte(transition)}
+                change.ajouter(m)
+                lignes.append(replace(ligne, maillon=change.lire()[-1]))
+            falsifie = replace(captures[0], lignes=tuple(lignes))
+>           with pytest.raises(temps_certifies_v2.Refus):
+E           Failed: DID NOT RAISE Refus
+
+departments/m04-field-ops/tests/test_temps_certifies_v2.py:304: Failed
+_____________ test_transition_verifiee_sans_justification_refusee ______________
+
+chantier_termine = {'url': 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-p...003cc97370', 'wct_id': '2f5e22bd949a07a4f35098b80e720c5e7632cea25aacfa5fbf62d51a4397b9f9', 'equipes': ['eq-a', 'eq-b']}
+
+    def test_transition_verifiee_sans_justification_refusee(chantier_termine):
+        from m4_field_ops import temps_certifies_v2
+    
+        cas = chantier_termine
+        with stockage.transaction(cas['url']) as cnx:
+            principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+            principal.ajouter({'type_entree': 'transition_statut', 'intervention_id': cas['iid'],
+                              'statut_precedent': 'completed_pending_review', 'statut': 'completed_verified',
+                              'horodatage': '2030-06-07T13:03:00-04:00'})
+>           with pytest.raises(temps_certifies_v2.Refus):
+E           Failed: DID NOT RAISE Refus
+
+departments/m04-field-ops/tests/test_temps_certifies_v2.py:318: Failed
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_temps_certifies_v2.py::test_egalite_identifiant_personne_et_equipe_ne_prouve_pas_type_equipe
+FAILED departments/m04-field-ops/tests/test_temps_certifies_v2.py::test_wct_rechaine_avec_etat_precedent_impossible_refuse
+FAILED departments/m04-field-ops/tests/test_temps_certifies_v2.py::test_transition_verifiee_sans_justification_refusee

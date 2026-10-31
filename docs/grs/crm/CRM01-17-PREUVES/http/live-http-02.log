@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/opsys-m4-http-KS6hGL/live-http-02.py", line 6, in <module>
+    r=s.get(base+'/crm/visites',params={'intervention_id':iid},allow_redirects=False,timeout=5); print('ANONYME',r.status_code,r.headers.get('location')); assert r.status_code==303
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Client.get() got an unexpected keyword argument 'allow_redirects'

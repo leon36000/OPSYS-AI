@@ -1,0 +1,104 @@
+.F.F.                                                                    [100%]
+=================================== FAILURES ===================================
+________ test_projection_refuse_identite_source_perimee_et_wct_inconnu _________
+
+chantier_termine = {'url': 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-p...003cc97370', 'wct_id': '2f5e22bd949a07a4f35098b80e720c5e7632cea25aacfa5fbf62d51a4397b9f9', 'equipes': ['eq-a', 'eq-b']}
+
+    def test_projection_refuse_identite_source_perimee_et_wct_inconnu(chantier_termine):
+        from m4_field_ops import temps_certifies_v2
+        from opsys.stockage.schema import META
+        from sqlalchemy import select
+    
+        cas = chantier_termine
+        with stockage.transaction(cas['url']) as cnx:
+            def toutes_tables():
+                return tuple((table.name, tuple(tuple(row) for row in cnx.execute(select(table)).all()))
+                             for table in META.sorted_tables)
+            avant = toutes_tables()
+            with pytest.raises(temps_certifies_v2.Refus, match='IDENTITE'):
+>               temps_certifies_v2.projeter(cnx, cas['iid'], cas['wct_id'])
+
+departments/m04-field-ops/tests/test_temps_certifies_v2.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:169: in projeter
+    auteur = _autoriser(cnx)
+             ^^^^^^^^^^^^^^^
+departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:31: in _autoriser
+    return _autoriser_annotation()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _autoriser_annotation():
+        n = annotations_calendrier
+        cnx, appelante = stockage.connexion_courante(), contexte.identite_appelante()
+        if (cnx is None or appelante is None or appelante.role != "admin" or appelante.source != "console"
+                or contexte.departement_origine_appelante() != "console" or contexte.appel_provient_du_mcp()):
+>           raise n.Refus("IDENTITE")
+E           m4_field_ops.annotations_calendrier.Refus: IDENTITE
+
+departments/m04-field-ops/src/m4_field_ops/outils.py:3107: Refus
+___________ test_source_ou_autorite_changee_en_fin_de_lecture_refuse ___________
+
+chantier_termine = {'url': 'sqlite:////home/pc6/Documents/Codex/2026-10-28-tu-prends-la-responsabilit-d-une/preuves-m4-v2/tmp/pytest-of-p...003cc97370', 'wct_id': '2f5e22bd949a07a4f35098b80e720c5e7632cea25aacfa5fbf62d51a4397b9f9', 'equipes': ['eq-a', 'eq-b']}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xed772488e600>
+
+    def test_source_ou_autorite_changee_en_fin_de_lecture_refuse(chantier_termine, monkeypatch):
+        from dataclasses import replace
+        from m4_field_ops import temps_certifies_v2
+    
+        cas = chantier_termine
+        original = temps_certifies_v2._sources
+        appels = []
+        def changer(cnx):
+            snapshots = original(cnx)
+            appels.append(1)
+            if len(appels) == 2:
+                snapshots = (snapshots[0], snapshots[1], replace(snapshots[2], empreinte_snapshot_calculee='f' * 64))
+            return snapshots
+        with stockage.transaction(cas['url']) as cnx, monkeypatch.context() as patch:
+            patch.setattr(temps_certifies_v2, '_sources', changer)
+            with pytest.raises(temps_certifies_v2.Refus, match='SOURCE-MODIFIEE'):
+                _appel(cnx, cas)
+        original_autorite = temps_certifies_v2._autoriser
+        appels.clear()
+        def revoquer(cnx):
+            appels.append(1)
+            if len(appels) == 2:
+                identite.retirer_role(cnx, 'admin.fictif', 'admin')
+            return original_autorite(cnx)
+        with pytest.raises(temps_certifies_v2.Refus, match='IDENTITE'):
+            with stockage.transaction(cas['url']) as cnx, monkeypatch.context() as patch:
+                patch.setattr(temps_certifies_v2, '_autoriser', revoquer)
+>               _appel(cnx, cas)
+
+departments/m04-field-ops/tests/test_temps_certifies_v2.py:189: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+departments/m04-field-ops/tests/test_temps_certifies_v2.py:78: in _appel
+    return temps_certifies_v2.projeter(cnx, cas['iid'], cas['wct_id'], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:190: in projeter
+    if _autoriser(cnx) != auteur or _sources(cnx) != captures or instance_finale != instance_id:
+       ^^^^^^^^^^^^^^^
+departments/m04-field-ops/tests/test_temps_certifies_v2.py:185: in revoquer
+    return original_autorite(cnx)
+           ^^^^^^^^^^^^^^^^^^^^^^
+departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:31: in _autoriser
+    return _autoriser_annotation()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _autoriser_annotation():
+        n = annotations_calendrier
+        cnx, appelante = stockage.connexion_courante(), contexte.identite_appelante()
+        if (cnx is None or appelante is None or appelante.role != "admin" or appelante.source != "console"
+                or contexte.departement_origine_appelante() != "console" or contexte.appel_provient_du_mcp()):
+            raise n.Refus("IDENTITE")
+        signataire = approbations.signataire_valide(cnx, appelante)
+        if signataire is None or signataire.role != "admin":
+>           raise n.Refus("IDENTITE")
+E           m4_field_ops.annotations_calendrier.Refus: IDENTITE
+
+departments/m04-field-ops/src/m4_field_ops/outils.py:3110: Refus
+=========================== short test summary info ============================
+FAILED departments/m04-field-ops/tests/test_temps_certifies_v2.py::test_projection_refuse_identite_source_perimee_et_wct_inconnu
+FAILED departments/m04-field-ops/tests/test_temps_certifies_v2.py::test_source_ou_autorite_changee_en_fin_de_lecture_refuse

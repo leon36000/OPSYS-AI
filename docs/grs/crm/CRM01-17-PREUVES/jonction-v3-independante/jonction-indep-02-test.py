@@ -1,0 +1,359 @@
+"""Projection V3 : aucun fait historique ambigu n'est réattribué."""
+import importlib.util
+from copy import deepcopy
+from pathlib import Path
+
+from m4_field_ops import encodage
+
+from opsys import contexte, stockage
+
+_spec = importlib.util.spec_from_file_location('fixture_v2', Path(__file__).with_name('test_temps_certifies_v2.py'))
+_base = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_base)
+chantier_termine = _base.chantier_termine
+_appel = _base._appel
+
+
+def test_v3_preserve_inconnus_legacy_et_projection_v2(chantier_termine):
+    from m4_field_ops import temps_certifies_v3
+
+    cas = chantier_termine
+    with stockage.transaction(cas['url']) as cnx:
+        avant = _appel(cnx, cas)
+        projection_v2 = deepcopy(avant['projection'])
+        with (contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+              contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+            resultat = temps_certifies_v3.projeter(cnx, cas['iid'], cas['wct_id'])
+        projection = resultat['projection']
+        assert projection['version'] == 'opsys.m4.temps_certifies.v3'
+        assert projection['totaux'] == {'travail': 390, 'pause': 30, 'deplacement': 60}
+        assert all(v['equipe_pointee']['statut'] == 'inconnue' for v in projection['visites'])
+        assert all(v['presence_individuelle'] == {'statut': 'inconnue'} for v in projection['visites'])
+        assert projection['empreinte'] == encodage.empreinte(
+            'm4.temps_certifies.v3', {k: v for k, v in projection.items() if k != 'empreinte'})
+        assert _appel(cnx, cas)['projection'] == projection_v2
+
+
+def test_v3_relecture_source_perimee_et_autorite_revoquee(chantier_termine):
+    import pytest
+    from m4_field_ops import temps_certifies_v2, temps_certifies_v3
+
+    from opsys import identite
+
+    cas = chantier_termine
+
+    def appel(cnx, **kwargs):
+        with (contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+              contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+            return temps_certifies_v3.projeter(cnx, cas['iid'], cas['wct_id'], **kwargs)
+
+    with stockage.transaction(cas['url']) as cnx:
+        premiere = appel(cnx)
+        assert appel(cnx, source_attendue=premiere['source']) == premiere
+        with pytest.raises(temps_certifies_v2.Refus, match='SOURCE-PERIMEE'):
+            appel(cnx, source_attendue='f' * 64)
+        identite.retirer_role(cnx, 'admin.fictif', 'admin')
+        with pytest.raises(temps_certifies_v2.Refus, match='IDENTITE'):
+            appel(cnx, source_attendue=premiere['source'])
+
+
+
+def test_pointage_v3_enregistre_preuve_typee_avec_autorite(base_durable, tmp_path, monkeypatch, deposer_photo_test):
+    from datetime import UTC, datetime
+
+    from m4_field_ops import calendrier_civil, cedule, cedule_tournees, equipes_pointees_v3, etats, visites_chantier
+    from m4_field_ops.registre import Registre
+
+    from opsys import equipes, identite
+
+    monkeypatch.setenv('OPSYS_HOME', str(tmp_path / 'opsys'))
+    domaine = _base._base
+    initial, ids, positions = domaine.fixture.pur._monde(leads=('ch-01',))
+    equipes.enregistrer_equipes({'liste': [{**e, 'membres': [e['id'] + '.fictif']}
+                                         for e in domaine.fixture.pur._aide._equipes()]})
+    with stockage.transaction(base_durable) as cnx:
+        identite.creer_personne(cnx, 'admin.fictif', 'Admin fictif', 'Fictif#12345678', roles=['admin'])
+        principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
+        for maillon in initial.lire():
+            principal.ajouter({k: v for k, v in maillon.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
+        plan = domaine.fixture.pur._reussi(domaine.fixture.pur._proposer(principal, ids, positions))['plan_id']
+        domaine.fixture.pur._reussi(cedule_tournees.appliquer(principal, plan, positions,
+                                                             domaine.fixture.pur.HORODATAGE, 'admin.fictif'))
+        calendrier_civil.confirmer(principal, plan, {'0': '2030-06-03'}, 0, 'admin.fictif', '2030-06-02T09:00:00+00:00')
+        ligne = calendrier_civil.lire_semaine(principal, '2030-06-03')['interventions'][0]
+        ancre = {k: ligne[k] for k in domaine.fixture.CHAMPS_ANCRE}
+        iid, equipe = ancre['intervention_id'], ligne['equipe_id']
+        identite.creer_personne(cnx, equipe, 'Homonyme fictif', 'Fictif#12345678', roles=['employee'])
+        visites = Registre(stockage.maillons('m04-field-ops', 'visites_chantier'))
+        prev = domaine.ecrire(principal, visites, ancre, heure='2030-06-03T07:30:00-04:00')
+        visites_chantier.ouvrir(principal, visites, prev['visite_id'], '2030-06-03T08:00:00-04:00')
+        assignation = {'intervention_id': iid, 'technicien_id': equipe}
+        assert etats.transitionner(iid, 'en_route', principal, '2030-06-03T08:30:00-04:00',
+                                   assignation=assignation)[1] is None
+        source = equipes_pointees_v3.empreinte_sources(cnx)
+        arguments = {'intervention_id': iid, 'technicien_id': equipe, 'action': 'arrivee',
+                     'horodatage': '2030-06-03T09:00:00-04:00', 'fix_gps': None,
+                     'attestation': {'fictif': True, 'appareil_id': 'fictif'},
+                     'fenetre_travail': {'debut': '2030-06-03T08:00:00-04:00', 'fin': '2030-06-03T18:00:00-04:00'},
+                     'referentiel_villes': {cedule.tokeniser_ville('sel-fictif', 'Repentigny'): {
+                         'latitude': 45.75, 'longitude': -73.45, 'rayon_km': 25.0}},
+                     'ville': 'Repentigny', 'sel': 'sel-fictif'}
+        instant = datetime(2030, 6, 3, 13, tzinfo=UTC)
+        with (contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+              contexte.appeler_en_tant_que('m04-field-ops', origine='console'),
+              contexte.receptionne_de(contexte.HorodatageAppareil('console:admin.fictif', instant, instant))):
+            import pytest
+
+            avant_refus = principal.lire()
+            with pytest.raises(equipes_pointees_v3.Refus, match='SOURCE-PERIMEE'):
+                equipes_pointees_v3.enregistrer(cnx, arguments, prev['visite_id'], equipe, 'stale', 'f' * 64)
+            assert principal.lire() == avant_refus
+            with pytest.raises(equipes_pointees_v3.Refus, match='ARGUMENTS'):
+                equipes_pointees_v3.enregistrer(cnx, arguments, prev['visite_id'], 'autre-equipe', 'bad', source)
+            assert principal.lire() == avant_refus
+            from m4_field_ops import annotations_calendrier, outils
+
+            original_autoriser = outils._autoriser_annotation
+            appels = []
+            def revoquer_tard():
+                appels.append(True)
+                if len(appels) == 2:
+                    identite.retirer_role(cnx, 'admin.fictif', 'admin')
+                return original_autoriser()
+            with monkeypatch.context() as m:
+                m.setattr(outils, '_autoriser_annotation', revoquer_tard)
+                with pytest.raises(annotations_calendrier.Refus):
+                    equipes_pointees_v3.enregistrer(cnx, arguments, prev['visite_id'], equipe,
+                                                    'rollback-fictif', source)
+            assert principal.lire() == avant_refus
+            assert original_autoriser()['personne'] == 'admin.fictif'
+            recu = equipes_pointees_v3.enregistrer(cnx, arguments, prev['visite_id'], equipe,
+                                                   'mutation-fictive-1', source)
+            maillons = principal.lire()
+            pointe = next(m for m in maillons if m['ligne_id'] == recu['pointage_id'])
+            preuve = next(m for m in maillons if m['ligne_id'] == recu['preuve_id'])
+            assert pointe['visite_id'] == prev['visite_id']
+            assert preuve['pointage_id'] == pointe['ligne_id']
+            assert preuve['sujet'] == {'type': 'equipe', 'id': equipe}
+            assert preuve['auteur'] == {'personne': 'admin.fictif', 'role': 'admin'}
+            assert preuve['visite_id'] == prev['visite_id']
+            assert equipes_pointees_v3.enregistrer(cnx, arguments, prev['visite_id'], equipe,
+                                                   'mutation-fictive-1', source)['rejoue'] is True
+            conflit = {**arguments, 'action': 'depart'}
+            with pytest.raises(equipes_pointees_v3.Refus, match='MUTATION-CONFLIT'):
+                equipes_pointees_v3.enregistrer(cnx, conflit, prev['visite_id'], equipe,
+                                                 'mutation-fictive-1', source)
+            from datetime import timedelta
+
+            from m4_field_ops import ecarts, outbox, temps_certifies_v2, temps_certifies_v3
+
+            demande = next(m for m in principal.lire() if m.get('type_entree') == 'demande_revue'
+                           and m.get('pointage_ligne_id') == recu['pointage_id'])
+            assert ecarts.resoudre_demande(demande['demande_id'], 'validee',
+                                           '2030-06-03T09:01:00-04:00', principal)[1] is None
+            pauses = []
+            for action, minute in [('pause_debut', 0), ('pause_fin', 30)]:
+                arguments['action'] = action
+                arguments['horodatage'] = f'2030-06-03T10:{minute:02d}:00-04:00'
+                horloge = instant + timedelta(hours=1, minutes=minute)
+                with contexte.receptionne_de(contexte.HorodatageAppareil('console:admin.fictif', horloge, horloge)):
+                    pauses.append(equipes_pointees_v3.enregistrer(cnx, arguments, prev['visite_id'], equipe,
+                        'premiere-' + action, equipes_pointees_v3.empreinte_sources(cnx)))
+            arguments['action'] = 'depart'
+            arguments['horodatage'] = '2030-06-03T12:00:00-04:00'
+            source_depart = equipes_pointees_v3.empreinte_sources(cnx)
+            depart = instant + timedelta(hours=3)
+            with contexte.receptionne_de(contexte.HorodatageAppareil('console:admin.fictif', depart, depart)):
+                recu_depart = equipes_pointees_v3.enregistrer(cnx, arguments, prev['visite_id'], equipe,
+                                                              'mutation-fictive-2', source_depart)
+            demande_depart = next(m for m in principal.lire() if m.get('type_entree') == 'demande_revue'
+                                  and m.get('pointage_ligne_id') == recu_depart['pointage_id'])
+            assert ecarts.resoudre_demande(demande_depart['demande_id'], 'validee',
+                                           '2030-06-03T12:01:00-04:00', principal)[1] is None
+            visites_chantier.fermer(principal, visites, prev['visite_id'], '2030-06-03T12:02:00-04:00')
+            assert etats.transitionner(iid, 'reportee', principal, '2030-06-03T12:03:00-04:00',
+                                        motif='meteo', registre_visites=visites)[1] is None
+            assert not [m for m in principal.lire() if m.get('wct')]
+            assert etats.transitionner(iid, 'planifiee', principal, '2030-06-03T12:04:00-04:00')[1] is None
+            equipe2 = next(e for e in domaine.fixture.pur._aide._equipes() if e['id'] != equipe)
+            plan_args = domaine.fixture.pur._aide._arguments(ids, equipes=[equipe2])
+            plan2 = domaine.fixture.pur._reussi(domaine.fixture.pur._proposer(principal, ids, positions,
+                                                                              plan_args))['plan_id']
+            domaine.fixture.pur._reussi(cedule_tournees.appliquer(principal, plan2, positions,
+                                                                 '2030-06-03T12:05:00-04:00', 'admin.fictif'))
+            datee = calendrier_civil.confirmer(principal, plan2, {'0': '2030-06-07'}, 0,
+                                                'admin.fictif', '2030-06-03T12:06:00-04:00')
+            ancre2 = {'intervention_id': iid, 'plan_id': plan2,
+                      'source_application_id': next(m['source_application_id'] for m in principal.lire()
+                                                    if m.get('ligne_id') == datee['ligne_id']),
+                      'source_ligne_id': datee['ligne_id']}
+            prev2 = domaine.ecrire(principal, visites, ancre2, revision=1, cle='reprise-v3',
+                                    heure='2030-06-07T07:30:00-04:00')
+            equipe2_id = domaine.fixture.notes._creneau(domaine.fixture.notes._sources(principal), ancre2)['equipe_id']
+            visites_chantier.ouvrir(principal, visites, prev2['visite_id'], '2030-06-07T08:00:00-04:00')
+            assert etats.transitionner(iid, 'en_route', principal, '2030-06-07T08:30:00-04:00',
+                assignation={'intervention_id': iid, 'technicien_id': equipe2_id})[1] is None
+            arguments['technicien_id'] = equipe2_id
+            arguments['fenetre_travail'] = {'debut': '2030-06-07T08:00:00-04:00',
+                                             'fin': '2030-06-07T18:00:00-04:00'}
+            preuves2 = []
+            for action, heure in [('arrivee', 9), ('depart', 13)]:
+                arguments['action'] = action
+                arguments['horodatage'] = f'2030-06-07T{heure:02d}:00:00-04:00'
+                horloge = datetime(2030, 6, 7, heure + 4, tzinfo=UTC)
+                with contexte.receptionne_de(contexte.HorodatageAppareil('console:admin.fictif', horloge, horloge)):
+                    preuves2.append(equipes_pointees_v3.enregistrer(cnx, arguments, prev2['visite_id'], equipe2_id,
+                        'reprise-' + action, equipes_pointees_v3.empreinte_sources(cnx)))
+                demande2 = next(m for m in principal.lire() if m.get('type_entree') == 'demande_revue'
+                                and m.get('pointage_ligne_id') == preuves2[-1]['pointage_id'])
+                assert ecarts.resoudre_demande(demande2['demande_id'], 'validee',
+                    f'2030-06-07T{heure:02d}:01:00-04:00', principal)[1] is None
+            visites_chantier.fermer(principal, visites, prev2['visite_id'], '2030-06-07T13:02:00-04:00')
+            from m4_field_ops.outils import outils as catalogue_m4
+            from opsys.outils import executer_atomique
+
+            par_nom = {o.nom: o for o in catalogue_m4()}
+            photo = deposer_photo_test(par_nom)
+            horloge = datetime(2030, 6, 7, 17, 3, tzinfo=UTC)
+            with contexte.receptionne_de(contexte.HorodatageAppareil('console:admin.fictif', horloge, horloge)):
+                reponse = executer_atomique(par_nom['m4_completer_intervention'], {
+                    'intervention_id': iid, 'horodatage': horloge.isoformat(),
+                    'preuves_completion': {'checklist_complete': True, 'photos_apres': [photo],
+                                           'notes': 'QA fictive', 'signature': None}, 'signature_requise': False})
+                assert reponse['ok'] and reponse['resultat']['accepte'], reponse
+                wct = reponse['resultat']['resultat']
+                double = executer_atomique(par_nom['m4_completer_intervention'], {
+                    'intervention_id': iid, 'horodatage': horloge.isoformat(),
+                    'preuves_completion': {'checklist_complete': True, 'photos_apres': [photo],
+                                           'notes': 'QA fictive', 'signature': None}, 'signature_requise': False})
+                assert double['resultat']['accepte'] is False, double
+            en_attente = temps_certifies_v3.projeter(cnx, iid, wct['wct_id'])
+            assert en_attente['projection']['revue_chantier']['statut'] == 'en_attente'
+            revue, erreur = outbox.resoudre_revue_completion(
+                iid, 'verifiee', '2030-06-07T13:04:00-04:00', principal, motif='Revue fictive')
+            assert erreur is None and revue['statut'] == 'completed_verified'
+            with pytest.raises(temps_certifies_v2.Refus, match='SOURCE-PERIMEE'):
+                temps_certifies_v3.projeter(cnx, iid, wct['wct_id'], source_attendue=en_attente['source'])
+            sortie_v3 = temps_certifies_v3.projeter(cnx, iid, wct['wct_id'])
+            projection = sortie_v3['projection']
+            assert projection['revue_chantier']['statut'] == 'verifiee'
+            assert projection['wct'] == en_attente['projection']['wct']
+            declaree = projection['visites'][0]['equipe_pointee']
+            assert declaree['statut'] == 'identifiee' and declaree['identifiant'] == equipe
+            assert [p['pointage_id'] for p in declaree['preuves']] == [
+                recu['pointage_id'], *(p['pointage_id'] for p in pauses), recu_depart['pointage_id']]
+            assert projection['visites'][1]['equipe_pointee']['identifiant'] == equipe2_id
+            assert [v['minutes']['travail'] for v in projection['visites']] == [150, 240]
+            assert projection['totaux'] == {'travail': 390, 'pause': 30, 'deplacement': 60}
+            import json
+
+            exemple = json.loads((Path(__file__).parents[3] / 'docs/grs/crm/CRM01-17-FIXTURE-TEMPS-V3.json')
+                                 .read_text())['projection']
+            assert set(declaree) == set(exemple['visites'][0]['equipe_pointee'])
+            assert set(declaree['preuves'][0]) == set(exemple['visites'][0]['equipe_pointee']['preuves'][0])
+            fichier = tmp_path / 'projection-v3-reelle-fictive.json'
+            fichier.write_text(json.dumps(sortie_v3, ensure_ascii=False, indent=2) + '\n')
+            assert json.loads(fichier.read_text()) == sortie_v3
+            assert _appel(cnx, {'iid': iid, 'wct_id': wct['wct_id']})['projection']['visites'][0][
+                'equipe_pointee']['statut'] == 'inconnue'
+            from sqlalchemy import update
+
+            from opsys.stockage.schema import JOURNAL
+
+            savepoint = cnx.begin_nested()
+            cnx.execute(update(JOURNAL).where(JOURNAL.c.cible == recu['preuve_id']).values(par='intrus.fictif'))
+            with pytest.raises(temps_certifies_v2.Refus, match='AUDIT-INVALIDE'):
+                temps_certifies_v3.projeter(cnx, iid, wct['wct_id'])
+            savepoint.rollback()
+            savepoint = cnx.begin_nested()
+            qualifier = temps_certifies_v3._qualifier
+            def modifier_source_apres_lecture(connexion, resultat, captures):
+                audits = qualifier(connexion, resultat, captures)
+                premiere = visites.lire()[0]
+                visites.ajouter({k: v for k, v in premiere.items() if k not in {'ligne_id', 'precedent_ligne_id'}})
+                return audits
+            with monkeypatch.context() as m:
+                m.setattr(temps_certifies_v3, '_qualifier', modifier_source_apres_lecture)
+                with pytest.raises(temps_certifies_v2.Refus, match='SOURCE-MODIFIEE'):
+                    temps_certifies_v3.projeter(cnx, iid, wct['wct_id'])
+            savepoint.rollback()
+            savepoint = cnx.begin_nested()
+            identite.retirer_role(cnx, 'admin.fictif', 'admin')
+            with pytest.raises(temps_certifies_v2.Refus, match='IDENTITE'):
+                temps_certifies_v3.projeter(cnx, iid, wct['wct_id'])
+            savepoint.rollback()
+    stockage.liberer()
+    with (stockage.transaction(base_durable) as cnx,
+          contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+          contexte.appeler_en_tant_que('m04-field-ops', origine='console')):
+        assert temps_certifies_v3.projeter(cnx, iid, wct['wct_id'],
+                                            source_attendue=sortie_v3['source']) == sortie_v3
+
+    # Vrai répartiteur : l'événement WCT a été émis par l'outil M4, jamais par le harnais.
+    from types import SimpleNamespace
+    from decimal import Decimal
+    from m5_financecore import outils as m5
+    from opsys import evenements
+    from opsys.console import rentabilite_chantier as console
+    from opsys.departements import charger_departements
+    from opsys.stockage.schema import EVENEMENTS_SORTANTS
+    from sqlalchemy import select
+
+    with stockage.transaction(base_durable) as cnx:
+        publie = cnx.execute(select(EVENEMENTS_SORTANTS).where(
+            EVENEMENTS_SORTANTS.c.evenement_id == wct['wct_id'])).mappings().one()
+        assert publie['producteur'] == 'm04-field-ops' and publie['type_evenement'] == 'm4.travaux_termines'
+    deps = charger_departements()
+    resultat_bus = evenements.repartir({'m05-financecore': deps['m05-financecore']},
+                                      maintenant='2030-06-07T18:00:00-04:00')
+    assert resultat_bus['traites'] == 1 and resultat_bus['echecs'] == 0, resultat_bus
+    assert evenements.repartir({'m05-financecore': deps['m05-financecore']},
+                               maintenant='2030-06-07T18:01:00-04:00')['traites'] == 0
+    with stockage.transaction(base_durable) as cnx:
+        recu_m5 = next(m for m in stockage.maillons('m05-financecore', 'wct_recus') if m['wct_id'] == wct['wct_id'])
+        with (contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+              contexte.appeler_en_tant_que('m05-financecore', origine='console')):
+            for nom, valeur in [(equipe, '100'), (equipe2_id, '120')]:
+                tarifs = m5._lire_tarifs_equipes()
+                m5._inscrire_tarif_equipe({'equipe_id': nom, 'taux': valeur, 'unite': 'heure-equipe',
+                    'devise': 'CAD', 'source': 'fictif', 'version': 'v1-fictive',
+                    'date_effet': '2030-01-01', 'date_fin': '2030-12-31', 'remplace_id': None},
+                    mutation_id='tarif-'+nom, source_attendue=tarifs['source'])
+        vue = console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800),
+                                      recu_m5, projection['lead_id'])
+        assert vue['statut'] == 'COMPLET', vue
+        assert Decimal(str(vue['cout_main_oeuvre'])) == Decimal('730.00'), vue
+        assert vue['minutes_travail'] == 390
+        avant_m5 = list(stockage.maillons('m05-financecore', 'wct_recus'))
+        assert console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800),
+                                       recu_m5, projection['lead_id']) == vue
+        assert list(stockage.maillons('m05-financecore', 'wct_recus')) == avant_m5
+        with pytest.raises(PermissionError):
+            console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=0),
+                                    recu_m5, projection['lead_id'])
+        garde = cnx.begin_nested()
+        identite.retirer_role(cnx, 'admin.fictif', 'admin')
+        with pytest.raises(PermissionError):
+            console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800),
+                                    recu_m5, projection['lead_id'])
+        garde.rollback()
+        from m4_field_ops import composition_journaliere
+        ancien_lecteur = m5._lire_tarifs_equipes
+        def changer_source_tard():
+            tarifs_actuels = ancien_lecteur()
+            args = {'jour': '2030-06-11', 'equipe_id': 'equipe-ailleurs-fictive', 'membres': ['personne.fictive'],
+                    'revision_attendue': 0, 'statut_declaration': 'declaree'}
+            composition_journaliere.declarer(Registre(stockage.maillons('m04-field-ops', 'composition_journaliere')),
+                **args, auteur={'personne': 'admin.fictif', 'role': 'admin'},
+                mutation={'appareil': 'fictif', 'cle': 'source-devenue-perimee',
+                          'empreinte_arguments': encodage.empreinte(args)}, horodatage='2030-06-11T08:00:00-04:00')
+            return tarifs_actuels
+        garde = cnx.begin_nested()
+        with monkeypatch.context() as m:
+            m.setattr(m5, '_lire_tarifs_equipes', changer_source_tard)
+            with pytest.raises(console.lecture.Refus):
+                console._ventilation_m4(cnx, SimpleNamespace(utilisateur='admin.fictif', expire=4102444800),
+                                        recu_m5, projection['lead_id'])
+        garde.rollback()
+        assert list(stockage.maillons('m05-financecore', 'wct_recus')) == avant_m5
+        print('QA_WCT_PRODUCTION=1 RECU_M5=1 V3=390 COUT_FICTIF=730 REJEU=OK REVOCATION=OK SOURCE=OK')

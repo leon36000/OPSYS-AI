@@ -116,6 +116,34 @@ def test_outils_console_sql_admin_prevision_et_ouverture(planning, session, monk
                    'visite_id': visite_id, 'source_attendue': vue_report['resultat']['resultat']['source_sql']}
     with session():
         avant_report = list(stockage.maillons('m04-field-ops', 'principal'))
+    # Le contrat v1 conserve son refus historique pour un chantier déjà commencé.
+    ancien = appeler('m4_signaler_report', {k: report_args[k] for k in ('intervention_id', 'motif', 'horodatage')},
+                     '2030-06-03T12:02:00-04:00')
+    ecarts = []
+    if ancien['resultat']['verdict']['code'] != 'REJ-TRANSITION-ILLEGALE':
+        ecarts.append(('v1', ancien['resultat']['verdict']['code']))
+    # Le port privé exige une réception serveur authentifiée et zonée, même hors HTTP.
+    instant = datetime.fromisoformat('2030-06-03T12:02:00-04:00')
+    receptions = [('absente', None),
+                  ('autre-appareil', contexte.HorodatageAppareil('console:autre.fictif', instant, instant)),
+                  ('non-zonee', contexte.HorodatageAppareil('console:admin.fictif', instant,
+                                                           instant.replace(tzinfo=None)))]
+    for cas, reception in receptions:
+        with session() as cnx:
+            garde = cnx.begin_nested()
+            try:
+                with (contexte.appele_par_appareil(
+                        contexte.IdentiteAppelante('admin.fictif', 'admin', source='console')),
+                      contexte.appeler_en_tant_que('m04-field-ops', origine='console'),
+                      contexte.receptionne_de(reception)):
+                    resultat = executer_atomique(par_nom['m4_interrompre_visite_console_v2'], report_args)
+            finally:
+                garde.rollback()
+        if resultat.get('ok') is not True or resultat['resultat']['accepte'] is not False:
+            ecarts.append((cas, 'refus absent'))
+    with session():
+        assert list(stockage.maillons('m04-field-ops', 'principal')) == avant_report
+    assert not ecarts, ecarts
     original_acteur = module_outils._acteur_appareil
     appels = []
     def acteur_revoque():
@@ -125,12 +153,17 @@ def test_outils_console_sql_admin_prevision_et_ouverture(planning, session, monk
         return original_acteur()
     with monkeypatch.context() as patch:
         patch.setattr(module_outils, '_acteur_appareil', acteur_revoque)
-        echec = appeler('m4_signaler_report', report_args, '2030-06-03T12:02:00-04:00', 'report-fictif')
+        echec = appeler('m4_interrompre_visite_console_v2', report_args, '2030-06-03T12:02:00-04:00', 'report-fictif')
         assert echec['resultat']['accepte'] is False
     with session():
         assert list(stockage.maillons('m04-field-ops', 'principal')) == avant_report
-    report = appeler('m4_signaler_report', report_args, '2030-06-03T12:02:00-04:00', 'report-fictif')
+    report_args['horodatage'] = '2001-01-01T00:00:00+00:00'  # ignoré au profit de la réception serveur
+    report = appeler('m4_interrompre_visite_console_v2', report_args, '2030-06-03T12:02:00-04:00', 'report-fictif')
     assert report['ok'] and report['resultat']['accepte'], report
+    with session():
+        fait_report = next(m for m in stockage.maillons('m04-field-ops', 'principal')
+                           if m.get('ligne_id') == report['resultat']['resultat']['ligne_id'])
+        assert fait_report['horodatage'] == '2030-06-03T12:02:00-04:00'
     with session() as cnx:
         from opsys import identite
         identite.retirer_role(cnx, 'admin.fictif', 'admin')

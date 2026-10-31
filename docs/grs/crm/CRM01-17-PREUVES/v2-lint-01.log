@@ -1,0 +1,196 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:2:1
+   |
+ 1 |   """Projection privée V2 de faits M4 vérifiés, sans calcul de présence ni de coût."""
+ 2 | / import json
+ 3 | | import re
+ 4 | |
+ 5 | | from sqlalchemy import select
+ 6 | |
+ 7 | | from opsys import contexte, stockage
+ 8 | | from opsys.stockage.schema import OPSYS_INSTANCE
+ 9 | |
+10 | | from . import annotations_calendrier, composition_durable, composition_journaliere, encodage, etats, journal_durable, outbox
+11 | | from . import visites_chantier, visites_durables, visites_ecriture
+12 | | from .registre import Registre, VerificationError
+   | |_________________________________________________^
+13 |
+14 |   VERSION = 'opsys.m4.temps_certifies.v2'
+   |
+help: Organize imports
+   |
+9  |
+   - from . import annotations_calendrier, composition_durable, composition_journaliere, encodage, etats, journal_durable, outbox
+   - from . import visites_chantier, visites_durables, visites_ecriture
+10 + from . import (
+11 +     annotations_calendrier,
+12 +     composition_durable,
+13 +     composition_journaliere,
+14 +     encodage,
+15 +     etats,
+16 +     journal_durable,
+17 +     outbox,
+18 +     visites_chantier,
+19 +     visites_durables,
+20 +     visites_ecriture,
+21 + )
+22 | from .registre import Registre, VerificationError
+   |
+
+E501 Line too long (124 > 120)
+  --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:10:121
+   |
+ 8 | from opsys.stockage.schema import OPSYS_INSTANCE
+ 9 |
+10 | from . import annotations_calendrier, composition_durable, composition_journaliere, encodage, etats, journal_durable, outbox
+   |                                                                                                                         ^^^^
+11 | from . import visites_chantier, visites_durables, visites_ecriture
+12 | from .registre import Registre, VerificationError
+   |
+
+E501 Line too long (121 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:116:121
+    |
+114 |         if len(ouvertures) != 1 or len(fermetures) != 1:
+115 |             raise Refus('VISITE-AMBIGUE')
+116 |         if visites_chantier._instant(fermetures[0]['horodatage']) > visites_chantier._instant(maillon_wct['horodatage']):
+    |                                                                                                                         ^
+117 |             raise Refus('WCT-ANTERIEUR-A-VISITE')
+118 |         faits = [par_ligne[ident] for ident in calcul['sources']]
+    |
+
+E501 Line too long (122 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:154:121
+    |
+152 |         'intervention_id': intervention_id, 'lead_id': wct['lead_id'],
+153 |         'wct': {'wct_id': wct_id, 'source_ligne_id': maillon_wct['ligne_id'], 'hash_maillon': wct['hash_maillon'],
+154 |                 'horodatage_transition': maillon_wct['horodatage'], 'horodatage_completion': wct['horodatage_completion'],
+    |                                                                                                                         ^^
+155 |                 'statut': wct['statut'], 'duree_reelle_minutes': wct['duree_reelle_minutes']},
+156 |         'sources': dict(zip(('principal', 'visites', 'compositions'), map(_source, captures), strict=True)),
+    |
+
+E501 Line too long (124 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:176:121
+    |
+174 |         raise Refus('ARGUMENTS')
+175 |     try:
+176 |         instance_id = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one_or_none()
+    |                                                                                                                         ^^^^
+177 |         if not isinstance(instance_id, str) or not instance_id:
+178 |             raise Refus('INSTANCE-NON-QUALIFIEE')
+    |
+
+E501 Line too long (128 > 120)
+   --> departments/m04-field-ops/src/m4_field_ops/temps_certifies_v2.py:189:121
+    |
+187 |                 borne if borne is not None else 65536, 65536):
+188 |             raise Refus('SORTIE-TROP-VOLUMINEUSE')
+189 |         instance_finale = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one_or_none()
+    |                                                                                                                         ^^^^^^^^
+190 |         if _autoriser(cnx) != auteur or _sources(cnx) != captures or instance_finale != instance_id:
+191 |             raise Refus('SOURCE-MODIFIEE')
+    |
+
+E501 Line too long (121 > 120)
+  --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:11:121
+   |
+ 9 | from opsys import contexte, identite, stockage
+10 |
+11 | _spec = importlib.util.spec_from_file_location('fixture_visites_v2', Path(__file__).with_name('test_visites_reprise.py'))
+   |                                                                                                                         ^
+12 | _base = importlib.util.module_from_spec(_spec)
+13 | _spec.loader.exec_module(_base)
+   |
+
+E501 Line too long (123 > 120)
+  --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:41:121
+   |
+39 |             assign = {'intervention_id': iid, 'technicien_id': equipe_jour}
+40 |             visites_chantier.ouvrir(principal, visites, prev['visite_id'], f'{jour}T08:00:00-04:00')
+41 |             assert etats.transitionner(iid, 'en_route', principal, f'{jour}T08:30:00-04:00', assignation=assign)[1] is None
+   |                                                                                                                         ^^^
+42 |             fenetre = {'debut': f'{jour}T08:00:00-04:00', 'fin': f'{jour}T18:00:00-04:00'}
+43 |             actions = [('arrivee', '09:00:00'), *pauses, ('depart', '12:00:00' if pauses else '13:00:00')]
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:112:5
+    |
+111 |   def test_projection_refuse_identite_source_perimee_et_wct_inconnu(chantier_termine):
+112 | /     from m4_field_ops import temps_certifies_v2
+113 | |     from opsys.stockage.schema import META
+114 | |     from sqlalchemy import select
+    | |_________________________________^
+115 |
+116 |       cas = chantier_termine
+    |
+help: Organize imports
+    |
+112 |     from m4_field_ops import temps_certifies_v2
+    -     from opsys.stockage.schema import META
+113 |     from sqlalchemy import select
+114 |
+115 +     from opsys.stockage.schema import META
+116 +
+117 |     cas = chantier_termine
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:163:5
+    |
+162 |   def test_source_ou_autorite_changee_en_fin_de_lecture_refuse(chantier_termine, monkeypatch):
+163 | /     from dataclasses import replace
+164 | |     from m4_field_ops import temps_certifies_v2
+    | |_______________________________________________^
+165 |
+166 |       cas = chantier_termine
+    |
+help: Organize imports
+    |
+163 |     from dataclasses import replace
+164 +
+165 |     from m4_field_ops import temps_certifies_v2
+    |
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:186:5
+    |
+184 |               identite.retirer_role(cnx, 'admin.fictif', 'admin')
+185 |           return original_autorite(cnx)
+186 | /     with pytest.raises(temps_certifies_v2.Refus, match='IDENTITE'):
+187 | |         with stockage.transaction(cas['url']) as cnx, monkeypatch.context() as patch:
+    | |_____________________________________________________________________________________^
+188 |               patch.setattr(temps_certifies_v2, '_autoriser', revoquer)
+189 |               _appel(cnx, cas)
+    |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:199:9
+    |
+197 |       moteur = create_engine(cas['url'])
+198 |       try:
+199 | /         with stockage.transaction(cas['url']), moteur.connect() as etrangere:
+200 | |             with pytest.raises(temps_certifies_v2.Refus, match='INSTANCE-NON-QUALIFIEE'):
+    | |_________________________________________________________________________________________^
+201 |                   _appel(etrangere, cas)
+202 |           with stockage.transaction(cas['url']) as cnx, contexte.sortie_bornee(1):
+    |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> departments/m04-field-ops/tests/test_temps_certifies_v2.py:202:9
+    |
+200 |               with pytest.raises(temps_certifies_v2.Refus, match='INSTANCE-NON-QUALIFIEE'):
+201 |                   _appel(etrangere, cas)
+202 | /         with stockage.transaction(cas['url']) as cnx, contexte.sortie_bornee(1):
+203 | |             with pytest.raises(temps_certifies_v2.Refus, match='SORTIE-TROP-VOLUMINEUSE'):
+    | |__________________________________________________________________________________________^
+204 |                   _appel(cnx, cas)
+205 |       finally:
+    |
+help: Combine `with` statements
+
+Found 13 errors.
+[*] 3 fixable with the `--fix` option.

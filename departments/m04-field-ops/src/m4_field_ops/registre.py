@@ -64,6 +64,7 @@ _TYPE_ENTREE_VALIDES = {
     "visite_prevue",  # CRM-01 : identité liée à une ancre civile explicite.
     "visite_ouverte",  # CRM-01 : lien explicite avant les faits terrain.
     "visite_fermee",  # CRM-01 : clôture de visite, sans complétion chantier.
+    "pointage_equipe_v3",  # Provenance typée transactionnelle des nouveaux pointages.
     "composition_journaliere",  # CRM-16 : registre déclaratif distinct, aucun droit courant.
     "absence_journaliere_declaree",  # CRM-16 : signalement admin distinct, aucune présence/paie.
 }

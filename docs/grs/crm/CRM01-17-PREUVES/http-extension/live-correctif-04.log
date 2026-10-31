@@ -1,0 +1,7 @@
+APRES_DATE 200 OPERATIONS [None, 'prevoir']
+PREVOIR_REPRISE 303
+OUVRIR_REPRISE 303
+EQUIPE_REPRISE eq-b
+PRIMITIVES transition en_route et pointages reprise arrivée/départ
+FERMER_REPRISE 303
+DEUX_DUREES_60 2

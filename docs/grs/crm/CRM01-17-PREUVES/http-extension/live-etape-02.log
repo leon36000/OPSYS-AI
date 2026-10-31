@@ -1,0 +1,9 @@
+EQUIPE_PREVUE eq-a
+STATUT_INITIAL planifiee
+PRIMITIVES_FICTIVES transition en_route et 2 pointages arrivée/départ
+OPERATIONS [None, 'fermer']
+FERMER_HTTP 303
+APRES_FERMETURE [None, 'interrompre']
+INTERRUPTION_HTTP 303
+MOTIF_VISIBLE True OPERATIONS [None, 'replanifier']
+STATUT_FINAL reportee WCT 0
