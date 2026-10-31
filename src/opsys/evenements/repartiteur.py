@@ -352,7 +352,11 @@ def etat() -> dict[str, Any]:
                     ),
                 )
             )
-            .where(attente_wct.ATTENTES.c.etat.in_(("attente", "prete")), EVENEMENTS_RECUS.c.statut == "echec")
+            .where(
+                attente_wct.ATTENTES.c.etat.in_(("attente", "prete")),
+                EVENEMENTS_RECUS.c.statut == "echec",
+                EVENEMENTS_RECUS.c.derniere_erreur.is_(None),
+            )
             .group_by(attente_wct.ATTENTES.c.etat)
         ).all()
         for etat_attente, nombre in suspendues:
