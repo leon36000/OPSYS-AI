@@ -109,6 +109,12 @@ nouvelle version des entrées), il publie `m5.rentabilite_chantier` dans la MÊM
 texte décimal, `wct_id`, `devis_id` ; jamais un prix unitaire, un taux ni une donnée de client, et jamais une marge
 pour un coût partiel. C'est le seul événement que M5 publie. Aucune écriture comptable n'en découle.
 
+E1 (régression I5, CONCEPTION-ROUTAGE-COUT-CERTIFIE) : `_essayer_cout_reel` ne publie jamais, par-dessus la dernière
+trace publiée dont la main-d'oeuvre est certifiée (projection M4 V3 vérifiée), l'état partiel qui n'est dû qu'à
+l'absence de projection dans ce chemin (`cout_reel.decision_apres_etat_certifie`) : rien d'écrit tant que seule la
+ventilation manque (`certifie_conserve`) ; un partiel marqué `REJ-COUT-CERTIFIE-A-RECALCULER` dès qu'une entrée a
+changé (`tracee_certifie_perime`). Voir `docs/bmad/03-ARCHITECTURE.md`, DA-M5-10.
+
 PLAN T4.15 (comptes à payer, `comptes_a_payer.py`, M5.2 et M6.16) : `consommateurs()` abonne en plus
 `_recevoir_reception_enregistree` (`m6.reception_enregistree`) sur un sixième registre durable, DÉDIÉ,
 `comptes_a_payer` : il garde chaque réception reçue (l'« à payer ATTENDU » d'un PO, cumulé sur ses livraisons) et

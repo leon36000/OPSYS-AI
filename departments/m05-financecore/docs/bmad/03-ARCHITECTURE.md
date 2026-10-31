@@ -340,6 +340,28 @@ schéma le refuse aussi. L'identifiant contient le rang de la trace (`sequence`)
 antérieure des entrées serait un no-op du bus et M8 et M10 resteraient sur l'état précédent ; le consommateur
 retient le plus grand `sequence`. Consommé par M8 (marge réelle, écarts) et M10 (leçon `FINANCIAL`).
 
+**Coût certifié et cascade ordinaire (E1, régression I5)** : la cascade ordinaire (`_essayer_cout_reel`, déclenchée
+par un devis, un WCT, une variance, une facture) n'a jamais de projection M4 : son état est donc toujours PARTIEL.
+Avant E1, elle le traçait et le publiait par-dessus un coût certifié (main-d'oeuvre d'une projection M4 V3 vérifiée,
+trace `provenance_service_v1`), et M8 et M10, qui retiennent le plus grand `sequence`, perdaient la marge certifiée
+sur un simple rejeu. Règle actuelle, devant la dernière trace PUBLIÉE du devis (une trace de la voie console,
+`provenance_v3`, n'est jamais publiée et est ignorée) dont la main-d'oeuvre est certifiée et complète :
+- **reste certifié, aucune écriture** (`certifie_conserve`) tant que `empreinte_hors_ventilation` (WCT, variance,
+  prix du livre, autres WCT, facture par sa finalité `prix_definitif` et son montant, devis) et l'empreinte de
+  l'historique des tarifs d'équipe sont ceux de la trace : rejeu de variance, de devis ou de WCT, facture
+  ENVOYEE -> PAYEE ;
+- **devient visiblement périmé** (`tracee_certifie_perime`) dès qu'une de ces entrées change (prix du livre,
+  quantité de matériaux, facture BROUILLON -> ENVOYEE, devis, autre WCT, tarif d'équipe), ou que la trace ne permet
+  pas de le prouver (trace antérieure à E1 sans empreinte, tarifs illisibles) : un partiel est tracé et publié avec
+  le manque `REJ-COUT-CERTIFIE-A-RECALCULER`, sans marge ; l'historique garde le certifié (append-only) ;
+- **jamais recomposé** : la cascade ne remet pas un coût complet (main-d'oeuvre certifiée + matériaux neufs), M5 ne
+  pouvant pas revalider la projection M4 sans capacité. Seul un recalcul certifié rétablit un état courant certifié.
+Aucun changement de schéma de l'événement : `empreinte_hors_ventilation` n'est que dans la trace (registre
+`rentabilite`) ; le nouveau code passe par `manque` (motif `^REJ-[A-Z0-9-]+$`, sans liste fermée). Le code n'est
+volontairement pas dans la liste de `validation.py`, dont l'empreinte est épinglée par
+`contracts/admission_paie_preparatoire.v1.json`. La détection n'a lieu qu'à la prochaine évaluation de la cascade
+(aucun déclencheur autonome sur un changement de tarif ou de projection : réconciliateur, étape E8).
+
 **Justification** : DEFINITION-PRODUIT §6 (« M5 [...] calcule le coût réel [...] et la rentabilité du
 chantier », « M5 reçoit le coût réel ») ; principe « le code calcule, le LLM orchestre » ; P2 (aucun chiffre
 inventé). Limites dites dans chaque résultat (`hypotheses`) : le livre de prix M6 ne porte pas d'unité, et le WCT
