@@ -145,9 +145,14 @@ function syncPrivateDeclarationAliases(
   prefix: string,
   omitted: readonly string[] = [],
 ) {
-  const config: { compilerOptions: { paths: Record<string, string[]> } } = JSON.parse(
-    fs.readFileSync(path.join(repoRoot, relativePath), "utf8"),
-  );
+  const config: unknown = JSON.parse(fs.readFileSync(path.join(repoRoot, relativePath), "utf8"));
+  if (
+    !isJsonObject(config) ||
+    !isJsonObject(config.compilerOptions) ||
+    !isDeclarationPaths(config.compilerOptions.paths)
+  ) {
+    throw new Error(`Invalid private declaration config: ${relativePath}`);
+  }
   const currentPaths = config.compilerOptions.paths;
   const nextPaths = { ...currentPaths };
   const privateEntries = new Set(privateLocalOnlyPluginSdkEntrypoints);
@@ -180,6 +185,19 @@ function syncPrivateDeclarationAliases(
   writeOrCheckJson(relativePath, config);
 }
 
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isDeclarationPaths(value: unknown): value is Record<string, string[]> {
+  return (
+    isJsonObject(value) &&
+    Object.values(value).every(
+      (targets) => Array.isArray(targets) && targets.every((target) => typeof target === "string"),
+    )
+  );
+}
+
 const facadeSubpaths = collectFacadeSubpaths();
 if (facadeSubpaths === null) {
   process.exit(1);
@@ -189,10 +207,14 @@ syncFacadePackageExports(facadeSubpaths);
 syncPrivateDeclarationAliases("extensions/tsconfig.package-boundary.paths.json", "../");
 // XAI's independent package boundary contract intentionally excludes these two
 // private aliases; its remaining custom paths are not registration projections.
-syncPrivateDeclarationAliases("extensions/xai/tsconfig.json", "../../", [
-  "channel-secret-owner-runtime",
-  "channel-secret-tts-runtime",
-]);
+// Pruned forks omit the extension, not its config alone. A retained extension
+// must still supply a valid config; lstat also retains broken symlinks as errors.
+if (fs.lstatSync(path.join(repoRoot, "extensions/xai"), { throwIfNoEntry: false })) {
+  syncPrivateDeclarationAliases("extensions/xai/tsconfig.json", "../../", [
+    "channel-secret-owner-runtime",
+    "channel-secret-tts-runtime",
+  ]);
+}
 if (failed) {
   process.exit(1);
 }

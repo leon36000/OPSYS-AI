@@ -23,8 +23,19 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { approveDevicePairing } from "../infra/device-pairing-approval.js";
-import { ensureDeviceToken } from "../infra/device-pairing-tokens.js";
-import { requestDevicePairing } from "../infra/device-pairing.js";
+import {
+  ensureDeviceToken,
+  revokeDeviceToken,
+  rotateDeviceToken,
+} from "../infra/device-pairing-tokens.js";
+import * as pairingTokenOps from "../infra/device-pairing-tokens.js";
+import {
+  requestDevicePairing,
+  removePairedDevice,
+  removePairedDeviceRole,
+  withPairedDeviceRecords,
+  listDevicePairing,
+} from "../infra/device-pairing.js";
 import {
   withOpenClawTestState,
   type OpenClawTestState,
@@ -42,11 +53,11 @@ const SHARED_GATEWAY_AUTH: ResolvedGatewayAuth = {
 };
 const DEVICE_ID = "tel-employe-42";
 const resolveToolLoopDetectionConfig = () => ({ warnAt: 3 });
-let beforeToolCall: (() => void) | undefined;
+let beforeToolCall: (() => void | Promise<void>) | undefined;
 const runBeforeToolCallHook = async (args: { params: unknown }) => {
   const before = beforeToolCall;
   beforeToolCall = undefined;
-  before?.();
+  await before?.();
   return { blocked: false as const, params: args.params };
 };
 
@@ -114,7 +125,8 @@ vi.mock("./tool-resolution.js", () => ({
 // way the real runtime does (`loadSessionMcpConfig`), lists `TOOLS_BY_SERVER`, and refuses a
 // `tools/call` for a server it does not hold, like the combined runtime ("not connected").
 vi.mock("../agents/agent-bundle-mcp-runtime.js", async () => {
-  const { currentMcpCallMeta } = await import("../agents/mcp-call-meta.js");
+  const { currentMcpCallMeta, assertMcpCallAuthorityCurrent } =
+    await import("../agents/mcp-call-meta.js");
   return {
     createSessionMcpRuntime: (params: {
       cfg?: { mcp?: { servers?: Record<string, unknown> } };
@@ -155,6 +167,8 @@ vi.mock("../agents/agent-bundle-mcp-runtime.js", async () => {
           if (!held.includes(serverName)) {
             throw new Error(`bundle-mcp server "${serverName}" is not connected`);
           }
+          // Mirror the real native transport final fence before recording the fictive effect.
+          assertMcpCallAuthorityCurrent();
           record.toolCalls.push({ serverName, toolName, input, meta: currentMcpCallMeta() });
           return {
             content: [
@@ -536,5 +550,115 @@ describe("tools invoke HTTP: a device token reaches the department MCP tool by t
       expect(runtimes[0]?.includeServerNames).toEqual(["opsys_m4"]);
       expect(runtimes[0]?.toolCalls[0]).toMatchObject({ serverName: "opsys_m4" });
     });
+  });
+});
+
+// Root QA discriminant only: Core paired-token revocation, OPSYS fragments unchanged.
+it("refuses Core operator token revoked in awaited hook before native-final-fenced fictive effect", async () => {
+  await withPairedDevice(DEVICE_ID, async (deviceToken, state) => {
+    const dir = path.join(path.dirname(state.configPath), "opsys");
+    const beforeRoles = fs.readFileSync(path.join(dir, "roles.json"));
+    const beforeDevices = fs.readFileSync(path.join(dir, "appareils.json"));
+    let revoked = false;
+    beforeToolCall = async () => {
+      const result = await revokeDeviceToken({ deviceId: DEVICE_ID, role: "operator" });
+      expect(result.ok).toBe(true);
+      revoked = result.ok;
+    };
+    const response = await invokeAsApp(deviceToken, { tool: "m4_pointer", args: {} });
+    const body = (await response.json()) as InvokeBody;
+    const assignmentUnchanged =
+      beforeRoles.equals(fs.readFileSync(path.join(dir, "roles.json"))) &&
+      beforeDevices.equals(fs.readFileSync(path.join(dir, "appareils.json")));
+    // Optional QA evidence: written only when the harness names a directory, never to a fixed absolute path.
+    const evidenceDir = process.env.OPSYS_QA_EVIDENCE_DIR;
+    if (evidenceDir) {
+      fs.writeFileSync(
+        path.join(evidenceDir, "CORE-TOKEN-REVOCATION-OBSERVED.json"),
+        JSON.stringify(
+          {
+            coreTokenRevokedInAwaitedHook: revoked,
+            httpStatus: response.status,
+            responseOk: body.ok,
+            recordedFictiveEffects: runtimes.reduce(
+              (n, runtime) => n + runtime.toolCalls.length,
+              0,
+            ),
+            allTargetsDisposed: runtimes.every((runtime) => runtime.disposed),
+            assignmentUnchanged,
+            realPairingAndTokenRevocation: true,
+            realHttpAndOpsysRoleAndResolver: true,
+            transportMockIncludesRealFinalAmbientAuthorityFence: true,
+            noRealBusinessServer: true,
+          },
+          null,
+          2,
+        ),
+        { flag: "wx", mode: 0o600 },
+      );
+    }
+    expect(revoked).toBe(true);
+    expect(assignmentUnchanged).toBe(true);
+    expect([401, 403]).toContain(response.status);
+    expect(runtimes.every((runtime) => runtime.toolCalls.length === 0)).toBe(true);
+    expect(runtimes.every((runtime) => runtime.disposed)).toBe(true);
+  });
+});
+
+it.each(["rotate", "scope-reduction", "remove-role", "remove-device"] as const)(
+  "refuses in-flight device authority after %s in awaited hook",
+  async (action) => {
+    await withPairedDevice(DEVICE_ID, async (deviceToken) => {
+      beforeToolCall = async () => {
+        if (action === "rotate" || action === "scope-reduction") {
+          const result = await rotateDeviceToken({
+            deviceId: DEVICE_ID,
+            role: "operator",
+            ...(action === "scope-reduction" ? { scopes: ["operator.read"] } : {}),
+          });
+          expect(result.ok).toBe(true);
+        } else if (action === "remove-role") {
+          expect(
+            await removePairedDeviceRole({ deviceId: DEVICE_ID, role: "operator" }),
+          ).not.toBeNull();
+        } else {
+          expect(await removePairedDevice(DEVICE_ID)).not.toBeNull();
+        }
+      };
+      const response = await invokeAsApp(deviceToken, { tool: "m4_pointer", args: {} });
+      expect([401, 403]).toContain(response.status);
+      expect(runtimes.every((runtime) => runtime.toolCalls.length === 0)).toBe(true);
+      expect(runtimes.every((runtime) => runtime.disposed)).toBe(true);
+    });
+  },
+);
+
+it("refuses the original token when verified scopes shrink before published capture", async () => {
+  await withPairedDevice(DEVICE_ID, async (deviceToken) => {
+    const actualVerify = pairingTokenOps.verifyDeviceToken;
+    let injected = false;
+    const spy = vi.spyOn(pairingTokenOps, "verifyDeviceToken").mockImplementation(async (input) => {
+      const verified = await actualVerify(input);
+      if (verified.ok && !injected) {
+        injected = true;
+        // Private test-only transaction changes scopes without replacing the token;
+        // refresh is explicit, so this tests S0 -> verify -> S1 publication -> capture,
+        // not notification coverage for writers outside the owner broker.
+        await withPairedDeviceRecords(undefined, (paired) => {
+          paired[DEVICE_ID]!.tokens!.operator!.scopes = ["operator.read"];
+          return { value: undefined, persist: true };
+        });
+        await listDevicePairing();
+      }
+      return verified;
+    });
+    try {
+      const response = await invokeAsApp(deviceToken, { tool: "m4_pointer", args: {} });
+      expect(injected).toBe(true);
+      expect([401, 403]).toContain(response.status);
+      expect(runtimes.every((runtime) => runtime.toolCalls.length === 0)).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
