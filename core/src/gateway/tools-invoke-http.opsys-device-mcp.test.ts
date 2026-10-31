@@ -570,26 +570,33 @@ it("refuses Core operator token revoked in awaited hook before native-final-fenc
     const assignmentUnchanged =
       beforeRoles.equals(fs.readFileSync(path.join(dir, "roles.json"))) &&
       beforeDevices.equals(fs.readFileSync(path.join(dir, "appareils.json")));
-    fs.writeFileSync(
-      "/fixture/CORE-TOKEN-REVOCATION-OBSERVED.json",
-      JSON.stringify(
-        {
-          coreTokenRevokedInAwaitedHook: revoked,
-          httpStatus: response.status,
-          responseOk: body.ok,
-          recordedFictiveEffects: runtimes.reduce((n, runtime) => n + runtime.toolCalls.length, 0),
-          allTargetsDisposed: runtimes.every((runtime) => runtime.disposed),
-          assignmentUnchanged,
-          realPairingAndTokenRevocation: true,
-          realHttpAndOpsysRoleAndResolver: true,
-          transportMockIncludesRealFinalAmbientAuthorityFence: true,
-          noRealBusinessServer: true,
-        },
-        null,
-        2,
-      ),
-      { flag: "wx", mode: 0o600 },
-    );
+    // Optional QA evidence: written only when the harness names a directory, never to a fixed absolute path.
+    const evidenceDir = process.env.OPSYS_QA_EVIDENCE_DIR;
+    if (evidenceDir) {
+      fs.writeFileSync(
+        path.join(evidenceDir, "CORE-TOKEN-REVOCATION-OBSERVED.json"),
+        JSON.stringify(
+          {
+            coreTokenRevokedInAwaitedHook: revoked,
+            httpStatus: response.status,
+            responseOk: body.ok,
+            recordedFictiveEffects: runtimes.reduce(
+              (n, runtime) => n + runtime.toolCalls.length,
+              0,
+            ),
+            allTargetsDisposed: runtimes.every((runtime) => runtime.disposed),
+            assignmentUnchanged,
+            realPairingAndTokenRevocation: true,
+            realHttpAndOpsysRoleAndResolver: true,
+            transportMockIncludesRealFinalAmbientAuthorityFence: true,
+            noRealBusinessServer: true,
+          },
+          null,
+          2,
+        ),
+        { flag: "wx", mode: 0o600 },
+      );
+    }
     expect(revoked).toBe(true);
     expect(assignmentUnchanged).toBe(true);
     expect([401, 403]).toContain(response.status);
