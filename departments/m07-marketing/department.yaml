@@ -31,7 +31,7 @@ budget:
   alerte_pct: 80
 memoire:
   lecture: [clients, chantiers, campagnes, avis]
-  ecriture: [contenus_proposes, calendrier_contenus, roi_snapshots, profils_marque, observations_growth, plans_growth, campagnes_locales]
+  ecriture: [contenus_proposes, calendrier_contenus, roi_snapshots, profils_marque, observations_growth, plans_growth, campagnes_locales, depenses_marketing]
 # PLAN T4.17-c : M7 consomme le STOP de M1 (`m1.retrait_consentement`, les leads que le client avait ouverts, par leur
 # `lead_id`) et l'inscrit comme retrait du consentement marketing. Catalogue : src/opsys/evenements/catalogue/.
 # PLAN T4.17-e : M7 publie `m7.contenu_exporte` quand le propriétaire prend le paquet manuel d'un contenu (dans la

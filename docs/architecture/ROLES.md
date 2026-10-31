@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 179 outils sur 311 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 179 outils sur 312 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -451,6 +451,7 @@ Les plus sensibles :
 | `m8_rapport_metriques`, `m9_etat_consolide` | Ingèrent un snapshot fourni par l'appelant dans le registre de vérité. |
 | `m7_auditer_seo_site`, `m7_calculer_roi` | Chemins de fichiers du serveur. |
 | `m7_proposer_contenus_chantier`, `m7_lire_matiere_chantier` | Brouillons N1 nés du bus (le consommateur de M7 les crée déjà) et matière du modèle qui rédige : le propriétaire lit et décide (`m7_lister_contenus_chantier`, `m7_decider_contenu`), il ne fait pas écrire de textes depuis son téléphone. |
+| `m7_lire_depenses_marketing` (T0) | Dépenses marketing (`m7.depenses_marketing`, CAD) lues des relevés sourcés du registre de M7 : `CONNUE`, `PARTIELLE` ou `NON_BRANCHEE`, jamais un zéro à la place d'une absence. Aucun appareil (comme tout outil sans déclaration) ; l'accès serveur reprend la garde de `m7_lire_performance_campagnes` (admin ou propriétaire de console confirmé, ou approbation serveur du propriétaire). Aucun outil d'écriture : l'ingestion des relevés reste une décision produit. Contrat : `departments/m07-marketing/docs/M7-DEPENSES-MARKETING.md`. |
 
 ## Contrôle d'accès par personne et par intervention (T1.4-k, M4 et M6)
 
