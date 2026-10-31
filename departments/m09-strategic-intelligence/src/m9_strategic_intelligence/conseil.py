@@ -29,7 +29,9 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
+import re
 from collections.abc import Mapping, Sequence
+from decimal import Decimal, InvalidOperation
 
 VERSION = "2026-10-28.1"
 DOMAINES = frozenset(
@@ -71,6 +73,14 @@ IMPORTANCES = ("courante", "majeure")
 NATURES = frozenset({"observation_source", "hypothese", "inference"})
 MAX_AFFIRMATIONS = 24
 MAX_TEXTE = 1500
+CODE_CHIFFRE_LIBRE = "REJ-CONSEIL-CHIFFRE-LIBRE"
+# Montant, pourcentage ou décimal à deux chiffres : une quantité que le code calcule et qu'un modèle ne produit pas.
+_MONTANT = re.compile(
+    r"(?<![\w.,])(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[.,]\d{1,2})?\s?(?:\$|CAD|%|dollars?|k\$)"
+    r"|(?<![\w.,])\d+[.,]\d{2}(?![\w])"
+)
+_DATE_ISO = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+_NUMERIQUE = re.compile(r"\s*\d[\d \u00a0\u202f]*(?:[.,]\d+)?\s*(?:\$|CAD|%)?\s*")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -286,6 +296,41 @@ def _texte(valeur: object, maximum: int = MAX_TEXTE) -> bool:
     return type(valeur) is str and bool(valeur.strip()) and len(valeur) <= maximum
 
 
+def _nombre(texte: str) -> Decimal | None:
+    try:
+        return Decimal(re.sub(r"[^\d.,]", "", texte).replace(",", "."))
+    except InvalidOperation:
+        return None
+
+
+def chiffres_libres(texte: str, valeurs_citees: Sequence[str]) -> list[str]:
+    """Montants, pourcentages, décimaux et dates ISO d'un texte libre absents de toute valeur CITÉE par la même sortie.
+
+    « Le code calcule, le modèle explique » : un modèle peut reprendre une valeur qu'il cite, jamais en produire une
+    (somme, projection, zéro pour une absence). Entiers nus et identifiants ne sont pas visés : leur sens ne se
+    détermine pas sans sémantique (limite connue, voir le corpus métier M9.23)."""
+    nombres: set[Decimal] = set()
+    dates: set[str] = set()
+    for valeur in valeurs_citees:
+        if _NUMERIQUE.fullmatch(valeur) and (n := _nombre(valeur)) is not None:
+            nombres.add(n)
+        nombres.update(n for m in _MONTANT.finditer(valeur) if (n := _nombre(m.group(0))) is not None)
+        dates.update(_DATE_ISO.findall(valeur))
+    libres = [m.group(0).strip() for m in _MONTANT.finditer(texte) if _nombre(m.group(0)) not in nombres]
+    libres += [d for d in _DATE_ISO.findall(texte) if d not in dates]
+    return list(dict.fromkeys(libres))
+
+
+def exiger_chiffres_sources(textes: Sequence[str], valeurs_citees: Sequence[str]) -> None:
+    for texte in textes:
+        libres = chiffres_libres(texte, valeurs_citees)
+        if libres:
+            raise ValueError(
+                f"{CODE_CHIFFRE_LIBRE} : {libres[:3]} absent de toute citation de la même sortie ; "
+                "citer la valeur du propriétaire plutôt que la produire"
+            )
+
+
 def admettre_proposition(sortie: object, *, sources: Mapping[str, str]) -> dict:
     """Admet ou refuse la sortie structurée d'un spécialiste. ``sources`` : ``reference → valeur textuelle`` exacte des
     sources autorisées de la capture. Tout est admis ou rien : une citation qui ne correspond pas mot pour mot, une
@@ -334,6 +379,10 @@ def admettre_proposition(sortie: object, *, sources: Mapping[str, str]) -> dict:
         else:
             raise ValueError("REJ-CONSEIL-AFFIRMATION : nature inconnue")
         admises[brute["id"]] = {**brute, "statut": statut}
+    exiger_chiffres_sources(
+        [a["enonce"] for a in admises.values() if a["nature"] in ("hypothese", "inference")],
+        [a["valeur"] for a in admises.values() if a["nature"] == "observation_source"],
+    )
     return {
         "type": "PROPOSITION_ADMISE",
         "affirmations": list(admises.values()),

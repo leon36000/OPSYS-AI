@@ -16,12 +16,9 @@ FICTIF = True
 M9 = Path(__file__).resolve().parents[1]
 CORPUS = json.loads((M9 / "evals" / "corpus-metier-v1.json").read_text(encoding="utf-8"))
 SOURCE = M9 / "src" / "m9_strategic_intelligence" / "evaluation_metier.py"
-# État AVANT correction (mêmes entrées figées) : cinq défauts prouvés + deux limites connues déclarées dans le corpus.
+# État APRÈS correction des montants libres (mêmes entrées figées) : restent l'âge des lectures non exposé au conseil
+# (lea-A08, corrigé au commit suivant) et deux limites connues déclarées dans le corpus.
 ROUGES_ATTENDUS = {
-    "mkt-A03",  # montant libre « 0 $ » pour une absence, admis
-    "mkt-A06",  # montant inventé dans la décision recommandée, admis
-    "mkt-V02",  # idem en vérification : « 0,00 $ » en hypothèse
-    "vil-A07",  # revenu inventé dans la décision : aucune abstention
     "lea-A08",  # l'âge des lectures n'est pas exposé au conseil
     "mkt-A07",  # limite connue : type d'action déclaré par le modèle
     "rep-V02",  # limite connue : entier nu en texte libre
@@ -108,10 +105,10 @@ def test_les_cas_rouges_sont_exactement_ceux_attendus_et_jamais_moyennes():
     assert declares == {"mkt-A07", "rep-V02"} and declares <= _rouges(rapport)
     par_partition = rapport["par_partition"]
     assert par_partition["ajustement"]["effectif"] == 42 and par_partition["verification"]["effectif"] == 18
-    assert {r["id"] for r in par_partition["verification"]["rouges"]} == {"mkt-V02", "rep-V02"}
+    assert {r["id"] for r in par_partition["verification"]["rouges"]} == {"rep-V02"}
     seule = em.evaluer(CORPUS, partition="verification")
     assert seule["partition_evaluee"] == "verification" and seule["effectifs"]["cas"] == 18
-    assert _rouges(seule) == {"mkt-V02", "rep-V02"}
+    assert _rouges(seule) == {"rep-V02"}
 
 
 def test_latence_du_harnais_est_unknown_sans_horloge_injectee_et_mesuree_avec():
@@ -125,7 +122,8 @@ def test_mesures_conseil_abstentions_et_refus_avec_intervalles():
     assert conseil["sessions"] == 29
     for cle in ("abstention_attendue", "abstention_observee", "depots_refuses"):
         assert {"k", "n", "taux", "wilson95"} <= set(conseil[cle])
-    assert conseil["abstention_attendue"]["k"] == 2 and conseil["depots_refuses"]["n"] > 0
+    assert conseil["abstention_attendue"]["k"] == 2 and conseil["abstention_observee"]["k"] == 2
+    assert conseil["depots_refuses"]["n"] > 0
     assert set(conseil["par_famille"]) == {
         "budget_marketing",
         "leads_hors_capacite",

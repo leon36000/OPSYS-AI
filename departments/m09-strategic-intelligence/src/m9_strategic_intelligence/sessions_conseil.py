@@ -384,6 +384,10 @@ def _admettre_supplement(role: str, supplement: object, admise: Mapping) -> obje
                 "REJ-CONSEIL-RECOMMANDATION : refs = affirmations admises de cette sortie (jamais sans ancrage)"
             )
         conseil.gouverner({"decision": supplement.get("decision"), "actions": supplement.get("actions", [])})
+        conseil.exiger_chiffres_sources(
+            [supplement["decision"], *(a.get("description", "") for a in supplement.get("actions", []))],
+            [a["valeur"] for a in admise["affirmations"] if a["nature"] == "observation_source"],
+        )
         return {"decision": supplement["decision"], "actions": supplement.get("actions", []), "refs": refs}
     if not isinstance(supplement, list) or not 1 <= len(supplement) <= 16:
         raise ValueError("REJ-CONSEIL-OBJECTION : 1 à 16 objections {id, texte, refs} requises")
