@@ -28,6 +28,56 @@ import { invalidateOperatorRolePolicy } from "./operator-role-policy.js";
 import { resolveSharedGatewaySessionGeneration } from "./server/ws-shared-generation.js";
 import { handleUserProfileAvatarHttpRequest } from "./user-profiles-http.js";
 
+// Le fork OPSYS a élagué l'extension groupée `github` (42 extensions gardées sur 162) : la façade
+// `gitHubPublicApi` ne se résout donc pas (MissingPublicSurfaceError `github/api.js`) et la recherche
+// d'identité Cloudflare Access échouerait en 401 avant toute lecture d'avatar. Ce fichier vérifie
+// l'autorité du compte lié et l'ordre autorité -> E/S d'avatar, pas le transport GitHub : on
+// remplace uniquement la façade par un double minimal, au-dessus du `fetch` déjà simulé par le test.
+vi.mock("./github-public-api.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./github-public-api.js")>();
+  class ControlUiGitHubError extends Error {
+    constructor(
+      readonly status: number,
+      message: string,
+      readonly retryable = false,
+    ) {
+      super(message);
+    }
+  }
+  const readBoundedResponse = async (response: Response, maxBytes: number) => {
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > maxBytes) {
+      throw new ControlUiGitHubError(502, "GitHub response was too large");
+    }
+    return bytes;
+  };
+  const readGitHubJsonResponse = async (response: Response, maxBytes = 1_048_576) =>
+    JSON.parse((await readBoundedResponse(response, maxBytes)).toString("utf8")) as unknown;
+  const fetchGitHubApi = async (url: string, fetchImpl: typeof fetch, token?: string) =>
+    fetchImpl(url, { headers: token ? { authorization: `Bearer ${token}` } : {} });
+  return {
+    ...actual,
+    gitHubPublicApi: {
+      GITHUB_API_ORIGIN: "https://api.github.com",
+      GITHUB_REQUEST_TIMEOUT_MS: 5_000,
+      ControlUiGitHubError,
+      githubApiCredentialCacheScope: (token: string | undefined) => (token ? "token" : "anonymous"),
+      withOptionalGitHubAuth: <T>(
+        token: string | undefined,
+        request: (requestToken: string | undefined) => Promise<T>,
+      ) => request(token),
+      fetchGitHubApi,
+      discardResponse: async (response: Response) => {
+        await response.body?.cancel().catch(() => {});
+      },
+      readBoundedResponse,
+      readGitHubJsonResponse,
+      fetchGitHubJson: async (url: string, fetchImpl: typeof fetch, token?: string) =>
+        readGitHubJsonResponse(await fetchGitHubApi(url, fetchImpl, token)),
+    },
+  };
+});
+
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
