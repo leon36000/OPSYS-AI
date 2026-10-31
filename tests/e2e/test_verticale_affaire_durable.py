@@ -1663,7 +1663,7 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
             return [e for enfant in exception.exceptions for e in feuilles(enfant)]
         return [exception]
 
-    def finaliser(chantier, lead, wct, suffixe, marge):
+    def finaliser(chantier, lead, wct, suffixe):
         (facture,) = [f for f in factures() if f.get("devis_id") == chantier.devis_id]
         assert facture["statut"] == "BROUILLON"
         avant = _empreinte(moteur)
@@ -1681,13 +1681,18 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
         _drainer(moteur)
         avant = _empreinte(moteur)
         mesures = _mesures(moteur, admin, wct)
-        assert mesures["m8_marge_reelle_cad"]["valeur"] == marge, mesures
+        # Pointages individuels sans équipe certifiée : la main-d'oeuvre est inconnue, donc la marge aussi (jamais
+        # déduite du temps scalaire) ; M8 la déclare non calculable et la mémoire exclut la rentabilité.
+        assert mesures["m8_marge_reelle_cad"]["valeur"] is None, mesures
+        assert mesures["m8_marge_reelle_cad"]["statut"] == "non_calculable", mesures
         apprentissage = _apprentissage(moteur, admin, wct)
         assert apprentissage["sources"]["devis_id"] == chantier.devis_id
         (_, source), = [(i, c) for i, c in _evenements("m3.devis_accepte") if c["devis_id"] == chantier.devis_id]
         assert apprentissage["sources"]["estimation_hash"] == source["estimation_source_hash"]
-        assert apprentissage["rentabilite"]["montant_marge_reelle_cad"] == marge
-        assert apprentissage["rentabilite"]["statut"] == "qualifiee"
+        assert apprentissage["rentabilite"]["montant_marge_reelle_cad"] is None
+        assert apprentissage["rentabilite"]["statut"] == "exclue"
+        assert apprentissage["rentabilite"]["verdict_m5"] == "PARTIELLE"
+        assert "cout_reel_incomplet_ou_inconnu" in apprentissage["rentabilite"]["exclusions"]
         assert _empreinte(moteur) == avant
         with stockage.transaction() as cnx:
             memoires = list(stockage.maillons("m10-memoire", "evenements"))
@@ -1782,7 +1787,7 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
         assert decision.resultat["statut"] == "executee"
         assert decision.resultat["preuve_completion"]["wct_id"] == wct_b
         _drainer(moteur)
-        mesures_b, apprentissage_b = finaliser(chantier_b, lead_b, wct_b, "b", "2.00")
+        mesures_b, apprentissage_b = finaliser(chantier_b, lead_b, wct_b, "b")
         assert mouvements(wct_a) == reel_a
         (facture_a,) = [f for f in factures() if f.get("devis_id") == chantier_a.devis_id]
         assert facture_a["statut"] == "BROUILLON", "finaliser B ne finalise pas A"
@@ -1806,7 +1811,7 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
     assert mouvements(wct_a) == reel_a
     assert _mesures(moteur, admin, wct_b) == mesures_b
     assert _apprentissage(moteur, admin, wct_b, coupure_utc=apprentissage_b["coupure_utc"]) == apprentissage_b
-    finaliser(chantier_a, lead_a, wct_a, "a", "130.00")
+    finaliser(chantier_a, lead_a, wct_a, "a")
     assert _mesures(moteur, admin, wct_b) == mesures_b
     assert _apprentissage(moteur, admin, wct_b, coupure_utc=apprentissage_b["coupure_utc"]) == apprentissage_b
     coupure_courante = moteur.horloge.maintenant.astimezone(dt.UTC).isoformat()

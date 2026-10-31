@@ -411,7 +411,7 @@ def test_nominal_cascade_complete_sans_quarantaine(base_durable):
     _m6_declarer_wct_fabrique(m6, chantier_id, MATERIAU_ID)
     _m6_declarer(m6, wct_id, chantier_id, MATERIAU_ID, 40.0)
 
-    total = _drainer(deps, base + dt.timedelta(hours=1))
+    total = _drainer(deps, base + dt.timedelta(hours=4))
     assert total["echecs"] == 0, total
     assert total["quarantaines"] == 0, total
 
@@ -685,7 +685,7 @@ def test_consommateur_en_echec_m2_quarantaine_sans_bloquer_les_autres(base_durab
     wct_id = wct_resultat["wct_id"]
     _m6_declarer(m6, wct_id, chantier_id, MATERIAU_ID, 40.0)
 
-    t = base + dt.timedelta(hours=1)
+    t = base + dt.timedelta(hours=4)
     resume1 = evenements.repartir(deps, maintenant=_iso(t, 0))
     # PLAN T4.10-a : M2 consomme aussi `m3.devis_accepte` ; un lead qu'il ne connaît pas fait donc échouer M2
     # deux fois au premier tour (le devis accepté ET le WCT), jamais M4 (l'intervention du devis existe déjà).
