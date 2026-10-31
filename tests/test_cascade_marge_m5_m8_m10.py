@@ -3,13 +3,18 @@ calcule le coût réel [...] et la rentabilité ; M8 : temps réel vs prévu, ma
 n'est oublié »), par le VRAI bus, sur les VRAIS départements, sans doublure.
 
 Devis accepté (M3, avec la durée estimée de son estimation) → travaux terminés (M4, vrais outils : planification,
-pointage, complétion) → variance de matériaux (M6) → M5 calcule le coût réel et la marge (prix du livre de prix M6,
-taux horaire configuré, durée pointée) et publie `m5.rentabilite_chantier` → M8 mesure la marge réelle et le
-temps prévu contre réel → M10 mémorise l'écart de marge, sans qu'aucun montant ne sorte dans un paquet.
+journée d'ÉQUIPE certifiée — cédule datée, visite, pointages d'équipe V3 —, complétion) → variance de matériaux (M6)
+→ M5 calcule le coût réel et la marge (prix du livre de prix M6, main-d'oeuvre = projection M4 vérifiée × tarif
+d'équipe M5) et publie `m5.rentabilite_chantier` → M8 mesure la marge réelle et le temps prévu contre réel →
+M10 mémorise l'écart de marge, sans qu'aucun montant ne sorte dans un paquet.
+
+Depuis la PR #861 une durée scalaire de WCT (pointage individuel) ne chiffre plus la main-d'oeuvre : coût partiel,
+`REJ-COUT-TEMPS-POINTE-ABSENT` (scénario 2). Le coût complet n'existe que par la voie certifiée (helpers
+`_m4_journee_equipe_certifiee`, `_recalculer_cout_certifie`, `_relecture_m5_sur_projection_certifiee`).
 
 Trois scénarios, chacun sur une base SQLite temporaire migrée :
 
-1. coût complet (taux configuré, prix au livre) : marge réelle, écart de marge, temps prévu, alerte de marge
+1. coût complet (voie certifiée, prix au livre) : marge réelle, écart de marge, temps prévu, alerte de marge
    (seuil configuré à -20 %), leçon mémorisée par M10 au niveau FINANCIAL ;
 2. coût PARTIEL (état de livraison : ni taux, ni prix) : aucune marge ne part de M5, M8 dit « non calculable,
    manque marge_reelle_cad » avec les codes de M5, M10 garde un état sans marge ;
@@ -22,10 +27,12 @@ d'un fichier que d'autres agents modifient. Identifiants, personnes et montants 
 from __future__ import annotations
 
 import base64
+import contextlib
 import datetime as dt
 import hashlib
 import json
 import struct
+import time
 import zlib
 from decimal import Decimal
 
@@ -35,16 +42,37 @@ import m5_financecore.outils as m5_outils
 import pytest
 import yaml
 from m3_estimation import trace_calibration_temps
-from m4_field_ops import cedule
+from m4_field_ops import (
+    calendrier_civil,
+    cedule,
+    cedule_tournees,
+    ecarts,
+    encodage,
+    equipes_pointees_v3,
+    temps_certifies_v3,
+    visites_ecriture,
+)
+from m4_field_ops import outils as m4_outils
+from m4_field_ops.registre import Registre
 from m8_analytics import outils as m8_outils
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
-from opsys import approbations, contexte, evenements, identite, stockage
+from opsys import (
+    approbations,
+    contexte,
+    equipes,
+    evenements,
+    identite,
+    service_lecture_m4,
+    service_recalcul_m4,
+    stockage,
+)
 from opsys.capacites import Capacites, outils_executables
+from opsys.console.securite import Session
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 from opsys.stockage import codec
-from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
+from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, OPSYS_INSTANCE, SERVICE_POLITIQUES
 
 DT_TZ = dt.timezone(dt.timedelta(hours=-4))  # Québec, heure avancée
 VILLE = "Repentigny"
@@ -233,6 +261,255 @@ def _m4_planifier_router_pointer(m4, contrat: dict, marqueur: dict, devis_id: st
     return intervention_id
 
 
+# -------------------------------------------------------------------------------------------
+# Voie CERTIFIÉE du coût de main-d'oeuvre (PR #861) : pointages d'ÉQUIPE V3 sur une vraie visite, projection M4
+# vérifiée (service `m4.verifier_v3`), tarif d'équipe de M5. Une durée scalaire ne chiffre plus rien (scénario 2).
+# Même logique que `_journee_equipe_certifiee` de tests/e2e/test_verticale_affaire_durable.py, au niveau
+# « départements + bus » : mêmes modules M4/M5, mêmes appels, dans une transaction du stockage.
+# -------------------------------------------------------------------------------------------
+EQUIPE = "eq-t15d-fictive"
+ADMIN_CERTIFIE = "admin-t15d-certifie-fictif"
+TARIF_EQUIPE_CAD_H = "50.00"  # $/h-équipe : la même valeur que le taux horaire configuré des anciens tests
+
+
+def _admin_console():
+    """Les trois contextes d'un geste admin de console (identité, département d'origine, jeton)."""
+    return (contexte.appele_par_appareil(contexte.IdentiteAppelante(ADMIN_CERTIFIE, "admin", source="console")),
+            contexte.appeler_en_tant_que("m04-field-ops", origine="console"))
+
+
+def _reception(instant: dt.datetime):
+    return contexte.receptionne_de(contexte.HorodatageAppareil(f"console:{ADMIN_CERTIFIE}", instant, instant))
+
+
+def _declarer_equipe_et_tarif_certifies(base: dt.datetime) -> None:
+    """Profil d'équipe, compte admin, tarif d'équipe M5 (port de déclaration) et politique `m4.verifier_v3`
+    de M5, dans la base éphémère de ce test seulement."""
+    equipes.enregistrer_equipes({"liste": [{
+        "id": EQUIPE, "membres": ["membre-t15d-fictif"], "competences": [],
+        "depot": {"id": "depot-t15d", "latitude_microdegres": 45735000, "longitude_microdegres": -73455000},
+        "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}],
+    }]})
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, ADMIN_CERTIFIE, "Admin certifié (fictif)",
+                                "un-mot-de-passe-certifie-suffisamment-long", ["admin"])
+    with (stockage.transaction() as cnx, contexte.appele_par_appareil(
+            contexte.IdentiteAppelante(ADMIN_CERTIFIE, "admin", source="console")),
+          contexte.appeler_en_tant_que("m05-financecore", origine="console")):
+        source = m5_outils._lire_tarifs_equipes()["source"]
+        m5_outils._inscrire_tarif_equipe({
+            "equipe_id": EQUIPE, "taux": TARIF_EQUIPE_CAD_H, "unite": "heure-equipe", "devise": "CAD",
+            "source": "tarif-t15d-fictif", "version": "1",
+            "date_effet": base.date().isoformat(), "date_fin": base.date().isoformat(), "remplace_id": None,
+        }, mutation_id="tarif-equipe-t15d-fictif", source_attendue=source)
+    _poser_politique("m4.verifier_v3")
+
+
+def _positions_fictives(_registre, _lead_id):
+    return {"latitude_microdegres": 45740117, "longitude_microdegres": -73454833, "version": 1, "ligne_id": "x"}, None
+
+
+def _m4_cedule_datee_pour_equipe(intervention_id: str, base: dt.datetime) -> dict:
+    """Proposition, application puis datation civile d'un plan qui assigne l'intervention à l'équipe, puis
+    prévision de visite ancrée sur cette date. Rend l'ancre de la visite."""
+    arguments = {
+        "equipes": [{cle: v for cle, v in e.items() if cle != "membres"}
+                    for e in equipes.charger_equipes()[0]["liste"]],
+        "durees_par_type_travaux": {"renovation_totale": 150},
+        "competences_par_type_travaux": {"renovation_totale": []},
+        "chantiers": [{"intervention_id": intervention_id,
+                       "fenetre": {"jours": [0], "debut_min": 480, "fin_min": 1020}, "creneau_fige": None}],
+        "parametres": {"facteur_detour_milliemes": 1300, "vitesse_moyenne_kmh": 50,
+                       "marge_par_trajet_secondes": 600, "iterations": 300, "cout_non_cedule_m": 500000},
+    }
+    with stockage.transaction():
+        principal = Registre(stockage.maillons("m04-field-ops", "principal"))
+        proposition, verdict = cedule_tournees.proposer(
+            principal, arguments, _positions_fictives, _iso(base, 960), moteur="dp")
+        assert verdict is None, verdict
+        plan_id = proposition["plan_id"]
+        application, verdict = cedule_tournees.appliquer(
+            principal, plan_id, _positions_fictives, _iso(base, 1020), ADMIN_CERTIFIE)
+        assert verdict is None, verdict
+        (assignation,) = [a for a in application["assignations"] if a["intervention_id"] == intervention_id]
+        assert assignation["technicien_id"] == EQUIPE, "assignation native du solveur, jamais fabriquée par le test"
+        datee = calendrier_civil.confirmer(
+            principal, plan_id, {"0": base.date().isoformat()}, 0, ADMIN_CERTIFIE, _iso(base, 1080))
+        date = next(m for m in principal.lire() if m.get("ligne_id") == datee["ligne_id"])
+        return {"intervention_id": intervention_id, "plan_id": plan_id,
+                "source_application_id": date["source_application_id"], "source_ligne_id": date["ligne_id"]}
+
+
+def _m4_evenement_visite(operation: str, visite_id: str, instant: dt.datetime) -> None:
+    c1, c2 = _admin_console()
+    with stockage.transaction() as cnx, c1, c2, _reception(instant):
+        args = {"operation": operation, "visite_id": visite_id,
+                "source_attendue": visites_ecriture.empreinte_sources(cnx)}
+        mutation = {"appareil": f"console:{ADMIN_CERTIFIE}", "cle": f"{operation}-visite-t15d",
+                    "empreinte_arguments": encodage.empreinte(args)}
+        visites_ecriture.executer_evenement(cnx, args, {"personne": ADMIN_CERTIFIE, "role": "admin"}, mutation,
+                                            instant.isoformat(), m4_outils._autoriser_annotation)
+
+
+def _m4_pointer_equipe(intervention_id: str, visite_id: str, action: str, instant: dt.datetime, base: dt.datetime):
+    """Déclaration d'ÉQUIPE (jamais une présence individuelle) sur la visite ouverte, puis résolution de la
+    demande de revue qu'elle ouvre (contrôle admin fictif)."""
+    referentiel = {cedule.tokeniser_ville(SEL, VILLE): {
+        "latitude": FIX_GPS["latitude"], "longitude": FIX_GPS["longitude"], "rayon_km": 25.0}}
+    c1, c2 = _admin_console()
+    with stockage.transaction() as cnx, c1, c2, _reception(instant):
+        arguments = {
+            "intervention_id": intervention_id, "technicien_id": EQUIPE, "action": action,
+            "horodatage": instant.isoformat(), "fix_gps": None,
+            "attestation": {"fictif": True, "appareil_id": f"console:{ADMIN_CERTIFIE}"},
+            "fenetre_travail": _fenetre(base), "referentiel_villes": referentiel, "ville": VILLE, "sel": SEL,
+        }
+        recu = equipes_pointees_v3.enregistrer(
+            cnx, arguments, visite_id, EQUIPE, f"pointage-equipe-t15d-{action}",
+            equipes_pointees_v3.empreinte_sources(cnx))
+        principal = Registre(stockage.maillons("m04-field-ops", "principal"))
+        demandes = [m for m in principal.lire() if m.get("type_entree") == "demande_revue"
+                    and m.get("pointage_ligne_id") == recu["pointage_id"]]
+        for demande in demandes:
+            _, erreur = ecarts.resoudre_demande(demande["demande_id"], "validee", instant.isoformat(), principal)
+            assert erreur is None, erreur
+
+
+def _m4_journee_equipe_certifiee(m4, contrat: dict, marqueur: dict, devis_id: str, base: dt.datetime) -> str:
+    """Voie certifiée : l'intervention (inscrite par `m4_planifier_intervention`) est cédulée et datée pour
+    l'équipe, une visite est prévue puis ouverte, l'équipe déclare son arrivée (1 h) et son départ (3 h) : 120 min
+    de travail certifié, comme l'ancien pointage individuel. Rend `intervention_id`."""
+    plan = executer_atomique(m4["m4_planifier_intervention"], {
+        "contrat": contrat, "marqueur": marqueur, "horodatage": _iso(base, 900), "sel": SEL,
+        "techniciens_disponibles": [TECHNICIEN], "fenetres_disponibles": [_fenetre(base)], "devis_id": devis_id,
+    })
+    assert plan["ok"] and plan["resultat"]["accepte"], plan
+    intervention_id = plan["resultat"]["intervention_id"]
+    _declarer_equipe_et_tarif_certifies(base)
+    ancre = _m4_cedule_datee_pour_equipe(intervention_id, base)
+    c1, c2 = _admin_console()
+    instant = base + dt.timedelta(seconds=1140)
+    with stockage.transaction() as cnx, c1, c2, _reception(instant):
+        args = {"ancre": ancre, "revision_attendue": 0}
+        mutation = {"appareil": f"console:{ADMIN_CERTIFIE}", "cle": "visite-prevue-t15d",
+                    "empreinte_arguments": encodage.empreinte(args)}
+        prevue = visites_ecriture.enregistrer(cnx, args, {"personne": ADMIN_CERTIFIE, "role": "admin"}, mutation,
+                                              instant.isoformat(), m4_outils._autoriser_annotation)
+    visite_id = prevue["visite_id"]
+    _m4_evenement_visite("ouvrir", visite_id, base + dt.timedelta(seconds=1200))
+    depart_route = executer_atomique(m4["m4_demarrer_route"], {
+        "intervention_id": intervention_id, "technicien_id": EQUIPE, "horodatage": _iso(base, 1800),
+    })
+    assert depart_route["ok"] and depart_route["resultat"]["accepte"], depart_route
+    for action, offset in (("arrivee", 3600), ("depart", 10800)):
+        _m4_pointer_equipe(intervention_id, visite_id, action, base + dt.timedelta(seconds=offset), base)
+    _m4_evenement_visite("fermer", visite_id, base + dt.timedelta(seconds=10860))
+    return intervention_id
+
+
+def _m4_revue_humaine_verifiee(deps, intervention_id: str, instant: dt.datetime) -> None:
+    """Revue HUMAINE d'une complétion en attente (N4 : l'outil propose, une personne décide) : nécessaire quand la
+    variance de matériaux dépasse le seuil de M4 (56 pi pour 40 prévus) ; en dessous, M4 vérifie seule."""
+    demande = Capacites({"m04-field-ops": deps["m04-field-ops"]}, stockage.transaction).appeler(
+        "m4_resoudre_revue_completion", {
+            "intervention_id": intervention_id, "decision": "verifiee", "horodatage": instant.isoformat(),
+            "motif": "Revue fictive : 16 pi de plus que prévu, confirmés au chantier.",
+        })
+    assert demande["statut"] == "en_attente_approbation", demande
+    with stockage.transaction() as cnx:
+        decision = approbations.decider(
+            cnx, demande["demande_id"], True, ADMIN_CERTIFIE, outils_executables(deps, stockage.transaction), deps)
+    assert decision["statut"] == "executee" and decision["reponse"]["resultat"]["accepte"], decision
+
+
+def _session_admin_certifie() -> Session:
+    return Session(ADMIN_CERTIFIE, frozenset({"admin"}), "csrf-fictif", int(time.time()) + 3600)
+
+
+def _poser_politique(operation: str) -> None:
+    """Politique de service de M5 (ligne SERVICE_POLITIQUES, base éphémère de ce test), posée une seule fois."""
+    with stockage.transaction() as cnx:
+        instance_id = cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one()
+        if cnx.execute(select(SERVICE_POLITIQUES.c.revision).where(
+                SERVICE_POLITIQUES.c.operation == operation)).first() is not None:
+            return
+        cnx.execute(insert(SERVICE_POLITIQUES).values(
+            instance_id=instance_id, consommateur="m05-financecore", operation=operation,
+            revision=1, active=True, expire_le=int(time.time()) + 3600))
+
+
+def _recalculer_cout_certifie(wct_id: str, devis_id: str, etiquette: str) -> dict:
+    """Recalcul de M5 par la voie certifiée, SUR la projection M4 vérifiée (pointages d'équipe V3, tarif d'équipe).
+
+    Pourquoi ce recalcul : à la livraison du WCT, M4 est toujours `completed_pending_review` (la variance M6 n'arrive
+    qu'après), donc la projection n'est pas exploitable ; et les pièces suivantes (variance, facture, prix) ne
+    déclenchent qu'un calcul sur la durée scalaire, qui ne chiffre plus la main-d'oeuvre. Seul le candidat interne
+    `service_recalcul_m4` (couture QA `_executer_qa`, politique `m4.recalculer_v3`, non routé en production)
+    republie le coût sur la projection vérifiée, comme le fait aussi l'e2e `test_verticale_affaire_durable.py`."""
+    _poser_politique("m4.recalculer_v3")
+    with stockage.transaction() as cnx:
+        recalcul = service_recalcul_m4._executer_qa(
+            cnx, _session_admin_certifie(), wct_id=wct_id, devis_id=devis_id,
+            intention_id=hashlib.sha256(etiquette.encode("utf-8")).hexdigest())
+    assert recalcul["statut"] == "publiee"
+    assert recalcul["attestation"]["operation"] == "m4.recalculer_v3"
+    return recalcul
+
+
+@contextlib.contextmanager
+def _relecture_m5_sur_projection_certifiee(monkeypatch, wct_id: str, devis_id: str):
+    """Fait relire à M5 son coût sur la projection M4 vérifiée (couture QA `_ouvrir_qa` de la relecture courante,
+    politique `m4.relire_faits_pour_m5_v1`) quand M3 lit la rentabilité : sans elle, la lecture ordinaire de M5
+    ne voit que la durée scalaire. Même couture que l'e2e, au niveau départements (session admin de console)."""
+    _poser_politique("m4.relire_faits_pour_m5_v1")
+    original = m5_outils.lire_rentabilite_chantier
+
+    def lire_sous_portee(*args, **kwargs):
+        if kwargs.get("devis_id") != devis_id:
+            return original(*args, **kwargs)
+        with stockage.transaction() as cnx, service_lecture_m4._ouvrir_qa(
+                cnx, _session_admin_certifie(), wct_id=wct_id, devis_id=devis_id):
+            return original(*args, **kwargs)
+
+    with monkeypatch.context() as ctx:
+        ctx.setattr(m5_outils, "lire_rentabilite_chantier", lire_sous_portee)
+        yield
+
+
+def _projection_certifiee(intervention_id: str, wct_id: str) -> dict:
+    """La projection M4 V3 telle que M5 la consomme (lecture seule, sous l'identité admin de console)."""
+    c1, c2 = _admin_console()
+    with stockage.transaction() as cnx, c1, c2:
+        return temps_certifies_v3.projeter(cnx, intervention_id, wct_id)["projection"]
+
+
+def _prouver_main_d_oeuvre_certifiee(
+        intervention_id: str, wct_id: str, *, minutes: int = 120, publications: int = 1) -> None:
+    """La DERNIÈRE trace de M5 chiffre la main-d'oeuvre à partir de la projection M4 V3 vérifiée et du tarif
+    d'équipe (jamais de la durée scalaire du WCT) : visite, équipe pointée, tarif et empreintes sont ceux de la
+    projection relue ici ; 120 min nettes x 50,00 $/h-équipe = 100,00 $."""
+    projection = _projection_certifiee(intervention_id, wct_id)
+    assert projection["version"] == "opsys.m4.temps_certifies.v3"
+    assert projection["totaux"]["travail"] == minutes
+    (visite,) = projection["visites"]
+    assert visite["equipe_pointee"]["statut"] == "identifiee" and visite["equipe_pointee"]["identifiant"] == EQUIPE
+    assert visite["presence_individuelle"] == {"statut": "inconnue"}  # aucune présence individuelle supposée
+    with stockage.transaction():
+        derniere = list(stockage.maillons("m05-financecore", "rentabilite"))[-1]
+        recus_recalcul = list(stockage.maillons("m05-financecore", "rentabilite_recalcul_v2"))
+    main_d_oeuvre = derniere["rentabilite"]["cout_reel"]["main_d_oeuvre"]
+    assert main_d_oeuvre["statut"] == "complet" and main_d_oeuvre["projection_empreinte"] == projection["empreinte"]
+    assert main_d_oeuvre["minutes"] == minutes and main_d_oeuvre["cout"] == Decimal(minutes) * Decimal("50") / 60
+    (ligne,) = main_d_oeuvre["lignes"]
+    assert (ligne["visite_id"], ligne["equipe_id"], ligne["minutes_nettes"]) == (visite["visite_id"], EQUIPE, minutes)
+    assert (ligne["taux"], ligne["unite"], ligne["source"]) == (Decimal(TARIF_EQUIPE_CAD_H), "heure-equipe",
+                                                                "tarif-t15d-fictif")
+    assert derniere["provenance_service_v1"]["version"] == "opsys.m4.temps_certifies.v3"
+    assert derniere["provenance_service_v1"]["empreinte_projection"] == projection["empreinte"]
+    assert len(recus_recalcul) == publications  # exactement les publications faites par la voie certifiée
+    assert all(r["wct_id"] == wct_id and r["type"] == "publication_recalcul_v2" for r in recus_recalcul)
+
+
 def _m6_receptionner(m6, chantier_id: str, materiau_id: str, quantite: float, po_id: str, base: dt.datetime) -> None:
     r = executer_atomique(m6["m6_receptionner_commande"], {
         "bon_demande": {
@@ -273,14 +550,18 @@ def _deposer_photo_test(m4) -> str:
     return r["resultat"]["resultat"]["reference"]
 
 
-def _m4_completer(m4, intervention_id: str, base: dt.datetime, offset: int = 11400) -> dict:
-    preuves = {
-        "checklist_complete": True, "photos_apres": [_deposer_photo_test(m4)],
-        "notes": "Installation terminée sans incident (fictif).", "signature": None,
-    }
-    r = executer_atomique(m4["m4_completer_intervention"], {
-        "intervention_id": intervention_id, "horodatage": _iso(base, offset), "preuves_completion": preuves,
-    })
+def _m4_completer(m4, intervention_id: str, base: dt.datetime, offset: int = 11400, *, certifie: bool = False) -> dict:
+    """Complétion par l'outil propriétaire. Une intervention à visite d'équipe se complète sous l'identité
+    admin de la console (la visite et l'équipe sont privées), comme `tests/test_qa_m4_core_m5.py`."""
+    c1, c2 = _admin_console() if certifie else (contextlib.nullcontext(), contextlib.nullcontext())
+    with c1, c2:
+        preuves = {
+            "checklist_complete": True, "photos_apres": [_deposer_photo_test(m4)],
+            "notes": "Installation terminée sans incident (fictif).", "signature": None,
+        }
+        r = executer_atomique(m4["m4_completer_intervention"], {
+            "intervention_id": intervention_id, "horodatage": _iso(base, offset), "preuves_completion": preuves,
+        })
     assert r["ok"] and r["resultat"]["accepte"], r
     return r["resultat"]["resultat"]
 
@@ -357,9 +638,11 @@ def _m6_prix_au_livre(m6, prix: float = 8.0) -> None:
 
 
 def _chantier_termine(deps, base: dt.datetime, lead_id: str, devis_id: str, chantier_id: str,
-                      quantite_declaree: float, *, duree_estimee: str | None = DUREE_ESTIMEE) -> tuple[str, str]:
+                      quantite_declaree: float, *, duree_estimee: str | None = DUREE_ESTIMEE,
+                      certifie: bool = False) -> tuple[str, str]:
     """Du lead au chantier terminé, avec les vrais outils : rend `(wct_id, intervention_id)`. Le bus n'est pas
-    encore livré : chaque test le draine quand il le veut."""
+    encore livré : chaque test le draine quand il le veut. `certifie` : la journée passe par la voie certifiée
+    (équipe, visite, pointages d'équipe V3) au lieu du pointage individuel, qui ne laisse qu'une durée scalaire."""
     m2, m3, m4, m6 = (_outils(deps, d) for d in
                        ("m02-revenue-crm", "m03-estimation", "m04-field-ops", "m06-material-control"))
     marqueur = _m2_amener_pret_pour_readiness(m2, lead_id, base)
@@ -370,10 +653,13 @@ def _chantier_termine(deps, base: dt.datetime, lead_id: str, devis_id: str, chan
     _m2_transitionner(m2, lead_id, "converti", base, 300, reference_devis_m3=devis_id)
     _m3_accepter_devis(m3, devis_id, base)
     _m2_transitionner(m2, lead_id, "cedule", base, 660)
-    intervention_id = _m4_planifier_router_pointer(m4, _contrat(lead_id), marqueur, devis_id, base)
+    if certifie:
+        intervention_id = _m4_journee_equipe_certifiee(m4, _contrat(lead_id), marqueur, devis_id, base)
+    else:
+        intervention_id = _m4_planifier_router_pointer(m4, _contrat(lead_id), marqueur, devis_id, base)
     _m2_transitionner(m2, lead_id, "chantier", base, 840)
     _m6_receptionner(m6, chantier_id, MATERIAU_ID, 200.0, f"PO-{devis_id}", base)
-    wct_id = _m4_completer(m4, intervention_id, base)["wct_id"]
+    wct_id = _m4_completer(m4, intervention_id, base, certifie=certifie)["wct_id"]
     _m6_declarer(m6, wct_id, chantier_id, MATERIAU_ID, quantite_declaree)
     return wct_id, intervention_id
 
@@ -446,17 +732,18 @@ def _drainer_sans_echec(deps, base: dt.datetime) -> dict:
      (40.0, True, False, False), (40.0, True, True, False), (40.0, True, False, True)],
 )
 def test_lecture_apprentissage_utilise_la_chaine_reelle_et_exclut_la_facture_brouillon(
-    base_durable, taux_m5, monkeypatch, quantite_reelle, facture_finale, facture_payee, panne_publication,
+    base_durable, monkeypatch, quantite_reelle, facture_finale, facture_payee, panne_publication,
 ):
-    """Le lecteur M3 joint les vrais outils et conserve les gardes de finalité M5/M8."""
-    taux_m5("50.00")
+    """Le lecteur M3 joint les vrais outils et conserve les gardes de finalité M5/M8. La main-d'oeuvre est chiffrée
+    par la voie certifiée (tarif d'équipe M5 sur pointages d'équipe V3), sans taux horaire configuré."""
     deps = charger_departements()
     base = dt.datetime(2026, 9, 16, 7, 0, 0, tzinfo=DT_TZ)
     _m6_prix_au_livre(_outils(deps, "m06-material-control"), 8.0)
     lead_id, devis_id, chantier_id = (
         "LEAD-APPRENTISSAGE-fictif", "DEVIS-APPRENTISSAGE-fictif", "CH-APPRENTISSAGE-fictif",
     )
-    wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, quantite_reelle)
+    wct_id, intervention_id = _chantier_termine(
+        deps, base, lead_id, devis_id, chantier_id, quantite_reelle, certifie=True)
     _drainer_sans_echec(deps, base + dt.timedelta(hours=4))
     with stockage.transaction() as cnx:
         identite.creer_personne(
@@ -528,6 +815,11 @@ def test_lecture_apprentissage_utilise_la_chaine_reelle_et_exclut_la_facture_bro
             assert list(stockage.maillons("m05-financecore", "principal")) == []
         _drainer_sans_echec(deps, base + dt.timedelta(hours=4))
 
+    if quantite_reelle == 40.0:
+        # +0 % de matériaux : M4 vérifie seule. M5 republie son coût, APRÈS la facture, sur la projection certifiée
+        # (les calculs ordinaires du bus, y compris ceux de la facture, ne voient que la durée scalaire).
+        _recalculer_cout_certifie(wct_id, devis_id, f"t15d-apprentissage-{facture_finale}-{facture_payee}")
+        _drainer_sans_echec(deps, base + dt.timedelta(hours=5))
     admin = contexte.IdentiteAppelante(
         personne="admin-apprentissage-fictif", role="admin", source="appareil",
     )
@@ -548,14 +840,17 @@ def test_lecture_apprentissage_utilise_la_chaine_reelle_et_exclut_la_facture_bro
         return registres, sorties, recus
 
     avant_lecture = _instantane_metier()
-    capacites_m3 = Capacites(
-        {"m03-estimation": deps["m03-estimation"]}, stockage.transaction,
-        appelant="m03-estimation", memoire=False,
-    )
-    with contexte.appele_par_appareil(admin):
-        reponse = capacites_m3.appeler("m3_lire_apprentissage_chantier", {
-            "wct_id": wct_id, "coupure_utc": "2026-10-05T00:00:00Z",
-        })
+    lecture_m5 = (_relecture_m5_sur_projection_certifiee(monkeypatch, wct_id, devis_id)
+                  if quantite_reelle == 40.0 else contextlib.nullcontext())
+    with lecture_m5:
+        capacites_m3 = Capacites(
+            {"m03-estimation": deps["m03-estimation"]}, stockage.transaction,
+            appelant="m03-estimation", memoire=False,
+        )
+        with contexte.appele_par_appareil(admin):
+            reponse = capacites_m3.appeler("m3_lire_apprentissage_chantier", {
+                "wct_id": wct_id, "coupure_utc": "2026-10-05T00:00:00Z",
+            })
     apres_lecture = _instantane_metier()
 
     assert reponse["ok"] is True, reponse
@@ -576,6 +871,7 @@ def test_lecture_apprentissage_utilise_la_chaine_reelle_et_exclut_la_facture_bro
     assert rapport["temps"]["paie_heures_personnes"] == "non mesurees par ces sources"
     assert rapport["rentabilite"]["verdict_m5"] == "CALCULEE"
     assert rapport["rentabilite"]["cout_reel_complet"] is True
+    _prouver_main_d_oeuvre_certifiee(intervention_id, wct_id)  # 40 pi x 8,00 + 100,00 : coût de la voie certifiée
     assert rapport["rentabilite"]["prix_definitif"] is facture_finale
     if facture_finale:
         assert rapport["rentabilite"]["statut"] == "qualifiee", rapport["rentabilite"]
@@ -600,16 +896,21 @@ def test_lecture_apprentissage_utilise_la_chaine_reelle_et_exclut_la_facture_bro
 # 1. Coût complet : M5 chiffre la marge -> M8 la mesure (et le temps prévu) -> M10 la mémorise
 # =============================================================================================
 def test_la_marge_reelle_de_m5_atteint_m8_qui_la_mesure_et_m10_qui_la_memorise_sans_la_montrer(
-        base_durable, seuils_m8, taux_m5):
+        base_durable, seuils_m8):
+    # Aucun taux horaire configuré : seul le tarif d'ÉQUIPE de M5 (50,00 $/h-équipe) chiffre la main-d'oeuvre.
     seuils_m8({"m8_ecart_marge_pct": {"sens": "au_dessous", "valeur": -20}})
-    taux_m5("50.00")
     deps = charger_departements()
     base = dt.datetime(2026, 9, 16, 7, 0, 0, tzinfo=DT_TZ)
     lead_id, devis_id, chantier_id = "LEAD-T15D-M-1-fictif", "DEVIS-T15D-M-1-fictif", "CH-T15D-M-1-fictif"
     _m6_prix_au_livre(_outils(deps, "m06-material-control"), 8.0)
-    wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, 56.0)  # prévu 40 : +40 %
+    wct_id, intervention_id = _chantier_termine(
+        deps, base, lead_id, devis_id, chantier_id, 56.0, certifie=True)  # prévu 40 : +40 %
 
     _drainer_sans_echec(deps, base + dt.timedelta(hours=4))
+    # +40 % de matériaux : M4 attend une revue HUMAINE ; puis M5 recalcule sur la projection certifiée.
+    _m4_revue_humaine_verifiee(deps, intervention_id, base + dt.timedelta(hours=4, minutes=5))
+    _recalculer_cout_certifie(wct_id, devis_id, "t15d-scenario-1")
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=5))
 
     # -- M3 : le devis accepté porte la durée estimée de son estimation ----------------------------------
     devis = _charge_publiee("m3.devis_accepte", f"m3-devis-accepte-{devis_id}")
@@ -633,6 +934,9 @@ def test_la_marge_reelle_de_m5_atteint_m8_qui_la_mesure_et_m10_qui_la_memorise_s
         assert publie["verdict"] == "PARTIELLE" or publie["marge_reelle_cad"] == final["marge_reelle_cad"]
         if publie["verdict"] == "PARTIELLE":
             assert publie["marge_reelle_cad"] is None and publie["ecart_marge_cad"] is None
+            # la durée scalaire du WCT (120 min) n'a chiffré aucune main-d'oeuvre dans les calculs ordinaires du bus
+            assert "REJ-COUT-TEMPS-POINTE-ABSENT" in publie["manque"], publie["manque"]
+    _prouver_main_d_oeuvre_certifiee(intervention_id, wct_id)
     texte_m5 = json.dumps(final)
     for interdit in (MATERIAU_ID, "gentek-fictif", "prix_unitaire", "taux", lead_id, "Client Fictif"):
         assert interdit not in texte_m5, interdit
@@ -766,25 +1070,34 @@ def test_le_prix_ajoute_apres_coup_remplace_le_partiel_par_la_marge_a_tous_les_e
     deps = charger_departements()
     base = dt.datetime(2026, 9, 22, 7, 0, 0, tzinfo=DT_TZ)
     lead_id, devis_id, chantier_id = "LEAD-T15D-M-3-fictif", "DEVIS-T15D-M-3-fictif", "CH-T15D-M-3-fictif"
-    wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, 42.0, duree_estimee=None)  # +5 %
+    wct_id, intervention_id = _chantier_termine(
+        deps, base, lead_id, devis_id, chantier_id, 42.0, duree_estimee=None, certifie=True)  # +5 %
     _drainer_sans_echec(deps, base + dt.timedelta(hours=4))
+    # Calculs ordinaires du bus : ni prix, ni main-d'oeuvre (la durée scalaire du WCT ne chiffre plus rien).
+    ordinaire = _publies_m5()[-1]
+    assert ordinaire["verdict"] == "PARTIELLE"
+    assert ordinaire["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TEMPS-POINTE-ABSENT"]
 
+    # La voie certifiée chiffre la main-d'oeuvre (100,00 $) : il ne manque plus que le prix du livre.
+    _recalculer_cout_certifie(wct_id, devis_id, "t15d-scenario-3-sans-prix")
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=5))
     partiel = _publies_m5()[-1]
+    assert partiel["sequence"] == ordinaire["sequence"] + 1
     assert partiel["verdict"] == "PARTIELLE" and partiel["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
     avant = {m["metric_id"]: m for m in _mesures_de_m8(deps, wct_id)["mesures"]}
     assert avant["m8_marge_reelle_cad"]["statut"] == "non_calculable"
     assert avant["m8_ecart_duree_pct"]["manque"] == ["duree_estimee_minutes"]  # sans estimation : rien d'inventé
 
-    # M6 saisit le prix ; la facture de M5 change de statut : la prochaine pièce reçue par M5 recalcule.
+    # M6 saisit le prix ; la facture de M5 change de statut : M5 recalcule sur la projection certifiée.
     _m6_prix_au_livre(_outils(deps, "m06-material-control"), 8.0)
-    with stockage.transaction():
-        assert m5_outils._essayer_cout_reel(devis_id) == {"statut": "tracee"}
+    _recalculer_cout_certifie(wct_id, devis_id, "t15d-scenario-3-avec-prix")
     _drainer_sans_echec(deps, base + dt.timedelta(hours=6))
 
     complet = _publies_m5()[-1]
     assert complet["sequence"] == partiel["sequence"] + 1 and complet["verdict"] == "CALCULEE"
     assert (complet["cout_reel_cad"], complet["marge_reelle_cad"]) == ("436.00", "164.00")  # 42 x 8,00 + 100,00
     assert complet["ecart_marge_cad"] == "44.00"  # plus que prévu : moins de main-d'oeuvre que le forfait du devis
+    _prouver_main_d_oeuvre_certifiee(intervention_id, wct_id, publications=2)
     apres = {m["metric_id"]: m for m in _mesures_de_m8(deps, wct_id)["mesures"]}
     assert complet["prix_definitif"] is False
     for metric_id in ("m8_marge_reelle_cad", "m8_ecart_marge_cad", "m8_ecart_marge_pct"):
