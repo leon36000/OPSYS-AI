@@ -696,3 +696,52 @@ idempotentes et de `stockage.transaction()` incluant rappels aprèsvalidation. A
 nouvelle dépendance, modèle ou orchestrateur introduit. Le reçu de lot ne remplace ni
 les réceptions, ni l’audit, ni les références M10 de chaque writer. Les types JSON font
 partie de la preuve; une égalité Python bool/int ne suffit pas pour valider un reçu.
+
+
+## Correctif ciblé des dépendances de production du Core — 31 octobre 2026
+
+Le job `dependency_audit / audit-securite-core` (`pnpm audit --prod --audit-level=high`, pnpm
+**12.4.0**, Node 24) échouait sur la base avec **39 avis** (1 critical, 14 high, 21 moderate,
+3 low), antérieurs à la PR #862 : le job ne se déclenche que si `core/` change. Les correctifs
+passent par les `overrides` de `core/pnpm-workspace.yaml` et par les épingles exactes des
+`package.json` concernés, sans renouvellement global ; le lockfile est régénéré par
+`pnpm install --lockfile-only --ignore-scripts --ignore-pnpmfile`.
+
+| Paquet | Avant | Après | Avis principaux |
+| --- | --- | --- | --- |
+| dompurify (ui, mermaid-renderer) | 3.4.16 | **3.4.17** | GHSA-cg2g-xh64-v4q7 (critical), GHSA-mrv2-3pqr-j5jr, GHSA-c6gr-qvv4-5v3f |
+| zod (toutes épingles exactes) | 4.6.5 | **4.6.6** | GHSA-mrhx-c7xc-m3w5 |
+| body-parser (nouvel override) | 2.3.0 | **2.4.0** | GHSA-27r3-jxmh-p828 |
+| @azure/msal-node (nouvel override) | 5.6.0 | **7.1.0** | GHSA-xcx6-jx8p-x3h5 |
+| undici (racine, telegram, browser, mailauth) | 8.10.2 | **8.12.2** | GHSA-xjj6-f33q-929c, GHSA-4w7w-5xrc-9h26, GHSA-2m5v-pch6-74hx, GHSA-qrxm-fqhp-jwvm et 3 moderate |
+| undici (slack) | 7.29.1 | **7.30.1** | mêmes avis, branche 7.x |
+| follow-redirects | 1.16.1 | **1.16.2** | GHSA-mrwp-f3q8-3g9p |
+| joi (mailauth) | 18.2.9 | **18.3.1** | GHSA-4528-x5fx-h6hg |
+| nodemailer (mailauth, mailparser) | 10.0.9 | **10.1.4** | 7 moderate (GHSA-39m8-27wv-hr27 et suivants) |
+| @hono/node-server | 2.1.1 | **2.1.3** | GHSA-rmxm-3fg6-px4f |
+| fast-uri | 4.1.5 | **4.2.3** | 2 moderate et 2 low |
+| ip-address | 10.7.1 | **10.7.4** | GHSA-rxp7-6hxx-x8q5 |
+| qs | 6.16.0 | **6.16.1** | GHSA-6pq8-jhm2-2vcw |
+
+Seule rupture de majeure : `@azure/msal-node` 5 vers 7 (6.0.0 retire l'option dépréciée
+`loopbackClient` de l'API interactive ; 7.0.0 et 7.1.0 durcissent le contrôle du nonce et ajoutent
+des erreurs sur le flux par code d'autorisation). `@azure/identity` 4.13.2 et
+`@microsoft/teams.apps` 2.0.16 déclarent `^5` et n'ont pas de version corrigée acceptable : le
+correctif passe donc par un override. L'extension Teams n'appelle que
+`ConfidentialClientApplication.acquireTokenByClientCredential` et l'identité managée, flux que ces
+ruptures ne touchent pas ; un essai avec réseau simulé réussit sur 5.6.0 comme sur 7.1.0.
+
+Exceptions au délai strict de **10080 minutes** (`minimumReleaseAgeExclude`, exactes et
+datées) : `follow-redirects@1.16.2` (publié le 25 octobre 2026 à 21:32:25Z, seul correctif d'un
+avis high) et `joi@18.3.1` (publié le 28 octobre 2026 à 09:59:49Z, seul correctif d'un avis
+high). Le contrôle de chaîne d'approvisionnement du lockfile échoue sans elles et réussit avec ;
+elles sont à retirer après le 1er novembre à 21:33Z et le 4 novembre à 10:00Z. Tous les autres
+paquets relevés ont plus de 7 jours.
+
+Reste un avis **moderate** : `minimatch` 10.2.6 (GHSA-g3hv-75wg-m249, corrigé seulement en 11.0.1,
+publié le 27 octobre 2026, soit 4 jours avant ce lot). Le moteur d'appariement est réécrit (la
+bibliothèque annonce que ce moteur ne sera pas rétroporté) : `makeRe`, `AST` et l'option `debug`
+disparaissent. Le Core n'en importe que `minimatch`, `Minimatch` et `escape` (16 fichiers), qui
+subsistent, mais un changement de comportement d'appariement et une exception au délai strict
+sur une majeure toute neuve sont un arbitrage séparé : l'avis n'est pas corrigé ici et reste suivi
+séparément. Le niveau d'audit n'est pas abaissé et aucun avis n'est ignoré.
