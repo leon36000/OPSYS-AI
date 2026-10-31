@@ -169,6 +169,51 @@ def courante():
     return _Capacite(portee, identite_base, instance, politique.revision, politique.expire_le, faits)
 
 
+# r5 / point 1 : une publication certifiée qui échoue PENDANT la livraison du WCT n'annule plus la livraison.
+CODES_ECHEC_PUBLICATION = frozenset({"TARIFS_ILLISIBLES", "AUTORITE_PERDUE", "SOURCE_INVALIDE", "ECHEC_PUBLICATION"})
+
+
+def classer_echec_publication(exc):
+    """Code typé, stable et sans donnée métier, d'un échec de la publication certifiée en livraison."""
+    if isinstance(exc, ValueError) and str(exc).startswith("tarifs d'équipe"):
+        return "TARIFS_ILLISIBLES"
+    if isinstance(exc, RefusAutorite):
+        return "AUTORITE_PERDUE"
+    if isinstance(exc, (ValueError, TypeError, KeyError, OverflowError)):
+        return "SOURCE_INVALIDE"
+    return "ECHEC_PUBLICATION"
+
+
+@contextmanager
+def publication_isolee():
+    """Isole la publication certifiée d'une livraison dans SON propre point de sauvegarde, lié à la portée.
+
+    Pendant le bloc, la portée de livraison reconnaît ce point de sauvegarde (au lieu de celui du consommateur) :
+    toutes ses gardes restent actives. Un échec annule SEULEMENT la publication (trace, reçu de service,
+    attestation, audits, événement) ; le reçu WCT, la facture brouillon et la trace ordinaire, écrits avant, sont
+    conservés par l'appelant, qui ne remonte plus l'exception au répartiteur. Hors livraison : sans effet."""
+    portee = _COURANTE.get()
+    if type(portee) is not _Portee:
+        yield
+        return
+    cnx = portee.cnx
+    if portee.fermee or cnx.get_nested_transaction() is not portee.sauvegarde:
+        raise RefusAutorite("portée transactionnelle non vérifiable")
+    ancienne = portee.sauvegarde
+    sauvegarde = cnx.begin_nested()
+    portee.sauvegarde = sauvegarde
+    try:
+        yield
+    except BaseException:
+        if sauvegarde.is_active:
+            sauvegarde.rollback()
+        raise
+    else:
+        sauvegarde.commit()
+    finally:
+        portee.sauvegarde = ancienne
+
+
 def _base(cnx):
     if (
         cnx.engine.dialect.name != "sqlite"

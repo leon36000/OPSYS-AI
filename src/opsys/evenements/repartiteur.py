@@ -20,6 +20,7 @@ applicatif supplémentaire.
 from __future__ import annotations
 
 import datetime as dt
+import logging
 from collections.abc import Callable, Mapping
 from contextvars import ContextVar
 from typing import Any
@@ -40,6 +41,7 @@ _BASE_BACKOFF_S = 2
 _MAX_TENTATIVES = 5
 _STATUTS_CLOS = ("traite", "quarantaine")
 _HEURE_LIVRAISON = ContextVar("opsys_heure_livraison", default=None)
+_LOG = logging.getLogger("opsys.evenements.repartiteur")
 
 
 def horodatage_livraison():
@@ -251,7 +253,13 @@ def _livrer_une_paire(
                             resultat_fonction = fonction(dict(charge))
                         finally:
                             _HEURE_LIVRAISON.reset(jeton_heure)
-                        if reprise_attente and resultat_fonction.get("service_m4") not in ("publiee", "deja_tracee"):
+                        if resultat_fonction.get("service_m4") == "echec_publication":
+                            # r5 : la publication certifiée a échoué DANS son propre point de sauvegarde ; la
+                            # livraison (reçu WCT, facture brouillon) est acquise, le réconciliateur reprendra.
+                            _LOG.warning(
+                                "publication certifiée échouée en livraison : evenement=%s consommateur=%s code=%s",
+                                evenement_id, consommateur, resultat_fonction.get("service_m4_code"))
+                        elif reprise_attente and resultat_fonction.get("service_m4") not in ("publiee", "deja_tracee"):
                             raise ValueError("reprise sans publication M4 qualifiée")
                         attendre = attente_wct.inscrire(cnx, evenement, consommateur, resultat_fonction, maintenant_dt)
                         if reprise_attente:

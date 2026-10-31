@@ -718,8 +718,9 @@ def contenu(vue, prefixe, csrf=None):
 
 _LIBELLES_CERTIFIE = {
     'a_jour': 'À jour : dernière trace certifiée publiée, aucune pièce n’a changé depuis.',
-    'perime_recalcul_en_attente': 'Périmé — recalcul en attente : une pièce a changé depuis la dernière trace '
-                                  'certifiée ; elle n’est pas présentée comme le coût actuel.',
+    'perime_recalcul_en_attente': 'Périmé — recalcul en attente : une pièce (M5 ou M4) a changé depuis la '
+                                  'dernière trace certifiée, ou la publication certifiée a échoué ; aucun '
+                                  'certifié n’est présenté comme le coût actuel.',
     'inconnu': 'Inconnu : aucun coût certifié n’a été publié pour ce devis (équipe, revue ou tarif à établir).',
 }
 

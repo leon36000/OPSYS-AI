@@ -1257,31 +1257,32 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
         "revocation_apres_publication",
         "tarif_apres_publication",
     ):
-        assert r["echecs"] == 1, r
+        # r5 (décision de l'architecte) : la publication certifiée échoue DANS son point de sauvegarde ; la
+        # livraison du WCT réussit (reçu WCT, facture brouillon, trace ordinaire conservés), l'échec est typé dans le
+        # reçu du bus et le devis est marqué « à recalculer » ; plus de réessai ni de quarantaine.
+        assert r["echecs"] == 0 and r["quarantaines"] == 0, r
+        from opsys.stockage import codec as codec_bus
+        from opsys.stockage.schema import EVENEMENTS_RECUS
+
+        with session() as cnx:
+            recu_bus = cnx.execute(
+                select(EVENEMENTS_RECUS).where(
+                    EVENEMENTS_RECUS.c.evenement_id == wct_id, EVENEMENTS_RECUS.c.consommateur == "m05-financecore"
+                )
+            ).mappings().one()
+        assert (recu_bus["statut"], recu_bus["derniere_erreur"]) == ("traite", None), dict(recu_bus)
+        resultat_bus = codec_bus.decoder(recu_bus["resultat"])
+        assert resultat_bus["service_m4"] == "echec_publication", resultat_bus
+        assert resultat_bus["service_m4_code"] in sc.CODES_ECHEC_PUBLICATION, resultat_bus
+        detail = resultat_bus["service_m4_detail"]
         if mode.startswith("recu_") and mode not in ("recu_apres_publication", "recu_json_apres_publication"):
             assert marqueurs == [mode]
         if mode in ("audit_type", "audit_duplicate"):
-            from opsys.stockage.schema import EVENEMENTS_RECUS
-
             assert marqueurs == [mode + "_modifie"]
-            with session() as cnx:
-                detail = cnx.execute(
-                    select(EVENEMENTS_RECUS.c.derniere_erreur).where(
-                        EVENEMENTS_RECUS.c.evenement_id == wct_id, EVENEMENTS_RECUS.c.consommateur == "m05-financecore"
-                    )
-                ).scalar_one()
-                assert "AUDIT-INVALIDE" in detail
+            assert "AUDIT-INVALIDE" in detail, detail  # même cause, désormais dans le reçu du bus
         if mode == "ref_invalide":
-            from opsys.stockage.schema import EVENEMENTS_RECUS
-
             assert len(refs_test) == 1
-            with session() as cnx:
-                detail = cnx.execute(
-                    select(EVENEMENTS_RECUS.c.derniere_erreur).where(
-                        EVENEMENTS_RECUS.c.evenement_id == wct_id, EVENEMENTS_RECUS.c.consommateur == "m05-financecore"
-                    )
-                ).scalar_one()
-                assert "référence Core historique indisponible" in detail
+            assert "référence Core historique indisponible" in detail, detail
         if mode in (
             "revocation_apres_publication",
             "tarif_apres_publication",
@@ -1297,17 +1298,26 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
         if mode == "revocation_tardive":
             assert len(verifications) == 4
         with session() as cnx:
-            assert list(stockage.maillons("m05-financecore", "rentabilite")) == traces_avant
-            assert (
-                list(
-                    cnx.execute(
-                        select(EVENEMENTS_SORTANTS.c.evenement_id).where(
-                            EVENEMENTS_SORTANTS.c.type_evenement == "m5.rentabilite_chantier"
-                        )
-                    ).scalars()
-                )
-                == events_avant
+            traces_apres = list(stockage.maillons("m05-financecore", "rentabilite"))
+            evenements_apres = list(
+                cnx.execute(
+                    select(EVENEMENTS_SORTANTS.c.evenement_id).where(
+                        EVENEMENTS_SORTANTS.c.type_evenement == "m5.rentabilite_chantier"
+                    )
+                ).scalars()
             )
+            # Rien de la publication certifiée ne survit : aucune trace de service, aucun reçu de service ; ce qui
+            # est ajouté est l'état ordinaire (partiel), dont le dernier porte la marque « à recalculer ».
+            assert traces_apres[: len(traces_avant)] == traces_avant
+            nouvelles = traces_apres[len(traces_avant):]
+            assert nouvelles
+            assert all("provenance_service_v1" not in t and t["verdict"] == "PARTIELLE" for t in nouvelles)
+            assert any(m.get("code") == "REJ-COUT-CERTIFIE-A-RECALCULER"
+                       for m in nouvelles[-1]["rentabilite"]["manque"]), nouvelles[-1]["rentabilite"]["manque"]
+            assert evenements_apres[: len(events_avant)] == events_avant
+            assert len(evenements_apres) == len(events_avant) + len(nouvelles)
+            assert not list(stockage.maillons("m05-financecore", "rentabilite_service_v1"))
+            assert resultat_bus["cout_certifie"] == "marque"
         return
     if r["echecs"]:
         from opsys.stockage.schema import EVENEMENTS_RECUS

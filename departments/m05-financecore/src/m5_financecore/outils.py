@@ -1059,7 +1059,9 @@ def _statut_cout_certifie(devis_id: str, rentabilite_ordinaire: Mapping[str, Any
     entree = (sources.get("certifiees") or {}).get(devis_id) or {}
     certifiee = entree.get("certifiee")
     if certifiee is None:
-        return "inconnu", None, None
+        # r5 : une publication certifiée échouée pendant la livraison a marqué le devis « à recalculer ».
+        marque = _porte_marque_a_recalculer(entree.get("publiee"))
+        return ("perime_recalcul_en_attente" if marque else "inconnu"), None, None
     a_jour = (entree.get("publiee") is certifiee and rentabilite_ordinaire is not None
               and cout_reel.decision_apres_etat_certifie(
                   certifiee, rentabilite_ordinaire, _source_tarifs_equipes_ou_none) == "conserver")
@@ -1150,6 +1152,11 @@ def _essayer_cout_reel(devis_id: str) -> dict[str, Any]:
         _source_tarifs_equipes_ou_none)
     if decision == "conserver":
         return {"statut": "certifie_conserve"}
+    if (decision == "ordinaire" and rentabilite["verdict"] == "PARTIELLE" and rentabilite["marge_reelle"] is None
+            and _porte_marque_a_recalculer(_derniere_trace_publiee(devis_id, trace))):
+        # r5 : la marque « à recalculer » (publication certifiée échouée, correction M4) reste tant qu'aucun
+        # certifié ne l'a remplacée : une pièce de plus ne l'efface pas en silence.
+        decision = "perime"
     if decision == "perime":
         rentabilite = cout_reel.marquer_certifie_perime(rentabilite)
     _consigner_rentabilite(rentabilite, sources["nombre_de_traces"].get(devis_id, 0) + 1, etat["horodatage"])
@@ -1266,16 +1273,60 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
         return {"traite": True, "wct_id": wct_id, "statut": "wct_sans_devis_id"}
     resultat = _essayer_facture_brouillon(wct_recu["devis_id"])
     cout = _essayer_cout_reel(wct_recu["devis_id"])["statut"]
-    # Sans capacité qualifiée, l'ancien résultat partiel reste la vérité connue.
     from opsys import service_capability
-    try:
-        cap = service_capability.courante()
-    except (service_capability.RefusAutorite, ValueError):
-        return {**resultat, "cout_reel": cout}
-    # Une perte de source après acquisition remonte au répartiteur et annule la livraison.
+
     from .port_service_m4 import publier
-    publication = publier(wct_recu["devis_id"], cap=cap)
+    try:
+        # r5 : la publication certifiée vit dans SON point de sauvegarde ; un échec ne touche ni ce reçu WCT, ni la
+        # facture brouillon, ni la trace ordinaire, et la livraison n'est ni réessayée ni mise en quarantaine.
+        with service_capability.publication_isolee():
+            try:
+                cap = service_capability.courante()
+            except (service_capability.RefusAutorite, ValueError) as exc:
+                raise _SansCapaciteService from exc  # sans capacité qualifiée, le partiel reste la vérité connue
+            publication = publier(wct_recu["devis_id"], cap=cap)
+    except _SansCapaciteService:
+        return {**resultat, "cout_reel": cout}
+    except Exception as exc:  # noqa: BLE001 — jamais la facturation : l'échec est typé, journalisé, repris hors livraison
+        code = service_capability.classer_echec_publication(exc)
+        marque = _marquer_cout_certifie_a_recalculer(wct_recu["devis_id"])
+        return {**resultat, "cout_reel": cout, "service_m4": "echec_publication", "service_m4_code": code,
+                "service_m4_detail": f"{type(exc).__name__}: {str(exc)[:160]}", "cout_certifie": marque}
     return {**resultat, "cout_reel": cout, "service_m4": publication["statut"]}
+
+
+class _SansCapaciteService(Exception):
+    """Aucune capacité de service pour cette livraison (politique absente, hors périmètre...) : rien à publier."""
+
+
+def _porte_marque_a_recalculer(trace: Mapping[str, Any] | None) -> bool:
+    corps = trace.get("rentabilite") if isinstance(trace, Mapping) else None
+    manque = corps.get("manque") if isinstance(corps, Mapping) else None
+    return isinstance(manque, list) and any(
+        isinstance(m, Mapping) and m.get("code") == cout_reel.CODE_CERTIFIE_A_RECALCULER for m in manque)
+
+
+def _marquer_cout_certifie_a_recalculer(devis_id: str) -> str:
+    """Même mécanisme d'état que E1 : une trace PARTIELLE marquée `REJ-COUT-CERTIFIE-A-RECALCULER` (publiée au bus),
+    pour que D3 dise `perime_recalcul_en_attente` et que le réconciliateur reprenne le devis hors livraison. Ne
+    lève pas (un défaut ici rendrait la facturation dépendante du coût certifié). Idempotente : un devis déjà marqué
+    ou non calculable n'écrit rien."""
+    try:
+        sources = _sources_cout_reel()
+        etat = _etat_chantier(devis_id, sources)
+        if etat["statut"] != "calculee":
+            return "non_calculable"
+        derniere = _derniere_trace_publiee(devis_id, sources["traces"].get(devis_id))
+        if _porte_marque_a_recalculer(derniere):
+            return "deja_marque"
+        rentabilite = etat["rentabilite"]
+        if rentabilite["verdict"] != "PARTIELLE" or rentabilite["marge_reelle"] is not None:
+            return "non_marquable"
+        _consigner_rentabilite(cout_reel.marquer_certifie_perime(rentabilite),
+                               sources["nombre_de_traces"].get(devis_id, 0) + 1, etat["horodatage"])
+        return "marque"
+    except (ValueError, TypeError, KeyError, OverflowError):
+        return "marquage_impossible"
 
 
 def lister_attentes_facturation() -> dict[str, Any]:
