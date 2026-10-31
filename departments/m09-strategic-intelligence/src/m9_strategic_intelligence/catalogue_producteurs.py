@@ -226,7 +226,7 @@ LECTURES: tuple[Lecture, ...] = (
         "m4.capacite_equipe",
         "m04-field-ops",
         "m4_lire_capacite_equipe",
-        {"debut_semaine", "horodatage_reference"},
+        {"debut_semaine", "horodatage_reference", "portee"},
         reference="horodatage_reference",
         instants_metier=("resultat.resultat.sources.cedule_confirmee_le",),
         revisions=("resultat.resultat.sources.cedule_revision_max", "resultat.resultat.sources.registre_tete"),

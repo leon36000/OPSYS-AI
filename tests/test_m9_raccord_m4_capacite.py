@@ -151,3 +151,42 @@ def test_m4_semaine_invalide_est_une_erreur_conservee_jamais_une_capacite(par_no
     capture = _capture(H.capturer(cap, H.ADMIN, LECTURE, {"debut_semaine": "2030-06-04"}, RECU))
     assert capture["verdict"] in {"REFUSEE", "ERREUR"} and capture["complete"] is False
     assert _dossier(H.captures_stockees())["faits"] == {}
+
+
+def test_m4_semaine_type_reelle_semaine_future_citee_sans_conversion_par_m9(par_nom, interventions, instance):
+    """Portée `semaine_type` du VRAI M4 (DECISIONS-ARCHITECTE-r1 §3) : semaine future non datée, férié et congé d'équipe
+    déclarés, jours-personnes écrits par M4 sur durée déclarée ; M9 cite, ne convertit rien et refuse l'allocation."""
+    plage = [{"debut": "07:00", "fin": "15:00"}]
+    semaine = {"fuseau": "America/Montreal", **{j: plage for j in ("lundi", "mardi", "mercredi", "jeudi", "vendredi")}}
+    semaine.update(samedi=[], dimanche=[])
+    brut = {
+        "liste": [
+            {**e, "membres": [f"{e['id'].replace('-', '.')}.fictif"], "semaine_type": semaine} for e in aide._equipes()
+        ],
+        "conges": [{"equipes": ["eq-b"], "du": "2030-06-11", "au": "2030-06-11", "motif": "conge", "libelle": "x"}],
+        "feries": {"annees": [2030], "jours": [{"date": "2030-06-14", "libelle": "Férié fictif"}]},
+        "duree_jour_personne_minutes": 480,
+    }
+    (instance / "home" / "entreprise.yaml").write_text(
+        yaml.safe_dump({"equipes": equipes_entreprise.normaliser_equipes(brut)}, allow_unicode=True), encoding="utf-8"
+    )
+    _dater(par_nom, interventions)
+    cap = H.capacites(M4)
+    args = {"debut_semaine": "2030-06-10", "horodatage_reference": REFERENCE, "portee": "semaine_type"}
+    capture = _capture(H.capturer(cap, H.ADMIN, LECTURE, args, RECU))
+    assert (capture["verdict"], capture["complete"]) == ("ACCEPTEE", True)
+    charge = H.page(0)["resultat"]["resultat"]
+    assert charge["portee"] == "semaine_type" and charge["jours_dates"] == []
+    # 480 min du lundi au vendredi ; vendredi 14 férié (toutes) ; mardi 11 congé de eq-b
+    assert {e["equipe_id"]: e["minutes_disponibles"] for e in charge["equipes"]} == {"eq-a": 4 * 480, "eq-b": 3 * 480}
+    assert charge["jours_personnes_disponibles"] == "7.00" and charge["minutes_planifiees"] == 0
+    assert "Férié fictif" not in str(charge)
+    dossier = _dossier(H.captures_stockees())
+    racine = f"{LECTURE}#0:p0.resultat.resultat"
+    assert dossier["faits"][f"{racine}.portee"] == "semaine_type"
+    assert dossier["faits"][f"{racine}.heures_disponibles"] == "56.00"
+    with pytest.raises(ValueError, match="REJ-PRIORITE-UNITE"):
+        priorisation.allouer([], capacite="7.00", source_capacite=f"{racine}.jours_personnes_disponibles")
+    # La même semaine en portée datée : non calculable, sans valeur.
+    datee = _capture(H.capturer(cap, H.ADMIN, LECTURE, {**args, "portee": "journees_datees_seulement"}, RECU))
+    assert datee["complete"] is False

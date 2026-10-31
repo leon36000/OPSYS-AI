@@ -32,7 +32,8 @@ CONTRATS: dict[str, dict] = {
         "outil_attendu": "m4_lire_capacite_equipe",
         "reel": {"enveloppe_accepte": True},
         "limite": "Branché sur le contrat réel de M4 (m4.capacite_equipe v1) : unité heures_declarees seulement, "
-        "jamais convertie en jours-personnes ; borne basse sur les journées datées ; "
+        "jamais convertie par M9 en jours-personnes (seuls les jours_personnes_* écrits par M4 sur durée déclarée) ; "
+        "borne basse sur les journées datées, ou semaine type déclarée (portee semaine_type) ; "
         "non calculable = aucune valeur. M9 ne déduit aucune capacité des interventions planifiées.",
     },
     "depenses_marketing": {

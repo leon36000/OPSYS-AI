@@ -246,7 +246,9 @@ def valider_m7_depenses(page: object, arguments: Mapping | None) -> list[str]:
 # M4 — m4.capacite_equipe (contrat v1, charge dans ``resultat.resultat`` du dispatcher)
 # ---------------------------------------------------------------------------------------------------------------------
 M4_UNITE = "heures_declarees"
-M4_PORTEE = "journees_datees_seulement"
+M4_PORTEE = "journees_datees_seulement"  # portée par défaut : celle rendue quand l'appelant n'en demande aucune
+M4_PORTEE_SEMAINE_TYPE = "semaine_type"  # semaine type déclarée moins congés d'équipe et fériés déclarés
+M4_PORTEES = (M4_PORTEE, M4_PORTEE_SEMAINE_TYPE)
 M4_MINUTES_MAX = 7 * 24 * 60  # une semaine de 24 h : borne dure d'une équipe sur des journées datées
 _M4_IDENTIFIANT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}")
 _M4_MANQUE = re.compile(r"[a-z_]{1,64}(?::[A-Za-z0-9][A-Za-z0-9._:-]{0,63}){0,2}")
@@ -254,9 +256,13 @@ _M4_HEURES = re.compile(r"\d{1,9}\.\d{2,4}")
 _M4_RACINE = {
     "contrat", "version", "semaine_debut", "fuseau", "unite", "portee", "lu_a", "calculable", "manque", "equipes",
     "jours_dates", "sources", "avertissements", "heures_disponibles", "heures_planifiees", "minutes_disponibles",
-    "minutes_planifiees",
+    "minutes_planifiees", "duree_jour_personne_minutes", "jours_personnes_disponibles", "jours_personnes_planifiees",
 }  # fmt: skip
+# Jours-personnes : écrits par M4 SEULEMENT si le profil déclare la durée d'un jour-personne ; M9 ne convertit jamais.
+_M4_CONVERSION = {"duree_jour_personne_minutes", "jours_personnes_disponibles", "jours_personnes_planifiees"}
+_M4_JOURS_PERSONNES_EQUIPE = {"jours_personnes_disponibles", "jours_personnes_planifiees"}
 _M4_REQUISES = _M4_RACINE - {"heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees"}
+_M4_REQUISES -= _M4_CONVERSION
 _M4_TOTAUX = {"heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees"}
 _M4_EQUIPE = {"equipe_id", "heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees"}
 _M4_SOURCES = {
@@ -269,6 +275,13 @@ def heures_texte(minutes: int) -> str:
     """Texte des heures d'une durée en minutes, comme M4 l'écrit : minutes/60 au dix-millième, au moins deux
     décimales."""
     valeur = (Decimal(minutes) / Decimal(60)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    entier, decimales = format(valeur, "f").split(".")
+    return f"{entier}.{decimales.rstrip('0').ljust(2, '0')}"
+
+
+def jours_personnes_texte(minutes: int, duree: int) -> str:
+    """Jours-personnes comme M4 les écrit : minutes / durée déclarée au dix-millième, au moins deux décimales."""
+    valeur = (Decimal(minutes) / Decimal(duree)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
     entier, decimales = format(valeur, "f").split(".")
     return f"{entier}.{decimales.rstrip('0').ljust(2, '0')}"
 
@@ -296,8 +309,8 @@ def valider_m4_capacite(page: object, arguments: Mapping | None) -> list[str]:
         erreurs.append("charge : contrat m4.capacite_equipe v1 attendu")
     if charge["unite"] != M4_UNITE:
         erreurs.append("unite : heures_declarees seulement, aucune conversion")
-    if charge["portee"] != M4_PORTEE:
-        erreurs.append("portee : journees_datees_seulement seulement")
+    if charge["portee"] not in M4_PORTEES:
+        erreurs.append("portee : journees_datees_seulement ou semaine_type seulement")
     if charge["fuseau"] != "America/Montreal":
         erreurs.append("fuseau : America/Montreal seulement")
     lundi = _date(charge["semaine_debut"])
@@ -307,6 +320,8 @@ def valider_m4_capacite(page: object, arguments: Mapping | None) -> list[str]:
     if arguments is not None:
         if charge["semaine_debut"] != arguments.get("debut_semaine"):
             erreurs.append("semaine_debut : différente de la semaine demandée")
+        if charge["portee"] != arguments.get("portee", M4_PORTEE):
+            erreurs.append("portee : différente de la portée demandée")
         demande = arguments.get("horodatage_reference")
         if (charge["lu_a"] is None) != (demande is None) or (
             demande is not None and not _meme_instant(charge["lu_a"], demande)
@@ -361,17 +376,24 @@ def valider_m4_capacite(page: object, arguments: Mapping | None) -> list[str]:
         erreurs.append("equipes : liste bornée attendue")
         return erreurs
     presents = _M4_TOTAUX & set(charge)
+    conversion = _M4_CONVERSION & set(charge)
     if not calculable:
         if not manque:
             erreurs.append("calculable faux : une cause nommée est requise")
-        if equipes or presents:
+        if equipes or presents or conversion:
             erreurs.append("calculable faux : aucune valeur n'est admise (absence n'est pas zéro)")
         return erreurs
     if manque:
         erreurs.append("calculable vrai : aucun manque n'est admis")
-    if not equipes or presents != _M4_TOTAUX or not jours:
+    datee = charge["portee"] == M4_PORTEE  # la semaine type n'exige aucune journée datée
+    if not equipes or presents != _M4_TOTAUX or (datee and not jours):
         erreurs.append("calculable vrai : équipes, totaux et journées datées requis")
         return erreurs
+    duree = charge.get("duree_jour_personne_minutes")
+    if conversion and (conversion != _M4_CONVERSION or not _entier(duree, 1, 1440)):
+        erreurs.append("jours-personnes : durée déclarée (1 à 1440) et totaux convertis ensemble")
+        return erreurs
+    cles_equipe = _M4_EQUIPE | _M4_JOURS_PERSONNES_EQUIPE if conversion else _M4_EQUIPE
     if isinstance(sources, Mapping) and (
         sources.get("profil_empreinte") is None or sources.get("plans_appliques") == 0
     ):
@@ -379,7 +401,7 @@ def valider_m4_capacite(page: object, arguments: Mapping | None) -> list[str]:
     identifiants, somme = [], {"minutes_disponibles": 0, "minutes_planifiees": 0}
     for position, ligne in enumerate(equipes):
         nom = f"equipes[{position}]"
-        if not _cles(ligne, _M4_EQUIPE, _M4_EQUIPE, nom, erreurs):
+        if not _cles(ligne, cles_equipe, cles_equipe, nom, erreurs):
             return erreurs
         if type(ligne["equipe_id"]) is not str or _M4_IDENTIFIANT.fullmatch(ligne["equipe_id"]) is None:
             erreurs.append(f"{nom}.equipe_id : identifiant sobre attendu")
@@ -388,11 +410,16 @@ def valider_m4_capacite(page: object, arguments: Mapping | None) -> list[str]:
         for cle in somme:
             minutes = _m4_valeur(ligne, cle, nom, erreurs)
             somme[cle] += minutes or 0
+            jours_cle = cle.replace("minutes", "jours_personnes")
+            if conversion and minutes is not None and ligne[jours_cle] != jours_personnes_texte(minutes, duree):
+                erreurs.append(f"{nom}.{jours_cle} : conversion déclarée exacte des minutes attendue")
     if len(set(identifiants)) != len(identifiants):
         erreurs.append("equipes : equipe_id en double")
     for cle, total in somme.items():
         if charge[cle] != total or charge[cle.replace("minutes", "heures")] != heures_texte(total):
             erreurs.append(f"{cle} : le total n'est pas la somme des équipes")
+        elif conversion and charge[cle.replace("minutes", "jours_personnes")] != jours_personnes_texte(total, duree):
+            erreurs.append(f"{cle.replace('minutes', 'jours_personnes')} : conversion déclarée du total attendue")
     return erreurs
 
 

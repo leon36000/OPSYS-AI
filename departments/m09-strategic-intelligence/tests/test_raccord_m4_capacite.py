@@ -136,7 +136,8 @@ def _dossier(*captures, connaissance=REF):
 def test_la_lecture_est_au_catalogue_avec_ses_arguments_libres_et_sa_reference():
     lecture = cat.obtenir(LECTURE)
     assert (lecture.departement, lecture.outil) == ("m04-field-ops", "m4_lire_capacite_equipe")
-    assert lecture.libres == {"debut_semaine", "horodatage_reference"} and lecture.reference == "horodatage_reference"
+    assert lecture.libres == {"debut_semaine", "horodatage_reference", "portee"}
+    assert lecture.reference == "horodatage_reference"
     assert "m4_lire_capacite_equipe" in cat.lectures_par_departement()["m04-field-ops"]
     with pytest.raises(ValueError, match="REJ-CAPTURE-ARGUMENTS"):
         cat.arguments_admis(lecture, {"debut_semaine": SEMAINE, "role": "admin"})
@@ -298,3 +299,120 @@ def test_la_charge_de_reference_n_est_pas_modifiee_par_la_validation():
     avant = copy.deepcopy(charge)
     _capture(charge)
     assert charge == avant
+
+
+# -- portée semaine_type et jours-personnes déclarés (DECISIONS-ARCHITECTE-r1 §3) -------------------------------------
+ARGS_ST = {**ARGS, "portee": "semaine_type"}
+
+
+def charge_semaine_type(duree=None):
+    charge = charge_calculable()
+    charge.update(portee="semaine_type", jours_dates=[], semaine_debut=SEMAINE)
+    if duree is not None:
+        charge["duree_jour_personne_minutes"] = duree
+        for ligne in charge["equipes"]:
+            ligne["jours_personnes_disponibles"] = _jp(ligne["minutes_disponibles"], duree)
+            ligne["jours_personnes_planifiees"] = _jp(ligne["minutes_planifiees"], duree)
+        charge["jours_personnes_disponibles"] = _jp(charge["minutes_disponibles"], duree)
+        charge["jours_personnes_planifiees"] = _jp(charge["minutes_planifiees"], duree)
+    return charge
+
+
+def _jp(minutes, duree):
+    from decimal import ROUND_HALF_UP, Decimal
+
+    valeur = (Decimal(minutes) / Decimal(duree)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    entier, decimales = format(valeur, "f").split(".")
+    return f"{entier}.{decimales.rstrip('0').ljust(2, '0')}"
+
+
+def test_la_portee_semaine_type_est_acceptee_sans_journee_datee_quand_elle_est_demandee():
+    capture = _capture(charge_semaine_type(), args=ARGS_ST)
+    assert capture["verdict"] == "ACCEPTEE" and capture["complete"] is True
+    racine = f"{LECTURE}#0:p0.resultat.resultat"
+    assert _dossier(capture)["faits"][f"{racine}.portee"] == "semaine_type"
+    assert cat.arguments_admis(cat.obtenir(LECTURE), ARGS_ST) == ARGS_ST
+
+
+def test_la_portee_rendue_doit_etre_la_portee_demandee():
+    assert _capture(charge_semaine_type())["verdict"] == "REFUSEE"  # rien demandé : la portée datée est attendue
+    assert _capture(charge_calculable(), args=ARGS_ST)["verdict"] == "REFUSEE"
+    datee_sans_jour = charge_calculable()
+    datee_sans_jour["jours_dates"] = []
+    assert _capture(datee_sans_jour)["verdict"] == "REFUSEE"  # la portée datée exige toujours ses journées datées
+
+
+@pytest.mark.parametrize("portee", ["semaine_complete", "semaine-type", "", None, 1])
+def test_une_portee_inconnue_reste_refusee(portee):
+    charge = charge_semaine_type()
+    charge["portee"] = portee
+    assert _capture(charge, args={**ARGS, "portee": portee})["verdict"] == "REFUSEE"
+
+
+@pytest.mark.parametrize("unite", ["jours_personnes", "heures", "heures_personnes", None])
+def test_une_unite_inconnue_est_refusee_aussi_en_semaine_type(unite):
+    charge = charge_semaine_type(duree=480)
+    charge["unite"] = unite
+    capture = _capture(charge, args=ARGS_ST)
+    assert capture["verdict"] == "REFUSEE" and capture["code"] == "charge_invalide"
+
+
+def test_les_jours_personnes_declares_par_m4_sont_acceptes_s_ils_sont_exacts():
+    for portee, charge, args in [
+        ("semaine_type", charge_semaine_type(duree=480), ARGS_ST),
+        ("datee", charge_calculable(), ARGS),
+    ]:
+        if portee == "datee":
+            charge["duree_jour_personne_minutes"] = 420
+            for ligne in charge["equipes"]:
+                ligne["jours_personnes_disponibles"] = _jp(ligne["minutes_disponibles"], 420)
+                ligne["jours_personnes_planifiees"] = _jp(ligne["minutes_planifiees"], 420)
+            charge["jours_personnes_disponibles"] = _jp(1080, 420)
+            charge["jours_personnes_planifiees"] = _jp(300, 420)
+        assert _capture(charge, args=args)["verdict"] == "ACCEPTEE", portee
+    assert charge_semaine_type(duree=480)["jours_personnes_disponibles"] == "2.25"
+
+
+@pytest.mark.parametrize(
+    "modification",
+    [
+        lambda c: c.pop("duree_jour_personne_minutes"),
+        lambda c: c.pop("jours_personnes_planifiees"),
+        lambda c: c.update(duree_jour_personne_minutes=0),
+        lambda c: c.update(duree_jour_personne_minutes="480"),
+        lambda c: c.update(jours_personnes_disponibles="2.26"),
+        lambda c: c.update(jours_personnes_disponibles=2.25),
+        lambda c: c["equipes"][0].update(jours_personnes_disponibles="1.13"),
+        lambda c: c["equipes"][0].pop("jours_personnes_disponibles"),
+    ],
+)
+def test_des_jours_personnes_incoherents_sont_refuses(modification):
+    charge = charge_semaine_type(duree=480)
+    modification(charge)
+    assert _capture(charge, args=ARGS_ST)["verdict"] == "REFUSEE"
+
+
+def test_des_jours_personnes_sans_duree_ou_sur_une_charge_non_calculable_sont_refuses():
+    sans = charge_semaine_type()
+    sans["equipes"][0]["jours_personnes_disponibles"] = "1.00"
+    assert _capture(sans, args=ARGS_ST)["verdict"] == "REFUSEE"
+    non = charge_non_calculable()
+    non.update(duree_jour_personne_minutes=480, jours_personnes_disponibles="0.00", jours_personnes_planifiees="0.00")
+    assert _capture(non)["verdict"] == "REFUSEE"  # absence n'est pas zéro, même convertie
+
+
+def test_l_allocation_refuse_encore_toute_capacite_citee_de_m4():
+    candidats = [
+        {
+            "id": "c1",
+            "libelle": "Rappel",
+            "origine": "DECLAREE_PAR_LA_PERSONNE",
+            "impact": 5,
+            "urgence": 5,
+            "confiance": 4,
+            "effort_jours_personnes": "1",
+        }
+    ]
+    adresse = f"{LECTURE}#0:p0.resultat.resultat.jours_personnes_disponibles"
+    with pytest.raises(ValueError, match="REJ-PRIORITE-UNITE"):
+        priorisation.allouer(candidats, capacite="2.25", source_capacite=adresse)
