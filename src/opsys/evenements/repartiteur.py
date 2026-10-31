@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable, Mapping
+from contextvars import ContextVar
 from typing import Any
 
 from sqlalchemy import Connection, and_, func, insert, or_, select, update
@@ -38,6 +39,14 @@ __all__ = ["etat", "repartir", "verifier_coherence"]
 _BASE_BACKOFF_S = 2
 _MAX_TENTATIVES = 5
 _STATUTS_CLOS = ("traite", "quarantaine")
+_HEURE_LIVRAISON = ContextVar("opsys_heure_livraison", default=None)
+
+
+def horodatage_livraison():
+    """Instant du répartiteur pour la livraison courante, ou None hors livraison."""
+    return _HEURE_LIVRAISON.get()
+
+
 _CLE_PAIRES_EN_VOL = "_opsys_evenements_paires_en_vol"
 
 
@@ -237,7 +246,11 @@ def _livrer_une_paire(
                     if reprise_attente:
                         attente_wct.revalider_terminee(cnx, evenement_id, consommateur, maintenant_dt)
                     with _livraison(cnx, evenement, consommateur, tentatives_avant):
-                        resultat_fonction = fonction(dict(charge))
+                        jeton_heure = _HEURE_LIVRAISON.set(maintenant_dt)
+                        try:
+                            resultat_fonction = fonction(dict(charge))
+                        finally:
+                            _HEURE_LIVRAISON.reset(jeton_heure)
                         if reprise_attente and resultat_fonction.get("service_m4") not in ("publiee", "deja_tracee"):
                             raise ValueError("reprise sans publication M4 qualifiée")
                         attendre = attente_wct.inscrire(cnx, evenement, consommateur, resultat_fonction, maintenant_dt)
