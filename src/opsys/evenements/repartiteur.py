@@ -27,6 +27,7 @@ from sqlalchemy import Connection, and_, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from ..departements import Departement
+from ..service_capability import _livraison
 from ..stockage import codec, transaction
 from ..stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 from .schemas import types_connus
@@ -177,12 +178,9 @@ def _livrer_une_paire(
                 tentatives_avant = existant.tentatives
 
             try:
-                with cnx.begin_nested():
+                with cnx.begin_nested(), _livraison(cnx, evenement, consommateur, tentatives_avant):
                     resultat_fonction = fonction(dict(charge))
-                    # Encodé ICI, dans le point de sauvegarde, par le même codec typé que les maillons
-                    # de registre (fidélité Decimal/date) : un résumé non stockable (type non géré par
-                    # le codec) annule aussi les écritures du consommateur, comme une panne — jamais un
-                    # « traité » sans résultat fidèle, jamais des écritures orphelines.
+                    # L'encodage reste dans le même savepoint que le consommateur.
                     resultat_encode = codec.encoder(dict(resultat_fonction))
             except Exception as exc:  # noqa: BLE001 — un consommateur ne doit jamais arrêter le répartiteur
                 tentatives = tentatives_avant + 1

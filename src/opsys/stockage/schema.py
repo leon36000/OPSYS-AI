@@ -734,6 +734,30 @@ OPSYS_INSTANCE = Table(
     CheckConstraint("id = 1", name="opsys_instance_singleton"),
 )
 
+# Historique append-only : aucune politique initiale n'est créée par la migration.
+SERVICE_POLITIQUES = Table(
+    'service_politiques', META,
+    Column('instance_id', String(36), ForeignKey('opsys_instance.instance_id'), primary_key=True),
+    Column('consommateur', String(128), primary_key=True),
+    Column('operation', String(64), primary_key=True),
+    Column('revision', Integer, primary_key=True),
+    Column('active', Boolean, nullable=False),
+    Column('expire_le', BigInteger, nullable=False),
+    CheckConstraint('revision > 0 AND expire_le > 0', name='service_politique_revision'),
+    CheckConstraint('active IN (false, true)', name='service_politique_active'),
+)
+SERVICE_AUDIT = Table(
+    'service_audit', META,
+    Column('id', Integer, primary_key=True, autoincrement=True),
+    Column('instance_id', String(36), nullable=False),
+    Column('consommateur', String(128), nullable=False),
+    Column('operation', String(64), nullable=False),
+    Column('revision', Integer, nullable=False),
+    Column('evenement_id', String(128)),
+    Column('action', String(24), nullable=False),
+    CheckConstraint("action IN ('usage','revocation')", name='service_audit_action'),
+)
+
 # Private native-publication attempt ledger, never a second configuration selector.
 CONFIGURATION_PUBLICATIONS = Table(
     "configuration_publications", META,
@@ -1061,4 +1085,20 @@ RECEPTIONS_COURRIEL = Table(
     CheckConstraint("taille_octets > 0 AND taille_octets <= 1048576", name="courriel_taille"),
     CheckConstraint("length(nonce) = 12 AND length(chiffre) > 16 AND length(chiffre) <= 1064980",
                     name="courriel_chiffre"),
+)
+
+# Private candidate; not a grant, proof or current freshness assertion.
+SERVICE_ATTESTATIONS_M4 = Table(
+    'service_attestations_m4', META,
+    Column('audit_id', Integer, ForeignKey('service_audit.id'), primary_key=True),
+    Column('instance_id', String(36), nullable=False),
+    Column('evenement_id', String(128), nullable=False),
+    Column('revision', Integer, nullable=False),
+    Column('trace_rang', Integer, nullable=False),
+    Column('trace_sha256', String(64), nullable=False),
+    Column('source_m4', String(64), nullable=False),
+    Column('projection_sha256', String(64), nullable=False),
+    Column('version_m4', String(64), nullable=False),
+    UniqueConstraint('instance_id', 'trace_rang', name='service_attestation_trace_unique'),
+    CheckConstraint('trace_rang >= 0 AND revision > 0', name='service_attestation_bounds'),
 )

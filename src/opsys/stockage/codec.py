@@ -91,3 +91,48 @@ def _depuis_json(valeur: Any) -> Any:
             return _RESTAURER[type_](contenu)
         raise ValueError(f"étiquette inconnue dans la base : {type_!r}")
     return {cle: _depuis_json(v) for cle, v in valeur.items()}
+
+
+def decoder_strict(texte: str, *, profondeur_max: int = 64) -> Any:
+    """Décode le codec existant sans JSON ambigu ; l'appelant borne les octets."""
+    import math
+    if type(texte) is not str or type(profondeur_max) is not int or not 1 <= profondeur_max <= 128:
+        raise ValueError("entrée stricte invalide")
+    def objet(paires):
+        resultat = {}
+        for cle, valeur in paires:
+            if cle in resultat:
+                raise ValueError("clé JSON dupliquée")
+            resultat[cle] = valeur
+        return resultat
+    def flottant(valeur):
+        nombre = float(valeur)
+        if not math.isfinite(nombre):
+            raise ValueError("nombre non fini")
+        return nombre
+    def constante(_):
+        raise ValueError("nombre non fini")
+    try:
+        brut = json.loads(texte, object_pairs_hook=objet, parse_float=flottant, parse_constant=constante)
+        pile = [(brut, 0)]
+        while pile:
+            valeur, profondeur = pile.pop()
+            if profondeur > profondeur_max:
+                raise ValueError("profondeur JSON excessive")
+            if isinstance(valeur, dict):
+                pile.extend((v, profondeur + 1) for v in valeur.values())
+            elif isinstance(valeur, list):
+                pile.extend((v, profondeur + 1) for v in valeur)
+        resultat = _depuis_json(brut)
+        pile_valeurs = [resultat]
+        while pile_valeurs:
+            valeur = pile_valeurs.pop()
+            if isinstance(valeur, Decimal) and not valeur.is_finite():
+                raise ValueError("Decimal non fini")
+            if isinstance(valeur, dict):
+                pile_valeurs.extend(valeur.values())
+            elif isinstance(valeur, (list, tuple, set, frozenset)):
+                pile_valeurs.extend(valeur)
+        return resultat
+    except (ValueError, TypeError, ArithmeticError, AttributeError, RecursionError, OverflowError):
+        raise ValueError("JSON strict invalide") from None
