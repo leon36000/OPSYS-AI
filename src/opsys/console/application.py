@@ -81,6 +81,7 @@ from . import (
     obligations_rapprochement_ui,
     pages,
     paie_ui,
+    plateforme_ui,
     reception_digest_ui,
     ressources,
     securite,
@@ -403,6 +404,11 @@ def creer_application(
     app.include_router(marketing_cmo_ui.creer_router(**callbacks_metier))
     app.include_router(marketing_growth_ui.creer_router(**callbacks_metier))
     app.include_router(brand_ui.creer_router(**callbacks_metier))
+    # Registre de fournisseurs et coffre de secrets (plateforme_ui) : administration seulement.
+    app.include_router(plateforme_ui.creer_router(
+        session_page=session_page, session_api=session_api, verifier_formulaire=verifier_formulaire,
+        formulaire=_formulaire, cnx_factory=cnx_factory, departements=sorted(deps), prefixe=prefixe,
+    ))
 
     def appeler_memoire(session: Session, action: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         from m10_memoire import developpement
