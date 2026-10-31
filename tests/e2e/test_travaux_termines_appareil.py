@@ -54,6 +54,12 @@ from harnais_e2e_chantier import (
     preparer_chantier,
     receptionner_materiel_args,
 )
+from harnais_equipe_certifiee import (
+    confier_a_l_equipe_lead_v1,
+    lecture_m5_sous_portee_qa,
+    recalcul_certifie_qa,
+    terminer_chantier_certifie,
+)
 from m2_revenue_crm import statuts as m2_statuts
 from m4_field_ops import encodage as m4_encodage
 from m6_material_control import registre as m6_registre
@@ -188,11 +194,20 @@ def _registre_m6(nom: str) -> list[dict[str, Any]]:
         return list(stockage.maillons("m06-material-control", nom))
 
 
+EQUIPE_CERTIFIEE = "eq-travaux-termines-fictive"  # l'équipe dont « etienne » est membre (voie certifiée)
+
+
 class _Scenario:
-    """Le décor commun : chantier prêt, matériel reçu par l'admin, bus au repos."""
+    """Le décor commun : chantier prêt, matériel reçu par l'admin, bus au repos.
+
+    `certifie` (dossier de travail du test) : l'intervention est confiée à une ÉQUIPE déclarée (profil des équipes,
+    cédule appliquée) et la journée suit la voie certifiée de `harnais_equipe_certifiee` (pointages d'équipe V3 sur
+    une vraie visite, projection M4 vérifiée, tarif d'équipe M5), la seule qui permette à M5 de chiffrer la
+    main-d'oeuvre (PR #861). Sans lui, la journée est celle de l'employé (pointages individuels) : M5 ne peut pas
+    dire le temps pointé, le coût reste partiel."""
 
     def __init__(self, moteur: Moteur, equipe: dict[str, Any], suffixe: str, jour: int,
-                 version_lead: int = 1) -> None:
+                 version_lead: int = 1, certifie: Any = None, monkeypatch: Any = None) -> None:
         self.moteur = moteur
         self.admin = equipe["admin"]
         self.employe = equipe["employe"]
@@ -208,21 +223,37 @@ class _Scenario:
             "m6_receptionner_commande", receptionner_materiel_args(self.chantier), cle=f"mut-reception-{suffixe}",
             horodatage_appareil=iso(self.chantier.debut))
         assert self.reception.metier["accepte"] is True, self.reception.metier
+        self.certifie = certifie is not None
+        self.certifie_monkeypatch = monkeypatch
+        self.suffixe = suffixe
+        if self.certifie:
+            confier_a_l_equipe_lead_v1(moteur, self.admin, self.chantier, certifie, EQUIPE_CERTIFIEE, suffixe=suffixe)
         self.app = AppEmploye(moteur, self.employe, self.chantier)
         self.depuis = len(moteur.mesures)  # les mesures du trajet commencent au geste de l'employé
         self.fin_trajet = self.depuis
         self.duree_trajet_s = 0.0
 
     def terminer_puis_declarer(self, quantite: float) -> tuple[Reponse, Reponse]:
-        """« Terminer » ; le bus livre la complétion ; l'employé remplit le formulaire de matériaux ; le bus
-        livre la variance. C'est l'ordre réel de l'app (la déclaration suit la complétion, §9.7)."""
+        """« Terminer » ; le bus livre la complétion ; les matériaux sont déclarés ; le bus livre la variance.
+        C'est l'ordre réel de l'app (la déclaration suit la complétion, §9.7). Voie legacy : l'employé déclare
+        lui-même ; voie certifiée : le WCT est celui d'une équipe, M6 n'y autorise que l'admin (comme la verticale)."""
         debut = time.perf_counter()
-        completion = self.app.journee_jusqu_a_la_completion()
-        wct_id = completion.resultat["wct_id"]
-        self.moteur.drainer_bus(self.moteur.horloge.maintenant)
-        self.app.attendre(minutes=5)
-        declaration = self.app.declarer_materiaux(wct_id, quantite)
-        self.moteur.drainer_bus(self.moteur.horloge.maintenant)
+        if self.certifie:
+            _, completion, declaration = terminer_chantier_certifie(
+                self.moteur, self.admin, self.employe, self.chantier, quantite, EQUIPE_CERTIFIEE, suffixe=self.suffixe)
+            # Le WCT et la variance sont reçus par M5 : le recalcul qualifié trace le coût certifié, puis la lecture de
+            # l'admin le revalide (coutures QA, voir `harnais_equipe_certifiee`).
+            recalcul_certifie_qa(self.chantier, completion.resultat["wct_id"], suffixe=self.suffixe)
+            lecture_m5_sous_portee_qa(self.moteur, self.certifie_monkeypatch, self.chantier,
+                                      completion.resultat["wct_id"])
+            self.moteur.drainer_bus(self.moteur.horloge.maintenant)
+        else:
+            completion = self.app.journee_jusqu_a_la_completion()
+            wct_id = completion.resultat["wct_id"]
+            self.moteur.drainer_bus(self.moteur.horloge.maintenant)
+            self.app.attendre(minutes=5)
+            declaration = self.app.declarer_materiaux(wct_id, quantite)
+            self.moteur.drainer_bus(self.moteur.horloge.maintenant)
         self.duree_trajet_s = time.perf_counter() - debut
         self.fin_trajet = len(self.moteur.mesures)
         return completion, declaration
@@ -852,11 +883,27 @@ def _traces_de_rentabilite(devis_id: str) -> list[dict[str, Any]]:
     return [m for m in stockage.maillons("m05-financecore", "rentabilite") if m["devis_id"] == devis_id]
 
 
+def _prouver_la_voie_certifiee(rentabilite: dict[str, Any], completion: Reponse) -> None:
+    """La main-d'oeuvre vient bien de la voie certifiée, pas d'une durée scalaire ni du taux horaire du manifeste :
+    une ligne de visite d'ÉQUIPE chiffrée au tarif d'équipe de M5 (heure d'équipe, 180 minutes nettes sur site), et le
+    reçu du recalcul qualifié `m4.recalculer_v3` pour CE WCT."""
+    main_d_oeuvre = rentabilite["cout_reel"]["main_d_oeuvre"]
+    (ligne,) = main_d_oeuvre["lignes"]
+    assert (ligne["equipe_id"], ligne["unite"], ligne["minutes_nettes"], ligne["taux"], ligne["cout"]) == (
+        EQUIPE_CERTIFIEE, "heure-equipe", 180, "50.00", "150.00")
+    assert ligne["visite_id"] and ligne["tarif_ligne_id"] and ligne["source"] == "tarif-vertical-fictif"
+    assert main_d_oeuvre["taux_horaire"] is None  # ce n'est pas le taux horaire configuré qui chiffre
+    assert main_d_oeuvre["projection_empreinte"] and main_d_oeuvre["tarifs_empreinte"]
+    recus = list(stockage.maillons("m05-financecore", "rentabilite_recalcul_v2"))
+    assert len(recus) == 1 and recus[0]["wct_id"] == completion.resultat["wct_id"]
+
+
+@SQLITE_SEULEMENT  # la voie certifiée (portées de service M4, recalcul qualifié) n'existe que sur SQLite
 def test_c_scenario_a_le_cout_reel_et_la_marge_sont_calcules_a_partir_de_sources_lues(
         moteur, equipe, tmp_path, monkeypatch):
     _prix_au_livre_de_m6(moteur)
     _taux_horaire(tmp_path, monkeypatch)
-    s = _Scenario(moteur, equipe, "A-NORMAL", 15)
+    s = _Scenario(moteur, equipe, "A-NORMAL", 15, certifie=tmp_path, monkeypatch=monkeypatch)
     ch = s.chantier
 
     completion, _ = s.terminer_puis_declarer(42.0)  # prévu 40 : +5 %, comme le scénario A
@@ -870,7 +917,7 @@ def test_c_scenario_a_le_cout_reel_et_la_marge_sont_calcules_a_partir_de_sources
 
     # -- ce que l'admin lit sur son téléphone : coût réel, marge réelle contre marge prévue ------------------
     avant = moteur.empreinte_etat()
-    lecture = _rentabilite(s.admin, chantier_id=ch.chantier_id)
+    lecture = _rentabilite(s.admin, devis_id=ch.devis_id)
     assert moteur.empreinte_etat() == avant  # une lecture n'écrit rien
     assert lecture.statut == 200 and lecture.mesure.tronque is False and lecture.mesure.octets_texte < LIMITE_TRONCATURE
     assert lecture.resultat["role"] == "admin" and lecture.resultat["nombre"] == 1
@@ -880,7 +927,8 @@ def test_c_scenario_a_le_cout_reel_et_la_marge_sont_calcules_a_partir_de_sources
     r = chantier["rentabilite"]
     assert r["verdict"] == "CALCULEE" and r["manque"] == []
     assert r["cout_reel"]["materiaux"]["lignes"][0]["cout"] == "336.00"  # 42 pi x 8,00 $ (livre de prix de M6)
-    assert r["cout_reel"]["main_d_oeuvre"]["cout"] == "150.00"  # 180 min x 50,00 $/h (taux configuré)
+    assert r["cout_reel"]["main_d_oeuvre"]["cout"] == "150.00"  # 180 min x 50,00 $ l'heure d'équipe (tarif d'équipe M5)
+    _prouver_la_voie_certifiee(r, completion)
     assert r["cout_reel"]["cout_total"] == "486.00" and r["cout_reel"]["complet"] is True
     assert (r["statut_facture"], r["prix_definitif"], r["prix_facture"]) == ("BROUILLON", False, "600.00")
     assert r["marge_reelle"] == "114.00" and r["marge_reelle_pct_du_prix"] == "0.1900"
@@ -897,9 +945,15 @@ def test_c_scenario_a_le_cout_reel_et_la_marge_sont_calcules_a_partir_de_sources
     assert [m["type_entree"] for m in stockage.maillons("m05-financecore", "factures")] == ["facture_creee"]
     assert _facture_active(ch.devis_id)["statut"] == "BROUILLON"
 
-    # -- la liste (sans filtre) tient en une ligne par chantier ----------------------------------------------
+    # -- la liste (sans filtre) tient en une ligne par chantier. VALEUR CHANGÉE (PR #861) : la marge certifiée de ce
+    # chantier (114.00) n'y figure plus. La relecture qualifiée de M4 exige UN devis précis (`devis_id`) : la liste
+    # reste la vue ordinaire, qui ne peut pas chiffrer la main-d'oeuvre d'un WCT scalaire. Elle le dit (PARTIELLE,
+    # temps pointé absent) et n'invente aucune marge ; le détail ci-dessus, lui, la donne. -------------------------
     liste = _rentabilite(s.admin).resultat["chantiers"]
-    assert [(c["devis_id"], c["rentabilite"]["marge_reelle"]) for c in liste] == [(ch.devis_id, "114.00")]
+    assert [(c["devis_id"], c["rentabilite"]["verdict"], c["rentabilite"]["marge_reelle"]) for c in liste] == [
+        (ch.devis_id, "PARTIELLE", None)]
+    assert liste[0]["rentabilite"]["manque"] == ["REJ-COUT-TEMPS-POINTE-ABSENT"]
+    assert (liste[0]["rentabilite"]["cout_total"], liste[0]["rentabilite"]["marge_prevue"]) == (None, "120.00")
 
     # -- l'employé n'y a aucun accès : refusé à la porte, sans atteindre le moteur ---------------------------
     for outil in LECTURES_FINANCE_ADMIN:
@@ -919,8 +973,11 @@ def test_c_scenario_a_sans_prix_ni_taux_le_cout_est_partiel_et_dit_ce_qui_manque
 
     r = chantier["rentabilite"]
     assert r["verdict"] == "PARTIELLE" and r["cout_reel"]["complet"] is False
+    # PR #861 : à ce que M5 ne peut pas chiffrer s'ajoute le temps pointé. Cette journée est celle de l'employé
+    # (pointages individuels, durée scalaire) : sans équipe pointée et certifiée, la main-d'oeuvre reste inconnue.
     assert [(e["code"], e.get("materiau")) for e in r["manque"]] == [
-        ("REJ-COUT-PRIX-NON-DISPONIBLE", MATERIAU_ID), ("REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", None)]
+        ("REJ-COUT-PRIX-NON-DISPONIBLE", MATERIAU_ID), ("REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", None),
+        ("REJ-COUT-TEMPS-POINTE-ABSENT", None)]
     assert r["cout_reel"]["materiaux"]["lignes"][0]["statut"] == "PRIX_NON_DISPONIBLE"
     assert r["cout_reel"]["materiaux"]["lignes"][0]["prix_unitaire"] is None  # jamais un prix inventé
     assert r["cout_reel"]["main_d_oeuvre"]["cout"] is None and r["cout_reel"]["main_d_oeuvre"]["minutes"] == 180
@@ -935,8 +992,8 @@ def test_c_scenario_a_sans_prix_ni_taux_le_cout_est_partiel_et_dit_ce_qui_manque
 def test_c_aucune_ecriture_sur_un_refus_de_lecture(moteur, equipe, tmp_path, monkeypatch):
     _prix_au_livre_de_m6(moteur)
     _taux_horaire(tmp_path, monkeypatch)
-    s = _Scenario(moteur, equipe, "A-REFUS", 15)
-    s.terminer_puis_declarer(42.0)
+    s = _Scenario(moteur, equipe, "A-REFUS", 15, certifie=tmp_path, monkeypatch=monkeypatch)
+    completion, _ = s.terminer_puis_declarer(42.0)
     avant = moteur.empreinte_etat()
 
     inconnu = _rentabilite(s.admin, chantier_id="CH-INCONNU-fictif")
@@ -949,7 +1006,9 @@ def test_c_aucune_ecriture_sur_un_refus_de_lecture(moteur, equipe, tmp_path, mon
     assert elargi.metier["verdict"]["code"] == "REJ-IDENTITE-FOURNIE-DIFFERENTE"
     sans_montant = _rentabilite(s.admin, devis_id=s.chantier.devis_id, autorise_couts=False).resultat
     assert sans_montant["chantiers"][0]["rentabilite"]["montants_masques"] is True
-    assert "486.00" not in json.dumps(sans_montant)
+    assert "486.00" not in json.dumps(sans_montant) and "150.00" not in json.dumps(sans_montant)
+    avec_montants = _rentabilite(s.admin, devis_id=s.chantier.devis_id).resultat  # même devis, avec les coûts
+    _prouver_la_voie_certifiee(avec_montants["chantiers"][0]["rentabilite"], completion)
 
     assert moteur.empreinte_etat() == avant
 
@@ -959,13 +1018,17 @@ def test_c_scenario_b_un_ecart_de_quarante_pour_cent_mange_la_marge_et_reste_sig
         moteur, equipe, tmp_path, monkeypatch):
     _prix_au_livre_de_m6(moteur)
     _taux_horaire(tmp_path, monkeypatch)
-    s = _Scenario(moteur, equipe, "B-ECART", 16)
-    s.terminer_puis_declarer(56.0)  # prévu 40 : +40 %, signal critique de M6
+    s = _Scenario(moteur, equipe, "B-ECART", 16, certifie=tmp_path, monkeypatch=monkeypatch)
+    completion, _ = s.terminer_puis_declarer(56.0)  # prévu 40 : +40 %, signal critique de M6 ; revue faite
 
-    (chantier,) = _rentabilite(s.admin, chantier_id=s.chantier.chantier_id).resultat["chantiers"]
+    (chantier,) = _rentabilite(s.admin, devis_id=s.chantier.devis_id).resultat["chantiers"]
 
     r = chantier["rentabilite"]
+    assert r["verdict"] == "CALCULEE" and r["manque"] == [] and chantier["chantier_id"] == s.chantier.chantier_id
     assert r["cout_reel"]["materiaux"]["source_quantites"]["signal_critique"] is True  # le coût dit son origine
+    # PR #861 : le coût certifié n'est exploitable qu'après la revue finale de la complétion (ici faite par l'admin).
+    assert s.app.statut().resultat["statut"] == "completed_verified"
+    _prouver_la_voie_certifiee(r, completion)
     assert r["cout_reel"]["materiaux"]["lignes"][0]["cout"] == "448.00"  # 56 pi x 8,00 $
     assert r["cout_reel"]["cout_total"] == "598.00" and r["marge_reelle"] == "2.00"
     assert r["marge_reelle_pct_du_prix"] == "0.0033" and r["marge_prevue"] == "120.00"
@@ -977,9 +1040,9 @@ def test_c_comptes_a_recevoir_seule_la_facture_envoyee_apres_validation_humaine_
         moteur, equipe, tmp_path, monkeypatch):
     _prix_au_livre_de_m6(moteur)
     _taux_horaire(tmp_path, monkeypatch)
-    s = _Scenario(moteur, equipe, "A-CREANCES", 15)
+    s = _Scenario(moteur, equipe, "A-CREANCES", 15, certifie=tmp_path, monkeypatch=monkeypatch)
     ch = s.chantier
-    s.terminer_puis_declarer(42.0)
+    completion, _ = s.terminer_puis_declarer(42.0)
 
     # La cascade a créé une facture BROUILLON : elle n'est pas due, l'admin le voit.
     assert s.admin.appeler("m5_lire_comptes_a_recevoir", {}).resultat["nombre"] == 0
@@ -1008,4 +1071,5 @@ def test_c_comptes_a_recevoir_seule_la_facture_envoyee_apres_validation_humaine_
     (chantier,) = _rentabilite(s.admin, devis_id=ch.devis_id).resultat["chantiers"]
     assert (chantier["rentabilite"]["statut_facture"], chantier["rentabilite"]["prix_definitif"]) == ("ENVOYEE", True)
     assert chantier["rentabilite"]["marge_reelle"] == "114.00"
+    _prouver_la_voie_certifiee(chantier["rentabilite"], completion)
     assert list(stockage.maillons("m05-financecore", "principal")) == []
