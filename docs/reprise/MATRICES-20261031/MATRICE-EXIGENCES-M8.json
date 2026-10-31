@@ -1,0 +1,452 @@
+{
+ "schema": "opsys.mission.requirements.v1",
+ "mission": "MATRICE-EXIGENCES-M8",
+ "module": "M8",
+ "scope_preserved": "M8.1–M8.18",
+ "canonical_source": "docs/produit/DEFINITION-PRODUIT.md §7 M8",
+ "base_sha": "83efcd82bd86938d700887605124622e11efbeaa",
+ "date": "2026-10-31",
+ "initial_status_is_not_a_fresh_runtime_verdict": true,
+ "initial_status_source": "docs analyse d'écarts du 2026-10-31 (ANALYSE-ECARTS-MODULES.md) ; current_status = vérifié dans le code et les tests de la base_sha",
+ "statuses": [
+  "FAIT_PROUVE",
+  "PARTIEL",
+  "SIMULE",
+  "ABSENT",
+  "INCONNU"
+ ],
+ "proof_levels": {
+  "T": "test unitaire ou de module en processus, sans parcours de bout en bout",
+  "S": "parcours en processus Python sur base SQLite réelle et bus d'événements réel, sans HTTP",
+  "H": "HTTP MCP réel avec la porte d'appareil réécrite en Python (tests/fixtures/harnais_e2e.py) : pas le Core natif",
+  "P": "test PostgreSQL présent ; son exécution (CI) n'est pas rejouée ni affirmée par cette matrice",
+  "N": "Core/Gateway natif TypeScript réel",
+  "B": "navigateur réel",
+  "M": "téléphone ou émulateur (jamais atteint)"
+ },
+ "run_summary": {
+  "suite_du_departement": "departments/m08-analytics/tests rejoué le 2026-10-31 sur la base_sha : 862 passed, 0 failed, 0 skipped",
+  "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
+  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
+ },
+ "requirements": [
+  {
+   "id": "M8.1",
+   "title": "Hub de collecte",
+   "target": "Connecteurs vers M1–M7, M9, M10 avec état (fonctionnel, en panne, périmé, partiel).",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Qualification PostgreSQL M8 autorisée mais non rapportée comme terminée (checkpoint M8_PG_global_admission)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_evenements_travaux_termines.py",
+      "departments/m08-analytics/tests/test_evenements_entonnoir.py",
+      "departments/m08-analytics/tests/test_evenements_rentabilite_chantier.py",
+      "departments/m08-analytics/tests/test_evenements_cash_libre.py",
+      "departments/m08-analytics/tests/test_evenements_contenus.py",
+      "departments/m08-analytics/tests/test_ingestion_concurrente.py",
+      "departments/m08-analytics/tests/test_reprise_consommateur_wct.py",
+      "tests/e2e/test_m8_ingestion_reprise_concurrente.py"
+     ],
+     "docs": [],
+     "niveau": "S+P"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Consommateurs du bus pour M1, M2, M3, M4, M5, M6, M7 avec reprise ; aucun état fonctionnel/en panne/périmé par connecteur ; M9 et M10 non consommés. Variante PostgreSQL de reprise concurrente présente, non rejouée ici."
+  },
+  {
+   "id": "M8.2",
+   "title": "Entrepôt de données",
+   "target": "Faits, dimensions, marts métier.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [],
+     "docs": [
+      "departments/m08-analytics/README.md"
+     ],
+     "niveau": "-"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Des registres chaînés de faits existent (chantier, entonnoir, contenus, cash libre) mais pas d'entrepôt ni de marts ; DuckDB/Parquet « GATED »."
+  },
+  {
+   "id": "M8.3",
+   "title": "Couche sémantique et registre de métriques",
+   "target": "Chaque métrique définie une fois : définition, source, grain, fraîcheur, permissions, version.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [
+    "departments/m08-analytics/src/m8_analytics/registre_metriques.py",
+    "departments/m08-analytics/src/m8_analytics/dictionnaire.py",
+    "departments/m08-analytics/metrics/m8-metrics.v1.yaml"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_registre_metriques.py",
+      "departments/m08-analytics/tests/test_registre_metriques_durable.py",
+      "departments/m08-analytics/tests/test_dictionnaire.py",
+      "departments/m08-analytics/tests/test_semantique.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Métriques de chantier, entonnoir, contenus, cash ; M1, M4, M6, M10 non couverts ; historique des définitions absent."
+  },
+  {
+   "id": "M8.4",
+   "title": "Qualité des données",
+   "target": "Tests non nul, unicité, intégrité, fraîcheur, plage, cohérence des factures.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [
+    "departments/m08-analytics/src/m8_analytics/qualite.py",
+    "departments/m08-analytics/src/m8_analytics/validation.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_qualite.py",
+      "departments/m08-analytics/tests/test_validation.py",
+      "departments/m08-analytics/tests/test_nombres.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Validation d'entrée (devise CAD) et évaluation de qualité d'une métrique ; pas de suite de tests de qualité par jeu de données."
+  },
+  {
+   "id": "M8.5",
+   "title": "Fraîcheur, lignée et score de confiance",
+   "target": "Badges LIVE, FRESH, STALE, PARTIAL, ESTIMATED, MISSING, QUALITY_FAIL, GATED.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [
+    "departments/m08-analytics/src/m8_analytics/fraicheur_lectures.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Seuils d'entonnoir/chantier et fenêtres de fraîcheur vides à dessein (configuration M8)"
+   ],
+   "decisions_nathan": [
+    "Fenêtres de fraîcheur attendue (décision 6)"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_fraicheur_lectures.py"
+     ],
+     "docs": [
+      "departments/m08-analytics/docs/FRAICHEUR-ATTENDUE-LECTURES.md"
+     ],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Fraîcheur attendue déclarable par lecture, vide à la livraison ; « non calculable, manque X » ; aucun badge ni lignée (grep des badges : 0).",
+   "verification": "grep STALE|FRESH|LIVE|QUALITY_FAIL|GATED dans src M8 : 0"
+  },
+  {
+   "id": "M8.6",
+   "title": "Tableau de bord exécutif",
+   "target": "Simple, clair, actionnable.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [
+    "departments/m08-analytics/src/m8_analytics/vue_executive.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_vue_executive.py",
+      "departments/m08-analytics/tests/test_vue_executive_cash_libre.py",
+      "mobile/src/m8/vueExecutive.test.ts"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Vue exécutive admin ; aucun parcours navigateur (B) ; mobile Jest non rejoué."
+  },
+  {
+   "id": "M8.7",
+   "title": "Tableaux de bord par département",
+   "target": "M1, M2, M3, M4, M5, M6, M7, M9.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_mesures_chantier.py",
+      "departments/m08-analytics/tests/test_entonnoir.py",
+      "departments/m08-analytics/tests/test_contenus.py",
+      "departments/m08-analytics/tests/test_provenance_m5.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Chantier, entonnoir, contenus et provenance M5 seulement ; les autres départements ne sont pas couverts."
+  },
+  {
+   "id": "M8.8",
+   "title": "Wallboards en direct",
+   "target": "Mode TV, rotation, bannière d'alerte.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Un seul commentaire dans outils.py ; aucune surface.",
+   "verification": "grep wallboard : un commentaire (outils.py:1373)"
+  },
+  {
+   "id": "M8.9",
+   "title": "Alertes métier",
+   "target": "Chaque alerte propose une action.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [
+    "departments/m08-analytics/src/m8_analytics/alertes.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Seuils d'entonnoir/chantier et fenêtres de fraîcheur vides à dessein (configuration M8)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_alertes.py",
+      "departments/m08-analytics/tests/test_evenements_alerte_proposee.py"
+     ],
+     "docs": [],
+     "niveau": "T+S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Alertes sur seuils configurés (vides par défaut) publiées en m8.alerte_proposee ; l'action proposée par alerte n'est pas confirmée."
+  },
+  {
+   "id": "M8.10",
+   "title": "Tendances, prévisions et écarts",
+   "target": "Prévu vs réel : matériel, main-d'œuvre, marge, durée, marketing, pipeline, trésorerie.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [
+    "departments/m08-analytics/src/m8_analytics/xmr.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_xmr.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Cartes XmR ; aucune prévision."
+  },
+  {
+   "id": "M8.11",
+   "title": "Score de santé de l'entreprise",
+   "target": "Transparent : facteurs toujours montrés.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucune occurrence.",
+   "verification": "grep score de santé|health dans src M8 : 0"
+  },
+  {
+   "id": "M8.12",
+   "title": "Copilote analytique en langage naturel",
+   "target": "SQL sûr, aucune requête destructive, aucune réponse sans source.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucun code."
+  },
+  {
+   "id": "M8.13",
+   "title": "Générateur de rapports",
+   "target": "Rapports filtrés par rôle.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [
+    "departments/m08-analytics/src/m8_analytics/rapports.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_rapports.py",
+      "departments/m08-analytics/tests/test_outils_agent.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Rapport filtré par rôle, fail-closed si un rôle est fourni sans liste de métriques autorisées (rapports.py) ; le reste du générateur (formats, planification) n'est pas confirmé."
+  },
+  {
+   "id": "M8.14",
+   "title": "Pont vers les outils BI externes",
+   "target": "Superset, Metabase, Grafana lisant la couche M8.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "Aucun code (grep superset|metabase|grafana : 0)."
+  },
+  {
+   "id": "M8.15",
+   "title": "Analytique mobile par profil",
+   "target": "Admin : exécutif, alertes, wallboard ; vendeur : ses ventes ; employé : résumé non punitif.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Phase mobile finale (DEFINITION P14)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "mobile/src/m8/cashLibre.test.ts",
+      "mobile/src/m8/vueExecutive.test.ts"
+     ],
+     "docs": [],
+     "niveau": "T (Jest)"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Jest seulement, non rejoué ici ; ne prouve ni rendu téléphone ni pont natif."
+  },
+  {
+   "id": "M8.16",
+   "title": "Sécurité et accès par métrique",
+   "target": "Un employé ne voit ni marges, ni coûts sensibles, ni finances globales.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_conformite.py",
+      "tests/test_portees_appareil.py",
+      "departments/m08-analytics/tests/test_provenance_m5_appareil.py"
+     ],
+     "docs": [
+      "docs/architecture/ROLES.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Technicien visible seulement par l'admin, jamais de classement ; contrôle par métrique non exhaustif."
+  },
+  {
+   "id": "M8.17",
+   "title": "Fournisseur de preuves pour M9",
+   "target": "Paquets de preuves reçus par M9.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_evenements_mesures_chantier.py",
+      "departments/m08-analytics/tests/test_evenements_alerte_proposee.py",
+      "tests/test_cascade_mesure_m8_m9.py",
+      "tests/test_m9_snapshots_chantier_bus.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "m8.snapshot_chantier (sans technicien/GPS/coût/marge) et m8.alerte_proposee ; chantier seulement."
+  },
+  {
+   "id": "M8.18",
+   "title": "Intégration mémoire",
+   "target": "Changements de définition et anomalies dans M10.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M8) : Connecteurs de production ou portes documentées, registre de métriques, qualité, fraîcheur, tableau de bord exécutif live, wallboard, alertes, copilote sécurisé, paquets de preuves reçus par M9, contrôle d'accès par métrique, E2E analytiques (ventes, rentabilité de chantier, ROI marketing, rupture de stock, risque de trésorerie, échec de qualité).",
+   "reuse_read_first": [
+    "departments/m08-analytics/department.yaml"
+   ],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "M10 ne consomme aucun type m8.*.",
+   "verification": "department.yaml de M10 : evenements.consomme sans m8.*"
+  }
+ ]
+}

@@ -1,0 +1,619 @@
+{
+ "schema": "opsys.mission.requirements.v1",
+ "mission": "MATRICE-EXIGENCES-M6",
+ "module": "M6",
+ "scope_preserved": "M6.1–M6.21",
+ "canonical_source": "docs/produit/DEFINITION-PRODUIT.md §7 M6",
+ "base_sha": "83efcd82bd86938d700887605124622e11efbeaa",
+ "date": "2026-10-31",
+ "initial_status_is_not_a_fresh_runtime_verdict": true,
+ "initial_status_source": "docs analyse d'écarts du 2026-10-31 (ANALYSE-ECARTS-MODULES.md) ; current_status = vérifié dans le code et les tests de la base_sha",
+ "statuses": [
+  "FAIT_PROUVE",
+  "PARTIEL",
+  "SIMULE",
+  "ABSENT",
+  "INCONNU"
+ ],
+ "proof_levels": {
+  "T": "test unitaire ou de module en processus, sans parcours de bout en bout",
+  "S": "parcours en processus Python sur base SQLite réelle et bus d'événements réel, sans HTTP",
+  "H": "HTTP MCP réel avec la porte d'appareil réécrite en Python (tests/fixtures/harnais_e2e.py) : pas le Core natif",
+  "P": "test PostgreSQL présent ; son exécution (CI) n'est pas rejouée ni affirmée par cette matrice",
+  "N": "Core/Gateway natif TypeScript réel",
+  "B": "navigateur réel",
+  "M": "téléphone ou émulateur (jamais atteint)"
+ },
+ "run_summary": {
+  "suite_du_departement": "departments/m06-material-control/tests rejoué le 2026-10-31 sur la base_sha : 1725 passed, 0 failed, 0 skipped",
+  "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
+  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
+ },
+ "requirements": [
+  {
+   "id": "M6.1",
+   "title": "Catalogue de matériaux",
+   "target": "SKU, catégorie, service lié, fournisseurs, unité, couleur, dimensions, prix, compatibilités, substitutions.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/catalogue.py",
+    "departments/m06-material-control/src/m6_material_control/catalogue_materiaux.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_catalogue.py",
+      "departments/m06-material-control/tests/test_catalogue_materiaux.py",
+      "tests/test_console_catalogue_m6_http.py",
+      "departments/m06-material-control/tests/test_fournisseurs_compatibles.py"
+     ],
+     "docs": [
+      "docs/grs/inventory/M6-AUDIT-CATALOGUE-LIBELLES.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Catalogue et console testés ; substitutions absentes (grep substitu : 0) ; compatibilités partiellement (test_fournisseurs_compatibles.py)."
+  },
+  {
+   "id": "M6.2",
+   "title": "Registre des fournisseurs",
+   "target": "Contact, courriel de commande, délais, catégories, historique de prix, fiabilité, erreurs passées.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/fournisseurs.py",
+    "departments/m06-material-control/src/m6_material_control/references_fournisseurs.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Fournisseurs réels (Gentek, Royal, O.A.M., Kaycan) : gate manuel ; aucun envoi de commande sans politique"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_fournisseurs.py",
+      "departments/m06-material-control/tests/test_references_fournisseurs.py",
+      "tests/test_cascade_fournisseurs_m10.py"
+     ],
+     "docs": [
+      "docs/grs/inventory/M6-AUDIT-FOURNISSEURS-ADMIN.md"
+     ],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Fournisseurs et références testés ; fiabilité et erreurs passées non retrouvées."
+  },
+  {
+   "id": "M6.3",
+   "title": "Livre de prix",
+   "target": "Prix par item, fournisseur, date ; ESTIMATED ou FALLBACK_PRICE_BOOK sans source.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/livre_prix.py",
+    "departments/m06-material-control/src/m6_material_control/historique_prix.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Unité des prix non déclarée (GATE) ; prix en float dans les registres (contrat gelé)"
+   ],
+   "decisions_nathan": [
+    "Déclaration de l'unité des prix"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_livre_prix.py",
+      "departments/m06-material-control/tests/test_livre_prix_unite_confirmee.py",
+      "departments/m06-material-control/tests/test_historique_prix.py",
+      "departments/m06-material-control/tests/test_import_tarifs.py",
+      "departments/m06-material-control/tests/test_tarif_soumission.py",
+      "tests/test_cascade_tarifs_m10.py"
+     ],
+     "docs": [
+      "docs/grs/inventory/M6-IMPORT-TARIFS-CANDIDATS.md"
+     ],
+     "niveau": "T+S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Livre de prix, historique et import testés ; unité des prix non déclarée ; prix float dans les registres."
+  },
+  {
+   "id": "M6.4",
+   "title": "Besoins matériaux depuis M3",
+   "target": "Items, quantités, perte, confiance ; réservation ; recommandation de fournisseur ; coût estimé ; préparation renvoyée à M3/M4.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/besoins_materiaux_recus.py",
+    "departments/m06-material-control/src/m6_material_control/reservations.py"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_besoins_materiaux_recus.py",
+      "tests/test_cascade_besoins_materiaux.py",
+      "departments/m06-material-control/tests/test_evenements_besoins_materiaux_m6.py",
+      "departments/m06-material-control/tests/test_cascade_reservation_materiel_pret.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Réception des besoins M3 et réservation prouvées en S (SQLite + bus) ; recommandation de fournisseur et estimation du coût seulement partielles.",
+   "ecart_analyse": "L'analyse d'écarts la déclarait FAIT_PROUVE tout en notant « recommandation fournisseur/coût estimé : partielle » : la cible cite ces deux éléments, rétrogradée PARTIEL."
+  },
+  {
+   "id": "M6.5",
+   "title": "Moteur de bons de commande (PO)",
+   "target": "12 statuts de draft à closed.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/bons_commande.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Fournisseurs réels (Gentek, Royal, O.A.M., Kaycan) : gate manuel ; aucun envoi de commande sans politique"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_bons_commande.py",
+      "departments/m06-material-control/tests/test_outils_po.py",
+      "core/src/agents/agent-bundle-mcp-runtime.opsys-m6-po-authority.python-http.integration.test.ts"
+     ],
+     "docs": [],
+     "niveau": "T+N(CI)"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "supplier_confirmed n'existe que comme état d'entrée de réception, sans outil pour l'atteindre ; marquer_po_envoye (N4) n'envoie rien ; le test Core TS est présent mais non rejoué ici."
+  },
+  {
+   "id": "M6.6",
+   "title": "Commande par courriel via M1",
+   "target": "M6 génère le courriel ; M1 le révise, l'envoie si la politique l'autorise et suit la réponse.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/bons_commande.py"
+   ],
+   "initial_status": "ABSENT",
+   "gates_to_resolve_or_keep_open": [
+    "Fournisseurs réels (Gentek, Royal, O.A.M., Kaycan) : gate manuel ; aucun envoi de commande sans politique",
+    "Politique d'envoi réel des commandes"
+   ],
+   "decisions_nathan": [
+    "Autorisation d'envoi des commandes et identité du correspondant"
+   ],
+   "proofs": [],
+   "verified_commit": "83efcd82b",
+   "current_status": "ABSENT",
+   "limite": "M6 génère le corps du courriel (m6_generer_courriel_po) mais M1 n'a ni consommateur ni outil de sortie : la moitié M1 n'existe pas."
+  },
+  {
+   "id": "M6.7",
+   "title": "Réception et entrée en stock",
+   "target": "Complète, partielle, manquant, substitué, prix différent, dommage, photo ; alerte d'écart de prix.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/reception.py",
+    "departments/m06-material-control/src/m6_material_control/evenement_reception.py"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_reception.py",
+      "departments/m06-material-control/tests/test_reception_cumulee.py",
+      "departments/m06-material-control/tests/test_evenement_reception.py",
+      "departments/m06-material-control/tests/test_evenements_reception_m6.py",
+      "tests/e2e/test_m5_reception_consumer_concurrente.py"
+     ],
+     "docs": [],
+     "niveau": "S+P"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Réception partielle cumulée exacte (Decimal) et événement m6.reception_enregistree prouvés en S ; l'écart de prix n'est évalué que si seuil et prix sont connus ; ni substitution, ni dommage, ni photo dans reception.py. Variante PostgreSQL de concurrence présente, non rejouée ici.",
+   "ecart_analyse": "L'analyse d'écarts la déclarait FAIT_PROUVE avec « photo/dommage : INCONNU » ; vérifié : aucune substitution/dommage/photo dans reception.py : rétrogradée PARTIEL.",
+   "verification": "grep dommage|substitu|photo dans reception.py : 0"
+  },
+  {
+   "id": "M6.8",
+   "title": "Réservation par chantier",
+   "target": "Pas de double réservation, libération en cas d'annulation, ajustement si l'estimation change.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/reservations.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_reservations.py",
+      "departments/m06-material-control/tests/test_reservation_outils.py",
+      "departments/m06-material-control/tests/test_cascade_reservation_materiel_pret.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Réservation et libération testées ; ajustement lorsque l'estimation change non fait (limite 3 du README)."
+  },
+  {
+   "id": "M6.9",
+   "title": "Emplacements de stock",
+   "target": "Dépôt, camion, remorque, chantier, employé, fournisseur, retour, rebut, inconnu ; transferts audités.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/emplacements.py",
+    "departments/m06-material-control/src/m6_material_control/stock.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_emplacements.py",
+      "departments/m06-material-control/tests/test_stock.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Emplacements et transferts audités ; les sorties non localisées bloquent les transferts (limite 2 du README)."
+  },
+  {
+   "id": "M6.10",
+   "title": "Formulaire mobile des matériaux utilisés",
+   "target": "Typé prévu / non prévu / retour / perte / bris / achat terrain.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/materiel.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [
+    "Décision 3 : déclaration par équipe"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_materiel.py",
+      "departments/m06-material-control/tests/test_materiel_fin_chantier.py",
+      "tests/e2e/test_travaux_termines_appareil.py",
+      "tests/test_m6_fractional_stock_regression.py",
+      "departments/m06-material-control/tests/test_acces_declaration.py"
+     ],
+     "docs": [],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Déclaration par la porte d'appareil (H, porte Python) ; employé refusé pour un WCT d'équipe tant que la décision 3 n'est pas prise ; mobile Jest seulement."
+  },
+  {
+   "id": "M6.11",
+   "title": "Validation des sorties",
+   "target": "Item prévu ou non, quantité vs estimée, unité cohérente, stock disponible, retours, pertes, bris, achat terrain justifié, photo ou reçu.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/validation.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_validation_entrees.py",
+      "departments/m06-material-control/tests/test_materiel_durcissement.py",
+      "departments/m06-material-control/tests/test_preuves_pertes_bris.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Contrôles de forme, quantité et unité ; contrôle photo/reçu partiel."
+  },
+  {
+   "id": "M6.12",
+   "title": "Moteur de variance estimé vs réel",
+   "target": "Écarts de quantité, items non prévus ou non utilisés, perte, prix, unité, estimation ; causes classées par l'admin ; écart critique → completed_pending_review.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/variance_chantier.py"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [
+    "Seuils de réapprovisionnement et de variance vides à dessein (configuration M6)"
+   ],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_variance_chantier.py",
+      "departments/m06-material-control/tests/test_variance.py",
+      "departments/m06-material-control/tests/test_garde_variance_chantier.py",
+      "departments/m04-field-ops/tests/test_cascade_travaux_termines_variance.py",
+      "tests/e2e/test_travaux_termines_appareil.py",
+      "departments/m06-material-control/tests/test_classement_variance_appareil.py"
+     ],
+     "docs": [
+      "departments/m06-material-control/docs/VARIANCE-UNITES-DECLAREES.md"
+     ],
+     "niveau": "S+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Le cœur (quantités, non prévu, non utilisé, retours, pertes, unités indéterminées, cause toujours None, classement humain) est prouvé en S/H ; l'écart de prix n'est pas dans ce moteur (il est évalué à la réception, M6.7) ; seuil critique fourni par l'appelant/configuration.",
+   "ecart_analyse": "L'analyse d'écarts la déclarait FAIT_PROUVE ; la cible inclut l'écart de prix, absent du moteur de variance (variance_chantier.py ne traite pas les prix) : rétrogradée PARTIEL."
+  },
+  {
+   "id": "M6.13",
+   "title": "Alertes de perte, gaspillage, bris et usage inexpliqué",
+   "target": "Déclencheurs : usage au-dessus du seuil, pertes élevées, stock négatif, commande reçue mais stock disparu…",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/pertes_appareil.py",
+    "departments/m06-material-control/src/m6_material_control/preuves_pertes_bris.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_lectures_pertes_appareil.py",
+      "departments/m06-material-control/tests/test_preuves_pertes_bris_appareil.py",
+      "departments/m06-material-control/tests/test_stock_bas_cascade.py"
+     ],
+     "docs": [
+      "departments/m06-material-control/docs/LECTURES-PERTES-APPAREIL.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Déclencheurs partiels ; pas tous les déclencheurs de la définition."
+  },
+  {
+   "id": "M6.14",
+   "title": "Ajustements et piste d'audit",
+   "target": "Correction, perte, bris, retour, stock retrouvé, inventaire physique, transfert, annulation.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/materiel.py",
+    "departments/m06-material-control/src/m6_material_control/stock.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_materiel_reception_et_comptage.py",
+      "departments/m06-material-control/tests/test_registre.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Mouvements typés RETOUR/PERTE/BRIS et comptage (m6_soumettre_comptage) ; « inventaire physique » : 0 occurrence.",
+   "verification": "grep inventaire physique : 0"
+  },
+  {
+   "id": "M6.15",
+   "title": "Réapprovisionnement",
+   "target": "Seuils, stock réservé et disponible, chantiers à venir, délai, saison, prix, risque de rupture.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/reapprovisionnement.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [
+    "Seuils de réapprovisionnement et de variance vides à dessein (configuration M6)"
+   ],
+   "decisions_nathan": [
+    "Seuils de réapprovisionnement"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_reapprovisionnement.py",
+      "departments/m06-material-control/tests/test_reorder.py",
+      "departments/m06-material-control/tests/test_lecture_reapprovisionnement_appareil.py",
+      "departments/m06-material-control/tests/test_disponibilite.py"
+     ],
+     "docs": [
+      "departments/m06-material-control/docs/LECTURE-REAPPROVISIONNEMENT-APPAREIL.md"
+     ],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Règle pure disponible vs réservé ; seuils vides ; saison, délai fournisseur et prix absents."
+  },
+  {
+   "id": "M6.16",
+   "title": "Pont finance vers M5",
+   "target": "PO, réception, facture fournisseur, taxes, écart de prix ; M5 renvoie AP, statut de paiement, coût validé.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_frontiere_finance_m5.py",
+      "tests/e2e/test_m5_reception_consumer_concurrente.py",
+      "departments/m06-material-control/tests/test_evenements_reception_m6.py"
+     ],
+     "docs": [],
+     "niveau": "S+P"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "M6→M5 prouvé (réception consommée par M5 ; variante PostgreSQL non rejouée ici) ; le retour AP/coût validé vers M6 est absent."
+  },
+  {
+   "id": "M6.17",
+   "title": "Achats imprévus sur le terrain",
+   "target": "Limités, tracés, photo du reçu, approbation, envoi à M5.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_materiel.py",
+      "departments/m06-material-control/tests/test_preuves_pertes_bris.py"
+     ],
+     "docs": [],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Rejet REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE ; flux d'approbation et envoi à M5 non confirmés."
+  },
+  {
+   "id": "M6.18",
+   "title": "Tableau de bord et mobile admin",
+   "target": "Stock critique, commandes en attente, PO à approuver, écarts, pertes, fournisseurs en retard…",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/catalogue_console.py",
+    "departments/m06-material-control/src/m6_material_control/fournisseurs_console.py"
+   ],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_console_catalogue_m6_http.py",
+      "departments/m06-material-control/tests/test_digest.py",
+      "departments/m06-material-control/tests/test_contexte_materiaux_appareil.py"
+     ],
+     "docs": [],
+     "niveau": "T+H"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Consoles catalogue/fournisseurs/prix et lectures d'appareil ; pas de tableau de bord complet ; aucun navigateur."
+  },
+  {
+   "id": "M6.19",
+   "title": "Pont analytique vers M8",
+   "target": "stockout_count, stock_value, material_variance, délai des PO, fiabilité des fournisseurs…",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_cascade_mesure_m8_m9.py",
+      "departments/m06-material-control/tests/test_bus_variance_enveloppe.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "M8 consomme m6.variance_chantier ; pas de pont stock/réception/PO."
+  },
+  {
+   "id": "M6.20",
+   "title": "Signaux stratégiques vers M9",
+   "target": "Risque de rupture, hausse de prix, économies.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [],
+   "initial_status": "PARTIEL",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_cascade_mesure_m8_m9.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Uniquement via M8 (variance) ; aucun signal M6 direct vers M9."
+  },
+  {
+   "id": "M6.21",
+   "title": "Mémoire M10",
+   "target": "Écarts, prix, fournisseurs, pertes, décisions admin, leçons.",
+   "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M6) : Catalogue, fournisseurs, livre de prix (ou repli documenté), besoins reçus de M3, PO, courriel fournisseur via M1 (ou repli manuel documenté), réception, réservations, formulaire mobile, sortie de stock, variance estimé vs réel, alertes admin, coûts réels reçus par M5, métriques par M8, signaux par M9, leçons dans M10, aucun employé accusé automatiquement, piste d'audit sur chaque ajustement. E2E : estimation → PO → approbation ; réception partielle ; travaux terminés normaux ; écart important ; risque de rupture.",
+   "reuse_read_first": [
+    "departments/m06-material-control/src/m6_material_control/notes_commande.py"
+   ],
+   "initial_status": "FAIT_PROUVE",
+   "gates_to_resolve_or_keep_open": [],
+   "decisions_nathan": [],
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_cascade_catalogues_m10.py",
+      "tests/test_cascade_fournisseurs_m10.py",
+      "tests/test_cascade_tarifs_m10.py",
+      "departments/m06-material-control/tests/test_notes_commande.py"
+     ],
+     "docs": [],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "83efcd82b",
+   "current_status": "PARTIEL",
+   "limite": "Catalogue, fournisseurs, tarifs et note de commande référencés par M10 (S). Les pertes, les décisions admin et les leçons ne sont pas écrites en M10 ; M10 ne consomme ni m6.reception_enregistree ni m6.materiel_pret.",
+   "ecart_analyse": "L'analyse d'écarts la déclarait FAIT_PROUVE ; la cible cite écarts, pertes, décisions admin, leçons (non consommés par M10) : rétrogradée PARTIEL.",
+   "verification": "department.yaml M10 evenements.consomme relu : seulement m6.catalogue_reference, m6.variance_chantier, m6.note_commande_referencee"
+  }
+ ]
+}
