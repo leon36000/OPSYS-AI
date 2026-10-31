@@ -206,3 +206,64 @@ def test_m7_arguments_hors_catalogue_refuses_et_periode_invalide_conservee_comme
         H.capturer(cap, H.ADMIN, "m7.depenses_marketing", {"debut": "2026-09-30", "fin": "2026-09-01"}, recu(2))
     )
     assert inversee["verdict"] == "ERREUR" and inversee["complete"] is False
+
+
+# ============================================================================================ M8 fraîcheur déclarée
+@pytest.fixture
+def m8(base, monkeypatch):
+    H.declarer_m5(base, monkeypatch)
+    H.alimenter_m8()
+    return base
+
+
+def _declarer_fraicheur_m8(base, monkeypatch, configuration):
+    H.declarer_configuration(
+        H.m8_outils, base, monkeypatch, {"fraicheur_lectures_s": configuration}, "m8-fraicheur-department.yaml"
+    )
+
+
+def _couverture_m8(lecture_id, reference):
+    return cs.evaluer_couverture(
+        H.captures_stockees(), reference=reference, connaissance="2026-10-29T00:00:00Z", attendues=[lecture_id]
+    )["lectures"][0]
+
+
+def test_m8_sans_declaration_la_vue_et_les_mesures_restent_non_evaluees(m8):
+    cap = H.capacites(H.M8)
+    _capture(H.capturer(cap, H.ADMIN, "m8.vue_executive", {}, recu(1)))
+    _capture(H.capturer(cap, H.ADMIN, "m8.mesures_chantier", {"wct_id": H.WCT_ID}, recu(2)))
+    for page in (H.page(0), H.page(1)):
+        assert H.valeurs(page, "resultat.fraicheur_attendue_s") == []
+    for lecture_id in ("m8.vue_executive", "m8.mesures_chantier"):
+        entree = _couverture_m8(lecture_id, "2026-10-05T12:00:00Z")
+        assert entree["fraicheur"] == "NON_EVALUEE" and "age_s" in entree and "fraicheur_attendue_s" not in entree
+
+
+def test_m8_declare_une_fenetre_m9_compare_l_age_dans_et_hors_fenetre(m8, monkeypatch):
+    _declarer_fraicheur_m8(m8, monkeypatch, {"m8_lire_vue_executive": 86400, "m8_lire_mesures_chantier": 3600})
+    cap = H.capacites(H.M8)
+    _capture(H.capturer(cap, H.ADMIN, "m8.vue_executive", {}, recu(1)))
+    _capture(H.capturer(cap, H.ADMIN, "m8.mesures_chantier", {"wct_id": H.WCT_ID}, recu(2)))
+    vue = H.page(0)["resultat"]
+    assert vue["fraicheur_attendue_s"] == 86400 and len(vue["version_definition_fraicheur"]) == 64
+    # dernier fait de la vue : 2026-09-27T12:00:00Z ; chantier terminé : 2026-09-25T20:30:00Z
+    dans = _couverture_m8("m8.vue_executive", "2026-09-28T12:00:00Z")
+    assert (dans["age_s"], dans["fraicheur"], dans["fraicheur_source"]) == (86400, "DANS_LA_FENETRE", "PRODUCTEUR")
+    hors = _couverture_m8("m8.vue_executive", "2026-09-28T12:00:01Z")
+    assert hors["fraicheur"] == "HORS_FENETRE" and hors["fraicheur_attendue_s"] == 86400
+    mesures = _couverture_m8("m8.mesures_chantier", "2026-09-25T21:30:00Z")
+    assert (mesures["age_s"], mesures["fraicheur"]) == (3600, "DANS_LA_FENETRE")
+    assert _couverture_m8("m8.mesures_chantier", "2026-09-25T21:30:01Z")["fraicheur"] == "HORS_FENETRE"
+    # une fenêtre qui change n'est pas une contradiction entre deux lectures du même contenu
+    assert cs.contradictions(H.captures_stockees()) == []
+
+
+@pytest.mark.parametrize("invalide", [0, -5, 86400.5, "86400", True, 315360001])
+def test_m8_declaration_invalide_est_refusee_par_m8_et_ignoree_par_m9(m8, monkeypatch, invalide):
+    _declarer_fraicheur_m8(m8, monkeypatch, {"m8_lire_vue_executive": invalide})
+    cap = H.capacites(H.M8)
+    _capture(H.capturer(cap, H.ADMIN, "m8.vue_executive", {}, recu(1)))
+    vue = H.page(0)["resultat"]
+    assert "fraicheur_attendue_s" not in vue and "fraicheur_attendue_refusee" in vue
+    entree = _couverture_m8("m8.vue_executive", "2026-12-01T00:00:00Z")
+    assert entree["fraicheur"] == "NON_EVALUEE" and entree["fraicheur_declaration_ignoree"] is True

@@ -85,9 +85,18 @@ class Lecture:
     # détecter une contradiction : deux lectures du même contenu ne se contredisent pas parce qu'elles datent d'un
     # autre jour.
     volatils: tuple[str, ...] = ()
+    # Fenêtre de fraîcheur DÉCLARÉE par le propriétaire dans la réponse (M8) : chemin de la valeur (secondes) et de sa
+    # version. Les deux ou aucun. La valeur n'est retenue que si elle est valide (voir ``capture_strategique``) ; une
+    # déclaration absente ou invalide laisse la fraîcheur ``NON_EVALUEE``.
+    fraicheur_attendue: str | None = None
+    fraicheur_version: str | None = None
 
     def __post_init__(self) -> None:
         chemins = [*self.instants_metier, *self.revisions, *self.volatils]
+        if (self.fraicheur_attendue is None) != (self.fraicheur_version is None):
+            raise ValueError(f"{self.id} : fenêtre de fraîcheur et version déclarées ensemble ou pas du tout")
+        if self.fraicheur_attendue is not None:
+            chemins += [self.fraicheur_attendue, self.fraicheur_version]
         if self.pagination is not None:
             chemins.append(self.pagination.chemin_suivant)
             if self.pagination.chemin_total is not None:
@@ -310,6 +319,14 @@ LECTURES: tuple[Lecture, ...] = (
             Marqueur("resultat.marge_reelle.reste", "positif"),
             Marqueur("resultat.stock_a_commander.reste", "positif"),
         ),
+        volatils=(
+            "resultat.fraicheur_attendue_s",
+            "resultat.version_definition_fraicheur",
+            "resultat.fraicheur_attendue_refusee",
+            "resultat.fraicheur_attendue_ignorees",
+        ),
+        fraicheur_attendue="resultat.fraicheur_attendue_s",
+        fraicheur_version="resultat.version_definition_fraicheur",
     ),
     _lecture(
         "m8.mesures_chantier",
@@ -319,6 +336,14 @@ LECTURES: tuple[Lecture, ...] = (
         instants_metier=("resultat.horodatage_completion",),
         revisions=("resultat.mesures[*].entrees.version_entrees",),
         incomplets=(Marqueur("resultat.trouve", "faux"),),
+        volatils=(
+            "resultat.fraicheur_attendue_s",
+            "resultat.version_definition_fraicheur",
+            "resultat.fraicheur_attendue_refusee",
+            "resultat.fraicheur_attendue_ignorees",
+        ),
+        fraicheur_attendue="resultat.fraicheur_attendue_s",
+        fraicheur_version="resultat.version_definition_fraicheur",
     ),
     _lecture(
         "m8.definitions_metriques",

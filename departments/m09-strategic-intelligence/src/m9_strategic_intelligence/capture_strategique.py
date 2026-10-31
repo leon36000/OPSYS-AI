@@ -33,13 +33,14 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from . import catalogue_producteurs, charges_producteurs
+from . import catalogue_producteurs, charges_producteurs, encodage
 
 SCHEMA = "opsys.m9.capture/v1"
 HASH_INITIAL = ""
 MAX_OCTETS_DEFAUT = 900_000
 MAX_PAGES = 50
 MAX_REVISIONS = 256
+FRAICHEUR_MAX_S = 3650 * 86400  # 3650 jours : la borne que M9 applique à ses propres péremptions
 _HEX = re.compile(r"[0-9a-f]{64}")
 _JOUR = re.compile(r"\d{4}-\d{2}-\d{2}")
 VERDICTS = frozenset({"ACCEPTEE", "REFUSEE", "ERREUR"})
@@ -413,6 +414,34 @@ def contradictions(captures: Sequence[Mapping]) -> list[dict]:
     return sorted(resultat, key=lambda c: (c["index_a"], c["index_b"]))
 
 
+def fraicheur_declaree(capture: Mapping) -> tuple[int | None, bool]:
+    """``(fenêtre en secondes, déclaration ignorée)`` que le PROPRIÉTAIRE a écrite dans la réponse conservée.
+
+    Seule une déclaration entièrement valide est retenue : valeur ``type(x) is int`` de 1 à ``FRAICHEUR_MAX_S`` (ni
+    booléen, ni décimal, ni texte), lue une seule fois, ET version qui se recalcule à l'identique de l'outil et de la
+    fenêtre (``encodage.empreinte``). Toute autre déclaration (absente de ce côté, invalide, incohérente, refusée par le
+    propriétaire) est IGNORÉE : la fraîcheur reste NON_EVALUEE, jamais HORS_FENETRE. Le second terme dit qu'une
+    déclaration était présente mais n'a pas été retenue. Sans déclaration, ``(None, False)``."""
+    lecture = catalogue_producteurs.PAR_ID.get(capture["lecture_id"])
+    if lecture is None or lecture.fraicheur_attendue is None or capture["verdict"] != "ACCEPTEE":
+        return None, False
+    refusee = lecture.fraicheur_attendue.rsplit(".", 1)[0] + ".fraicheur_attendue_refusee"
+    fenetres, versions, refus = [], [], []
+    for page in capture["pages"]:
+        fenetres += extraire(page, lecture.fraicheur_attendue)
+        versions += extraire(page, lecture.fraicheur_version)
+        refus += extraire(page, refusee)
+    if not fenetres and not versions and not refus:
+        return None, False
+    if len(fenetres) != 1 or len(versions) != 1 or refus:
+        return None, True
+    secondes, version = fenetres[0], versions[0]
+    if type(secondes) is not int or not 1 <= secondes <= FRAICHEUR_MAX_S or type(version) is not str:
+        return None, True
+    attendue = encodage.empreinte({"lecture": lecture.outil, "fraicheur_attendue_s": secondes})
+    return (secondes, False) if version == attendue else (None, True)
+
+
 def evaluer_couverture(
     captures: Sequence[Mapping],
     *,
@@ -426,8 +455,8 @@ def evaluer_couverture(
     Une lecture attendue est : ABSENTE (aucune capture connue), REFUSEE (la dernière est un refus/erreur), PARTIELLE
     (page non lue), CONTRADICTOIRE, TEMPS_METIER_NON_DECLARE, FUTURE (tous ses faits postérieurs à la référence) ou
     PRESENTE. ``age_s`` = référence − dernier instant métier (signé, informatif) ; ``fraicheur`` n'est ÉVALUÉE que si
-    une
-    attente de fraîcheur est fournie pour cette lecture (propriétaire des définitions : M8), sinon ``NON_EVALUEE``."""
+    une attente de fraîcheur existe pour cette lecture : celle de l'appelant (``fraicheur_attendue_s``), à défaut
+    la fenêtre que le PROPRIÉTAIRE a déclarée dans sa réponse (M8, ``fraicheur_declaree``) ; sinon ``NON_EVALUEE``."""
     ref = instant(reference)
     if ref is None:
         raise _refus("REJ-CAPTURE-TEMPS", "référence avec fuseau explicite requise")
@@ -473,7 +502,15 @@ def evaluer_couverture(
             else:
                 entree["statut"] = "PRESENTE"
         attente = fraicheurs.get(lecture_id)
+        declaree, ignoree = fraicheur_declaree(derniere)
         if "age_s" in entree:
+            if attente is not None:
+                entree |= {"fraicheur_attendue_s": attente, "fraicheur_source": "APPELANT"}
+            elif declaree is not None:
+                attente = declaree
+                entree |= {"fraicheur_attendue_s": declaree, "fraicheur_source": "PRODUCTEUR"}
+            if ignoree and declaree is None:
+                entree["fraicheur_declaration_ignoree"] = True
             if attente is None:
                 entree["fraicheur"] = "NON_EVALUEE"
             else:
