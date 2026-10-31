@@ -12,8 +12,9 @@ Ce que ce harnais est, et n'est pas :
   des sorties fautives, pour sonder les garde-fous). Le verdict obtenu ici porte sur la couche déterministe de M9 et
   JAMAIS sur un modèle réel : la qualification par modèle réel et l'exécution Core native restent des verdicts
   séparés, ouverts ;
-* les réponses de producteurs sont des CONTRATS SIMULÉS (forme du catalogue ``catalogue_producteurs``) : aucun
-  producteur n'est interrogé ici. Le corpus nomme ceux qui sont simulés et ceux qui n'existent pas encore ;
+* les réponses de producteurs sont des CONTRATS SIMULÉS (forme du catalogue ``catalogue_producteurs``) ou, dans le
+  corpus v2, des pages CAPTURÉES sur les vrais producteurs raccordés (``contrats_reels``) : aucun producteur n'est
+  interrogé ici. Le corpus nomme ceux qui sont simulés, ceux qui sont réels et ceux qui n'existent pas encore ;
 * les cas sont répartis en deux partitions : ``ajustement`` (sur laquelle on analyse, on corrige) et
   ``verification`` (tenue à part : jamais utilisée pour décider d'un changement de code ;
   ``fuites_entre_partitions`` le contrôle) ;
@@ -64,7 +65,9 @@ LIMITES = (
     "Qualité du conseil, justesse des inférences et utilité des décisions NON ÉTABLIES : "
     "revue métier humaine indépendante requise.",
     "Exécution Core native (budget natif, réservations, agents) non exercée : verdict séparé, ouvert.",
-    "Producteurs M4 (capacité d'équipe), M7 (dépenses) et M1 (plaintes structurées) absents : contrats simulés.",
+    "Corpus v1 : producteurs M4 (capacité d'équipe), M7 (dépenses) et M1 (plaintes structurées) simulés. Corpus v2 : "
+    "pages capturées sur les VRAIS producteurs M1, M4, M7, M8 raccordés pour les cas qui les nomment ; le reste reste "
+    "simulé.",
 )
 _MONTANT = re.compile(
     r"(?<![\w.,])(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[.,]\d{1,2})?\s?(?:\$|CAD|%|dollars?|k\$)"
@@ -213,6 +216,7 @@ def _captures(specs: Sequence[Mapping]) -> tuple[list[dict], list[dict]]:
 def _projection_dossier(dossier: Mapping, refus_captures: Sequence[Mapping]) -> dict:
     return {
         "statuts": {e["lecture_id"]: e["statut"] for e in dossier["couverture"]["lectures"]},
+        "fraicheurs": {e["lecture_id"]: e["fraicheur"] for e in dossier["couverture"]["lectures"] if "fraicheur" in e},
         "manques": sorted(m["lecture_id"] for m in dossier["manques"]),
         "contradictions": len(dossier["contradictions"]),
         "lectures_avec_faits": sorted({a.split("#", 1)[0] for a in dossier["faits"]}),
