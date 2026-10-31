@@ -1,4 +1,4 @@
-"""CLI `fournisseurs …` et `secrets …` : authentification personnelle, aucune valeur affichée (données fictives)."""
+"""CLI `fournisseurs …` et `coffre …` : authentification personnelle, aucune valeur affichée (données fictives)."""
 
 from __future__ import annotations
 
@@ -40,38 +40,38 @@ def _executer(capsys, *argv):
 
 
 def test_secrets_definir_lister_revoquer_sans_jamais_afficher_la_valeur(operateur, capsys):
-    code, out, err = _executer(capsys, "secrets", "definir", "quickbooks.api", "--service", "quickbooks",
+    code, out, err = _executer(capsys, "coffre", "definir", "quickbooks.api", "--service", "quickbooks",
                                "--par", "admin_fictif")
     assert code == 0 and json.loads(out)["etat"] == "actif"
     sorties = [out, err]
-    for argv in (("secrets", "lister"), ("secrets", "journal"), ("secrets", "journal", "quickbooks.api"),
-                 ("secrets", "rotation", "quickbooks.api", "--par", "admin_fictif"),
-                 ("secrets", "revoquer", "quickbooks.api", "--confirmer", "--par", "admin_fictif"),
+    for argv in (("coffre", "lister"), ("coffre", "journal"), ("coffre", "journal", "quickbooks.api"),
+                 ("coffre", "rotation", "quickbooks.api", "--par", "admin_fictif"),
+                 ("coffre", "revoquer", "quickbooks.api", "--confirmer", "--par", "admin_fictif"),
                  ("fournisseurs", "lister"), ("fournisseurs", "lister", "--json")):
         code, out, err = _executer(capsys, *argv)
         assert code == 0, argv
         sorties += [out, err]
     assert all(VALEUR not in s and VALEUR[:16] not in s for s in sorties)
-    assert json.loads(_executer(capsys, "secrets", "lister")[1])[0]["etat"] == "revoque"
+    assert json.loads(_executer(capsys, "coffre", "lister")[1])[0]["etat"] == "revoque"
 
 
 def test_valeur_jamais_en_argument_et_confirmation(operateur, capsys, monkeypatch):
-    for argv in (["secrets", "definir", "meta.ads", "--service", "meta", "--valeur", VALEUR, "--par", "admin_fictif"],
-                 ["secrets", "definir", "meta.ads", VALEUR, "--service", "meta", "--par", "admin_fictif"],
-                 ["secrets", "rotation", "meta.ads", "--valeur=" + VALEUR, "--par", "admin_fictif"]):
+    for argv in (["coffre", "definir", "meta.ads", "--service", "meta", "--valeur", VALEUR, "--par", "admin_fictif"],
+                 ["coffre", "definir", "meta.ads", VALEUR, "--service", "meta", "--par", "admin_fictif"],
+                 ["coffre", "rotation", "meta.ads", "--valeur=" + VALEUR, "--par", "admin_fictif"]):
         with pytest.raises(SystemExit):
             cli.main(argv)
         sortie = capsys.readouterr()
         assert VALEUR not in sortie.out + sortie.err and "refusée en argument" in sortie.err
     reponses = iter([VALEUR, VALEUR + "x"])
     monkeypatch.setattr(plateforme_cli.getpass, "getpass", lambda invite="": next(reponses))
-    code, out, err = _executer(capsys, "secrets", "definir", "meta.ads", "--service", "meta", "--par", "admin_fictif")
+    code, out, err = _executer(capsys, "coffre", "definir", "meta.ads", "--service", "meta", "--par", "admin_fictif")
     assert code == 1 and "COFFRE_CONFIRMATION_DIFFERENTE" in err and VALEUR not in out + err
-    assert json.loads(_executer(capsys, "secrets", "lister")[1]) == []
+    assert json.loads(_executer(capsys, "coffre", "lister")[1]) == []
 
 
 def test_ecritures_exigent_un_admin_authentifie(operateur, capsys, monkeypatch):
-    code, out, err = _executer(capsys, "secrets", "definir", "meta.ads", "--service", "meta", "--par",
+    code, out, err = _executer(capsys, "coffre", "definir", "meta.ads", "--service", "meta", "--par",
                                "vendeur_fictif")
     assert code == 1 and "authentification personnelle requise" in err
     monkeypatch.setattr("sys.stdin", SimpleNamespace(isatty=lambda: False))
@@ -89,7 +89,7 @@ def test_fournisseurs_configurer_activer_refus_et_tester(operateur, capsys, monk
     assert _executer(capsys, "fournisseurs", "configurer", "tts.fish-speech", "--par", "admin_fictif")[0] == 0
     code, out, _ = _executer(capsys, "fournisseurs", "activer", "tts.fish-speech", "--par", "admin_fictif")
     assert code == 1 and "SEUIL_REVENU_DEPASSE" in out and "FOURNISSEUR_ECARTE" in out
-    _executer(capsys, "secrets", "definir", "azure.tts", "--service", "microsoft", "--par", "admin_fictif")
+    _executer(capsys, "coffre", "definir", "azure.tts", "--service", "microsoft", "--par", "admin_fictif")
     code, out, err = _executer(capsys, "fournisseurs", "configurer", "tts.azure-fr-ca.api", "--point-acces",
                                "https://tts.fictif.example/v1", "--secret", "coffre:azure.tts", "--efvp-ref",
                                "efvp-fictive", "--contrat-ref", "contrat-fictif", "--par", "admin_fictif")
@@ -108,11 +108,11 @@ def test_fournisseurs_configurer_activer_refus_et_tester(operateur, capsys, monk
 
 
 def test_generer_cle_et_rechiffrer_sans_afficher_de_cle(operateur, capsys, monkeypatch):
-    _executer(capsys, "secrets", "definir", "linkedin.api", "--service", "linkedin", "--par", "admin_fictif")
+    _executer(capsys, "coffre", "definir", "linkedin.api", "--service", "linkedin", "--par", "admin_fictif")
     nouvelle = operateur / "nouvelle.cle"
-    code, out, _ = _executer(capsys, "secrets", "generer-cle-maitresse", "--fichier", str(nouvelle))
+    code, out, _ = _executer(capsys, "coffre", "generer-cle-maitresse", "--fichier", str(nouvelle))
     assert code == 0 and nouvelle.read_text().strip() not in out
-    code, out, err = _executer(capsys, "secrets", "rechiffrer", "--nouvelle-cle-fichier", str(nouvelle),
+    code, out, err = _executer(capsys, "coffre", "rechiffrer", "--nouvelle-cle-fichier", str(nouvelle),
                                "--par", "admin_fictif")
     assert code == 0, err
     assert json.loads(out)["versions_reenveloppees"] == 1 and nouvelle.read_text().strip() not in out

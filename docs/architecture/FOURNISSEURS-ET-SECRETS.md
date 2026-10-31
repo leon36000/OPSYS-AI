@@ -90,15 +90,15 @@ citée ; toutes `a_mesurer`.
   lien, propriétaire courant, mode 0600, dossier parent non inscriptible par d’autres, hors de tout dépôt Git)
   ou `OPSYS_COFFRE_CLE` (base64, environnement du serveur seulement, jamais celui des agents). Les deux à la fois
   → `COFFRE_CLE_CONFLIT` ; aucune → `COFFRE_CLE_MAITRESSE_ABSENTE` ; mauvaise clé → `COFFRE_CLE_MAITRESSE_DIFFERENTE`.
-  Création : `opsys-metier secrets generer-cle-maitresse --fichier /chemin/hors/depot/coffre.cle` (O_EXCL, 0600).
+  Création : `opsys-metier coffre generer-cle-maitresse --fichier /chemin/hors/depot/coffre.cle` (O_EXCL, 0600).
   L’export d’instance (`instance exporter`) ne prend que `opsys.db`, `paliers.yaml`, `entreprise.yaml` : il
   contient des chiffrés, jamais la clé.
-- **Agents** : ils reçoivent un jeton opaque `opsys-jeton:v1:…` (`secrets jeton`), lié à un porteur et à un usage
+- **Agents** : ils reçoivent un jeton opaque `opsys-jeton:v1:…` (`coffre jeton`), lié à un porteur et à un usage
   (`fournisseur:<id>`, `connecteur:<nom>`), avec expiration. Seul `coffre.utiliser(...)`, côté serveur, au moment
   de l’appel et hors transaction métier, le résout ; la valeur n’existe en clair que dans ce bloc et y est
   masquée dans tous les journaux du processus (fabrique `logging` masquante).
 - **Rotation** : nouvelle version ; les octets de l’ancienne sont détruits dans la même transaction ; les jetons
-  suivent le nom. **Rotation de la clé maîtresse** : `secrets rechiffrer --nouvelle-cle-fichier …` ré-enveloppe
+  suivent le nom. **Rotation de la clé maîtresse** : `coffre rechiffrer --nouvelle-cle-fichier …` ré-enveloppe
   toutes les clés de donnée, tout ou rien.
 - **Révocation** : immédiate et définitive (octets détruits, `secure_delete` SQLite, jetons révoqués, nom clos).
 - **Export** : toujours refusé (`COFFRE_EXPORT_INTERDIT`), journalisé ; la console et la CLI n’ont aucune lecture
@@ -115,7 +115,9 @@ configurer, activer, désactiver, tester) ; `/plateforme/secrets` (métadonnées
 passe, rotation, révocation confirmée, journal d’accès). Lecture JSON : `/api/plateforme/fournisseurs`,
 `/api/plateforme/secrets` ; `/api/plateforme/secrets/<nom>/valeur` répond toujours 403.
 
-CLI (`opsys-metier …` ou `opsys metier …` depuis le core ; le nom `opsys` reste celui du core) :
+CLI (`opsys-metier …` ou `opsys metier …` depuis le core ; le nom `opsys` reste celui du core). Le groupe des
+secrets s’appelle `coffre` : `secrets` est déjà une commande du core, et une sous-commande du moteur ne peut pas
+porter le nom d’une commande du core (`tests/test_commande_metier.py`) :
 
 ```bash
 opsys-metier fournisseurs lister [--capacite ocr] [--json]
@@ -124,11 +126,11 @@ opsys-metier fournisseurs configurer ocr.mistral-ocr-3.api --point-acces https:/
     --efvp-ref EFVP-2026-01 --contrat-ref CONTRAT-… --par nathan
 opsys-metier fournisseurs activer|desactiver|tester <id> --par nathan
 opsys-metier fournisseurs selectionner image image.qwen-image-2512.local --departement m07-marketing --par nathan
-opsys-metier secrets lister | journal [nom]
-opsys-metier secrets definir <nom> --service google_ads --par nathan    # valeur saisie deux fois, sans écho
-opsys-metier secrets rotation <nom> --par nathan
-opsys-metier secrets revoquer <nom> --confirmer --par nathan
-opsys-metier secrets jeton <nom> --porteur m07-marketing --usage connecteur:google-ads --duree-s 3600 --par nathan
+opsys-metier coffre lister | journal [nom]
+opsys-metier coffre definir <nom> --service google_ads --par nathan    # valeur saisie deux fois, sans écho
+opsys-metier coffre rotation <nom> --par nathan
+opsys-metier coffre revoquer <nom> --confirmer --par nathan
+opsys-metier coffre jeton <nom> --porteur m07-marketing --usage connecteur:google-ads --duree-s 3600 --par nathan
 ```
 
 Une valeur passée en argument (`--valeur`, positionnel) est refusée sans être recopiée dans l’erreur.
@@ -149,3 +151,8 @@ Une valeur passée en argument (`--valeur`, positionnel) est refusée sans être
   simulées seulement.
 - L’émission de jetons est faite par un admin (CLI) ; la remise automatique d’un jeton à un agent configuré n’est
   pas encore câblée.
+- **Raccordement au core en attente** : `tests/test_commande_metier.py` exige que chaque sous-commande du moteur
+  figure dans `OPSYS_METIER_MOVED_COMMANDS` (`core/src/cli/opsys-metier-argv.ts`) et dans
+  `tests/installateur/faux_core.py`. `core/` étant hors du périmètre de ce chantier, l’ajout de `fournisseurs`
+  et `coffre` à ces deux listes reste à faire (deux lignes) ; d’ici là ce test échoue. `opsys metier fournisseurs …`
+  fonctionne déjà : le core transmet toute commande après `metier` sans liste d’autorisation.

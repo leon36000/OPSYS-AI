@@ -1,6 +1,9 @@
-"""Sous-commandes `opsys-metier fournisseurs …` et `opsys-metier secrets …` (aussi `opsys metier …` depuis le core).
+"""Sous-commandes `opsys-metier fournisseurs …` et `opsys-metier coffre …` (aussi `opsys metier …` depuis le core).
 
-Aucune commande n'affiche une valeur de secret : `secrets definir`/`rotation` lisent la valeur au clavier sans
+`coffre` et non `secrets` : `secrets` est déjà une commande du core (`core/src/cli/program/subcli-descriptors.ts`)
+et `tests/test_commande_metier.py` interdit qu'une sous-commande du moteur porte le nom d'une commande du core.
+
+Aucune commande n'affiche une valeur de secret : `coffre definir`/`rotation` lisent la valeur au clavier sans
 écho (deux fois, comparées), jamais en argument (historique du shell) ni depuis l'environnement ; les sorties ne
 portent que des métadonnées, masquées par précaution. Chaque écriture exige l'authentification personnelle
 interactive d'un `nathan_owner`/`admin` (même règle que les autres mutations opérateur de la CLI).
@@ -87,7 +90,7 @@ def ajouter_commandes(sous: argparse._SubParsersAction) -> None:
         p.add_argument("--par", required=True, help="personne active admin ou propriétaire, authentifiée")
     f.set_defaults(fn=executer_fournisseurs)
 
-    s = sous.add_parser("secrets", help="coffre de secrets chiffré (aucune valeur n'est jamais affichée)")
+    s = sous.add_parser("coffre", help="coffre de secrets chiffré (aucune valeur n'est jamais affichée)")
     actions = s.add_subparsers(dest="action", required=True)
     actions.add_parser("lister", help="métadonnées des secrets")
     jr = actions.add_parser("journal", help="journal d'accès du coffre")
