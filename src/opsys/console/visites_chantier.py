@@ -6,6 +6,7 @@ from m4_field_ops import (
     annotations_calendrier,
     composition_durable,
     encodage,
+    equipes_pointees_v3,
     etats,
     journal_durable,
     visites_chantier,
@@ -145,6 +146,14 @@ def lire(cnx, deps, session, intervention_id, *, debut=0, limite=50, source_atte
         attendu['limite'] = limite
         attendu['etat_chantier'] = etats.statut_courant(reg, intervention_id)
         attendu['visite_active'] = active['visite_id'] if active is not None else None
+        # D4/E3 : la déclaration d'équipe porte le CAS du port V3 (journal, prévisions, profil des équipes). Sans
+        # profil lisible, aucune déclaration n'est proposée (jamais une équipe devinée).
+        attendu['equipe_active'] = active.get('equipe_id') if active is not None else None
+        try:
+            attendu['source_equipe'] = (equipes_pointees_v3.empreinte_sources(cnx)
+                                        if active is not None else None)
+        except equipes_pointees_v3.Refus:
+            attendu['source_equipe'] = None
         attendu['derniere_fermeture'] = fermetures_liste[-1]['visite_id'] if fermetures_liste else None
         attendu['dernier_report'] = reports[-1]['ligne_id'] if reports else None
         attendu['avertissement'] = ('Composition déclarée : elle ne prouve pas la présence individuelle. '
@@ -249,6 +258,20 @@ def contenu(vue, session, prefixe):
                              for k, val in champs.items())
             corps += ('<button type="submit">Remettre à planifier</button>'
                       '<p>Une nouvelle date doit être confirmée ; l’ancienne reste historique.</p></form>')
+        if (v['etat_visite'] == 'ouverte' and v['visite_id'] == vue['visite_active'] and vue['source_equipe']
+                and vue['equipe_active']):
+            champs = {'operation': 'pointer_equipe', 'visite_id': v['visite_id'], 'equipe_id': vue['equipe_active'],
+                      'source_attendue': vue['source_equipe'], 'csrf': session.csrf,
+                      'mutation_id': str(uuid.uuid4())}
+            corps += f'<form method="post" action="{pages.e(chemin)}">'
+            corps += ''.join(f'<input type="hidden" name="{pages.e(k)}" value="{pages.e(val)}">'
+                             for k, val in champs.items())
+            corps += ('<label>Pointage de l’équipe <select name="action">'
+                      '<option value="arrivee">Arrivée</option><option value="pause_debut">Début de pause</option>'
+                      '<option value="pause_fin">Fin de pause</option><option value="depart">Départ</option>'
+                      '</select></label><button type="submit">Déclarer pour l’équipe</button>'
+                      '<p>Déclaration d’équipe à l’heure du serveur, sans GPS : elle ne prouve aucune présence '
+                      'individuelle et passe en revue.</p></form>')
         if v['etat_visite'] != 'fermee':
             op = 'fermer' if v['etat_visite'] == 'ouverte' else 'ouvrir'
             champs = {'operation': op, 'visite_id': v['visite_id'], 'source_attendue': vue['source_sql'],
@@ -324,6 +347,10 @@ async def _formulaire(request):
             requis = commun | {'visite_id', 'source_attendue', 'motif'}
             if champs.get('motif') not in etats.MOTIFS_REPORT:
                 raise ValueError
+        elif operation == 'pointer_equipe':
+            requis = commun | {'visite_id', 'source_attendue', 'equipe_id', 'action'}
+            if champs.get('action') not in equipes_pointees_v3.ACTIONS:
+                raise ValueError
         else:
             raise ValueError
         if set(champs) != requis:
@@ -393,6 +420,10 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, rendre, verifier_f
         elif champs['operation'] == 'interrompre':
             nom, payload = 'm4_interrompre_visite_console_v2', {'intervention_id': args['intervention_id'],
                 'motif': champs['motif'], 'visite_id': champs['visite_id'],
+                'source_attendue': champs['source_attendue']}
+        elif champs['operation'] == 'pointer_equipe':
+            nom, payload = 'm4_declarer_pointage_equipe_console', {'intervention_id': args['intervention_id'],
+                'visite_id': champs['visite_id'], 'equipe_id': champs['equipe_id'], 'action': champs['action'],
                 'source_attendue': champs['source_attendue']}
         else:
             nom, payload = 'm4_evenement_visite_console', {k: champs[k] for k in (
