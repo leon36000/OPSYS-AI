@@ -2,7 +2,8 @@
 
 Estimation Intelligence — vision, mesures a bornes, prix/marge
 
-Statut: LIVRÉ (S001 à S009 — les neuf stories du PRD sont implémentées et
+Statut: PARTIEL (état exigence par exigence :
+`docs/reprise/MATRICES-20261031/MATRICE-EXIGENCES-M3.json` ; S001 à S009 — les neuf stories du PRD sont implémentées et
 testées vertes : validation des entrées (S001), qualification de la qualité
 photo (S002), hiérarchie des références d'échelle (S003), garde anti-
 précision-inventée / prix bloqué (S004), Monte Carlo déterministe (S005),

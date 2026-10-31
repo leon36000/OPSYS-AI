@@ -1,6 +1,6 @@
 # M10-memoire
 
-Mémoire Long Terme — non-oubli, PREFLIGHT tracé (POSTFLIGHT applicatif hors périmètre v1).
+Mémoire Long Terme — non-oubli, PREFLIGHT tracé ; POSTFLIGHT limité au dépôt de faits candidats non promus en vérité (état exigence par exigence : `docs/reprise/MATRICES-20261031/MATRICE-EXIGENCES-M10.json`).
 
 ## Mémoire admin mobile — tranche T4.25 candidate
 

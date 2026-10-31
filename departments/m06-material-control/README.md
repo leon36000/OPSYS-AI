@@ -2,7 +2,8 @@
 
 Material Control OS — inventaire, PO, variance sans accusation
 
-Statut : département OPSYS complet (mode `ombre`), sur le modèle de M3. Les 9
+Statut : PARTIEL (mode `ombre`, sur le modèle de M3 ; état exigence par exigence :
+`docs/reprise/MATRICES-20261031/MATRICE-EXIGENCES-M6.json`). Les 9
 stories du PRD (`docs/bmad/02-PRD-PM.md`) sont livrées et vertes : validation
 des entrées WCT/formulaire/clés interdites (S001), catalogue + résolution de
 prix FALLBACK (S002), cycle PO → réception (S003), stock localisé par
