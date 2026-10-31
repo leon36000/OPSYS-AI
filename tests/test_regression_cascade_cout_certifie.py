@@ -1,16 +1,24 @@
-"""E0 (CONCEPTION-ROUTAGE-COUT-CERTIFIE, suspicion I5) — la cascade ORDINAIRE de M5 écrase-t-elle un coût certifié ?
+"""E0 puis E1 (CONCEPTION-ROUTAGE-COUT-CERTIFIE, régression I5) : la cascade ORDINAIRE de M5 respecte le certifié.
 
-Hypothèse : après qu'un recalcul certifié (couture QA `service_recalcul_m4._executer_qa`) a publié une trace
-`m5.rentabilite_chantier` dont la main-d'oeuvre est certifiée (verdict CALCULEE, projection M4 V3 vérifiée), un
-événement ordinaire du bus (variance M6 relue, devis ou WCT relivrés, facture envoyée ou payée) fait recalculer à M5
-un coût PARTIEL (sans projection), le trace et le publie avec un `sequence` plus grand ; M8 et M10 retiennent le
-plus grand `sequence` (docstring de `m8_analytics.outils._recevoir_rentabilite_chantier`, `m10_memoire.rentabilite`),
-donc l'état partiel tardif remplace l'état certifié.
+Régression (E0, confirmée par exécution avant E1) : après qu'un recalcul certifié (couture QA
+`service_recalcul_m4._executer_qa`) a publié une trace `m5.rentabilite_chantier` dont la main-d'oeuvre est certifiée
+(verdict CALCULEE, projection M4 V3 vérifiée), un événement ordinaire du bus (variance M6 relue, devis ou WCT
+relivrés, facture envoyée ou payée) faisait recalculer à M5 un coût PARTIEL (sans projection), le tracer et le
+publier avec un `sequence` plus grand ; M8 et M10 retiennent le plus grand `sequence` (docstring de
+`m8_analytics.outils._recevoir_rentabilite_chantier`, `m10_memoire.rentabilite`), donc l'état partiel tardif
+remplaçait l'état certifié.
 
-Ce fichier ne modifie AUCUN code produit. Il exécute, pour CHAQUE événement de la cascade, le même parcours :
-chantier terminé par la voie certifiée -> cascade ordinaire (partiel) -> recalcul certifié -> UN événement ordinaire
--> relevé (traces M5, événement de plus grand `sequence`, mesure M8 `m8_marge_reelle_cad`, leçon M10, rapport
-d'apprentissage M3). Chaque cas est sur sa propre base : un verdict par étape de cascade, jamais mélangé.
+Correction (E1, `outils._essayer_cout_reel` + `cout_reel.decision_apres_etat_certifie`) : devant une dernière trace
+publiée dont la main-d'oeuvre est certifiée, la cascade ordinaire
+- NE FAIT RIEN tant que rien d'autre que la ventilation n'a changé (même `empreinte_hors_ventilation`, mêmes tarifs
+  d'équipe) : rejeu de variance, de devis ou de WCT, facture ENVOYEE -> PAYEE ;
+- sinon (matériaux, prix du livre, facture BROUILLON -> ENVOYEE, devis, tarifs d'équipe...) trace un état PARTIEL qui
+  DIT que le certifié n'est plus à jour (`REJ-COUT-CERTIFIE-A-RECALCULER`) : jamais un certifié périmé présenté
+  comme à jour, jamais un coût complet recomposé sans projection.
+
+Chaque cas suit le même parcours : chantier terminé par la voie certifiée -> cascade ordinaire (partiel) -> recalcul
+certifié -> UN événement ordinaire -> relevé (traces M5, événement de plus grand `sequence`, mesure M8
+`m8_marge_reelle_cad`, leçon M10, rapport d'apprentissage M3). Chaque cas est sur sa propre base.
 
 Sortie brute : si `E0_SORTIE_JSON` est défini, chaque cas y est écrit (un fichier JSON par exécution).
 
@@ -112,6 +120,34 @@ def _republier(type_evenement: str, suffixe: str, **filtre) -> str:
         from opsys import evenements
         evenements.publier(type_evenement, producteur, charge, evenement_id=nouveau)
     return nouveau
+
+
+def _republier_variance_avec_quantite(suffixe: str, quantite: str, **filtre) -> str:
+    """M6 republie la variance du WCT avec une AUTRE quantité réelle (nouvel identifiant) : un changement réel des
+    matériaux, pas un rejeu."""
+    evenement_id, producteur, charge = _charge_sortante("m6.variance_chantier", **filtre)
+    assert charge["lignes"], charge
+    charge = {**charge, "lignes": [{**ligne, "quantite_reelle": quantite} for ligne in charge["lignes"]]}
+    nouveau = f"{evenement_id}-e0-{suffixe}"
+    with stockage.transaction():
+        from opsys import evenements
+        evenements.publier("m6.variance_chantier", producteur, {**charge, "evenement_id": nouveau},
+                           evenement_id=nouveau)
+    return nouveau
+
+
+def _ajouter_tarif_equipe_un_autre_jour() -> None:
+    """Un humain (admin de console) déclare un tarif d'équipe pour un AUTRE jour : l'historique des tarifs change
+    (c'est lui que le certifié a vérifié), sans toucher ni au WCT ni au jour du chantier."""
+    jour = (BASE.date() + dt.timedelta(days=30)).isoformat()
+    with (stockage.transaction(), contexte.appele_par_appareil(
+            contexte.IdentiteAppelante(cm.ADMIN_CERTIFIE, "admin", source="console")),
+          contexte.appeler_en_tant_que("m05-financecore", origine="console")):
+        source = m5_outils._lire_tarifs_equipes()["source"]
+        m5_outils._inscrire_tarif_equipe({
+            "equipe_id": cm.EQUIPE, "taux": "55.00", "unite": "heure-equipe", "devise": "CAD",
+            "source": "tarif-e1-fictif", "version": "1", "date_effet": jour, "date_fin": jour, "remplace_id": None,
+        }, mutation_id="tarif-equipe-e1-fictif", source_attendue=source)
 
 
 def _rejouer(type_evenement: str, **filtre) -> str:
@@ -338,35 +374,49 @@ def _evenement(deps, nom: str, devis_id: str, wct_id: str, minute: int) -> None:
     elif nom == "prix_livre_change_puis_variance_relue":
         cm._m6_prix_au_livre(cm._outils(deps, "m06-material-control"), 9.0)
         _republier("m6.variance_chantier", "prix", wct_id=wct_id)
+    elif nom == "variance_quantite_changee":
+        _republier_variance_avec_quantite("quantite", wct_id=wct_id, quantite="56")
+    elif nom == "tarif_equipe_ajoute_puis_variance_rejouee":
+        _ajouter_tarif_equipe_un_autre_jour()
+        _rejouer("m6.variance_chantier", wct_id=wct_id)
     else:  # pragma: no cover
         raise AssertionError(nom)
     _drainer(deps, minute)
 
 
+
+
 # (événement ordinaire, facture envoyée AVANT le recalcul certifié, politique `m4.verifier_v3` encore ouverte)
-CAS_ECRASES = [
+# A. Rien ne change dans le calcul : un rejeu, ou une facture ENVOYEE -> PAYEE (même prix, même finalité).
+CAS_SANS_CHANGEMENT = [
     ("variance_m6_republiee", False, False),
     ("variance_m6_rejouee", False, False),
     ("devis_accepte_rejoue", False, False),
     ("travaux_termines_rejoues", False, False),
-    ("facture_envoyee", False, False),
-    ("prix_livre_change_puis_variance_relue", False, False),
     ("variance_m6_republiee", True, False),
     ("variance_m6_rejouee", True, False),
     ("devis_accepte_rejoue", True, False),
     ("travaux_termines_rejoues", True, False),
     ("facture_payee", True, False),
 ]
-# Seul cas où l'état de plus grand `sequence` redevient certifié : la livraison d'un WCT REJOUÉ alors que la politique
-# `m4.verifier_v3` est encore ouverte relance la voie V1 (`port_service_m4.publier`), qui republie un certifié APRÈS
-# le partiel. Ce n'est pas l'état de production (aucune politique n'existe, I1) : la cascade a quand même tracé et
-# publié un partiel avant, que M8 et M10 ont reçu.
-CAS_GUERIS = [("travaux_termines_rejoues", False, True)]
-CAS = CAS_ECRASES + CAS_GUERIS
+# Le WCT rejoué alors que la politique `m4.verifier_v3` est encore ouverte relance AUSSI la voie V1
+# (`port_service_m4.publier`) : depuis E1 elle voit la même version d'entrées que la dernière trace (`deja_tracee`).
+# Ce n'est pas l'état de production (aucune politique n'existe, I1) ; le cas prouve qu'aucune des deux voies n'écrit.
+CAS_SANS_CHANGEMENT_POLITIQUE_OUVERTE = [("travaux_termines_rejoues", False, True)]
+# B. Une entrée change réellement : le certifié n'est plus à jour et le dit.
+CAS_AVEC_CHANGEMENT = [
+    ("facture_envoyee", False, False),                      # BROUILLON -> ENVOYEE : le prix devient définitif
+    ("prix_livre_change_puis_variance_relue", False, False),  # le prix du livre des matériaux change
+    ("prix_livre_change_puis_variance_relue", True, False),
+    ("variance_quantite_changee", False, False),             # la quantité réelle de matériaux change
+    ("variance_quantite_changee", True, False),
+    ("tarif_equipe_ajoute_puis_variance_rejouee", False, False),  # l'historique des tarifs d'équipe change
+    ("tarif_equipe_ajoute_puis_variance_rejouee", True, False),
+]
+CAS = CAS_SANS_CHANGEMENT + CAS_SANS_CHANGEMENT_POLITIQUE_OUVERTE + CAS_AVEC_CHANGEMENT
 
-# Événements qui ne changent AUCUNE entrée du calcul de M5 (facture envoyée ou payée, prix du livre : eux, en changent).
-REJEUX_PURS = {"variance_m6_republiee", "variance_m6_rejouee", "devis_accepte_rejoue", "travaux_termines_rejoues"}
 MARGE_CERTIFIEE = "180.00"  # 40 pi x 8,00 $ + 120 min x 50,00 $/h-équipe = 420,00 $ de coût ; prix 600,00 $
+CODE_PERIME = "REJ-COUT-CERTIFIE-A-RECALCULER"
 
 
 def _identifiant(cas) -> str:
@@ -383,7 +433,7 @@ def _executer_cas(cas) -> tuple[dict, dict, dict]:
     _evenement(deps, evenement, ids["devis_id"], ids["wct_id"], 30)
     apres = _releve(deps, f"apres_{evenement}", ids["wct_id"], ids["devis_id"])
     _ecrire_sortie({"cas": _identifiant(cas), "avant": avant, "apres": apres})
-    return avant, apres, ids
+    return avant, apres, {**ids, "deps": deps}
 
 
 def _est_certifie(releve: dict) -> bool:
@@ -416,14 +466,67 @@ def _verifier_avant_certifie(avant: dict, facture_avant: bool) -> None:
     assert avant["apprentissage_m3"]["trace_m5_a_jour"] is False
 
 
-@pytest.mark.parametrize("cas", CAS_ECRASES, ids=[_identifiant(c) for c in CAS_ECRASES])
-def test_caracterisation_i5_la_cascade_ordinaire_ecrase_l_etat_certifie(base_durable, cas):
-    """CARACTÉRISATION de l'état ACTUEL (verdict E0 : I5 CONFIRMÉE) : l'événement ordinaire fait tracer et publier un
-    PARTIEL de `sequence` + 1, sans projection, qui devient l'état courant de M5, M8 et M10 et efface la marge
-    certifiée. Quand ce test devient rouge, la régression est corrigée : retirer le `xfail` du test de garde."""
+def _ecritures_m5() -> dict:
+    """Ce que la cascade de coût réel écrit : traces, reçus de service (registres DÉRIVÉS), événements publiés. Les
+    registres de pièces reçues (variance, facture...) sont des sources : un rejeu peut y ajouter un maillon."""
+    from sqlalchemy import func
+
+    from opsys.stockage.schema import REGISTRES
+    with stockage.transaction() as cnx:
+        registres = dict(cnx.execute(
+            select(REGISTRES.c.registre, func.count()).where(
+                (REGISTRES.c.departement == "m05-financecore")
+                & REGISTRES.c.registre.in_(("rentabilite", "rentabilite_service_v1", "rentabilite_recalcul_v2")))
+            .group_by(REGISTRES.c.registre)).all())
+        evenements_m5 = cnx.execute(select(func.count()).select_from(EVENEMENTS_SORTANTS).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == "m5.rentabilite_chantier")).scalar_one()
+    return {"registres_m5": registres, "evenements_m5": evenements_m5}
+
+
+# ------------------------------------------------------------------------------------ A. rien ne change
+@pytest.mark.parametrize("cas", CAS_SANS_CHANGEMENT + CAS_SANS_CHANGEMENT_POLITIQUE_OUVERTE,
+                         ids=[_identifiant(c) for c in CAS_SANS_CHANGEMENT + CAS_SANS_CHANGEMENT_POLITIQUE_OUVERTE])
+def test_garde_i5_un_evenement_sans_changement_ne_remplace_pas_l_etat_certifie(base_durable, cas):
+    """GARDE (rouge avant E1) : un rejeu, ou une facture ENVOYEE -> PAYEE, laisse M5, M8 et M10 sur le coût certifié
+    (CALCULEE, projection présente, marge 180,00 $) et ne ÉCRIT RIEN : ni trace, ni reçu, ni événement."""
     _, facture_avant, _ = cas
-    avant, apres, _ = _executer_cas(cas)
+    deps = charger_departements()
+    ids = _amener_a_l_etat_certifie(deps, facture_envoyee_avant=facture_avant, politique_ouverte=cas[2])
+    wct_id, devis_id = ids["wct_id"], ids["devis_id"]
+    avant = _releve(deps, "apres_recalcul_certifie", wct_id, devis_id)
     _verifier_avant_certifie(avant, facture_avant)
+    ecritures_avant = _ecritures_m5()
+
+    _evenement(deps, cas[0], devis_id, wct_id, 30)
+    apres = _releve(deps, f"apres_{cas[0]}", wct_id, devis_id)
+    _ecrire_sortie({"cas": _identifiant(cas), "avant": avant, "apres": apres})
+
+    assert _est_certifie(apres), (
+        apres["evenement_courant_m5"], apres["m8"]["fait_marge_reelle_cad"], apres["m10"]["marge_reelle_cad"])
+    for etage in ("traces_m5", "evenement_courant_m5", "m8", "m10"):
+        assert apres[etage] == avant[etage], etage
+    ecritures_apres = _ecritures_m5()
+    assert ecritures_apres == ecritures_avant
+
+    # Convergence : un second passage de la cascade sur ce devis n'écrit rien et dit pourquoi.
+    with stockage.transaction():
+        assert m5_outils._essayer_cout_reel(devis_id) == {"statut": "certifie_conserve"}
+    _evenement(deps, "variance_m6_rejouee", devis_id, wct_id, 40)
+    assert _ecritures_m5() == ecritures_apres
+    assert _releve(deps, "second_passage", wct_id, devis_id)["evenement_courant_m5"] == avant["evenement_courant_m5"]
+
+
+# --------------------------------------------------------------------------------- B. une entrée change
+@pytest.mark.parametrize("cas", CAS_AVEC_CHANGEMENT, ids=[_identifiant(c) for c in CAS_AVEC_CHANGEMENT])
+def test_garde_i5_un_changement_reel_rend_le_certifie_visiblement_perime(base_durable, cas):
+    """Un changement RÉEL (prix du livre, quantité, facture envoyée, tarif d'équipe) ne laisse jamais le certifié
+    présenté comme à jour : la cascade trace et publie UN état PARTIEL, sans projection, sans marge, qui porte
+    `REJ-COUT-CERTIFIE-A-RECALCULER` ; l'historique garde le certifié ; un second passage n'écrit rien ; et un
+    nouveau recalcul certifié rétablit un état courant certifié."""
+    _, facture_avant, _ = cas
+    avant, apres, ids = _executer_cas(cas)
+    _verifier_avant_certifie(avant, facture_avant)
+    deps, wct_id, devis_id = ids["deps"], ids["wct_id"], ids["devis_id"]
 
     e_avant, e = avant["evenement_courant_m5"], apres["evenement_courant_m5"]
     # M5 : une SEULE trace et un seul événement de plus, de plus grand sequence, partiels et sans projection.
@@ -431,91 +534,75 @@ def test_caracterisation_i5_la_cascade_ordinaire_ecrase_l_etat_certifie(base_dur
     assert e["sequence_max"] == e["dernier_insere_sequence"] == e_avant["sequence_max"] + 1
     assert (e["verdict"], e["cout_reel_complet"], e["marge_reelle_cad"], e["cout_reel_cad"]) == (
         "PARTIELLE", False, None, None)
-    assert "REJ-COUT-TEMPS-POINTE-ABSENT" in e["manque"]
+    assert CODE_PERIME in e["manque"]
     nouvelle = apres["traces_m5"][-1]
     assert (nouvelle["verdict"], nouvelle["projection_empreinte"], nouvelle["mo_statut"]) == (
         "PARTIELLE", None, "non_disponible")
     assert not nouvelle["provenance_service_v1"] and not nouvelle["provenance_v3"]
     certifiee = apres["traces_m5"][-2]
     assert certifiee["verdict"] == "CALCULEE" and certifiee["projection_empreinte"] is not None  # l'historique l'a
-    # La version d'entrées de l'ordinaire n'est PAS celle du certifié : c'est la raison de l'écrasement
-    # (`_essayer_cout_reel` ne compare qu'à la dernière trace). Pour un simple REJEU (aucune entrée changée), le
-    # partiel revient même à une version déjà tracée avant le certifié.
-    assert nouvelle["version_entrees"] != certifiee["version_entrees"]
-    if cas[0] in REJEUX_PURS:
-        assert nouvelle["version_entrees"] in {t["version_entrees"] for t in apres["traces_m5"][:-2]}
-    # M8 et M10 : le plus grand sequence est le partiel ; la marge certifiée a disparu des deux.
+    assert apres["traces_m5"][:-1] == avant["traces_m5"]  # rien d'antérieur n'est touché (append-only)
+    # M8 et M10 : le plus grand sequence est le partiel ; la marge certifiée n'est plus présentée comme courante.
     assert apres["m8"]["fait_sequence_max"] == apres["m10"]["sequence_max"] == e["sequence_max"]
     assert apres["m8"]["fait_marge_reelle_cad"] is None and apres["m10"]["marge_reelle_cad"] is None
     assert apres["m10"]["ecart_marge_cad"] is None
     marge_m8 = apres["m8"]["m8_marge_reelle_cad"]
     assert (marge_m8["statut"], marge_m8["valeur"]) == ("non_calculable", None)
-    # Les faits antérieurs (dont le certifié) restent dans l'historique de M8 et de M10 : append-only, rien de perdu.
     assert e_avant["sequence_max"] in apres["m8"]["faits_sequences"]
     assert e_avant["sequence_max"] in apres["m10"]["sequences"]
     assert not _est_certifie(apres)
     # Le prix définitif est dit tel quel : seul l'envoi de la facture le fait passer à vrai.
-    assert e["prix_definitif"] is (facture_avant or cas[0] == "facture_envoyee" or cas[0] == "facture_payee")
+    assert e["prix_definitif"] is (facture_avant or cas[0] == "facture_envoyee")
 
-
-@pytest.mark.parametrize(
-    "cas",
-    [pytest.param(c, id=_identifiant(c), marks=pytest.mark.xfail(
-        strict=True, raises=AssertionError,
-        reason=(
-            "I5 (CONCEPTION-ROUTAGE-COUT-CERTIFIE, E0/E1) : la cascade ordinaire de M5 (`_essayer_cout_reel`) compare "
-            "`version_entrees` à la seule dernière trace ; l'état certifié (projection M4 V3) a une autre version que "
-            "l'état ordinaire, donc un événement ordinaire trace et publie un PARTIEL de sequence + 1 (sans "
-            "projection, marge None) que M8 et M10 retiennent comme état courant. Attendu après E1 : l'état de plus "
-            "grand sequence reste le certifié.")))
-     for c in CAS_ECRASES],
-)
-def test_garde_i5_un_evenement_ordinaire_ne_remplace_pas_l_etat_certifie(base_durable, cas):
-    """GARDE (rouge pour de bonne raison aujourd'hui) : après un événement ordinaire, l'état de plus grand `sequence`
-    de M5, M8 et M10 doit rester le coût certifié (CALCULEE, projection présente, marge 180,00 $)."""
-    avant, apres, _ = _executer_cas(cas)
-    assert _est_certifie(avant)
-    assert _est_certifie(apres), (
-        apres["evenement_courant_m5"], apres["m8"]["fait_marge_reelle_cad"], apres["m10"]["marge_reelle_cad"])
-
-
-@pytest.mark.parametrize("cas", CAS_GUERIS, ids=[_identifiant(c) for c in CAS_GUERIS])
-def test_i5_politique_ouverte_le_wct_rejoue_republie_le_certifie_apres_le_partiel(base_durable, cas):
-    """Garde VERTE : WCT rejoué avec la politique `m4.verifier_v3` encore ouverte. La cascade trace d'abord un partiel
-    (sequence + 1), puis la voie V1 de livraison republie le certifié (sequence + 2) dans la même livraison :
-    l'état de plus grand sequence reste certifié à chaque étage. Le partiel intermédiaire existe pourtant dans
-    l'historique de M5, M8 et M10 (M8/M10 l'ont reçu), ce qui n'est pas l'état de production (aucune politique)."""
-    avant, apres, _ = _executer_cas(cas)
-    _verifier_avant_certifie(avant, False)
-    base = avant["evenement_courant_m5"]["sequence_max"]
-    assert apres["evenement_courant_m5"]["sequences"][-3:] == [base, base + 1, base + 2]
-    assert [t["verdict"] for t in apres["traces_m5"][-3:]] == ["CALCULEE", "PARTIELLE", "CALCULEE"]
-    assert apres["traces_m5"][-2]["projection_empreinte"] is None  # le partiel intermédiaire
-    assert apres["traces_m5"][-1]["provenance_service_v1"] is True
-    assert _est_certifie(apres)
-    assert apres["m8"]["fait_sequence_max"] == apres["m10"]["sequence_max"] == base + 2
-    assert base + 1 in apres["m8"]["faits_sequences"] and base + 1 in apres["m10"]["sequences"]
-
-
-def test_i5_apres_l_ecrasement_les_evenements_suivants_n_ajoutent_rien(base_durable):
-    """Convergence (caractérisation) : une fois le partiel tracé, un second événement ordinaire du même devis recalcule
-    la même version d'entrées que le dernier partiel : `deja_tracee`, ni trace ni événement de plus. L'écrasement est
-    donc UN pas, pas une boucle d'écriture ; il ne se défait pas non plus sans recalcul certifié."""
-    deps = charger_departements()
-    ids = _amener_a_l_etat_certifie(deps, facture_envoyee_avant=False, politique_ouverte=False)
-    wct_id, devis_id = ids["wct_id"], ids["devis_id"]
-    _evenement(deps, "variance_m6_rejouee", devis_id, wct_id, 30)
-    apres_premier = _releve(deps, "apres_variance", wct_id, devis_id)
-    assert apres_premier["evenement_courant_m5"]["verdict"] == "PARTIELLE"
-    _evenement(deps, "devis_accepte_rejoue", devis_id, wct_id, 35)
+    # Convergence : ni un second passage, ni un événement ordinaire de plus n'écrit quoi que ce soit.
+    ecritures = _ecritures_m5()
+    with stockage.transaction():
+        assert m5_outils._essayer_cout_reel(devis_id) == {"statut": "deja_tracee"}
+    # (Pas de rejeu de la variance ici : relivrer l'ORIGINALE après la republication changerait la quantité retenue,
+    # ce qui est un vrai changement d'entrée et non un rejeu.)
     _evenement(deps, "travaux_termines_rejoues", devis_id, wct_id, 40)
-    apres_suivants = _releve(deps, "apres_devis_et_wct", wct_id, devis_id)
-    assert apres_suivants["traces_m5"] == apres_premier["traces_m5"]
-    assert apres_suivants["evenement_courant_m5"] == apres_premier["evenement_courant_m5"]
-    # Un nouveau recalcul certifié (autre intention) republie le certifié, de sequence maximal : l'état se corrige.
+    _evenement(deps, "devis_accepte_rejoue", devis_id, wct_id, 45)
+    assert _ecritures_m5() == ecritures
+    assert _releve(deps, "second_passage", wct_id, devis_id)["evenement_courant_m5"] == e
+
+    # Le retour à « à jour » passe par un nouveau recalcul certifié (jamais par la cascade ordinaire).
+    # Le recalcul de la voie certifiée relit le prix du livre, la variance, la facture et les tarifs d'AUJOURD'HUI.
     _rouvrir_politique("m4.verifier_v3")
-    cm._recalculer_cout_certifie(wct_id, devis_id, "e0-corrige-apres-ecrasement")
+    cm._recalculer_cout_certifie(wct_id, devis_id, f"e1-rattrapage-{_identifiant(cas)}")
     _drainer(deps, 50)
     rattrape = _releve(deps, "apres_nouveau_recalcul", wct_id, devis_id)
-    assert _est_certifie(rattrape)
-    assert rattrape["evenement_courant_m5"]["sequence_max"] == apres_premier["evenement_courant_m5"]["sequence_max"] + 1
+    assert rattrape["evenement_courant_m5"]["sequence_max"] == e["sequence_max"] + 1
+    assert rattrape["evenement_courant_m5"]["verdict"] == "CALCULEE"
+    assert rattrape["evenement_courant_m5"]["cout_reel_complet"] is True
+    assert rattrape["m10"]["sequence_max"] == rattrape["m8"]["fait_sequence_max"] == e["sequence_max"] + 1
+
+
+def test_i5_apres_perime_un_rejeu_puis_un_retour_a_l_etat_d_avant_ne_redonnent_pas_le_certifie(base_durable):
+    """Zéro faux certifié : quand le prix du livre revient à sa valeur d'avant le changement, la cascade ordinaire
+    ne « réhabilite » PAS l'ancien certifié (elle ne peut pas revalider la projection M4) : elle trace l'état
+    ordinaire, partiel, comme avant E1. Seul un recalcul certifié redonne un coût complet."""
+    deps = charger_departements()
+    ids = _amener_a_l_etat_certifie(deps, facture_envoyee_avant=True, politique_ouverte=False)
+    wct_id, devis_id = ids["wct_id"], ids["devis_id"]
+    _evenement(deps, "prix_livre_change_puis_variance_relue", devis_id, wct_id, 30)
+    perime = _releve(deps, "perime", wct_id, devis_id)["evenement_courant_m5"]
+    assert CODE_PERIME in perime["manque"]
+    cm._m6_prix_au_livre(cm._outils(deps, "m06-material-control"), TARIF_PRIX_LIVRE)
+    _republier("m6.variance_chantier", "retour", wct_id=wct_id)
+    _drainer(deps, 40)
+    retour = _releve(deps, "retour", wct_id, devis_id)
+    courant = retour["evenement_courant_m5"]
+    assert courant["verdict"] == "PARTIELLE" and courant["marge_reelle_cad"] is None
+    assert courant["sequence_max"] == perime["sequence_max"] + 1
+    assert not _est_certifie(retour)
+
+
+def test_i5_politique_ouverte_une_seule_voie_ne_republie_pas_apres_le_certifie(base_durable):
+    """Les deux voies de livraison d'un WCT rejoué (cascade ordinaire, puis voie V1 si la politique est ouverte) ne
+    laissent AUCUN partiel intermédiaire dans l'historique de M5, M8 et M10 (avant E1 : un partiel de sequence + 1
+    puis un certifié de sequence + 2)."""
+    cas = CAS_SANS_CHANGEMENT_POLITIQUE_OUVERTE[0]
+    avant, apres, _ = _executer_cas(cas)
+    assert apres["evenement_courant_m5"]["sequences"] == avant["evenement_courant_m5"]["sequences"]
+    assert [t["verdict"] for t in apres["traces_m5"]] == [t["verdict"] for t in avant["traces_m5"]]
+    assert _est_certifie(apres)
