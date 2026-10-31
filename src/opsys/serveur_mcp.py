@@ -204,6 +204,7 @@ def creer_serveur(
         # devis ou d'une estimation (PLAN T2.3-c) : le rôle authentifié décide, le paramètre `role`
         # ne peut que restreindre.
         identite = contexte.depuis_meta_mcp_identite(params.meta)
+        from . import attestation_appareil_gateway
         if ticket_cfo is not None and (
             params.name not in {"m5_preparer_dossier_decision_cfo", "m5_preparer_decision_capital"}
             or capacites.appelant is None
@@ -231,6 +232,9 @@ def creer_serveur(
             with (
                 contexte.transport_mcp(),
                 contexte.appele_par_appareil(identite),
+                contexte.attestation_appareil_par_gateway(
+                    attestation_appareil_gateway.verifier(meta_brute, params.name, identite, params.arguments)
+                ),
                 contexte.appele_avec_ticket_agent_cfo(ticket_cfo, params.arguments or {}),
             ):
                 if profile_binding is None:
@@ -328,6 +332,10 @@ class _ExigerJeton:
         jeton_cron_operateur: str | None = None,
         pont_photos: Any = None,
     ) -> None:
+        from . import attestation_appareil_gateway
+
+        for secret in (jeton, jeton_contexte, jeton_cron_operateur):
+            attestation_appareil_gateway.interdire_secret(secret)
         self._application = application
         self._pont_photos = pont_photos
         self._attendu = f"Bearer {jeton}".encode()
@@ -382,6 +390,21 @@ class _ExigerJeton:
                      "headers": [(b"content-type", b"application/json"), (b"cache-control", b"no-store")]}
                 )
                 await envoyer({"type": "http.response.body", "body": b'{"erreur":"jeton MCP invalide"}'})
+                return
+            from . import attestation_appareil_gateway
+
+            if chemin == attestation_appareil_gateway._CHEMIN:
+                preuves = [v for k, v in scope.get("headers", []) if k.lower() == b"x-opsys-gateway-proof"]
+                ok = (scope.get("method") == "GET" and len(preuves) == 1
+                      and sum(k.lower() == b"authorization" for k, _ in scope.get("headers", [])) == 1
+                      and attestation_appareil_gateway.autoriser_generation(
+                          preuves[0].decode("ascii", errors="ignore")))
+                corps = (json.dumps({"generation": attestation_appareil_gateway.generation()}).encode()
+                         if ok else b'{"erreur":"not found"}')
+                await envoyer({"type": "http.response.start", "status": 200 if ok else 404,
+                               "headers": [(b"content-type", b"application/json"),
+                                           (b"cache-control", b"no-store")]})
+                await envoyer({"type": "http.response.body", "body": corps})
                 return
         await self._application(scope, receive, envoyer)
 
