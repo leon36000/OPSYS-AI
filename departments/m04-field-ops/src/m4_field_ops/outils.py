@@ -61,6 +61,7 @@ from . import (
     apercu_mois,
     calendrier_civil,
     calibration_projection,
+    capacite_equipe,
     cedule,
     cedule_tournees,
     composition_durable,
@@ -1510,6 +1511,27 @@ def outils(
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
         return {"accepte": True, "resultat": resultat}
 
+    def lire_capacite_equipe(debut_semaine: str, horodatage_reference: str | None = None) -> dict[str, Any]:
+        """Lecture seule (contrat m4.capacite_equipe) : heures de quart déclarées des équipes face aux créneaux de la
+        cédule appliquée, pour une semaine. Rien n'est écrit ; absence n'est jamais zéro (voir capacite_equipe.py)."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_role = acces.controler_administrateur(acteur)
+        if verdict_role is not None:
+            return _refus(verdict_role)
+        profil, verdict_profil = _lecteur_equipes()()
+        empreinte = equipes_entreprise.empreinte_equipes(profil) if profil is not None else None
+        try:
+            charge = capacite_equipe.calculer(
+                registre_courant(), profil, verdict_profil, empreinte, debut_semaine, horodatage_reference)
+        except cedule_tournees.PreuvePlanInvalide:
+            return _refus(verdicts.construire_verdict(
+                "REJ-REGISTRE-INVALIDE", detail="preuve métier du plan appliqué incohérente"))
+        except (ValueError, registre.VerificationError) as exc:
+            return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
+        return {"accepte": True, "resultat": charge}
+
     def lire_journal_quotidien(jour: str, debut: int = 0, limite: int = 50,
                               source_attendue: str | None = None) -> dict[str, Any]:
         try:
@@ -2731,6 +2753,21 @@ def outils(
             parametres={"type": "object", "properties": {"debut_semaine": {"type": "string"}},
                         "required": ["debut_semaine"], "additionalProperties": False},
             fonction=lire_cedule_semaine, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_lire_capacite_equipe",
+            description=("Lecture seule (contrat m4.capacite_equipe v1) : semaine ISO (lundi, America/Montreal) ; "
+                         "heures de quart DÉCLARÉES de chaque équipe du profil face aux heures des créneaux de la "
+                         "cédule appliquée, sur les journées datées seulement. Unité heures_declarees (heures "
+                         "d'horloge de l'équipe, jamais heures-personnes) ; aucune présence individuelle déduite. "
+                         "Profil absent, cédule non appliquée ou journée non datée : calculable faux, aucune valeur, "
+                         "manque nommé (absence n'est jamais zéro). horodatage_reference : instant de lecture fourni "
+                         "par l'appelant (ISO 8601 avec fuseau), recopié en lu_a."),
+            parametres={"type": "object", "properties": {
+                "debut_semaine": {"type": "string", "maxLength": 10},
+                "horodatage_reference": {"type": "string", "maxLength": 64}},
+                "required": ["debut_semaine"], "additionalProperties": False},
+            fonction=lire_capacite_equipe, autonomie=Autonomie.T0,
         ),
         Outil(
             nom="m4_lire_journal_quotidien",
