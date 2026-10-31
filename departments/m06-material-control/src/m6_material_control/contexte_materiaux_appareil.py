@@ -229,7 +229,7 @@ def lire(sources, i, w, acteur, decalage, limite):
         c = row["charge"]
         if c != sources["completion"] or c["wct_id"] != w or c["intervention_id"] != i or row["evenement_id"] != w:
             raise Refus("LIAISON-INCOHERENTE")
-        if acteur.role == "employee" and c["technicien_id"] != acteur.personne:
+        if acteur.role == "employee" and acces.lien_declarant(c["technicien_id"], acteur) is None:
             raise Refus("INTERVENTION-NON-ASSIGNEE")
         if not _hash(c["hash_maillon"]) or (c["devis_id"] is not None and not texte(c["devis_id"])):
             raise Refus("SOURCE-INVALIDE")

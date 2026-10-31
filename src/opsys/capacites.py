@@ -315,7 +315,7 @@ class Capacites:
                    "m4_lire_page_cedule_semaine", "m4_lire_journal_quotidien",
                    "m4_lire_composition_journaliere_console", "m4_declarer_composition_journaliere_console",
                    "m4_lire_absence_journaliere_console", "m4_declarer_absence_journaliere_console",
-                   "m4_lire_absences_jour_console"}:
+                   "m4_lire_absences_jour_console", "m4_declarer_pointage_equipe_console"}:
             # Aucun texte privé dans approbations, reçus ou artefacts génériques.
             # Le port humain privé de console appelle les outils M4 directement.
             return {"ok": False, "erreur": "port_console_prive_requis"}
@@ -371,7 +371,7 @@ class Capacites:
                    "m4_lire_page_cedule_semaine", "m4_lire_journal_quotidien",
                    "m4_lire_composition_journaliere_console", "m4_declarer_composition_journaliere_console",
                    "m4_lire_absence_journaliere_console", "m4_declarer_absence_journaliere_console",
-                   "m4_lire_absences_jour_console"}:
+                   "m4_lire_absences_jour_console", "m4_declarer_pointage_equipe_console"}:
             # Refus avant toute normalisation, réclamation ou approbation contenant du texte privé.
             return {"ok": False, "erreur": "port_console_prive_requis"}
         if nom in _LECTURES_DOCUMENTAIRES_M10:
@@ -1463,6 +1463,12 @@ class Capacites:
                     refus = outils_m4.verifier_identite_rejeu_route_appareil(arguments)
                     if refus is not None:
                         return {"ok": True, "resultat": refus, "rejoue": True}
+                if nom == "m4_declarer_pointage_equipe_appareil":
+                    from m4_field_ops import outils as outils_m4
+
+                    refus = outils_m4.verifier_identite_rejeu_equipe_appareil(arguments)
+                    if refus is not None:
+                        return {"ok": True, "resultat": refus, "rejoue": True}
                 if nom == "m4_confirmer_dates_cedule":
                     from m4_field_ops import outils as outils_m4
 
@@ -1714,7 +1720,8 @@ class Capacites:
                 reponse = executer_atomique(outil, arguments)
             if reponse.get("ok") and (
                 outil.nom not in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6,
-                                 _MUTATION_OBLIGATIONS_M5, _MUTATION_NOTE_M6}
+                                 _MUTATION_OBLIGATIONS_M5, _MUTATION_NOTE_M6,
+                                 "m4_declarer_pointage_equipe_appareil"}
                 or reponse.get("resultat", {}).get("accepte") is True
             ) and not (outil.nom == _MUTATION_NOTE_M6 and reponse.get("resultat", {}).get("rejoue") is True):
                 approbations.tracer_validation_au_depart(

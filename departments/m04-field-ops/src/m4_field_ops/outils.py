@@ -71,6 +71,7 @@ from . import (
     couleurs_calendrier,
     digest,
     ecarts,
+    equipes_pointees_v3,
     etats,
     heures_regulieres,
     journal_durable,
@@ -359,6 +360,29 @@ def verifier_identite_rejeu_route_appareil(arguments: dict[str, Any]) -> dict[st
     return _refus(verdict) if verdict is not None else None
 
 
+_CODES_REFUS_EQUIPE = frozenset({
+    'IDENTITE', 'NON-MEMBRE', 'VISITE-INACTIVE', 'VISITE-AUTRE-EQUIPE', 'MUTATION-CONFLIT', 'SOURCE-PERIMEE',
+    'SOURCE-MODIFIEE', 'POINTAGE-REFUSE', 'PROFIL-INDISPONIBLE', 'EQUIPE-INCONNUE', 'ARGUMENTS',
+    'PREUVE-INVALIDE', 'HORODATAGE-SERVEUR-REQUIS', 'INSTANCE-NON-QUALIFIEE',
+})
+
+
+def _code_refus_equipe(code: str) -> str:
+    if code == 'IDENTITE-OU-PROFIL-MODIFIE':
+        return 'REJ-EQUIPE-SOURCE-MODIFIEE'
+    return 'REJ-EQUIPE-' + (code if code in _CODES_REFUS_EQUIPE else 'SOURCE-INVALIDE')
+
+
+def verifier_identite_rejeu_equipe_appareil(arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Avant de rendre l'accusé enregistré d'une clé d'appareil : la personne COURANTE du jeton doit encore être
+    l'admin ou un membre de l'équipe déclarée (un appareil réappairé ou un membre retiré ne relit pas l'accusé)."""
+    try:
+        equipes_pointees_v3._auteur_appareil(arguments.get('equipe_id'))
+    except equipes_pointees_v3.Refus as exc:
+        return _refus(verdicts.construire_verdict(_code_refus_equipe(exc.code)))
+    return None
+
+
 def outils(
     registre_cible: registre.Registre | None = None, fournisseur_matrice: Any = None, fournisseur_meteo: Any = None,
 ) -> tuple[Outil, ...]:
@@ -641,8 +665,12 @@ def outils(
         acteur, verdict_acteur = _acteur_appareil()
         if verdict_acteur is not None:
             return _refus(verdict_acteur)
-        verdict_acces = acces.controler_technicien(acteur, technicien_id) or acces.controler_intervention(
-            registre_courant(), intervention_id, acteur)
+        # D4 : le pointage d'une ÉQUIPE par un de ses membres n'est admis que pendant une déclaration acceptée par
+        # `equipes_pointees_v3` (identité du jeton, membre de l'équipe déclarée de la visite) ; appelé directement,
+        # un employé reste borné à son propre identifiant.
+        verdict_technicien = (None if equipes_pointees_v3.pointage_atteste(acteur, technicien_id)
+                              else acces.controler_technicien(acteur, technicien_id))
+        verdict_acces = verdict_technicien or acces.controler_intervention(registre_courant(), intervention_id, acteur)
         if verdict_acces is not None:
             return _refus(verdict_acces)
 
@@ -1622,6 +1650,41 @@ def outils(
             return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail=exc.code))
         except (ValueError, KeyError, TypeError, registre.VerificationError):
             return _refus(verdicts.construire_verdict('REJ-CONTRAT-INVALIDE', detail='événement visite invalide'))
+
+    def declarer_pointage_equipe_appareil(intervention_id, visite_id, equipe_id, action, mutation_id):
+        """D4 : un membre déclaré de l'équipe (ou l'admin) déclare un pointage d'ÉQUIPE depuis l'app."""
+        return _declarer_pointage_equipe('appareil', {'intervention_id': intervention_id, 'visite_id': visite_id,
+                                                      'equipe_id': equipe_id, 'action': action}, mutation_id)
+
+    def declarer_pointage_equipe_console(intervention_id, visite_id, equipe_id, action, source_attendue):
+        """E3 : la même déclaration depuis la console admin ; la clé de mutation est celle du formulaire."""
+        meta = _META_ANNOTATION.get()
+        if not isinstance(meta, idempotence.Meta):
+            return _refus(verdicts.construire_verdict('REJ-EQUIPE-MUTATION-ABSENTE'))
+        return _declarer_pointage_equipe('console', {'intervention_id': intervention_id, 'visite_id': visite_id,
+                                                     'equipe_id': equipe_id, 'action': action}, meta.cle,
+                                         source_attendue)
+
+    def _declarer_pointage_equipe(canal, demande, mutation_id, source_attendue=None):
+        cnx = _cnx_durable()
+        try:
+            if canal == 'appareil':
+                recu = equipes_pointees_v3.declarer_appareil(cnx, demande, mutation_id)
+            else:
+                recu = equipes_pointees_v3.declarer_console(cnx, demande, mutation_id, source_attendue)
+        except equipes_pointees_v3.Refus as exc:
+            return _refus(verdicts.construire_verdict(_code_refus_equipe(exc.code)))
+        except annotations_calendrier.Refus:
+            return _refus(verdicts.construire_verdict('REJ-EQUIPE-IDENTITE'))
+        except (ValueError, KeyError, TypeError, registre.VerificationError, journal_durable.Refus):
+            return _refus(verdicts.construire_verdict('REJ-EQUIPE-SOURCE-INVALIDE'))
+        pointe = next(m for m in registre_courant().lire() if m.get('ligne_id') == recu['pointage_id'])
+        resultat = {'visite_id': pointe['visite_id'], 'equipe_id': demande['equipe_id'],
+                    'action': demande['action'], 'pointage_id': recu['pointage_id'], 'preuve_id': recu['preuve_id'],
+                    'horodatage': pointe['horodatage'], 'presence_individuelle': 'inconnue'}
+        if pointe.get('horodatage_appareil') is not None:
+            resultat['horodatage_appareil'] = pointe['horodatage_appareil']
+        return {'accepte': True, 'resultat': resultat, 'rejoue': recu['rejoue']}
 
     def lire_composition_journaliere_console(jour: str, equipe_id: str, debut: int = 0, limite: int = 50,
                               source_attendue: str | None = None) -> dict[str, Any]:
@@ -2831,6 +2894,44 @@ def outils(
                 "source_attendue": {"type": "string", "minLength": 64, "maxLength": 64}},
                 "required": ["operation", "visite_id", "source_attendue"], "additionalProperties": False},
             fonction=evenement_visite_console, autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m4_declarer_pointage_equipe_appareil",
+            description=(
+                "D4 : déclare l'arrivée, la pause ou le départ de L'ÉQUIPE déclarée de la visite active (pointage "
+                "d'équipe V3), jamais une présence individuelle. Appel d'appareil seulement : la personne vient "
+                "du jeton appairé, revérifiée en base ; un employé doit être membre de cette équipe dans le "
+                "profil (REJ-EQUIPE-NON-MEMBRE), l'admin dispatche. Visite d'une autre équipe : "
+                "REJ-EQUIPE-VISITE-AUTRE-EQUIPE. Heure de réception du serveur, aucun GPS ; le pointage part en "
+                "revue de l'admin. Idempotente par mutation_id (autre intention : REJ-EQUIPE-MUTATION-CONFLIT)."
+            ),
+            parametres={"type": "object", "properties": {
+                "intervention_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                "visite_id": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$",
+                              "description": "La visite affichée ; null : la visite active de l'intervention."},
+                "equipe_id": {"type": "string", "minLength": 1, "maxLength": 256},
+                "action": {"type": "string", "enum": list(pointage.ACTIONS)},
+                "mutation_id": {"type": "string", "minLength": 1, "maxLength": 200}},
+                "required": ["intervention_id", "visite_id", "equipe_id", "action", "mutation_id"],
+                "additionalProperties": False},
+            fonction=declarer_pointage_equipe_appareil, autonomie=Autonomie.T1,
+            # §9.3 (punch d'équipe) : membre de l'équipe déclarée de la visite ; l'admin dispatche.
+            roles_appareil=frozenset({"employee", "admin"}),
+        ),
+        Outil(
+            nom="m4_declarer_pointage_equipe_console",
+            description=("Console privée admin (E3) : déclare un pointage d'équipe V3 sur la visite active, champs "
+                         "fermés, heure serveur, CAS de la page ; jamais une présence individuelle. Agents, MCP et "
+                         "appareils refusés."),
+            parametres={"type": "object", "properties": {
+                "intervention_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                "visite_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "equipe_id": {"type": "string", "minLength": 1, "maxLength": 256},
+                "action": {"type": "string", "enum": list(pointage.ACTIONS)},
+                "source_attendue": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+                "required": ["intervention_id", "visite_id", "equipe_id", "action", "source_attendue"],
+                "additionalProperties": False},
+            fonction=declarer_pointage_equipe_console, autonomie=Autonomie.T1,
         ),
         Outil(
             nom="m4_declarer_composition_journaliere_console",

@@ -481,7 +481,8 @@ def _executer_annotations(cnx, deps, session, personne, nom, arguments, mutation
         raise KeyError("outil M4 indisponible")
     ecriture = nom in {"m4_enregistrer_annotation_calendrier", "m4_definir_couleur_calendrier",
                        "m4_declarer_composition_journaliere_console", "m4_declarer_absence_journaliere_console",
-                       "m4_prevoir_visite_console", "m4_evenement_visite_console"}
+                       "m4_prevoir_visite_console", "m4_evenement_visite_console",
+                       "m4_declarer_pointage_equipe_console"}
     if not isinstance(arguments, Mapping) or valider_arguments(outil.parametres, arguments):
         raise ValueError("annotation invalide")
     if (ecriture and (type(mutation_id) is not str or not mutation_id.strip() or len(mutation_id) > 200)
@@ -672,7 +673,7 @@ def executer(
                    "m2_lire_rencontres_lead"}:
         return _executer_agenda(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m4_declarer_composition_journaliere_console", "m4_declarer_absence_journaliere_console",
-               "m4_prevoir_visite_console", "m4_evenement_visite_console"}:
+               "m4_prevoir_visite_console", "m4_evenement_visite_console", "m4_declarer_pointage_equipe_console"}:
         return _executer_declaration_journaliere(cnx, deps, session, personne, nom, arguments, mutation_id)
     if nom in {"m4_enregistrer_annotation_calendrier", "m4_lire_annotations_calendrier",
                "m4_resumer_annotations_calendrier", "m4_definir_couleur_calendrier",
