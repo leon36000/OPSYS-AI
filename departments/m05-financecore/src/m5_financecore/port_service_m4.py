@@ -6,7 +6,7 @@ from . import encodage, outils, wct_recus
 
 
 def _sources_metier(sources):
-    return {k: v for k, v in sources.items() if k not in ("traces", "nombre_de_traces")}
+    return {k: v for k, v in sources.items() if k not in ("traces", "nombre_de_traces", "certifiees")}
 
 
 def publier(devis_id, *, cap=None):
@@ -235,3 +235,57 @@ def publier(devis_id, *, cap=None):
             "_controle_final": controle_final,
         }
     return {"statut": "publiee", "version": rentabilite["version_entrees"]}
+
+
+# -- Lecture pour le réconciliateur Core (E8) et l'affichage admin (D3) : lecture seule, aucune écriture -------------
+_DOMAINE_INTENTION = "opsys.reconciliateur.cout-certifie.v1"
+
+
+def etat_cout_certifie(devis_id, sources=None):
+    """L'état du coût certifié d'un devis tel que M5 le voit, depuis ses registres : statut D3, WCT reçu, et
+    l'empreinte de l'état ordinaire (pièces M5) qui fonde une intention DÉTERMINISTE (même état, même intention).
+
+    `statut` vaut `a_jour`, `perime_recalcul_en_attente`, `inconnu`, ou `non_calculable` (devis ou WCT pas encore
+    reçus, WCT sans devis). Ne lit ni M4, ni la projection : le moteur qualifié s'en charge sous politique."""
+    sources = outils._sources_cout_reel() if sources is None else sources
+    etat = outils._etat_chantier(devis_id, sources)
+    if etat["statut"] != "calculee":
+        return {"statut": "non_calculable", "devis_id": devis_id, "raison": etat["statut"]}
+    rentabilite = etat["rentabilite"]
+    statut, certifiee, sequence = outils._statut_cout_certifie(devis_id, rentabilite, sources)
+    perime_signale = any(
+        isinstance(m, dict) and m.get("code") == outils.cout_reel.CODE_CERTIFIE_A_RECALCULER
+        for m in ((sources["traces"].get(devis_id) or {}).get("rentabilite") or {}).get("manque", ())
+    )
+    source_tarifs = outils._source_tarifs_equipes_ou_none()
+    nombre = sources["nombre_de_traces"].get(devis_id, 0)
+    empreinte = encodage.empreinte(_DOMAINE_INTENTION, {
+        "wct_id": rentabilite["wct_id"], "devis_id": devis_id, "version_entrees": rentabilite["version_entrees"],
+        "source_tarifs": source_tarifs, "nombre_de_traces": nombre,
+    })
+    return {
+        "statut": statut, "devis_id": devis_id, "wct_id": rentabilite["wct_id"], "empreinte_etat": empreinte,
+        "perime_signale": perime_signale, "sequence_certifiee": sequence,
+        "version_certifiee": None if certifiee is None else certifiee.get("version_entrees"),
+    }
+
+
+def candidats_cout_certifie(sources=None):
+    """Devis dont le coût certifié n'est pas à jour, dans un ordre déterministe : d'abord ceux qu'une trace
+    `REJ-COUT-CERTIFIE-A-RECALCULER` vient de déclarer périmés, puis les autres périmés, puis les inconnus (ordre
+    de réception des WCT). Un WCT sans devis ou un devis non calculable n'est jamais candidat."""
+    sources = outils._sources_cout_reel() if sources is None else sources
+    vus, etats = set(), []
+    for recu in sources["wct"]:
+        devis_id = recu.get("devis_id")
+        if type(devis_id) is not str or not devis_id or devis_id in vus:
+            continue
+        vus.add(devis_id)
+        etat = etat_cout_certifie(devis_id, sources)
+        if etat["statut"] in ("perime_recalcul_en_attente", "inconnu"):
+            etats.append(etat)
+
+    def rang(e):
+        return 0 if e["perime_signale"] else (1 if e["statut"] == "perime_recalcul_en_attente" else 2)
+
+    return sorted(etats, key=rang)  # tri stable : l'ordre de réception est conservé à rang égal

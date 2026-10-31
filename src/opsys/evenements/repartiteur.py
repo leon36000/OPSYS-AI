@@ -333,6 +333,25 @@ def repartir(
     par_type = _consommateurs_par_type(departements)
     if not par_type:
         return resume
+    try:
+        _livrer_candidats(par_type, maintenant_dt, limite, resume)
+    finally:
+        # E5/E8 : après les livraisons (dont celles qui rendent un certifié périmé) et à chaque tour de la boucle du
+        # serveur : le réconciliateur du coût certifié, HORS de toute livraison, dans ses propres transactions.
+        _reconcilier_cout_certifie(departements)
+    return resume
+
+
+def _reconcilier_cout_certifie(departements: Mapping[str, Departement]) -> None:
+    from . import reconciliateur_cout_certifie
+
+    try:
+        reconciliateur_cout_certifie.reconcilier(departements)
+    except Exception:  # noqa: BLE001 — jamais une panne du répartiteur ni de la facturation
+        reconciliateur_cout_certifie._LOG.exception("réconciliateur du coût certifié : tour interrompu")
+
+
+def _livrer_candidats(par_type, maintenant_dt: dt.datetime, limite: int, resume: dict[str, int]) -> None:
     for evenement, consommateur, fonction in _candidats(par_type, maintenant_dt, limite):
         resultat = _livrer_une_paire(evenement, consommateur, fonction, maintenant_dt)
         if resultat is None:
@@ -343,7 +362,6 @@ def repartir(
             resume["attentes"] = resume.get("attentes", 0) + 1
         else:
             resume[{"traite": "traites", "echec": "echecs", "quarantaine": "quarantaines"}[resultat]] += 1
-    return resume
 
 
 def etat() -> dict[str, Any]:

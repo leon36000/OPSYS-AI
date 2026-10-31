@@ -1,4 +1,4 @@
-"""Installation PostgreSQL de la mémoire malgré les registres inactifs 0034/0035."""
+"""Installation PostgreSQL de la mémoire malgré les registres inactifs 0034/0035/0036."""
 
 import importlib.util
 import os
@@ -78,7 +78,7 @@ def test_pg_migrations_historique_wct_et_retour_arriere(pg):
     assert c.execute(sa.select(sa.func.count()).select_from(SERVICE_POLITIQUES)).scalar_one() == 0
     assert c.execute(sa.select(sa.func.count()).select_from(SERVICE_AUDIT)).scalar_one() == 0
     command.upgrade(cfg, "head")
-    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0035"
+    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0036"
     for table in (
         SERVICE_POLITIQUES,
         SERVICE_AUDIT,
@@ -169,7 +169,7 @@ def test_pg_downgrade_vide_et_transaction_annulee(pg):
     command.downgrade(cfg, "0033")
     assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0033"
     command.upgrade(cfg, "head")
-    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0035"
+    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0036"
 
 
 def test_pg_attestation_immuable_downgrade_refuse_et_port_ferme(pg):
@@ -217,12 +217,15 @@ def test_pg_attestation_immuable_downgrade_refuse_et_port_ferme(pg):
     )
     denied(c, SERVICE_RECALCUL_ATTESTATIONS.update().values(trace_rang=1))
     denied(c, SERVICE_RECALCUL_ATTESTATIONS.delete())
-    with pytest.raises(RefusAutorite, match="transaction ou contexte invalide"):
-        service_recalcul_m4._executer_qa(c, None, wct_id="a" * 64, devis_id="fictif", intention_id="b" * 64)
+    from opsys.console.securite import Session
+
+    session = Session("nathan", frozenset({"admin"}), "csrf-fictif", 2**31)
+    with pytest.raises(RefusAutorite, match="BACKEND_NON_SQLITE"):  # porte qualifiée E6 : PostgreSQL refusé
+        service_recalcul_m4.ouvrir(c, session, wct_id="a" * 64, devis_id="fictif", intention_id="b" * 64)
     assert c.execute(sa.select(sa.func.count()).select_from(SERVICE_POLITIQUES)).scalar_one() == 0
     with pytest.raises(RuntimeError, match="historique recalcul présent"), c.begin_nested():
         command.downgrade(cfg, "0033")
-    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0035"
+    assert c.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0036"
 
 
 def test_pg_downgrade_ne_perd_pas_une_insertion_concurrente(pg):

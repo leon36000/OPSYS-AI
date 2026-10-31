@@ -432,21 +432,36 @@ class _Capacite:
             self.en_cours = False
 
 
-def _revoquer(cnx, instance, consommateur):
-    """Primitive interne uniquement : aucune authentification administrative n'est fournie ici."""
+_OPERATIONS_SERVICE = ("m4.verifier_v3", "m4.recalculer_v3", "m4.relire_faits_pour_m5_v1")
+
+
+def _revoquer(cnx, instance, consommateur, operation=_OPERATION):
+    """Primitive interne uniquement : aucune authentification administrative n'est fournie ici. Couvre les trois
+    politiques de service ; l'opérateur authentifié est `opsys.service_politiques.revoquer` (console admin)."""
+    if operation not in _OPERATIONS_SERVICE:
+        raise RefusAutorite("opération hors périmètre")
     if connexion_courante() is not cnx or cnx.get_transaction() is None:
         raise RefusAutorite("transaction requise")
     if cnx.engine.dialect.name != "sqlite":
         raise RefusAutorite("backend non qualifié")
     _base(cnx)
-    p = _politique(cnx, instance, consommateur)
+    p = cnx.execute(
+        select(SERVICE_POLITIQUES)
+        .where(
+            (SERVICE_POLITIQUES.c.instance_id == instance)
+            & (SERVICE_POLITIQUES.c.consommateur == consommateur)
+            & (SERVICE_POLITIQUES.c.operation == operation)
+        )
+        .order_by(SERVICE_POLITIQUES.c.revision.desc())
+        .limit(1)
+    ).first()
     if p is None or not p.active:
         raise RefusAutorite("politique absente ou déjà inactive")
     cnx.execute(
         insert(SERVICE_POLITIQUES).values(
             instance_id=instance,
             consommateur=consommateur,
-            operation=_OPERATION,
+            operation=operation,
             revision=p.revision + 1,
             active=False,
             expire_le=p.expire_le,
@@ -456,7 +471,7 @@ def _revoquer(cnx, instance, consommateur):
         insert(SERVICE_AUDIT).values(
             instance_id=instance,
             consommateur=consommateur,
-            operation=_OPERATION,
+            operation=operation,
             revision=p.revision + 1,
             evenement_id=None,
             action="revocation",

@@ -1,7 +1,8 @@
-"""Relecture courante privée M4 : aucune route ni politique n'est activée ici.
+"""Relecture courante M4 pour M5 sous la politique `m4.relire_faits_pour_m5_v1` (E6).
 
-La portée est une convention interne entre composants de confiance. L'entrée
-publique refuse tant que l'autorité humaine et sa route ne sont pas qualifiées.
+La portée est une convention interne entre composants de confiance. Les entrées publiques (`ouvrir` pour une
+session console admin, `ouvrir_appareil` pour l'identité MCP attestée) refusent sans politique active, sur
+PostgreSQL et sans verrou d'écriture.
 """
 
 import copy
@@ -61,6 +62,10 @@ def _canonique(valeur):
 
 def _verifier_acteur(cnx, session, appareil):
     if appareil is None:
+        from .console.securite import Session
+
+        if type(session) is not Session:  # lecture : jamais l'acteur système, jamais un objet quelconque
+            raise sc.RefusAutorite("session serveur non qualifiée")
         try:
             recalcul._admin(cnx, session)
         except (AttributeError, PermissionError, TypeError) as exc:
@@ -495,17 +500,20 @@ def courante():
 
 
 def ouvrir(cnx, session, *, wct_id, devis_id):
-    """Fermé tant que le droit et son routage ne sont pas décidés."""
-    raise sc.RefusAutorite("LECTURE_M4_NON_QUALIFIEE")
+    """Portée de relecture courante M4 pour une session console d'un admin actif (E6) : gestionnaire de contexte.
 
+    Refuse sans politique `m4.relire_faits_pour_m5_v1` active (octroi par l'opérateur, D1), sur PostgreSQL, sans
+    verrou `BEGIN IMMEDIATE`, hors transaction, dans une autre portée, ou pour tout autre acteur qu'une `Session`."""
+    from .console.securite import Session
 
-def _ouvrir_qa(cnx, session, *, wct_id, devis_id):
-    """Couture QA sur session serveur existante ; ne crée aucune session."""
+    if type(session) is not Session:
+        raise sc.RefusAutorite("session serveur non qualifiée")
     return _ouvrir_interne(cnx, session, None, wct_id=wct_id, devis_id=devis_id)
 
 
-def _ouvrir_appareil_qa(cnx, *, wct_id, devis_id):
-    """Couture QA sur l'identité MCP présente ; sans identité en argument."""
+def ouvrir_appareil(cnx, *, wct_id, devis_id):
+    """Même portée sur l'identité MCP présente (appareil admin attesté par la passerelle) ; aucune identité en
+    argument."""
     identite_appel = contexte.identite_appelante()
     preuve = contexte.attestation_appareil()
     appareil_id = preuve.appareil if type(preuve) is attestation_appareil_gateway.Attestation else None
