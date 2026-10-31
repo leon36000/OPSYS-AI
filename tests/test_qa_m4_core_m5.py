@@ -1321,14 +1321,16 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
         pytest.fail("livraison fictive: " + str(detail))
     assert r["traites"] >= 1 and r["echecs"] == 0, r
     if mode == "lecture_m5_courante":
+        from m3_estimation import service_attente_devis, service_lecture_devis
+        from sqlalchemy import func
+
         from opsys import service_lecture_m4
         from opsys.stockage.schema import EVENEMENTS_RECUS
-        from sqlalchemy import func
-        from m3_estimation import service_attente_devis, service_lecture_devis
 
         class FausseRequete:
             def _verifier(self):
                 raise AssertionError("requête arbitraire appelée")
+
         with pytest.raises(ValueError):
             service_lecture_devis.verifier(FausseRequete())
         with pytest.raises(ValueError):
@@ -1337,134 +1339,275 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
         with session() as cnx, contexte.appeler_en_tant_que("m05-financecore"):
             baseline = m5.lire_rentabilite_chantier(devis_id=affaire["devis"], autorise_couts=True)
             assert baseline["resultat"]["chantiers"][0]["rentabilite"]["cout_reel"]["complet"] is False
-            with pytest.raises(sc.RefusAutorite):
-                with service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]):
-                    pass
-            cnx.execute(insert(SERVICE_POLITIQUES).values(instance_id=instance_id,
-                consommateur="m05-financecore", operation="m4.relire_faits_pour_m5_v1",
-                revision=1, active=True, expire_le=int(time.time()) + 120))
-            before = dict(cnx.execute(select(EVENEMENTS_RECUS).where(
-                EVENEMENTS_RECUS.c.evenement_id == wct_id,
-                EVENEMENTS_RECUS.c.consommateur == "m05-financecore")).mappings().one())
+            with (
+                pytest.raises(sc.RefusAutorite),
+                service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis']),
+            ):
+                pass
+            cnx.execute(
+                insert(SERVICE_POLITIQUES).values(
+                    instance_id=instance_id,
+                    consommateur="m05-financecore",
+                    operation="m4.relire_faits_pour_m5_v1",
+                    revision=1,
+                    active=True,
+                    expire_le=int(time.time()) + 120,
+                )
+            )
+            before = dict(
+                cnx.execute(
+                    select(EVENEMENTS_RECUS).where(
+                        EVENEMENTS_RECUS.c.evenement_id == wct_id, EVENEMENTS_RECUS.c.consommateur == "m05-financecore"
+                    )
+                )
+                .mappings()
+                .one()
+            )
             cas_lecture = os.environ.get("QA_NEGATIVE", "")
-            if cas_lecture in ("wct_json", "devis_json", "trace_json", "trace_corrompue", "tarif_tardif", "trace_tardive", "facture_tardive", "variance_tardive", "devis_m3_avant", "devis_m3_tardif", "devis_m5_divergent", "recu_v1_absent", "wct_type", "devis_type", "trace_type", "reference_type", "reference_v1_fausse", "revoque"):
-                from opsys.stockage.schema import REGISTRES
+            if cas_lecture in (
+                "wct_json",
+                "devis_json",
+                "trace_json",
+                "trace_corrompue",
+                "tarif_tardif",
+                "trace_tardive",
+                "facture_tardive",
+                "variance_tardive",
+                "devis_m3_avant",
+                "devis_m3_tardif",
+                "devis_m5_divergent",
+                "recu_v1_absent",
+                "wct_type",
+                "devis_type",
+                "trace_type",
+                "reference_type",
+                "reference_v1_fausse",
+                "revoque",
+            ):
                 from m5_financecore import port_lecture_courante_m4 as port_lecture
-                with pytest.raises(sc.RefusAutorite):
-                    with service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]):
-                        if cas_lecture in ("wct_type", "devis_type", "trace_type"):
-                            nom = {"wct_type":"wct_recus", "devis_type":"devis_recus", "trace_type":"rentabilite"}[cas_lecture]
-                            filtre = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == nom)
-                            cnx.execute(update(REGISTRES).where(filtre).values(maillon="[]"))
-                        elif cas_lecture == "reference_v1_fausse":
+
+                from opsys.stockage.schema import REGISTRES
+
+                with (
+                    pytest.raises(sc.RefusAutorite),
+                    service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis']),
+                ):
+                    if cas_lecture in ("wct_type", "devis_type", "trace_type"):
+                        nom = {"wct_type": "wct_recus", "devis_type": "devis_recus", "trace_type": "rentabilite"}[
+                            cas_lecture
+                        ]
+                        filtre = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == nom)
+                        cnx.execute(update(REGISTRES).where(filtre).values(maillon="[]"))
+                    elif cas_lecture == "reference_v1_fausse":
+                        from m5_financecore import encodage
+
+                        from opsys.stockage import codec
+
+                        filtre = (REGISTRES.c.departement == "m05-financecore") & (
+                            REGISTRES.c.registre == "rentabilite_service_v1"
+                        )
+                        valeur = codec.decoder(cnx.execute(select(REGISTRES.c.maillon).where(filtre)).scalar_one())
+                        valeur["reference_core"]["id"] += 1000000
+                        corps = {k: v for k, v in valeur.items() if k != "empreinte"}
+                        valeur["empreinte"] = encodage.empreinte("m5.publication_service.v1", corps)
+                        cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(valeur)))
+                    elif cas_lecture == "reference_type":
+                        from m5_financecore import encodage
+
+                        from opsys.stockage import codec
+
+                        filtre = (REGISTRES.c.departement == "m05-financecore") & (
+                            REGISTRES.c.registre == "rentabilite_service_v1"
+                        )
+                        valeur = codec.decoder(cnx.execute(select(REGISTRES.c.maillon).where(filtre)).scalar_one())
+                        valeur["reference_core"] = []
+                        corps = {k: v for k, v in valeur.items() if k != "empreinte"}
+                        valeur["empreinte"] = encodage.empreinte("m5.publication_service.v1", corps)
+                        cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(valeur)))
+                    elif cas_lecture in ("wct_json", "devis_json", "trace_json", "trace_corrompue"):
+                        nom = {
+                            "wct_json": "wct_recus",
+                            "devis_json": "devis_recus",
+                            "trace_json": "rentabilite",
+                            "trace_corrompue": "rentabilite",
+                        }[cas_lecture]
+                        filtre = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == nom)
+                        if cas_lecture == "trace_corrompue":
                             from opsys.stockage import codec
-                            from m5_financecore import encodage
-                            filtre = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == "rentabilite_service_v1")
-                            valeur = codec.decoder(cnx.execute(select(REGISTRES.c.maillon).where(filtre)).scalar_one())
-                            valeur["reference_core"]["id"] += 1000000
-                            corps = {k: v for k, v in valeur.items() if k != "empreinte"}
-                            valeur["empreinte"] = encodage.empreinte("m5.publication_service.v1", corps)
-                            cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(valeur)))
-                        elif cas_lecture == "reference_type":
-                            from opsys.stockage import codec
-                            from m5_financecore import encodage
-                            filtre = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == "rentabilite_service_v1")
-                            valeur = codec.decoder(cnx.execute(select(REGISTRES.c.maillon).where(filtre)).scalar_one())
-                            valeur["reference_core"] = []
-                            corps = {k: v for k, v in valeur.items() if k != "empreinte"}
-                            valeur["empreinte"] = encodage.empreinte("m5.publication_service.v1", corps)
-                            cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(valeur)))
-                        elif cas_lecture in ("wct_json", "devis_json", "trace_json", "trace_corrompue"):
-                            nom = {"wct_json": "wct_recus", "devis_json": "devis_recus",
-                                   "trace_json": "rentabilite", "trace_corrompue": "rentabilite"}[cas_lecture]
-                            filtre = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == nom)
-                            if cas_lecture == "trace_corrompue":
-                                from opsys.stockage import codec
-                                rang = cnx.execute(select(func.max(REGISTRES.c.rang)).where(filtre)).scalar_one()
-                                dernier = filtre & (REGISTRES.c.rang == rang)
-                                contenu = codec.decoder(cnx.execute(select(REGISTRES.c.maillon).where(dernier)).scalar_one())
-                                contenu["rentabilite"]["cout_reel"]["main_d_oeuvre"]["cout"] = Decimal("1")
-                                cnx.execute(update(REGISTRES).where(dernier).values(maillon=codec.encoder(contenu)))
-                            else:
-                                cnx.execute(update(REGISTRES).where(filtre).values(maillon='{"x":1,"x":2}'))
-                        elif cas_lecture == "devis_m3_avant":
-                            filtre = (REGISTRES.c.departement == "m03-estimation") & (REGISTRES.c.registre == "devis")
-                            rang_max = cnx.execute(select(func.max(REGISTRES.c.rang)).where(filtre)).scalar_one()
-                            from opsys.stockage import codec
-                            mutation = {"type_entree":"transition_devis", "devis_id":affaire["devis"],
-                                        "statut":"annule", "horodatage":"2030-06-08T00:00:00+00:00"}
-                            cnx.execute(insert(REGISTRES).values(departement="m03-estimation", registre="devis",
-                                rang=rang_max + 1, maillon=codec.encoder(mutation)))
-                        elif cas_lecture == "devis_m5_divergent":
-                            filtre = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == "devis_recus")
-                            from opsys.stockage import codec
-                            contenu = codec.decoder(cnx.execute(select(REGISTRES.c.maillon).where(filtre)).scalar_one())
-                            contenu["prix_total"] = "1.00"
-                            cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(contenu)))
-                        elif cas_lecture == "recu_v1_absent":
-                            from sqlalchemy import delete
-                            filtre = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == "rentabilite_service_v1")
-                            cnx.execute(delete(REGISTRES).where(filtre))
-                        elif cas_lecture == "revoque":
-                            cnx.execute(insert(SERVICE_POLITIQUES).values(instance_id=instance_id,
-                                consommateur="m05-financecore", operation="m4.relire_faits_pour_m5_v1",
-                                revision=2, active=False, expire_le=int(time.time()) + 120))
+
+                            rang = cnx.execute(select(func.max(REGISTRES.c.rang)).where(filtre)).scalar_one()
+                            dernier = filtre & (REGISTRES.c.rang == rang)
+                            contenu = codec.decoder(
+                                cnx.execute(select(REGISTRES.c.maillon).where(dernier)).scalar_one()
+                            )
+                            contenu["rentabilite"]["cout_reel"]["main_d_oeuvre"]["cout"] = Decimal("1")
+                            cnx.execute(update(REGISTRES).where(dernier).values(maillon=codec.encoder(contenu)))
                         else:
-                            original_capture = port_lecture._capturer
-                            appels = []
-                            def capturer_avec_mutation(connexion):
-                                appels.append(1)
-                                if len(appels) == 2:
-                                    if cas_lecture == "devis_m3_tardif":
-                                        from opsys.stockage import codec
-                                        filtre = (REGISTRES.c.departement == "m03-estimation") & (REGISTRES.c.registre == "devis")
-                                        rang_max = cnx.execute(select(func.max(REGISTRES.c.rang)).where(filtre)).scalar_one()
-                                        mutation = {"type_entree":"transition_devis", "devis_id":affaire["devis"],
-                                                    "statut":"annule", "horodatage":"2030-06-08T00:00:00+00:00"}
-                                        cnx.execute(insert(REGISTRES).values(departement="m03-estimation", registre="devis",
-                                            rang=rang_max + 1, maillon=codec.encoder(mutation)))
-                                    else:
-                                        registre = {"tarif_tardif":"tarifs_equipes", "trace_tardive":"rentabilite",
-                                                    "facture_tardive":"factures", "variance_tardive":"variance_recue"}[cas_lecture]
-                                        filtre = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == registre)
-                                        rang_max = cnx.execute(select(func.max(REGISTRES.c.rang)).where(filtre)).scalar_one()
-                                        cnx.execute(insert(REGISTRES).values(departement="m05-financecore", registre=registre,
-                                            rang=0 if rang_max is None else rang_max + 1, maillon='{"fictif":true}'))
-                                return original_capture(connexion)
-                            monkeypatch.setattr(port_lecture, "_capturer", capturer_avec_mutation)
-                        m5.lire_rentabilite_chantier(devis_id=affaire["devis"], autorise_couts=True)
-                assert dict(cnx.execute(select(EVENEMENTS_RECUS).where(
-                    EVENEMENTS_RECUS.c.evenement_id == wct_id,
-                    EVENEMENTS_RECUS.c.consommateur == "m05-financecore")).mappings().one()) == before
+                            cnx.execute(update(REGISTRES).where(filtre).values(maillon='{"x":1,"x":2}'))
+                    elif cas_lecture == "devis_m3_avant":
+                        filtre = (REGISTRES.c.departement == "m03-estimation") & (REGISTRES.c.registre == "devis")
+                        rang_max = cnx.execute(select(func.max(REGISTRES.c.rang)).where(filtre)).scalar_one()
+                        from opsys.stockage import codec
+
+                        mutation = {
+                            "type_entree": "transition_devis",
+                            "devis_id": affaire["devis"],
+                            "statut": "annule",
+                            "horodatage": "2030-06-08T00:00:00+00:00",
+                        }
+                        cnx.execute(
+                            insert(REGISTRES).values(
+                                departement="m03-estimation",
+                                registre="devis",
+                                rang=rang_max + 1,
+                                maillon=codec.encoder(mutation),
+                            )
+                        )
+                    elif cas_lecture == "devis_m5_divergent":
+                        filtre = (REGISTRES.c.departement == "m05-financecore") & (
+                            REGISTRES.c.registre == "devis_recus"
+                        )
+                        from opsys.stockage import codec
+
+                        contenu = codec.decoder(cnx.execute(select(REGISTRES.c.maillon).where(filtre)).scalar_one())
+                        contenu["prix_total"] = "1.00"
+                        cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(contenu)))
+                    elif cas_lecture == "recu_v1_absent":
+                        from sqlalchemy import delete
+
+                        filtre = (REGISTRES.c.departement == "m05-financecore") & (
+                            REGISTRES.c.registre == "rentabilite_service_v1"
+                        )
+                        cnx.execute(delete(REGISTRES).where(filtre))
+                    elif cas_lecture == "revoque":
+                        cnx.execute(
+                            insert(SERVICE_POLITIQUES).values(
+                                instance_id=instance_id,
+                                consommateur="m05-financecore",
+                                operation="m4.relire_faits_pour_m5_v1",
+                                revision=2,
+                                active=False,
+                                expire_le=int(time.time()) + 120,
+                            )
+                        )
+                    else:
+                        original_capture = port_lecture._capturer
+                        appels = []
+
+                        def capturer_avec_mutation(connexion):
+                            appels.append(1)
+                            if len(appels) == 2:
+                                if cas_lecture == "devis_m3_tardif":
+                                    from opsys.stockage import codec
+
+                                    filtre = (REGISTRES.c.departement == "m03-estimation") & (
+                                        REGISTRES.c.registre == "devis"
+                                    )
+                                    rang_max = cnx.execute(
+                                        select(func.max(REGISTRES.c.rang)).where(filtre)
+                                    ).scalar_one()
+                                    mutation = {
+                                        "type_entree": "transition_devis",
+                                        "devis_id": affaire["devis"],
+                                        "statut": "annule",
+                                        "horodatage": "2030-06-08T00:00:00+00:00",
+                                    }
+                                    cnx.execute(
+                                        insert(REGISTRES).values(
+                                            departement="m03-estimation",
+                                            registre="devis",
+                                            rang=rang_max + 1,
+                                            maillon=codec.encoder(mutation),
+                                        )
+                                    )
+                                else:
+                                    registre = {
+                                        "tarif_tardif": "tarifs_equipes",
+                                        "trace_tardive": "rentabilite",
+                                        "facture_tardive": "factures",
+                                        "variance_tardive": "variance_recue",
+                                    }[cas_lecture]
+                                    filtre = (REGISTRES.c.departement == "m05-financecore") & (
+                                        REGISTRES.c.registre == registre
+                                    )
+                                    rang_max = cnx.execute(
+                                        select(func.max(REGISTRES.c.rang)).where(filtre)
+                                    ).scalar_one()
+                                    cnx.execute(
+                                        insert(REGISTRES).values(
+                                            departement="m05-financecore",
+                                            registre=registre,
+                                            rang=0 if rang_max is None else rang_max + 1,
+                                            maillon='{"fictif":true}',
+                                        )
+                                    )
+                            return original_capture(connexion)
+
+                        monkeypatch.setattr(port_lecture, "_capturer", capturer_avec_mutation)
+                    m5.lire_rentabilite_chantier(devis_id=affaire["devis"], autorise_couts=True)
+                assert (
+                    dict(
+                        cnx.execute(
+                            select(EVENEMENTS_RECUS).where(
+                                EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                                EVENEMENTS_RECUS.c.consommateur == "m05-financecore",
+                            )
+                        )
+                        .mappings()
+                        .one()
+                    )
+                    == before
+                )
                 return
             ecrivain_bloque = []
             if cas_lecture == "devis_m3_concurrent":
                 import sqlite3
                 import threading
+
                 from m5_financecore import port_lecture_courante_m4 as port_lecture
+
                 original_capture = port_lecture._capturer
+
                 def capturer_avec_ecrivain(connexion):
                     if not ecrivain_bloque:
+
                         def ecrire():
                             try:
                                 with sqlite3.connect(cnx.engine.url.database, timeout=0.05) as autre:
-                                    autre.execute("UPDATE registres_maillons SET maillon=maillon WHERE departement=? AND registre=?", ("m03-estimation", "devis"))
+                                    autre.execute(
+                                        "UPDATE registres_maillons SET maillon=maillon "
+                                "WHERE departement=? AND registre=?",
+                                        ("m03-estimation", "devis"),
+                                    )
                                 ecrivain_bloque.append("commit")
                             except sqlite3.OperationalError as exc:
                                 ecrivain_bloque.append(str(exc))
+
                         t = threading.Thread(target=ecrire)
-                        t.start(); t.join(timeout=3)
+                        t.start()
+                        t.join(timeout=3)
                         assert not t.is_alive() and ecrivain_bloque and "locked" in ecrivain_bloque[0]
                     return original_capture(connexion)
+
                 monkeypatch.setattr(port_lecture, "_capturer", capturer_avec_ecrivain)
             with service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]):
                 fresh = m5.lire_rentabilite_chantier(devis_id=affaire["devis"], autorise_couts=True)
                 chantier = fresh["resultat"]["chantiers"][0]
                 assert chantier["rentabilite"]["cout_reel"]["main_d_oeuvre"]["cout"] == Decimal("730.00")
                 assert chantier["trace"]["a_jour"] is True
-            assert dict(cnx.execute(select(EVENEMENTS_RECUS).where(
-                EVENEMENTS_RECUS.c.evenement_id == wct_id,
-                EVENEMENTS_RECUS.c.consommateur == "m05-financecore")).mappings().one()) == before
+            assert (
+                dict(
+                    cnx.execute(
+                        select(EVENEMENTS_RECUS).where(
+                            EVENEMENTS_RECUS.c.evenement_id == wct_id,
+                            EVENEMENTS_RECUS.c.consommateur == "m05-financecore",
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+                == before
+            )
         return
     if mode == "console_sans_policy":
         from opsys.stockage.schema import WCT_ATTENTES
@@ -1701,40 +1844,62 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                 assert historique_v2["statut"] == "historique_non_revalidee"
                 assert historique_v2["attestation"] == reponse["attestation"]
                 if os.environ.get("QA_NEGATIVE") in ("fresh_v2", "fresh_v2_bool", "reference_v2_fausse"):
-                    from opsys import service_lecture_m4
-                    from opsys.stockage.schema import REGISTRES
                     from m5_financecore import encodage
 
-                    cnx.execute(insert(SERVICE_POLITIQUES).values(instance_id=instance_id,
-                        consommateur="m05-financecore", operation="m4.relire_faits_pour_m5_v1",
-                        revision=1, active=True, expire_le=int(time.time()) + 120))
+                    from opsys import service_lecture_m4
+                    from opsys.stockage.schema import REGISTRES
+
+                    cnx.execute(
+                        insert(SERVICE_POLITIQUES).values(
+                            instance_id=instance_id,
+                            consommateur="m05-financecore",
+                            operation="m4.relire_faits_pour_m5_v1",
+                            revision=1,
+                            active=True,
+                            expire_le=int(time.time()) + 120,
+                        )
+                    )
                     with contexte.appeler_en_tant_que("m05-financecore"):
                         if os.environ.get("QA_NEGATIVE") in ("fresh_v2_bool", "reference_v2_fausse"):
-                            with pytest.raises(sc.RefusAutorite):
-                                with service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]):
-                                    filtre = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == "rentabilite_recalcul_v2")
-                                    valeur = codec.decoder(cnx.execute(select(REGISTRES.c.maillon).where(filtre)).scalar_one())
-                                    if os.environ.get("QA_NEGATIVE") == "fresh_v2_bool":
-                                        valeur["reference_core"]["revision_recalcul"] = True
-                                    else:
-                                        valeur["reference_core"]["audit_recalcul_id"] += 1000000
-                                    corps = {k: v for k, v in valeur.items() if k != "empreinte"}
-                                    valeur["empreinte"] = encodage.empreinte("m5.publication_recalcul.v2", corps)
-                                    cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(valeur)))
-                                    m5.lire_rentabilite_chantier(devis_id=affaire["devis"], autorise_couts=True)
+                            with (
+                                pytest.raises(sc.RefusAutorite),
+                                service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire['devis']),
+                            ):
+                                filtre = (REGISTRES.c.departement == "m05-financecore") & (
+                                    REGISTRES.c.registre == "rentabilite_recalcul_v2"
+                                )
+                                valeur = codec.decoder(
+                                    cnx.execute(select(REGISTRES.c.maillon).where(filtre)).scalar_one()
+                                )
+                                if os.environ.get("QA_NEGATIVE") == "fresh_v2_bool":
+                                    valeur["reference_core"]["revision_recalcul"] = True
+                                else:
+                                    valeur["reference_core"]["audit_recalcul_id"] += 1000000
+                                corps = {k: v for k, v in valeur.items() if k != "empreinte"}
+                                valeur["empreinte"] = encodage.empreinte("m5.publication_recalcul.v2", corps)
+                                cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(valeur)))
+                                m5.lire_rentabilite_chantier(devis_id=affaire["devis"], autorise_couts=True)
                         else:
                             with service_lecture_m4._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]):
                                 actuel = m5.lire_rentabilite_chantier(devis_id=affaire["devis"], autorise_couts=True)
                                 chantier = actuel["resultat"]["chantiers"][0]
-                                assert chantier["rentabilite"]["cout_reel"]["main_d_oeuvre"]["cout"] == Decimal("732.50")
+                                assert chantier["rentabilite"]["cout_reel"]["main_d_oeuvre"]["cout"] == Decimal(
+                                    "732.50"
+                                )
                                 assert chantier["trace"]["a_jour"] is True
                 if cas == "history_core":
                     from opsys import service_lecture_m4 as lecture
 
-                    cnx.execute(insert(SERVICE_POLITIQUES).values(
-                        instance_id=instance_id, consommateur="m05-financecore",
-                        operation="m4.relire_faits_pour_m5_v1", revision=1, active=True,
-                        expire_le=int(time.time()) + 120))
+                    cnx.execute(
+                        insert(SERVICE_POLITIQUES).values(
+                            instance_id=instance_id,
+                            consommateur="m05-financecore",
+                            operation="m4.relire_faits_pour_m5_v1",
+                            revision=1,
+                            active=True,
+                            expire_le=int(time.time()) + 120,
+                        )
+                    )
                     ref_v1 = ancien[0]["reference_core"]
                     ref_v2 = reponse["attestation"]
                     with contexte.appeler_en_tant_que("m05-financecore"):
@@ -1749,22 +1914,28 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                             assert v1["trace_sha256"] == lecture.empreinte_trace_v1(traces[v1["trace_rang"]])
                             assert preuve_v2["reference"] == ref_v2
                             assert preuve_v2["version_resultat"] == reponse["version"]
-                            for ref in ({**ref_v1, "id": ref_v1["id"] + 100000},
-                                        {**ref_v1, "revision": True},
-                                        {**ref_v2, "audit_recalcul_id": ref_v2["audit_recalcul_id"] + 100000},
-                                        {**ref_v2, "revision_recalcul": True},
-                                        {**ref_v2, "trace_rang": True},
-                                        {**ref_v2, "devis_id": "autre-fictif"}):
+                            for ref in (
+                                {**ref_v1, "id": ref_v1["id"] + 100000},
+                                {**ref_v1, "revision": True},
+                                {**ref_v2, "audit_recalcul_id": ref_v2["audit_recalcul_id"] + 100000},
+                                {**ref_v2, "revision_recalcul": True},
+                                {**ref_v2, "trace_rang": True},
+                                {**ref_v2, "devis_id": "autre-fictif"},
+                            ):
                                 with pytest.raises(sc.RefusAutorite):
                                     cap.verifier_reference_publication(ref)
                         with pytest.raises(sc.RefusAutorite):  # noqa: SIM117
                             with lecture._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]) as cap2:
                                 cap2.projection_m4()
                                 cap2.verifier_reference_publication(ref_v2)
-                                cnx.execute(update(SERVICE_AUDIT).where(
-                                    SERVICE_AUDIT.c.id == ref_v2["audit_recalcul_id"]).values(action="revocation"))
-                        v2_audit = cnx.execute(select(SERVICE_AUDIT.c.action).where(
-                            SERVICE_AUDIT.c.id == ref_v2["audit_recalcul_id"])).scalar_one()
+                                cnx.execute(
+                                    update(SERVICE_AUDIT)
+                                    .where(SERVICE_AUDIT.c.id == ref_v2["audit_recalcul_id"])
+                                    .values(action="revocation")
+                                )
+                        v2_audit = cnx.execute(
+                            select(SERVICE_AUDIT.c.action).where(SERVICE_AUDIT.c.id == ref_v2["audit_recalcul_id"])
+                        ).scalar_one()
                         assert v2_audit == "usage"
                 assert (
                     service_recalcul_m4._executer_qa(

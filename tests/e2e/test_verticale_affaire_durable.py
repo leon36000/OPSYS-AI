@@ -1172,9 +1172,11 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         if kwargs.get("devis_id") != chantier.devis_id:
             return lire_m5_original(*args, **kwargs)
         try:
-            with stockage.transaction() as cnx:
-                with service_lecture_m4._ouvrir_appareil_qa(cnx, wct_id=wct_id, devis_id=chantier.devis_id):
-                    return lire_m5_original(*args, **kwargs)
+            with (
+                stockage.transaction() as cnx,
+                service_lecture_m4._ouvrir_appareil_qa(cnx, wct_id=wct_id, devis_id=chantier.devis_id),
+            ):
+                return lire_m5_original(*args, **kwargs)
         except service_capability.RefusAutorite:
             # QA : une portée refusée n'autorise aucune donnée ; garder la lecture ordinaire partielle.
             return lire_m5_original(*args, **kwargs)

@@ -295,6 +295,7 @@ class Moteur:
             import hmac
             import os
             import secrets
+
             import httpx
 
             secret = os.environ.get("OPSYS_MCP_DEVICE_ATTESTATION_SECRET", "")
