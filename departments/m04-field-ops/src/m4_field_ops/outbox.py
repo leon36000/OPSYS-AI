@@ -701,11 +701,8 @@ def confirmer_verification(intervention_id, horodatage_arg, registre_cible, *, e
 
     Args:
         intervention_id: identifiant de l'intervention à vérifier.
-        horodatage_arg: horodatage RFC 3339 avec fuseau — TOUJOURS celui du WCT d'origine
-            (``m6.variance_chantier.horodatage_completion``, porté tel quel depuis
-            ``m4.travaux_termines``), jamais une horloge consultée ici (``garde_absence_horloge``
-            interdit tout appel d'horloge dans ce paquet) : la vérification date le MÊME
-            instant que la complétion qu'elle confirme, elle ne crée pas un nouveau fait.
+        horodatage_arg: instant de livraison du signal M6 fourni par le répartiteur ;
+            aucune horloge n'est consultée dans ce module pur.
         registre_cible: instance de Registre.
         evenement_id_variance: ``evenement_id`` de l'événement ``m6.variance_chantier`` qui
             justifie la décision (mot-clé obligatoire, jamais None) — tracé sur le maillon
@@ -749,6 +746,17 @@ def confirmer_verification(intervention_id, horodatage_arg, registre_cible, *, e
     except ValueError:
         return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
 
+    transitions = [m for m in registre_cible.lire()
+                   if m.get("type_entree") == etats.TYPE_TRANSITION
+                   and m.get("intervention_id") == intervention_id
+                   and m.get("statut") == "completed_pending_review"]
+    try:
+        if (not transitions
+                or datetime.fromisoformat(horodatage_arg) < datetime.fromisoformat(transitions[-1]["horodatage"])):
+            return None, verdicts.construire_verdict("REJ-HORODATAGE-ANTERIEUR")
+    except (KeyError, TypeError, ValueError):
+        return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
+
     maillon = {
         "type_entree": etats.TYPE_TRANSITION,
         "intervention_id": intervention_id,
@@ -756,6 +764,7 @@ def confirmer_verification(intervention_id, horodatage_arg, registre_cible, *, e
         "statut_precedent": courant,
         "horodatage": horodatage_arg,
         "evenement_id_variance": evenement_id_variance,
+        "source_horodatage": "repartiteur",
     }
     ligne_id = registre_cible.ajouter(maillon)
 

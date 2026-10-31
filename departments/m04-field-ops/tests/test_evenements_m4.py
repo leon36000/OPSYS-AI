@@ -333,6 +333,23 @@ def _variance_charge(**overrides):
     return base
 
 
+@pytest.fixture(autouse=True)
+def _heure_bus_pour_tests_consommateur_direct(request, monkeypatch):
+    # Ces tests unitaires invoquent le consommateur directement, hors répartiteur.
+    if request.node.name.startswith("test_recevoir_variance_chantier_"):
+        from opsys.evenements import repartiteur
+        monkeypatch.setattr(repartiteur, "horodatage_livraison",
+                            lambda: dt.datetime(2025, 6, 2, 11, 40, tzinfo=dt.UTC))
+
+
+def test_consommateur_sans_heure_de_livraison_refuse_sans_ecriture(base_durable):
+    with stockage.transaction():
+        before = list(stockage.maillons("m04-field-ops", "principal"))
+        with pytest.raises(ValueError, match="heure de livraison"):
+            consommateurs()["m6.variance_chantier"](_variance_charge())
+        assert list(stockage.maillons("m04-field-ops", "principal")) == before
+
+
 def test_declaration_module_consommateurs():
     # PLAN T4.10-b : M4 consomme aussi `m3.devis_accepte` (test_consommer_devis_accepte.py) ; PLAN T4.14-b :
     # `m6.materiel_pret` (test_materiel_pret_recu.py).

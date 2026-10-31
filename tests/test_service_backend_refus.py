@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 import pytest
+
 from opsys import service_capability as sc
 
 

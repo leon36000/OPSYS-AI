@@ -3,9 +3,10 @@ import json
 import re
 from hashlib import sha256
 
+from sqlalchemy import select
+
 from opsys import contexte
 from opsys.stockage.schema import JOURNAL, OPSYS_INSTANCE, REGISTRES
-from sqlalchemy import select
 
 from . import encodage, equipes_pointees_v3, temps_certifies_v2
 

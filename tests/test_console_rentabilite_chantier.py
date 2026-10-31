@@ -65,12 +65,18 @@ def complet(affaire, session, tmp_path, monkeypatch):
     return {**affaire, 'config': config}
 
 
-def test_cout_complet_de_vrai_m5_sans_effet(complet, session):
+def test_cout_partiel_de_vrai_m5_sans_effet(complet, session):
+    """Le WCT fictif n'a qu'une durée scalaire : sans équipe pointée et certifiée, la main-d'oeuvre reste inconnue."""
     port = import_module('opsys.console.rentabilite_chantier')
     avant = f.m.base._instantane_base(session)
     with session() as cnx:
         r = port.lire(cnx, complet['deps'], f.AUTH, complet['lead'], f.DEVIS)
-    assert r['chantier']['rentabilite']['cout_reel']['cout_total'] == '486.00'
+    rentabilite = r['chantier']['rentabilite']
+    cout = rentabilite['cout_reel']
+    assert (cout['complet'], cout['cout_total'], cout['cout_total_connu']) == (False, None, '336.00')
+    assert cout['main_d_oeuvre']['statut'] == 'non_disponible' and cout['main_d_oeuvre']['cout'] is None
+    assert [m['code'] for m in cout['manque']] == ['REJ-COUT-TEMPS-POINTE-ABSENT']
+    assert rentabilite['marge_reelle'] is None and rentabilite['marge_partielle_plafond'] == '264.00'
     assert r['chantier']['rentabilite']['prix_definitif'] is False
     assert r['mention'] == b.MENTION
     assert f.m.base._instantane_base(session) == avant
@@ -147,7 +153,8 @@ def test_prix_courant_et_taux_absent_restent_explicites(complet, session):
     avant = f.m.base._instantane_base(session)
     with session() as cnx:
         b = port.lire(cnx, complet['deps'], f.AUTH, complet['lead'], f.DEVIS)
-    assert b['chantier']['rentabilite']['cout_reel']['cout_total'] == '822.00'
+    cout_b = b['chantier']['rentabilite']['cout_reel']
+    assert (cout_b['cout_total'], cout_b['cout_total_connu']) == (None, '672.00')  # matériaux au nouveau prix du livre
     assert b['chantier']['trace']['a_jour'] is False and b['source_calculee'] != a['source_calculee']
     assert f.m.base._instantane_base(session) == avant
     complet['config'].write_text('configuration: {}\n')

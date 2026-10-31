@@ -650,7 +650,7 @@ def test_du_lead_qualifie_au_chantier_termine_la_vue_executive_montre_l_entonnoi
     _m6_receptionner(m6, chantier_a, MATERIAU_ID, 200.0, f"PO-{devis_a}", base)
     wct_id = _m4_completer(m4, intervention_id, base)["wct_id"]
     _m6_declarer(m6, wct_id, chantier_a, MATERIAU_ID, 56.0)  # 200 - 56 = 144 pi, sous le seuil de 150
-    total = _drainer(deps, base + dt.timedelta(hours=2))
+    total = _drainer(deps, base + dt.timedelta(hours=4))
     assert total["echecs"] == 0 and total["quarantaines"] == 0, total
 
     vue = _vue_executive(deps)
@@ -661,11 +661,14 @@ def test_du_lead_qualifie_au_chantier_termine_la_vue_executive_montre_l_entonnoi
     }
     assert lignes["m8_devis_acceptes"]["valeur"] == "1" and lignes["m8_devis_sans_reponse"]["valeur"] == "1"
 
-    # -- 2. M5 garde son résultat calculé, M8 exclut la marge tant que le prix reste brouillon ----------------------
+    # -- 2. M5 ne chiffre pas la main-d'oeuvre d'un temps WCT scalaire (aucune équipe pointée et certifiée) : le coût --
+    # reste partiel, la marge inconnue (jamais « 2 h x 50,00 » supposé) ; M8 exclut donc la marge et le prix brouillon.
     publies_m5 = sorted(_charges_publiees_du_type("m5.rentabilite_chantier"), key=lambda charge: charge["sequence"])
     final = publies_m5[-1]
-    assert (final["verdict"], final["marge_reelle_cad"]) == ("CALCULEE", "52.00")  # 600 - (56 x 8,00 + 2 h x 50,00)
-    assert final["cout_reel_complet"] is True and final["prix_definitif"] is False
+    assert (final["verdict"], final["marge_reelle_cad"]) == ("PARTIELLE", None)
+    # 56 pi x 8,00 de matériaux connus ; rien d'autre n'est ajouté
+    assert (final["cout_connu_cad"], final["cout_reel_cad"], final["cout_reel_complet"]) == ("448.00", None, False)
+    assert final["manque"] == ["REJ-COUT-TEMPS-POINTE-ABSENT"] and final["prix_definitif"] is False
     marge = vue["marge_reelle"]
     assert (marge["n_chantiers"], marge["n_marge_connue"], marge["n_non_calculable"], marge["reste"]) == (1, 0, 1, 0)
     assert marge["chantiers"] == [{

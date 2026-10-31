@@ -289,6 +289,33 @@ class Moteur:
                 meta["opsys/horodatageAppareil"] = horodatage_appareil
         meta["opsys/personne"] = identite["personne"]
         meta["opsys/role"] = identite["role"]
+        # QA : simule le gateway après _autoriser ; la génération provient du vrai endpoint loopback.
+        if outil == "m3_lire_apprentissage_chantier" and identite["role"] == "admin":
+            import base64
+            import hmac
+            import os
+            import secrets
+
+            import httpx
+
+            secret = os.environ.get("OPSYS_MCP_DEVICE_ATTESTATION_SECRET", "")
+            if secret:
+                preuve = hmac.new(secret.encode(), b"opsys.device.generation.v1", hashlib.sha256).hexdigest()
+                prevol = httpx.get(f"http://127.0.0.1:{self.port}/internal/opsys-device-generation",
+                    headers={"authorization": "Bearer " + JETON_MCP, "x-opsys-gateway-proof": preuve},
+                    timeout=3, trust_env=False)
+                assert prevol.status_code == 200, prevol.text
+                generation = prevol.json()["generation"]
+                argument_hash = hashlib.sha256(json.dumps([args["wct_id"], args["coupure_utc"]],
+                    ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+                champs = [1, generation, appareil_id, identite["personne"], identite["role"], outil,
+                          argument_hash, int(time.time() * 1000), secrets.token_hex(16)]
+                brut = json.dumps(champs, ensure_ascii=False, separators=(",", ":")).encode()
+                message = base64.urlsafe_b64encode(brut).decode().rstrip("=")
+                signature = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+                if os.environ.get("QA_FRESH_NEG") == "bad_proof":
+                    signature = ("0" if signature[0] != "0" else "1") + signature[1:]
+                meta["opsys/attestationAppareil"] = message + "." + signature
 
         compteur: Counter[str] = Counter()
         requetes_http = 0

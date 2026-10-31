@@ -608,3 +608,26 @@ def test_ticket_cfo_stale_profile_est_refuse_avant_consommation(session, monkeyp
             instance_id=instance,
         )
     assert reads == 0
+
+
+def test_prevol_appareil_http_ferme_par_defaut_et_authentifie(serveur_http, monkeypatch):
+    """Prévol privé réel : le bearer MCP seul ne constitue pas une attestation gateway."""
+    import hashlib
+    import hmac
+
+    import httpx
+
+    from opsys import attestation_appareil_gateway as att
+
+    url = serveur_http.removesuffix("/mcp") + att._CHEMIN
+    bearer = {"Authorization": "Bearer " + JETON}
+    monkeypatch.delenv(att._ENV, raising=False)
+    assert httpx.get(url, headers=bearer, timeout=2).status_code == 404
+    secret = "qa-gateway-secret-fictif-01234567890123456789"
+    monkeypatch.setenv(att._ENV, secret)
+    assert httpx.get(url, headers=bearer, timeout=2).status_code == 404
+    preuve = hmac.new(secret.encode(), b"opsys.device.generation.v1", hashlib.sha256).hexdigest()
+    resultat = httpx.get(url, headers={**bearer, "x-opsys-gateway-proof": preuve}, timeout=2)
+    assert resultat.status_code == 200
+    assert resultat.json() == {"generation": att.generation()}
+    assert resultat.headers["cache-control"] == "no-store"

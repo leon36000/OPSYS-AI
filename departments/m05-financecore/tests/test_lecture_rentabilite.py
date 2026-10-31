@@ -18,11 +18,12 @@ import pytest
 import yaml
 from m5_financecore import validation
 from m5_financecore.analyse import MENTION_ANALYSE_PREPARATOIRE as MENTION
+from sqlalchemy import select
+
 from opsys import contexte, evenements, identite, stockage
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 from opsys.stockage.schema import META
-from sqlalchemy import select
 
 FICTIF = True
 _DEPARTEMENT = "m05-financecore"

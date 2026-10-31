@@ -24,12 +24,13 @@ import m5_financecore.outils as outils_mod
 import pytest
 import yaml
 from m5_financecore import cout_reel
+from sqlalchemy import select
+
 from opsys import evenements, stockage
 from opsys.departements import charger_departements
 from opsys.evenements.schemas import erreurs_charge
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
-from sqlalchemy import select
 
 FICTIF = True
 _DEPARTEMENT = "m05-financecore"

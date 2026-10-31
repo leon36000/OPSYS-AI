@@ -287,6 +287,25 @@ def depuis_meta_mcp_identite(meta: Mapping[str, Any] | None) -> IdentiteAppelant
     return IdentiteAppelante(personne=personne.strip(), role=role.strip())
 
 
+# L'attestation vérifiée est interne au transport serveur et liée à la requête.
+_ATTESTATION_APPAREIL: contextvars.ContextVar[Any | None] = contextvars.ContextVar(
+    "opsys_attestation_appareil", default=None
+)
+
+
+@contextlib.contextmanager
+def attestation_appareil_par_gateway(attestation: Any | None) -> Iterator[None]:
+    jeton = _ATTESTATION_APPAREIL.set(attestation)
+    try:
+        yield
+    finally:
+        _ATTESTATION_APPAREIL.reset(jeton)
+
+
+def attestation_appareil() -> Any | None:
+    return _ATTESTATION_APPAREIL.get()
+
+
 _LIMITE_SORTIE: contextvars.ContextVar[int | None] = contextvars.ContextVar("opsys_limite_sortie", default=None)
 
 

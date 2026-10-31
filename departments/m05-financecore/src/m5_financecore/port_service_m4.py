@@ -80,6 +80,8 @@ def publier(devis_id, *, cap=None):
         devis_id, sources, ventilation_verifiee={"projection": projection, "tarifs": tarifs, "charge": charge}
     )
     if etat["statut"] in ("en_attente_devis_accepte", "en_attente_travaux_termines"):
+        cap.verifier_projection(enveloppe)
+        verifier_recus()
         return {"statut": etat["statut"]}
     if etat["statut"] != "calculee":
         raise service_capability.RefusAutorite("état M5 inconnu")
@@ -113,33 +115,64 @@ def publier(devis_id, *, cap=None):
         rentabilite, sequence, etat["horodatage"], provenance_service=provenance, publier=False
     )
     verifier_recus()
-    reference = cap.attester_trace_m4(enveloppe, rang)
-    if (
-        type(reference) is not dict
-        or set(reference) != {"schema", "id", "instance_id", "evenement_id", "operation", "revision"}
-        or reference.get("schema") != "opsys.core.m4.audit-usage.v1"
-        or type(reference.get("id")) is not int
-        or reference["id"] <= 0
-        or type(reference.get("revision")) is not int
-        or reference["revision"] <= 0
-        or reference.get("instance_id") != faits[1]
-        or reference.get("evenement_id") != faits[3]
-        or reference.get("operation") != "m4.verifier_v3"
-    ):
-        raise service_capability.RefusAutorite("référence Core historique indisponible")
-    registre_recus = stockage.maillons("m05-financecore", "rentabilite_service_v1")
+    recalcul_v2 = hasattr(cap, "attester_recalcul_m4")
+    if recalcul_v2:
+        reference = cap.attester_recalcul_m4(enveloppe, rang, encodage.empreinte(trace))
+        from opsys.service_recalcul_m4 import valider_reference_v2
+
+        valider_reference_v2(reference)
+        if (
+            reference["instance_id"] != faits[1]
+            or reference["wct_id"] != faits[3]
+            or reference["devis_id"] != devis_id
+            or reference["wct_hash"] != faits[4]
+            or reference["source_m4"] != faits[5]
+            or reference["version_m4"] != faits[6]
+            or reference["projection_m4"] != faits[7]
+            or reference["trace_rang"] != rang
+            or reference["trace_empreinte"] != encodage.empreinte(trace)
+        ):
+            raise service_capability.RefusAutorite("attestation recalcul invalide")
+        nom_registre = "rentabilite_recalcul_v2"
+        corps = {
+            "type": "publication_recalcul_v2",
+            "instance_id": faits[1],
+            "wct_id": faits[3],
+            "reference_core": reference,
+            "trace_rang": rang,
+            "trace_empreinte": encodage.empreinte(trace),
+        }
+        domaine = "m5.publication_recalcul.v2"
+    else:
+        reference = cap.attester_trace_m4(enveloppe, rang)
+        if (
+            type(reference) is not dict
+            or set(reference) != {"schema", "id", "instance_id", "evenement_id", "operation", "revision"}
+            or reference.get("schema") != "opsys.core.m4.audit-usage.v1"
+            or type(reference.get("id")) is not int
+            or reference["id"] <= 0
+            or type(reference.get("revision")) is not int
+            or reference["revision"] <= 0
+            or reference.get("instance_id") != faits[1]
+            or reference.get("evenement_id") != faits[3]
+            or reference.get("operation") != "m4.verifier_v3"
+        ):
+            raise service_capability.RefusAutorite("référence Core historique indisponible")
+        nom_registre = "rentabilite_service_v1"
+        corps = {
+            "type": "publication_service_v1",
+            "instance_id": faits[1],
+            "wct_id": faits[3],
+            "reference_core": reference,
+            "trace_rang": rang,
+            "trace_empreinte": encodage.empreinte(trace),
+        }
+        domaine = "m5.publication_service.v1"
+    registre_recus = stockage.maillons("m05-financecore", nom_registre)
     recus_avant = list(registre_recus)
     if len(recus_avant) >= 1000:
         raise service_capability.RefusAutorite("reçus service hors limites")
-    corps = {
-        "type": "publication_service_v1",
-        "instance_id": faits[1],
-        "wct_id": faits[3],
-        "reference_core": reference,
-        "trace_rang": rang,
-        "trace_empreinte": encodage.empreinte(trace),
-    }
-    recu = {**corps, "empreinte": encodage.empreinte("m5.publication_service.v1", corps)}
+    recu = {**corps, "empreinte": encodage.empreinte(domaine, corps)}
     registre_recus.append(recu, rang_attendu=len(recus_avant))
     if (
         encodage.encoder_canonique(_sources_metier(outils._sources_cout_reel())) != signature
@@ -161,4 +194,44 @@ def publier(devis_id, *, cap=None):
         or encodage.encoder_canonique(list(registre_recus)) != encodage.encoder_canonique([*recus_avant, recu])
     ):
         raise service_capability.RefusAutorite("sources M5 modifiées après publication")
+    if recalcul_v2:
+
+        def strict_registre(nom):
+            try:
+                return stockage.copier_maillons_stricts(
+                    cnx,
+                    departement="m05-financecore",
+                    registre=nom,
+                    max_lignes=1000,
+                    max_octets_ligne=262144,
+                    max_octets_total=16777216,
+                )
+            except (ValueError, TypeError) as exc:
+                raise service_capability.RefusAutorite("reçu ou trace strict non vérifiable") from exc
+
+        verifier_recus()
+        capture_trace, capture_recu = strict_registre("rentabilite"), strict_registre(nom_registre)
+        if encodage.encoder_canonique(capture_trace.lignes[-1].maillon) != encodage.encoder_canonique(
+            trace
+        ) or encodage.encoder_canonique(capture_recu.lignes[-1].maillon) != encodage.encoder_canonique(recu):
+            raise service_capability.RefusAutorite("trace ou reçu modifié")
+
+        def controle_final():
+            cap.verifier_projection(enveloppe)
+            verifier_recus()
+            actuelles = outils._sources_cout_reel()
+            if (
+                encodage.encoder_canonique(_sources_metier(actuelles)) != signature
+                or outils._instantane_tarifs_equipes()["source"] != source_tarifs
+                or strict_registre("rentabilite") != capture_trace
+                or strict_registre(nom_registre) != capture_recu
+            ):
+                raise service_capability.RefusAutorite("source M5 modifiée après écriture finale")
+
+        return {
+            "statut": "publiee",
+            "version": rentabilite["version_entrees"],
+            "attestation": reference,
+            "_controle_final": controle_final,
+        }
     return {"statut": "publiee", "version": rentabilite["version_entrees"]}

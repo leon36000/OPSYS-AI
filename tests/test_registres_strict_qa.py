@@ -3,11 +3,12 @@ import importlib
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import create_engine, insert, text
+
 from opsys import stockage
 from opsys.stockage import codec
 from opsys.stockage.maillons import copier_maillons_avec_metadonnees
 from opsys.stockage.schema import REGISTRES
-from sqlalchemy import create_engine, insert, text
 
 moteur = importlib.import_module("opsys.stockage.moteur")
 

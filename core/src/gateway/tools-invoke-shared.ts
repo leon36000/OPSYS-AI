@@ -1,4 +1,5 @@
 // Gateway tool invocation engine.
+import { createHash, createHmac, randomBytes } from "node:crypto";
 // Shared implementation behind HTTP and RPC tool invocation adapters.
 import {
   normalizeOptionalLowercaseString,
@@ -207,6 +208,10 @@ function buildOpsysMcpCallMeta(params: {
   idempotencyKey?: string;
   deviceId?: string;
   deviceTimestamp?: string;
+  authenticatedDeviceId?: string;
+  toolName?: string;
+  generation?: string;
+  toolArgs?: Record<string, unknown>;
   identity?: { personne: string; role: string };
 }): Record<string, unknown> {
   const meta: Record<string, unknown> = {};
@@ -220,10 +225,131 @@ function buildOpsysMcpCallMeta(params: {
     }
   }
   if (params.identity) {
+    if (!params.authenticatedDeviceId) {
+      throw new Error("OPSYS authenticated device identity is incomplete");
+    }
+    const secret = process.env.OPSYS_MCP_DEVICE_ATTESTATION_SECRET;
+    const args = params.toolArgs;
+    const values = [
+      params.authenticatedDeviceId,
+      params.identity.personne,
+      params.identity.role,
+      params.toolName,
+    ];
+    if (
+      params.toolName === "m3_lire_apprentissage_chantier" &&
+      params.identity.role === "admin" &&
+      typeof secret === "string" &&
+      /^[A-Za-z0-9_-]{32,256}$/.test(secret) &&
+      typeof params.generation === "string" &&
+      /^[0-9a-f]{32}$/.test(params.generation) &&
+      args &&
+      Object.keys(args).toSorted().join(",") === "coupure_utc,wct_id" &&
+      typeof args.wct_id === "string" &&
+      /^[0-9a-f]{64}$/.test(args.wct_id) &&
+      typeof args.coupure_utc === "string" &&
+      /^[A-Za-z0-9_.:@/+-]{1,256}$/.test(args.coupure_utc) &&
+      values.every(
+        (value) => typeof value === "string" && /^[A-Za-z0-9_.:@/+-]{1,256}$/.test(value),
+      )
+    ) {
+      const argsHash = createHash("sha256")
+        .update(JSON.stringify([args.wct_id, args.coupure_utc]))
+        .digest("hex");
+      const content = Buffer.from(
+        JSON.stringify([
+          1,
+          params.generation,
+          params.authenticatedDeviceId,
+          params.identity.personne,
+          params.identity.role,
+          params.toolName,
+          argsHash,
+          Date.now(),
+          randomBytes(16).toString("hex"),
+        ]),
+      ).toString("base64url");
+      const signature = createHmac("sha256", secret).update(content).digest("hex");
+      meta["opsys/attestationAppareil"] = `${content}.${signature}`;
+    }
     meta["opsys/personne"] = params.identity.personne;
     meta["opsys/role"] = params.identity.role;
   }
   return meta;
+}
+
+/** QA-only preflight: a configured loopback verifier yields its current boot generation.
+ * No secret/configuration means the original read remains unchanged and unqualified. */
+async function deviceVerifierGeneration(signal: AbortSignal): Promise<string | undefined> {
+  const secret = process.env.OPSYS_MCP_DEVICE_ATTESTATION_SECRET;
+  const token = process.env.OPSYS_MCP_JETON;
+  const endpoint = process.env.OPSYS_MCP_DEVICE_GENERATION_URL;
+  if (
+    !secret ||
+    !/^[A-Za-z0-9_-]{32,256}$/.test(secret) ||
+    !token ||
+    token === secret ||
+    !endpoint
+  ) {
+    return undefined;
+  }
+  try {
+    const url = new URL(endpoint);
+    if (
+      url.protocol !== "http:" ||
+      !["127.0.0.1", "[::1]"].includes(url.hostname) ||
+      url.pathname !== "/internal/opsys-device-generation" ||
+      url.search ||
+      url.hash ||
+      url.username ||
+      url.password
+    ) {
+      return undefined;
+    }
+    const proof = createHmac("sha256", secret).update("opsys.device.generation.v1").digest("hex");
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, "x-opsys-gateway-proof": proof },
+      redirect: "error",
+      signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]),
+    });
+    if (
+      !response.ok ||
+      (Number(response.headers.get("content-length")) || 0) > 1024 ||
+      !response.body
+    ) {
+      return undefined;
+    }
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        total += value.length;
+        if (total > 1024) {
+          await reader.cancel();
+          return undefined;
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    const raw = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
+    const payload: unknown = JSON.parse(raw);
+    if (typeof payload !== "object" || payload === null || !("generation" in payload)) {
+      return undefined;
+    }
+    const generation = payload.generation;
+    return typeof generation === "string" && /^[0-9a-f]{32}$/.test(generation)
+      ? generation
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 type InvokeGatewayToolParams = {
@@ -378,13 +504,21 @@ async function invokeOpsysDeviceTool(params: {
         },
       };
     }
+    const toolParams = asToolParamsRecord(hookResult.params);
+    const generation =
+      toolName === "m3_lire_apprentissage_chantier" && identity.role === "admin"
+        ? await deviceVerifierGeneration(invoke.signal)
+        : undefined;
     const mcpCallMeta = buildOpsysMcpCallMeta({
       idempotencyKey,
       deviceId: params.deviceId,
       deviceTimestamp,
+      authenticatedDeviceId: params.deviceId,
+      toolName,
+      generation,
+      toolArgs: toolParams,
       identity,
     });
-    const toolParams = asToolParamsRecord(hookResult.params);
     // Fence after hooks and again after the transport's own awaited preparation.
     // An in-flight mutation keeps its admitted person, role, and department target.
     assertDeviceAuthorityCurrent();

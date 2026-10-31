@@ -30,7 +30,14 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 from harnais_e2e import DT_TZ, JETON_MCP, iso
-from harnais_e2e_chantier import MATERIAU_ID, AppEmploye, Chantier, receptionner_materiel_args
+from harnais_e2e_chantier import MATERIAU_ID, QUANTITE_PREVUE, AppEmploye, Chantier, receptionner_materiel_args
+from harnais_equipe_certifiee import (
+    EQUIPE_VERTICALE,
+    journee_equipe_certifiee,
+    revue_completion_verifiee,
+    service_m4_et_tarif_fictifs,
+    sources_pour_revue,
+)
 from m1_front_office import outils as m1_outils
 from m5_financecore import facturation as m5_facturation
 from m5_financecore import outils as m5_outils
@@ -120,32 +127,6 @@ def _app(moteur, porte, outil, args, *, cle=None):
     assert reponse.statut == 200, reponse.corps
     assert not reponse.mesure.tronque, reponse.corps
     return reponse
-
-
-def _sources_pour_revue(appeler, intervention_id, wct_id, prefixe):
-    """Fictif : lecture M6 puis causes humaines déclarées, sans vérité photo inférée."""
-    liste = appeler("m6_lister_variances_classables_wct_appareil",
-                    {"wct_id": wct_id, "decalage": 0, "limite": 8})
-    assert liste.metier["accepte"] is True, liste.corps
-    dto = liste.resultat
-    assert dto["wct"]["wct_id"] == wct_id and dto["wct"]["intervention_id"] == intervention_id
-    assert dto["pagination"]["reste"] == 0 and dto["pagination"]["decalage_suivant"] is None
-    critiques = [ligne for ligne in dto["lignes"] if ligne["source_ligne"]["critique"] is True]
-    assert critiques, "ce scénario doit publier une variance critique, pas inventer une cause"
-    for ligne in critiques:
-        assert ligne["classement_courant"] is None, "source initiale de cette fixture"
-        classement = appeler("m6_classer_cause_variance_appareil", {
-            "selection": ligne["selection"], "cause": "breakage",
-            "motif": "FICTIF : cause de bris déclarée pour le scénario, sans attestation photo.",
-            "classement_attendu": None, "references_pieces": [],
-        }, cle=f"{prefixe}-{ligne['selection']['position_ligne']}")
-        assert classement.metier["accepte"] is True, classement.corps
-    dossier = appeler("m4_lire_dossier_revue_completion_appareil",
-                      {"intervention_id": intervention_id, "demande_id": None})
-    assert dossier.metier["accepte"] is True, dossier.corps
-    assert dossier.resultat["wct"] == dto["wct"]
-    assert dossier.resultat["couverture"]["positions_sans_classement"] == []
-    return dossier.resultat["sources"]
 
 
 def _appeler_agent(moteur, departement, outil, args, *, affaire_id=None, cle_session=None):
@@ -844,6 +825,22 @@ def _qualifier_partiel_affaire(moteur, facture_id, chantier, wct_id, tmp_path, m
     }, sort_keys=True))
 
 
+def test_verticale_sans_preuve_equipe_reste_partielle(moteur, affaire, finance_fictive):
+    chantier, _, _ = _preparer_affaire(moteur, affaire)
+    app = AppEmploye(moteur, affaire["employe"], chantier)
+    completion = app.journee_jusqu_a_la_completion()
+    assert completion.metier["accepte"] is True
+    _drainer(moteur)
+    with stockage.transaction():
+        traces = [m for m in stockage.maillons("m05-financecore", "rentabilite")
+                  if m.get("wct_id") == completion.resultat["wct_id"]]
+    assert traces
+    resultat = traces[-1]["rentabilite"]
+    assert resultat["verdict"] == "PARTIELLE"
+    assert resultat["cout_reel"]["main_d_oeuvre"]["cout"] is None
+    assert any(m["code"] == "REJ-COUT-TEMPS-POINTE-ABSENT" for m in resultat["manque"])
+
+
 @pytest.mark.parametrize(
     "quantite,prix_present,marge_attendue",
     [
@@ -855,6 +852,10 @@ def _qualifier_partiel_affaire(moteur, facture_id, chantier, wct_id, tmp_path, m
 def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
     moteur, affaire, finance_fictive, quantite, prix_present, marge_attendue, tmp_path, monkeypatch, record_property
 ):
+    # Secret QA distinct du jeton MCP : aucune configuration réelle n'est activée.
+    monkeypatch.setenv("OPSYS_MCP_DEVICE_ATTESTATION_SECRET", "attestation-qa-fictive-" + "a" * 40)
+    # Les approbations utilisent aussi l'horloge serveur simulée du harnais.
+    monkeypatch.setattr(approbations, "_maintenant", lambda: iso(moteur.horloge.maintenant))
     chantier, lead, _ = _preparer_affaire(moteur, affaire)
     admin = affaire["admin"]
     if prix_present:
@@ -873,8 +874,9 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
                 "unite": "pi",
             },
         )
-    app = AppEmploye(moteur, affaire["employe"], chantier)
-    completion = app.journee_jusqu_a_la_completion()
+    service_m4_et_tarif_fictifs(chantier, EQUIPE_VERTICALE)
+    app, completion = journee_equipe_certifiee(
+        moteur, admin, affaire["employe"], chantier, EQUIPE_VERTICALE)
     assert completion.metier["accepte"] is True, completion.corps
     wct_id = completion.resultat["wct_id"]
     assert completion.resultat["intervention_id"] == chantier.intervention_id
@@ -883,7 +885,25 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
     wcts = [charge for _, charge in _evenements("m4.travaux_termines") if charge["wct_id"] == wct_id]
     assert len(wcts) == 1
     assert (wcts[0]["lead_id"], wcts[0]["devis_id"]) == (lead["lead_id"], chantier.devis_id)
-    declaration = app.declarer_materiaux(wct_id, quantite)
+    # Le départ précède de cinq minutes la clôture serveur : une revue à cette
+    # ancienne heure doit refuser sans écrire, avant la vraie livraison M6.
+    from m4_field_ops import outbox as m4_outbox
+    from m4_field_ops.registre import Registre as M4Registre
+    with stockage.transaction():
+        reg = M4Registre(stockage.maillons("m04-field-ops", "principal"))
+        avant_revue = reg.tete()
+        _, refus = m4_outbox.confirmer_verification(
+            chantier.intervention_id, wcts[0]["horodatage_completion"], reg,
+            evenement_id_variance="controle-negatif-fictif")
+        assert refus["code"] == "REJ-HORODATAGE-ANTERIEUR"
+        assert reg.tete() == avant_revue
+    # Le WCT est attribué à une équipe : M6 autorise ici un admin authentifié.
+    declaration = _app(moteur, admin, 'm6_declarer_materiaux_utilises', {
+        'wct_id': wct_id, 'formulaire': {'wct_id': wct_id,
+            'intervention_id': chantier.intervention_id, 'chantier_id': chantier.chantier_id,
+            'lignes_materiaux': [{'type_ligne': 'prevu', 'materiau_id': MATERIAU_ID,
+                'quantite': quantite, 'unite': 'pi', 'quantite_estimee': QUANTITE_PREVUE}]}},
+        cle='materiaux-equipe-verticale')
     assert declaration.metier["accepte"] is True, declaration.corps
     _drainer(moteur)
     statut = app.statut().resultat["statut"]
@@ -898,47 +918,8 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         item = next(item for item in lecture.resultat["lectures"] if item["chantier"] == wct_id)
         assert (item["valeur"], item["seuil"]) == ("40.00", "30.00")
         assert _empreinte(moteur) == avant
-        def appeler_revue(outil, arguments, *, cle=None):
-            avant_lecture = _empreinte(moteur) if cle is None else None
-            reponse = _app(moteur, admin, outil, arguments, cle=cle)
-            if cle is None:
-                assert _empreinte(moteur) == avant_lecture, "lecture de sources sans mutation"
-            return reponse
-
-        sources = _sources_pour_revue(appeler_revue, chantier.intervention_id, wct_id, "classement-verticale")
-        revue = _app(
-            moteur,
-            admin,
-            "m4_resoudre_revue_completion_sources",
-            {
-                "intervention_id": chantier.intervention_id,
-                "decision": "verifiee",
-                "horodatage": iso(moteur.horloge.maintenant),
-                "motif": "Revue fictive des sources M4/M6 relues.",
-                "sources": sources,
-            },
-            cle="revue-verticale",
-        )
-        assert revue.enveloppe["statut"] == "en_attente_approbation", revue.corps
-        with stockage.transaction() as cnx:
-            assert cnx.scalar(
-                select(APPROBATIONS.c.niveau).where(APPROBATIONS.c.id == revue.enveloppe["demande_id"])
-            ) == "N4"
-        decision = _app(
-            moteur,
-            admin,
-            "m9_decider_demande_approbation",
-            {"demande_id": revue.enveloppe["demande_id"], "decision": "approuver", "motif": "Revue fictive."},
-            cle="decision-revue-verticale",
-        )
-        assert decision.resultat["statut"] == "executee", decision.corps
-        preuve = decision.resultat["preuve_completion"]
-        assert preuve["sources"] == sources and preuve["wct_id"] == wct_id
-        assert preuve["demande_approbation_id"] == revue.enveloppe["demande_id"]
-        assert preuve["association_decision"]["intention_uuid"] == "decision-revue-verticale"
-        assert preuve["association_decision"]["appareil_id"] == admin.appareil_id
-        assert preuve["association_decision"]["horodatage_appareil_declare"] == iso(moteur.horloge.maintenant)
-        assert app.statut().resultat["statut"] == "completed_verified"
+        revue_completion_verifiee(
+            moteur, admin, app, chantier, wct_id, empreinte=lambda: _empreinte(moteur))
         _drainer(moteur)
 
     with stockage.transaction():
@@ -978,6 +959,53 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         niveau_attendu="N4",
     )
     _drainer(moteur)
+    # Exercice explicite du candidat interne V2, sans route ou droit réel.
+    from sqlalchemy import insert
+
+    from opsys import service_capability, service_recalcul_m4
+    from opsys.console.securite import Session
+    from opsys.stockage.schema import OPSYS_INSTANCE, SERVICE_POLITIQUES
+
+    session_qa = Session('nathan', frozenset({'admin'}), 'csrf-fictif', time.time() + 3600)
+    with stockage.transaction() as cnx:
+        instance_id = cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one()
+        with pytest.raises(service_capability.RefusAutorite):
+            service_recalcul_m4._executer_qa(
+                cnx, session_qa, wct_id=wct_id, devis_id=chantier.devis_id, intention_id='a' * 64)
+        cnx.execute(insert(SERVICE_POLITIQUES).values(
+            instance_id=instance_id, consommateur='m05-financecore', operation='m4.recalculer_v3',
+            revision=1, active=True, expire_le=int(time.time()) + 3600))
+        with pytest.raises(service_capability.RefusAutorite, match='NON_QUALIFIE'):
+            service_recalcul_m4.ouvrir(cnx, session_qa, wct_id=wct_id,
+                                       devis_id=chantier.devis_id, intention_id='a' * 64)
+        recalcul = service_recalcul_m4._executer_qa(
+            cnx, session_qa, wct_id=wct_id, devis_id=chantier.devis_id, intention_id='a' * 64)
+        assert recalcul['statut'] == 'publiee'
+        assert recalcul['attestation']['operation'] == 'm4.recalculer_v3'
+        # Politique distincte, exclusivement fictive dans la base QA.
+        if os.environ.get("QA_FRESH_NEG") != "no_policy":
+            cnx.execute(insert(SERVICE_POLITIQUES).values(
+                instance_id=instance_id, consommateur='m05-financecore', operation='m4.relire_faits_pour_m5_v1',
+                revision=1, active=True, expire_le=int(time.time()) + 3600))
+
+    # QA : couture non routée dans le thread M5 appelé par la vraie requête MCP.
+    # L'identité et l'appareil viennent du contexte serveur, jamais des arguments M3.
+    from opsys import service_lecture_m4
+    lire_m5_original = m5_outils.lire_rentabilite_chantier
+    def lire_m5_sous_portee_qa(*args, **kwargs):
+        if kwargs.get("devis_id") != chantier.devis_id:
+            return lire_m5_original(*args, **kwargs)
+        try:
+            with (
+                stockage.transaction() as cnx,
+                service_lecture_m4._ouvrir_appareil_qa(cnx, wct_id=wct_id, devis_id=chantier.devis_id),
+            ):
+                return lire_m5_original(*args, **kwargs)
+        except service_capability.RefusAutorite:
+            # QA : une portée refusée n'autorise aucune donnée ; garder la lecture ordinaire partielle.
+            return lire_m5_original(*args, **kwargs)
+    monkeypatch.setattr(m5_outils, "lire_rentabilite_chantier", lire_m5_sous_portee_qa)
+    _drainer(moteur)
     avant = _empreinte(moteur)
     finales = _mesures(moteur, admin, wct_id)
     # Attendu indépendant : 600 - (quantité × 8 + 3 h × 50), ou inconnu sans prix.
@@ -986,6 +1014,13 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         assert finales["m8_marge_reelle_cad"]["statut"] == "non_calculable"
     assert _empreinte(moteur) == avant
     apprentissage_final = _apprentissage(moteur, admin, wct_id)
+    if os.environ.get("QA_FRESH_NEG") in ("no_policy", "bad_proof"):
+        assert apprentissage_final["statut"] == "observee", apprentissage_final
+        assert apprentissage_final["rentabilite"]["statut"] == "exclue", apprentissage_final
+        assert apprentissage_final["rentabilite"]["cout_reel_complet"] is False
+        assert apprentissage_final["rentabilite"]["montant_marge_reelle_cad"] is None
+        assert _empreinte(moteur) == avant
+        return
     assert apprentissage_final["statut"] == "observee", apprentissage_final
     _, devis_accepte = _evenements("m3.devis_accepte")[0]
     assert apprentissage_final["sources"]["devis_id"] == chantier.devis_id
@@ -1000,7 +1035,7 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
     assert apprentissage_final["variance_materiaux"]["cause"] is None
     rentabilite = apprentissage_final["rentabilite"]
     assert rentabilite["prix_definitif"] is True
-    assert rentabilite["montant_marge_reelle_cad"] == marge_attendue
+    assert rentabilite["montant_marge_reelle_cad"] == marge_attendue, rentabilite
     assert rentabilite["statut"] == ("qualifiee" if prix_present else "exclue")
     if prix_present:
         assert rentabilite["cout_reel_complet"] is True and rentabilite["exclusions"] == []
@@ -1452,7 +1487,7 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
             return [e for enfant in exception.exceptions for e in feuilles(enfant)]
         return [exception]
 
-    def finaliser(chantier, lead, wct, suffixe, marge):
+    def finaliser(chantier, lead, wct, suffixe):
         (facture,) = [f for f in factures() if f.get("devis_id") == chantier.devis_id]
         assert facture["statut"] == "BROUILLON"
         avant = _empreinte(moteur)
@@ -1470,13 +1505,18 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
         _drainer(moteur)
         avant = _empreinte(moteur)
         mesures = _mesures(moteur, admin, wct)
-        assert mesures["m8_marge_reelle_cad"]["valeur"] == marge, mesures
+        # Pointages individuels sans équipe certifiée : la main-d'oeuvre est inconnue, donc la marge aussi (jamais
+        # déduite du temps scalaire) ; M8 la déclare non calculable et la mémoire exclut la rentabilité.
+        assert mesures["m8_marge_reelle_cad"]["valeur"] is None, mesures
+        assert mesures["m8_marge_reelle_cad"]["statut"] == "non_calculable", mesures
         apprentissage = _apprentissage(moteur, admin, wct)
         assert apprentissage["sources"]["devis_id"] == chantier.devis_id
         (_, source), = [(i, c) for i, c in _evenements("m3.devis_accepte") if c["devis_id"] == chantier.devis_id]
         assert apprentissage["sources"]["estimation_hash"] == source["estimation_source_hash"]
-        assert apprentissage["rentabilite"]["montant_marge_reelle_cad"] == marge
-        assert apprentissage["rentabilite"]["statut"] == "qualifiee"
+        assert apprentissage["rentabilite"]["montant_marge_reelle_cad"] is None
+        assert apprentissage["rentabilite"]["statut"] == "exclue"
+        assert apprentissage["rentabilite"]["verdict_m5"] == "PARTIELLE"
+        assert "cout_reel_incomplet_ou_inconnu" in apprentissage["rentabilite"]["exclusions"]
         assert _empreinte(moteur) == avant
         with stockage.transaction() as cnx:
             memoires = list(stockage.maillons("m10-memoire", "evenements"))
@@ -1559,7 +1599,7 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
         def appeler_revue(outil, arguments, *, cle=None):
             return _app(moteur, admin, outil, arguments, cle=cle)
 
-        sources = _sources_pour_revue(appeler_revue, chantier_b.intervention_id, wct_b, "cf018-classement-b")
+        sources = sources_pour_revue(appeler_revue, chantier_b.intervention_id, wct_b, "cf018-classement-b")
         revue = _app(moteur, admin, "m4_resoudre_revue_completion_sources", {
             "intervention_id": chantier_b.intervention_id, "decision": "verifiee",
             "horodatage": iso(moteur.horloge.maintenant), "motif": "Revue fictive B seulement.", "sources": sources,
@@ -1571,7 +1611,7 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
         assert decision.resultat["statut"] == "executee"
         assert decision.resultat["preuve_completion"]["wct_id"] == wct_b
         _drainer(moteur)
-        mesures_b, apprentissage_b = finaliser(chantier_b, lead_b, wct_b, "b", "2.00")
+        mesures_b, apprentissage_b = finaliser(chantier_b, lead_b, wct_b, "b")
         assert mouvements(wct_a) == reel_a
         (facture_a,) = [f for f in factures() if f.get("devis_id") == chantier_a.devis_id]
         assert facture_a["statut"] == "BROUILLON", "finaliser B ne finalise pas A"
@@ -1595,7 +1635,7 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
     assert mouvements(wct_a) == reel_a
     assert _mesures(moteur, admin, wct_b) == mesures_b
     assert _apprentissage(moteur, admin, wct_b, coupure_utc=apprentissage_b["coupure_utc"]) == apprentissage_b
-    finaliser(chantier_a, lead_a, wct_a, "a", "130.00")
+    finaliser(chantier_a, lead_a, wct_a, "a")
     assert _mesures(moteur, admin, wct_b) == mesures_b
     assert _apprentissage(moteur, admin, wct_b, coupure_utc=apprentissage_b["coupure_utc"]) == apprentissage_b
     coupure_courante = moteur.horloge.maintenant.astimezone(dt.UTC).isoformat()

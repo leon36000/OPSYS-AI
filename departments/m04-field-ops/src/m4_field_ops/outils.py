@@ -3465,8 +3465,13 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
             "intervention_id": intervention_id, "raison": charge["statut_variance"],
         }
 
+    from opsys.evenements.repartiteur import horodatage_livraison
+
+    instant_livraison = horodatage_livraison()
+    if instant_livraison is None or instant_livraison.utcoffset() is None:
+        raise ValueError("heure de livraison authentifiée absente")
     accuse, verdict = outbox.confirmer_verification(
-        intervention_id, charge["horodatage_completion"], reg,
+        intervention_id, instant_livraison.isoformat(), reg,
         evenement_id_variance=charge["evenement_id"],
     )
     if verdict is not None:

@@ -444,6 +444,27 @@ def test_idempotence_evenement_id_par_defaut_est_unique(session):
     assert _compte_sortants() == 2
 
 
+def test_heure_de_livraison_est_bornee_a_la_paire_meme_en_cas_d_echec(session, deps_succes, monkeypatch):
+    from opsys.evenements.repartiteur import horodatage_livraison
+
+    instants = []
+
+    def recevoir(_charge):
+        instants.append(horodatage_livraison().isoformat())
+        if len(instants) == 1:
+            raise ValueError("echec fictif")
+        return {"ok": True}
+
+    monkeypatch.setattr(demo_consommateur_ok, "consommateurs", lambda: {"opsys.demo_complete": recevoir})
+    evenements.publier("opsys.demo_complete", "test", {"message": "heure"})
+    assert horodatage_livraison() is None
+    assert evenements.repartir(deps_succes, maintenant="2026-09-28T00:00:00+00:00")["echecs"] == 1
+    assert horodatage_livraison() is None
+    assert evenements.repartir(deps_succes, maintenant="2026-09-28T00:01:00+00:00")["traites"] == 1
+    assert instants == ["2026-09-28T00:00:00+00:00", "2026-09-28T00:01:00+00:00"]
+    assert horodatage_livraison() is None
+
+
 def test_redelivery_ne_reexecute_jamais_un_evenement_traite(session, deps_succes):
     evenements.publier("opsys.demo_complete", "test", {"message": "une-fois"})
 

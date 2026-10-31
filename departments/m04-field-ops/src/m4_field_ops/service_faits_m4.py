@@ -7,9 +7,10 @@ Core dans la même transaction. PostgreSQL reste refusé jusqu'à qualification.
 import copy
 import re
 
+from sqlalchemy import select
+
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_SORTANTS, OPSYS_INSTANCE
-from sqlalchemy import select
 
 from . import encodage, outbox
 from . import temps_certifies_v2 as v2

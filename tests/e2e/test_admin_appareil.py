@@ -58,6 +58,12 @@ from harnais_e2e_chantier import (
     preparer_chantier,
     receptionner_materiel_args,
 )
+from harnais_equipe_certifiee import (
+    confier_a_l_equipe_lead_v1,
+    recalcul_certifie_qa,
+    retirer_le_profil_des_equipes,
+    terminer_chantier_certifie,
+)
 from m4_field_ops import ecarts as ecarts_m4
 from m4_field_ops import etats as etats_m4
 from m4_field_ops import preparation as preparation_m4
@@ -112,6 +118,7 @@ STATUTS_DU_DISPATCH = tuple(_liste_ts(_source("m4/dispatch.ts"), "STATUTS_DU_DIS
 _CHEMIN_DE_TEST = re.compile(r"/tmp/pytest-of-[^/]+/pytest-\d+/[^/]+/opsys-home")
 
 PO = "PO-E2E-ADM-1"
+EQUIPE_CERTIFIEE = "eq-admin-appareil-fictive"  # l'équipe dont « etienne » est membre (chantier E, voie certifiée)
 FOURNISSEUR = "gentek-fictif"
 CONFIGURATION_M5 = {
     "fiscal": {"frequence_tps_tvq": "trimestrielle", "mois_fin_exercice": 12, "taxes_remises_jusqu_au": "2026-06-30"},
@@ -236,6 +243,28 @@ def _chantier_termine(
     assert app.declarer_materiaux(wct_id, quantite).metier["accepte"] is True
     moteur.drainer_bus(moteur.horloge.maintenant)
     return chantier, wct_id
+
+
+def _chantier_termine_certifie(
+        moteur: Moteur, equipe: dict[str, Any], suffixe: str, jour: int, quantite: float, dossier: Path,
+) -> tuple[Chantier, str]:
+    """Comme `_chantier_termine`, mais par la voie CERTIFIÉE (PR #861) : le chantier est confié à une ÉQUIPE déclarée
+    (dont `etienne` est membre), la journée est celle de l'équipe (pointages V3 sur une vraie visite, projection M4
+    vérifiée, tarif d'équipe M5) et l'admin déclare les matériaux (le WCT est celui d'une équipe). Le recalcul qualifié
+    n'est PAS fait ici : il vient après la dernière entrée de M5 qui change (la facture envoyée)."""
+    chantier = preparer_chantier(moteur.departements, suffixe=suffixe, technicien="etienne",
+                                 debut=debut_de_journee(jour))
+    moteur.horloge.maintenant = chantier.debut
+    moteur.drainer_bus(moteur.horloge.maintenant)  # le devis accepté est livré à M6 (prévu de matériaux)
+    reception = equipe["admin"].appeler(
+        "m6_receptionner_commande", receptionner_materiel_args(chantier), cle=f"mut-reception-{suffixe}",
+        horodatage_appareil=iso(chantier.debut))
+    assert reception.metier["accepte"] is True, reception.metier
+    confier_a_l_equipe_lead_v1(moteur, equipe["admin"], chantier, dossier, EQUIPE_CERTIFIEE, suffixe=suffixe)
+    _, completion, declaration = terminer_chantier_certifie(
+        moteur, equipe["admin"], equipe["employe"], chantier, quantite, EQUIPE_CERTIFIEE, suffixe=suffixe)
+    assert declaration.metier["accepte"] is True
+    return chantier, completion.resultat["wct_id"]
 
 
 def _sources_pour_revue(appeler, intervention_id, wct_id, prefixe):
@@ -409,10 +438,12 @@ def _enregistrer_la_journee(moteur: Moteur, equipe: dict[str, Any], tmp_path: Pa
     _declarer_seuil_de_stock(tmp_path, monkeypatch)
     # A : ni prix au livre de M6 ni taux horaire dans le manifeste livré, un écart de matériaux de 40 % (56 pi pour 40)
     chantier_a, wct_a = _chantier_termine(moteur, equipe, "ADM-A", 21, 56.0)
-    # E : les prix et le taux horaire sont déclarés, un écart de 5 % (42 pi pour 40) : la marge réelle se calcule
+    # E : les prix sont au livre de M6, un écart de 5 % (42 pi pour 40) : la marge réelle se calcule, PAR LA VOIE
+    # CERTIFIÉE (PR #861) : une journée d'équipe pointée en V3, chiffrée au tarif d'équipe de M5. Le taux horaire du
+    # manifeste ne chiffre plus la main-d'oeuvre d'une durée scalaire.
     _prix_au_livre_de_m6(moteur)
     _declarer_m5(tmp_path, monkeypatch, {**CONFIGURATION_M5, "taux_horaire_main_d_oeuvre": "50.00"})
-    chantier_e, _wct_e = _chantier_termine(moteur, equipe, "ADM-E", 22, 42.0)
+    chantier_e, wct_e = _chantier_termine_certifie(moteur, equipe, "ADM-E", 22, 42.0, tmp_path)
     # Préparation fictive : la facture existante est envoyée par le contrat M5 canonique.
     # Un chantier chiffré avec facture encore brouillon ne certifie pas une marge définitive.
     envoyer = next(outil for outil in m5_outils.outils() if outil.nom == "m5_envoyer_facture")
@@ -421,6 +452,13 @@ def _enregistrer_la_journee(moteur: Moteur, equipe: dict[str, Any], tmp_path: Pa
     })
     assert envoi["ok"] and envoi["resultat"]["accepte"], envoi
     moteur.drainer_bus(moteur.horloge.maintenant)
+    # La facture est la dernière entrée de M5 à changer : le recalcul qualifié trace maintenant le coût certifié
+    # (marge réelle sur un prix définitif) et le publie à M8 et M10.
+    recalcul_certifie_qa(chantier_e, wct_e, suffixe="ADM-E")
+    moteur.drainer_bus(moteur.horloge.maintenant)
+    # Les préparations lues plus bas (B, C, D) documentent, dans la fixture de l'app, une instance SANS profil des
+    # équipes : celui que la voie certifiée de E a dû déclarer est retiré (E n'en a plus besoin, il est tracé).
+    retirer_le_profil_des_equipes()
     chantier_b = _chantier_planifie(moteur, "ADM-B", 23, version_lead=2)
     chantier_c = _chantier_planifie(moteur, "ADM-C", 24, version_lead=1)
     moteur.horloge.maintenant = debut_de_journee(25)

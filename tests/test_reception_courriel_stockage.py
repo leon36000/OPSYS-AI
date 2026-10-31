@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 import pytest
 from alembic import command
+from alembic.script import ScriptDirectory
 from sqlalchemy import event, func, select, update
 
 from opsys import identite, stockage
@@ -15,6 +16,10 @@ KEY = b"k" * 32
 KEY_ID = "a" * 32
 ACTOR = "admin.courriel.fictif"
 SOURCE_KEYS = ("instance_id", "source_id", "compte_id", "boite", "uid_validity", "uid")
+
+
+def _tete() -> str:
+    return ScriptDirectory.from_config(stockage._config()).get_current_head()
 
 
 def port():
@@ -239,7 +244,7 @@ def test_migration_vide_retour_0029_et_remontee_preservent_instance(case):
         command.downgrade(config, "0029")
         assert cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one() == case.args["instance_id"]
         assert identite.personne_active(cnx, ACTOR).identifiant == ACTOR
-    assert stockage.migrer() == "0030"
+    assert stockage.migrer() == _tete()
     assert case.recevoir()["statut"] == "ORIGINAL_STOCKE_INTERNE"
 
 
@@ -267,7 +272,7 @@ def test_migration_preserve_autres_tables_et_downgrade_occupe_refuse(case):
     port()
     case.recevoir()
     before = stockage.revision_courante()
-    assert before == "0030"
+    assert before == _tete()
     config = stockage._config()
     with pytest.raises(RuntimeError, match="rétrogradation refusée"), stockage.transaction() as cnx:
         config.attributes["connection"] = cnx
