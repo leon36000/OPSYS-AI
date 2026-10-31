@@ -150,3 +150,51 @@ def test_opsys_verifier_refuse_une_duree_pour_un_service_non_declare(opsys_home,
     assert "'revetement', que l'entreprise ne déclare pas" in capsys.readouterr().err
     declarer_services("gouttieres", "revetement")
     assert cli.main(["verifier"]) == 0
+
+
+# ---------------------------------------------------------------------------
+# Semaine type, congés, fériés, durée d'un jour-personne (DECISIONS-ARCHITECTE-r1 §3)
+# ---------------------------------------------------------------------------
+_YAML_SEMAINE_TYPE = """
+liste:
+  - id: equipe-nord
+    membres: [alice.fictif]
+    competences: [gouttieres]
+    depot: {id: depot-nord, latitude_microdegres: 46015000, longitude_microdegres: -73445000}
+    quarts: [{jour: 0, debut_min: 480, fin_min: 1020}]
+    semaine_type:
+      fuseau: America/Montreal
+      lundi: [{debut: "07:00", fin: "12:00"}, {debut: "12:30", fin: "15:30"}]
+      samedi: []
+conges: [{equipes: [equipe-nord], du: 2030-07-22, au: 2030-08-02, motif: conge, libelle: "vacances fictives"}]
+feries: {annees: [2030], jours: [{date: 2030-06-24, libelle: "férié fictif"}]}
+duree_jour_personne_minutes: 480
+"""
+
+
+def test_declarer_une_semaine_type_depuis_un_yaml_ecrit_a_la_main(instance, tmp_path, capsys):
+    chemin = tmp_path / "semaine.yaml"
+    chemin.write_text(_YAML_SEMAINE_TYPE, encoding="utf-8")
+    assert cli.main(["equipes", "declarer", "--depuis", str(chemin), "--par", "nathan"]) == 0
+    capsys.readouterr()
+    profil = equipes.lire_equipes()
+    assert profil["liste"][0]["semaine_type"]["lundi"][1] == {"debut": "12:30", "fin": "15:30"}
+    assert profil["conges"][0]["du"] == "2030-07-22" and profil["duree_jour_personne_minutes"] == 480
+    details = _journal()[0]["details"]
+    assert details["conges_declares"] == 1 and "vacances" not in json.dumps(details)
+    assert cli.main(["verifier"]) == 0
+
+
+@pytest.mark.parametrize(("remplacer", "par", "attendu"), [
+    ('{debut: "12:30", fin: "15:30"}', "{debut: 12:30, fin: 15:30}", "GUILLEMETS"),
+    ('{debut: "12:30", fin: "15:30"}', '{debut: "11:30", fin: "15:30"}', "chevauchent"),
+    ("fuseau: America/Montreal", "fuseau: America/Toronto", "America/Montreal"),
+    ("motif: conge", "motif: maladie", "motif"),
+])
+def test_declarer_refuse_une_semaine_type_invalide_sans_rien_ecrire(instance, tmp_path, capsys, remplacer, par,
+                                                                    attendu):
+    chemin = tmp_path / "semaine.yaml"
+    chemin.write_text(_YAML_SEMAINE_TYPE.replace(remplacer, par), encoding="utf-8")
+    assert cli.main(["equipes", "declarer", "--depuis", str(chemin), "--par", "nathan"]) == 1
+    assert attendu in capsys.readouterr().err
+    assert equipes.lire_equipes() is None and _journal() == []
