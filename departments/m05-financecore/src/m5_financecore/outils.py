@@ -199,7 +199,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
@@ -901,9 +900,8 @@ def _valider_tarif_equipe(tarif: Any) -> dict[str, Any]:
 
 def _instantane_tarifs_equipes() -> dict[str, Any]:
     """Copie bornée puis chaîne vérifiée dans la transaction déjà admise."""
-    from sqlalchemy import LargeBinary, cast, func, select
-
     from opsys.stockage.schema import OPSYS_INSTANCE, REGISTRES
+    from sqlalchemy import LargeBinary, cast, func, select
 
     cnx = stockage.connexion_courante()
     requete_instance = select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)
@@ -1113,11 +1111,15 @@ def _essayer_cout_reel(devis_id: str) -> dict[str, Any]:
 
 def _consigner_rentabilite(rentabilite: dict[str, Any], sequence: int, horodatage: Any, *,
                            rang_attendu: int | None = None, provenance: dict[str, Any] | None = None,
-                           publier: bool = True) -> dict[str, Any]:
+                           provenance_service: dict[str, Any] | None = None, publier: bool = True) -> dict[str, Any]:
     """Point d'écriture privé M5 ; ses appelants doivent établir l'autorité et les sources."""
     trace = cout_reel.construire_trace(rentabilite, horodatage)
+    if provenance is not None and provenance_service is not None:
+        raise ValueError('provenances incompatibles')
     if provenance is not None:
         trace['provenance_v3'] = provenance
+    if provenance_service is not None:
+        trace['provenance_service_v1'] = provenance_service
     stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE).append(trace, rang_attendu=rang_attendu)
     if publier:
         _publier_rentabilite(rentabilite, sequence, horodatage)
@@ -1196,7 +1198,17 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     if wct_recu["devis_id"] is None:
         return {"traite": True, "wct_id": wct_id, "statut": "wct_sans_devis_id"}
     resultat = _essayer_facture_brouillon(wct_recu["devis_id"])
-    return {**resultat, "cout_reel": _essayer_cout_reel(wct_recu["devis_id"])["statut"]}
+    cout = _essayer_cout_reel(wct_recu["devis_id"])["statut"]
+    # Sans capacité qualifiée, l'ancien résultat partiel reste la vérité connue.
+    from opsys import service_capability
+    try:
+        cap = service_capability.courante()
+    except (service_capability.RefusAutorite, ValueError):
+        return {**resultat, "cout_reel": cout}
+    # Une perte de source après acquisition remonte au répartiteur et annule la livraison.
+    from .port_service_m4 import publier
+    publication = publier(wct_recu["devis_id"], cap=cap)
+    return {**resultat, "cout_reel": cout, "service_m4": publication["statut"]}
 
 
 def lister_attentes_facturation() -> dict[str, Any]:
@@ -4130,10 +4142,9 @@ def _snapshot_couts_marketing(nom: str) -> list[dict]:
     import json
     import math
 
-    from sqlalchemy import LargeBinary, cast, func, select
-
     from opsys.stockage import codec
     from opsys.stockage.schema import REGISTRES
+    from sqlalchemy import LargeBinary, cast, func, select
 
     if nom not in {_NOM_REGISTRE_COMPTES_A_PAYER, couts_marketing.REGISTRE}:
         raise couts_marketing.CoutErreur("REGISTRE-INVALIDE")

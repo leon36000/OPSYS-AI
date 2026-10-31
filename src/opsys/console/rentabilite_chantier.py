@@ -85,6 +85,57 @@ def _historique_v3(cnx, captures, devis_id):
             'diffusion': 'non_publiee_au_bus', 'traces': retenues}
 
 
+
+def _historique_service(cnx, captures, devis_id, session):
+    """Historique service : preuve SQL distincte d'un reçu console humain."""
+    traces = [ligne for ligne in captures[(M5, 'rentabilite')].lignes
+              if isinstance(ligne.maillon, dict) and ligne.maillon.get('devis_id') == devis_id
+              and 'provenance_service_v1' in ligne.maillon]
+    if not traces:
+        return {'nombre': 0, 'traces': [], 'reste': 0}
+    lecture._borner(cnx, M5, 'rentabilite_service_v1')
+    from m5_financecore import outils as m5
+    recus = list(m5.stockage.maillons(M5, 'rentabilite_service_v1'))
+    if len(recus) > 1000 or any(not isinstance(r, dict) for r in recus):
+        raise lecture.Refus('RECU-SERVICE-INVALIDE')
+    instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)).scalar_one()
+    resultat = []
+    for ligne in list(reversed(traces))[:10]:
+        trace = ligne.maillon
+        correspondants = [r for r in recus if r.get('trace_rang') == ligne.rang]
+        if len(correspondants) != 1:
+            raise lecture.Refus('RECU-SERVICE-INVALIDE')
+        recu = correspondants[0]
+        noms = {'type', 'instance_id', 'wct_id', 'reference_core', 'trace_rang', 'trace_empreinte', 'empreinte'}
+        reference = recu.get('reference_core')
+        if (set(recu) != noms or recu['type'] != 'publication_service_v1'
+                or type(recu['trace_rang']) is not int or recu['trace_rang'] < 0
+                or recu['instance_id'] != instance or recu['wct_id'] != trace.get('wct_id')
+                or type(reference) is not dict
+                or set(reference) != {'schema', 'id', 'instance_id', 'evenement_id', 'operation', 'revision'}
+                or reference.get('schema') != 'opsys.core.m4.audit-usage.v1'
+                or reference.get('operation') != 'm4.verifier_v3'
+                or type(reference.get('id')) is not int or reference['id'] <= 0
+                or type(reference.get('revision')) is not int or reference['revision'] <= 0
+                or reference.get('instance_id') != instance or reference.get('evenement_id') != recu['wct_id']
+                or recu['trace_empreinte'] != encodage.empreinte(trace)
+                or recu['empreinte'] != encodage.empreinte('m5.publication_service.v1',
+                    {k: v for k, v in recu.items() if k != 'empreinte'})):
+            raise lecture.Refus('RECU-SERVICE-INVALIDE')
+        provenance = trace['provenance_service_v1']
+        if (not isinstance(provenance, dict) or provenance.get('wct_id') != recu['wct_id']
+                or provenance.get('instance_id') != instance):
+            raise lecture.Refus('RECU-SERVICE-INVALIDE')
+        from opsys import service_capability, service_history_m4
+        try:
+            verification = service_history_m4.lire_historique(cnx, session, recu)
+        except service_capability.RefusAutorite:
+            raise lecture.Refus('RECU-SERVICE-INVALIDE') from None
+        resultat.append(lecture._sortie({'version_entrees': trace.get('version_entrees'),
+            'horodatage': trace.get('horodatage'), 'verdict': trace.get('verdict'),
+            'provenance': provenance, **verification}))
+    return {'nombre': len(traces), 'traces': resultat, 'reste': len(traces)-len(resultat)}
+
 def _configuration(m5):
     try:
         with m5._MANIFESTE.open('rb') as f:
@@ -276,7 +327,8 @@ def lire(cnx, deps, session, lead_id, devis_id):
     statut, recu = _reception(cnx, devis_id) if charge is not None else ('NON_PUBLIE', None)
     resultat = dict(lead_id=lead_id, devis_id=devis_id, reception_m5=statut, chantier=None,
                     source_calculee=None, ventilation_m4={'statut': 'WCT_ABSENT'},
-                    historique_v3=_historique_v3(cnx, captures, devis_id))
+                    historique_v3=_historique_v3(cnx, captures, devis_id),
+                    historique_service=_historique_service(cnx, captures, devis_id, session))
     recu_wct = None
     recus = [m for m in _lignes(captures, M5, 'devis_recus') if m.get('devis_id') == devis_id]
     if statut != 'TRAITE':
@@ -612,6 +664,16 @@ def contenu(vue, prefixe, csrf=None):
         corps += '</ul>'
         if historique['reste']:
             corps += f'<p>Autres analyses non affichées : {historique["reste"]}</p>'
+    service = vue.get('historique_service', {'nombre': 0, 'traces': [], 'reste': 0})
+    if service['nombre']:
+        corps += ('<h3>Publications de service</h3><p>La liaison historique est examinée par Core ; '
+                  'sa fraîcheur actuelle reste à revalider.</p><ul>')
+        for trace in service['traces']:
+            preuve = ('Liaison historique vérifiée' if trace['preuve_core'] == 'liaison_historique_verifiee'
+                      else 'Liaison historique non vérifiable')
+            corps += (f'<li>Complétion WCT : {valeur(trace["horodatage"])} · {valeur(trace["verdict"])} · '
+                      f'Référence : {valeur(trace["version_entrees"])} · {pages.e(preuve)}</li>')
+        corps += '</ul>'
     corps += (f'<p>Arrondi M5 : {pages.e(cout["arrondi"])}</p><details><summary>Source de consultation</summary>'
               f'<p>Empreinte calculée : {pages.e(vue["source_calculee"])}</p></details></section>')
     return corps
