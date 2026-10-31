@@ -513,3 +513,21 @@ def test_le_code_de_m5_n_ecrit_jamais_dans_le_registre_d_un_autre_departement():
     corps = source.split("def _livre_de_prix_m6", 1)[1].split("\ndef ", 1)[0]
     assert ".append" not in corps and ".extend" not in corps and "for entree in maillons" in corps
     assert "m06-material-control" not in source.replace('_DEPARTEMENT_LIVRE_DE_PRIX = "m06-material-control"', "")
+
+
+def test_legacy_recu_partiel_et_rejeu(base_durable, taux_configure):
+    for piece in ("devis", "wct", "variance"):
+        _publier(piece)
+        _livrer()
+    traces = _traces()
+    assert traces and traces[-1]["verdict"] == "PARTIELLE"
+    assert "REJ-COUT-TEMPS-POINTE-ABSENT" in _codes(traces[-1])
+    assert traces[-1]["rentabilite"]["cout_reel"]["main_d_oeuvre"]["cout"] is None
+    with stockage.transaction():
+        recus = list(stockage.maillons("m05-financecore", "wct_recus"))
+        service = list(stockage.maillons("m05-financecore", "rentabilite_service_v1"))
+    assert len(recus) == 1 and service == []
+    _livrer()
+    assert _traces() == traces
+    with stockage.transaction():
+        assert list(stockage.maillons("m05-financecore", "wct_recus")) == recus
