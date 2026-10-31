@@ -1,0 +1,498 @@
+{
+ "biais_connus": [
+  "corpus fictif rédigé par un seul auteur (agent), en français : aucune diversité d'auteurs ni de formulations",
+  "effectifs faibles par famille et par partition : les intervalles de Wilson sont larges",
+  "sorties de modèle FIGÉES rédigées à la main : elles sondent les garde-fous, elles ne mesurent aucun modèle réel",
+  "réponses de producteurs simulées au format du catalogue : aucune réponse réelle de M1–M8 n'est rejouée ici",
+  "les attentes suivent les exigences écrites du cahier ; une exigence absente du cahier n'est pas testée",
+  "la justesse sémantique d'une inférence (par ex. « équipes » pour « matériaux ») n'est pas détectable par le code"
+ ],
+ "cas_rouges": [
+  {
+   "ecarts": [
+    ".cloture.actions.a1 : attendu 'VALIDATION_HUMAINE_REQUISE', observé 'PROPOSABLE'",
+    ".cloture.decision_majeure : attendu True, observé False"
+   ],
+   "famille": "budget_marketing",
+   "id": "mkt-A07",
+   "partition": "ajustement"
+  },
+  {
+   "ecarts": [
+    ".tours.experience_client.depots[0].issue : attendu 'REFUSE', observé 'ADMIS'"
+   ],
+   "famille": "reputation",
+   "id": "rep-V02",
+   "partition": "verification"
+  },
+  {
+   "ecarts": [
+    ".entree_conseil.ages_exposes : attendu True, observé False"
+   ],
+   "famille": "leads_hors_capacite",
+   "id": "lea-A08",
+   "partition": "ajustement"
+  }
+ ],
+ "conseil": {
+  "abstention_attendue": {
+   "k": 2,
+   "n": 29,
+   "taux": "0.0690",
+   "wilson95": [
+    "0.0191",
+    "0.2196"
+   ]
+  },
+  "abstention_observee": {
+   "k": 2,
+   "n": 29,
+   "taux": "0.0690",
+   "wilson95": [
+    "0.0191",
+    "0.2196"
+   ]
+  },
+  "depots_refuses": {
+   "k": 14,
+   "n": 73,
+   "taux": "0.1918",
+   "wilson95": [
+    "0.1178",
+    "0.2966"
+   ]
+  },
+  "note": "un dépôt refusé est souvent le comportement ATTENDU : des sorties fautives sont injectées pour sonder",
+  "par_famille": {
+   "budget_marketing": {
+    "abstentions_attendues": 0,
+    "abstentions_observees": 0,
+    "depots_figes": 25,
+    "depots_refuses": 6,
+    "sessions": 10
+   },
+   "leads_hors_capacite": {
+    "abstentions_attendues": 0,
+    "abstentions_observees": 0,
+    "depots_figes": 13,
+    "depots_refuses": 2,
+    "sessions": 4
+   },
+   "nouvelle_ville": {
+    "abstentions_attendues": 2,
+    "abstentions_observees": 2,
+    "depots_figes": 7,
+    "depots_refuses": 2,
+    "sessions": 3
+   },
+   "reputation": {
+    "abstentions_attendues": 0,
+    "abstentions_observees": 0,
+    "depots_figes": 20,
+    "depots_refuses": 2,
+    "sessions": 9
+   },
+   "tresorerie_serree": {
+    "abstentions_attendues": 0,
+    "abstentions_observees": 0,
+    "depots_figes": 8,
+    "depots_refuses": 2,
+    "sessions": 3
+   }
+  },
+  "sessions": 29
+ },
+ "corpus": "corpus-metier-v1",
+ "corpus_sha256": "6faf3c0aefd12d2c244acf8502731b3b1b5e6651db40eb451a7b13bd66d74c0d",
+ "effectifs": {
+  "cas": 60,
+  "par_famille_partition": {
+   "budget_marketing": {
+    "ajustement": 7,
+    "verification": 3
+   },
+   "leads_hors_capacite": {
+    "ajustement": 8,
+    "verification": 3
+   },
+   "nouvelle_ville": {
+    "ajustement": 7,
+    "verification": 3
+   },
+   "rapport_direction": {
+    "ajustement": 7,
+    "verification": 3
+   },
+   "reputation": {
+    "ajustement": 6,
+    "verification": 3
+   },
+   "tresorerie_serree": {
+    "ajustement": 7,
+    "verification": 3
+   }
+  }
+ },
+ "fuites_entre_partitions": [],
+ "global": {
+  "effectif": 60,
+  "reussites": 57,
+  "rouges": [
+   {
+    "ecarts": [
+     ".cloture.actions.a1 : attendu 'VALIDATION_HUMAINE_REQUISE', observé 'PROPOSABLE'",
+     ".cloture.decision_majeure : attendu True, observé False"
+    ],
+    "id": "mkt-A07"
+   },
+   {
+    "ecarts": [
+     ".tours.experience_client.depots[0].issue : attendu 'REFUSE', observé 'ADMIS'"
+    ],
+    "id": "rep-V02"
+   },
+   {
+    "ecarts": [
+     ".entree_conseil.ages_exposes : attendu True, observé False"
+    ],
+    "id": "lea-A08"
+   }
+  ],
+  "taux": "0.9500",
+  "wilson95": [
+   "0.8630",
+   "0.9829"
+  ]
+ },
+ "latence_harnais_secondes": 0.016156,
+ "limites": [
+  "Verdict de DOUBLES DE PROTOCOLE sur la couche déterministe de M9 : aucune qualification d'un modèle réel.",
+  "Qualité du conseil, justesse des inférences et utilité des décisions NON ÉTABLIES : revue métier humaine indépendante requise.",
+  "Exécution Core native (budget natif, réservations, agents) non exercée : verdict séparé, ouvert.",
+  "Producteurs M4 (capacité d'équipe), M7 (dépenses) et M1 (plaintes structurées) absents : contrats simulés."
+ ],
+ "mesures_modele": {
+  "cout": "UNKNOWN",
+  "latence": "UNKNOWN",
+  "raison": "aucun modèle appelé : sorties figées",
+  "tokens": "UNKNOWN"
+ },
+ "modele_reel": false,
+ "par_famille": {
+  "budget_marketing": {
+   "ajustement": {
+    "effectif": 7,
+    "reussites": 6,
+    "rouges": [
+     {
+      "ecarts": [
+       ".cloture.actions.a1 : attendu 'VALIDATION_HUMAINE_REQUISE', observé 'PROPOSABLE'",
+       ".cloture.decision_majeure : attendu True, observé False"
+      ],
+      "id": "mkt-A07"
+     }
+    ],
+    "taux": "0.8571",
+    "wilson95": [
+     "0.4869",
+     "0.9743"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 3,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.4385",
+     "1.0000"
+    ]
+   }
+  },
+  "leads_hors_capacite": {
+   "ajustement": {
+    "effectif": 8,
+    "reussites": 7,
+    "rouges": [
+     {
+      "ecarts": [
+       ".entree_conseil.ages_exposes : attendu True, observé False"
+      ],
+      "id": "lea-A08"
+     }
+    ],
+    "taux": "0.8750",
+    "wilson95": [
+     "0.5291",
+     "0.9776"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 3,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.4385",
+     "1.0000"
+    ]
+   }
+  },
+  "nouvelle_ville": {
+   "ajustement": {
+    "effectif": 7,
+    "reussites": 7,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.6457",
+     "1.0000"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 3,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.4385",
+     "1.0000"
+    ]
+   }
+  },
+  "rapport_direction": {
+   "ajustement": {
+    "effectif": 7,
+    "reussites": 7,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.6457",
+     "1.0000"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 3,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.4385",
+     "1.0000"
+    ]
+   }
+  },
+  "reputation": {
+   "ajustement": {
+    "effectif": 6,
+    "reussites": 6,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.6097",
+     "1.0000"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 2,
+    "rouges": [
+     {
+      "ecarts": [
+       ".tours.experience_client.depots[0].issue : attendu 'REFUSE', observé 'ADMIS'"
+      ],
+      "id": "rep-V02"
+     }
+    ],
+    "taux": "0.6667",
+    "wilson95": [
+     "0.2077",
+     "0.9385"
+    ]
+   }
+  },
+  "tresorerie_serree": {
+   "ajustement": {
+    "effectif": 7,
+    "reussites": 7,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.6457",
+     "1.0000"
+    ]
+   },
+   "verification": {
+    "effectif": 3,
+    "reussites": 3,
+    "rouges": [],
+    "taux": "1.0000",
+    "wilson95": [
+     "0.4385",
+     "1.0000"
+    ]
+   }
+  }
+ },
+ "par_partition": {
+  "ajustement": {
+   "effectif": 42,
+   "reussites": 40,
+   "rouges": [
+    {
+     "ecarts": [
+      ".cloture.actions.a1 : attendu 'VALIDATION_HUMAINE_REQUISE', observé 'PROPOSABLE'",
+      ".cloture.decision_majeure : attendu True, observé False"
+     ],
+     "id": "mkt-A07"
+    },
+    {
+     "ecarts": [
+      ".entree_conseil.ages_exposes : attendu True, observé False"
+     ],
+     "id": "lea-A08"
+    }
+   ],
+   "taux": "0.9524",
+   "wilson95": [
+    "0.8421",
+    "0.9868"
+   ]
+  },
+  "verification": {
+   "effectif": 18,
+   "reussites": 17,
+   "rouges": [
+    {
+     "ecarts": [
+      ".tours.experience_client.depots[0].issue : attendu 'REFUSE', observé 'ADMIS'"
+     ],
+     "id": "rep-V02"
+    }
+   ],
+   "taux": "0.9444",
+   "wilson95": [
+    "0.7424",
+    "0.9901"
+   ]
+  }
+ },
+ "par_perturbation": {
+  "absence": {
+   "effectif": 15,
+   "reussites": 14,
+   "rouges": [
+    {
+     "ecarts": [
+      ".tours.experience_client.depots[0].issue : attendu 'REFUSE', observé 'ADMIS'"
+     ],
+     "id": "rep-V02"
+    }
+   ],
+   "taux": "0.9333",
+   "wilson95": [
+    "0.7018",
+    "0.9881"
+   ]
+  },
+  "contradiction": {
+   "effectif": 6,
+   "reussites": 6,
+   "rouges": [],
+   "taux": "1.0000",
+   "wilson95": [
+    "0.6097",
+    "1.0000"
+   ]
+  },
+  "homonyme": {
+   "effectif": 6,
+   "reussites": 6,
+   "rouges": [],
+   "taux": "1.0000",
+   "wilson95": [
+    "0.6097",
+    "1.0000"
+   ]
+  },
+  "injection": {
+   "effectif": 10,
+   "reussites": 9,
+   "rouges": [
+    {
+     "ecarts": [
+      ".cloture.actions.a1 : attendu 'VALIDATION_HUMAINE_REQUISE', observé 'PROPOSABLE'",
+      ".cloture.decision_majeure : attendu True, observé False"
+     ],
+     "id": "mkt-A07"
+    }
+   ],
+   "taux": "0.9000",
+   "wilson95": [
+    "0.5958",
+    "0.9821"
+   ]
+  },
+  "nominal": {
+   "effectif": 11,
+   "reussites": 11,
+   "rouges": [],
+   "taux": "1.0000",
+   "wilson95": [
+    "0.7412",
+    "1.0000"
+   ]
+  },
+  "perimee": {
+   "effectif": 5,
+   "reussites": 4,
+   "rouges": [
+    {
+     "ecarts": [
+      ".entree_conseil.ages_exposes : attendu True, observé False"
+     ],
+     "id": "lea-A08"
+    }
+   ],
+   "taux": "0.8000",
+   "wilson95": [
+    "0.3755",
+    "0.9638"
+   ]
+  },
+  "tardive": {
+   "effectif": 6,
+   "reussites": 6,
+   "rouges": [],
+   "taux": "1.0000",
+   "wilson95": [
+    "0.6097",
+    "1.0000"
+   ]
+  },
+  "unite_date": {
+   "effectif": 5,
+   "reussites": 5,
+   "rouges": [],
+   "taux": "1.0000",
+   "wilson95": [
+    "0.5655",
+    "1.0000"
+   ]
+  }
+ },
+ "partition_evaluee": "toutes",
+ "portee": "couche déterministe M9 (captures, dossier, session de conseil, audit, gouvernance, prévisions, priorisation, occasions) sur des producteurs simulés et des sorties de modèle FIGÉES",
+ "sceaux_partitions": {
+  "ajustement": "0ce1d48ad2384f8da2ff5981e37e46a840198419469db84f9a3beb0ec548e0ef",
+  "verification": "2206f505ba559f98b0a4ed232a07132d3a06c89a46c2248c5938458cacfeb41e"
+ },
+ "type": "EVALUATION_METIER_M9",
+ "verdicts_separes": {
+  "double_de_protocole_deterministe": "MESURE_ICI",
+  "execution_core_native": "OUVERTE",
+  "qualification_modele_reel": "OUVERTE",
+  "qualite_metier_conseil": "NON_ETABLIE"
+ },
+ "version": "2026-10-31.1"
+}

@@ -1,0 +1,2 @@
+canal m01-front-office / sms : INACTIF, variables à fournir : OPSYS_SMS_COMPTE_SID, OPSYS_SMS_JETON, OPSYS_SMS_NUMERO, OPSYS_SMS_URL_PUBLIQUE, OPSYS_SMS_POLITIQUES_VALIDEES
+OK : 10 départements, 358 outils, noms uniques, manifestes valides, événements cohérents, portées d'appareil valides (229 outils déclarés, les autres fermés aux appareils), taxonomie sans copie locale.
