@@ -1025,15 +1025,48 @@ def _sources_cout_reel_depuis(captures: dict[str, Any]) -> dict[str, Any]:
         raise ValueError('REJ-FACTURE-CHAINE-INVALIDE')
     traces: dict[str, dict[str, Any]] = {}
     nombre_de_traces: dict[str, int] = {}
+    # D3 / E8 : par devis, la dernière trace qui a pu atteindre le bus (hors voie console `provenance_v3`) et la
+    # dernière trace dont la main-d'oeuvre est certifiée, avec son rang (1, 2...) parmi les traces du devis.
+    certifiees: dict[str, dict[str, Any]] = {}
     for maillon in captures['rentabilite']:
-        traces[maillon.get("devis_id")] = maillon
-        nombre_de_traces[maillon.get("devis_id")] = nombre_de_traces.get(maillon.get("devis_id"), 0) + 1
+        devis = maillon.get("devis_id")
+        traces[devis] = maillon
+        nombre_de_traces[devis] = nombre_de_traces.get(devis, 0) + 1
+        if "provenance_v3" not in maillon:
+            entree = certifiees.setdefault(devis, {"publiee": None, "certifiee": None, "sequence_certifiee": None})
+            entree["publiee"] = maillon
+            if cout_reel._main_d_oeuvre_certifiee(maillon):
+                entree["certifiee"], entree["sequence_certifiee"] = maillon, nombre_de_traces[devis]
     return {
         "devis": captures['devis'], "wct": captures['wct'], "variance": captures['variance'],
         "factures": facturation.factures_actives_par_devis(captures['factures']),
         "livre": captures['livre'], "taux": captures['taux'],
-        "traces": traces, "nombre_de_traces": nombre_de_traces,
+        "traces": traces, "nombre_de_traces": nombre_de_traces, "certifiees": certifiees,
     }
+
+
+STATUTS_COUT_CERTIFIE = ("a_jour", "perime_recalcul_en_attente", "inconnu")
+
+
+def _statut_cout_certifie(devis_id: str, rentabilite_ordinaire: Mapping[str, Any] | None,
+                          sources: Mapping[str, Any]) -> tuple[str, dict[str, Any] | None, int | None]:
+    """D3 : le statut du DERNIER coût certifié d'un devis, jamais un certifié périmé présenté comme à jour.
+
+    - `inconnu` : aucune trace publiée n'a jamais porté une main-d'oeuvre certifiée pour ce devis ;
+    - `a_jour` : la dernière trace publiée EST la dernière certifiée, et rien d'autre que la ventilation n'a changé
+      depuis (même règle que la cascade E1, `cout_reel.decision_apres_etat_certifie` == `conserver`) ;
+    - `perime_recalcul_en_attente` : un certifié existe mais une pièce a changé (ou une trace partielle marquée
+      `REJ-COUT-CERTIFIE-A-RECALCULER` l'a suivi) : le réconciliateur doit le recalculer.
+
+    Rend `(statut, derniere_trace_certifiee, sequence)`. Lecture seule ; les tarifs illisibles donnent `perime`."""
+    entree = (sources.get("certifiees") or {}).get(devis_id) or {}
+    certifiee = entree.get("certifiee")
+    if certifiee is None:
+        return "inconnu", None, None
+    a_jour = (entree.get("publiee") is certifiee and rentabilite_ordinaire is not None
+              and cout_reel.decision_apres_etat_certifie(
+                  certifiee, rentabilite_ordinaire, _source_tarifs_equipes_ou_none) == "conserver")
+    return ("a_jour" if a_jour else "perime_recalcul_en_attente"), certifiee, entree.get("sequence_certifiee")
 
 
 def _etat_chantier(devis_id: str, sources: dict[str, Any] | None = None, *,
