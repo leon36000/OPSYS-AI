@@ -69,6 +69,7 @@ from . import (
     cash_libre,
     contenus,
     entonnoir,
+    fraicheur_lectures,
     mesures_chantier,
     provenance_m5,
     qualite,
@@ -226,6 +227,12 @@ def _seuils_entonnoir() -> dict[str, Any]:
     NATHAN : `entonnoir.evaluer_seuils` répond alors « seuil à configurer », jamais une valeur par défaut)."""
     seuils = _configuration().get("seuils_entonnoir")
     return seuils if isinstance(seuils, dict) else {}
+
+
+def _fraicheur_attendue(lecture: str) -> dict[str, Any]:
+    """Clés de fraîcheur attendue à ajouter à la réponse de `lecture` (`fraicheur_lectures.declarer`) : vide tant que le
+    propriétaire n'a rien déclaré dans `configuration.fraicheur_lectures_s` (jamais une fenêtre supposée)."""
+    return fraicheur_lectures.declarer(lecture, _configuration().get(fraicheur_lectures.CLE_CONFIGURATION))
 
 
 def _chantiers_minimum() -> Any:
@@ -993,6 +1000,7 @@ def outils(
                 e["metric_id"] for e in situation["evaluations"]
                 if e["statut"] in (mesures_chantier.SEUIL_A_CONFIGURER, mesures_chantier.SEUIL_INVALIDE)
             ],
+            **_fraicheur_attendue(fraicheur_lectures.LECTURE_MESURES_CHANTIER),
         }
 
     def performance_equipe(depart: int = 0) -> dict[str, Any]:
@@ -1057,6 +1065,7 @@ def outils(
         return vue_executive.assembler(
             situation, faits_chantier, attentes_m6, raison_m6, budget_caracteres=BUDGET_SORTIE,
             faits_cash_libre=list(faits_cash_libre_cible), aujourd_hui=jour,
+            fraicheur_attendue=_fraicheur_attendue(fraicheur_lectures.LECTURE_VUE_EXECUTIVE),
         )
 
     def lire_mesures_contenus(depart: int = 0) -> dict[str, Any]:
@@ -1296,7 +1305,8 @@ def outils(
                 "(réel M4 contre estimé M3), marge prévue (M3) et réelle (M5), plus grand écart de "
                 "matériaux (M6). Chaque mesure est calculée par le code avec la version de sa définition, "
                 "ou « non calculable » avec ce qui manque et de qui — jamais une valeur inventée. Dit aussi "
-                "où un seuil d'alerte reste à configurer. Lecture pure, aucune alerte publiée. Réservé à "
+                "où un seuil d'alerte reste à configurer. Lecture pure, aucune alerte publiée. Si le "
+                "propriétaire a déclaré une fenêtre, la réponse porte fraicheur_attendue_s ; sinon rien. Réservé à "
                 "l'admin : marges et coûts ne vont pas à un employé."
             ),
             parametres={
@@ -1343,6 +1353,7 @@ def outils(
                 "M6 le publie ; le cash libre : le dernier constat de M5, tel quel, avec son âge (aujourd_hui, "
                 "AAAA-MM-JJ, facultatif : M8 n'a pas d'horloge), ou « manque » si M5 n'en a publié aucun. Une donnée "
                 "absente est « non calculable, manque X », jamais un zéro ; aucun montant de M5 n'est recalculé. "
+                "Si le propriétaire a déclaré une fenêtre, la réponse porte fraicheur_attendue_s ; sinon rien. "
                 "Réservé à l'admin."
             ),
             parametres={

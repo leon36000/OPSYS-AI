@@ -101,3 +101,10 @@ publication refusée annule aussi son ajout : le reçu du bus conserve l'échec.
 Les WCT déjà enregistrés avant cette évolution ne sont pas rattrapés
 implicitement. Les autres snapshots ingérés par M8 et ses alertes gardent
 leurs chemins existants.
+
+## Fraîcheur attendue d'une lecture
+
+Le propriétaire peut déclarer, pour `m8_lire_vue_executive` et `m8_lire_mesures_chantier`, la fenêtre en secondes dans laquelle il
+attend le dernier fait de la lecture (`department.yaml`, `configuration.fraicheur_lectures_s`, vide à la livraison). Déclarée,
+la lecture porte `fraicheur_attendue_s` et `version_definition_fraicheur` ; sinon rien n'est ajouté. M9 compare, M8 ne juge pas.
+Contrat : [`docs/FRAICHEUR-ATTENDUE-LECTURES.md`](docs/FRAICHEUR-ATTENDUE-LECTURES.md).

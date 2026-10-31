@@ -96,6 +96,14 @@ configuration:
   # Les comptages cumulés (leads, devis envoyés ou acceptés) ne se surveillent pas : ils ne font que croître. Une
   # clé qui n'est pas l'une de ces quatre métriques est dite `ignores` dans la vue, jamais ignorée en silence.
   seuils_entonnoir: {}
+  # Fraîcheur attendue d'une LECTURE (fenêtre en secondes dans laquelle le propriétaire attend le dernier fait que la
+  # lecture porte), fournie au consommateur (M9) qui la compare à l'âge qu'il calcule. VIDE à dessein : aucune fenêtre
+  # n'est inventée ni dérivée ; sans déclaration, la lecture ne porte aucune clé de plus et M9 laisse la fraîcheur
+  # « non évaluée ». Forme : {<outil de lecture>: <entier de secondes, 1 à 315360000 (3650 jours)>}, outils déclarables :
+  # m8_lire_vue_executive, m8_lire_mesures_chantier. Valeur invalide (zéro, négatif, décimal, texte, booléen, trop
+  # grande) : refusée et dite dans la lecture (`fraicheur_attendue_refusee`), jamais corrigée. Clé inconnue : dite
+  # (`fraicheur_attendue_ignorees`). Contrat : docs/FRAICHEUR-ATTENDUE-LECTURES.md.
+  fraicheur_lectures_s: {}
 kpis:
   - id: taux_snapshots_rejetes
     description: Part des snapshots reçus rejetés par la validation d'entrée (structure, devise, valeurs non texte).
