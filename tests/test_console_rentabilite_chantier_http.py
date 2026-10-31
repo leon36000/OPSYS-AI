@@ -33,9 +33,14 @@ def test_couts_m5_et_limites_affiches_sans_effet(complet, catalogue, session):
     avant = f.f.m.base._instantane_base(session)
     r = catalogue.get(_url(complet))
     assert r.status_code == 200, r.text
-    for texte in ('480.00', '600.00', '486.00', '336.00', '150.00', '114.00', 'Source : M5', 'Analyse préparatoire IA',
-                  'Prix non définitif', 'Trace de calcul antérieure', 'Hypothèses M5'):
+    # Le WCT fictif n'a qu'une durée scalaire : la main-d'oeuvre reste inconnue et la marge réelle n'est pas
+    # présentée comme connue (seuls les matériaux sont chiffrés).
+    for texte in ('480.00', '600.00', '336.00', 'Coût partiel', 'Non disponible', 'Marge réelle calculée', 'Manques M5',
+                  'REJ-COUT-TEMPS-POINTE-ABSENT', 'Ventilation M4 indisponible',
+                  'Source : M5', 'Analyse préparatoire IA', 'Prix non définitif', 'Trace de calcul antérieure',
+                  'Hypothèses M5'):
         assert texte in r.text
+    assert '486.00' not in r.text and '114.00' not in r.text
     assert 'content-security-policy' in r.headers and r.headers['cache-control'] == 'no-store'
     assert catalogue.post(_url(complet), data={'prix_total': '999.00'}).status_code == 405
     assert f.f.m.base._instantane_base(session) == avant

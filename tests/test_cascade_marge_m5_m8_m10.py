@@ -457,7 +457,7 @@ def test_lecture_apprentissage_utilise_la_chaine_reelle_et_exclut_la_facture_bro
         "LEAD-APPRENTISSAGE-fictif", "DEVIS-APPRENTISSAGE-fictif", "CH-APPRENTISSAGE-fictif",
     )
     wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, quantite_reelle)
-    _drainer_sans_echec(deps, base + dt.timedelta(hours=1))
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=4))
     with stockage.transaction() as cnx:
         identite.creer_personne(
             cnx, "admin-apprentissage-fictif", "Admin apprentissage (fictif)",
@@ -609,7 +609,7 @@ def test_la_marge_reelle_de_m5_atteint_m8_qui_la_mesure_et_m10_qui_la_memorise_s
     _m6_prix_au_livre(_outils(deps, "m06-material-control"), 8.0)
     wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, 56.0)  # prévu 40 : +40 %
 
-    _drainer_sans_echec(deps, base + dt.timedelta(hours=1))
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=4))
 
     # -- M3 : le devis accepté porte la durée estimée de son estimation ----------------------------------
     devis = _charge_publiee("m3.devis_accepte", f"m3-devis-accepte-{devis_id}")
@@ -720,7 +720,7 @@ def test_un_cout_partiel_ne_porte_aucune_marge_de_m5_a_m8_et_m10_et_le_dit(base_
     lead_id, devis_id, chantier_id = "LEAD-T15D-M-2-fictif", "DEVIS-T15D-M-2-fictif", "CH-T15D-M-2-fictif"
     wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, 56.0)  # aucun prix au livre de M6
 
-    _drainer_sans_echec(deps, base + dt.timedelta(hours=1))
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=4))
 
     # -- M5 : jamais de marge, seulement ce qui manque ---------------------------------------------------------------
     publies = _publies_m5()
@@ -730,7 +730,9 @@ def test_un_cout_partiel_ne_porte_aucune_marge_de_m5_a_m8_et_m10_et_le_dit(base_
         assert charge["marge_reelle_cad"] is None and charge["ecart_marge_cad"] is None
         assert charge["cout_reel_cad"] is None
     final = publies[-1]
-    assert final["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"]
+    assert final["manque"] == [
+        "REJ-COUT-PRIX-NON-DISPONIBLE", "REJ-COUT-TAUX-HORAIRE-A-CONFIGURER", "REJ-COUT-TEMPS-POINTE-ABSENT",
+    ]
     assert final["marge_prevue_cad"] == "120.00"  # la marge prévue de M3 reste dite
 
     # -- M8 : « non calculable, manque marge_reelle_cad », avec la raison de M5 ; le reste est mesuré -----------------
@@ -765,7 +767,7 @@ def test_le_prix_ajoute_apres_coup_remplace_le_partiel_par_la_marge_a_tous_les_e
     base = dt.datetime(2026, 9, 22, 7, 0, 0, tzinfo=DT_TZ)
     lead_id, devis_id, chantier_id = "LEAD-T15D-M-3-fictif", "DEVIS-T15D-M-3-fictif", "CH-T15D-M-3-fictif"
     wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, 42.0, duree_estimee=None)  # +5 %
-    _drainer_sans_echec(deps, base + dt.timedelta(hours=1))
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=4))
 
     partiel = _publies_m5()[-1]
     assert partiel["verdict"] == "PARTIELLE" and partiel["manque"] == ["REJ-COUT-PRIX-NON-DISPONIBLE"]
@@ -777,7 +779,7 @@ def test_le_prix_ajoute_apres_coup_remplace_le_partiel_par_la_marge_a_tous_les_e
     _m6_prix_au_livre(_outils(deps, "m06-material-control"), 8.0)
     with stockage.transaction():
         assert m5_outils._essayer_cout_reel(devis_id) == {"statut": "tracee"}
-    _drainer_sans_echec(deps, base + dt.timedelta(hours=3))
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=6))
 
     complet = _publies_m5()[-1]
     assert complet["sequence"] == partiel["sequence"] + 1 and complet["verdict"] == "CALCULEE"

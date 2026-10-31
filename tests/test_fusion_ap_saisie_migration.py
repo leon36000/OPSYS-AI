@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from opsys import approbations, stockage
 from opsys.outils import Niveau
 from opsys.stockage.schema import (
+    CONFIGURATION_PUBLICATIONS,
     EFFACEMENTS_CLES,
     FUSION_AP_OCR_SOURCES,
     FUSION_AP_SAISIES,
@@ -23,6 +24,14 @@ from opsys.stockage.schema import (
     PIECES_CLASSEMENTS,
     PIECES_PROJET,
     RECEPTIONS_COURRIEL,
+    SERVICE_ATTESTATIONS_M4,
+    SERVICE_AUDIT,
+    SERVICE_POLITIQUES,
+    SERVICE_RECALCUL_ATTESTATIONS,
+    SERVICE_RECALCUL_INTENTIONS,
+    SERVICE_RECALCUL_RESULTATS,
+    WCT_ATTENTES,
+    WCT_ATTENTES_AUDIT,
 )
 
 FICTIF = True
@@ -46,13 +55,16 @@ def _anciennes():
     # Ce scénario compare les tables antérieures à 0024, y compris lors du
     # retour à 0023. Les compartiments OCR/AP OCR ajoutés après 0024 ont des
     # scénarios distincts de conservation et de rollback. La file de nettoyage
-    # 0027, les pièces/leurs classements 0028/0029 et les originaux courriel 0030 sont absents
-    # du schéma historique 0023. Ne pas ignorer dynamiquement une table manquante :
+    # 0027, les pièces/leurs classements 0028/0029, les originaux courriel 0030, les publications de
+    # configuration 0031, le service Core 0032-0034 et les attentes WCT 0035 sont absents du schéma
+    # historique 0023. Ne pas ignorer dynamiquement une table manquante :
     # toute table réellement attendue en 0023 doit encore être lue et comparée.
     nouvelles = {t.name for t in (
         FUSION_AP_SAISIES, FUSION_AP_OCR_SOURCES, EFFACEMENTS_CLES,
         FUSION_PDF_OCR_RUNS, FUSION_PDF_OCR_COMMANDES, FUSION_PDF_OCR_QUOTA,
-        PIECES_PROJET, PIECES_CLASSEMENTS, RECEPTIONS_COURRIEL,
+        PIECES_PROJET, PIECES_CLASSEMENTS, RECEPTIONS_COURRIEL, CONFIGURATION_PUBLICATIONS,
+        SERVICE_POLITIQUES, SERVICE_AUDIT, SERVICE_ATTESTATIONS_M4, SERVICE_RECALCUL_INTENTIONS,
+        SERVICE_RECALCUL_ATTESTATIONS, SERVICE_RECALCUL_RESULTATS, WCT_ATTENTES, WCT_ATTENTES_AUDIT,
     )}
     with stockage.transaction() as cnx:
         return {nom: [dict(r) for r in cnx.execute(select(t)).mappings()]
