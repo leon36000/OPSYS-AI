@@ -40,13 +40,10 @@ CONTRATS: dict[str, dict] = {
         "proprietaire": "m04-field-ops",
         "lecture_id": "m4.capacite_equipe",
         "outil_attendu": "m4_lire_capacite_equipe",
-        "racine": {"semaine_debut": "date", "calculable": "booleen", "manque": "textes"},
-        "liste": (
-            "equipes",
-            {"equipe_id": "identifiant", "heures_disponibles": "decimal", "heures_planifiees": "decimal"},
-        ),
-        "limite": "M9 ne déduit aucune capacité des interventions planifiées : seul M4 sait ce qu'une équipe peut "
-        "faire.",
+        "reel": {"enveloppe_accepte": True},
+        "limite": "Branché sur le contrat réel de M4 (m4.capacite_equipe v1) : unité heures_declarees seulement, "
+        "jamais convertie en jours-personnes ; borne basse sur les journées datées ; "
+        "non calculable = aucune valeur. M9 ne déduit aucune capacité des interventions planifiées.",
     },
     "depenses_marketing": {
         "proprietaire": "m07-marketing",

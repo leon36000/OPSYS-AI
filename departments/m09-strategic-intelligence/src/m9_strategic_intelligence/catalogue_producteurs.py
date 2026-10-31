@@ -174,6 +174,32 @@ LECTURES: tuple[Lecture, ...] = (
             Marqueur("resultat.resultat.incidents.reste", "positif"),
         ),
     ),
+    # Contrat v1 de M4 (departments/m04-field-ops/docs/capacite-equipe.md) : la charge est dans ``resultat.resultat``.
+    # Instant métier : la dernière confirmation de dates de la cédule (null si aucune journée datée). Une charge qui
+    # se dit non calculable est incomplète : elle ne porte aucune valeur, seulement ses causes.
+    _lecture(
+        "m4.capacite_equipe",
+        "m04-field-ops",
+        "m4_lire_capacite_equipe",
+        {"debut_semaine", "horodatage_reference"},
+        reference="horodatage_reference",
+        instants_metier=("resultat.resultat.sources.cedule_confirmee_le",),
+        revisions=("resultat.resultat.sources.cedule_revision_max", "resultat.resultat.sources.registre_tete"),
+        incomplets=(Marqueur("resultat.resultat.calculable", "faux"),),
+        citables=(
+            "resultat.resultat.semaine_debut",
+            "resultat.resultat.unite",
+            "resultat.resultat.portee",
+            "resultat.resultat.calculable",
+            "resultat.resultat.manque[*]",
+            "resultat.resultat.jours_dates[*]",
+            "resultat.resultat.heures_disponibles",
+            "resultat.resultat.heures_planifiees",
+            "resultat.resultat.equipes[*].equipe_id",
+            "resultat.resultat.equipes[*].heures_disponibles",
+            "resultat.resultat.equipes[*].heures_planifiees",
+        ),
+    ),
     _lecture(
         "m4.meteo_intervention",
         "m04-field-ops",

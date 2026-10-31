@@ -23,7 +23,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 from collections.abc import Callable, Mapping
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _MONTANT = re.compile(r"\d{1,12}\.\d{2}")
@@ -49,6 +49,13 @@ def _instant_ok(valeur: object) -> bool:
     except ValueError:
         return False
     return analyse.utcoffset() is not None
+
+
+def _meme_instant(a: object, b: object) -> bool:
+    if not (_instant_ok(a) and _instant_ok(b)):
+        return False
+    lire = lambda v: dt.datetime.fromisoformat(v[:-1] + "+00:00" if v.endswith("Z") else v)  # noqa: E731
+    return lire(a) == lire(b)  # type: ignore[arg-type]
 
 
 def _entier(valeur: object, minimum: int = 0, maximum: int = 10**9) -> bool:
@@ -235,7 +242,162 @@ def valider_m7_depenses(page: object, arguments: Mapping | None) -> list[str]:
     return erreurs
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# M4 — m4.capacite_equipe (contrat v1, charge dans ``resultat.resultat`` du dispatcher)
+# ---------------------------------------------------------------------------------------------------------------------
+M4_UNITE = "heures_declarees"
+M4_PORTEE = "journees_datees_seulement"
+M4_MINUTES_MAX = 7 * 24 * 60  # une semaine de 24 h : borne dure d'une équipe sur des journées datées
+_M4_IDENTIFIANT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}")
+_M4_MANQUE = re.compile(r"[a-z_]{1,64}(?::[A-Za-z0-9][A-Za-z0-9._:-]{0,63}){0,2}")
+_M4_HEURES = re.compile(r"\d{1,9}\.\d{2,4}")
+_M4_RACINE = {
+    "contrat", "version", "semaine_debut", "fuseau", "unite", "portee", "lu_a", "calculable", "manque", "equipes",
+    "jours_dates", "sources", "avertissements", "heures_disponibles", "heures_planifiees", "minutes_disponibles",
+    "minutes_planifiees",
+}  # fmt: skip
+_M4_REQUISES = _M4_RACINE - {"heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees"}
+_M4_TOTAUX = {"heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees"}
+_M4_EQUIPE = {"equipe_id", "heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees"}
+_M4_SOURCES = {
+    "profil_empreinte", "registre_tete", "plans_appliques", "plans_proposes_non_appliques", "cedule_revision_max",
+    "cedule_confirmee_le",
+}  # fmt: skip
+
+
+def heures_texte(minutes: int) -> str:
+    """Texte des heures d'une durée en minutes, comme M4 l'écrit : minutes/60 au dix-millième, au moins deux
+    décimales."""
+    valeur = (Decimal(minutes) / Decimal(60)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    entier, decimales = format(valeur, "f").split(".")
+    return f"{entier}.{decimales.rstrip('0').ljust(2, '0')}"
+
+
+def _m4_valeur(porteur: Mapping, cle: str, nom: str, erreurs: list[str]) -> int | None:
+    """Minutes entières bornées et heures en texte qui en sont exactement la conversion annoncée."""
+    minutes, heures = porteur[cle], porteur[cle.replace("minutes", "heures")]
+    if not _entier(minutes, 0, M4_MINUTES_MAX):
+        erreurs.append(f"{nom}.{cle} : entier de minutes borné attendu")
+        return None
+    if type(heures) is not str or _M4_HEURES.fullmatch(heures) is None or heures != heures_texte(minutes):
+        erreurs.append(f"{nom}.{cle.replace('minutes', 'heures')} : texte décimal exact des minutes attendu")
+        return None
+    return minutes
+
+
+def valider_m4_capacite(page: object, arguments: Mapping | None) -> list[str]:
+    """Erreurs (sans valeur reçue) de la réponse du dispatcher pour ``m4_lire_capacite_equipe``."""
+    erreurs: list[str] = []
+    interne = page.get("resultat") if isinstance(page, Mapping) else None
+    charge = interne.get("resultat") if isinstance(interne, Mapping) else None
+    if not _cles(charge, _M4_REQUISES, _M4_RACINE, "charge", erreurs):
+        return erreurs
+    if charge["contrat"] != "m4.capacite_equipe" or charge["version"] != 1:
+        erreurs.append("charge : contrat m4.capacite_equipe v1 attendu")
+    if charge["unite"] != M4_UNITE:
+        erreurs.append("unite : heures_declarees seulement, aucune conversion")
+    if charge["portee"] != M4_PORTEE:
+        erreurs.append("portee : journees_datees_seulement seulement")
+    if charge["fuseau"] != "America/Montreal":
+        erreurs.append("fuseau : America/Montreal seulement")
+    lundi = _date(charge["semaine_debut"])
+    if lundi is None or lundi.weekday() != 0:
+        erreurs.append("semaine_debut : lundi réel attendu")
+        return erreurs
+    if arguments is not None:
+        if charge["semaine_debut"] != arguments.get("debut_semaine"):
+            erreurs.append("semaine_debut : différente de la semaine demandée")
+        demande = arguments.get("horodatage_reference")
+        if (charge["lu_a"] is None) != (demande is None) or (
+            demande is not None and not _meme_instant(charge["lu_a"], demande)
+        ):
+            erreurs.append("lu_a : doit être l'instant de lecture demandé, ou null s'il n'a pas été demandé")
+    elif charge["lu_a"] is not None and not _instant_ok(charge["lu_a"]):
+        erreurs.append("lu_a : instant avec fuseau ou null")
+    calculable, manque, equipes = charge["calculable"], charge["manque"], charge["equipes"]
+    if type(calculable) is not bool:
+        erreurs.append("calculable : booléen attendu")
+        return erreurs
+    if (
+        not isinstance(manque, list)
+        or len(manque) > 50
+        or not all(type(m) is str and _M4_MANQUE.fullmatch(m) is not None for m in manque)
+    ):
+        erreurs.append("manque : liste bornée de codes du contrat attendue")
+        return erreurs
+    jours = charge["jours_dates"]
+    if not isinstance(jours, list) or len(jours) > 7:
+        erreurs.append("jours_dates : liste de 7 dates au plus attendue")
+    else:
+        dates = [_date(j) for j in jours]
+        if any(d is None or not 0 <= (d - lundi).days <= 6 for d in dates) or dates != sorted(set(dates)):  # type: ignore[type-var]
+            erreurs.append("jours_dates : dates distinctes, triées, dans la semaine")
+    sources = charge["sources"]
+    if _cles(sources, _M4_SOURCES, _M4_SOURCES, "sources", erreurs):
+        if sources["profil_empreinte"] is not None and (
+            type(sources["profil_empreinte"]) is not str or _HEX64.fullmatch(sources["profil_empreinte"]) is None
+        ):
+            erreurs.append("sources.profil_empreinte : condensat ou null")
+        if sources["registre_tete"] is not None and (
+            type(sources["registre_tete"]) is not str
+            or not sources["registre_tete"]
+            or len(sources["registre_tete"]) > 128
+        ):
+            erreurs.append("sources.registre_tete : identifiant texte ou null")
+        if not _entier(sources["plans_appliques"]) or not _entier(sources["plans_proposes_non_appliques"]):
+            erreurs.append("sources : comptes de plans entiers positifs ou nuls")
+        if sources["cedule_revision_max"] is not None and not _entier(sources["cedule_revision_max"]):
+            erreurs.append("sources.cedule_revision_max : entier positif ou null")
+        if sources["cedule_confirmee_le"] is not None and not _instant_ok(sources["cedule_confirmee_le"]):
+            erreurs.append("sources.cedule_confirmee_le : instant avec fuseau ou null")
+    avertissements = charge["avertissements"]
+    if (
+        not isinstance(avertissements, list)
+        or len(avertissements) > 20
+        or not all(type(a) is str and len(a) <= 600 for a in avertissements)
+    ):
+        erreurs.append("avertissements : liste bornée de textes attendue")
+    if not isinstance(equipes, list) or len(equipes) > 100:
+        erreurs.append("equipes : liste bornée attendue")
+        return erreurs
+    presents = _M4_TOTAUX & set(charge)
+    if not calculable:
+        if not manque:
+            erreurs.append("calculable faux : une cause nommée est requise")
+        if equipes or presents:
+            erreurs.append("calculable faux : aucune valeur n'est admise (absence n'est pas zéro)")
+        return erreurs
+    if manque:
+        erreurs.append("calculable vrai : aucun manque n'est admis")
+    if not equipes or presents != _M4_TOTAUX or not jours:
+        erreurs.append("calculable vrai : équipes, totaux et journées datées requis")
+        return erreurs
+    if isinstance(sources, Mapping) and (
+        sources.get("profil_empreinte") is None or sources.get("plans_appliques") == 0
+    ):
+        erreurs.append("sources : un profil et une cédule appliquée sont requis pour un calcul")
+    identifiants, somme = [], {"minutes_disponibles": 0, "minutes_planifiees": 0}
+    for position, ligne in enumerate(equipes):
+        nom = f"equipes[{position}]"
+        if not _cles(ligne, _M4_EQUIPE, _M4_EQUIPE, nom, erreurs):
+            return erreurs
+        if type(ligne["equipe_id"]) is not str or _M4_IDENTIFIANT.fullmatch(ligne["equipe_id"]) is None:
+            erreurs.append(f"{nom}.equipe_id : identifiant sobre attendu")
+        else:
+            identifiants.append(ligne["equipe_id"])
+        for cle in somme:
+            minutes = _m4_valeur(ligne, cle, nom, erreurs)
+            somme[cle] += minutes or 0
+    if len(set(identifiants)) != len(identifiants):
+        erreurs.append("equipes : equipe_id en double")
+    for cle, total in somme.items():
+        if charge[cle] != total or charge[cle.replace("minutes", "heures")] != heures_texte(total):
+            erreurs.append(f"{cle} : le total n'est pas la somme des équipes")
+    return erreurs
+
+
 VALIDATEURS: dict[str, Callable[[object, Mapping | None], list[str]]] = {
+    "m4.capacite_equipe": valider_m4_capacite,
     "m7.depenses_marketing": valider_m7_depenses,
 }
 

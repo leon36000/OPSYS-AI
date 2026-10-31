@@ -43,7 +43,13 @@ LECTURES_AUTORISEES: Mapping[str, frozenset[str]] = {
     "m02-revenue-crm": frozenset({"m2_lister_leads", "m2_lister_relances"}),
     "m03-estimation": frozenset({"m3_lire_ecarts_estime_reel"}),
     "m04-field-ops": frozenset(
-        {"m4_lister_interventions", "m4_lire_cedule_semaine", "m4_lire_retards_incidents", "m4_lire_meteo_intervention"}
+        {
+            "m4_lister_interventions",
+            "m4_lire_cedule_semaine",
+            "m4_lire_retards_incidents",
+            "m4_lire_meteo_intervention",
+            "m4_lire_capacite_equipe",
+        }
     ),
     "m05-financecore": frozenset(
         {
