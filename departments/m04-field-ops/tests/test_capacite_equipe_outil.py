@@ -57,7 +57,8 @@ def test_l_outil_est_une_lecture_T0_sans_aucun_droit_d_appareil():
     outil = next(o for o in outils() if o.nom == "m4_lire_capacite_equipe")
     assert outil.autonomie is Autonomie.T0
     assert outil.roles_appareil == frozenset()  # fermé par défaut : aucun grant nouveau
-    assert set(outil.parametres["properties"]) == {"debut_semaine", "horodatage_reference"}
+    assert set(outil.parametres["properties"]) == {"debut_semaine", "horodatage_reference", "portee"}
+    assert outil.parametres["properties"]["portee"]["enum"] == ["journees_datees_seulement", "semaine_type"]
     assert outil.parametres["required"] == ["debut_semaine"] and outil.parametres["additionalProperties"] is False
 
 
@@ -138,4 +139,42 @@ def test_semaine_ou_reference_invalide_refusee_sans_ecriture(par_nom, arguments)
     avant = aide._etat()
     reponse = aide._appeler(par_nom, "m4_lire_capacite_equipe", arguments, aide.ADMIN)
     assert aide._code_refus(reponse) == "REJ-CONTRAT-INVALIDE"
+    assert aide._etat() == avant
+
+
+# -- portée semaine_type par le vrai outil (DECISIONS-ARCHITECTE-r1 §3) ------------------------------------------------
+_PLAGE = [{"debut": "07:00", "fin": "15:00"}]
+_SEMAINE = {"fuseau": "America/Montreal", "lundi": _PLAGE, "mardi": _PLAGE, "mercredi": _PLAGE, "jeudi": _PLAGE,
+            "vendredi": _PLAGE, "samedi": [], "dimanche": []}
+
+
+def _ecrire_profil_semaine_type(instance_dir, **extra):
+    brut = {"liste": [{**e, "membres": [f"{e['id'].replace('-', '.')}.fictif"], "semaine_type": _SEMAINE}
+                      for e in aide._equipes()],
+            "feries": {"annees": [2030], "jours": [{"date": "2030-06-14", "libelle": "Férié fictif"}]}, **extra}
+    (instance_dir / "home" / "entreprise.yaml").write_text(
+        yaml.safe_dump({"equipes": equipes_entreprise.normaliser_equipes(brut)}, allow_unicode=True), encoding="utf-8")
+
+
+def test_semaine_future_par_l_outil_semaine_type_conge_et_ferie(par_nom, interventions, instance):
+    _ecrire_profil_semaine_type(instance, duree_jour_personne_minutes=480, conges=[
+        {"equipes": ["eq-a"], "du": "2030-06-10", "au": "2030-06-10", "motif": "formation", "libelle": "x"}])
+    _dater(par_nom, interventions)
+    avant = aide._etat()
+    datee = aide._resultat(_lire(par_nom, semaine="2030-06-10"))
+    assert datee["calculable"] is False and datee["manque"] == ["aucune_journee_datee_dans_la_semaine"]
+    charge = aide._resultat(_lire(par_nom, semaine="2030-06-10", portee="semaine_type"))
+    assert charge["calculable"] is True and charge["portee"] == "semaine_type"
+    # 480 min du lundi au vendredi ; vendredi 14 férié pour toutes ; lundi 10 en formation pour eq-a
+    lignes = {ligne["equipe_id"]: ligne for ligne in charge["equipes"]}
+    assert lignes["eq-a"]["minutes_disponibles"] == 3 * 480 and lignes["eq-b"]["minutes_disponibles"] == 4 * 480
+    assert lignes["eq-a"]["jours_personnes_disponibles"] == "3.00" and charge["jours_personnes_disponibles"] == "7.00"
+    assert charge["minutes_planifiees"] == 0 and aide._etat() == avant
+
+
+def test_portee_inconnue_refusee_par_l_outil_sans_ecriture(par_nom):
+    avant = aide._etat()
+    reponse = aide._appeler(par_nom, "m4_lire_capacite_equipe", {"debut_semaine": LUNDI, "portee": "toutes"},
+                            aide.ADMIN)
+    assert reponse["ok"] is False and reponse["erreur"] == "arguments_invalides"  # schéma fermé de l'outil
     assert aide._etat() == avant

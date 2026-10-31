@@ -1511,7 +1511,8 @@ def outils(
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
         return {"accepte": True, "resultat": resultat}
 
-    def lire_capacite_equipe(debut_semaine: str, horodatage_reference: str | None = None) -> dict[str, Any]:
+    def lire_capacite_equipe(debut_semaine: str, horodatage_reference: str | None = None,
+                             portee: str = capacite_equipe.PORTEE) -> dict[str, Any]:
         """Lecture seule (contrat m4.capacite_equipe) : heures de quart déclarées des équipes face aux créneaux de la
         cédule appliquée, pour une semaine. Rien n'est écrit ; absence n'est jamais zéro (voir capacite_equipe.py)."""
         acteur, verdict_acteur = _acteur_appareil()
@@ -1524,7 +1525,7 @@ def outils(
         empreinte = equipes_entreprise.empreinte_equipes(profil) if profil is not None else None
         try:
             charge = capacite_equipe.calculer(
-                registre_courant(), profil, verdict_profil, empreinte, debut_semaine, horodatage_reference)
+                registre_courant(), profil, verdict_profil, empreinte, debut_semaine, horodatage_reference, portee)
         except cedule_tournees.PreuvePlanInvalide:
             return _refus(verdicts.construire_verdict(
                 "REJ-REGISTRE-INVALIDE", detail="preuve métier du plan appliqué incohérente"))
@@ -2762,10 +2763,13 @@ def outils(
                          "d'horloge de l'équipe, jamais heures-personnes) ; aucune présence individuelle déduite. "
                          "Profil absent, cédule non appliquée ou journée non datée : calculable faux, aucune valeur, "
                          "manque nommé (absence n'est jamais zéro). horodatage_reference : instant de lecture fourni "
-                         "par l'appelant (ISO 8601 avec fuseau), recopié en lu_a."),
+                         "par l'appelant (ISO 8601 avec fuseau), recopié en lu_a. portee=semaine_type : semaine "
+                         "type déclarée moins congés d'équipe et fériés déclarés, sans journée datée ; jours-personnes "
+                         "seulement si le profil déclare duree_jour_personne_minutes."),
             parametres={"type": "object", "properties": {
                 "debut_semaine": {"type": "string", "maxLength": 10},
-                "horodatage_reference": {"type": "string", "maxLength": 64}},
+                "horodatage_reference": {"type": "string", "maxLength": 64},
+                "portee": {"type": "string", "enum": list(capacite_equipe.PORTEES)}},
                 "required": ["debut_semaine"], "additionalProperties": False},
             fonction=lire_capacite_equipe, autonomie=Autonomie.T0,
         ),

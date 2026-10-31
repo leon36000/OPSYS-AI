@@ -226,6 +226,25 @@ au moins un quart assez long pour sa durée : `admissibilite.py`) et devient le 
 ([ROLES](ROLES.md), « Les équipes du profil de l'entreprise »). Les leads v1 (gelés) n'ont pas de service : leurs durées et
 compétences par type de travaux restent des arguments. Détail : README de M4.
 
+**Capacité des semaines futures** (DECISIONS-ARCHITECTE-r1 §3) : quatre ajouts facultatifs ; un profil qui ne les porte
+pas se lit, s'écrit, s'empreinte et se journalise exactement comme avant. Gabarit commenté et déclarable :
+[`gabarit-profil-equipes.yaml`](gabarit-profil-equipes.yaml).
+
+* `liste[].semaine_type` : `fuseau: America/Montreal` (seul admis) et, par jour de semaine nommé (`lundi`…`dimanche`),
+  des plages `{debut: "HH:MM", fin: "HH:MM"}` locales, en texte entre guillemets, sans chevauchement (`fin` jusqu'à
+  `"24:00"`). `[]` = jour fermé (zéro déclaré) ; un jour absent est inconnu, jamais lu comme fermé.
+* `conges` : `{equipes, du, au, motif, libelle?}` au niveau de l'équipe (jamais d'une personne), dates incluses, motif
+  fermé `conge` / `ferie` / `formation` / `autre` ; les équipes nommées doivent être déclarées.
+* `feries` : `{annees, jours: [{date, libelle?}]}` ; `annees` dit les années dont la liste est complète. OPSYS ne fournit
+  aucune liste : le propriétaire la déclare d'après la source officielle (CNESST).
+* `duree_jour_personne_minutes` : entier explicite (1 à 1440) qui convertit des minutes d'équipe en jours-personnes ;
+  jamais supposé.
+
+Les libellés sont des textes libres gardés au profil : ni M4 ni le journal d'audit ne les recopient (le journal compte
+les congés et les fériés, nomme les équipes à semaine type et la durée). M4 s'en sert dans `m4_lire_capacite_equipe`
+(`portee: "semaine_type"`, voir `departments/m04-field-ops/docs/capacite-equipe.md`) ; la cédule par tournées garde le
+`jour` numéroté de `quarts`.
+
 ## Règles météo, fuseau et fournisseur de prévisions (PLAN T4.13)
 
 Le même profil porte la météo : `opsys.meteo` (module frère de `opsys.equipes`, même fichier, même écriture signée au
@@ -276,6 +295,6 @@ seuils). Détail : README de M4.
 - Demande de chiffrage M1→M3 (`m1-demande-chiffrage.v1.yaml`) : v2 à publier.
 - Règle de précédence entre services (« réparation de gouttières ») : décision du propriétaire (T2.1).
 - Barèmes et estimateurs par service (T2.3, M3.8).
-- Quarts par jour de la semaine et calendrier : le profil des équipes garde le `jour` numéroté du solveur (M4 ne tient
-  pas encore de calendrier : `m4_verifier_meteo_creneau` reçoit `{jour: date}` de l'appelant) ; véhicules et équipements
-  ne sont pas modélisés.
+- Calendrier de la cédule : la semaine type sert la capacité (`m4_lire_capacite_equipe`), pas encore le solveur, qui
+  garde le `jour` numéroté de `quarts` (`m4_verifier_meteo_creneau` reçoit `{jour: date}` de l'appelant) ; véhicules et
+  équipements ne sont pas modélisés.
