@@ -7,9 +7,8 @@ dont les matériaux sont déclarés par un MEMBRE de l'équipe (`m6_declarer_mat
 - l'identité vient du jeton d'appareil appairé : aucun champ de personne n'est accepté dans le corps ;
 - rejeu d'une même clé d'appareil : même accusé ; même clé, autres arguments : conflit, rien d'écrit ;
 - la projection M4 vérifiée identifie l'équipe, la présence individuelle reste inconnue ;
-- le coût certifié en aval : avec les pointages déclarés par l'admin sur son appareil (preuve `admin`), le recalcul
-  qualifié publie le coût complet. Avec ceux des membres (preuve `membre_equipe`), M5 ne certifie PAS encore
-  (son validateur n'admet que `admin`) : le coût reste inconnu, jamais estimé — dépendance nommée dans le rapport.
+- le coût certifié en aval : que les pointages soient déclarés par l'admin sur son appareil (preuve `admin`) ou par
+  les membres déclarés de l'équipe (preuve `membre_equipe`), le recalcul qualifié publie le même coût complet.
 
 Tout est fictif (`fictif: true`).
 """
@@ -266,7 +265,7 @@ def test_admin_sur_son_appareil_et_materiaux_d_un_membre_donnent_le_cout_certifi
 
 
 @SQLITE_SEULEMENT
-def test_pointages_des_membres_sur_l_appareil_identifient_l_equipe_et_m5_reste_ferme(
+def test_pointages_des_membres_sur_l_appareil_identifient_l_equipe_et_donnent_le_cout_certifie(
         moteur, equipe, monkeypatch, tmp_path):
     chantier, wct_id, _ = _journee(moteur, equipe, ("etienne", "julie"), "etienne", monkeypatch, tmp_path, "eqmbr")
     (visite,) = _projection(chantier, wct_id)["visites"]
@@ -275,10 +274,9 @@ def test_pointages_des_membres_sur_l_appareil_identifient_l_equipe_et_m5_reste_f
     assert [p["auteur"] for p in visite["equipe_pointee"]["preuves"]] == [
         {"personne": "etienne", "role": "membre_equipe"}, {"personne": "julie", "role": "membre_equipe"}]
     assert visite["presence_individuelle"] == {"statut": "inconnue"}
-    # Dépendance M5 : son validateur de projection n'admet encore que des preuves `admin`. Le recalcul qualifié trace
-    # donc la main-d'oeuvre « non disponible, preuve de pointage invalide » : aucun coût certifié, jamais une
-    # estimation, tant que M5 n'accepte pas `membre_equipe` (`validation_projection_visites`, une ligne).
     recalcul_certifie_qa(chantier, wct_id, suffixe="eqmbr")
     main_d_oeuvre, manques = _main_d_oeuvre_tracee()
-    assert main_d_oeuvre["cout"] is None and main_d_oeuvre["statut"] == "non_disponible"
-    assert {"code": "REJ-COUT-TEMPS-POINTE-ABSENT", "detail": "preuve de pointage invalide"} in manques
+    # Même journée que la voie admin : 180 minutes d'équipe au tarif d'équipe fictif de 50,00 $ l'heure.
+    assert main_d_oeuvre["statut"] == "complet" and main_d_oeuvre["minutes"] == 180
+    assert str(main_d_oeuvre["cout"]) == "150.00", main_d_oeuvre
+    assert not any(m["code"] == "REJ-COUT-TEMPS-POINTE-ABSENT" for m in manques), manques

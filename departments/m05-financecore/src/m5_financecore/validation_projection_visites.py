@@ -17,6 +17,9 @@ from . import encodage
 
 _HEX = re.compile(r"^[0-9a-f]{64}$")
 _VERSION = "opsys.m4.temps_certifies.v2"
+# Autorités sous lesquelles M4 accepte un pointage d'équipe V3 : l'admin, ou un membre déclaré de l'équipe de la
+# visite (DÉCISIONS-ARCHITECTE r1 §2, D4). Tout autre rôle reste une preuve invalide.
+_ROLES_POINTAGE = frozenset({"admin", "membre_equipe"})
 _CHAMPS = {
     "version",
     "instance_id",
@@ -159,7 +162,8 @@ def _controle_visite(visite: Any, intervention: str, version: int = 2) -> tuple[
             auteur = _objet(preuve["auteur"], {"personne", "role"}, "auteur")
             _exiger(preuve["pointage_id"] == pointage and _hash(preuve["preuve_id"])
                     and _hash(preuve["profil_empreinte"]) and type(preuve["audit_id"]) is int
-                    and preuve["audit_id"] > 0 and _texte(auteur["personne"]) and auteur["role"] == "admin",
+                    and preuve["audit_id"] > 0 and _texte(auteur["personne"])
+                    and type(auteur["role"]) is str and auteur["role"] in _ROLES_POINTAGE,
                     "preuve de pointage invalide")
     _exiger(ordre[:2] == ["en_route", "arrivee"] and ordre[-1] == "depart", "séquence route-arrivée-départ invalide")
     phase = "presence"

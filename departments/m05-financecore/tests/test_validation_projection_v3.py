@@ -52,6 +52,22 @@ def test_preuves_typees_incompletes_ou_incoherentes_sont_refusees(attaque):
     assert not _valider(_rehacher(p))['valide']
 
 
+def test_preuve_d_un_membre_declare_de_l_equipe_est_admise():
+    p = _projection()
+    for visite in p['visites']:
+        for preuve in visite['equipe_pointee']['preuves']:
+            preuve['auteur']['role'] = 'membre_equipe'
+    resultat = _valider(_rehacher(p))
+    assert resultat['valide'] and resultat['exploitable']
+
+
+@pytest.mark.parametrize('role', ['employee', 'membre', 'Admin', '', None, ['admin'], {'role': 'admin'}])
+def test_role_d_auteur_hors_des_deux_autorites_reste_refuse(role):
+    p = _projection()
+    p['visites'][0]['equipe_pointee']['preuves'][0]['auteur']['role'] = role
+    assert not _valider(_rehacher(p))['valide']
+
+
 def test_empreinte_ne_protege_pas_une_source_perimee():
     p = _projection()
     source_perimee = deepcopy(p['sources'])
