@@ -18,12 +18,11 @@ import pytest
 import yaml
 from m5_financecore import validation
 from m5_financecore.analyse import MENTION_ANALYSE_PREPARATOIRE as MENTION
-from sqlalchemy import select
-
 from opsys import contexte, evenements, identite, stockage
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 from opsys.stockage.schema import META
+from sqlalchemy import select
 
 FICTIF = True
 _DEPARTEMENT = "m05-financecore"
@@ -152,25 +151,21 @@ def _instantane_base():
 # =========================================================================================
 # 1. L'admin lit le détail d'un chantier : tout vient de la source
 # =========================================================================================
-def test_l_admin_lit_le_cout_reel_et_la_marge_d_un_devis(par_nom, chantier_complet):
+def test_l_admin_lit_le_cout_partiel_et_la_marge_prevue_d_un_devis(par_nom, chantier_complet):
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     vue = _lire(par_nom, {"devis_id": "DEVIS-1"})
-
     assert vue["role"] == "admin" and (vue["nombre"], vue["affichees"], vue["reste"]) == (1, 1, 0)
     (chantier,) = vue["chantiers"]
-    assert (chantier["devis_id"], chantier["chantier_id"], chantier["statut"]) == ("DEVIS-1", "CHANTIER-1", "calculee")
     r = chantier["rentabilite"]
-    assert r["verdict"] == "CALCULEE" and r["manque"] == []
+    assert (chantier["devis_id"], chantier["chantier_id"], chantier["statut"]) == ("DEVIS-1", "CHANTIER-1", "calculee")
+    assert r["verdict"] == "PARTIELLE"
     assert r["prix_facture"] == "600.00" and r["statut_facture"] == "BROUILLON" and r["prix_definitif"] is False
-    assert r["cout_reel"]["cout_total"] == "486.00" and r["cout_reel"]["complet"] is True
-    assert r["cout_reel"]["materiaux"]["lignes"][0]["cout"] == "336.00"
-    assert r["cout_reel"]["main_d_oeuvre"] == {
-        "statut": "complet", "minutes": 180, "taux_horaire": "50.00", "cout": "150.00"}
-    assert r["marge_reelle"] == "114.00" and r["marge_reelle_pct_du_prix"] == "0.1900"
-    assert r["marge_prevue"] == "120.00" and r["marge_prevue_pct_du_prix"] == "0.2000"
-    assert r["ecart_marge"] == "-6.00" and r["ecart_marge_points"] == "-0.0100" and r["en_perte"] is False
-    assert r["taux_marge_devis"] == "0.25"
+    assert r["cout_reel"]["materiaux"]["cout_connu"] == "336.00"
+    assert r["cout_reel"]["main_d_oeuvre"]["cout"] is None and r["cout_reel"]["cout_total"] is None
+    assert r["marge_reelle"] is None and r["marge_prevue"] == "120.00"
+    assert any(x["code"] == "REJ-COUT-TEMPS-POINTE-ABSENT" for x in r["manque"])
     assert "version_entrees" not in r and chantier["trace"]["a_jour"] is True
-    assert len(chantier["trace"]["version_entrees"]) == 64
+    assert len(chantier['trace']['version_entrees']) == 64
 
 
 def test_le_detail_dit_ses_hypotheses_et_son_arrondi(par_nom, chantier_complet):
@@ -202,19 +197,28 @@ def test_lecture_par_chantier_id_et_filtre_inconnu(par_nom, chantier_complet):
 
 
 def test_sans_filtre_une_ligne_par_devis_et_les_attentes_sans_aucun_montant(par_nom, chantier_complet):
+    """Cas historique : sans preuve d’équipe, coût et marge restent inconnus. Voir matrice des 17."""
     evenements.publier("m3.devis_accepte", "m03-estimation", _devis_accepte("DEVIS-2", "CHANTIER-2"))
-    _livrer("2026-09-25T18:00:00-04:00")  # DEVIS-2 : le WCT n'est pas encore arrivé
-
+    _livrer("2026-09-25T18:00:00-04:00")
     vue = _lire(par_nom)
-
     assert (vue["nombre"], vue["affichees"], vue["reste"]) == (2, 2, 0)
-    deux, un = vue["chantiers"]  # le plus récemment reçu d'abord
-    assert un["devis_id"] == "DEVIS-1" and un["rentabilite"]["marge_reelle"] == "114.00"
+    deux, un = vue["chantiers"]
+    assert un["devis_id"] == "DEVIS-1" and un["rentabilite"]["verdict"] == "PARTIELLE"
+    assert un["rentabilite"]["cout_total"] is None and un["rentabilite"]["marge_reelle"] is None
     assert set(un["rentabilite"]) == {
-        "verdict", "statut_facture", "prix_facture", "cout_reel_complet", "cout_total",
-        "cout_total_connu", "marge_reelle", "marge_prevue", "ecart_marge", "manque"}
-    assert un["trace"] == {"a_jour": True}  # l'empreinte n'est rendue que pour un chantier précis
-    assert deux == {"devis_id": "DEVIS-2", "chantier_id": "CHANTIER-2", "statut": "en_attente_travaux_termines"}
+        "verdict",
+        "statut_facture",
+        "prix_facture",
+        "cout_reel_complet",
+        "cout_total",
+        "cout_total_connu",
+        "marge_reelle",
+        "marge_prevue",
+        "ecart_marge",
+        "manque",
+    }
+    assert un["trace"] == {"a_jour": True}
+    assert deux == {'devis_id': 'DEVIS-2', 'chantier_id': 'CHANTIER-2', 'statut': 'en_attente_travaux_termines'}
 
 
 def test_sans_aucun_devis_recu_la_liste_est_vide(par_nom):
