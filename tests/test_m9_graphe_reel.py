@@ -1,13 +1,15 @@
 """Graphe d'impacts M9.2 sur de VRAIES captures : « rupture de matériau » à travers M2, M3, M4, M5, M6 et M8.
 
 Un seul scénario cohérent (même lead, même devis, même chantier, même WCT, même matériau) est monté par les outils et
-le bus réels des départements (fixtures `m9_producteurs_a.py` et `m9_producteurs_b.py`, non modifiées) :
+le bus réels des départements (fixtures `m9_producteurs_a.py` et `m9_producteurs_b.py`) :
 
 * M1 qualifie le lead (service « ravalement ») ; M2 l'ingère puis un vendeur le qualifie
   (outil `m2_transitionner_statut`) ;
 * M3 accepte le devis `DEVIS-B1` (40 pi du matériau) ; M6 le consomme et réserve, puis publie « matériel prêt » ; M4 en
-  fait une intervention (lead et devis portés), que l'admin cédule, confirme (position) et date ;
-* le chantier se termine (WCT, variance) ; M5 en calcule la rentabilité ; un bon de commande est reçu (M6 → M5) ;
+  fait une intervention (lead et devis portés), que l'admin cédule pour une équipe, confirme (position) et date ;
+* le chantier se termine par une journée d'ÉQUIPE V3 certifiée sur le VRAI M4 (visite, pointages d'équipe,
+  complétion : M4 publie le WCT), puis la variance ; M5 en calcule la rentabilité, et le réconciliateur réel
+  (politiques octroyées par l'opérateur) en publie le coût certifié ; un bon de commande est reçu (M6 → M5) ;
 * la RUPTURE : 120 des 150 pi du matériau passent au rebut (`m6_transferer_stock`) ; M6 déclare alors la réservation du
   devis « partielle », avec la ligne manquante du matériau.
 
@@ -23,12 +25,14 @@ Données fictives (`fictif: true`).
 
 from __future__ import annotations
 
+import datetime as dt
 import importlib.util
 import sys
 from pathlib import Path
 
 import m2_revenue_crm.outils as m2_outils
 import pytest
+from m4_field_ops import encodage as encodage_m4
 from m9_strategic_intelligence import capture_strategique as cs
 from m9_strategic_intelligence import catalogue_producteurs as cat
 from m9_strategic_intelligence import graphe_impacts as gi
@@ -51,7 +55,15 @@ A = _charger("m9_producteurs_a")
 B = _charger("m9_producteurs_b")
 
 FICTIF = True
-LEAD, DEVIS, CHANTIER, WCT, MATERIAU = B.LEAD_ID, B.DEVIS_ID, B.CHANTIER_ID, B.WCT_ID, B.MATERIAU
+LEAD, DEVIS, CHANTIER, MATERIAU = B.LEAD_ID, B.DEVIS_ID, B.CHANTIER_ID, B.MATERIAU
+# L'intervention naît du devis accepté (M4 la dérive du lead et du devis) ; son WCT, de la complétion réelle.
+INTERVENTION = encodage_m4.empreinte("intervention-devis", LEAD, DEVIS)
+WCT = encodage_m4.empreinte("wct", INTERVENTION, B.HORODATAGE_COMPLETION_OUTIL)
+# La cédule du chantier : proposée, appliquée et datée la semaine du chantier (jour 0 = `B.JOUR_CHANTIER`), avant
+# la journée d'équipe ; la semaine capturée est celle de ce lundi.
+LUNDI = "2026-09-21"
+HORODATAGE_PLAN = "2026-09-21T12:00:00+00:00"
+RECU_PLAN = dt.datetime(2026, 9, 21, 14, 0, 0, tzinfo=dt.UTC)
 PO = "PO-G1"
 M2, M3, M4, M5, M6, M8 = (
     "m02-revenue-crm", "m03-estimation", "m04-field-ops", "m05-financecore", "m06-material-control", "m08-analytics",
@@ -66,7 +78,7 @@ ARGUMENTS = {
     "m2.leads": {"horodatage": "2026-10-28T12:00:00Z"},
     "m3.ecarts": {"devis_id": DEVIS},
     "m4.interventions": {},
-    "m4.cedule_semaine": {"debut_semaine": A.LUNDI},
+    "m4.cedule_semaine": {"debut_semaine": LUNDI},
     "m5.rentabilite_chantier": {},
     "m5.comptes_a_payer": {},
     "m6.disponibilite": {},
@@ -105,21 +117,29 @@ def _monter_scenario(base: Path, mp: pytest.MonkeyPatch) -> dict:
     B.publier("m3.devis_accepte", "m03-estimation", B.charge_devis_accepte())
     B.livrer((B.M5, M2, M4, M6, M3))
     intervention = A.lire_outil(m4, "m4_lister_interventions", {})[0]["intervention_id"]
+    assert intervention == INTERVENTION
     A.geste(m4, "m4_confirmer_localisation", {
-        "chantier_id": LEAD, "action": "confirmee", "horodatage": A.HORODATAGE_PLAN, "confirme_par": "admin.fictif",
+        "chantier_id": LEAD, "action": "confirmee", "horodatage": HORODATAGE_PLAN, "confirme_par": "admin.fictif",
         "adresse": {"numero_municipal": "10", "odonyme": "rue Fictive", "municipalite": "Repentigny"},
-        "source": "manuel", "motif": "", "latitude_microdegres": 45742000, "longitude_microdegres": -73450000})
-    plan = A.geste(m4, "m4_proposer_cedule", {"horodatage": A.HORODATAGE_PLAN})["plan_id"]
-    A.geste(m4, "m4_appliquer_cedule",
-            {"plan_id": plan, "horodatage": A.HORODATAGE_PLAN, "confirme_par": "admin.fictif"})
-    A.geste(m4, "m4_confirmer_dates_cedule", {"plan_id": plan, "calendrier": {"0": A.LUNDI}, "revision_attendue": 0})
-    # le chantier est terminé : M4 publie le WCT (porte l'intervention réelle), M6 la variance
-    wct = B.charge_wct()
-    wct["intervention_id"] = intervention
-    B.publier("m4.travaux_termines", "m04-field-ops", wct)
-    variance = B.charge_variance()
+        "source": "manuel", "motif": "", "latitude_microdegres": 45742000, "longitude_microdegres": -73450000},
+        recu_le=RECU_PLAN)
+    plan = A.geste(m4, "m4_proposer_cedule", {"horodatage": HORODATAGE_PLAN}, recu_le=RECU_PLAN)["plan_id"]
+    applique = A.geste(m4, "m4_appliquer_cedule",
+                       {"plan_id": plan, "horodatage": HORODATAGE_PLAN, "confirme_par": "admin.fictif"},
+                       recu_le=RECU_PLAN)
+    (assignation,) = [a for a in applique["assignations"] if a["intervention_id"] == intervention]
+    equipe = assignation["technicien_id"]  # l'équipe que le solveur a choisie, jamais fabriquée par le test
+    assert equipe in {e for e, _ in A.EQUIPES}, assignation
+    datee = A.geste(m4, "m4_confirmer_dates_cedule",
+                    {"plan_id": plan, "calendrier": {"0": B.JOUR_CHANTIER}, "revision_attendue": 0}, recu_le=RECU_PLAN)
+    # le chantier est terminé : journée d'équipe certifiée, M4 publie le WCT ; M6 la variance sur ce WCT réel
+    B.declarer_equipe_et_tarif(equipe)
+    assert B.journee_sur_cedule(intervention, plan, datee["ligne_id"], equipe) == WCT
+    variance = B.charge_variance(WCT, intervention_id=intervention)
     B.publier("m6.variance_chantier", "m06-material-control", variance, evenement_id=variance["evenement_id"])
-    B.livrer((B.M5, M2, M3, M6, M8))
+    B.mettre_en_service_cout_certifie()
+    B.livrer((M4, B.M5, M2, M3, M6, M8))
+    B.prouver_cout_certifie(DEVIS, WCT, intervention, equipe)
     # un bon de commande reçu pour ce chantier (M6 → M5 : comptes à payer)
     reception = B._charge_reception("m6-reception-PO-G1-0001", PO, "40", "2026-09-15T09:00:00-04:00")
     reception["chantier_id"] = CHANTIER
@@ -140,10 +160,10 @@ def _monter_scenario(base: Path, mp: pytest.MonkeyPatch) -> dict:
     chaine = B.captures_stockees()
     # Une VRAIE capture refusée par le producteur (un mardi n'est pas un lundi), conservée comme manque. Hors `chaine`
     # (instantané des huit lectures acceptées) : le test du refus la substitue à la cédule.
-    reponse = B.capturer(capacites, B.ADMIN, "m4.cedule_semaine", {"debut_semaine": "2026-11-03"}, _instant(30))
+    reponse = B.capturer(capacites, B.ADMIN, "m4.cedule_semaine", {"debut_semaine": "2026-09-22"}, _instant(30))
     refusee = reponse["resultat"]["capture"]
     assert refusee["verdict"] == "REFUSEE" and refusee["code"] == "REJ-CONTRAT-INVALIDE", reponse
-    return {"intervention": intervention, "plan": plan, "index": index, "chaine": chaine,
+    return {"intervention": intervention, "plan": plan, "equipe": equipe, "index": index, "chaine": chaine,
             "refusee": B.captures_stockees()[refusee["index"]]}
 
 

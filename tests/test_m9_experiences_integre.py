@@ -71,8 +71,8 @@ def test_experience_sur_marges_reelles_m8_sans_cout_puis_avec_cout_m5(tmp_path, 
             faits.update(page["faits"])
             depart = page["prochain_depart"]
         # Chiffres RÉELS du propriétaire M5 (rentabilité du chantier) : marge réelle contre marge prévue.
-        reelle = _fait(faits, "m5.rentabilite_chantier", ".rentabilite.marge_reelle")
-        prevue = _fait(faits, "m5.rentabilite_chantier", ".rentabilite.marge_prevue")
+        reelle = _fait(faits, "m5.rentabilite_chantier", B.RENTABILITE_CERTIFIEE + "marge_reelle")
+        prevue = _fait(faits, "m5.rentabilite_chantier", B.RENTABILITE_CERTIFIEE + "marge_prevue")
         assert (faits[reelle], faits[prevue]) == ("114.00", "120.00")
         definition = {
             "experience_id": "materiau-alternatif",
@@ -119,7 +119,7 @@ def test_experience_sur_marges_reelles_m8_sans_cout_puis_avec_cout_m5(tmp_path, 
         # Un coût RÉEL (M5) cité : le ROI se calcule en Decimal, jamais autrement.
         # (Mécanisme : le coût cité est celui que M5 publie pour le chantier ; son sens d'« coût de l'expérience » est
         # l'affirmation de la personne qui l'a cité.)
-        cout = [_fait(faits, "m5.rentabilite_chantier", ".rentabilite.cout_total")]
+        cout = [_fait(faits, "m5.rentabilite_chantier", B.RENTABILITE_CERTIFIEE + "cout_total")]
         if cout:
             revise = {
                 **definition,

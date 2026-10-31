@@ -1,8 +1,11 @@
 """M9.24 — les six parcours de bout en bout du cahier de direction M9, avec de VRAIS producteurs (fictif).
 
 Chaque parcours monte un monde par les outils publics et le VRAI bus des départements (bancs `m9_producteurs_a.py`,
-`m9_producteurs_b.py` et le monde de `test_m9_graphe_reel.py`, non modifiés), capture leurs lectures par
+`m9_producteurs_b.py` et le monde de `test_m9_graphe_reel.py`), capture leurs lectures par
 `m9_capturer_producteur` (port privé, admin console) et appelle les outils M9 par le VRAI dispatcher `Capacites`.
+Chaque chantier terminé l'est par une journée d'ÉQUIPE V3 certifiée sur le vrai M4 : la marge réelle citée est la
+marge CERTIFIÉE de M5 (bloc `cout_certifie`, publiée par le réconciliateur réel) ; le calcul ordinaire de M5, sans
+temps certifié, n'en rend aucune.
 
 Ce qui est RÉEL : départements M1, M2, M3, M4, M5, M6, M7, M8, M10 (outils, bus, registres durables SQLite), captures,
 outils M9, registres chaînés, file d'approbation native, profils d'agents et admission native de budget.
@@ -343,7 +346,7 @@ def test_parcours_1_rapport_hebdomadaire_conseil_memoire_et_audit(tmp_path, monk
     domaines = ["strategie", "stock", "marge"]
     faits = faits_du_dossier(cap, question=question, domaines=domaines, attendues=attendues)
     dispo = adresse(faits, "m6.disponibilite", ".articles[0].disponible")
-    marge = adresse(faits, "m5.rentabilite_chantier", ".rentabilite.marge_reelle")
+    marge = adresse(faits, "m5.rentabilite_chantier", B.RENTABILITE_CERTIFIEE + "marge_reelle")
     assert (faits[dispo], faits[marge]) == ("0", "114.00"), "valeurs publiées par M6 et M5, citées telles quelles"
     assert dispo.startswith(f"m6.disponibilite#{monde['index']['m6.disponibilite']}:p0."), "capture réelle du monde"
 
@@ -730,8 +733,11 @@ def test_parcours_5_nouvelle_ville_scenario_experience_et_plan(tmp_path, monkeyp
     assert (apres["statut"], apres["valeur"]) == ("CALCULE", str(Decimal("12559.40") - Decimal("5000")))
     assert scenario["a_calculer_par"][0]["proprietaire"] == "m02-revenue-crm / m07-marketing", "demande locale"
 
-    reelle = adresse(faits, "m5.rentabilite_chantier", ".rentabilite.marge_reelle")
-    prevue = adresse(faits, "m5.rentabilite_chantier", ".rentabilite.marge_prevue")
+    reelle = adresse(faits, "m5.rentabilite_chantier", B.RENTABILITE_CERTIFIEE + "marge_reelle")
+    prevue = adresse(faits, "m5.rentabilite_chantier", B.RENTABILITE_CERTIFIEE + "marge_prevue")
+    # la marge citée est la CERTIFIÉE ; le calcul ordinaire (sans temps certifié) n'en rend aucune, rien n'en est cité
+    assert faits[reelle] == "114.00" and not [
+        a for a in faits if a.startswith("m5.rentabilite_chantier#") and a.endswith("].rentabilite.marge_reelle")]
     total = adresse(faits, "m2.leads", "resultat.resultat.total")
     experience = {
         "experience_id": "terrebonne-30-jours",

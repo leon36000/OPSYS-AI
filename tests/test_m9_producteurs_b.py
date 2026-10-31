@@ -181,10 +181,10 @@ def _installer_m10(base, mp):
 # producteur -> (département, lecture, arguments, installateur, marqueurs qui ne doivent jamais fuir)
 PRODUCTEURS = {
     "m5": (H.M5, "m5.comptes_a_payer", {}, _installer_m5, ("PO-B1", "gentek-fictif", "344.93")),
-    "m8": (H.M8, "m8.mesures_chantier", {"wct_id": H.WCT_ID}, _installer_m8, ("DEVIS-B1", "114.00", "WCT-B1")),
+    "m8": (H.M8, "m8.mesures_chantier", {"wct_id": H.WCT_ID}, _installer_m8, ("DEVIS-B1", "114.00", H.WCT_ID)),
     "m7": (H.M7, "m7.performance_campagnes", PERIODE, _installer_m7, ("automne", "114.00", "LEAD-B1-fictif")),
     "m1": (H.M1, "m1.digest", {"date_reference": "2026-09-28"}, _installer_m1, ("courriel: signal", "Montréal")),
-    "m10": (H.M10, "m10.paquet_affaire", PAQUET, _installer_m10, ("DEVIS-B2", "WCT-B1", "Camille")),
+    "m10": (H.M10, "m10.paquet_affaire", PAQUET, _installer_m10, ("DEVIS-B2", H.WCT_ID, "Camille")),
 }
 
 
@@ -337,7 +337,8 @@ def test_m5_prevision_pagine_par_depart_et_la_capture_lit_toutes_les_semaines(m5
 # ====================================================================================== M5 rentabilité
 @pytest.fixture
 def chantier_m5(m5):
-    """DEVIS-B1 / CHANTIER-B1 terminé, prix au livre M6, facture envoyée : coût complet, prix définitif."""
+    """DEVIS-B1 / CHANTIER-B1 terminé par une journée d'équipe V3 certifiée, prix au livre M6, facture envoyée : coût
+    certifié complet (publié par le réconciliateur), prix définitif."""
     H.prix_au_livre_m6()
     H.factures_clients_m5(envoyees=((H.FACTURE_ID, H.DEVIS_ID, "2026-09-26T09:30:00-04:00"),), brouillons=())
     H.chantier_termine((H.M5,))
@@ -345,6 +346,10 @@ def chantier_m5(m5):
 
 
 def test_m5_rentabilite_chantier_capturee_avec_la_marge_reelle(chantier_m5):
+    """M9 capture la marge RÉELLE certifiée de M5 (bloc `cout_certifie`, à jour) : 42 pi x 8,00 $ + 180 min d'équipe x
+    50,00 $/h = 486,00 $ ; prix facturé 600,00 $. Le calcul ordinaire du jour, lui, n'a aucun temps certifié : il dit
+    PARTIELLE, main-d'oeuvre inconnue, et ne rend AUCUNE marge (jamais estimée)."""
+    trace_certifiee = H.prouver_cout_certifie()
     cap = H.capacites(H.M5)
     capture = _acceptee(H.capturer(cap, H.ADMIN, "m5.rentabilite_chantier", {}, recu(1)), "m5.rentabilite_chantier")
     assert capture["reference"] is None and capture["pages"] == 1
@@ -354,12 +359,23 @@ def test_m5_rentabilite_chantier_capturee_avec_la_marge_reelle(chantier_m5):
     (chantier,) = H.valeurs(page, "resultat.resultat.chantiers[*]")
     assert (chantier["devis_id"], chantier["chantier_id"], chantier["statut"]) == (
         "DEVIS-B1", "CHANTIER-B1", "calculee")
-    rentabilite = chantier["rentabilite"]
+    ordinaire = chantier["rentabilite"]
+    assert (ordinaire["verdict"], ordinaire["manque"], ordinaire["cout_reel_complet"]) == (
+        "PARTIELLE", ["REJ-COUT-TEMPS-POINTE-ABSENT"], False)
+    assert (ordinaire["cout_total"], ordinaire["marge_reelle"], ordinaire["cout_total_connu"]) == (None, None, "336.00")
+    certifie = chantier["cout_certifie"]
+    assert certifie["statut"] == "a_jour"
+    derniere = certifie["derniere_trace_certifiee"]
+    assert (derniere["verdict"], derniere["horodatage"]) == ("CALCULEE", trace_certifiee["horodatage"])
+    rentabilite = derniere["rentabilite"]
     assert (rentabilite["verdict"], rentabilite["manque"], rentabilite["cout_reel_complet"]) == ("CALCULEE", [], True)
     assert (rentabilite["cout_total"], rentabilite["marge_reelle"], rentabilite["marge_prevue"]) == (
         "486.00", "114.00", "120.00")
     assert (rentabilite["prix_facture"], rentabilite["statut_facture"]) == ("600.00", "ENVOYEE")
-    assert chantier["trace"] == {"a_jour": True}  # vue liste : aucune révision rendue
+    assert "version_entrees" not in derniere and "provenance" not in derniere  # vue liste : aucune révision rendue
+    # Vue liste : aucune révision rendue. La dernière trace est la certifiée : le calcul ordinaire d'aujourd'hui (sans
+    # temps certifié) n'y correspond pas, `trace.a_jour` le dit ; c'est `cout_certifie.statut` qui dit « à jour ».
+    assert chantier["trace"] == {"a_jour": False}
     assert H.valeurs(page, "resultat.resultat.mention")[0].startswith("Analyse préparatoire IA")
     _verifier_chaine(cap)
 
@@ -376,7 +392,14 @@ def test_m5_rentabilite_ne_declare_aucun_instant_et_la_revision_n_est_rendue_qu_
     (version,) = H.valeurs(H.page(1), chemin)
     assert len(version) == 64 and set(version) <= set("0123456789abcdef")
     detail = H.valeurs(H.page(1), "resultat.resultat.chantiers[*].rentabilite")[0]
-    assert "version_entrees" not in detail and detail["marge_reelle"] == "114.00"  # le détail rend plus de champs
+    # le détail rend plus de champs ; le calcul ordinaire n'a pas de temps certifié : aucune marge, jamais estimée
+    assert "version_entrees" not in detail and detail["marge_reelle"] is None and "cout_reel" in detail
+    (certifie,) = H.valeurs(H.page(1), "resultat.resultat.chantiers[*].cout_certifie.derniere_trace_certifiee")
+    assert certifie["rentabilite"]["marge_reelle"] == "114.00" and len(certifie["version_entrees"]) == 64
+    assert certifie["provenance"]["wct_id"] == H.WCT_ID
+    assert certifie["provenance"]["version"] == "opsys.m4.temps_certifies.v3"
+    liste = "resultat.resultat.chantiers[*].cout_certifie.derniere_trace_certifiee.provenance"
+    assert H.valeurs(H.page(0), liste) == []  # la vue liste ne rend ni provenance ni révision certifiée
     assert _recalculer(1, "m5.rentabilite_chantier", {"devis_id": H.DEVIS_ID})["revisions"] == [version]
     assert _recalculer(0, "m5.rentabilite_chantier", {})["revisions"] == []
     assert _recalculer(0, "m5.rentabilite_chantier", {})["instants"]["declares"] is False
@@ -606,7 +629,7 @@ def test_m8_vue_executive_capturee_entonnoir_marge_reelle_et_cash_libre(m8):
     assert mesures["m8_devis_acceptes"] == "1" and mesures["m8_taux_acceptation_pct"] == "50.00"
     assert H.valeurs(page, "resultat.entonnoir.devis_en_attente.sans_reponse.devis") == [["DEVIS-B2"]]
     (marge,) = H.valeurs(page, "resultat.marge_reelle.chantiers[*]")
-    assert (marge["wct_id"], marge["marge_reelle_cad"], marge["prix_definitif"]) == ("WCT-B1", "114.00", True)
+    assert (marge["wct_id"], marge["marge_reelle_cad"], marge["prix_definitif"]) == (H.WCT_ID, "114.00", True)
     constat = H.valeurs(page, "resultat.cash_libre.constat")[0]
     assert (constat["sequence"], constat["date_reference"], constat["statut"]) == (1, "2026-09-29", "CALCULE")
     assert constat["cash_libre_cad"] == "12559.40" and constat["composantes"]["solde"] == "20000.00"
@@ -691,7 +714,7 @@ def test_m8_mesures_chantier_capturees_avec_marge_reelle_et_version_des_entrees(
     _acceptee(H.capturer(cap, H.ADMIN, "m8.mesures_chantier", {"wct_id": H.WCT_ID}, recu(1)), "m8.mesures_chantier")
     page = _page_ok()
     assert H.valeurs(page, "resultat.trouve") == [True]
-    assert (H.valeurs(page, "resultat.wct_id"), H.valeurs(page, "resultat.devis_id")) == (["WCT-B1"], ["DEVIS-B1"])
+    assert (H.valeurs(page, "resultat.wct_id"), H.valeurs(page, "resultat.devis_id")) == ([H.WCT_ID], ["DEVIS-B1"])
     par_metrique = {m["metric_id"]: m for m in H.valeurs(page, "resultat.mesures[*]")}
     assert par_metrique["m8_ecart_duree_minutes"]["valeur"] == "120.00"
     assert par_metrique["m8_marge_prevue_cad"]["valeur"] == "120.00"
@@ -759,19 +782,22 @@ def test_m7_revisions_sont_les_sequences_m5_et_aucun_instant_metier_n_est_declar
     _acceptee(H.capturer(cap, H.ADMIN, "m7.performance_campagnes", dict(PERIODE), recu(1)), "m7.performance_campagnes")
     page = _page_ok()
     sequences = H.valeurs(page, "resultat.source_refs[*].sequence")
-    assert sorted(sequences) == [1, 2]  # toutes les rentabilités lues ; la plus haute fait foi pour la marge
-    assert H.valeurs(page, "resultat.campagnes[*].source_refs[*].sequence") == [2]
+    # Toutes les rentabilités lues : trois partielles de la cascade ordinaire (aucun temps certifié n'y chiffre la
+    # main-d'oeuvre) puis la certifiée du réconciliateur ; la plus haute, la certifiée, fait foi pour la marge.
+    assert sorted(sequences) == [1, 2, 3, 4]
+    assert H.valeurs(page, "resultat.campagnes[*].source_refs[*].sequence") == [4]
     # `observation_source` : horloge de lecture et date SQL sans fuseau → aucun instant métier utilisable
     source = H.valeurs(page, "resultat.observation_source")[0]
     assert source["definition_temps"] == "dates_metier_faits_disponibles_a_la_lecture"
     assert cs.instant(source["dernier_cree_le_sql"]) is None and cs.instant(source["lue_le"]) is not None
-    assert (source["lignes_lues"], source["rang_max"]) == (4, 3)
+    assert (source["lignes_lues"], source["rang_max"]) == (6, 5)  # client associé, devis accepté, 4 rentabilités
     proposition_m7 = H.proposition("m7.performance_campagnes")
-    assert _recalculer(0, "m7.performance_campagnes", dict(PERIODE), proposition_m7)["revisions"] == ["1", "2"]
+    revisions = _recalculer(0, "m7.performance_campagnes", dict(PERIODE), proposition_m7)["revisions"]
+    assert revisions == ["1", "2", "3", "4"]
     proposer("m7.performance_campagnes")
     reelle = _acceptee(H.capturer(cap, H.ADMIN, "m7.performance_campagnes", dict(PERIODE), recu(2)),
                        "m7.performance_campagnes")
-    assert reelle["revisions"] == ["1", "2"] and reelle["instants_metier"]["declares"] is False
+    assert reelle["revisions"] == ["1", "2", "3", "4"] and reelle["instants_metier"]["declares"] is False
 
 
 def test_m7_la_reponse_contient_une_horloge_donc_deux_lectures_identiques_different(m7, proposer):
@@ -876,7 +902,8 @@ def m10(m5):
 
 
 def test_m10_paquet_affaire_capture_quatre_couches_filtrees_pour_m9(m10):
-    """Le paquet est TRONQUÉ par son budget (5 faits sur 7) : capture PARTIELLE, mais les faits rendus sont cités."""
+    """Le paquet est TRONQUÉ par son budget (3 faits sur 7 : 1 000 caractères par couche, et les identifiants que M4
+    dérive du chantier réel sont longs) : capture PARTIELLE, mais les faits rendus sont cités."""
     cap = H.capacites(H.M10)
     capture = _partielle(H.capturer(cap, H.ADMIN, "m10.paquet_affaire", dict(PAQUET), recu(1)), "m10.paquet_affaire",
                          "resultat.couches[*].tronque")
@@ -889,12 +916,13 @@ def test_m10_paquet_affaire_capture_quatre_couches_filtrees_pour_m9(m10):
         "regles_entreprise", "faits_affaire", "evenements_recents", "signaux_non_resolus"]
     # le destinataire est M9 (fixé par le port, jamais par l'appelant) : la vue la plus restrictive lui convient
     assert H.valeurs(page, "resultat.confidentialite.agent") == [H.M9]
-    assert H.valeurs(page, "resultat.confidentialite.nb_retenus") == [4]
+    # retenus : les deux faits amont déjà retenus avant la voie certifiée, plus les quatre rentabilités de M5
+    # (FINANCIAL : trois partielles de la cascade ordinaire, puis la certifiée) au lieu de deux
+    assert H.valeurs(page, "resultat.confidentialite.nb_retenus") == [6]
     sources = H.valeurs(page, "resultat.couches[*].faits[*].source")
-    assert sorted(sources) == ["m3.devis_accepte", "m3.devis_envoye", "m3.devis_sans_reponse", "m4.travaux_termines",
-                               "m6.variance_chantier"]
+    assert sorted(sources) == ["m3.devis_sans_reponse", "m4.travaux_termines", "m6.variance_chantier"]
     assert H.valeurs(page, "resultat.signaux") == [{"nb_clos": 0, "nb_ouverts": 0, "nb_pris_en_compte": 0}]
-    assert H.valeurs(page, "resultat.consolidation.nb_a_consolider") == [2]
+    assert H.valeurs(page, "resultat.consolidation.nb_a_consolider") == [3]
     _verifier_chaine(cap)
 
 
@@ -906,7 +934,7 @@ def test_m10_paquet_ne_fait_sortir_ni_donnee_client_ni_montant(m10):
                "resultat.couches[*].tronque")
     texte = str(H.captures_stockees())
     for interdit in (*H.CONTACT.values(), "Repentigny", "514", H.CLIENT_ID, "600.00", "480.00", "114.00", "486.00",
-                     "marge", "TECH-B1-fictif"):
+                     "marge", H.EQUIPE_ID, H.TECHNICIEN_ID):
         assert interdit not in texte, interdit
 
 
@@ -916,11 +944,10 @@ def test_m10_paquet_instants_des_faits_et_pas_de_revision(m10):
                "resultat.couches[*].tronque")
     horodatages = H.valeurs(H.page(0), "resultat.couches[*].faits[*].horodatage")
     assert sorted(horodatages) == sorted([
-        "2026-09-27T08:00:00-04:00", "2026-09-25T16:30:00-04:00", "2026-09-25T16:30:00-04:00",
-        "2026-09-20T10:00:00-04:00", "2026-09-19T15:30:00-04:00"])
+        "2026-09-27T08:00:00-04:00", "2026-09-25T16:30:00-04:00", "2026-09-25T16:30:00-04:00"])
     proposee = _recalculer(0, "m10.paquet_affaire", dict(PAQUET))
-    assert proposee["instants"] == {"declares": True, "nombre": 5, "invalides": 0,
-                                    "min": "2026-09-19T19:30:00Z", "max": "2026-09-27T12:00:00Z"}
+    assert proposee["instants"] == {"declares": True, "nombre": 3, "invalides": 0,
+                                    "min": "2026-09-25T20:30:00Z", "max": "2026-09-27T12:00:00Z"}
     assert proposee["revisions"] == []
     # l'horodatage du paquet est un écho de l'argument, jamais un instant métier
     assert H.valeurs(H.page(0), "resultat.horodatage") == [PAQUET["horodatage"]]
@@ -930,19 +957,20 @@ def test_m10_paquet_instants_des_faits_et_pas_de_revision(m10):
 
 
 def test_m10_paquet_tronque_par_le_budget_est_partielle_et_ses_faits_sont_cites(m10):
-    """Cinq faits par couche au plus : 7 événements, 5 rendus, `nb_omis` 2 et `tronque` vrai. Aucun argument de reprise
-    n'existe : la capture est PARTIELLE, et les faits rendus restent cités (instants conservés). Les jours omis sont à
-    consolider (`consolidation`)."""
+    """Cinq faits et 1 000 caractères par couche au plus : 7 événements, 3 rendus (les résumés portent le `wct_id`
+    réel de M4, 64 caractères), `nb_omis` 4 et `tronque` vrai. Aucun argument de reprise n'existe : la capture est
+    PARTIELLE, et les faits rendus restent cités (instants conservés). Les jours omis sont à consolider
+    (`consolidation`)."""
     cap = H.capacites(H.M10)
     capture = _partielle(H.capturer(cap, H.ADMIN, "m10.paquet_affaire", dict(PAQUET), recu(1)), "m10.paquet_affaire",
                          "resultat.couches[*].tronque")
-    assert capture["instants_metier"]["nombre"] == 5
+    assert capture["instants_metier"]["nombre"] == 3
     page = _page_ok()
     (evenements,) = [c for c in H.valeurs(page, "resultat.couches[*]") if c["nom"] == "evenements_recents"]
     assert (evenements["nb_total"], evenements["nb_inclus"], evenements["nb_omis"], evenements["tronque"]) == (
-        7, 5, 2, True)
-    assert len(evenements["faits"]) == 5
-    assert H.valeurs(page, "resultat.consolidation.a_consolider[*].jour") == ["2026-09-18", "2026-09-19"]
+        7, 3, 4, True)
+    assert len(evenements["faits"]) == 3
+    assert H.valeurs(page, "resultat.consolidation.a_consolider[*].jour") == ["2026-09-18", "2026-09-19", "2026-09-20"]
     reponse = H.capturer(cap, H.ADMIN, "m10.paquet_affaire", {**PAQUET, "budget_caracteres": 8000}, recu(2))
     assert reponse["ok"] is False and "REJ-CAPTURE-ARGUMENTS" in reponse["details"]
 
