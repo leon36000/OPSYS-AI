@@ -1193,6 +1193,7 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         assert apprentissage_final["rentabilite"]["statut"] == "exclue", apprentissage_final
         assert apprentissage_final["rentabilite"]["cout_reel_complet"] is False
         assert apprentissage_final["rentabilite"]["montant_marge_reelle_cad"] is None
+        assert _empreinte(moteur) == avant
         return
     assert apprentissage_final["statut"] == "observee", apprentissage_final
     _, devis_accepte = _evenements("m3.devis_accepte")[0]
