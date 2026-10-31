@@ -2828,7 +2828,9 @@ def outils(
                          "manque nommé (absence n'est jamais zéro). horodatage_reference : instant de lecture fourni "
                          "par l'appelant (ISO 8601 avec fuseau), recopié en lu_a. portee=semaine_type : semaine "
                          "type déclarée moins congés d'équipe et fériés déclarés, sans journée datée ; jours-personnes "
-                         "seulement si le profil déclare duree_jour_personne_minutes."),
+                         "seulement si le profil déclare duree_jour_personne_minutes, multipliés par "
+                         "l'effectif_planifie DÉCLARÉ de l'équipe (prévision, jamais présence ; null = non déclaré, "
+                         "aucune multiplication) ; jours_personnes_base dit la règle."),
             parametres={"type": "object", "properties": {
                 "debut_semaine": {"type": "string", "maxLength": 10},
                 "horodatage_reference": {"type": "string", "maxLength": 64},

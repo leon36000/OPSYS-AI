@@ -20,13 +20,20 @@
 #         jours:
 #           - {date: "AAAA-MM-JJ", libelle: "nom du jour férié selon la CNESST"}
 #   * `duree_jour_personne_minutes` : facultatif ; sans lui, aucun jour-personne n'est exposé. Avec lui,
-#     jours-personnes = minutes déclarées de l'équipe / cette durée (aucun membre n'est compté).
+#     jours-personnes = minutes déclarées de l'équipe × `effectif_planifie` / cette durée (DECISIONS-ARCHITECTE-r3).
+#   * `effectif_planifie` par équipe : facultatif, entier de 1 à 50 = personnes PRÉVUES par quart. C'est une capacité
+#     prévisionnelle que TU déclares, jamais une présence constatée : OPSYS ne le lit ni ne le déduit des `membres`
+#     (ici 3 prévues pour 2 membres déclarés : rien ne les relie), des pointages ou des absences. Sans lui, M4 écrit
+#     `effectif_planifie: null` et ses jours-personnes restent des jours de quart d'ÉQUIPE (minutes / durée), sans
+#     multiplication ; si seules certaines équipes le déclarent, aucun total de jours-personnes n'est écrit.
+#     L'unité de référence de la capacité reste l'heure d'équipe.
 liste:
   - id: eq-exemple-nord
     membres: [personne.exemple.a, personne.exemple.b]   # identifiants de PERSONNES OPSYS existantes
     competences: [gouttieres]
     depot: {id: depot-exemple, latitude_microdegres: 45500000, longitude_microdegres: -73600000}
     quarts: [{jour: 0, debut_min: 420, fin_min: 930}]   # numéro de journée de la cédule (solveur), inchangé
+    effectif_planifie: 3                                # personnes prévues par quart (prévision, pas présence)
     semaine_type:
       fuseau: America/Montreal
       lundi: [{debut: "07:00", fin: "12:00"}, {debut: "12:30", fin: "15:30"}]

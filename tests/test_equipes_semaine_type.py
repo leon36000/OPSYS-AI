@@ -138,6 +138,9 @@ def test_le_gabarit_de_docs_est_un_profil_valide_sans_ferie_invente():
     brut = yaml.safe_load(GABARIT.read_text(encoding="utf-8"))
     propre = equipes.normaliser_equipes(brut)
     assert all("semaine_type" in equipe for equipe in propre["liste"])
+    # l'effectif planifié du gabarit est un NOMBRE déclaré, pas le compte des membres fictifs
+    assert [equipe["effectif_planifie"] for equipe in propre["liste"]] == [3]
+    assert [len(equipe["membres"]) for equipe in propre["liste"]] == [2]
     # OPSYS ne fournit aucune liste de fériés : le gabarit n'en déclare aucune, le propriétaire la saisit.
     assert "feries" not in propre
     assert "CNESST" in GABARIT.read_text(encoding="utf-8")
@@ -251,3 +254,64 @@ def test_duree_jour_personne_entier_explicite_borne(duree):
 def test_une_cle_rh_reste_refusee_dans_un_conge_ou_une_semaine_type():
     _refus(lambda p: p.update(absences_personnes=[]), "inconnues")
 
+
+
+# ---------------------------------------------------------------------------
+# 4. Effectif planifié (DECISIONS-ARCHITECTE-r3) : capacité prévisionnelle déclarée, jamais une présence
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("effectif", [1, 2, 50])
+def test_effectif_planifie_entier_declare_admis_et_canonique(effectif):
+    profil = _avec_capacite()
+    profil["liste"][0]["effectif_planifie"] = effectif
+    propre = equipes.normaliser_equipes(profil)
+    nord = next(e for e in propre["liste"] if e["id"] == "equipe-nord")
+    assert nord["effectif_planifie"] == effectif
+    assert "effectif_planifie" not in next(e for e in propre["liste"] if e["id"] == "equipe-sud")  # jamais supposé
+    assert equipes.normaliser_equipes(propre) == propre
+
+
+def test_effectif_planifie_independant_du_nombre_de_membres():
+    profil = _avec_capacite()
+    nord = profil["liste"][0]
+    nord["effectif_planifie"] = 7  # plus de personnes prévues que de membres déclarés : admis, rien ne les relie
+    propre = equipes.normaliser_equipes(profil)
+    assert propre["liste"][0]["effectif_planifie"] == 7 and len(propre["liste"][0]["membres"]) < 7
+    nord["effectif_planifie"] = 1
+    nord["membres"] = sorted(nord["membres"] + ["autre.fictif"])
+    assert equipes.normaliser_equipes(profil)["liste"][0]["effectif_planifie"] == 1
+
+
+def test_sans_effectif_l_empreinte_d_avant_est_gardee_et_avec_elle_change():
+    assert equipes.empreinte_equipes(equipes.normaliser_equipes(profil_fictif())) == EMPREINTE_FICTIF_BASE
+    avec = profil_fictif()
+    avec["liste"][0]["effectif_planifie"] = 2
+    assert equipes.empreinte_equipes(equipes.normaliser_equipes(avec)) != EMPREINTE_FICTIF_BASE
+
+
+def test_le_journal_nomme_l_effectif_declare_sans_nom_de_membre(opsys_home):
+    stockage.migrer()
+    profil = _avec_capacite()
+    profil["liste"][0]["effectif_planifie"] = 3
+    equipes.enregistrer_equipes(profil, par="nathan")
+    with etat.session() as cnx:
+        details = etat.lire_journal(cnx)[0]["details"]
+    assert details["effectif_planifie_par_equipe"] == {"equipe-nord": 3}
+    assert "fictif" not in json.dumps(details["effectif_planifie_par_equipe"])
+
+
+def test_le_profil_avec_effectif_se_relit_a_l_identique_depuis_le_yaml(opsys_home):
+    profil = _avec_capacite()
+    profil["liste"][1]["effectif_planifie"] = 4
+    fichier = equipes.enregistrer_equipes(profil)
+    attendu = equipes.normaliser_equipes(profil)
+    assert equipes.lire_equipes() == attendu
+    assert yaml.safe_load(fichier.read_text(encoding="utf-8"))["equipes"] == attendu
+
+
+@pytest.mark.parametrize("effectif", [0, -1, -3, 51, 1000, 2.0, 2.5, True, False, "2", "deux", None, [2], {"n": 2}])
+def test_effectif_planifie_invalide_refuse(effectif):
+    _refus(lambda p: p["liste"][0].update(effectif_planifie=effectif), "effectif_planifie")
+
+
+def test_effectif_planifie_hors_d_une_equipe_refuse():
+    _refus(lambda p: p.update(effectif_planifie=2), "inconnues")

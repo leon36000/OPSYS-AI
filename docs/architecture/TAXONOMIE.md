@@ -226,8 +226,8 @@ au moins un quart assez long pour sa durée : `admissibilite.py`) et devient le 
 ([ROLES](ROLES.md), « Les équipes du profil de l'entreprise »). Les leads v1 (gelés) n'ont pas de service : leurs durées et
 compétences par type de travaux restent des arguments. Détail : README de M4.
 
-**Capacité des semaines futures** (DECISIONS-ARCHITECTE-r1 §3) : quatre ajouts facultatifs ; un profil qui ne les porte
-pas se lit, s'écrit, s'empreinte et se journalise exactement comme avant. Gabarit commenté et déclarable :
+**Capacité des semaines futures** (DECISIONS-ARCHITECTE-r1 §3, effectif planifié : r3) : cinq ajouts facultatifs ; un
+profil qui ne les porte pas se lit, s'écrit, s'empreinte et se journalise exactement comme avant. Gabarit commenté et déclarable :
 [`gabarit-profil-equipes.yaml`](gabarit-profil-equipes.yaml).
 
 * `liste[].semaine_type` : `fuseau: America/Montreal` (seul admis) et, par jour de semaine nommé (`lundi`…`dimanche`),
@@ -239,10 +239,15 @@ pas se lit, s'écrit, s'empreinte et se journalise exactement comme avant. Gabar
   aucune liste : le propriétaire la déclare d'après la source officielle (CNESST).
 * `duree_jour_personne_minutes` : entier explicite (1 à 1440) qui convertit des minutes d'équipe en jours-personnes ;
   jamais supposé.
+* `liste[].effectif_planifie` : entier explicite (1 à 50), personnes **prévues** par quart de l'équipe. Capacité
+  prévisionnelle déclarée, **jamais une présence constatée** (déclaration d'équipe ≠ présence individuelle) : ni lu ni
+  déduit des `membres`, des pointages ou des absences, et indépendant de leur nombre. Avec la durée déclarée,
+  jours-personnes = minutes d'équipe × effectif / durée ; sans lui, M4 écrit `effectif_planifie: null` (jamais 1
+  supposé) et garde minutes / durée. L'unité de référence reste l'heure d'équipe.
 
 Les libellés sont des textes libres gardés au profil : ni M4 ni le journal d'audit ne les recopient (le journal compte
-les congés et les fériés, nomme les équipes à semaine type et la durée). M4 s'en sert dans `m4_lire_capacite_equipe`
-(`portee: "semaine_type"`, voir `departments/m04-field-ops/docs/capacite-equipe.md`) ; la cédule par tournées garde le
+les congés et les fériés, nomme les équipes à semaine type, la durée et l'effectif planifié de chaque équipe qui le
+déclare). M4 s'en sert dans `m4_lire_capacite_equipe` (`portee: "semaine_type"`, voir `departments/m04-field-ops/docs/capacite-equipe.md`) ; la cédule par tournées garde le
 `jour` numéroté de `quarts`.
 
 ## Règles météo, fuseau et fournisseur de prévisions (PLAN T4.13)

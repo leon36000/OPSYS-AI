@@ -6,6 +6,7 @@ privé `opsys.lecteurs_m9` sous l'identité admin console. Données fictives."""
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import sys
 from pathlib import Path
@@ -190,3 +191,95 @@ def test_m4_semaine_type_reelle_semaine_future_citee_sans_conversion_par_m9(par_
     # La même semaine en portée datée : non calculable, sans valeur.
     datee = _capture(H.capturer(cap, H.ADMIN, LECTURE, {**args, "portee": "journees_datees_seulement"}, RECU))
     assert datee["complete"] is False
+
+
+def _brut_semaine_type(effectifs):
+    plage = [{"debut": "07:00", "fin": "15:00"}]
+    semaine = {"fuseau": "America/Montreal", **{j: plage for j in ("lundi", "mardi", "mercredi", "jeudi", "vendredi")}}
+    semaine.update(samedi=[], dimanche=[])
+    liste = []
+    for e in aide._equipes():
+        equipe = {**e, "membres": [f"{e['id'].replace('-', '.')}.fictif"], "semaine_type": semaine}
+        if e["id"] in effectifs:
+            equipe["effectif_planifie"] = effectifs[e["id"]]
+        liste.append(equipe)
+    return {
+        "liste": liste,
+        "conges": [{"equipes": ["eq-b"], "du": "2030-06-11", "au": "2030-06-11", "motif": "conge"}],
+        "feries": {"annees": [2030], "jours": [{"date": "2030-06-14"}]},
+        "duree_jour_personne_minutes": 480,
+    }
+
+
+def test_m4_effectif_planifie_reel_multiplie_par_m4_verifie_par_m9_et_refuse_des_deux_cotes(
+    par_nom, interventions, instance
+):
+    """Effectif planifié DÉCLARÉ (DECISIONS-ARCHITECTE-r3) : le vrai M4 multiplie, M9 refait la conversion et
+    l'accepte ; toute charge incohérente est refusée par `verifier_charge` (producteur) ET par M9 (consommateur)."""
+    from m4_field_ops import capacite_equipe
+    from m9_strategic_intelligence import charges_producteurs as cp
+
+    (instance / "home" / "entreprise.yaml").write_text(
+        yaml.safe_dump(
+            {"equipes": equipes_entreprise.normaliser_equipes(_brut_semaine_type({"eq-a": 2, "eq-b": 3}))},
+            allow_unicode=True,
+        ),
+        encoding="utf-8",
+    )
+    _dater(par_nom, interventions)
+    cap = H.capacites(M4)
+    args = {"debut_semaine": "2030-06-10", "horodatage_reference": REFERENCE, "portee": "semaine_type"}
+    capture = _capture(H.capturer(cap, H.ADMIN, LECTURE, args, RECU))
+    assert (capture["verdict"], capture["complete"]) == ("ACCEPTEE", True)
+    charge = H.page(0)["resultat"]["resultat"]
+    # eq-a : 4 × 480 min × 2 / 480 = 8.00 ; eq-b : 3 × 480 × 3 / 480 = 9.00 ; total 17.00 (écrits à la main)
+    assert {e["equipe_id"]: (e["effectif_planifie"], e["jours_personnes_disponibles"]) for e in charge["equipes"]} == {
+        "eq-a": (2, "8.00"),
+        "eq-b": (3, "9.00"),
+    }
+    assert charge["jours_personnes_disponibles"] == "17.00" and charge["heures_disponibles"] == "56.00"
+    assert charge["jours_personnes_base"] == "effectif_planifie_declare" and charge["unite"] == "heures_declarees"
+    capacite_equipe.verifier_charge(charge)
+    assert cp.valider_m4_capacite({"resultat": {"resultat": charge}}, args) == []
+    incoherentes = [
+        lambda c: c["equipes"][0].update(jours_personnes_disponibles="4.00"),  # multiplication retirée
+        lambda c: c.update(jours_personnes_disponibles="7.00"),  # total sans multiplication
+        lambda c: c["equipes"][0].update(effectif_planifie=0),
+        lambda c: c["equipes"][0].update(effectif_planifie=51),
+        lambda c: c["equipes"][0].update(effectif_planifie=True),
+        lambda c: c["equipes"][0].update(effectif_planifie=2.0),
+        lambda c: c["equipes"][0].update(effectif_planifie=None),  # base et conversion le contredisent
+        lambda c: c.update(jours_personnes_base="effectif_non_declare"),
+        lambda c: c.update(jours_personnes_disponibles=None),
+        lambda c: c.pop("jours_personnes_base"),
+    ]
+    for position, modifier in enumerate(incoherentes):
+        mauvaise = copy.deepcopy(charge)
+        modifier(mauvaise)
+        with pytest.raises(capacite_equipe.ChargeIncoherente):
+            capacite_equipe.verifier_charge(mauvaise)
+        assert cp.valider_m4_capacite({"resultat": {"resultat": mauvaise}}, args) != [], position
+
+
+def test_m4_effectif_non_declare_reel_dit_null_sans_multiplier(par_nom, interventions, instance):
+    from m9_strategic_intelligence import charges_producteurs as cp
+
+    (instance / "home" / "entreprise.yaml").write_text(
+        yaml.safe_dump({"equipes": equipes_entreprise.normaliser_equipes(_brut_semaine_type({"eq-a": 2}))}),
+        encoding="utf-8",
+    )
+    _dater(par_nom, interventions)
+    cap = H.capacites(M4)
+    args = {"debut_semaine": "2030-06-10", "horodatage_reference": REFERENCE, "portee": "semaine_type"}
+    assert _capture(H.capturer(cap, H.ADMIN, LECTURE, args, RECU))["verdict"] == "ACCEPTEE"
+    charge = H.page(0)["resultat"]["resultat"]
+    # eq-b n'en déclare pas : null, 1440 / 480 = 3.00 sans multiplication ; aucun total converti (base partielle)
+    assert {e["equipe_id"]: (e["effectif_planifie"], e["jours_personnes_disponibles"]) for e in charge["equipes"]} == {
+        "eq-a": (2, "8.00"),
+        "eq-b": (None, "3.00"),
+    }
+    assert charge["jours_personnes_base"] == "effectif_partiellement_declare"
+    assert charge["jours_personnes_disponibles"] is None and charge["heures_disponibles"] == "56.00"
+    suppose = copy.deepcopy(charge)
+    suppose["equipes"][1]["effectif_planifie"] = 1  # un 1 supposé n'est pas une non-déclaration
+    assert cp.valider_m4_capacite({"resultat": {"resultat": suppose}}, args) != []

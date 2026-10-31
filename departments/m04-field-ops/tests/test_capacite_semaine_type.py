@@ -267,7 +267,13 @@ def test_duree_declaree_conversion_exacte_en_decimal(duree):
         assert ligne["jours_personnes_disponibles"] == _jp(ligne["minutes_disponibles"], duree)
         assert ligne["jours_personnes_planifiees"] == _jp(0, duree) == "0.00"
     assert charge["jours_personnes_disponibles"] == _jp(A_SEMAINE + B_SEMAINE, duree)
-    assert charge["avertissements"][-1] == capacite_equipe.AVERTISSEMENT_JOURS_PERSONNES
+    # sans effectif planifié déclaré : dit (null + base), jamais 1 supposé, aucune multiplication
+    assert charge["jours_personnes_base"] == "effectif_non_declare"
+    assert [ligne["effectif_planifie"] for ligne in charge["equipes"]] == [None, None]
+    assert charge["avertissements"][-2:] == [
+        capacite_equipe.AVERTISSEMENT_JOURS_PERSONNES,
+        capacite_equipe.EXPLICATIONS_BASE["effectif_non_declare"],
+    ]
     verifier_charge(charge)
     assert _lecteur_m9(charge) == []
 
@@ -335,3 +341,138 @@ def test_verifier_charge_refuse_portee_inconnue_et_jours_personnes_incoherents()
     non["jours_personnes_disponibles"] = "0.00"
     with pytest.raises(ChargeIncoherente, match="absence n'est pas zéro"):
         verifier_charge(non)
+
+
+# -- 9. effectif planifié déclaré (DECISIONS-ARCHITECTE-r3) ---------------------------------------------------------
+def _avec_effectifs(effectifs, **extra):
+    """Profil validé où chaque équipe de ``effectifs`` DÉCLARE son effectif planifié (les autres n'en ont pas)."""
+    brut = _brut(**extra)
+    for equipe in brut["liste"]:
+        if equipe["id"] in effectifs:
+            equipe["effectif_planifie"] = effectifs[equipe["id"]]
+    return equipes_entreprise.normaliser_equipes(brut)
+
+
+def test_effectif_declare_multiplie_les_jours_personnes_epingle_a_la_main():
+    reg, _, _, _ = monde_date()
+    sans = _st(reg, _profil(duree_jour_personne_minutes=480))
+    charge = _st(reg, _avec_effectifs({"eq-a": 2, "eq-b": 3}, duree_jour_personne_minutes=480))
+    # eq-a : 2400 min × 2 / 480 = 10.00 ; eq-b : 2760 × 3 / 480 = 17.25 ; total (4800 + 8280) / 480 = 27.25
+    assert {ligne["equipe_id"]: (ligne["effectif_planifie"], ligne["jours_personnes_disponibles"])
+            for ligne in charge["equipes"]} == {"eq-a": (2, "10.00"), "eq-b": (3, "17.25")}
+    assert charge["jours_personnes_disponibles"] == "27.25" and charge["jours_personnes_planifiees"] == "0.00"
+    assert charge["jours_personnes_base"] == "effectif_planifie_declare"
+    assert charge["avertissements"][-1] == capacite_equipe.EXPLICATIONS_BASE["effectif_planifie_declare"]
+    # l'unité de référence reste l'heure d'ÉQUIPE : heures et minutes identiques avec ou sans effectif
+    for cle in ("unite", "heures_disponibles", "minutes_disponibles", "heures_planifiees", "minutes_planifiees"):
+        assert charge[cle] == sans[cle], cle
+    assert [(ligne["minutes_disponibles"], ligne["heures_disponibles"]) for ligne in charge["equipes"]] == [
+        (ligne["minutes_disponibles"], ligne["heures_disponibles"]) for ligne in sans["equipes"]]
+    verifier_charge(charge)
+    assert _lecteur_m9(charge) == []
+
+
+def test_effectif_multiplie_aussi_les_minutes_planifiees_en_portee_datee():
+    reg, _, _, _ = monde_date()
+    charge = calculer(reg, _avec_effectifs({"eq-a": 2, "eq-b": 4}, duree_jour_personne_minutes=540), None, "e" * 64,
+                      LUNDI_DATE, None)
+    assert charge["calculable"] is True and charge["jours_personnes_base"] == "effectif_planifie_declare"
+    effectifs = {"eq-a": 2, "eq-b": 4}
+    for ligne in charge["equipes"]:
+        effectif = effectifs[ligne["equipe_id"]]
+        assert ligne["jours_personnes_disponibles"] == _jp(ligne["minutes_disponibles"] * effectif, 540)
+        assert ligne["jours_personnes_planifiees"] == _jp(ligne["minutes_planifiees"] * effectif, 540)
+    assert sum(ligne["minutes_planifiees"] for ligne in charge["equipes"]) > 0  # le cas est réellement exercé
+    produit = sum(ligne["minutes_planifiees"] * effectifs[ligne["equipe_id"]] for ligne in charge["equipes"])
+    assert charge["jours_personnes_planifiees"] == _jp(produit, 540)
+    assert {ligne["equipe_id"]: ligne["jours_personnes_disponibles"] for ligne in charge["equipes"]} == {
+        "eq-a": "2.00", "eq-b": "4.00"}  # un quart de 540 min chacune, × 2 et × 4
+
+
+def test_effectif_partiel_garde_chaque_conversion_et_ne_totalise_pas():
+    reg, _, _, _ = monde_date()
+    charge = _st(reg, _avec_effectifs({"eq-a": 2}, duree_jour_personne_minutes=480))
+    assert charge["jours_personnes_base"] == "effectif_partiellement_declare"
+    assert {ligne["equipe_id"]: (ligne["effectif_planifie"], ligne["jours_personnes_disponibles"])
+            for ligne in charge["equipes"]} == {"eq-a": (2, "10.00"), "eq-b": (None, "5.75")}
+    assert charge["jours_personnes_disponibles"] is None and charge["jours_personnes_planifiees"] is None
+    assert charge["heures_disponibles"] == "86.00"  # les heures d'équipe, elles, s'additionnent toujours
+    verifier_charge(charge)
+
+
+def test_effectif_ni_lu_ni_deduit_des_membres_declares():
+    reg, _, _, _ = monde_date()
+    profil = _avec_effectifs({"eq-a": 5}, duree_jour_personne_minutes=480)
+    nombreux = copy.deepcopy(profil)
+    nombreux["liste"][0]["membres"] = [f"membre.{n}.fictif" for n in range(9)]
+    nombreux = equipes_entreprise.normaliser_equipes(nombreux)
+    un, neuf = _st(reg, profil), _st(reg, nombreux)
+    assert len(profil["liste"][0]["membres"]) == 1  # un membre déclaré, cinq personnes PRÉVUES : rien ne les relie
+    assert un["equipes"][0]["effectif_planifie"] == neuf["equipes"][0]["effectif_planifie"] == 5
+    neuf["sources"]["profil_empreinte"] = un["sources"]["profil_empreinte"]
+    assert neuf == un  # changer les membres ne change rien d'autre que l'empreinte
+    # sans effectif, aucun nombre de membres ne prend sa place : null, quel que soit le nombre de membres
+    assert neuf["equipes"][1]["effectif_planifie"] is None
+    assert "membres" not in json.dumps(un) and "fictif" not in json.dumps(un)
+
+
+def test_effectif_sans_duree_declaree_n_ecrit_aucune_conversion():
+    reg, _, _, _ = monde_date()
+    avec = _st(reg, _avec_effectifs({"eq-a": 2, "eq-b": 3}))
+    sans = _st(reg, _profil())
+    assert "effectif_planifie" not in json.dumps(avec) and "jours_personnes" not in json.dumps(avec)
+    avec["sources"]["profil_empreinte"] = sans["sources"]["profil_empreinte"]
+    assert avec == sans
+
+
+def test_effectif_et_charge_non_calculable_sans_valeur():
+    reg, _, _, _ = monde_date()
+    non = _st(reg, _avec_effectifs({"eq-a": 2}, duree_jour_personne_minutes=480), semaine="2030-12-30")
+    _sans_valeur(non)
+    assert "effectif_planifie" not in json.dumps(non) and "jours_personnes_base" not in non
+
+
+def test_jours_personnes_refuse_un_effectif_invalide():
+    for effectif in (0, -1, 51, 2.0, True, "2"):
+        with pytest.raises(ValueError, match="effectif_planifie"):
+            capacite_equipe.jours_personnes(480, 480, effectif)
+    assert capacite_equipe.jours_personnes(480, 480, None) == "1.00"  # non déclaré : aucune multiplication
+    assert capacite_equipe.jours_personnes(480, 480, 50) == "50.00"
+
+
+def test_verifier_charge_refuse_une_conversion_par_effectif_incoherente():
+    reg, _, _, _ = monde_date()
+    charge = _st(reg, _avec_effectifs({"eq-a": 2, "eq-b": 3}, duree_jour_personne_minutes=480))
+    verifier_charge(charge)
+    for modifier, attendu in [
+        (lambda c: c["equipes"][0].update(effectif_planifie=0), "effectif_planifie"),
+        (lambda c: c["equipes"][0].update(effectif_planifie=51), "effectif_planifie"),
+        (lambda c: c["equipes"][0].update(effectif_planifie=2.0), "effectif_planifie"),
+        (lambda c: c["equipes"][0].update(effectif_planifie=True), "effectif_planifie"),
+        (lambda c: c["equipes"][0].update(effectif_planifie="2"), "effectif_planifie"),
+        (lambda c: c["equipes"][0].pop("effectif_planifie"), "clés"),
+        (lambda c: c["equipes"][0].update(effectif_planifie=4), "conversion déclarée"),
+        (lambda c: c["equipes"][0].update(jours_personnes_disponibles="5.00"), "conversion déclarée"),  # sans ×
+        (lambda c: c.update(jours_personnes_disponibles="10.75"), "jours-personnes du total"),  # total sans ×
+        (lambda c: c.update(jours_personnes_disponibles=None), "jours-personnes du total"),
+        (lambda c: c.update(jours_personnes_base="effectif_non_declare"), "ne correspond pas"),
+        (lambda c: c.update(jours_personnes_base="effectif_suppose"), "jours_personnes_base"),
+        (lambda c: c.pop("jours_personnes_base"), "vont ensemble"),
+    ]:
+        mauvaise = copy.deepcopy(charge)
+        modifier(mauvaise)
+        with pytest.raises(ChargeIncoherente, match=attendu):
+            verifier_charge(mauvaise)
+    suppose = _st(reg, _profil(duree_jour_personne_minutes=480))
+    for ligne in suppose["equipes"]:
+        ligne["effectif_planifie"] = 1  # un 1 supposé n'est pas une non-déclaration : la base le contredit
+    with pytest.raises(ChargeIncoherente, match="ne correspond pas"):
+        verifier_charge(suppose)
+    partiel = _st(reg, _avec_effectifs({"eq-a": 2}, duree_jour_personne_minutes=480))
+    partiel["jours_personnes_disponibles"] = "15.75"  # 10.00 + 5.75 : jours de personnes + jours d'équipe
+    with pytest.raises(ChargeIncoherente, match="null si l'effectif est partiel"):
+        verifier_charge(partiel)
+    sans_duree = _st(reg, _profil())
+    sans_duree["equipes"][0]["effectif_planifie"] = 2
+    with pytest.raises(ChargeIncoherente, match="clés"):
+        verifier_charge(sans_duree)

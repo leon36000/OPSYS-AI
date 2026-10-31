@@ -305,16 +305,30 @@ def test_la_charge_de_reference_n_est_pas_modifiee_par_la_validation():
 ARGS_ST = {**ARGS, "portee": "semaine_type"}
 
 
-def charge_semaine_type(duree=None):
+def charge_semaine_type(duree=None, effectifs=None):
+    """Charge écrite à la main comme M4 l'écrirait ; ``effectifs`` : {equipe_id: effectif planifié déclaré} (une
+    équipe absente du dict a un effectif NON déclaré : null, aucune multiplication)."""
     charge = charge_calculable()
     charge.update(portee="semaine_type", jours_dates=[], semaine_debut=SEMAINE)
     if duree is not None:
+        effectifs = effectifs or {}
         charge["duree_jour_personne_minutes"] = duree
         for ligne in charge["equipes"]:
-            ligne["jours_personnes_disponibles"] = _jp(ligne["minutes_disponibles"], duree)
-            ligne["jours_personnes_planifiees"] = _jp(ligne["minutes_planifiees"], duree)
-        charge["jours_personnes_disponibles"] = _jp(charge["minutes_disponibles"], duree)
-        charge["jours_personnes_planifiees"] = _jp(charge["minutes_planifiees"], duree)
+            effectif = effectifs.get(ligne["equipe_id"])
+            ligne["effectif_planifie"] = effectif
+            ligne["jours_personnes_disponibles"] = _jp(ligne["minutes_disponibles"] * (effectif or 1), duree)
+            ligne["jours_personnes_planifiees"] = _jp(ligne["minutes_planifiees"] * (effectif or 1), duree)
+        declares = [ligne["effectif_planifie"] for ligne in charge["equipes"] if ligne["effectif_planifie"]]
+        if len(declares) == len(charge["equipes"]):
+            charge["jours_personnes_base"] = "effectif_planifie_declare"
+        elif declares:
+            charge["jours_personnes_base"] = "effectif_partiellement_declare"
+        else:
+            charge["jours_personnes_base"] = "effectif_non_declare"
+        for cle in ("minutes_disponibles", "minutes_planifiees"):
+            produit = sum(ligne[cle] * (ligne["effectif_planifie"] or 1) for ligne in charge["equipes"])
+            partiel = charge["jours_personnes_base"] == "effectif_partiellement_declare"
+            charge[cle.replace("minutes", "jours_personnes")] = None if partiel else _jp(produit, duree)
     return charge
 
 
@@ -364,7 +378,9 @@ def test_les_jours_personnes_declares_par_m4_sont_acceptes_s_ils_sont_exacts():
     ]:
         if portee == "datee":
             charge["duree_jour_personne_minutes"] = 420
+            charge["jours_personnes_base"] = "effectif_non_declare"
             for ligne in charge["equipes"]:
+                ligne["effectif_planifie"] = None
                 ligne["jours_personnes_disponibles"] = _jp(ligne["minutes_disponibles"], 420)
                 ligne["jours_personnes_planifiees"] = _jp(ligne["minutes_planifiees"], 420)
             charge["jours_personnes_disponibles"] = _jp(1080, 420)
@@ -392,12 +408,83 @@ def test_des_jours_personnes_incoherents_sont_refuses(modification):
     assert _capture(charge, args=ARGS_ST)["verdict"] == "REFUSEE"
 
 
+# -- effectif planifié déclaré (DECISIONS-ARCHITECTE-r3) : M9 refait la conversion annoncée, ne l'invente pas --------
+def test_des_jours_personnes_multiplies_par_l_effectif_declare_sont_acceptes_s_ils_sont_exacts():
+    charge = charge_semaine_type(duree=480, effectifs={"eq-a": 2, "eq-b": 3})
+    # écrits à la main : eq-a 540 × 2 / 480 = 2.25 ; eq-b 540 × 3 / 480 = 3.375 ; total (1080 + 1620) / 480 = 5.625
+    assert [ligne["jours_personnes_disponibles"] for ligne in charge["equipes"]] == ["2.25", "3.375"]
+    assert charge["equipes"][0]["jours_personnes_planifiees"] == "1.25"  # 300 × 2 / 480
+    assert (charge["jours_personnes_disponibles"], charge["jours_personnes_planifiees"]) == ("5.625", "1.25")
+    assert charge["heures_disponibles"] == "18.00"  # l'unité de référence ne bouge pas : heures d'ÉQUIPE
+    assert _capture(charge, args=ARGS_ST)["verdict"] == "ACCEPTEE"
+
+
+def test_un_effectif_non_declare_est_dit_null_et_rien_n_est_multiplie():
+    charge = charge_semaine_type(duree=480)
+    assert charge["jours_personnes_base"] == "effectif_non_declare"
+    assert [ligne["effectif_planifie"] for ligne in charge["equipes"]] == [None, None]
+    assert charge["jours_personnes_disponibles"] == "2.25"  # 1080 / 480 : la valeur d'avant, inchangée
+    assert _capture(charge, args=ARGS_ST)["verdict"] == "ACCEPTEE"
+    suppose = copy.deepcopy(charge)
+    for ligne in suppose["equipes"]:
+        ligne["effectif_planifie"] = 1  # un 1 « supposé » n'est pas une non-déclaration
+    assert _capture(suppose, args=ARGS_ST)["verdict"] == "REFUSEE"
+
+
+def test_un_effectif_partiel_garde_chaque_conversion_et_aucun_total_converti():
+    charge = charge_semaine_type(duree=480, effectifs={"eq-a": 2})
+    assert charge["jours_personnes_base"] == "effectif_partiellement_declare"
+    assert [ligne["jours_personnes_disponibles"] for ligne in charge["equipes"]] == ["2.25", "1.125"]
+    assert charge["jours_personnes_disponibles"] is None and charge["heures_disponibles"] == "18.00"
+    assert _capture(charge, args=ARGS_ST)["verdict"] == "ACCEPTEE"
+    additionne = copy.deepcopy(charge)
+    additionne["jours_personnes_disponibles"] = "3.375"  # jours de personnes + jours d'équipe : refusé
+    assert _capture(additionne, args=ARGS_ST)["verdict"] == "REFUSEE"
+
+
+@pytest.mark.parametrize(
+    "modification",
+    [
+        lambda c: c["equipes"][0].update(effectif_planifie=0),
+        lambda c: c["equipes"][0].update(effectif_planifie=-2),
+        lambda c: c["equipes"][0].update(effectif_planifie=51),
+        lambda c: c["equipes"][0].update(effectif_planifie=2.0),
+        lambda c: c["equipes"][0].update(effectif_planifie=True),
+        lambda c: c["equipes"][0].update(effectif_planifie="2"),
+        lambda c: c["equipes"][0].pop("effectif_planifie"),
+        lambda c: c["equipes"][0].update(effectif_planifie=4),  # jours non recalculés : conversion fausse
+        lambda c: c["equipes"][0].update(jours_personnes_disponibles="1.125"),  # multiplication retirée (540/480)
+        lambda c: c.update(jours_personnes_disponibles="2.25"),  # total sans multiplication
+        lambda c: c.update(jours_personnes_disponibles=None),
+        lambda c: c.update(jours_personnes_base="effectif_non_declare"),
+        lambda c: c.update(jours_personnes_base="effectif_suppose"),
+        lambda c: c.pop("jours_personnes_base"),
+    ],
+)
+def test_une_conversion_par_effectif_incoherente_est_refusee(modification):
+    charge = charge_semaine_type(duree=480, effectifs={"eq-a": 2, "eq-b": 3})
+    modification(charge)
+    assert _capture(charge, args=ARGS_ST)["verdict"] == "REFUSEE"
+
+
+def test_un_effectif_sans_duree_declaree_est_refuse():
+    sans = charge_semaine_type()
+    sans["equipes"][0]["effectif_planifie"] = 2
+    assert _capture(sans, args=ARGS_ST)["verdict"] == "REFUSEE"
+    base_seule = charge_semaine_type()
+    base_seule["jours_personnes_base"] = "effectif_non_declare"
+    assert _capture(base_seule, args=ARGS_ST)["verdict"] == "REFUSEE"
+
+
 def test_des_jours_personnes_sans_duree_ou_sur_une_charge_non_calculable_sont_refuses():
     sans = charge_semaine_type()
     sans["equipes"][0]["jours_personnes_disponibles"] = "1.00"
     assert _capture(sans, args=ARGS_ST)["verdict"] == "REFUSEE"
     non = charge_non_calculable()
     non.update(duree_jour_personne_minutes=480, jours_personnes_disponibles="0.00", jours_personnes_planifiees="0.00")
+    assert _capture(non)["verdict"] == "REFUSEE"
+    non = charge_non_calculable()
+    non["jours_personnes_base"] = "effectif_non_declare"
     assert _capture(non)["verdict"] == "REFUSEE"  # absence n'est pas zéro, même convertie
 
 

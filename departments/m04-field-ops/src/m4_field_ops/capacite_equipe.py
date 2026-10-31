@@ -31,9 +31,20 @@ fériés sont ceux de l'ÉQUIPE et de l'entreprise ; une absence individuelle n'
 intervention active sans date reste un manque : on ignore dans quelle semaine elle tombera).
 
 JOURS-PERSONNES, seulement si le profil déclare ``duree_jour_personne_minutes`` (jamais supposé) et que la semaine est
-calculable : ``jours_personnes_*`` = minutes / cette durée, en texte décimal au dix-millième (arrondi demi vers le
-haut) ; la durée et les minutes exactes sont écrites à côté. Aucun membre n'est compté : c'est la conversion déclarée
-des heures d'une équipe, pas un effectif.
+calculable. L'unité de référence reste l'heure d'ÉQUIPE (``heures_declarees``) ; les jours-personnes en sont une
+conversion déclarée, en texte décimal au dix-millième (arrondi demi vers le haut), la durée et les minutes exactes
+écrites à côté (DECISIONS-ARCHITECTE-r3) :
+
+* équipe qui déclare ``effectif_planifie`` (entier 1 à 50) : ``jours_personnes_*`` = minutes de l'équipe × effectif
+  planifié / durée. L'effectif est une capacité PRÉVISIONNELLE déclarée par le propriétaire, jamais une présence
+  constatée : il n'est ni lu ni déduit des membres déclarés, des pointages ou des absences ;
+* équipe sans effectif déclaré : ``effectif_planifie`` vaut ``null`` (dit, jamais supposé à 1) et ``jours_personnes_*``
+  = minutes de l'équipe / durée, sans multiplication (le calcul d'avant, inchangé) : des jours de quart d'ÉQUIPE ;
+* ``jours_personnes_base`` (code fermé, racine) dit laquelle des deux règles vaut pour la charge entière :
+  ``effectif_planifie_declare`` (toutes les équipes), ``effectif_non_declare`` (aucune ; mêmes chiffres qu'avant, la
+  non-déclaration en plus) ou ``effectif_partiellement_declare`` : chaque équipe garde sa conversion, et
+  les totaux ``jours_personnes_*`` de la racine valent ``null`` (jours de personnes et jours d'équipe ne s'additionnent
+  pas ; les totaux en heures, eux, restent écrits).
 
 Absence ≠ zéro, tout ou rien : dès qu'une équipe, une journée ou la cédule laisse un manque, ``calculable`` est faux, la
 liste ``equipes`` est vide, aucun total n'est écrit, et ``manque`` nomme chaque cause par un code fermé. Les seules
@@ -86,9 +97,29 @@ AVERTISSEMENTS_SEMAINE_TYPE = AVERTISSEMENTS[:2] + (
     "ni la présence des personnes ni une cédule future.",
 )
 AVERTISSEMENT_JOURS_PERSONNES = (
-    "Jours-personnes = minutes déclarées de l'équipe / duree_jour_personne_minutes déclarée, au dix-millième ; "
-    "aucun membre n'est compté."
+    "Jours-personnes = minutes déclarées de l'équipe × effectif_planifie déclaré / duree_jour_personne_minutes "
+    "déclarée, au dix-millième ; sans effectif déclaré (effectif_planifie null), minutes de l'équipe / durée, sans "
+    "multiplication. L'effectif planifié est une capacité prévisionnelle déclarée, jamais une présence constatée : "
+    "aucun membre, aucun pointage ni aucune absence n'est compté."
 )
+# ``jours_personnes_base`` : quelle règle de conversion vaut pour la charge (code fermé, une explication par code).
+BASE_EFFECTIF_DECLARE = "effectif_planifie_declare"
+BASE_EFFECTIF_NON_DECLARE = "effectif_non_declare"
+BASE_EFFECTIF_PARTIEL = "effectif_partiellement_declare"
+EXPLICATIONS_BASE = {
+    BASE_EFFECTIF_DECLARE: (
+        "Effectif planifié déclaré pour chaque équipe : jours-personnes PRÉVUS (minutes × effectif / durée), "
+        "une prévision du profil, pas des personnes constatées présentes."
+    ),
+    BASE_EFFECTIF_NON_DECLARE: (
+        "Effectif planifié non déclaré : jours-personnes = jours de quart d'ÉQUIPE (minutes / durée), aucun nombre "
+        "de personnes n'est supposé ni multiplié."
+    ),
+    BASE_EFFECTIF_PARTIEL: (
+        "Effectif planifié déclaré pour une partie des équipes seulement : chaque équipe garde sa conversion, les "
+        "totaux jours_personnes_* valent null (jours de personnes et jours d'équipe ne s'additionnent pas)."
+    ),
+}
 
 _CODE_VERDICT_NON_DECLARE = "REJ-EQUIPES-NON-CONFIGUREES"
 _IDENTIFIANT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}")
@@ -101,13 +132,15 @@ _CLES_RACINE = frozenset({
     "contrat", "version", "semaine_debut", "fuseau", "unite", "portee", "lu_a", "calculable", "manque", "equipes",
     "jours_dates", "sources", "avertissements", "heures_disponibles", "heures_planifiees",
     "minutes_disponibles", "minutes_planifiees",
-    "duree_jour_personne_minutes", "jours_personnes_disponibles", "jours_personnes_planifiees",
+    "duree_jour_personne_minutes", "jours_personnes_base", "jours_personnes_disponibles", "jours_personnes_planifiees",
 })
 _CLES_EQUIPE = frozenset({
     "equipe_id", "heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees",
 })
 _CLES_JOURS_PERSONNES = frozenset({"jours_personnes_disponibles", "jours_personnes_planifiees"})
+_CLES_EQUIPE_CONVERSION = _CLES_JOURS_PERSONNES | {"effectif_planifie"}
 _DUREE_MAX = 1440
+EFFECTIF_MAX = 50  # même borne que le profil (opsys.equipes.EFFECTIF_PLANIFIE_MAX)
 
 
 class ChargeIncoherente(ValueError):
@@ -130,12 +163,41 @@ def heures(minutes: int) -> str:
     return _quotient(minutes, 60)
 
 
-def jours_personnes(minutes: int, duree_jour_personne_minutes: int) -> str:
-    """Texte décimal de ``minutes / duree_jour_personne_minutes`` (``Decimal``, dix-millième, demi vers le haut, au
-    moins deux décimales) : la conversion DÉCLARÉE par le profil. Durée et minutes exactes sont écrites à côté."""
+def _effectif_valide(effectif: Any) -> bool:
+    return effectif is None or (type(effectif) is int and 1 <= effectif <= EFFECTIF_MAX)
+
+
+def jours_personnes(minutes: int, duree_jour_personne_minutes: int, effectif_planifie: int | None = None) -> str:
+    """Texte décimal de ``minutes × effectif_planifie / duree_jour_personne_minutes`` (``Decimal``, dix-millième, demi
+    vers le haut, au moins deux décimales) : la conversion DÉCLARÉE par le profil. ``effectif_planifie`` ``None`` = non
+    déclaré : AUCUNE multiplication (``minutes / durée``, le calcul d'avant), jamais un 1 supposé en silence — la
+    charge écrit ``null`` à côté. Durée, effectif et minutes exactes sont écrits à côté."""
     if type(duree_jour_personne_minutes) is not int or not 1 <= duree_jour_personne_minutes <= _DUREE_MAX:
         raise ValueError("duree_jour_personne_minutes : entier de 1 à 1440 requis")
-    return _quotient(minutes, duree_jour_personne_minutes)
+    if not _effectif_valide(effectif_planifie):
+        raise ValueError(f"effectif_planifie : entier de 1 à {EFFECTIF_MAX} ou non déclaré (None) requis")
+    if type(minutes) is not int:
+        raise ValueError("minutes entières positives ou nulles requises")
+    produit = minutes if effectif_planifie is None else minutes * effectif_planifie
+    return _quotient(produit, duree_jour_personne_minutes)
+
+
+def base_jours_personnes(effectifs: list[int | None]) -> str:
+    """Code ``jours_personnes_base`` d'une liste d'effectifs d'équipe (``None`` = non déclaré)."""
+    declares = sum(1 for effectif in effectifs if effectif is not None)
+    if declares == len(effectifs):
+        return BASE_EFFECTIF_DECLARE
+    return BASE_EFFECTIF_NON_DECLARE if declares == 0 else BASE_EFFECTIF_PARTIEL
+
+
+def _total_jours_personnes(lignes: list[dict[str, Any]], cle: str, duree: int, base: str) -> str | None:
+    """Total converti de la racine : ``None`` si la base est partielle (rien d'additionnable), sinon la conversion
+    exacte de la somme entière (minutes × effectif, ou minutes) : l'arrondi n'a lieu qu'une fois."""
+    if base == BASE_EFFECTIF_PARTIEL:
+        return None
+    if base == BASE_EFFECTIF_DECLARE:
+        return _quotient(sum(ligne[cle] * ligne["effectif_planifie"] for ligne in lignes), duree)
+    return jours_personnes(sum(ligne[cle] for ligne in lignes), duree)
 
 
 def _identifiant_sur(valeur: Any) -> str | None:
@@ -372,15 +434,23 @@ def calculer(
         })
         duree = profil.get("duree_jour_personne_minutes") if isinstance(profil, dict) else None
         if duree is not None:  # jamais supposée : absente, aucun jour-personne n'est écrit
+            # L'effectif planifié est DÉCLARÉ par équipe (ou absent) : jamais lu dans `membres`, ni dans un pointage.
+            effectifs = {equipe["id"]: equipe.get("effectif_planifie") for equipe in profil.get("liste", ())}
             for ligne in lignes_equipes:
-                ligne["jours_personnes_disponibles"] = jours_personnes(ligne["minutes_disponibles"], duree)
-                ligne["jours_personnes_planifiees"] = jours_personnes(ligne["minutes_planifiees"], duree)
+                effectif = effectifs.get(ligne["equipe_id"])
+                ligne["effectif_planifie"] = effectif  # None écrit tel quel : « non déclaré », jamais 1 supposé
+                ligne["jours_personnes_disponibles"] = jours_personnes(ligne["minutes_disponibles"], duree, effectif)
+                ligne["jours_personnes_planifiees"] = jours_personnes(ligne["minutes_planifiees"], duree, effectif)
+            base = base_jours_personnes([ligne["effectif_planifie"] for ligne in lignes_equipes])
             charge.update({
                 "duree_jour_personne_minutes": duree,
-                "jours_personnes_disponibles": jours_personnes(total_dispo, duree),
-                "jours_personnes_planifiees": jours_personnes(total_plan, duree),
+                "jours_personnes_base": base,
+                **{
+                    cle.replace("minutes", "jours_personnes"): _total_jours_personnes(lignes_equipes, cle, duree, base)
+                    for cle in ("minutes_disponibles", "minutes_planifiees")
+                },
             })
-            charge["avertissements"].append(AVERTISSEMENT_JOURS_PERSONNES)
+            charge["avertissements"] += [AVERTISSEMENT_JOURS_PERSONNES, EXPLICATIONS_BASE[base]]
     verifier_charge(charge)
     return charge
 
@@ -431,7 +501,7 @@ def verifier_charge(charge: Any) -> None:
     if not isinstance(equipes, list):
         raise ChargeIncoherente("equipes : liste attendue")
     valeurs = {"heures_disponibles", "heures_planifiees", "minutes_disponibles", "minutes_planifiees"}
-    conversion = {"duree_jour_personne_minutes"} | _CLES_JOURS_PERSONNES
+    conversion = {"duree_jour_personne_minutes", "jours_personnes_base"} | _CLES_JOURS_PERSONNES
     if not calculable:
         valeurs = valeurs | conversion
         if not manque:
@@ -451,7 +521,10 @@ def verifier_charge(charge: Any) -> None:
     duree = charge.get("duree_jour_personne_minutes")
     if presentes and (type(duree) is not int or not 1 <= duree <= _DUREE_MAX):
         raise ChargeIncoherente("duree_jour_personne_minutes : entier de 1 à 1440 attendu")
-    cles_equipe = _CLES_EQUIPE | _CLES_JOURS_PERSONNES if presentes else _CLES_EQUIPE
+    base = charge.get("jours_personnes_base")
+    if presentes and base not in EXPLICATIONS_BASE:
+        raise ChargeIncoherente(f"jours_personnes_base : {' ou '.join(EXPLICATIONS_BASE)} seulement")
+    cles_equipe = _CLES_EQUIPE | _CLES_EQUIPE_CONVERSION if presentes else _CLES_EQUIPE
     identifiants: list[str] = []
     somme = {"minutes_disponibles": 0, "minutes_planifiees": 0}
     for position, ligne in enumerate(equipes):
@@ -460,6 +533,10 @@ def verifier_charge(charge: Any) -> None:
         if _identifiant_sur(ligne["equipe_id"]) is None:
             raise ChargeIncoherente(f"equipes[{position}].equipe_id : identifiant attendu")
         identifiants.append(ligne["equipe_id"])
+        effectif = ligne.get("effectif_planifie")
+        if presentes and not _effectif_valide(effectif):
+            raise ChargeIncoherente(
+                f"equipes[{position}].effectif_planifie : entier de 1 à {EFFECTIF_MAX} ou null (non déclaré) attendu")
         for cle in ("minutes_disponibles", "minutes_planifiees"):
             minutes = ligne[cle]
             if type(minutes) is not int or minutes < 0:
@@ -469,12 +546,18 @@ def verifier_charge(charge: Any) -> None:
             if not _decimal(ligne[heures_cle]) or ligne[heures_cle] != heures(minutes):
                 raise ChargeIncoherente(f"equipes[{position}].{heures_cle} : texte décimal de {cle} attendu")
             jours_cle = cle.replace("minutes", "jours_personnes")
-            if presentes and ligne[jours_cle] != jours_personnes(minutes, duree):
-                raise ChargeIncoherente(f"equipes[{position}].{jours_cle} : conversion déclarée de {cle} attendue")
+            if presentes and ligne[jours_cle] != jours_personnes(minutes, duree, effectif):
+                raise ChargeIncoherente(
+                    f"equipes[{position}].{jours_cle} : conversion déclarée de {cle} (× effectif planifié s'il est "
+                    "déclaré) attendue")
     if len(set(identifiants)) != len(identifiants):
         raise ChargeIncoherente("equipe_id en double")
+    if presentes and base != base_jours_personnes([ligne["effectif_planifie"] for ligne in equipes]):
+        raise ChargeIncoherente("jours_personnes_base : ne correspond pas aux effectifs planifiés des équipes")
     for cle, total in somme.items():
         if charge[cle] != total or charge[cle.replace("minutes", "heures")] != heures(total):
             raise ChargeIncoherente(f"{cle} : le total n'est pas la somme des équipes")
-        if presentes and charge[cle.replace("minutes", "jours_personnes")] != jours_personnes(total, duree):
-            raise ChargeIncoherente(f"{cle} : jours-personnes du total attendus")
+        if presentes and charge[cle.replace("minutes", "jours_personnes")] != _total_jours_personnes(
+            equipes, cle, duree, base,
+        ):
+            raise ChargeIncoherente(f"{cle} : jours-personnes du total attendus (null si l'effectif est partiel)")
