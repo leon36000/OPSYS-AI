@@ -45,7 +45,7 @@ coût PARTIEL ne porte JAMAIS de marge : ni réelle, ni écart ; ce que M5 chiff
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
@@ -58,10 +58,16 @@ __all__ = [
     "calculer_rentabilite",
     "charge_evenement",
     "construire_trace",
+    "decision_apres_etat_certifie",
+    "marquer_certifie_perime",
     "masquer_montants",
     "resumer",
     "valider_taux_horaire",
 ]
+
+# Champ de la trace (et de `rentabilite`, jamais de l'événement) : voir `_empreinte_hors_ventilation`.
+CHAMP_EMPREINTE_HORS_VENTILATION = "empreinte_hors_ventilation"
+CODE_CERTIFIE_A_RECALCULER = "REJ-COUT-CERTIFIE-A-RECALCULER"
 
 # Type du catalogue du socle (`src/opsys/evenements/catalogue/m5.rentabilite_chantier.json`) : M5 en est le
 # seul producteur. Le nom seulement : la publication (`opsys.evenements`) reste dans `outils.py`.
@@ -609,7 +615,35 @@ def calculer_rentabilite(
         "ecart_marge_points": ecart_points,
         "manque": manque,
         "version_entrees": version,
+        CHAMP_EMPREINTE_HORS_VENTILATION: _empreinte_hors_ventilation(cout["entrees"], facture, devis_recu, prix),
     }
+
+
+def _empreinte_hors_ventilation(entrees: Mapping[str, Any], facture: Mapping[str, Any] | None,
+                                devis_recu: Mapping[str, Any] | None, prix: Decimal | None) -> str:
+    """Empreinte de ce que le calcul consomme HORS main-d'oeuvre : le WCT (identité et date seulement), la variance,
+    les prix du livre, les autres WCT, la facture et le devis accepté.
+
+    Elle est identique dans le calcul ORDINAIRE (sans projection) et dans le calcul CERTIFIÉ (avec projection M4 V3)
+    d'un même état des pièces, alors que `version_entrees` diffère toujours entre les deux (durée scalaire, taux
+    horaire et ventilation y entrent). C'est ce qui permet à la cascade ordinaire de savoir, sans projection ni
+    capacité, si seule la ventilation lui manque (rien d'autre n'a changé depuis le dernier état certifié) ou si
+    une entrée a réellement changé. Ni la durée, ni le taux horaire, ni la ventilation n'y entrent : la durée du WCT
+    ne change pas (un rejeu divergent est refusé, `wct_recus.verifier_rejeu`), les deux autres sont la main-d'oeuvre.
+
+    La facture y entre par sa FINALITÉ (`prix_definitif`) et son montant, pas par son statut : BROUILLON -> ENVOYEE
+    change l'état présenté à M8 et M10 (prix définitif), ENVOYEE -> PAYEE ne change rien à la marge."""
+    statut_facture = facture.get("statut") if facture is not None else None
+    return encodage.empreinte("m5.rentabilite.hors-ventilation.v1", {
+        "wct": [entrees["wct"]["wct_id"], entrees["wct"]["horodatage_completion"]],
+        "variance": entrees["variance"],
+        "prix": entrees["prix"],
+        "autres_wct": entrees["autres_wct"],
+        "facture": [facture.get("facture_id"), statut_facture in ("ENVOYEE", "PAYEE"), prix]
+        if facture is not None else None,
+        "devis": [devis_recu.get("cout_total"), devis_recu.get("prix_total"), devis_recu.get("taux_marge")]
+        if devis_recu is not None else None,
+    })
 
 
 def construire_trace(rentabilite: Mapping[str, Any], horodatage: Any) -> dict[str, Any]:
@@ -622,14 +656,72 @@ def construire_trace(rentabilite: Mapping[str, Any], horodatage: Any) -> dict[st
         "chantier_id": rentabilite["chantier_id"],
         "wct_id": rentabilite["wct_id"],
         "version_entrees": rentabilite["version_entrees"],
+        CHAMP_EMPREINTE_HORS_VENTILATION: rentabilite[CHAMP_EMPREINTE_HORS_VENTILATION],
         "verdict": rentabilite["verdict"],
         "horodatage": horodatage,
         "rentabilite": {
             cle: ({sous: v for sous, v in valeur.items() if sous not in ("hypotheses", "arrondi")}
                   if cle == "cout_reel" else valeur)
-            for cle, valeur in rentabilite.items() if cle != "version_entrees"
+            for cle, valeur in rentabilite.items() if cle not in ("version_entrees", CHAMP_EMPREINTE_HORS_VENTILATION)
         },
     }
+
+
+def _main_d_oeuvre_certifiee(trace: Any) -> bool:
+    """Vrai si la trace porte une main-d'oeuvre CERTIFIÉE : écrite par la voie de service M4 (provenance
+    `provenance_service_v1`, seule voie qui publie au bus avec une projection M4 V3 vérifiée) et chiffrée en entier
+    d'après une projection (`statut` complet, empreinte de projection présente). Une trace de la voie console
+    (`provenance_v3`, jamais publiée au bus), une trace ordinaire, ou une trace de service dont la revue ou les
+    équipes restaient à vérifier ne sont PAS une main-d'oeuvre certifiée."""
+    if not isinstance(trace, Mapping) or not isinstance(trace.get("provenance_service_v1"), Mapping):
+        return False
+    corps = trace.get("rentabilite")
+    cout = corps.get("cout_reel") if isinstance(corps, Mapping) else None
+    mo = cout.get("main_d_oeuvre") if isinstance(cout, Mapping) else None
+    return (isinstance(mo, Mapping) and mo.get("statut") == "complet"
+            and isinstance(mo.get("projection_empreinte"), str) and bool(mo["projection_empreinte"]))
+
+
+def decision_apres_etat_certifie(
+    derniere_trace_publiee: Any, rentabilite: Mapping[str, Any], source_tarifs_courante: Callable[[], Any],
+) -> str:
+    """Que doit faire la cascade ORDINAIRE (sans projection) devant la dernière trace publiée au bus d'un devis ?
+
+    - `"ordinaire"` : cette trace n'est pas une main-d'oeuvre certifiée ; la cascade se comporte comme avant.
+    - `"conserver"` : elle l'est et RIEN d'autre que la ventilation n'a changé (même `empreinte_hors_ventilation`,
+      mêmes tarifs d'équipe) ; l'état certifié est toujours le bon : la cascade ne trace ni ne publie rien.
+    - `"perime"` : elle l'est mais une entrée a changé (matériaux, prix du livre, facture, devis, autre WCT, tarifs
+      d'équipe), ou la trace ne permet pas de le prouver (trace antérieure à ce champ, tarifs illisibles) : le
+      certifié n'est plus présenté comme à jour ; la cascade trace un état partiel qui le DIT
+      (`marquer_certifie_perime`). Jamais de coût complet recomposé sans projection : M5 ne peut pas revalider
+      la projection M4 (seul le recalcul certifié le fait).
+
+    Fonction pure : `source_tarifs_courante` est un appel de l'adaptateur qui rend l'empreinte de l'historique des
+    tarifs d'équipe (`None` si illisible, ce qui donne `perime`) ; il n'est appelé que si la trace est certifiée."""
+    if not _main_d_oeuvre_certifiee(derniere_trace_publiee):
+        return "ordinaire"
+    empreinte = derniere_trace_publiee.get(CHAMP_EMPREINTE_HORS_VENTILATION)
+    source_tarifs = derniere_trace_publiee["provenance_service_v1"].get("source_tarifs")
+    if (isinstance(empreinte, str) and empreinte == rentabilite.get(CHAMP_EMPREINTE_HORS_VENTILATION)
+            and isinstance(source_tarifs, str) and source_tarifs == source_tarifs_courante()):
+        return "conserver"
+    return "perime"
+
+
+def marquer_certifie_perime(rentabilite: Mapping[str, Any]) -> dict[str, Any]:
+    """La rentabilité ordinaire, avec en plus le manque `REJ-COUT-CERTIFIE-A-RECALCULER` : le dernier coût certifié
+    n'est plus à jour, un recalcul certifié est requis. Ne change NI `version_entrees` (une rediffusion du même
+    état ordinaire reste `deja_tracee`) NI le verdict (le calcul ordinaire est toujours PARTIEL, sans marge)."""
+    if rentabilite["verdict"] != "PARTIELLE" or rentabilite["marge_reelle"] is not None:
+        raise ValueError("un état marqué périmé doit être partiel et sans marge")
+    # Même forme que `_manque` / `validation.construire_verdict`, mais SANS passer par la liste fermée de
+    # `validation.py` : ce fichier est épinglé par empreinte dans `contracts/admission_paie_preparatoire.v1.json`
+    # (génération serveur de l'admission paie) ; le modifier invaliderait cette admission, hors périmètre ici.
+    manque = [*rentabilite["manque"], {"code": CODE_CERTIFIE_A_RECALCULER, "detail": (
+        "le dernier coût réel certifié (main-d'oeuvre d'une projection M4 vérifiée) n'est plus à jour : une pièce a "
+        "changé depuis (matériaux, prix, facture, devis, autre WCT ou tarifs d'équipe) ; un recalcul certifié est "
+        "requis, aucune marge n'est présentée")}]
+    return {**rentabilite, "manque": manque}
 
 
 def _texte_decimal(valeur: Decimal | None) -> str | None:

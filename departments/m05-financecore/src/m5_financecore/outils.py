@@ -109,6 +109,12 @@ nouvelle version des entrées), il publie `m5.rentabilite_chantier` dans la MÊM
 texte décimal, `wct_id`, `devis_id` ; jamais un prix unitaire, un taux ni une donnée de client, et jamais une marge
 pour un coût partiel. C'est le seul événement que M5 publie. Aucune écriture comptable n'en découle.
 
+E1 (régression I5, CONCEPTION-ROUTAGE-COUT-CERTIFIE) : `_essayer_cout_reel` ne publie jamais, par-dessus la dernière
+trace publiée dont la main-d'oeuvre est certifiée (projection M4 V3 vérifiée), l'état partiel qui n'est dû qu'à
+l'absence de projection dans ce chemin (`cout_reel.decision_apres_etat_certifie`) : rien d'écrit tant que seule la
+ventilation manque (`certifie_conserve`) ; un partiel marqué `REJ-COUT-CERTIFIE-A-RECALCULER` dès qu'une entrée a
+changé (`tracee_certifie_perime`). Voir `docs/bmad/03-ARCHITECTURE.md`, DA-M5-10.
+
 PLAN T4.15 (comptes à payer, `comptes_a_payer.py`, M5.2 et M6.16) : `consommateurs()` abonne en plus
 `_recevoir_reception_enregistree` (`m6.reception_enregistree`) sur un sixième registre durable, DÉDIÉ,
 `comptes_a_payer` : il garde chaque réception reçue (l'« à payer ATTENDU » d'un PO, cumulé sur ses livraisons) et
@@ -1107,8 +1113,37 @@ def _essayer_cout_reel(devis_id: str) -> dict[str, Any]:
     trace = sources["traces"].get(devis_id)
     if trace is not None and trace.get("version_entrees") == rentabilite["version_entrees"]:
         return {"statut": "deja_tracee"}
+    # E1 (I5) : cette cascade n'a PAS de projection M4 ; l'état qu'elle calcule est donc toujours partiel. Elle ne
+    # doit jamais publier ce partiel par-dessus un coût certifié que seule l'absence de projection sépare de lui.
+    decision = cout_reel.decision_apres_etat_certifie(
+        _derniere_trace_publiee(devis_id, trace), rentabilite,
+        _source_tarifs_equipes_ou_none)
+    if decision == "conserver":
+        return {"statut": "certifie_conserve"}
+    if decision == "perime":
+        rentabilite = cout_reel.marquer_certifie_perime(rentabilite)
     _consigner_rentabilite(rentabilite, sources["nombre_de_traces"].get(devis_id, 0) + 1, etat["horodatage"])
-    return {"statut": "tracee"}
+    return {"statut": "tracee_certifie_perime" if decision == "perime" else "tracee"}
+
+
+def _derniere_trace_publiee(devis_id: str, derniere: dict[str, Any] | None) -> dict[str, Any] | None:
+    """La dernière trace du devis qui a pu atteindre le bus : les traces de la voie console (`provenance_v3`)
+    sont écrites sans publication (`tracer_ventilation`), elles ne sont donc jamais l'état courant de M8 et M10."""
+    if derniere is None or "provenance_v3" not in derniere:
+        return derniere
+    for maillon in reversed(list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE))):
+        if maillon.get("devis_id") == devis_id and "provenance_v3" not in maillon:
+            return maillon
+    return None
+
+
+def _source_tarifs_equipes_ou_none() -> str | None:
+    """Empreinte de l'historique des tarifs d'équipe, ou `None` s'il est illisible ou hors limites : la cascade ne
+    lève jamais ici, un historique qu'elle ne peut pas lire rend le certifié « périmé » (fail-closed)."""
+    try:
+        return _instantane_tarifs_equipes()["source"]
+    except (ValueError, TypeError, KeyError, RuntimeError, OverflowError, AttributeError):
+        return None
 
 
 def _consigner_rentabilite(rentabilite: dict[str, Any], sequence: int, horodatage: Any, *,
@@ -3670,7 +3705,8 @@ def _vue_chantier(etat: dict[str, Any], sources: dict[str, Any], autorise_couts:
     if not autorise_couts:
         contenu = cout_reel.masquer_montants(rentabilite)
     elif detail:
-        contenu = {cle: valeur for cle, valeur in rentabilite.items() if cle != "version_entrees"}
+        contenu = {cle: valeur for cle, valeur in rentabilite.items()
+                   if cle not in ("version_entrees", cout_reel.CHAMP_EMPREINTE_HORS_VENTILATION)}
     else:
         contenu = cout_reel.resumer(rentabilite)
     trace_vue = {"a_jour": trace is not None and trace.get("version_entrees") == rentabilite["version_entrees"]}
