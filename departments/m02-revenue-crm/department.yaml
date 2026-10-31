@@ -19,6 +19,18 @@ mission: >-
   Liste les relances dues (M2.7, M2.13), tirées des segments, avec leur règle, leur dernière relance
   et leur prochaine date permise ; sans consentement actif d'un canal, la relance est « appel
   seulement », et le texte préparé est un gabarit fixe : rien ne part.
+# Avatar du département (docs/architecture/AVATARS.md) : identité par défaut, personnalisable par client dans
+# `entreprise.yaml` (clé `avatars` : nom, voix, visage). `voix` et `visage` sont des identifiants logiques : le registre
+# de fournisseurs les résoudra. Seule la messagerie (chat avec l'agent dans l'interface du core) existe aujourd'hui.
+avatar:
+  nom: Victor
+  role: "Directeur des ventes et du CRM"
+  voix: voix.victor.defaut
+  visage: visage.victor.defaut
+  canaux:
+    messagerie: disponible
+    voix: prevu
+    audiovisuel: prevu
 outils: m2_revenue_crm.outils
 mode: ombre
 # m04-field-ops : M2 consomme le signal de fin de chantier de M4 (DEFINITION-PRODUIT §6,

@@ -7,6 +7,18 @@ mission: >-
   consommation terrain, inventaire — sans jamais fixer de prix de vente, planifier
   une date, payer un fournisseur ou désigner un responsable d'écart : variance
   toujours neutre, réapprovisionnement suggéré, jamais exécuté.
+# Avatar du département (docs/architecture/AVATARS.md) : identité par défaut, personnalisable par client dans
+# `entreprise.yaml` (clé `avatars` : nom, voix, visage). `voix` et `visage` sont des identifiants logiques : le registre
+# de fournisseurs les résoudra. Seule la messagerie (chat avec l'agent dans l'interface du core) existe aujourd'hui.
+avatar:
+  nom: Rosalie
+  role: "Approvisionnement et inventaire"
+  voix: voix.rosalie.defaut
+  visage: visage.rosalie.defaut
+  canaux:
+    messagerie: disponible
+    voix: prevu
+    audiovisuel: prevu
 outils: m6_material_control.outils
 mode: ombre
 dependances: [m04-field-ops]

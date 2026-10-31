@@ -22,6 +22,7 @@ from typing import Any
 import yaml
 
 from .appareils import ROLES_APPAREIL
+from .avatars import Avatar, normaliser_avatar
 from .canaux import CANAUX
 from .identite import ROLES, Role
 from .outils import Niveau, Outil
@@ -105,6 +106,9 @@ class Departement:
     politique_approbation: PolitiqueApprobation = POLITIQUE_PAR_DEFAUT
     # Canaux du core (`opsys.canaux`) par lesquels ce département reçoit le public (PLAN T2.1-a).
     canaux: tuple[str, ...] = ()
+    # Avatar par défaut du département (`opsys.avatars`) : nom, rôle, voix et visage logiques, canaux et leur état.
+    # Optionnel à la lecture d'un manifeste ; `opsys-metier verifier` l'exige de chaque département installé.
+    avatar: Avatar | None = None
 
     @property
     def prefixe_outils(self) -> str:
@@ -364,6 +368,7 @@ def lire_manifeste(dossier: Path) -> Departement:
         evenements_consomme=evenements_consomme,
         politique_approbation=_politique_approbation(donnees, ctx),
         canaux=canaux,
+        avatar=normaliser_avatar(donnees["avatar"], ctx) if "avatar" in donnees else None,
     )
 
 

@@ -14,6 +14,18 @@ mission: >-
   sous la limite de sortie du socle (« N autres éléments non affichés », et comment les lire).
   Lit les alertes de mesure de chantier de M8 et en donne une lecture qui cite ses preuves
   (identifiants des métriques) sans jamais décider : la décision revient au propriétaire.
+# Avatar du département (docs/architecture/AVATARS.md) : identité par défaut, personnalisable par client dans
+# `entreprise.yaml` (clé `avatars` : nom, voix, visage). `voix` et `visage` sont des identifiants logiques : le registre
+# de fournisseurs les résoudra. Seule la messagerie (chat avec l'agent dans l'interface du core) existe aujourd'hui.
+avatar:
+  nom: Athéna
+  role: "Direction stratégique et conseil"
+  voix: voix.athena.defaut
+  visage: visage.athena.defaut
+  canaux:
+    messagerie: disponible
+    voix: prevu
+    audiovisuel: prevu
 outils: m9_strategic_intelligence.outils
 mode: ombre
 dependances: [m08-analytics, m10-memoire]

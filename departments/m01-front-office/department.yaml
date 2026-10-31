@@ -8,6 +8,18 @@ mission: >-
   la router vers le bon module aval — sans jamais produire de prix, de date de chantier,
   d'engagement ferme ni d'aveu de responsabilité, et sans jamais perdre un signal : chaque
   demande laisse exactement une ligne dans le registre anti-perte.
+# Avatar du département (docs/architecture/AVATARS.md) : identité par défaut, personnalisable par client dans
+# `entreprise.yaml` (clé `avatars` : nom, voix, visage). `voix` et `visage` sont des identifiants logiques : le registre
+# de fournisseurs les résoudra. Seule la messagerie (chat avec l'agent dans l'interface du core) existe aujourd'hui.
+avatar:
+  nom: Léa
+  role: "Réceptionniste et adjointe, accueil omnicanal"
+  voix: voix.lea.defaut
+  visage: visage.lea.defaut
+  canaux:
+    messagerie: disponible
+    voix: prevu
+    audiovisuel: prevu
 outils: m1_front_office.outils
 mode: ombre
 dependances: []
