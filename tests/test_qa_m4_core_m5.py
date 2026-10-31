@@ -1728,6 +1728,44 @@ def test_probe_preparation(affaire, session, deposer_photo_test, catalogue, monk
                                 chantier = actuel["resultat"]["chantiers"][0]
                                 assert chantier["rentabilite"]["cout_reel"]["main_d_oeuvre"]["cout"] == Decimal("732.50")
                                 assert chantier["trace"]["a_jour"] is True
+                if cas == "history_core":
+                    from opsys import service_lecture_m4 as lecture
+
+                    cnx.execute(insert(SERVICE_POLITIQUES).values(
+                        instance_id=instance_id, consommateur="m05-financecore",
+                        operation="m4.relire_faits_pour_m5_v1", revision=1, active=True,
+                        expire_le=int(time.time()) + 120))
+                    ref_v1 = ancien[0]["reference_core"]
+                    ref_v2 = reponse["attestation"]
+                    with contexte.appeler_en_tant_que("m05-financecore"):
+                        with lecture._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]) as cap:
+                            cap.projection_m4()
+                            with contexte.appeler_en_tant_que("m03-estimation"), pytest.raises(sc.RefusAutorite):
+                                cap.verifier_reference_publication(ref_v1)
+                            v1 = cap.verifier_reference_publication(ref_v1)
+                            preuve_v2 = cap.verifier_reference_publication(ref_v2)
+                            assert v1["statut"] == preuve_v2["statut"] == "historique_non_revalide"
+                            assert v1["trace_rang"] == ancien[0]["trace_rang"]
+                            assert v1["trace_sha256"] == lecture.empreinte_trace_v1(traces[v1["trace_rang"]])
+                            assert preuve_v2["reference"] == ref_v2
+                            assert preuve_v2["version_resultat"] == reponse["version"]
+                            for ref in ({**ref_v1, "id": ref_v1["id"] + 100000},
+                                        {**ref_v1, "revision": True},
+                                        {**ref_v2, "audit_recalcul_id": ref_v2["audit_recalcul_id"] + 100000},
+                                        {**ref_v2, "revision_recalcul": True},
+                                        {**ref_v2, "trace_rang": True},
+                                        {**ref_v2, "devis_id": "autre-fictif"}):
+                                with pytest.raises(sc.RefusAutorite):
+                                    cap.verifier_reference_publication(ref)
+                        with pytest.raises(sc.RefusAutorite):  # noqa: SIM117
+                            with lecture._ouvrir_qa(cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"]) as cap2:
+                                cap2.projection_m4()
+                                cap2.verifier_reference_publication(ref_v2)
+                                cnx.execute(update(SERVICE_AUDIT).where(
+                                    SERVICE_AUDIT.c.id == ref_v2["audit_recalcul_id"]).values(action="revocation"))
+                        v2_audit = cnx.execute(select(SERVICE_AUDIT.c.action).where(
+                            SERVICE_AUDIT.c.id == ref_v2["audit_recalcul_id"])).scalar_one()
+                        assert v2_audit == "usage"
                 assert (
                     service_recalcul_m4._executer_qa(
                         cnx, f.AUTH, wct_id=wct_id, devis_id=affaire["devis"], intention_id="b" * 64
