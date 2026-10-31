@@ -677,6 +677,8 @@ def construire_parseur() -> argparse.ArgumentParser:
 
     from . import memoire_developpement_cli
     memoire_developpement_cli.ajouter_commandes(sous)
+    from .fournisseurs import cli as plateforme_cli  # fournisseurs … et secrets … (registre, coffre)
+    plateforme_cli.ajouter_commandes(sous)
 
     sous.add_parser("departements", help="lister les départements").set_defaults(fn=cmd_departements)
     bases = sous.add_parser("agents-base", help="profils durables des agents départementaux")
