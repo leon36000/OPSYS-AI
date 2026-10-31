@@ -183,6 +183,10 @@ _FICHIERS = (
     "outils",
     "soldes",
     "etat_financier",
+    "plan_comptable",  # grand livre (tranche 1) : surveillé en STRICT
+    "grand_livre",
+    "grand_livre_beancount",
+    "verdicts_grand_livre",
 )
 
 

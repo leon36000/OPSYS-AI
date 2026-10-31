@@ -229,6 +229,8 @@ from . import (
     encodage,
     etat_financier,
     facturation,
+    grand_livre,
+    plan_comptable,
     prevision,
     soldes,
     sources_regles_paie,
@@ -236,6 +238,7 @@ from . import (
     taxes,
     validation,
     variance_recus,
+    verdicts_grand_livre,
     wct_recus,
 )
 from . import registre as registre_module
@@ -5524,7 +5527,7 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
         ),
     ) + (
         _outils_couts_marketing(lecteur_campagne_m7) if lecteur_campagne_m7 is not None else ()
-    ) + _outils_obligations_preparees()
+    ) + _outils_obligations_preparees() + _outils_grand_livre()
 
 
 # DEVICE préparatoire, hors registre des mouvements et hors consommateurs YAML.
@@ -6172,5 +6175,411 @@ def _outils_obligations_preparees():
             autonomie=Autonomie.T1,
             roles_appareil=frozenset({"admin"}),
             portee_contexte="globale",
+        ),
+    )
+
+
+# ============================================================================================== grand livre (tranche 1)
+# Grand livre en partie double (`grand_livre.py`, `plan_comptable.py`, docs/grand-livre.md). Registre DÉDIÉ, toujours
+# durable (`grand_livre`, append-only hash-chaîné : `registre.py` sur `opsys.stockage.maillons`, la table de registres
+# existante, sans migration) ; jamais le registre des mouvements : une écriture comptable ne meut aucun argent
+# (`conformite.verifier_aucun_decaissement`, STRICT sur ces fonctions). Brouillons T1/N1 (automatiques, jamais
+# définitifs) ; validation et clôture T2/N4 : la file du socle, et l'outil n'agit que pour l'humain que le SOCLE dit
+# (`approbations.approbateur_en_cours`, propriétaire ou finance), jamais pour un agent seul (mode `autonome`) ni d'après
+# un argument. Portée d'appareil FERMÉE pour les huit outils : aucun rôle d'appareil, et une identité d'appareil qui les
+# atteindrait quand même est refusée dans le code.
+_NOM_REGISTRE_GRAND_LIVRE = "grand_livre"
+_CHEMIN_PLAN_COMPTABLE = Path(__file__).resolve().parents[2] / "contracts" / "plan_comptable_pme_qc.v1.yaml"
+NIVEAU_ECRITURE_COMPTABLE_FINALE = Niveau.N4  # écriture finale (ADR-0009 §4) : validation et clôture
+NIVEAU_BROUILLON_COMPTABLE = Niveau.N1  # brouillon : automatique, sans effet comptable tant qu'il n'est pas validé
+_ROLES_DECISION_GRAND_LIVRE = frozenset({"nathan_owner", "finance"})
+_LIMITE_GL_DEFAUT = 10
+_LIMITE_GL_MAX = 20
+_BUDGET_GL = BUDGET_SORTIE - 400
+
+
+def _registre_grand_livre() -> registre_module.Registre | None:
+    """Le registre durable du grand livre ; aucun repli en mémoire (une écriture ne se simule pas en production)."""
+    if not _stockage_durable_actif:
+        return None
+    return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_GRAND_LIVRE))
+
+
+def _plan_comptable_effectif() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Le plan de base versionné, étendu par `configuration.grand_livre` du manifeste (relu à chaque appel)."""
+    plan, refus = plan_comptable.charger_plan(_CHEMIN_PLAN_COMPTABLE)
+    if refus is not None:
+        return None, refus
+    return plan_comptable.appliquer_extension(plan, _configuration_manifeste().get("grand_livre"))
+
+
+def _contexte_grand_livre() -> tuple[tuple[registre_module.Registre, dict[str, Any]] | None, dict[str, Any] | None]:
+    """Registre et plan d'un appel, ou le refus nommé : identité d'appareil (portée fermée), stockage non durable,
+    plan illisible, ou chaîne du registre invalide (jamais une lecture d'un registre altéré)."""
+    if contexte.identite_appelante() is not None:
+        return None, validation.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE",
+            detail="le grand livre n'est ouvert à aucun rôle d'appareil (portée fermée) : passer par l'agent finance",
+        )
+    registre_cible = _registre_grand_livre()
+    if registre_cible is None:
+        return None, verdicts_grand_livre.construire_verdict(
+"REJ-GL-STOCKAGE-NON-DURABLE", detail="registre durable requis")
+    plan, refus = _plan_comptable_effectif()
+    if refus is not None:
+        return None, refus
+    valide, raison = registre_cible.valider_chaine()
+    if not valide:
+        return None, verdicts_grand_livre.construire_verdict(
+"REJ-GL-CHAINE-INVALIDE", detail=raison)
+    return (registre_cible, plan), None
+
+
+def _sortie_grand_livre(resultat: Mapping[str, Any]) -> dict[str, Any]:
+    return {"accepte": True, "resultat": analyse.avec_mention_comptable(resultat)}
+
+
+def _taille_gl(objet: Any) -> int:
+    return len(json.dumps(objet, ensure_ascii=False, default=str))
+
+
+def _page_gl(calcul: Callable[[int], tuple[dict[str, Any] | None, dict[str, Any] | None]], limite: int) -> dict:
+    """La page la plus longue (au plus `limite`) qui tient sous le budget de sortie du socle : jamais tronquée."""
+    while True:
+        resultat, refus = calcul(limite)
+        if refus is not None:
+            return _refus(refus)
+        sortie = _sortie_grand_livre(resultat)
+        if _taille_gl(sortie) <= _BUDGET_GL or limite <= 1:
+            return sortie
+        limite = max(1, limite // 2)
+
+
+def _limite_gl(limite: Any, depart: Any) -> tuple[tuple[int, int] | None, dict[str, Any] | None]:
+    limite = _LIMITE_GL_DEFAUT if limite is None else limite
+    depart = 0 if depart is None else depart
+    if (type(limite) is not int or not 1 <= limite <= _LIMITE_GL_MAX
+            or type(depart) is not int or depart < 0):
+        return None, verdicts_grand_livre.construire_verdict(
+            "REJ-GL-LIMITE-INVALIDE", detail=f"limite de 1 à {_LIMITE_GL_MAX}, depart entier positif ou nul")
+    return (limite, depart), None
+
+
+def _humain_grand_livre(nom_outil: str) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+    """L'humain qui a approuvé la demande en cours d'exécution (propriétaire ou finance), dit par le SOCLE ; sinon le
+    refus `REJ-GL-HUMAIN-REQUIS`. Aucune autre voie : ni argument, ni texte du modèle, ni appareil (portée fermée)."""
+    cnx = stockage.connexion_courante()
+    approbateur = approbations.approbateur_en_cours(cnx, nom_outil, _DEPARTEMENT, roles=_ROLES_DECISION_GRAND_LIVRE)
+    if approbateur is None:
+        return None, verdicts_grand_livre.construire_verdict(
+            "REJ-GL-HUMAIN-REQUIS",
+            detail=("une écriture définitive ou une clôture se décide par le propriétaire ou la finance dans la file "
+                    "OPSYS (N4) ; un agent la propose, il ne la fait jamais"),
+        )
+    return {"par": approbateur.personne, "role": approbateur.role, "voie": "approbation"}, None
+
+
+def lire_balance_verification(au: str, depart: int | None = None, limite: int | None = None) -> dict[str, Any]:
+    """Balance de vérification au `au` (inclus), écritures définitives seulement, avec la preuve débits = crédits."""
+    ctx, refus = _contexte_grand_livre()
+    if refus is not None:
+        return _refus(refus)
+    bornes, refus = _limite_gl(limite, depart)
+    if refus is not None:
+        return _refus(refus)
+    registre_cible, plan = ctx
+    etat = grand_livre.etat_grand_livre(registre_cible.lire())
+    return _page_gl(lambda n: grand_livre.balance_verification(etat, plan, au, depart=bornes[1], limite=n), bornes[0])
+
+
+def lire_grand_livre_compte(
+    compte: str, debut: str, fin: str, depart: int | None = None, limite: int | None = None
+) -> dict[str, Any]:
+    """Grand livre d'un compte entre deux dates : solde d'ouverture, lignes définitives, solde de clôture."""
+    ctx, refus = _contexte_grand_livre()
+    if refus is not None:
+        return _refus(refus)
+    bornes, refus = _limite_gl(limite, depart)
+    if refus is not None:
+        return _refus(refus)
+    registre_cible, plan = ctx
+    etat = grand_livre.etat_grand_livre(registre_cible.lire())
+    return _page_gl(lambda n: grand_livre.grand_livre_compte(
+        etat, plan, compte, debut=debut, fin=fin, depart=bornes[1], limite=n), bornes[0])
+
+
+def _factures_emises() -> list[dict[str, Any]]:
+    """Les factures clientes ÉMISES (ENVOYEE, PAYEE) du registre des factures, à leur état courant."""
+    registre_factures = _registre_factures(None)
+    return [*facturation.factures_par_statut(registre_factures, "ENVOYEE"),
+            *facturation.factures_par_statut(registre_factures, "PAYEE")]
+
+
+def rapprocher_grand_livre(debut: str, fin: str) -> dict[str, Any]:
+    """Équilibre débits/crédits et TPS/TVQ du grand livre contre `taxes.py` sur les factures émises de la période."""
+    ctx, refus = _contexte_grand_livre()
+    if refus is not None:
+        return _refus(refus)
+    dictionnaire, refus = _dictionnaire_taux()
+    if refus is not None:
+        return _refus(refus)
+    registre_cible, plan = ctx
+    etat = grand_livre.etat_grand_livre(registre_cible.lire())
+    resultat, refus = grand_livre.rapprocher(etat, plan, _factures_emises(), dictionnaire, debut=debut, fin=fin,
+                                             limite_ecarts=8)
+    return _refus(refus) if refus is not None else _sortie_grand_livre(resultat)
+
+
+def proposer_ecriture_comptable(
+    date_effet: str, libelle: str, piece_type: str, piece_reference: str, lignes: list[dict[str, Any]],
+    horodatage: str,
+) -> dict[str, Any]:
+    """Saisie d'un BROUILLON d'écriture (T1/N1) : pièce typée, lignes débit/crédit en texte ; jamais définitive."""
+    ctx, refus = _contexte_grand_livre()
+    if refus is not None:
+        return _refus(refus)
+    registre_cible, plan = ctx
+    pieces_connues = {
+        "facture_client": {f["facture_id"] for f in _factures_emises()},
+        "facture_fournisseur": {f["facture_fournisseur_id"]
+                                for f in comptes_a_payer.factures_saisies(_registre_comptes_a_payer())},
+    }
+    resultat, refus = grand_livre.proposer_ecriture(
+        registre_cible, plan,
+        cle_piece=f"saisie:{piece_type}:{piece_reference}",
+        piece={"type": piece_type, "reference": piece_reference},
+        nature="saisie", date_effet=date_effet, libelle=libelle, lignes_brutes=lignes,
+        horodatage=horodatage, origine="saisie", pieces_connues=pieces_connues,
+    )
+    return _refus(refus) if refus is not None else _sortie_grand_livre(resultat)
+
+
+def _resume_ecriture(vue: Mapping[str, Any]) -> dict[str, Any]:
+    total = sum((Decimal(ligne["debit"]) for ligne in vue["lignes"] if ligne["debit"] is not None), Decimal("0.00"))
+    return {"ecriture_id": vue["ecriture_id"], "date_effet": vue["date_effet"], "libelle": vue["libelle"],
+            "total": str(total)}
+
+
+def generer_brouillons_comptables(horodatage: str, limite: int | None = None) -> dict[str, Any]:
+    """Propose en BROUILLON les écritures des factures clientes émises et payées (T1/N1), idempotent par pièce : un
+    appel répété ne recrée rien. Au plus `limite` nouveaux brouillons par appel ; `reste` dit ce qui attend."""
+    ctx, refus = _contexte_grand_livre()
+    if refus is not None:
+        return _refus(refus)
+    bornes, refus = _limite_gl(limite, 0)
+    if refus is not None:
+        return _refus(refus)
+    registre_cible, plan = ctx
+    propositions, ignorees = grand_livre.propositions_factures_clients(_factures_emises(), plan)
+    creees: list[dict[str, Any]] = []
+    deja = 0
+    refusees: list[dict[str, str]] = []
+    reste = 0
+    for proposition in propositions:
+        if len(creees) >= bornes[0]:
+            reste += 1
+            continue
+        resultat, refus = grand_livre.proposer_ecriture(
+            registre_cible, plan, horodatage=horodatage, origine="generation_automatique", **proposition)
+        if refus is not None:
+            if refus["code"] == "REJ-GL-CHAMP-INVALIDE":
+                return _refus(refus)
+            refusees.append({"cle_piece": proposition["cle_piece"], "code": refus["code"]})
+        elif resultat["statut"] == "deja_proposee":
+            deja += 1
+        else:
+            creees.append(_resume_ecriture(resultat["ecriture"]))
+    return _sortie_grand_livre({
+        "brouillons_crees": creees, "deja_proposes": deja, "refuses": refusees[:10],
+        "refuses_reste": max(0, len(refusees) - 10), "sources_ignorees": ignorees[:10],
+        "sources_ignorees_reste": max(0, len(ignorees) - 10), "reste": reste,
+        "a_faire": "chaque brouillon attend m5_valider_ecriture_comptable (N4) : rien n'est encore comptabilisé",
+    })
+
+
+def valider_ecriture_comptable(ecriture_id: str, horodatage: str) -> dict[str, Any]:
+    """BROUILLON -> DÉFINITIVE (T2/N4), pour l'humain que le socle dit seulement."""
+    ctx, refus = _contexte_grand_livre()
+    if refus is not None:
+        return _refus(refus)
+    humain, refus = _humain_grand_livre("m5_valider_ecriture_comptable")
+    if refus is not None:
+        return _refus(refus)
+    registre_cible, plan = ctx
+    resultat, refus = grand_livre.valider_ecriture(
+        registre_cible, plan, ecriture_id=ecriture_id, humain=humain, horodatage=horodatage)
+    return _refus(refus) if refus is not None else _sortie_grand_livre(resultat)
+
+
+def proposer_contre_passation_comptable(ecriture_id: str, date_effet: str, motif: str, horodatage: str) -> dict:
+    """Le BROUILLON de contre-passation d'une écriture définitive (T1/N1), à valider à son tour (N4)."""
+    ctx, refus = _contexte_grand_livre()
+    if refus is not None:
+        return _refus(refus)
+    registre_cible, plan = ctx
+    resultat, refus = grand_livre.proposer_contre_passation(
+        registre_cible, plan, ecriture_id=ecriture_id, date_effet=date_effet, motif=motif, horodatage=horodatage)
+    return _refus(refus) if refus is not None else _sortie_grand_livre(resultat)
+
+
+def clore_periode_comptable(periode: str, horodatage: str) -> dict[str, Any]:
+    """Clôt un mois (et tout ce qui le précède), T2/N4, pour l'humain que le socle dit seulement."""
+    ctx, refus = _contexte_grand_livre()
+    if refus is not None:
+        return _refus(refus)
+    humain, refus = _humain_grand_livre("m5_clore_periode_comptable")
+    if refus is not None:
+        return _refus(refus)
+    registre_cible, _plan = ctx
+    resultat, refus = grand_livre.clore_periode(registre_cible, periode=periode, humain=humain, horodatage=horodatage)
+    return _refus(refus) if refus is not None else _sortie_grand_livre(resultat)
+
+
+_DATE_GL = {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "Date AAAA-MM-JJ."}
+_HORODATAGE_GL = {"type": "string", "description": "ISO 8601 avec fuseau : le moment de la demande."}
+_PAGE_GL = {
+    "depart": {"type": ["integer", "null"], "minimum": 0, "description": "Rang de départ (prochain_depart)."},
+    "limite": {"type": ["integer", "null"], "minimum": 1, "maximum": _LIMITE_GL_MAX,
+               "description": f"Taille de page (défaut {_LIMITE_GL_DEFAUT})."},
+}
+_LIGNE_GL = {
+    "type": "object",
+    "properties": {
+        "compte": {"type": "string", "description": "Numéro du plan comptable, ex. \"1010\"."},
+        "debit": {"type": ["string", "null"], "description": "Texte décimal au cent ; nul si la ligne est un crédit."},
+        "credit": {"type": ["string", "null"], "description": "Texte décimal au cent ; nul si la ligne est un débit."},
+    },
+    "required": ["compte", "debit", "credit"],
+    "additionalProperties": False,
+}
+_MENTION_GL = " Sortie comptable : porte la mention « À valider auprès d'un comptable (CPA) / professionnel qualifié »."
+
+
+def _outils_grand_livre() -> tuple[Outil, ...]:
+    return (
+        Outil(
+            nom="m5_lire_balance_verification",
+            description=(
+                "Balance de vérification du grand livre au `au` (inclus) : par compte, débits, crédits et solde ; la "
+                "preuve que la somme des débits égale celle des crédits. Écritures DÉFINITIVES seulement (le nombre de "
+                "brouillons en attente est dit, jamais additionné). Lecture pure, paginée." + _MENTION_GL
+            ),
+            parametres={"type": "object", "properties": {"au": _DATE_GL, **_PAGE_GL}, "required": ["au"],
+                        "additionalProperties": False},
+            fonction=lire_balance_verification,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_lire_grand_livre_compte",
+            description=(
+                "Grand livre d'un compte entre debut et fin : solde d'ouverture, chaque ligne définitive (écriture, "
+                "pièce, débit, crédit, solde courant), solde de clôture. Compte inconnu : REJ-GL-COMPTE-INCONNU. "
+                "Lecture pure, paginée." + _MENTION_GL
+            ),
+            parametres={"type": "object", "properties": {
+                "compte": {"type": "string"}, "debut": _DATE_GL, "fin": _DATE_GL, **_PAGE_GL},
+                "required": ["compte", "debut", "fin"], "additionalProperties": False},
+            fonction=lire_grand_livre_compte,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_rapprocher_grand_livre",
+            description=(
+                "Rapprochement du grand livre sur une période : équilibre (somme des débits = somme des crédits, "
+                "chaque écriture équilibrée) et TPS/TVQ à percevoir contre la TPS/TVQ que taxes.py calcule sur les "
+                "factures émises de la même période, avec l'écart par facture. CTI/RTI : soldes, non rapprochés. "
+                "Lecture pure." + _MENTION_GL
+            ),
+            parametres={"type": "object", "properties": {"debut": _DATE_GL, "fin": _DATE_GL},
+                        "required": ["debut", "fin"], "additionalProperties": False},
+            fonction=rapprocher_grand_livre,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_proposer_ecriture_comptable",
+            description=(
+                "Saisit un BROUILLON d'écriture en partie double : date d'effet, libellé, pièce typée (facture_client "
+                "ou facture_fournisseur vérifiées dans M5 ; paie_preparatoire, releve_bancaire, recu, manuelle "
+                "déclarées), au moins deux lignes débit OU crédit en texte décimal au cent sur des comptes ACTIFS du "
+                "plan. Débits = crédits, sinon REJ-GL-ECRITURE-DESEQUILIBREE. Période close refusée. Idempotent par "
+                "pièce (même pièce, autre contenu : REJ-GL-PIECE-CONFLIT). N'est JAMAIS définitif : la validation est "
+                "m5_valider_ecriture_comptable (N4)." + _MENTION_GL
+            ),
+            parametres={"type": "object", "properties": {
+                "date_effet": _DATE_GL,
+                "libelle": {"type": "string", "description": "Une ligne, 200 caractères au plus."},
+                "piece_type": {"type": "string", "enum": ["facture_client", "facture_fournisseur",
+                                                          "paie_preparatoire", "releve_bancaire", "recu",
+                                                          "manuelle"]},
+                "piece_reference": {"type": "string", "description": "Identifiant de la pièce (unique par type)."},
+                "lignes": {"type": "array", "items": _LIGNE_GL, "minItems": 2},
+                "horodatage": _HORODATAGE_GL,
+            }, "required": ["date_effet", "libelle", "piece_type", "piece_reference", "lignes", "horodatage"],
+                "additionalProperties": False},
+            fonction=proposer_ecriture_comptable,
+            autonomie=Autonomie.T1,
+            niveau=NIVEAU_BROUILLON_COMPTABLE,
+        ),
+        Outil(
+            nom="m5_generer_brouillons_comptables",
+            description=(
+                "Génère en BROUILLON les écritures des faits M5 les plus sûrs : facture client émise (comptes clients "
+                "/ produits / TPS / TVQ facturées) et paiement reçu (banque / comptes clients). Idempotent : un appel "
+                "répété ne recrée rien. Une facture illisible est ignorée avec son code, jamais complétée. Rien n'est "
+                "définitif : chaque brouillon attend m5_valider_ecriture_comptable (N4)." + _MENTION_GL
+            ),
+            parametres={"type": "object", "properties": {
+                "horodatage": _HORODATAGE_GL, "limite": _PAGE_GL["limite"]},
+                "required": ["horodatage"], "additionalProperties": False},
+            fonction=generer_brouillons_comptables,
+            autonomie=Autonomie.T1,
+            niveau=NIVEAU_BROUILLON_COMPTABLE,
+        ),
+        Outil(
+            nom="m5_proposer_contre_passation",
+            description=(
+                "Propose en BROUILLON la contre-passation d'une écriture DÉFINITIVE (lignes inversées, liée à "
+                "l'original) : la seule correction possible, une définitive ne se modifie jamais. Motif obligatoire ; "
+                "date dans une période ouverte, pas avant l'original. Refuse un brouillon, une écriture déjà "
+                "contre-passée ou une contre-passation. À valider (N4) comme toute écriture." + _MENTION_GL
+            ),
+            parametres={"type": "object", "properties": {
+                "ecriture_id": {"type": "string"}, "date_effet": _DATE_GL,
+                "motif": {"type": "string", "description": "Pourquoi : une ligne, 300 caractères au plus."},
+                "horodatage": _HORODATAGE_GL},
+                "required": ["ecriture_id", "date_effet", "motif", "horodatage"], "additionalProperties": False},
+            fonction=proposer_contre_passation_comptable,
+            autonomie=Autonomie.T1,
+            niveau=NIVEAU_BROUILLON_COMPTABLE,
+        ),
+        Outil(
+            nom="m5_valider_ecriture_comptable",
+            description=(
+                "Rend DÉFINITIVE une écriture brouillon (N4, écriture finale) : l'appel attend dans la file du "
+                "propriétaire ou de la finance, et l'outil n'agit que pour l'humain qui l'a approuvée "
+                "(REJ-GL-HUMAIN-REQUIS sinon, y compris en mode autonome). Revérifie l'équilibre, les comptes actifs "
+                "et la période ouverte. Ne meut aucun argent." + _MENTION_GL
+            ),
+            parametres={"type": "object", "properties": {
+                "ecriture_id": {"type": "string"}, "horodatage": _HORODATAGE_GL},
+                "required": ["ecriture_id", "horodatage"], "additionalProperties": False},
+            fonction=valider_ecriture_comptable,
+            autonomie=Autonomie.T2,
+            niveau=NIVEAU_ECRITURE_COMPTABLE_FINALE,
+        ),
+        Outil(
+            nom="m5_clore_periode_comptable",
+            description=(
+                "Clôt le mois AAAA-MM et tout ce qui le précède (N4) : plus aucune écriture datée au plus tard à sa "
+                "fin ne peut être proposée ni validée. File du propriétaire ou de la finance ; REJ-GL-HUMAIN-REQUIS "
+                "pour un agent seul. Rend les totaux et les brouillons laissés en plan. Aucune réouverture en tranche "
+                "1." + _MENTION_GL
+            ),
+            parametres={"type": "object", "properties": {
+                "periode": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$"}, "horodatage": _HORODATAGE_GL},
+                "required": ["periode", "horodatage"], "additionalProperties": False},
+            fonction=clore_periode_comptable,
+            autonomie=Autonomie.T2,
+            niveau=NIVEAU_ECRITURE_COMPTABLE_FINALE,
         ),
     )

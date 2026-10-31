@@ -99,6 +99,17 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
 #
 # La prévision ne projette rien : ni vente à venir, ni retard de client, ni moyenne. Ce qui n'est pas connu n'y est pas.
 #
+# Grand livre (tranche 1, docs/grand-livre.md) : le plan comptable par défaut est contracts/plan_comptable_pme_qc.v1.yaml.
+# Le client l'ÉTEND sous la même clé `configuration` (relu à chaque appel ; un compte désactivé reste lisible, mais
+# aucune nouvelle écriture ne le mouvemente ; une extension invalide est refusée en entier, REJ-GL-PLAN-INVALIDE). Forme
+# (EXEMPLES fictifs ; numéros à quatre chiffres : 1xxx actif, 2xxx passif, 3xxx capitaux, 4xxx produits, 5-9xxx charges) :
+#
+#   configuration:
+#     grand_livre:
+#       comptes_ajoutes:
+#         - {numero: "5450", nom: "Location d'équipement", type: charges}
+#       comptes_desactives: ["5600"]
+#
 modeles:
   defaut: standard
   extraction: rapide

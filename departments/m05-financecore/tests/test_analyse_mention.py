@@ -80,7 +80,13 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
         # M5.16 : dossier stratégique préparatoire depuis les sources FinanceCore
         "m5_preparer_dossier_decision_cfo", "m5_preparer_brut_regulier", "m5_preparer_dossier_webras",
         "m5_prevoir_tresorerie_contrats"}
+    # Grand livre (tranche 1) : ses huit sorties comptables portent la mention ET la mention comptable.
+    attendues |= {
+        "m5_lire_balance_verification", "m5_lire_grand_livre_compte", "m5_rapprocher_grand_livre",
+        "m5_proposer_ecriture_comptable", "m5_generer_brouillons_comptables", "m5_proposer_contre_passation",
+        "m5_valider_ecriture_comptable", "m5_clore_periode_comptable"}
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
+    assert analyse.SORTIES_COMPTABLES <= analyse.SORTIES_D_ANALYSE
     assert "m5_envoyer_facture" in analyse.SORTIES_HORS_ANALYSE
     assert "m5_enregistrer_paiement_facture" in analyse.SORTIES_HORS_ANALYSE
     assert "m5_enregistrer_echeancier_contrat" in analyse.SORTIES_HORS_ANALYSE
@@ -227,7 +233,9 @@ def _la_mention(reponse, nom):
     return corps
 
 
-@pytest.mark.parametrize("nom", sorted(analyse.SORTIES_D_ANALYSE))
+# Les sorties du grand livre (portée d'appareil fermée, N4 par la file) : leurs deux mentions sont prouvées sur chaque
+# sortie acceptée par tests/test_grand_livre_outils.py (`_accepte`).
+@pytest.mark.parametrize("nom", sorted(analyse.SORTIES_D_ANALYSE - analyse.SORTIES_COMPTABLES))
 def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, nom):
     _preparer_un_po()
     ident, revision = _preparer_une_facture(par_nom)
