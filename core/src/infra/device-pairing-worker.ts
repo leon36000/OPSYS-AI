@@ -7,8 +7,13 @@ import { runOpenClawStateWorkerOperation } from "../state/openclaw-state-worker-
 import { invalidatePairedCardRendererCache } from "./device-pairing-card-renderer.js";
 import { withDevicePairingLock } from "./device-pairing-lock.js";
 import { captureDevicePairingPublication } from "./device-pairing-publication.js";
-import type { DevicePairingCommitReceipt } from "./device-pairing-read.types.js";
+import type {
+  DevicePairingBindingFact,
+  DevicePairingCommitReceipt,
+  OperatorGrantProjection,
+} from "./device-pairing-read.types.js";
 import { listDevicePairingStoreRecordsReadOnly } from "./device-pairing-store-readonly.js";
+import { assertOperatorGrantProtocol } from "./device-pairing-worker-contract.js";
 import type {
   DevicePairingAdmissionFacts,
   DevicePairingWorkerOperations,
@@ -30,34 +35,68 @@ export const DevicePairingAuthorityRefusedError = resolveGlobalSingleton(
 );
 
 // The broker owns this private channel; domain kernels supply the discriminated facts.
+function isOperatorGrantChange(
+  value: unknown,
+): value is Extract<DevicePairingAdmissionFacts, { kind: "operator-grant-change-v1" }> {
+  return (
+    isRecord(value) &&
+    value.kind === "operator-grant-change-v1" &&
+    Array.isArray(value.deviceIds) &&
+    value.deviceIds.every((id) => typeof id === "string" && id.length > 0 && id === id.trim())
+  );
+}
+
 function admissionFacts(value: unknown): DevicePairingAdmissionFacts[] {
   if (
     !Array.isArray(value) ||
-    !value.every((entry) => isRecord(entry) && typeof entry.kind === "string")
+    !value.every(
+      (entry) =>
+        isRecord(entry) &&
+        typeof entry.kind === "string" &&
+        (entry.kind !== "operator-grant-change-v1" || isOperatorGrantChange(entry)),
+    )
   ) {
     throw new Error("Invalid pairing admission facts");
   }
-  // SAFETY: This private broker port only accepts the admitted backend's typed pairing facts.
+  // Existing domain facts retain their prior private broker contract; the new v1 fact is validated above.
   return value as DevicePairingAdmissionFacts[];
+}
+
+function isVersionedChangedFact(
+  value: unknown,
+): value is DevicePairingBindingFact & { operatorGrant: OperatorGrantProjection | null } {
+  if (!isRecord(value) || typeof value.deviceId !== "string") {
+    return false;
+  }
+  const grant = value.operatorGrant;
+  if (
+    grant !== null &&
+    (!isRecord(grant) ||
+      typeof grant.tokenHash !== "string" ||
+      !/^[0-9a-f]{64}$/.test(grant.tokenHash) ||
+      typeof grant.securityHash !== "string" ||
+      !/^[0-9a-f]{64}$/.test(grant.securityHash))
+  ) {
+    return false;
+  }
+  const binding = value.binding;
+  return (
+    binding === null ||
+    (isRecord(binding) &&
+      typeof binding.identity === "string" &&
+      (binding.generation === undefined || typeof binding.generation === "string"))
+  );
 }
 
 function commitReceipt(value: unknown): DevicePairingCommitReceipt {
   if (
     !isRecord(value) ||
     value.kind !== "devicePairing" ||
+    value.operatorGrantVersion !== 1 ||
     typeof value.beforeRevision !== "string" ||
     typeof value.revision !== "string" ||
     !Array.isArray(value.changed) ||
-    !value.changed.every(
-      (entry) =>
-        isRecord(entry) &&
-        typeof entry.deviceId === "string" &&
-        (entry.binding === null ||
-          (isRecord(entry.binding) &&
-            typeof entry.binding.identity === "string" &&
-            (entry.binding.generation === undefined ||
-              typeof entry.binding.generation === "string"))),
-    )
+    !value.changed.every(isVersionedChangedFact)
   ) {
     throw new Error("Invalid pairing commit receipt");
   }
@@ -93,12 +132,14 @@ function commitReceipt(value: unknown): DevicePairingCommitReceipt {
   }
   return {
     kind: "devicePairing",
+    operatorGrantVersion: 1,
     beforeRevision: value.beforeRevision,
     revision: value.revision,
     ...(tokensReplaced ? { tokensReplaced } : {}),
     ...(workerEnvironment ? { workerEnvironment } : {}),
     changed: value.changed.map((entry) => ({
       deviceId: entry.deviceId,
+      operatorGrant: entry.operatorGrant === null ? null : { ...entry.operatorGrant },
       binding:
         entry.binding === null
           ? null
@@ -130,13 +171,43 @@ export function executeDevicePairingMutation<Key extends keyof DevicePairingWork
     options.assertCurrent?.();
     const publication = captureDevicePairingPublication(context.admission);
     const mutation = publication.beginMutation();
+    // Reserve known sensitive targets even if a legacy worker omits the v1 fact.
+    // Pure verification/last-use and unrelated node-token writes never stage an operator key.
+    const requested: { type: string; input: unknown } = captured;
+    if (isRecord(requested.input) && typeof requested.input.deviceId === "string") {
+      const id = requested.input.deviceId.trim();
+      const role =
+        typeof requested.input.role === "string" ? requested.input.role.trim() : undefined;
+      const sensitiveToken =
+        [
+          "devicePairing.rotateToken",
+          "devicePairing.revokeToken",
+          "devicePairing.ensureToken",
+        ].includes(requested.type) && role === "operator";
+      const sensitiveRemoval =
+        requested.type === "devicePairing.remove" ||
+        (requested.type === "devicePairing.removeRole" && role === "operator");
+      const sensitiveMetadata =
+        requested.type === "devicePairing.updateMetadata" &&
+        isRecord(requested.input.patch) &&
+        ("clientId" in requested.input.patch || "clientMode" in requested.input.patch);
+      if (id && (sensitiveToken || sensitiveRemoval || sensitiveMetadata)) {
+        mutation.stageOperatorChanges([id]);
+      }
+    }
     let admission: SqliteWorkerOperationAdmission | undefined;
     let published = false;
     let publishEnvironment: ReturnType<typeof reserveWorkerEnvironmentNativePublication>;
     const install = () => {
       const committed = admission?.committed;
       if (committed && !published) {
-        const receipt = commitReceipt(committed.facts);
+        let receipt: DevicePairingCommitReceipt;
+        try {
+          receipt = commitReceipt(committed.facts);
+        } catch (error) {
+          mutation.failOperatorFacts();
+          throw error;
+        }
         const environment = receipt.workerEnvironment;
         let environmentPublished = false;
         if (environment && publishEnvironment) {
@@ -173,14 +244,37 @@ export function executeDevicePairingMutation<Key extends keyof DevicePairingWork
           assertCurrent: options.assertCurrent,
           createAdmission: () => {
             let committed = false;
+            let operatorProtocolNegotiated = false;
             admission = createSqliteWorkerOperationAdmission((request, grant) => {
               if (committed || (request.stage !== "transaction" && request.stage !== "commit")) {
                 throw new Error("Pairing admission requested out of order");
               }
               context.admission.assertCurrent();
               options.assertCurrent?.();
+              const firstProtocolRequest = !operatorProtocolNegotiated;
+              operatorProtocolNegotiated = assertOperatorGrantProtocol(
+                request.stage,
+                request.facts,
+                operatorProtocolNegotiated,
+              );
               for (const facts of admissionFacts(request.facts)) {
-                options.admit?.(facts);
+                if (firstProtocolRequest && facts.kind === "operator-grant-protocol-v1") {
+                  continue;
+                }
+                if (facts.kind === "operator-grant-change-v1") {
+                  if (!isOperatorGrantChange(facts)) {
+                    throw new Error("Invalid operator grant change facts");
+                  }
+                  mutation.stageOperatorChanges(facts.deviceIds);
+                } else {
+                  if (facts.kind === "pairing-approval" && facts.pending.deviceId) {
+                    mutation.stageOperatorChanges([facts.pending.deviceId]);
+                  }
+                  if (facts.kind === "pairing-prune") {
+                    mutation.stageOperatorChanges(facts.deviceIds);
+                  }
+                  options.admit?.(facts);
+                }
               }
               if (request.stage === "commit" && captured.type === "bootstrap.consume") {
                 publishEnvironment = reserveWorkerEnvironmentNativePublication(

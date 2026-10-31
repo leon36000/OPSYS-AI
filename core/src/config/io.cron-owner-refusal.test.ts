@@ -1,8 +1,12 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { expect, it, vi } from "vitest";
 import type {
   CronOwnerProjection,
   LegacyCronRepairState,
 } from "../commands/doctor/cron/legacy-repair.js";
+import { readActiveGatewayLockIdentity, resolveGatewayLockPaths } from "../infra/gateway-lock.js";
 import {
   isCronOwnerWriteRefusalError,
   prepareCronOwnerWriteRefusal,
@@ -34,6 +38,53 @@ const deps = (
   materializeLegacyDefaultCronJobOwners: vi.fn(async () => 0),
 });
 const cfg = { agents: { entries: { ops: {} } } };
+
+it.each([
+  { lockKind: "configLockPath", stage: "admission" },
+  { lockKind: "stateLockPath", stage: "admission" },
+  { lockKind: "configLockPath", stage: "recheck" },
+  { lockKind: "stateLockPath", stage: "recheck" },
+] as const)(
+  "refuses a malformed $lockKind during ownership $stage",
+  async ({ lockKind, stage }) => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "opsys-cron-gateway-"));
+    const env = {
+      HOME: home,
+      OPENCLAW_STATE_DIR: path.join(home, "state"),
+      OPENCLAW_CONFIG_PATH: path.join(home, "openclaw.json"),
+      OPENCLAW_LOAD_SHELL_ENV: "0",
+    };
+    try {
+      await fs.mkdir(env.OPENCLAW_STATE_DIR, { recursive: true });
+      await fs.writeFile(env.OPENCLAW_CONFIG_PATH, JSON.stringify(cfg), { mode: 0o600 });
+      const storePath = path.join(env.OPENCLAW_STATE_DIR, "cron", "jobs.json");
+      const plan = await prepareCronOwnerWriteRefusal(cfg, { storePath, env });
+      const lockPath = resolveGatewayLockPaths(env)[lockKind];
+      expect(path.relative(home, lockPath).startsWith("..")).toBe(false);
+      await fs.mkdir(path.dirname(lockPath), { recursive: true });
+      const malformed = "not-a-valid-gateway-lock";
+      await fs.writeFile(lockPath, malformed, { mode: 0o600 });
+
+      // Discovery is deliberately permissive. Mutation preflight must preserve
+      // the real helper's uncertainty without repairing or removing this lock.
+      await expect(readActiveGatewayLockIdentity({ env })).resolves.toBeUndefined();
+      await expect(
+        readActiveGatewayLockIdentity({ env, requireInspection: true }),
+      ).rejects.toThrow();
+      const result =
+        stage === "recheck"
+          ? plan.recheck()
+          : prepareCronOwnerWriteRefusal(cfg, { storePath, env });
+      await expect(result).rejects.toMatchObject({
+        code: "CONFIG_WRITE_REJECTED",
+        refusal: "cron-owner-safety",
+      });
+      expect(await fs.readFile(lockPath, "utf8")).toBe(malformed);
+    } finally {
+      await fs.rm(home, { recursive: true, force: true });
+    }
+  },
+);
 
 it("allows an ownership-safe live Gateway with a projected dynamic row and rechecks at commit", async () => {
   const injected = deps(

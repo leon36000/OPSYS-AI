@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { resolveGlobalSingleton } from "../shared/global-singleton.js";
 import type { OpenClawStateDatabaseReadAdmission } from "../state/openclaw-state-db-async-lifecycle.js";
 import {
@@ -9,6 +10,7 @@ import type {
   DevicePairingBinding,
   DevicePairingBindingFact,
   DevicePairingCommitReceipt,
+  OperatorGrantProjection,
 } from "./device-pairing-read.types.js";
 
 type Publication = {
@@ -21,6 +23,9 @@ type Publication = {
   complete: boolean;
   rows: Map<string, DevicePairingBinding | null>;
   pending: Set<() => void>;
+  operatorRows: Map<string, OperatorGrantProjection>;
+  operatorPending: Map<string, object>;
+  operatorUnknown: boolean;
 };
 
 const publications = resolveGlobalSingleton(
@@ -76,6 +81,9 @@ export function captureDevicePairingPublication(admission: OpenClawStateDatabase
       complete: false,
       rows: new Map(),
       pending: new Set(),
+      operatorRows: new Map(),
+      operatorPending: new Map(),
+      operatorUnknown: false,
     };
   }
   publications.set(path, publication);
@@ -86,6 +94,17 @@ export function captureDevicePairingPublication(admission: OpenClawStateDatabase
   const install = (rows: readonly DevicePairingBindingFact[]) => {
     for (const row of rows) {
       captured.rows.set(row.deviceId, row.binding ? { ...row.binding } : null);
+      const prior = captured.operatorRows.get(row.deviceId);
+      const next = row.operatorGrant;
+      if (!next) {
+        captured.operatorRows.delete(row.deviceId);
+      } else if (
+        !prior ||
+        prior.tokenHash !== next.tokenHash ||
+        prior.securityHash !== next.securityHash
+      ) {
+        captured.operatorRows.set(row.deviceId, { ...next });
+      }
     }
   };
   return {
@@ -119,6 +138,18 @@ export function captureDevicePairingPublication(admission: OpenClawStateDatabase
       if (complete || captured.revision !== revision) {
         captured.rows.clear();
         captured.complete = false;
+        if (!complete) {
+          captured.operatorRows.clear();
+        }
+      }
+      if (complete) {
+        const ids = new Set(rows.map((row) => row.deviceId));
+        for (const id of captured.operatorRows.keys()) {
+          if (!ids.has(id)) {
+            captured.operatorRows.delete(id);
+          }
+        }
+        captured.operatorUnknown = rows.some((row) => row.operatorGrant === undefined);
       }
       captured.revision = revision;
       install(rows);
@@ -131,7 +162,22 @@ export function captureDevicePairingPublication(admission: OpenClawStateDatabase
       captured.blocked = true;
       const mutation = {};
       captured.mutation = mutation;
+      const operatorKeys = new Set<string>();
       return {
+        failOperatorFacts() {
+          captured.operatorUnknown = true;
+          captured.operatorRows.clear();
+        },
+        stageOperatorChanges(deviceIds: readonly string[]) {
+          for (const id of deviceIds) {
+            const current = captured.operatorPending.get(id);
+            if (current && current !== mutation) {
+              throw new Error("Operator grant mutation already pending");
+            }
+            captured.operatorPending.set(id, mutation);
+            operatorKeys.add(id);
+          }
+        },
         publish(receipt: DevicePairingCommitReceipt) {
           if (publications.get(path) !== captured || captured.mutation !== mutation) {
             return;
@@ -139,8 +185,27 @@ export function captureDevicePairingPublication(admission: OpenClawStateDatabase
           if (receipt.beforeRevision !== captured.revision) {
             captured.complete = false;
             captured.rows.clear();
+            captured.operatorRows.clear();
+            captured.operatorUnknown = true;
           }
-          install(receipt.changed);
+          if (
+            receipt.operatorGrantVersion !== 1 ||
+            receipt.changed.some((row) => row.operatorGrant === undefined)
+          ) {
+            // Legacy/unknown operator facts are not authoritative; node facts remain independent.
+            captured.operatorRows.clear();
+            captured.operatorUnknown = true;
+            for (const row of receipt.changed) {
+              captured.rows.set(row.deviceId, row.binding ? { ...row.binding } : null);
+            }
+          } else {
+            install(receipt.changed);
+          }
+          for (const id of operatorKeys) {
+            if (captured.operatorPending.get(id) === mutation) {
+              captured.operatorPending.delete(id);
+            }
+          }
           captured.revision = receipt.revision;
           captured.blocked = false;
           captured.mutation = undefined;
@@ -149,6 +214,11 @@ export function captureDevicePairingPublication(admission: OpenClawStateDatabase
         },
         finish(settled: boolean) {
           if (settled && captured.mutation === mutation) {
+            for (const id of operatorKeys) {
+              if (captured.operatorPending.get(id) === mutation) {
+                captured.operatorPending.delete(id);
+              }
+            }
             captured.mutation = undefined;
             captured.epoch++;
           }
@@ -183,4 +253,45 @@ export function getPublishedPairedDeviceBinding(
   }
   const binding = publication.rows.get(deviceId);
   return binding ? { ...binding } : null;
+}
+
+/** Capture the exact verified operator grant; unknown or pending facts refuse synchronously. */
+export function capturePublishedOperatorGrant(
+  deviceId: string,
+  token: string,
+  expected: OperatorGrantProjection | null,
+  baseDir?: string,
+): () => boolean {
+  const path = resolveOpenClawStateSqlitePath(
+    baseDir ? { ...process.env, OPENCLAW_STATE_DIR: baseDir } : process.env,
+  );
+  const state = publications.get(path);
+  for (const service of state?.pending ?? []) {
+    service();
+  }
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const captured = state?.operatorRows.get(deviceId);
+  if (
+    !state ||
+    state.operatorUnknown ||
+    state.operatorPending.has(deviceId) ||
+    !captured ||
+    !expected ||
+    expected.tokenHash !== tokenHash ||
+    captured.tokenHash !== tokenHash ||
+    captured.securityHash !== expected.securityHash
+  ) {
+    return () => false;
+  }
+  return () => {
+    for (const service of state.pending) {
+      service();
+    }
+    return (
+      publications.get(path) === state &&
+      !state.operatorUnknown &&
+      !state.operatorPending.has(deviceId) &&
+      state.operatorRows.get(deviceId) === captured
+    );
+  };
 }

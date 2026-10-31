@@ -390,7 +390,7 @@ describe("HTTP gateway owner profiles", () => {
   it("shares the durable owner across auth methods and preserves an edited name", async () => {
     await withOpenClawTestState({ label: "http-owner-profile" }, async () => {
       let profileId: string | undefined;
-      for (const method of ["token", "password", "device-token", "none"] as const) {
+      for (const method of ["token", "password", "none"] as const) {
         const result = await authenticate(method);
         expect(result.ok).toBe(true);
         if (!result.ok) {
@@ -409,6 +409,13 @@ describe("HTTP gateway owner profiles", () => {
         }
         expect(result.requestAuth.operatorRolePolicy).toBeUndefined();
       }
+      // "device-token" is only ever produced after the paired-device grant was verified and captured
+      // (verifyHttpOperatorDeviceToken). A bare "device-token" result without that captured grant is no
+      // longer trusted: it must be refused instead of sharing the durable owner.
+      expect(await authenticate("device-token")).toEqual({
+        ok: false,
+        authResult: { ok: false, reason: "unauthorized" },
+      });
     });
   });
 

@@ -60,12 +60,14 @@ async function assertSafe(
   deps: CronOwnerRefusalDeps,
   provenOwnerAgentId?: string,
 ): Promise<void> {
-  const active = await deps.readActiveGatewayLockIdentity({ env }).catch((error: unknown) => {
-    throw refused(
-      `Config write refused: cannot inspect the Gateway lock (${formatErrorMessage(error)}).${RETRY}`,
-      error,
-    );
-  });
+  const active = await deps
+    .readActiveGatewayLockIdentity({ env, requireInspection: true })
+    .catch((error: unknown) => {
+      throw refused(
+        `Config write refused: cannot inspect the Gateway lock (${formatErrorMessage(error)}).${RETRY}`,
+        error,
+      );
+    });
   const state = await deps
     .loadLegacyCronRepairState({ cfg, storePath, env, readOnly: true })
     .catch((error: unknown) => {

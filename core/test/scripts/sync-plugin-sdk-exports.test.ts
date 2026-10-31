@@ -12,6 +12,8 @@ const declarationConfigs = [
   { file: "extensions/tsconfig.package-boundary.paths.json", prefix: "../" },
   { file: "extensions/xai/tsconfig.json", prefix: "../../" },
 ] as const;
+const xaiConfigFile = declarationConfigs[1].file;
+const xaiOmittedAliases = ["channel-secret-owner-runtime", "channel-secret-tts-runtime"];
 const outputFiles = [
   "package.json",
   "packages/plugin-sdk/package.json",
@@ -50,8 +52,8 @@ function readConfig(
   return JSON.parse(fs.readFileSync(path.join(root, file), "utf8"));
 }
 
-function readOutputs(root: string) {
-  return outputFiles.map((file) => fs.readFileSync(path.join(root, file), "utf8"));
+function readOutputs(root: string, files: readonly string[] = outputFiles) {
+  return files.map((file) => fs.readFileSync(path.join(root, file), "utf8"));
 }
 
 function readPackage(root: string): { exports: Record<string, unknown>; files: string[] } {
@@ -67,7 +69,7 @@ function createFixture(inventory?: { entries: string[]; privateEntries: string[]
     privateList,
     "scripts/lib/plugin-sdk-deprecated-barrel-subpaths.json",
     "scripts/lib/plugin-sdk-deprecated-public-subpaths.json",
-    ...outputFiles,
+    ...outputFiles.filter((outputFile) => outputFile !== xaiConfigFile),
   ]) {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     fs.copyFileSync(path.join(repoRoot, file), path.join(root, file));
@@ -101,6 +103,31 @@ function createFixture(inventory?: { entries: string[]; privateEntries: string[]
       });
     }
   } else {
+    // fictif: true. A retained XAI fixture must not depend on the fork keeping that extension.
+    const entries: string[] = JSON.parse(fs.readFileSync(path.join(root, entryList), "utf8"));
+    const privateEntries: string[] = JSON.parse(
+      fs.readFileSync(path.join(root, privateList), "utf8"),
+    );
+    writeJson(root, xaiConfigFile, {
+      compilerOptions: {
+        paths: {
+          "openclaw/plugin-sdk/*": ["../../dist/plugin-sdk/*.d.ts"],
+          ...Object.fromEntries(
+            entries
+              .filter(
+                (entry) =>
+                  !entry.includes("/") &&
+                  privateEntries.includes(entry) &&
+                  !xaiOmittedAliases.includes(entry),
+              )
+              .map((entry) => [
+                `openclaw/plugin-sdk/${entry}`,
+                [`../../packages/plugin-sdk/dist/src/plugin-sdk/${entry}.d.ts`],
+              ]),
+          ),
+        },
+      },
+    });
     // Registration reads facade names, not their implementation or dependencies.
     for (const file of fs.readdirSync(path.join(repoRoot, "packages/plugin-sdk/src"))) {
       if (file.endsWith(".ts")) {
@@ -134,6 +161,71 @@ function expectStableSync(root: string) {
 }
 
 describe("plugin SDK registration CLI", () => {
+  it("checks and syncs a pruned fork without creating the absent XAI extension", () => {
+    const root = createFixture();
+    const xaiDir = path.join(root, "extensions/xai");
+    fs.rmSync(xaiDir, { recursive: true });
+    const retainedOutputs = outputFiles.filter((file) => file !== xaiConfigFile);
+    const before = readOutputs(root, retainedOutputs);
+
+    for (const args of [["--check"], []]) {
+      const result = runSync(root, ...args);
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(readOutputs(root, retainedOutputs)).toEqual(before);
+      expect(fs.existsSync(xaiDir)).toBe(false);
+    }
+  });
+
+  it("retains the XAI private alias contract when the extension is present", () => {
+    const root = createFixture({
+      entries: ["public-entry", "private-entry", ...xaiOmittedAliases],
+      privateEntries: ["private-entry", ...xaiOmittedAliases],
+    });
+    const result = runSync(root);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(readConfig(root, xaiConfigFile).compilerOptions.paths).toEqual({
+      "openclaw/plugin-sdk/*": ["../../dist/plugin-sdk/*.d.ts"],
+      "openclaw/plugin-sdk/custom": [
+        "../../packages/plugin-sdk/dist/src/plugin-sdk/custom.d.ts",
+        "./override.d.ts",
+      ],
+      "openclaw/plugin-sdk/private-entry": [
+        "../../packages/plugin-sdk/dist/src/plugin-sdk/private-entry.d.ts",
+      ],
+    });
+    expectStableSync(root);
+  });
+
+  it.each([
+    { label: "missing config", contents: null },
+    { label: "invalid JSON", contents: "{fictif:" },
+    { label: "missing paths", contents: '{"compilerOptions":{}}' },
+    { label: "array paths", contents: '{"compilerOptions":{"paths":[]}}' },
+    { label: "non-string target", contents: '{"compilerOptions":{"paths":{"custom":[7]}}}' },
+  ])("rejects retained XAI with $label instead of skipping it", ({ contents }) => {
+    const root = createFixture();
+    const configPath = path.join(root, xaiConfigFile);
+    if (contents === null) {
+      fs.unlinkSync(configPath);
+    } else {
+      fs.writeFileSync(configPath, contents);
+    }
+    const retainedOutputs = outputFiles.filter((file) => file !== xaiConfigFile);
+    const before = readOutputs(root, retainedOutputs);
+
+    for (const args of [["--check"], []]) {
+      const result = runSync(root, ...args);
+
+      expect(result.status, result.stderr).toBe(1);
+      expect(result.stdout).not.toContain("synced");
+      expect(readOutputs(root, retainedOutputs)).toEqual(before);
+      expect(fs.existsSync(path.dirname(configPath))).toBe(true);
+      expect(fs.existsSync(configPath) ? fs.readFileSync(configPath, "utf8") : null).toBe(contents);
+    }
+  });
+
   it("detects files-only drift without writing, repairs it and stays byte-idempotent", () => {
     const root = createFixture();
     const original = readOutputs(root);
