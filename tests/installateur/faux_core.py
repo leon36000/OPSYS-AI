@@ -83,7 +83,7 @@ COMMANDES_DEPLACEES = (
     "departements", "verifier", "profils", "agents-base", "approbations", "personnes", "base", "evenements", "mode",
     "budgets",
     "services", "equipes", "meteo", "paliers", "openclaw", "appareils", "instance", "passerelle",
-    "memoire-developpement",
+    "memoire-developpement", "fournisseurs", "coffre",
 )
 
 

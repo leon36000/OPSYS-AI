@@ -45,6 +45,8 @@ export const OPSYS_METIER_MOVED_COMMANDS: readonly string[] = [
   "instance",
   "passerelle",
   "memoire-developpement",
+  "fournisseurs",
+  "coffre",
 ];
 
 export type OpsysMetierInvocation =
