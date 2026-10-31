@@ -1,0 +1,9 @@
+Sortie console d'origine du premier dépôt de la ronde 1 (usage rapporté par le harnais des sous-agents : 86 409 et 84 459 jetons).
+Le fichier depots.json de ce premier passage a été ÉCRASÉ par le relancement avec l'estimation (erreur de procédure : nom de fichier
+identique) ; ces deux lignes sont la copie textuelle de la sortie console avant l'écrasement.
+
+croissance_marketing |  | {"ok": false, "erreur": "refus_metier", "details": "REJ-TOUR-RESERVATION : usage réel au-delà du plafond réservé : dépôt refusé, à réconcilier à la main"}
+contraintes_inventaire |  | {"ok": false, "erreur": "refus_metier", "details": "REJ-TOUR-RESERVATION : usage réel au-delà du plafond réservé : dépôt refusé, à réconcilier à la main"}
+
+Conséquence observée ensuite : ces usages réconciliés ont épuisé le budget agent (« budget agent insuffisant ; disponible 0 tokens »),
+d'où l'échec de toute nouvelle réservation sur cette base (voir depots.json / depots-estimation.json, copie du second passage).

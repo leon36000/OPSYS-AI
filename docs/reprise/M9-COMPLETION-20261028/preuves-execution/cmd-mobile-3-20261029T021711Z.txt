@@ -1,0 +1,1 @@
+cmd: pytest -p no:cacheprovider tests/test_m9_contrat_mobile_admin.py tests/test_ci_departements.py tests/test_portees_appareil.py -q | sha=fabe5ae93c07a2629457c98789f916fd6359f6f9 nproc=2 ulimit_v=6GB

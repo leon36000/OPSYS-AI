@@ -130,7 +130,15 @@ class Departement:
         module = importlib.import_module(self.module_outils)
         fabrique = getattr(module, "outils", None)
         ports = dict(ports_prives or {})
-        if ports and (
+        # Raccord M9 : un seul port, la lecture des producteurs (`opsys.lecteurs_m9`), pour la fabrique d'outils M9.
+        port_m9 = (
+            self.id == "m09-strategic-intelligence"
+            and self.module_outils == "m9_strategic_intelligence.outils"
+            and bool(ports)
+            and set(ports) <= {"lecteur_producteurs_m9", "proposeur_actions_m9"}
+            and all(callable(port) for port in ports.values())
+        )
+        if ports and not port_m9 and (
             self.id != "m05-financecore"
             or self.module_outils != "m5_financecore.outils"
             or not set(ports) <= {"lecteur_heures_m4", "lecteur_campagne_m7"}

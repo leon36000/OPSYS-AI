@@ -1,0 +1,12 @@
+{
+ "methode": "ceil((octets entree + octets sortie)/3)",
+ "source": "estimation_deterministe_non_mesuree",
+ "valeurs": {
+  "croissance_marketing": 3671,
+  "conseiller_pdg": 3807
+ },
+ "tokens_rapportes_par_le_harnais_sous_agent": {
+  "croissance_marketing": 85340,
+  "conseiller_pdg": 85544
+ }
+}

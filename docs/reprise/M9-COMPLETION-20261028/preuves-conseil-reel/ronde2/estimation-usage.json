@@ -1,0 +1,12 @@
+{
+ "methode": "ceil((octets entree + octets sortie)/3)",
+ "source": "estimation_deterministe_non_mesuree",
+ "valeurs": {
+  "croissance_marketing": 4337,
+  "contraintes_inventaire": 3119
+ },
+ "tokens_rapportes_par_le_harnais_sous_agent": {
+  "croissance_marketing": 87181,
+  "contraintes_inventaire": 84408
+ }
+}

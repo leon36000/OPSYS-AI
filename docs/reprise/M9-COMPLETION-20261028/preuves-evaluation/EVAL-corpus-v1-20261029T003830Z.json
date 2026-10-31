@@ -1,0 +1,96 @@
+{
+ "biais_connus": [
+  "corpus fictif, rédigé en français par un seul auteur : aucune diversité d'auteurs ni de formulations",
+  "petit effectif par catégorie : les intervalles sont larges, un taux élevé ne vaut pas confiance générale",
+  "couche déterministe seulement : aucune sortie de modèle réel, ni fidélité ni hallucination de modèle mesurées",
+  "les attentes suivent les règles écrites du contrat ; une règle absente du contrat n'est pas testée"
+ ],
+ "corpus": "corpus-v1",
+ "corpus_sha256": "579bd21a614c93cfb3547e822871ea23c41eca58af46476394470c4a19de529c",
+ "cout_modele": {
+  "raison": "aucun appel de modèle : couche déterministe seulement",
+  "tokens": 0
+ },
+ "global": {
+  "echecs_total": 0,
+  "effectif": 61,
+  "reussites": 61,
+  "taux": "1.0000",
+  "wilson95": [
+   "0.9408",
+   "1.0000"
+  ]
+ },
+ "latence_par_cas_ms": 0.041,
+ "latence_secondes_harnais": 0.002521,
+ "limites": [
+  "Un taux élevé sur un petit effectif ne prouve ni l'absence d'hallucination ni une confiance générale.",
+  "La qualification du conseil avec un modèle réel reste ouverte et séparée de cette mesure."
+ ],
+ "modele_reel": false,
+ "par_categorie": {
+  "abstention_donnees_manquantes": {
+   "echecs": [],
+   "effectif": 8,
+   "reussites": 8,
+   "taux": "1.0000",
+   "wilson95": [
+    "0.6756",
+    "1.0000"
+   ]
+  },
+  "demandes_et_injection": {
+   "echecs": [],
+   "effectif": 6,
+   "reussites": 6,
+   "taux": "1.0000",
+   "wilson95": [
+    "0.6097",
+    "1.0000"
+   ]
+  },
+  "fidelite_citation": {
+   "echecs": [],
+   "effectif": 16,
+   "reussites": 16,
+   "taux": "1.0000",
+   "wilson95": [
+    "0.8064",
+    "1.0000"
+   ]
+  },
+  "gouvernance": {
+   "echecs": [],
+   "effectif": 13,
+   "reussites": 13,
+   "taux": "1.0000",
+   "wilson95": [
+    "0.7719",
+    "1.0000"
+   ]
+  },
+  "inference": {
+   "echecs": [],
+   "effectif": 10,
+   "reussites": 10,
+   "taux": "1.0000",
+   "wilson95": [
+    "0.7225",
+    "1.0000"
+   ]
+  },
+  "semantique": {
+   "echecs": [],
+   "effectif": 8,
+   "reussites": 8,
+   "taux": "1.0000",
+   "wilson95": [
+    "0.6756",
+    "1.0000"
+   ]
+  }
+ },
+ "portee": "couche déterministe de M9 (admission, gouvernance, sémantique, abstention)",
+ "type": "EVALUATION_M9",
+ "version": "2026-10-28.1"
+}

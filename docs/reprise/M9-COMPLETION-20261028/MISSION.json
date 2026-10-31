@@ -1,0 +1,68 @@
+{
+  "schema": "opsys.parallel-mission.v3",
+  "id": "M9-COMPLETION-INTEGRALE-20261028",
+  "title": "M9 — direction IA complète et qualifiée",
+  "intended_executor": "Claude Code",
+  "state": "PREPARED_FOR_HUMAN_LAUNCH_NOT_STARTED",
+  "goal": "Complétion entière M9.1–M9.23, critères et gates conservés",
+  "repository": "https://github.com/leon36000/OPSYS-AI",
+  "base": "3ab7692f041892ec2af0cab6f241a715edac2d50",
+  "branch": "mission/claude-m9-direction-complete-20261028",
+  "pr_base": "codex/restructuration-2026-09-30",
+  "own": [
+    "departments/m09-strategic-intelligence/**",
+    "src/opsys/console/strategie_suivis_ui.py",
+    "new console components exclusively M9",
+    "dedicated M9 tests",
+    "docs/grs/strategie/**",
+    "docs/reprise/M9-COMPLETION-20261028/**",
+    "docs/research/M9-COMPLETION-20261028/**"
+  ],
+  "shared_separate_commits": [
+    "minimal M9 routing in src/opsys/console/metier.py and application.py",
+    "M9 event/port/profile exports only after owner reconciliation",
+    "necessary catalogue/roles deltas recalculated from actual combined manifests"
+  ],
+  "reserved": [
+    "core/**",
+    "src/opsys/configuration*",
+    "Core/mail/Host",
+    "M4 active visits mission",
+    "M5 active cost mission",
+    "M5 payroll PR854",
+    "generic storage/identity/approvals/permissions owners"
+  ],
+  "mobile": "M9.22 retained; final phase after large server requirements; no premature app work or completeness claim",
+  "authorization": [
+    "reversible implementation",
+    "private QA dependencies",
+    "bounded useful subagents",
+    "normal own-branch commits and pushes",
+    "draft PR"
+  ],
+  "forbidden": [
+    "production or deployment",
+    "real business data",
+    "extracting/copying/exposing real secret values",
+    "payments or purchases",
+    "effective machine/account rights expansion or unauthorized live grants",
+    "external sending/publishing except explicitly authorized normal own-branch Git commits/pushes and draft PR",
+    "force-push",
+    "merging a PR"
+  ],
+  "quality": "Full source-to-effect and user-interface evidence; no completion by test counts or excluding gates",
+  "external_chat_started": false,
+  "resources": {
+    "initial_cpus": 2,
+    "initial_ram_gib": 2,
+    "swap": 0,
+    "initial_pids": 128,
+    "initial_seconds_per_qa_batch": 600,
+    "max_simultaneous_qa_jobs": 2,
+    "max_development_subagents": 2
+  },
+  "new_product_models_or_services_invoked_to_prepare_pack": 0,
+  "coordinator_private_commits_included": false,
+  "permission_clarification": "Limited M9 product permission wiring can be prepared/tested in clone/fixtures under owner review; no live activation or generic authority replacement.",
+  "credential_clarification": "Existing authorized runtime may resolve its existing credential references for declared bounded QA; agent never extracts/exposes values; no new backend or cost implicitly authorized."
+}

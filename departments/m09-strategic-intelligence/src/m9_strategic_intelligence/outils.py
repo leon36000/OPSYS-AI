@@ -81,6 +81,25 @@ from . import (
     lecture_alertes,
     lecture_strategique,
     observations_chantier,
+    outils_actions,
+    outils_cadrage_decision,
+    outils_conseil,
+    outils_direction,
+    outils_experiences,
+    outils_graphe,
+    outils_memoire,
+    outils_metriques_executives,
+    outils_plans,
+    outils_playbooks,
+    outils_previsions,
+    outils_priorites,
+    outils_questions_scenario,
+    outils_radars,
+    outils_reaudit_conseil,
+    outils_semantique,
+    outils_tendances,
+    outils_tissu,
+    outils_veille,
     rapport_activite,
     rapport_periode,
     rapport_strategique,
@@ -296,6 +315,15 @@ def consommateurs() -> dict[str, Any]:
 def outils(
     registre_cible: registre.RegistreSnapshots | None = None,
     alertes_cible: Any = None,
+    *,
+    lecteur_producteurs_m9: Any = None,
+    proposeur_actions_m9: Any = None,
+    captures_cible: Any = None,
+    sessions_cible: Any = None,
+    publications_cible: Any = None,
+    veille_cible: Any = None,
+    plans_cible: Any = None,
+    experiences_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -700,7 +728,7 @@ def outils(
                 cnx, charger_departements(), contexte.identite_appelante(), demande_id, decision, motif,
                 appareil=reception.appareil if reception is not None else None))
 
-    return (
+    outils_base = (
         Outil(
             nom="m9_etat_consolide",
             description=(
@@ -1257,5 +1285,48 @@ def outils(
             },
             fonction=clore_suivi_decision, autonomie=Autonomie.T1, niveau=Niveau.N3,
             roles_appareil=frozenset({"admin"}),
+        ),
+    )
+    return (
+        *outils_base,
+        *outils_tissu.construire_outils(
+            lecteur=lecteur_producteurs_m9, budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible
+        ),
+        *outils_conseil.construire_outils(
+            budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible, sessions_cible=sessions_cible
+        ),
+        *outils_graphe.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_actions.construire_outils(budget_sortie=BUDGET_SORTIE, proposeur=proposeur_actions_m9),
+        *outils_memoire.construire_outils(
+            budget_sortie=BUDGET_SORTIE, sessions_cible=sessions_cible, captures_cible=captures_cible
+        ),
+        *outils_experiences.construire_outils(
+            budget_sortie=BUDGET_SORTIE, experiences_cible=experiences_cible, captures_cible=captures_cible
+        ),
+        *outils_plans.construire_outils(
+            budget_sortie=BUDGET_SORTIE, plans_cible=plans_cible, captures_cible=captures_cible
+        ),
+        *outils_playbooks.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_veille.construire_outils(budget_sortie=BUDGET_SORTIE, veille_cible=veille_cible),
+        *outils_radars.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_previsions.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_semantique.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_metriques_executives.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_cadrage_decision.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_tendances.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_questions_scenario.construire_outils(budget_sortie=BUDGET_SORTIE),
+        *outils_reaudit_conseil.construire_outils(
+            budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible, sessions_cible=sessions_cible
+        ),
+        *outils_priorites.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_direction.construire_outils(
+            budget_sortie=BUDGET_SORTIE,
+            sources_briefing=sources_du_briefing,
+            fenetre_alertes_jours=_fenetre_alertes_jours,
+            captures_cible=captures_cible,
+            sessions_cible=sessions_cible,
+            publications_cible=publications_cible,
+            plans_cible=plans_cible,
+            experiences_cible=experiences_cible,
         ),
     )

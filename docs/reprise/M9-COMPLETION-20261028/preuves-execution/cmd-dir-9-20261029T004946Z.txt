@@ -1,0 +1,1 @@
+cmd: pytest -p no:cacheprovider tests/test_console_direction_m9.py -q --tb=short | sha=e15388ba584c6adfc28f631cb77e3d035802d9c5 nproc=2 ulimit_v=6GB

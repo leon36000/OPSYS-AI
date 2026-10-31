@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/leon36000/OPSYS-AI",
+  "base_branch": "codex/restructuration-2026-09-30",
+  "sha": "3ab7692f041892ec2af0cab6f241a715edac2d50",
+  "tree": "deda206f69beae52a66228365973fe0f1785b069",
+  "M9_tree": "5f384abd1f5361064aa2f2ed828e49e3d55c2fb1",
+  "remote_readback": "3ab7692f041892ec2af0cab6f241a715edac2d50\trefs/heads/codex/restructuration-2026-09-30",
+  "default_main_is_not_substitute": true,
+  "coordinator_private_HEAD_not_included": true,
+  "M4_PR853_base_for_other_missions_only": "f8301cc0138a8734a5282f57e678b0d989ba05bd",
+  "M5_payroll_PR854_not_merged": "dc9de1d6471de14cd4887c9696d795e8d9bd28bf"
+}

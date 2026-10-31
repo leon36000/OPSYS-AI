@@ -1,0 +1,81 @@
+{
+ "ok": true,
+ "resultat": {
+  "accepte": true,
+  "rejoue": false,
+  "session_id": "bb1317fd68ab73cdfda41ab0cc50ca49",
+  "question": "Que devrait faire l'entreprise cette semaine avec les leads reçus et le stock de matériaux ?",
+  "importance": "courante",
+  "dossier_id": "f128ebcede4fac8a5aeda8f2c1a6dd31cb62e23677031490eeecf1e9209389b7",
+  "tours": [
+   {
+    "role": "conseiller_pdg",
+    "statut": "DEPOSE",
+    "depots": 1,
+    "refus": [],
+    "reservation_id": "3a20e8bf1c0b255afd1463a3971b5455",
+    "tokens_reels": 3807,
+    "affirmations": 14
+   },
+   {
+    "role": "croissance_marketing",
+    "statut": "DEPOSE",
+    "depots": 2,
+    "refus": [
+     "REJ-CONSEIL-SORTIE"
+    ],
+    "reservation_id": "f530f457602736b573c364e17ddf7de0",
+    "tokens_reels": 3671,
+    "affirmations": 20
+   },
+   {
+    "role": "contraintes_inventaire",
+    "statut": "DEPOSE",
+    "depots": 1,
+    "refus": [],
+    "reservation_id": "7e544d1f089f62f349a40fd6f79c6ba5",
+    "tokens_reels": 3119,
+    "affirmations": 13
+   }
+  ],
+  "specialistes_tranches": true,
+  "critique_ouvert": false,
+  "toutes_tranchees": true,
+  "cloture": {
+   "issue": "RECOMMANDATION",
+   "rapport_id": "2fe34ca4d5f5c8b43553677e935154b75c2b3892b359f7614f9630127c289937",
+   "raison_abstention": null,
+   "autorite_d_effet": false
+  },
+  "gouvernance": {
+   "type": "VERDICT_GOUVERNANCE",
+   "decision": "Cette semaine, traiter en premier le lead urgent de Lévis (suivi interne), demander les photos et la valeur des autres leads avant de les prioriser, et ne prendre aucune décision de stock ou d'achat de matériaux tant que les niveaux de stock, la disponibilité datée des équipes et les interventions en cours ne sont pas fournis.",
+   "actions": [
+    {
+     "action": "a_suivi_urgent",
+     "type": "suivi_interne",
+     "verdict": "PROPOSABLE",
+     "mandataire": null,
+     "effet_autorise": false
+    },
+    {
+     "action": "a_info_photos",
+     "type": "information",
+     "verdict": "PROPOSABLE",
+     "mandataire": null,
+     "effet_autorise": false
+    },
+    {
+     "action": "a_info_stock",
+     "type": "information",
+     "verdict": "PROPOSABLE",
+     "mandataire": null,
+     "effet_autorise": false
+    }
+   ],
+   "decision_majeure": false,
+   "autorite_d_effet": false,
+   "verdict_id": "277d87305be5e7d507485bbdf3d5f1905411e7f08123167ec534e820a44a9b97"
+  }
+ }
+}

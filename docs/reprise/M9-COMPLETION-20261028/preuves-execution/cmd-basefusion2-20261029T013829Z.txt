@@ -1,0 +1,1 @@
+cmd: pytest -p no:cacheprovider tests/test_console_fusion_ap.py tests/test_console_fusion_ap_m5.py tests/test_console_fusion_ap_m5_reference.py tests/test_console_fusion_ap_m5_saisie.py tests/test_console_fusion_pdf.py tests/test_console_fusion_pdf_ocr.py -q -p no:randomly | sha=e15388ba584c6adfc28f631cb77e3d035802d9c5 nproc=2 ulimit_v=6GB
