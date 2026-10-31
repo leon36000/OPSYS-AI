@@ -31,6 +31,13 @@ import yaml
 from fastapi.testclient import TestClient
 from harnais_e2e import DT_TZ, JETON_MCP, iso
 from harnais_e2e_chantier import MATERIAU_ID, QUANTITE_PREVUE, AppEmploye, Chantier, receptionner_materiel_args
+from harnais_equipe_certifiee import (
+    EQUIPE_VERTICALE,
+    journee_equipe_certifiee,
+    revue_completion_verifiee,
+    service_m4_et_tarif_fictifs,
+    sources_pour_revue,
+)
 from m1_front_office import outils as m1_outils
 from m5_financecore import facturation as m5_facturation
 from m5_financecore import outils as m5_outils
@@ -120,32 +127,6 @@ def _app(moteur, porte, outil, args, *, cle=None):
     assert reponse.statut == 200, reponse.corps
     assert not reponse.mesure.tronque, reponse.corps
     return reponse
-
-
-def _sources_pour_revue(appeler, intervention_id, wct_id, prefixe):
-    """Fictif : lecture M6 puis causes humaines déclarées, sans vérité photo inférée."""
-    liste = appeler("m6_lister_variances_classables_wct_appareil",
-                    {"wct_id": wct_id, "decalage": 0, "limite": 8})
-    assert liste.metier["accepte"] is True, liste.corps
-    dto = liste.resultat
-    assert dto["wct"]["wct_id"] == wct_id and dto["wct"]["intervention_id"] == intervention_id
-    assert dto["pagination"]["reste"] == 0 and dto["pagination"]["decalage_suivant"] is None
-    critiques = [ligne for ligne in dto["lignes"] if ligne["source_ligne"]["critique"] is True]
-    assert critiques, "ce scénario doit publier une variance critique, pas inventer une cause"
-    for ligne in critiques:
-        assert ligne["classement_courant"] is None, "source initiale de cette fixture"
-        classement = appeler("m6_classer_cause_variance_appareil", {
-            "selection": ligne["selection"], "cause": "breakage",
-            "motif": "FICTIF : cause de bris déclarée pour le scénario, sans attestation photo.",
-            "classement_attendu": None, "references_pieces": [],
-        }, cle=f"{prefixe}-{ligne['selection']['position_ligne']}")
-        assert classement.metier["accepte"] is True, classement.corps
-    dossier = appeler("m4_lire_dossier_revue_completion_appareil",
-                      {"intervention_id": intervention_id, "demande_id": None})
-    assert dossier.metier["accepte"] is True, dossier.corps
-    assert dossier.resultat["wct"] == dto["wct"]
-    assert dossier.resultat["couverture"]["positions_sans_classement"] == []
-    return dossier.resultat["sources"]
 
 
 def _appeler_agent(moteur, departement, outil, args, *, affaire_id=None, cle_session=None):
@@ -844,125 +825,6 @@ def _qualifier_partiel_affaire(moteur, facture_id, chantier, wct_id, tmp_path, m
     }, sort_keys=True))
 
 
-def _service_m4_et_tarif_fictifs(chantier):
-    """Politique et tarif d'équipe de test, dans la seule base SQLite éphémère."""
-    from sqlalchemy import insert
-
-    from opsys import contexte
-    from opsys.stockage.schema import OPSYS_INSTANCE, SERVICE_POLITIQUES
-
-    with (stockage.transaction() as cnx,
-          contexte.appele_par_appareil(contexte.IdentiteAppelante('nathan', 'admin', source='console')),
-          contexte.appeler_en_tant_que('m05-financecore', origine='console')):
-        source = m5_outils._lire_tarifs_equipes()['source']
-        m5_outils._inscrire_tarif_equipe({
-            'equipe_id': 'eq-verticale-fictive', 'taux': '50.00', 'unite': 'heure-equipe',
-            'devise': 'CAD', 'source': 'tarif-vertical-fictif', 'version': '1',
-            'date_effet': chantier.debut.date().isoformat(), 'date_fin': chantier.debut.date().isoformat(),
-            'remplace_id': None,
-        }, mutation_id='tarif-equipe-vertical-fictif', source_attendue=source)
-        instance_id = cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one()
-        cnx.execute(insert(SERVICE_POLITIQUES).values(
-            instance_id=instance_id, consommateur='m05-financecore', operation='m4.verifier_v3',
-            revision=1, active=True, expire_le=int(time.time()) + 3600))
-
-
-def _journee_equipe_certifiee(moteur, affaire, chantier):
-    """Déclarations admin explicites sur une vraie visite, sans déduire de présence individuelle."""
-    from harnais_e2e_chantier import SEL, VILLE
-    from m4_field_ops import encodage, equipes_pointees_v3, visites_ecriture
-    from m4_field_ops import outils as m4_outils
-    from m4_field_ops.registre import Registre
-
-    from opsys import contexte
-
-    admin = affaire['admin']
-    app = AppEmploye(moteur, affaire['employe'], chantier, derive_appareil_s=0)
-    with stockage.transaction():
-        principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
-        applications = [m for m in principal.lire() if m.get('type_entree') == 'cedule_appliquee']
-        assert len(applications) == 1
-        plan_id = applications[0]['plan_id']
-    datee = _app(moteur, admin, 'm4_confirmer_dates_cedule', {
-        'plan_id': plan_id, 'calendrier': {'0': chantier.debut.date().isoformat()}, 'revision_attendue': 0,
-    }, cle='date-verticale-equipe')
-    assert datee.metier['accepte'] is True, datee.corps
-    with stockage.transaction():
-        principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
-        date = next(m for m in principal.lire() if m.get('ligne_id') == datee.resultat['ligne_id'])
-        ancre = {'intervention_id': chantier.intervention_id, 'plan_id': plan_id,
-                 'source_application_id': date['source_application_id'], 'source_ligne_id': date['ligne_id']}
-    def admin_console(cnx, instant):
-        return (contexte.appele_par_appareil(contexte.IdentiteAppelante('nathan', 'admin', source='console')),
-                contexte.appeler_en_tant_que('m04-field-ops', origine='console'),
-                contexte.receptionne_de(contexte.HorodatageAppareil('console:nathan', instant, instant)))
-    instant = moteur.horloge.maintenant
-    with stockage.transaction() as cnx:
-        c1, c2, c3 = admin_console(cnx, instant)
-        with c1, c2, c3:
-            args = {'ancre': ancre, 'revision_attendue': 0}
-            mutation = {'appareil': 'console:nathan', 'cle': 'visite-verticale-fictive',
-                        'empreinte_arguments': encodage.empreinte(args)}
-            recu = visites_ecriture.enregistrer(cnx, args, {'personne': 'nathan', 'role': 'admin'}, mutation,
-                                                instant.isoformat(), m4_outils._autoriser_annotation)
-            visite_id = recu['visite_id']
-            args = {'operation': 'ouvrir', 'visite_id': visite_id,
-                    'source_attendue': visites_ecriture.empreinte_sources(cnx)}
-            mutation = {'appareil': 'console:nathan', 'cle': 'ouverture-verticale-fictive',
-                        'empreinte_arguments': encodage.empreinte(args)}
-            visites_ecriture.executer_evenement(cnx, args, {'personne': 'nathan', 'role': 'admin'}, mutation,
-                                                instant.isoformat(), m4_outils._autoriser_annotation)
-    assert app.chantiers_du_jour().resultat[0]['intervention_id'] == chantier.intervention_id
-    app.attendre(minutes=1)
-    assert app.donner_consentement_gps().metier['accepte'] is True
-    app.attendre(minutes=29)
-    route = _app(moteur, admin, 'm4_demarrer_route', {
-        'intervention_id': chantier.intervention_id, 'technicien_id': 'eq-verticale-fictive',
-        'horodatage': iso(moteur.horloge.maintenant),
-    }, cle='route-equipe-verticale')
-    assert route.metier['accepte'] is True, route.corps
-    app.attendre(minutes=30)
-    def pointer_equipe(action):
-        instant = moteur.horloge.maintenant
-        with stockage.transaction() as cnx:
-            c1, c2, c3 = admin_console(cnx, instant)
-            with c1, c2, c3:
-                args = {'intervention_id': chantier.intervention_id, 'technicien_id': 'eq-verticale-fictive',
-                        'action': action, 'horodatage': instant.isoformat(), 'fix_gps': None,
-                        'attestation': {'fictif': True, 'appareil_id': 'console:nathan'},
-                        'fenetre_travail': chantier.fenetre, 'referentiel_villes': chantier.referentiel_villes,
-                        'ville': VILLE, 'sel': SEL}
-                recu = equipes_pointees_v3.enregistrer(cnx, args, visite_id, 'eq-verticale-fictive',
-                    'pointage-equipe-verticale-' + action, equipes_pointees_v3.empreinte_sources(cnx))
-                principal = Registre(stockage.maillons('m04-field-ops', 'principal'))
-                demandes = [m for m in principal.lire() if m.get('type_entree') == 'demande_revue'
-                            and m.get('pointage_ligne_id') == recu['pointage_id']]
-        for demande in demandes:
-            reponse = _app(moteur, admin, 'm4_resoudre_demande', {'demande_id': demande['demande_id'],
-                'decision': 'validee', 'horodatage': instant.isoformat(), 'motif': 'Contrôle fictif.'},
-                cle='controle-pointage-' + action)
-            assert reponse.metier['accepte'] is True, reponse.corps
-    pointer_equipe('arrivee')
-    app.attendre(hours=2, minutes=55)
-    from harnais_e2e_chantier import png_minimal
-    photo = app.deposer_fichier(png_minimal(largeur=4))
-    signature = app.deposer_fichier(png_minimal(largeur=2))
-    app.attendre(minutes=5)
-    pointer_equipe('depart')
-    instant = moteur.horloge.maintenant
-    with stockage.transaction() as cnx:
-        c1, c2, c3 = admin_console(cnx, instant)
-        with c1, c2, c3:
-            args = {'operation': 'fermer', 'visite_id': visite_id,
-                    'source_attendue': visites_ecriture.empreinte_sources(cnx)}
-            mutation = {'appareil': 'console:nathan', 'cle': 'fermeture-verticale-fictive',
-                        'empreinte_arguments': encodage.empreinte(args)}
-            visites_ecriture.executer_evenement(cnx, args, {'personne': 'nathan', 'role': 'admin'}, mutation,
-                                                instant.isoformat(), m4_outils._autoriser_annotation)
-    app.attendre(minutes=5)
-    return app, app.terminer(photo, signature)
-
-
 def test_verticale_sans_preuve_equipe_reste_partielle(moteur, affaire, finance_fictive):
     chantier, _, _ = _preparer_affaire(moteur, affaire)
     app = AppEmploye(moteur, affaire["employe"], chantier)
@@ -1012,8 +874,9 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
                 "unite": "pi",
             },
         )
-    _service_m4_et_tarif_fictifs(chantier)
-    app, completion = _journee_equipe_certifiee(moteur, affaire, chantier)
+    service_m4_et_tarif_fictifs(chantier, EQUIPE_VERTICALE)
+    app, completion = journee_equipe_certifiee(
+        moteur, admin, affaire["employe"], chantier, EQUIPE_VERTICALE)
     assert completion.metier["accepte"] is True, completion.corps
     wct_id = completion.resultat["wct_id"]
     assert completion.resultat["intervention_id"] == chantier.intervention_id
@@ -1055,47 +918,8 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         item = next(item for item in lecture.resultat["lectures"] if item["chantier"] == wct_id)
         assert (item["valeur"], item["seuil"]) == ("40.00", "30.00")
         assert _empreinte(moteur) == avant
-        def appeler_revue(outil, arguments, *, cle=None):
-            avant_lecture = _empreinte(moteur) if cle is None else None
-            reponse = _app(moteur, admin, outil, arguments, cle=cle)
-            if cle is None:
-                assert _empreinte(moteur) == avant_lecture, "lecture de sources sans mutation"
-            return reponse
-
-        sources = _sources_pour_revue(appeler_revue, chantier.intervention_id, wct_id, "classement-verticale")
-        revue = _app(
-            moteur,
-            admin,
-            "m4_resoudre_revue_completion_sources",
-            {
-                "intervention_id": chantier.intervention_id,
-                "decision": "verifiee",
-                "horodatage": iso(moteur.horloge.maintenant),
-                "motif": "Revue fictive des sources M4/M6 relues.",
-                "sources": sources,
-            },
-            cle="revue-verticale",
-        )
-        assert revue.enveloppe["statut"] == "en_attente_approbation", revue.corps
-        with stockage.transaction() as cnx:
-            assert cnx.scalar(
-                select(APPROBATIONS.c.niveau).where(APPROBATIONS.c.id == revue.enveloppe["demande_id"])
-            ) == "N4"
-        decision = _app(
-            moteur,
-            admin,
-            "m9_decider_demande_approbation",
-            {"demande_id": revue.enveloppe["demande_id"], "decision": "approuver", "motif": "Revue fictive."},
-            cle="decision-revue-verticale",
-        )
-        assert decision.resultat["statut"] == "executee", decision.corps
-        preuve = decision.resultat["preuve_completion"]
-        assert preuve["sources"] == sources and preuve["wct_id"] == wct_id
-        assert preuve["demande_approbation_id"] == revue.enveloppe["demande_id"]
-        assert preuve["association_decision"]["intention_uuid"] == "decision-revue-verticale"
-        assert preuve["association_decision"]["appareil_id"] == admin.appareil_id
-        assert preuve["association_decision"]["horodatage_appareil_declare"] == iso(moteur.horloge.maintenant)
-        assert app.statut().resultat["statut"] == "completed_verified"
+        revue_completion_verifiee(
+            moteur, admin, app, chantier, wct_id, empreinte=lambda: _empreinte(moteur))
         _drainer(moteur)
 
     with stockage.transaction():
@@ -1775,7 +1599,7 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
         def appeler_revue(outil, arguments, *, cle=None):
             return _app(moteur, admin, outil, arguments, cle=cle)
 
-        sources = _sources_pour_revue(appeler_revue, chantier_b.intervention_id, wct_b, "cf018-classement-b")
+        sources = sources_pour_revue(appeler_revue, chantier_b.intervention_id, wct_b, "cf018-classement-b")
         revue = _app(moteur, admin, "m4_resoudre_revue_completion_sources", {
             "intervention_id": chantier_b.intervention_id, "decision": "verifiee",
             "horodatage": iso(moteur.horloge.maintenant), "motif": "Revue fictive B seulement.", "sources": sources,
