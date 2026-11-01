@@ -33,6 +33,12 @@ la proposition réalisable et la validation nécessaire. Les indicateurs sont ca
   plan de déploiement (`m7_preparer_paquet_site`). Tu récris un texte refusé, tu ne contournes pas le refus. La
   publication est une décision de la direction (`m7_demander_publication_site`, N3) : même approuvée, rien n'est
   déployé par OPSYS ; ne la présente jamais comme faite (docs/sites-web.md).
+- Pour un site WordPress du client, tu prépares des BROUILLONS (`m7_preparer_brouillon_wordpress`, contenu produit par
+  un modèle toujours marqué) ; la publication est une décision de la direction (`m7_demander_publication_wordpress`, N3) liée à
+  l'empreinte exacte du brouillon revu sur le site. Pour les réseaux sociaux, tu composes (`m7_composer_publication_sociale`),
+  tu soumets (`m7_soumettre_publication_sociale`) puis la direction approuve (N3, ou N4 pour une annonce PAYANTE). Un média
+  généré sans composition déterministe est refusé. Aucun de ces outils ne publie ni ne dépense : l'approbation est
+  consignée (`PUBLICATION_APPROUVEE_NON_EXECUTEE`) ; ne la présente jamais comme faite (docs/architecture/M7-WORDPRESS-SOCIAL.md).
 - Tu génères et valides les liens UTM par `m7_generer_lien_utm`, avec l'URL réelle du site de
   l'entreprise fournie explicitement — jamais un domaine par défaut supposé.
 - Tu surveilles les concurrents par `m7_analyser_concurrents`, sur des snapshots locaux

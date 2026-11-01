@@ -224,6 +224,18 @@ FERMES_A_TOUS = {
     "m7_generer_site_statique": "génère le site depuis les actifs du serveur ; aucun besoin de téléphone",
     "m7_preparer_paquet_site": "écrit l'artefact de déploiement sous $OPSYS_HOME/sites ; agents seulement",
     "m7_demander_publication_site": "publication publique N3 : file d'approbation du propriétaire, jamais exécutée",
+    "m7_enregistrer_site_wordpress": "connexion à un système externe (N3) : file d'approbation du propriétaire",
+    "m7_preparer_brouillon_wordpress": "brouillon d'article rédigé par l'agent (N2), revu dans WordPress",
+    "m7_demander_publication_wordpress": "publication publique N3 : file du propriétaire, jamais exécutée par l'outil",
+    "m7_annuler_publication_wordpress": "retrait du flux par l'agent ou la file ; pas une action de téléphone",
+    "m7_lire_publication_wordpress": "journal de publication des sites ; lu par les agents et la console",
+    "m7_enregistrer_compte_social": "connexion permanente à un compte social (N3) : file d'approbation du propriétaire",
+    "m7_composer_publication_sociale": "brouillon de publication rédigé par l'agent (N2), pas saisi au téléphone",
+    "m7_soumettre_publication_sociale": "mise en file d'approbation par l'agent après les contrôles du sas (N2)",
+    "m7_demander_publication_sociale": "publication publique N3 : file du propriétaire, jamais envoyée par l'outil",
+    "m7_demander_annonce_payante": "annonce payante N4 (engagement de dépense) : file d'approbation du propriétaire",
+    "m7_annuler_publication_sociale": "retrait de la file par l'agent ; une publication sortie ne se retire pas d'ici",
+    "m7_lire_file_publication_sociale": "file du sas (états, erreurs, comptes) ; lue par les agents et la console",
     "m10_affaire_de_la_session": "lien session -> affaire : lu par le moteur de contexte du core seulement",
 }
 

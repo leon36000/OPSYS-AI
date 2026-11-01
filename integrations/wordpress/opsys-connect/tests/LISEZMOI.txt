@@ -1,0 +1,7 @@
+Ce dossier contient le seul script de test du plugin : verifier-vecteurs.php.
+
+    php tests/verifier-vecteurs.php chemin/vers/opsys-connect-vecteurs.v1.json
+
+Le fichier de vecteurs est publié côté OPSYS (departments/m07-marketing/contracts/opsys-connect-vecteurs.v1.json) : il est la
+spécification exécutable de la signature, du jeton d'approbation et de l'empreinte du contenu. Les valeurs attendues ont été
+calculées avec openssl, puis confirmées par deux implémentations Python indépendantes. Ce script PHP n'a JAMAIS été exécuté.

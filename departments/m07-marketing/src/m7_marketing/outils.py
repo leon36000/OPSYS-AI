@@ -35,7 +35,7 @@ from opsys import contexte as contexte_appel
 from opsys import stockage, taxonomie
 from opsys.outils import Autonomie, Niveau, Outil
 
-from . import depenses_marketing, performance_campagnes
+from . import depenses_marketing, performance_campagnes, publication_outils
 from . import growth as growth_service
 from . import local as local_service
 from .ads import intelligence as ads_intelligence
@@ -1859,4 +1859,5 @@ def outils() -> tuple[Outil, ...]:
             fonction=publier_post_social,
             autonomie=Autonomie.T3,
         ),
+        *publication_outils.outils(),
     )
