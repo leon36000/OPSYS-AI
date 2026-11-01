@@ -101,7 +101,7 @@ ci-dessous sont recopiés par un script et vérifiés par un test.
 | M6 | Material Control (Rosalie) | 21 | FAIT_PROUVE 0 · PARTIEL 21 · SIMULE 0 · ABSENT 0 |
 | M7 | Marketing (Chloé) | 15 | FAIT_PROUVE 0 · PARTIEL 13 · SIMULE 2 · ABSENT 0 |
 | M8 | Analytics (Olivier) | 18 | FAIT_PROUVE 0 · PARTIEL 18 · SIMULE 0 · ABSENT 0 |
-| M9 | Strategic Intelligence (Athéna) | 24 | DONE_VERIFIED 16 · PARTIEL 7 · PHASE_MOBILE_FINALE 1 |
+| M9 | Strategic Intelligence (Athéna) | 28 | DONE_VERIFIED 16 · PARTIEL 11 · PHASE_MOBILE_FINALE 1 |
 | M10 | Mémoire (Mnémo) | 20 | FAIT_PROUVE 0 · PARTIEL 20 · SIMULE 0 · ABSENT 0 |
 
 Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 suit son propre vocabulaire (`DONE_VERIFIED` = prouvé sur les doubles et les parcours du dépôt, pas en production). `PARTIEL` veut dire qu'une partie seulement de la cible est prouvée.
@@ -246,7 +246,7 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 - Seuils d'entonnoir/chantier et fenêtres de fraîcheur vides à dessein (configuration M8)
 - Phase mobile finale (DEFINITION P14)
 
-**M9 (16)**
+**M9 (17)**
 - Ports et authenticité des producteurs à qualifier
 - Publication M8 de l'historique et de la preuve par mesure (Root, commits séparés)
 - Raccord commun : lecture au catalogue et au port privé, consommation par m9_rapprocher_metriques
@@ -263,6 +263,7 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 - PHASE_MOBILE_FINALE après grandes exigences serveur ; contrat seul ne clôt pas la ligne
 - Qualification réelle conseil séparée des doubles de protocole
 - Producteurs sans donnée : M7 (dépense), M4 (capacité), M1 (plaintes structurées)
+- Qualification par un modèle réel (OUVERTE)
 
 **M10 (4)**
 - Cognee en production : non décidé (gate DEFINITION §10)
