@@ -106,6 +106,9 @@ _PERSONNEL = re.compile(
     r"|\bqui (est|a|sont|ont)\b|\bclients? (de|du|qui|nomme)\b|\bnom du client\b"
 )
 # -- Secrets ----------------------------------------------------------------------------------------------------------
+# « Comptes à payer » est le NOM d'une mesure (M5), pas l'ordre de payer : seul ce groupe nominal est retiré avant de
+# chercher un verbe d'action. « Paye les comptes à payer » reste refusé (le verbe « paye » est resté).
+_GROUPE_NOMINAL_A_PAYER = re.compile(r"\b(compte|comptes|facture|factures)\s+a\s+payer\b")
 _SECRET = re.compile(
     r"\b(jeton|jetons|token|tokens|mot de passe|mots de passe|password|cle api|cles api|api key|secret|secrets|"
     r"identifiants? de connexion|coffre)\b"
@@ -182,7 +185,7 @@ def classer_securite(question: str) -> tuple[str, str] | None:
             "Aucune donnée personnelle ni classement de personnes : les mesures du catalogue sont des mesures "
             "d'entreprise, sans technicien, client ni contact."
         )
-    if _ACTION.search(normalisee):
+    if _ACTION.search(_GROUPE_NOMINAL_A_PAYER.sub(" ", normalisee)):
         return REJ_ACTION, "Le copilote est en lecture seule : il ne modifie, n'envoie ni ne déclenche rien."
     return None
 
@@ -250,10 +253,34 @@ def _ligne_mesure(mesure: dict[str, Any]) -> dict[str, Any]:
         },
         "a_jour": fraicheur["peut_etre_montree_comme_a_jour"] and mesure["statut"] == entonnoir.STATUT_CALCULEE,
         "manque": [m["champ"] for m in mesure["manque"]],
+        "couverture": mesure.get("couverture") or {"etat": "complete"},
     }
 
 
+def _couverture_partielle(ligne: dict[str, Any]) -> bool:
+    return ligne["statut"] == entonnoir.STATUT_CALCULEE and ligne["couverture"].get("etat") == "partielle"
+
+
+def _nombres_de_couverture(ligne: dict[str, Any]) -> list[str]:
+    """Les nombres que la phrase de couverture cite (n sur N, jours sans relevé) : ceux du moteur, comme la valeur."""
+    if not _couverture_partielle(ligne):
+        return []
+    return [str(v) for v in ligne["couverture"].values() if isinstance(v, int) and not isinstance(v, bool)]
+
+
+def _mention_couverture(ligne: dict[str, Any]) -> str:
+    """La phrase qui dit qu'une valeur ne couvre qu'une partie de ce qu'elle devrait couvrir : jamais présentée comme
+    complète, même quand elle est à jour."""
+    if not _couverture_partielle(ligne):
+        return ""
+    return f" Couverture PARTIELLE : {ligne['couverture']['raison']}."
+
+
 def _phrase_valeur(ligne: dict[str, Any]) -> str:
+    return _phrase_valeur_brute(ligne) + _mention_couverture(ligne)
+
+
+def _phrase_valeur_brute(ligne: dict[str, Any]) -> str:
     fraicheur = ligne["fraicheur"]
     nom = ligne["nom"]
     age = "" if fraicheur["age_s"] is None else fraicheur_mesures.formater_duree(fraicheur["age_s"])
@@ -360,6 +387,7 @@ def _recu(
                 "version_definition": ligne["version_definition"],
                 "dernier_fait_le": ligne["dernier_fait_le"],
                 "fraicheur": ligne["fraicheur"]["statut"],
+                "couverture": ligne["couverture"]["etat"],
             }
             for ligne in lignes
         ],
@@ -563,6 +591,8 @@ def repondre(
         texte = " ".join(_phrase_fraicheur(ligne_lue) for ligne_lue in lignes)
         return repondu(INTENTION_FRAICHEUR, texte, lignes, chiffres, mention)
     chiffres = [ligne_lue["valeur"] for ligne_lue in lignes]
+    for ligne_lue in lignes:
+        chiffres += _nombres_de_couverture(ligne_lue)
     texte = " ".join(_phrase_valeur(ligne_lue) for ligne_lue in lignes)
     return repondu(INTENTION_VALEUR, texte, lignes, chiffres, mention)
 

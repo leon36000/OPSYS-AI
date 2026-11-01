@@ -153,6 +153,12 @@ def _cash_libre_cad(_faits_chantier: list[dict[str, Any]], faits_cash: list[dict
     return str(montant), entrees, [], instant
 
 
+# Les mêmes règles, offertes aux mesures interdépartements (`mesures_interdepartements.py`) : une seule lecture des
+# chantiers terminés et une seule façon de dater un constat quotidien de M5.
+wcts_uniques = _wcts_uniques
+plus_recent_completion = _plus_recent_completion
+jour_en_instant = _jour_en_instant
+
 _CALCULS = {
     "m8_chantiers_termines": _chantiers_termines,
     "m8_ecart_duree_equipe_pct": _ecart_duree_equipe_pct,
@@ -185,4 +191,11 @@ def mesurer(
     return mesures
 
 
-__all__ = ["MODULE_DEFINITIONS", "charger_definitions", "mesurer"]
+__all__ = [
+    "MODULE_DEFINITIONS",
+    "charger_definitions",
+    "jour_en_instant",
+    "mesurer",
+    "plus_recent_completion",
+    "wcts_uniques",
+]

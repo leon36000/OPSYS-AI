@@ -127,3 +127,124 @@ mesures:
     sensibilite: financier
     fraicheur: {fenetre_s: 86400}
     synonymes: ["cash libre", "liquidités libres", "argent disponible", "trésorerie libre"]
+  # -- Interdépartements (M1, M3, M4, M5, M6, M7 -> entrepôt) : voir docs/architecture/M8-ENTREPOT-SOURCES.md ---------------
+  - metric_id: m8_chantiers_marge_reelle
+    domaine: finance
+    sens: neutre
+    sensibilite: agregat
+    fraicheur: {terminale: true}
+    synonymes: ["chantiers à marge chiffrée", "chantiers avec marge réelle", "marges réelles chiffrées"]
+  - metric_id: m8_marge_reelle_cumulee_cad
+    domaine: finance
+    sens: plus_est_mieux
+    sensibilite: financier
+    fraicheur: {terminale: true}
+    synonymes: ["marge réelle cumulée", "marge réelle des chantiers", "marge cumulée des chantiers chiffrés"]
+  - metric_id: m8_chantiers_en_perte
+    domaine: finance
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {terminale: true}
+    synonymes: ["chantiers en perte", "chantiers déficitaires", "chantiers à perte", "chantiers non rentables"]
+  - metric_id: m8_ecart_marge_cumule_cad
+    domaine: finance
+    sens: plus_est_mieux
+    sensibilite: financier
+    fraicheur: {terminale: true}
+    synonymes: ["écart de marge", "écart entre marge réelle et marge prévue", "marge réelle contre prévue", "promesse contre réalité de marge"]
+  - metric_id: m8_creances_ouvertes_cad
+    domaine: finance
+    sens: neutre
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["créances ouvertes", "comptes à recevoir", "factures impayées", "argent à recevoir"]
+  - metric_id: m8_creances_90_jours_plus_cad
+    domaine: finance
+    sens: moins_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["créances de quatre-vingt-dix jours", "créances de plus de quatre-vingt-dix jours", "créances de 90 jours", "comptes à recevoir en souffrance", "factures impayées depuis 90 jours"]
+  - metric_id: m8_comptes_a_payer_cad
+    domaine: finance
+    sens: moins_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["comptes à payer", "factures fournisseurs à payer", "argent dû aux fournisseurs"]
+  - metric_id: m8_releves_depense_pub_cad
+    domaine: marketing
+    sens: neutre
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["relevés de dépense publicitaire", "dépense publicitaire relevée", "somme des relevés publicitaires", "dépenses Google Ads et Meta"]
+  - metric_id: m8_conversions_hors_ligne
+    domaine: marketing
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["conversions hors ligne", "conversions importées", "appels et rendez-vous importés"]
+  - metric_id: m8_anomalies_depense_critiques
+    domaine: marketing
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["anomalies de dépense critiques", "anomalies publicitaires critiques", "alertes critiques de dépense"]
+  - metric_id: m8_ecart_depense_pub_comptabilisee_cad
+    domaine: marketing
+    sens: neutre
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["écart de dépense publicitaire", "dépense publicitaire relevée contre comptabilisée", "écart entre relevés et comptabilité"]
+  - metric_id: m8_heures_sur_site_chantiers
+    domaine: operations
+    sens: neutre
+    sensibilite: agregat
+    fraicheur: {terminale: true}
+    synonymes: ["heures sur site", "heures de chantier", "durée réelle cumulée des chantiers"]
+  - metric_id: m8_receptions_materiaux
+    domaine: operations
+    sens: neutre
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["réceptions de matériaux", "livraisons de matériaux reçues", "matériaux reçus"]
+  - metric_id: m8_receptions_avec_ecart
+    domaine: qualite
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["réceptions avec écart", "livraisons de matériaux non conformes", "réceptions non conformes"]
+  - metric_id: m8_demandes_qualifiees_m1
+    domaine: clientele
+    sens: plus_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["demandes qualifiées par le front office", "demandes transmises par M1", "demandes qualifiées de M1"]
+  - metric_id: m8_demandes_m1_sans_lead_m2
+    domaine: clientele
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["demandes sans lead", "demandes de M1 sans lead chez M2", "demandes perdues entre M1 et M2"]
+  - metric_id: m8_commandes_envoyees
+    domaine: operations
+    sens: neutre
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["commandes envoyées", "commandes de matériaux envoyées", "bons de commande envoyés"]
+  - metric_id: m8_ecritures_en_attente
+    domaine: finance
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["écritures en attente", "écritures comptables en attente de validation", "brouillons d'écriture en attente"]
+  - metric_id: m8_solde_tresorerie_cad
+    domaine: finance
+    sens: plus_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["solde de trésorerie", "solde bancaire", "solde du compte"]
+  - metric_id: m8_taxes_a_remettre_cad
+    domaine: finance
+    sens: moins_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["taxes à remettre", "TPS et TVQ à remettre", "taxes de vente à remettre"]

@@ -1148,6 +1148,7 @@ def outils(
         return {
             "chantier": list(faits_cible), "entonnoir": list(faits_entonnoir_cible),
             "contenus": list(faits_contenus_cible), "cash_libre": list(faits_cash_libre_cible),
+            "operations": list(faits_operations_cible),
         }
 
     outils_analytiques = analytique_outils.construire(

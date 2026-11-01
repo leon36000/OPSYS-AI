@@ -336,6 +336,9 @@ def evaluer(
                 "valeur_affichee": formater_valeur(mesure["valeur"], mesure["unite"]),
                 "statut_mesure": mesure["statut"],
                 "detail": mesure["detail"],
+                "couverture": mesure.get("couverture") or {"etat": "complete"},
+                "partielle": mesure["statut"] == entonnoir.STATUT_CALCULEE
+                and (mesure.get("couverture") or {}).get("etat") == "partielle",
                 "fraicheur": fraicheur["statut"],
                 "age_s": fraicheur["age_s"],
                 "age_affiche": None
@@ -379,6 +382,7 @@ def banniere(tuiles: list[dict[str, Any]]) -> dict[str, Any]:
         t["id"] for t in tuiles if t["fraicheur"] in (fraicheur_mesures.STATUT_PERIME, fraicheur_mesures.STATUT_INCONNU)
     ]
     manquantes = [t["id"] for t in tuiles if t["fraicheur"] == fraicheur_mesures.STATUT_MANQUANT]
+    partielles = [t["id"] for t in tuiles if t.get("partielle") is True]
     messages = []
     if critiques:
         messages.append(f"{len(critiques)} mesure(s) en état critique.")
@@ -388,8 +392,13 @@ def banniere(tuiles: list[dict[str, Any]]) -> dict[str, Any]:
         messages.append(f"{len(perimees)} mesure(s) périmée(s) ou de fraîcheur inconnue : ne pas s'y fier.")
     if manquantes:
         messages.append(f"{len(manquantes)} mesure(s) non calculable(s) (donnée manquante).")
+    if partielles:
+        messages.append(
+            f"{len(partielles)} mesure(s) à couverture partielle : la valeur ne couvre qu'une partie de ce qu'elle "
+            "devrait couvrir (voir le détail de la tuile)."
+        )
     niveau = "critique" if critiques else "attention" if (attention or perimees) else "ok"
-    if niveau == "ok" and manquantes:
+    if niveau == "ok" and (manquantes or partielles):
         niveau = "attention"
     if not messages:
         messages.append("Toutes les mesures affichées sont à jour et dans leurs seuils.")
@@ -400,6 +409,7 @@ def banniere(tuiles: list[dict[str, Any]]) -> dict[str, Any]:
         "a_surveiller": attention,
         "perimees": perimees,
         "non_calculables": manquantes,
+        "partielles": partielles,
     }
 
 

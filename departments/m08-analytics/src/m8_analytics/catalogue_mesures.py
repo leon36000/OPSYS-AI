@@ -5,8 +5,8 @@ est la
 seule liste de mesures que les couches de lecture (entrepôt, wallboards, score de santé, copilote, pont BI)
 connaissent :
 elles ne choisissent jamais une mesure, une colonne ou une requête par leur propre moyen. Chaque entrée RÉFÉRENCE une
-métrique gouvernée d'un registre existant (``m8-entonnoir``, ``m8-contenus``, ``m8-synthese``) : définition, unité,
-propriétaire et version de définition viennent d'elle, une seule fois.
+métrique gouvernée d'un registre existant (``m8-entonnoir``, ``m8-contenus``, ``m8-synthese``,
+``m8-interdepartements``) : définition, unité, propriétaire et version de définition viennent d'elle, une seule fois.
 
 Fail-closed : un catalogue mal formé (clé inconnue, énuméré hors liste, doublon, métrique non définie, fenêtre invalide,
 synonyme vide ou partagé entre deux mesures) est un refus ``REJ-CATALOGUE-…``, jamais un catalogue partiel.
@@ -24,7 +24,7 @@ from typing import Any
 
 import yaml
 
-from . import contenus, encodage, entonnoir, fraicheur_lectures, synthese
+from . import contenus, encodage, entonnoir, fraicheur_lectures, mesures_interdepartements, synthese
 
 _CHEMIN_CATALOGUE = Path(__file__).resolve().parents[2] / "definitions" / "m8-catalogue.v1.yaml"
 SCHEMA = "opsys.m8.catalogue_mesures/v1"
@@ -64,7 +64,12 @@ def definitions_gouvernees() -> dict[str, dict[str, str]]:
     """Toutes les définitions gouvernées que le catalogue peut référencer, ``{metric_id: définition}`` (chaque
     définition porte son ``proprietaire``). Un ``metric_id`` défini deux fois dans deux registres est une erreur."""
     reunies: dict[str, dict[str, str]] = {}
-    for charger in (entonnoir.charger_definitions, contenus.charger_definitions, synthese.charger_definitions):
+    for charger in (
+        entonnoir.charger_definitions,
+        contenus.charger_definitions,
+        synthese.charger_definitions,
+        mesures_interdepartements.charger_definitions,
+    ):
         for metric_id, definition in charger().items():
             if metric_id in reunies:
                 raise CatalogueRefuse(REJ_CATALOGUE_INVALIDE, f"métrique définie dans deux registres : {metric_id}")

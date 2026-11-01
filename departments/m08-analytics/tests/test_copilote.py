@@ -30,7 +30,7 @@ _CFG = sante.lire_configuration({"bornes": jeux_fictifs.BORNES_SANTE_FICTIVES}, 
 
 
 def _mesures(maintenant=_MAINTENANT, **params):
-    lues = moteur_mesures.lire(jeux_fictifs.registres_fictifs(**params), _CAT)
+    lues = moteur_mesures.lire(jeux_fictifs.registres_fictifs(**{"avec_operations": True, **params}), _CAT)
     return fraicheur_mesures.lire_mesures_avec_fraicheur(lues, _CAT, fraicheur_mesures.lire_maintenant(maintenant), {})
 
 
@@ -107,7 +107,8 @@ def test_tout_nombre_du_texte_vient_du_moteur(cas, mesures):
     permis |= {re.sub(r"[\s ]", "", c) for c in reponse["chiffres"]}
     for ligne in reponse["mesures"]:
         if ligne["valeur"] is not None:
-            permis |= {ligne["valeur"], ligne["valeur"].replace(".", ",")}
+            absolue = ligne["valeur"].lstrip("-")  # le texte rend « -2 000,00 $ » : le nombre extrait n'a pas de signe
+            permis |= {ligne["valeur"], ligne["valeur"].replace(".", ","), absolue, absolue.replace(".", ",")}
         if ligne["fraicheur"]["age_s"] is not None:
             permis |= _nombres(fraicheur_mesures.formater_duree(ligne["fraicheur"]["age_s"]))
         if ligne["fraicheur"]["fenetre_s"] is not None:
@@ -118,7 +119,10 @@ def test_tout_nombre_du_texte_vient_du_moteur(cas, mesures):
         )
     )
     permis |= {"100", "5", "2026", "10", "20", "30"}  # « sur 100 », « 5 mesures », dates de l'historique fictif
-    inconnus = _nombres(reponse["texte"].replace("M8", "")) - {re.sub(r"[\s ]", "", p) for p in permis} - permis
+    # Les identifiants de source (m4.travaux_termines, m8_ecart_marge_cad...) sont des NOMS de ce qui manque, pas des
+    # nombres.
+    texte = re.sub(r"\bm\d+[\w.]*", " ", reponse["texte"].replace("M8", ""))
+    inconnus = _nombres(texte) - {re.sub(r"[\s ]", "", p) for p in permis} - permis
     inconnus = {n for n in inconnus if not any(n.replace(",", ".") == p.replace(",", ".") for p in permis)}
     assert not inconnus, (cas["q"], reponse["texte"], inconnus)
 

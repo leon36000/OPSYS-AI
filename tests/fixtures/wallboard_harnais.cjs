@@ -59,6 +59,13 @@ async function principal() {
     sortie.detail = dom.t1.querySelector('[data-champ="detail"]').textContent;
     sortie.classes_t2 = [...dom.t2.classList.s].sort();
     sortie.maj = dom.maj.textContent; }
+  // 1b. une tuile à couverture partielle le dit ; la mise à jour suivante, complète, n'en garde aucune trace
+  { const dom = construire(); const { e } = env(dom); const app = creer(e);
+    const partiel = donnees(); partiel.tuiles[0].partielle = true; app.appliquer(partiel);
+    sortie.etat_partielle = dom.t1.querySelector('[data-champ="etat"]').textContent;
+    sortie.etat_complete = dom.t2.querySelector('[data-champ="etat"]').textContent;
+    app.appliquer(donnees());
+    sortie.etat_apres_complet = dom.t1.querySelector('[data-champ="etat"]').textContent; }
   // 2. flux : ouverture, instantané, fin -> fermeture et reconnexion planifiée
   { FauxFlux.instances.length = 0; const dom = construire(); const { e, minuteries } = env(dom); const app = creer(e); app.demarrer();
     const flux = FauxFlux.instances[0]; sortie.flux_url = flux.url; sortie.flux_credentials = flux.opts.withCredentials;

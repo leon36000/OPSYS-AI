@@ -162,6 +162,22 @@ def test_une_mesure_perimee_est_ecrite_perimee_avec_son_age_et_la_banniere_n_est
     assert all(t["a_jour"] is False for t in api["tuiles"] if t["perimee"])
 
 
+def _tuile_pour_page(**plus):
+    return {
+        "id": "marge", "titre": "Marge réelle cumulée", "page": 1, "etat_seuil": "sans_seuil", "fraicheur": "a_jour",
+        "valeur_affichee": "2 700,00 $", "libelle_fraicheur": "À jour", "libelle_seuil": "sans seuil",
+        "age_affiche": "1 h 00 min", "source": "M5 m5.rentabilite_chantier", **plus,
+    }
+
+
+def test_une_tuile_a_couverture_partielle_le_dit_dans_la_page_rendue_par_le_serveur():
+    partielle = wallboards_ui._tuile_html(_tuile_pour_page(partielle=True))
+    complete = wallboards_ui._tuile_html(_tuile_pour_page(partielle=False))
+    sans_cle = wallboards_ui._tuile_html(_tuile_pour_page())  # une réponse d'avant l'entrepôt interdépartements
+    assert "À jour · sans seuil · couverture partielle" in html_module.unescape(partielle)
+    assert "partielle" not in complete and "partielle" not in sans_cle
+
+
 def test_le_mode_tele_et_les_parametres(navigateur):
     _connecter(navigateur)
     assert '<body class="tv">' in navigateur.get("/wallboards/direction?tv=1").text
@@ -180,7 +196,7 @@ def test_la_liste_des_wallboards(navigateur):
 def test_l_api_rend_le_meme_etat_que_la_page_sans_donnee_personnelle(navigateur):
     _connecter(navigateur)
     api = navigateur.get("/api/wallboards/marketing").json()
-    assert api["ok"] is True and api["donnees_personnelles"] is False and len(api["tuiles"]) == 6
+    assert api["ok"] is True and api["donnees_personnelles"] is False and len(api["tuiles"]) == 12
     impressions = next(t for t in api["tuiles"] if t["id"] == "impressions")
     assert impressions["valeur"] is None and impressions["valeur_affichee"] == "non calculable"
 

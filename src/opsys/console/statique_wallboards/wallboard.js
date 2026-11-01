@@ -23,7 +23,8 @@
       var el = doc.querySelector('[data-tuile="' + String(t.id).replace(/[^a-z0-9-]/g, "") + '"]');
       if (!el) { return; }
       champ(el, "valeur").textContent = String(t.valeur_affichee);
-      champ(el, "etat").textContent = String(t.libelle_fraicheur) + " · " + String(t.libelle_seuil);
+      champ(el, "etat").textContent = String(t.libelle_fraicheur) + " · " + String(t.libelle_seuil) +
+        (t.partielle === true ? " · couverture partielle" : "");
       champ(el, "detail").textContent = t.age_affiche ? "Dernier fait il y a " + String(t.age_affiche) : "Aucun âge connu";
       remplacerClasse(el, CLASSES_ETAT, "etat-" + String(t.etat_seuil));
       remplacerClasse(el, CLASSES_FRAICHEUR, "fraicheur-" + String(t.fraicheur));

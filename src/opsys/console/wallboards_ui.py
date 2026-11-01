@@ -64,6 +64,8 @@ def _tuile_html(t: Mapping[str, Any]) -> str:
     if t["fraicheur"] in ("perime", "inconnu", "manquant"):
         icone = "⏱" if t["fraicheur"] == "perime" else "?"
     detail = f"Dernier fait il y a {t['age_affiche']}" if t.get("age_affiche") else "Aucun âge connu"
+    # Une valeur calculée sur une partie seulement de ce qu'elle devrait couvrir le dit sur la tuile (jamais complète).
+    partielle = " · couverture partielle" if t.get("partielle") is True else ""
     return (
         f'<li class="tuile etat-{pages.e(t["etat_seuil"])} fraicheur-{pages.e(t["fraicheur"])}" '
         f'data-tuile="{identifiant}" '
@@ -71,7 +73,7 @@ def _tuile_html(t: Mapping[str, Any]) -> str:
         f'<h2 id="t-{identifiant}">{pages.e(t["titre"])}</h2>'
         f'<p class="valeur" data-champ="valeur">{pages.e(t["valeur_affichee"])}</p>'
         f'<p class="etat"><span aria-hidden="true">{icone}</span> <span data-champ="etat">'
-        f"{pages.e(t['libelle_fraicheur'])} · {pages.e(t['libelle_seuil'])}</span></p>"
+        f"{pages.e(t['libelle_fraicheur'])} · {pages.e(t['libelle_seuil'])}{partielle}</span></p>"
         f'<p class="detail" data-champ="detail">{pages.e(detail)}</p>'
         f'<p class="detail">Source : {pages.e(t["source"] or "aucune")}</p></article></li>'
     )

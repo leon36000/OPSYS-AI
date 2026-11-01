@@ -55,11 +55,22 @@
      ],
      "docs": [],
      "niveau": "S+P"
+    },
+    {
+     "tests": [
+      "tests/test_entrepot_m8_garanties.py",
+      "tests/test_entrepot_m8_scenarios.py",
+      "departments/m08-analytics/tests/test_mesures_interdepartements.py"
+     ],
+     "docs": [
+      "docs/architecture/M8-ENTREPOT-SOURCES.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "83efcd82b",
    "current_status": "PARTIEL",
-   "limite": "Consommateurs du bus pour M1, M2, M3, M4, M5, M6, M7 avec reprise ; aucun état fonctionnel/en panne/périmé par connecteur ; M9 et M10 non consommés. Variante PostgreSQL de reprise concurrente présente, non rejouée ici."
+   "limite": "Consommateurs du bus pour M1, M2, M3, M4, M5, M6, M7 avec reprise (dont, depuis l'entrepôt interdépartements, les réceptions de M6 et les commandes envoyées de M1, avec provenance et les cinq garanties prouvées source par source sur le vrai bus, charges fictives) ; aucun état fonctionnel/en panne/périmé par connecteur ; M9 et M10 non consommés ; aucune lecture croisée M8 vers un département (impressions, clics, capacité, pipeline, revenus facturés, coût réel de M5, dépense comptabilisée : décisions D1 à D7 de M8-ENTREPOT-SOURCES.md). Le bus n'authentifie pas le producteur. Variante PostgreSQL de reprise concurrente présente, non rejouée ici."
   },
   {
    "id": "M8.2",
@@ -83,11 +94,22 @@
       "departments/m08-analytics/README.md"
      ],
      "niveau": "S"
+    },
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_entrepot_interdepartements.py",
+      "departments/m08-analytics/tests/test_mesures_interdepartements.py",
+      "tests/test_entrepot_m8_scenarios.py"
+     ],
+     "docs": [
+      "docs/architecture/M8-ENTREPOT-SOURCES.md"
+     ],
+     "niveau": "S"
     }
    ],
    "verified_commit": "d8634abf6",
    "current_status": "PARTIEL",
-   "limite": "Livré en SQLite (migration 0046, schéma en étoile dérivé des quatre registres, versionné par schéma/catalogue/empreinte des registres, fraîcheur déclarée et provenance par mesure, reconstructible, jamais source de vérité). Migration 0046 montée/descendue sur SQLite et sur PostgreSQL éphémère (Docker) ; DDL compilé pour PostgreSQL ; le CONSTRUCTEUR n'a pas été exécuté sur PostgreSQL. DuckDB non installé donc non utilisé ; Parquet absent. Les consommateurs du bus n'alimentent pas l'entrepôt (reconstruction par outil/planification : il peut être en retard, et le dit). Données fictives seulement.",
+   "limite": "Livré en SQLite (migration 0046, schéma en étoile dérivé des cinq registres, versionné par schéma/catalogue/empreinte des registres, fraîcheur déclarée et provenance par mesure, reconstructible, jamais source de vérité). Migration 0046 montée/descendue sur SQLite et sur PostgreSQL éphémère (Docker) ; DDL compilé pour PostgreSQL ; le CONSTRUCTEUR n'a pas été exécuté sur PostgreSQL. DuckDB non installé donc non utilisé ; Parquet absent. Depuis l'entrepôt interdépartements, les constats de M1, M3, M4, M5, M6 et M7 alimentent 38 mesures (18 + 20) par les registres de M8, la reconstruction restant par outil/planification (l'entrepôt peut être en retard, et le dit ; l'empreinte couvre les cinq registres) ; les tables de faits (chantier, lead, devis, contenus) ne portent pas ces nouvelles sources et la couverture partielle n'est qu'en texte (`detail`), pas en colonne. Données fictives seulement.",
    "verification": "Suites ciblées rejouées le 2026-11-01 sur la branche claude/m8-olivier ; détail et mutations dans docs/architecture/M8-OLIVIER.md et le rapport de livraison."
   },
   {
