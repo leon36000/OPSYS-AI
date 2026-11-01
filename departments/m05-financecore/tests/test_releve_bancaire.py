@@ -137,6 +137,19 @@ def test_doublon_de_fitid_devise_etrangere_et_fichiers_hostiles():
     assert _code(CSV_FR, convention_signe="peut-etre") == "REJ-BANQUE-LIGNE-INVALIDE"
 
 
+def test_les_plafonds_de_taille_sont_ceux_qui_sont_documentes_et_tiennent_sur_un_releve_valide():
+    """Les plafonds sont des valeurs écrites en dur ici : une constante relevée en silence ne passerait plus."""
+    assert (rb.OCTETS_MAX, rb.LIGNES_MAX) == (2_000_000, 5_000)
+    note = "A" * 480
+    corps = b"Date,Description,Montant\n" + b"".join(
+        f"2026-10-01,{note}{i:04d},1.00\n".encode() for i in range(4_200)
+    )
+    assert len(corps) > 2_000_000 and corps.count(b"\n") < 5_001
+    assert _code(corps) == "REJ-BANQUE-FICHIER-INVALIDE"
+    petit, verdict = rb.lire_releve(corps[:1_900_000].rsplit(b"\n", 1)[0] + b"\n", nom="x")
+    assert verdict is None and len(petit["lignes"]) > 3_000
+
+
 def test_convention_de_signe_explicite_pour_une_colonne_montant():
     octets = b"Date,Montant\n2026-10-01,50.00\n"
     rel, _ = rb.lire_releve(octets, nom="x")

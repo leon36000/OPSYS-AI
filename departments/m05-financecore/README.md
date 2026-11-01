@@ -398,3 +398,15 @@ requise ») compte **0 valeur approuvée** par deux réviseurs distincts ; les c
 (exposition en parallèle, équivalence testée) ; la campagne de validation de la paie est à **« campagne officielle :
 0/300 »** (18 cas de démonstration fictifs, jamais comptés) ; le catalogue de subventions est **vide**. Format,
 gouvernance, plan de bascule, limites : [BASE-FISCALE](../../docs/architecture/BASE-FISCALE.md).
+
+## Vague 3 : opérations comptables, rapprochement bancaire, dossier CPA, conseillers, RAG fiscal
+
+Vingt-trois outils s'ajoutent (relances, notes de crédit, dépenses d'employés, pièces justificatives, flux fournisseur et
+paiement **préparé**, jugements et estimations, périodes et préclôture, mesures, cycle autonome, rapprochement bancaire
+CSV/OFX, dossier CPA scellé, comparaison de financement, remboursement anticipé, échelonnement de placements à terme fixe,
+conseil fiscal sourcé, recherche dans la base de connaissances fiscale). Les agents ne produisent que des **brouillons** ;
+validation d'écriture, clôture de période et confirmation d'un rapprochement sont humaines (N4) ; un paiement est préparé
+(N3 humain) et exécuté hors d'OPSYS. Aucun taux ni règle n'est inventé : « non renseigné — source officielle requise », ou
+l'analyse est marquée ESSAI/non approuvé. Architecture, outils, flux, événements, limites, mesures et mutations :
+[M5-SOPHIE](../../docs/architecture/M5-SOPHIE.md). Configuration du propriétaire : bloc commenté `configuration.operations` de
+`department.yaml`.
