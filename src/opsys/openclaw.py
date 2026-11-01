@@ -54,6 +54,12 @@ la configuration validée par son schéma Zod strict : `roles.json` (`roles_outi
 par `generer()`/`opsys-metier openclaw configurer`, tant qu'aucune surface d'appairage n'existe encore pour
 le déclencher automatiquement). `contexte.json` (moteur de contexte, ci-dessus) est lu de la même façon par
 `core/src/context-engine/opsys-contexte-config.ts`.
+
+Avatars (chantier « avatars », étape 2, `docs/architecture/AVATARS.md`) : l'agent de chaque département porte
+l'identité EFFECTIVE de son avatar (`avatars.identites_effectives` : défaut du manifeste + surcharges validées de
+`$OPSYS_HOME/entreprise.yaml`), dans les champs que le core lit déjà : `identity.name` (« Léa », nom de l'assistant
+dans le chat et le prompt système) et `description` (le rôle). Voir `identite_agent`. Une surcharge invalide fait
+échouer la génération avant toute écriture, jamais de repli silencieux sur le nom par défaut.
 """
 
 from __future__ import annotations
@@ -72,13 +78,14 @@ from urllib.parse import unquote, urlsplit
 from sqlalchemy import Connection, inspect
 
 from . import agents as profils_configurables
-from . import agents_base, appareils, canaux, modeles, stockage
+from . import agents_base, appareils, avatars, canaux, modeles, stockage
 from .departements import PALIERS, Departement, tous_les_outils, verifier_portees
 from .memoire.embeddings import ENV_CLE, ENV_MODELE, ENV_URL, ClientEmbeddings
 from .outils import Autonomie
 from .passerelle import alias_palier
 from .politiques import approbation_requise_niveau
 from .profils import REGLES_COMMUNES, rendre_soul
+from .taxonomie import ProfilInvalide
 
 # Le fichier racine du core. `openclaw.json` reste le nom de tout le core (profil par défaut, autres profils, Docker).
 # Le profil `opsys` (dossier d'instance `~/.opsys/core`, T0.7 lot 3) le nomme `opsys.json` et lit encore un
@@ -730,6 +737,44 @@ def _preparer_projection_sms(
     return configuration, projections
 
 
+def _identites_des_departements(
+    departements: Mapping[str, Departement], profil_entreprise: Path | None
+) -> dict[str, avatars.IdentiteEffective]:
+    """Identité effective de l'avatar de chaque département, ou refus avant toute écriture.
+
+    Même contrat que `opsys-metier verifier` et la lecture admin : un avatar dans chaque manifeste, des noms
+    distincts, des surcharges du client valides et résolues contre les manifestes (`avatars.resoudre_identites`).
+    Une surcharge cassée n'est jamais lue comme une absence de surcharge : le core afficherait le nom par défaut,
+    que le client a remplacé.
+    """
+    problemes = avatars.verifier_declarations(departements)
+    if problemes:
+        raise ValueError("avatars des départements invalides, rien n'est écrit :\n  - " + "\n  - ".join(problemes))
+    try:
+        return avatars.identites_effectives(departements, profil_entreprise)
+    except ProfilInvalide as exc:
+        raise ProfilInvalide(f"avatars des départements invalides, rien n'est écrit : {exc}") from exc
+
+
+def identite_agent(identite: avatars.IdentiteEffective) -> dict[str, Any]:
+    """Champs de l'agent du core qui portent l'avatar du département (étape 2, `docs/architecture/AVATARS.md`).
+
+    - `identity.name` (`IdentitySchema`, `core/src/config/zod-schema.core.ts`) : premier choix de
+      `resolveAssistantIdentity` (`core/src/gateway/assistant-identity.ts`), donc nom servi par `agent.identity.get`
+      à l'en-tête du chat et nom de l'assistant du contexte de réponse ; aussi `name=` de la ligne d'exécution du
+      prompt système (`resolveRuntimeAgentName`, `core/src/agents/system-prompt-params.ts`).
+    - `description` (`AgentEntryBaseSchema`, `core/src/config/zod-schema.agent-entry-base.ts`) : le rôle, texte
+      libre que le core ne fait que relayer (export d'agent, `core/src/claws/export.ts`).
+
+    Rien d'autre : `voix` et `visage` sont des identifiants LOGIQUES. `identity.avatar` serait lu comme une image
+    (chemin de l'espace de travail, URL ou data URI), `identity.avatarModelId` doit appartenir au catalogue 3D
+    (`core/src/config/validation-core.ts`) et `tts` attend une voix de fournisseur : leur projection attend le
+    registre de fournisseurs. Le `name` de l'agent (« M1 · Front Office ») reste celui de la liste des agents
+    (`core/src/gateway/agent-list.ts`) ; `IDENTITY.md` n'est pas écrit (voir AVATARS.md).
+    """
+    return {"identity": {"name": identite.nom}, "description": identite.role}
+
+
 def _origine_transport_mcp(url: str, *, origine_seule: bool = False) -> str:
     """Valide une URL HTTP(S) sans secret ni suffixe ambigu ; renvoie son origine canonique."""
     if type(url) is not str or not url or any(ord(c) <= 32 or ord(c) == 127 for c in url):
@@ -805,6 +850,7 @@ def generer(
     affaire_par_session: Sequence[str] = (),
     cnx_factory: Callable[[], Any] | None = None,
     origine_http_mcp_autorisee: str | None = None,
+    profil_entreprise: Path | None = None,
 ) -> dict[str, Path]:
     """Écrit les fragments et les espaces de travail dans `<dossier_config>/opsys/`.
 
@@ -821,6 +867,9 @@ def generer(
     `contexte_entreprise` (PLAN T3.3-suite) active le moteur de contexte pour les agents nommés :
     voir `_configuration_contexte`. Absent (défaut) : désactivé, rien ne change pour les agents.
     `affaire_par_session` (PLAN T3.3-suite-b) : ceux de ces agents dont l'affaire vient de la session.
+    `profil_entreprise` (défaut `$OPSYS_HOME/entreprise.yaml`) porte les surcharges d'avatars du client ; l'identité
+    effective de chaque département est projetée dans son agent (`identite_agent`). Avatar absent, doublon de nom
+    ou surcharge invalide : refus avant toute écriture (`ValueError`, `ProfilInvalide` pour le profil).
     """
     url_mcp, transport_security = _transport_mcp(url_mcp, origine_http_mcp_autorisee)
     if mode_fournisseur not in {"natif", "litellm"}:
@@ -844,6 +893,8 @@ def generer(
     problemes_canaux = canaux.verifier_declarations(departements)
     if problemes_canaux:
         raise ValueError("canaux du public invalides, rien n'est écrit :\n  - " + "\n  - ".join(problemes_canaux))
+    # Et pour l'identité des avatars : jamais un nom par défaut à la place d'une surcharge cassée (étape 2).
+    identites = _identites_des_departements(departements, profil_entreprise)
     # Un canal n'est jamais actif si le squelette existant n'inclut pas tous ses fragments (`canaux.configuration`).
     sans_include = includes_de_canaux_manquants(dossier_config) if fichier_racine(dossier_config).exists() else []
     env_canaux = os.environ if environ is None else environ
@@ -940,6 +991,7 @@ def generer(
         })
         agents[agents_base.agent_core_id(profil_base)] = {
             "name": f"{dep.code} · {dep.nom}",
+            **identite_agent(identites[dep.id]),
             "workspace": f"{racine_espaces_core}/{dep.id}",
             "model": modele_agent,
             "runtime": {"type": "embedded"},
