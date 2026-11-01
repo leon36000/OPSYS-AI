@@ -21,7 +21,7 @@ CLE = "cle-idempotence-0123456789"
 def _creer(env, **plus):
     return env.client.creer_brouillon(
         "post",
-        plus.get("titre", "Toiture à Laval"),
+        plus.get("titre", "Atelier à Laval"),
         plus.get("contenu", "<p>Bonjour</p>"),
         "",
         "",
@@ -47,7 +47,7 @@ def test_creer_un_brouillon_rend_l_empreinte_du_contenu_stocke(env, reference):
     assert donnees["empreinte"] == reference.empreinte_contenu(
         {
             "type": "post",
-            "titre": "Toiture à Laval",
+            "titre": "Atelier à Laval",
             "contenu": "<p>Bonjour</p>",
             "extrait": "",
             "slug": "",

@@ -43,7 +43,8 @@ RENOVATION = "renovation-exterieure-qc"
 GENERIQUE = "generique-pme"
 
 # sha256 des SOUL.md (et du skill de M3) AVANT la généralisation (commit d172aa2cc), pris tels quels ;
-# M5 : + paragraphe « base fiscale » de claude/m5-base-fiscale (aucun terme sectoriel).
+# M5 : + paragraphe « base fiscale » de claude/m5-base-fiscale ; M7 : + paragraphe WordPress/réseaux sociaux de
+# claude/m7-wordpress-social (aucun terme sectoriel dans ces ajouts).
 SOUL_AVANT = {
     "m01-front-office": "d74fe370f565131b0174aafbb257fa08733a09760a60067f0f6af709b25a65be",
     "m02-revenue-crm": "9c214f0c1c478b74cd875b95c9965ff190bbaaab597757a8aaadfa673ded3af7",
@@ -51,7 +52,7 @@ SOUL_AVANT = {
     "m04-field-ops": "85e7ff89e5f82809c31467efc3a6d6e53f0d6ba310954c7ba36d9079f771179b",
     "m05-financecore": "aed5c1a15fb01e0c572c1120160eee182619ac1fa318edada5cafa317121608b",
     "m06-material-control": "7813017714577d81c4aca28e5b70bc81b26aaa0d191bf2bcbe6d9930321b90dd",
-    "m07-marketing": "c0975bcfda3484e808599259cd18b38491e3c0dffd2e04387fb9999a5549e71a",
+    "m07-marketing": "04424e6974a3833c00753ba2d3a0eccfc6130fdebf761f561275f158e073a8f0",
     "m08-analytics": "5dc5fb864a0c2cf52bb48181f4bd461808d59fd720bf7c3caab25bacba0d2e14",
     "m09-strategic-intelligence": "f0dd373d0d7b852c9590365c8a9d0c48659a3b10630a8213a16df06e727fb86c",
     "m10-memoire": "ab0fe9fe6e0a5e8a8e52b3c35586523617f012b9be295d88d50374f393adc919",

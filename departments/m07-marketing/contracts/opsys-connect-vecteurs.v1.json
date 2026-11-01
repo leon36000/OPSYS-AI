@@ -16,14 +16,14 @@
    "id": "article-simple"
   },
   {
-   "attendu_sha256": "53eeb557f4b7233b89d2b3c9ed7a9eac96f3cd1161401f20f4a15490e4843751",
-   "canonique_utf8": "opsys-content/v1\ntype:4:page\ntitre:22:Rénovation à Québec\ncontenu:21:<p>Été — 🏠</p>\nextrait:8:Résumé\nslug:17:renovation-quebec\nimage_a_la_une_sha256:64:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\n",
+   "attendu_sha256": "41ad5cdac1e0c079de9d144730ff27b0b7a71af6ddef046ada9d78bf332096d0",
+   "canonique_utf8": "opsys-content/v1\ntype:4:page\ntitre:19:Services à Québec\ncontenu:21:<p>Été — 🏠</p>\nextrait:8:Résumé\nslug:15:services-quebec\nimage_a_la_une_sha256:64:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\n",
    "champs": {
     "contenu": "<p>Été — 🏠</p>",
     "extrait": "Résumé",
     "image_a_la_une_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-    "slug": "renovation-quebec",
-    "titre": "Rénovation à Québec",
+    "slug": "services-quebec",
+    "titre": "Services à Québec",
     "type": "page"
    },
    "id": "unicode-et-octets"
@@ -720,15 +720,15 @@
    "signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4"
   },
   {
-   "chaine_canonique": "OPSYS-CONNECT-V1\nPOST\n/opsys-connect/v1/drafts\n1767225583\nUn-Autre_nonce_0123456789abcd\n7aec28ef102989fc856623a1a699491febca0e004e9a788f1eb99c389a4d2133",
-   "corps_utf8": "{\"contenu\":\"Québec — été 🏠 \\u00e9\",\"titre\":\"Toiture à Laval\"}",
-   "empreinte_corps": "7aec28ef102989fc856623a1a699491febca0e004e9a788f1eb99c389a4d2133",
+   "chaine_canonique": "OPSYS-CONNECT-V1\nPOST\n/opsys-connect/v1/drafts\n1767225583\nUn-Autre_nonce_0123456789abcd\n67a30371353c84c828f678ce2770b28459edc941c80d1d3bdf4fdb8ab8a136dd",
+   "corps_utf8": "{\"contenu\":\"Québec — été 🏠 \\u00e9\",\"titre\":\"Atelier à Laval\"}",
+   "empreinte_corps": "67a30371353c84c828f678ce2770b28459edc941c80d1d3bdf4fdb8ab8a136dd",
    "horodatage": "1767225583",
    "id": "post-json-unicode",
    "methode": "POST",
    "nonce": "Un-Autre_nonce_0123456789abcd",
    "route": "/opsys-connect/v1/drafts",
-   "signature": "v1=57e28bac61e3216d2a2bd303f0c9619b94faa74299dc00530421ab0040a3d49c"
+   "signature": "v1=ca2d216dae4e841d8e0945b1717107516afa72f1d9864ab1ea0ffcac1e71f0ce"
   },
   {
    "chaine_canonique": "OPSYS-CONNECT-V1\nGET\n/opsys-connect/v1/health\n1767225600\nget_nonce_0123456789abcdef\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -790,11 +790,11 @@
    "id": "ok-unicode",
    "maintenant": 1767225600,
    "requete": {
-    "corps_utf8": "{\"contenu\":\"Québec — été 🏠 \\u00e9\",\"titre\":\"Toiture à Laval\"}",
+    "corps_utf8": "{\"contenu\":\"Québec — été 🏠 \\u00e9\",\"titre\":\"Atelier à Laval\"}",
     "en_tetes": {
      "X-OPSYS-Key-Id": "default",
      "X-OPSYS-Nonce": "Un-Autre_nonce_0123456789abcd",
-     "X-OPSYS-Signature": "v1=57e28bac61e3216d2a2bd303f0c9619b94faa74299dc00530421ab0040a3d49c",
+     "X-OPSYS-Signature": "v1=ca2d216dae4e841d8e0945b1717107516afa72f1d9864ab1ea0ffcac1e71f0ce",
      "X-OPSYS-Timestamp": "1767225583"
     },
     "methode": "POST",

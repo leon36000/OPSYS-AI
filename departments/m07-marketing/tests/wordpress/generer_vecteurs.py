@@ -78,7 +78,7 @@ def signatures() -> list[dict]:
             ROUTE,
             str(MAINTENANT - 17),
             "Un-Autre_nonce_0123456789abcd",
-            '{"contenu":"Québec — été \U0001f3e0 \\u00e9","titre":"Toiture à Laval"}',
+            '{"contenu":"Québec — été \U0001f3e0 \\u00e9","titre":"Atelier à Laval"}',
         ),
         ("get-corps-vide", "GET", "/opsys-connect/v1/health", str(MAINTENANT), "get_nonce_0123456789abcdef", ""),
         (
@@ -534,10 +534,10 @@ def empreintes() -> list[dict]:
             "unicode-et-octets",
             {
                 "type": "page",
-                "titre": "Rénovation à Québec",
+                "titre": "Services à Québec",
                 "contenu": "<p>Été — \U0001f3e0</p>",
                 "extrait": "Résumé",
-                "slug": "renovation-quebec",
+                "slug": "services-quebec",
                 "image_a_la_une_sha256": "e" * 64,
             },
         ),
