@@ -59,8 +59,11 @@ kpis:
   - id: taux_prix_indetermine
     description: Part des lignes reçues dont le prix reste INDETERMINE (ni catalogue fourni ni historique du registre).
 evenements:                        # ADR-0009 §3, PLAN T1.2-b/T1.2-d
+  # Interconnexion M5 -> M6 (docs/architecture/INTERCONNEXION.md) : m5.rapprochement_po_constate (verdict PO / réception /
+  # facture de M5, reçu tel quel) devient une attente « À voir » de l'admin quand il est en ECART ou INCOMPLET ; M6 ne
+  # modifie jamais la facture (elle est à M5).
   consomme: [m4.travaux_termines, m3.devis_accepte, m3.besoins_materiaux, m1.courriel_aiguille,
-             m1.commande_courriel_envoyee]  # le réel (WCT), le prévu définitif (devis accepté) et provisoire (estimation, T2.3-e)
+             m1.commande_courriel_envoyee, m5.rapprochement_po_constate]  # le réel (WCT), le prévu définitif (devis accepté) et provisoire (estimation, T2.3-e)
   # PLAN T4.15 : m6.reception_enregistree (M6.16) : ce qui est arrivé d'un PO persisté, dans la transaction de la
   # réception ; M5 en tire ce qu'il doit attendre de payer. Aucun montant calculé, aucune unité convertie.
   # PLAN T4.14 : m6.materiel_pret (M6.4, M6.8) : la réservation du matériel d'un devis accepté change (elle naît, se

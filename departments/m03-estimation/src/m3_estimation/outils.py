@@ -45,6 +45,7 @@ from . import (
     outils_site_vision,
     plancher,
     politique_photos,
+    profils_recus,
     qualite_photos,
     registre,
     revue_devis,
@@ -2021,10 +2022,41 @@ def attentes() -> list[dict[str, Any]]:
     return attentes_revue
 
 
+def _ranger_une_fois(nom_registre: str, fait: dict[str, Any], cles: tuple[str, ...]) -> bool:
+    """Range un fait reçu du bus une seule fois, par clé de CONTENU (jamais l'`evenement_id`) : le même fait republié
+    sous un autre identifiant est un « déjà reçu », sans doublon ni quarantaine. Panne du registre : l'exception remonte
+    et le bus réessaie."""
+    registre_cible = stockage.maillons("m03-estimation", nom_registre)
+    for existant in registre_cible:
+        if existant.get("type_entree") == fait["type_entree"] and all(existant.get(c) == fait.get(c) for c in cles):
+            return False
+    registre_cible.append(fait)
+    return True
+
+
+def _recevoir_client_associe(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m2.client_associe` (interconnexion M2 -> M3) : le lien lead -> client, seul moyen de retrouver le
+    profil de propriété confirmé d'un lead. Ni nom ni contact : deux identifiants."""
+    ajoute = _ranger_une_fois(
+        profils_recus.REGISTRE_LIENS, profils_recus.fait_lien(charge), ("lead_id", "client_id"))
+    return {"enregistre": ajoute, "deja_enregistre": not ajoute, "lead_id": charge["lead_id"]}
+
+
+def _recevoir_profil_propriete_confirme(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m2.profil_propriete_confirme` (interconnexion M2 -> M3) : range la révision confirmée (ville exclue,
+    jamais d'adresse ni de contact) ; `m3_construire_contexte_site` la reprend si l'appelant ne donne pas de profil.
+    Rien n'est écrit au registre de M2."""
+    ajoute = _ranger_une_fois(
+        profils_recus.REGISTRE_PROFILS, profils_recus.fait_profil(charge), ("propriete_id", "revision"))
+    return {"enregistre": ajoute, "deja_enregistre": not ajoute, "revision": charge["revision"]}
+
+
 def consommateurs() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m6.variance_chantier": _recevoir_variance_chantier,
+        "m2.client_associe": _recevoir_client_associe,
+        "m2.profil_propriete_confirme": _recevoir_profil_propriete_confirme,
     }
 
 

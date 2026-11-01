@@ -192,10 +192,12 @@ donnée que si la source déclare σ.
 
 | Événement (catalogue) | Producteur | Consommateur visé | Câblé ? |
 |---|---|---|---|
-| `m3.contexte_site_pret` | M3 (`m3_construire_contexte_site`) | M2 (profil de propriété, M2.3), M10 | non : aucun consommateur |
-| `m3.mesure_vision_validee` | M3 (validation par référence ou par une personne) | M8 (mesures) | non : aucun consommateur |
-| `m4.message_client_brouillon_pret` | M4 (`m4_preparer_message_eta_client`) | M1 (brouillon de message, envoi N3) | non : M1 ne le consomme pas encore |
+| `m3.contexte_site_pret` | M3 (`m3_construire_contexte_site`) | M2 (profil de propriété, M2.3), M10 | oui, M2 (comptes par statut, dits au coach) ; M10 non, justifié ([INTERCONNEXION.md](INTERCONNEXION.md)) |
+| `m3.mesure_vision_validee` | M3 (validation par référence ou par une personne) | M8 (mesures) | oui, M8 (registre `faits_operations`, sans photo ni modèle) |
+| `m4.message_client_brouillon_pret` | M4 (`m4_preparer_message_eta_client`) | M1 (brouillon de message, envoi N3) | oui, M1 : brouillon du sas d'envoi (courriel) ou « sms à reprendre » ; jamais envoyé |
 | `m3.besoins_materiaux` (existant) | M3 | M6 | oui (inchangé) : les quantités du matériel restent celles de l'estimation |
+
+> Mise à jour de l'interconnexion (2026-11-01, [INTERCONNEXION.md](INTERCONNEXION.md)) : les consommateurs ci-dessus existent maintenant, prouvés sur le vrai bus ; M3 reprend aussi le profil de propriété CONFIRMÉ de M2 (`m2.client_associe` + `m2.profil_propriete_confirme`) dans son contexte de site, et M4 le dit à la préparation (bloc `contexte_propriete`, hors verdict). L'ancien texte ci-dessous décrit l'état de la tranche d'origine.
 
 M1 / M2 / M8 / M10 sont d'autres lignes de travail : leurs consommateurs ne sont pas touchés ici (aucun import entre
 départements, aucun droit élargi). Les schémas JSON sont dans `src/opsys/evenements/catalogue/`.
@@ -232,7 +234,7 @@ PostgreSQL n'a pas été exécutée.
   réelles consenties annotées par des personnes, politique photos validée, GPU, seuils décidés, lecture des licences.
 - Aucune source géospatiale réelle ; licences des sources et des modèles non lues ; projection non vérifiée contre PROJ/MTM ; la
   distance et la région du site ne sont pas dans le contexte.
-- Le profil de propriété de M2 n'existe pas : le port attend sa forme ; aucun consommateur des trois événements n'est câblé.
+- Le profil de propriété de M2 existe (M2.3) et ses consommateurs sont câblés (voir [INTERCONNEXION.md](INTERCONNEXION.md)) ; une propriété ambiguë (plusieurs propriétés confirmées d'un client) n'est jamais devinée. Rien n'est prouvé contre un vrai service externe.
 - Poids, tolérances et réglages de fenêtre non déclarés : les outils correspondants refusent tant que la direction ne les a pas
   décidés. Aucune donnée d'historique d'équipe réelle.
 - Lien de suivi sécurisé et expirant, rôle `client` côté serveur, notification SMS (M1/Twilio) : absents (M4.14 reste PARTIEL).

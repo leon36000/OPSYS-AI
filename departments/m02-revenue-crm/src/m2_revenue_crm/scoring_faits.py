@@ -35,6 +35,8 @@ class Contexte:
     devis_envoyes: frozenset[str] | None
     profils: Mapping[str, Mapping[str, Any]]
     maillons: list[dict[str, Any]]
+    # Leads dont M7 connaît une source normalisée (conversions hors ligne importées) : lecture seule.
+    sources_marketing: frozenset[str] = frozenset()
 
 
 def _doublons_en_attente(maillons: list[dict[str, Any]]) -> frozenset[str]:
@@ -79,6 +81,7 @@ def construire_contexte(
     bandes: Any,
     seuils: Mapping[str, Mapping[str, Any]],
     devis: Sequence[Mapping[str, Any]] | None,
+    sources_marketing: frozenset[str] = frozenset(),
 ) -> Contexte:
     """Une lecture des registres, partagée par tous les leads d'un classement."""
     seuil = seuils.get(segments.CLE_JOURS_DORMANT, {}).get("valeur")
@@ -96,6 +99,7 @@ def construire_contexte(
         ),
         profils=_profils(maillons_propriete),
         maillons=maillons,
+        sources_marketing=sources_marketing,
     )
 
 
@@ -141,7 +145,10 @@ def faits_du_lead(contexte: Contexte, lead_id: str) -> dict[str, Any] | None:
         "ville": present(contrat.get("ville")),
         "service": present(travaux),
         "canal_connu": contrat.get("canal") in contrats.CANAUX,
-        "source_connue": any(contrat.get(cle) for cle in contrats.CHAMPS_CONTRAT_OPTIONNELS),
+        # La source du contrat de M2, OU celle que M7 a normalisée pour ce lead (lecture : le contrat n'est pas
+        # modifié).
+        "source_connue": any(contrat.get(cle) for cle in contrats.CHAMPS_CONTRAT_OPTIONNELS)
+        or lead_id in contexte.sources_marketing,
         "completude_propriete_pct": profil["completude"],
         "urgence_declaree": contrat.get("urgence_declaree") is True,
         "jours_depuis_ingestion": _jours(fiche.ingere_le, contexte.maintenant),

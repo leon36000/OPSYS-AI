@@ -30,6 +30,7 @@ from . import (
     clients_importes,
     coach,
     consentements,
+    faits_interconnexion,
     liste_leads,
     moteurs_commerciaux,
     previsions,
@@ -450,6 +451,8 @@ def _contexte_score(maintenant: str) -> tuple[scoring_faits.Contexte | None, dic
         bandes=_o._bloc_configuration("scoring"),
         seuils=_o._seuils_segments(),
         devis=_o._devis_connus(),
+        sources_marketing=faits_interconnexion.sources_marketing(
+            stockage.maillons(_o._DEPARTEMENT, faits_interconnexion.REGISTRE_CONVERSIONS)),
     )
     return contexte_score, None
 
@@ -843,6 +846,7 @@ def _dossier_coach(reg: Any, lead_id: str, instant: str) -> tuple[dict[str, Any]
                 consentements_contact=consentements_contact,
                 retraits=retraits,
                 preparees=preparees,
+                creances=_o._creances_recues(),
             )
             dossier["relances"] = [
                 {
@@ -870,6 +874,13 @@ def _dossier_coach(reg: Any, lead_id: str, instant: str) -> tuple[dict[str, Any]
         if (etat := propriete.etat(registre_propriete, pid))["confirme"] is not None
     ]
     dossier["propriete"] = confirmes[0] if confirmes else None
+    # Interconnexion (lecture seule) : ce que M7, M5 et M3 ont dit de ce lead ou de son client, par le bus.
+    dossier["contexte_site"] = faits_interconnexion.contexte_site_du_lead(
+        stockage.maillons(_o._DEPARTEMENT, faits_interconnexion.REGISTRE_CONTEXTES_SITE), lead_id)
+    creance = faits_interconnexion.creances_par_client(_o._creances_recues()).get(fiche.client_id or "")
+    dossier["creance"] = creance
+    dossier["conversion_hors_ligne"] = faits_interconnexion.phrase_conversion(
+        stockage.maillons(_o._DEPARTEMENT, faits_interconnexion.REGISTRE_CONVERSIONS), lead_id)
     devis = [d for d in (_o._devis_connus() or []) if d.get("lead_id") == lead_id]
     dossier["devis"] = [{"statut": d.get("statut_devis"), "instant": d.get("horodatage_devis")} for d in devis]
     contact = fiche.contrat.get("contact") if isinstance(fiche.contrat.get("contact"), dict) else {}

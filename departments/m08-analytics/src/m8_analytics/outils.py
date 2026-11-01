@@ -72,6 +72,7 @@ from . import (
     entonnoir,
     fraicheur_lectures,
     mesures_chantier,
+    operations_recues,
     provenance_m5,
     qualite,
     rapports,
@@ -201,6 +202,7 @@ _NOM_REGISTRE_FAITS = "faits_chantier"
 _NOM_REGISTRE_ENTONNOIR = "faits_entonnoir"
 _NOM_REGISTRE_CONTENUS = "faits_contenus"
 _NOM_REGISTRE_CASH_LIBRE = "faits_cash_libre"
+_NOM_REGISTRE_OPERATIONS = "faits_operations"
 _NOM_REGISTRE_HISTORIQUE_SANTE = "historique_sante"
 _NOM_REGISTRE_PUBLICATIONS = "publications_memoire"
 _M6 = "m06-material-control"
@@ -607,6 +609,28 @@ def _recevoir_cash_libre_constate(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _recevoir_operation(type_entree: str, charge: dict[str, Any]) -> dict[str, Any]:
+    """Range un constat de M7, de M5 ou de M3 au registre `faits_operations` (`operations_recues.py`), tel quel. Un
+    fait par clé de CONTENU : une relivraison, ou le même constat sous un autre `evenement_id`, n'ajoute rien. Si le
+    registre est indisponible, l'exception remonte : le bus réessaie (backoff), M8 ne perd jamais un constat en silence.
+    Le résumé du reçu ne porte que l'identifiant du constat, jamais un montant ni une valeur."""
+    fait = operations_recues.fait(type_entree, charge)
+    enregistre = _ajouter_fait_si_nouveau(
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_OPERATIONS), fait, operations_recues.cles_unicite(type_entree)
+    )
+    return {
+        "enregistre": enregistre, "deja_enregistre": not enregistre,
+        **operations_recues.resume_recu(type_entree, fait),
+    }
+
+
+def _consommateurs_operations() -> dict[str, Any]:
+    return {
+        evenement: (lambda charge, _type=type_entree: _recevoir_operation(_type, charge))
+        for evenement, type_entree in operations_recues.EVENEMENT_PAR_TYPE.items()
+    }
+
+
 def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M8 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
@@ -622,6 +646,7 @@ def consommateurs() -> dict[str, Any]:
         "m7.contenu_exporte": _recevoir_contenu_exporte,
         "m1.lead_qualifie": _recevoir_lead_qualifie,
         cash_libre.EVENEMENT: _recevoir_cash_libre_constate,
+        **_consommateurs_operations(),
     }
 
 
@@ -706,6 +731,7 @@ def outils(
     faits_entonnoir_cible: Any = None,
     faits_contenus_cible: Any = None,
     faits_cash_libre_cible: Any = None,
+    faits_operations_cible: Any = None,
     historique_sante_cible: Any = None,
     publications_cible: Any = None,
     recherche_connaissances: Any = None,
@@ -736,12 +762,25 @@ def outils(
     par M5, reçus par le bus, lus par `m8_lire_vue_executive`) — `None` (défaut) l'adosse à
     `opsys.stockage.maillons("m08-analytics", "faits_cash_libre")`.
 
+    `faits_operations_cible` (interconnexion) : même patron pour le registre `faits_operations` (constats de M7, M5 et
+    M3
+    reçus par le bus, lus par `m8_lire_vue_executive`) — `None` (défaut) l'adosse au stockage durable, SAUF si
+    l'appelant
+    injecte l'un des quatre registres ci-dessus en mémoire : il est alors vide et en mémoire (aucune base à lire).
+
     `historique_sante_cible` (M8.11) et `publications_cible` (M8.18) : mêmes points d'injection pour l'historique
     append-only du score de santé (`historique_sante`) et la mémoire des consolidations publiées vers M10
     (`publications_memoire`). `recherche_connaissances` (M8.18) : le port de lecture de la base de connaissances
     (défaut :
     le service `opsys.connaissances`, avec ses droits) ; les tests y mettent un double.
     """
+    # Interconnexion : un appelant qui injecte l'un des registres en mémoire (tests) n'a pas de base ; les constats de
+    # M7,
+    # M5 et M3 sont alors en mémoire eux aussi (vides), jamais lus dans une base absente.
+    operations_en_memoire = any(
+        cible is not None
+        for cible in (faits_cible, faits_entonnoir_cible, faits_contenus_cible, faits_cash_libre_cible)
+    )
     if faits_cible is None:
         faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
     if faits_entonnoir_cible is None:
@@ -750,6 +789,9 @@ def outils(
         faits_contenus_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONTENUS)
     if faits_cash_libre_cible is None:
         faits_cash_libre_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CASH_LIBRE)
+    if faits_operations_cible is None:
+        faits_operations_cible = (
+            [] if operations_en_memoire else stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_OPERATIONS))
     if historique_sante_cible is None:
         historique_sante_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_HISTORIQUE_SANTE)
     if publications_cible is None:
@@ -1083,6 +1125,7 @@ def outils(
         return vue_executive.assembler(
             situation, faits_chantier, attentes_m6, raison_m6, budget_caracteres=BUDGET_SORTIE,
             faits_cash_libre=list(faits_cash_libre_cible), aujourd_hui=jour,
+            faits_operations=list(faits_operations_cible),
             fraicheur_attendue=_fraicheur_attendue(fraicheur_lectures.LECTURE_VUE_EXECUTIVE),
         )
 

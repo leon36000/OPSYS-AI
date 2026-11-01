@@ -106,6 +106,7 @@ from . import (
     rapport_periode,
     rapport_strategique,
     registre,
+    signaux_gestion,
     suivi_decisions,
     validation,
 )
@@ -305,12 +306,40 @@ def _recevoir_snapshot_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     return {"enregistre": True, "deja_recu": False, "evenement_id": evenement_id, "wct_id": wct_id}
 
 
+def _ranger_signal_gestion(fait: dict[str, Any]) -> bool:
+    """Range un signal de gestion (`signaux_gestion.py`) une seule fois, par clé de CONTENU : le même constat rejoué
+    sous un autre `evenement_id` n'écrit rien. Registre indisponible : l'exception remonte, le bus réessaie."""
+    registre_cible = stockage.maillons("m09-strategic-intelligence", signaux_gestion.REGISTRE)
+    cles = signaux_gestion.CLES_UNICITE[fait["type_entree"]]
+    for existant in registre_cible:
+        if existant.get("type_entree") == fait["type_entree"] and all(existant.get(c) == fait.get(c) for c in cles):
+            return False
+    registre_cible.append(fait)
+    return True
+
+
+def _recevoir_anomalie_depense(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m7.anomalie_depense_detectee` : M7 a constaté qu'une règle transparente de dépense publicitaire
+    s'est déclenchée. M9 la range pour le briefing ; il ne propose ni n'exécute rien (la décision est humaine)."""
+    ajoute = _ranger_signal_gestion(signaux_gestion.fait_anomalie(charge))
+    return {"enregistre": ajoute, "deja_enregistre": not ajoute, "anomalie_id": charge["anomalie_id"]}
+
+
+def _recevoir_fait_consolide(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m8.fait_consolide` : le RÉSUMÉ de la consolidation des mesures de M8 (comptes et identifiants,
+    aucune valeur). Les chiffres restent chez M8."""
+    ajoute = _ranger_signal_gestion(signaux_gestion.fait_consolidation(charge))
+    return {"enregistre": ajoute, "deja_enregistre": not ajoute, "evenement_id": charge["evenement_id"]}
+
+
 def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M9 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
     return {
         "m8.alerte_proposee": _recevoir_alerte_proposee,
         _EVENEMENT_SNAPSHOT_CHANTIER: _recevoir_snapshot_chantier,
+        "m7.anomalie_depense_detectee": _recevoir_anomalie_depense,
+        "m8.fait_consolide": _recevoir_fait_consolide,
     }
 
 
@@ -686,10 +715,20 @@ def outils(
         et se lit par `m9_lire_suite_briefing`."""
         _exiger_admin_pour_appareil()
         decisions, alertes, faits = sources_du_briefing()
-        return briefing_matin.assembler_briefing_matin(
-            maintenant, decisions, alertes, faits,
-            budget_caracteres=BUDGET_SORTIE, fenetre_alertes_jours=_fenetre_alertes_jours(),
+        # Interconnexion M7/M8 -> M9 : la section « signaux_de_gestion » (anomalies de dépense, dernière consolidation
+        # de M8) s'ajoute APRÈS le briefing de base, qui est borné d'autant : l'ensemble tient sous la limite du socle.
+        signaux = signaux_gestion.section(
+            list(stockage.maillons("m09-strategic-intelligence", signaux_gestion.REGISTRE)),
+            maintenant, _fenetre_alertes_jours(),
         )
+        reserve = 0 if signaux is None else len(json.dumps(signaux, ensure_ascii=False)) + 40
+        briefing = briefing_matin.assembler_briefing_matin(
+            maintenant, decisions, alertes, faits,
+            budget_caracteres=BUDGET_SORTIE - reserve, fenetre_alertes_jours=_fenetre_alertes_jours(),
+        )
+        if signaux is not None:
+            briefing["signaux_de_gestion"] = signaux
+        return briefing
 
     def lire_suite_briefing(maintenant: str, section: str, depart: int = 0) -> dict[str, Any]:
         """La suite d'une section du briefing à partir de `depart` (T1.5-d) : mêmes sources, même filtre,

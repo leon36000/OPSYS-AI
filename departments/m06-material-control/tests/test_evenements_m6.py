@@ -144,6 +144,7 @@ def test_declaration_module_consommateurs():
         "m3.besoins_materiaux",
         "m1.courriel_aiguille",
         "m1.commande_courriel_envoyee",
+        "m5.rapprochement_po_constate",  # interconnexion M5 -> M6 : attente « À voir » de l'admin
     }
 
 

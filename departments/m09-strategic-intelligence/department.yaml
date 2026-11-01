@@ -48,7 +48,10 @@ memoire:
   lecture: [snapshots_modules, memoire_m10]
   ecriture: [snapshots_modules, etat_consolide]
 evenements:
-  consomme: [m8.alerte_proposee, m8.snapshot_chantier]
+  # Interconnexion (docs/architecture/INTERCONNEXION.md) : m7.anomalie_depense_detectee (règle transparente de dépense
+  # publicitaire déclenchée) et m8.fait_consolide (RÉSUMÉ de la consolidation des mesures : comptes et identifiants, aucune
+  # valeur) alimentent la section `signaux_de_gestion` du briefing du matin. M9 lit, ne décide pas.
+  consomme: [m8.alerte_proposee, m8.snapshot_chantier, m7.anomalie_depense_detectee, m8.fait_consolide]
   # Athéna : chaque entrée de la boucle « décision → résultat mesuré → leçon » est publiée pour la mémoire de M10
   # (`m9.fait_strategique`, un maillon = un événement, FINANCIAL côté M10). Aucune leçon n'y est une cause.
   publie: [m9.fait_strategique]

@@ -153,6 +153,7 @@ def test_declaration_module_consommateurs():
         "m6.variance_chantier",
         "m6.reception_enregistree",  # PLAN T4.15
         "m1.courriel_aiguille",  # M1-M6-LEA-ROSALIE : factures fournisseur reçues par courriel
+        "m7.depenses_marketing_constatees",  # interconnexion : brouillon de charge (jamais validé)
     }
 
 
@@ -162,6 +163,7 @@ def test_m5_declare_consommer_devis_accepte_et_travaux_termines():
         "m2.client_associe", "m3.devis_accepte", "m4.travaux_termines", "m6.variance_chantier",
         "m6.reception_enregistree",  # PLAN T4.15
         "m1.courriel_aiguille",  # M1-M6-LEA-ROSALIE
+        "m7.depenses_marketing_constatees",  # interconnexion
     )
     fonctions = dep.charger_consommateurs()
     assert "m2.client_associe" in fonctions

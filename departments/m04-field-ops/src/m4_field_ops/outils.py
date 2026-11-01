@@ -68,6 +68,7 @@ from . import (
     composition_ecriture,
     composition_journaliere,
     consentement,
+    contexte_propriete,
     couleurs_calendrier,
     digest,
     ecarts,
@@ -1816,11 +1817,17 @@ def outils(
         verdict_role = acces.controler_administrateur(acteur)
         if verdict_role is not None:
             return _refus(verdict_role)
-        return depuis_couple(
+        reponse = depuis_couple(
             preparation.evaluer(
                 registre_courant(), intervention_id, lire_localisation_confirmee, _lecteur_equipes(), _lecteur_meteo(),
             )
         )
+        if reponse.get("accepte") is True and isinstance(reponse.get("resultat"), dict):
+            # Interconnexion M2 -> M4 : renseignement HORS verdict (l'empreinte du verdict n'en dépend pas).
+            contexte = _contexte_propriete_de(registre_courant(), intervention_id)
+            if contexte is not None:
+                reponse["resultat"]["contexte_propriete"] = contexte
+        return reponse
 
     def _fournisseur_de_l_appel(
         acteur: acces.Acteur | None, profil: dict[str, Any] | None, previsions_saisies: dict[str, Any] | None,
@@ -3756,11 +3763,51 @@ def _recevoir_materiel_pret(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _ranger_une_fois(nom_registre: str, fait: dict[str, Any], cles: tuple[str, ...]) -> bool:
+    """Range un fait reçu du bus une seule fois, par clé de CONTENU : le même fait republié sous un autre
+    `evenement_id` est un « déjà reçu » (ni doublon ni quarantaine). Registre indisponible : l'exception remonte, le bus
+    réessaie."""
+    registre_cible = stockage.maillons(_DEPARTEMENT, nom_registre)
+    for existant in registre_cible:
+        if existant.get("type_entree") == fait["type_entree"] and all(existant.get(c) == fait.get(c) for c in cles):
+            return False
+    registre_cible.append(fait)
+    return True
+
+
+def _recevoir_client_associe(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m2.client_associe` (interconnexion M2 -> M4) : le lien lead -> client, deux identifiants."""
+    ajoute = _ranger_une_fois(
+        contexte_propriete.REGISTRE_LIENS, contexte_propriete.fait_lien(charge), ("lead_id", "client_id"))
+    return {"traite": True, "enregistre": ajoute, "deja_enregistre": not ajoute, "lead_id": charge["lead_id"]}
+
+
+def _recevoir_profil_propriete_confirme(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m2.profil_propriete_confirme` (interconnexion M2 -> M4) : le profil confirmé d'une propriété, pour
+    informer la préparation d'un chantier (jamais un volet, jamais une adresse)."""
+    ajoute = _ranger_une_fois(
+        contexte_propriete.REGISTRE_PROFILS, contexte_propriete.fait_profil(charge), ("propriete_id", "revision"))
+    return {"traite": True, "enregistre": ajoute, "deja_enregistre": not ajoute, "revision": charge["revision"]}
+
+
+def _contexte_propriete_de(registre_cible: Any, intervention_id: str) -> dict[str, Any] | None:
+    inscription = preparation._inscription(registre_cible, intervention_id)
+    if inscription is None:
+        return None
+    return contexte_propriete.contexte_du_lead(
+        stockage.maillons(_DEPARTEMENT, contexte_propriete.REGISTRE_LIENS),
+        stockage.maillons(_DEPARTEMENT, contexte_propriete.REGISTRE_PROFILS),
+        inscription["lead_id"],
+    )
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     return {
         "m6.variance_chantier": _recevoir_variance_chantier,
         "m3.devis_accepte": _recevoir_devis_accepte,
         "m6.materiel_pret": _recevoir_materiel_pret,
+        "m2.client_associe": _recevoir_client_associe,
+        "m2.profil_propriete_confirme": _recevoir_profil_propriete_confirme,
     }
 
 

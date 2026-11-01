@@ -200,7 +200,7 @@ Les N3 et N4 appelés par un agent attendent la file d'approbation du propriéta
 | `m7.anomalie_depense_detectee` | `m7_signaler_anomalies_depense` | une règle DEP-0x se déclenche | identifiant, canal, campagne (identifiant technique), règle, sévérité, valeur/seuil (texte décimal), jours | M9, M8 |
 | `m7.conversion_hors_ligne_importee` | `m7_importer_conversions_hors_ligne` | une conversion est importée | conversion, `lead_id` de M2, type, jour, source/medium/campagne NORMALISÉS, valeur CAD ou null | M2, M8 |
 
-**Limite** : M7 est le producteur. Les consommateurs de M2, M5, M8 et M9 ne sont PAS écrits par cette tranche (ils appartiennent à leurs lignes de travail) ; aucune lecture de M8 n'a été
+**Limite** : M7 est le producteur. Les consommateurs de M2, M5, M8 et M9 n'étaient PAS écrits par cette tranche ; ils le sont depuis le chantier d'interconnexion ([INTERCONNEXION.md](INTERCONNEXION.md) : M8 `faits_operations`, M5 brouillon de charge, M2 source en lecture, M9 briefing), prouvés sur le vrai bus ; aucune lecture de M8 n'a été
 exercée sur ces événements. Les lectures par outil (`m7_lire_depenses_marketing`, `m7_lire_signaux_marketing`) sont, elles, exercées de bout en bout.
 
 ## 10. Registres durables

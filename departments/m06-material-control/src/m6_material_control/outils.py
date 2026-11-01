@@ -116,6 +116,7 @@ from . import (
     pertes_appareil,
     preuves_pertes_bris,
     preuves_pertes_bris_appareil,
+    rapprochements_recus,
     reapprovisionnement,
     reapprovisionnement_appareil,
     reception,
@@ -3596,8 +3597,25 @@ def _recevoir_commande_courriel_envoyee(charge: dict[str, Any]) -> dict[str, Any
     return commande_courriel_outils.recevoir_commande_envoyee(charge)
 
 
+def _recevoir_rapprochement_po(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m5.rapprochement_po_constate` (interconnexion M5 -> M6) : range l'état du rapprochement d'une facture
+    fournisseur sur PO, tel que M5 l'a constaté (M6 ne le recalcule pas). Un état identique republié sous un autre
+    `evenement_id` n'ajoute rien. Registre indisponible : l'exception remonte, le bus réessaie."""
+    nouveau = rapprochements_recus.fait(charge)
+    registre_cible = stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE)
+    if any(rapprochements_recus.meme_etat(m, nouveau) for m in registre_cible if m.get("type_entree") ==
+           rapprochements_recus.TYPE_ENTREE):
+        return {"traite": True, "deja_enregistre": True, "facture_fournisseur_id": charge["facture_fournisseur_id"]}
+    registre_cible.append(nouveau)
+    return {
+        "traite": True, "deja_enregistre": False, "facture_fournisseur_id": charge["facture_fournisseur_id"],
+        "verdict": charge["verdict"],
+    }
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     return {
+        "m5.rapprochement_po_constate": _recevoir_rapprochement_po,
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m3.devis_accepte": _recevoir_devis_accepte,
         "m3.besoins_materiaux": _recevoir_besoins_materiaux,
@@ -3626,4 +3644,5 @@ def attentes() -> list[dict[str, Any]]:
         _articles_reapprovisionnement(),
         reserves=reservations.reserve_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)),
         hors_main=emplacements.hors_main_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)),
-    ) + commande_courriel_outils.attentes_courriel()
+    ) + commande_courriel_outils.attentes_courriel() + rapprochements_recus.attentes(
+        stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE))

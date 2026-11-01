@@ -57,8 +57,8 @@ budget:
   tokens_mois: 4000000
   alerte_pct: 80
 memoire:
-  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre, historique_sante, publications_memoire]
-  ecriture: [snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre, historique_sante, publications_memoire]
+  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre, faits_operations, historique_sante, publications_memoire]
+  ecriture: [snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre, faits_operations, historique_sante, publications_memoire]
 evenements:
   # PLAN T1.5-d : le WCT (durée réelle, technicien), le devis accepté (prix, coût, durée estimée si
   # M3 la fournit), la variance de matériaux de M6 (verdict repris sans recalcul) et la marge réelle de
@@ -76,6 +76,10 @@ evenements:
   # tels que le calcul de M5 les rend, chaque composante avec sa source et sa fraîcheur, ou « non calculable, manque X ».
   # M8 range chaque constat (`faits_cash_libre`, un fait par événement) et la vue exécutive montre le dernier, tel quel,
   # avec son âge ; il ne recalcule rien.
+  # Interconnexion (docs/architecture/INTERCONNEXION.md) : M8 reçoit aussi les constats de M7 (signaux, relevés de dépense,
+  # anomalies, conversions hors ligne), de M5 (mesures comptables) et de M3 (mesures de vision validées). Registre
+  # `faits_operations` (un fait par clé de contenu, jamais un nom ni un contact) ; la vue exécutive en tire la section
+  # `operations_recues` (absente tant que rien n'est reçu). M8 ne refait aucun constat.
   consomme:
     - m4.travaux_termines
     - m3.devis_accepte
@@ -88,6 +92,12 @@ evenements:
     - m7.contenu_exporte
     - m1.lead_qualifie
     - m5.cash_libre_constate
+    - m7.signaux_marketing_constates
+    - m7.depenses_marketing_constatees
+    - m7.anomalie_depense_detectee
+    - m7.conversion_hors_ligne_importee
+    - m5.mesures_comptables_constatees
+    - m3.mesure_vision_validee
   publie: [m8.alerte_proposee, m8.snapshot_chantier, m8.fait_consolide]
 configuration:
   # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11

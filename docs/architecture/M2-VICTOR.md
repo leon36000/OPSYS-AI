@@ -9,7 +9,7 @@ Matrice : `docs/reprise/MATRICES-20261031/MATRICE-EXIGENCES-M2.json` (M2.3, M2.4
 > **Ce que cette tranche est, et n'est pas.** Elle livre quatre capacités du CRM au niveau de profondeur des autres départements :
 > seize outils, des registres chaînés, des reçus rejouables, 28 cas d'évaluation et des preuves exécutées (tests de module, tests
 > d'outils sur une vraie base SQLite, un parcours par la vraie porte d'appareil sur SQLite **et** PostgreSQL). Elle ne mesure
-> **aucun modèle de langage réel**, n'a **aucune donnée de client réelle**, ne câble **aucun consommateur** chez M3, M4 ni M10, et
+> **aucun modèle de langage réel**, n'a **aucune donnée de client réelle**, ne câblait **aucun consommateur** chez M3, M4 ni M10 (câblés depuis par le chantier d'interconnexion : [INTERCONNEXION.md](INTERCONNEXION.md)), et
 > ses poids et seuils sont des **valeurs initiales déclarées**, pas des décisions de la direction. Tout statut « fait » de la
 > matrice est donc `PARTIEL` avec ses limites dites (section 8).
 
@@ -80,8 +80,8 @@ configurer comme profil d'agent. (3) **Onboarding** : l'adresse d'une fiche clie
 brouillon (source `document_onboarding`, référence `lot:brouillon`).
 
 **Lecture par M3 et M4.** Par le fait minimisé du bus (M3, M4 et M10 peuvent s'y abonner) et par `m2_lire_profil_propriete` selon les
-droits existants. Aucun droit d'appareil n'est élargi, `LECTURES_AUTORISEES` de M9 n'est pas touchée, et **aucun consommateur n'est câblé
-chez M3, M4 ni M10** par ce lot (leurs branches).
+droits existants. Aucun droit d'appareil n'est élargi, `LECTURES_AUTORISEES` de M9 n'est pas touchée. Les consommateurs de M3, M4 et M10 sont
+câblés par le chantier d'interconnexion ([INTERCONNEXION.md](INTERCONNEXION.md)). M2 consomme en retour `m7.conversion_hors_ligne_importee`, `m5.creance_relance_preparee` et `m3.contexte_site_pret` en lecture seule.
 
 ## 2. M2.4 Lead scoring 2.0
 

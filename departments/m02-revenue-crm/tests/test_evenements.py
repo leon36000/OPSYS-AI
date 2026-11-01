@@ -163,11 +163,13 @@ def _deps_bus():
 
 
 class TestManifeste:
-    def test_m2_declare_consommer_les_six_faits_qui_l_atteignent(self):
+    def test_m2_declare_consommer_les_faits_qui_l_atteignent(self):
         dep = charger_departements()["m02-revenue-crm"]
         assert dep.evenements_consomme == (
             "m4.travaux_termines", "m3.devis_sans_reponse", "m1.lead_qualifie", "m3.devis_accepte",
             "m3.devis_envoye", "m1.retrait_consentement",
+            # Interconnexion (docs/architecture/INTERCONNEXION.md) : lecture seule, rien n'est écrasé.
+            "m7.conversion_hors_ligne_importee", "m5.creance_relance_preparee", "m3.contexte_site_pret",
         )
         consommateurs = dep.charger_consommateurs()
         assert "m4.travaux_termines" in consommateurs

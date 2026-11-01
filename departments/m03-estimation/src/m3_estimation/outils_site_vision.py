@@ -29,6 +29,7 @@ from . import (
     geospatial,
     journal_site,
     politique_photos,
+    profils_recus,
     verdicts,
     vision_contrat,
     vision_gouvernance,
@@ -176,6 +177,16 @@ def construire_contexte_site(
     if altere is not None:
         return altere
     entrees: dict[str, Any] = {"lead_id": lead_id, "service": service, "date_reference": date_reference}
+    # Interconnexion M2 -> M3 : sans profil fourni par l'appelant, le profil de propriété CONFIRMÉ que M2 a publié par
+    # le
+    # bus est repris (jamais un brouillon, jamais une propriété devinée parmi plusieurs).
+    statut_profil_bus = None
+    if profil_propriete is None and isinstance(lead_id, str) and lead_id:
+        profil_propriete, statut_profil_bus = profils_recus.profil_pour_contexte(
+            stockage.maillons(_DEPARTEMENT, profils_recus.REGISTRE_LIENS),
+            stockage.maillons(_DEPARTEMENT, profils_recus.REGISTRE_PROFILS),
+            lead_id,
+        )
     for cle, valeur in (
         ("municipalite", municipalite),
         ("profil_propriete", profil_propriete),
@@ -217,7 +228,10 @@ def construire_contexte_site(
             },
             evenement_id=f"m3-contexte-site-{resultat['lead_id']}-v{resultat['version']}",
         )
-    return {"accepte": True, "resultat": {"contexte": resultat, "nouvelle_version": nouvelle}}
+    sortie: dict[str, Any] = {"contexte": resultat, "nouvelle_version": nouvelle}
+    if statut_profil_bus in (profils_recus.STATUT_REPRIS, profils_recus.STATUT_AMBIGU, profils_recus.STATUT_SANS_FAIT):
+        sortie["profil_propriete_du_bus"] = statut_profil_bus
+    return {"accepte": True, "resultat": sortie}
 
 
 def lire_contexte_site(lead_id: str, version: int | None = None) -> dict[str, Any]:

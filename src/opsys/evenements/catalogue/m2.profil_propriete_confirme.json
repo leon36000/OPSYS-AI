@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "opsys.evenement/v1/m2.profil_propriete_confirme",
   "title": "M2 — Profil de propriété confirmé par une personne",
-  "description": "Fait minimisé publié dans la même transaction que la confirmation d'un profil de propriété (M2.3). Références et attributs du bâtiment seulement : ni l'adresse précise, ni le code postal, ni les notes, ni les photos, ni les mesures, ni le contact ou le nom du client. fait_id = SHA256 de m2-propriete-confirmee-v1 + propriete_id + revision. Consommable par M3 (estimation), M4 (terrain) et M10 (mémoire) ; aucun consommateur n'est câblé par cette publication.",
+  "description": "Fait minimisé publié dans la même transaction que la confirmation d'un profil de propriété (M2.3). Références et attributs du bâtiment seulement : ni l'adresse précise, ni le code postal, ni les notes, ni les photos, ni les mesures, ni le contact ou le nom du client. fait_id = SHA256 de m2-propriete-confirmee-v1 + propriete_id + revision. Consommé par M3 (contexte de site, quand l'appelant ne fournit pas de profil), M4 (bloc `contexte_propriete` de la préparation, hors verdict) et M10 (graphe de connaissances) ; M3 et M4 le relient à un lead par `m2.client_associe`.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

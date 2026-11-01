@@ -27,8 +27,11 @@ evenements:                                          # ADR-0009 §3, PLAN T1.2-d
   # attendu » des comptes à payer). Les comptes à payer se lisent (m5_lister_comptes_a_payer).
   # M1.6 / M6.16 : m1.courriel_aiguille (facture de fournisseur reçue par courriel) devient une attente « à saisir », jamais
   # une écriture ; aucun montant n'est lu du courriel.
+  # Interconnexion M7 -> M5 (docs/architecture/INTERCONNEXION.md) : m7.depenses_marketing_constatees devient un BROUILLON
+  # d'écriture de charge (compte « marketing » du plan, contrepartie Comptes fournisseurs), jamais validé (N4 humain). Les
+  # relevés TAXES_INCLUSES et les révisions ultérieures ne créent aucun brouillon : ils sont rangés « à compléter / à revoir ».
   consomme: [m2.client_associe, m3.devis_accepte, m4.travaux_termines, m6.variance_chantier, m6.reception_enregistree,
-             m1.courriel_aiguille]
+             m1.courriel_aiguille, m7.depenses_marketing_constatees]
   # PLAN T1.5-d : la marge réelle du chantier (ou ce qui manque pour la chiffrer) atteint M8 et M10. Jamais
   # un prix unitaire, un taux ni une donnée de client ; jamais une marge pour un coût partiel.
   # PLAN T4.19-b : le cash libre constaté (m5.cash_libre_constate) atteint M8, qui l'affiche dans la vue exécutive. Les

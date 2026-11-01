@@ -353,7 +353,10 @@ def test_consommateur_sans_heure_de_livraison_refuse_sans_ecriture(base_durable)
 def test_declaration_module_consommateurs():
     # PLAN T4.10-b : M4 consomme aussi `m3.devis_accepte` (test_consommer_devis_accepte.py) ; PLAN T4.14-b :
     # `m6.materiel_pret` (test_materiel_pret_recu.py).
-    assert set(consommateurs()) == {"m6.variance_chantier", "m3.devis_accepte", "m6.materiel_pret"}
+    assert set(consommateurs()) == {
+        "m6.variance_chantier", "m3.devis_accepte", "m6.materiel_pret",
+        "m2.client_associe", "m2.profil_propriete_confirme",  # interconnexion M2 -> M4
+    }
 
 
 def test_recevoir_variance_chantier_evaluee_sans_signal_passe_a_completed_verified(base_durable, deposer_photo_test):

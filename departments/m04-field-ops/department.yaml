@@ -58,7 +58,7 @@ evenements:                        # ADR-0009 §3, PLAN T1.2-b
   publie: [m4.travaux_termines, m4.message_client_brouillon_pret]
   # m4.travaux_termines : même transaction que le WCT (outbox.completer_intervention).
   # m4.message_client_brouillon_pret (M4.14) : brouillon d'une fenêtre d'arrivée pour le client, publié à M1 seulement si le
-  # consentement de suivi est actif ; M1 le reprend (envoi N3 de M1). Aucun consommateur câblé à ce jour.
+  # consentement de suivi est actif ; M1 le reprend comme brouillon dans son sas d'envoi (envoi N3 de M1).
   # m6.variance_chantier : confirme completed_verified (outbox.confirmer_verification).
   # m3.devis_accepte (PLAN T4.10-b, DEFINITION-PRODUIT §6 « soumission acceptée -> M4 planifie », M4.5) : une
   # intervention a_planifier naît du devis ; service, ville et urgence sont relus à la source du bus
@@ -71,7 +71,10 @@ evenements:                        # ADR-0009 §3, PLAN T1.2-b
   # M6 dit pret ET que la réservation est active ET qu'aucune ligne ne manque, sinon partiel ou a_commander avec les lignes
   # manquantes ; aucune charge : « non vérifiable ». chantier_id (nullable) n'est pas lu — voir _recevoir_materiel_pret
   # dans outils.py. Catalogue : src/opsys/evenements/catalogue/m6.materiel_pret.json.
-  consomme: [m6.variance_chantier, m3.devis_accepte, m6.materiel_pret]
+  # Interconnexion M2 -> M4 (docs/architecture/INTERCONNEXION.md) : m2.client_associe (lien lead -> client) et
+  # m2.profil_propriete_confirme (profil CONFIRMÉ par une personne) renseignent m4_verifier_preparation (bloc
+  # `contexte_propriete`, hors verdict : jamais un volet, l'empreinte du verdict n'en dépend pas).
+  consomme: [m6.variance_chantier, m3.devis_accepte, m6.materiel_pret, m2.client_associe, m2.profil_propriete_confirme]
 approbations:                      # ADR-0009 §5, PLAN T1.3-b : rôles autorisés à décider N3/N4.
   # N3 : écritures internes courantes du terrain (pointer, compléter, arbitrer un écart) — le
   # manager ou l'admin de Field Ops n'a pas besoin du propriétaire pour ça au quotidien.

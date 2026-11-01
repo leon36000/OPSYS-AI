@@ -39,7 +39,7 @@ from typing import Any
 
 from opsys import garde_fou_texte as gft
 
-from . import encodage
+from . import encodage, faits_interconnexion
 from . import horodatage as _horodatage
 from .verdicts_commercial import construire_verdict
 
@@ -208,6 +208,13 @@ def faits_du_dossier(dossier: Mapping[str, Any]) -> list[dict[str, Any]]:
     canaux = dossier.get("canaux_permis")
     if canaux is not None:
         faits.append(_fait("canaux", "Canaux permis pour écrire au client : " + (", ".join(canaux) or "aucun") + "."))
+    # Interconnexion (lecture seule) : phrases fixes tirées de ce que M5, M3 et M7 ont publié par le bus.
+    if dossier.get("creance"):
+        faits.append(_fait("creance", faits_interconnexion.phrase_creance(dossier["creance"])))
+    if dossier.get("contexte_site"):
+        faits.append(_fait("contexte_site", faits_interconnexion.phrase_contexte_site(dossier["contexte_site"])))
+    if dossier.get("conversion_hors_ligne"):
+        faits.append(_fait("conversion_hors_ligne", dossier["conversion_hors_ligne"]))
     propriete = dossier.get("propriete")
     if propriete:
         champs = propriete["champs"]
