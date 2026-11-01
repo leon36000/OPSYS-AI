@@ -91,7 +91,14 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
         "m5_lire_import_quickbooks", "m5_valider_import_quickbooks"}
     # Ingestion d'onboarding : la lecture d'un lot (et de ses brouillons) et la validation d'une facture proposée.
     attendues |= {"m5_lire_lot_onboarding", "m5_valider_brouillon_onboarding_ap"}
+    # Moteur de calcul (tranche 1) : des reçus de calcul, mêmes deux mentions, prouvées par
+    # test_moteur_calcul_outils.py.
+    attendues |= {
+        "m5_calculer_rentabilite_investissement", "m5_calculer_amortissement_pret", "m5_comparer_credit_bail_achat",
+        "m5_calculer_point_mort", "m5_analyser_sensibilite_projet", "m5_simuler_tresorerie_monte_carlo",
+        "m5_verifier_recu_calcul"}
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
+    assert analyse.SORTIES_CALCUL <= analyse.SORTIES_D_ANALYSE
     assert analyse.SORTIES_COMPTABLES <= analyse.SORTIES_D_ANALYSE
     assert "m5_envoyer_facture" in analyse.SORTIES_HORS_ANALYSE
     assert "m5_enregistrer_paiement_facture" in analyse.SORTIES_HORS_ANALYSE
@@ -242,8 +249,9 @@ def _la_mention(reponse, nom):
 # Les sorties du grand livre (portée d'appareil fermée, N4 par la file) : leurs deux mentions sont prouvées sur chaque
 # sortie acceptée par tests/test_grand_livre_outils.py (`_accepte`).
 # Celles de l'onboarding le sont par tests/test_ingestion_onboarding_bout_en_bout.py (un lot réel déposé et avancé).
+# Celles du moteur de calcul par test_moteur_calcul_outils.py (chaque outil, un appel accepté).
 @pytest.mark.parametrize("nom", sorted(analyse.SORTIES_D_ANALYSE - analyse.SORTIES_COMPTABLES
-                                       - analyse.SORTIES_ONBOARDING))
+                                       - analyse.SORTIES_ONBOARDING - analyse.SORTIES_CALCUL))
 def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, nom):
     _preparer_un_po()
     ident, revision = _preparer_une_facture(par_nom)

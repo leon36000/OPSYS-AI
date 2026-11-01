@@ -188,6 +188,12 @@ _FICHIERS = (
     "grand_livre_beancount",
     "verdicts_grand_livre",
     "import_quickbooks",  # import QuickBooks : surveillé en STRICT
+    "maths_financieres",  # moteur de calcul (tranche 1) : surveillé en STRICT
+    "monte_carlo_tresorerie",
+    "sensibilite",
+    "moteur_calcul",
+    "recu_calcul",
+    "verdicts_calcul",
 )
 
 

@@ -233,14 +233,17 @@ from . import (
     facturation,
     grand_livre,
     import_quickbooks,
+    moteur_calcul,
     plan_comptable,
     prevision,
+    recu_calcul,
     soldes,
     sources_regles_paie,
     taux_fiscaux,
     taxes,
     validation,
     variance_recus,
+    verdicts_calcul,
     verdicts_grand_livre,
     wct_recus,
 )
@@ -5646,7 +5649,9 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
         ),
     ) + (
         _outils_couts_marketing(lecteur_campagne_m7) if lecteur_campagne_m7 is not None else ()
-    ) + _outils_obligations_preparees() + _outils_grand_livre() + _outils_import_quickbooks() + _outils_onboarding()
+    ) + _outils_obligations_preparees() + _outils_grand_livre() + _outils_import_quickbooks() + (
+        _outils_onboarding() + _outils_calcul()
+    )
 
 
 # DEVICE préparatoire, hors registre des mouvements et hors consommateurs YAML.
@@ -7446,5 +7451,398 @@ def _outils_onboarding() -> tuple[Outil, ...]:
                 "additionalProperties": False},
             fonction=valider_brouillon_onboarding_ap,
             autonomie=Autonomie.T1,
+        ),
+    )
+
+
+# ------------------------------------------------------------------------------------------ moteur de calcul
+# Tranche 1 du moteur de calcul (`docs/moteur-calcul.md`) : les agents ne calculent jamais « de tête », ils appellent
+# ces outils T0, qui rendent un REÇU rejouable (`recu_calcul.py`). Lecture et calcul seulement : aucune écriture, aucun
+# événement, aucun mouvement (garde anti-décaissement : strict pour les outils purs, lecture seule pour le Monte-Carlo
+# qui lit le solde du registre des mouvements par la prévision existante). Portée d'appareil FERMÉE : aucun
+# `roles_appareil`, et une identité d'appareil qui atteindrait ces outils est refusée dans le code.
+_BUDGET_CALCUL = BUDGET_SORTIE - 200
+_LIMITE_TABLEAU_DEFAUT = 12
+_LIMITE_TABLEAU_MAX = 60
+_NOTE_ENTREES_OMISES = (
+    "entrees omises pour tenir dans la réponse : empreinte_entrees les couvre, le reçu reste vérifiable "
+    "(m5_verifier_recu_calcul) ; le rejeu complet se fait en relançant le calcul avec les mêmes arguments"
+)
+
+
+def _refus_appareil_calcul() -> dict[str, Any] | None:
+    identite_appelante = contexte.identite_appelante()
+    if identite_appelante is not None and getattr(identite_appelante, "source", "appareil") == "appareil":
+        return validation.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE",
+            detail=("le moteur de calcul n'est ouvert à aucun rôle d'appareil (portée fermée) : passer par l'agent "
+                    "finance"),
+        )
+    return None
+
+
+def _sortie_calcul(
+    sortie: dict[str, Any] | None, verdict: dict[str, Any] | None, **extras: Any
+) -> dict[str, Any]:
+    """Le reçu (et ce qui l'accompagne) sous les deux mentions, jamais tronqué : sans ses `entrees` s'il dépasse le
+    budget de la réponse (le reçu compact garde la même empreinte), refus `REJ-CALC-BORNE-DEPASSEE` s'il dépasse
+    encore."""
+    if verdict is not None:
+        return _refus(verdict)
+    corps = analyse.avec_mention_comptable({"recu": sortie["recu"], **extras})
+    if _taille_gl(corps) <= _BUDGET_CALCUL:
+        return {"accepte": True, "resultat": corps}
+    corps = analyse.avec_mention_comptable(
+        {"recu": recu_calcul.compacter(sortie["recu"]), "entrees_omises": _NOTE_ENTREES_OMISES, **extras})
+    if _taille_gl(corps) <= _BUDGET_CALCUL:
+        return {"accepte": True, "resultat": corps}
+    return _refus(verdicts_calcul.construire_verdict(
+        "REJ-CALC-BORNE-DEPASSEE", detail="le reçu dépasse le budget d'une réponse : réduire l'horizon ou les flux"))
+
+
+def calculer_rentabilite_investissement(
+    objet: str, flux: list[str], taux_actualisation: str, taux_financement: str | None = None,
+    taux_reinvestissement: str | None = None,
+) -> dict[str, Any]:
+    """VAN, TRI (statut et unicité), TRI modifié et délais de récupération, avec reçu."""
+    refus = _refus_appareil_calcul()
+    if refus is not None:
+        return _refus(refus)
+    entrees = {"objet": objet, "flux": flux, "taux_actualisation": taux_actualisation}
+    if taux_financement is not None:
+        entrees["taux_financement"] = taux_financement
+    if taux_reinvestissement is not None:
+        entrees["taux_reinvestissement"] = taux_reinvestissement
+    return _sortie_calcul(*moteur_calcul.calculer_rentabilite(entrees))
+
+
+def calculer_amortissement_pret(
+    objet: str, montant_emprunte: str, taux_annuel: str, frequence: str, convention: str, amortissement_annees: int,
+    depart: int | None = None, limite: int | None = None,
+) -> dict[str, Any]:
+    """Le reçu du tableau complet et une page de ses lignes (`depart`, `limite`, `prochain_depart`)."""
+    refus = _refus_appareil_calcul()
+    if refus is not None:
+        return _refus(refus)
+    depart = 0 if depart is None else depart
+    limite = _LIMITE_TABLEAU_DEFAUT if limite is None else limite
+    if type(depart) is not int or depart < 0 or type(limite) is not int or not 1 <= limite <= _LIMITE_TABLEAU_MAX:
+        return _refus(verdicts_calcul.construire_verdict(
+            "REJ-CALC-PAGE-INVALIDE", detail=f"depart entier ≥ 0, limite de 1 à {_LIMITE_TABLEAU_MAX}"))
+    sortie, verdict = moteur_calcul.calculer_amortissement({
+        "objet": objet, "montant_emprunte": montant_emprunte, "taux_annuel": taux_annuel, "frequence": frequence,
+        "convention": convention, "amortissement_annees": amortissement_annees})
+    if verdict is not None:
+        return _refus(verdict)
+    tableau = sortie["tableau"]
+    if depart >= len(tableau):
+        return _refus(verdicts_calcul.construire_verdict(
+            "REJ-CALC-PAGE-INVALIDE", detail=f"depart {depart} : le tableau a {len(tableau)} lignes"))
+    while True:
+        lignes = tableau[depart:depart + limite]
+        suivant = depart + len(lignes)
+        reponse = _sortie_calcul(sortie, None, lignes=lignes,
+                                 prochain_depart=suivant if suivant < len(tableau) else None)
+        if reponse["accepte"] or limite <= 1:
+            return reponse
+        limite = max(1, limite // 2)
+
+
+def comparer_credit_bail_ou_achat(
+    objet: str, taux_actualisation_annuel: str, mois: int, prix_achat: str, frais_achat: str, valeur_residuelle: str,
+    paiement_mensuel: str, depot_initial: str, paiements_en_debut_de_periode: bool,
+    option_achat_finale: str | None = None,
+) -> dict[str, Any]:
+    """Valeur actuelle des coûts : achat comptant contre crédit-bail, hypothèses explicites, avec reçu."""
+    refus = _refus_appareil_calcul()
+    if refus is not None:
+        return _refus(refus)
+    return _sortie_calcul(*moteur_calcul.comparer_credit_bail_achat({
+        "objet": objet, "taux_actualisation_annuel": taux_actualisation_annuel, "mois": mois,
+        "prix_achat": prix_achat, "frais_achat": frais_achat, "valeur_residuelle": valeur_residuelle,
+        "paiement_mensuel": paiement_mensuel, "depot_initial": depot_initial,
+        "paiements_en_debut_de_periode": paiements_en_debut_de_periode, "option_achat_finale": option_achat_finale}))
+
+
+def calculer_point_mort(
+    frais_fixes: str, prix_unitaire: str, cout_variable_unitaire: str, quantite_prevue: str | None = None,
+) -> dict[str, Any]:
+    """Point mort en unités et en chiffre d'affaires, avec reçu."""
+    refus = _refus_appareil_calcul()
+    if refus is not None:
+        return _refus(refus)
+    return _sortie_calcul(*moteur_calcul.calculer_point_mort({
+        "frais_fixes": frais_fixes, "prix_unitaire": prix_unitaire, "cout_variable_unitaire": cout_variable_unitaire,
+        "quantite_prevue": quantite_prevue}))
+
+
+def analyser_sensibilite_projet(
+    objet: str, base: dict[str, Any], variations: dict[str, Any], scenarios: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Tornade et scénarios d'un projet d'investissement de l'entreprise, avec reçu."""
+    refus = _refus_appareil_calcul()
+    if refus is not None:
+        return _refus(refus)
+    return _sortie_calcul(*moteur_calcul.analyser_sensibilite(
+        {"objet": objet, "base": base, "variations": variations, "scenarios": scenarios}))
+
+
+def verifier_recu_calcul(recu: dict[str, Any]) -> dict[str, Any]:
+    """Vérifie les empreintes d'un reçu et, s'il porte ses entrées, le rejoue : identique ou non."""
+    refus = _refus_appareil_calcul()
+    if refus is not None:
+        return _refus(refus)
+    valide, raison = recu_calcul.verifier(recu)
+    if not valide:
+        return _refus(verdicts_calcul.construire_verdict("REJ-CALC-RECU-INVALIDE", detail=raison))
+    if "entrees" not in recu:
+        return {"accepte": True, "resultat": analyse.avec_mention_comptable({
+            "empreintes_valides": True, "rejoue": False, "empreinte": recu["empreinte"],
+            "raison": "reçu compact : relancer le calcul avec les mêmes arguments et comparer l'empreinte"})}
+    rejeu, verdict = moteur_calcul.rejouer(recu)
+    if verdict is not None:
+        return _refus(verdict)
+    return {"accepte": True, "resultat": analyse.avec_mention_comptable(
+        {"empreintes_valides": True, "rejoue": True, **rejeu})}
+
+
+def _entrees_monte_carlo(
+    resultat_prevision: Mapping[str, Any], seuil: Mapping[str, Any] | None
+) -> tuple[dict[str, Any] | None, int | None, dict[str, Any] | None]:
+    """Les entrées du Monte-Carlo tirées de la prévision EXISTANTE : le solde de départ, les flux placés dans les
+    semaines CALCULÉES (une semaine non calculable arrête la simulation là où la prévision s'arrête), le seuil du
+    propriétaire. `(entrees, semaines, None)` ou `(None, None, verdict)`."""
+    bloque = resultat_prevision["non_calculable_a_partir_de"]
+    if bloque == 1:
+        codes = [groupe["code"] for groupe in resultat_prevision["manque"]]
+        return None, None, verdicts_calcul.construire_verdict(
+            "REJ-CALC-PREVISION-NON-CALCULABLE",
+            detail=f"la prévision n'a aucune semaine calculable (manque : {', '.join(codes) or 'solde'})")
+    semaines = resultat_prevision["horizon_semaines"] if bloque is None else bloque - 1
+    flux = [
+        {"id": ligne["id"], "sens": ligne["sens"], "nature": ligne["nature"], "semaine": semaine["semaine"],
+         "montant": format(ligne["montant"], ".2f")}
+        for semaine in resultat_prevision["semaines"][:semaines] for ligne in semaine["lignes"]
+    ]
+    return {
+        "solde_initial": format(resultat_prevision["solde"]["montant"], ".2f"),
+        "flux": flux,
+        "seuil": None if seuil is None else format(seuil["montant"], ".2f"),
+        "prevision_id": resultat_prevision["prevision_id"],
+    }, semaines, None
+
+
+def simuler_tresorerie_monte_carlo(
+    aujourd_hui: str, graine: int, tirages: int, distributions: dict[str, Any], horizon_semaines: int | None = None,
+    role: str | None = None, autorise_couts: bool | None = None,
+) -> dict[str, Any]:
+    """Monte-Carlo à graine de la prévision M5.7 existante (`m5_prevoir_tresorerie`, même instantané, même accès) :
+    percentiles P5/P50/P95 du solde de fin de semaine et probabilité d'un solde négatif, avec reçu. Lecture pure."""
+    refus = _refus_appareil_calcul()
+    if refus is not None:
+        return _refus(refus)
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
+    if verdict is not None:
+        return _refus(verdict)
+    if not vue["autorise_couts"]:
+        return _refus(verdicts_calcul.construire_verdict(
+            "REJ-CALC-COUTS-REQUIS", detail="la simulation ne rend que des montants : droit aux coûts M5 requis"))
+    reglages, verdict = _reglages_prevision(aujourd_hui, horizon_semaines, None, 0)
+    if verdict is not None:
+        return _refus(verdict)
+    lectures = _lectures_finance(_registre_mouvements(None), reglages["configuration"])
+    cash, flux, seuil, verdict_seuil = _flux_connus_prevision(lectures, reglages)
+    resultat_prevision = prevision.assembler(
+        reglages["aujourd_hui"], reglages["horizon"], cash["solde"], flux, seuil=seuil, verdict_seuil=verdict_seuil,
+        cash_libre_resultat=cash,
+    )
+    entrees, semaines, verdict = _entrees_monte_carlo(resultat_prevision, seuil)
+    if verdict is not None:
+        return _refus(verdict)
+    sortie, verdict = moteur_calcul.simuler_tresorerie(
+        entrees, {"graine": graine, "tirages": tirages, "semaines": semaines, "distributions": distributions})
+    non_comptes = sum(groupe["nombre"] for groupe in resultat_prevision["encaissements_non_comptes"])
+    return _sortie_calcul(sortie, verdict, role=vue["role"], horizon_demande=reglages["horizon"],
+                          semaines_simulees=semaines,
+                          non_calculable_a_partir_de=resultat_prevision["non_calculable_a_partir_de"],
+                          encaissements_non_comptes_par_la_prevision=non_comptes)
+
+
+_TEXTE_DECIMAL_CALCUL = {
+    "type": "string", "description": 'Texte décimal, ex. "1250.00" ou "0.05" (jamais un nombre JSON).'}
+_OBJET_CALCUL = {
+    "type": "string",
+    "description": (
+        "Décision d'EXPLOITATION de l'entreprise, une de : " + ", ".join(sorted(moteur_calcul.OBJETS_ADMIS))
+        + ". Un placement en titres (actions, obligations, fonds, FNB, cryptoactifs, portefeuille) est refusé "
+        "(REJ-CALC-OBJET-HORS-PERIMETRE, NC 31-103)."
+    ),
+}
+_RECU_CALCUL = (
+    " Rend un REÇU rejouable (méthode, précision, entrées normalisées, résultat, empreinte SHA-256 ; "
+    "m5_verifier_recu_calcul). Calcul pur, aucune écriture ; entrée invalide : refus typé REJ-CALC-*, jamais un "
+    "chiffre deviné. Mentions : analyse préparatoire et « À valider auprès d'un comptable (CPA) »."
+)
+_HYPOTHESES_PROJET = {
+    "type": "object",
+    "description": (
+        "investissement_initial (texte, ≥ 0), flux_annuel (texte, année 1), croissance_annuelle (fraction de −0.5 à "
+        "1), duree_annees (entier 1 à 50), taux_actualisation (fraction 0 à 1), valeur_residuelle (texte, ≥ 0)."
+    ),
+}
+
+
+def _outils_calcul() -> tuple[Outil, ...]:
+    return (
+        Outil(
+            nom="m5_calculer_rentabilite_investissement",
+            description=(
+                "Rentabilité d'un investissement de l'entreprise depuis une suite de flux PAR PÉRIODE (flux[0] au "
+                "temps 0, négatif pour une dépense) : VAN au taux d'actualisation, TRI avec son STATUT (UNIQUE "
+                "seulement si les flux changent une fois de signe ; MULTIPLE, NON_GARANTI, INDEFINI, HORS_BORNES ou "
+                "AUCUN_CHANGEMENT_DE_SIGNE : aucun TRI rendu, jamais un nombre choisi), TRI modifié si les taux de "
+                "financement et de réinvestissement sont donnés, délais de récupération simple et actualisé."
+                + _RECU_CALCUL
+            ),
+            parametres={"type": "object", "properties": {
+                "objet": _OBJET_CALCUL,
+                "flux": {"type": "array", "items": _TEXTE_DECIMAL_CALCUL,
+                         "description": f"2 à {moteur_calcul.FLUX_MAX} montants au cent, un par période."},
+                "taux_actualisation": {**_TEXTE_DECIMAL_CALCUL, "description": "Fraction par période, 0 à 1."},
+                "taux_financement": {"type": ["string", "null"], "description": "TRI modifié : fraction, 0 à 1."},
+                "taux_reinvestissement": {"type": ["string", "null"], "description": "TRI modifié : fraction, 0 à 1."},
+            }, "required": ["objet", "flux", "taux_actualisation"], "additionalProperties": False},
+            fonction=calculer_rentabilite_investissement,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_calculer_amortissement_pret",
+            description=(
+                "Tableau d'amortissement d'un prêt à versement constant : frequence mensuelle, aux_deux_semaines ou "
+                "hebdomadaire ; convention nominal_compose_a_la_frequence (j/m), canadienne_semestrielle (taux "
+                "hypothécaire composé deux fois par an : (1+j/2)^(2/m)−1) ou effectif_annuel. Versement et intérêts "
+                "arrondis au cent, dernière échéance ajustée : la somme des capitaux égale le principal au cent. Le "
+                "reçu couvre le tableau entier (empreinte_tableau) ; les lignes se lisent par pages (depart, limite, "
+                "prochain_depart). Ni offre, ni frais du prêteur, ni dates." + _RECU_CALCUL
+            ),
+            parametres={"type": "object", "properties": {
+                "objet": _OBJET_CALCUL,
+                "montant_emprunte": {**_TEXTE_DECIMAL_CALCUL, "description": "Capital emprunté, texte au cent."},
+                "taux_annuel": {**_TEXTE_DECIMAL_CALCUL, "description": "Taux annuel nominal en fraction, 0 à 1."},
+                "frequence": {"type": "string", "description": "mensuelle, aux_deux_semaines ou hebdomadaire."},
+                "convention": {"type": "string", "description": ", ".join(sorted(moteur_calcul.mf.CONVENTIONS_TAUX))},
+                "amortissement_annees": {"type": "integer", "description": f"1 à {moteur_calcul.ANNEES_MAX}."},
+                "depart": {"type": ["integer", "null"], "description": "Première ligne rendue (0 par défaut)."},
+                "limite": {"type": ["integer", "null"],
+                           "description": f"Lignes par page ({_LIMITE_TABLEAU_DEFAUT} par défaut, "
+                                          f"{_LIMITE_TABLEAU_MAX} au plus)."},
+            }, "required": ["objet", "montant_emprunte", "taux_annuel", "frequence", "convention",
+                            "amortissement_annees"],
+                "additionalProperties": False},
+            fonction=calculer_amortissement_pret,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_comparer_credit_bail_achat",
+            description=(
+                "Compare en VALEUR ACTUELLE des coûts l'achat comptant (prix + frais − valeur résiduelle actualisée) "
+                "et le crédit-bail (dépôt + paiements mensuels actualisés, en début ou en fin de période, + option "
+                "d'achat nette si elle est exercée) sur le même nombre de mois, au taux d'actualisation annuel "
+                "effectif fourni. Toutes les hypothèses sont explicites, aucune n'est supposée ; ni fiscalité, ni "
+                "recommandation." + _RECU_CALCUL
+            ),
+            parametres={"type": "object", "properties": {
+                "objet": _OBJET_CALCUL,
+                "taux_actualisation_annuel": {**_TEXTE_DECIMAL_CALCUL, "description": "Fraction annuelle, 0 à 1."},
+                "mois": {"type": "integer", "description": f"Terme, 1 à {moteur_calcul.MOIS_MAX} mois."},
+                "prix_achat": _TEXTE_DECIMAL_CALCUL, "frais_achat": _TEXTE_DECIMAL_CALCUL,
+                "valeur_residuelle": {**_TEXTE_DECIMAL_CALCUL, "description": "Valeur de l'actif à la fin."},
+                "paiement_mensuel": _TEXTE_DECIMAL_CALCUL, "depot_initial": _TEXTE_DECIMAL_CALCUL,
+                "paiements_en_debut_de_periode": {"type": "boolean", "description": "Vrai : paiements d'avance."},
+                "option_achat_finale": {"type": ["string", "null"], "description": "Montant si l'option est exercée."},
+            }, "required": ["objet", "taux_actualisation_annuel", "mois", "prix_achat", "frais_achat",
+                            "valeur_residuelle", "paiement_mensuel", "depot_initial", "paiements_en_debut_de_periode"],
+                "additionalProperties": False},
+            fonction=comparer_credit_bail_ou_achat,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_calculer_point_mort",
+            description=(
+                "Point mort : frais fixes / (prix unitaire − coût variable unitaire), en unités exactes et entières "
+                "(chantier, pied linéaire... au choix) et en chiffre d'affaires ; marge de sécurité si une quantité "
+                "prévue est donnée. Marge non positive : REJ-CALC-MARGE-NON-POSITIVE." + _RECU_CALCUL
+            ),
+            parametres={"type": "object", "properties": {
+                "frais_fixes": _TEXTE_DECIMAL_CALCUL, "prix_unitaire": _TEXTE_DECIMAL_CALCUL,
+                "cout_variable_unitaire": _TEXTE_DECIMAL_CALCUL,
+                "quantite_prevue": {"type": ["string", "null"], "description": "Quantité prévue (texte, > 0)."},
+            }, "required": ["frais_fixes", "prix_unitaire", "cout_variable_unitaire"], "additionalProperties": False},
+            fonction=calculer_point_mort,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_analyser_sensibilite_projet",
+            description=(
+                "Sensibilité d'un projet d'investissement : modèle fixe (investissement au temps 0, flux annuel "
+                "croissant, durée, valeur résiduelle, taux d'actualisation). Tornade : chaque hypothèse de "
+                "`variations` varie seule de sa valeur basse à sa valeur haute (déclarées, bas ≤ base ≤ haut), VAN "
+                "obtenue et amplitude, triées par amplitude ; scénarios nommés (8 au plus) : VAN, TRI et délai."
+                + _RECU_CALCUL
+            ),
+            parametres={"type": "object", "properties": {
+                "objet": _OBJET_CALCUL,
+                "base": _HYPOTHESES_PROJET,
+                "variations": {"type": "object", "description": "hypothèse → {\"bas\", \"haut\"}."},
+                "scenarios": {"type": "array", "items": {"type": "object"},
+                              "description": "[{\"nom\": \"pessimiste\", \"hypotheses\": {...}}]."},
+            }, "required": ["objet", "base", "variations", "scenarios"], "additionalProperties": False},
+            fonction=analyser_sensibilite_projet,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_simuler_tresorerie_monte_carlo",
+            description=(
+                "Monte-Carlo À GRAINE de la prévision existante (flux connus et datés de m5_prevoir_tresorerie, même "
+                "accès). Par nature de flux (facture_client, echeancier_contrat, facture_fournisseur, "
+                "attendu_fournisseur, taxes, paies, das, dettes) : facteur de montant triangulaire {loi, min, mode, "
+                "max} ou normale_tronquee {loi, moyenne, ecart_type, min, max} ; retard Bernoulli {probabilite, "
+                "semaines} pour les encaissements. Lois DÉCLARÉES, aucune supposée. Par semaine : P5/P50/P95 du solde "
+                "de fin, moyenne, probabilité d'un solde négatif (et sous le seuil). Bornes : "
+                f"{moteur_calcul.mc.TIRAGES_MAX} tirages, {moteur_calcul.mc.SEMAINES_MAX} semaines, tirages × flux "
+                f"perturbés ≤ {moteur_calcul.mc.BUDGET_TIRAGES_X_FLUX}. Même graine et même instantané : même "
+                "empreinte."
+                + _RECU_CALCUL
+            ),
+            parametres={"type": "object", "properties": {
+                "aujourd_hui": {"type": "string", "description": "Jour de départ AAAA-MM-JJ (M5 n'a pas d'horloge)."},
+                "graine": {"type": "integer", "description": "Graine déclarée, 0 à 2^63−1 (jamais l'horloge)."},
+                "tirages": {"type": "integer", "description": f"1 à {moteur_calcul.mc.TIRAGES_MAX}."},
+                "distributions": {"type": "object", "description": "nature → {\"montant\": loi | null, \"retard\": "
+                                                                    "{probabilite, semaines} | null}."},
+                "horizon_semaines": {"type": ["integer", "null"],
+                                     "description": "1 à 26 ; omis : celui du propriétaire."},
+                "role": _ROLE_DE_LECTURE,
+                "autorise_couts": _AUTORISE_COUTS_DE_LECTURE,
+            }, "required": ["aujourd_hui", "graine", "tirages", "distributions"], "additionalProperties": False},
+            fonction=simuler_tresorerie_monte_carlo,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_verifier_recu_calcul",
+            description=(
+                "Vérifie un reçu de calcul rendu par un outil du moteur M5 : ses empreintes SHA-256 (rien n'a été "
+                "retouché) et, s'il porte ses entrées, le REJOUE et dit si le résultat est identique bit pour bit. Un "
+                "reçu compact (sans entrées) est seulement vérifié. Refus : REJ-CALC-RECU-INVALIDE, "
+                "REJ-CALC-MOTEUR-INCONNU. Calcul pur."
+            ),
+            parametres={"type": "object", "properties": {
+                "recu": {"type": "object", "description": "Le reçu tel que rendu (champ `recu`)."},
+            }, "required": ["recu"], "additionalProperties": False},
+            fonction=verifier_recu_calcul,
+            autonomie=Autonomie.T0,
         ),
     )
