@@ -206,6 +206,8 @@ def test_les_outils_de_preuve_de_m3_tournent_une_fois_et_une_seule():
     assert "CAS_SEULS" not in ci["jobs"]["m03-preuves"].get("env", {})
     etape_preuves = next(e for e in ci["jobs"]["m03-preuves"]["steps"] if "Outils de preuve de M3" in e.get("name", ""))
     assert "i % PARTS == PART" in etape_preuves["run"]
+    # La campagne est sautée sans cette variable (conftest M3) : son seul job qualifiant doit la poser.
+    assert etape_preuves["env"]["OPSYS_QUALIFIER_M3_MUTATIONS"] == "1"
     assert 'test "${#retenus[@]}" -gt 0' in etape_preuves["run"]
     for fichier in fichiers:
         assert (RACINE / "departments" / "m03-estimation" / "tests" / fichier).is_file()
