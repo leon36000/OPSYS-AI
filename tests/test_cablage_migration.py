@@ -35,10 +35,10 @@ def _noms(cnx, motif):
     return {r[0] for r in cnx.exec_driver_sql(f"SELECT name FROM sqlite_master WHERE name LIKE '{motif}'")}
 
 
-def test_la_tete_est_0044_et_succede_a_0040_dans_ce_worktree():
+def test_la_tete_est_0044_et_succede_a_0041():
     script = ScriptDirectory.from_config(stockage._config())
     assert script.get_heads() == ["0044"]
-    assert script.get_revision("0044").down_revision == "0040"
+    assert script.get_revision("0044").down_revision == "0041"
 
 
 def test_montee_descente_et_remontee_sur_sqlite(tmp_path):
@@ -60,9 +60,9 @@ def test_montee_descente_et_remontee_sur_sqlite(tmp_path):
         cnx.exec_driver_sql("DELETE FROM ingestion_brouillons")
         cnx.exec_driver_sql("DELETE FROM ingestion_documents")
         cnx.exec_driver_sql("DELETE FROM ingestion_lots")
-        command.downgrade(cfg, "0040")
+        command.downgrade(cfg, "0041")
         assert not (TABLES & _noms(cnx, "planificateur_%")) and not _noms(cnx, "planificateur_%")
-        assert cnx.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0040"
+        assert cnx.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0041"
         _lot_et_document(cnx)
         with pytest.raises(IntegrityError):  # la CHECK d'avant est rétablie
             cnx.execute(text(INSERT_BROUILLON), {"genre": "courriel_contact"})
@@ -85,7 +85,7 @@ def test_la_descente_est_refusee_des_qu_une_ligne_existe(tmp_path, remplir):
         command.upgrade(cfg, "0044")
         cnx.exec_driver_sql(remplir)
         with pytest.raises(RuntimeError, match="rétrogradation refusée"):
-            command.downgrade(cfg, "0040")
+            command.downgrade(cfg, "0041")
 
 
 def test_la_descente_est_refusee_avec_un_brouillon_courriel_contact(tmp_path):
@@ -97,7 +97,7 @@ def test_la_descente_est_refusee_avec_un_brouillon_courriel_contact(tmp_path):
         _lot_et_document(cnx)
         cnx.execute(text(INSERT_BROUILLON), {"genre": "courriel_contact"})
         with pytest.raises(RuntimeError, match="courriel_contact"):
-            command.downgrade(cfg, "0040")
+            command.downgrade(cfg, "0041")
 
 
 def test_le_journal_du_planificateur_est_immuable_apres_migration(tmp_path):
@@ -147,6 +147,6 @@ def test_migration_0044_sur_postgresql(monkeypatch):
             cfg = stockage._config()
             with pytest.raises(RuntimeError, match="rétrogradation refusée"), stockage.moteur(url).begin() as cnx:
                 cfg.attributes["connection"] = cnx
-                command.downgrade(cfg, "0040")
+                command.downgrade(cfg, "0041")
         finally:
             stockage.liberer()

@@ -26,7 +26,6 @@ FICTIF = True
 
 
 def _tete() -> str:
-    from alembic.script import ScriptDirectory
 
     return ScriptDirectory.from_config(stockage._config()).get_current_head()
 VALEUR = "valeur-fictive-cle-api-0123456789-XYZ"

@@ -42,10 +42,10 @@ def _inserer_chaine(cnx, *, vrai="1"):
                      "VALUES (:t, 'm05-financecore', 'lexical', 1, 'p')"), {"t": T})
 
 
-def test_la_tete_alembic_est_0041_et_succede_a_0040():
+def test_0041_succede_a_0040_et_la_chaine_n_a_qu_une_tete():
     cfg = stockage._config()
     scripts = ScriptDirectory.from_config(cfg)
-    assert scripts.get_heads() == ["0041"]
+    assert len(scripts.get_heads()) == 1  # les migrations suivantes se chaînent après 0041
     assert scripts.get_revision("0041").down_revision == "0040"
 
 
@@ -191,7 +191,8 @@ def test_migration_0041_sur_postgresql(monkeypatch):
         monkeypatch.setenv(stockage.ENV_URL, url)
         try:
             stockage.migrer(url)
-            assert stockage.moteur(url).dialect.name == "postgresql" and stockage.revision_courante(url) == "0041"
+            tete = ScriptDirectory.from_config(stockage._config()).get_current_head()
+            assert stockage.moteur(url).dialect.name == "postgresql" and stockage.revision_courante(url) == tete
             with stockage.transaction() as cnx:
                 assert cnx.execute(text("SELECT count(*) FROM information_schema.tables WHERE table_name LIKE "
                                         "'connaissances_%'")).scalar_one() == len(TABLES)  # pas de FTS5 hors SQLite
