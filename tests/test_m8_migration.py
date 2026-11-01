@@ -42,7 +42,7 @@ def _noms(cnx, motif):
 
 def test_la_tete_est_0046_et_succede_a_0044():
     script = ScriptDirectory.from_config(stockage._config())
-    assert script.get_heads() == ["0046"]
+    assert len(script.get_heads()) == 1  # 0049 (capacité « vision ») se chaîne après 0046
     assert script.get_revision("0046").down_revision == "0044"
 
 
@@ -155,7 +155,7 @@ def test_migration_0046_sur_postgresql(monkeypatch):
         url = url_pg.replace("postgresql://", "postgresql+psycopg://", 1)
         monkeypatch.setenv(stockage.ENV_URL, url)
         stockage.migrer(url)
-        assert stockage.revision_courante(url) == "0046"
+        assert stockage.revision_courante(url) == ScriptDirectory.from_config(stockage._config()).get_current_head()
         with stockage.transaction() as cnx:
             cnx.execute(
                 text("INSERT INTO pont_bi_acces (quand, epoch, phase, statut) VALUES ('t', 1, 'debut', 'accepte')")
