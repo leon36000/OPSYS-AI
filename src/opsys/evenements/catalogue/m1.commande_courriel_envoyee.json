@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.commande_courriel_envoyee",
+  "title": "M1 — Courriel de commande envoyé au fournisseur",
+  "description": "Émis par M1 quand le courriel d'un bon de commande, préparé à partir de `m6.po_courriel_pret`, a été ENVOYÉ par le planificateur après l'approbation humaine du sas (m1.courriel_envoye). M6 en tire une attente « marquer le PO envoyé » : il ne change pas lui-même le statut du PO (m6_marquer_po_envoye reste N4 et humain). Aucun texte ni adresse. evenement_id déterministe : un rejeu est un no-op.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "po_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "brouillon_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "empreinte": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "envoye_le": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    }
+  },
+  "required": [
+    "po_id",
+    "brouillon_id",
+    "empreinte",
+    "envoye_le"
+  ]
+}

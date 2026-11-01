@@ -17,6 +17,11 @@ statique + digest (S009). Couche département ajoutée : `department.yaml`,
 `m6_receptionner_commande` : réception → stock → variance de bout en bout),
 `tests/test_outils_agent.py`.
 
+M6.6 (tranche du 1er novembre 2026) — commande par courriel via M1 : une demande de commande reçue par courriel devient un brouillon de demande rapproché des devis et des WCT
+(`commande_courriel.py`, `m6_lire_commandes_courriel`, `m6_traiter_commande_courriel`), la confirmation d'un fournisseur met le PO à « confirmé » seulement si tout tient
+(sinon `m6_valider_confirmation_courriel`, personne), et le courriel d'un PO approuvé part par le sas de M1 après l'approbation d'une personne (`m6.po_courriel_pret`).
+**PARTIEL, prouvé sur doubles** : voir [`docs/architecture/M1-M6-LEA-ROSALIE.md`](../../docs/architecture/M1-M6-LEA-ROSALIE.md).
+
 PLAN T1.1-d — formulaire de fin de chantier enrichi et variance de chantier (ajout postérieur
 à la passe ci-dessus) : `materiel.soumettre_materiaux_utilises` (nouvelle fonction, lignes
 typées prevu/non_prevu/retour/perte/bris/achat_terrain, `REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`

@@ -11,12 +11,12 @@ Point de départ : l'analyse d'écarts du 2026-10-31 (`ANALYSE-ECARTS-MODULES.md
 
 | Module | Lignes | FAIT_PROUVE | PARTIEL | SIMULE | ABSENT | INCONNU | Département | Suite de tests du département rejouée (base ci-dessus) |
 |---|---|---|---|---|---|---|---|---|
-| M1 | 20 | 0 | 13 | 2 | 5 | 0 | Front Office | 1766 passed, 0 failed, 0 skipped |
+| M1 | 20 | 0 | 18 | 1 | 1 | 0 | Front Office | 1766 passed, 0 failed, 0 skipped (base) ; statuts M1.6/7/9/10/13 revus par claude/m1-m6-lea-rosalie |
 | M2 | 15 | 1 | 10 | 0 | 4 | 0 | Revenue CRM | 1899 passed, 0 failed, 0 skipped |
 | M3 | 18 | 1 | 13 | 1 | 3 | 0 | Estimation | 2491 passed, 0 failed, 9 skipped (8 tests de test_mesure_plan.py : extra vision-photo absent ; 1 garde de CI) en excluant test_gardes_des_outils.py (32 tests d'outils de preuve de mutation) : ce fichier échoue (« n'a pas restauré son entrée capturée ») aussi en exécution isolée, cause non investiguée, donc non concluant |
 | M4 | 24 | 2 | 20 | 0 | 2 | 0 | Field Ops | 3304 passed, 0 failed, 20 skipped (pyvrp absent) |
 | M5 | 18 | 0 | 13 | 0 | 5 | 0 | FinanceCore | 2702 passed, 0 failed, 0 skipped |
-| M6 | 21 | 0 | 20 | 0 | 1 | 0 | Material Control | 1725 passed, 0 failed, 0 skipped |
+| M6 | 21 | 0 | 21 | 0 | 0 | 0 | Material Control | 1725 passed, 0 failed, 0 skipped (base) ; M6.6 revu par claude/m1-m6-lea-rosalie |
 | M7 | 15 | 0 | 13 | 2 | 0 | 0 | Marketing | 1210 passed, 0 failed, 0 skipped |
 | M8 | 18 | 0 | 12 | 0 | 6 | 0 | Analytics | 862 passed, 0 failed, 0 skipped |
 | M10 | 20 | 0 | 19 | 0 | 1 | 0 | Mémoire | 1464 passed, 0 failed, 0 skipped |

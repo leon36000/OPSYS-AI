@@ -786,7 +786,7 @@ def test_seuls_la_lecture_la_cloture_et_import_sont_ouverts_a_l_admin(dep):
     m1_admin = {nom for nom in portees["admin"] if nom.startswith("m1_")}
     assert m1_admin == {"m1_lire_transfert", "m1_clore_transfert", "m1_produire_digest",
                         "m1_importer_appel_manuellement", "m1_lister_rappels_appareil",
-                        "m1_prendre_en_charge_rappel_appareil"}
+                        "m1_prendre_en_charge_rappel_appareil", "m1_confirmer_rendez_vous"}
     for role in ("employee", "seller"):
         assert not any(nom.startswith("m1_") for nom in portees.get(role, ())), role
     par_nom = {o.nom: o for o in dep.charger_outils()}

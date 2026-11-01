@@ -165,6 +165,10 @@ class Capacites:
             ports_prives["m05-financecore"] = {
                 "lecteur_heures_m4": self._lecteur_heures_m4(departements, cnx_factory)
             }
+        if "m01-front-office" in self.departements:
+            ports_prives["m01-front-office"] = {
+                "lecteur_capacite_m4": self._lecteur_capacite_m4(departements, cnx_factory)
+            }
         if "m09-strategic-intelligence" in self.departements:
             ports_prives["m09-strategic-intelligence"] = {
                 "lecteur_producteurs_m9": lecteurs_m9.construire_lecteur(departements, cnx_factory),
@@ -233,6 +237,48 @@ class Capacites:
             return lecteur.appeler(nom_outil, dict(zip(
                 ("technicien_id", "debut", "fin", "fuseau"), args, strict=True
             )))
+
+        return lire
+
+    @staticmethod
+    def _lecteur_capacite_m4(
+        departements: Mapping[str, Departement],
+        cnx_factory: Callable[[], AbstractContextManager[Connection]],
+    ) -> Callable[..., dict[str, Any]]:
+        """Compose M1 (rendez-vous, M1.9) vers deux lectures M4 déjà existantes, T0, et rien d'autre : la capacité des
+        équipes (`m4_lire_capacite_equipe`) et la semaine datée de la cédule (`m4_lire_cedule_semaine`). Aucun droit
+        n'est ajouté : M4 revérifie lui-même l'identité à chaque lecture (la cédule exige un admin authentifié), et
+        le lecteur refuse tout appel qui ne vient pas de M1."""
+        permis = frozenset({"m4_lire_capacite_equipe", "m4_lire_cedule_semaine"})
+        if "m04-field-ops" not in departements:
+            def indisponible(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+                return {"ok": False, "erreur": "lecteur_capacite_m4_indisponible",
+                        "details": "Le département M4 n'est pas installé."}
+
+            return indisponible
+
+        lecteur = Capacites(departements, cnx_factory, filtre={"m04-field-ops"}, appelant="m01-front-office",
+                            memoire=False)
+
+        def lire(outil: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
+            if outil not in permis:
+                return {"ok": False, "erreur": "lecture_non_autorisee",
+                        "details": "M1 ne lit de M4 que la capacité des équipes et la semaine datée de la cédule."}
+            if (
+                contexte_appel.DEPARTEMENT_APPELANT.get() != "m01-front-office"
+                or contexte_appel.departement_origine_appelante() != "m01-front-office"
+            ):
+                return {"ok": False, "erreur": "contexte_m1_requis",
+                        "details": "La lecture M4 privée exige le contexte du département M1."}
+            entree = lecteur.index.get(outil)
+            if entree is None or entree[0] is None or entree[0].id != "m04-field-ops":
+                return {"ok": False, "erreur": "lecteur_capacite_m4_indisponible",
+                        "details": "L'outil M4 de lecture n'est pas disponible."}
+            if entree[1].autonomie is not Autonomie.T0 or entree[1].niveau_effectif is not Niveau.N0:
+                return {"ok": False, "erreur": "lecture_non_autorisee", "details": "seule une lecture T0/N0 est admise"}
+            if not isinstance(arguments, Mapping):
+                return {"ok": False, "erreur": "arguments_invalides", "details": "arguments objet requis"}
+            return lecteur.appeler(outil, dict(arguments))
 
         return lire
 

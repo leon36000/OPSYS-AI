@@ -142,7 +142,14 @@ class Departement:
             and set(ports) <= {"lecteur_producteurs_m9", "proposeur_actions_m9"}
             and all(callable(port) for port in ports.values())
         )
-        if ports and not port_m9 and (
+        port_m1 = (
+            self.id == "m01-front-office"
+            and self.module_outils == "m1_front_office.outils"
+            and bool(ports)
+            and set(ports) <= {"lecteur_capacite_m4"}
+            and all(callable(port) for port in ports.values())
+        )
+        if ports and not port_m9 and not port_m1 and (
             self.id != "m05-financecore"
             or self.module_outils != "m5_financecore.outils"
             or not set(ports) <= {"lecteur_heures_m4", "lecteur_campagne_m7"}

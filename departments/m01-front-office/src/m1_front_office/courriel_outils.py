@@ -22,6 +22,7 @@ Trois choses, rien de plus :
 from __future__ import annotations
 
 import datetime as dt
+import re
 from typing import Any
 
 from opsys import evenements, stockage
@@ -185,11 +186,16 @@ def lire_reponse_courriel(brouillon_id: str) -> dict[str, Any]:
     except ErreurCourriel as exc:
         raise _refus(exc) from None
     c = brouillon.contenu
+    corps = c.corps
+    if etape["signal_id"].startswith("verification:"):
+        # M1.10 : le code à usage unique d'une vérification d'identité n'est jamais lisible par l'agent, qui pourrait
+        # sinon se l'attester lui-même.
+        corps = re.sub(r"\d{6}", "••••••", corps)
     return {"accepte": True, "resultat": {
         "brouillon_id": brouillon_id, "signal_id": etape["signal_id"], "revision": brouillon.revision,
         "empreinte": brouillon.empreinte, "statut": statut["statut"], "code": statut["code"],
         "demande_id": statut["demande_id"], "approuve_par": statut["approuve_par"],
-        "destinataires": list(c.a), "objet": c.objet, "corps": c.corps}}
+        "destinataires": list(c.a), "objet": c.objet, "corps": corps}}
 
 
 # ------------------------------------------------------------------------------------------------ brouillons N2

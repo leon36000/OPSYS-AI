@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m6.po_courriel_pret",
+  "title": "M6 — Courriel de bon de commande prêt pour M1 (canal d'envoi)",
+  "description": "Émis par M6 (m6_generer_courriel_po, M6.6) quand un bon de commande approuvé passe à email_ready avec un courriel de commande généré. M1 est le CANAL : il en tire un brouillon de courriel au fournisseur dans le sas d'envoi (jamais envoyé sans l'approbation N3 d'une personne). Le destinataire est la boîte de commande que l'entreprise a déclarée elle-même à la fiche du fournisseur de M6 (pas une donnée de client). M6 reste la source de vérité du PO ; aucune quantité ni aucun prix n'est recalculé par M1. evenement_id déterministe (m6-po-courriel-<po_id>-<empreinte>) : un rejeu est un no-op ; un courriel régénéré différemment a une autre empreinte.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "po_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "fournisseur_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "destinataire": {
+      "type": "string",
+      "minLength": 6,
+      "maxLength": 200,
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[A-Za-z]{2,}$"
+    },
+    "objet": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "corps": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "empreinte": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "po_id",
+    "fournisseur_id",
+    "destinataire",
+    "objet",
+    "corps",
+    "empreinte"
+  ]
+}

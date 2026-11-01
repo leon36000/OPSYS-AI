@@ -44,14 +44,15 @@ GENERIQUE = "generique-pme"
 
 # sha256 des SOUL.md (et du skill de M3) AVANT la généralisation (commit d172aa2cc), pris tels quels ;
 # M5 : + paragraphe « base fiscale » de claude/m5-base-fiscale ; M7 : + paragraphe WordPress/réseaux sociaux de
-# claude/m7-wordpress-social (aucun terme sectoriel dans ces ajouts).
+# claude/m7-wordpress-social (aucun terme sectoriel dans ces ajouts) ; M1 : + paragraphe « tri, identité, rendez-vous,
+# SMS, apprentissage » et M6 : + paragraphe « commande par courriel » (claude/m1-m6-lea-rosalie).
 SOUL_AVANT = {
-    "m01-front-office": "d74fe370f565131b0174aafbb257fa08733a09760a60067f0f6af709b25a65be",
+    "m01-front-office": "d8344b1aa73f688582fd813e908f22f04c66254ad090cef5c080f83cc66cb131",
     "m02-revenue-crm": "9c214f0c1c478b74cd875b95c9965ff190bbaaab597757a8aaadfa673ded3af7",
     "m03-estimation": "552ae4994c671bb7bc37b5ed5ed4e06773be5e580375a49abbc32a3298012f26",
     "m04-field-ops": "85e7ff89e5f82809c31467efc3a6d6e53f0d6ba310954c7ba36d9079f771179b",
     "m05-financecore": "aed5c1a15fb01e0c572c1120160eee182619ac1fa318edada5cafa317121608b",
-    "m06-material-control": "7813017714577d81c4aca28e5b70bc81b26aaa0d191bf2bcbe6d9930321b90dd",
+    "m06-material-control": "5104a1c724c3e3afb1c3125879949cad55c2d96e661592ae25a23e7a5ae989ef",
     "m07-marketing": "04424e6974a3833c00753ba2d3a0eccfc6130fdebf761f561275f158e073a8f0",
     "m08-analytics": "5dc5fb864a0c2cf52bb48181f4bd461808d59fd720bf7c3caab25bacba0d2e14",
     "m09-strategic-intelligence": "f0dd373d0d7b852c9590365c8a9d0c48659a3b10630a8213a16df06e727fb86c",
