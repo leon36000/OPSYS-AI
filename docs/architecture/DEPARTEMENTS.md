@@ -20,6 +20,7 @@ departments/mNN-nom/
 ├── src/mN_nom/              # code métier déterministe + outils.py
 ├── tests/                   # tests du métier + tests des outils d'agent
 ├── contracts/, fixtures/    # contrats de données et jeux d'essai
+├── evals/gabarit.v1.yaml    # corpus du gabarit d'évaluation commun (EVALUATION.md), même format pour les dix
 └── docs/                    # PRD, architecture du département
 ```
 
@@ -275,3 +276,5 @@ progressive).
   - chaque outil composé est exercé sur des cas réalistes (nominal, refus, blocage) ;
   - la reproductibilité est vérifiée quand il y a de l'aléatoire.
 - Aucune donnée inventée dans les fixtures sans le marqueur `fictif: true`.
+- Le corpus du gabarit d'évaluation (`evals/gabarit.v1.yaml`, voir [EVALUATION.md](EVALUATION.md)) : au moins 12 cas,
+  les sept catégories, une réponse de référence par cas ; `opsys-metier evaluer valider` le contrôle.

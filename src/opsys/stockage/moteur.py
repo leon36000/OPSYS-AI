@@ -123,9 +123,15 @@ def transaction(url: str | None = None) -> Iterator[Connection]:
             _LOG.warning("maintenance après commit non terminée ; reprise durable requise")
 
 
-def liberer() -> None:
-    """Ferme les connexions ouvertes (fin de processus, tests)."""
+def liberer(url: str | None = None) -> None:
+    """Ferme les connexions ouvertes (fin de processus, tests) ; avec `url`, seulement celles de cette base
+    (une instance temporaire, ex. l'évaluation) sans toucher à la base de l'instance courante."""
     with _VERROU:
+        if url is not None:
+            ouvert = _MOTEURS.pop(url, None)
+            if ouvert is not None:
+                ouvert.dispose()
+            return
         for moteur_ouvert in _MOTEURS.values():
             moteur_ouvert.dispose()
         _MOTEURS.clear()
