@@ -71,7 +71,8 @@ def _anciennes():
         SERVICE_RECALCUL_ATTESTATIONS, SERVICE_RECALCUL_RESULTATS, WCT_ATTENTES, WCT_ATTENTES_AUDIT,
         SERVICE_POLITIQUES_JOURNAL, COUT_CERTIFIE_RECONCILIATIONS,
     )} | {
-        nom for nom in META.tables if nom.startswith(("fournisseurs_", "coffre_", "ingestion_", "avatars_", "courriel_"))
+        nom for nom in META.tables
+        if nom.startswith(("fournisseurs_", "coffre_", "ingestion_", "avatars_", "courriel_"))
     }
     with stockage.transaction() as cnx:
         return {nom: [dict(r) for r in cnx.execute(select(t)).mappings()]

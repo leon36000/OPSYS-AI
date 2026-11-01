@@ -87,7 +87,7 @@ def test_la_tete_alembic_est_0039_et_la_descente_est_sure(tmp_path):
     cfg = stockage._config()
     from alembic.script import ScriptDirectory
 
-    assert ScriptDirectory.from_config(cfg).get_current_head() == "0039"
+    assert ScriptDirectory.from_config(cfg).get_revision("0039") is not None  # la tête avance ; 0039 reste montable
     with stockage.moteur(url).begin() as cnx:
         cfg.attributes["connection"] = cnx
         command.upgrade(cfg, "0039")
@@ -169,6 +169,10 @@ def test_un_consentement_ne_se_modifie_ni_ne_se_supprime_et_ne_se_revoque_qu_une
 
 def test_la_descente_est_refusee_quand_un_consentement_existe(session, scenario):
     cfg = stockage._config()
+    with stockage.moteur().begin() as cnx:  # 0040 (courriel) se descend sans casser les clés des avatars (0039)
+        cfg.attributes["connection"] = cnx
+        command.downgrade(cfg, "0039")
+        assert cnx.exec_driver_sql("SELECT count(*) FROM avatars_entrees").scalar_one() > 0
     with pytest.raises(RuntimeError, match="rétrogradation refusée"), stockage.moteur().begin() as cnx:
         cfg.attributes["connection"] = cnx
         command.downgrade(cfg, "0038")

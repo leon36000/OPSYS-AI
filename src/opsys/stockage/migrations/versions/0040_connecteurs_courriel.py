@@ -34,7 +34,38 @@ _ANCIENNES = "'llm','embeddings','reranker','ocr','stt','tts','avatar','image','
 _NAMING = {"ck": "%(constraint_name)s"}
 
 
+def _remplacer_capacites_sqlite(liste: str) -> None:
+    """Remplace la CHECK de capacité en place, sans reconstruire la table.
+
+    La reconstruction habituelle (copie, suppression de l'ancienne, renommage) échoue sur SQLite quand des tables
+    enfants (avatars 0039, ingestion) contiennent des lignes : on ne peut pas y désactiver les clés étrangères dans une
+    transaction, et le renommage réécrit leurs références. Changer le texte d'une CHECK ne modifie aucune donnée sur
+    disque : c'est le cas que la documentation de SQLite réserve à la modification directe du schéma
+    (`writable_schema`, puis incrément de `schema_version`)."""
+    import re
+
+    cnx = op.get_bind()
+    ddl = cnx.execute(sa.text("SELECT sql FROM sqlite_master WHERE type='table' AND name=:n"),
+                      {"n": _CONFIG}).scalar_one()
+    neuf, nombre = re.subn(r"capacite IN \([^)]*\)", f"capacite IN ({liste})", ddl)
+    if nombre != 1:
+        raise RuntimeError("la contrainte de capacité attendue est introuvable dans fournisseurs_configurations")
+    version = cnx.execute(sa.text("PRAGMA schema_version")).scalar_one()
+    op.execute("PRAGMA writable_schema = ON")
+    try:
+        cnx.execute(sa.text("UPDATE sqlite_master SET sql = :sql WHERE type='table' AND name = :n"),
+                    {"sql": neuf, "n": _CONFIG})
+        op.execute(f"PRAGMA schema_version = {int(version) + 1}")
+    finally:
+        op.execute("PRAGMA writable_schema = OFF")
+    if cnx.execute(sa.text("PRAGMA integrity_check")).scalar_one() != "ok":
+        raise RuntimeError("le schéma modifié ne passe pas integrity_check")
+
+
 def _remplacer_capacites(liste: str) -> None:
+    if op.get_bind().dialect.name == "sqlite":
+        _remplacer_capacites_sqlite(liste)
+        return
     with op.batch_alter_table(_CONFIG, recreate="auto", naming_convention=_NAMING) as batch:
         batch.drop_constraint(op.f(_CHECK), type_="check")
         batch.create_check_constraint(op.f(_CHECK), f"capacite IN ({liste})")
