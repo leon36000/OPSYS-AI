@@ -14,10 +14,9 @@ from sqlalchemy import event
 from opsys import contexte, stockage
 from opsys.outils import Autonomie, Niveau
 from opsys.stockage.schema import META as SCHEMA_META
-from opsys.stockage.schema import TABLES_VIRTUELLES_SQLITE
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}  # base sans index FTS5 (filtré par le test)
 
 FICTIF = True
 _SPEC = importlib.util.spec_from_file_location(

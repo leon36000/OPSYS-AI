@@ -11,11 +11,11 @@ from sqlalchemy import inspect, select, text, update
 
 from opsys import contexte, idempotence, identite, stockage
 from opsys.outils import Autonomie, Niveau
-from opsys.stockage.schema import APPROBATIONS, MUTATIONS_APPLIQUEES, TABLES_VIRTUELLES_SQLITE
+from opsys.stockage.schema import APPROBATIONS, MUTATIONS_APPLIQUEES
 from opsys.stockage.schema import META as SCHEMA_META
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}  # base sans index FTS5 (filtré par le test)
 
 FICTIF = True
 NOMS = (
