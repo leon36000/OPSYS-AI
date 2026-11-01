@@ -1,0 +1,635 @@
+{
+  "etape": "c4g-injections",
+  "titre": "[4g] Injections de défauts : échecs propres, codes typés, aucune perte",
+  "attendu": "chaque défaut refusé avec son code, l'instance existante intacte (empreinte identique)",
+  "verdict": "ECHEC",
+  "debut": "2026-11-01T10:50:56.460+00:00",
+  "fin": "2026-11-01T10:51:44.911+00:00",
+  "duree_s": 48.45,
+  "constats": [
+    {
+      "nom": "F1 restauration avec une mauvaise clé (sur instance non vide, --remplacer) : refusé avec REJ-SAUVEGARDE-MAUVAISE-CLE (code de sortie 14)",
+      "ok": true,
+      "detail": {
+        "code": 14,
+        "stderr": "REJ-SAUVEGARDE-MAUVAISE-CLE : cette clé n'est pas celle qui a chiffré la sauvegarde ; rien n'a été déchiffré.\n"
+      }
+    },
+    {
+      "nom": "F1 : instance existante intacte (empreinte identique)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "F2a export d'une base vivante corrompue : refusé (REJ-SAUVEGARDE-BASE-CORROMPUE, code 26) ou erreur SQLite typée",
+      "ok": true,
+      "detail": {
+        "code": 23,
+        "stderr": "REJ-SAUVEGARDE-EXPORT : copie de la base impossible : database disk image is malformed\n"
+      }
+    },
+    {
+      "nom": "F2a aucune sauvegarde (ni partielle ni dossier temporaire) n'a été laissée",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "nom": "F2b archive piégée fabriquée (manifeste cohérent, base abîmée)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "F2b restauration d'une archive authentique contenant une base corrompue : refusé avec REJ-SAUVEGARDE-BASE-CORROMPUE (code de sortie 26)",
+      "ok": false,
+      "detail": {
+        "code": 24,
+        "stderr": "REJ-SAUVEGARDE-RESTAURATION : la base de l'archive est illisible : database disk image is malformed\n"
+      }
+    },
+    {
+      "nom": "F2b la cible n'a reçu aucun fichier (rien de partiel)",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "nom": "F3 migration 0038->0040 tuée (SIGKILL) à 6 stades : base saine, atomique, reprise sans perte",
+      "ok": true,
+      "detail": {
+        "instructions": 36,
+        "revisions_apres_kill": [
+          "0038",
+          "0038",
+          "0038",
+          "0038",
+          "0040",
+          "0040"
+        ],
+        "reprise": {
+          "code": 0,
+          "revision": "0040",
+          "donnees_anciennes_intactes": true,
+          "integrity_check": true
+        }
+      }
+    },
+    {
+      "nom": "F4 disque plein (destination de 96 Ko) : refusé avec REJ-SAUVEGARDE-DISQUE-PLEIN (code de sortie 19)",
+      "ok": false,
+      "detail": {
+        "code": 23,
+        "stderr": "REJ-SAUVEGARDE-EXPORT : copie de la base impossible : database or disk is full\n"
+      }
+    },
+    {
+      "nom": "F4 : instance existante intacte (empreinte identique)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "F5a clé de sauvegarde absente (variable non définie) : refusé avec REJ-SAUVEGARDE-CLE-ABSENTE (code de sortie 10)",
+      "ok": true,
+      "detail": {
+        "code": 10,
+        "stderr": "REJ-SAUVEGARDE-CLE-ABSENTE : clé de sauvegarde absente : définir OPSYS_SAUVEGARDE_CLE_FICHIER (générer-cle).\n"
+      }
+    },
+    {
+      "nom": "F5b OPSYS_CONSOLE_SECRET manquant : le service s'arrête avec un code non nul et le dit",
+      "ok": true,
+      "detail": {
+        "etat": "false|1",
+        "extrait": "u conteneur pour relance par restart:unless-stopped.\nINFO:     Shutting down\nINFO:     Waiting for application shutdown.\nINFO:     Application shutdown complete.\nINFO:     Finished server process [15]"
+      }
+    },
+    {
+      "nom": "F5b OPSYS_MCP_JETON manquant : le service s'arrête avec un code non nul et le dit",
+      "ok": true,
+      "detail": {
+        "etat": "false|1",
+        "extrait": "u conteneur pour relance par restart:unless-stopped.\nINFO:     Shutting down\nINFO:     Waiting for application shutdown.\nINFO:     Application shutdown complete.\nINFO:     Finished server process [16]"
+      }
+    },
+    {
+      "nom": "F5 : instance existante intacte (empreinte identique)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "F5c clé de fournisseur absente : readiness « en attente de configuration » (3), pas de plantage",
+      "ok": true,
+      "detail": {
+        "code": 1,
+        "stderr": "not ready configuration: racine OpenClaw absente ou fragments OPSYS non inclus\nnot ready console: indisponible (URLError)\nnot ready secrets: variables requises absentes (ANTHROPIC_API_KEY)"
+      }
+    },
+    {
+      "nom": "F6a archive d'une version PLUS RÉCENTE fabriquée (révision 9999, manifeste cohérent)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "nom": "F6a restauration d'une archive de version plus récente : refusé avec REJ-SAUVEGARDE-VERSION-LOGICIEL (code de sortie 25)",
+      "ok": true,
+      "detail": {
+        "code": 25,
+        "stderr": "base ('9999') est inconnue de ce logiciel : l'archive vient d'une version plus récente. Mettez le logiciel à jour (relancez l'installateur) avant de restaurer.\n"
+      }
+    },
+    {
+      "nom": "F6b format de sauvegarde chiffrée de version inconnue (v99) : refusé avec REJ-SAUVEGARDE-VERSION-FORMAT (code de sortie 18)",
+      "ok": true,
+      "detail": {
+        "code": 18,
+        "stderr": "REJ-SAUVEGARDE-VERSION-FORMAT : format de sauvegarde v99 inconnu de ce logiciel (v1) : mettre le logiciel à jour avant de restaurer.\n"
+      }
+    },
+    {
+      "nom": "F6 : instance existante intacte (empreinte identique)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "F7a archive tronquée à 50 % (restauration sur cible vierge) : refusé avec REJ-SAUVEGARDE-TRONQUEE (code de sortie 16)",
+      "ok": true,
+      "detail": {
+        "code": 16,
+        "stderr": "REJ-SAUVEGARDE-TRONQUEE : bloc incomplet : archive tronquée.\n"
+      }
+    },
+    {
+      "nom": "F7a archive tronquée à 50 % : la cible reste vide (rien d'écrit, ni .partiel)",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "nom": "F7a archive tronquée à 50 % (sur instance non vide, --remplacer) : refusé avec REJ-SAUVEGARDE-TRONQUEE (code de sortie 16)",
+      "ok": true,
+      "detail": {
+        "code": 16,
+        "stderr": "REJ-SAUVEGARDE-TRONQUEE : bloc incomplet : archive tronquée.\n"
+      }
+    },
+    {
+      "nom": "F7b un seul bit modifié au milieu (restauration sur cible vierge) : refusé avec REJ-SAUVEGARDE-ALTEREE (code de sortie 15)",
+      "ok": true,
+      "detail": {
+        "code": 15,
+        "stderr": "REJ-SAUVEGARDE-ALTEREE : le bloc 0 échoue à l'authentification : archive altérée.\n"
+      }
+    },
+    {
+      "nom": "F7b un seul bit modifié au milieu : la cible reste vide (rien d'écrit, ni .partiel)",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "nom": "F7b un seul bit modifié au milieu (sur instance non vide, --remplacer) : refusé avec REJ-SAUVEGARDE-ALTEREE (code de sortie 15)",
+      "ok": true,
+      "detail": {
+        "code": 15,
+        "stderr": "REJ-SAUVEGARDE-ALTEREE : le bloc 0 échoue à l'authentification : archive altérée.\n"
+      }
+    },
+    {
+      "nom": "F7 : instance existante intacte (empreinte identique)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "F8 clé de sauvegarde rangée dans le dossier des sauvegardes : refusé avec REJ-SAUVEGARDE-CLE-DANS-SAUVEGARDE (code de sortie 13)",
+      "ok": true,
+      "detail": {
+        "code": 13,
+        "stderr": "REJ-SAUVEGARDE-CLE-DANS-SAUVEGARDE : la clé de sauvegarde ne doit pas se trouver dans /sauvegardes : une sauvegarde qui contient sa clé ne protège rien.\n"
+      }
+    },
+    {
+      "nom": "F8 : instance existante intacte (empreinte identique)",
+      "ok": true,
+      "detail": null
+    }
+  ],
+  "mesures": {
+    "F3_detail": {
+      "instructions_totales": 36,
+      "essais": [
+        {
+          "fraction": 0.05,
+          "tue_a_l_instruction": 1,
+          "code_enfant": -9,
+          "integrity_check": true,
+          "revision": "0038",
+          "donnees_anciennes_intactes": true
+        },
+        {
+          "fraction": 0.25,
+          "tue_a_l_instruction": 9,
+          "code_enfant": -9,
+          "integrity_check": true,
+          "revision": "0038",
+          "donnees_anciennes_intactes": true
+        },
+        {
+          "fraction": 0.5,
+          "tue_a_l_instruction": 18,
+          "code_enfant": -9,
+          "integrity_check": true,
+          "revision": "0038",
+          "donnees_anciennes_intactes": true
+        },
+        {
+          "fraction": 0.75,
+          "tue_a_l_instruction": 27,
+          "code_enfant": -9,
+          "integrity_check": true,
+          "revision": "0038",
+          "donnees_anciennes_intactes": true
+        },
+        {
+          "fraction": 0.95,
+          "tue_a_l_instruction": 34,
+          "code_enfant": -9,
+          "integrity_check": true,
+          "revision": "0040",
+          "donnees_anciennes_intactes": true
+        },
+        {
+          "fraction": 0.999,
+          "tue_a_l_instruction": 35,
+          "code_enfant": -9,
+          "integrity_check": true,
+          "revision": "0040",
+          "donnees_anciennes_intactes": true
+        }
+      ],
+      "reprise": {
+        "code": 0,
+        "revision": "0040",
+        "donnees_anciennes_intactes": true,
+        "integrity_check": true
+      }
+    }
+  },
+  "notes": [
+    "F4 : le conteneur de test n'a pas de fichier résiduel visible dans /plein (le tmpfs est éphémère) ; la preuve de nettoyage des `.partiel` est dans les tests unitaires tests/test_sauvegarde_chiffree.py::test_disque_plein_ne_laisse_aucun_fichier_partiel."
+  ],
+  "commandes": [
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T104911Z qb2f043b-c4gx-data",
+      "code": 0,
+      "duree_s": 0.02,
+      "sortie_fin": "qb2f043b-c4gx-data\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --user 1000:1000 -v qb2f043b-c4gr-data:/opt/data:ro -v qb2f043b-c4gx-data:/copie --entrypoint cp opsys-qualif:banc -a /opt/data/. /copie/",
+      "code": 0,
+      "duree_s": 0.39,
+      "sortie_fin": "",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gx-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.53,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --user 1000:1000 -v qb2f043b-c4g-cles:/cles --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -m opsys.sauvegarde_chiffree generer-cle /cles/autre.cle",
+      "code": 0,
+      "duree_s": 1.23,
+      "sortie_fin": "{\n  \"chemin\": \"/cles/autre.cle\",\n  \"cle_id\": \"acdfa1c2ea6e2b5cb8241c5d5304ac71\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-20d2.env -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree restaurer /sauvegardes/opsys-sauvegarde-20261101T105012Z-0717.tar.gz.enc --remplacer --par banc",
+      "code": 0,
+      "duree_s": 1.38,
+      "sortie_fin": "{\n  \"code\": 14,\n  \"duree_s\": 0.84,\n  \"rss_max_enfant_ko\": 71412,\n  \"cgroup_pic_octets\": 82309120,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-MAUVAISE-CLE : cette clé n'est pas celle qui a chiffré la sauvegarde ; rien n'a été déchiffré.\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gx-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.54,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T104911Z qb2f043b-c4gc-data",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb2f043b-c4gc-data\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --user 1000:1000 -v qb2f043b-c4gx-data:/opt/data:ro -v qb2f043b-c4gc-data:/copie --entrypoint cp opsys-qualif:banc -a /opt/data/. /copie/",
+      "code": 0,
+      "duree_s": 0.38,
+      "sortie_fin": "",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gc-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py corrompre /opt/data/opsys.db pages",
+      "code": 0,
+      "duree_s": 0.53,
+      "sortie_fin": "{\n  \"fichier\": \"/opt/data/opsys.db\",\n  \"mode\": \"pages\",\n  \"octets\": 1155072\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-0c12.env -v qb2f043b-c4gc-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree sauvegarder --dossier /sauvegardes/corrompue --par banc",
+      "code": 0,
+      "duree_s": 1.3,
+      "sortie_fin": "{\n  \"code\": 23,\n  \"duree_s\": 0.8,\n  \"rss_max_enfant_ko\": 71380,\n  \"cgroup_pic_octets\": 82055168,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-EXPORT : copie de la base impossible : database disk image is malformed\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -c import os;d='/sauvegardes/corrompue';print([f for f in (os.listdir(d) if os.path.isdir(d) else []) if f.endswith(('.enc','.partiel')) or f.startswith('opsys-sauv')])",
+      "code": 0,
+      "duree_s": 0.35,
+      "sortie_fin": "[]\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T104911Z qb2f043b-c4gk-data",
+      "code": 0,
+      "duree_s": 0.02,
+      "sortie_fin": "qb2f043b-c4gk-data\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-2efe.env -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py fabriquer-archive base-corrompue /sauvegardes/piegee-base.tar.gz.enc",
+      "code": 0,
+      "duree_s": 1.24,
+      "sortie_fin": "{\n  \"archive\": \"/sauvegardes/piegee-base.tar.gz.enc\",\n  \"mode\": \"base-corrompue\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-85c2.env -v qb2f043b-c4gk-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree restaurer /sauvegardes/piegee-base.tar.gz.enc --par banc",
+      "code": 0,
+      "duree_s": 1.39,
+      "sortie_fin": "{\n  \"code\": 24,\n  \"duree_s\": 0.87,\n  \"rss_max_enfant_ko\": 71508,\n  \"cgroup_pic_octets\": 81842176,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-RESTAURATION : la base de l'archive est illisible : database disk image is malformed\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gk-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -c import os;print(os.listdir('/opt/data'))",
+      "code": 0,
+      "duree_s": 0.37,
+      "sortie_fin": "[]\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T104911Z qb2f043b-c4gam-data",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb2f043b-c4gam-data\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gam-data:/opt/data -v qb2f043b-c4gas-data:/ref:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py migration-interrompue /ref/opsys.db",
+      "code": 0,
+      "duree_s": 6.27,
+      "sortie_fin": " true,\n      \"revision\": \"0038\",\n      \"donnees_anciennes_intactes\": true\n    },\n    {\n      \"fraction\": 0.95,\n      \"tue_a_l_instruction\": 34,\n      \"code_enfant\": -9,\n      \"integrity_check\": true,\n      \"revision\": \"0040\",\n      \"donnees_anciennes_intactes\": true\n    },\n    {\n      \"fraction\": 0.999,\n      \"tue_a_l_instruction\": 35,\n      \"code_enfant\": -9,\n      \"integrity_check\": true,\n      \"revision\": \"0040\",\n      \"donnees_anciennes_intactes\": true\n    }\n  ],\n  \"reprise\": {\n    \"code\": 0,\n    \"revision\": \"0040\",\n    \"donnees_anciennes_intactes\": true,\n    \"integrity_check\": true\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --tmpfs /plein:size=96k,mode=1777 --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-e468.env -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree sauvegarder --dossier /plein --par banc",
+      "code": 0,
+      "duree_s": 1.29,
+      "sortie_fin": "{\n  \"code\": 23,\n  \"duree_s\": 0.77,\n  \"rss_max_enfant_ko\": 71432,\n  \"cgroup_pic_octets\": 82259968,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-EXPORT : copie de la base impossible : database or disk is full\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z --tmpfs /plein:size=96k,mode=1777 -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -c import os;print(os.listdir('/plein'))",
+      "code": 0,
+      "duree_s": 0.35,
+      "sortie_fin": "[]\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gx-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.53,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree sauvegarder --dossier /sauvegardes/sanscle --par banc",
+      "code": 0,
+      "duree_s": 1.3,
+      "sortie_fin": "{\n  \"code\": 10,\n  \"duree_s\": 0.78,\n  \"rss_max_enfant_ko\": 71328,\n  \"cgroup_pic_octets\": 82890752,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-CLE-ABSENTE : clé de sauvegarde absente : définir OPSYS_SAUVEGARDE_CLE_FICHIER (générer-cle).\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T104911Z qb2f043b-c4gfcret-cfg",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb2f043b-c4gfcret-cfg\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run -d --init --name qb2f043b-c4g-f-opsys-console-secret --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-c4g-f-opsys-console-secret.env -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4gfcret-cfg:/openclaw-config opsys-qualif:banc",
+      "code": 0,
+      "duree_s": 0.22,
+      "sortie_fin": "72330fa2c13282881a0caa3f1cc61c51b36b2e3bfbc6d84a8589d9d9744db084\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker rm -f qb2f043b-c4g-f-opsys-console-secret",
+      "code": 0,
+      "duree_s": 0.05,
+      "sortie_fin": "qb2f043b-c4g-f-opsys-console-secret\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T104911Z qb2f043b-c4gfeton-cfg",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb2f043b-c4gfeton-cfg\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run -d --init --name qb2f043b-c4g-f-opsys-mcp-jeton --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-c4g-f-opsys-mcp-jeton.env -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4gfeton-cfg:/openclaw-config opsys-qualif:banc",
+      "code": 0,
+      "duree_s": 0.23,
+      "sortie_fin": "96af0ec34c40b936b7135d3f26548c05dece7d6d941ddd46420e25e5b6fe543e\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker rm -f qb2f043b-c4g-f-opsys-mcp-jeton",
+      "code": 0,
+      "duree_s": 0.03,
+      "sortie_fin": "qb2f043b-c4g-f-opsys-mcp-jeton\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gx-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.42,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-6322.env -v qb2f043b-c4gx-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/deploy/readiness.py",
+      "code": 1,
+      "duree_s": 1.04,
+      "sortie_fin": "ready migrations: 0040\n",
+      "erreur_fin": "not ready configuration: racine OpenClaw absente ou fragments OPSYS non inclus\nnot ready console: indisponible (URLError)\nnot ready secrets: variables requises absentes (ANTHROPIC_API_KEY)\n"
+    },
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T104911Z qb2f043b-c4gv-data",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb2f043b-c4gv-data\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-d9f1.env -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py fabriquer-archive revision-future /sauvegardes/future.tar.gz.enc",
+      "code": 0,
+      "duree_s": 1.02,
+      "sortie_fin": "{\n  \"archive\": \"/sauvegardes/future.tar.gz.enc\",\n  \"mode\": \"revision-future\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-5011.env -v qb2f043b-c4gv-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree restaurer /sauvegardes/future.tar.gz.enc --par banc",
+      "code": 0,
+      "duree_s": 1.21,
+      "sortie_fin": "{\n  \"code\": 25,\n  \"duree_s\": 0.85,\n  \"rss_max_enfant_ko\": 71368,\n  \"cgroup_pic_octets\": 82292736,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-VERSION-LOGICIEL : la révision de la base ('9999') est inconnue de ce logiciel : l'archive vient d'une version plus récente. Mettez le logiciel à jour (relancez l'installateur) avant de restaurer.\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4g-sauv:/sauvegardes --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -c import sys;p='/sauvegardes/opsys-sauvegarde-20261101T105012Z-0717.tar.gz.enc';d=bytearray(open(p,'rb').read());d[8]=99;open('/sauvegardes/format-futur.tar.gz.enc','wb').write(bytes(d))",
+      "code": 0,
+      "duree_s": 0.22,
+      "sortie_fin": "",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-28c7.env -v qb2f043b-c4gv-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree verifier /sauvegardes/format-futur.tar.gz.enc",
+      "code": 0,
+      "duree_s": 1.17,
+      "sortie_fin": "{\n  \"code\": 18,\n  \"duree_s\": 0.79,\n  \"rss_max_enfant_ko\": 71252,\n  \"cgroup_pic_octets\": 82755584,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-VERSION-FORMAT : format de sauvegarde v99 inconnu de ce logiciel (v1) : mettre le logiciel à jour avant de restaurer.\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gx-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.38,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4g-sauv:/sauvegardes --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -c import shutil;shutil.copyfile('/sauvegardes/opsys-sauvegarde-20261101T105012Z-0717.tar.gz.enc','/sauvegardes/abimee-tronquer.tar.gz.enc')",
+      "code": 0,
+      "duree_s": 0.21,
+      "sortie_fin": "",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4g-sauv:/sauvegardes --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py corrompre /sauvegardes/abimee-tronquer.tar.gz.enc tronquer",
+      "code": 0,
+      "duree_s": 0.36,
+      "sortie_fin": "{\n  \"fichier\": \"/sauvegardes/abimee-tronquer.tar.gz.enc\",\n  \"mode\": \"tronquer\",\n  \"octets\": 23210\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T104911Z qb2f043b-c4gt-data",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb2f043b-c4gt-data\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-dad2.env -v qb2f043b-c4gt-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree restaurer /sauvegardes/abimee-tronquer.tar.gz.enc --par banc",
+      "code": 0,
+      "duree_s": 1.26,
+      "sortie_fin": "{\n  \"code\": 16,\n  \"duree_s\": 0.87,\n  \"rss_max_enfant_ko\": 71340,\n  \"cgroup_pic_octets\": 82579456,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-TRONQUEE : bloc incomplet : archive tronquée.\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gt-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -c import os;print(os.listdir('/opt/data'))",
+      "code": 0,
+      "duree_s": 0.22,
+      "sortie_fin": "[]\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-af2e.env -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree restaurer /sauvegardes/abimee-tronquer.tar.gz.enc --remplacer --par banc",
+      "code": 0,
+      "duree_s": 1.21,
+      "sortie_fin": "{\n  \"code\": 16,\n  \"duree_s\": 0.84,\n  \"rss_max_enfant_ko\": 71428,\n  \"cgroup_pic_octets\": 82526208,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-TRONQUEE : bloc incomplet : archive tronquée.\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4g-sauv:/sauvegardes --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -c import shutil;shutil.copyfile('/sauvegardes/opsys-sauvegarde-20261101T105012Z-0717.tar.gz.enc','/sauvegardes/abimee-bit.tar.gz.enc')",
+      "code": 0,
+      "duree_s": 0.24,
+      "sortie_fin": "",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4g-sauv:/sauvegardes --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py corrompre /sauvegardes/abimee-bit.tar.gz.enc bit",
+      "code": 0,
+      "duree_s": 0.37,
+      "sortie_fin": "{\n  \"fichier\": \"/sauvegardes/abimee-bit.tar.gz.enc\",\n  \"mode\": \"bit\",\n  \"octets\": 46420\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T104911Z qb2f043b-c4gb-data",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb2f043b-c4gb-data\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-a05c.env -v qb2f043b-c4gb-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree restaurer /sauvegardes/abimee-bit.tar.gz.enc --par banc",
+      "code": 0,
+      "duree_s": 1.22,
+      "sortie_fin": "{\n  \"code\": 15,\n  \"duree_s\": 0.85,\n  \"rss_max_enfant_ko\": 71504,\n  \"cgroup_pic_octets\": 82149376,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-ALTEREE : le bloc 0 échoue à l'authentification : archive altérée.\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gb-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -c import os;print(os.listdir('/opt/data'))",
+      "code": 0,
+      "duree_s": 0.2,
+      "sortie_fin": "[]\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-cc27.env -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree restaurer /sauvegardes/abimee-bit.tar.gz.enc --remplacer --par banc",
+      "code": 0,
+      "duree_s": 1.24,
+      "sortie_fin": "{\n  \"code\": 15,\n  \"duree_s\": 0.84,\n  \"rss_max_enfant_ko\": 71416,\n  \"cgroup_pic_octets\": 82259968,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-ALTEREE : le bloc 0 échoue à l'authentification : archive altérée.\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gx-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.4,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 256m --memory-swap 256m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc -c import shutil,os;shutil.copyfile('/cles/sauvegarde.cle','/sauvegardes/sauvegarde.cle');os.chmod('/sauvegardes/sauvegarde.cle',0o600)",
+      "code": 0,
+      "duree_s": 0.23,
+      "sortie_fin": "",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-os608wyn/env-un-534b.env -v qb2f043b-c4gx-data:/opt/data -v qb2f043b-c4g-sauv:/sauvegardes -v qb2f043b-c4g-cles:/cles:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree sauvegarder --dossier /sauvegardes --par banc",
+      "code": 0,
+      "duree_s": 1.2,
+      "sortie_fin": "{\n  \"code\": 13,\n  \"duree_s\": 0.8,\n  \"rss_max_enfant_ko\": 71328,\n  \"cgroup_pic_octets\": 82305024,\n  \"stdout\": \"\",\n  \"stderr\": \"REJ-SAUVEGARDE-CLE-DANS-SAUVEGARDE : la clé de sauvegarde ne doit pas se trouver dans /sauvegardes : une sauvegarde qui contient sa clé ne protège rien.\\n\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m --memory-swap 512m --label opsys.banc=qualif-20261101T104911Z -v qb2f043b-c4gx-data:/opt/data --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 0,
+      "duree_s": 0.4,
+      "sortie_fin": "c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"service_recalcul_resultats\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"usage_tokens\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    },\n    \"wct_attentes_audit\": {\n      \"lignes\": 0,\n      \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n    }\n  }\n}\n",
+      "erreur_fin": ""
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "etape": "g416m-empreinte-avant",
+  "titre": "[416m] Empreintes et comptages AVANT sauvegarde",
+  "attendu": "base saine (integrity_check), empreinte par table stable entre deux lectures",
+  "verdict": "ECHEC",
+  "debut": "2026-11-01T11:15:41.522+00:00",
+  "fin": "2026-11-01T11:15:42.554+00:00",
+  "duree_s": 1.03,
+  "constats": [
+    {
+      "nom": "deux lectures successives identiques (instance au repos)",
+      "ok": false,
+      "detail": null
+    }
+  ],
+  "mesures": {
+    "taille_des_donnees_ko": {}
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb768e49-g416m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 1,
+      "duree_s": 0.01,
+      "sortie_fin": "",
+      "erreur_fin": "Error response from daemon: container c1bd961b400a0eee148f307de9bcac515f308358249c01ae650f337cd4f574c8 is not running\n"
+    },
+    {
+      "commande": "docker exec qb768e49-g416m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py empreinte",
+      "code": 1,
+      "duree_s": 0.01,
+      "sortie_fin": "",
+      "erreur_fin": "Error response from daemon: container c1bd961b400a0eee148f307de9bcac515f308358249c01ae650f337cd4f574c8 is not running\n"
+    },
+    {
+      "commande": "docker exec qb768e49-g416m-s1 du -sk /opt/data /openclaw-config /sauvegardes",
+      "code": 1,
+      "duree_s": 0.01,
+      "sortie_fin": "",
+      "erreur_fin": "Error response from daemon: container c1bd961b400a0eee148f307de9bcac515f308358249c01ae650f337cd4f574c8 is not running\n"
+    }
+  ]
+}

@@ -410,7 +410,11 @@ def etape_construction(b: Banc, deps: Path) -> bool:
                   "Successfully installed opsys-ai" in journal, re.findall(r"Successfully installed [^\n]+", journal)[:1])
         taille = int(b.docker("image", "inspect", b.image, "--format", "{{.Size}}", enregistrer=False).out.strip() or 0)
         base = int(b.docker("image", "inspect", IMAGE_BASE, "--format", "{{.Size}}", enregistrer=False).out.strip() or 0)
+        disque = b.docker("image", "ls", b.image, "--format", "{{.Size}}", enregistrer=False).out.strip()
         e.mesure("taille_image_mo", round(taille / 1048576, 1))
+        e.mesure("docker_image_ls_taille_sur_disque", disque)
+        e.note("« taille_image_mo » (docker image inspect .Size) est la taille du contenu compressé du magasin containerd ; l'espace "
+               "disque réellement occupé est la colonne SIZE de `docker image ls` (couches décompressées).")
         e.mesure("taille_image_de_base_mo", round(base / 1048576, 1))
         v = b.docker("run", "--rm", *b.options("256m"), "--entrypoint", "opsys-metier", b.image, "--version")
         e.constat("`opsys-metier --version` répond (code 0)", v.code == 0, v.out.strip())

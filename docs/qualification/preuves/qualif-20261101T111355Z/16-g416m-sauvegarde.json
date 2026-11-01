@@ -1,0 +1,27 @@
+{
+  "etape": "g416m-sauvegarde",
+  "titre": "[416m] Sauvegarde chiffrée (export + AES-256-GCM, clé hors sauvegarde) et vérification",
+  "attendu": "archive chiffrée dans /sauvegardes, clé dans /cles (hors sauvegarde), vérification de bout en bout, aucun clair",
+  "verdict": "ECHEC",
+  "debut": "2026-11-01T11:15:42.554+00:00",
+  "fin": "2026-11-01T11:15:42.566+00:00",
+  "duree_s": 0.01,
+  "constats": [
+    {
+      "nom": "sauvegarde chiffrée réussie (code 0)",
+      "ok": false,
+      "detail": null
+    }
+  ],
+  "mesures": {},
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb768e49-g416m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree sauvegarder --dossier /sauvegardes --par banc",
+      "code": 1,
+      "duree_s": 0.01,
+      "sortie_fin": "",
+      "erreur_fin": "Error response from daemon: container c1bd961b400a0eee148f307de9bcac515f308358249c01ae650f337cd4f574c8 is not running\n"
+    }
+  ]
+}
