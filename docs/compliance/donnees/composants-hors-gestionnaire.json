@@ -1,0 +1,315 @@
+{
+ "schema": "opsys.conformite.hors-gestionnaire/v1",
+ "date": "2026-11-01",
+ "note": "Composants qu'aucun verrou de paquets ne décrit : images Docker, paquets système, code du dépôt distribué sous sa propre licence, polices. `niveau` : fichier_depot (texte de licence présent dans le dépôt), documentation_depot (déclaré par un document du dépôt, non revérifié à la source), non_verifiee. Aucune de ces lignes n'a été revérifiée à la source (aucun accès réseau).",
+ "composants": [
+  {
+   "id": "opsys-ai",
+   "type": "application",
+   "nom": "OPSYS-AI (ce dépôt)",
+   "version": "2.0.0.dev0",
+   "spdx": "Apache-2.0",
+   "niveau": "fichier_depot",
+   "source": "LICENSE (texte Apache-2.0)",
+   "portee": "production",
+   "usage": [
+    "distribution"
+   ],
+   "ecart": "ADR-0003 (Q7) décide une licence PROPRIÉTAIRE ; README.md dit que LICENSE et ADR-0003 se contredisent. Non tranché ici : décision du propriétaire."
+  },
+  {
+   "id": "opsys-core",
+   "type": "application",
+   "nom": "OPSYS-CORE (fork d'OpenClaw v2026.9.6)",
+   "version": "2026.9.6",
+   "spdx": "MIT",
+   "niveau": "fichier_depot",
+   "source": "core/LICENSE, core/NOTICE, core/THIRD_PARTY_NOTICES.md (3 notices : Pi/pi-mono, GitHub Octicons, Three.js)",
+   "portee": "production",
+   "usage": [
+    "execution",
+    "distribution"
+   ]
+  },
+  {
+   "id": "wordpress-opsys-connect",
+   "type": "application",
+   "nom": "Plugin WordPress OPSYS Connect",
+   "version": "0.1.0",
+   "spdx": "GPL-2.0-or-later",
+   "niveau": "fichier_depot",
+   "source": "integrations/wordpress/opsys-connect/opsys-connect.php (en-tête), LICENSE (GPL v2), integrations/README.md",
+   "portee": "production",
+   "usage": [
+    "distribution"
+   ],
+   "isole": true,
+   "isolation": "distribué hors du paquet Python, importé par aucun code Python ; échanges par HTTP signé seulement (integrations/README.md). La position « œuvre dérivée de WordPress donc GPL » vient de R4 §2.2 et reste à valider par un juriste."
+  },
+  {
+   "id": "image-python",
+   "type": "image",
+   "nom": "python:3.12-slim",
+   "version": "sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f",
+   "spdx": null,
+   "niveau": "non_verifiee",
+   "source": "deploy/Dockerfile, deploy/Dockerfile.embeddings-local",
+   "portee": "production",
+   "usage": [
+    "execution",
+    "distribution"
+   ],
+   "raison": "image de base : interpréteur Python et paquets Debian sous licences multiples (dont des licences GPL de paquets système) ; aucun inventaire de l'image n'est produit hors ligne"
+  },
+  {
+   "id": "image-node-bookworm",
+   "type": "image",
+   "nom": "node:24-bookworm (étape de construction du core)",
+   "version": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+   "spdx": null,
+   "niveau": "non_verifiee",
+   "source": "core/Dockerfile",
+   "portee": "developpement",
+   "usage": [
+    "construction"
+   ],
+   "raison": "étape de construction, non livrée ; licences multiples de la distribution"
+  },
+  {
+   "id": "image-node-bookworm-slim",
+   "type": "image",
+   "nom": "node:24-bookworm-slim (exécution du core)",
+   "version": "sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03",
+   "spdx": null,
+   "niveau": "non_verifiee",
+   "source": "core/Dockerfile",
+   "portee": "production",
+   "usage": [
+    "execution",
+    "distribution"
+   ],
+   "raison": "image de base : Node.js et paquets Debian sous licences multiples ; aucun inventaire hors ligne"
+  },
+  {
+   "id": "image-bun",
+   "type": "image",
+   "nom": "oven/bun:1.4.0 (étape de construction seulement)",
+   "version": "sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6",
+   "spdx": null,
+   "niveau": "non_verifiee",
+   "source": "core/Dockerfile (« runtime image … without … Bun »)",
+   "portee": "developpement",
+   "usage": [
+    "construction"
+   ],
+   "raison": "absent de l'image d'exécution d'après le commentaire du Dockerfile ; licence non relevée"
+  },
+  {
+   "id": "paquets-apt-core",
+   "type": "paquets-systeme",
+   "nom": "ca-certificates curl git hostname libgomp1 lsof openssh-client openssl procps python3 tini (apt, image core)",
+   "version": "selon l'image",
+   "spdx": null,
+   "niveau": "non_verifiee",
+   "source": "core/Dockerfile l.273-274",
+   "portee": "production",
+   "usage": [
+    "execution",
+    "distribution"
+   ],
+   "raison": "paquets Debian aux licences multiples (dont GPL/LGPL) installés dans l'image ; non inventoriés hors ligne"
+  },
+  {
+   "id": "paquets-apt-opsys",
+   "type": "paquets-systeme",
+   "nom": "libpq5 ; bubblewrap (seulement avec OPSYS_INGESTION_PDF=1)",
+   "version": "selon l'image",
+   "spdx": null,
+   "niveau": "non_verifiee",
+   "source": "deploy/Dockerfile",
+   "portee": "production",
+   "usage": [
+    "execution",
+    "distribution"
+   ],
+   "raison": "paquets Debian ; licence non relevée hors ligne (bubblewrap : option PDF natif non qualifiée sur cette machine)"
+  },
+  {
+   "id": "image-pgvector",
+   "type": "image",
+   "nom": "pgvector/pgvector:pg17 (profil database)",
+   "version": "sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f",
+   "spdx": "PostgreSQL",
+   "niveau": "documentation_depot",
+   "source": "docs/research/INGREDIENTS.md l.229 et l.256 (« PostgreSQL License (les deux) »)",
+   "portee": "production-optionnel",
+   "usage": [
+    "execution"
+   ],
+   "note": "licence de PostgreSQL et de pgvector déclarée par la documentation ; l'image contient en plus un système Debian"
+  },
+  {
+   "id": "image-valkey",
+   "type": "image",
+   "nom": "valkey/valkey:8-alpine (profil litellm)",
+   "version": "sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507",
+   "spdx": "BSD-3-Clause",
+   "niveau": "documentation_depot",
+   "source": "docs/research/INGREDIENTS.md l.259 ; deploy/docker-compose.yml (« licence BSD — jamais Redis »)",
+   "portee": "production-optionnel",
+   "usage": [
+    "execution"
+   ]
+  },
+  {
+   "id": "image-litellm",
+   "type": "image",
+   "nom": "ghcr.io/berriai/litellm-database v1.103.0 (profil de compatibilité litellm)",
+   "version": "sha256:f4f114b1996c5923c4d62a7bbdcecb2ccf9df17bdebce76050f609be97f75f5c",
+   "spdx": "MIT",
+   "niveau": "documentation_depot",
+   "source": "docs/research/INGREDIENTS.md l.215 (« MIT (cœur ; dossier enterprise/ sous licence distincte, à éviter) »)",
+   "portee": "production-optionnel",
+   "usage": [
+    "execution"
+   ],
+   "note": "profil opt-in ; le dossier enterprise/ est sous une licence distincte, non relevée ; l'image embarque des dépendances Python non inventoriées"
+  },
+  {
+   "id": "image-caddy",
+   "type": "image",
+   "nom": "caddy:2-alpine",
+   "version": "sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
+   "spdx": "Apache-2.0",
+   "niveau": "documentation_depot",
+   "source": "docs/research/INGREDIENTS.md l.254 (Caddy, Apache-2.0)",
+   "portee": "production",
+   "usage": [
+    "execution"
+   ]
+  },
+  {
+   "id": "image-ollama",
+   "type": "image",
+   "nom": "ollama/ollama:0.34.4 (profil optionnel)",
+   "version": "sha256:8262851b2846b87c649eddf3e76beb270c52f4d1bc94559f47efde16b0841551",
+   "spdx": "MIT",
+   "niveau": "documentation_depot",
+   "source": "docs/research/INGREDIENTS.md l.221 (Ollama et llama.cpp, MIT) ; les poids des modèles ont leur propre licence (registre de fournisseurs)",
+   "portee": "production-optionnel",
+   "usage": [
+    "execution"
+   ]
+  },
+  {
+   "id": "polices",
+   "type": "polices",
+   "nom": "Polices du studio créatif",
+   "version": "-",
+   "spdx": "OFL-1.1",
+   "niveau": "documentation_depot",
+   "source": "departments/m07-marketing/src/m7_marketing/studio/polices.py (aucune police livrée ; seule OFL-1.1 acceptée, fichier OFL conservé avec chaque police)",
+   "portee": "production",
+   "usage": [
+    "distribution",
+    "service à des tiers"
+   ],
+   "note": "aucune police n'est dans le dépôt : chaque police installée par un administrateur doit porter sa licence OFL et son empreinte ; rien à relever ici"
+  },
+  {
+   "id": "mobile-vendor-node-forge",
+   "type": "bibliotheque",
+   "nom": "@opsys-ai/node-forge (dérivé patché de node-forge 1.4.0)",
+   "version": "1.4.0-opsys.1",
+   "spdx": "BSD-3-Clause",
+   "niveau": "fichier_depot",
+   "source": "mobile/vendor/PROVENANCE.json (license: BSD-3-Clause) ; mobile/vendor/node-forge/LICENSE propose « BSD ou GPL v2 » au choix",
+   "portee": "production",
+   "usage": [
+    "distribution"
+   ],
+   "note": "option BSD retenue ; déjà comptée dans le verrou npm du mobile (vendor/node-forge), listée ici pour la double licence"
+  },
+  {
+   "id": "three-js",
+   "type": "bibliotheque",
+   "nom": "three.js 0.186.1 (rendu d'avatar de la Control UI)",
+   "version": "0.186.1",
+   "spdx": "MIT",
+   "niveau": "fichier_depot",
+   "source": "core/THIRD_PARTY_NOTICES.md (section Three.js) ; core/ui/public/licenses/three-MIT.txt",
+   "portee": "production",
+   "usage": [
+    "distribution"
+   ],
+   "note": "la notice dit que le contenu du paquet construit n'a pas encore été vérifié"
+  },
+  {
+   "id": "glb-robotexpressive",
+   "type": "modele-3d",
+   "nom": "RobotExpressive (Quaternius) intégré au core",
+   "version": "sha256:047f5e5fb3bb6d378bd1df16ca6137f2a596c99b3a1b5690b4020c05aaf6f319",
+   "spdx": "CC0-1.0",
+   "niveau": "documentation_depot",
+   "source": "core/PROVENANCE.md l.27-32 (README upstream : Quaternius, CC0 1.0 ; texte CC0 conservé à côté du binaire sous core/assets/avatar-models/)",
+   "portee": "production",
+   "usage": [
+    "distribution"
+   ]
+  },
+  {
+   "id": "icones-fournisseurs-core",
+   "type": "icones",
+   "nom": "52 icônes ProviderIcon-*.svg copiées de CodexBar (commit 215efbd3…)",
+   "version": "215efbd39ad58acb4b0cd637c407d63e6183bc8d",
+   "spdx": null,
+   "niveau": "non_verifiee",
+   "source": "core/ui/public/provider-icons/ATTRIBUTION.md",
+   "portee": "production",
+   "usage": [
+    "distribution"
+   ],
+   "raison": "l'attribution cite l'URL de la licence amont mais n'en recopie ni l'identifiant ni le texte ; les marques appartiennent à leurs propriétaires"
+  },
+  {
+   "id": "notice-pi-mono",
+   "type": "bibliotheque",
+   "nom": "Portions adaptées de Pi / pi-mono (Mario Zechner)",
+   "version": "-",
+   "spdx": "MIT",
+   "niveau": "fichier_depot",
+   "source": "core/THIRD_PARTY_NOTICES.md (section « Pi / pi-mono » : texte MIT recopié)",
+   "portee": "production",
+   "usage": [
+    "distribution"
+   ]
+  },
+  {
+   "id": "notice-octicons",
+   "type": "icones",
+   "nom": "GitHub Octicons (issue-opened-16, git-pull-request-16)",
+   "version": "-",
+   "spdx": "MIT",
+   "niveau": "fichier_depot",
+   "source": "core/THIRD_PARTY_NOTICES.md (section « GitHub Octicons » : texte MIT recopié)",
+   "portee": "production",
+   "usage": [
+    "distribution"
+   ]
+  },
+  {
+   "id": "glb-mpfb-human",
+   "type": "modele-3d",
+   "nom": "Modèle humain MPFB (avatar du core)",
+   "version": "-",
+   "spdx": "CC0-1.0",
+   "niveau": "documentation_depot",
+   "source": "core/assets/avatar-models/README.md et MPFB-README.upstream.md (nom de fichier mpfb-human-cc0-v1.glb ; texte CC0 CC0-1.0-legalcode.html conservé à côté)",
+   "portee": "production",
+   "usage": [
+    "distribution"
+   ],
+   "note": "provenance et licence du modèle non relues en détail dans cette passe"
+  }
+ ]
+}

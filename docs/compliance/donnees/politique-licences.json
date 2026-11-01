@@ -1,0 +1,82 @@
+{
+ "schema": "opsys.conformite.politique/v1",
+ "date": "2026-11-01",
+ "avertissement": "Classement de POLITIQUE INTERNE d'après AGENTS.md (« Briques open source ») et DECISIONS-ARCHITECTE r1 §7. Ce n'est pas un avis juridique : les cas limites sont des questions à un avocat (docs/compliance/QUESTIONS-AVOCAT.md).",
+ "regle": {
+  "interdit_dans_le_code_distribue": ["copyleft_fort", "usage_restreint"],
+  "decision_requise": ["copyleft_faible"],
+  "inconnue": "tout composant de production sans licence connue est refusé tant qu'il n'est pas consigné dans non-verifiees-reconnues.json (dette visible) ; une licence d'un identifiant absent de ces listes est « inconnue »",
+  "services_separes": "un service AGPL/GPL n'est admis que comme service séparé non modifié, après une décision écrite au cas par cas (section services_separes) ; il n'entre jamais dans un paquet ni dans une image distribuée"
+ },
+ "classes": {
+  "permissive": [
+   "MIT", "MIT-0", "MIT-CMU", "ISC", "BSD-2-Clause", "BSD-3-Clause", "0BSD", "Apache-2.0", "Unlicense", "CC0-1.0",
+   "BlueOak-1.0.0", "Python-2.0", "PSF-2.0", "Zlib", "CC-BY-4.0", "PostgreSQL", "OFL-1.1",
+   "BSD", "Apache", "LicenseRef-BSD-variante-non-precisee"
+  ],
+  "copyleft_faible": ["MPL-2.0", "LGPL-2.1-only", "LGPL-2.1-or-later", "LGPL-3.0-only", "LGPL-3.0-or-later", "EPL-2.0", "CDDL-1.0"],
+  "copyleft_fort": ["GPL-2.0-only", "GPL-2.0-or-later", "GPL-3.0", "GPL-3.0-only", "GPL-3.0-or-later", "AGPL-3.0-only", "AGPL-3.0-or-later", "SSPL-1.0", "EUPL-1.1+", "EUPL-1.2"],
+  "usage_restreint": ["BUSL-1.1", "Elastic-2.0", "CC-BY-NC-4.0", "CC-BY-NC-SA-4.0", "PolyForm-Noncommercial-1.0.0"]
+ },
+ "non_spdx_acceptes": {
+  "BSD": "identifiant non SPDX (variante BSD non précisée par le paquet) : traité comme permissif, à normaliser à la prochaine mise à jour",
+  "Apache": "identifiant non SPDX (version d'Apache non précisée par le paquet) : traité comme permissif, à normaliser",
+  "LicenseRef-BSD-variante-non-precisee": "métadonnées « BSD License » sans variante : jamais devinée"
+ },
+ "motifs_usage_restreint_ou_fort": [
+  "^A?GPL", "^SSPL", "^BUSL", "^BSL", "^Elastic", "(^|-)NC(-|$)", "non[- ]?commercial", "^PolyForm-Noncommercial", "Commons-Clause", "^CPAL", "^RPL"
+ ],
+ "usages": {
+  "pypi": ["execution (serveur du client)", "distribution (image Docker et installateur livrés au client)"],
+  "npm-core": ["execution (passerelle OPSYS-CORE du client)", "distribution (image opsys-core livrée au client)"],
+  "npm-mobile": ["distribution (application installée sur les appareils des employés)", "outillage de construction (Expo) : non embarqué dans l'application"],
+  "hors-gestionnaire": ["execution", "distribution", "service à des tiers selon la ligne"]
+ },
+ "decisions_copyleft_faible": [
+  {"composant": "pypi:psycopg", "licence": "LGPL-3.0-only", "statut": "consignee_non_validee_par_avocat",
+   "decision": "toléré : bibliothèque importée dynamiquement, non modifiée (AGENTS.md : « LGPL : OK en dépendance dynamique »). Obligations : conserver l'avis et le texte LGPL, laisser le client remplacer la bibliothèque (installation pip, pas de lien statique).",
+   "date": "2026-11-01"},
+  {"composant": "pypi:psycopg-binary", "licence": "LGPL-3.0-only", "statut": "consignee_non_validee_par_avocat",
+   "decision": "toléré comme psycopg ; la roue embarque libpq et d'autres bibliothèques natives dont les licences ne sont pas relevées ici (voir QUESTIONS-AVOCAT).",
+   "date": "2026-11-01"},
+  {"composant": "pypi:certifi", "licence": "MPL-2.0", "statut": "consignee_non_validee_par_avocat",
+   "decision": "toléré : données de certificats non modifiées (MPL : obligations au niveau des fichiers modifiés).", "date": "2026-11-01"},
+  {"composant": "pypi:tqdm", "licence": "MPL-2.0 AND MIT", "statut": "consignee_non_validee_par_avocat",
+   "decision": "toléré : extra optionnel embeddings-local, non modifié.", "date": "2026-11-01"},
+  {"composant": "npm-core:@novnc/novnc", "licence": "MPL-2.0", "statut": "consignee_non_validee_par_avocat",
+   "decision": "toléré mais PATCHÉ localement (core/patches/@novnc__novnc@1.7.0.patch) : les fichiers modifiés restent sous MPL-2.0 et leur source doit pouvoir être fournie. R11 proposait d'élaguer ce paquet.", "date": "2026-11-01"},
+  {"composant": "npm-core:@trycua/cua-driver-linux-arm64-gnu", "licence": "MIT AND MPL-2.0", "statut": "consignee_non_validee_par_avocat",
+   "decision": "toléré : binaire natif non modifié ; la partie MPL n'est pas détaillée par le paquet.", "date": "2026-11-01"},
+  {"composant": "npm-core:@ubjs/core", "licence": "MPL-2.0", "statut": "consignee_non_validee_par_avocat", "decision": "toléré : non modifié.", "date": "2026-11-01"},
+  {"composant": "npm-core:@ubjs/node", "licence": "MPL-2.0", "statut": "consignee_non_validee_par_avocat", "decision": "toléré : non modifié.", "date": "2026-11-01"},
+  {"composant": "npm-core:@ubjs/node-linux-arm64-gnu", "licence": "MPL-2.0", "statut": "consignee_non_validee_par_avocat", "decision": "toléré : binaire natif non modifié.", "date": "2026-11-01"},
+  {"composant": "npm-core:mediabunny", "licence": "MPL-2.0", "statut": "consignee_non_validee_par_avocat", "decision": "toléré : non modifié.", "date": "2026-11-01"},
+  {"composant": "npm-core:web-push", "licence": "MPL-2.0", "statut": "consignee_non_validee_par_avocat", "decision": "toléré : non modifié.", "date": "2026-11-01"},
+  {"composant": "npm-core:codec-parser", "licence": "LGPL-3.0-or-later", "statut": "consignee_non_validee_par_avocat",
+   "decision": "LGPL en dépendance transitive de l'extension WhatsApp (audio-decode → @wasm-audio-decoders/flac → codec-parser) : bibliothèque JavaScript importée, non modifiée. ADR-0003 place WhatsApp derrière un drapeau désactivé par défaut ; décision à revoir avec l'écart libsignal ci-dessous.",
+   "date": "2026-11-01"},
+  {"composant": "npm-mobile:lightningcss*", "licence": "MPL-2.0", "statut": "consignee_non_validee_par_avocat",
+   "decision": "lightningcss et ses binaires natifs par plateforme : outillage de construction Expo (CSS), qualifié « production » par le verrou mais non embarqué dans l'application ; non modifié.", "date": "2026-11-01"}
+ ],
+ "ecarts_ouverts": [
+  {"composant": "npm-core:libsignal", "licence": "GPL-3.0", "gravite": "haute", "statut": "ecart_ouvert_decision_requise",
+   "chaine": "extensions/whatsapp → baileys → libsignal",
+   "constat": "Licence GPL-3.0 relevée dans le package.json installé de libsignal@6.0.0 (relevé du 2026-11-01). Le verrou pnpm du fork contient cette dépendance transitive de l'extension WhatsApp. Ce relevé n'établit PAS si l'image livrée l'embarque (core/Dockerfile ne retient que les extensions choisies par OPENCLAW_EXTENSIONS) : tant que ce n'est pas tranché, la règle AGENTS.md (« GPL/AGPL : service séparé non modifié uniquement ») et DECISIONS r1 §7 ne sont pas démontrées respectées.",
+   "options_a_decider": ["retirer l'extension WhatsApp de l'image distribuée et du verrou (canal officiel SMS/WhatsApp d'ADR-0003 réalisé autrement)", "l'isoler en service séparé non modifié", "demander un avis d'avocat sur les conséquences de la distribution"],
+   "date": "2026-11-01"}
+ ],
+ "doubles_licences_choix": [
+  {"composant": "npm-core:jszip", "licence": "(MIT OR GPL-3.0-or-later)", "option_retenue": "MIT"},
+  {"composant": "npm-core:@zone-eu/mailsplit", "licence": "(MIT OR EUPL-1.1+)", "option_retenue": "MIT"},
+  {"composant": "pypi:cryptography", "licence": "Apache-2.0 OR BSD-3-Clause", "option_retenue": "BSD-3-Clause"},
+  {"composant": "pypi:packaging", "licence": "Apache-2.0 OR BSD-2-Clause", "option_retenue": "BSD-2-Clause"},
+  {"composant": "npm-mobile:node-forge", "licence": "BSD-3-Clause OR GPL-2.0 (texte du LICENSE vendu dans mobile/vendor/node-forge)", "option_retenue": "BSD-3-Clause (mobile/vendor/PROVENANCE.json)"}
+ ],
+ "services_separes": [
+  {"nom": "Postiz", "licence": "AGPL-3.0 (déclarée par FEUILLE-DE-ROUTE-TECHNO r2, non vérifiée ici)", "statut": "repli prévu ; non intégré comme composant : absent des verrous et des images ; M7 contient seulement un adaptateur en mode ombre sans appel réseau (departments/m07-marketing/src/m7_marketing/social/postiz_adapter.py, outil m7_publier_post_social, T3)",
+   "decision": "aucune : décision écrite au cas par cas exigée avant tout déploiement (service séparé, non modifié, sans code OPSYS importé)"},
+  {"nom": "ParadeDB / VectorChord", "licence": "AGPL (déclarée par FEUILLE r2, non vérifiée ici)", "statut": "écartés", "decision": "non retenus"},
+  {"nom": "PyMuPDF, Ghostscript, Ultralytics YOLO", "licence": "AGPL (catalogue de fournisseurs, statut ecarte)", "statut": "écartés", "decision": "non retenus ; le catalogue les refuse au moteur de politique"},
+  {"nom": "OpenFisca / PolicyEngine", "licence": "AGPL (déclarée par FEUILLE r2, non vérifiée ici)", "statut": "écartés", "decision": "non retenus"}
+ ]
+}

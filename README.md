@@ -3,8 +3,9 @@
 **Système d'entreprise IA pour PME, conçu pour une installation sur votre propre VPS.**
 
 Dix départements pilotés par des agents IA, gérés depuis la console OPSYS et le Control UI :
-M1 Réception, M2 CRM, M3 Estimation, M4 Terrain, M5 Finance, M6 Matériel, M7 Marketing,
-M8 Analytique, M9 Stratégie, M10 Mémoire.
+M1 Front Office (Léa), M2 Revenue CRM (Victor), M3 Estimation (Mathis), M4 Field Ops (Gabriel),
+M5 FinanceCore (Sophie), M6 Material Control (Rosalie), M7 Marketing (Chloé), M8 Analytics (Olivier),
+M9 Strategic Intelligence (Athéna), M10 Mémoire (Mnémo). Seule la messagerie des avatars est disponible.
 
 - **OPSYS-CORE** : fork modifié d'[OpenClaw](https://github.com/openclaw/openclaw) (MIT),
   maintenu par OPSYS : agents, canaux, mémoire native, automatisations et Control UI.
@@ -31,6 +32,35 @@ Direction : [directives Nathan](docs/produit/DIRECTIVES-NATHAN.md).
 Recherche : [briques qualifiées GitHub/GitLab](docs/research/R16-2026-09-30/README.md).
 Travail courant : [plan de restructuration](docs/programme/RESTRUCTURATION-2026-09-30.md).
 Bilan : [restructuration du 30 septembre](docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md).
+
+## Documentation d'utilisation
+
+- [Guide du propriétaire](docs/utilisation/GUIDE-PROPRIETAIRE.md) : ce que fait OPSYS-AI pour vous, ce qui est automatisé, ce que vous approuvez.
+- [Guide d'administration](docs/utilisation/GUIDE-ADMINISTRATION.md) : installation, sauvegarde, mise à jour, coffre, fournisseurs, planificateur.
+- [Glossaire et FAQ](docs/utilisation/GLOSSAIRE-ET-FAQ.md).
+- [Limites connues et ce qui reste à valider](docs/utilisation/LIMITES-CONNUES.md) : **à lire avant de se fier à une fonction**.
+- Licences : [inventaire](docs/compliance/INVENTAIRE-LICENCES.md), [SBOM](docs/compliance/sbom.cdx.json),
+  [questions à un avocat](docs/compliance/QUESTIONS-AVOCAT.md).
+
+## Chiffres clés
+
+Vérifiés par `tests/test_coherence_documentaire.py` contre `opsys-metier verifier`, les fichiers de migration, le registre MCP et le
+catalogue de fournisseurs : un chiffre périmé fait échouer le test.
+
+<!-- chiffres:debut -->
+| Chiffre | Valeur |
+|---|---|
+| Départements | 10 |
+| Outils | 537 |
+| Outils ouverts aux appareils | 248 |
+| Avatars | 10 |
+| Packs sectoriels | 2 |
+| Fichiers de migration | 44 |
+| Tête alembic | 0049 |
+| Révision du registre MCP | 9 |
+| Outils scellés au registre MCP | 558 |
+| Lignes du catalogue de fournisseurs | 66 |
+<!-- chiffres:fin -->
 
 ## Installation
 
@@ -61,4 +91,5 @@ Architecture : [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECT
 ## Licence
 
 À trancher par le propriétaire : `LICENSE` (Apache-2.0) et ADR-0003 (propriétaire) se
-contredisent. Les composants amont gardent leur licence (OpenClaw : MIT).
+contredisent. Les composants amont gardent leur licence (OpenClaw : MIT). Inventaire des licences
+des dépendances et écarts ouverts : [`docs/compliance/INVENTAIRE-LICENCES.md`](docs/compliance/INVENTAIRE-LICENCES.md).

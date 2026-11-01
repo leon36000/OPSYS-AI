@@ -1,0 +1,332 @@
+{
+ "schema": "opsys.docs.liens-historiques/v1",
+ "date": "2026-11-01",
+ "note": "Liens relatifs introuvables dans des rapports HISTORIQUES : preuves rangées hors du dépôt (/workspace/…), archives .tar.xz non commitées. Non corrigés (ce ne sont pas des erreurs de frappe : les cibles n'ont jamais été dans ce dépôt). tests/test_coherence_documentaire.py échoue pour tout lien cassé absent de cette liste, et pour toute ligne de cette liste qui n'est plus cassée.",
+ "liens": {
+  "docs/architecture/AGENTS-CRON-OPERATEUR.md": [
+   "/workspace/poursuite-opsys-2026-10-02-r1/CONSOLE-CRON-INTENTIONS-ROOT-r1/execution-r2/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-LECTURE-PROJECTION-ROOT-r1/execution-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-OWNER-RPC-M03-P80-QA-ROOT-r1/execution-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-SNAPSHOT-REDACTION-ROOT-r1/green-r14/execution/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-SNAPSHOT-REDACTION-ROOT-r1/helper-r16/execution/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/NATIVE-WORKER-AVATAR-ROOT-r21/execution-archive-r28/VERIFICATION-ROOT-r29.json"
+  ],
+  "docs/architecture/CRON-RACCORDEMENT-HOTE-2026-10-03.md": [
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/retirement-cleanup-r4-budget-r2/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/retirement-cleanup-r4/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/sources-qualifiees-r8/MANIFEST-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/revue-retrait-core-r2/MANIFEST-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/revue-retrait-core-r3/ADDENDUM-MANIFEST-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M10-CRON-CADRAGE-ROOT-r1/revue-core-host-ro-r1.md"
+  ],
+  "docs/exploitation/RESTAURATION-MEMOIRE-QUALIFICATION-2026-10-05.md": [
+   "../research/REPRISE-2026-10-05/preuves/RESTAURATION-M10-CORE-r1.json",
+   "../research/REPRISE-2026-10-05/preuves/RESTAURATION-M10-CORE-r1.tar.xz"
+  ],
+  "docs/grs/analytics/M8-FINALITE-MARGES-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/VENDEUR-M8-PROMPTS-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/VENDEUR-M8-PROMPTS-r1.tar.xz"
+  ],
+  "docs/grs/compta/M5-FINALITE-PROPAGATION-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/FINALITE-PROPAGATION-M5-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/FINALITE-PROPAGATION-M5-r1.tar.xz"
+  ],
+  "docs/grs/compta/M5-OCR-AP-DOMAINE-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/OCR-AP-DOMAINE-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/OCR-AP-DOMAINE-r1.tar.xz"
+  ],
+  "docs/grs/compta/M5-OCR-AP-RACCORD-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/OCR-AP-M5-RACCORD-r1.tar.xz"
+  ],
+  "docs/grs/compta/M5-OCR-STRUCTURE-PDF-2026-10-04.md": [
+   "../../research/REPRISE-2026-10-04/preuves/M5-OCR-STRUCTURE-r1.json",
+   "../../research/REPRISE-2026-10-04/preuves/M5-OCR-STRUCTURE-r1.tar.xz"
+  ],
+  "docs/grs/compta/M5-OCR-WORKER-2026-10-04.md": [
+   "../../research/REPRISE-2026-10-04/preuves/M5-OCR-WORKER-r1.json",
+   "../../research/REPRISE-2026-10-04/preuves/M5-OCR-WORKER-r1.tar.xz"
+  ],
+  "docs/grs/crm/M2-PREPARATION-M3-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/VENDEUR-M8-PROMPTS-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/VENDEUR-M8-PROMPTS-r1.tar.xz"
+  ],
+  "docs/grs/estimation/M3-APPRENTISSAGE-LECTURE-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/APPRENTISSAGE-CHANTIER-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/APPRENTISSAGE-CHANTIER-r1.tar.xz"
+  ],
+  "docs/grs/estimation/M3-CAPACITES-DASHBOARD-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/M3-CAPACITES-DASHBOARD-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/M3-CAPACITES-DASHBOARD-r1.tar.xz"
+  ],
+  "docs/grs/estimation/M3-CONSOLE-APPRENTISSAGE-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/M3-CONSOLE-APPRENTISSAGE-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/M3-CONSOLE-APPRENTISSAGE-r1.tar.xz"
+  ],
+  "docs/grs/estimation/M3-COUVERTURE-APPRENTISSAGE-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/M3-COUVERTURE-APPRENTISSAGE-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/M3-COUVERTURE-APPRENTISSAGE-r1.tar.xz"
+  ],
+  "docs/grs/estimation/M3-INVENTAIRE-VENDEUR-MOBILE-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/RECEPTION-VENDEUR-PROMPTS-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/RECEPTION-VENDEUR-PROMPTS-r1.tar.xz"
+  ],
+  "docs/grs/estimation/M3-INVENTAIRE-VENDEUR-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/M3-INVENTAIRE-VENDEUR-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/M3-INVENTAIRE-VENDEUR-r1.tar.xz"
+  ],
+  "docs/grs/marketing/M7-GROWTH-SAISIE-HUMAINE-2026-10-03.md": [
+   "/workspace/poursuite-opsys-2026-10-02-r1/M7-GROWTH-HUMAIN-ROOT-r1/"
+  ],
+  "docs/grs/marketing/M7-MATRICE-CAPACITES-2026-09-30.md": [
+   "../../../../restructuration-opsys-2026-09-30/preuves/brand-console-integration-resultat.json",
+   "../../../../restructuration-opsys-2026-09-30/preuves/brand-console-integration.log",
+   "../../../../restructuration-opsys-2026-09-30/preuves/brand-console-integration.xml",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M7-R44B-RUFF-ROOT-r1.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-acquisition-root-r2-20261002-resultat.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-acquisition-root-r2-20261002.xml",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-edition-root-r1-20261002-resultat.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-edition-root-r1-20261002.xml",
+   "/workspace/restructuration-opsys-2026-10-02/marketing-r44b-implementation-r1/gel-final-r1.json",
+   "/workspace/restructuration-opsys-2026-10-02/marketing-rapport-acquisition-implementation-r1/gel-final-r2.json",
+   "/workspace/restructuration-opsys-2026-10-02/marketing-rapport-acquisition-implementation-r1/ruff-final-r2.log"
+  ],
+  "docs/grs/marketing/M7-MOBILE-REVUE-TEXTES-2026-10-04.md": [
+   "../../research/REPRISE-2026-10-04/preuves/M7-MOBILE-TEXTES-r1.json",
+   "../../research/REPRISE-2026-10-04/preuves/M7-MOBILE-TEXTES-r1.tar.xz"
+  ],
+  "docs/grs/marketing/M7-RAPPORT-ACQUISITION-SOURCEE.md": [
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-acquisition-root-r2-20261002-resultat.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-acquisition-root-r2-20261002.xml",
+   "/workspace/restructuration-opsys-2026-10-02/marketing-rapport-acquisition-implementation-r1/gel-final-r2.json",
+   "/workspace/restructuration-opsys-2026-10-02/marketing-rapport-acquisition-implementation-r1/ruff-final-r2.log"
+  ],
+  "docs/grs/memory/M10-AUDIT-INITIAL.md": [
+   "../../../../restructuration-opsys-2026-09-30/preuves/m10-evaluation-sourcee/reprise-v2-2026-10-01/commandes-reprise.log",
+   "../../../../restructuration-opsys-2026-09-30/preuves/m10-evaluation-sourcee/reprise-v2-2026-10-01/hashes-sources-v2-apres.sha256",
+   "../../../../restructuration-opsys-2026-09-30/preuves/m10-evaluation-sourcee/reprise-v2-2026-10-01/hashes-sources-v2-avant.sha256",
+   "../../../../restructuration-opsys-2026-09-30/preuves/m10-evaluation-sourcee/reprise-v2-2026-10-01/rapport-reprise.md",
+   "../../../../restructuration-opsys-2026-09-30/preuves/m10-evaluation-sourcee/reprise-v2-2026-10-01/resultats-reprise.json",
+   "../../../../restructuration-opsys-2026-09-30/preuves/m10-preflight-selection-2026-10-01-r4/final/rapport-r4.md",
+   "../../../../restructuration-opsys-2026-09-30/preuves/m10-selection-integree-root-r2-2026-10-01-resultat.json",
+   "../../../../restructuration-opsys-2026-09-30/preuves/m10-selection-integree-root-r2-2026-10-01.log",
+   "../../../../restructuration-opsys-2026-09-30/preuves/m10-selection-integree-root-r2-2026-10-01.xml"
+  ],
+  "docs/grs/memory/M10-CI-POSTGRESQL-2026-10-04.md": [
+   "../../research/REPRISE-2026-10-04/preuves/M10-CI-POSTGRESQL-r1.json",
+   "../../research/REPRISE-2026-10-04/preuves/M10-CI-POSTGRESQL-r1.tar.xz"
+  ],
+  "docs/grs/memory/M10-COLLECTEUR-RACCORD-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/CORE-COLLECTEUR-RACCORD-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/CORE-COLLECTEUR-RACCORD-r1.tar.xz"
+  ],
+  "docs/grs/memory/M10-CORE-ADMISSION-RECUS-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/CORE-ADMISSION-RECUS-r1.tar.xz"
+  ],
+  "docs/grs/memory/M10-DEPOT-COMPTEURS-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/M10-DEPOT-COMPTEURS-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/M10-DEPOT-COMPTEURS-r1.tar.xz"
+  ],
+  "docs/grs/memory/M10-DEPOT-RUNTIME-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/M10-DEPOT-RUNTIME-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/M10-DEPOT-RUNTIME-r1.tar.xz"
+  ],
+  "docs/grs/memory/M10-FUSION-REPRISE-2026-10-03.md": [
+   "/workspace/poursuite-opsys-2026-10-02-r1/M10-INDEXATION-LOT-ROOT-r1/execution-pg-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M10-INDEXATION-LOT-ROOT-r1/execution-pg-r2/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M10-INDEXATION-LOT-ROOT-r1/execution-pg-r6/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M10-INDEXATION-LOT-ROOT-r1/preparation-r3/execution-r1/receipt.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M10-INTAKE-CANDIDATS-ROOT-r1/r4/REVUE-ROOT.json"
+  ],
+  "docs/grs/memory/M10-INTENTIONS-DURABLES-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/M10-INTENTIONS-DURABLES-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/M10-INTENTIONS-DURABLES-r1.tar.xz"
+  ],
+  "docs/grs/memory/M10-LIVRAISON-CORE-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/M10-LIVRAISON-CORE-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/M10-LIVRAISON-CORE-r1.tar.xz"
+  ],
+  "docs/grs/memory/M10-MCP-COLLECTEUR-E2E-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/M10-MCP-COLLECTEUR-E2E-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/M10-MCP-COLLECTEUR-E2E-r1.tar.xz"
+  ],
+  "docs/grs/memory/M10-MEMORY-DEVELOPPEMENT.md": [
+   "../../../../restructuration-opsys-2026-09-30/preuves/m10-preflight-selection-2026-10-01-r4/final/rapport-r4.md"
+  ],
+  "docs/grs/memory/M10-POSTFLIGHT-STOCKAGE-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/POSTFLIGHT-STOCKAGE-NOTICE-r1.txt",
+   "../../research/REPRISE-2026-10-05/preuves/POSTFLIGHT-STOCKAGE-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/POSTFLIGHT-STOCKAGE-r1.tar.xz"
+  ],
+  "docs/grs/reception/M1-APPELS-HOTE-2026-10-03.md": [
+   "/workspace/poursuite-opsys-2026-10-02-r1/M1-TRANSPORT-DECISION-ROOT-r1/core-candidats-r2-r3/REVUE-ROOT.json"
+  ],
+  "docs/grs/reception/M1-FORMULAIRE-INTERNE-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/M1-FORMULAIRE-INTERNE-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/M1-FORMULAIRE-INTERNE-r1.tar.xz"
+  ],
+  "docs/grs/reception/M1-VOICEMAIL-REPRISE-RAPPORT-2026-10-05.md": [
+   "../../research/REPRISE-2026-10-05/preuves/RECEPTION-VENDEUR-PROMPTS-r1.json",
+   "../../research/REPRISE-2026-10-05/preuves/RECEPTION-VENDEUR-PROMPTS-r1.tar.xz"
+  ],
+  "docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md": [
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-acquisition-root-r2-20261002-resultat.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-acquisition-root-r2-20261002.xml"
+  ],
+  "docs/programme/PROMPTS-CONTRATS-2026-10-05.md": [
+   "../research/REPRISE-2026-10-05/preuves/PROMPTS-RECHERCHE-OCR-r1.json",
+   "../research/REPRISE-2026-10-05/preuves/PROMPTS-RECHERCHE-OCR-r1.tar.xz"
+  ],
+  "docs/programme/PROMPTS-M1-COHERENCE-2026-10-05.md": [
+   "../research/REPRISE-2026-10-05/preuves/PROMPTS-M1-M5-COHERENCE-r1.json",
+   "../research/REPRISE-2026-10-05/preuves/PROMPTS-M1-M5-COHERENCE-r1.tar.xz"
+  ],
+  "docs/programme/PROMPTS-M10-COHERENCE-2026-10-05.md": [
+   "../research/REPRISE-2026-10-05/preuves/PROMPTS-M10-COHERENCE-r1.json",
+   "../research/REPRISE-2026-10-05/preuves/PROMPTS-M10-COHERENCE-r1.tar.xz"
+  ],
+  "docs/programme/PROMPTS-M5-COHERENCE-2026-10-05.md": [
+   "../research/REPRISE-2026-10-05/preuves/PROMPTS-M5-COHERENCE-r1.json",
+   "../research/REPRISE-2026-10-05/preuves/PROMPTS-M5-COHERENCE-r1.tar.xz"
+  ],
+  "docs/programme/PROMPTS-M7-COHERENCE-2026-10-05.md": [
+   "../research/REPRISE-2026-10-05/preuves/PROMPTS-M7-COHERENCE-r1.json",
+   "../research/REPRISE-2026-10-05/preuves/PROMPTS-M7-COHERENCE-r1.tar.xz"
+  ],
+  "docs/programme/REGISTRE-AUDIT-2026-09-30.md": [
+   "/workspace/restructuration-opsys-2026-09-30/DEP003-DON06-resultat.md",
+   "/workspace/restructuration-opsys-2026-09-30/DEP005-011-resultat.md"
+  ],
+  "docs/programme/REPRISE-BILAN-R32-R42-2026-10-02.md": [
+   "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R36-postgres-physique/rapport-r1.md",
+   "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/rapport-source-r3.md",
+   "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/r3/RESULTAT-r3.json",
+   "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/GEL-r3.json",
+   "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/rapport.md",
+   "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/installation-image-sandbox-pdf-readonly-r1/GEL-r2.json",
+   "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/python-context-r1/RESULTAT-vert-r3.json",
+   "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/python-pdf-hybrid-diagnostic-root-r3/RESULTAT-r1.json",
+   "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/python-pdf-hybrid-isolation-refus-r1/RESULTAT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/AP-CFO-CONSOLE-SQLITE-ROOT-r1/execution-r3/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/AP-CFO-CONSOLE-SQLITE-ROOT-r1/style-only-r4/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/AP-CRON-INTEGRATION-ROOT-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/AP-ENCODAGE-CORRECTION-ROOT-r1/red/receipt.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/AVATAR-MPFB-CC0-STRUCTURE-ROOT-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/AVATAR-MPFB-CC0-VIEWER-ROOT-r7/execution/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/AVATAR-MPFB-CC0-VIEWER-ROOT-r8/execution/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CFO-PAIE-DECLARATIONS-ROOT-r1/execution-r2/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CFO-PAIE-DECLARATIONS-ROOT-r1/execution-r9/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CONFIGURATION-CENTRE-ROOT-r1/VERIFICATION-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CONSOLE-CRON-INTENTIONS-ROOT-r1/execution-r2/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-DDL-POSTGRESQL-OFFLINE-ROOT-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HTTP-FRAMING-ROOT-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-OPERATEUR-INTEGRATION-ROOT-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-OWNER-RPC-M03-P80-QA-ROOT-r1/execution-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-REVISION-HTTP-INTEGRATION-ROOT-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-SNAPSHOT-REDACTION-ROOT-r1/green-r14/execution/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-SNAPSHOT-REDACTION-ROOT-r1/helper-r16/execution/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/FUSION-AP-ROOT-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M10-APPRENTISSAGE-ROOT-r1/VERIFICATION-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M3-PROMOTION-ROOT-VERIFICATION-r3.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M5-FEDERAL-COMPOSITION-ROOT-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M5-H2-T4127-RQ-RESEARCH-2026-10-02.md",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M5-M7-COUTS-ROOT-r1/VERIFICATION-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M5-RRQ-ROOT-r1/VERIFICATION-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M7-ACQUISITION-ROOT-r2.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/NATIVE-OWNER-I18N-ROOT-r33/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/NATIVE-WORKER-AVATAR-ROOT-r21/execution-archive-r28/VERIFICATION-ROOT-r29.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/PDF-HYBRIDE-CREATE-TARDIF-ROOT-r1/RECU-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/VERIFICATION-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/R43-whisper-r6.md",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/VERIFICATION-HELPERS-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-avatar-server/browser-build-r10/build-root-r10/build.receipt.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-avatar-server/browser-build-r7/browser-root-r7/browser.receipt.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-avatar-server/browser-build-r9/browser-root-r9/avatar-render.png",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-avatar-server/browser-build-r9/browser-root-r9/browser.receipt.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-avatar-server/http-loopback-r2/VERIFICATION-ROOT-http-loopback-r2.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-avatar-server/qualification-root-r6-owner-split/RECU-ROOT-r6-owner-split.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-avatar-server/qualification-root-r6-owner-split/VERIFICATION-ROOT-r6.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-avatar3d-transport-r1.md",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-chat/ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-chat/ROOT-r1.xml",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R47-frCA-application-root-r1/VERIFICATION-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/bilan-r32-r42-preimages-r4/REPRISE-BILAN-R32-R42-before-R43-R45-r1.md",
+   "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/RECU-R32-R2.md",
+   "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/SCELLEMENT-R32-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/FREEZE-R37-r2.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/SCELLEMENT-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/memoire-evaluation/receipt-r31-pg-final.md",
+   "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/ROOT-unites-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/VERIFICATION-PG5-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/VERIFICATION-REAL-M03-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/paie-qc-r40/paie-qc-suite-audit-r40.md",
+   "/workspace/poursuite-opsys-2026-10-02-r1/paie-qc-r42/RAPPORT-r2.md",
+   "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/R41-FREEZE-R6.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/R41-HELPERS-R4-ROOT-r1.xml",
+   "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/SCELLEMENT-BANC-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/SCELLEMENT-R41-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/VERIFICATION-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/tts-local-privacy-r1/outputs/run-20261002T184923318729Z/VERIFICATION-TTS-ROOT-r1.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/impot-qc-preparatoire-root-r3-2026-10-02-resultat.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/impot-qc-qualite-root-r3-2026-10-02-resultat.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-edition-root-r1-20261002-resultat.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-qualite-root-r1-2026-10-02-resultat.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02-resultat.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-install-root-r1-20261002-resultat.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-install-root-r1-20261002.xml",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/r41-bge-pg-root-r5-20261002T140431Z-final.json",
+   "/workspace/restructuration-opsys-2026-09-30/preuves/r41-bge-pg-root-r5-20261002T140431Z.xml",
+   "/workspace/restructuration-opsys-2026-10-02/agents-cron-remove-cas-gateway-driver-r10/root-cron-cas-gateway-validation-r10/RESULTAT-ROOT.json",
+   "/workspace/restructuration-opsys-2026-10-02/agents-cron-remove-cas-gateway-driver-r9/verification-root-r9/VERIFICATION-ROOT.json",
+   "/workspace/restructuration-opsys-2026-10-02/agents-cron-remove-cas-root-driver-r1/root-cron-cas-cli-r1/VERIFICATION-ROOT.json",
+   "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-archive-r2-preparation/SCELLEMENT-ROOT-r1.json"
+  ],
+  "docs/reprise/TRANSFERT-INFRA-2026-10-05/AUDIT-REPRISE-INFRA-2026-10-06.md": [
+   "REGISTRE-REPRISE-2026-10-06.json"
+  ],
+  "docs/research/AVATAR-AUDIO-LICENCES-2026-10-02.md": [
+   "/workspace/poursuite-opsys-2026-10-02-r1/AVATAR-MPFB-CC0-VIEWER-ROOT-r7/execution/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/AVATAR-MPFB-CC0-VIEWER-ROOT-r8/execution/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/voix-avatar-audio-comparison-r1.md"
+  ],
+  "docs/research/INGREDIENTS.md": [
+   "REPRISE-2026-10-05/preuves/AVATAR-TTS-RECHERCHE-r2.tar.xz"
+  ],
+  "docs/research/M03-MESURES-TERRAIN-2026-10-03.md": [
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-OWNER-RPC-M03-P80-QA-ROOT-r1/execution-r1/VERIFICATION-ROOT.json"
+  ],
+  "docs/research/R43-ASR-FRCA-MESURES-2026-10-02.md": [
+   "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/VERIFICATION-ROOT-r1.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/R43-whisper-r6.md"
+  ],
+  "docs/research/REPRISE-2026-10-03/README.md": [
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/diagnostics-native-2026-10-03-r1/ETAT-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/diagnostics-native-2026-10-03-r2/ETAT-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/diagnostics-native-2026-10-03-r3/ETAT-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/retirement-cleanup-r4/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/DOCS-OBSOLESCENCE-ROOT-r1/VERIFICATION-ROOT.json",
+   "/workspace/poursuite-opsys-2026-10-02-r1/M10-INDEXATION-LOT-ROOT-r1/execution-pg-r6/VERIFICATION-ROOT.json"
+  ],
+  "docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md": [
+   "preuves/M10-CI-POSTGRESQL-r1.json",
+   "preuves/M10-CI-POSTGRESQL-r1.tar.xz"
+  ],
+  "docs/research/REPRISE-2026-10-04/M5-OCR-RUNTIME-PDFIUM-2026-10-04.md": [
+   "preuves/M5-OCR-RUNTIME-PDFIUM-r1.json",
+   "preuves/M5-OCR-RUNTIME-PDFIUM-r1.tar.xz"
+  ],
+  "docs/research/REPRISE-2026-10-04/PUBLICATION-ATTENTE-2026-10-04.md": [
+   "preuves/M10-CI-POSTGRESQL-r1.json"
+  ],
+  "docs/research/REPRISE-2026-10-05/AVATAR-TTS-CONTRAT-2026-10-05.md": [
+   "preuves/AVATAR-TTS-RECHERCHE-r2.tar.xz"
+  ],
+  "docs/research/REPRISE-2026-10-05/M3-METROLOGIE-NUAGES-GITHUB-GITLAB.md": [
+   "preuves/M3-METROLOGIE-RECHERCHE-r1.json",
+   "preuves/M3-METROLOGIE-RECHERCHE-r1.tar.xz"
+  ],
+  "docs/research/REPRISE-2026-10-05/OCR-CANDIDATS-COMPLEMENT.md": [
+   "preuves/PROMPTS-RECHERCHE-OCR-r1.json",
+   "preuves/PROMPTS-RECHERCHE-OCR-r1.tar.xz"
+  ]
+ }
+}

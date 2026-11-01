@@ -1,0 +1,479 @@
+{
+ "avertissement": "Aucune ligne n'a été revérifiée à la source dans la session du 2026-11-01 (aucun accès réseau). « lue_en_recherche_niveau_V » = lue par les auteurs des recherches R1-R6 le 2026-10-31, à revérifier avant tout engagement. Ce n'est pas un avis juridique.",
+ "date_recherche_sources": "2026-10-31",
+ "lignes": {
+  "avatar.audio2face-3d.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "2f2d34d953f6d4f9eb580017e6c3420aea2046de0a5b3c97ca5c9bd556ccc33a",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "avatar.duix": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "9b12c47dddf20c1648ec09f52c48f47b8d2adf54494a16568f79db0c643691bb",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "avatar.insightface": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "573ae19aa87be751b0a079ecfe3b38b5f07a22f753afcb1689a4930a1cf214d2",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "avatar.musetalk-1.5.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "1496363aac008ba8f3d2c2b73dea048188eb3838624142c64487570ee6604826",
+   "raison_statut": "texte intégral non lu (le catalogue déclare verification=a_lire)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "avatar.nvidia-ace-complet": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "51488384bd7abe33f57a6a65e8636a21404795d18d3914d3997a0074ebb69de6",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "avatar.sadtalker": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "eb13c09880d988e420b58da05bc3e17a41d03b841c1d268ee67054f69cc73c6d",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "avatar.talkinghead": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "e2477768279cb626758e78140cc06efd48c29c12f7add39b10975bac0de6de5c",
+   "poids_non_applicable": "bibliothèque de rendu sans modèle appris ; les avatars GLB sont fournis par OPSYS ou le client (les exemples du dépôt amont, non commerciaux, sont exclus : voir la note de la ligne)",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "avatar.wav2lip": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "a2fc727c2e2ec0c618ed207418cfe57647a4ec99a1b4d7ecd47cc64668b63413",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "courriel.gmail.api": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "cd92eabf37f2398b498194d4f75e2d5be39e3e9dedc16ac174cfd3d50662eafd",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "courriel.graph.api": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "3174f3f6f33d49c9cd42de9692bf906c38930a15fdf03c8e75399f0c74343bb0",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "courriel.imap.generique": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "8eea6241cd6eec1e83bf2c126d5a2734de96df73b0e457f639f2420de1a49a6a",
+   "poids_non_applicable": "protocole standard (bibliothèque Python) : aucun poids",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "courriel.mbox.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "0b40508cb0ee8a66a58eee1512f9270f2544f24ba24fbc72d19ac276b0b92552",
+   "poids_non_applicable": "format de fichier standard (bibliothèque Python) : aucun poids",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "embeddings.bge-m3.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "c2318f2e705ce99ee525ba7fc3b674427ad7057f3f2ec586925f7727bfa62327",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "embeddings.jina-v5": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "4d34aaee57419f0bcd4d49a90ea4346e1e5990921b5ba59ef44e4e912181d71c",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "embeddings.qwen3-embedding.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "8cf72b01df6d69d1d7e6f69db088584e68634adb57842c57966481afc67c9a27",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "image.bria-fibo-2.0-dev": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "b211c218bb57a3cb0be406fdf88b5f12122ceb12782c96fbde4575c133810b8b",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "image.flux1-dev": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "0718b0333a1b2086ba554c7a72a55afec1d522da81b810a7a8f89388327a45bb",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "image.flux2-klein-4b.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "4747546b80e0949594ad5a4d6b719eb76938d85dce2817a9ef0ccc19b827cb71",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "image.flux3-image-klein.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "1410bee0a87ef6b9ca3934210f0185ccd6535ca39cf1dd790dc031d207dfe196",
+   "lacunes_connues": [
+    "licence du code absente"
+   ],
+   "raison_statut": "texte intégral non lu (le catalogue déclare verification=a_lire)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "image.qwen-image-2.1": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "2d6ef3b1d4058fd700989d51d881e58b5eb61897f9ad13943ae01c40bd31b5a7",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "image.qwen-image-2512.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "03a80cbf2deb80246ce55dd8c9ac149f010d512d6367b7ff96ef7afd6e81a0a0",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "image.qwen-image-edit-2511.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "e4cc905b9d89953263f8514f6c3cf50161e70408b5d630af54c68e340e4f9821",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "image.qwen-image-layered.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "6d03a744c76055f3fa2b5fa709974832db904af9b40cc4488177e136fcc4bed9",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "image.recraft-v4.1.api": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "79fe57edce1ff7ef2528aeb0e545f1526ae94a43761a7796122b432ef2325562",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "image.seedvr2.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "4da390bf080bb6e289c0c9ec584f190934f2b6abc4a6cec82cbfa605c90d858a",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "image.z-image-turbo.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "126e6cef64ee21067738d3e3b1a1d69733b8040c3151a2498722842a73700ac8",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "llm.gpt-oss-120b.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "bec8e3d15e27d598f7dc91581936ba28cd2b66e82fc8d6d501db9ba07eeb78ba",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "llm.mistral-small-4.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "2abb9bc82f11913b5f342df09589dede8343690674323d347cf713d0e7b4178f",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "llm.nemotron-3.5-lightning.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "7424c61251daff58f512f206e34d494e991f254f1242f3497bc3e2eea9285a6c",
+   "raison_statut": "texte intégral non lu (le catalogue déclare verification=a_lire)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "ocr.chandra-2": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "a972396a9d37a2b12dcfd5959806e798a13cdba2e7570856fcb1639e2c2f821d",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "ocr.docling.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "bc01c5ef9339391bfc10d1978e2f1f93dfc5f3d8f20f5ba79b4db7521fc622fe",
+   "raison_statut": "texte intégral non lu (le catalogue déclare verification=a_lire)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "ocr.ghostscript": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "f68884b7fa838db422e313ba019fba4d327569e69e0c9408a6710846fa74d6a4",
+   "poids_non_applicable": "logiciel sans modèle appris (écarté : AGPL)",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "ocr.got-ocr2": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "82f2ed53e99af8dc503b291d5a6f22cc8e006d0a7a4fd31aed0139cbc4b09612",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "ocr.marker": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "4ef9f8310df804756c888ddb5c0625cc56249598dcc4791ea7392070285ecb04",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "ocr.mistral-ocr-3.api": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "d14d179c2f2b4bd5732c98e448c02c91c41fe154de63a6d637d34efb44c8f26e",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "ocr.nougat": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "02c0a5c1647a88f7fa8867fa4fd269e7330a1e1026f3c569a0b43080283ec62c",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "ocr.paddleocr.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "f2b1624374db757f566526996a00c176aeca31820c784b938be32a32442c0bf4",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "ocr.pymupdf": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "2b88931078574cebe8d158a1e98debd9e70eae377e63d0b161b9967f3ef0abb6",
+   "poids_non_applicable": "bibliothèque sans modèle appris (écartée : AGPL)",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "ocr.surya": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "764481cf632cc6b5190860c4c192ffdc897a8ba1eb037a26098c82504dc7be97",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "ocr.tesseract-5.5.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "d0ee027e549d2342b12a9c59f96f9fad57728b85add67aa66660ca4c8f426226",
+   "poids_non_applicable": "binaire seul dans le catalogue ; les données de langue (traineddata « fra ») ont leur propre licence, NON relevée : à vérifier avant de les distribuer",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "recherche_web.api-officielle": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "87aa35b429aea0bd235f331a607a570a43a2ea08c3e474b30f3261ce8b8cd174",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "recherche_web.scraping-serp": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "bb93e5c236dddf0a1d89d94c2cb00e31137e170d531a48af782175c8a48ddf29",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "reranker.bge-reranker-v2-m3.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "d48be29ba4d91f4406222074c6a32aab9764af328ddde2c36732e7f6a96e8393",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "reranker.jina-reranker-v3": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "0874b360eb5a3f4f249b848528253c60eb487b028cc3b647447368a2fdd600ac",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "reranker.mxbai-rerank-v2.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "45af87781673b82183807387eeb31cce99900aa9fb805c7e85a0ecdd933f8432",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "reranker.qwen3-reranker.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "1c610ef4c6d9ebb2e5226024cba635a9cccf20a9ed18894325102a66ef6acb9a",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "stt.kyutai-stt.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "c3ed3a8eb54046e31daac68895b86fb05247ccbb91415d802bf87eaa6f055d78",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "stt.parakeet-tdt-v3.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "2ed40e93a94719e274dca7b796ff6198df0bb3d35c33e5f6034383f8eaba5123",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "stt.pyannote-community-1.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "5ca2edd5888a0546b1947f4e326729c8a3936622a68922f5be4beb5b3c09a66d",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "stt.voxtral-mini-realtime.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "dff3858f5b80ed35287afb1b6e87b5aa2f7bc40a7a0756d0400ba8e02fc8d7c7",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "tts.azure-fr-ca.api": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "3b5a199b99333c80fb97e952f97a5000972c6e19aa2e6a1660b3b7dcb7f9801c",
+   "raison_statut": "source citée sans marque de preuve primaire [V] (connu, supposé ou non précisé)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "tts.chatterbox-multilingual.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "d032c730ecda50d4dfd3807571ba58a1b8c1de38648c73f8fcf7a38e2b1b119f",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "tts.f5-tts": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "77df9d3e5c058d4f61d9ef4af8987418a873a087b890a8e96fcf8074e98658de",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "tts.fish-speech": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "1b30f1cdc52426b68a71d8fef52c1e3aa5319fdd9ff464d3c911b19cd74ea416",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "tts.kyutai-tts.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "db4a14bef1f397ec1504fbe39c05b4acaca6337aa4b940d110d9d2359edbd71a",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "tts.voxtral-tts.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "ec00b3c38c592bded18c5d244d79aac5557bd67194bfd4419888493d92a3d2fb",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "tts.xtts-v2": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "ac80fd35cd9c237c299ff546e1742e542d15aa21ac7ea205cfe56af1ac40451b",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "video.hunyuanvideo-1.5": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "7885fa503c46259ee378135fd46bb5dee51484ecdec5ba3ed0ff95ad9ff6b87e",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "video.minimax-h3": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "c2df022894c17d4cd7fe61b787804f4df744e69c25861c4a0ecdc1e0571aa33d",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "video.remotion": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "d1a1ea5fb636f353bd6c54145f79ce3faa650e55513e9c072150d767e1d2096f",
+   "poids_non_applicable": "bibliothèque de composition sans modèle appris (écartée : licence maison)",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "video.wan-2.2.local": {
+   "date_reverification_locale": null,
+   "date_source": "2026-10-31",
+   "empreinte_licence": "5b0dd4fc5ccab56eaa01a3fe7d5d6bd45df9adbb7b3c67ef8522e44b58bb4564",
+   "raison_statut": "marque de preuve primaire [V] dans la source citée",
+   "statut_source": "lue_en_recherche_niveau_V"
+  },
+  "vision.florence-2.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "0e67d9bf684178ecfca63c17e6bc8814f3869de379be583e2b7988269693e0ab",
+   "raison_statut": "texte intégral non lu (le catalogue déclare verification=a_lire)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "vision.grounding-dino.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "8f06b6e50fc4defc1fe1499b0d3830dad56d784a20e0c1a82616cba0379bd377",
+   "raison_statut": "texte intégral non lu (le catalogue déclare verification=a_lire)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "vision.owlv2.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "efc17e799032e223bbd0f2194f86bbfba52a77d34a74b9a899b137fc7c76d6d7",
+   "raison_statut": "texte intégral non lu (le catalogue déclare verification=a_lire)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "vision.sam2.local": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "d27ce78161d147b3f3bd92b6b9240d97e1de964a86e8ef5fac504f06dd833971",
+   "raison_statut": "texte intégral non lu (le catalogue déclare verification=a_lire)",
+   "statut_source": "non_verifiee_a_la_source"
+  },
+  "vision.ultralytics-yolo": {
+   "date_reverification_locale": null,
+   "date_source": null,
+   "empreinte_licence": "26a5fcf121c38bc6b75cd32c82be173ff554a903d8520b931c8922d6cf16da91",
+   "raison_statut": "texte intégral non lu (le catalogue déclare verification=a_lire)",
+   "statut_source": "non_verifiee_a_la_source"
+  }
+ },
+ "schema": "opsys.conformite.fournisseurs/v1"
+}

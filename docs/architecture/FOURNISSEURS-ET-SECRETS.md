@@ -66,8 +66,9 @@ sans sélection : `AUCUN_FOURNISSEUR`. Autres codes du registre : `ADMIN_REQUIS`
 
 ## 3. Catalogue initial
 
-`fournisseurs/catalogue.py` : 57 entrées, licences reprises des recherches R1, R3, R4, R5, R6 avec la ligne
-citée ; toutes `a_mesurer`.
+`fournisseurs/catalogue.py` : 66 entrées (57 reprises des recherches R1, R3, R4, R5, R6 avec la ligne citée, 4 de courriel, 5 de
+vision hors recherche) ; toutes `a_mesurer`. L'audit ligne par ligne (code et poids, seuils, territoires, service à des tiers, niveau de
+vérification à la source) est dans [REGISTRE-FOURNISSEURS-LICENCES](../compliance/REGISTRE-FOURNISSEURS-LICENCES.md).
 
 - **Adoptés** : Mistral Small 4, gpt-oss-120b, Nemotron 3.5 Lightning (OpenMDW à lire) ; bge-m3,
   Qwen3-Embedding ; bge-reranker-v2-m3, Qwen3-Reranker ; Docling (modèles internes à lire), Tesseract 5.5,
