@@ -704,10 +704,11 @@ def test_pages_en_francais_protegees_et_sans_ressource_externe(connecte, demande
     ):
         page = connecte.get(chemin)
         assert page.status_code == 200 and page.headers["content-type"].startswith("text/html")
-        assert '<html lang="fr">' in page.text and f"<h1>{titre}</h1>" in page.text
+        # Le h1 est aussi la cible du lien d'évitement (banc navigateur : 18 arrêts de tabulation avant le contenu).
+        assert '<html lang="fr">' in page.text and f'<h1 id="contenu" tabindex="-1">{titre}</h1>' in page.text
         assert "default-src 'none'" in page.headers["content-security-policy"]
         assert (page.headers["x-frame-options"], page.headers["cache-control"]) == ("DENY", "no-store")
-        liens = re.findall(r'(?:src|href|action)="([^"]*)"', page.text)
+        liens = re.findall(r'(?:src|href|action)="([^"#][^"]*)"', page.text)  # hors ancres de la page
         assert liens and all(lien.startswith(f"{PREFIXE}/") for lien in liens)
         assert 'class="pastille">1<' in page.text  # une demande en attente, signalée dans la navigation
 
@@ -728,7 +729,7 @@ def test_console_servie_a_la_racine_sans_prefixe(departements_demo, session, per
         reponse = _connecter(client)
         assert reponse.headers["location"] == "/departements" and "Path=/;" in reponse.headers["set-cookie"]
         page = client.get("/departements").text
-    liens = re.findall(r'(?:src|href|action)="([^"]*)"', page)
+    liens = re.findall(r'(?:src|href|action)="([^"#][^"]*)"', page)  # hors ancres de la page
     assert liens and all(lien.startswith("/") and not lien.startswith(PREFIXE) for lien in liens)
 
 

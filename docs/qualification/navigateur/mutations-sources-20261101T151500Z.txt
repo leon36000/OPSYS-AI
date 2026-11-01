@@ -1,0 +1,22 @@
+[TUÉE ] csp-sans-connect-src
+[TUÉE ] csp-connect-src-partout
+[TUÉE ] csp-regex-trop-large
+[TUÉE ] tables-non-enveloppees
+[TUÉE ] tables-doublement-enveloppees
+[TUÉE ] second-h1-conserve
+[TUÉE ] erreur-en-status
+[TUÉE ] lien-evitement-retire
+[TUÉE ] cible-evitement-retiree
+[TUÉE ] navigation-sans-connaissances
+[TUÉE ] navigation-sans-aria-current
+[TUÉE ] navigation-sans-repere-nav
+[TUÉE ] erreur-html-pour-les-api
+[TUÉE ] erreur-html-pour-tous
+[TUÉE ] detail-non-echappe
+[TUÉE ] libelle-anglais-affiche
+[TUÉE ] pastille-blanc-en-sombre
+[TUÉE ] table-defilante-sans-regle
+[TUÉE ] cases-etirees
+[TUÉE ] texte-long-deborde
+[TUÉE ] nav-mobile-pleine-hauteur
+21 mutations, survivantes : aucune

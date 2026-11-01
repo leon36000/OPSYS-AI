@@ -241,6 +241,8 @@ F4 : l'absence de fichier `.partiel` résiduel est prouvée par test unitaire (l
 - **Approbation N3 par un agent avec ticket de session M10** (chemin complet) ; modèles de langage réels ; embeddings (valeurs
   fictives, rien n'est appelé) ; canaux SMS/courriel.
 - **Pas d'acceptation des conditions, pas de paiement, pas de déploiement** : rien d'irréversible n'a été exécuté.
+- **La console dans un navigateur réel** : non couverte par CE banc (sondes HTTP seulement) ; voir le banc distinct
+  [`QUALIFICATION-NAVIGATEUR.md`](QUALIFICATION-NAVIGATEUR.md) (Chromium réel, instance fictive hors conteneur, sans TLS ni Caddy).
 
 *Note de transparence.* Le banc n'utilise aucun réseau (`--network none`). Au tout début, une requête `HEAD` vers `pypi.org`
 (sonde de joignabilité, rien n'a été téléchargé ni installé) a reçu une réponse : la machine a donc un accès réseau partiel ; la

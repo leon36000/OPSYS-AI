@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import html
 import json
+import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 from urllib.parse import quote
@@ -38,6 +39,13 @@ ONGLETS = (
     ("plateforme/fournisseurs", "Plateforme"),
     ("observabilite", "Observabilité"),
     ("wallboards", "Wallboards"),
+)
+SECTIONS_PLATEFORME = (
+    ("fournisseurs", "Fournisseurs"),
+    ("secrets", "Secrets"),
+    ("avatars", "Avatars"),
+    ("connaissances", "Connaissances"),
+    ("connecteurs", "Connecteurs"),
 )
 LIBELLES_MODES = {"ombre": "Ombre", "supervise": "Supervisé", "autonome": "Autonome"}
 STATUTS = {
@@ -111,6 +119,48 @@ def bandeau_succes(code: str) -> Bandeau | None:
 # -- gabarit -------------------------------------------------------------------------------------
 
 
+def navigation_plateforme(prefixe: str, courant: str) -> str:
+    """Sous-navigation UNIQUE des cinq pages « Plateforme » : chaque page expose les quatre autres (aucune impasse),
+    la page courante porte `aria-current`, et le tout est un repère de navigation nommé."""
+    def lien(cle: str, libelle: str) -> str:
+        courante = ' aria-current="page"' if cle == courant else ""
+        return f'<a href="{e(prefixe)}/plateforme/{cle}"{courante}>{e(libelle)}</a>'
+
+    liens = " · ".join(lien(cle, libelle) for cle, libelle in SECTIONS_PLATEFORME)
+    return f'<nav aria-label="Plateforme"><p>{liens}</p></nav>'
+
+
+_BALISE_TABLE = re.compile(r"<table\b|</table>")
+_ENVELOPPE_TABLE = '<div class="table-defilante">'
+
+
+def retrograder_titres_niveau_1(contenu: str) -> str:
+    """Le gabarit porte l'UNIQUE h1 de la page : un module qui en met un second dans son contenu (sections de fusion, de
+    banque, de CRM…) est ramené au niveau 2, pour que le plan du document reste celui que lit un lecteur d'écran."""
+    return re.sub(r"<(/?)h1\b", r"<\1h2", contenu)
+
+
+def envelopper_tables(contenu: str) -> str:
+    """Enveloppe chaque tableau de premier niveau dans un conteneur qui défile horizontalement (WCAG 1.4.10 : un
+    tableau de données peut défiler, la PAGE non). Un tableau déjà enveloppé par son module est laissé tel quel."""
+    sortie, position, profondeur, debut = [], 0, 0, 0
+    for m in _BALISE_TABLE.finditer(contenu):
+        if m.group().startswith("</"):
+            profondeur -= 1
+            if profondeur == 0:
+                sortie.append(contenu[position:debut])
+                tableau = contenu[debut:m.end()]
+                deja = contenu[position:debut].rstrip().endswith(_ENVELOPPE_TABLE)
+                sortie.append(tableau if deja else f"{_ENVELOPPE_TABLE}{tableau}</div>")
+                position = m.end()
+        else:
+            if profondeur == 0:
+                debut = m.start()
+            profondeur += 1
+    sortie.append(contenu[position:])
+    return "".join(sortie)
+
+
 def gabarit(
     titre: str,
     contenu: str,
@@ -141,7 +191,10 @@ def gabarit(
     message = ""
     if bandeau is not None:
         texte, genre = bandeau
-        message = f'<p class="message message-{e(genre)}" role="status">{e(texte)}</p>'
+        # Une erreur est annoncée tout de suite (alert) ; un succès ou une alerte restent polis (status).
+        role = "alert" if genre == "erreur" else "status"
+        message = f'<p class="message message-{e(genre)}" role="{role}">{e(texte)}</p>'
+    corps = envelopper_tables(retrograder_titres_niveau_1(contenu))
     return (
         "<!doctype html>\n"
         '<html lang="fr"><head><meta charset="utf-8">'
@@ -149,8 +202,9 @@ def gabarit(
         f"<title>{e(titre)} · Console OPSYS</title>"
         f'<link rel="stylesheet" href="{e(prefixe)}/statique/console.css">'
         f'<script src="{e(prefixe)}/statique/console.js" defer></script>'
-        f'</head><body><header class="entete">{entete}</header>'
-        f"<main>{message}<h1>{e(titre)}</h1>{contenu}</main></body></html>\n"
+        '</head><body><a class="saut" href="#contenu">Aller au contenu</a>'
+        f'<header class="entete">{entete}</header>'
+        f'<main>{message}<h1 id="contenu" tabindex="-1">{e(titre)}</h1>{corps}</main></body></html>\n'
     )
 
 

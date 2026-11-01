@@ -1,0 +1,191 @@
+[
+  {
+    "injection": "csrf-retire",
+    "groupes": [
+      "csrf"
+    ],
+    "attendus": [
+      "csrf/post-sans-jeton",
+      "csrf/post-jeton-faux",
+      "csrf/api-sans-jeton",
+      "csrf/inter-sites-samesite"
+    ],
+    "echecs_observes": [
+      "csrf/api-sans-jeton",
+      "csrf/decision-sans-jeton",
+      "csrf/inter-sites-samesite",
+      "csrf/post-jeton-faux",
+      "csrf/post-sans-jeton",
+      "csrf/secret-sans-jeton",
+      "csrf/session-intacte"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "cookie-sans-httponly",
+    "groupes": [
+      "connexion"
+    ],
+    "attendus": [
+      "connexion/cookie-drapeaux",
+      "connexion/cookie-invisible-js"
+    ],
+    "echecs_observes": [
+      "connexion/cookie-drapeaux",
+      "connexion/cookie-invisible-js",
+      "connexion/set-cookie-brut"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "cookie-sans-secure",
+    "groupes": [
+      "connexion"
+    ],
+    "attendus": [
+      "connexion/cookie-drapeaux"
+    ],
+    "echecs_observes": [
+      "connexion/cookie-drapeaux",
+      "connexion/set-cookie-brut"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "cookie-samesite-none",
+    "groupes": [
+      "connexion",
+      "csrf"
+    ],
+    "attendus": [
+      "connexion/cookie-drapeaux",
+      "csrf/inter-sites-samesite"
+    ],
+    "echecs_observes": [
+      "connexion/cookie-drapeaux",
+      "connexion/set-cookie-brut",
+      "csrf/inter-sites-samesite"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "cookie-non-efface",
+    "groupes": [
+      "deconnexion"
+    ],
+    "attendus": [
+      "deconnexion/cookie-efface"
+    ],
+    "echecs_observes": [
+      "deconnexion/cookie-efface",
+      "deconnexion/retour-arriere"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "secret-en-clair",
+    "groupes": [
+      "plateforme"
+    ],
+    "attendus": [
+      "plateforme/secret-jamais-reaffiche",
+      "plateforme/secret-aucune-reponse"
+    ],
+    "echecs_observes": [
+      "plateforme/secret-aucune-reponse",
+      "plateforme/secret-jamais-reaffiche"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "etiquette-retiree",
+    "groupes": [
+      "a11y"
+    ],
+    "attendus": [
+      "accessibilite/regle-champs-etiquetes"
+    ],
+    "echecs_observes": [
+      "accessibilite/regle-champs-etiquetes"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "lang-retire",
+    "groupes": [
+      "a11y"
+    ],
+    "attendus": [
+      "accessibilite/regle-lang-fr"
+    ],
+    "echecs_observes": [
+      "accessibilite/regle-lang-fr"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "csp-affaiblie",
+    "groupes": [
+      "entetes"
+    ],
+    "attendus": [
+      "entetes-securite/pages",
+      "entetes-securite/csp-bloque-script-en-ligne"
+    ],
+    "echecs_observes": [
+      "entetes-securite/csp-bloque-script-en-ligne",
+      "entetes-securite/pages",
+      "entetes-securite/statique",
+      "global/reseau-externe"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "focus-retire",
+    "groupes": [
+      "clavier"
+    ],
+    "attendus": [
+      "clavier/connexion-focus-visible",
+      "clavier/departements-focus"
+    ],
+    "echecs_observes": [
+      "clavier/approbations-focus",
+      "clavier/connexion-focus-visible",
+      "clavier/departements-focus",
+      "clavier/plateforme-fournisseurs-focus",
+      "clavier/plateforme-secrets-focus"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "contraste-faible",
+    "groupes": [
+      "a11y"
+    ],
+    "attendus": [
+      "accessibilite/regle-contraste-texte"
+    ],
+    "echecs_observes": [
+      "accessibilite/regle-contraste-texte"
+    ],
+    "detectee": true
+  },
+  {
+    "injection": "debordement-horizontal",
+    "groupes": [
+      "responsive"
+    ],
+    "attendus": [
+      "responsive/largeur-375",
+      "responsive/largeur-768"
+    ],
+    "echecs_observes": [
+      "responsive/largeur-1280",
+      "responsive/largeur-320",
+      "responsive/largeur-375",
+      "responsive/largeur-768"
+    ],
+    "detectee": true
+  }
+]

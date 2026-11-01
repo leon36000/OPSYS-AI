@@ -1,0 +1,125 @@
+[ok   ] connexion/page page de connexion : h1, lang=fr, deux champs étiquetés, mot de passe masqué
+[ok   ] connexion/soumission-vide formulaire vide : le navigateur bloque, aucun POST envoyé
+[ok   ] connexion/echec-401 mauvais mot de passe : 401 et message en français, aucun cookie de session
+[ECHEC] connexion/echec-annonce le message d'échec est annoncé aux technologies d'assistance (role=alert)  -> {"texte":"Identifiant ou mot de passe incorrect.","role":"status"}
+[ok   ] connexion/echec-secret-non-reaffiche le mot de passe saisi n'est jamais réaffiché ni renvoyé
+[ok   ] connexion/serie-echecs 12 échecs de suite : chaque essai reste refusé (401)
+[ok   ] connexion/pas-de-verrouillage-applicatif après 12 échecs, le bon mot de passe est ENCORE accepté : aucun verrouillage applicatif (la limitation relève de fail2ban en production, NON PROUVÉE ici)
+[ok   ] connexion/cookie-drapeaux cookie de session : HttpOnly, Secure, SameSite=Strict, chemin /opsys, ~8 h
+[ok   ] connexion/cookie-invisible-js le cookie de session est invisible pour le JavaScript de la page (HttpOnly effectif)
+[ok   ] connexion/set-cookie-brut l'en-tête Set-Cookie brut porte HttpOnly, Secure et SameSite=Strict
+[ok   ] connexion/deja-connecte GET /connexion quand on est connecté : renvoie au tableau de bord
+[ok   ] tableau-de-bord/structure tableau de bord : h1, 17 onglets, onglet courant, une carte par département (10 réels + 1 fictif)
+[ok   ] tableau-de-bord/pastille la pastille d'approbations annonce les 4 demandes en attente
+[ok   ] tableau-de-bord/session-nommee la personne connectée est nommée
+[ok   ] approbations/file la file « En attente » montre les 4 demandes N3 avec leurs arguments exacts
+[ok   ] approbations/confirmation-refusee la boîte de confirmation du navigateur, rejetée, n'exécute rien
+[ok   ] approbations/approuver-effet approuver (après confirmation) exécute l'outil UNE fois : une ligne dans le fichier d'effets fictif
+[ok   ] approbations/historique-executee la demande apparaît dans « Exécutées » avec le statut Exécutée et le nom du signataire
+[ok   ] approbations/refuser-sans-effet refuser n'exécute rien (aucune ligne d'effet de plus)
+[ok   ] approbations/double-soumission double soumission simultanée d'une approbation : exécutée UNE seule fois
+[ok   ] approbations/file-restante après trois décisions, une seule demande reste en attente (la quatrième, jamais décidée)
+[ok   ] approbations/employe-refuse un employé ne voit pas la file : 403
+[ECHEC] approbations/refus-lisible le refus 403 d'une page est une page HTML lisible (titre, lien de retour), pas du JSON brut  -> {"type":"application/json","debut":"{\"detail\":\"administration réservée au propriétaire ou à un administrateur\"}"}
+[ok   ] plateforme/fournisseurs registre de fournisseurs : tableau rempli, « à mesurer », profil client absent annoncé
+[ECHEC] plateforme/sous-navigation les cinq pages Plateforme portent la même navigation nommée (5 sections, page courante marquée) : aucune impasse  -> ["fournisseurs: null","secrets: null","avatars: null","connaissances: null","connecteurs: null"]
+[ok   ] plateforme/profil le profil de licence s'enregistre (bandeau de succès)
+[ok   ] plateforme/activation-refusee activer un fournisseur à licence non commerciale est refusé, code lisible, rien d'autre activé
+[ok   ] plateforme/secret-champ-masque le champ de valeur d'un secret est de type password
+[ok   ] plateforme/secret-defini un secret saisi : bandeau « chiffré, ne sera plus affiché », une ligne de métadonnées, redirection sans la valeur
+[ok   ] plateforme/secret-jamais-reaffiche la valeur du secret n'apparaît ni dans le DOM, ni dans les champs, ni dans l'URL, ni dans le stockage du navigateur
+[ok   ] plateforme/secret-api-masquee l'API JSON des secrets ne porte pas la valeur
+[ok   ] plateforme/secret-valeur-fermee la lecture directe de la valeur d'un secret est refusée à la console (aucune route de lecture en clair)
+[ok   ] plateforme/page-plateforme-avatars page « Plateforme — avatars » : 200, titre, contenu rendu
+[ok   ] plateforme/page-plateforme-connaissances page « Plateforme — connaissances » : 200, titre, contenu rendu
+[ok   ] plateforme/page-plateforme-connecteurs page « Plateforme — connecteurs » : 200, titre, contenu rendu
+[ok   ] plateforme/page-connecteurs page « Connecteurs » : 200, titre, contenu rendu
+[ok   ] plateforme/page-observabilite page « Observabilité — coût et latence » : 200, titre, contenu rendu
+[ok   ] plateforme/avatars-par-departement les avatars listent un département par ligne (10 réels + 1 fictif) avec voix/visage logiques
+[ok   ] plateforme/secret-revoque révoquer un secret : confirmation explicite requise puis bandeau « octets chiffrés détruits »
+[ok   ] plateforme/reseau-externe-plateforme aucune requête hors 127.0.0.1 pendant le groupe
+[ok   ] plateforme/secret-aucune-reponse la valeur du secret n'apparaît dans AUCUNE réponse, URL, redirection ni message de console reçus par le navigateur
+[ok   ] wallboards/liste liste des wallboards : deux tableaux, lien de chaque ligne
+[ok   ] wallboards/rendu-initial rendu serveur initial sans JS : bannière et tuiles présentes
+[ECHEC] wallboards/flux-sse-ouvert le flux SSE s'ouvre (mention « Connecté (flux) »)  -> "Rendu initial"
+[ECHEC] wallboards/sse-rafraichit le serveur pousse l'état « périmé » par SSE : tuiles périmées SANS rechargement (même document)  -> {"frais0":0,"apres":{"perimes":0,"marque":0.5378784354866722,"banniere":"banniere banniere-ok","messages":"Toutes les mesures affichées sont à jour et dans leurs seuils.","textes":[],"mise":"Mis à jour : 2026-10-30T20:00:00-04:00"}}
+[ECHEC] wallboards/perime-en-toutes-lettres une mesure périmée est écrite en toutes lettres et la bannière n'est plus « ok »  -> {"perimes":0,"marque":0.5378784354866722,"banniere":"banniere banniere-ok","messages":"Toutes les mesures affichées sont à jour et dans leurs seuils.","textes":[],"mise":"Mis à jour : 2026-10-30T20:00:00-04:00"}
+[ok   ] wallboards/pause le bouton de pause bascule aria-pressed (WCAG 2.2.2)
+[ECHEC] wallboards/pause-fige en pause, l'écran ne se rafraîchit plus (les tuiles périmées restent affichées)  -> 0
+[ok   ] wallboards/reprise-frais à la reprise, l'état revient à « à jour » par le flux
+[ok   ] wallboards/mode-tele le mode télé s'affiche (classe tv, lien « Quitter »)
+[ok   ] wallboards/connexion-perdue réseau coupé : la page affiche « Connexion perdue », marque toutes les tuiles et dit de ne pas s'y fier
+[ECHEC] wallboards/proprietaire-sans-role-admin le propriétaire sans rôle admin reçoit 403 sur les wallboards (page HTML lisible)  -> {"statut":403,"type":"application/json"}
+[ok   ] registre-cron/agent-cree un agent se crée par le formulaire (révision 1, inactif) et sa page de détail s'ouvre
+[ok   ] registre-cron/agent-active le profil s'active (le bouton devient « Désactiver »)
+[ok   ] registre-cron/cron-formulaire le formulaire de demande cron est proposé (déclencheur horaire déclaré)
+[ok   ] registre-cron/cron-confirmation-requise sans la case de confirmation, le navigateur refuse l'envoi
+[ECHEC] registre-cron/message-succes-style le message de succès est stylé (fond visible, pas un paragraphe nu)  -> {"fond":"rgba(0, 0, 0, 0)","classe":"message message-succes"}
+[ok   ] registre-cron/cron-intention la demande cron est préparée INERTE : « Aucune tâche Core n'a été créée ou exécutée »
+[ok   ] deconnexion/cookie-efface la déconnexion efface le cookie de session et renvoie à la connexion
+[ok   ] deconnexion/retour-arriere retour arrière puis rechargement : page protégée refusée (redirigée vers la connexion), rien de mis en cache
+[ok   ] deconnexion/cookie-rejoue OBSERVÉ : un cookie copié avant la déconnexion est ENCORE accepté après (session sans état côté serveur, échéance 8 h) : limite à lever par une liste de révocation, hors périmètre de ce banc
+[ok   ] journal/echec-sans-prefixe console servie sans préfixe (comme derrière Caddy) : un échec de connexion est refusé en 401 (la ligne d'accès est contrôlée contre le filtre fail2ban par lancer.py)
+[ok   ] expiration/cookie-court instance à session courte : le cookie expire dans quelques secondes
+[ok   ] expiration/apres-echeance cookie périmé : la page protégée renvoie à la connexion
+[ok   ] expiration/echu-signe cookie echu-signe : page renvoyée à la connexion et API en 401
+[ok   ] expiration/falsifie cookie falsifie : page renvoyée à la connexion et API en 401
+[ok   ] csrf/post-sans-jeton POST /deconnexion sans jeton : 403, page « Action refusée », la session reste ouverte
+[ok   ] csrf/post-jeton-faux POST avec un jeton CSRF faux : 403
+[ok   ] csrf/decision-sans-jeton décision d'approbation sans jeton : 403
+[ok   ] csrf/secret-sans-jeton enregistrement d'un secret sans jeton : 403 et valeur non réécho
+[ok   ] csrf/api-sans-jeton écriture de l'API JSON sans en-tête X-CSRF-Token : 403 (jeton faux aussi)
+[ok   ] csrf/session-intacte après ces refus, la session reste valide et le jeton inchangé
+[ok   ] csrf/inter-sites-samesite formulaire soumis depuis un AUTRE SITE avec le bon jeton : le navigateur n'envoie PAS le cookie (SameSite=Strict) et la session survit
+[ok   ] entetes-securite/pages 10 pages : CSP stricte, nosniff, X-Frame-Options DENY, Referrer-Policy no-referrer, Cache-Control no-store
+[ok   ] entetes-securite/statique ressource statique : mêmes en-têtes de sécurité, cache public borné d'une heure
+[ok   ] entetes-securite/404-propre page inconnue : 404 sans trace d'exécution ni chemin de fichier
+[ok   ] entetes-securite/pas-de-doc-api ni /docs ni /openapi.json (schéma non exposé)
+[ok   ] entetes-securite/csp-bloque-script-en-ligne la CSP bloque réellement un script injecté en ligne et une image externe (violation consignée par le navigateur)
+[ok   ] entetes-securite/anti-cadre la console ne s'affiche pas dans un cadre d'un autre site (frame-ancestors 'none' / X-Frame-Options)
+[ok   ] entetes-securite/aucune-violation-csp-normale aucune violation de CSP sur le parcours normal des 10 pages (hors l'injection volontaire)
+[ok   ] accessibilite/regle-lang-fr règle « lang-fr » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-titre-page règle « titre-page » sur 21 pages × 3 largeurs × 2 thèmes
+[ECHEC] accessibilite/regle-un-seul-h1 règle « un-seul-h1 » sur 21 pages × 3 largeurs × 2 thèmes  -> ["fusion@light/375 2","fusion@light/768 2","fusion@light/1280 2","fusion@dark/375 2","fusion@dark/768 2","fusion@dark/1280 2"]
+[ok   ] accessibilite/regle-titres-sans-saut règle « titres-sans-saut » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-repere-main règle « repere-main » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-reperes-nav-nommes règle « reperes-nav-nommes » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-contenu-dans-reperes règle « contenu-dans-reperes » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-ids-uniques règle « ids-uniques » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-champs-etiquetes règle « champs-etiquetes » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-autocomplete-mot-de-passe règle « autocomplete-mot-de-passe » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-boutons-nommes règle « boutons-nommes » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-liens-nommes règle « liens-nommes » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-images-alt règle « images-alt » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-tables-entetes règle « tables-entetes » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-th-avec-scope règle « th-avec-scope » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-pas-de-tabindex-positif règle « pas-de-tabindex-positif » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-erreurs-annoncees règle « erreurs-annoncees » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-zoom-non-bloque règle « zoom-non-bloque » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-references-aria-valides règle « references-aria-valides » sur 21 pages × 3 largeurs × 2 thèmes
+[ok   ] accessibilite/regle-aucun-script-ni-style-en-ligne règle « aucun-script-ni-style-en-ligne » sur 21 pages × 3 largeurs × 2 thèmes
+[ECHEC] accessibilite/regle-contraste-texte règle « contraste-texte » sur 21 pages × 3 largeurs × 2 thèmes  -> ["departements@dark/375 {\"mesures\":2641,\"pire\":{\"ratio\":2.52,\"el\":\"span.pastille\"},\"echecs\":[{\"el\":\"span.pastille\",\"texte\":\"1\",\"ratio\":2.52,\"seuil\":4.5}]}","approbations@dark/375 {\"mesures\":108,\"pire\":{\"ratio\":2.52,\"el\":\"span.pastille\"},\"echecs\":[{\"el\":\"span.pa
+[ECHEC] accessibilite/regle-cases-a-cocher-taille règle « cases-a-cocher-taille » sur 21 pages × 3 largeurs × 2 thèmes  -> ["connecteurs@light/375: 1 case(s) étirée(s)","reception@light/375: 1 case(s) étirée(s)","plateforme/fournisseurs@light/375: 25 case(s) étirée(s)","plateforme/secrets@light/375: 1 case(s) étirée(s)","plateforme/connecteurs@light/375: 3 case(s) étirée(s)","connecteurs@light/768: 1 case(s) étirée(s)"]
+[ECHEC] accessibilite/reflow aucun défilement horizontal de la PAGE à 375, 768 et 1280 px (1.4.10) sur 21 pages  -> ["budgets@375 (455>375)","agents@375 (858>375)","finance@375 (1078>375)","plateforme/fournisseurs@375 (896>375)","plateforme/secrets@375 (849>375)","plateforme/avatars@375 (652>375)","plateforme/connecteurs@375 (639>375)","wallboards@375 (427>375)","agents@768 (866>768)","finance@768 (1086>768)","pl
+[ok   ] accessibilite/contraste-min contraste minimal mesuré clair / sombre (texte)
+[ECHEC] clavier/connexion-ordre connexion : Tab visite le lien d'évitement, l'identifiant, le mot de passe puis le bouton, dans cet ordre  -> ["input#identifiant","input#mot_de_passe","button.principal"]
+[ok   ] clavier/connexion-focus-visible connexion : chaque élément focalisé a un indicateur de focus visible (contour ou ombre)
+[ok   ] clavier/connexion-entree la connexion se soumet au clavier (Entrée dans le champ mot de passe)
+[ok   ] clavier/departements-parcours departements : 94 arrêts de tabulation, ordre = ordre du document, aucun piège (retour au début atteint)
+[ok   ] clavier/departements-focus departements : focus visible sur chaque arrêt, contraste du contour ≥ 3:1
+[ok   ] clavier/approbations-parcours approbations : 26 arrêts de tabulation, ordre = ordre du document, aucun piège (retour au début atteint)
+[ok   ] clavier/approbations-focus approbations : focus visible sur chaque arrêt, contraste du contour ≥ 3:1
+[ok   ] clavier/plateforme-secrets-parcours plateforme/secrets : 32 arrêts de tabulation, ordre = ordre du document, aucun piège (retour au début atteint)
+[ok   ] clavier/plateforme-secrets-focus plateforme/secrets : focus visible sur chaque arrêt, contraste du contour ≥ 3:1
+[ok   ] clavier/plateforme-fournisseurs-parcours plateforme/fournisseurs : 106 arrêts de tabulation, ordre = ordre du document, aucun piège (retour au début atteint)
+[ok   ] clavier/plateforme-fournisseurs-focus plateforme/fournisseurs : focus visible sur chaque arrêt, contraste du contour ≥ 3:1
+[ECHEC] clavier/lien-evitement un lien d'évitement (« Aller au contenu ») est le premier arrêt de tabulation  -> {"el":"a","nom":"Départements","rang":0,"top":11,"left":170,"contour":true,"ombre":false,"visible":true,"ratioFocus":6.44,"dansMain":false,"dansViewport":true,"hauteur":33,"largeur":130}
+[ok   ] clavier/confirmation-au-clavier changement de mode d'autonomie : sélection au clavier puis Entrée déclenche la confirmation, qu'on peut refuser
+[ECHEC] responsive/largeur-375 à 375 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)  -> ["departements: en-tête de 602 px sur un écran de 800 px (le contenu est repoussé hors de l'écran)","approbations: en-tête de 602 px sur un écran de 800 px (le contenu est repoussé hors de l'écran)","plateforme/secrets: {\"sw\":849,\"cw\":375,\"hors\":[\"TABLE.\",\"THEAD.\",\"TR.\"],\"navDebord\":fa
+[ECHEC] responsive/largeur-768 à 768 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)  -> ["plateforme/secrets: {\"sw\":856,\"cw\":768,\"hors\":[\"TABLE.\",\"THEAD.\",\"TR.\"],\"navDebord\":false,\"entete\":387}","plateforme/fournisseurs: {\"sw\":904,\"cw\":768,\"hors\":[\"LABEL.\",\"INPUT.\",\"LABEL.\"],\"navDebord\":false,\"entete\":387}","finance: {\"sw\":1086,\"cw\":768,\"hors\":[\"T
+[ok   ] responsive/largeur-1280 à 1280 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)
+[ECHEC] responsive/largeur-320 à 320 px (équivalent d'un zoom 400 %, 1.4.10) : pas de défilement horizontal de la page  -> ["departements 332>320","plateforme/secrets 849>320"]
+[ok   ] global/reseau-externe aucune requête n'a quitté 127.0.0.1 (le banc refuse tout le reste)
+[ok   ] global/captures taille totale des captures de cette exécution < 3 Mo
+
+123 constats, 18 échec(s) bloquant(s), captures 1631 Ko

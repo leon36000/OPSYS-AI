@@ -73,8 +73,7 @@ def contenu(vue: Mapping[str, Any], *, prefixe: str) -> str:
                  "<th>Embeddings actifs</th><th>Suspectes</th></tr></thead>"
                  f"<tbody>{''.join(lignes)}</tbody></table>")
     return (
-        f'<p><a href="{e(prefixe)}/plateforme/fournisseurs">Fournisseurs</a> · '
-        f'<a href="{e(prefixe)}/plateforme/avatars">Avatars</a> · Connaissances</p>'
+        pages.navigation_plateforme(prefixe, "connaissances") +
         f'<p class="note">Lecture seule. L\'ingestion, la revue et le retrait se font par les outils M10 '
         f'(journalisés). '
         f'{e(vue["mention_professionnelle"])}.</p>' + corps)

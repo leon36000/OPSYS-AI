@@ -10,7 +10,7 @@ CSS = """\
   --fond: #f5f6f8; --surface: #ffffff; --texte: #1c2128; --attenue: #59636e; --bordure: #d1d9e0;
   --accent: #0a58ca; --accent-texte: #ffffff;
   --ok: #1a7f37; --ok-fond: #dafbe1; --alerte: #7d5200; --alerte-fond: #fff4d1;
-  --danger: #c4212c; --danger-fond: #ffebe9; --rayon: 6px;
+  --danger: #c4212c; --danger-fond: #ffebe9; --sur-danger: #ffffff; --rayon: 6px;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 15px; line-height: 1.5;
 }
@@ -19,7 +19,7 @@ CSS = """\
     --fond: #0f1318; --surface: #171c23; --texte: #e6edf3; --attenue: #9aa4af; --bordure: #2f3742;
     --accent: #5a9cf8; --accent-texte: #0f1318;
     --ok: #4ac26b; --ok-fond: #12301c; --alerte: #e3b341; --alerte-fond: #33280f;
-    --danger: #ff7b72; --danger-fond: #3a1618;
+    --danger: #ff7b72; --danger-fond: #3a1618; --sur-danger: #0f1318;
   }
 }
 * { box-sizing: border-box; }
@@ -34,7 +34,7 @@ a { color: var(--accent); }
 .entete nav a:hover { background: var(--fond); }
 .entete nav a[aria-current="page"] { background: var(--accent); color: var(--accent-texte); }
 .pastille { display: inline-block; min-width: 1.4em; margin-left: .35em; padding: 0 .35em; border-radius: 999px;
-  background: var(--danger); color: #ffffff; font-size: .8em; text-align: center; }
+  background: var(--danger); color: var(--sur-danger); font-size: .8em; text-align: center; }
 .session { display: flex; align-items: center; gap: .5rem; color: var(--attenue); font-size: .9em; }
 main { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
 h1 { margin: 0 0 1rem; font-size: 1.5rem; }
@@ -58,7 +58,7 @@ section > h2 { margin-bottom: .75rem; }
 .badge-alerte { background: var(--alerte-fond); color: var(--alerte); border-color: transparent; }
 .badge-danger { background: var(--danger-fond); color: var(--danger); border-color: transparent; }
 .message { margin: 0 0 1rem; padding: .75rem 1rem; border-radius: var(--rayon); }
-.message-ok { background: var(--ok-fond); color: var(--ok); }
+.message-ok, .message-succes { background: var(--ok-fond); color: var(--ok); }
 .message-alerte { background: var(--alerte-fond); color: var(--alerte); }
 .message-erreur { background: var(--danger-fond); color: var(--danger); }
 table { width: 100%; border-collapse: collapse; font-size: .9em; }
@@ -76,8 +76,15 @@ ul.puces { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; l
 form.ligne { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 form.pile { display: grid; gap: .5rem; }
 label { font-size: .9em; font-weight: 600; }
+.saut { position: absolute; left: -999px; top: 0; z-index: 10; padding: .5rem 1rem; background: var(--surface);
+  color: var(--texte); border: 2px solid var(--accent); border-radius: var(--rayon); }
+.saut:focus { left: .5rem; top: .5rem; }
+.table-defilante { max-width: 100%; overflow-x: auto; }
+.carte, .grille > * { min-width: 0; overflow-wrap: anywhere; }
+code { overflow-wrap: anywhere; }
 input, select, textarea { width: 100%; padding: .4rem .5rem; font: inherit; color: var(--texte);
   background: var(--surface); border: 1px solid var(--bordure); border-radius: var(--rayon); }
+input[type="checkbox"], input[type="radio"] { width: auto; margin: 0 .4rem 0 0; }
 form.ligne select { width: auto; }
 button { padding: .4rem .9rem; font: inherit; cursor: pointer; color: var(--texte); background: var(--surface);
   border: 1px solid var(--bordure); border-radius: var(--rayon); }
@@ -123,7 +130,12 @@ meter { width: 100%; height: 1rem; }
 .repere-ambre { --repere: #d99b21; }
 .repere-gris { --repere: #858b95; }
 .cedule-perimee { border-left-color: var(--alerte); background: var(--alerte-fond); }
-@media (max-width: 600px) { main { padding: 1rem; } .grille { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  main { padding: 1rem; }
+  .grille { grid-template-columns: 1fr; }
+  .entete { padding: .5rem 1rem; }
+  .entete nav { flex-basis: 100%; }
+}
 """
 
 # Seul comportement côté navigateur : demander confirmation avant une action sensible.

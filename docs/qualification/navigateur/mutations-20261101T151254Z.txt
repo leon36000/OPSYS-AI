@@ -1,0 +1,13 @@
+[TUÉE ] csrf-retire : ['csrf/api-sans-jeton', 'csrf/inter-sites-samesite', 'csrf/post-jeton-faux', 'csrf/post-sans-jeton']
+[TUÉE ] cookie-sans-httponly : ['connexion/cookie-drapeaux', 'connexion/cookie-invisible-js']
+[TUÉE ] cookie-sans-secure : ['connexion/cookie-drapeaux']
+[TUÉE ] cookie-samesite-none : ['connexion/cookie-drapeaux', 'csrf/inter-sites-samesite']
+[TUÉE ] cookie-non-efface : ['deconnexion/cookie-efface']
+[TUÉE ] secret-en-clair : ['plateforme/secret-aucune-reponse', 'plateforme/secret-jamais-reaffiche']
+[TUÉE ] etiquette-retiree : ['accessibilite/regle-champs-etiquetes']
+[TUÉE ] lang-retire : ['accessibilite/regle-lang-fr']
+[TUÉE ] csp-affaiblie : ['entetes-securite/csp-bloque-script-en-ligne', 'entetes-securite/pages']
+[TUÉE ] focus-retire : ['clavier/connexion-focus-visible', 'clavier/departements-focus']
+[TUÉE ] contraste-faible : ['accessibilite/regle-contraste-texte']
+[TUÉE ] debordement-horizontal : ['responsive/largeur-375', 'responsive/largeur-768']
+12 injections, 12 détectées, survivantes : aucune -> /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-parcours-navigateur/sortie-mut3/mutations-20261101T151254Z.json
