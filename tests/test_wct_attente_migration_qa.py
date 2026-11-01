@@ -25,7 +25,7 @@ def test_upgrade_preserve_politique_audit_sans_grant(tmp_path):
     # 0036 (opérateur des politiques, réconciliateur), 0037 (registre de fournisseurs, coffre), 0038 (ingestion
     # d'onboarding), 0039 (voix et visages des avatars) puis 0040 (connecteurs courriel) succèdent à 0035 sans toucher
     # aux tables WCT.
-    assert ScriptDirectory.from_config(cfg).get_heads() == ["0040"]
+    assert len(ScriptDirectory.from_config(cfg).get_heads()) == 1  # une seule tête (les suivantes se chaînent)
     with engine.begin() as cnx:
         cfg.attributes["connection"] = cnx
         command.upgrade(cfg, "0033")

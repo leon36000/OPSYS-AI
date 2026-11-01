@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.brouillon_courriel_pret",
+  "title": "M1 — Brouillon de réponse prêt",
+  "description": "Émis par M1 quand un brouillon de réponse à un courriel reçu est préparé (N2) : rien n'est envoyé. evenement_id déterministe sur (brouillon, révision). Aucun destinataire ni texte n'est porté.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "signal_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "brouillon_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "empreinte": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "compte_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "nb_destinataires": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "signal_id",
+    "brouillon_id",
+    "revision",
+    "empreinte",
+    "compte_id",
+    "nb_destinataires"
+  ]
+}

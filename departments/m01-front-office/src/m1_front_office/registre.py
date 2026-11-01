@@ -7,6 +7,11 @@ import yaml
 from . import horodatage, verdicts
 
 TYPE_RECU_SMS_HOTE = "reception_hote_sms_v1"
+# Courriel : la réception d'un message ENTRANT livré par un connecteur (provenance, décision de M1), puis le fil de la
+# réponse (brouillon préparé, approbation demandée). Lignes de suivi : elles ne sont jamais des « entrées non
+# classées ».
+TYPE_RECU_COURRIEL = "reception_courriel_connecteur_v1"
+TYPE_REPONSE_COURRIEL = "reponse_courriel_v1"
 
 _TYPES_ENTREE_VALIDES = {
     "signal",
@@ -20,6 +25,8 @@ _TYPES_ENTREE_VALIDES = {
     "appel_voicemail_enrichi",
     "voicemail_stt_termine",
     TYPE_RECU_SMS_HOTE,
+    TYPE_RECU_COURRIEL,
+    TYPE_REPONSE_COURRIEL,
 }
 
 _CANAUX_VALIDES = {"telephone", "courriel", "formulaire", "texte"}

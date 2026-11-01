@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 from alembic import command
+from alembic.script import ScriptDirectory
 from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 
@@ -327,7 +328,7 @@ def test_postgresql_coffre_chiffre_append_only_et_descente(monkeypatch, tmp_path
         try:
             stockage.migrer(url)
             assert stockage.moteur(url).dialect.name == "postgresql"
-            assert stockage.revision_courante(url) == "0040"
+            assert stockage.revision_courante(url) == ScriptDirectory.from_config(stockage._config()).get_current_head()
             with stockage.transaction() as cnx:
                 identite.creer_personne(cnx, "admin_fictif", "Admin fictif", MOT_DE_PASSE, ["admin"])
                 coffre.definir(cnx, acteur="admin_fictif", nom="google.ads", service="google_ads", valeur=VALEUR)

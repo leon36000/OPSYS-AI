@@ -168,8 +168,10 @@ que des LIGNES d'un fichier importé, avant qu'aucune fiche n'existe.
 | `m5_valider_brouillon_onboarding_ap` | T1 / N3 | Valider (saisie sans PO) ou écarter une facture proposée. |
 | `m2_valider_brouillon_onboarding_client` | T1 / N3 | Valider (fiche définitive) ou écarter une fiche proposée. |
 | `m2_lister_clients_importes` | T0 | Fiches définitives importées, paginées. |
+| `m2_valider_brouillon_onboarding_contact_courriel` | T1 / N3 | Confirmer (contact du CRM) ou écarter un contact tiré d'une boîte courriel (§11). |
+| `m2_lister_contacts_courriel_importes` | T0 | Contacts confirmés, paginés. |
 
-Portée d'appareil **fermée** pour les six (aucune déclaration ; `docs/architecture/ROLES.md` : 232 outils déclarés sur
+Portée d'appareil **fermée** pour les huit (aucune déclaration ; `docs/architecture/ROLES.md` : 232 outils déclarés sur
 387). CLI : `opsys metier onboarding deposer <fichier> --mutation-id … --par …`, `avancer <lot> --par …`,
 `lire <lot> [--vue documents|brouillons] [--brouillon <id> --par …]`, `lots`, `journal <lot>` (mutations et contenu :
 authentification personnelle `nathan_owner`, `admin` ou `finance`). Console : `/onboarding`,
@@ -189,6 +191,8 @@ Lot : `REJ-ING-MUTATION-INVALIDE`, `REJ-ING-MUTATION-CONFLIT`, `REJ-ING-QUOTA-LO
 `REJ-ING-OCR-REFUSE`, `REJ-ING-IMAGE-NON-TRAITEE`, `REJ-ING-TABLEAU-ILLISIBLE`, `REJ-ING-CLASSE-INCONNUE`,
 `REJ-ING-CLASSE-NON-PEUPLEE`, `REJ-ING-FOURNISSEUR-REFUSE`, `REJ-ING-EXTRACTEUR-NON-RACCORDE`,
 `REJ-ING-EXTRACTION-INVALIDE`, `REJ-ING-PROFIL-INVALIDE`, `REJ-ING-FILE-MORTE`.
+Correspondants courriel : `REJ-ING-COURRIEL-AUTOMATISE`, `REJ-ING-COURRIEL-ADRESSE-INVALIDE`, `REJ-ING-COURRIEL-SANS-NOM`,
+`REJ-ING-COURRIEL-TROP-DE-LIGNES`, `REJ-ING-COURRIEL-ENTETE-INTROUVABLE`.
 Brouillons : `REJ-ING-BROUILLON-INCONNU`, `REJ-ING-BROUILLON-GENRE`, `REJ-ING-BROUILLON-REVISION`,
 `REJ-ING-BROUILLON-A-VERIFIER`, `REJ-ING-BROUILLON-DEJA-DECIDE`, `REJ-ING-DECISION-INVALIDE`, `REJ-ING-MOTIF-REQUIS`.
 
@@ -202,7 +206,8 @@ Statut d'un document selon son verdict : `REFUSE` (type, contenu corrompu, PDF r
   Tesseract existants. Pas de positions ni de boîtes englobantes par champ.
 - **VLM / LLM réel** : aucun adaptateur raccordé, aucun appel réseau. Les images PNG/JPEG ne sont pas traitées.
 - **PostgreSQL / DBOS** : la table de tâches est qualifiée sur SQLite seulement ; l'adaptateur DBOS n'existe pas.
-- **Courriels historiques** (mbox, PST, EML) et connecteurs (Gmail, Graph, Drive) : non traités.
+- **Courriels historiques** : les connecteurs (Gmail, Graph, IMAP, mbox) alimentent cette file (§10) et, pour les comptes qui
+  l'ont demandé, proposent des contacts au CRM (§11). PST, EML, Drive : non traités.
 - **Apprentissage du profil d'entreprise** et pack sectoriel : non faits ; l'identité fiscale se déclare à la main.
 - **Factures clients, soumissions, contrats** : classés, non peuplés (aucun brouillon AR, M3 ni contrat).
 - **Grand livre** : le brouillon vient de la génération du grand livre, pas de l'ingestion (voir §5) ; les comptes de
@@ -218,3 +223,31 @@ Les pièces jointes des comptes Gmail, Graph, IMAP et des exports mbox entrent d
 un lot par page de synchronisation), jamais par un chemin parallèle : mêmes contrôles, mêmes quotas (`REJ-ING-QUOTA-LOTS` arrête la
 synchronisation sans avancer le curseur), mêmes brouillons à confirmer. Voir [CONNECTEURS-COURRIEL.md](CONNECTEURS-COURRIEL.md) §6.
 Limite : le corps des courriels n'est pas ingéré (aucun genre de brouillon « courriel »).
+
+## 11. Genre de brouillon « courriel_contact » : les contacts d'une boîte courriel (câblage des connecteurs)
+
+Pendant l'**amorçage** (lecture de l'historique) d'un compte courriel dont l'option `contacts_courriel` vaut 1 (déclarée à la
+création avec la finalité : Loi 25, fermée par défaut), les connecteurs déposent, à chaque page de synchronisation, un document
+de correspondants dans cette file : un CSV déterministe dont la première ligne est `opsys-courriel-contacts/v1`, puis
+`nom, courriel, organisation, recus, envoyes, premier, dernier` (adresse de l'expéditeur ou des destinataires/copie, hors l'adresse
+du compte ; l'organisation est le domaine, vide pour un courriel personnel connu). Le nom affiché est une donnée NON FIABLE :
+neutralisé (NFKC, filtre de provenance de M1) avant d'entrer au document.
+
+Le document suit les sept tâches durables habituelles (lot reprenable : bail, reprise, `avancer` borné) :
+
+| Étape | Ce qui change pour `courriel_contacts` |
+|---|---|
+| classement | La `MAGIE` en première ligne donne la classe `courriel_contacts` (avant la recherche d'une liste de clients). |
+| extraction | `contacts_courriel.lire` : en-tête exact, compteurs et dates bien formés ; une ligne mal formée est refusée avec sa raison, jamais corrigée. |
+| validation | `contacts_courriel.proposer` : une fiche par adresse normalisée (courriel de M2), compteurs cumulés ; `REJ-ING-COURRIEL-AUTOMATISE` (noreply, notifications, infolettre…) et `REJ-ING-COURRIEL-SANS-NOM` rendent la fiche `A_VERIFIER` ; adresse mal formée : ligne refusée. |
+| proposition | Un brouillon `courriel_contact` par correspondant nouveau (clé = adresse). Un correspondant déjà importé (client ou contact confirmé) ou déjà proposé s'y rattache sans nouveau brouillon (même clé forte « courriel identique » que les clients). |
+
+**Jamais d'écriture sans confirmation** : `m2_valider_brouillon_onboarding_contact_courriel` (T1/N3, file d'approbation, comme les
+autres validations d'onboarding ; `REJ-HUMAIN-REQUIS` pour un agent seul, même en mode supervisé) crée, avec la décision de
+l'humain, un maillon `contact_courriel_importe` du registre dédié `clients_importes` de M2 (`client_id` du Client 360), ou écarte
+(motif). Un contact sans nom exige le nom fourni par l'humain. `m2_lister_contacts_courriel_importes` (T0) les lit. Un contact
+est un correspondant, PAS un client : le registre garde les deux types côte à côte.
+
+Limites : les compteurs d'un brouillon sont ceux du premier lot qui a vu le correspondant (pas d'agrégation entre pages) ;
+aucun lien avec les pièces jointes du même courriel ; la déduction « organisation = domaine » est grossière (sous-domaines, domaines
+partagés) ; qualifié sur doubles seulement. Migration `0044` : la CHECK de `ingestion_brouillons.genre` accepte le nouveau genre.

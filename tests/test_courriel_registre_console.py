@@ -280,12 +280,18 @@ def test_compte_en_double_et_etat_connecte_sans_consentement_impossible_en_base(
     assert exc.value.code == "REJ-COURRIEL-CONSENTEMENT-ABSENT"
 
 
+def _tete() -> str:
+    from alembic.script import ScriptDirectory
+
+    return ScriptDirectory.from_config(stockage._config()).get_current_head()
+
+
 # -- migration 0040 -------------------------------------------------------------------------------
 def test_migration_0040_montee_descendue_et_refus_avec_donnees(tmp_path):
     from alembic.script import ScriptDirectory
 
     cfg = stockage._config()
-    assert ScriptDirectory.from_config(cfg).get_heads() == ["0040"]
+    assert len(ScriptDirectory.from_config(cfg).get_heads()) == 1  # une seule tête (les suivantes se chaînent)
     url = "sqlite:///" + str(tmp_path / "m.db")
     with stockage.moteur(url).begin() as cnx:
         cfg.attributes["connection"] = cnx
@@ -374,7 +380,7 @@ def test_migration_0040_sur_postgresql(monkeypatch, tmp_path):
         monkeypatch.setenv(stockage.ENV_URL, url)
         try:
             stockage.migrer(url)
-            assert stockage.moteur(url).dialect.name == "postgresql" and stockage.revision_courante(url) == "0040"
+            assert stockage.moteur(url).dialect.name == "postgresql" and stockage.revision_courante(url) == _tete()
             with stockage.transaction() as cnx:
                 cnx.execute(
                     text(

@@ -33,11 +33,19 @@ DETAILS_PERMIS = frozenset({
     "dossier", "lot_id", "messages", "ajouts", "suppressions", "doublons", "pieces", "pieces_transmises", "refuses",
     "attente_s", "revision", "brouillon_id", "empreinte", "demande_id", "fournisseur", "usage", "etat",
     "rotation_refresh",
-    "nb_portees", "page", "statut", "termine", "ignores", "generation", "reprise",
+    "nb_portees", "page", "statut", "termine", "ignores", "generation", "reprise", "recus_m1", "contacts", "bail",
 })
 _COMPTE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 _ADRESSE = re.compile(r"^[A-Za-z0-9._%+'=!#$&*/?^`{|}~-]{1,64}@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$")
-_CLES_CONFIG = frozenset({"hote", "port", "smtp_hote", "smtp_port", "utilisateur", "tenant", "client_id", "fichier"})
+_CLES_CONFIG = frozenset({"hote", "port", "smtp_hote", "smtp_port", "utilisateur", "tenant", "client_id", "fichier",
+                          "reception_m1", "contacts_courriel"})
+# Options 0/1 d'un compte (voir CABLAGE-CONNECTEURS.md) : fermées par défaut, déclarées à la création avec la finalité.
+#  - reception_m1 : après l'amorçage, les nouveaux courriels de la boîte deviennent des réceptions de M1 ;
+#  - contacts_courriel : pendant l'amorçage (historique), les correspondants deviennent des brouillons «
+# courriel_contact ».
+OPTIONS_BINAIRES = ("reception_m1", "contacts_courriel")
+# Préfixe d'une clé de `curseurs` : jamais un nom de dossier (les caractères de contrôle sont refusés).
+CLE_AMORCE = "\x1famorce\x1f"
 
 
 def instant() -> str:
@@ -116,6 +124,9 @@ def creer_compte(cnx: Connection, acteur: str, *, compte_id: str, fournisseur: s
     if type(retention_jours) is not int or not 1 <= retention_jours <= 3650:
         raise ErreurCourriel("REJ-COURRIEL-ARGUMENT-INVALIDE", "rétention : 1 à 3650 jours", 422)
     configuration = dict(configuration or {})
+    if any(configuration.get(o) not in (None, 0, 1) or isinstance(configuration.get(o), bool)
+           for o in OPTIONS_BINAIRES):
+        raise ErreurCourriel("REJ-COURRIEL-ARGUMENT-INVALIDE", f"options {OPTIONS_BINAIRES} : 0 ou 1", 422)
     if set(configuration) - _CLES_CONFIG or any(not isinstance(v, (str, int)) for v in configuration.values()):
         raise ErreurCourriel("REJ-COURRIEL-ARGUMENT-INVALIDE",
                              f"configuration : clés permises {sorted(_CLES_CONFIG)} (jamais un secret)", 422)
@@ -140,6 +151,18 @@ def creer_compte(cnx: Connection, acteur: str, *, compte_id: str, fournisseur: s
 
 def configuration(cnx: Connection, compte_id: str) -> dict[str, Any]:
     return json.loads(_ligne(cnx, compte_id)["configuration"])
+
+
+def option(ligne_compte: Mapping[str, Any], nom: str) -> bool:
+    """Vrai si l'option binaire `nom` du compte vaut 1 (absente : fermée)."""
+    if nom not in OPTIONS_BINAIRES:
+        raise ValueError(f"option inconnue : {nom!r}")
+    return json.loads(ligne_compte["configuration"]).get(nom) == 1
+
+
+def amorce_terminee(curseurs_du_compte: Mapping[str, str], dossier: str) -> bool:
+    """Le dossier a fini son amorçage (l'historique est lu) : ses nouveaux messages sont de l'ENTRANT."""
+    return curseurs_du_compte.get(CLE_AMORCE + dossier) == "1"
 
 
 def enregistrer_consentement(cnx: Connection, acteur: str, compte_id: str) -> dict[str, Any]:

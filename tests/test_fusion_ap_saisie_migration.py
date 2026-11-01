@@ -60,7 +60,8 @@ def _anciennes():
     # 0027, les pièces/leurs classements 0028/0029, les originaux courriel 0030, les publications de
     # configuration 0031, le service Core 0032-0034, les attentes WCT 0035, les journaux
     # opérateur/réconciliateur 0036, le registre de fournisseurs / coffre de secrets 0037, l'ingestion d'onboarding
-    # 0038, les voix et visages des avatars 0039 et les connecteurs courriel 0040 sont absents du schéma
+    # 0038, les voix et visages des avatars 0039, les connecteurs courriel 0040 et le planificateur des connecteurs
+    # 0044 sont absents du schéma
     # historique 0023. Ne pas ignorer dynamiquement une table manquante :
     # toute table réellement attendue en 0023 doit encore être lue et comparée.
     nouvelles = {t.name for t in (
@@ -72,7 +73,7 @@ def _anciennes():
         SERVICE_POLITIQUES_JOURNAL, COUT_CERTIFIE_RECONCILIATIONS,
     )} | {
         nom for nom in META.tables
-        if nom.startswith(("fournisseurs_", "coffre_", "ingestion_", "avatars_", "courriel_"))
+        if nom.startswith(("fournisseurs_", "coffre_", "ingestion_", "avatars_", "courriel_", "planificateur_"))
     }
     with stockage.transaction() as cnx:
         return {nom: [dict(r) for r in cnx.execute(select(t)).mappings()]

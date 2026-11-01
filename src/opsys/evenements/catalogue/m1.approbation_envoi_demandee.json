@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.approbation_envoi_demandee",
+  "title": "M1 — Approbation d'envoi demandée",
+  "description": "Émis par M1 quand la demande d'envoi (N3) d'un brouillon de réponse est déposée dans le sas d'approbation : la direction doit décider. L'approbation est liée à l'empreinte ; l'événement ne porte ni destinataire ni texte. evenement_id déterministe sur la demande.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "signal_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "brouillon_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "empreinte": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "demande_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "compte_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "nb_destinataires": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "signal_id",
+    "brouillon_id",
+    "revision",
+    "empreinte",
+    "demande_id",
+    "compte_id",
+    "nb_destinataires"
+  ]
+}

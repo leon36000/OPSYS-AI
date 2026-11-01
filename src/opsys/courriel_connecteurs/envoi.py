@@ -26,8 +26,9 @@ from __future__ import annotations
 import base64
 import dataclasses
 import re
+import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -56,6 +57,9 @@ PIECES_MAX = 5
 PIECES_OCTETS_MAX = 5 * 1024 * 1024
 SOURCES_MAX = 20
 CONTEXTE_MAX = 500
+# Une approbation d'envoi ne vaut que pour un temps : passé ce délai, le brouillon n'est plus envoyé (la direction en
+# donne une autre). 72 h : un week-end de congé ne la périme pas, une semaine d'oubli oui.
+VALIDITE_APPROBATION_S = 72 * 3600
 MIME_PERMIS = frozenset({
     "application/pdf", "image/png", "image/jpeg", "text/plain",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -339,6 +343,38 @@ OUTIL_APPROBATION = Outil(
 
 
 # ============================================================================================ garde d'envoi
+def verifier_demande(cnx: Connection, demande_id: Any, *, validite_s: int = VALIDITE_APPROBATION_S,
+                     horloge: Callable[[], float] = time.time) -> tuple[dict[str, Any], Any]:
+    """La demande du sas qui autorise un envoi : existante, de l'outil d'approbation, de niveau N3 au moins, EXÉCUTÉE
+    (approuvée) par un humain actif, et NON EXPIRÉE. Source unique : la garde d'envoi et le planificateur l'appellent.
+    Rend `(demande, humain)` ou lève un refus typé."""
+    if not isinstance(demande_id, str) or not demande_id.strip():
+        raise ErreurCourriel("REJ-COURRIEL-APPROBATION-ABSENTE", "jeton d'approbation vide", 403)
+    demande = approbations.lire(cnx, demande_id)
+    if demande is None:
+        raise ErreurCourriel("REJ-COURRIEL-APPROBATION-ABSENTE", "demande d'approbation inconnue du sas", 403)
+    if demande["outil"] != NOM_OUTIL or _RANG.get(demande.get("niveau") or "", -1) < _RANG["N3"]:
+        raise ErreurCourriel("REJ-COURRIEL-APPROBATION-INVALIDE",
+                             "cette demande n'approuve pas un envoi de courriel (N3)", 403)
+    if demande["statut"] != "executee":
+        raise ErreurCourriel("REJ-COURRIEL-APPROBATION-NON-APPROUVEE",
+                             f"demande {demande['statut']} : seule une demande exécutée autorise l'envoi", 403)
+    humain = approbations.signataire_valide(cnx, approbations.IdentiteAppelante(
+        personne=demande.get("decide_par") or "", role=demande.get("decide_role") or ""))
+    if humain is None or humain.role in approbations.ROLES_NON_HUMAINS:
+        raise ErreurCourriel("REJ-COURRIEL-APPROBATION-INVALIDE", "approbateur non humain ou inactif", 403)
+    try:
+        decide = datetime.fromisoformat(str(demande.get("decide_le")))
+        if decide.tzinfo is None:
+            decide = decide.replace(tzinfo=UTC)
+    except ValueError:
+        raise ErreurCourriel("REJ-COURRIEL-APPROBATION-INVALIDE", "date de décision illisible", 403) from None
+    if horloge() >= decide.timestamp() + validite_s:
+        raise ErreurCourriel("REJ-COURRIEL-APPROBATION-EXPIREE",
+                             f"approbation de plus de {validite_s // 3600} h : en demander une nouvelle", 403)
+    return demande, humain
+
+
 @dataclasses.dataclass(frozen=True)
 class ReservationSas:
     brouillon_id: str
@@ -350,15 +386,17 @@ class GardeEnvoiSas:
     """Vérifie un `JetonApprobation` contre la base du sas et le consomme AVANT l'envoi (transaction validée avant le
     réseau)."""
 
-    def __init__(self, fabrique: Any) -> None:
+    def __init__(self, fabrique: Any, *, validite_s: int = VALIDITE_APPROBATION_S,
+                 horloge: Callable[[], float] = time.time) -> None:
         self._fabrique = fabrique
+        self._validite_s, self._horloge = validite_s, horloge
 
     def reserver(self, brouillon: BrouillonSortant, jeton: JetonApprobation, fournisseur: str) -> ReservationSas:
         erreur: ErreurCourriel | None = None
         reservation: ReservationSas | None = None
         with self._fabrique() as cnx:
             try:
-                reservation = self._reserver(cnx, brouillon, jeton, fournisseur)
+                reservation = self._reserver(cnx, brouillon, jeton, fournisseur, self._validite_s, self._horloge)
             except ErreurCourriel as exc:
                 comptes.journaliser(cnx, brouillon.contenu.compte_id, "envoi.refuse", "systeme", code=exc.code,
                                     details={"brouillon_id": brouillon.brouillon_id[:64]})
@@ -369,24 +407,10 @@ class GardeEnvoiSas:
         return reservation
 
     @staticmethod
-    def _reserver(cnx: Connection, brouillon: BrouillonSortant, jeton: JetonApprobation,
-                  fournisseur: str) -> ReservationSas:
-        if not isinstance(jeton.demande_id, str) or not jeton.demande_id.strip():
-            raise ErreurCourriel("REJ-COURRIEL-APPROBATION-ABSENTE", "jeton d'approbation vide", 403)
-        demande = approbations.lire(cnx, jeton.demande_id)
-        if demande is None:
-            raise ErreurCourriel("REJ-COURRIEL-APPROBATION-ABSENTE", "demande d'approbation inconnue du sas", 403)
-        if demande["outil"] != NOM_OUTIL or _RANG.get(demande.get("niveau") or "", -1) < _RANG["N3"]:
-            raise ErreurCourriel("REJ-COURRIEL-APPROBATION-INVALIDE",
-                                 "cette demande n'approuve pas un envoi de courriel (N3)",
-                                 403)
-        if demande["statut"] != "executee":
-            raise ErreurCourriel("REJ-COURRIEL-APPROBATION-NON-APPROUVEE",
-                                 f"demande {demande['statut']} : seule une demande exécutée autorise l'envoi", 403)
-        humain = approbations.signataire_valide(cnx, approbations.IdentiteAppelante(
-            personne=demande.get("decide_par") or "", role=demande.get("decide_role") or ""))
-        if humain is None or humain.role in approbations.ROLES_NON_HUMAINS:
-            raise ErreurCourriel("REJ-COURRIEL-APPROBATION-INVALIDE", "approbateur non humain ou inactif", 403)
+    def _reserver(cnx: Connection, brouillon: BrouillonSortant, jeton: JetonApprobation, fournisseur: str,
+                  validite_s: int = VALIDITE_APPROBATION_S,
+                  horloge: Callable[[], float] = time.time) -> ReservationSas:
+        demande, humain = verifier_demande(cnx, jeton.demande_id, validite_s=validite_s, horloge=horloge)
         arguments = demande["arguments"]
         if brouillon.empreinte != jeton.empreinte:
             raise ErreurCourriel("REJ-COURRIEL-APPROBATION-CONTENU-MODIFIE",

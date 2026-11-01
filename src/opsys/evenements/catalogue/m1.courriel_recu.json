@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.courriel_recu",
+  "title": "M1 — Courriel reçu",
+  "description": "Émis par M1 (departments/m01-front-office/src/m1_front_office/courriel_outils.py) dans la MÊME transaction que l'inscription au registre anti-perte, quand un courriel ENTRANT livré par un connecteur (opsys.courriel_connecteurs) devient une réception de M1. Aucune adresse ni aucun texte n'est porté : seulement l'identité du signal (courriel:<cle>), le compte, la décision de M1 et les signaux du garde-fou. evenement_id déterministe (m1-courriel-recu-<cle>) : un rejeu est un no-op. Consommateur visé : un profil d'agent (déclencheur « evenement ») ou la console.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "signal_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "compte_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "fournisseur": {
+      "enum": [
+        "gmail",
+        "graph",
+        "imap",
+        "mbox"
+      ]
+    },
+    "dossier": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "recu_le": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "decision": {
+      "type": "string",
+      "maxLength": 48
+    },
+    "neutralise": {
+      "type": "boolean"
+    },
+    "signaux": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 48
+      },
+      "maxItems": 20
+    },
+    "nb_pieces": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "signal_id",
+    "compte_id",
+    "fournisseur",
+    "recu_le",
+    "decision",
+    "neutralise",
+    "signaux",
+    "nb_pieces"
+  ]
+}

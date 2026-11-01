@@ -31,6 +31,7 @@ skills:
   - mener-un-appel-vocal
   - recevoir-un-message-de-canal
   - transferer-a-un-humain
+  - repondre-a-un-courriel
 # PLAN T2.1-a : M1 reçoit le public par le canal SMS du core (extension `sms`). Le socle en tire la configuration
 # d'OPSYS-CORE (`opsys-metier openclaw configurer`) : canal désactivé tant que ses identifiants et la validation écrite des
 # politiques ne sont pas fournis, une session par client, aucune réponse automatique, outils fermés. Conception :
@@ -40,8 +41,12 @@ canaux: [sms]
 # lève et le répartiteur réessaie puis met en quarantaine).
 # PLAN T4.17-c : M1 publie aussi le STOP d'un correspondant (`m1.retrait_consentement`), par le `lead_id` des leads déjà
 # ouverts pour lui, jamais un contact ; M7 le consomme (registre `retraits_consentement_marketing`).
+# CABLAGE-CONNECTEURS : M1 publie aussi le fil du courriel (message reçu d'un connecteur, brouillon de réponse prêt,
+# approbation d'envoi demandée) et, par le planificateur (acteur système, approbation consommée), l'envoi fait ou non
+# abouti. Aucun contact ni texte dans ces événements.
 evenements:
-  publie: [m1.lead_qualifie, m1.retrait_consentement]
+  publie: [m1.lead_qualifie, m1.retrait_consentement, m1.courriel_recu, m1.brouillon_courriel_pret,
+           m1.approbation_envoi_demandee, m1.courriel_envoye, m1.envoi_courriel_echoue]
 planifications:
   - nom: digest-front-office
     cron: "0 7 * * 1-5"

@@ -54,6 +54,12 @@ CODES_ING: tuple[str, ...] = (
     "REJ-ING-EXTRACTION-INVALIDE",
     "REJ-ING-PROFIL-INVALIDE",
     "REJ-ING-FILE-MORTE",
+    # -- correspondants d'une boîte courriel (genre « courriel_contact », `contacts_courriel`)
+    "REJ-ING-COURRIEL-AUTOMATISE",
+    "REJ-ING-COURRIEL-ADRESSE-INVALIDE",
+    "REJ-ING-COURRIEL-SANS-NOM",
+    "REJ-ING-COURRIEL-TROP-DE-LIGNES",
+    "REJ-ING-COURRIEL-ENTETE-INTROUVABLE",
     # -- brouillons et décision humaine
     "REJ-ING-BROUILLON-INCONNU",
     "REJ-ING-BROUILLON-GENRE",

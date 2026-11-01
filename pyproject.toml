@@ -52,6 +52,7 @@ packages = [
     "opsys",
     "opsys.console",
     "opsys.courriel_connecteurs",
+    "opsys.connecteurs_planification",
     "opsys.evenements",
     "opsys.fournisseurs",
     "opsys.garde_fou_texte",

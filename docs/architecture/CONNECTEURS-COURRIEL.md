@@ -11,6 +11,10 @@ retiré) ; IMAP générique ; exports mbox pour l'historique ; secrets uniquemen
 Python et en bibliothèque standard (`imaplib`, `smtplib`, `email`, `mailbox`-like maison pour mbox) : aucune dépendance ajoutée, donc aucune
 entrée dans `docs/research/INGREDIENTS.md`.
 
+**Câblage (2026-11-01) : voir [CABLAGE-CONNECTEURS.md](CABLAGE-CONNECTEURS.md)** : outils de M1, planificateur, console, réception
+M1 des courriels entrants, genre de brouillon « courriel_contact ». Les limites « non raccordé » de cette page ont changé en
+conséquence (section 13) ; tout reste qualifié sur doubles.
+
 Code : `src/opsys/courriel_connecteurs/` (déclaré dans `pyproject.toml`), `src/opsys/console/courriel_ui.py`, capacité « courriel »
 dans `src/opsys/fournisseurs/`, migration `0040_connecteurs_courriel`. Tests : `tests/test_courriel_*.py`, doubles dans
 `tests/fixtures/courriel_doubles.py` et montage dans `tests/fixtures/courriel_qa.py`.
@@ -192,6 +196,10 @@ Un envoi n'est **jamais direct** : c'est un brouillon dont la transmission est N
    brouillon approuvé requis) ; `incertain` (5xx, coupure : le message a peut-être été remis ; **jamais de reprise automatique**).
    Une réservation jamais terminée devient `INCERTAIN` (`marquer_reservations_orphelines`).
 
+**Expiration (câblage)** : une approbation d'envoi ne vaut que `VALIDITE_APPROBATION_S` = 72 h après la décision humaine
+(`verifier_demande`, source unique de la garde et du planificateur) ; passé ce délai, l'envoi est refusé
+(`REJ-COURRIEL-APPROBATION-EXPIREE`) et le brouillon devient `ECHEC` : la direction en donne une autre.
+
 Le jeton n'est pas un secret porteur : sa valeur tient à l'état du sas, relu à chaque envoi. Cas testés : sans jeton, jeton vide ou
 inconnu, demande en attente / refusée, jeton rejoué (séquentiel et concurrent), brouillon modifié après approbation, destinataire
 ajouté (à, cc, cci), approbation d'un autre brouillon ou d'un autre outil, niveau insuffisant, approbateur désactivé ou agent,
@@ -267,6 +275,9 @@ masqué par `secrets_coffre.masquage`. Codes (liste fermée, épinglée par `tes
 - `REJ-COURRIEL-FILTRE-INDISPONIBLE`
 - `REJ-COURRIEL-QUOTA-DEBIT`
 - `REJ-COURRIEL-INGESTION-REFUSEE`
+- `REJ-COURRIEL-M1-REFUSE`
+- `REJ-COURRIEL-BAIL-PERDU`
+- `REJ-COURRIEL-ARRET-DEMANDE`
 - `REJ-COURRIEL-MBOX-NOM-INVALIDE`
 - `REJ-COURRIEL-MBOX-ABSENT`
 - `REJ-COURRIEL-MBOX-TROP-GROS`
@@ -282,6 +293,7 @@ masqué par `secrets_coffre.masquage`. Codes (liste fermée, épinglée par `tes
 - `REJ-COURRIEL-APPROBATION-NON-APPROUVEE`
 - `REJ-COURRIEL-APPROBATION-REJOUEE`
 - `REJ-COURRIEL-APPROBATION-CONTENU-MODIFIE`
+- `REJ-COURRIEL-APPROBATION-EXPIREE`
 - `REJ-COURRIEL-ENVOI-ECHEC`
 - `REJ-COURRIEL-ENVOI-INCERTAIN`
 - `REJ-COURRIEL-ENVOI-NON-SUPPORTE`
@@ -333,10 +345,14 @@ dans une table du chantier ou qu'un fournisseur « courriel » est configuré. T
 - `TransportUrllib` n'a été testé qu'avec un `ouvrir` injecté. Aucun point de HTTP réel, aucune négociation TLS vérifiée.
 - Le filtre d'injection est un ensemble de motifs : une formulation qu'il ne connaît pas passe. La protection réelle est l'absence
   d'outil d'action dans un contexte de lecture et la validation humaine N3 des envois ; elle dépend du câblage des agents, non vérifié ici.
-- L'**outil d'approbation et les services ne sont pas raccordés** au serveur MCP, à `Capacites` ni à un manifeste de département
-  (aucun département n'a été touché) ; la route de retour OAuth (`redirect_uri`) et les écrans de connexion, d'envoi et de décision n'existent pas.
-  La console est en lecture seule.
-- **Rétention non appliquée** (voir Loi 25) ; corps des courriels non conservé ; aucun genre de brouillon « courriel » dans l'onboarding.
+- **Câblage fait (CABLAGE-CONNECTEURS.md), sur doubles seulement** : l'outil d'approbation `opsys_courriel_approuver_envoi` est un outil
+  commun de `Capacites` (caché aux agents), les outils de M1 (boîte de réception, brouillons, demande d'envoi) sont déclarés,
+  la route de retour OAuth et l'écran d'administration existent (`/plateforme/connecteurs`, `/courriel/oauth/retour`), et le
+  planificateur exécute la synchronisation et l'envoi approuvé quand un admin les active. `/courriel` reste en lecture.
+- **Rétention non appliquée** (voir Loi 25). Le corps des courriels n'est pas conservé par les connecteurs ; M1 garde, à la
+  réception d'un courriel ENTRANT, le texte neutralisé et l'adresse de l'expéditeur dans son registre append-only (sans purge) :
+  à traiter avec la rétention de M1 avant tout usage réel. Le genre de brouillon « courriel_contact » existe désormais
+  (INGESTION-ONBOARDING.md §11), pour les comptes qui l'ont demandé.
 - Pas de QRESYNC/CONDSTORE (suppressions IMAP invisibles), pas de XOAUTH2, pas de STARTTLS, pas de sous-dossiers Graph, un `.mbox.gz`
   se relit depuis le début à chaque reprise, pas de PST/EML.
 - Le rafraîchissement concurrent est protégé dans un processus (verrou) et par relecture du coffre ; deux processus simultanés avec
@@ -347,8 +363,8 @@ dans une table du chantier ou qu'un fournisseur « courriel » est configuré. T
 - PostgreSQL : la migration ET un parcours complet (OAuth, ingestion, brouillon, approbation, envoi) sont testés sur un PostgreSQL
   éphémère en conteneur ; les autres tests tournent sur SQLite. Aucun test de charge ni de concurrence multi-processus sur PostgreSQL.
 - Les services (`ServiceCourriel`, `ServiceEnvoi`, `IngestionCourriel`) ne doivent PAS être appelés depuis une transaction métier
-  ouverte : le coffre refuse de résoudre un secret dans une telle transaction (`COFFRE_TRANSACTION_METIER`). Le câblage futur
-  (outils, planificateur) devra les appeler hors transaction.
+  ouverte : le coffre refuse de résoudre un secret dans une telle transaction (`COFFRE_TRANSACTION_METIER`). Le planificateur
+  et les routes de la console les appellent hors transaction (la clé du `state` est résolue à la construction du service).
 - Les destinataires et l'objet d'un brouillon figurent en clair dans la demande du sas (`approbations.arguments`) : l'approbateur doit
   les voir pour décider ; le corps, lui, n'y est jamais.
 - L'en-tête `Bcc` d'un envoi Gmail est transmis dans le MIME brut : son retrait avant livraison par Gmail est **à vérifier** à la

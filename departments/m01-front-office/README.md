@@ -139,3 +139,14 @@ Fixtures fictives (`fictif: true`) : `fixtures/plaintes/plaintes.v1.yaml` (48 pl
 limites documentées). Conception, niveaux N, limites et décisions de Nathan :
 [M1-canaux](../../docs/departements/M1-canaux.md) §10.
 
+
+## Courriel : la boîte de réception et les brouillons de réponse (câblage des connecteurs)
+
+Léa lit les courriels que les connecteurs (Gmail, Graph, IMAP) lui livrent, prépare une réponse et DEMANDE son envoi ; elle n'envoie
+jamais. Cinq outils, aucun rôle d'appareil : `m1_lister_comptes_courriel`, `m1_lire_courriels_recus`, `m1_lire_reponse_courriel` (T0/N0),
+`m1_preparer_reponse_courriel` (destinataire imposé : l'expéditeur du courriel reçu) et `m1_demander_envoi_courriel` (T1/N2, ouvre la
+demande N3 du sas). Le texte d'un courriel est une donnée non fiable (vue neutralisée, signaux du garde-fou) ; l'envoi appartient à
+l'exécuteur `courriel.envoi` du planificateur, après l'approbation de la direction. Un courriel ENTRANT devient une réception par
+`courriel_outils.recevoir_courriel_connecteur`, idempotente (signal `courriel:<cle>`), avec une ligne de provenance
+`reception_courriel_connecteur_v1`. Tout est désactivé par défaut et qualifié sur doubles : voir
+[CABLAGE-CONNECTEURS](../../docs/architecture/CABLAGE-CONNECTEURS.md). Skill : `repondre-a-un-courriel`.

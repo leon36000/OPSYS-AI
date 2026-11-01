@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.courriel_envoye",
+  "title": "M1 — Courriel envoyé",
+  "description": "Émis par le planificateur des connecteurs (acteur système, exécuteur courriel.envoi) après l'envoi, UNE fois, d'un brouillon dont l'approbation humaine (N3) a été consommée. evenement_id déterministe sur le brouillon et son empreinte.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "brouillon_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "empreinte": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "compte_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "fournisseur": {
+      "enum": [
+        "gmail",
+        "graph",
+        "imap",
+        "mbox"
+      ]
+    },
+    "envoye_le": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    }
+  },
+  "required": [
+    "brouillon_id",
+    "empreinte",
+    "compte_id",
+    "fournisseur",
+    "envoye_le"
+  ]
+}

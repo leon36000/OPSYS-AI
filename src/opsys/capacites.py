@@ -99,6 +99,9 @@ _ERREURS_DOCUMENTAIRES_M10 = {
 }
 
 
+NOM_OUTIL_SAS_COURRIEL = "opsys_courriel_approuver_envoi"  # = courriel_connecteurs.envoi.NOM_OUTIL (un test l'épingle)
+
+
 class _RefusDocumentaireCap(RuntimeError):
     """Code constant interne ; doit sortir du SAVEPOINT et de la factory avant traduction."""
 
@@ -233,7 +236,12 @@ class Capacites:
 
     # -- outils communs -----------------------------------------------------------------
     def _outils_communs(self) -> list[Outil]:
+        # L'outil du sas d'envoi courriel (N3) : exécutable par `approbations.decider` (console, CLI), jamais listé à un
+        # agent (`serveur_mcp` le cache) ; il n'agit que dans la décision d'un humain (`approbateur_en_cours`).
+        from .courriel_connecteurs import envoi as sas_courriel
+
         return [
+            sas_courriel.OUTIL_APPROBATION,
             Outil(
                 nom="opsys_lire_artefact",
                 description="Lit la suite d'une sortie d'outil tronquée (artefact) par tranches.",

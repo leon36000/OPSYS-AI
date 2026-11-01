@@ -69,7 +69,10 @@ def _json(fichiers, cle):
 def test_m1_declare_le_canal_sms_et_garde_son_identite(m1):
     assert m1.id == "m01-front-office"
     assert m1.canaux == ("sms",)
-    assert m1.evenements_publie == ("m1.lead_qualifie", "m1.retrait_consentement")  # le lead, puis le STOP (T4.17-c)
+    # le lead, puis le STOP (T4.17-c), puis le fil du courriel (câblage des connecteurs)
+    assert m1.evenements_publie == (
+        "m1.lead_qualifie", "m1.retrait_consentement", "m1.courriel_recu", "m1.brouillon_courriel_pret",
+        "m1.approbation_envoi_demandee", "m1.courriel_envoye", "m1.envoi_courriel_echoue")
 
 
 def test_un_canal_inconnu_ou_double_dans_un_manifeste_est_refuse(tmp_path):

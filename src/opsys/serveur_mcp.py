@@ -30,7 +30,7 @@ from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
 from . import __version__, contexte, etat, evenements, idempotence, liaison_cibles, stockage
-from .capacites import _LECTURES_DOCUMENTAIRES_M10, _OUTILS_DOCUMENTAIRES_M10, Capacites
+from .capacites import _LECTURES_DOCUMENTAIRES_M10, _OUTILS_DOCUMENTAIRES_M10, NOM_OUTIL_SAS_COURRIEL, Capacites
 from .departements import Departement, charger_departements
 from .memoire import autorite as autorite_memoire
 from .outils import Autonomie, Niveau, Outil
@@ -435,6 +435,23 @@ async def _boucle_repartiteur(
         await anyio.sleep(intervalle)
 
 
+_INTERVALLE_PLANIFICATEUR_S = 15.0
+
+
+async def _boucle_planificateur(
+    departements: Mapping[str, Departement], intervalle: float = _INTERVALLE_PLANIFICATEUR_S
+) -> None:
+    """Un tour du planificateur des connecteurs à intervalle fixe, dans un fil, à côté du répartiteur (même cycle de
+    vie). Chaque exécuteur ne tourne que si un admin l'a activé (`inactif` par défaut) ; ce n'est pas un second
+    opérateur cron. L'arrêt est propre : le drapeau est posé AVANT l'annulation (voir `cycle_de_vie`), le tour en
+    cours libère ses baux et rend la main."""
+    from .connecteurs_planification import planificateur
+
+    while True:
+        await anyio.to_thread.run_sync(planificateur.tour_protege, departements)
+        await anyio.sleep(intervalle)
+
+
 def application_http_departements(
     departements: Mapping[str, Departement],
     cnx_factory: Any,
@@ -477,7 +494,7 @@ def application_http_departements(
             Capacites(departements, cnx_factory, filtre={ident}, appelant=ident,
                       memoire_politique=politique_factory, memoire_versionnee=versionnee),
             outils_caches=frozenset({"m10_paquet_contexte_affaire", "opsys_contexte_creer_ticket_cible",
-                                     autorite_memoire.NOM_EMISSION}),
+                                     autorite_memoire.NOM_EMISSION, NOM_OUTIL_SAS_COURRIEL}),
         ).streamable_http_app(streamable_http_path=f"/mcp/{'v1/' if versionnee else ''}{ident}", host=hote)
         for ident in departements for versionnee in (False, True)
     ]
@@ -522,7 +539,8 @@ def application_http_departements(
     sous_applications.append(
         creer_serveur(
             Capacites(departements, cnx_factory, memoire_politique=politique_factory),
-            outils_caches=frozenset({"m10_paquet_contexte_affaire", "opsys_contexte_creer_ticket_cible"}),
+            outils_caches=frozenset({"m10_paquet_contexte_affaire", "opsys_contexte_creer_ticket_cible",
+                                     NOM_OUTIL_SAS_COURRIEL}),
         ).streamable_http_app(streamable_http_path="/mcp", host=hote)
     )
 
@@ -534,9 +552,14 @@ def application_http_departements(
             if _repartiteur_desactive():
                 yield
             else:
+                from .connecteurs_planification import planificateur
+
+                planificateur.reinitialiser_arret()
                 async with anyio.create_task_group() as taches:
                     taches.start_soon(_boucle_repartiteur, departements)
+                    taches.start_soon(_boucle_planificateur, departements)
                     yield
+                    planificateur.demander_arret()  # avant l'annulation : le tour s'arrête entre deux ressources
                     taches.cancel_scope.cancel()  # arrêt propre : la boucle est interrompue puis attendue
 
     routes = [route for sous in sous_applications for route in sous.routes]

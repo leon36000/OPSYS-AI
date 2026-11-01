@@ -1521,7 +1521,7 @@ INGESTION_BROUILLONS = Table(
     Column("cree_le", Text, nullable=False),
     Column("modifie_le", Text, nullable=False),
     UniqueConstraint("genre", "cle_metier", name="uq_ingestion_brouillons_cle"),
-    CheckConstraint("genre IN ('ap_facture_fournisseur','crm_client')", name="genre_valide"),
+    CheckConstraint("genre IN ('ap_facture_fournisseur','crm_client','courriel_contact')", name="genre_valide"),
     CheckConstraint("statut IN ('PRET','A_VERIFIER','VALIDE','ECARTE')", name="statut_valide"),
     CheckConstraint("(statut IN ('VALIDE','ECARTE')) = (decision IS NOT NULL)", name="decision_humaine"),
     CheckConstraint("statut <> 'VALIDE' OR reference_definitive IS NOT NULL", name="reference_si_valide"),
@@ -1737,4 +1737,55 @@ COURRIEL_JOURNAL = Table(
     Column("acteur", String(200), nullable=False),
     Column("details", Text, nullable=False),
     Index("ix_courriel_journal_compte", "compte_id", "id"),
+)
+
+
+# -- Planificateur des connecteurs : exécuteurs durables, baux, journal (migration 0044)
+# ---------------------------------
+# Un exécuteur (synchronisation courriel, envoi approuvé, publication WordPress ou sociale) ne tourne que si un
+# admin l'a
+# ACTIVÉ depuis la console (mode `ombre` ou `actif`, expiration, motif) ; l'absence de ligne vaut `inactif`. Le bail
+# garantit un seul exécuteur à la fois par ressource (compte courriel, site, compte social), avec un jeton de
+# fencing croissant. Le journal est append-only (déclencheurs) : identifiants, codes, compteurs ; jamais un contenu de
+# courriel, un jeton ni un secret.
+PLANIFICATEUR_EXECUTEURS = Table(
+    "planificateur_executeurs", META,
+    Column("executeur", String(40), primary_key=True),
+    Column("mode", String(8), nullable=False),
+    Column("intervalle_s", Integer, nullable=False),
+    Column("expire_le", BigInteger, nullable=True),
+    Column("prochain_passage", BigInteger, nullable=False),
+    Column("dernier_passage", BigInteger, nullable=True),
+    Column("dernier_statut", String(24), nullable=True),
+    Column("dernier_code", String(64), nullable=True),
+    Column("revision", Integer, nullable=False),
+    Column("modifie_par", String(200), nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    Column("motif", Text, nullable=False),
+    CheckConstraint("mode IN ('inactif','ombre','actif')", name="mode_valide"),
+    CheckConstraint("intervalle_s BETWEEN 15 AND 86400 AND revision >= 1", name="bornes"),
+    CheckConstraint("mode = 'inactif' OR expire_le IS NOT NULL", name="expiration_si_actif"),
+)
+PLANIFICATEUR_BAUX = Table(
+    "planificateur_baux", META,
+    Column("ressource", String(160), primary_key=True),
+    Column("porteur", String(80), nullable=False),
+    Column("jeton", BigInteger, nullable=False),
+    Column("acquis_epoch", BigInteger, nullable=False),
+    Column("expire_epoch", BigInteger, nullable=False),
+    CheckConstraint("jeton >= 1 AND expire_epoch >= acquis_epoch", name="bornes"),
+)
+PLANIFICATEUR_JOURNAL = Table(
+    "planificateur_journal", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("quand", Text, nullable=False),
+    Column("executeur", String(40), nullable=False),
+    Column("ressource", String(160), nullable=True),
+    Column("evenement", String(32), nullable=False),
+    Column("mode", String(8), nullable=True),
+    Column("statut", String(24), nullable=True),
+    Column("code", String(64), nullable=True),
+    Column("acteur", String(200), nullable=False),
+    Column("details", Text, nullable=False),
+    Index("ix_planificateur_journal_executeur", "executeur", "id"),
 )
