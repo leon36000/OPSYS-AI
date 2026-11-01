@@ -1,0 +1,81 @@
+"""Mutations personnelles d'Athéna : on casse une garde, on relance les tests, on restaure. Un mutant qui survit est un trou."""
+import json, subprocess, sys, shutil, pathlib, time
+S = pathlib.Path("/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad")
+W = S / "wt-m9-athena"
+M9 = W / "departments/m09-strategic-intelligence/src/m9_strategic_intelligence"
+UNIT = ["departments/m09-strategic-intelligence/tests/test_tableau_direction.py",
+        "departments/m09-strategic-intelligence/tests/test_charges_athena.py",
+        "departments/m09-strategic-intelligence/tests/test_recommandation_gouvernee.py",
+        "departments/m09-strategic-intelligence/tests/test_boucle_decisions.py",
+        "departments/m09-strategic-intelligence/tests/test_evaluation_athena.py"]
+INTEG = ["tests/test_m9_athena_raccord.py", "tests/test_m9_boucle_decisions_integre.py"]
+MUTATIONS = [
+ ("M01 essai→établi (santé non validée)", M9/"certitude.py", 'classes["resultat.sante.score"] = ETABLI if ponderations_validees else ESSAI', 'classes["resultat.sante.score"] = ETABLI'),
+ ("M02 périmé→établi", M9/"certitude.py", '    if fraicheur == "perime":\n        return PERIME\n', '    if fraicheur == "perime":\n        return ETABLI\n'),
+ ("M03 est_certain accepte l'essai", M9/"certitude.py", "return statut == ETABLI", "return statut in (ETABLI, ESSAI)"),
+ ("M04 taxes partielles→établies", M9/"certitude.py", 'complete = valide and (nettes.get("couverture") or {}).get("statut") == "COMPLETE"', 'complete = True'),
+ ("M05 santé essai affichée comme établie", M9/"tableau_direction.py", '    if valide != "true":', '    if False:'),
+ ("M06 phrase « bornes à fixer » toujours dite", M9/"tableau_direction.py", 'if bornes else f"{titre} : indéterminée."', 'if True else f"{titre} : indéterminée."'),
+ ("M07 taux sous le seuil rendu avec une valeur", M9/"tableau_direction.py", '    if valeur is None:\n        return _ligne(\n            libelle, None, ct.INDETERMINE', '    if False:\n        return _ligne(\n            libelle, None, ct.INDETERMINE'),
+ ("M08 prévision sans intervalle rendue", M9/"tableau_direction.py", "if None in (centre, niveau, bas, haut):", "if False:"),
+ ("M09 contrat M8 : faux score admis", M9/"charges_athena.py", 'if (statut == "determine") != (score is not None):', 'if False:'),
+ ("M10 contrat M2 : bornes inversées admises", M9/"charges_athena.py", "elif bas > haut:", "elif False:"),
+ ("M11 contrat M2 : chiffre sous le seuil admis", M9/"charges_athena.py", 'elif not _decimal_ok(bloc["valeur"]) or bloc["n"] < seuil or "refus" in bloc:', 'elif not _decimal_ok(bloc["valeur"]):'),
+ ("M12 contrat M5 : statut de source incohérent admis", M9/"charges_athena.py", "            if not coherent:", "            if False:"),
+ ("M13 priorité : niveaux inversés", M9/"priorites_direction.py", 'NIVEAUX.index(e["niveau"]) if e["niveau"] is not None else len(NIVEAUX)', '-NIVEAUX.index(e["niveau"]) if e["niveau"] is not None else len(NIVEAUX)'),
+ ("M14 priorité : niveau inconnu supposé le plus haut", M9/"priorites_direction.py", 'else len(NIVEAUX),', 'else -1,'),
+ ("M15 changements : faits volatils inclus", M9/"changements_depuis.py", "        if chemin.endswith(_VOLATILS):\n            continue\n", "        if False:\n            continue\n"),
+ ("M16 changements : état d'hier = état d'aujourd'hui (fuite)", M9/"changements_depuis.py", "avant_connu = cs.connues_a(captures, _iso(debut))", "avant_connu = cs.connues_a(captures, _iso(fin))"),
+ ("M17 reçu : empreinte du résultat ignorée", M9/"changements_depuis.py", 'if refait["recu"]["empreinte"] != recu["empreinte"]:', "if False:"),
+ ("M18 reco : valeur du fait non comparée", M9/"recommandation_gouvernee.py", 'if faits[adresse] != c["valeur"]:', "if False:"),
+ ("M19 reco : statut non rejoué", M9/"recommandation_gouvernee.py", 'if c["certitude"] != reel:', "if False:"),
+ ("M20 reco : donnée bloquante ignorée", M9/"recommandation_gouvernee.py", "        if bloquantes:", "        if False:"),
+ ("M21 reco : mention professionnelle non exigée", M9/"recommandation_gouvernee.py", 'if reco["mention_professionnelle"] != MENTION:', "if False:"),
+ ("M22 reco : reçu invalide admis", M9/"recommandation_gouvernee.py", 'if not ok or recu.get("empreinte") != source["empreinte"]:', "if False:"),
+ ("M23 reco : décision prétendue admise", M9/"recommandation_gouvernee.py", "        if _DECISION_PRETENDUE.search(texte):", "        if False:"),
+ ("M24 reco : nombres nus libres", M9/"recommandation_gouvernee.py", "        libres = nombres_libres(texte, valeurs_citees)\n        if libres:", "        libres = []\n        if libres:"),
+ ("M25 boucle : sens inversé", M9/"boucle_decisions.py", 'sens = "hausse" if apres_val > avant else "baisse" if apres_val < avant else "stable"', 'sens = "hausse" if apres_val < avant else "baisse" if apres_val > avant else "stable"'),
+ ("M26 boucle : périmé mesuré", M9/"boucle_decisions.py", 'elif base["fraicheur"] not in _FRAIS or apres["fraicheur"] not in _FRAIS:', "elif False:"),
+ ("M27 boucle : leçon pour non mesurable", M9/"boucle_decisions.py", '    if concordance != "NON_MESURABLE":', "    if True:"),
+ ("M28 boucle : validation multiple", M9/"boucle_decisions.py", 'if any(e["type"] == "VALIDATION_LECON" and e["lecon_id"] == lecon_id for e in chaine):', "if False:"),
+ ("M29 boucle : leçon non validée préparée pour M10", M9/"boucle_decisions.py", 'if len(lecons) != 1 or not validations or validations[-1]["statut"] != "validee":', "if len(lecons) != 1:"),
+ ("M30 boucle : lecture antérieure prise pour postérieure", M9/"boucle_decisions.py", "apres_hash == base_capture_hash", "False"),
+ ("M31 boucle : définition changée ignorée", M9/"boucle_decisions.py", 'elif base["version_definition"] != apres["version_definition"]:', "elif False:"),
+ ("M32 N3 sans mandat", M9/"adaptateur_boucle.py", "        if approbateur is None:", "        if False:"),
+ ("M33 rafraîchissement sans admin", M9/"outils_athena.py", "    def rafraichir(\n        maintenant: str,\n        jour: str | None = None,\n        debut_semaine: str | None = None,\n        prevision: dict | None = None,\n    ) -> dict[str, Any]:\n        exiger_admin_strict()", "    def rafraichir(\n        maintenant: str,\n        jour: str | None = None,\n        debut_semaine: str | None = None,\n        prevision: dict | None = None,\n    ) -> dict[str, Any]:\n        pass"),
+ ("M34 liste blanche : lecture M8 retirée", W/"src/opsys/lecteurs_m9.py", '            "m8_lire_synthese_direction",\n', ''),
+ ("M35 M8 : pondérations toujours validées", W/"departments/m08-analytics/src/m8_analytics/synthese_direction.py", '"validee": bool(ponderations["validee"]),', '"validee": True,'),
+ ("M36 M5 : sujet non approuvé déclaré approuvé", W/"departments/m05-financecore/src/m5_financecore/conseiller_fiscal.py", "        elif non_approuvees:\n            statut = \"ESSAI_NON_APPROUVE\"", "        elif False:\n            statut = \"ESSAI_NON_APPROUVE\""),
+ ("M37 M10 : leçon proposée mémorisée comme validée", W/"departments/m10-memoire/src/m10_memoire/strategique.py", 'or statut not in _GENRE_STATUT[genre]:', ":"),
+]
+def lancer(tests, timeout=900):
+    r = subprocess.run([str(S/"run-athena.sh"), *tests, "-x", "-q"], capture_output=True, text=True, timeout=timeout)
+    return r.returncode, (r.stdout + r.stderr)[-600:]
+resultats = []
+cible = sys.argv[1:] 
+for nom, fichier, ancien, nouveau in MUTATIONS:
+    if cible and not any(nom.startswith(c) for c in cible): continue
+    sauve = fichier.read_text()
+    if sauve.count(ancien) != 1:
+        resultats.append((nom, "MOTIF-INTROUVABLE", sauve.count(ancien))); print(resultats[-1], flush=True); continue
+    fichier.write_text(sauve.replace(ancien, nouveau))
+    try:
+        t0 = time.time()
+        code, sortie = lancer(UNIT)
+        etat = "TUE(unit)" if code != 0 else None
+        if etat is None:
+            code, sortie = lancer(INTEG)
+            etat = "TUE(integ)" if code != 0 else "SURVIT"
+        # M8/M10 : tests propres aux départements
+        if etat == "SURVIT" and "m08-analytics" in str(fichier):
+            code, sortie = lancer(["departments/m08-analytics/tests/test_synthese_direction.py"]); etat = "TUE(m8)" if code != 0 else "SURVIT"
+        if etat == "SURVIT" and "m10-memoire" in str(fichier):
+            code, sortie = lancer(["departments/m10-memoire/tests/test_strategique.py"]); etat = "TUE(m10)" if code != 0 else "SURVIT"
+        if etat == "SURVIT" and "m05-financecore" in str(fichier):
+            code, sortie = lancer(["tests/test_m9_athena_raccord.py", "-k", "sources_fiscales"]); etat = "TUE(m5)" if code != 0 else "SURVIT"
+        resultats.append((nom, etat, round(time.time()-t0, 1)))
+    finally:
+        fichier.write_text(sauve)
+    print(resultats[-1], flush=True)
+json.dump(resultats, open(S/"mutations-athena-resultats.json", "w"), ensure_ascii=False, indent=1)
+print("SURVIVANTS :", [r[0] for r in resultats if r[1] in ("SURVIT", "MOTIF-INTROUVABLE")])

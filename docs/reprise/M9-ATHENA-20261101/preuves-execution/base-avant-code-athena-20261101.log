@@ -1,0 +1,71 @@
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 14%]
+........................................................................ [ 17%]
+........................................................................ [ 21%]
+........................................................................ [ 25%]
+.......................s....s........................................... [ 28%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+........................................................................ [ 39%]
+........................................................................ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 61%]
+........................................................................ [ 64%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+...........................................F............................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 86%]
+.......................................................................F [ 89%]
+........................................................................ [ 93%]
+........................................................................ [ 97%]
+..........................................................               [100%]
+=================================== FAILURES ===================================
+___________ test_liste_blanche_du_socle_egale_celle_du_catalogue_pur ___________
+
+    def test_liste_blanche_du_socle_egale_celle_du_catalogue_pur():
+        attendu = catalogue_producteurs.lectures_par_departement()
+>       assert {d: set(o) for d, o in lecteurs_m9.LECTURES_AUTORISEES.items()} == {d: set(o) for d, o in attendu.items()}
+E       AssertionError: assert {'m01-front-o...ntions'}, ...} == {'m01-front-o...ntions'}, ...}
+E         
+E         Omitting 6 identical items, use -vv to show
+E         Differing items:
+E         {'m05-financecore': {'m5_lire_calendrier_obligations', 'm5_lire_comptes_a_recevoir', 'm5_lire_rentabilite_chantier', 'm5_lister_comptes_a_payer', 'm5_prevoir_tresorerie'}} != {'m05-financecore': {'m5_lire_comptes_a_recevoir', 'm5_lire_rentabilite_chantier', 'm5_lister_comptes_a_payer', 'm5_prevoir_tresorerie'}}
+E         {'m02-revenue-crm': {'m2_analyser_pipeline', 'm2_lister_leads', 'm2_lister_relances', 'm2_prevoir_pipeline'}} != {'m02-revenue-crm': {'m2_lister_leads', 'm2_lister_relances'}}
+E         {'m10-memoire': {'m10_lire_fai...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+tests/test_lecteurs_m9.py:57: AssertionError
+____ test_la_liste_blanche_contient_l_outil_m7_t0_n0_et_egale_le_catalogue _____
+
+    def test_la_liste_blanche_contient_l_outil_m7_t0_n0_et_egale_le_catalogue():
+        assert "m7_lire_depenses_marketing" in lecteurs_m9.LECTURES_AUTORISEES["m07-marketing"]
+        capacites = Capacites(charger_departements(), stockage.transaction, memoire=False)
+        departement, outil = capacites.index["m7_lire_depenses_marketing"]
+        assert departement.id == "m07-marketing"
+        assert outil.autonomie.value == "T0" and outil.niveau_effectif.value == "N0"
+>       assert {d: set(o) for d, o in lecteurs_m9.LECTURES_AUTORISEES.items()} == {
+            d: set(o) for d, o in cat.lectures_par_departement().items()
+        }
+E       AssertionError: assert {'m01-front-o...ntions'}, ...} == {'m01-front-o...ntions'}, ...}
+E         
+E         Omitting 6 identical items, use -vv to show
+E         Differing items:
+E         {'m05-financecore': {'m5_lire_calendrier_obligations', 'm5_lire_comptes_a_recevoir', 'm5_lire_rentabilite_chantier', 'm5_lister_comptes_a_payer', 'm5_prevoir_tresorerie'}} != {'m05-financecore': {'m5_lire_comptes_a_recevoir', 'm5_lire_rentabilite_chantier', 'm5_lister_comptes_a_payer', 'm5_prevoir_tresorerie'}}
+E         {'m02-revenue-crm': {'m2_analyser_pipeline', 'm2_lister_leads', 'm2_lister_relances', 'm2_prevoir_pipeline'}} != {'m02-revenue-crm': {'m2_lister_leads', 'm2_lister_relances'}}
+E         {'m10-memoire': {'m10_lire_fai...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+tests/test_m9_raccord_producteurs.py:116: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_lecteurs_m9.py::test_liste_blanche_du_socle_egale_celle_du_catalogue_pur
+FAILED tests/test_m9_raccord_producteurs.py::test_la_liste_blanche_contient_l_outil_m7_t0_n0_et_egale_le_catalogue
+2 failed, 1998 passed, 2 skipped in 221.40s (0:03:41)
