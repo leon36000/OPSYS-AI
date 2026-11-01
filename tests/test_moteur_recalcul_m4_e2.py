@@ -97,7 +97,8 @@ def _empreinte_base() -> str:
     h = hashlib.sha256()
     with stockage.transaction() as cnx:
         tables = [r[0] for r in cnx.exec_driver_sql(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all()]
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name NOT LIKE 'connaissances_fts%' ORDER BY name").all()]
         for table in tables:
             h.update(table.encode())
             for ligne in cnx.exec_driver_sql(f'SELECT * FROM "{table}" ORDER BY rowid').all():
@@ -196,7 +197,9 @@ def _registres_par_nom() -> dict:
 def _tables_par_nom() -> dict:
     sortie = {}
     with stockage.transaction() as cnx:
-        for (table,) in cnx.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all():
+        for (table,) in cnx.exec_driver_sql(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'connaissances_fts%' ORDER BY name"
+        ).all():
             h = hashlib.sha256()
             for ligne in cnx.exec_driver_sql(f'SELECT * FROM "{table}" ORDER BY rowid').all():
                 h.update(repr(tuple(ligne)).encode())

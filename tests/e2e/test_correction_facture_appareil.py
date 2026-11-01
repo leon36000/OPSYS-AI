@@ -41,6 +41,7 @@ import pytest
 import yaml
 from harnais_e2e import Moteur, Reponse, iso
 from m5_financecore import facturation, taux_fiscaux
+from tests.e2e.test_comptes_a_payer_appareil import _livrer_le_bus
 
 from opsys import stockage
 from opsys.capacites import Capacites
@@ -140,8 +141,7 @@ def _reception_partielle(moteur: Moteur, admin) -> None:
         "catalogue_materiaux": CATALOGUE,
     }, cle="cle-reception-1", horodatage_appareil=iso(maintenant))
     assert reponse.ok and reponse.metier["accepte"] is True, reponse.corps
-    resume = moteur.drainer_bus(moteur.horloge.maintenant)
-    assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+    _livrer_le_bus(moteur)
 
 
 def _facture(moteur: Moteur, admin, cle: str) -> Reponse:

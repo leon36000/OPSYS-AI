@@ -119,8 +119,20 @@ def _le_po(appareil: Any, po_id: str = PO) -> dict[str, Any]:
 
 
 def _livrer_le_bus(moteur: Moteur) -> None:
-    resume = moteur.drainer_bus(moteur.horloge.maintenant)
-    assert resume["echecs"] == 0 and resume["quarantaines"] == 0, resume
+    """Draine le bus : toute livraison doit réussir, SAUF la préparation du brouillon de commande par M1 quand aucun
+    compte courriel d'envoi n'est connecté (comportement voulu, M1.6/M6.6 : le bus réessaie puis met en quarantaine,
+    visible, et le repli manuel du courriel de commande reste valable)."""
+    moteur.drainer_bus(moteur.horloge.maintenant)
+    with stockage.transaction() as cnx:
+        anormaux = [
+            tuple(ligne) for ligne in cnx.exec_driver_sql(
+                "SELECT evenement_id, consommateur, statut, derniere_erreur FROM evenements_recus "
+                "WHERE statut != 'traite'"
+            ).all()
+            if not (ligne[1] == "m01-front-office" and str(ligne[0]).startswith("m6-po-courriel-")
+                    and "REJ-M1-COMMANDE-AUCUN-COMPTE" in str(ligne[3]))
+        ]
+    assert anormaux == [], anormaux
 
 
 def _registres(moteur: Moteur) -> dict[str, int]:

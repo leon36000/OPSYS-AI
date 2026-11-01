@@ -29,7 +29,7 @@ def test_0049_est_la_tete_et_ne_cree_aucune_table():
     script = ScriptDirectory.from_config(stockage._config())
     assert len(script.get_heads()) == 1
     revision = script.get_revision("0049")
-    assert revision is not None and revision.down_revision == "0044"
+    assert revision is not None and revision.down_revision == "0046"
 
 
 def test_montee_descente_refus_avec_donnees_et_remontee(tmp_path):
@@ -37,7 +37,7 @@ def test_montee_descente_refus_avec_donnees_et_remontee(tmp_path):
     url = "sqlite:///" + str(tmp_path / "m.db")
     with stockage.moteur(url).begin() as cnx:
         cfg.attributes["connection"] = cnx
-        command.upgrade(cfg, "0044")
+        command.upgrade(cfg, "0046")
         tables_avant = {r[0] for r in cnx.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'")}
         with pytest.raises(IntegrityError):  # avant 0049, « vision » n'est pas une capacité admise
             cnx.exec_driver_sql(INSERT.format(ident="vision.x.local", cap="vision"))
@@ -49,12 +49,12 @@ def test_montee_descente_refus_avec_donnees_et_remontee(tmp_path):
             cnx.exec_driver_sql(INSERT.format(ident="inconnue.x", cap="telepathie"))
         assert {r[0] for r in cnx.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'")} == tables_avant
         with pytest.raises(Exception, match="rétrogradation refusée"):
-            command.downgrade(cfg, "0044")  # un fournisseur « vision » est configuré : aucune suppression
+            command.downgrade(cfg, "0046")  # un fournisseur « vision » est configuré : aucune suppression
     with stockage.moteur(url).begin() as cnx:
         cfg.attributes["connection"] = cnx
         assert cnx.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "0049"
         cnx.exec_driver_sql("DELETE FROM fournisseurs_configurations")
-        command.downgrade(cfg, "0044")
+        command.downgrade(cfg, "0046")
         with pytest.raises(IntegrityError):  # la CHECK d'avant est rétablie
             cnx.exec_driver_sql(INSERT.format(ident="vision.y.local", cap="vision"))
         command.upgrade(cfg, "0049")  # remontable

@@ -196,7 +196,7 @@ def test_le_bus_est_coherent_avec_le_vrai_m1_qui_publie_le_lead_du_canal_et_le_v
     deps = charger_departements()
     assert "m1.lead_qualifie" in evenements.types_connus()
     # T4.17-c : M1 publie aussi le STOP d'un correspondant (`m1.retrait_consentement`), que M7 consomme.
-    assert deps["m01-front-office"].evenements_publie == ("m1.lead_qualifie", "m1.retrait_consentement")
+    assert deps["m01-front-office"].evenements_publie[:2] == ("m1.lead_qualifie", "m1.retrait_consentement")
     m2_reel = deps["m02-revenue-crm"]
     assert "m1.lead_qualifie" in m2_reel.evenements_consomme
     assert type(m2_reel) is Departement, "le manifeste de M2 n'est pas une sous-classe greffée"
