@@ -54,6 +54,7 @@ packages = [
     "opsys.evenements",
     "opsys.fournisseurs",
     "opsys.garde_fou_texte",
+    "opsys.ingestion_onboarding",
     "opsys.secrets_coffre",
     "opsys.memoire", "opsys.stockage", "opsys.stockage.migrations", "opsys.stockage.migrations.versions",
     "m1_front_office",
