@@ -1,0 +1,42 @@
+# Catalogue de subventions et de crédits (M5, docs/architecture/BASE-FISCALE.md) : STRUCTURE et GOUVERNANCE seulement.
+#
+# STATUT HONNÊTE : LIVRÉ VIDE. Aucune mesure réelle n'est renseignée : aucun organisme, programme, seuil, montant ni date n'est
+# cité de mémoire. Chaque mesure devra être curée à partir de sa source officielle (organisme, titre, URL https, date de
+# consultation), puis vérifiée par une personne (verification.par / le / valide_jusqu_au), avec une expiration. Les mesures
+# d'exemple, toutes `fictif: true` et « FICTIF-… », vivent dans departments/m05-financecore/tests/ et sont refusées en mode
+# « officiel ». Tant que le catalogue est vide, l'appariement répond « catalogue vide » et ne propose rien.
+#
+# `champs` est le vocabulaire fermé des FAITS que les critères peuvent tester (et que Sophie sait demander) : ce sont des
+# noms et des types, pas des données de l'entreprise.
+schema: opsys.catalogue-subventions/v1
+statut_catalogue: "vide : aucune mesure réelle renseignée — sources officielles et curation requises"
+champs:
+  province:
+    type: texte
+    libelle: "Province du siège de l'entreprise"
+    question: "Dans quelle province l'entreprise a-t-elle son siège ?"
+  nombre_employes:
+    type: decimal
+    libelle: "Nombre d'employés"
+    question: "Combien d'employés (équivalents temps plein) l'entreprise compte-t-elle ?"
+  chiffre_affaires_annuel:
+    type: decimal
+    libelle: "Chiffre d'affaires annuel (CAD)"
+    question: "Quel est le chiffre d'affaires annuel de l'entreprise, en dollars canadiens ?"
+  secteur_scian:
+    type: texte
+    libelle: "Code SCIAN du secteur"
+    question: "Quel est le code SCIAN du secteur d'activité principal ?"
+  entreprise_privee_canadienne:
+    type: booleen
+    libelle: "Société privée sous contrôle canadien"
+    question: "L'entreprise est-elle une société privée sous contrôle canadien ?"
+  projet_demarre:
+    type: booleen
+    libelle: "Le projet est déjà démarré"
+    question: "Le projet visé est-il déjà démarré (dépenses engagées) ?"
+  date_debut_projet:
+    type: date
+    libelle: "Date de début du projet"
+    question: "Quelle est la date de début du projet (AAAA-MM-JJ) ?"
+mesures: []

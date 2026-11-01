@@ -1,0 +1,1863 @@
+# Base de règles fiscales versionnée par date d'effet (M5, docs/architecture/BASE-FISCALE.md).
+#
+# STATUT HONNÊTE : toutes les valeurs ci-dessous sont des BROUILLONS migrés des constantes du dépôt (taux_fiscaux.v1.yaml,
+# cotisations_rrq_regulieres.py, cotisations_rqap_ae_2026.py, impot_quebec_regulier.py, impot_federal_qc_2026.py), sans
+# aucun réviseur : « 0 valeur approuvée ». Le mode « officiel » les refuse toutes ; le mode « essai » les sert en se
+# marquant. Les paramètres `non_renseigne` n'ont PAS de valeur : une source officielle est requise (CPA).
+#
+# GOUVERNANCE : `approuve` = deux réviseurs DISTINCTS (≠ de l'auteur de la saisie), dont la revue porte l'empreinte
+# COURANTE du paramètre. Modifier une valeur, une date ou une source change l'empreinte et fait tomber les revues.
+# Empreintes attendues : python -m m5_financecore.base_fiscale empreintes <fichier> ; contrôle : ... verifier <fichier>.
+# Ne pas éditer à la main sans recalculer l'empreinte ET refaire les revues (le chargeur refuse sinon).
+schema: opsys.regles-fiscales/v1
+parametres:
+- id: fed.tps.taux
+  juridiction: FED
+  libelle: 'TPS : taux'
+  valeur: '0.05'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: Loi sur la taxe d'accise, partie IX
+    url: null
+    consulte_le: null
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: eb34203ae98b2b5b4b22a60b959ec77b595866fe32b8183c6c66b7a47efc4b15
+  note: 'Valeur reprise de contracts/taux_fiscaux.v1.yaml (version 2026-v1). Source du dépôt sans URL ni date de consultation
+    : à compléter par le réviseur. Plage = millésime « 2026-v1 » du fichier du dépôt ; la date légale d''entrée en vigueur
+    du taux n''est pas renseignée.'
+- id: qc.tvq.taux
+  juridiction: QC
+  libelle: 'TVQ : taux'
+  valeur: '0.09975'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: Loi sur la taxe de vente du Québec
+    url: null
+    consulte_le: null
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: fbc769b19d69bfd4b767ef42dc40c87c3be7cf6595dd42b216bac466111f8033
+  note: 'Valeur reprise de contracts/taux_fiscaux.v1.yaml (version 2026-v1). Source du dépôt sans URL ni date de consultation
+    : à compléter par le réviseur. Plage = millésime « 2026-v1 » du fichier du dépôt ; la date légale d''entrée en vigueur
+    du taux n''est pas renseignée.'
+- id: qc.rrq.maximum_gains_admissibles
+  juridiction: QC
+  libelle: 'RRQ : maximum des gains admissibles'
+  valeur: '74600.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 13, 29, 37-40, 46, 51-52
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  - organisme: Revenu Québec
+    titre: TP-1015.TR.26, édition 2026-01 (annexe D, tables A et C)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TR.26%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: annexe D, table A et table C
+    sha256: 2079c958132de69216157b5c16c0296c89556e6deb69ad1854c9ebddf680c321
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 7f66d8b3b616100e4333f6b6c5dc872f61166804c1d68d49508764bdd0aad98f
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rrq.exemption_generale
+  juridiction: QC
+  libelle: 'RRQ : exemption générale annuelle'
+  valeur: '3500.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 13, 29, 37-40, 46, 51-52
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  - organisme: Revenu Québec
+    titre: TP-1015.TR.26, édition 2026-01 (annexe D, tables A et C)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TR.26%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: annexe D, table A et table C
+    sha256: 2079c958132de69216157b5c16c0296c89556e6deb69ad1854c9ebddf680c321
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: c3f5b223035cf0afcd37bb2797a5c488a1d0caeb9ac700bd5165d81308e473ce
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rrq.taux_palier1
+  juridiction: QC
+  libelle: 'RRQ : taux de cotisation du palier 1 (salarié)'
+  valeur: '0.0630'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 13, 29, 37-40, 46, 51-52
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  - organisme: Revenu Québec
+    titre: TP-1015.TR.26, édition 2026-01 (annexe D, tables A et C)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TR.26%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: annexe D, table A et table C
+    sha256: 2079c958132de69216157b5c16c0296c89556e6deb69ad1854c9ebddf680c321
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 81d75d2984220de15ec1efbe87201feafd63303ec5e949d13cfe8cd0b6fa1aa9
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rrq.taux_premiere_supplementaire
+  juridiction: QC
+  libelle: 'RRQ : taux de la première cotisation supplémentaire'
+  valeur: '0.01'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 13, 29, 37-40, 46, 51-52
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  - organisme: Revenu Québec
+    titre: TP-1015.TR.26, édition 2026-01 (annexe D, tables A et C)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TR.26%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: annexe D, table A et table C
+    sha256: 2079c958132de69216157b5c16c0296c89556e6deb69ad1854c9ebddf680c321
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: f0782b40570338b709460b15adec6d050c516d346654d7a54a539897d0f78404
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rrq.maximum_cotisation_palier1
+  juridiction: QC
+  libelle: 'RRQ : cotisation maximale du palier 1'
+  valeur: '4479.30'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 13, 29, 37-40, 46, 51-52
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  - organisme: Revenu Québec
+    titre: TP-1015.TR.26, édition 2026-01 (annexe D, tables A et C)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TR.26%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: annexe D, table A et table C
+    sha256: 2079c958132de69216157b5c16c0296c89556e6deb69ad1854c9ebddf680c321
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: ddb9a2f96f621ddba92ef53c4e4e8e94f59fdeac04be0e35f4e066b14d38bae3
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rrq.maximum_supplementaire_gains_admissibles
+  juridiction: QC
+  libelle: 'RRQ : maximum supplémentaire des gains admissibles'
+  valeur: '85000.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 13, 29, 37-40, 46, 51-52
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  - organisme: Revenu Québec
+    titre: TP-1015.TR.26, édition 2026-01 (annexe D, tables A et C)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TR.26%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: annexe D, table A et table C
+    sha256: 2079c958132de69216157b5c16c0296c89556e6deb69ad1854c9ebddf680c321
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 86754415cdcdc54d06b5a5a5a8bf3a35aaf7bd0133c80f059ad5ece55574b9c1
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rrq.taux_palier2
+  juridiction: QC
+  libelle: 'RRQ : taux de cotisation du palier 2'
+  valeur: '0.04'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 13, 29, 37-40, 46, 51-52
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  - organisme: Revenu Québec
+    titre: TP-1015.TR.26, édition 2026-01 (annexe D, tables A et C)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TR.26%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: annexe D, table A et table C
+    sha256: 2079c958132de69216157b5c16c0296c89556e6deb69ad1854c9ebddf680c321
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 02af8cc9fbb0195a0bad52e1bdc57c80c621abece25fd26a4f35c6e571521ced
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rrq.maximum_cotisation_palier2
+  juridiction: QC
+  libelle: 'RRQ : cotisation maximale du palier 2'
+  valeur: '416.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 13, 29, 37-40, 46, 51-52
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  - organisme: Revenu Québec
+    titre: TP-1015.TR.26, édition 2026-01 (annexe D, tables A et C)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TR.26%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: annexe D, table A et table C
+    sha256: 2079c958132de69216157b5c16c0296c89556e6deb69ad1854c9ebddf680c321
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 0b2f69ae57b13e89aefbdcbc885333a4d5b9c5c65aac3dccd6d54ed9ffed1165
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rqap.revenu_max_assurable
+  juridiction: QC
+  libelle: 'RQAP : revenu maximal assurable'
+  valeur: '103000.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 41-42
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: e98064df2be7f73c5d14f3741028f8329b0ed9da54322e1e75774d4e3ff2b11e
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rqap.taux_salarie
+  juridiction: QC
+  libelle: 'RQAP : taux de cotisation du salarié'
+  valeur: '0.00430'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 41-42
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 1d565ad1021906649607acb0d6949cada33de47294f10ce674143bd8a1e90e73
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rqap.maximum_salarie
+  juridiction: QC
+  libelle: 'RQAP : cotisation maximale du salarié'
+  valeur: '442.90'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 41-42
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: fd52f0f0d861aac4090e7ad88abdb4c68e21603da4274469f264adc31a34cf1f
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rqap.taux_employeur
+  juridiction: QC
+  libelle: 'RQAP : taux de cotisation de l''employeur'
+  valeur: '0.00602'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 41-42
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: b67afef40b41e01d39be4ca6c989ca2781c4df5d807ebb2c7d432c0424038657
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.rqap.maximum_employeur
+  juridiction: QC
+  libelle: 'RQAP : cotisation maximale de l''employeur'
+  valeur: '620.06'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 7, 41-42
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 71f6a0c76fd5f1e6ad7abacb898f7e52c0668f0675f7ac7a7cf787dfae01642d
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.ae_qc.revenu_max_assurable
+  juridiction: FED
+  libelle: 'AE (Québec) : revenu maximal assurable'
+  valeur: '68900.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: ch. 7 p. 31, tableau 8.7 p. 34, arrondi général p. 3
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: formule AE inchangée
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  - organisme: Agence du revenu du Canada
+    titre: Taux de cotisation à l'AE et maximums (page ei-premium-rates-maximums)
+    url: https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/payroll-deductions-contributions/employment-insurance-ei/ei-premium-rates-maximums.html
+    consulte_le: null
+    reference: taux et maximums AE
+    sha256: b72d19f75f50e8b9515404226d73b2e6896fb8e749adc6854a12683c582ada35
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 568dd59fbe9f847e1fbf86a834d3ab2828c5a6e05ebc6c3f21fe678388b20591
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée. Programme fédéral, taux du Québec.
+- id: fed.ae_qc.taux_salarie
+  juridiction: FED
+  libelle: 'AE (Québec) : taux de cotisation du salarié'
+  valeur: '0.0130'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: ch. 7 p. 31, tableau 8.7 p. 34, arrondi général p. 3
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: formule AE inchangée
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  - organisme: Agence du revenu du Canada
+    titre: Taux de cotisation à l'AE et maximums (page ei-premium-rates-maximums)
+    url: https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/payroll-deductions-contributions/employment-insurance-ei/ei-premium-rates-maximums.html
+    consulte_le: null
+    reference: taux et maximums AE
+    sha256: b72d19f75f50e8b9515404226d73b2e6896fb8e749adc6854a12683c582ada35
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: a786ef84c3784208ec354f6a2f4cc5ae634c4fa64e54d654ce14e22aaff51986
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée. Programme fédéral, taux du Québec.
+- id: fed.ae_qc.maximum_salarie
+  juridiction: FED
+  libelle: 'AE (Québec) : cotisation maximale du salarié'
+  valeur: '895.70'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: ch. 7 p. 31, tableau 8.7 p. 34, arrondi général p. 3
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: formule AE inchangée
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  - organisme: Agence du revenu du Canada
+    titre: Taux de cotisation à l'AE et maximums (page ei-premium-rates-maximums)
+    url: https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/payroll-deductions-contributions/employment-insurance-ei/ei-premium-rates-maximums.html
+    consulte_le: null
+    reference: taux et maximums AE
+    sha256: b72d19f75f50e8b9515404226d73b2e6896fb8e749adc6854a12683c582ada35
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: a5469b47c60ccba4ef8515a591b1a3c3a0295ec1d060035415a14d6acd42a711
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée. Programme fédéral, taux du Québec.
+- id: fed.ae_qc.taux_employeur
+  juridiction: FED
+  libelle: 'AE (Québec) : taux de cotisation de l''employeur'
+  valeur: '0.01820'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: ch. 7 p. 31, tableau 8.7 p. 34, arrondi général p. 3
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: formule AE inchangée
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  - organisme: Agence du revenu du Canada
+    titre: Taux de cotisation à l'AE et maximums (page ei-premium-rates-maximums)
+    url: https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/payroll-deductions-contributions/employment-insurance-ei/ei-premium-rates-maximums.html
+    consulte_le: null
+    reference: taux et maximums AE
+    sha256: b72d19f75f50e8b9515404226d73b2e6896fb8e749adc6854a12683c582ada35
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 36b46b6e0d4360f19dad6ca65201cd3ce9b6fcc371a8563a11db5ae3e86e3d7d
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée. Programme fédéral, taux du Québec.
+- id: fed.ae_qc.maximum_employeur
+  juridiction: FED
+  libelle: 'AE (Québec) : cotisation maximale de l''employeur'
+  valeur: '1253.98'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: ch. 7 p. 31, tableau 8.7 p. 34, arrondi général p. 3
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: formule AE inchangée
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  - organisme: Agence du revenu du Canada
+    titre: Taux de cotisation à l'AE et maximums (page ei-premium-rates-maximums)
+    url: https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/payroll-deductions-contributions/employment-insurance-ei/ei-premium-rates-maximums.html
+    consulte_le: null
+    reference: taux et maximums AE
+    sha256: b72d19f75f50e8b9515404226d73b2e6896fb8e749adc6854a12683c582ada35
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 8fa5e8b579a150c25c4ee5025d8ef3c5d7e6d1058c125172e26051dc3633752c
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée. Programme fédéral, taux du Québec.
+- id: qc.impot.deduction_travailleur.taux
+  juridiction: QC
+  libelle: 'Impôt QC : déduction pour travailleur, taux'
+  valeur: '0.06'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 584e04be47c7e2679b46819e4f38edd565ec07532c41b27d7abf3b08e8b4fe57
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.deduction_travailleur.plafond_annuel
+  juridiction: QC
+  libelle: 'Impôt QC : déduction pour travailleur, plafond annuel'
+  valeur: '1450'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 1043dceb5132b9df26c1a37511ae90fd3bee5f3555b75f11bc4f4fb08e3b3f8a
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_1.borne_superieure
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 1, borne supérieure du revenu annuel'
+  valeur: '54345'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: b1f013ff73a92faa806d0450f0d417f65b1483a16b617b448162d0868faaecf4
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_1.taux
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 1, taux'
+  valeur: '0.14'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 45d514f997396e3d7af5d88cd72915c16febad781b016fdc9bb86e83abae199b
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_1.constante
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 1, constante'
+  valeur: '0'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 98d7917967b2098f75160152451b93591345572ab66ad32129b9166b7264159f
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_2.borne_superieure
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 2, borne supérieure du revenu annuel'
+  valeur: '108680'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: af64c1a74727f6c7cf34f5b0c3c16c64dde17a33b1f14a81ecb057a3d2824379
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_2.taux
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 2, taux'
+  valeur: '0.19'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 30a213422af7c77fd08f03768214f25bf66520ec021511078c32f5f0d202b602
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_2.constante
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 2, constante'
+  valeur: '2717'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: a6010e519652e76610a29ed849fc9cefd81fb7916c79597aeed25bd427577d61
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_3.borne_superieure
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 3, borne supérieure du revenu annuel'
+  valeur: '132245'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 333356eef98962a9aa9839f0f94e5b07a231e619dfb990437e0a730592e24243
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_3.taux
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 3, taux'
+  valeur: '0.24'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: b48453aea088eb312f1cd24a211e62483b7c6fc54dc0cf474e102378c60ce534
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_3.constante
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 3, constante'
+  valeur: '8151'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: f547ec5547e706e7a3adb0afee1f3bb19c769568655b8ca0e3a3fd9bf4e6a8f0
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_4.taux
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 4, taux'
+  valeur: '0.2575'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: bcafc24a2427dd0a4178c20e22a189dca325e0298ffb637781464f2598099a14
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.tranche_4.constante
+  juridiction: QC
+  libelle: 'Impôt QC : tranche 4, constante'
+  valeur: '10465'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 89000b91512d8857959b94c2b5b4fe2b75cff11573b2a0870699ca1bdf552e9c
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.credit_e.taux
+  juridiction: QC
+  libelle: 'Impôt QC : crédit E, taux'
+  valeur: '0.14'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 6a82db81c9f453ced7017e8b4f7a035389594b35aea22dcdeb015d0fc13851de
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.credit_q.taux
+  juridiction: QC
+  libelle: 'Impôt QC : crédit Q, taux'
+  valeur: '0.15'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: f124a9c26f3dd11798ad78286af16e89d13aa1f2994b4f30a6801dfac9d5f045
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.impot.plafond_fonds_travailleurs
+  juridiction: QC
+  libelle: 'Impôt QC : plafond annuel FTQ/Fondaction'
+  valeur: '5000'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Revenu Québec
+    titre: TP-1015.F, édition 2026-01 (formule 2.1.1)
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    consulte_le: '2026-10-01'
+    reference: 12-16, 46-49
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: e52445833a6c9aa004894dc76086519665e7c97d4951d9ffb15d904774725b6f
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_1.borne_superieure
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 1, borne supérieure du revenu annuel'
+  valeur: '58523.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 14cecbe1ce87d8535019a7fa21b6a9b9acae18ffe70b5c278af70926fe3e7b73
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_1.taux
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 1, taux'
+  valeur: '0.1400'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 3a437a36b668ef2abc13fd2e39dfc1d878f0f63b049d4feef3df53b5792282bc
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_1.constante
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 1, constante'
+  valeur: '0.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: d65586ed6caa8e5e639cc88ecd85c6e72b8d2743730c8f0abd85db172fb2fe54
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_2.borne_superieure
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 2, borne supérieure du revenu annuel'
+  valeur: '117045.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: ae9780a1f324833e52b2003aca5ada39584f56471e331b21d900346c9bdb3f98
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_2.taux
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 2, taux'
+  valeur: '0.2050'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 9c5ef0f86fee93705af563a21231838803b1336043fa804f635b8742609428d5
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_2.constante
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 2, constante'
+  valeur: '3804.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: fca61b2c8de42dd57247081d854824e98bdedd2787229e4b58c9ce247ac75e83
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_3.borne_superieure
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 3, borne supérieure du revenu annuel'
+  valeur: '181440.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: a78f4dc732b185911c596c8009e1d6c622a9fa14f2fff671f3bac4a2958b21ef
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_3.taux
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 3, taux'
+  valeur: '0.2600'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 4bce7c717f1348f8fedcaacd5409676e1934011f9828b7a2841a527576933336
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_3.constante
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 3, constante'
+  valeur: '10241.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 0939ce3f30105d17395980e3179f4557c7b1f1cdfa0caf0670abaf332820e19d
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_4.borne_superieure
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 4, borne supérieure du revenu annuel'
+  valeur: '258482.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 358364767f45d088c5c545260a3b69c45d5d0709861a237be15635cb45332513
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_4.taux
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 4, taux'
+  valeur: '0.2900'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 1ed0e29c65aed3cf8f66dbb4fd51f1e3517c7b7fdfd839785d9ccf9e8ad264eb
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_4.constante
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 4, constante'
+  valeur: '15685.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 402a9641732df6445a8758f7d0d0f3a1b867ca4139262832f4903674147d4b72
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_5.taux
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 5, taux'
+  valeur: '0.3300'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: f41916040ff3f7a93567f8511ee7b16de4d815bc4df345df5409dcd829d21a2b
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.tranche_5.constante
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : tranche 5, constante'
+  valeur: '26024.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 903fcd937930d7ea2ee874138023494f7d5bd6e3c97235c88a64bfa33beefd79
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.credit_personnel.taux_minimal
+  juridiction: FED
+  libelle: 'Impôt fédéral : crédit personnel, taux minimal'
+  valeur: '0.14'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 500fef4421981f1055932b0828c9c723fb29b2abffcad654134c88b75de04cf8
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.k2q.taux_federal
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : K2Q, taux fédéral du crédit'
+  valeur: '0.14'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 49740fa01989de74d4e480b98c098c07074610eb53866dcd612875ad745f796d
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.k2q.taux_rrq_base
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : K2Q, taux RRQ de base'
+  valeur: '0.0530'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: d93b0b28ed3421989b4848674dbde3403cd45f05080122015d4e7bd6b9916238
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.k2q.taux_rrq_total_palier1
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : K2Q, taux RRQ total du palier 1'
+  valeur: '0.0630'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 9a1ca3b16c39b56a82139b5299b757cb63991c290821f61a2a5a8cad1204eefb
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.k2q.maximum_rrq_base
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : K2Q, maximum de la cotisation RRQ de base'
+  valeur: '3768.30'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 828a681cda4cefec4080bbd05233191b13b01f0c3f1423920bbbd3ee0c4a9c13
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.k2q.maximum_ei_qc
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : K2Q, maximum de la cotisation AE (Québec)'
+  valeur: '895.70'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 63b07794dde112a4e5f5d34c762d52147b2fc5b8f40526fb267b2787b166917f
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.k2q.taux_qpip_credit
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : K2Q, taux RQAP du crédit'
+  valeur: '0.00430'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 4495c35e0b147dc50601c45715373b52a175336360c1d7c0c91642c6d4005a69
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.k2q.maximum_qpip
+  juridiction: FED
+  libelle: 'Impôt fédéral (QC) : K2Q, maximum de la cotisation RQAP'
+  valeur: '442.90'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: a2d6695198ae14f100732c4449fda82746e6a19a44333753766e1e180b1796a8
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.k4.taux_federal
+  juridiction: FED
+  libelle: 'Impôt fédéral : K4, taux fédéral'
+  valeur: '0.14'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 3c74db3b4676a286303359fe4d35d291c1894b49989a8a2a64537dc87c2d20d8
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.k4.maximum_cea
+  juridiction: FED
+  libelle: 'Impôt fédéral : K4, maximum du crédit pour emploi'
+  valeur: '1501.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 8461077ed128031a6962f3683105f89e9997b333774770de2795ebcf03df9db0
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.abattement_qc
+  juridiction: FED
+  libelle: 'Impôt fédéral : abattement du Québec'
+  valeur: '0.165'
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 504fdef1b887db750a81d9fd7c2334c622fc65e5e6e63fdf40565608d9b5dde6
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: fed.impot.lcf_maximum_annuel
+  juridiction: FED
+  libelle: 'Impôt fédéral : LCF, maximum annuel'
+  valeur: '750.00'
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources:
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 122e édition, janvier 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan.html
+    consulte_le: '2026-10-01'
+    reference: pages 3, 14-17, 32
+    sha256: c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c
+  - organisme: Agence du revenu du Canada
+    titre: T4127, 123e édition, juillet 2026
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    consulte_le: '2026-10-24'
+    reference: chapitre 4, formules inchangées renvoyant à la 122e édition; tableaux 8.1 et 8.2
+    sha256: 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 972f83e1bbef315b32a127672f3f8019c3d4887e31ead92a39dbe7a9c7d0b336
+  note: Plage = année civile 2026 exigée par le calculateur du dépôt (garde `annee == 2026`) ; la date légale d'entrée en
+    vigueur n'est pas renseignée.
+- id: qc.fss.taux_employeur
+  juridiction: QC
+  libelle: 'FSS : taux de cotisation de l''employeur'
+  valeur: null
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources: []
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: b93334fc021e2a84a17d7dbfbe66c2c111707ab5806ff60fec5f69b7a4414ecd
+  non_renseigne:
+    raison: 'Aucune valeur dans le dépôt (m54d : le dossier WebRAS la laisse UNKNOWN).'
+    source_requise: 'Revenu Québec : document officiel du taux applicable, à identifier avec le CPA'
+- id: qc.cnesst.taux_cotisation
+  juridiction: QC
+  libelle: 'CNESST : taux de cotisation de l''employeur'
+  valeur: null
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources: []
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 0a717cf98bc1cf852a2e299424abfb029a482a9285b75aa7676ccbac7fbc9134
+  non_renseigne:
+    raison: 'Aucune valeur dans le dépôt (m54d : le dossier WebRAS la laisse UNKNOWN).'
+    source_requise: 'CNESST : avis de taux de l''employeur (propre à l''entreprise)'
+- id: qc.ccq.taux_cotisation_employeur
+  juridiction: QC
+  libelle: 'CCQ : taux de cotisation (secteur construction, statut CCQ à déterminer)'
+  valeur: null
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources: []
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: e5859ee681d8bbb6970f4a2c7f1572dc0f6becd3e4339c63f4b95664bd9356d8
+  non_renseigne:
+    raison: 'Aucune valeur dans le dépôt (m54d : le dossier WebRAS la laisse UNKNOWN).'
+    source_requise: 'Commission de la construction du Québec : document officiel, après détermination du statut CCQ'
+- id: qc.normes_travail.salaire_minimum_general
+  juridiction: QC
+  libelle: 'Normes du travail : salaire minimum général'
+  valeur: null
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources: []
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 45c83ad184d6a74d826952dc49996c73282522ff9a9a4ea0c831d771d759bca4
+  non_renseigne:
+    raison: 'Aucune valeur dans le dépôt (m54d : le dossier WebRAS la laisse UNKNOWN).'
+    source_requise: 'Gouvernement du Québec (CNESST) : taux en vigueur à la date de paie'
+- id: qc.normes_travail.seuil_heures_supplementaires
+  juridiction: QC
+  libelle: 'Normes du travail : seuil hebdomadaire des heures supplémentaires'
+  valeur: null
+  unite: nombre
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources: []
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: b4c4d935e3e0d4e88747c224ee64d5f545039eec335be2e49f94e6a7084cfe54
+  non_renseigne:
+    raison: 'Aucune valeur dans le dépôt (m54d : le dossier WebRAS la laisse UNKNOWN).'
+    source_requise: 'Gouvernement du Québec (CNESST) : Loi sur les normes du travail'
+- id: qc.normes_travail.majoration_heures_supplementaires
+  juridiction: QC
+  libelle: 'Normes du travail : majoration des heures supplémentaires'
+  valeur: null
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources: []
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: f55c833fdfe7bdcc87d6f50aa1337a2816fd7dde47f5090bd3d0a4cf2e9d6951
+  non_renseigne:
+    raison: 'Aucune valeur dans le dépôt (m54d : le dossier WebRAS la laisse UNKNOWN).'
+    source_requise: 'Gouvernement du Québec (CNESST) : Loi sur les normes du travail'
+- id: qc.normes_travail.indemnite_vacances_taux
+  juridiction: QC
+  libelle: 'Normes du travail : taux de l''indemnité de vacances'
+  valeur: null
+  unite: ratio
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources: []
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: 403e17a05e5a9f5223ecc3d53f12edb1d4d9dbda140ac49706183474b1f6b515
+  non_renseigne:
+    raison: 'Aucune valeur dans le dépôt (m54d : le dossier WebRAS la laisse UNKNOWN).'
+    source_requise: 'Gouvernement du Québec (CNESST) : Loi sur les normes du travail'
+- id: fed.impot.montant_personnel_de_base
+  juridiction: FED
+  libelle: 'Impôt fédéral : montant personnel de base (TD1)'
+  valeur: null
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources: []
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: f43b7270111c858bf1b49a289c08a5f7a395fe400cd6b6fd2b0031fd8c5779b9
+  non_renseigne:
+    raison: 'Aucune valeur dans le dépôt (m54d : le dossier WebRAS la laisse UNKNOWN).'
+    source_requise: 'Agence du revenu du Canada : formulaire TD1 fédéral de l''année'
+- id: qc.impot.montant_personnel_de_base
+  juridiction: QC
+  libelle: 'Impôt QC : montant personnel de base (TP-1015.3)'
+  valeur: null
+  unite: CAD
+  effet:
+    debut: '2026-01-01'
+    fin: '2026-12-31'
+  sources: []
+  saisie:
+    par: migration.depot
+    le: '2026-11-01'
+  revues: []
+  statut: brouillon
+  empreinte: ff6ef5a045246661021390cd7a50bc25e7196925a8f024b49d39c4534e370225
+  non_renseigne:
+    raison: 'Aucune valeur dans le dépôt (m54d : le dossier WebRAS la laisse UNKNOWN).'
+    source_requise: 'Revenu Québec : formulaire TP-1015.3 de l''année'

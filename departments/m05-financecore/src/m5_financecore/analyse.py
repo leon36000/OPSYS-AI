@@ -17,7 +17,7 @@ from typing import Any
 
 __all__ = [
     "MENTION_ANALYSE_PREPARATOIRE", "MENTION_COMPTABLE", "SORTIES_CALCUL", "SORTIES_COMPTABLES", "SORTIES_D_ANALYSE",
-    "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE", "avec_mention", "avec_mention_comptable",
+    "SORTIES_FISCALES", "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE", "avec_mention", "avec_mention_comptable",
 ]
 
 MENTION_ANALYSE_PREPARATOIRE = (
@@ -61,6 +61,17 @@ SORTIES_CALCUL = frozenset({
     "m5_verifier_recu_calcul",  # vérification et rejeu d'un reçu : le même calcul refait
 })
 
+# Base fiscale versionnée, validation de la paie, catalogue de subventions et garde investissement
+# (`docs/architecture/BASE-FISCALE.md`) : lectures et brouillons sous les deux mentions, prouvés par
+# `tests/test_outils_base_fiscale.py` sur chaque sortie acceptée.
+SORTIES_FISCALES = frozenset({
+    "m5_lire_etat_base_fiscale",  # combien de valeurs, combien approuvées, ce qui n'a pas de source
+    "m5_lire_regle_fiscale",  # un paramètre en vigueur à une date, avec son mode (officiel ou essai marqué)
+    "m5_lire_statut_campagne_paie",  # « campagne officielle : N/300 » et le rejeu des cas fictifs
+    "m5_apparier_subventions",  # critères satisfaits/non satisfaits/inconnus et brouillon de dossier : à valider
+    "m5_verifier_demande_investissement",  # verdict de la garde NC 31-103 : refus générique ou contenu permis
+})
+
 # Ingestion d'onboarding : la lecture d'un lot et de ses brouillons (champs lus, taxes recalculées, raisons) et la
 # validation d'une facture proposée (la facture sans PO saisie : un calcul, comme la saisie). Leur mention est prouvée
 # sur chaque sortie acceptée par `tests/test_ingestion_onboarding_bout_en_bout.py` (un lot réel est requis).
@@ -85,7 +96,7 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_preparer_brut_regulier",  # estimation préparatoire humaine du brut, sans retenues ni action officielle
     "m5_preparer_dossier_webras",  # dossier préparatoire pour calcul humain dans les services officiels
     "m5_prevoir_tresorerie_contrats",  # prévision préparatoire de flux contractuels rapprochés aux sources M3/M5
-}) | SORTIES_COMPTABLES | SORTIES_ONBOARDING | SORTIES_CALCUL
+}) | SORTIES_COMPTABLES | SORTIES_ONBOARDING | SORTIES_CALCUL | SORTIES_FISCALES
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {
