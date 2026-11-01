@@ -174,6 +174,30 @@ def test_m5_l_ordre_normal_propose_toujours_la_revision_1_et_ecarte_la_2(monde):
         (1, cmr.BROUILLON_PROPOSE), (2, cmr.A_REVOIR_REVISION)]
 
 
+def test_m5_la_plus_haute_revision_vue_fait_foi_meme_si_une_plus_basse_est_rangee_apres(monde, monkeypatch):
+    """Révisions 1, 2, 3 ; les deux premières échouent une fois : la 3 arrive d'abord, puis 1 et 2. La dernière ligne
+    rangée avant la 2 est la 1 (révision plus basse) : la plus haute vue (3) doit pourtant rester celle qui fait foi."""
+    from m5_financecore import outils as outils_m5
+
+    for rev, montant in ((1, "100.00"), (2, "130.00"), (3, "150.00")):
+        evenements.publier("m7.depenses_marketing_constatees", M7,
+                           ch.depense_marketing(revision=rev, montant=montant), evenement_id=f"r{rev}")
+    deja = set()
+    vraie_decision = cmr.decision
+
+    def decision(charge, proposees, vues=None):
+        if charge["revision"] in (1, 2) and charge["revision"] not in deja:
+            deja.add(charge["revision"])
+            raise ConnectionError("panne transitoire")
+        return vraie_decision(charge, proposees, vues)
+
+    monkeypatch.setattr(outils_m5.charges_marketing_recues, "decision", decision)
+    monde.repartir()
+    issues = {m["revision"]: m["issue"] for m in monde.registre(M5, cmr.REGISTRE)}
+    assert issues == {3: cmr.A_REVOIR_REVISION, 1: cmr.REVISION_PERIMEE, 2: cmr.REVISION_PERIMEE}
+    assert _gl_debits(monde) == []
+
+
 def test_m5_pure_decision_revision_perimee_et_autres_relevés_inchanges():
     base = ch.depense_marketing()
     assert cmr.decision(base, {}, {base["releve_id"]: 2}) == cmr.REVISION_PERIMEE

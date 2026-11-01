@@ -99,11 +99,17 @@ def justifications_invalides(justifications: Mapping[str, Any], catalogue: froze
 
 def _trace_dans_le_code(departement: Departement, type_evenement: str) -> bool:
     """Le nom du type apparaît-il dans le code du producteur (son `src/`) ou dans le socle (publications
-    transverses, ex. le planificateur des connecteurs) ? Un nom qui n'apparaît nulle part ne peut être publié."""
+    transverses, ex. le planificateur des connecteurs) ? Un nom qui n'apparaît nulle part ne peut être publié.
+
+    Le nom COMPLET du type, entre guillemets, compte dans le `src/` du producteur et, dans le socle, seulement dans un
+    fichier qui PUBLIE (`publier(`) : le socle nomme aussi les types qu'il consomme ou relit. La forme composée
+    (un préfixe suivi de `.suffixe`, point devant le suffixe) ne compte que dans le `src/` du producteur : un suffixe nu
+    cherché dans tout le socle y trouve toujours une coïncidence et rendrait l'écart `producteurs_sans_trace` impossible
+    à voir."""
     motif = f'"{type_evenement}"'
     motif_simple = f"'{type_evenement}'"
-    racines = [departement.racine / "src", _RACINE_SOCLE]
-    for racine in racines:
+    propre = departement.racine / "src"
+    for racine in (propre, _RACINE_SOCLE):
         if not racine.is_dir():
             continue
         for fichier in racine.rglob("*.py"):
@@ -111,18 +117,18 @@ def _trace_dans_le_code(departement: Departement, type_evenement: str) -> bool:
                 texte = fichier.read_text(encoding="utf-8")
             except OSError:
                 continue
-            if motif in texte or motif_simple in texte:
+            if (motif in texte or motif_simple in texte) and (racine is propre or "publier(" in texte):
                 return True
-    # Un module peut composer le nom (`f"{PREFIXE}.suffixe"`) : on cherche aussi la partie après le point.
+    # Un module peut composer le nom (`f"{PREFIXE}.suffixe"`) : le suffixe précédé d'un point, dans son propre code.
     suffixe = type_evenement.split(".", 1)[1]
-    for racine in racines:
-        if racine.is_dir():
-            for fichier in racine.rglob("*.py"):
-                try:
-                    if re.search(rf"[\"']{re.escape(suffixe)}[\"']", fichier.read_text(encoding="utf-8")):
-                        return True
-                except OSError:
-                    continue
+    composee = re.compile(rf"\.{re.escape(suffixe)}[\"']")
+    if propre.is_dir():
+        for fichier in propre.rglob("*.py"):
+            try:
+                if composee.search(fichier.read_text(encoding="utf-8")):
+                    return True
+            except OSError:
+                continue
     return False
 
 
