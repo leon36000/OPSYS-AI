@@ -440,6 +440,15 @@ def validate(html_text: str, *, content: dict | None = None, assets_dir: str | N
         except json.JSONDecodeError:
             violations.append(("G-15", "JSON-LD invalide (JSON mal formé)."))
         else:
+            # Sites du schéma opsys.site/v1 (rendu_statique.py) : un seul bloc `@graph` qui porte l'entreprise,
+            # ses services et la FAQ. Le contexte est celui du graphe ; le nœud contrôlé est le PREMIER nœud
+            # d'un type accepté (l'entreprise). Un graphe sans ce nœud est refusé comme un objet sans @type.
+            if isinstance(ld, dict) and isinstance(ld.get("@graph"), list):
+                noeud = next(
+                    (n for n in ld["@graph"] if isinstance(n, dict) and n.get("@type") in TYPES_ORGANISATION_ACCEPTES),
+                    {},
+                )
+                ld = {**noeud, "@context": ld.get("@context", "")}
             if isinstance(ld, dict):
                 ctx = ld.get("@context", "")
                 if isinstance(ctx, str):

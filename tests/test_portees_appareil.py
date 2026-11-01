@@ -220,6 +220,10 @@ FERMES_A_TOUS = {
     "m9_etat_consolide": "ingère un snapshot fourni par l'appelant dans le registre consolidé",
     "m7_auditer_seo_site": "prend un chemin de dossier du serveur",
     "m7_calculer_roi": "prend des chemins de fichiers du serveur",
+    "m7_valider_schema_site": "schéma de site et snapshots concurrents lus sur le serveur (sites web, tranche 1)",
+    "m7_generer_site_statique": "génère le site depuis les actifs du serveur ; aucun besoin de téléphone",
+    "m7_preparer_paquet_site": "écrit l'artefact de déploiement sous $OPSYS_HOME/sites ; agents seulement",
+    "m7_demander_publication_site": "publication publique N3 : file d'approbation du propriétaire, jamais exécutée",
     "m10_affaire_de_la_session": "lien session -> affaire : lu par le moteur de contexte du core seulement",
 }
 

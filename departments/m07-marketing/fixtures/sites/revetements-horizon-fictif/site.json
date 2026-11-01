@@ -1,0 +1,316 @@
+{
+  "schema": "opsys.site/v1",
+  "site_id": "revetements-horizon-fictif",
+  "fictif": true,
+  "domaine": "revetements-horizon.example",
+  "langues": ["fr-CA", "en-CA"],
+  "revision": {"date": "2026-10-31"},
+  "entreprise": {
+    "nom": "Revêtements Horizon (fictif)",
+    "type_schema": "HomeAndConstructionBusiness",
+    "description": {
+      "fr-CA": "Entreprise fictive de rénovation extérieure de la Rive-Nord : revêtement extérieur, gouttières, soffites et fascias pour les maisons de Laval et des environs.",
+      "en-CA": "Fictional exterior renovation company on the North Shore: siding, gutters, soffits and fascia for homes in Laval and nearby."
+    },
+    "nap": {
+      "telephone": "+1 450 555 0142",
+      "courriel": "bonjour@revetements-horizon.example",
+      "adresse": {"rue": "1200, rue de l'Exemple", "ville": "Laval", "region": "QC", "code_postal": "H7N 1A1", "pays": "CA"}
+    },
+    "heures": [
+      {"jours": ["Mo", "Tu", "We", "Th", "Fr"], "ouverture": "08:00", "fermeture": "17:00"}
+    ],
+    "licence_rbq": {"numero": "5555-0142-01", "source": "src-rbq"}
+  },
+  "charte": {
+    "fond": "#ffffff",
+    "texte": "#1c2329",
+    "primaire": "#0d3b4f",
+    "texte_sur_primaire": "#ffffff",
+    "focus": "#e8590c"
+  },
+  "sources": [
+    {"id": "src-juridique", "nature": "juridique", "reference": "Mentions légales et politique de confidentialité, dossier fictif JUR-0001", "valide_par": "Direction (fictif)", "date": "2026-10-15"},
+    {"id": "src-rbq", "nature": "registre_officiel", "reference": "Registre des détenteurs de licence RBQ, vérification fictive", "valide_par": "Direction (fictif)", "date": "2026-10-15"},
+    {"id": "src-contrat-type", "nature": "contrat", "reference": "Contrat-type de travaux, version fictive CT-3", "valide_par": "Direction (fictif)", "date": "2026-10-15"}
+  ],
+  "zones": [
+    {"id": "laval", "nom": "Laval"},
+    {"id": "terrebonne", "nom": "Terrebonne"},
+    {"id": "blainville", "nom": "Blainville"},
+    {"id": "boisbriand", "nom": "Boisbriand"}
+  ],
+  "services": [
+    {
+      "id": "revetement",
+      "image": "img-facade",
+      "nom": {"fr-CA": "Revêtement extérieur", "en-CA": "Exterior siding"},
+      "resume": {
+        "fr-CA": "Remplacement et réparation de revêtement de vinyle, d'aluminium et de fibre de bois.",
+        "en-CA": "Replacement and repair of vinyl, aluminum and engineered wood siding."
+      },
+      "description": {
+        "fr-CA": [
+          "Nous retirons l'ancien revêtement, inspectons le mur et posons un pare-air avant d'installer le nouveau revêtement.",
+          "Le choix du matériau et de la couleur se fait avec vous, à partir d'échantillons apportés sur place."
+        ],
+        "en-CA": [
+          "We remove the old siding, inspect the wall and install an air barrier before putting up the new siding.",
+          "You choose the material and colour with us, from samples brought to your home."
+        ]
+      }
+    },
+    {
+      "id": "gouttieres",
+      "image": "img-gouttiere",
+      "nom": {"fr-CA": "Gouttières", "en-CA": "Gutters"},
+      "resume": {
+        "fr-CA": "Installation de gouttières sans joint et de descentes pluviales, nettoyage et protège-gouttières.",
+        "en-CA": "Seamless gutter and downspout installation, cleaning and gutter guards."
+      },
+      "description": {
+        "fr-CA": [
+          "Les gouttières sans joint sont formées sur place, à la longueur exacte de votre toiture.",
+          "Nous vérifions la pente et l'emplacement des descentes pour éloigner l'eau des fondations."
+        ],
+        "en-CA": [
+          "Seamless gutters are formed on site, to the exact length of your roof.",
+          "We check the slope and the location of downspouts to move water away from the foundation."
+        ]
+      }
+    },
+    {
+      "id": "soffites",
+      "nom": {"fr-CA": "Soffites et fascias", "en-CA": "Soffit and fascia"},
+      "resume": {
+        "fr-CA": "Soffites ventilés et fascias d'aluminium pour protéger le bord du toit et aérer l'entretoit.",
+        "en-CA": "Vented soffits and aluminum fascia to protect the roof edge and ventilate the attic."
+      },
+      "description": {
+        "fr-CA": [
+          "Un soffite ventilé laisse l'air circuler dans l'entretoit, ce qui limite la condensation l'hiver.",
+          "Le fascia d'aluminium recouvre le bois du bord du toit et le protège des intempéries."
+        ],
+        "en-CA": [
+          "A vented soffit lets air move through the attic, which limits condensation in winter.",
+          "Aluminum fascia covers the wood at the roof edge and protects it from the weather."
+        ]
+      }
+    }
+  ],
+  "temoignages": [
+    {
+      "id": "temoignage-revetement",
+      "texte": {
+        "fr-CA": "L'équipe a été ponctuelle et a laissé le terrain propre. Le revêtement de notre maison a fière allure.",
+        "en-CA": "The crew was on time and left the yard clean. The siding on our house looks great."
+      },
+      "initiales": "M. T.",
+      "zone": "laval",
+      "service": "revetement",
+      "consentement": {"statut": "consenti", "preuve": "Formulaire de consentement fictif CONS-0001, signé", "date": "2026-09-20"}
+    },
+    {
+      "id": "temoignage-gouttieres",
+      "texte": {
+        "fr-CA": "Explications claires avant les travaux et suivi rapide après la pose des gouttières.",
+        "en-CA": "Clear explanations before the work and quick follow-up after the gutters were installed."
+      },
+      "initiales": "C. L.",
+      "zone": "terrebonne",
+      "service": "gouttieres",
+      "consentement": {"statut": "consenti", "preuve": "Formulaire de consentement fictif CONS-0002, signé", "date": "2026-09-27"}
+    }
+  ],
+  "faq": [
+    {
+      "id": "faq-villes",
+      "question": {"fr-CA": "Dans quelles villes travaillez-vous ?", "en-CA": "Which cities do you serve?"},
+      "reponse": {
+        "fr-CA": "Nous intervenons à Laval, Terrebonne, Blainville et Boisbriand. Pour une autre ville, appelez-nous pour vérifier.",
+        "en-CA": "We work in Laval, Terrebonne, Blainville and Boisbriand. For another city, call us to check."
+      }
+    },
+    {
+      "id": "faq-soumission",
+      "question": {"fr-CA": "Comment obtenir une soumission ?", "en-CA": "How do I get a quote?"},
+      "reponse": {
+        "fr-CA": "Appelez-nous ou écrivez-nous : un estimateur prend rendez-vous pour mesurer et photographier les surfaces, puis prépare une soumission écrite.",
+        "en-CA": "Call or write to us: an estimator books a visit to measure and photograph the surfaces, then prepares a written quote."
+      }
+    },
+    {
+      "id": "faq-garantie",
+      "source": "src-contrat-type",
+      "question": {"fr-CA": "Les travaux sont-ils garantis ?", "en-CA": "Is the work guaranteed?"},
+      "reponse": {
+        "fr-CA": "Oui. La garantie de main-d'œuvre est décrite dans le contrat-type remis avec chaque soumission.",
+        "en-CA": "Yes. The workmanship guarantee is described in the standard contract provided with each quote."
+      }
+    }
+  ],
+  "cta": [
+    {"id": "cta-soumission", "libelle": {"fr-CA": "Demander une soumission", "en-CA": "Request a quote"}, "cible": {"page": "contact"}},
+    {"id": "cta-appeler", "libelle": {"fr-CA": "Appeler l'entreprise", "en-CA": "Call the company"}, "cible": {"telephone": true}},
+    {"id": "cta-ecrire", "libelle": {"fr-CA": "Écrire un courriel", "en-CA": "Send an email"}, "cible": {"courriel": true}}
+  ],
+  "images": [
+    {"id": "img-facade", "fichier": "images/facade-revetement.svg", "largeur": 1200, "hauteur": 630, "alt": {"fr-CA": "Illustration d'une façade de maison avec un revêtement horizontal neuf", "en-CA": "Illustration of a house front with new horizontal siding"}},
+    {"id": "img-gouttiere", "fichier": "images/gouttiere.svg", "largeur": 800, "hauteur": 600, "alt": {"fr-CA": "Illustration d'une gouttière et de sa descente pluviale", "en-CA": "Illustration of a gutter and its downspout"}}
+  ],
+  "pages": [
+    {
+      "id": "accueil",
+      "slug": {"fr-CA": "", "en-CA": ""},
+      "titre": {"fr-CA": "Revêtement extérieur et gouttières à Laval", "en-CA": "Siding and gutters in Laval"},
+      "titre_nav": {"fr-CA": "Accueil", "en-CA": "Home"},
+      "description": {
+        "fr-CA": "Revêtement extérieur, gouttières, soffites et fascias à Laval, Terrebonne, Blainville et Boisbriand. Entreprise fictive de démonstration.",
+        "en-CA": "Siding, gutters, soffits and fascia in Laval, Terrebonne, Blainville and Boisbriand. Fictional demonstration company."
+      },
+      "sections": [
+        {"type": "hero", "image": "img-facade", "cta": "cta-soumission", "texte": {"fr-CA": "Nous rénovons l'enveloppe extérieure des maisons de la Rive-Nord, de la soumission à la fin du chantier.", "en-CA": "We renovate the exterior of North Shore homes, from the quote to the end of the job."}},
+        {"type": "services", "titre": {"fr-CA": "Nos services", "en-CA": "Our services"}},
+        {"type": "zones", "ancre": "zones", "titre": {"fr-CA": "Zones desservies", "en-CA": "Service areas"}, "texte": {"fr-CA": "Nous travaillons dans les villes suivantes :", "en-CA": "We work in the following cities:"}},
+        {"type": "temoignages", "titre": {"fr-CA": "Ce que disent nos clients", "en-CA": "What our customers say"}},
+        {"type": "cta", "cta": "cta-soumission", "texte": {"fr-CA": "Un projet de revêtement ou de gouttières ? Parlons-en.", "en-CA": "A siding or gutter project? Let's talk."}}
+      ]
+    },
+    {
+      "id": "services",
+      "slug": {"fr-CA": "services", "en-CA": "services"},
+      "titre": {"fr-CA": "Nos services de rénovation extérieure", "en-CA": "Our exterior renovation services"},
+      "titre_nav": {"fr-CA": "Services", "en-CA": "Services"},
+      "description": {
+        "fr-CA": "Revêtement extérieur, gouttières sans joint, soffites et fascias : les services de rénovation extérieure de notre entreprise fictive.",
+        "en-CA": "Siding, seamless gutters, soffits and fascia: the exterior renovation services of our fictional company."
+      },
+      "sections": [
+        {"type": "services", "titre": {"fr-CA": "Ce que nous faisons", "en-CA": "What we do"}},
+        {"type": "cta", "cta": "cta-soumission"}
+      ]
+    },
+    {
+      "id": "service-revetement",
+      "navigation": false,
+      "slug": {"fr-CA": "services/revetement-exterieur", "en-CA": "services/exterior-siding"},
+      "titre": {"fr-CA": "Revêtement extérieur à Laval", "en-CA": "Exterior siding in Laval"},
+      "description": {
+        "fr-CA": "Remplacement et réparation de revêtement extérieur de vinyle, d'aluminium ou de fibre de bois à Laval et sur la Rive-Nord.",
+        "en-CA": "Replacement and repair of vinyl, aluminum or engineered wood siding in Laval and on the North Shore."
+      },
+      "sections": [
+        {"type": "service_detail", "service": "revetement"},
+        {"type": "cta", "cta": "cta-soumission"}
+      ]
+    },
+    {
+      "id": "service-gouttieres",
+      "navigation": false,
+      "slug": {"fr-CA": "services/gouttieres", "en-CA": "services/gutters"},
+      "titre": {"fr-CA": "Gouttières sans joint à Laval", "en-CA": "Seamless gutters in Laval"},
+      "description": {
+        "fr-CA": "Installation de gouttières sans joint et de descentes pluviales, nettoyage et protège-gouttières à Laval et sur la Rive-Nord.",
+        "en-CA": "Seamless gutter and downspout installation, cleaning and gutter guards in Laval and on the North Shore."
+      },
+      "sections": [
+        {"type": "service_detail", "service": "gouttieres"},
+        {"type": "cta", "cta": "cta-soumission"}
+      ]
+    },
+    {
+      "id": "service-soffites",
+      "navigation": false,
+      "slug": {"fr-CA": "services/soffites-et-fascias", "en-CA": "services/soffit-and-fascia"},
+      "titre": {"fr-CA": "Soffites et fascias à Laval", "en-CA": "Soffit and fascia in Laval"},
+      "description": {
+        "fr-CA": "Soffites ventilés et fascias d'aluminium pour protéger le bord du toit et aérer l'entretoit, à Laval et sur la Rive-Nord.",
+        "en-CA": "Vented soffits and aluminum fascia to protect the roof edge and ventilate the attic, in Laval and on the North Shore."
+      },
+      "sections": [
+        {"type": "service_detail", "service": "soffites"},
+        {"type": "cta", "cta": "cta-soumission"}
+      ]
+    },
+    {
+      "id": "faq",
+      "slug": {"fr-CA": "questions-frequentes", "en-CA": "faq"},
+      "titre": {"fr-CA": "Questions fréquentes", "en-CA": "Frequently asked questions"},
+      "titre_nav": {"fr-CA": "FAQ", "en-CA": "FAQ"},
+      "description": {
+        "fr-CA": "Réponses aux questions fréquentes sur nos zones desservies, la préparation d'une soumission et le déroulement des travaux.",
+        "en-CA": "Answers to frequent questions about our service areas, how quotes are prepared and how the work is done."
+      },
+      "sections": [
+        {"type": "faq", "ancre": "questions", "titre": {"fr-CA": "Vos questions", "en-CA": "Your questions"}}
+      ]
+    },
+    {
+      "id": "contact",
+      "slug": {"fr-CA": "contact", "en-CA": "contact"},
+      "titre": {"fr-CA": "Nous joindre", "en-CA": "Contact us"},
+      "description": {
+        "fr-CA": "Téléphone, courriel, adresse et heures d'ouverture de notre entreprise fictive de rénovation extérieure à Laval.",
+        "en-CA": "Phone, email, address and opening hours of our fictional exterior renovation company in Laval."
+      },
+      "sections": [
+        {"type": "coordonnees", "ancre": "coordonnees", "titre": {"fr-CA": "Coordonnées", "en-CA": "Contact information"}, "cta": ["cta-appeler", "cta-ecrire"]}
+      ]
+    },
+    {
+      "id": "mentions-legales",
+      "navigation": false,
+      "slug": {"fr-CA": "mentions-legales", "en-CA": "legal-notice"},
+      "titre": {"fr-CA": "Mentions légales", "en-CA": "Legal notice"},
+      "description": {
+        "fr-CA": "Mentions légales du site : identification de l'entreprise fictive, licence RBQ et conditions de reproduction du contenu.",
+        "en-CA": "Legal notice of the site: identification of the fictional company, RBQ licence and content reproduction terms."
+      },
+      "sections": [
+        {
+          "type": "mentions_legales",
+          "source": "src-juridique",
+          "titre": {"fr-CA": "Mentions légales", "en-CA": "Legal notice"},
+          "paragraphes": {
+            "fr-CA": ["Ce site est édité par l'entreprise identifiée ci-dessus. Les textes et les images du site ne peuvent pas être reproduits sans autorisation écrite."],
+            "en-CA": ["This site is published by the company identified above. The texts and images of the site may not be reproduced without written permission."]
+          }
+        }
+      ]
+    },
+    {
+      "id": "confidentialite",
+      "navigation": false,
+      "slug": {"fr-CA": "confidentialite", "en-CA": "privacy"},
+      "titre": {"fr-CA": "Politique de confidentialité", "en-CA": "Privacy policy"},
+      "description": {
+        "fr-CA": "Comment notre entreprise fictive traite les renseignements personnels transmis par téléphone ou par courriel, et comment exercer vos droits.",
+        "en-CA": "How our fictional company handles the personal information sent by phone or email, and how to exercise your rights."
+      },
+      "sections": [
+        {
+          "type": "confidentialite",
+          "source": "src-juridique",
+          "titre": {"fr-CA": "Confidentialité", "en-CA": "Privacy"},
+          "paragraphes": {
+            "fr-CA": [
+              "Nous recueillons seulement les renseignements que vous nous transmettez par téléphone ou par courriel, afin de répondre à votre demande de soumission.",
+              "Vous pouvez demander l'accès à vos renseignements personnels ou leur rectification en écrivant à la personne responsable indiquée ci-dessous, conformément à la Loi 25."
+            ],
+            "en-CA": [
+              "We only collect the information you send us by phone or email, in order to answer your quote request.",
+              "You may request access to or correction of your personal information by writing to the person in charge named below, as provided by Quebec's Law 25."
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "legal": {
+    "responsable_rp": {
+      "titre": {"fr-CA": "Responsable de la protection des renseignements personnels (direction)", "en-CA": "Privacy officer (management)"},
+      "courriel": "confidentialite@revetements-horizon.example"
+    },
+    "traceurs_non_essentiels": false
+  }
+}

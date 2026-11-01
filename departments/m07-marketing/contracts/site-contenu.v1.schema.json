@@ -1,0 +1,916 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opsys-ai.ca/contrats/m7/site-contenu.v1.schema.json",
+  "title": "Schéma de contenu d'un site web OPSYS (opsys.site/v1)",
+  "description": "Contrat indépendant du moteur de rendu (Python livré, Astro prévu). Le validateur Python m7_marketing.site.schema_site fait foi ; les garde-fous de contenu (garde_contenu.py) s'ajoutent à ce schéma.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "site_id",
+    "fictif",
+    "domaine",
+    "langues",
+    "revision",
+    "entreprise",
+    "charte",
+    "sources",
+    "zones",
+    "services",
+    "temoignages",
+    "faq",
+    "cta",
+    "pages",
+    "images",
+    "legal"
+  ],
+  "properties": {
+    "schema": {
+      "const": "opsys.site/v1"
+    },
+    "site_id": {
+      "$ref": "#/$defs/identifiant"
+    },
+    "fictif": {
+      "type": "boolean"
+    },
+    "domaine": {
+      "type": "string",
+      "pattern": "^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$"
+    },
+    "langues": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "prefixItems": [
+        {
+          "const": "fr-CA"
+        }
+      ],
+      "items": {
+        "enum": [
+          "fr-CA",
+          "en-CA"
+        ]
+      }
+    },
+    "revision": {
+      "type": "object",
+      "required": [
+        "date"
+      ],
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "additionalProperties": false
+    },
+    "entreprise": {
+      "type": "object",
+      "required": [
+        "nom",
+        "type_schema",
+        "description",
+        "nap",
+        "heures"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "nom": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "type_schema": {
+          "enum": [
+            "HomeAndConstructionBusiness",
+            "LocalBusiness"
+          ]
+        },
+        "description": {
+          "$ref": "#/$defs/localise"
+        },
+        "nap": {
+          "type": "object",
+          "required": [
+            "telephone",
+            "courriel",
+            "adresse"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "telephone": {
+              "type": "string",
+              "pattern": "^\\+1 \\d{3} \\d{3} \\d{4}$"
+            },
+            "courriel": {
+              "type": "string",
+              "pattern": "^[a-z0-9._-]{1,64}@([a-z0-9.-]{1,253})$"
+            },
+            "adresse": {
+              "type": "object",
+              "required": [
+                "rue",
+                "ville",
+                "region",
+                "code_postal",
+                "pays"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "rue": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "ville": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "region": {
+                  "const": "QC"
+                },
+                "code_postal": {
+                  "type": "string",
+                  "pattern": "^[ABCEGHJ-NPRSTVXY]\\d[ABCEGHJ-NPRSTV-Z] \\d[ABCEGHJ-NPRSTV-Z]\\d$"
+                },
+                "pays": {
+                  "const": "CA"
+                }
+              }
+            }
+          }
+        },
+        "heures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "jours",
+              "ouverture",
+              "fermeture"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "jours": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "enum": [
+                    "Mo",
+                    "Tu",
+                    "We",
+                    "Th",
+                    "Fr",
+                    "Sa",
+                    "Su"
+                  ]
+                }
+              },
+              "ouverture": {
+                "type": "string",
+                "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+              },
+              "fermeture": {
+                "type": "string",
+                "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+              }
+            }
+          }
+        },
+        "licence_rbq": {
+          "type": "object",
+          "required": [
+            "numero",
+            "source"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "numero": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{4}-\\d{2}$"
+            },
+            "source": {
+              "$ref": "#/$defs/identifiant"
+            }
+          }
+        }
+      }
+    },
+    "charte": {
+      "type": "object",
+      "required": [
+        "fond",
+        "texte",
+        "primaire",
+        "texte_sur_primaire",
+        "focus"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "fond": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$"
+        },
+        "texte": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$"
+        },
+        "primaire": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$"
+        },
+        "texte_sur_primaire": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$"
+        },
+        "focus": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$"
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "nature",
+          "reference",
+          "valide_par",
+          "date"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "nature": {
+            "enum": [
+              "juridique",
+              "contrat",
+              "registre_officiel",
+              "mesure",
+              "fournisseur",
+              "profil_marque"
+            ]
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1
+          },
+          "valide_par": {
+            "type": "string",
+            "minLength": 1
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
+    },
+    "zones": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "nom"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "nom": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "services": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "nom",
+          "resume",
+          "description"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "nom": {
+            "$ref": "#/$defs/localise"
+          },
+          "resume": {
+            "$ref": "#/$defs/localise"
+          },
+          "description": {
+            "$ref": "#/$defs/paragraphes"
+          },
+          "source": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "image": {
+            "$ref": "#/$defs/identifiant"
+          }
+        }
+      }
+    },
+    "temoignages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "texte",
+          "initiales",
+          "zone",
+          "consentement"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "texte": {
+            "$ref": "#/$defs/localise"
+          },
+          "initiales": {
+            "type": "string",
+            "pattern": "^(?:[A-ZÀ-Ý]\\.(?:-[A-ZÀ-Ý]\\.)?)(?: [A-ZÀ-Ý]\\.){0,2}$"
+          },
+          "zone": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "service": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "consentement": {
+            "type": "object",
+            "required": [
+              "statut",
+              "preuve",
+              "date"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "statut": {
+                "const": "consenti"
+              },
+              "preuve": {
+                "type": "string",
+                "minLength": 1
+              },
+              "date": {
+                "type": "string",
+                "format": "date"
+              }
+            }
+          }
+        }
+      }
+    },
+    "faq": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "question",
+          "reponse"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "question": {
+            "$ref": "#/$defs/localise"
+          },
+          "reponse": {
+            "$ref": "#/$defs/localise"
+          },
+          "source": {
+            "$ref": "#/$defs/identifiant"
+          }
+        }
+      }
+    },
+    "cta": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "libelle",
+          "cible"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "libelle": {
+            "$ref": "#/$defs/localise"
+          },
+          "cible": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "page"
+                ],
+                "properties": {
+                  "page": {
+                    "$ref": "#/$defs/identifiant"
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "telephone"
+                ],
+                "properties": {
+                  "telephone": {
+                    "const": true
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "courriel"
+                ],
+                "properties": {
+                  "courriel": {
+                    "const": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      }
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "titre",
+          "description",
+          "sections"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "slug": {
+            "type": "object",
+            "properties": {
+              "fr-CA": {
+                "type": "string",
+                "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$"
+              },
+              "en-CA": {
+                "type": "string",
+                "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$"
+              }
+            },
+            "required": [
+              "fr-CA"
+            ],
+            "additionalProperties": false
+          },
+          "titre": {
+            "$ref": "#/$defs/localise"
+          },
+          "titre_nav": {
+            "$ref": "#/$defs/localise"
+          },
+          "description": {
+            "$ref": "#/$defs/localise"
+          },
+          "navigation": {
+            "type": "boolean"
+          },
+          "sections": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "hero"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "texte": {
+                      "$ref": "#/$defs/localise"
+                    },
+                    "cta": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "image": {
+                      "$ref": "#/$defs/identifiant"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "texte"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "texte"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "titre": {
+                      "$ref": "#/$defs/localise"
+                    },
+                    "paragraphes": {
+                      "$ref": "#/$defs/paragraphes"
+                    },
+                    "source": {
+                      "$ref": "#/$defs/identifiant"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "titre",
+                    "paragraphes"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "services"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "titre": {
+                      "$ref": "#/$defs/localise"
+                    },
+                    "services": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "$ref": "#/$defs/identifiant"
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "titre"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "service_detail"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "service": {
+                      "$ref": "#/$defs/identifiant"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "service"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "zones"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "titre": {
+                      "$ref": "#/$defs/localise"
+                    },
+                    "texte": {
+                      "$ref": "#/$defs/localise"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "titre"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "temoignages"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "titre": {
+                      "$ref": "#/$defs/localise"
+                    },
+                    "temoignages": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "$ref": "#/$defs/identifiant"
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "titre"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "faq"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "titre": {
+                      "$ref": "#/$defs/localise"
+                    },
+                    "questions": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "$ref": "#/$defs/identifiant"
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "titre"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "coordonnees"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "titre": {
+                      "$ref": "#/$defs/localise"
+                    },
+                    "cta": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/identifiant"
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "titre"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "cta"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "cta": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "texte": {
+                      "$ref": "#/$defs/localise"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "cta"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "mentions_legales"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "titre": {
+                      "$ref": "#/$defs/localise"
+                    },
+                    "paragraphes": {
+                      "$ref": "#/$defs/paragraphes"
+                    },
+                    "source": {
+                      "$ref": "#/$defs/identifiant"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "titre",
+                    "paragraphes",
+                    "source"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "const": "confidentialite"
+                    },
+                    "ancre": {
+                      "$ref": "#/$defs/identifiant"
+                    },
+                    "titre": {
+                      "$ref": "#/$defs/localise"
+                    },
+                    "paragraphes": {
+                      "$ref": "#/$defs/paragraphes"
+                    },
+                    "source": {
+                      "$ref": "#/$defs/identifiant"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "titre",
+                    "paragraphes",
+                    "source"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "fichier",
+          "largeur",
+          "hauteur",
+          "alt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/identifiant"
+          },
+          "fichier": {
+            "type": "string",
+            "pattern": "^images/[a-z0-9]+(?:-[a-z0-9]+)*\\.(?:svg|png)$"
+          },
+          "largeur": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4000
+          },
+          "hauteur": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4000
+          },
+          "alt": {
+            "$ref": "#/$defs/localise"
+          }
+        }
+      }
+    },
+    "legal": {
+      "type": "object",
+      "required": [
+        "responsable_rp",
+        "traceurs_non_essentiels"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "responsable_rp": {
+          "type": "object",
+          "required": [
+            "titre",
+            "courriel"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "titre": {
+              "$ref": "#/$defs/localise"
+            },
+            "courriel": {
+              "type": "string",
+              "pattern": "^[a-z0-9._-]{1,64}@([a-z0-9.-]{1,253})$"
+            }
+          }
+        },
+        "traceurs_non_essentiels": {
+          "const": false,
+          "description": "Tranche 1 : aucun traceur non essentiel (Loi 25, consentement actif préalable impossible sans JavaScript)."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "identifiant": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,47}$"
+    },
+    "localise": {
+      "type": "object",
+      "description": "Un texte par langue déclarée dans `langues` (fr-CA obligatoire).",
+      "properties": {
+        "fr-CA": {
+          "type": "string",
+          "minLength": 1
+        },
+        "en-CA": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "fr-CA"
+      ],
+      "additionalProperties": false
+    },
+    "paragraphes": {
+      "type": "object",
+      "description": "Paragraphes par langue.",
+      "properties": {
+        "fr-CA": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "en-CA": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "fr-CA"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

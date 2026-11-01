@@ -24,6 +24,7 @@ son identifiant ; le lien de suivi du paquet la porte, et `m7_exporter_paquet_ma
 
 from __future__ import annotations
 
+import hashlib
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,7 @@ from .reputation import metrics as reputation_metrics
 from .reputation import response_builder as reputation_response_builder
 from .roi import roi_engine
 from .seo import seo_audit
+from .site import service as site_service
 from .social.postiz_adapter import (
     AdapterDisabled,
     Canal,
@@ -120,6 +122,28 @@ _PHOTO = {
     "additionalProperties": False,
 }
 _HORODATAGE = {"type": "string", "description": "ISO 8601 avec fuseau (l'heure du serveur fait foi)."}
+_SCHEMA_SITE = {
+    "type": "object",
+    "description": "Schéma de contenu opsys.site/v1 (contracts/site-contenu.v1.schema.json). Exclusif de schema_demo.",
+}
+_SCHEMA_DEMO = {
+    "type": "string",
+    "enum": list(site_service.SCHEMAS_DEMO),
+    "description": "Site de démonstration fictif livré, à la place de schema.",
+}
+_CONCURRENTS = {
+    "type": "array",
+    "items": {"type": "string"},
+    "description": "Slugs de snapshots concurrents locaux (fixtures/concurrents) contre lesquels refuser la copie.",
+}
+_VERSION_SITE = {"type": "string", "description": "AAAAMMJJTHHMMSSZ (UTC), nom de releases/<version>."}
+_CIBLE_SITE = {
+    "type": "object",
+    "description": (
+        "{hote, utilisateur (défaut opsys-deploy, jamais root), port (22), racine (/srv/sites/<domaine>), "
+        "versions_conservees (5), version_precedente}"
+    ),
+}
 _TEXTES_PAR_PLATEFORME = {
     "type": "object",
     "description": (
@@ -575,6 +599,124 @@ def analyser_concurrents(
         stopwords_path=chemin_stopwords or "",
         timestamp=timestamp,
     )
+
+
+# ---------------------------------------------------------------------------
+# Sites web statiques (décision d'architecte r6, tranche 1 ; docs/sites-web.md)
+# ---------------------------------------------------------------------------
+_CONTENU_FICHIER_MAX = 20_000
+
+
+def _site_source(
+    schema: dict[str, Any] | None, schema_demo: str | None, concurrents: list[str] | None
+) -> tuple[Any, dict[str, bytes], dict[str, str], dict[str, Any] | None]:
+    charge, actifs, refus = site_service.resoudre_schema(schema, schema_demo)
+    if refus is not None:
+        return None, {}, {}, refus
+    textes, refus_concurrents = site_service.textes_concurrents(concurrents)
+    if refus_concurrents:
+        return None, {}, {}, {"accepte": False, "refus": refus_concurrents}
+    return charge, actifs, textes, None
+
+
+def valider_schema_site(
+    schema: dict[str, Any] | None = None, schema_demo: str | None = None, concurrents: list[str] | None = None
+) -> dict[str, Any]:
+    """Valide un schéma de site (structure, contenu, actifs) sans rien rendre ni écrire."""
+    charge, actifs, textes, refus = _site_source(schema, schema_demo, concurrents)
+    if refus is not None:
+        return refus
+    construit = site_service.construire_site(charge, actifs, concurrents=textes)
+    if not construit["accepte"]:
+        return construit
+    return {"accepte": True, "site_id": charge["site_id"], "refus": [], "qa_conforme": construit["qa"]["conforme"]}
+
+
+def generer_site_statique(
+    schema: dict[str, Any] | None = None,
+    schema_demo: str | None = None,
+    concurrents: list[str] | None = None,
+    fichier: str | None = None,
+) -> dict[str, Any]:
+    """Génère le site en mémoire (moteur Python pur) et le contrôle ; n'écrit rien sur disque."""
+    charge, actifs, textes, refus = _site_source(schema, schema_demo, concurrents)
+    if refus is not None:
+        return refus
+    construit = site_service.construire_site(charge, actifs, concurrents=textes)
+    if not construit["accepte"]:
+        return construit
+    fichiers, qa = construit["fichiers"], construit["qa"]
+    resultat: dict[str, Any] = {
+        "accepte": True,
+        "site_id": charge["site_id"],
+        "fichiers": [
+            {"chemin": c, "octets": len(v), "sha256": hashlib.sha256(v).hexdigest()}
+            for c, v in fichiers.items()
+        ],
+        "qa": {
+            "conforme": qa["conforme"],
+            "controles": [{"code": c["code"], "ok": c["ok"], "constats": c["constats"][:5]} for c in qa["controles"]],
+        },
+        "rapport": site_service.qa_site.rapport_lisible(qa)[:4000],
+    }
+    if fichier is not None:
+        if fichier not in fichiers or not fichier.endswith((".html", ".xml", ".txt", ".svg")):
+            resultat["contenu"] = None
+            resultat["contenu_refus"] = f"fichier texte inconnu : {fichier!r}"
+        else:
+            resultat["contenu"] = fichiers[fichier].decode("utf-8")[:_CONTENU_FICHIER_MAX]
+    return resultat
+
+
+def _plan_resume(plan: dict[str, Any]) -> dict[str, Any]:
+    return {cle: valeur for cle, valeur in plan.items() if cle != "caddyfile"}
+
+
+def preparer_paquet_site(
+    version: str,
+    cible: dict[str, Any],
+    schema: dict[str, Any] | None = None,
+    schema_demo: str | None = None,
+    concurrents: list[str] | None = None,
+) -> dict[str, Any]:
+    """Prépare l'artefact versionné (archive, manifeste, Caddyfile, plan) dans $OPSYS_HOME/sites/<id>/paquets/ ;
+    n'exécute aucun déploiement."""
+    charge, actifs, textes, refus = _site_source(schema, schema_demo, concurrents)
+    if refus is not None:
+        return refus
+    prepare = site_service.preparer_paquet(charge, actifs, version, cible, concurrents=textes)
+    if not prepare["accepte"]:
+        return {cle: prepare[cle] for cle in ("accepte", "refus")}
+    ecrit = site_service.ecrire_paquet(prepare, site_service.dossier_site(charge["site_id"]) / "paquets")
+    if not ecrit["accepte"]:
+        return ecrit
+    manifeste = prepare["manifeste"]
+    return {
+        **ecrit,
+        "archive": manifeste["archive"],
+        "version": manifeste["version"],
+        "fichiers_site": len(manifeste["fichiers"]),
+        "octets_total": manifeste["octets_total"],
+        "plan": _plan_resume(prepare["plan"]),
+    }
+
+
+def demander_publication_site(
+    version: str,
+    empreinte_archive: str,
+    cible: dict[str, Any],
+    schema: dict[str, Any] | None = None,
+    schema_demo: str | None = None,
+    concurrents: list[str] | None = None,
+) -> dict[str, Any]:
+    """Demande de publication publique (N3+) : attend la direction ; même approuvée, n'exécute rien."""
+    charge, actifs, textes, refus = _site_source(schema, schema_demo, concurrents)
+    if refus is not None:
+        return refus
+    resultat = site_service.demander_publication(charge, actifs, version, empreinte_archive, cible, concurrents=textes)
+    if resultat.get("accepte") and "plan" in resultat:
+        resultat = {**resultat, "plan": _plan_resume(resultat["plan"])}
+    return resultat
 
 
 # ---------------------------------------------------------------------------
@@ -1602,6 +1744,95 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=analyser_concurrents,
+        ),
+        Outil(
+            nom="m7_valider_schema_site",
+            description=(
+                "Valide un schéma de site opsys.site/v1 (structure, traductions fr-CA d'abord, NAP, contraste, "
+                "promesses sans source, textes légaux, données personnelles, témoignages consentis, copie de "
+                "concurrent, images). Refus typés {code, chemin, detail}. Rien n'est écrit."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "schema": _SCHEMA_SITE,
+                    "schema_demo": _SCHEMA_DEMO,
+                    "concurrents": _CONCURRENTS,
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+            fonction=valider_schema_site,
+        ),
+        Outil(
+            nom="m7_generer_site_statique",
+            description=(
+                "Génère le site statique bilingue (moteur Python pur : HTML, hreflang, sitemap, robots.txt, JSON-LD "
+                "LocalBusiness/Service/FAQPage, 404) EN MÉMOIRE et rend le contrôle qualité (liens, ancres, HTML, "
+                "accessibilité statique, JSON-LD concordant, contraste, poids). N'écrit ni ne publie rien."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "schema": _SCHEMA_SITE,
+                    "schema_demo": _SCHEMA_DEMO,
+                    "concurrents": _CONCURRENTS,
+                    "fichier": {"type": "string", "description": "Chemin d'un fichier généré à rendre en entier."},
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+            fonction=generer_site_statique,
+        ),
+        Outil(
+            nom="m7_preparer_paquet_site",
+            description=(
+                "Prépare l'artefact versionné d'un site conforme : archive reproductible, manifeste d'empreintes, "
+                "Caddyfile et PLAN de déploiement SSH (utilisateur non root, releases/<version>, lien current, retour "
+                "arrière), écrits dans $OPSYS_HOME/sites/<id>/paquets/<version>/. N'exécute aucune commande."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "version": _VERSION_SITE,
+                    "cible": _CIBLE_SITE,
+                    "schema": _SCHEMA_SITE,
+                    "schema_demo": _SCHEMA_DEMO,
+                    "concurrents": _CONCURRENTS,
+                },
+                "required": ["version", "cible"],
+                "additionalProperties": False,
+            },
+            fonction=preparer_paquet_site,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N1,
+        ),
+        Outil(
+            nom="m7_demander_publication_site",
+            description=(
+                "DÉCISION DE LA DIRECTION (N3) : demande la publication publique d'un paquet de site, par son "
+                "empreinte d'archive exacte. Un agent ne peut que la déposer dans la file d'approbation. Même "
+                "approuvée, rien n'est exécuté : le plan approuvé est rendu (PUBLICATION_APPROUVEE_NON_EXECUTEE) et "
+                "une personne l'exécute à la main. Refuse un site fictif, une autre empreinte, un QA non conforme."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "version": _VERSION_SITE,
+                    "empreinte_archive": {
+                        "type": "string", "description": "SHA-256 rendu par m7_preparer_paquet_site.",
+                    },
+                    "cible": _CIBLE_SITE,
+                    "schema": _SCHEMA_SITE,
+                    "schema_demo": _SCHEMA_DEMO,
+                    "concurrents": _CONCURRENTS,
+                },
+                "required": ["version", "empreinte_archive", "cible"],
+                "additionalProperties": False,
+            },
+            fonction=demander_publication_site,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
         ),
         Outil(
             nom="m7_publier_post_social",

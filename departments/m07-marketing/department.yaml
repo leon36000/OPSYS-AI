@@ -62,4 +62,5 @@ kpis:
 approbations:                      # ADR-0009 §5, PLAN T4.17 : qui décide un N3 de M7 dans la file du socle.
   # N3 : approuver ou rejeter un contenu public (m7_decider_contenu) ou un créneau lié (m7_decider_creneau_calendrier).
   # Le propriétaire seulement, comme le défaut fail-closed : la marque parle en son nom.
+  # Aussi : la demande de publication publique d'un site (m7_demander_publication_site), jamais exécutée par OPSYS.
   n3: [nathan_owner]

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+<!-- Illustration fictive : gouttière et descente pluviale. -->
+<rect width="800" height="600" fill="#eef2f4"/>
+<rect x="60" y="120" width="680" height="40" rx="8" fill="#0d3b4f"/>
+<rect x="640" y="160" width="40" height="380" fill="#0d3b4f"/>
+<rect x="600" y="520" width="120" height="30" rx="6" fill="#0d3b4f"/>
+<rect x="60" y="60" width="680" height="60" fill="#8a5a44"/>
+</svg>
