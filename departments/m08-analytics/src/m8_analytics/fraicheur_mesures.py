@@ -11,9 +11,9 @@ la
   propriétaire
   peut la resserrer ou la fixer par mesure (``department.yaml``, ``configuration.fraicheur_mesures_s``, vide à la
   livraison : aucune valeur n'y est inventée) ;
-* l'APPELANT peut demander plus strict (``fraicheur_max_s``) ; la précédence est la PLUS STRICTE des deux, jamais la
-plus
-  indulgente ;
+* l'APPELANT peut demander plus strict (``fraicheur_max_s``) ; le département SOURCE peut déclarer sa propre fenêtre
+  (M7 dit combien de temps ses relevés publicitaires restent frais : ``fenetre_source_s`` de la mesure) ; la précédence
+  est la PLUS STRICTE des trois, jamais la plus indulgente ;
 * l'âge d'une mesure est celui de son dernier fait (``dernier_fait_le``) face à ``maintenant``. M8 ne peut pas
 distinguer
   « l'entreprise n'a rien fait » de « le bus n'a rien livré » : un fait trop ancien rend donc la mesure ``perime``, et
@@ -47,6 +47,7 @@ REJ_MAINTENANT_INVALIDE = "REJ-FRAICHEUR-MAINTENANT-INVALIDE"
 REJ_FENETRE_APPELANT_INVALIDE = "REJ-FRAICHEUR-FENETRE-APPELANT-INVALIDE"
 
 ORIGINE_APPELANT = "appelant"
+ORIGINE_SOURCE = "source"
 ORIGINE_CONFIGURATION = "configuration"
 ORIGINE_CATALOGUE = "catalogue"
 ORIGINE_TERMINALE = "terminale"
@@ -109,11 +110,12 @@ def fenetre_effective(
     entree: dict[str, Any],
     fenetres_proprietaire: dict[str, int],
     fraicheur_max_s: int | None = None,
+    fenetre_source_s: int | None = None,
 ) -> dict[str, Any]:
-    """La fenêtre qui s'applique à une mesure : le producteur (configuration du propriétaire, sinon catalogue) et
-    l'appelant, la PLUS STRICTE des deux. ``secondes`` vaut ``None`` seulement pour une mesure terminale que
-    l'appelant ne
-    resserre pas."""
+    """La fenêtre qui s'applique à une mesure : le producteur (configuration du propriétaire, sinon catalogue), le
+    département source qui déclare la sienne (``fenetre_source_s``) et l'appelant, la PLUS STRICTE des trois. À égalité,
+    le producteur garde la main, puis la source. ``secondes`` vaut ``None`` seulement pour une mesure terminale que ni
+    l'appelant ni la source ne resserrent."""
     metric_id = entree["metric_id"]
     if metric_id in fenetres_proprietaire:
         producteur: int | None = fenetres_proprietaire[metric_id]
@@ -123,9 +125,12 @@ def fenetre_effective(
         origine_producteur = ORIGINE_CATALOGUE
     else:
         producteur, origine_producteur = None, ORIGINE_TERMINALE
-    if fraicheur_max_s is not None and (producteur is None or fraicheur_max_s < producteur):
-        return {"secondes": fraicheur_max_s, "origine": ORIGINE_APPELANT}
-    return {"secondes": producteur, "origine": origine_producteur}
+    retenue: dict[str, Any] = {"secondes": producteur, "origine": origine_producteur}
+    if fenetre_source_s is not None and (retenue["secondes"] is None or fenetre_source_s < retenue["secondes"]):
+        retenue = {"secondes": fenetre_source_s, "origine": ORIGINE_SOURCE}
+    if fraicheur_max_s is not None and (retenue["secondes"] is None or fraicheur_max_s < retenue["secondes"]):
+        retenue = {"secondes": fraicheur_max_s, "origine": ORIGINE_APPELANT}
+    return retenue
 
 
 def formater_duree(secondes: int) -> str:
@@ -210,7 +215,9 @@ def lire_mesures_avec_fraicheur(
     entrees = {entree["metric_id"]: entree for entree in catalogue["mesures"]}
     enrichies = []
     for mesure in mesures:
-        fenetre = fenetre_effective(entrees[mesure["metric_id"]], fenetres_proprietaire, fraicheur_max_s)
+        fenetre = fenetre_effective(
+            entrees[mesure["metric_id"]], fenetres_proprietaire, fraicheur_max_s, mesure.get("fenetre_source_s")
+        )
         enrichies.append({**mesure, "fraicheur": evaluer(mesure, maintenant, fenetre)})
     return enrichies
 
@@ -220,6 +227,7 @@ __all__ = [
     "ORIGINE_APPELANT",
     "ORIGINE_CATALOGUE",
     "ORIGINE_CONFIGURATION",
+    "ORIGINE_SOURCE",
     "ORIGINE_TERMINALE",
     "REJ_FENETRE_APPELANT_INVALIDE",
     "REJ_MAINTENANT_INVALIDE",

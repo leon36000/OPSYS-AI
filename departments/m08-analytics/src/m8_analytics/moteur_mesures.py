@@ -16,16 +16,20 @@ Forme d'une mesure lue (``MesureLue``) : ``metric_id``, ``nom``, ``unite``, ``pr
 calculable),
 ``manque`` et ``detail`` (ce qu'il faut fournir, et de qui), ``entrees`` lues, ``source`` (la source gouvernée),
 ``version_definition``, ``dernier_fait_le`` (l'instant du fait le plus récent qui porte la mesure, ``None`` si aucun) et
-``fraicheur_declaree`` (la fenêtre ou ``terminale`` du catalogue).
+``fraicheur_declaree`` (la fenêtre ou ``terminale`` du catalogue), ``couverture`` (``complete``, ``partielle`` avec ce
+qui est couvert et ce qui ne l'est pas, ou ``inconnue`` pour une mesure non calculable) et ``fenetre_source_s`` (la
+fenêtre de fraîcheur que le département SOURCE déclare lui-même, ``None`` sinon : ``fraicheur_mesures`` retient la
+plus stricte des fenêtres). Les mesures interdépartements (``mesures_interdepartements``) lisent aussi le registre
+``operations`` des constats de M7, M5, M3 et M6.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from . import catalogue_mesures, contenus, encodage, entonnoir, synthese
+from . import catalogue_mesures, contenus, encodage, entonnoir, mesures_interdepartements, synthese
 
-_CLES_REGISTRES = ("chantier", "entonnoir", "contenus", "cash_libre")
+_CLES_REGISTRES = ("chantier", "entonnoir", "contenus", "cash_libre", "operations")
 
 # Événements dont chaque métrique par contenu a besoin (l'instant du dernier fait vient du plus récent d'entre eux).
 _EVENEMENTS_CONTENUS = {
@@ -39,7 +43,7 @@ _EVENEMENTS_CONTENUS = {
 
 
 def normaliser_registres(registres: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
-    """Les quatre registres sous forme de listes de faits (copie), chacun présent. Une clé inconnue ou un registre qui
+    """Les cinq registres sous forme de listes de faits (copie), chacun présent. Une clé inconnue ou un registre qui
     n'est pas une liste de faits est un refus : une lecture ne devine jamais un registre vide."""
     inconnues = set(registres) - set(_CLES_REGISTRES)
     manquantes = set(_CLES_REGISTRES) - set(registres)
@@ -57,7 +61,7 @@ def normaliser_registres(registres: dict[str, Any]) -> dict[str, list[dict[str, 
 
 
 def empreinte_registres(registres: dict[str, Any]) -> str:
-    """Empreinte déterministe du contenu des quatre registres : la même suite de faits donne la même empreinte, un fait
+    """Empreinte déterministe du contenu des cinq registres : la même suite de faits donne la même empreinte, un fait
     de plus (ou de moins, ou changé) en donne une autre. C'est ce qui dit qu'un entrepôt construit est en retard."""
     lus = normaliser_registres(registres)
     return encodage.empreinte([lus[cle] for cle in _CLES_REGISTRES])
@@ -82,6 +86,7 @@ def _mesures_brutes(registres: dict[str, list[dict[str, Any]]]) -> list[dict[str
         mesure["dernier_fait_le"] = _plus_recent([instants.get(evenement) for evenement in evenements])
         brutes.append(mesure)
     brutes.extend(synthese.mesurer(registres["chantier"], registres["cash_libre"], synthese.charger_definitions()))
+    brutes.extend(mesures_interdepartements.mesurer(registres, mesures_interdepartements.charger_definitions()))
     return brutes
 
 
@@ -105,6 +110,9 @@ def lire(registres: dict[str, Any], catalogue: dict[str, Any] | None = None) -> 
                 "manque": [{"champ": "calcul", "source": "M8", "raison": "aucun moteur ne produit cette mesure"}],
                 "dernier_fait_le": None,
             }
+        couverture = brute.get("couverture")
+        if couverture is None:
+            couverture = {"etat": "complete" if brute["statut"] == entonnoir.STATUT_CALCULEE else "inconnue"}
         resultat.append(
             {
                 "metric_id": entree["metric_id"],
@@ -123,6 +131,8 @@ def lire(registres: dict[str, Any], catalogue: dict[str, Any] | None = None) -> 
                 "version_definition": entree["version_definition"],
                 "dernier_fait_le": brute["dernier_fait_le"],
                 "fraicheur_declaree": dict(entree["fraicheur"]),
+                "couverture": couverture,
+                "fenetre_source_s": brute.get("fenetre_source_s"),
             }
         )
     return resultat

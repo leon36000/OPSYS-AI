@@ -4,7 +4,7 @@ Prouve : le catalogue est fermé et validé (clé inconnue, énuméré hors list
 invalide,
 métrique non définie = refus typé) ; chaque entrée tient nom, unité, propriétaire et version de sa définition
 gouvernée ;
-le moteur lit les 18 mesures depuis les registres fictifs avec leur provenance, sans jamais inventer un zéro ; les
+le moteur lit les 34 mesures depuis les registres fictifs avec leur provenance, sans jamais inventer un zéro ; les
 mesures
 de synthèse (chantiers, écart d'équipe, signal de matériaux, cash libre) reprennent les verdicts des départements.
 """
@@ -35,7 +35,7 @@ def brut():
 def test_le_catalogue_livre_est_valide_ferme_et_complet():
     catalogue = catalogue_mesures.charger()
     ids = [entree["metric_id"] for entree in catalogue["mesures"]]
-    assert len(ids) == len(set(ids)) == 18
+    assert len(ids) == len(set(ids)) == 34  # 18 de la tranche 1 + 16 interdépartements
     assert set(ids) == set(catalogue_mesures.definitions_gouvernees())  # toute métrique gouvernée est au catalogue
     assert len(catalogue["version_catalogue"]) == 64
     for entree in catalogue["mesures"]:
@@ -47,7 +47,11 @@ def test_aucune_mesure_du_catalogue_n_est_personnelle():
     catalogue = catalogue_mesures.charger()
     assert {entree["sensibilite"] for entree in catalogue["mesures"]} <= {"agregat", "financier"}
     financiers = {e["metric_id"] for e in catalogue["mesures"] if e["sensibilite"] == "financier"}
-    assert financiers == {"m8_carnet_signe_cad", "m8_cash_libre_cad"}
+    assert financiers == {
+        "m8_carnet_signe_cad", "m8_cash_libre_cad", "m8_marge_reelle_cumulee_cad", "m8_ecart_marge_cumule_cad",
+        "m8_creances_ouvertes_cad", "m8_creances_90_jours_plus_cad", "m8_comptes_a_payer_cad",
+        "m8_releves_depense_pub_cad", "m8_ecart_depense_pub_comptabilisee_cad",
+    }
     for entree in catalogue["mesures"]:
         assert "technicien" not in entree["metric_id"] and "client" not in entree["metric_id"]
 
@@ -111,10 +115,10 @@ def test_la_normalisation_replie_accents_casse_et_ponctuation():
 # ---------------------------------------------------------------------------
 # Le moteur : les registres deviennent des mesures, une seule fois
 # ---------------------------------------------------------------------------
-def test_le_moteur_lit_les_dix_huit_mesures_avec_provenance():
+def test_le_moteur_lit_les_trente_quatre_mesures_avec_provenance():
     mesures = moteur_mesures.lire(jeux_fictifs.registres_fictifs())
     par_id = {m["metric_id"]: m for m in mesures}
-    assert len(mesures) == 18
+    assert len(mesures) == 34
     assert par_id["m8_leads_recus"]["valeur"] == "20" and par_id["m8_devis_acceptes"]["valeur"] == "6"
     assert par_id["m8_taux_acceptation_pct"]["valeur"] == "50.00"
     assert par_id["m8_carnet_signe_cad"]["valeur"] == "25000.00"  # 6 devis acceptés − 4 chantiers terminés = 2 × 12500
@@ -135,7 +139,7 @@ def test_impressions_et_clics_restent_non_calculables_jamais_zero():
 
 
 def test_registres_vides_toutes_les_mesures_sont_non_calculables_avec_ce_qui_manque():
-    vide = {"chantier": [], "entonnoir": [], "contenus": [], "cash_libre": []}
+    vide = {"chantier": [], "entonnoir": [], "contenus": [], "cash_libre": [], "operations": []}
     for mesure in moteur_mesures.lire(vide):
         assert mesure["statut"] == "non_calculable" and mesure["valeur"] is None
         assert mesure["manque"] and mesure["detail"].startswith("non calculable, manque")

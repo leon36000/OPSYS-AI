@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from . import cash_libre, contenus, entonnoir, mesures_chantier
+from . import cash_libre, contenus, entonnoir, mesures_chantier, operations_recues
 
 FICTIF = True
 
@@ -49,15 +49,23 @@ def registres_fictifs(
     contenus_exportes: int = 3,
     prix_devis: str = "12500.00",
     delai_acceptation_jours: int = 0,
+    avec_operations: bool = False,
 ) -> dict[str, list[dict[str, Any]]]:
-    """Les quatre registres (``chantier``, ``entonnoir``, ``contenus``, ``cash_libre``) d'une entreprise fictive.
+    """Les cinq registres (``chantier``, ``entonnoir``, ``contenus``, ``cash_libre``, ``operations``) d'une entreprise
+    fictive (``operations`` est vide ici : voir ``operations_fictives`` pour les constats de M5, M6 et M7).
 
     Les comptes sont des paramètres, jamais calculés au hasard : ``leads`` reçus, dont ``qualifies`` qualifiés ;
     ``envoyes`` devis envoyés, dont ``acceptes`` acceptés et ``sans_reponse`` constatés sans réponse ; ``chantiers``
     terminés (les premiers devis acceptés), de durée estimée 100 minutes et réelle 100 + ``ecart_duree_pct`` ;
     ``signaux_materiaux`` d'entre eux avec un signal critique de M6. ``cash_libre_cad=None`` : M5 a constaté « non
     calculable ». ``delai_acceptation_jours`` avance l'arrivée des leads de ce nombre de jours (le délai du lead à
-    l'acceptation). Les contenus exportés par M7 sont rapportés par les leads de M1 (clé ``utm_content``)."""
+    l'acceptation). Les contenus exportés par M7 sont rapportés par les leads de M1 (clé ``utm_content``).
+
+    ``avec_operations`` : ajoute les constats de M5, M6 et M7 du registre ``operations`` (``operations_fictives``) et
+    rend les traces de rentabilité de M5 définitives (prix facturé définitif, coût réel complet), pour que les mesures
+    interdépartements aient de quoi se calculer. Par défaut rien n'est ajouté : les mesures qui en dépendent sont
+    alors non
+    calculables, comme dans une instance où ces départements n'ont encore rien publié."""
     if not (0 <= qualifies <= leads and 0 <= envoyes <= leads and 0 <= acceptes <= envoyes):
         raise ValueError("comptes incohérents : qualifies ≤ leads, envoyes ≤ leads, acceptes ≤ envoyes")
     if not 0 <= sans_reponse <= envoyes - acceptes or not 0 <= chantiers <= acceptes:
@@ -179,6 +187,7 @@ def registres_fictifs(
                     "marge_reelle_cad": "3000.00",
                     "cout_reel_complet": True,
                     "manque": [],
+                    **({"prix_definitif": True} if avec_operations else {}),
                 }
             )
         )
@@ -198,6 +207,17 @@ def registres_fictifs(
                     "en_deficit": False,
                     "manque": [],
                     "reserves": [],
+                    **(
+                        {"composantes": [
+                            {
+                                "id": "comptes_a_payer",
+                                "statut": "CALCULE",
+                                "montant_cad": "459.91",
+                                "plancher_cad": None,
+                            }
+                        ]}
+                        if avec_operations else {}
+                    ),
                 }
             )
         )
@@ -248,7 +268,102 @@ def registres_fictifs(
         "entonnoir": faits_entonnoir,
         "contenus": faits_contenus,
         "cash_libre": faits_cash,
+        "operations": operations_fictives(jour) if avec_operations else [],
     }
+
+
+def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
+    """Les constats FICTIFS de M5, M6 et M7 du registre ``operations``, construits par le VRAI constructeur
+    (``operations_recues.fait``) : trois jours de relevés de dépense Google Ads et un de Meta (hors taxes, sans trou),
+    les signaux de M7 qui disent la fraîcheur de leurs sources, deux conversions hors ligne, trois anomalies (dont une
+    critique), un constat comptable de M5 (créances de 7 210,55 $ dont rien à 90 jours et plus) et trois réceptions de
+    M6 (dont une avec écart)."""
+    veille = (date.fromisoformat(jour) - timedelta(days=1)).isoformat()
+    avant_veille = (date.fromisoformat(jour) - timedelta(days=2)).isoformat()
+    lu = _instant(jour, 6)
+
+    def depense(identifiant: str, canal: str, debut: str, montant: str) -> dict[str, Any]:
+        return operations_recues.fait(
+            operations_recues.TYPE_DEPENSE,
+            {
+                "releve_id": identifiant, "revision": 1, "canal": canal, "periode_debut": debut, "periode_fin": debut,
+                "montant_cad": montant, "devise": "CAD", "base_taxes": "HORS_TAXES", "source": "RELEVE_PLATEFORME",
+                "releve_le": lu,
+            },
+        )
+
+    def signal(source: str, heures: int) -> dict[str, Any]:
+        return operations_recues.fait(
+            operations_recues.TYPE_SIGNAUX,
+            {
+                "source": source, "compte_ref": "compte-fictif-1", "flux": "depenses", "mode": "api_lecture",
+                "periode_debut": avant_veille, "periode_fin": veille, "faits_nouveaux": 1, "faits_revises": 0,
+                "faits_inchanges": 0, "derniere_lecture_reussie_le": lu, "donnees_jusqu_au": veille,
+                "fraicheur_fenetre_h": heures, "fictif": False,
+            },
+        )
+
+    def conversion(rang: int, type_: str) -> dict[str, Any]:
+        return operations_recues.fait(
+            operations_recues.TYPE_CONVERSION,
+            {
+                "conversion_id": _id("conv", rang), "lead_id": _id("lead", rang), "type": type_, "convertie_le": veille,
+                "utm_source": "google", "utm_medium": "cpc", "utm_campaign": None, "valeur_cad": "4500.00",
+                "source_normalisee": True, "importee_le": _instant(jour, 7, rang),
+            },
+        )
+
+    def anomalie(rang: int, severite: str) -> dict[str, Any]:
+        return operations_recues.fait(
+            operations_recues.TYPE_ANOMALIE,
+            {
+                "anomalie_id": f"{rang:032x}", "canal": "google_ads", "campagne_ref": None, "regle": "DEP-01",
+                "severite": severite, "valeur": "310.50", "seuil": "200.00", "unite": "CAD", "jour_debut": veille,
+                "jour_fin": veille, "detectee_le": _instant(jour, 7, rang), "fictif": False,
+            },
+        )
+
+    def reception(rang: int, verdict: str) -> dict[str, Any]:
+        return operations_recues.fait(
+            operations_recues.TYPE_RECEPTION,
+            {
+                "evenement_id": f"m6-reception-fictive-{rang}", "po_id": _id("po", rang),
+                "horodatage_reception": _instant(jour, 9, rang), "verdict_reception": verdict, "statut_po": "received",
+                "hash_maillon": f"{rang:064x}",
+            },
+        )
+
+    return [
+        depense("releve-g1", "google_ads", avant_veille, "120.00"),
+        depense("releve-g2", "google_ads", veille, "135.50"),
+        depense("releve-g3", "google_ads", jour, "98.25"),
+        depense("releve-m1", "meta", veille, "60.00"),
+        signal("google_ads", 48),
+        signal("meta_ads", 72),
+        conversion(1, "rendez_vous"),
+        conversion(2, "vente"),
+        anomalie(1, "critique"),
+        anomalie(2, "attention"),
+        anomalie(3, "info"),
+        operations_recues.fait(
+            operations_recues.TYPE_MESURES_COMPTABLES,
+            {
+                "date_reference": jour, "version_donnees": "0123456789abcdef",
+                "creances": {
+                    "nombre": 3, "total": "7210.55",
+                    "par_tranche": {"0-30": "4000.00", "31-60": "2210.55", "61-90": "1000.00", "90+": "0.00"},
+                },
+                "relances_en_brouillon": 2, "brouillons_en_attente": 4, "ecritures_definitives": 12,
+                "derniere_periode_close": "2026-09", "paiements_prepares": {"nombre": 1, "total": "459.91"},
+                "rapprochements": {"prepares": 2, "confirmes": 1, "a_ecart": 0},
+                "notes_de_credit": {"nombre": 0, "total": "0.00"}, "depenses_employes": {"nombre": 1, "total": "32.10"},
+                "pieces_liees": 5,
+            },
+        ),
+        reception(1, "CONFORME"),
+        reception(2, "CONFORME"),
+        reception(3, "RECEPTION_INFERIEURE"),
+    ]
 
 
 # Bornes de démonstration FICTIVES du score de santé (pire = 0 point, cible = 100 points), pour la calibration

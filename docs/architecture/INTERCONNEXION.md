@@ -71,7 +71,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | `m6.materiel_pret` | M6 | M4 |  |
 | `m6.note_commande_referencee` | M6 | M10 |  |
 | `m6.po_courriel_pret` | M6 | M1 |  |
-| `m6.reception_enregistree` | M6 | M5 |  |
+| `m6.reception_enregistree` | M6 | M5, M8 |  |
 | `m6.variance_chantier` | M6 | M3, M4, M5, M8, M10 |  |
 | `m7.anomalie_depense_detectee` | M7 | M8, M9 |  |
 | `m7.contenu_exporte` | M7 | M8 |  |

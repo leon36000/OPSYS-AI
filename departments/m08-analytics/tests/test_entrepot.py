@@ -75,7 +75,9 @@ def test_aucune_personne_dans_l_entrepot(catalogue):
 
 def test_une_mesure_non_calculable_n_a_pas_de_valeur_et_aucun_zero_n_est_invente(catalogue):
     vide = entrepot.construire(
-        moteur_mesures.normaliser_registres({"chantier": [], "entonnoir": [], "contenus": [], "cash_libre": []}),
+        moteur_mesures.normaliser_registres(
+            {"chantier": [], "entonnoir": [], "contenus": [], "cash_libre": [], "operations": []}
+        ),
         catalogue,
         construit_le=_INSTANT,
         rang_precedent=0,

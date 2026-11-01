@@ -324,6 +324,126 @@ def fait_consolide(graine: str = "a", **plus: Any) -> dict[str, Any]:
     return _valide("m8.fait_consolide", charge)
 
 
+def travaux_termines(wct_id: str = "wct-fictif-1", devis_id: str | None = "devis-fictif-1", minutes: int = 120,
+                     **plus: Any) -> dict[str, Any]:
+    """Un chantier terminé de M4 (charge du catalogue ; le technicien est un identifiant fictif de M4)."""
+    charge = {
+        "wct_id": wct_id, "intervention_id": "int-" + wct_id, "lead_id": "lead-" + wct_id,
+        "technicien_id": "tech-fictif-a", "horodatage_completion": "2026-10-28T14:00:00-04:00",
+        "fix_gps_completion": {"latitude": 45.75, "longitude": -73.5}, "duree_reelle_minutes": minutes,
+        "ecart_signale": False, "revue_id": None, "hash_maillon": "deadbeef", "consommateurs_cibles": ["M8"],
+        "devis_id": devis_id, "statut": "completed_verified",
+    }
+    charge.update(plus)
+    return _valide("m4.travaux_termines", charge)
+
+
+def devis_accepte(devis_id: str = "devis-fictif-1", prix: str = "10000.00", cout: str = "7000.00",
+                  **plus: Any) -> dict[str, Any]:
+    charge = {
+        "devis_id": devis_id, "lead_id": "lead-" + devis_id, "chantier_id": None,
+        "lignes": [{
+            "reference_ligne": devis_id + "-L0", "description": "Gouttières (fictif)", "quantite": "40", "unite": "pi",
+            "prix_unitaire": "250.00", "prix_ligne": prix, "reference_besoin_materiau": None,
+        }],
+        "cout_total": cout, "prix_total": prix, "taux_marge": "0.30", "duree_estimee_minutes": "100",
+        "horodatage_acceptation": "2026-10-20T09:00:00-04:00",
+    }
+    charge.update(plus)
+    return _valide("m3.devis_accepte", charge)
+
+
+def rentabilite(wct_id: str = "wct-fictif-1", devis_id: str = "devis-fictif-1", sequence: int = 1,
+                marge: str | None = "3200.00", definitif: bool = True, **plus: Any) -> dict[str, Any]:
+    """Trace de rentabilité de M5 : CALCULÉE (marge chiffrée) ou PARTIELLE (`marge=None`, aucune marge ne part)."""
+    calculee = marge is not None
+    charge = {
+        "evenement_id": f"m5-rentabilite-{devis_id}-{sequence}-{empreinte('v', wct_id, str(sequence))[:16]}",
+        "devis_id": devis_id, "chantier_id": None, "wct_id": wct_id, "sequence": sequence,
+        "version_entrees": empreinte("entrees", wct_id, str(sequence)),
+        "horodatage_completion": "2026-10-28T14:00:00-04:00", "verdict": "CALCULEE" if calculee else "PARTIELLE",
+        "devise": "CAD", "prix_definitif": definitif, "cout_reel_complet": calculee,
+        "cout_reel_cad": "6800.00" if calculee else None, "cout_connu_cad": "6800.00" if calculee else "3000.00",
+        "marge_reelle_cad": marge, "marge_prevue_cad": "3000.00" if calculee else None,
+        "ecart_marge_cad": None, "manque": [] if calculee else ["REJ-COUT-MATERIAUX-MANQUANTS"],
+    }
+    if calculee:
+        charge["ecart_marge_cad"] = "200.00"
+    charge.update(plus)
+    return _valide("m5.rentabilite_chantier", charge)
+
+
+def cash_libre(sequence: int = 1, jour: str = "2026-10-29", comptes_a_payer: str | None = "459.91",
+               **plus: Any) -> dict[str, Any]:
+    """Constat du cash libre de M5 (seules les composantes utiles : solde et comptes à payer ; le reste à 100,00)."""
+    libelles = {"taxes_a_remettre": "TPS/TVQ", "paies": "Paies", "das": "DAS", "comptes_a_payer": "Comptes à payer",
+                "dettes": "Dettes", "reserves": "Réserves"}
+
+    def composante(cid: str, montant: str | None, calculee: bool = True) -> dict[str, Any]:
+        registres = [{"registre": "mouvements", "taille": 3, "tete": "0123456789abcdef"}] if calculee else []
+        return {
+            "id": cid, "libelle": libelles.get(cid, "solde"), "statut": "CALCULE" if calculee else "NON_CALCULABLE",
+            "montant_cad": montant, "plancher_cad": None if calculee else "300.00",
+            "source": {"origine": "REGISTRE" if calculee else "AUCUNE", "registres": registres},
+            "fraicheur": {"derniere_piece": "2026-09-14" if calculee else None, "pieces": 1 if calculee else 0},
+        }
+
+    complet = comptes_a_payer is not None
+    composantes = [
+        composante(cid, comptes_a_payer if cid == "comptes_a_payer" else "100.00", complet or cid != "comptes_a_payer")
+        for cid in libelles
+    ]
+    charge = {
+        "evenement_id": f"m5-cash-libre-{sequence}-{jour}-aaaaaaaaaaaaaaaa", "sequence": sequence,
+        "date_reference": jour,
+        "version_donnees": empreinte("cash", str(sequence), jour), "devise": "CAD",
+        "statut": "CALCULE" if complet else "NON_CALCULABLE", "cash_libre_cad": "1000.00" if complet else None,
+        "au_plus_cad": None if complet else "1200.00", "en_deficit": False if complet else None,
+        "lecture": "Cash libre fictif.", "solde": composante("solde", "5000.00"), "composantes": composantes,
+        "manque": [] if complet else [{"composante": "comptes_a_payer", "code": "REJ-CASH-AP-INCOMPLET"}],
+        "reserves": [], "hypotheses": [],
+        "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision "
+                   "officielle ou action réelle.",
+    }
+    charge.update(plus)
+    return _valide("m5.cash_libre_constate", charge)
+
+
+def reception_m6(po_id: str = "po-fictif-1", rang: int = 1, verdict: str = "CONFORME", **plus: Any) -> dict[str, Any]:
+    """Une réception de M6 (le fournisseur et les lignes voyagent dans la charge : M8 n'en garde rien)."""
+    charge = {
+        "evenement_id": f"m6-reception-{po_id}-{rang}", "po_id": po_id, "fournisseur_id": "fournisseur-fictif-x",
+        "chantier_id": "chantier-fictif-1", "horodatage_reception": f"2026-10-2{rang}T11:00:00-04:00",
+        "verdict_reception": verdict, "statut_po": "received", "hash_maillon": f"{rang:064x}",
+        "seuil_ecart_prix_pourcentage": None,
+        "lignes": [{
+            "materiau_id": "materiau-fictif", "quantite_demandee": "10", "quantite_recue": "10",
+            "prix_unitaire_prevu": "12.50", "devise_prevue": "CAD", "verdict_prix_po": "PRIX_LIVRE",
+            "prix_unitaire_reception": "12.50", "verdict_prix_reception": "PRIX_CATALOGUE",
+            "ecart_prix_critique": False,
+        }],
+    }
+    charge.update(plus)
+    return _valide("m6.reception_enregistree", charge)
+
+
+def lead_qualifie_m1(lead_id: str = "lead-fictif-1", **plus: Any) -> dict[str, Any]:
+    """Une demande qualifiée par M1 : la charge porte le CONTACT (nom, courriel, téléphone fictifs) que M8 ne garde
+    pas."""
+    charge = {
+        "lead": {
+            "schema_version": 2, "lead_id": lead_id, "conversation_id": "conv-" + lead_id,
+            "contact": {
+                "nom": "Jeanne Fictive", "courriel": "jeanne.fictive@example.test", "telephone": "514-555-0199",
+            },
+            "service": "toiture", "ville": "Québec", "urgence_declaree": False, "canal": "courriel",
+        },
+        "horodatage": "2026-10-28T08:00:00-04:00", "signal_id": "courriel:" + lead_id,
+    }
+    charge.update(plus)
+    return _valide("m1.lead_qualifie", charge)
+
+
 def publier_depuis(
     producteur: str, type_evenement: str, charge: dict[str, Any], evenement_id: str | None = None
 ) -> str:

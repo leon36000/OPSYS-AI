@@ -1,10 +1,10 @@
-"""Ce que M7, M5 et M3 ont constaté et que M8 range tel quel (interconnexion des départements, bus d'événements).
+"""Ce que M7, M5, M3 et M6 ont constaté et que M8 range tel quel (interconnexion des départements, bus d'événements).
 
 Module PUR (ADR-0009) : aucun import d'``opsys``, aucune horloge (« aujourd'hui » vient de l'appelant). ``outils.py``,
 seul point de contact avec le socle, reçoit les événements, range les faits au registre ``faits_operations`` et lit ce
 registre pour la section « operations_recues » de la vue exécutive.
 
-Six types, tous des CONSTATS d'un département propriétaire, que M8 reprend sans les refaire :
+Sept types, tous des CONSTATS d'un département propriétaire, que M8 reprend sans les refaire :
 
 - ``m7.signaux_marketing_constates`` : quelle source de données propres a été lue, sur quelle période, avec quelle
   fraîcheur (aucune valeur de mesure : les faits eux-mêmes se lisent chez M7) ;
@@ -15,7 +15,9 @@ action) ;
 - ``m7.conversion_hors_ligne_importee`` : une issue (appel, rendez-vous, soumission signée, vente) rattachée à une
   source normalisée ; elle compte une issue, elle n'explique pas son origine ;
 - ``m5.mesures_comptables_constatees`` : les nombres et montants comptés par M5 dans ses propres registres ;
-- ``m3.mesure_vision_validee`` : une mesure de vision VALIDÉE (par référence ou par une personne), jamais un candidat.
+- ``m3.mesure_vision_validee`` : une mesure de vision VALIDÉE (par référence ou par une personne), jamais un candidat ;
+- ``m6.reception_enregistree`` : une livraison de matériaux reçue contre un bon de commande (verdict de M6 repris : ni
+  fournisseur, ni ligne de prix, ni quantité).
 
 Principes :
 
@@ -30,6 +32,12 @@ Principes :
 4. FICTIF À PART. Un constat ``fictif`` (compte de démonstration) est rangé mais n'entre dans aucune somme ni liste :
    il est compté dans ``fictifs_ignores``.
 5. ABSENT = « manque ». Sans aucun fait, la section n'existe pas (la vue exécutive reste inchangée).
+6. PROVENANCE. Chaque fait porte `provenance` : le type d'événement source, l'identifiant d'événement quand la charge
+   en porte un, et l'EMPREINTE de la charge reçue (avant toute réduction). Elle ne fait pas partie de la clé de
+   contenu : le même constat rejoué sous un autre `evenement_id` n'ajoute toujours rien.
+
+Les mesures d'entreprise du catalogue qui en dérivent (dépenses de M7, créances de M5, réceptions de M6...) sont dans
+``mesures_interdepartements.py`` ; la section « operations_recues » de la vue exécutive ne montre pas les réceptions.
 """
 
 from __future__ import annotations
@@ -39,12 +47,15 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from . import encodage
+
 TYPE_SIGNAUX = "signaux_marketing_constates"
 TYPE_DEPENSE = "depense_marketing_constatee"
 TYPE_ANOMALIE = "anomalie_depense_detectee"
 TYPE_CONVERSION = "conversion_hors_ligne_importee"
 TYPE_MESURES_COMPTABLES = "mesures_comptables_constatees"
 TYPE_MESURE_VISION = "mesure_vision_validee"
+TYPE_RECEPTION = "reception_materiaux"
 
 EVENEMENT_PAR_TYPE = {
     "m7.signaux_marketing_constates": TYPE_SIGNAUX,
@@ -53,7 +64,9 @@ EVENEMENT_PAR_TYPE = {
     "m7.conversion_hors_ligne_importee": TYPE_CONVERSION,
     "m5.mesures_comptables_constatees": TYPE_MESURES_COMPTABLES,
     "m3.mesure_vision_validee": TYPE_MESURE_VISION,
+    "m6.reception_enregistree": TYPE_RECEPTION,
 }
+_EVENEMENT_DU_TYPE = {type_entree: evenement for evenement, type_entree in EVENEMENT_PAR_TYPE.items()}
 
 MENTION_COMPTABLE = "À valider auprès d'un comptable (CPA) / professionnel qualifié"
 _CLES_UNICITE = {
@@ -70,6 +83,7 @@ _CLES_UNICITE = {
     TYPE_CONVERSION: ("conversion_id",),
     TYPE_MESURES_COMPTABLES: ("date_reference", "version_donnees"),
     TYPE_MESURE_VISION: ("candidat_id",),
+    TYPE_RECEPTION: ("po_id", "hash_maillon"),
 }
 # Ce que M8 garde d'une mesure de vision : ni la photo, ni le modèle, ni l'empreinte de décision.
 _CLES_VISION = (
@@ -82,6 +96,10 @@ _CLES_VISION = (
     "origine_valeur",
     "voie",
 )
+# Ce que M8 garde d'une réception de M6 : le bon de commande, l'empreinte du mouvement de stock, l'instant, le verdict
+# et le statut du bon. Ni le fournisseur, ni le chantier, ni les lignes (prix et quantités) : la réception se compte,
+# elle ne se rejoue pas.
+_CLES_RECEPTION = ("po_id", "hash_maillon", "horodatage_reception", "verdict_reception", "statut_po")
 _ANOMALIES_LISTEES = 5
 _ORDRE_SEVERITE = {"critique": 0, "attention": 1, "info": 2}
 
@@ -91,9 +109,16 @@ def fait(type_entree: str, charge: dict[str, Any]) -> dict[str, Any]:
     l'essentiel (ni photo ni modèle)."""
     if type_entree not in _CLES_UNICITE:
         raise ValueError(f"type d'entrée inconnu : {type_entree!r}")
+    provenance = {
+        "evenement": _EVENEMENT_DU_TYPE[type_entree],
+        "evenement_id": charge.get("evenement_id") if isinstance(charge.get("evenement_id"), str) else None,
+        "empreinte": encodage.empreinte(charge),
+    }
     if type_entree == TYPE_MESURE_VISION:
-        return {"type_entree": type_entree, **{cle: charge[cle] for cle in _CLES_VISION}}
-    return {"type_entree": type_entree, **charge}
+        return {"type_entree": type_entree, **{cle: charge[cle] for cle in _CLES_VISION}, "provenance": provenance}
+    if type_entree == TYPE_RECEPTION:
+        return {"type_entree": type_entree, **{cle: charge[cle] for cle in _CLES_RECEPTION}, "provenance": provenance}
+    return {"type_entree": type_entree, **charge, "provenance": provenance}
 
 
 def cles_unicite(type_entree: str) -> tuple[str, ...]:
@@ -212,14 +237,22 @@ def _conversions(faits: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _mesures_comptables(faits: list[dict[str, Any]], aujourd_hui: str | None) -> dict[str, Any] | None:
+def dernier_constat_comptable(faits: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Le dernier constat des mesures comptables de M5 : la plus grande date de référence, puis le dernier reçu (une
+    version nouvelle le même jour est un nouveau constat). Quel que soit l'ordre de livraison du bus. ``None`` sans
+    constat. Une seule règle, pour la vue exécutive comme pour les mesures du catalogue."""
     constats = _de_type(faits, TYPE_MESURES_COMPTABLES)
     if not constats:
         return None
-    # Le dernier constat : la plus grande date de référence, puis le dernier reçu (une version nouvelle le même jour
-    # est un nouveau constat).
     indice = max(range(len(constats)), key=lambda i: (constats[i]["date_reference"], i))
-    dernier = constats[indice]
+    return constats[indice]
+
+
+def _mesures_comptables(faits: list[dict[str, Any]], aujourd_hui: str | None) -> dict[str, Any] | None:
+    constats = _de_type(faits, TYPE_MESURES_COMPTABLES)
+    dernier = dernier_constat_comptable(faits)
+    if dernier is None:
+        return None
     age = None
     if aujourd_hui is not None:
         try:
@@ -247,7 +280,9 @@ def _mesures_comptables(faits: list[dict[str, Any]], aujourd_hui: str | None) ->
 
 
 def section(faits: list[dict[str, Any]], aujourd_hui: str | None = None) -> dict[str, Any] | None:
-    """La section « operations_recues » de la vue exécutive, ou ``None`` sans aucun fait (la vue reste inchangée)."""
+    """La section « operations_recues » de la vue exécutive, ou ``None`` sans aucun fait (la vue reste inchangée). Les
+    réceptions de matériaux de M6 n'y figurent pas : elles se lisent par leurs mesures du catalogue."""
+    faits = [f for f in faits if f.get("type_entree") != TYPE_RECEPTION]
     if not faits:
         return None
     visions = _de_type(faits, TYPE_MESURE_VISION)
@@ -338,8 +373,10 @@ __all__ = [
     "TYPE_DEPENSE",
     "TYPE_MESURES_COMPTABLES",
     "TYPE_MESURE_VISION",
+    "TYPE_RECEPTION",
     "TYPE_SIGNAUX",
     "cles_unicite",
+    "dernier_constat_comptable",
     "fait",
     "reduire",
     "resume_recu",

@@ -1,0 +1,24 @@
+# Wallboard « finance et opérations » : ce que M5 (marge, créances, comptes à payer), M4 (heures sur site) et M6 (réceptions de
+# matériaux) ont publié et que l'entrepôt de M8 a rangé. Définition DÉCLARATIVE : mesures du catalogue fermé, aucune mesure n'est
+# calculée ici, aucun seuil n'est inventé (tuiles sans `seuils` : « sans seuil »). Une tuile à couverture PARTIELLE (par exemple
+# « 2 chantiers sur 4 ») le dit et fait passer la bannière à « attention » : une valeur partielle n'est jamais montrée comme
+# complète. Montants financiers : admin seulement (rôle relu en base par la console).
+schema: opsys.m8.wallboard/v1
+id: finance-operations
+version: 1
+titre: "Finance et opérations"
+description: "Marge, créances, comptes à payer, heures sur site et réceptions de matériaux, tels que les départements les ont publiés."
+roles: [admin]
+rafraichissement: {intervalle_s: 60, flux_max: 60}
+rotation: {actif: false, intervalle_s: 20}
+tuiles:
+  - {id: chantiers-marge, mesure: m8_chantiers_marge_reelle, titre: "Chantiers à marge chiffrée", page: 1}
+  - {id: marge-cumulee, mesure: m8_marge_reelle_cumulee_cad, titre: "Marge réelle cumulée", page: 1}
+  - {id: en-perte, mesure: m8_chantiers_en_perte, titre: "Chantiers en perte", page: 1}
+  - {id: ecart-marge, mesure: m8_ecart_marge_cumule_cad, titre: "Écart de marge (réelle moins prévue)", page: 1}
+  - {id: creances, mesure: m8_creances_ouvertes_cad, titre: "Créances ouvertes", page: 2}
+  - {id: creances-vieilles, mesure: m8_creances_90_jours_plus_cad, titre: "Créances de 90 jours et plus", page: 2}
+  - {id: a-payer, mesure: m8_comptes_a_payer_cad, titre: "Comptes à payer", page: 2}
+  - {id: heures, mesure: m8_heures_sur_site_chantiers, titre: "Heures sur site", page: 3}
+  - {id: receptions, mesure: m8_receptions_materiaux, titre: "Réceptions de matériaux", page: 3}
+  - {id: receptions-ecart, mesure: m8_receptions_avec_ecart, titre: "Réceptions avec écart", page: 3}

@@ -80,6 +80,9 @@ evenements:
   # anomalies, conversions hors ligne), de M5 (mesures comptables) et de M3 (mesures de vision validées). Registre
   # `faits_operations` (un fait par clé de contenu, jamais un nom ni un contact) ; la vue exécutive en tire la section
   # `operations_recues` (absente tant que rien n'est reçu). M8 ne refait aucun constat.
+  # Entrepôt interdépartements (docs/architecture/M8-ENTREPOT-SOURCES.md) : les mêmes constats alimentent aussi 16 mesures du
+  # catalogue fermé (métriques `m8-interdepartements`) ; M8 reçoit en plus les réceptions de matériaux de M6
+  # (`m6.reception_enregistree` : bon de commande, verdict, instant ; ni fournisseur, ni ligne, ni prix).
   consomme:
     - m4.travaux_termines
     - m3.devis_accepte
@@ -98,6 +101,7 @@ evenements:
     - m7.conversion_hors_ligne_importee
     - m5.mesures_comptables_constatees
     - m3.mesure_vision_validee
+    - m6.reception_enregistree
   publie: [m8.alerte_proposee, m8.snapshot_chantier, m8.fait_consolide]
 configuration:
   # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11

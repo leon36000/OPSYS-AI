@@ -1,0 +1,146 @@
+# metrics-as-code v1 : les mesures INTERDÉPARTEMENTS de M8 (entrepôt alimenté par M1, M3, M4, M5, M6 et M7 ; décision
+# d'architecte « chaque département autonome ET interconnecté, de même profondeur »). Même patron que `m8-synthese.v1.yaml` :
+# compilé par `m8_analytics.dictionnaire.compiler_fichier` (garde de devise CAD comprise) ; `mesures_interdepartements` refuse de
+# calculer une métrique absente d'ici. Chaque métrique a un calcul déterministe dans le code : le LLM ne calcule jamais. Une entrée
+# absente donne « non calculable, manque X », jamais une valeur inventée ; une entrée présente en partie donne une valeur dont la
+# COUVERTURE est dite (« n chantiers sur N »), jamais une valeur présentée comme complète.
+#
+# Ce sont des métriques d'ENTREPRISE (aucune personne, aucun technicien, aucun client, aucun fournisseur) qui reprennent les
+# constats que les départements propriétaires ont publiés sur le bus. M8 ne refait aucun constat : il compte, il additionne les
+# montants arrêtés par le propriétaire de la donnée, et il DIT ce que sa mesure ne couvre pas. Les montants de M5 sont repris
+# tels quels (créances, comptes à payer) ou cumulés par chantier (marge) ; aucun n'est recalculé.
+#
+# `proprietaires` : le département qui tient la vérité de la donnée source (DEFINITION-PRODUIT.md §8).
+schema_version: 1
+module: m08-analytics
+owner_calcul: "M8 (le LLM ne calcule jamais)"
+proprietaires:
+  m8_chantiers_marge_reelle: m05-financecore
+  m8_marge_reelle_cumulee_cad: m05-financecore
+  m8_chantiers_en_perte: m05-financecore
+  m8_ecart_marge_cumule_cad: m05-financecore
+  m8_creances_ouvertes_cad: m05-financecore
+  m8_creances_90_jours_plus_cad: m05-financecore
+  m8_comptes_a_payer_cad: m05-financecore
+  m8_releves_depense_pub_cad: m07-marketing
+  m8_conversions_hors_ligne: m07-marketing
+  m8_anomalies_depense_critiques: m07-marketing
+  m8_ecart_depense_pub_comptabilisee_cad: m05-financecore
+  m8_heures_sur_site_chantiers: m04-field-ops
+  m8_receptions_materiaux: m06-material-control
+  m8_receptions_avec_ecart: m06-material-control
+  m8_demandes_qualifiees_m1: m01-front-office
+  m8_demandes_m1_sans_lead_m2: m01-front-office
+metrics:
+  - id: m8_chantiers_marge_reelle
+    nom: "Chantiers à marge réelle chiffrée"
+    definition: "Nombre de chantiers terminés (M4, wct_id distincts) dont M5 a chiffré la marge réelle : verdict CALCULÉE, coût réel complet ET facture au prix définitif (envoyée ou payée), l'état courant de M5 étant son fait de plus grand `sequence`. La couverture (n sur N chantiers terminés) est dite. Aucun chantier chiffré : non calculable, jamais un zéro."
+    unite: "chantiers"
+    source_donnees: "M5 m5.rentabilite_chantier (verdict, prix_definitif, cout_reel_complet, marge_reelle_cad, sequence) ; M4 m4.travaux_termines (wct_id)"
+    frequence: "à chaque nouvelle trace de rentabilité de M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_marge_reelle_cumulee_cad
+    nom: "Marge réelle cumulée des chantiers chiffrés"
+    definition: "Somme, en dollars canadiens avant taxes, des marges réelles que M5 a chiffrées (prix facturé définitif moins coût réel complet) pour les chantiers terminés dont la marge est chiffrée. Ce n'est PAS la marge de l'entreprise : les chantiers sans marge chiffrée n'y sont pas, et la couverture (n sur N) est dite. Aucun chantier chiffré : non calculable. Analyse préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.rentabilite_chantier (marge_reelle_cad) ; M4 m4.travaux_termines (wct_id)"
+    frequence: "à chaque nouvelle trace de rentabilité de M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_chantiers_en_perte
+    nom: "Chantiers en perte"
+    definition: "Nombre de chantiers dont la marge réelle chiffrée par M5 est strictement négative, parmi les chantiers à marge réelle chiffrée (m8_chantiers_marge_reelle). Un chantier sans marge chiffrée n'est ni en perte ni rentable : il n'est pas compté. Aucun chantier chiffré : non calculable."
+    unite: "chantiers"
+    source_donnees: "M5 m5.rentabilite_chantier (marge_reelle_cad) ; M4 m4.travaux_termines (wct_id)"
+    frequence: "à chaque nouvelle trace de rentabilité de M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_ecart_marge_cumule_cad
+    nom: "Écart cumulé de marge (réelle moins prévue)"
+    definition: "ÉCART DE DÉFINITION entre deux départements : somme, en dollars canadiens, de la marge réelle de M5 moins la marge prévue du devis accepté de M3 (prix moins coût arrêtés par M3), pour les chantiers terminés qui portent les deux. Négatif = la réalité rapporte moins que la promesse. Les chantiers qui ne portent qu'un des deux côtés sont comptés à part, jamais ignorés en silence. Aucun chantier mesurable : non calculable."
+    unite: "CAD"
+    source_donnees: "M5 m5.rentabilite_chantier (marge_reelle_cad) ; M3 m3.devis_accepte (prix_total, cout_total) ; M4 m4.travaux_termines (wct_id, devis_id)"
+    frequence: "à chaque nouvelle trace de rentabilité de M5 ou devis accepté"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_creances_ouvertes_cad
+    nom: "Créances ouvertes"
+    definition: "Le total des créances ouvertes que M5 a constaté en dernier (m5.mesures_comptables_constatees : le constat de plus grande date de référence), tel que M5 l'a publié : aucun calcul, aucun arrondi. Un constat dont le total ne correspond pas à la somme de ses tranches d'âge est refusé comme incohérent. Aucun constat reçu : non calculable. Analyse préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.mesures_comptables_constatees (creances.total, creances.par_tranche, date_reference)"
+    frequence: "à chaque constat des mesures comptables demandé à M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_creances_90_jours_plus_cad
+    nom: "Créances de quatre-vingt-dix jours et plus"
+    definition: "La tranche « 90+ » des créances ouvertes du dernier constat de M5 (m5.mesures_comptables_constatees), telle que M5 l'a publiée. Même règle de cohérence et même absence de calcul que m8_creances_ouvertes_cad. Aucun constat reçu : non calculable. À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.mesures_comptables_constatees (creances.par_tranche, date_reference)"
+    frequence: "à chaque constat des mesures comptables demandé à M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_comptes_a_payer_cad
+    nom: "Comptes à payer"
+    definition: "La composante « comptes à payer » du dernier constat du cash libre de M5 (m5.cash_libre_constate : le constat de plus grand `sequence`), telle que M5 l'a publiée. Si M5 n'a pas pu la chiffrer, la mesure est non calculable et nomme le code de M5 ; le plancher que M5 connaît est dit, jamais pris pour le total. Aucun constat reçu : non calculable. À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.cash_libre_constate (composantes.comptes_a_payer, manque, sequence, date_reference)"
+    frequence: "à chaque constat du cash libre demandé à M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_releves_depense_pub_cad
+    nom: "Somme des relevés de dépense publicitaire reçus"
+    definition: "Somme, en dollars canadiens, des DERNIÈRES révisions des relevés de dépense publicitaire (Google Ads, Meta) que M7 a reçus des plateformes, sur les jours que ces relevés couvrent. Ce n'est PAS la dépense réelle de l'entreprise : un jour sans relevé n'est pas un zéro, et la dépense comptabilisée par M5 est une autre définition (voir m8_ecart_depense_pub_comptabilisee_cad). Refusée (non calculable) quand les bases de taxes des relevés diffèrent ou quand deux relevés d'un même canal se chevauchent. Les jours sans relevé à l'intérieur de la période couverte rendent la couverture partielle, dite. Fraîcheur : la plus stricte de la fenêtre de M8 et de celle que M7 déclare pour ses sources publicitaires."
+    unite: "CAD"
+    source_donnees: "M7 m7.depenses_marketing_constatees (releve_id, revision, canal, periode, montant_cad, base_taxes, releve_le) ; M7 m7.signaux_marketing_constates (fraicheur_fenetre_h des sources publicitaires)"
+    frequence: "à chaque relevé de dépense lu par M7"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_conversions_hors_ligne
+    nom: "Conversions hors ligne importées"
+    definition: "Nombre de conversions hors ligne (appel, rendez-vous, soumission signée, vente) que M7 a importées et rattachées à un lead de M2 (conversion_id distincts). Une conversion compte une issue : elle n'explique pas son origine, et celles dont la source n'est pas normalisée sont comptées à part. Aucune conversion reçue : non calculable, M8 ne peut pas distinguer « aucune issue » de « rien livré »."
+    unite: "conversions"
+    source_donnees: "M7 m7.conversion_hors_ligne_importee (conversion_id, type, source_normalisee, importee_le)"
+    frequence: "à chaque import de conversions hors ligne"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_anomalies_depense_critiques
+    nom: "Anomalies de dépense critiques"
+    definition: "Nombre d'anomalies de sévérité « critique » que les règles transparentes de M7 ont détectées sur les dépenses publicitaires (anomalie_id distincts, comptes de démonstration exclus et comptés à part). Aucune anomalie réelle reçue : non calculable, M8 ne peut pas distinguer « aucune anomalie » de « rien livré »."
+    unite: "anomalies"
+    source_donnees: "M7 m7.anomalie_depense_detectee (anomalie_id, severite, fictif, detectee_le)"
+    frequence: "à chaque anomalie détectée par M7"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_ecart_depense_pub_comptabilisee_cad
+    nom: "Écart entre relevés publicitaires et dépense comptabilisée"
+    definition: "ÉCART DE DÉFINITION entre M7 (somme des relevés reçus des plateformes) et M5 (dépense publicitaire réellement comptabilisée au grand livre). Aujourd'hui NON CALCULABLE par construction : M5 range un brouillon de charge pour chaque relevé (la validation est humaine, N4) mais ne publie aucun total comptabilisé, et M8 ne lit pas le grand livre de M5. La mesure existe pour que cet écart soit visible et nommé, jamais moyenné ni deviné. Décision requise : voir docs/architecture/M8-ENTREPOT-SOURCES.md."
+    unite: "CAD"
+    source_donnees: "M5 (aucun événement ne publie les charges de marketing comptabilisées) ; M7 m7.depenses_marketing_constatees"
+    frequence: "sans objet tant que M5 ne publie pas la dépense comptabilisée"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_heures_sur_site_chantiers
+    nom: "Heures sur site des chantiers terminés"
+    definition: "Somme, en heures, des durées réelles sur site (pauses déduites) que M4 a déclarées pour les chantiers terminés (wct_id distincts). C'est la durée écoulée sur site de chaque chantier, pas des heures-personnes. Un chantier dont la durée est illisible est compté à part, jamais ignoré en silence. Aucun chantier terminé : non calculable."
+    unite: "heures"
+    source_donnees: "M4 m4.travaux_termines (wct_id, duree_reelle_minutes)"
+    frequence: "à chaque chantier terminé"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_receptions_materiaux
+    nom: "Réceptions de matériaux"
+    definition: "Nombre de livraisons de matériaux que M6 a enregistrées contre un bon de commande (une réception par bon de commande et mouvement de stock). Ni le fournisseur, ni les lignes, ni les prix ne sont gardés. Aucune réception reçue : non calculable."
+    unite: "réceptions"
+    source_donnees: "M6 m6.reception_enregistree (po_id, hash_maillon, horodatage_reception, verdict_reception)"
+    frequence: "à chaque réception enregistrée par M6"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_receptions_avec_ecart
+    nom: "Réceptions avec écart"
+    definition: "Nombre de réceptions de matériaux dont le verdict de M6 n'est pas « conforme » (réception inférieure, supérieure ou mixte), repris sans le recalculer. Aucune réception reçue : non calculable."
+    unite: "réceptions"
+    source_donnees: "M6 m6.reception_enregistree (po_id, hash_maillon, verdict_reception)"
+    frequence: "à chaque réception enregistrée par M6"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_demandes_qualifiees_m1
+    nom: "Demandes qualifiées par le front office"
+    definition: "Nombre de demandes (lead_id distincts) que M1 a qualifiées et transmises à M2 (m1.lead_qualifie). Autre définition que m8_leads_qualifies (leads que M2 a qualifiés et assignés) : l'écart entre les deux est montré, jamais fondu. Aucune demande reçue de M1 : non calculable."
+    unite: "demandes"
+    source_donnees: "M1 m1.lead_qualifie (lead_id, horodatage)"
+    frequence: "à chaque demande qualifiée par M1"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_demandes_m1_sans_lead_m2
+    nom: "Demandes du front office sans lead dans le CRM"
+    definition: "ÉCART DE DÉFINITION entre M1 et M2 : nombre de demandes que M1 a qualifiées (lead_id) pour lesquelles M2 n'a pas encore reçu de lead (m2.client_associe). Une demande en route, perdue ou ingérée sans client associé y figure ; les leads de M2 que M1 n'a pas qualifiés (autre canal, opportunité rouverte) sont comptés à part. Non calculable sans demande de M1, ou sans aucun lead reçu de M2 (M8 ne peut pas dire si M2 n'a rien reçu ou si le bus n'a rien livré)."
+    unite: "demandes"
+    source_donnees: "M1 m1.lead_qualifie (lead_id) ; M2 m2.client_associe (lead_id)"
+    frequence: "à chaque demande qualifiée par M1 ou lead reçu par M2"
+    consommateur: "wallboard marketing, copilote analytique, entrepôt"
