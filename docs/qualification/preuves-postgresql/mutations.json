@@ -1,0 +1,217 @@
+[
+ {
+  "id": "M01 rowcount accepté à -1 (défaut d'origine rétabli)",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 1 passed in 1.85s",
+  "echecs": [
+   "FAILED tests/test_postgresql_parite_cas.py::test_transition_d_etat_de_connaissance_sans_concurrence_n_est_plus_refusee[postgresql]"
+  ],
+  "duree_s": 2.1
+ },
+ {
+  "id": "M02 verrou de ligne des états de connaissance retiré",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 3 passed in 2.60s",
+  "echecs": [
+   "FAILED tests/test_postgresql_parite_cas.py::test_huit_transitions_simultanees_de_connaissance_n_en_ecrivent_qu_une[postgresql]"
+  ],
+  "duree_s": 2.8
+ },
+ {
+  "id": "M03 verrou de ligne des arêtes du graphe retiré",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 7 passed in 4.05s",
+  "echecs": [
+   "FAILED tests/test_postgresql_parite_cas.py::test_confirmation_et_rejet_simultanes_d_une_arete_n_en_ecrivent_qu_un[postgresql]"
+  ],
+  "duree_s": 4.4
+ },
+ {
+  "id": "M04 termes sans guillemets dans la requête websearch (« or » = opérateur)",
+  "resultat": "SURVIVANTE",
+  "resume": "59 passed in 9.35s",
+  "echecs": [],
+  "duree_s": 9.6,
+  "equivalente": true
+ },
+ {
+  "id": "M05 classement inversé (pire d'abord)",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 12 passed in 3.20s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_la_limite_garde_les_meilleurs_candidats_sur_les_deux_moteurs[postgresql]"
+  ],
+  "duree_s": 3.5
+ },
+ {
+  "id": "M06 filtre de versions retiré de la requête PostgreSQL",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 36 passed in 5.75s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_une_version_retiree_disparait_et_la_remplacante_se_trouve"
+  ],
+  "duree_s": 6.0
+ },
+ {
+  "id": "M07 score PostgreSQL rendu sans changement de signe",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 10 passed in 3.21s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_la_valeur_rendue_est_dans_le_sens_naturel_et_jamais_un_zero_negatif"
+  ],
+  "duree_s": 3.5
+ },
+ {
+  "id": "M08 adaptateur SQLite choisi pour PostgreSQL",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 3 passed in 2.39s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_0053_descente_refusee_avec_donnees_puis_permise_a_vide_et_remontable"
+  ],
+  "duree_s": 2.7
+ },
+ {
+  "id": "M09 migration 0053 sans déclencheur d'immuabilité",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 2 passed in 1.85s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_0053_sur_pg_cree_la_table_la_colonne_generee_l_index_gin_et_le_declencheur"
+  ],
+  "duree_s": 2.1
+ },
+ {
+  "id": "M10 colonne générée en 'french' alors que le code interroge en 'simple'",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 2 passed in 1.93s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_0053_sur_pg_cree_la_table_la_colonne_generee_l_index_gin_et_le_declencheur"
+  ],
+  "duree_s": 2.2
+ },
+ {
+  "id": "M11 réservation d'approbation sans condition d'état",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 1 passed, 8 deselected in 12.51s",
+  "echecs": [
+   "FAILED tests/test_postgresql_concurrence_processus.py::test_n_processus_decident_la_meme_approbation_l_outil_ne_s_execute_qu_une_fois[postgresql]"
+  ],
+  "duree_s": 12.9
+ },
+ {
+  "id": "M12 bail : un détenteur non expiré est cédé",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 8 deselected in 4.54s",
+  "echecs": [
+   "FAILED tests/test_postgresql_concurrence_processus.py::test_n_executeurs_se_disputent_une_ressource_un_seul_obtient_le_bail_puis_la_reprise_est_unique[sqlite]"
+  ],
+  "duree_s": 4.8
+ },
+ {
+  "id": "M13 créneau de planificateur sans comparaison-échange",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 1 passed, 8 deselected in 10.26s",
+  "echecs": [
+   "FAILED tests/test_postgresql_concurrence_processus.py::test_n_processus_reservent_le_meme_creneau_de_planificateur_un_seul_passe[postgresql]"
+  ],
+  "duree_s": 10.5
+ },
+ {
+  "id": "M14 réservation d'envoi sans condition « APPROUVE »",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 1 passed, 8 deselected in 10.57s",
+  "echecs": [
+   "FAILED tests/test_postgresql_concurrence_processus.py::test_n_processus_reservent_l_envoi_du_meme_brouillon_approuve_un_seul_part[postgresql]"
+  ],
+  "duree_s": 10.8
+ },
+ {
+  "id": "M15 idempotence : conflit d'insertion non résolu par relecture",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 1 passed, 8 deselected in 11.12s",
+  "echecs": [
+   "FAILED tests/test_postgresql_concurrence_processus.py::test_n_processus_rejouent_la_meme_cle_d_idempotence_une_seule_execution_fraiche[postgresql]"
+  ],
+  "duree_s": 11.4
+ },
+ {
+  "id": "M16 filtre des termes sains retiré (adaptateur PostgreSQL)",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 23 passed in 4.60s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_l_adaptateur_n_interprete_aucun_terme_non_normalise[postgresql--tau]"
+  ],
+  "duree_s": 4.8
+ },
+ {
+  "id": "M17 filtre des termes sains retiré (adaptateur SQLite)",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 13 passed in 3.57s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_l_adaptateur_n_interprete_aucun_terme_non_normalise[sqlite--tau]"
+  ],
+  "duree_s": 3.8
+ },
+ {
+  "id": "M18 colonne tsv ordinaire au lieu de générée",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 2 passed in 1.98s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_0053_sur_pg_cree_la_table_la_colonne_generee_l_index_gin_et_le_declencheur"
+  ],
+  "duree_s": 2.2
+ },
+ {
+  "id": "M19 requête PostgreSQL sans ORDER BY",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 12 passed in 3.44s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_la_limite_garde_les_meilleurs_candidats_sur_les_deux_moteurs[postgresql]"
+  ],
+  "duree_s": 3.7
+ },
+ {
+  "id": "M20 requête SQLite sans ORDER BY",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 11 passed in 3.33s",
+  "echecs": [
+   "FAILED tests/test_connaissances_postgresql.py::test_la_limite_garde_les_meilleurs_candidats_sur_les_deux_moteurs[sqlite]"
+  ],
+  "duree_s": 3.6
+ },
+ {
+  "id": "M21 déclencheur 0053 qualifié « public. » (installation dans un autre schéma impossible)",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 2 deselected in 2.09s",
+  "echecs": [
+   "FAILED tests/test_postgresql_migrations_chaine.py::test_la_chaine_s_installe_dans_deux_schemas_distincts_de_la_meme_base"
+  ],
+  "duree_s": 2.4
+ },
+ {
+  "id": "M22 déclencheurs d'immuabilité de fusion_ap_ocr_sources et service_attestations_m4 non posés sur PostgreSQL",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 4 deselected in 1.78s",
+  "echecs": [
+   "FAILED tests/test_postgresql_parite_schema.py::test_toute_table_a_declencheurs_sur_sqlite_a_leur_equivalent_sur_postgresql"
+  ],
+  "duree_s": 2.1
+ },
+ {
+  "id": "M23 colonnes evenement_id laissées à 128 caractères",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 1 passed, 5 deselected in 1.82s",
+  "echecs": [
+   "FAILED tests/test_postgresql_parite_schema.py::test_un_identifiant_d_evenement_de_160_caracteres_est_accepte_sur_les_deux_moteurs[postgresql]"
+  ],
+  "duree_s": 2.1
+ },
+ {
+  "id": "M24 fuseau de session PostgreSQL non épinglé",
+  "resultat": "TUÉE",
+  "resume": "1 failed, 6 deselected in 1.69s",
+  "echecs": [
+   "FAILED tests/test_postgresql_parite_schema.py::test_le_fuseau_de_session_est_epingle_a_utc_meme_si_la_base_a_un_autre_fuseau"
+  ],
+  "duree_s": 1.9
+ }
+]

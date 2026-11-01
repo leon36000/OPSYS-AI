@@ -31,10 +31,11 @@ import datetime as dt
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from sqlalchemy import Connection, bindparam, select, text
+from sqlalchemy import Connection, select
 
 from ..stockage.schema import CONNAISSANCES_FRAGMENTS, CONNAISSANCES_VECTEURS
 from . import etats, index, isolation, normalisation, ports, vecteurs
+from . import lexical as index_lexical
 from .codes import (
     ESPACE_INCOMPATIBLE,
     PLAFOND_VOLUME,
@@ -131,23 +132,8 @@ def _valider(requete: object, departements: object, k: object, mode: object, eta
 
 def _candidats_lexicaux(cnx: Connection, termes_requete: list[str], version_ids: list[str], limite: int
                         ) -> list[tuple[str, float]]:
-    """`[(chunk_id, bm25)]` du meilleur au moins bon. bm25() de FTS5 : plus petit = meilleur."""
-    index.exiger_sqlite(cnx)
-    expression = normalisation.requete_fts(termes_requete)
-    if not expression:
-        return []
-    instruction = text(
-        "SELECT f.chunk_id AS chunk_id, bm25(connaissances_fts) AS s FROM connaissances_fts "
-        "JOIN connaissances_fragments f ON f.chunk_id = connaissances_fts.chunk_id "
-        "WHERE connaissances_fts MATCH :q AND f.version_id IN :vids ORDER BY s, f.version_id, f.rang LIMIT :n"
-    ).bindparams(bindparam("vids", expanding=True))
-    trouves: list[tuple[str, float]] = []
-    for i in range(0, len(version_ids), LOT_VERSIONS):
-        lot = version_ids[i:i + LOT_VERSIONS]
-        trouves.extend((r[0], float(r[1])) for r in cnx.execute(instruction, {"q": expression, "vids": lot,
-            "n": limite}))
-    trouves.sort(key=lambda t: t[1])  # tri stable : à égalité, l'ordre déjà départagé par SQL (version, rang)
-    return trouves[:limite]
+    """`[(chunk_id, ordre)]` du meilleur au moins bon (ordre croissant), par l'adaptateur du moteur de la base."""
+    return index_lexical.pour(cnx).candidats(cnx, termes_requete, version_ids, limite)
 
 
 def _ordre_lecture(versions: Mapping[str, Mapping[str, Any]], fragment: Mapping[str, Any]) -> tuple[Any, ...]:
@@ -210,6 +196,7 @@ def rechercher(
     termes_requete = normalisation.termes_uniques(requete)
 
     # -- voie lexicale
+    adaptateur_lexical = index_lexical.pour(cnx)
     lexical: list[tuple[str, float]] = []
     if mode in ("hybride", "lexical"):
         if not termes_requete:
@@ -278,7 +265,7 @@ def rechercher(
     # -- fusion
     rang_lex = {c: i for i, (c, _) in enumerate(lexical, start=1)}
     rang_vec = {c: i for i, (c, _) in enumerate(vectoriel, start=1)}
-    bm25 = dict(lexical)
+    bm25 = dict(lexical)  # « ordre » de l'adaptateur (croissant) ; rendu par `valeur_rendue`
     similarite = dict(vectoriel)
     scores = rrf([[c for c, _ in lexical], [c for c, _ in vectoriel]], reglages.rrf_k)
     fragments = _charger_fragments(cnx, list(scores))
@@ -317,7 +304,9 @@ def rechercher(
         f, v = fragments[chunk_id], versions[fragments[chunk_id]["version_id"]]
         resultats.append(_resultat(rang, f, v, reference, filtre, {
             "rrf": round(scores[chunk_id], 6),
-            "lexical": {"rang": rang_lex[chunk_id], "bm25": round(bm25[chunk_id], 6)} if chunk_id in rang_lex else None,
+            "lexical": ({"rang": rang_lex[chunk_id],
+                        adaptateur_lexical.mesure: round(adaptateur_lexical.valeur_rendue(bm25[chunk_id]), 6)}
+                        if chunk_id in rang_lex else None),
             "vectoriel": ({"rang": rang_vec[chunk_id], "similarite": round(similarite[chunk_id], 6)}
                           if chunk_id in rang_vec else None),
             "reranker": round(notes[chunk_id], 6) if chunk_id in notes else None,

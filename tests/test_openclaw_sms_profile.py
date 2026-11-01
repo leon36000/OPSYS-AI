@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 from agents_base_qa import provisionner_base_qa
-from sqlalchemy import MetaData, Table, select, update
+from sqlalchemy import MetaData, Table, inspect, select, update
 from sqlalchemy.exc import IntegrityError
 
 from opsys import agents, departements, identite, openclaw
@@ -44,7 +44,7 @@ def _encoder(valeur):
 
 
 def snapshot_sql(cnx):
-    noms = cnx.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").scalars()
+    noms = sorted(inspect(cnx).get_table_names())
     resultat = {}
     for nom in noms:
         table = schema.META.tables.get(nom)

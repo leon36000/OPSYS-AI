@@ -8,6 +8,7 @@ import struct
 import zlib
 
 import pytest
+from sqlalchemy import text
 
 from opsys import fichiers
 
@@ -369,9 +370,10 @@ def test_lire_blob_verifie_refuse_un_bloc_corrompu(session):
     empreinte = hashlib.sha256(contenu).hexdigest()
     with session() as cnx:
         assert _deposer(cnx, contenu, "image/png").complet
-        cnx.exec_driver_sql(
-            "UPDATE fichiers_blocs SET contenu_base64 = ? WHERE empreinte_sha256 = ? AND index_bloc = 0",
-            (base64.b64encode(contenu[:-1] + b"x").decode(), empreinte),
+        cnx.execute(
+            text("UPDATE fichiers_blocs SET contenu_base64 = :contenu WHERE empreinte_sha256 = :empreinte "
+                 "AND index_bloc = 0"),
+            {"contenu": base64.b64encode(contenu[:-1] + b"x").decode(), "empreinte": empreinte},
         )
         lecture = fichiers.lire_blob_verifie(cnx, fichiers.reference_pour(empreinte))
     assert lecture.accepte is False

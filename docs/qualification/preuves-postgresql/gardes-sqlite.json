@@ -1,0 +1,639 @@
+[
+ {
+  "fichier": "src/opsys/agent_cfo_grants.py",
+  "ligne": 41,
+  "fonction": "_sqlite_uniquement",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "GrantCfoRefuse('grants CFO agents non disponibles hors SQLite à ce jalon')"
+ },
+ {
+  "fichier": "src/opsys/agents_declencheurs.py",
+  "ligne": 87,
+  "fonction": "_transaction",
+  "garde": "make_url(stockage.url_base()).get_backend_name() != 'sqlite'",
+  "effet": "DeclencheurRefuse('CRON-SQLITE-REQUIS')"
+ },
+ {
+  "fichier": "src/opsys/agents_declencheurs.py",
+  "ligne": 91,
+  "fonction": "_transaction",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "DeclencheurRefuse('CRON-SQLITE-REQUIS')"
+ },
+ {
+  "fichier": "src/opsys/cles_chiffrement.py",
+  "ligne": 167,
+  "fonction": "_nettoyer_fichiers_courants",
+  "garde": "engine.dialect.name != 'sqlite'",
+  "effet": "return (False, 'backend_non_qualifie')"
+ },
+ {
+  "fichier": "src/opsys/console/comptes_terrain.py",
+  "ligne": 51,
+  "fonction": "_capturer",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "lecture.Refus('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "src/opsys/console/couts_marketing.py",
+  "ligne": 75,
+  "fonction": "executer_action",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('REJ-COUT-MARKETING-BACKEND-NON-PRIS-EN-CHARGE')"
+ },
+ {
+  "fichier": "src/opsys/console/crm_ui.py",
+  "ligne": 694,
+  "fonction": "creer_router.confirmer_dates_plan",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "HTTPException(503, 'Modification des dates indisponible sur cette instance')"
+ },
+ {
+  "fichier": "src/opsys/console/devis_modele_ui.py",
+  "ligne": 82,
+  "fonction": "creer_router.nouveau",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "HTTPException(503, 'Création non qualifiée sur cette instance')"
+ },
+ {
+  "fichier": "src/opsys/console/finance_snapshot_prive.py",
+  "ligne": 62,
+  "fonction": "_guard_registers",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('backend non qualifié')"
+ },
+ {
+  "fichier": "src/opsys/console/finance_snapshot_prive.py",
+  "ligne": 253,
+  "fonction": "capturer_snapshot_prive",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('capture financière indisponible')"
+ },
+ {
+  "fichier": "src/opsys/console/frontoffice_marketing.py",
+  "ligne": 79,
+  "fonction": "creer_router.dans_source_suivi",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "RuntimeError('source non qualifiée')"
+ },
+ {
+  "fichier": "src/opsys/console/memoire_apprentissage_ui.py",
+  "ligne": 88,
+  "fonction": "_backend_sqlite",
+  "garde": "stockage.moteur().dialect.name != 'sqlite'",
+  "effet": "BackendNonPrisEnCharge('aperçu M10 : backend SQLite uniquement, concurrence PostgreSQL non qualifiée')"
+ },
+ {
+  "fichier": "src/opsys/console/memoire_chantier.py",
+  "ligne": 17,
+  "fonction": "_admin",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "lecture.Refus('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "src/opsys/console/meteo_dates_chantier.py",
+  "ligne": 18,
+  "fonction": "preparer",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "lecture.Refus('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "src/opsys/console/metier.py",
+  "ligne": 218,
+  "fonction": "_executer_edition_texte",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "return {'accepte': False, 'verdict': {'code': 'REJ-TEXTE-ECRITURE-NON-QUALIFIEE', 'detail': 'édition qualif"
+ },
+ {
+  "fichier": "src/opsys/console/metier.py",
+  "ligne": 264,
+  "fonction": "_port_cmo",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "ValueError('CMO-PORT-NON-QUALIFIE')"
+ },
+ {
+  "fichier": "src/opsys/console/metier.py",
+  "ligne": 375,
+  "fonction": "_executer_observation_growth_humaine",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "ValueError('GROWTH-ECRITURE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "src/opsys/console/metier.py",
+  "ligne": 439,
+  "fonction": "_executer_note_commande",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "return {'ok': True, 'resultat': n.refuser('ECRITURE-NON-QUALIFIEE')}"
+ },
+ {
+  "fichier": "src/opsys/console/notes_commande_ui.py",
+  "ligne": 128,
+  "fonction": "creer_router.appeler",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "HTTPException(503, 'Écriture des notes indisponible sur cette instance')"
+ },
+ {
+  "fichier": "src/opsys/console/prefill_ui.py",
+  "ligne": 99,
+  "fonction": "creer_router.lecture",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "HTTPException(503, 'Écriture non qualifiée sur cette instance')"
+ },
+ {
+  "fichier": "src/opsys/console/preparation_chantier.py",
+  "ligne": 109,
+  "fonction": "lire",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "Refus('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "src/opsys/console/reprise_visite.py",
+  "ligne": 91,
+  "fonction": "preparer",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "lecture.Refus('ARGUMENTS')"
+ },
+ {
+  "fichier": "src/opsys/console/temps_pointes.py",
+  "ligne": 35,
+  "fonction": "_cible",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "lecture.Refus('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "src/opsys/documents_affaire_instance.py",
+  "ligne": 125,
+  "fonction": "copier_registre_m10",
+  "garde": "dialecte not in ('sqlite', 'postgresql')",
+  "effet": ""
+ },
+ {
+  "fichier": "src/opsys/documents_affaire_lecture_appareil.py",
+  "ligne": 67,
+  "fonction": "_connexion",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": ""
+ },
+ {
+  "fichier": "src/opsys/documents_affaire_transactions.py",
+  "ligne": 81,
+  "fonction": "_connexion",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": ""
+ },
+ {
+  "fichier": "src/opsys/evenements/bus.py",
+  "ligne": 370,
+  "fonction": "copier_cohorte_provenance_m5_m8",
+  "garde": "dialecte not in ('sqlite', 'postgresql')",
+  "effet": "ValueError('dialecte de provenance invalide')"
+ },
+ {
+  "fichier": "src/opsys/evenements/inventaire_calibration.py",
+  "ligne": 40,
+  "fonction": "_connexion",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "InventaireRefuse('backend_source_non_qualifie')"
+ },
+ {
+  "fichier": "src/opsys/evenements/reconciliateur_cout_certifie.py",
+  "ligne": 263,
+  "fonction": "reconcilier",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "return resume"
+ },
+ {
+  "fichier": "src/opsys/exportation.py",
+  "ligne": 160,
+  "fonction": "_base_sqlite",
+  "garde": "cible.get_backend_name() != 'sqlite'",
+  "effet": "ErreurExportation(\"cette commande exporte la base SQLite de l'instance locale. Pour PostgreSQL (Docker Compose), utilisez deploy/backup.sh (docs/ops/EXPLOITATION.md).\")"
+ },
+ {
+  "fichier": "src/opsys/exportation.py",
+  "ligne": 382,
+  "fonction": "_verifier_base",
+  "garde": "revision_sqlite != revision",
+  "effet": "ErreurExportation(f'la révision SQLite ({revision_sqlite!r}) ne correspond pas à celle du manifeste ({revision!r}) : restauration refusée.')"
+ },
+ {
+  "fichier": "src/opsys/fusion_csv.py",
+  "ligne": 261,
+  "fonction": "_isoler_transaction",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "FusionErreur('STOCKAGE_NON_QUALIFIE', 'Fusion opérationnelle est qualifiée SQLite seulement', 503)"
+ },
+ {
+  "fichier": "src/opsys/liaison_cibles.py",
+  "ligne": 132,
+  "fonction": "_sqlite_uniquement",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "CibleRefusee('liaison de cible temporairement désactivée hors de SQLite')"
+ },
+ {
+  "fichier": "src/opsys/memoire_liaison.py",
+  "ligne": 41,
+  "fonction": "main",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "return 1"
+ },
+ {
+  "fichier": "src/opsys/moteur_recalcul_m4.py",
+  "ligne": 115,
+  "fonction": "_verifier",
+  "garde": "self.cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RefusRecalculM4(VERROU_ECRITURE_ABSENT, 'écouteur BEGIN IMMEDIATE absent pendant la portée')"
+ },
+ {
+  "fichier": "src/opsys/moteur_recalcul_m4.py",
+  "ligne": 251,
+  "fonction": "_recalculer",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RefusRecalculM4(BACKEND_NON_SQLITE, 'recalcul certifié qualifié pour SQLite seulement')"
+ },
+ {
+  "fichier": "src/opsys/notes_commande_affaire.py",
+  "ligne": 41,
+  "fonction": "resoudre",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "RattachementRefuse('BACKEND-NON-QUALIFIE')"
+ },
+ {
+  "fichier": "src/opsys/openclaw.py",
+  "ligne": 137,
+  "fonction": "configuration_cron_memoire_developpement",
+  "garde": "url.get_backend_name() != 'sqlite'",
+  "effet": "ValueError('cron M10 exige une base SQLite fichier sans identifiants de connexion')"
+ },
+ {
+  "fichier": "src/opsys/reception_courriel_stockage.py",
+  "ligne": 40,
+  "fonction": "_autoriser",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "PermissionError('COURRIEL-AUTORITE-REFUSEE')"
+ },
+ {
+  "fichier": "src/opsys/receptions_tarifs.py",
+  "ligne": 33,
+  "fonction": "_connexion",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": ""
+ },
+ {
+  "fichier": "src/opsys/service_acteur_systeme.py",
+  "ligne": 125,
+  "fonction": "verifier",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "PermissionError('acteur système qualifié pour SQLite seulement')"
+ },
+ {
+  "fichier": "src/opsys/service_capability.py",
+  "ligne": 71,
+  "fonction": "_verifier",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RefusAutorite('portée transactionnelle non vérifiable')"
+ },
+ {
+  "fichier": "src/opsys/service_capability.py",
+  "ligne": 137,
+  "fonction": "courante",
+  "garde": "portee.cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RefusAutorite('backend non qualifié')"
+ },
+ {
+  "fichier": "src/opsys/service_capability.py",
+  "ligne": 218,
+  "fonction": "_base",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RefusAutorite('garde SQLite indisponible')"
+ },
+ {
+  "fichier": "src/opsys/service_capability.py",
+  "ligne": 313,
+  "fonction": "_projection_m4",
+  "garde": "self.portee.cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RefusAutorite('projection non qualifiée sur ce backend')"
+ },
+ {
+  "fichier": "src/opsys/service_capability.py",
+  "ligne": 490,
+  "fonction": "_revoquer",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RefusAutorite('backend non qualifié')"
+ },
+ {
+  "fichier": "src/opsys/service_history_m4.py",
+  "ligne": 126,
+  "fonction": "attester",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RefusAutorite('backend non qualifié')"
+ },
+ {
+  "fichier": "src/opsys/service_history_m4.py",
+  "ligne": 154,
+  "fonction": "lire_historique",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RefusAutorite('transaction non qualifiée')"
+ },
+ {
+  "fichier": "src/opsys/service_lecture_m4.py",
+  "ligne": 112,
+  "fonction": "_verifier",
+  "garde": "c.engine.dialect.name != 'sqlite'",
+  "effet": "sc.RefusAutorite('portée de lecture inactive')"
+ },
+ {
+  "fichier": "src/opsys/service_lecture_m4.py",
+  "ligne": 537,
+  "fonction": "_ouvrir_interne",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "sc.RefusAutorite('contexte de lecture invalide')"
+ },
+ {
+  "fichier": "src/opsys/service_politiques.py",
+  "ligne": 59,
+  "fonction": "_exiger_contexte",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RefusOperateur('BACKEND_NON_SQLITE', 'opérateur qualifié pour SQLite seulement')"
+ },
+ {
+  "fichier": "src/opsys/service_recalcul_m4.py",
+  "ligne": 70,
+  "fonction": "_verifier",
+  "garde": "c.engine.dialect.name != 'sqlite'",
+  "effet": "sc.RefusAutorite('portée recalcul non vérifiable')"
+ },
+ {
+  "fichier": "src/opsys/service_recalcul_m4.py",
+  "ligne": 332,
+  "fonction": "lire_historique_v2",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "sc.RefusAutorite('lecture non qualifiée')"
+ },
+ {
+  "fichier": "src/opsys/stockage/base_cron_operateur.py",
+  "ligne": 15,
+  "fonction": "identite_url_cron_operateur",
+  "garde": "valeur.get_backend_name() != 'sqlite'",
+  "effet": "ValueError('base non canonique')"
+ },
+ {
+  "fichier": "src/opsys/stockage/lecture_m1.py",
+  "ligne": 17,
+  "fonction": "borner",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "RuntimeError('source non qualifiée')"
+ },
+ {
+  "fichier": "src/opsys/stockage/maillons.py",
+  "ligne": 56,
+  "fonction": "_verrouiller_m2_principal",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('backend non qualifié pour la garde M2')"
+ },
+ {
+  "fichier": "src/opsys/stockage/maillons.py",
+  "ligne": 215,
+  "fonction": "copier_maillons_stricts",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('transaction SQLite courante requise')"
+ },
+ {
+  "fichier": "departments/m01-front-office/src/m1_front_office/outils.py",
+  "ligne": 1551,
+  "fonction": "_lire_registre_suivi_rappel",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('REJ-SUIVI-RAPPEL-STOCKAGE-NON-QUALIFIE')"
+ },
+ {
+  "fichier": "departments/m01-front-office/src/m1_front_office/outils.py",
+  "ligne": 2048,
+  "fonction": "registre_sms_hote",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('REJ-M1-SMS-SOURCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m01-front-office/src/m1_front_office/rappels_appareil.py",
+  "ligne": 92,
+  "fonction": "_acteur",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "Refus('STOCKAGE-NON-QUALIFIE')"
+ },
+ {
+  "fichier": "departments/m02-revenue-crm/src/m2_revenue_crm/outils.py",
+  "ligne": 687,
+  "fonction": "reconcilier_memoire_contact_client",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "return _refus(verdicts.construire_verdict('REJ-CONTACT-BACKEND-NON-QUALIFIE', detail='lecture qualifiée sur"
+ },
+ {
+  "fichier": "departments/m02-revenue-crm/src/m2_revenue_crm/outils.py",
+  "ligne": 747,
+  "fonction": "corriger_contact_client",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "return _refus(verdicts.construire_verdict('REJ-CONTACT-BACKEND-NON-QUALIFIE', detail='correction qualifiée "
+ },
+ {
+  "fichier": "departments/m02-revenue-crm/src/m2_revenue_crm/outils.py",
+  "ligne": 2535,
+  "fonction": "enregistrer_rendez_vous",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "n.Refus('ECRITURE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m03-estimation/src/m3_estimation/outils.py",
+  "ligne": 2576,
+  "fonction": "enregistrer_modele_soumission",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "n.Refus('ECRITURE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m03-estimation/src/m3_estimation/outils.py",
+  "ligne": 2715,
+  "fonction": "creer_devis_depuis_modele",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "n.Refus('ECRITURE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m03-estimation/src/m3_estimation/outils.py",
+  "ligne": 2847,
+  "fonction": "_mutation_prefill",
+  "garde": "stockage.connexion_courante().dialect.name != 'sqlite'",
+  "effet": "n.Refus('ECRITURE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m03-estimation/src/m3_estimation/service_attente_devis.py",
+  "ligne": 41,
+  "fonction": "_verifier_commun",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('requête M3 invalide')"
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/absences_durables.py",
+  "ligne": 17,
+  "fonction": "capturer",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "Refus('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/composition_durable.py",
+  "ligne": 17,
+  "fonction": "capturer",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "Refus('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/journal_durable.py",
+  "ligne": 23,
+  "fonction": "capturer",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "Refus('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/outils.py",
+  "ligne": 1499,
+  "fonction": "outils.confirmer_dates_cedule",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "return _refus(verdicts.construire_verdict('REJ-FRONTIERE-VIOLEE', detail='confirmation qualifiée sur SQLite"
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/outils.py",
+  "ligne": 3309,
+  "fonction": "_enregistrer_repere",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "n.Refus('ECRITURE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/service_faits_m4.py",
+  "ligne": 26,
+  "fonction": "_lire",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "v2.Refus('REQUETE-INVALIDE')"
+ },
+ {
+  "fichier": "departments/m04-field-ops/src/m4_field_ops/visites_ecriture.py",
+  "ligne": 19,
+  "fonction": "capturer_visites",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "domaine.Refus('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m05-financecore/src/m5_financecore/outils.py",
+  "ligne": 869,
+  "fonction": "_autoriser_tarifs_equipes",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "PermissionError(\"tarifs d'équipe : identité admin console et transaction SQLite requises\")"
+ },
+ {
+  "fichier": "departments/m05-financecore/src/m5_financecore/outils.py",
+  "ligne": 4310,
+  "fonction": "_autorite_couts_marketing",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "couts_marketing.CoutErreur('BACKEND-NON-PRIS-EN-CHARGE')"
+ },
+ {
+  "fichier": "departments/m05-financecore/src/m5_financecore/outils.py",
+  "ligne": 4341,
+  "fonction": "_snapshot_couts_marketing",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "couts_marketing.CoutErreur('BACKEND-NON-PRIS-EN-CHARGE')"
+ },
+ {
+  "fichier": "departments/m05-financecore/src/m5_financecore/port_lecture_courante_m4.py",
+  "ligne": 44,
+  "fonction": "calculer",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "service_capability.RefusAutorite('lecture courante non qualifiée')"
+ },
+ {
+  "fichier": "departments/m06-material-control/src/m6_material_control/catalogue_console.py",
+  "ligne": 49,
+  "fonction": "_autoriser",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "domaine.CatalogueRefuse('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m06-material-control/src/m6_material_control/historique_prix_console.py",
+  "ligne": 28,
+  "fonction": "capturer",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "historique_prix.Refus('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m06-material-control/src/m6_material_control/import_tarifs_console.py",
+  "ligne": 42,
+  "fonction": "capturer",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "catalogue_materiaux.CatalogueRefuse('INSTANCE-NON-QUALIFIEE')"
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/cmo_strategie.py",
+  "ligne": 160,
+  "fonction": "_autorite",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "PermissionError('CMO-PORT-HUMAIN-REQUIS')"
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/growth.py",
+  "ligne": 133,
+  "fonction": "enregistrer_observation_humaine",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "PermissionError('saisie humaine Growth réservée au port console SQLite')"
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/usine/service.py",
+  "ligne": 247,
+  "fonction": "reviser_texte_humain",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "return _refus(verdicts.verdict('REJ-TEXTE-ECRITURE-NON-QUALIFIEE', 'édition qualifiée sur SQLite seulement'"
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/usine/service.py",
+  "ligne": 452,
+  "fonction": "preparer_media_humain",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "return _refus(verdicts.verdict('REJ-MEDIA-ECRITURE-NON-QUALIFIEE', 'mutation média non qualifiée sur ce mot"
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/usine/service.py",
+  "ligne": 535,
+  "fonction": "decider_dossier_medias",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "return _refus(verdicts.verdict('REJ-MEDIA-ECRITURE-NON-QUALIFIEE', 'mutation média non qualifiée sur ce mot"
+ },
+ {
+  "fichier": "departments/m07-marketing/src/m7_marketing/usine/service.py",
+  "ligne": 605,
+  "fonction": "remettre_dossier_medias_manuel",
+  "garde": "cnx.engine.dialect.name != 'sqlite'",
+  "effet": "return _refus(verdicts.verdict('REJ-MEDIA-ECRITURE-NON-QUALIFIEE', 'mutation média non qualifiée sur ce mot"
+ },
+ {
+  "fichier": "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py",
+  "ligne": 63,
+  "fonction": "_sqlite_seulement",
+  "garde": "dialecte != 'sqlite'",
+  "effet": "BackendConsolidationNonPrisEnCharge('backend_non_pris_en_charge : jobs développement SQLite fichier uniquement')"
+ },
+ {
+  "fichier": "departments/m10-memoire/src/m10_memoire/outils.py",
+  "ligne": 588,
+  "fonction": "_verifier_capture_paquets",
+  "garde": "capture.cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('capture inactive')"
+ },
+ {
+  "fichier": "departments/m10-memoire/src/m10_memoire/outils.py",
+  "ligne": 603,
+  "fonction": "capture_paquets_appareil",
+  "garde": "cnx.dialect.name != 'sqlite'",
+  "effet": "ValueError('CAPTURE-M10-INDISPONIBLE')"
+ },
+ {
+  "fichier": "departments/m10-memoire/src/m10_memoire/outils.py",
+  "ligne": 1527,
+  "fonction": "_verifier_invocation_lecture_documentaire",
+  "garde": "invocation.cnx.engine.dialect.name != 'sqlite'",
+  "effet": "RuntimeError('LECTURE-DOCUMENTAIRE-INDISPONIBLE')"
+ }
+]

@@ -177,6 +177,10 @@ class GrapheSql:
                 raise ErreurMnemo(codes.ARETE_TRANSITION, "cette arête a déjà un état")
             self._cnx.execute(insert(ETATS_T).values(**valeurs))
             return
+        # Verrou de ligne de l'arête (PostgreSQL, READ COMMITTED) : sans lui, deux transitions concurrentes lisent le
+        # même état « attendu » et s'écrivent toutes les deux (une arête rejetée pouvait être confirmée). Sans effet
+        # sur SQLite.
+        self._cnx.execute(select(ARETES_T.c.arete_id).where(ARETES_T.c.arete_id == arete_id).with_for_update())
         courant = (
             select(ETATS_T.c.etat)
             .where(ETATS_T.c.arete_id == arete_id)

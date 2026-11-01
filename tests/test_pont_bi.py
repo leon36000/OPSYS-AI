@@ -589,12 +589,19 @@ def test_la_ligne_du_jeton_revoque_suffit_meme_si_le_coffre_n_etait_pas_revoque(
     assert client.get("/pont-bi/v1/jeux", headers=_en_tete(jeton)).status_code == 401
 
 
+def _lecture_seule_active(cnx) -> bool:
+    """SQLite : `PRAGMA query_only` ; PostgreSQL : mode d'accès de la transaction courante."""
+    if cnx.dialect.name == "postgresql":
+        return cnx.exec_driver_sql("SHOW transaction_read_only").scalar_one() == "on"
+    return bool(cnx.exec_driver_sql("PRAGMA query_only").scalar_one())
+
+
 def test_chaque_export_se_lit_dans_une_transaction_en_lecture_seule(base, cle, horloge, client, monkeypatch):
     ouvertures = []
     original = service.lecture_seule
 
     def espion(cnx):
-        ouvertures.append(cnx.exec_driver_sql("PRAGMA query_only").scalar_one())  # avant le bloc : OFF
+        ouvertures.append(_lecture_seule_active(cnx))  # avant le bloc : OFF
         contexte = original(cnx)
         return contexte
 
@@ -602,7 +609,7 @@ def test_chaque_export_se_lit_dans_une_transaction_en_lecture_seule(base, cle, h
     jeton = _emettre(base, cle, horloge)
     for chemin in ("/pont-bi/v1/jeux/chantiers.csv", "/pont-bi/v1/jeux/chantiers.jsonl", "/pont-bi/odata/Chantiers"):
         assert client.get(chemin, headers=_en_tete(jeton)).status_code == 200
-    assert ouvertures == [0, 0, 0]  # trois exports, trois ouvertures du mode lecture seule
+    assert ouvertures == [False, False, False]  # trois exports, trois ouvertures du mode lecture seule
 
 
 def test_pendant_un_export_le_moteur_refuse_toute_ecriture(base, cle, horloge, client, monkeypatch):
@@ -611,7 +618,8 @@ def test_pendant_un_export_le_moteur_refuse_toute_ecriture(base, cle, horloge, c
 
     def lire_et_tenter_d_ecrire(cnx, *args, **kwargs):
         try:
-            cnx.execute(update(schema.M8_ENT_DIM_CHANTIER).values(devis_id="pirate"))
+            with cnx.begin_nested():  # point de sauvegarde : PostgreSQL annule toute la transaction sur une erreur
+                cnx.execute(update(schema.M8_ENT_DIM_CHANTIER).values(devis_id="pirate"))
             essais.append("ECRITURE-PERMISE")
         except DBAPIError:
             essais.append("refusee")
