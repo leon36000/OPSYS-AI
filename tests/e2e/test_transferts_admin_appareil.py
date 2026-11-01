@@ -26,6 +26,14 @@ CAPTURES_FICTIVES: dict[str, dict] = {}
 SQLITE = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 
 
+@pytest.fixture(autouse=True)
+def _captures_vierges():
+    """Chaque test (et chaque moteur paramétré) repart d'un registre de captures vide : une capture nommée deux fois
+    par deux variantes de moteur n'est pas un doublon."""
+    CAPTURES_FICTIVES.clear()
+    yield
+
+
 @pytest.fixture
 def agent(moteur):
     chemin = Path(__file__).resolve().parents[2] / "departments/m01-front-office/fixtures/plaintes/plaintes.v1.yaml"
