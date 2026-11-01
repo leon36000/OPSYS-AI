@@ -161,8 +161,7 @@ def contenu_page(comptes_liste: list[dict[str, Any]], executeurs: list[dict[str,
         f'<td>{e(j["mode"] or "")} {e(j["statut"] or "")}</td><td><code>{e(j["code"] or "")}</code></td>'
         f'<td>{e(j["acteur"])}</td></tr>' for j in journal)
     return (
-        f'<p><a href="{e(prefixe)}/plateforme/fournisseurs">Fournisseurs</a> · '
-        f'<a href="{e(prefixe)}/plateforme/secrets">Secrets</a> · <a href="{base}">Connecteurs</a></p>'
+        pages.navigation_plateforme(prefixe, "connecteurs") +
         '<p class="note">Rien ne tourne tant qu\'un admin n\'a pas activé un exécuteur ici. Aucun envoi ni aucune '
         'publication ne part sans l\'approbation de la direction (N3) : le planificateur ne fait que transmettre '
         'ce qui a été approuvé, une seule fois. Tout est qualifié sur des doubles seulement.</p>'

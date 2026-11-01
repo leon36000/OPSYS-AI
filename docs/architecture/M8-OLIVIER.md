@@ -139,8 +139,15 @@ réduit, `forced-colors`, mode TV agrandi, aucun script ni style en ligne (CSP `
 (texte + symbole + motif hachuré/biffé pour le périmé). **Les contrastes sont calculés** (rapport WCAG ≥ 4,5:1) sur les paires de couleurs que le CSS
 sert réellement, clair et sombre. **Sans donnée personnelle superflue** : les tuiles ne portent que des mesures d'entreprise.
 
-**Non prouvé** : aucun navigateur réel (niveau B), aucun lecteur d'écran, aucun écran de télé ; le script est exercé sous Node avec un faux DOM
-(mise à jour par `textContent` seulement — le faux DOM jette si `innerHTML` est touché —, flux, repli, perte de connexion, pause).
+**Navigateur réel (banc `install/qualification/navigateur`, Chromium 156, 2026-11-01)** : le flux SSE, la péremption poussée sans rechargement,
+la pause, le mode télé et la « Connexion perdue » (réseau coupé) sont joués dans un vrai navigateur et passent
+(`docs/qualification/QUALIFICATION-NAVIGATEUR.md`). Ce passage a révélé un défaut que le faux DOM ne pouvait pas voir : la CSP de la console
+(`default-src 'none'`, sans `connect-src`) bloquait `fetch` et `EventSource` — la page restait figée sur « Rendu initial » en affichant
+« à jour » alors que les mesures étaient périmées. Corrigé : `connect-src 'self'` sur les seules pages `/wallboards/{id}` (aucune origine externe).
+La détection de perte de connexion est lente par construction : la page ne le dit qu'après 3 × l'intervalle + 5 s (95 s pour un wallboard à 30 s).
+
+**Non prouvé** : aucun lecteur d'écran, aucun écran de télé, ni Firefox/WebKit/Safari/mobile natif pour les wallboards ; le script est aussi exercé sous
+Node avec un faux DOM (mise à jour par `textContent` seulement — le faux DOM jette si `innerHTML` est touché —, flux, repli, perte de connexion, pause).
 
 ## 4. M8.11 Score de santé de l'entreprise (`sante.py`, `definitions/m8-sante.v1.yaml`)
 
@@ -287,7 +294,7 @@ sante:
 ## 11. Ce qui reste (suivi explicite)
 
 * Lecture réelle par Metabase/Superset/Grafana ; exécution du constructeur de l'entrepôt et des exports sur PostgreSQL ; DuckDB/Parquet (non installé).
-* Wallboard sur navigateur réel et sur un écran de télé ; test avec lecteur d'écran.
+* Wallboard sur un écran de télé ; test avec lecteur d'écran ; autres navigateurs (le parcours Chromium réel est fait, voir ci-dessus).
 * Bornes du score de santé, pondérations validées et fenêtres de fraîcheur des mesures de chantiers : décisions du propriétaire.
 * Source des impressions et des clics (connecteur à décider) ; mesure de satisfaction (M1 plaintes) pour une vraie composante « clientèle ».
 * Mesure d'un vrai modèle sur le gabarit d'évaluation et sur le copilote ; paraphrases non lexicales.

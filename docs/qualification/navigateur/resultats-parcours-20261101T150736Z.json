@@ -1,0 +1,1422 @@
+{
+  "verdict": "PASSE",
+  "inventaire": {
+    "node": "/home/pc6/.local/bin/node",
+    "playwright_core": "/home/pc6/Desktop/NexoraSite/node_modules/playwright-core",
+    "playwright_core_version": "1.64.1",
+    "chromium": "/home/pc6/.cache/ms-playwright/chromium-1248/chrome-linux-arm64/chrome",
+    "chromium_origine": "cache Playwright /home/pc6/.cache/ms-playwright",
+    "moyens_suffisants": true,
+    "manque": []
+  },
+  "horodatage": "20261101T150736Z",
+  "navigateur": "chromium 156.0.8078.4",
+  "duree_s": 78.0,
+  "captures_octets": 1769071,
+  "constats": [
+    {
+      "groupe": "connexion",
+      "id": "page",
+      "nom": "page de connexion : h1, lang=fr, deux champs étiquetés, mot de passe masqué",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "h1": "Connexion",
+        "lang": "fr",
+        "labels": [
+          [
+            "identifiant",
+            "Identifiant"
+          ],
+          [
+            "mot_de_passe",
+            "Mot de passe"
+          ]
+        ],
+        "mdp": "password",
+        "requis": true
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "soumission-vide",
+      "nom": "formulaire vide : le navigateur bloque, aucun POST envoyé",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "posts": 0,
+        "vide": {
+          "msg": "Veuillez renseigner ce champ.",
+          "url": "/opsys/connexion"
+        }
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "echec-401",
+      "nom": "mauvais mot de passe : 401 et message en français, aucun cookie de session",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 401,
+        "bandeau": {
+          "texte": "Identifiant ou mot de passe incorrect.",
+          "role": "alert"
+        },
+        "cookies": []
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "echec-annonce",
+      "nom": "le message d'échec est annoncé aux technologies d'assistance (role=alert)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "texte": "Identifiant ou mot de passe incorrect.",
+        "role": "alert"
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "echec-secret-non-reaffiche",
+      "nom": "le mot de passe saisi n'est jamais réaffiché ni renvoyé",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "connexion",
+      "id": "serie-echecs",
+      "nom": "12 échecs de suite : chaque essai reste refusé (401)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": [
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401
+      ]
+    },
+    {
+      "groupe": "connexion",
+      "id": "pas-de-verrouillage-applicatif",
+      "nom": "après 12 échecs, le bon mot de passe est ENCORE accepté : aucun verrouillage applicatif (la limitation relève de fail2ban en production, NON PROUVÉE ici)",
+      "ok": true,
+      "niveau": "info",
+      "detail": {
+        "statut": 303,
+        "url": "http://127.0.0.1:53093/opsys/departements"
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "cookie-drapeaux",
+      "nom": "cookie de session : HttpOnly, Secure, SameSite=Strict, chemin /opsys, ~8 h",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Strict",
+        "path": "/opsys",
+        "restant_s": 28800
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "cookie-invisible-js",
+      "nom": "le cookie de session est invisible pour le JavaScript de la page (HttpOnly effectif)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": ""
+    },
+    {
+      "groupe": "connexion",
+      "id": "set-cookie-brut",
+      "nom": "l'en-tête Set-Cookie brut porte HttpOnly, Secure et SameSite=Strict",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "opsys_session=***; HttpOnly; Max-Age=28800; Path=/opsys; SameSite=strict; Secure"
+    },
+    {
+      "groupe": "connexion",
+      "id": "deja-connecte",
+      "nom": "GET /connexion quand on est connecté : renvoie au tableau de bord",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "http://127.0.0.1:53093/opsys/departements"
+    },
+    {
+      "groupe": "tableau-de-bord",
+      "id": "structure",
+      "nom": "tableau de bord : h1, 17 onglets, onglet courant, une carte par département (10 réels + 1 fictif)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "h1": "Départements",
+        "nav": [
+          "Départements",
+          "CRM",
+          "Approbations4",
+          "Budgets",
+          "Modèles",
+          "Connecteurs",
+          "Agents",
+          "Mémoire",
+          "Réception",
+          "Marketing",
+          "Finance",
+          "Fusion opérationnelle",
+          "Suivis stratégiques",
+          "Direction IA",
+          "Plateforme",
+          "Observabilité",
+          "Wallboards"
+        ],
+        "courant": "Départements",
+        "cartes": 11,
+        "code": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M9"
+        ],
+        "pastille": "4",
+        "session": "Connecté : proprio-fictif"
+      }
+    },
+    {
+      "groupe": "tableau-de-bord",
+      "id": "pastille",
+      "nom": "la pastille d'approbations annonce les 4 demandes en attente",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "4"
+    },
+    {
+      "groupe": "tableau-de-bord",
+      "id": "session-nommee",
+      "nom": "la personne connectée est nommée",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "Connecté : proprio-fictif"
+    },
+    {
+      "groupe": "approbations",
+      "id": "file",
+      "nom": "la file « En attente » montre les 4 demandes N3 avec leurs arguments exacts",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "nb": 4,
+        "carte": "T1m9_qualif_publier_noteEn attenteOutilPublie une note FICTIVE (effet local seulement).DépartementQualification navigateur (m09-qualif)Demandée le2026-11-01 15:07 UTCIdentifiantcbf663898c4aArguments exacts{ \"titre\": \"Note fictive D du banc (reste en attente)\" }Motif (facultatif)Approuver et exécuterRefuser"
+      }
+    },
+    {
+      "groupe": "approbations",
+      "id": "confirmation-refusee",
+      "nom": "la boîte de confirmation du navigateur, rejetée, n'exécute rien",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "messages": [
+          "Approuver exécute m9_qualif_publier_note avec ces arguments exacts, signé à votre nom. Confirmer ?",
+          "Approuver exécute m9_qualif_publier_note avec ces arguments exacts, signé à votre nom. Confirmer ?"
+        ],
+        "effets": 0
+      }
+    },
+    {
+      "groupe": "approbations",
+      "id": "approuver-effet",
+      "nom": "approuver (après confirmation) exécute l'outil UNE fois : une ligne dans le fichier d'effets fictif",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "effets": 1,
+        "bandeau": {
+          "t": "Demande approuvée : l'outil a été exécuté avec les arguments enregistrés.",
+          "role": "status"
+        },
+        "messages": [
+          "Approuver exécute m9_qualif_publier_note avec ces arguments exacts, signé à votre nom. Confirmer ?",
+          "Approuver exécute m9_qualif_publier_note avec ces arguments exacts, signé à votre nom. Confirmer ?"
+        ]
+      }
+    },
+    {
+      "groupe": "approbations",
+      "id": "historique-executee",
+      "nom": "la demande apparaît dans « Exécutées » avec le statut Exécutée et le nom du signataire",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "approbations",
+      "id": "refuser-sans-effet",
+      "nom": "refuser n'exécute rien (aucune ligne d'effet de plus)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 1
+    },
+    {
+      "groupe": "approbations",
+      "id": "double-soumission",
+      "nom": "double soumission simultanée d'une approbation : exécutée UNE seule fois",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "reponses": [
+          303,
+          400
+        ],
+        "effets": 2
+      }
+    },
+    {
+      "groupe": "approbations",
+      "id": "file-restante",
+      "nom": "après trois décisions, une seule demande reste en attente (la quatrième, jamais décidée)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 1
+    },
+    {
+      "groupe": "approbations",
+      "id": "employe-refuse",
+      "nom": "un employé ne voit pas la file : 403",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 403,
+        "texte": "Aller au contenu\nOPSYS Console\n\nadministration réservée au propriétaire ou à un administrateur\n\nAccès refusé\n\nRetour à l"
+      }
+    },
+    {
+      "groupe": "approbations",
+      "id": "refus-lisible",
+      "nom": "le refus 403 d'une page est une page HTML lisible (titre, lien de retour), pas du JSON brut",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "type": "text/html; charset=utf-8",
+        "debut": "Aller au contenu\nOPSYS Console\n\nadministration réservée au propriétaire ou à un "
+      }
+    },
+    {
+      "groupe": "plateforme",
+      "id": "fournisseurs",
+      "nom": "registre de fournisseurs : tableau rempli, « à mesurer », profil client absent annoncé",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "h1": "Plateforme — fournisseurs",
+        "lignes": 67,
+        "nav": [
+          "Fournisseurs",
+          "Secrets",
+          "Avatars",
+          "Connaissances",
+          "Connecteurs"
+        ],
+        "amesurer": true,
+        "profilAbsent": true
+      }
+    },
+    {
+      "groupe": "plateforme",
+      "id": "sous-navigation",
+      "nom": "les cinq pages Plateforme portent la même navigation nommée (5 sections, page courante marquée) : aucune impasse",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "plateforme",
+      "id": "profil",
+      "nom": "le profil de licence s'enregistre (bandeau de succès)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "plateforme",
+      "id": "activation-refusee",
+      "nom": "activer un fournisseur à licence non commerciale est refusé, code lisible, rien d'autre activé",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "Action refusée (REFUS_POLITIQUE) — refus : FOURNISSEUR_ECARTE, LICENCE_NON_COMMERCIALE. Rien d'autre n'a été activé à la place."
+    },
+    {
+      "groupe": "plateforme",
+      "id": "secret-champ-masque",
+      "nom": "le champ de valeur d'un secret est de type password",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "password"
+    },
+    {
+      "groupe": "plateforme",
+      "id": "secret-defini",
+      "nom": "un secret saisi : bandeau « chiffré, ne sera plus affiché », une ligne de métadonnées, redirection sans la valeur",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "loc": "/opsys/plateforme/secrets?ok=secret_defini",
+        "ligne": "mistral.ocrfournisseur_modeleActif12026-11-01T15:07:57+00:00 (proprio-fictif)0•••• (jamais réaffiché)"
+      }
+    },
+    {
+      "groupe": "plateforme",
+      "id": "secret-jamais-reaffiche",
+      "nom": "la valeur du secret n'apparaît ni dans le DOM, ni dans les champs, ni dans l'URL, ni dans le stockage du navigateur",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "plateforme",
+      "id": "secret-api-masquee",
+      "nom": "l'API JSON des secrets ne porte pas la valeur",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "plateforme",
+      "id": "secret-valeur-fermee",
+      "nom": "la lecture directe de la valeur d'un secret est refusée à la console (aucune route de lecture en clair)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 403
+    },
+    {
+      "groupe": "plateforme",
+      "id": "page-plateforme-avatars",
+      "nom": "page « Plateforme — avatars » : 200, titre, contenu rendu",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 200,
+        "h1": "Plateforme — avatars",
+        "tables": 1
+      }
+    },
+    {
+      "groupe": "plateforme",
+      "id": "page-plateforme-connaissances",
+      "nom": "page « Plateforme — connaissances » : 200, titre, contenu rendu",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 200,
+        "h1": "Plateforme — connaissances",
+        "tables": 0
+      }
+    },
+    {
+      "groupe": "plateforme",
+      "id": "page-plateforme-connecteurs",
+      "nom": "page « Plateforme — connecteurs » : 200, titre, contenu rendu",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 200,
+        "h1": "Plateforme — connecteurs",
+        "tables": 4
+      }
+    },
+    {
+      "groupe": "plateforme",
+      "id": "page-connecteurs",
+      "nom": "page « Connecteurs » : 200, titre, contenu rendu",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 200,
+        "h1": "Connecteurs",
+        "tables": 0
+      }
+    },
+    {
+      "groupe": "plateforme",
+      "id": "page-observabilite",
+      "nom": "page « Observabilité — coût et latence » : 200, titre, contenu rendu",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 200,
+        "h1": "Observabilité — coût et latence",
+        "tables": 0
+      }
+    },
+    {
+      "groupe": "plateforme",
+      "id": "avatars-par-departement",
+      "nom": "les avatars listent un département par ligne (10 réels + 1 fictif) avec voix/visage logiques",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "lignes": 11,
+        "texte": "Plateforme — avatars\n\nFournisseurs · Secrets · Avatars · Connaissances · Connecteurs\n\nLa voix n'est pas prouvée de bout en bout : aucun moteur vocal ni transport n'est livré. « qualifie » signifie un test de connexion réel journalisé, pas une qualité mesurée.\n\nAvatars et canaux\nAvatar\tVoix et visage (logiques)\tMessagerie\tVoix\tAudiovisuel\nLéa\nM1 · Réceptionniste et adjointe, accueil omnicanal\tvoix.lea.defaut\nvisage.lea.defaut\tDisponible\tPrévu\nREJ-AVATAR-CANAL-NON-REALISE\nREJ-AVATAR-ENTREE-ABSENTE\nREJ-AVATAR-STT-INDISPONIBLE\tPrévu\nREJ-AVATAR-CANAL-NON-REALISE\nREJ-AVATAR-ENTREE-ABSENTE\nREJ-AVATAR-STT-INDISPONIBLE\nVictor\nM2 · Directeur des ventes et du CRM\tvoix.victor.defaut\nvisage.victor.defaut\tDisponible\tPrévu\nREJ-AVATAR-CANAL-NON-REALISE\nREJ-AVATAR-ENTREE-ABSENTE\nREJ-AVATAR-STT-INDISPONIBLE"
+      }
+    },
+    {
+      "groupe": "plateforme",
+      "id": "secret-revoque",
+      "nom": "révoquer un secret : confirmation explicite requise puis bandeau « octets chiffrés détruits »",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "plateforme",
+      "id": "reseau-externe-plateforme",
+      "nom": "aucune requête hors 127.0.0.1 pendant le groupe",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "plateforme",
+      "id": "secret-aucune-reponse",
+      "nom": "la valeur du secret n'apparaît dans AUCUNE réponse, URL, redirection ni message de console reçus par le navigateur",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "wallboards",
+      "id": "liste",
+      "nom": "liste des wallboards : deux tableaux, lien de chaque ligne",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "ligne": 2,
+        "lien": "/opsys/wallboards/direction"
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "rendu-initial",
+      "nom": "rendu serveur initial sans JS : bannière et tuiles présentes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "banniere": "banniere banniere-ok",
+        "tuiles": [
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-non_applicable",
+          "tuile etat-sans_seuil fraicheur-non_applicable",
+          "tuile etat-sans_seuil fraicheur-non_applicable"
+        ],
+        "mise": "Mis à jour : 2026-10-30T20:00:00-04:00"
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "flux-sse-ouvert",
+      "nom": "le flux SSE s'ouvre (mention « Connecté (flux) »)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "Connecté (flux)"
+    },
+    {
+      "groupe": "wallboards",
+      "id": "sse-rafraichit",
+      "nom": "le serveur pousse l'état « périmé » par SSE : tuiles périmées SANS rechargement (même document)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "frais0": 0,
+        "apres": {
+          "perimes": 6,
+          "marque": 0.504151583232856,
+          "banniere": "banniere banniere-attention",
+          "messages": "6 mesure(s) périmée(s) ou de fraîcheur inconnue : ne pas s'y fier.",
+          "textes": [
+            "PÉRIMÉE · sans seuil",
+            "PÉRIMÉE · sans seuil"
+          ],
+          "mise": "Mis à jour : 2026-11-12T09:00:00-04:00"
+        }
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "perime-en-toutes-lettres",
+      "nom": "une mesure périmée est écrite en toutes lettres et la bannière n'est plus « ok »",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "perimes": 6,
+        "marque": 0.504151583232856,
+        "banniere": "banniere banniere-attention",
+        "messages": "6 mesure(s) périmée(s) ou de fraîcheur inconnue : ne pas s'y fier.",
+        "textes": [
+          "PÉRIMÉE · sans seuil",
+          "PÉRIMÉE · sans seuil"
+        ],
+        "mise": "Mis à jour : 2026-11-12T09:00:00-04:00"
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "pause",
+      "nom": "le bouton de pause bascule aria-pressed (WCAG 2.2.2)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "pressed": "true",
+        "texte": "Reprendre le rafraîchissement"
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "pause-fige",
+      "nom": "en pause, l'écran ne se rafraîchit plus (les tuiles périmées restent affichées)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 6
+    },
+    {
+      "groupe": "wallboards",
+      "id": "reprise-frais",
+      "nom": "à la reprise, l'état revient à « à jour » par le flux",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "wallboards",
+      "id": "mode-tele",
+      "nom": "le mode télé s'affiche (classe tv, lien « Quitter »)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "wallboards",
+      "id": "connexion-perdue",
+      "nom": "réseau coupé : la page affiche « Connexion perdue », marque toutes les tuiles et dit de ne pas s'y fier",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "deconnectes": 9,
+        "conn": "Connexion perdue",
+        "banniere": "Connexion perdue : les valeurs affichées ne sont plus rafraîchies. Ne vous y fiez pas."
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "proprietaire-sans-role-admin",
+      "nom": "le propriétaire sans rôle admin reçoit 403 sur les wallboards (page HTML lisible)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 403,
+        "type": "text/html; charset=utf-8"
+      }
+    },
+    {
+      "groupe": "registre-cron",
+      "id": "agent-cree",
+      "nom": "un agent se crée par le formulaire (révision 1, inactif) et sa page de détail s'ouvre",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "Configuration des agents"
+    },
+    {
+      "groupe": "registre-cron",
+      "id": "agent-active",
+      "nom": "le profil s'active (le bouton devient « Désactiver »)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "registre-cron",
+      "id": "cron-formulaire",
+      "nom": "le formulaire de demande cron est proposé (déclencheur horaire déclaré)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "registre-cron",
+      "id": "cron-confirmation-requise",
+      "nom": "sans la case de confirmation, le navigateur refuse l'envoi",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "Veuillez cocher cette case si vous souhaitez continuer."
+    },
+    {
+      "groupe": "registre-cron",
+      "id": "message-succes-style",
+      "nom": "le message de succès est stylé (fond visible, pas un paragraphe nu)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "fond": "rgb(218, 251, 225)",
+        "classe": "message message-succes"
+      }
+    },
+    {
+      "groupe": "registre-cron",
+      "id": "cron-intention",
+      "nom": "la demande cron est préparée INERTE : « Aucune tâche Core n'a été créée ou exécutée »",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "Cron : demande préparée. Aucune tâche Core n’a été créée ou exécutée."
+    },
+    {
+      "groupe": "deconnexion",
+      "id": "cookie-efface",
+      "nom": "la déconnexion efface le cookie de session et renvoie à la connexion",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "cookies": 0,
+        "url": "http://127.0.0.1:53093/opsys/connexion"
+      }
+    },
+    {
+      "groupe": "deconnexion",
+      "id": "retour-arriere",
+      "nom": "retour arrière puis rechargement : page protégée refusée (redirigée vers la connexion), rien de mis en cache",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "http://127.0.0.1:53093/opsys/connexion"
+    },
+    {
+      "groupe": "deconnexion",
+      "id": "cookie-rejoue",
+      "nom": "OBSERVÉ : un cookie copié avant la déconnexion est ENCORE accepté après (session sans état côté serveur, échéance 8 h) : limite à lever par une liste de révocation, hors périmètre de ce banc",
+      "ok": true,
+      "niveau": "info",
+      "detail": {
+        "statut": 200,
+        "url": "http://127.0.0.1:53093/opsys/departements",
+        "accepte": true
+      }
+    },
+    {
+      "groupe": "journal",
+      "id": "echec-sans-prefixe",
+      "nom": "console servie sans préfixe (comme derrière Caddy) : un échec de connexion est refusé en 401 (la ligne d'accès est contrôlée contre le filtre fail2ban par lancer.py)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 401
+    },
+    {
+      "groupe": "expiration",
+      "id": "cookie-court",
+      "nom": "instance à session courte : le cookie expire dans quelques secondes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 4
+    },
+    {
+      "groupe": "expiration",
+      "id": "apres-echeance",
+      "nom": "cookie périmé : la page protégée renvoie à la connexion",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "http://127.0.0.1:54103/opsys/connexion"
+    },
+    {
+      "groupe": "expiration",
+      "id": "echu-signe",
+      "nom": "cookie echu-signe : page renvoyée à la connexion et API en 401",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "url": "http://127.0.0.1:53093/opsys/connexion",
+        "api": 401,
+        "refusePar": "serveur"
+      }
+    },
+    {
+      "groupe": "expiration",
+      "id": "falsifie",
+      "nom": "cookie falsifie : page renvoyée à la connexion et API en 401",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "url": "http://127.0.0.1:53093/opsys/connexion",
+        "api": 401,
+        "refusePar": "signature"
+      }
+    },
+    {
+      "groupe": "csrf",
+      "id": "post-sans-jeton",
+      "nom": "POST /deconnexion sans jeton : 403, page « Action refusée », la session reste ouverte",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "s": 403,
+        "t": "<!doctype html>\n<html lang=\"fr\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Action refusée · Console OPSYS</title><link rel=\"stylesheet\" href=\"/opsys/statique/console.css\"><script src=\"/opsys/statique/console.js\" defer></script></head><body>"
+      }
+    },
+    {
+      "groupe": "csrf",
+      "id": "post-jeton-faux",
+      "nom": "POST avec un jeton CSRF faux : 403",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "s": 403,
+        "t": "<!doctype html>\n<html lang=\"fr\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Action refusée · Console OPSYS</title><link rel=\"stylesheet\" href=\"/opsys/statique/console.css\"><script src=\"/opsys/statique/console.js\" defer></script></head><body>"
+      }
+    },
+    {
+      "groupe": "csrf",
+      "id": "decision-sans-jeton",
+      "nom": "décision d'approbation sans jeton : 403",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "s": 403,
+        "t": "<!doctype html>\n<html lang=\"fr\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Action refusée · Console OPSYS</title><link rel=\"stylesheet\" href=\"/opsys/statique/console.css\"><script src=\"/opsys/statique/console.js\" defer></script></head><body>"
+      }
+    },
+    {
+      "groupe": "csrf",
+      "id": "secret-sans-jeton",
+      "nom": "enregistrement d'un secret sans jeton : 403 et valeur non réécho",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 403
+    },
+    {
+      "groupe": "csrf",
+      "id": "api-sans-jeton",
+      "nom": "écriture de l'API JSON sans en-tête X-CSRF-Token : 403 (jeton faux aussi)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": [
+        403,
+        403
+      ]
+    },
+    {
+      "groupe": "csrf",
+      "id": "session-intacte",
+      "nom": "après ces refus, la session reste valide et le jeton inchangé",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 200
+    },
+    {
+      "groupe": "csrf",
+      "id": "inter-sites-samesite",
+      "nom": "formulaire soumis depuis un AUTRE SITE avec le bon jeton : le navigateur n'envoie PAS le cookie (SameSite=Strict) et la session survit",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "posts": 1,
+        "cookieEnvoye": false,
+        "session": 200,
+        "urlFinale": "http://127.0.0.1:53093/opsys/connexion"
+      }
+    },
+    {
+      "groupe": "entetes-securite",
+      "id": "pages",
+      "nom": "10 pages : CSP stricte, nosniff, X-Frame-Options DENY, Referrer-Policy no-referrer, Cache-Control no-store",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "entetes-securite",
+      "id": "statique",
+      "nom": "ressource statique : mêmes en-têtes de sécurité, cache public borné d'une heure",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "date": "Sun, 01 Nov 2026 15:08:20 GMT",
+        "server": "uvicorn",
+        "cache-control": "public, max-age=3600",
+        "content-length": "8398",
+        "content-type": "text/css; charset=utf-8",
+        "content-security-policy": "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "referrer-policy": "no-referrer"
+      }
+    },
+    {
+      "groupe": "entetes-securite",
+      "id": "404-propre",
+      "nom": "page inconnue : 404 sans trace d'exécution ni chemin de fichier",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 404,
+        "texte": "Aller au contenu\nOPSYS Console\n\nCette page n'existe pas ou a été déplacée.\n\nPage introuvable\n\nRetour"
+      }
+    },
+    {
+      "groupe": "entetes-securite",
+      "id": "pas-de-doc-api",
+      "nom": "ni /docs ni /openapi.json (schéma non exposé)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": [
+        404,
+        404
+      ]
+    },
+    {
+      "groupe": "entetes-securite",
+      "id": "csp-bloque-script-en-ligne",
+      "nom": "la CSP bloque réellement un script injecté en ligne et une image externe (violation consignée par le navigateur)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "injecte": false,
+        "violations": 2
+      }
+    },
+    {
+      "groupe": "entetes-securite",
+      "id": "anti-cadre",
+      "nom": "la console ne s'affiche pas dans un cadre d'un autre site (frame-ancestors 'none' / X-Frame-Options)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "aucun cadre"
+    },
+    {
+      "groupe": "entetes-securite",
+      "id": "aucune-violation-csp-normale",
+      "nom": "aucune violation de CSP sur le parcours normal des 10 pages (hors l'injection volontaire)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-lang-fr",
+      "nom": "règle « lang-fr » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-titre-page",
+      "nom": "règle « titre-page » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-un-seul-h1",
+      "nom": "règle « un-seul-h1 » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-titres-sans-saut",
+      "nom": "règle « titres-sans-saut » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-repere-main",
+      "nom": "règle « repere-main » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-reperes-nav-nommes",
+      "nom": "règle « reperes-nav-nommes » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-contenu-dans-reperes",
+      "nom": "règle « contenu-dans-reperes » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-ids-uniques",
+      "nom": "règle « ids-uniques » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-champs-etiquetes",
+      "nom": "règle « champs-etiquetes » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-autocomplete-mot-de-passe",
+      "nom": "règle « autocomplete-mot-de-passe » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-boutons-nommes",
+      "nom": "règle « boutons-nommes » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-liens-nommes",
+      "nom": "règle « liens-nommes » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-images-alt",
+      "nom": "règle « images-alt » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-tables-entetes",
+      "nom": "règle « tables-entetes » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-th-avec-scope",
+      "nom": "règle « th-avec-scope » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-pas-de-tabindex-positif",
+      "nom": "règle « pas-de-tabindex-positif » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-erreurs-annoncees",
+      "nom": "règle « erreurs-annoncees » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-zoom-non-bloque",
+      "nom": "règle « zoom-non-bloque » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-references-aria-valides",
+      "nom": "règle « references-aria-valides » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-aucun-script-ni-style-en-ligne",
+      "nom": "règle « aucun-script-ni-style-en-ligne » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-contraste-texte",
+      "nom": "règle « contraste-texte » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "regle-cases-a-cocher-taille",
+      "nom": "règle « cases-a-cocher-taille » sur 21 pages × 3 largeurs × 2 thèmes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "reflow",
+      "nom": "aucun défilement horizontal de la PAGE à 375, 768 et 1280 px (1.4.10) sur 21 pages",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "accessibilite",
+      "id": "contraste-min",
+      "nom": "contraste minimal mesuré clair / sombre (texte)",
+      "ok": true,
+      "niveau": "info",
+      "detail": {
+        "light": 4.56,
+        "dark": 5.41
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "connexion-ordre",
+      "nom": "connexion : Tab visite le lien d'évitement, l'identifiant, le mot de passe puis le bouton, dans cet ordre",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": [
+        "a.saut",
+        "input#identifiant",
+        "input#mot_de_passe",
+        "button.principal"
+      ]
+    },
+    {
+      "groupe": "clavier",
+      "id": "connexion-focus-visible",
+      "nom": "connexion : chaque élément focalisé a un indicateur de focus visible (contour ou ombre)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "clavier",
+      "id": "connexion-entree",
+      "nom": "la connexion se soumet au clavier (Entrée dans le champ mot de passe)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "http://127.0.0.1:53093/opsys/departements"
+    },
+    {
+      "groupe": "clavier",
+      "id": "departements-parcours",
+      "nom": "departements : 95 arrêts de tabulation, ordre = ordre du document, aucun piège (retour au début atteint)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "etapes": 95,
+        "croissant": true,
+        "piege": false
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "departements-focus",
+      "nom": "departements : focus visible sur chaque arrêt, contraste du contour ≥ 3:1",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "sansFocus": [],
+        "minimum": 5.95
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "approbations-parcours",
+      "nom": "approbations : 27 arrêts de tabulation, ordre = ordre du document, aucun piège (retour au début atteint)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "etapes": 27,
+        "croissant": true,
+        "piege": false
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "approbations-focus",
+      "nom": "approbations : focus visible sur chaque arrêt, contraste du contour ≥ 3:1",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "sansFocus": [],
+        "minimum": 5.95
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "plateforme-secrets-parcours",
+      "nom": "plateforme/secrets : 34 arrêts de tabulation, ordre = ordre du document, aucun piège (retour au début atteint)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "etapes": 34,
+        "croissant": true,
+        "piege": false
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "plateforme-secrets-focus",
+      "nom": "plateforme/secrets : focus visible sur chaque arrêt, contraste du contour ≥ 3:1",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "sansFocus": [],
+        "minimum": 5.95
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "plateforme-fournisseurs-parcours",
+      "nom": "plateforme/fournisseurs : 107 arrêts de tabulation, ordre = ordre du document, aucun piège (retour au début atteint)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "etapes": 107,
+        "croissant": true,
+        "piege": false
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "plateforme-fournisseurs-focus",
+      "nom": "plateforme/fournisseurs : focus visible sur chaque arrêt, contraste du contour ≥ 3:1",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "sansFocus": [],
+        "minimum": 5.95
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "lien-evitement",
+      "nom": "un lien d'évitement (« Aller au contenu ») est le premier arrêt de tabulation",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "el": "a.saut",
+        "nom": "Aller au contenu",
+        "rang": 0,
+        "top": 8,
+        "left": 8,
+        "contour": true,
+        "ombre": false,
+        "visible": true,
+        "ratioFocus": 5.95,
+        "dansMain": false,
+        "dansViewport": true,
+        "hauteur": 42,
+        "largeur": 157
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "lien-evitement-effet",
+      "nom": "activer le lien d'évitement amène le focus dans le contenu principal (le Tab suivant est dans <main>)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "apres": {
+          "hash": "#contenu",
+          "actif": "H1"
+        },
+        "suite": {
+          "el": "select#mode-m01-front-office",
+          "nom": "Mode",
+          "rang": 19,
+          "top": 659,
+          "left": 39,
+          "contour": true,
+          "ombre": false,
+          "visible": true,
+          "ratioFocus": 6.44,
+          "dansMain": true,
+          "dansViewport": true,
+          "hauteur": 34,
+          "largeur": 285
+        }
+      }
+    },
+    {
+      "groupe": "clavier",
+      "id": "confirmation-au-clavier",
+      "nom": "changement de mode d'autonomie : sélection au clavier puis Entrée déclenche la confirmation, qu'on peut refuser",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": [
+        "Changer le mode d'autonomie du département M1 (Front Office) ? Il s'applique aux prochains appels d'outils."
+      ]
+    },
+    {
+      "groupe": "responsive",
+      "id": "largeur-375",
+      "nom": "à 375 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "responsive",
+      "id": "largeur-768",
+      "nom": "à 768 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "responsive",
+      "id": "largeur-1280",
+      "nom": "à 1280 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "responsive",
+      "id": "largeur-320",
+      "nom": "à 320 px (équivalent d'un zoom 400 %, 1.4.10) : pas de défilement horizontal de la page",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "global",
+      "id": "reseau-externe",
+      "nom": "aucune requête n'a quitté 127.0.0.1 (le banc refuse tout le reste)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "global",
+      "id": "captures",
+      "nom": "taille totale des captures de cette exécution < 3 Mo",
+      "ok": true,
+      "niveau": "info",
+      "detail": 1769071
+    },
+    {
+      "groupe": "serveur",
+      "id": "journal-mot",
+      "nom": "journaux du serveur : aucune trace du mot de passe d'une personne",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "serveur",
+      "id": "journal-secret",
+      "nom": "journaux du serveur : aucune trace du secret de session",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "serveur",
+      "id": "journal-valeur",
+      "nom": "journaux du serveur : aucune trace du valeur du secret saisi",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "serveur",
+      "id": "base-chiffree",
+      "nom": "base de données : la valeur du secret n'y est PAS en clair (chiffrée au repos)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "serveur",
+      "id": "base-mots-de-passe",
+      "nom": "base de données : aucun mot de passe en clair (empreintes scrypt)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "serveur",
+      "id": "journal-erreurs",
+      "nom": "journaux du serveur : aucune trace d'exécution (Traceback) ni erreur 500",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 0
+    },
+    {
+      "groupe": "serveur",
+      "id": "effets-exacts",
+      "nom": "fichier d'effets : exactement la demande approuvée et celle de la double soumission (une fois chacune) ; la refusée n'a rien produit",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": [
+        {
+          "publie": "Note fictive A du banc",
+          "fictif": true
+        },
+        {
+          "publie": "Note fictive C du banc",
+          "fictif": true
+        }
+      ]
+    },
+    {
+      "groupe": "serveur",
+      "id": "fail2ban-regex",
+      "nom": "filtre fail2ban de production : reconnaît une ligne RÉELLE d'échec de connexion émise par le serveur (console sans préfixe)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": [
+        "INFO:     127.0.0.1:54744 - \"POST /connexion HTTP/1.1\" 401 Unauthorized"
+      ]
+    }
+  ],
+  "injection": null
+}

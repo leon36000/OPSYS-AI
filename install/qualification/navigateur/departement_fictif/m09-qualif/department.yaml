@@ -1,0 +1,30 @@
+schema: opsys.departement/v1
+id: m09-qualif
+code: M9
+nom: Qualification navigateur
+mission: >-
+  Département FICTIF du banc de parcours navigateur : un seul outil de niveau N3 dont l'effet est local (une ligne
+  dans un fichier de l'instance de qualification), pour prouver dans un vrai navigateur qu'une demande en attente
+  s'approuve et produit son effet. Aucune donnée réelle, aucun réseau.
+avatar:
+  nom: Qualif
+  role: Avatar fictif du banc navigateur
+  voix: voix.qualif.defaut
+  visage: visage.qualif.defaut
+  canaux:
+    messagerie: disponible
+outils: qualif_outils
+mode: ombre
+modeles:
+  defaut: standard
+skills: [procedure-qualif]
+budget:
+  tokens_jour: 1000
+  tokens_mois: 20000
+  alerte_pct: 80
+memoire:
+  lecture: [notes]
+  ecriture: [notes]
+kpis:
+  - id: exemple
+    description: KPI d'exemple fictif.

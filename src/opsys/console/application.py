@@ -27,10 +27,12 @@ import hashlib
 import json
 import logging
 import os
+import re
 import sys
 from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import replace
+from http import HTTPStatus
 from importlib import import_module
 from pathlib import Path
 from typing import Any
@@ -38,10 +40,12 @@ from urllib.parse import parse_qs, quote
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy import Connection, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .. import admission_agents, agents, agents_declencheurs, contexte, etat, identite, stockage, tableau_de_bord
@@ -110,6 +114,19 @@ CSP = (
     "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; form-action 'self'; "
     "frame-ancestors 'none'; base-uri 'none'"
 )
+# Les wallboards rafraîchissent leurs tuiles par `fetch` et `EventSource` vers LA MÊME origine : sans `connect-src`,
+# la CSP (`default-src 'none'`) bloque les deux dans un vrai navigateur et la page ne se rafraîchit jamais. Seules les
+# pages de wallboard reçoivent cette ouverture, limitée à l'origine de la console (aucune origine externe).
+CSP_CONNEXION_MEME_ORIGINE = "connect-src 'self'"
+_TITRES_ERREUR = {
+    400: "Requête invalide", 401: "Authentification requise", 403: "Accès refusé", 404: "Page introuvable",
+    405: "Méthode non permise", 409: "Conflit", 413: "Contenu trop volumineux", 422: "Données invalides",
+}
+_MESSAGES_ERREUR = {
+    404: "Cette page n'existe pas ou a été déplacée.", 405: "Cette action n'est pas permise sur cette page.",
+    403: "Vous n'avez pas le droit d'accéder à cette page.", 400: "La requête n'a pas pu être comprise.",
+}
+_PAGE_WALLBOARD = re.compile(r"/wallboards/[a-z0-9][a-z0-9-]*$")
 _STATIQUES = {
     "console.css": (ressources.CSS, "text/css; charset=utf-8"),
     "console.js": (ressources.JS, "text/javascript; charset=utf-8"),
@@ -144,7 +161,8 @@ class _EntetesSecurite:
                 entetes = MutableHeaders(scope=message)
                 # Cumuler toutes les politiques locales et la protection obligatoire de la console.
                 politiques = entetes.getlist("Content-Security-Policy")
-                entetes["Content-Security-Policy"] = ", ".join([*politiques, CSP])
+                csp = f"{CSP}; {CSP_CONNEXION_MEME_ORIGINE}" if _PAGE_WALLBOARD.search(scope.get("path", "")) else CSP
+                entetes["Content-Security-Policy"] = ", ".join([*politiques, csp])
                 entetes["X-Content-Type-Options"] = "nosniff"
                 entetes["X-Frame-Options"] = "DENY"
                 entetes["Referrer-Policy"] = "no-referrer"
@@ -328,6 +346,21 @@ def creer_application(
         if est_api(request):
             return JSONResponse({"detail": texte}, status_code=403)
         return HTMLResponse(pages.page_erreur("Action refusée", texte, prefixe=prefixe), status_code=403)
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _erreur_http(request: Request, exc: StarletteHTTPException) -> Response:
+        # Un NAVIGATEUR (Accept: text/html) qui reçoit un refus ou une page inconnue lit une page de la console, pas du
+        # JSON brut ; un client d'API ou de serveur à serveur (sans Accept: text/html) garde la réponse JSON d'origine.
+        if "text/html" in request.headers.get("accept", "") and not est_api(request):
+            titre = _TITRES_ERREUR.get(exc.status_code, "Action impossible")
+            detail = exc.detail if isinstance(exc.detail, str) else ""
+            # Les libellés anglais par défaut de Starlette (« Not Found »…) ne sont jamais montrés : texte en français.
+            standard = {HTTPStatus(code).phrase for code in _TITRES_ERREUR}
+            texte = detail if detail and detail not in standard else _MESSAGES_ERREUR.get(exc.status_code, titre)
+            return HTMLResponse(
+                pages.page_erreur(titre, texte, prefixe=prefixe), status_code=exc.status_code, headers=exc.headers
+            )
+        return await http_exception_handler(request, exc)
 
     app.include_router(
         memoire_api.creer_router(

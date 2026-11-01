@@ -1,0 +1,408 @@
+{
+  "verdict": "PASSE",
+  "inventaire": {
+    "node": "/home/pc6/.local/bin/node",
+    "playwright_core": "/home/pc6/Desktop/NexoraSite/node_modules/playwright-core",
+    "playwright_core_version": "1.64.1",
+    "chromium": "/home/pc6/.cache/ms-playwright/firefox-1532/firefox/firefox",
+    "chromium_origine": "Firefox (cache Playwright)",
+    "moyens_suffisants": true,
+    "manque": []
+  },
+  "horodatage": "20261101T150912Z",
+  "navigateur": "firefox 151.0",
+  "duree_s": 31.9,
+  "captures_octets": 770743,
+  "constats": [
+    {
+      "groupe": "connexion",
+      "id": "page",
+      "nom": "page de connexion : h1, lang=fr, deux champs étiquetés, mot de passe masqué",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "h1": "Connexion",
+        "lang": "fr",
+        "labels": [
+          [
+            "identifiant",
+            "Identifiant"
+          ],
+          [
+            "mot_de_passe",
+            "Mot de passe"
+          ]
+        ],
+        "mdp": "password",
+        "requis": true
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "soumission-vide",
+      "nom": "formulaire vide : le navigateur bloque, aucun POST envoyé",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "posts": 0,
+        "vide": {
+          "msg": "Please fill out this field.",
+          "url": "/opsys/connexion"
+        }
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "echec-401",
+      "nom": "mauvais mot de passe : 401 et message en français, aucun cookie de session",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 401,
+        "bandeau": {
+          "texte": "Identifiant ou mot de passe incorrect.",
+          "role": "alert"
+        },
+        "cookies": []
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "echec-annonce",
+      "nom": "le message d'échec est annoncé aux technologies d'assistance (role=alert)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "texte": "Identifiant ou mot de passe incorrect.",
+        "role": "alert"
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "echec-secret-non-reaffiche",
+      "nom": "le mot de passe saisi n'est jamais réaffiché ni renvoyé",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "connexion",
+      "id": "serie-echecs",
+      "nom": "12 échecs de suite : chaque essai reste refusé (401)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": [
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401
+      ]
+    },
+    {
+      "groupe": "connexion",
+      "id": "pas-de-verrouillage-applicatif",
+      "nom": "après 12 échecs, le bon mot de passe est ENCORE accepté : aucun verrouillage applicatif (la limitation relève de fail2ban en production, NON PROUVÉE ici)",
+      "ok": true,
+      "niveau": "info",
+      "detail": {
+        "statut": 303,
+        "url": "http://127.0.0.1:41063/opsys/departements"
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "cookie-drapeaux",
+      "nom": "cookie de session : HttpOnly, Secure, SameSite=Strict, chemin /opsys, ~8 h",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "httpOnly": true,
+        "secure": true,
+        "sameSite": "Strict",
+        "path": "/opsys",
+        "restant_s": 28800
+      }
+    },
+    {
+      "groupe": "connexion",
+      "id": "cookie-invisible-js",
+      "nom": "le cookie de session est invisible pour le JavaScript de la page (HttpOnly effectif)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": ""
+    },
+    {
+      "groupe": "connexion",
+      "id": "set-cookie-brut",
+      "nom": "l'en-tête Set-Cookie brut porte HttpOnly, Secure et SameSite=Strict",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "opsys_session=***; HttpOnly; Max-Age=28800; Path=/opsys; SameSite=strict; Secure"
+    },
+    {
+      "groupe": "connexion",
+      "id": "deja-connecte",
+      "nom": "GET /connexion quand on est connecté : renvoie au tableau de bord",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "http://127.0.0.1:41063/opsys/departements"
+    },
+    {
+      "groupe": "tableau-de-bord",
+      "id": "structure",
+      "nom": "tableau de bord : h1, 17 onglets, onglet courant, une carte par département (10 réels + 1 fictif)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "h1": "Départements",
+        "nav": [
+          "Départements",
+          "CRM",
+          "Approbations4",
+          "Budgets",
+          "Modèles",
+          "Connecteurs",
+          "Agents",
+          "Mémoire",
+          "Réception",
+          "Marketing",
+          "Finance",
+          "Fusion opérationnelle",
+          "Suivis stratégiques",
+          "Direction IA",
+          "Plateforme",
+          "Observabilité",
+          "Wallboards"
+        ],
+        "courant": "Départements",
+        "cartes": 11,
+        "code": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M9"
+        ],
+        "pastille": "4",
+        "session": "Connecté : proprio-fictif"
+      }
+    },
+    {
+      "groupe": "tableau-de-bord",
+      "id": "pastille",
+      "nom": "la pastille d'approbations annonce les 4 demandes en attente",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "4"
+    },
+    {
+      "groupe": "tableau-de-bord",
+      "id": "session-nommee",
+      "nom": "la personne connectée est nommée",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "Connecté : proprio-fictif"
+    },
+    {
+      "groupe": "wallboards",
+      "id": "liste",
+      "nom": "liste des wallboards : deux tableaux, lien de chaque ligne",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "ligne": 2,
+        "lien": "/opsys/wallboards/direction"
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "rendu-initial",
+      "nom": "rendu serveur initial sans JS : bannière et tuiles présentes",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "banniere": "banniere banniere-ok",
+        "tuiles": [
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-a_jour",
+          "tuile etat-sans_seuil fraicheur-non_applicable",
+          "tuile etat-sans_seuil fraicheur-non_applicable",
+          "tuile etat-sans_seuil fraicheur-non_applicable"
+        ],
+        "mise": "Mis à jour : 2026-10-30T20:00:00-04:00"
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "flux-sse-ouvert",
+      "nom": "le flux SSE s'ouvre (mention « Connecté (flux) »)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": "Connecté (flux)"
+    },
+    {
+      "groupe": "wallboards",
+      "id": "sse-rafraichit",
+      "nom": "le serveur pousse l'état « périmé » par SSE : tuiles périmées SANS rechargement (même document)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "frais0": 0,
+        "apres": {
+          "perimes": 6,
+          "marque": 0.6839725897488609,
+          "banniere": "banniere banniere-attention",
+          "messages": "6 mesure(s) périmée(s) ou de fraîcheur inconnue : ne pas s'y fier.",
+          "textes": [
+            "PÉRIMÉE · sans seuil",
+            "PÉRIMÉE · sans seuil"
+          ],
+          "mise": "Mis à jour : 2026-11-12T09:00:00-04:00"
+        }
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "perime-en-toutes-lettres",
+      "nom": "une mesure périmée est écrite en toutes lettres et la bannière n'est plus « ok »",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "perimes": 6,
+        "marque": 0.6839725897488609,
+        "banniere": "banniere banniere-attention",
+        "messages": "6 mesure(s) périmée(s) ou de fraîcheur inconnue : ne pas s'y fier.",
+        "textes": [
+          "PÉRIMÉE · sans seuil",
+          "PÉRIMÉE · sans seuil"
+        ],
+        "mise": "Mis à jour : 2026-11-12T09:00:00-04:00"
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "pause",
+      "nom": "le bouton de pause bascule aria-pressed (WCAG 2.2.2)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "pressed": "true",
+        "texte": "Reprendre le rafraîchissement"
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "pause-fige",
+      "nom": "en pause, l'écran ne se rafraîchit plus (les tuiles périmées restent affichées)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": 6
+    },
+    {
+      "groupe": "wallboards",
+      "id": "reprise-frais",
+      "nom": "à la reprise, l'état revient à « à jour » par le flux",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "wallboards",
+      "id": "mode-tele",
+      "nom": "le mode télé s'affiche (classe tv, lien « Quitter »)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": null
+    },
+    {
+      "groupe": "wallboards",
+      "id": "connexion-perdue",
+      "nom": "réseau coupé : la page affiche « Connexion perdue », marque toutes les tuiles et dit de ne pas s'y fier",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "deconnectes": 9,
+        "conn": "Connexion perdue",
+        "banniere": "Connexion perdue : les valeurs affichées ne sont plus rafraîchies. Ne vous y fiez pas."
+      }
+    },
+    {
+      "groupe": "wallboards",
+      "id": "proprietaire-sans-role-admin",
+      "nom": "le propriétaire sans rôle admin reçoit 403 sur les wallboards (page HTML lisible)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": {
+        "statut": 403,
+        "type": "text/html; charset=utf-8"
+      }
+    },
+    {
+      "groupe": "responsive",
+      "id": "largeur-375",
+      "nom": "à 375 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "responsive",
+      "id": "largeur-768",
+      "nom": "à 768 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "responsive",
+      "id": "largeur-1280",
+      "nom": "à 1280 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "responsive",
+      "id": "largeur-320",
+      "nom": "à 320 px (équivalent d'un zoom 400 %, 1.4.10) : pas de défilement horizontal de la page",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "global",
+      "id": "reseau-externe",
+      "nom": "aucune requête n'a quitté 127.0.0.1 (le banc refuse tout le reste)",
+      "ok": true,
+      "niveau": "bloquant",
+      "detail": []
+    },
+    {
+      "groupe": "global",
+      "id": "captures",
+      "nom": "taille totale des captures de cette exécution < 3 Mo",
+      "ok": true,
+      "niveau": "info",
+      "detail": 770743
+    }
+  ],
+  "injection": null
+}

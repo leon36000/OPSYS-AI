@@ -1,0 +1,33 @@
+[ok   ] connexion/page page de connexion : h1, lang=fr, deux champs étiquetés, mot de passe masqué
+[ok   ] connexion/soumission-vide formulaire vide : le navigateur bloque, aucun POST envoyé
+[ok   ] connexion/echec-401 mauvais mot de passe : 401 et message en français, aucun cookie de session
+[ok   ] connexion/echec-annonce le message d'échec est annoncé aux technologies d'assistance (role=alert)
+[ok   ] connexion/echec-secret-non-reaffiche le mot de passe saisi n'est jamais réaffiché ni renvoyé
+[ok   ] connexion/serie-echecs 12 échecs de suite : chaque essai reste refusé (401)
+[ok   ] connexion/pas-de-verrouillage-applicatif après 12 échecs, le bon mot de passe est ENCORE accepté : aucun verrouillage applicatif (la limitation relève de fail2ban en production, NON PROUVÉE ici)
+[ok   ] connexion/cookie-drapeaux cookie de session : HttpOnly, Secure, SameSite=Strict, chemin /opsys, ~8 h
+[ok   ] connexion/cookie-invisible-js le cookie de session est invisible pour le JavaScript de la page (HttpOnly effectif)
+[ok   ] connexion/set-cookie-brut l'en-tête Set-Cookie brut porte HttpOnly, Secure et SameSite=Strict
+[ok   ] connexion/deja-connecte GET /connexion quand on est connecté : renvoie au tableau de bord
+[ok   ] tableau-de-bord/structure tableau de bord : h1, 17 onglets, onglet courant, une carte par département (10 réels + 1 fictif)
+[ok   ] tableau-de-bord/pastille la pastille d'approbations annonce les 4 demandes en attente
+[ok   ] tableau-de-bord/session-nommee la personne connectée est nommée
+[ok   ] wallboards/liste liste des wallboards : deux tableaux, lien de chaque ligne
+[ok   ] wallboards/rendu-initial rendu serveur initial sans JS : bannière et tuiles présentes
+[ok   ] wallboards/flux-sse-ouvert le flux SSE s'ouvre (mention « Connecté (flux) »)
+[ok   ] wallboards/sse-rafraichit le serveur pousse l'état « périmé » par SSE : tuiles périmées SANS rechargement (même document)
+[ok   ] wallboards/perime-en-toutes-lettres une mesure périmée est écrite en toutes lettres et la bannière n'est plus « ok »
+[ok   ] wallboards/pause le bouton de pause bascule aria-pressed (WCAG 2.2.2)
+[ok   ] wallboards/pause-fige en pause, l'écran ne se rafraîchit plus (les tuiles périmées restent affichées)
+[ok   ] wallboards/reprise-frais à la reprise, l'état revient à « à jour » par le flux
+[ok   ] wallboards/mode-tele le mode télé s'affiche (classe tv, lien « Quitter »)
+[ok   ] wallboards/connexion-perdue réseau coupé : la page affiche « Connexion perdue », marque toutes les tuiles et dit de ne pas s'y fier
+[ok   ] wallboards/proprietaire-sans-role-admin le propriétaire sans rôle admin reçoit 403 sur les wallboards (page HTML lisible)
+[ok   ] responsive/largeur-375 à 375 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)
+[ok   ] responsive/largeur-768 à 768 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)
+[ok   ] responsive/largeur-1280 à 1280 px : pas de défilement horizontal de la page, navigation dans l'écran (6 pages)
+[ok   ] responsive/largeur-320 à 320 px (équivalent d'un zoom 400 %, 1.4.10) : pas de défilement horizontal de la page
+[ok   ] global/reseau-externe aucune requête n'a quitté 127.0.0.1 (le banc refuse tout le reste)
+[ok   ] global/captures taille totale des captures de cette exécution < 3 Mo
+
+31 constats, 0 échec(s) bloquant(s), captures 753 Ko

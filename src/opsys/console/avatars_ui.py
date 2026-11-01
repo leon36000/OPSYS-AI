@@ -65,8 +65,7 @@ def contenu(vue: Mapping[str, Any], *, prefixe: str) -> str:
                 "<th>Consentements actifs</th><th>Dernière qualification</th></tr></thead>"
                 f"<tbody>{entrees}</tbody></table>") if entrees else "<p>Aucune entrée voix ou visage inscrite.</p>"
     return (
-        f'<p><a href="{e(prefixe)}/plateforme/fournisseurs">Fournisseurs</a> · '
-        f'<a href="{e(prefixe)}/plateforme/secrets">Secrets</a> · Avatars</p>'
+        pages.navigation_plateforme(prefixe, "avatars") +
         f'<p class="note">{e(vue["avertissement"])}</p>'
         "<h2>Avatars et canaux</h2><table><thead><tr><th>Avatar</th><th>Voix et visage (logiques)</th>"
         "<th>Messagerie</th><th>Voix</th><th>Audiovisuel</th></tr></thead>"
