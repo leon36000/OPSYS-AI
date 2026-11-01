@@ -1317,7 +1317,8 @@ FOURNISSEURS_CONFIGURATIONS = Table(
     Column("modifie_le", Text, nullable=False),
     Column("modifie_par", String(64), nullable=False),
     CheckConstraint(
-        "capacite IN ('llm','embeddings','reranker','ocr','stt','tts','avatar','image','video','recherche_web')",
+        "capacite IN ('llm','embeddings','reranker','ocr','stt','tts','avatar','image','video','recherche_web',"
+        "'courriel')",
         name="capacite_valide",
     ),
     CheckConstraint("revision > 0", name="revision_positive"),
@@ -1526,4 +1527,121 @@ INGESTION_BROUILLONS = Table(
     CheckConstraint("statut <> 'VALIDE' OR reference_definitive IS NOT NULL", name="reference_si_valide"),
     CheckConstraint("revision >= 1", name="revision_positive"),
     Index("ix_ingestion_brouillons_lot", "lot_id", "genre", "statut"),
+)
+
+# -- Connecteurs courriel : comptes, états OAuth, idempotence, brouillons sortants, journal (migration 0040) ---------
+# Aucun secret ici : les jetons OAuth et mots de passe d'application ne vivent que dans le coffre (`coffre_*`), la base
+# ne garde le NOM du secret. Aucun contenu de courriel en clair : les brouillons sortants sont scellés (AES-GCM, clé
+# externe d'ingestion) ; les messages lus ne laissent qu'une clé d'idempotence et une empreinte.
+COURRIEL_COMPTES = Table(
+    "courriel_comptes", META,
+    Column("compte_id", String(64), primary_key=True),
+    Column("fournisseur", String(8), nullable=False),
+    Column("adresse", String(254), nullable=False),
+    Column("etat", String(24), nullable=False),
+    Column("usage", String(16), nullable=False),
+    Column("secret_nom", String(80), nullable=True),
+    Column("generation", Integer, nullable=False),
+    Column("portees", Text, nullable=False),
+    Column("configuration", Text, nullable=False),
+    Column("finalite", Text, nullable=False),
+    Column("retention_jours", Integer, nullable=False),
+    Column("consentement_le", Text, nullable=True),
+    Column("consentement_par", String(200), nullable=True),
+    Column("dossiers_suivis", Text, nullable=False),
+    Column("curseurs", Text, nullable=False),
+    Column("derniere_synchro_le", Text, nullable=True),
+    Column("derniere_synchro_statut", String(16), nullable=True),
+    Column("derniere_erreur_code", String(64), nullable=True),
+    Column("derniere_erreur_le", Text, nullable=True),
+    Column("messages_total", Integer, nullable=False),
+    Column("connecte_par", String(200), nullable=True),
+    Column("cree_le", Text, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    Column("revision", Integer, nullable=False),
+    CheckConstraint("fournisseur IN ('gmail','graph','imap','mbox')", name="fournisseur_valide"),
+    CheckConstraint(
+        "etat IN ('non_connecte','autorisation_en_cours','connecte','reconnexion_requise','revoque','erreur')",
+        name="etat_valide",
+    ),
+    CheckConstraint("usage IN ('lecture','lecture_envoi')", name="usage_valide"),
+    CheckConstraint("etat <> 'connecte' OR (consentement_le IS NOT NULL AND "
+                    "(secret_nom IS NOT NULL OR fournisseur = 'mbox'))", name="connecte_complet"),
+    CheckConstraint("generation >= 0 AND messages_total >= 0 AND revision >= 1 AND retention_jours BETWEEN 1 AND 3650",
+                    name="bornes"),
+)
+COURRIEL_ETATS_OAUTH = Table(
+    "courriel_etats_oauth", META,
+    Column("nonce", String(64), primary_key=True),
+    Column("compte_id", String(64), nullable=False),
+    Column("fournisseur", String(8), nullable=False),
+    Column("usage", String(16), nullable=False),
+    Column("expire_epoch", BigInteger, nullable=False),
+    Column("utilise_epoch", BigInteger, nullable=True),
+    Column("cree_epoch", BigInteger, nullable=False),
+    Index("ix_courriel_etats_oauth_compte", "compte_id"),
+)
+COURRIEL_MESSAGES = Table(
+    "courriel_messages", META,
+    Column("compte_id", String(64), ForeignKey("courriel_comptes.compte_id"), primary_key=True),
+    Column("cle_message", String(64), primary_key=True),
+    Column("empreinte", String(64), primary_key=True),
+    Column("statut", String(12), nullable=False),
+    Column("lot_id", String(32), nullable=True),
+    Column("nb_pieces", Integer, nullable=False),
+    Column("nb_pieces_transmises", Integer, nullable=False),
+    Column("vu_le", Text, nullable=False),
+    CheckConstraint("statut IN ('INGERE','SANS_PIECE','REFUSE')", name="statut_valide"),
+    CheckConstraint("nb_pieces >= 0 AND nb_pieces_transmises >= 0 AND nb_pieces_transmises <= nb_pieces",
+                    name="bornes"),
+)
+# Références de fournisseur déjà traitées (tout résultat : ingéré, doublon, refusé) : une page interrompue par le
+# quota de débit n'oblige pas à relire ni à re-télécharger ses messages déjà faits. Le contrôle d'autorité reste
+# `courriel_messages`.
+COURRIEL_REFS = Table(
+    "courriel_refs", META,
+    Column("compte_id", String(64), ForeignKey("courriel_comptes.compte_id"), primary_key=True),
+    Column("ref_cle", String(64), primary_key=True),
+    Column("vu_le", Text, nullable=False),
+)
+COURRIEL_BROUILLONS = Table(
+    "courriel_brouillons", META,
+    Column("brouillon_id", String(32), primary_key=True),
+    Column("compte_id", String(64), ForeignKey("courriel_comptes.compte_id"), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("statut", String(16), nullable=False),
+    Column("empreinte", String(64), nullable=False),
+    Column("cle_reference", String(64), nullable=False),
+    Column("nonce", Text, nullable=False),
+    Column("chiffre", Text, nullable=False),
+    Column("demande_id", String(32), nullable=True),
+    Column("approuve_par", String(200), nullable=True),
+    Column("cree_par", String(200), nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    Column("termine_le", Text, nullable=True),
+    Column("code", String(64), nullable=True),
+    UniqueConstraint("demande_id", name="uq_courriel_brouillons_demande"),
+    CheckConstraint(
+        "statut IN ('BROUILLON','DEMANDE','APPROUVE','ENVOI_RESERVE','ENVOYE','ECHEC','INCERTAIN','REFUSE')",
+        name="statut_valide",
+    ),
+    CheckConstraint("revision >= 1", name="revision_positive"),
+    CheckConstraint("statut = 'BROUILLON' OR demande_id IS NOT NULL", name="demande_si_avance"),
+    CheckConstraint("statut NOT IN ('APPROUVE','ENVOI_RESERVE','ENVOYE') OR approuve_par IS NOT NULL",
+                    name="approbateur_si_approuve"),
+    Index("ix_courriel_brouillons_compte", "compte_id", "statut"),
+)
+# Journal append-only (déclencheurs de la migration 0040) : identifiants, codes, compteurs ; jamais un contenu de
+# courriel, une adresse de correspondant, un jeton ni un secret.
+COURRIEL_JOURNAL = Table(
+    "courriel_journal", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("quand", Text, nullable=False),
+    Column("compte_id", String(64), nullable=False),
+    Column("evenement", String(48), nullable=False),
+    Column("code", String(64), nullable=True),
+    Column("acteur", String(200), nullable=False),
+    Column("details", Text, nullable=False),
+    Index("ix_courriel_journal_compte", "compte_id", "id"),
 )

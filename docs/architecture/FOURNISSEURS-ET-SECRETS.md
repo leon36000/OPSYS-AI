@@ -20,7 +20,7 @@ matériaux de M6 restent dans `console/fournisseurs_ui.py` (`/crm/fournisseurs`)
 | `coffre_acces` | Journal d’accès **append-only** (déclencheurs SQLite et PostgreSQL) : action, acteur, usage, résultat, code. Ni valeur ni jeton. |
 
 Un fournisseur (`fournisseurs.modele.Fournisseur`) porte : identifiant, capacité (`llm`, `embeddings`,
-`reranker`, `ocr`, `stt`, `tts`, `avatar`, `image`, `video`, `recherche_web`), mode (`local`/`api`), point
+`reranker`, `ocr`, `stt`, `tts`, `avatar`, `image`, `video`, `recherche_web`, `courriel`), mode (`local`/`api`), point
 d’accès (`https://…`, `http://127.0.0.1…`, `module:…`, `binaire:…`, `appareil:…`), modèle, référence de secret,
 quotas déclarés, coût unitaire déclaré (chaîne décimale + devise + unité + source), résidence des données,
 références EFVP et contrat, statut catalogue (`adopte`, `repli`, `conditionnel`, `ecarte`, `declare`),
@@ -158,3 +158,10 @@ Une valeur passée en argument (`--valeur`, positionnel) est refusée sans être
   `tests/installateur/faux_core.py`. `core/` étant hors du périmètre de ce chantier, l’ajout de `fournisseurs`
   et `coffre` à ces deux listes reste à faire (deux lignes) ; d’ici là ce test échoue. `opsys metier fournisseurs …`
   fonctionne déjà : le core transmet toute commande après `metier` sans liste d’autorisation.
+
+## Capacité « courriel » (connecteurs Gmail, Graph, IMAP, mbox)
+
+Quatre entrées au catalogue (`courriel.gmail.api`, `courriel.graph.api`, `courriel.imap.generique`, `courriel.mbox.local`), toutes
+`a_mesurer`. Gmail et Graph sont `sur_contrat` (contrat du client requis) et exigent une EFVP (Loi 25) hors Québec. Les jetons OAuth et
+mots de passe d'application des comptes passent par ce coffre (`courriel.<compte>.g<génération>`, service `google`, `microsoft` ou `autre`),
+jamais par `reference_secret` d'un fournisseur. Voir [CONNECTEURS-COURRIEL.md](CONNECTEURS-COURRIEL.md).

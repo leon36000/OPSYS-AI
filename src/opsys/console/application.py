@@ -57,6 +57,7 @@ from . import (
     calendrier_marketing_ui,
     cfo_ui,
     connecteurs_ui,
+    courriel_ui,
     crm_ui,
     direction_ui,
     estimation_apprentissage_ui,
@@ -411,6 +412,10 @@ def creer_application(
     app.include_router(plateforme_ui.creer_router(
         session_page=session_page, session_api=session_api, verifier_formulaire=verifier_formulaire,
         formulaire=_formulaire, cnx_factory=cnx_factory, departements=sorted(deps), prefixe=prefixe,
+    ))
+    # Connecteurs courriel (courriel_ui) : état des comptes en lecture, administration seulement.
+    app.include_router(courriel_ui.creer_router(
+        session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, prefixe=prefixe,
     ))
     # Ingestion d'onboarding (onboarding_ui) : suivi des lots en lecture, administration seulement.
     app.include_router(onboarding_ui.creer_router(

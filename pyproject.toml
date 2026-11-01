@@ -51,6 +51,7 @@ version = { attr = "opsys.__version__" }
 packages = [
     "opsys",
     "opsys.console",
+    "opsys.courriel_connecteurs",
     "opsys.evenements",
     "opsys.fournisseurs",
     "opsys.garde_fou_texte",
