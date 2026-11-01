@@ -13,6 +13,7 @@ catalogue est lui-même vérifié au chargement : un schéma invalide empêche l
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import re
 import threading
@@ -20,11 +21,34 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, FormatChecker, validators
+from jsonschema.exceptions import ValidationError
 
 _DOSSIER = Path(__file__).parent / "catalogue"
 _PREFIXE_ID = "opsys.evenement/v1/"
 TYPE_EVENEMENT = re.compile(r"^(m(?:10|[1-9])|opsys)\.[a-z][a-z0-9_]*$")
+
+
+def _pattern_strict(validateur, motif, instance, schema):
+    """`pattern` de JSON Schema (ECMA-262) : `$` ne s'arrête qu'à la FIN du texte. Avec `re.search` de Python, `$`
+    accepte aussi un saut de ligne final : un identifiant « abc\\n » passait `^[A-Za-z0-9]+$`. On resserre en `\\Z`."""
+    if validateur.is_type(instance, "string"):
+        strict = motif[:-1] + r"\Z" if motif.endswith("$") and not motif.endswith("\\$") else motif
+        if not re.search(strict, instance):
+            yield ValidationError(f"{instance!r} does not match {motif!r}")
+
+
+_VALIDATEUR = validators.extend(Draft202012Validator, {"pattern": _pattern_strict})
+_FORMATS = FormatChecker(formats=())
+
+
+@_FORMATS.checks("date-time", raises=(ValueError, TypeError))
+def _date_time(valeur: object) -> bool:
+    """`format: date-time` : un instant ISO 8601 AVEC fuseau (jsonschema ne vérifie rien sans un paquet tiers)."""
+    if not isinstance(valeur, str):
+        return True
+    return dt.datetime.fromisoformat(valeur).tzinfo is not None
+
 
 _VERROU = threading.Lock()
 _CACHE: dict[str, Mapping[str, Any]] | None = None
@@ -53,7 +77,7 @@ def _charger_tout() -> dict[str, Mapping[str, Any]]:
                 raise ValueError(f"{chemin} : schéma racine doit être de type 'object'")
             Draft202012Validator.check_schema(schema)
             catalogue[type_evenement] = schema
-            _VALIDATEURS[type_evenement] = Draft202012Validator(schema)
+            _VALIDATEURS[type_evenement] = _VALIDATEUR(schema, format_checker=_FORMATS)
         _CACHE = catalogue
         return _CACHE
 

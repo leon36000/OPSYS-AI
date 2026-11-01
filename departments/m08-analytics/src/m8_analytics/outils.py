@@ -614,7 +614,9 @@ def _recevoir_operation(type_entree: str, charge: dict[str, Any]) -> dict[str, A
     fait par clé de CONTENU : une relivraison, ou le même constat sous un autre `evenement_id`, n'ajoute rien. Si le
     registre est indisponible, l'exception remonte : le bus réessaie (backoff), M8 ne perd jamais un constat en silence.
     Le résumé du reçu ne porte que l'identifiant du constat, jamais un montant ni une valeur."""
-    fait = operations_recues.fait(type_entree, charge)
+    from opsys.evenements.repartiteur import instant_publication_livre
+
+    fait = operations_recues.fait(type_entree, charge, instant_publication_livre())
     enregistre = _ajouter_fait_si_nouveau(
         stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_OPERATIONS), fait, operations_recues.cles_unicite(type_entree)
     )

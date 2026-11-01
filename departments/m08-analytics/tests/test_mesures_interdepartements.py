@@ -214,9 +214,9 @@ def _anomalie(i, severite="critique", fictif=False):
     return op.fait(op.TYPE_ANOMALIE, charge)
 
 
-def _comptable(jour="2026-10-30", version="0123456789abcdef", total="7210.55", tranches=None):
+def _charge_comptable(jour, version, total, tranches):
     tranches = tranches or {"0-30": "4000.00", "31-60": "2210.55", "61-90": "1000.00", "90+": "0.00"}
-    charge = _valide(
+    return _valide(
         "m5.mesures_comptables_constatees",
         {
             "date_reference": jour,
@@ -233,7 +233,10 @@ def _comptable(jour="2026-10-30", version="0123456789abcdef", total="7210.55", t
             "pieces_liees": 5,
         },
     )
-    return op.fait(op.TYPE_MESURES_COMPTABLES, charge)
+
+
+def _comptable(jour="2026-10-30", version="0123456789abcdef", total="7210.55", tranches=None):
+    return op.fait(op.TYPE_MESURES_COMPTABLES, _charge_comptable(jour, version, total, tranches))
 
 
 def _reception(i, verdict="CONFORME", po="po-1"):
@@ -851,3 +854,23 @@ def test_un_chantier_a_marge_nulle_n_est_ni_en_perte_ni_oublie(definitions):
     m = _mesures(_registres(chantier=faits), definitions)
     assert m["m8_chantiers_en_perte"]["valeur"] == "1"  # seulement -0.01 : zéro n'est pas une perte
     assert m["m8_chantiers_marge_reelle"]["valeur"] == "3" and m["m8_marge_reelle_cumulee_cad"]["valeur"] == "0.00"
+
+
+def test_deux_versions_du_meme_jour_s_ordonnent_par_l_instant_de_publication_pas_par_la_livraison(definitions):
+    """Discipline d'ordre de la revue adverse : le bus donne `publie_le`, la version publiée en dernier l'emporte quelle
+    que soit l'ordre dans lequel elle est livrée. Les autres sources de M8 (rentabilité, cash libre) s'ordonnent par
+    leur `sequence`, les réceptions, commandes et relevés par clé de contenu ou révision : l'instant n'y change rien."""
+    tranches = {"0-30": "10.00", "31-60": "0.00", "61-90": "0.00", "90+": "0.00"}
+    recent = op.fait(
+        op.TYPE_MESURES_COMPTABLES,
+        _charge_comptable("2026-10-30", "b" * 16, "10.00", tranches),
+        "2026-10-30T12:00:00+00:00",
+    )
+    ancien = op.fait(
+        op.TYPE_MESURES_COMPTABLES,
+        _charge_comptable("2026-10-30", "a" * 16, "7210.55", None),
+        "2026-10-30T09:00:00+00:00",
+    )
+    for ordre in ([ancien, recent], [recent, ancien]):
+        m = _mesures(_registres(operations=ordre), definitions)["m8_creances_ouvertes_cad"]
+        assert m["valeur"] == "10.00"

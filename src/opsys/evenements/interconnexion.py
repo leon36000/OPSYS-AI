@@ -12,6 +12,9 @@ Il en tire une matrice producteur -> consommateurs et quatre familles d'écarts 
   justification écrite dans `docs/architecture/evenements-sans-consommateur.json` (raison, date de revue) ;
 - `declares_sans_handler` : un département déclare consommer un type mais n'a pas de fonction pour lui
   (il croit recevoir, il ne reçoit rien) ;
+- `publications_hors_espace` : un `publier(...)` du code d'un département dont le type porte le préfixe d'un autre ;
+- `handlers_inertes` : une fonction qui ne référence aucun nom (`lambda charge: {}`) : elle ne compte PAS comme un
+  consommateur réel ;
 - `handlers_sans_declaration` : une fonction de `consommateurs()` absente de `evenements.consomme`
   (le répartiteur ne l'appelle jamais : du code mort qui se croit branché) ;
 - `types_sans_producteur` / `producteurs_sans_trace` : un type consommé que personne ne déclare publier, ou un type
@@ -24,6 +27,7 @@ fixe, jamais une liste en dur dans un test.
 
 from __future__ import annotations
 
+import ast
 import datetime as dt
 import json
 import re
@@ -99,11 +103,17 @@ def justifications_invalides(justifications: Mapping[str, Any], catalogue: froze
 
 def _trace_dans_le_code(departement: Departement, type_evenement: str) -> bool:
     """Le nom du type apparaît-il dans le code du producteur (son `src/`) ou dans le socle (publications
-    transverses, ex. le planificateur des connecteurs) ? Un nom qui n'apparaît nulle part ne peut être publié."""
+    transverses, ex. le planificateur des connecteurs) ? Un nom qui n'apparaît nulle part ne peut être publié.
+
+    Le nom COMPLET du type, entre guillemets, compte dans le `src/` du producteur et, dans le socle, seulement dans un
+    fichier qui PUBLIE (`publier(`) : le socle nomme aussi les types qu'il consomme ou relit. La forme composée
+    (un préfixe suivi de `.suffixe`, point devant le suffixe) ne compte que dans le `src/` du producteur : un suffixe nu
+    cherché dans tout le socle y trouve toujours une coïncidence et rendrait l'écart `producteurs_sans_trace` impossible
+    à voir."""
     motif = f'"{type_evenement}"'
     motif_simple = f"'{type_evenement}'"
-    racines = [departement.racine / "src", _RACINE_SOCLE]
-    for racine in racines:
+    propre = departement.racine / "src"
+    for racine in (propre, _RACINE_SOCLE):
         if not racine.is_dir():
             continue
         for fichier in racine.rglob("*.py"):
@@ -111,19 +121,69 @@ def _trace_dans_le_code(departement: Departement, type_evenement: str) -> bool:
                 texte = fichier.read_text(encoding="utf-8")
             except OSError:
                 continue
-            if motif in texte or motif_simple in texte:
+            if (motif in texte or motif_simple in texte) and (racine is propre or "publier(" in texte):
                 return True
-    # Un module peut composer le nom (`f"{PREFIXE}.suffixe"`) : on cherche aussi la partie après le point.
+    # Un module peut composer le nom (`f"{PREFIXE}.suffixe"`) : le suffixe précédé d'un point, dans son propre code.
     suffixe = type_evenement.split(".", 1)[1]
-    for racine in racines:
-        if racine.is_dir():
-            for fichier in racine.rglob("*.py"):
-                try:
-                    if re.search(rf"[\"']{re.escape(suffixe)}[\"']", fichier.read_text(encoding="utf-8")):
-                        return True
-                except OSError:
-                    continue
+    composee = re.compile(rf"\.{re.escape(suffixe)}[\"']")
+    if propre.is_dir():
+        for fichier in propre.rglob("*.py"):
+            try:
+                if composee.search(fichier.read_text(encoding="utf-8")):
+                    return True
+            except OSError:
+                continue
     return False
+
+
+def _inerte(fonction: Any) -> bool:
+    """Un handler qui ne référence AUCUN nom (ni appel, ni attribut, ni variable libre) ne peut rien écrire : c'est le
+    consommateur factice (`lambda charge: {}`, `lambda charge: charge`) qui ferait passer l'audit sans rien recevoir.
+    Heuristique grossière et dite telle : un handler qui appelle `print` n'est pas vu ; le comportement des handlers
+    est prouvé par les tests de chaque consommateur, pas par cet audit."""
+    code = getattr(fonction, "__code__", None)  # une méthode liée délègue `__code__` à sa fonction
+    return code is not None and not code.co_names and not code.co_freevars
+
+
+def _publications_hors_espace(departement: Departement) -> list[dict[str, Any]]:
+    """Les `publier(<type>, ...)` du code d'un département dont le type (littéral, ou constante du même fichier) porte
+    le préfixe d'UN AUTRE département (`m5.…` publié par M3). Le bus ne lie pas le type au producteur : sans ce
+    contrôle, un département écrirait dans l'espace de noms d'un autre (un fait « scellé » ou « confirmé » qui n'est pas
+    le sien). Les types `opsys.*` et les noms qu'on ne sait pas résoudre statiquement ne sont pas vus (limite dite)."""
+    numero = departement.numero
+    sortie: list[dict[str, Any]] = []
+    racine = departement.racine / "src" if departement.racine is not None else None
+    if racine is None or not racine.is_dir():
+        return sortie
+    for fichier in sorted(racine.rglob("*.py")):
+        try:
+            arbre = ast.parse(fichier.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError):
+            continue
+        constantes = {
+            cible.id: noeud.value.value
+            for noeud in ast.walk(arbre)
+            if isinstance(noeud, ast.Assign) and isinstance(noeud.value, ast.Constant)
+            and isinstance(noeud.value.value, str)
+            for cible in noeud.targets
+            if isinstance(cible, ast.Name)
+        }
+        for appel in ast.walk(arbre):
+            if not isinstance(appel, ast.Call) or not appel.args:
+                continue
+            nom = appel.func.attr if isinstance(appel.func, ast.Attribute) else getattr(appel.func, "id", None)
+            if nom != "publier":
+                continue
+            premier = appel.args[0]
+            type_evenement = (
+                premier.value if isinstance(premier, ast.Constant)
+                else constantes.get(premier.id) if isinstance(premier, ast.Name) else None
+            )
+            correspondance = re.match(r"m(\d+)\.", type_evenement) if isinstance(type_evenement, str) else None
+            if correspondance and int(correspondance.group(1)) != numero:
+                sortie.append({"departement": departement.id, "type": type_evenement,
+                               "fichier": fichier.name, "ligne": appel.lineno})
+    return sortie
 
 
 def analyser(
@@ -138,20 +198,27 @@ def analyser(
     declares_sans_handler: list[dict[str, str]] = []
     handlers_sans_declaration: list[dict[str, str]] = []
     illisibles: list[dict[str, str]] = []
+    handlers_inertes: list[dict[str, str]] = []
+    publications_hors_espace: list[dict[str, Any]] = []
     producteurs_sans_trace: list[dict[str, str]] = []
     for dep in sorted(departements.values(), key=lambda d: d.numero):
+        publications_hors_espace.extend(_publications_hors_espace(dep))
         for type_evenement in dep.evenements_publie:
             producteurs.setdefault(type_evenement, []).append(dep.id)
             if type_evenement in catalogue and not _trace_dans_le_code(dep, type_evenement):
                 producteurs_sans_trace.append({"departement": dep.id, "type": type_evenement})
         try:
-            fonctions = set(dep.charger_consommateurs())
+            handlers = dict(dep.charger_consommateurs())
         except Exception as exc:  # noqa: BLE001 — décrit dans le rapport, jamais une panne de l'audit
             illisibles.append({"departement": dep.id, "erreur": f"{type(exc).__name__}: {exc}"})
-            fonctions = set()
+            handlers = {}
+        fonctions = set(handlers)
         for type_evenement in dep.evenements_consomme:
             declares.setdefault(type_evenement, []).append(dep.id)
-            if type_evenement in fonctions:
+            if type_evenement in fonctions and _inerte(handlers[type_evenement]):
+                # Un handler inerte ne reçoit rien : il n'est PAS un consommateur réel.
+                handlers_inertes.append({"departement": dep.id, "type": type_evenement})
+            elif type_evenement in fonctions:
                 reels.setdefault(type_evenement, []).append(dep.id)
             else:
                 declares_sans_handler.append({"departement": dep.id, "type": type_evenement})
@@ -174,6 +241,8 @@ def analyser(
         "types_sans_consommateur_non_justifies": [t for t in sans_consommateur if t not in justifs],
         "justifications_perimees": sorted(t for t in justifs if reels.get(t)),
         "declares_sans_handler": declares_sans_handler,
+        "handlers_inertes": handlers_inertes,
+        "publications_hors_espace": publications_hors_espace,
         "handlers_sans_declaration": handlers_sans_declaration,
         "types_sans_producteur": sorted(t for t in catalogue if reels.get(t) and not producteurs.get(t)),
         "producteurs_sans_trace": producteurs_sans_trace,
@@ -191,6 +260,12 @@ def problemes(analyse: Mapping[str, Any]) -> list[str]:
         sortie.append(f"{t} : justifié « sans consommateur » alors qu'un consommateur réel existe (retirer la fiche)")
     for ecart in analyse["declares_sans_handler"]:
         sortie.append(f"{ecart['departement']} : consomme {ecart['type']} sans handler dans consommateurs()")
+    for ecart in analyse["publications_hors_espace"]:
+        sortie.append(
+            f"{ecart['departement']} : publie {ecart['type']} (espace d'un autre département) "
+            f"à {ecart['fichier']}:{ecart['ligne']}")
+    for ecart in analyse["handlers_inertes"]:
+        sortie.append(f"{ecart['departement']} : handler {ecart['type']} inerte (ne référence aucun appel ni écriture)")
     for ecart in analyse["handlers_sans_declaration"]:
         sortie.append(f"{ecart['departement']} : handler {ecart['type']} absent de evenements.consomme")
     for t in analyse["types_sans_producteur"]:
@@ -243,6 +318,10 @@ _LECTURES_DIRECTES = tuple(
         rf"^\s*(?:dept|_DEPARTEMENT_[A-Z_]+)\s*=\s*[\"']{_ID}[\"']",
     )
 )
+# Une constante qui porte l'identifiant d'un département (`AUTRE = "m04-field-ops"`, de n'importe quel nom) puis un
+# `maillons(AUTRE, ...)` du même fichier : la lecture directe sans que le nom de la constante soit celui qu'on attend.
+_AFFECTATION_ID = re.compile(rf"^\s*(\w+)\s*(?::[^=\n]+)?=\s*[\"']{_ID}[\"']\s*(?:#.*)?$", re.MULTILINE)
+_APPEL_MAILLONS_PAR_NOM = re.compile(r"maillons\(\s*(\w+)\s*,")
 _IMPORT_AUTRE = re.compile(r"^\s*(?:from|import)\s+(m(?:[1-9]|10)_[a-z_]+)", re.MULTILINE)
 
 
@@ -315,6 +394,11 @@ def auditer_lectures_croisees(
                 for autre in motif.findall(texte):
                     if autre != dep.id:
                         trouvees_directes.add((dep.id, autre))
+            constantes = dict(_AFFECTATION_ID.findall(texte))
+            for nom in _APPEL_MAILLONS_PAR_NOM.findall(texte):
+                autre = constantes.get(nom)
+                if autre is not None and autre != dep.id:
+                    trouvees_directes.add((dep.id, autre))
             for paquet in _IMPORT_AUTRE.findall(texte):
                 autre = paquet_vers_id.get(paquet)
                 if autre is not None and autre != dep.id:

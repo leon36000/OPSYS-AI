@@ -46,7 +46,7 @@ les commandes.
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -113,9 +113,11 @@ _ANOMALIES_LISTEES = 5
 _ORDRE_SEVERITE = {"critique": 0, "attention": 1, "info": 2}
 
 
-def fait(type_entree: str, charge: dict[str, Any]) -> dict[str, Any]:
+def fait(type_entree: str, charge: dict[str, Any], publie_le: str | None = None) -> dict[str, Any]:
     """Le fait rangé : la charge validée par le catalogue du socle, avec son type d'entrée. La vision est réduite à
-    l'essentiel (ni photo ni modèle)."""
+    l'essentiel (ni photo ni modèle). `publie_le` : instant de PUBLICATION donné par le bus, gardé pour les constats
+    comptables seulement (deux versions du même jour ne s'ordonnent que par lui : l'ordre de livraison n'est pas
+    garanti) ; il n'entre dans aucune clé de contenu."""
     if type_entree not in _CLES_UNICITE:
         raise ValueError(f"type d'entrée inconnu : {type_entree!r}")
     provenance = {
@@ -129,7 +131,10 @@ def fait(type_entree: str, charge: dict[str, Any]) -> dict[str, Any]:
         return {"type_entree": type_entree, **{cle: charge[cle] for cle in _CLES_COMMANDE}, "provenance": provenance}
     if type_entree == TYPE_RECEPTION:
         return {"type_entree": type_entree, **{cle: charge[cle] for cle in _CLES_RECEPTION}, "provenance": provenance}
-    return {"type_entree": type_entree, **charge, "provenance": provenance}
+    rangee = {"type_entree": type_entree, **charge, "provenance": provenance}
+    if type_entree == TYPE_MESURES_COMPTABLES and publie_le is not None:
+        rangee["publie_le"] = publie_le
+    return rangee
 
 
 def cles_unicite(type_entree: str) -> tuple[str, ...]:
@@ -150,6 +155,9 @@ def resume_recu(type_entree: str, fait_range: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 def _de_type(faits: list[dict[str, Any]], type_entree: str) -> list[dict[str, Any]]:
     return [f for f in faits if f.get("type_entree") == type_entree]
+
+
+_PLUS_ANCIEN = datetime.min.replace(tzinfo=UTC)
 
 
 def _instant(texte: Any) -> datetime | None:
@@ -249,13 +257,18 @@ def _conversions(faits: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def dernier_constat_comptable(faits: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """Le dernier constat des mesures comptables de M5 : la plus grande date de référence, puis le dernier reçu (une
-    version nouvelle le même jour est un nouveau constat). Quel que soit l'ordre de livraison du bus. ``None`` sans
-    constat. Une seule règle, pour la vue exécutive comme pour les mesures du catalogue."""
+    """Le dernier constat des mesures comptables de M5 : la plus grande date de référence, puis la publication la plus
+    récente (`publie_le`, donné par le bus), puis le dernier reçu. Quel que soit l'ordre de livraison du bus.
+    ``None`` sans constat. Une seule règle, pour la vue exécutive comme pour les mesures du catalogue."""
     constats = _de_type(faits, TYPE_MESURES_COMPTABLES)
     if not constats:
         return None
-    indice = max(range(len(constats)), key=lambda i: (constats[i]["date_reference"], i))
+    # Le dernier constat : la plus grande date de référence, puis la publication la plus récente (une version nouvelle
+    # le même jour est un nouveau constat ; la livraison n'est pas ordonnée), puis le dernier reçu.
+    indice = max(
+        range(len(constats)),
+        key=lambda i: (constats[i]["date_reference"], _instant(constats[i].get("publie_le")) or _PLUS_ANCIEN, i),
+    )
     return constats[indice]
 
 
