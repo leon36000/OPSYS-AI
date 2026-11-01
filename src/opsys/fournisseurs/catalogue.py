@@ -25,6 +25,8 @@ R4 = "recherche/R4-MARKETING-SEO-GEO-WEB.md"
 R5 = "recherche/R5-CREATION-IMAGE-VIDEO-DESIGN.md"
 R6 = "recherche/R6-AGENTS-AUTONOMIE-OUTILLAGE.md"
 VLLM = "http://127.0.0.1:8000/v1"
+SANS_RECHERCHE = ("hors-recherche R1-R6 : connaissance de l'agent au 2026-11-01, sans réseau ni lecture du texte "
+                  "intégral ; À VÉRIFIER")
 
 
 def _permissive(code: str | None, poids: str | None, source: str, **extra) -> Licence:
@@ -290,6 +292,57 @@ CATALOGUE += (
     _f("courriel.mbox.local", "courriel", "local", "Export mbox (Google Takeout, export Workspace) lu en lecture seule",
        _permissive("PSF-2.0 (bibliothèque standard Python)", None, f"{R3} l.192 [C]"),
        "adopte", point_acces="module:mailbox", residence_donnees="local"),
+    # ---------------------------------------------------------------- Vision (M3.3 et M3.5), HORS des recherches R1-R6
+    # Aucune recherche R1-R6 ne couvre la vision : ces licences viennent de la connaissance de l'agent au 2026-11-01,
+    # SANS accès réseau et SANS lecture du texte intégral. Elles sont donc toutes `a_lire` (activation refusée tant
+    # qu'un administrateur n'a pas lu et consigné la licence du CODE et celle de CHAQUE jeu de POIDS choisi) ; aucun
+    # point d'accès n'est déclaré (aucun poids n'est fourni ni téléchargé par OPSYS). `adopte` veut dire « pile visée
+    # par DEFINITION-PRODUIT §7 M3.5 », pas « qualifié » : voir docs/architecture/M3-M4-MATHIS-GABRIEL.md.
+    _f(
+        "vision.grounding-dino.local", "vision", "local", "Grounding DINO : détection d'objets guidée par du texte",
+        Licence(
+            code="Apache-2.0 (à vérifier)",
+            poids="Apache-2.0 d'après les cartes de modèles (à vérifier par jeu de poids)",
+            usage_commercial="autorise", service_tiers="incertain", verification="a_lire", source=SANS_RECHERCHE,
+            note="poids à choisir et à lire un par un ; GPU requis pour un débit utile ; rien n'est installé",
+        ),
+        "adopte",
+    ),
+    _f(
+        "vision.sam2.local", "vision", "local", "SAM 2 (Segment Anything 2) : segmentation par invite (boîte, point)",
+        Licence(
+            code="Apache-2.0 (à vérifier)",
+            poids="Apache-2.0 d'après les cartes de modèles (à vérifier par version)",
+            usage_commercial="autorise", service_tiers="incertain", verification="a_lire", source=SANS_RECHERCHE,
+            note="GPU requis (porte fermée DEFINITION-PRODUIT §7 M3) ; rien n'est installé",
+        ),
+        "adopte",
+    ),
+    _f(
+        "vision.florence-2.local", "vision", "local", "Florence-2 : détection et segmentation (repli tout-en-un)",
+        Licence(
+            code="MIT (à vérifier)", poids="MIT d'après la carte du modèle (à vérifier)", usage_commercial="autorise",
+            service_tiers="incertain", verification="a_lire", source=SANS_RECHERCHE,
+        ),
+        "repli",
+    ),
+    _f(
+        "vision.owlv2.local", "vision", "local", "OWLv2 : détection ouverte du vocabulaire (repli de Grounding DINO)",
+        Licence(
+            code="Apache-2.0 (à vérifier)", poids="Apache-2.0 d'après la carte du modèle (à vérifier)",
+            usage_commercial="autorise", service_tiers="incertain", verification="a_lire", source=SANS_RECHERCHE,
+        ),
+        "repli",
+    ),
+    _f(
+        "vision.ultralytics-yolo", "vision", "local", "Ultralytics YOLO (détection/segmentation)",
+        Licence(
+            code="AGPL-3.0 (ou licence d'entreprise, à vérifier)", poids="AGPL-3.0 (à vérifier)",
+            usage_commercial="autorise", service_tiers="incertain", verification="a_lire", source=SANS_RECHERCHE,
+        ),
+        "ecarte",
+        raison_ecart="AGPL-3.0 : interdite dans le code distribué (DECISIONS r1 §7) ; licence d'entreprise à examiner",
+    ),
 )
 
 

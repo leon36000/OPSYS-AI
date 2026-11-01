@@ -55,7 +55,10 @@ kpis:
   - id: delai_moyen_resolution_revue
     description: Délai moyen entre l'ouverture d'une demande de revue et sa résolution.
 evenements:                        # ADR-0009 §3, PLAN T1.2-b
-  publie: [m4.travaux_termines]    # même transaction que le WCT (outbox.completer_intervention)
+  publie: [m4.travaux_termines, m4.message_client_brouillon_pret]
+  # m4.travaux_termines : même transaction que le WCT (outbox.completer_intervention).
+  # m4.message_client_brouillon_pret (M4.14) : brouillon d'une fenêtre d'arrivée pour le client, publié à M1 seulement si le
+  # consentement de suivi est actif ; M1 le reprend (envoi N3 de M1). Aucun consommateur câblé à ce jour.
   # m6.variance_chantier : confirme completed_verified (outbox.confirmer_verification).
   # m3.devis_accepte (PLAN T4.10-b, DEFINITION-PRODUIT §6 « soumission acceptée -> M4 planifie », M4.5) : une
   # intervention a_planifier naît du devis ; service, ville et urgence sont relus à la source du bus
@@ -78,3 +81,31 @@ approbations:                      # ADR-0009 §5, PLAN T1.3-b : rôles autoris�
   # l'écart matériaux critique comme une « alerte sur le mobile de l'admin ». employee, seller,
   # client, finance, system_agent restent exclus (fail-closed, DEFAUT_ROLES_NIVEAU sinon).
   n4: [manager, admin, nathan_owner]
+configuration:
+  # M4.11 (adequation_equipe.py) : poids du score d'adéquation équipe/intervention. VIDES à dessein, comme les seuils de M3 :
+  # les poids sont une décision de l'entreprise, que ni un agent ni un appelant ne se donnent ; sans eux, aucune équipe n'est
+  # classée (REJ-ADEQUATION-PARAMETRES-ABSENTS). poids : capacite, charge, distance, qualite (textes décimaux >= 0, un au moins
+  # > 0) ; distance_reference_km : distance (entier) à laquelle le sous-score de distance tombe à zéro ; historique_minimum :
+  # nombre de chantiers vérifiés avant que l'historique de qualité d'une équipe soit utilisé. Le score est celui d'une ÉQUIPE
+  # pour une intervention : jamais une note de personne (SOUL.md).
+  adequation:
+    poids:
+      capacite: null
+      charge: null
+      distance: null
+      qualite: null
+    distance_reference_km: null
+    historique_minimum: null
+  # M4.14 (eta_client.py, suivi_client.py) : réglages de la fenêtre d'arrivée du client. VIDES à dessein : décisions de
+  # l'entreprise (et, pour la durée de validité et la conservation, à valider auprès d'un juriste, Loi 25). Sans eux, aucune
+  # fenêtre n'est estimée (REJ-ETA-PARAMETRES-ABSENTS). incertitude_trajet_pct (0 à 200) : marge ajoutée au trajet pour la borne
+  # haute ; largeur_minimale_minutes (5 à 240) : la fenêtre n'est jamais plus étroite ; granularite_minutes (5, 10, 15, 30, 60) :
+  # arrondi vers l'extérieur ; validite_consentement_jours (1 à 30) ; conservation_heures (1 à 720) : conservation d'une fenêtre
+  # préparée ; messages_max_par_intervention (1 à 10) : plafond de mises à jour par chantier et canal.
+  eta_client:
+    incertitude_trajet_pct: null
+    largeur_minimale_minutes: null
+    granularite_minutes: null
+    validite_consentement_jours: null
+    conservation_heures: null
+    messages_max_par_intervention: null

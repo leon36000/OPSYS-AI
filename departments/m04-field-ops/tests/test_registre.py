@@ -320,6 +320,11 @@ def test_enumere_des_types_est_fige():
         "pointage_equipe_v3",  # CRM01-17 V3 : preuve typée transactionnelle, voir contrat de mission.
         "composition_journaliere",  # CRM-16 : histoire déclarative séparée, aucun droit courant.
         "absence_journaliere_declaree",  # CRM-16 : type ratifié par le contrat admin, aucune présence/paie.
+        "affectation_brouillon",  # M4.11 : brouillon d'affectation interne (n'assigne pas)
+        "affectation_approuvee",  # M4.11 : affectation engageante approuvée par une personne (N3) (n'assigne pas)
+        "consentement_suivi_client",  # M4.14 : consentement du client au suivi de la fenêtre d'arrivée (Loi 25)
+        "retrait_suivi_client",  # M4.14 : retrait de ce consentement
+        "eta_client_preparee",  # M4.14 : fenêtre préparée (fenêtre, empreinte du texte, identifiants ; aucune position)
     }
     assert set(registre_mod._TYPE_ENTREE_VALIDES) == attendu, (
         f"énuméré modifié sans ratification : {set(registre_mod._TYPE_ENTREE_VALIDES) ^ attendu}"

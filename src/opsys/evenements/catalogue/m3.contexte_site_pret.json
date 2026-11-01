@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m3.contexte_site_pret",
+  "title": "M3 — Contexte de site prêt (nouvelle version)",
+  "description": "Émis par M3 (departments/m03-estimation/src/m3_estimation/outils_site_vision.py, outil m3_construire_contexte_site, M3.2) quand une NOUVELLE version du contexte de site d'un lead est inscrite au journal du site (une version identique à la précédente ne republie rien). Dit, par facteur, un statut (connu, inconnu, a_verifier, conflit) et, pour un facteur connu seulement, sa valeur sourcée. Aucun inconnu n'est comblé, aucun conflit n'est tranché, aucun permis n'est présumé non requis. Aucune adresse, aucun contact, aucun prix. evenement_id déterministe (m3-contexte-site-<lead_id>-v<version>) : une redélivrance est un no-op. Consommateurs visés : M2 (profil de propriété, M2.3) et M10 ; aucun n'est câblé à ce jour.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lead_id": {"type": "string", "minLength": 1},
+    "service": {"type": "string", "minLength": 1, "description": "Code du service déclaré par l'entreprise."},
+    "version": {"type": "integer", "minimum": 1},
+    "empreinte": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Empreinte de cette version du contexte."},
+    "date_reference": {"type": "string", "description": "AAAA-MM-JJ fournie par l'appelant (aucune horloge interne)."},
+    "facteurs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "facteur": {"type": "string"},
+          "statut": {"enum": ["connu", "inconnu", "a_verifier", "conflit"]},
+          "valeur": {"description": "Valeur sourcée d'un facteur connu ; null sinon."}
+        },
+        "required": ["facteur", "statut", "valeur"]
+      }
+    },
+    "inconnus": {"type": "array", "items": {"type": "string"}},
+    "a_verifier": {"type": "array", "items": {"type": "string"}},
+    "conflits": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["lead_id", "service", "version", "empreinte", "date_reference", "facteurs", "inconnus", "a_verifier", "conflits"]
+}

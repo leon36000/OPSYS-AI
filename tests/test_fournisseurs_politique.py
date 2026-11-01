@@ -118,7 +118,13 @@ def test_catalogue_couvre_les_capacites_et_cite_ses_sources():
     assert capacites == set(CAPACITES)
     for f in catalogue.CATALOGUE:
         assert f.qualification == "a_mesurer", f.identifiant  # aucune mesure locale n'existe encore
-        assert f.licence.source.startswith("recherche/R"), f.identifiant
+        if f.capacite == "vision":
+            # Aucune recherche R1-R6 ne couvre la vision (M3.3/M3.5) : licences de mémoire, donc TOUTES à lire en entier
+            # avant activation, sans point d'accès (aucun poids n'est fourni).
+            assert f.licence.source.startswith("hors-recherche"), f.identifiant
+            assert f.licence.verification == "a_lire" and f.point_acces is None, f.identifiant
+        else:
+            assert f.licence.source.startswith("recherche/R"), f.identifiant
         assert f.reference_secret is None  # aucun secret dans le catalogue
         assert Fournisseur.depuis_json(f.vers_json()) == f
     adoptes = {f.capacite for f in catalogue.CATALOGUE if f.statut_catalogue == "adopte"}

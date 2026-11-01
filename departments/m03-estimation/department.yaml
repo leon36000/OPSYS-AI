@@ -54,8 +54,11 @@ kpis:
 evenements:
   consomme: [m4.travaux_termines, m6.variance_chantier]  # PLAN T1.2-d, estimé vs réel en second ordre
   # PLAN T2.3 : relance vers M2 ; T2.3-e : besoins matériaux vers M6 ; T4.7 : m3.devis_envoye, l'envoi approuvé
-  # par le propriétaire (sans montant ; M2 en fera partir la relance, T4.9)
-  publie: [m3.catalogue_reference, m3.devis_accepte, m3.devis_sans_reponse, m3.besoins_materiaux, m3.devis_envoye]
+  # par le propriétaire (sans montant ; M2 en fera partir la relance, T4.9) ; M3.2 : m3.contexte_site_pret (nouvelle
+  # version du contexte de site, pour le profil de propriété de M2) ; M3.3/M3.5 : m3.mesure_vision_validee (un candidat de
+  # vision validé par une référence ou une personne, pour M8). Aucun des deux n'a de consommateur câblé à ce jour.
+  publie: [m3.catalogue_reference, m3.devis_accepte, m3.devis_sans_reponse, m3.besoins_materiaux, m3.devis_envoye,
+           m3.contexte_site_pret, m3.mesure_vision_validee]
 approbations:                      # ADR-0009 §5, PLAN T4.7
   # N4 : l'envoi d'un devis au client (m3_demander_envoi_devis) est un engagement, décidé par le seul
   # propriétaire. C'est aussi le défaut du socle (fail-closed) ; il est écrit ici pour qu'un élargissement soit un
@@ -101,3 +104,14 @@ configuration:
       prudent: null
       normal: null
       agressif: null
+  # Gouvernance des mesures issues de la vision (M3.3/M3.5, vision_gouvernance.py). VIDE à dessein, comme les seuils ci-dessus :
+  # le seuil de confiance et les tolérances sont des décisions de l'entreprise, que ni un agent ni un appelant ne se donnent.
+  # Sans elles, aucun candidat ne se valide (REJ-VISION-POLITIQUE-ABSENTE). seuil_confiance : texte décimal dans ]0, 1] ;
+  # tolerance_absolue (dans l'unité de la grandeur, m ou m2) et/ou tolerance_relative (texte décimal dans ]0, 1]) : toutes
+  # celles qui sont déclarées doivent tenir ; declaree_par : identifiant de la personne ; declaree_le : horodatage ISO 8601.
+  vision_gouvernance:
+    seuil_confiance: null
+    tolerance_absolue: null
+    tolerance_relative: null
+    declaree_par: null
+    declaree_le: null

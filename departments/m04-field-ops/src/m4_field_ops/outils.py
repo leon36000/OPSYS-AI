@@ -81,6 +81,7 @@ from . import (
     meteo_fournisseurs,
     meteo_manuelle,
     outbox,
+    outils_adequation_eta,
     pages_semaine,
     pagination_interventions,
     pointage,
@@ -3144,6 +3145,12 @@ def outils(
               roles_appareil=frozenset({"admin"})),
         *_outils_annotations(),
         *_outils_presentation_calendrier(),
+        *outils_adequation_eta.construire(
+            registre_courant=registre_courant,
+            lecteur_equipes=_lecteur_equipes,
+            lire_position=lire_localisation_confirmee,
+            fournisseur_matrice=fournisseur_matrice,
+        ),
         Outil(
             nom="m4_previsualiser_heures_regulieres",
             description=("Aperçu privé des pointages d'une personne OPSYS active. Dérive catégories travail, "

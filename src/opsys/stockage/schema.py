@@ -1318,7 +1318,7 @@ FOURNISSEURS_CONFIGURATIONS = Table(
     Column("modifie_par", String(64), nullable=False),
     CheckConstraint(
         "capacite IN ('llm','embeddings','reranker','ocr','stt','tts','avatar','image','video','recherche_web',"
-        "'courriel')",
+        "'courriel','vision')",
         name="capacite_valide",
     ),
     CheckConstraint("revision > 0", name="revision_positive"),
