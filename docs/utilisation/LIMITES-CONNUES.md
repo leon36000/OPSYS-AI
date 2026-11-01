@@ -102,7 +102,7 @@ ci-dessous sont recopiés par un script et vérifiés par un test.
 | M7 | Marketing (Chloé) | 15 | FAIT_PROUVE 0 · PARTIEL 13 · SIMULE 2 · ABSENT 0 |
 | M8 | Analytics (Olivier) | 18 | FAIT_PROUVE 0 · PARTIEL 18 · SIMULE 0 · ABSENT 0 |
 | M9 | Strategic Intelligence (Athéna) | 24 | DONE_VERIFIED 16 · PARTIEL 7 · PHASE_MOBILE_FINALE 1 |
-| M10 | Mémoire (Mnémo) | 20 | FAIT_PROUVE 0 · PARTIEL 19 · SIMULE 0 · ABSENT 1 |
+| M10 | Mémoire (Mnémo) | 20 | FAIT_PROUVE 0 · PARTIEL 20 · SIMULE 0 · ABSENT 0 |
 
 Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 suit son propre vocabulaire (`DONE_VERIFIED` = prouvé sur les doubles et les parcours du dépôt, pas en production). `PARTIEL` veut dire qu'une partie seulement de la cible est prouvée.
 
@@ -116,7 +116,6 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 | M3.5 | Détection et segmentation (Grounding DINO + SAM2) | SIMULE | Registre des modèles (capacité « vision » du registre de fournisseurs, migration 0049) : Grounding DINO et SAM 2 (pile visée), Florence-2 et OWLv2 (replis), YOLO écarté (AGPL), drapeaux de licence, statut honnête « contrat prêt, aucun modèle qualifié ». |
 | M7.7 | Médias payants et intelligence publicitaire | SIMULE | ads_loader refuse toute donnée qui n'est pas marquée fictif: true ; aucune lecture ni écriture de compte publicitaire. |
 | M7.9 | Veille concurrentielle | SIMULE | Slug local et fictif: true, sans réseau. |
-| M10.17 | Graphe de connaissances (extension §7) | ABSENT | Cognee : 0 occurrence ; repli « relations en base » seulement (voir M10.2). |
 
 ### Décisions que les matrices attendent de Nathan
 
@@ -183,9 +182,8 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 **M8 (1)**
 - Fenêtres de fraîcheur attendue (décision 6)
 
-**M10 (2)**
+**M10 (1)**
 - Rétention et effacement par sujet
-- Décision Cognee / graphe
 
 ### Portes encore fermées (gates)
 
@@ -266,10 +264,11 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 - Qualification réelle conseil séparée des doubles de protocole
 - Producteurs sans donnée : M7 (dépense), M4 (capacité), M1 (plaintes structurées)
 
-**M10 (3)**
+**M10 (4)**
 - Cognee en production : non décidé (gate DEFINITION §10)
 - Planification native de la consolidation non démarrée (departmental_scheduler runtime_GO:false au checkpoint)
 - Politique de rétention et d'effacement par sujet à décider (Loi 25)
+- Pilote LightRAG (MIT) derrière le port MoteurGraphe : plan documenté (M10-SOI-GRAPHE.md § 4), NON exécuté ; conditions d'adoption non vérifiées
 
 <!-- matrices:fin -->
 

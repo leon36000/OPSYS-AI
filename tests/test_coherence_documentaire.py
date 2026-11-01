@@ -132,8 +132,9 @@ def test_roles_md_cite_les_memes_totaux_que_le_verificateur(verificateur):
 
 def test_la_tete_alembic_et_le_nombre_de_migrations_viennent_des_fichiers():
     n, tete = C.migrations(RACINE)
-    assert (n, tete) == (44, "0049")
-    assert "Tête alembic | 0049 |" in _lire("README.md")
+    assert n >= 45 and tete >= "0052"  # le calcul vient des fichiers ; le README doit citer EXACTEMENT ces valeurs
+    assert f"Tête alembic | {tete} |" in _lire("README.md")
+    assert f"Fichiers de migration | {n} |" in _lire("README.md")
 
 
 def test_une_chaine_de_migrations_a_deux_tetes_est_refusee(tmp_path):
@@ -246,7 +247,7 @@ def test_la_page_des_limites_est_alimentee_par_les_matrices():
     readme = _lire("docs/reprise/MATRICES-20261031/README.md")
     assert sum(synthese[m]["total"] for m in synthese if m != "M9") == 169
     assert sum(synthese[m]["statuts"]["FAIT_PROUVE"] for m in synthese if m != "M9") == 4
-    assert "| Total | 169 | 4 | 158 | 5 | 2 | 0 |" in readme
+    assert "| Total | 169 | 4 | 159 | 5 | 1 | 0 |" in readme
 
 
 def test_la_page_des_limites_ne_laisse_aucune_capacite_sur_double_passer_pour_prete():

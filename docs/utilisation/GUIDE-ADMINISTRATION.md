@@ -73,7 +73,7 @@ préproduction avant de compter dessus.
 
 **Qualifié** (au banc) : passage de la révision 0038 à 0040 par `opsys-metier base migrer` (0,96 s, 76 tables d'origine identiques), retour
 arrière jusqu'à 0038 sur une copie, refus du logiciel précédent sur une base plus récente, migration interrompue à six moments (retour atomique ou
-terminée, jamais à demi). La tête actuelle des migrations est **0049** ; les migrations 0041 à 0049 ne sont pas passées par ce banc.
+terminée, jamais à demi). La tête actuelle des migrations est **0052** ; les migrations 0041 à 0052 ne sont pas passées par ce banc.
 
 ```bash
 opsys-metier base etat        # révision courante
@@ -168,7 +168,7 @@ Déclarez aussi les serveurs de réception de confiance par compte, sinon toute 
 ## 8. Registre MCP des outils
 
 Le registre scellé (`src/opsys/registre_mcp/registre.v1.json`) liste chaque outil exposé avec une empreinte de son nom, de sa description et de son
-schéma, et son niveau d'approbation. À la révision actuelle, **558 outils** y sont scellés (les 537 outils de départements, plus les outils communs, de
+schéma, et son niveau d'approbation. À la révision actuelle, **581 outils** y sont scellés (les 558 outils de départements, plus les outils communs, de
 contexte et d'hôte).
 
 ```bash
