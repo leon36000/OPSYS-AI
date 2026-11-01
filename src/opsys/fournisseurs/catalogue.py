@@ -264,6 +264,34 @@ CATALOGUE: tuple[Fournisseur, ...] = (
        residence_donnees="US"),
 )
 
+CATALOGUE += (
+    # ---------------------------------------------------------------- Courriel (R3 §connecteurs, l.185-192, 200-201,
+    # 209) Connecteurs de `opsys.courriel_connecteurs` : qualifiés contre des DOUBLES seulement, jamais contre le vrai
+    # service.
+    _f("courriel.gmail.api", "courriel", "api",
+       "Gmail API (REST), projet OAuth du client de type Internal, portées minimales",
+       _api_contrat(f"{R3} l.185 [V pages Google]",
+                    "gmail.readonly est un scope RESTREINT : exemption « Internal » seulement avec le projet OAuth du "
+                    "client ; "
+                    "conditions du Workspace du client à lire"),
+       "adopte", point_acces="https://gmail.googleapis.com/gmail/v1", residence_donnees="US"),
+    _f("courriel.graph.api", "courriel", "api",
+       "Microsoft Graph (courrier, requête delta par dossier), application Entra du client",
+       _api_contrat(f"{R3} l.187 [V delta ; limites V3]",
+                    "EWS retiré d'Exchange Online (annonce du 2026-10-01) : Graph seulement ; conditions Microsoft 365 "
+                    "du client"),
+       "adopte", point_acces="https://graph.microsoft.com/v1.0", residence_donnees="inconnue"),
+    _f("courriel.imap.generique", "courriel", "local",
+       "IMAP/SMTP générique (imaplib et smtplib de la bibliothèque standard)",
+       _permissive("PSF-2.0 (bibliothèque standard Python)", None, f"{R3} l.189, l.200 [C]"),
+       "adopte", point_acces="module:imaplib", residence_donnees="inconnue",
+       note="le serveur IMAP est celui du client : déclarer son hébergement ; mot de passe d'application dans le "
+            "coffre"),
+    _f("courriel.mbox.local", "courriel", "local", "Export mbox (Google Takeout, export Workspace) lu en lecture seule",
+       _permissive("PSF-2.0 (bibliothèque standard Python)", None, f"{R3} l.192 [C]"),
+       "adopte", point_acces="module:mailbox", residence_donnees="local"),
+)
+
 
 def par_identifiant() -> dict[str, Fournisseur]:
     index = {f.identifiant: f for f in CATALOGUE}

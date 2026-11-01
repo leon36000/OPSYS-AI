@@ -211,3 +211,10 @@ Statut d'un document selon son verdict : `REFUSE` (type, contenu corrompu, PDF r
   brouillon existant s'y rattache sans l'enrichir. Une tâche en file morte ne se relance pas encore (nouveau dépôt).
 - Le fournisseur simulé des tests (`tests/fixtures/ingestion_onboarding_qa.py`) n'est pas une capacité livrée ; le
   corpus (`tests/fixtures/ingestion_onboarding/`) est fictif et ne mesure aucune précision sur de vraies factures.
+
+## 10. Alimentation par les connecteurs courriel
+
+Les pièces jointes des comptes Gmail, Graph, IMAP et des exports mbox entrent dans cette file par `deposer` (archive ZIP déterministe,
+un lot par page de synchronisation), jamais par un chemin parallèle : mêmes contrôles, mêmes quotas (`REJ-ING-QUOTA-LOTS` arrête la
+synchronisation sans avancer le curseur), mêmes brouillons à confirmer. Voir [CONNECTEURS-COURRIEL.md](CONNECTEURS-COURRIEL.md) §6.
+Limite : le corps des courriels n'est pas ingéré (aucun genre de brouillon « courriel »).
