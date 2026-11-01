@@ -175,7 +175,13 @@ class _VisiteurPortees(ast.NodeVisitor):
             if isinstance(suite, list) and instruction in suite:
                 i = suite.index(instruction)
                 if i + 1 < len(suite) and hasattr(suite[i + 1], "lineno"):
-                    return suite[i + 1].lineno
+                    suivante = suite[i + 1]
+                    # `if (` / `while (` sur plusieurs lignes : la ligne `if (` n'a aucune instruction machine, le
+                    # suivi (`sys.monitoring`) ne voit jamais d'événement dessus ; la première ligne qui s'exécute
+                    # est celle du début de la condition.
+                    if isinstance(suivante, (ast.If, ast.While, ast.Assert)):
+                        return suivante.test.lineno
+                    return suivante.lineno
         return None
 
     def _enregistrer(self, noeud: ast.AST, forme: str) -> None:
