@@ -400,11 +400,17 @@ def proposer_arete_graphe(
 
 
 def _publier_attente(a: Any) -> None:
-    _publier(
-        "m10.arete_en_attente",
-        f"m10-arete-attente-{a.arete_id}",
-        {"arete_id": a.arete_id, "type_arete": a.type, "source_type": a.source_type, "propose_le": _instant()},
-    )
+    """Annonce une arête sensible en attente. L'identifiant d'événement est celui de l'arête : si le même fait est
+    rejoué (rejeu du producteur sous un autre `evenement_id`), l'annonce existe déjà avec un autre instant. Ce n'est
+    pas un échec du consommateur (il serait mis en quarantaine), c'est la même annonce."""
+    try:
+        _publier(
+            "m10.arete_en_attente",
+            f"m10-arete-attente-{a.arete_id}",
+            {"arete_id": a.arete_id, "type_arete": a.type, "source_type": a.source_type, "propose_le": _instant()},
+        )
+    except evenements.ConflitPublication:
+        return
 
 
 def confirmer_arete_graphe(arete_id: str, motif: str) -> dict[str, Any]:

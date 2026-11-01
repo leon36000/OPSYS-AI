@@ -137,6 +137,10 @@ SORTIES_D_ANALYSE = frozenset({
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {
+    "m5_lire_statut_revue_fiscale": (
+        "lecture pour M9 du statut d'approbation des sources fiscales par sujet (compteurs et états), sans montant "
+        "ni calcul ; réservée à l'admin authentifié, aucun droit d'appareil"
+    ),
     "m5_deposer_lot_onboarding": (
         "crée un lot de documents déposés (types, empreintes, doublons, compteurs), sans aucun montant ni calcul"
     ),
