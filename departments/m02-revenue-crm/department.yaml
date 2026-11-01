@@ -105,7 +105,7 @@ evenements:
   consomme: [m4.travaux_termines, m3.devis_sans_reponse, m1.lead_qualifie, m3.devis_accepte, m3.devis_envoye,
              m1.retrait_consentement, m7.conversion_hors_ligne_importee, m5.creance_relance_preparee,
              m3.contexte_site_pret]
-  publie: [m2.client_associe, m2.lead_assigne, m2.contact_corrige, m2.profil_propriete_confirme]
+  publie: [m2.client_associe, m2.lead_assigne, m2.contact_corrige, m2.profil_propriete_confirme, m2.pipeline_constate]
 configuration:
   # Seuils de segmentation des leads (PLAN T4.6 ; DEFINITION-PRODUIT.md §7 M2.11 ; §13 point 11 « seuils non
   # chiffrés : chaque département doit les définir »). VIDES à dessein : aucun seuil n'est inventé. Tant qu'un

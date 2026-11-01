@@ -74,7 +74,7 @@ evenements:                        # ADR-0009 §3, PLAN T1.2-b/T1.2-d
   # approuvé (brouillon dans le sas d'envoi, jamais envoyé sans approbation) ; M6 consomme l'aiguillage de M1 (demande de
   # commande, confirmation de fournisseur) et l'envoi constaté. M6 reste la source de vérité du PO.
   publie: [m6.catalogue_reference, m6.note_commande_referencee, m6.variance_chantier, m6.reception_enregistree, m6.materiel_pret,
-           m6.po_courriel_pret]   # types au catalogue, M6 en est propriétaire
+           m6.po_courriel_pret, m6.disponibilite_constatee]   # types au catalogue, M6 en est propriétaire
 configuration:
   # Seuil de criticité de la variance de CHANTIER (m6.variance_chantier, distinct du seuil de
   # variance d'INVENTAIRE physique qui reste fourni par l'appelant de m6_soumettre_comptage).

@@ -184,7 +184,8 @@ class TestManifeste:
         """PLAN T2.2 (Client 360), puis PLAN T1.4-k2 (propriétaire du lead, lu par M3)."""
         dep = charger_departements()["m02-revenue-crm"]
         assert dep.evenements_publie == (
-            "m2.client_associe", "m2.lead_assigne", "m2.contact_corrige", "m2.profil_propriete_confirme")
+            "m2.client_associe", "m2.lead_assigne", "m2.contact_corrige", "m2.profil_propriete_confirme",
+            "m2.pipeline_constate")
 
 
 class TestNominal:

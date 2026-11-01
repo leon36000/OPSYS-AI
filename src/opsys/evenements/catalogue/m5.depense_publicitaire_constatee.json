@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m5.depense_publicitaire_constatee",
+  "title": "M5 — Dépense publicitaire comptabilisée (constat périodique)",
+  "description": "Émis par M5 (outils_operations.py::constater_depense_publicitaire, D1 de docs/architecture/M8-ENTREPOT-SOURCES.md) quand l'agent finance fait CONSTATER, pour une période, ce que le grand livre a COMPTABILISÉ des dépenses publicitaires : le solde net (débits moins crédits) des écritures DÉFINITIVES qui viennent d'un relevé de M7 (pièce `m7:<relevé>:r<révision>`) ou qui les contre-passent, dont la date d'effet est dans la période, et ce qui attend encore sa validation humaine (brouillons : nombre et montant). Que des NOMBRES et des montants en CAD (texte décimal) comptés par le code dans les registres de M5 : aucun fournisseur, aucun libellé, aucune pièce, aucun nom de campagne. Seuls les relevés HORS_TAXES sont comptabilisés par M5 (un relevé TAXES_INCLUSES attend une décision fiscale) : `base_taxes` le dit. Un constat par période et par version des données ; `sequence` (rang du constat dans le registre de M5, à partir de 1) fait qu'un retour à une version antérieure des données publie un événement DISTINCT ; le consommateur retient le plus grand `sequence`. evenement_id déterministe m5-depense-pub-<sequence>-<periode_debut>-<periode_fin>-<version_donnees>. Consommé par M8 (écart entre la somme des relevés de M7 et la dépense comptabilisée ; M8 ne recalcule rien). À valider auprès d'un comptable (CPA) / professionnel qualifié. Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "date_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "periode_debut": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "periode_fin": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "version_donnees": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "devise": {
+      "type": "string",
+      "const": "CAD"
+    },
+    "base_taxes": {
+      "type": "string",
+      "const": "HORS_TAXES"
+    },
+    "comptabilise_cad": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$",
+      "maxLength": 24,
+      "description": "Montant en dollars canadiens, texte décimal (jamais un nombre JSON, jamais un flottant)."
+    },
+    "ecritures_definitives": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "brouillons_en_attente": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "brouillons_en_attente_cad": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$",
+      "maxLength": 24,
+      "description": "Montant en dollars canadiens, texte décimal (jamais un nombre JSON, jamais un flottant)."
+    }
+  },
+  "required": [
+    "evenement_id",
+    "sequence",
+    "date_reference",
+    "periode_debut",
+    "periode_fin",
+    "version_donnees",
+    "devise",
+    "base_taxes",
+    "comptabilise_cad",
+    "ecritures_definitives",
+    "brouillons_en_attente",
+    "brouillons_en_attente_cad"
+  ]
+}

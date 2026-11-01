@@ -1,6 +1,6 @@
 """Le registre des opérations comptables de M5 : relances préparées, notes de crédit, dépenses d'employés, pièces
 justificatives, paiements fournisseurs PRÉPARÉS, rapprochements bancaires, périodes, jugements, mesures, flux
-fournisseur et dossiers CPA scellés.
+fournisseur, dépense publicitaire comptabilisée constatée et dossiers CPA scellés.
 
 Module pur (même règle que `grand_livre.py`) : aucun import d'`opsys`, aucune horloge, aucun accès réseau. Il reçoit un
 `registre_cible` déjà construit (duck-typé : `ajouter`, `lire`) que l'adaptateur adosse au registre durable DÉDIÉ
@@ -40,6 +40,7 @@ TYPES_OPERATION: dict[str, tuple[str, str]] = {
     "op_precloture_constatee": ("precloture_id", "pre"),
     "op_jugement_enregistre": ("jugement_id", "jug"),
     "op_mesures_constatees": ("mesure_id", "mes"),
+    "op_depense_pub_constatee": ("constat_id", "dpc"),
     "op_flux_fournisseur_constate": ("flux_id", "flx"),
     "op_dossier_cpa_scelle": ("dossier_id", "dos"),
 }

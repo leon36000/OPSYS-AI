@@ -313,3 +313,7 @@ exécuté : doubles, dits), revue humaine N3, et portes du sas social et du site
 approuvé est refusé). Logos : concept vectoriel et avertissement (aucune protection juridique promise). Code :
 `src/m7_marketing/studio/`, `studio_outils.py` ; tests : `tests/studio/` ; documentation, matrice des licences, limites et plan
 Nexora : `docs/architecture/M7-STUDIO-CREATIF.md`.
+
+## Valeurs de signaux publiées pour M8 — `m7_constater_performance_signaux`
+
+(phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) L'outil (T1/N2, agent seulement, aucun droit d'appareil) résume, par source de données propres (Search Console, Bing Webmaster, Umami, Matomo) et par période, les clics et impressions du SITE ou ses visites (module pur `signaux/resume_performance.py`) et publie `m7.performance_signaux_constatee`. Un jour sans fait n'est pas un zéro (`jours_couverts`) ; aucune requête, page ni référent ne part ; un compte de démonstration a son résumé marqué.

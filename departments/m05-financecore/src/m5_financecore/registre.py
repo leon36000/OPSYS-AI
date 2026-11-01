@@ -76,6 +76,7 @@ _TYPE_ENTREE_VALIDES = {
     "op_precloture_constatee",
     "op_jugement_enregistre",
     "op_mesures_constatees",
+    "op_depense_pub_constatee",
     "op_flux_fournisseur_constate",
     "op_dossier_cpa_scelle",
 }

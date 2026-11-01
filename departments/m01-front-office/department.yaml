@@ -57,7 +57,7 @@ evenements:
   consomme: [m1.courriel_recu, m6.po_courriel_pret, m1.courriel_envoye, m4.message_client_brouillon_pret]
   publie: [m1.lead_qualifie, m1.retrait_consentement, m1.courriel_recu, m1.brouillon_courriel_pret,
            m1.approbation_envoi_demandee, m1.courriel_envoye, m1.envoi_courriel_echoue, m1.courriel_aiguille,
-           m1.commande_courriel_envoyee]
+           m1.commande_courriel_envoyee, m1.plaintes_constatees]
 planifications:
   - nom: digest-front-office
     cron: "0 7 * * 1-5"

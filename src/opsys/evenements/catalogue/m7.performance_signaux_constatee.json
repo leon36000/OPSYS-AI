@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m7.performance_signaux_constatee",
+  "title": "M7 — Valeurs de signaux de performance (résumé agrégé)",
+  "description": "Émis par M7 (signaux_outils.py::constater_performance_signaux, D2 de docs/architecture/M8-ENTREPOT-SOURCES.md) pour une source de DONNÉES PROPRES et une période : la SOMME, sur les jours que le registre `signaux_marketing` couvre, des clics et des impressions du site (Search Console, Bing Webmaster : nature performance_recherche_jour, portée site) ou des visites du site (Umami, Matomo : nature audience_jour, portée site). Que des totaux : aucune requête de recherche, aucune page, aucun référent, aucun texte, aucun renseignement personnel. `jours_couverts` dit combien des `jours_periode` ont un fait : une absence n'est jamais un zéro (une mesure que la source ne porte pas vaut null). `fraicheur_fenetre_h` est la fenêtre que M7 déclare pour cette source. `fictif` : compte de démonstration (M8 l'exclut). evenement_id déterministe m7-perf-<source>-<compte_ref>-<periode_debut>-<periode_fin>-<version_donnees> (une version nouvelle, par exemple un fait révisé, est un nouvel événement ; le consommateur retient la plus récente par `publie_le`). Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "search_console",
+        "bing_webmaster",
+        "umami",
+        "matomo"
+      ]
+    },
+    "compte_ref": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,63}$"
+    },
+    "periode_debut": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "periode_fin": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "jours_periode": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 367
+    },
+    "jours_couverts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "clics": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]+(\\.[0-9]{1,4})?$",
+      "maxLength": 24
+    },
+    "impressions": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]+(\\.[0-9]{1,4})?$",
+      "maxLength": 24
+    },
+    "visites": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]+(\\.[0-9]{1,4})?$",
+      "maxLength": 24
+    },
+    "derniere_observation_le": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "fraicheur_fenetre_h": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fictif": {
+      "type": "boolean"
+    },
+    "version_donnees": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    }
+  },
+  "required": [
+    "evenement_id",
+    "source",
+    "compte_ref",
+    "periode_debut",
+    "periode_fin",
+    "jours_periode",
+    "jours_couverts",
+    "clics",
+    "impressions",
+    "visites",
+    "derniere_observation_le",
+    "fraicheur_fenetre_h",
+    "fictif",
+    "version_donnees"
+  ]
+}

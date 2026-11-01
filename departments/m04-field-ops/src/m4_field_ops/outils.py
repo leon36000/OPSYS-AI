@@ -72,6 +72,7 @@ from . import (
     couleurs_calendrier,
     digest,
     ecarts,
+    encodage,
     equipes_pointees_v3,
     etats,
     heures_regulieres,
@@ -1563,6 +1564,44 @@ def outils(
             return _refus(verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail=str(exc)))
         return {"accepte": True, "resultat": charge}
 
+    def constater_capacite_equipe(debut_semaine: str, portee: str, horodatage: str) -> dict[str, Any]:
+        """D2 (docs/architecture/M8-ENTREPOT-SOURCES.md) : calcule la capacité d'une semaine comme la lecture T0 et
+        PUBLIE ses
+        deux totaux (`m4.capacite_equipe_constatee`) pour M8, qui n'appelle aucun outil de M4. Aucune équipe, aucun nom,
+        aucun membre : les heures d'équipe DÉCLARÉES et les heures de cédule planifiées. Une semaine non calculable ne
+        porte aucun total et dit ses causes en codes fermés (sans équipe ni date). Une version par semaine et par
+        portée :
+        rejouer le MÊME constat (même instant) ne publie rien ; un constat à un autre instant est un événement de plus,
+        pour qu'un retour à une version antérieure des données ne se confonde pas avec la première."""
+        lecture = lire_capacite_equipe(debut_semaine, horodatage, portee)
+        if lecture.get("accepte") is not True:
+            return lecture
+        charge = lecture["resultat"]
+        codes = sorted({m.split(":", 1)[0] for m in charge["manque"]})
+        version = encodage.empreinte(
+            "m4.capacite_equipe_constatee.v1", charge["semaine_debut"], charge["portee"], charge["calculable"],
+            charge.get("heures_disponibles"), charge.get("heures_planifiees"), codes,
+        )[:16]
+        evenement = {
+            "evenement_id": (f"m4-capacite-{charge['semaine_debut']}-{charge['portee']}-{version}-"
+                             f"{encodage.empreinte('m4.constate_le', charge['lu_a'])[:8]}"),
+            "semaine_debut": charge["semaine_debut"],
+            "portee": charge["portee"],
+            "calculable": charge["calculable"],
+            "heures_disponibles": charge.get("heures_disponibles") if charge["calculable"] else None,
+            "heures_planifiees": charge.get("heures_planifiees") if charge["calculable"] else None,
+            "manque": codes,
+            "constate_le": charge["lu_a"],
+            "version_donnees": version,
+        }
+        evenements.publier(
+            "m4.capacite_equipe_constatee", _DEPARTEMENT, evenement, evenement_id=evenement["evenement_id"]
+        )
+        return {"accepte": True, "resultat": {
+            "publie": True, "evenement_id": evenement["evenement_id"], "semaine_debut": evenement["semaine_debut"],
+            "portee": evenement["portee"], "calculable": evenement["calculable"], "manque": codes,
+            "version_donnees": version}}
+
     def lire_journal_quotidien(jour: str, debut: int = 0, limite: int = 50,
                               source_attendue: str | None = None) -> dict[str, Any]:
         try:
@@ -2845,6 +2884,25 @@ def outils(
                 "portee": {"type": "string", "enum": list(capacite_equipe.PORTEES)}},
                 "required": ["debut_semaine"], "additionalProperties": False},
             fonction=lire_capacite_equipe, autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m4_constater_capacite_equipe",
+            description=("Fait CONSTATER la capacité d'une semaine ISO (lundi, America/Montreal) et la PUBLIE au bus "
+                         "(m4.capacite_equipe_constatee) pour M8 : le total des heures d'équipe DÉCLARÉES et le total "
+                         "des "
+                         "heures planifiées de la cédule appliquée (jamais des heures-personnes), même calcul et mêmes "
+                         "refus que m4_lire_capacite_equipe. Une semaine non calculable ne porte aucun total et dit "
+                         "ses "
+                         "causes en codes fermés (absence n'est jamais zéro). Aucune équipe ni aucun nom ne part. "
+                         "Rejouer le même constat (même horodatage) ne publie rien. horodatage : instant de lecture "
+                         "(ISO 8601 "
+                         "avec fuseau)."),
+            parametres={"type": "object", "properties": {
+                "debut_semaine": {"type": "string", "maxLength": 10},
+                "portee": {"type": "string", "enum": list(capacite_equipe.PORTEES)},
+                "horodatage": {"type": "string", "maxLength": 64}},
+                "required": ["debut_semaine", "portee", "horodatage"], "additionalProperties": False},
+            fonction=constater_capacite_equipe, autonomie=Autonomie.T1, niveau=Niveau.N2,
         ),
         Outil(
             nom="m4_lire_journal_quotidien",

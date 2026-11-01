@@ -54,6 +54,8 @@ OUTILS_AGENT_N1_N2 = {
     "m5_ouvrir_periode_comptable": ("T1", "N2"),
     "m5_precloturer_periode_comptable": ("T1", "N2"),
     "m5_constater_mesures_comptables": ("T1", "N2"),
+    "m5_constater_depense_publicitaire": ("T1", "N2"),
+    "m5_constater_factures_emises": ("T1", "N2"),
     "m5_executer_cycle_comptable": ("T1", "N2"),
     "m5_preparer_rapprochement_bancaire": ("T1", "N2"),
     "m5_preparer_dossier_cpa": ("T1", "N2"),
@@ -352,6 +354,13 @@ ARGUMENTS_MINIMAUX = {
     "m5_ouvrir_periode_comptable": {"periode": "2026-10", "horodatage": H},
     "m5_precloturer_periode_comptable": {"periode": "2026-10", "horodatage": H},
     "m5_constater_mesures_comptables": {"aujourd_hui": "2026-11-02", "horodatage": H},
+    "m5_constater_depense_publicitaire": {
+        "debut": "2026-11-01",
+        "fin": "2026-11-02",
+        "aujourd_hui": "2026-11-02",
+        "horodatage": H,
+    },
+    "m5_constater_factures_emises": {"horodatage": H},
     "m5_executer_cycle_comptable": {"aujourd_hui": "2026-11-02", "horodatage": H, "periode": None},
     "m5_preparer_rapprochement_bancaire": {
         "fichier": "r.csv",
@@ -777,6 +786,80 @@ def test_mesures_publiees_une_fois_par_jour_et_version_sans_texte_libre(dep, par
     )
 
 
+def _brouillon_seulement(facture_id):
+    with stockage.transaction():
+        reg = registre_module.Registre(maillons=stockage.maillons(DEPARTEMENT, "factures"))
+        lignes = [
+            {
+                "description": "Travaux (fictif)",
+                "quantite": "1",
+                "unite": "forfait",
+                "prix_unitaire": "100.00",
+                "reference_ligne_devis": "L1",
+            }
+        ]
+        resultat = facturation.creer_facture_brouillon(
+            facture_id,
+            f"CH-{facture_id}",
+            f"D-{facture_id}",
+            "client-fictif",
+            lignes,
+            "2026-10-01T09:00:00-04:00",
+            _taux(),
+            reg,
+        )
+        assert resultat[1] is None, resultat
+
+
+def test_factures_emises_publiees_par_etat_sans_client_et_sans_brouillon(dep, par_nom, declare):
+    """D3 : une facture ENVOYÉE ou PAYÉE est un constat (identifiant opaque, jour, montants) ; une facture brouillon
+    n'est
+    jamais publiée ; ni client, ni chantier, ni devis, ni ligne ne partent. Rejouer ne publie rien de plus ; le paiement
+    d'une facture déjà publiée ajoute l'événement de son nouvel état."""
+    _facturer("F-1", payer=True)
+    _facturer("F-2", envoi="2026-10-05T09:00:00-04:00")
+    _brouillon_seulement("F-3")
+    premier = _accepte(_appeler(par_nom, "m5_constater_factures_emises", {"horodatage": H}))
+    assert premier["factures_publiees"] == 2 and premier["factures_non_emises_ignorees"] == 1
+    publies = dict(_publies("m5.facture_emise_constatee"))
+    assert set(publies) == {"m5-facture-emise-F-1-PAYEE", "m5-facture-emise-F-2-ENVOYEE"}
+    assert publies["m5-facture-emise-F-2-ENVOYEE"] == {
+        "evenement_id": "m5-facture-emise-F-2-ENVOYEE",
+        "facture_id": "F-2",
+        "statut": "ENVOYEE",
+        "emise_le": "2026-10-05",
+        "devise": "CAD",
+        "montant_avant_taxes_cad": "600.00",
+        "total_taxes_cad": "89.85",
+        "montant_apres_taxes_cad": "689.85",
+    }
+    assert publies["m5-facture-emise-F-1-PAYEE"]["emise_le"] == "2026-10-02"
+    texte = json.dumps(publies)
+    for interdit in ("client-fictif", "CH-F", "D-F", "Travaux", "F-3"):
+        assert interdit not in texte, interdit
+    _accepte(_appeler(par_nom, "m5_constater_factures_emises", {"horodatage": H}))
+    assert len(_publies("m5.facture_emise_constatee")) == 2
+    with stockage.transaction():
+        reg = registre_module.Registre(maillons=stockage.maillons(DEPARTEMENT, "factures"))
+        assert (
+            facturation.enregistrer_paiement_facture("F-2", "689.85", "nathan", "2026-10-21T09:00:00-04:00", reg)[1]
+            is None
+        )
+    _accepte(_appeler(par_nom, "m5_constater_factures_emises", {"horodatage": H}))
+    assert {i for i, _ in _publies("m5.facture_emise_constatee")} == {
+        "m5-facture-emise-F-1-PAYEE",
+        "m5-facture-emise-F-2-ENVOYEE",
+        "m5-facture-emise-F-2-PAYEE",
+    }
+
+
+def test_factures_emises_refus_d_un_horodatage_illisible_et_d_un_appareil(dep, par_nom, declare):
+    assert _code(_appeler(par_nom, "m5_constater_factures_emises", {"horodatage": "  "})) == "REJ-OPS-ENTREE-INVALIDE"
+    with contexte.appele_par_appareil(ADMIN):
+        reponse = _appeler(par_nom, "m5_constater_factures_emises", {"horodatage": H})
+    assert _code(reponse) == "REJ-IDENTITE-APPAREIL-INVALIDE"
+
+
 # =========================================================================================== le cycle jusqu'aux
 # brouillons
 def test_cycle_comptable_autonome_jusqu_aux_brouillons_idempotent_sans_rien_de_definitif(dep, par_nom, declare):
@@ -792,7 +875,11 @@ def test_cycle_comptable_autonome_jusqu_aux_brouillons_idempotent_sans_rien_de_d
         "flux_fournisseur",
         "precloture",
         "mesures_pour_m8",
+        "factures_emises_pour_m8",
+        "depense_publicitaire_pour_m8",
     }
+    assert par_etape["factures_emises_pour_m8"]["factures_publiees"] == 2  # F-1 (payée) et F-2 (envoyée)
+    assert par_etape["depense_publicitaire_pour_m8"]["issue"] in {"FAIT", "A_DECLARER"}
     assert par_etape["brouillons_d_ecriture"]["crees"] == 4  # F-1 émise et payée, F-2 émise, facture fournisseur
     assert (
         par_etape["relances_de_creances"]["crees"] == 1

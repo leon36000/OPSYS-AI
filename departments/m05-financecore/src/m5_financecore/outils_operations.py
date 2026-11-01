@@ -30,13 +30,16 @@ from opsys.outils import Autonomie, Niveau, Outil
 
 from . import (
     analyse,
+    charges_marketing_recues,
     comptes_a_payer,
+    constats_pour_m8,
     encodage,
     facturation,
     grand_livre,
     operations_comptables,
     operations_periodes,
     operations_registre,
+    plan_comptable,
     validation,
     verdicts_operations,
 )
@@ -743,6 +746,99 @@ def constater_mesures_comptables(aujourd_hui: str, horodatage: str) -> dict[str,
     return accepte({**resultat, "recu": _recu_ecriture(ctx["ops"])})
 
 
+# ================================================================== constats pour M8 : dépense publicitaire, factures
+def _depense_pub_impl(
+    ctx: Mapping[str, Any], debut: Any, fin: Any, aujourd_hui: str, horodatage: str
+) -> tuple[dict | None, dict | None]:
+    """Constate ce que le grand livre a comptabilisé des relevés publicitaires de M7 pour `[debut, fin]` et le publie
+    (`m5.depense_publicitaire_constatee`). Un constat par période et par version des données : le redire à l'identique
+    ne
+    publie rien ; une version nouvelle est un constat de plus (`sequence`), le consommateur retient le plus grand."""
+    compte, refus = plan_comptable.compte_de_charge(
+        ctx["plan"], po_id=None, categorie=charges_marketing_recues.CATEGORIE_CHARGE
+    )
+    if refus is not None:
+        return None, refus
+    mesure, raison = constats_pour_m8.depense_publicitaire_comptabilisee(ctx["etat_gl"], compte, debut, fin)
+    if mesure is None:
+        return None, _verdict("REJ-OPS-DATE-INVALIDE", f"période {debut!r} à {fin!r} : {raison}")
+    version = constats_pour_m8.version_depense(mesure, debut, fin)
+    existants = list(ctx["etat_ops"]["par_type"]["op_depense_pub_constatee"].values())
+    memes = [c for c in existants if (c["periode_debut"], c["periode_fin"]) == (debut, fin)]
+    resume = {
+        "periode_debut": debut,
+        "periode_fin": fin,
+        "version_donnees": version,
+        "comptabilise_cad": format(mesure["comptabilise"], "f"),
+        "ecritures_definitives": mesure["ecritures_definitives"],
+        "brouillons_en_attente": mesure["brouillons_en_attente"],
+    }
+    if memes and memes[-1]["version_donnees"] == version:
+        return {"deja_constate": True, "publie": False, **resume}, None
+    sequence = len(existants) + 1
+    corps = {
+        "periode_debut": debut,
+        "periode_fin": fin,
+        "date_reference": aujourd_hui,
+        "version_donnees": version,
+        "sequence": sequence,
+    }
+    resultat, refus = operations_registre.ajouter_operation(
+        ctx["ops"],
+        ctx["etat_ops"],
+        "op_depense_pub_constatee",
+        f"depense-pub:{sequence}:{debut}:{fin}:{version}",
+        corps,
+        horodatage,
+    )
+    if refus is not None:
+        return None, refus
+    charge = constats_pour_m8.charge_depense_publicitaire(
+        mesure, debut=debut, fin=fin, date_reference=aujourd_hui, sequence=sequence, version_donnees=version
+    )
+    evenements.publier(
+        "m5.depense_publicitaire_constatee", _o._DEPARTEMENT, charge, evenement_id=charge["evenement_id"]
+    )
+    return {"deja_constate": False, "publie": True, "sequence": sequence, **resume}, None
+
+
+def constater_depense_publicitaire(debut: str, fin: str, aujourd_hui: str, horodatage: str) -> dict[str, Any]:
+    ctx, refus = contexte_operations()
+    if refus is not None:
+        return refuse(refus)
+    if not _date_valide(aujourd_hui):
+        return refuse(_verdict("REJ-OPS-DATE-INVALIDE", f"aujourd_hui {aujourd_hui!r} : AAAA-MM-JJ exigé"))
+    resultat, refus = _depense_pub_impl(ctx, debut, fin, aujourd_hui, horodatage)
+    if refus is not None:
+        return refuse(refus)
+    return accepte({**resultat, "recu": _recu_ecriture(ctx["ops"])})
+
+
+def _factures_emises_impl() -> dict[str, Any]:
+    """Publie `m5.facture_emise_constatee` pour chaque facture client envoyée (ENVOYEE, PAYEE, ANNULEE après envoi) : un
+    événement par (facture, statut), identifiant déterministe (un rejeu est un no-op du bus). Rien n'est écrit chez
+    M5."""
+    publiees = 0
+    ignorees = 0
+    for facture in _factures_clients_par_id().values():
+        charge = constats_pour_m8.charge_facture_emise(facture)
+        if charge is None:
+            ignorees += 1
+            continue
+        evenements.publier("m5.facture_emise_constatee", _o._DEPARTEMENT, charge, evenement_id=charge["evenement_id"])
+        publiees += 1
+    return {"factures_publiees": publiees, "factures_non_emises_ignorees": ignorees}
+
+
+def constater_factures_emises(horodatage: str) -> dict[str, Any]:
+    ctx, refus = contexte_operations()
+    if refus is not None:
+        return refuse(refus)
+    if not isinstance(horodatage, str) or not horodatage.strip():
+        return refuse(_verdict("REJ-OPS-ENTREE-INVALIDE", "horodatage : ISO 8601 avec fuseau exigé"))
+    return accepte({**_factures_emises_impl(), "recu": _recu_ecriture(ctx["ops"])})
+
+
 # ====================================================================================================== le cycle
 def executer_cycle_comptable(aujourd_hui: str, horodatage: str, periode: str | None) -> dict[str, Any]:
     """Enchaîne, jusqu'aux BROUILLONS seulement : brouillons d'écriture des factures, relances préparées, flux des
@@ -847,6 +943,23 @@ def executer_cycle_comptable(aujourd_hui: str, horodatage: str, periode: str | N
         etapes.append(
             {
                 "etape": "mesures_pour_m8",
+                "issue": "FAIT",
+                "publie": resultat["publie"],
+                "deja_constate": resultat["deja_constate"],
+            }
+        )
+    # 6. factures émises et dépense publicitaire comptabilisée du mois, pour M8 (constats, rien n'est validé ni envoyé)
+    ctx = contexte_operations()[0] or ctx
+    etapes.append({"etape": "factures_emises_pour_m8", "issue": "FAIT", **_factures_emises_impl()})
+    debut_mois = aujourd_hui[:8] + "01"
+    resultat, refus = _depense_pub_impl(ctx, debut_mois, aujourd_hui, aujourd_hui, horodatage)
+    if refus is not None:
+        issue = "A_DECLARER" if refus["code"] == "REJ-GL-CATEGORIE-SANS-COMPTE" else "REFUSEE"
+        etapes.append({"etape": "depense_publicitaire_pour_m8", "issue": issue, "code": refus["code"]})
+    else:
+        etapes.append(
+            {
+                "etape": "depense_publicitaire_pour_m8",
                 "issue": "FAIT",
                 "publie": resultat["publie"],
                 "deja_constate": resultat["deja_constate"],
@@ -1157,6 +1270,49 @@ def outils_operations() -> tuple[Outil, ...]:
                 "required": ["aujourd_hui", "horodatage"],
             },
             fonction=constater_mesures_comptables,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+        ),
+        Outil(
+            nom="m5_constater_depense_publicitaire",
+            description=(
+                "Fait CONSTATER, pour une période (au plus 366 jours), ce que le grand livre a COMPTABILISÉ des "
+                "relevés "
+                "publicitaires de M7 : le solde net des écritures DÉFINITIVES qui viennent d'un relevé (l'origine et "
+                "sa "
+                "contre-passation s'annulent), et ce qui attend encore sa validation humaine (brouillons : nombre et "
+                "montant). Publie au bus m5.depense_publicitaire_constatee pour M8, qui en tire l'écart avec la somme "
+                "des "
+                "relevés de M7. Que des nombres et des montants : aucun fournisseur, aucune pièce. Un constat par "
+                "période "
+                "et par version des données. Ne valide, n'envoie et ne paie rien." + mention
+            ),
+            parametres={
+                **objet,
+                "properties": {
+                    "debut": _DATE,
+                    "fin": _DATE,
+                    "aujourd_hui": _DATE,
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["debut", "fin", "aujourd_hui", "horodatage"],
+            },
+            fonction=constater_depense_publicitaire,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+        ),
+        Outil(
+            nom="m5_constater_factures_emises",
+            description=(
+                "Fait CONSTATER les factures clients ÉMISES (envoyées par une personne : ENVOYEE, PAYEE, ANNULEE après "
+                "envoi) et les publie au bus, une par état (m5.facture_emise_constatee), pour M8 : identifiant "
+                "opaque, jour "
+                "d'émission et montants en CAD, SANS client, chantier, devis ni ligne. Une facture brouillon n'est "
+                "jamais "
+                "publiée. Rejouer ne publie rien de plus. Ne crée, n'envoie et ne modifie aucune facture." + mention
+            ),
+            parametres={**objet, "properties": {"horodatage": _HORODATAGE}, "required": ["horodatage"]},
+            fonction=constater_factures_emises,
             autonomie=Autonomie.T1,
             niveau=Niveau.N2,
         ),

@@ -490,7 +490,7 @@ def test_l_outil_est_une_lecture_pure_fermee_a_tout_appareil_et_n_ajoute_aucun_d
         "publie": [
             "m1.lead_qualifie", "m1.retrait_consentement", "m1.courriel_recu", "m1.brouillon_courriel_pret",
             "m1.approbation_envoi_demandee", "m1.courriel_envoye", "m1.envoi_courriel_echoue",
-            "m1.courriel_aiguille", "m1.commande_courriel_envoyee"]}
+            "m1.courriel_aiguille", "m1.commande_courriel_envoyee", "m1.plaintes_constatees"]}
     assert manifeste["mode"] == "ombre"
 
 
@@ -563,3 +563,106 @@ def test_la_periode_maximale_est_acceptee(dep):
     reponse = lire_plaintes_structurees(JOUR, plaintes_structurees.JOURS_MAX)
     assert reponse["accepte"] is True and reponse["resultat"]["periode"]["jours"] == 92
     assert reception.DEPARTEMENT == plaintes_structurees.DEPARTEMENT
+
+
+# -- D2 : le constat publié pour M8 (`m1.plaintes_constatees`) ---
+
+
+def _publies_constat():
+    with stockage.transaction() as cnx:
+        lignes = cnx.execute(select(EVENEMENTS_SORTANTS.c.evenement_id, EVENEMENTS_SORTANTS.c.charge).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == "m1.plaintes_constatees").order_by(
+            EVENEMENTS_SORTANTS.c.evenement_id)).all()
+    return [(i, stockage.codec.decoder(c)) for i, c in lignes]
+
+
+def _constater(dep, date_reference=JOUR, **plus):
+    outil = next(o for o in dep.charger_outils() if o.nom == "m1_constater_plaintes")
+    return executer_atomique(outil, {"date_reference": date_reference, **plus})
+
+
+def _charge_constat(reponse):
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    return reponse["resultat"]["resultat"]
+
+
+def test_le_constat_est_agent_seulement_sans_droit_d_appareil(dep):
+    outil = next(o for o in dep.charger_outils() if o.nom == "m1_constater_plaintes")
+    assert (outil.autonomie, outil.niveau_effectif) == (Autonomie.T1, Niveau.N2) and not outil.roles_appareil
+    portees = openclaw.roles_outils({dep.id: dep})
+    assert not any(outil.nom in noms for noms in portees.values())
+
+
+def test_des_plaintes_connues_publient_leur_nombre_et_l_empreinte_de_la_lecture(dep):
+    capacites = Capacites({dep.id: dep}, stockage.transaction, memoire=False)
+    for rang, texte in enumerate(("Je suis déçu du travail.", "Je suis très déçu : vos gars ont abîmé ma gouttière.")):
+        assert capacites.appeler("m1_recevoir_message_canal", {
+            "canal": "sms", "expediteur": _numero(rang), "message_id": f"SM-{rang}", "recu_le": _a(rang),
+            "texte": texte})["ok"] is True
+    lecture = capacites.appeler("m1_lire_plaintes_structurees", {"date_reference": JOUR})["resultat"]["resultat"]
+    retour = _charge_constat(_constater(dep))
+    ((identifiant, charge),) = _publies_constat()
+    assert identifiant == retour["evenement_id"] == charge["evenement_id"]
+    assert lecture["etat"] == charge["etat"] == "CONNUE"
+    assert charge["nombre"] == lecture["comptes"]["declarees"] >= 1
+    assert charge["empreinte_contenu"] == lecture["revision"]["empreinte_contenu"]
+    assert (charge["date_reference"], charge["jours"]) == (JOUR, plaintes_structurees.JOURS_DEFAUT)
+    assert set(charge) == {"evenement_id", "date_reference", "jours", "etat", "nombre", "empreinte_contenu"}
+    texte = _tout_le_texte(charge)
+    for fuite in (NUMERO, "gouttière", "déçu", "plainte_id", "categories"):
+        assert fuite not in texte
+    for plainte in lecture["plaintes"]:
+        assert plainte["plainte_id"] not in texte
+
+
+def test_aucune_declaree_n_est_pas_zero_plainte_le_nombre_est_null(dep):
+    capacites = Capacites({dep.id: dep}, stockage.transaction, memoire=False)
+    assert capacites.appeler("m1_recevoir_message_canal", {
+        "canal": "sms", "expediteur": NUMERO, "message_id": "SM-1", "recu_le": _a(0),
+        "texte": "Bonjour, je veux une soumission pour des gouttières à Laval."})["ok"] is True
+    _charge_constat(_constater(dep))
+    ((_, charge),) = _publies_constat()
+    assert charge["etat"] == "AUCUNE_DECLAREE_PAR_SOURCE" and charge["nombre"] is None
+
+
+def test_un_registre_vide_est_non_branche_et_le_nombre_est_null(dep):
+    _charge_constat(_constater(dep))
+    ((_, charge),) = _publies_constat()
+    assert charge["etat"] == "NON_BRANCHEE" and charge["nombre"] is None
+
+
+def test_rejouer_ne_publie_rien_de_plus_une_plainte_de_plus_est_une_version_de_plus(dep):
+    capacites = Capacites({dep.id: dep}, stockage.transaction, memoire=False)
+
+    def _recevoir(rang, texte):
+        assert capacites.appeler("m1_recevoir_message_canal", {
+            "canal": "sms", "expediteur": _numero(rang), "message_id": f"SM-{rang}", "recu_le": _a(rang),
+            "texte": texte})["ok"] is True
+
+    _recevoir(1, "Je suis déçu du travail.")
+    premier = _charge_constat(_constater(dep))
+    assert _charge_constat(_constater(dep))["evenement_id"] == premier["evenement_id"]
+    assert len(_publies_constat()) == 1
+    _recevoir(2, "Je suis très déçu : vos gars ont abîmé ma gouttière.")
+    second = _charge_constat(_constater(dep))
+    assert second["evenement_id"] != premier["evenement_id"]
+    assert second["empreinte_contenu"] != premier["empreinte_contenu"]
+    assert len(_publies_constat()) == 2
+
+
+@pytest.mark.parametrize("arguments", [{"date_reference": "2023-02-29"}, {"date_reference": JOUR, "jours": 0},
+                                       {"date_reference": JOUR, "jours": 93}])
+def test_une_date_ou_une_periode_invalide_est_refusee_sans_rien_publier(dep, arguments):
+    outil = next(o for o in dep.charger_outils() if o.nom == "m1_constater_plaintes")
+    reponse = executer_atomique(outil, arguments)
+    assert reponse["ok"] is not True or reponse["resultat"]["accepte"] is False
+    assert _publies_constat() == []
+
+
+def test_un_non_admin_confirme_est_refuse_avant_toute_lecture_et_rien_n_est_publie(dep):
+    outil = next(o for o in dep.charger_outils() if o.nom == "m1_constater_plaintes")
+    with contexte.appele_par_appareil(contexte.IdentiteAppelante("employe.fictif", "employee")):
+        reponse = executer_atomique(outil, {"date_reference": JOUR})
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-IDENTITE-APPAREIL-INVALIDE"
+    assert _publies_constat() == []

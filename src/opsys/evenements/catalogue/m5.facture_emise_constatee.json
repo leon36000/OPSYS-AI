@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m5.facture_emise_constatee",
+  "title": "M5 — Facture client émise (constat)",
+  "description": "Émis par M5 (outils_operations.py::constater_factures_emises, D3 de docs/architecture/M8-ENTREPOT-SOURCES.md) pour chaque facture client que M5 a ENVOYÉE (par une personne, N4) : son état courant (ENVOYEE, PAYEE ou ANNULEE après envoi), le jour d'émission et les montants en CAD arrêtés par M5. SANS CLIENT, sans chantier, sans devis, sans ligne : seulement l'identifiant opaque de la facture et des montants. Un événement par (facture, statut) : evenement_id déterministe m5-facture-emise-<facture_id>-<statut> ; le consommateur retient, par facture, l'état le plus avancé (PAYEE ou ANNULEE après ENVOYEE), quel que soit l'ordre de livraison. Une facture BROUILLON n'est jamais publiée (elle n'est pas émise). Consommé par M8 (facturé avant taxes, nombre de factures émises ; M8 ne recalcule aucun montant). À valider auprès d'un comptable (CPA) / professionnel qualifié. Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "facture_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "statut": {
+      "type": "string",
+      "enum": [
+        "ENVOYEE",
+        "PAYEE",
+        "ANNULEE"
+      ]
+    },
+    "emise_le": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "devise": {
+      "type": "string",
+      "const": "CAD"
+    },
+    "montant_avant_taxes_cad": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$",
+      "maxLength": 24,
+      "description": "Montant en dollars canadiens, texte décimal (jamais un nombre JSON, jamais un flottant)."
+    },
+    "total_taxes_cad": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$",
+      "maxLength": 24,
+      "description": "Montant en dollars canadiens, texte décimal (jamais un nombre JSON, jamais un flottant)."
+    },
+    "montant_apres_taxes_cad": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$",
+      "maxLength": 24,
+      "description": "Montant en dollars canadiens, texte décimal (jamais un nombre JSON, jamais un flottant)."
+    }
+  },
+  "required": [
+    "evenement_id",
+    "facture_id",
+    "statut",
+    "emise_le",
+    "devise",
+    "montant_avant_taxes_cad",
+    "total_taxes_cad",
+    "montant_apres_taxes_cad"
+  ]
+}

@@ -361,7 +361,9 @@ def test_m5_declare_publier_la_rentabilite():
     publie = charger_departements()[_DEPARTEMENT].evenements_publie
     assert publie[:2] == (TYPE, "m5.cash_libre_constate"), "la marge (T1.5-d), puis le cash libre constaté (T4.19-b)"
     assert publie[2:] == ("m5.creance_relance_preparee", "m5.mesures_comptables_constatees",
-                          "m5.rapprochement_po_constate", "m5.dossier_cpa_scelle"), "puis les opérations comptables"
+                          "m5.rapprochement_po_constate", "m5.dossier_cpa_scelle",
+                          "m5.depense_publicitaire_constatee", "m5.facture_emise_constatee"), \
+        "puis les opérations comptables"
 
 
 def test_une_trace_partielle_publie_les_inconnus_dans_la_meme_transaction(base_durable, taux_configure):
