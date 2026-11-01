@@ -6434,8 +6434,26 @@ def _factures_emises() -> list[dict[str, Any]]:
             *facturation.factures_par_statut(registre_factures, "PAYEE")]
 
 
+def _factures_fournisseurs_vivantes() -> list[dict[str, Any]]:
+    """Les factures fournisseurs VIVANTES (avec ou sans PO) du registre des comptes à payer, à leur état courant
+    (`comptes_a_payer.factures_saisies` : une corrigée vaut sa correction, une annulée n'y est pas). Lecture pure."""
+    return comptes_a_payer.factures_saisies(_registre_comptes_a_payer())
+
+
+def _categories_sans_compte(plan: Mapping[str, Any]) -> list[str]:
+    """Les catégories de la liste fermée configurée (`categories_depense_sans_po`) que la correspondance des charges du
+    plan effectif ne range dans aucun compte : leurs factures n'auront pas de brouillon tant qu'elle ne les déclare
+    pas. Liste absente ou illisible : rien à signaler ici (la saisie sans PO le dit déjà)."""
+    categories, refus = comptes_a_payer.lire_categories_depense(_categories_depense_sans_po())
+    if refus is not None:
+        return []
+    connues = plan["correspondance_charges"]["categories_depense"]
+    return [categorie for categorie in categories if categorie not in connues]
+
+
 def rapprocher_grand_livre(debut: str, fin: str) -> dict[str, Any]:
-    """Équilibre débits/crédits et TPS/TVQ du grand livre contre `taxes.py` sur les factures émises de la période."""
+    """Équilibre débits/crédits, TPS/TVQ à percevoir contre `taxes.py` sur les factures émises de la période, et
+    CTI/RTI contre les taxes payées des factures fournisseurs vivantes de la période."""
     ctx, refus = _contexte_grand_livre()
     if refus is not None:
         return _refus(refus)
@@ -6445,7 +6463,7 @@ def rapprocher_grand_livre(debut: str, fin: str) -> dict[str, Any]:
     registre_cible, plan = ctx
     etat = grand_livre.etat_grand_livre(registre_cible.lire())
     resultat, refus = grand_livre.rapprocher(etat, plan, _factures_emises(), dictionnaire, debut=debut, fin=fin,
-                                             limite_ecarts=8)
+                                             limite_ecarts=6, factures_fournisseurs=_factures_fournisseurs_vivantes())
     return _refus(refus) if refus is not None else _sortie_grand_livre(resultat)
 
 
@@ -6464,8 +6482,7 @@ def proposer_ecriture_comptable(
             "saisie"))
     pieces_connues = {
         "facture_client": {f["facture_id"] for f in _factures_emises()},
-        "facture_fournisseur": {f["facture_fournisseur_id"]
-                                for f in comptes_a_payer.factures_saisies(_registre_comptes_a_payer())},
+        "facture_fournisseur": {f["facture_fournisseur_id"] for f in _factures_fournisseurs_vivantes()},
     }
     resultat, refus = grand_livre.proposer_ecriture(
         registre_cible, plan,
@@ -6484,8 +6501,9 @@ def _resume_ecriture(vue: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def generer_brouillons_comptables(horodatage: str, limite: int | None = None) -> dict[str, Any]:
-    """Propose en BROUILLON les écritures des factures clientes émises et payées (T1/N1), idempotent par pièce : un
-    appel répété ne recrée rien. Au plus `limite` nouveaux brouillons par appel ; `reste` dit ce qui attend."""
+    """Propose en BROUILLON les écritures des factures clientes émises et payées et des factures fournisseurs saisies
+    (T1/N1), idempotent par pièce : un appel répété ne recrée rien. Au plus `limite` nouveaux brouillons par appel ;
+    `reste` dit ce qui attend ; `categories_sans_compte` dit les catégories configurées sans compte de charge."""
     ctx, refus = _contexte_grand_livre()
     if refus is not None:
         return _refus(refus)
@@ -6494,6 +6512,10 @@ def generer_brouillons_comptables(horodatage: str, limite: int | None = None) ->
         return _refus(refus)
     registre_cible, plan = ctx
     propositions, ignorees = grand_livre.propositions_factures_clients(_factures_emises(), plan)
+    fournisseurs, ignorees_fournisseurs = grand_livre.propositions_factures_fournisseurs(
+        _factures_fournisseurs_vivantes(), plan)
+    propositions = sorted([*propositions, *fournisseurs], key=lambda p: (p["date_effet"], p["cle_piece"]))
+    ignorees = [*ignorees, *ignorees_fournisseurs]
     creees: list[dict[str, Any]] = []
     deja = 0
     refusees: list[dict[str, str]] = []
@@ -6516,6 +6538,7 @@ def generer_brouillons_comptables(horodatage: str, limite: int | None = None) ->
         "brouillons_crees": creees, "deja_proposes": deja, "refuses": refusees[:10],
         "refuses_reste": max(0, len(refusees) - 10), "sources_ignorees": ignorees[:10],
         "sources_ignorees_reste": max(0, len(ignorees) - 10), "reste": reste,
+        "categories_sans_compte": _categories_sans_compte(plan),
         "a_faire": "chaque brouillon attend m5_valider_ecriture_comptable (N4) : rien n'est encore comptabilisé",
     })
 
@@ -6610,7 +6633,8 @@ def _outils_grand_livre() -> tuple[Outil, ...]:
             description=(
                 "Rapprochement du grand livre sur une période : équilibre (somme des débits = somme des crédits, "
                 "chaque écriture équilibrée) et TPS/TVQ à percevoir contre la TPS/TVQ que taxes.py calcule sur les "
-                "factures émises de la même période, avec l'écart par facture. CTI/RTI : soldes, non rapprochés. "
+                "factures émises de la même période, avec l'écart par facture ; CTI/RTI contre la TPS/TVQ payées des "
+                "factures fournisseurs vivantes de la période, avec l'écart par facture fournisseur. "
                 "Lecture pure." + _MENTION_GL
             ),
             parametres={"type": "object", "properties": {"debut": _DATE_GL, "fin": _DATE_GL},
@@ -6647,9 +6671,12 @@ def _outils_grand_livre() -> tuple[Outil, ...]:
             nom="m5_generer_brouillons_comptables",
             description=(
                 "Génère en BROUILLON les écritures des faits M5 les plus sûrs : facture client émise (comptes clients "
-                "/ produits / TPS / TVQ facturées) et paiement reçu (banque / comptes clients). Idempotent : un appel "
-                "répété ne recrée rien. Une facture illisible est ignorée avec son code, jamais complétée. Rien n'est "
-                "définitif : chaque brouillon attend m5_valider_ecriture_comptable (N4)." + _MENTION_GL
+                "/ produits / TPS / TVQ facturées), paiement reçu (banque / comptes clients) et facture fournisseur "
+                "saisie (charge de sa catégorie ou des achats sur PO / CTI / RTI payées / comptes fournisseurs ; "
+                "montants relus de la pièce). Idempotent : un appel répété ne recrée rien. Une facture illisible ou "
+                "sans compte de charge déclaré est ignorée avec son code (REJ-GL-SOURCE-ILLISIBLE, "
+                "REJ-GL-CATEGORIE-SANS-COMPTE), jamais complétée. Rien n'est définitif : chaque brouillon attend "
+                "m5_valider_ecriture_comptable (N4)." + _MENTION_GL
             ),
             parametres={"type": "object", "properties": {
                 "horodatage": _HORODATAGE_GL, "limite": _PAGE_GL["limite"]},

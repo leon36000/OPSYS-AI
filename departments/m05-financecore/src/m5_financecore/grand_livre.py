@@ -47,6 +47,7 @@ __all__ = [
     "proposer_contre_passation",
     "clore_periode",
     "propositions_factures_clients",
+    "propositions_factures_fournisseurs",
     "balance_verification",
     "grand_livre_compte",
     "rapprocher",
@@ -81,6 +82,10 @@ _TYPES_PIECE = {
 }
 _LOT_MAX = 5000
 _TAXES_FACTURE = {"tps_federale": "tps_a_percevoir", "tvq_quebec": "tvq_a_percevoir"}
+# Les taxes PAYÉES d'une facture fournisseur, vers les comptes de crédits et remboursements sur intrants.
+_TAXES_INTRANTS = {"tps_federale": "tps_cti", "tvq_quebec": "tvq_rti"}
+# Les états d'une facture fournisseur qui portent une dette (`comptes_a_payer._etats_factures`) ; ANNULEE, plus.
+_STATUTS_FOURNISSEUR_VIVANTS = ("SAISIE", "CORRIGEE")
 
 
 def _verdict(code: str, detail: str = "") -> dict[str, str]:
@@ -666,6 +671,31 @@ def _jour_iso(horodatage: Any) -> str | None:
         return None
 
 
+def _montants_lus(
+    facture: Mapping[str, Any], table: Mapping[str, str]
+) -> tuple[Decimal, Decimal, dict[str, Decimal]] | None:
+    """`(avant taxes, après taxes, {rôle: montant de taxe})` RELUS de la pièce, ou `None` dès que quelque chose est
+    illisible ou incohérent : montant absent ou non `Decimal`, taxe hors `table` ou répétée, taxe négative, avant +
+    taxes ≠ après, somme des taxes ≠ total des taxes, avant ou après non strictement positif. Rien n'est recalculé :
+    la pièce dit ses montants, ce code vérifie qu'ils se tiennent."""
+    avant, apres, total = (facture.get(c) for c in ("montant_avant_taxes", "montant_apres_taxes", "total_taxes"))
+    detail_taxes = facture.get("taxes")
+    if not (all(isinstance(v, Decimal) and v.is_finite() for v in (avant, apres, total))
+            and isinstance(detail_taxes, (list, tuple))):
+        return None
+    montants: dict[str, Decimal] = {}
+    for taxe in detail_taxes:
+        role = table.get(taxe.get("id")) if isinstance(taxe, Mapping) else None
+        montant = taxe.get("montant") if role is not None else None
+        if (role is None or not isinstance(montant, Decimal) or not montant.is_finite() or montant < 0
+                or role in montants):
+            return None
+        montants[role] = montant
+    if avant + total != apres or sum(montants.values(), _ZERO) != total or apres <= 0 or avant <= 0:
+        return None
+    return avant, apres, montants
+
+
 def propositions_factures_clients(
     factures: Iterable[Mapping[str, Any]], plan: Mapping[str, Any]
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
@@ -684,24 +714,12 @@ def propositions_factures_clients(
         statut = facture.get("statut")
         if statut not in ("ENVOYEE", "PAYEE"):
             continue
-        avant, apres, total = (facture.get(c) for c in ("montant_avant_taxes", "montant_apres_taxes", "total_taxes"))
-        detail_taxes = facture.get("taxes")
-        lisible = (all(isinstance(v, Decimal) and v.is_finite() for v in (avant, apres, total))
-                   and isinstance(detail_taxes, (list, tuple)))
-        montants_taxe: dict[str, Decimal] = {}
-        if lisible:
-            for taxe in detail_taxes:
-                role = _TAXES_FACTURE.get(taxe.get("id")) if isinstance(taxe, Mapping) else None
-                montant = taxe.get("montant") if role is not None else None
-                if role is None or not isinstance(montant, Decimal) or role in montants_taxe:
-                    lisible = False
-                    break
-                montants_taxe[role] = montant
-        if (not lisible or avant + total != apres or sum(montants_taxe.values(), _ZERO) != total
-                or apres <= 0 or avant <= 0):
+        lus = _montants_lus(facture, _TAXES_FACTURE)
+        if lus is None:
             ignorees.append({"facture_id": str(ident), "code": "REJ-GL-SOURCE-ILLISIBLE",
                              "detail": "montants ou taxes de la facture illisibles ou incohérents"})
             continue
+        avant, apres, montants_taxe = lus
         jour_envoi = _jour_iso(facture.get("date_envoi"))
         if jour_envoi is None:
             ignorees.append({"facture_id": str(ident), "code": "REJ-GL-SOURCE-ILLISIBLE",
@@ -736,6 +754,63 @@ def propositions_factures_clients(
                     {"compte": roles["comptes_clients"], "debit": None, "credit": _texte(apres)},
                 ],
             })
+    propositions.sort(key=lambda p: (p["date_effet"], p["cle_piece"]))
+    return propositions, ignorees
+
+
+def _une_ligne(valeur: Any) -> str:
+    return " ".join(str(valeur).split())
+
+
+def propositions_factures_fournisseurs(
+    factures: Iterable[Mapping[str, Any]], plan: Mapping[str, Any]
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Les brouillons des factures fournisseurs SAISIES (état courant des comptes à payer : SAISIE ou CORRIGEE ; une
+    ANNULEE n'en donne aucun), datés de la date de la facture :
+    débit du compte de charge (`plan_comptable.compte_de_charge` : sa catégorie, ou `factures_sur_po`) du montant
+    avant taxes ; débit CTI de la TPS payée et RTI de la TVQ payée ; crédit comptes fournisseurs du total après taxes.
+    Les montants sont RELUS de la pièce (`_montants_lus`), jamais recalculés. Le registre des comptes à payer ne porte
+    aucun paiement (payer un fournisseur est N5, hors de M5) : aucun brouillon de paiement n'en sort.
+    Rend `(propositions, ignorees)` : une facture aux taxes illisibles ou sans date lisible est ignorée
+    (`REJ-GL-SOURCE-ILLISIBLE`), une facture sans compte de charge déclaré aussi (`REJ-GL-CATEGORIE-SANS-COMPTE`) ;
+    jamais complétée."""
+    roles = plan["roles"]
+    propositions: list[dict[str, Any]] = []
+    ignorees: list[dict[str, str]] = []
+    for facture in factures:
+        if facture.get("statut") not in _STATUTS_FOURNISSEUR_VIVANTS:
+            continue
+        ident = facture.get("facture_fournisseur_id")
+        lus = _montants_lus(facture, _TAXES_INTRANTS)
+        if lus is None:
+            ignorees.append({"facture_fournisseur_id": str(ident), "code": "REJ-GL-SOURCE-ILLISIBLE",
+                             "detail": "montants ou taxes payées de la facture fournisseur illisibles ou incohérents"})
+            continue
+        jour = _date(facture.get("date_facture"))
+        if jour is None:
+            ignorees.append({"facture_fournisseur_id": str(ident), "code": "REJ-GL-SOURCE-ILLISIBLE",
+                             "detail": "facture fournisseur sans date_facture lisible"})
+            continue
+        compte, refus = plan_comptable.compte_de_charge(
+            plan, po_id=facture.get("po_id"), categorie=facture.get("categorie_depense"))
+        if refus is not None:
+            ignorees.append({"facture_fournisseur_id": str(ident), **refus})
+            continue
+        avant, apres, montants_taxe = lus
+        lignes = [{"compte": compte, "debit": _texte(avant), "credit": None}]
+        lignes += [{"compte": roles[role], "debit": _texte(montant), "credit": None}
+                   for role, montant in sorted(montants_taxe.items()) if montant > 0]
+        lignes.append({"compte": roles["comptes_fournisseurs"], "debit": None, "credit": _texte(apres)})
+        libelle = (f"Facture fournisseur {_une_ligne(facture.get('numero_facture'))} "
+                   f"({_une_ligne(facture.get('fournisseur_id'))}) saisie")
+        propositions.append({
+            "cle_piece": f"auto:facture_fournisseur:{ident}:saisie",
+            "piece": {"type": "facture_fournisseur", "reference": ident},
+            "nature": "facture_fournisseur_saisie",
+            "date_effet": jour.isoformat(),
+            "libelle": libelle[:_LIBELLE_MAX],
+            "lignes_brutes": lignes,
+        })
     propositions.sort(key=lambda p: (p["date_effet"], p["cle_piece"]))
     return propositions, ignorees
 
@@ -914,6 +989,77 @@ def _taxes_attendues(
     return attendues, illisibles
 
 
+def _taxes_payees(
+    factures_fournisseurs: Iterable[Mapping[str, Any]], debut: date, fin: date
+) -> tuple[dict[str, dict[str, Decimal]], list[dict[str, str]]]:
+    """Par facture fournisseur VIVANTE datée dans la période, la TPS et la TVQ PAYÉES telles que la pièce les porte
+    (relues, jamais recalculées : ce sont elles que le brouillon doit débiter aux CTI et RTI)."""
+    attendues: dict[str, dict[str, Decimal]] = {}
+    illisibles: list[dict[str, str]] = []
+    for facture in factures_fournisseurs:
+        if facture.get("statut") not in _STATUTS_FOURNISSEUR_VIVANTS:
+            continue
+        ident = str(facture.get("facture_fournisseur_id"))
+        jour = _date(facture.get("date_facture"))
+        if jour is None:
+            illisibles.append({"facture_fournisseur_id": ident, "code": "REJ-GL-SOURCE-ILLISIBLE"})
+            continue
+        if not debut <= jour <= fin:
+            continue
+        lus = _montants_lus(facture, _TAXES_INTRANTS)
+        if lus is None:
+            illisibles.append({"facture_fournisseur_id": ident, "code": "REJ-GL-SOURCE-ILLISIBLE"})
+            continue
+        attendues[ident] = lus[2]
+    return attendues, illisibles
+
+
+def _rapprocher_taxe(
+    periode: list[Mapping[str, Any]],
+    compte: str,
+    role: str,
+    attendues: Mapping[str, Mapping[str, Decimal]],
+    *,
+    type_piece: str,
+    debiteur: bool,
+    cle_id: str,
+    cle_attendu: str,
+    raison_sans_piece: str,
+    raison_autre: str,
+) -> tuple[Decimal, Decimal, list[dict[str, Any]]]:
+    """Le mouvement net d'un compte de taxe dans la période (débiteur ou créditeur selon le compte), par pièce du type
+    `type_piece`, contre ce que chaque pièce attend : `(attendu total, au grand livre total, écarts par pièce)`."""
+    par_piece: dict[str, Decimal] = {}
+    autres = _ZERO
+    for ecriture in periode:
+        net = sum((ligne["credit"] - ligne["debit"] for ligne in ecriture["lignes"] if ligne["compte"] == compte),
+                  _ZERO)
+        if debiteur:
+            net = -net
+        if net == 0:
+            continue
+        if ecriture["piece"]["type"] == type_piece:
+            reference = ecriture["piece"]["reference"]
+            par_piece[reference] = par_piece.get(reference, _ZERO) + net
+        else:
+            autres += net
+    attendu_total = sum((a.get(role, _ZERO) for a in attendues.values()), _ZERO)
+    livre_total = sum(par_piece.values(), _ZERO) + autres
+    ecarts: list[dict[str, Any]] = []
+    for reference in sorted(set(attendues) | set(par_piece)):
+        attendu = attendues[reference].get(role, _ZERO) if reference in attendues else None
+        au_livre = par_piece.get(reference, _ZERO)
+        if attendu is None:
+            ecarts.append({cle_id: reference, "raison": raison_sans_piece, "au_grand_livre": _texte(au_livre)})
+        elif attendu != au_livre:
+            ecarts.append({cle_id: reference, cle_attendu: _texte(attendu), "au_grand_livre": _texte(au_livre),
+                           "raison": "sans écriture définitive" if reference not in par_piece
+                           else "montant différent"})
+    if autres != 0:
+        ecarts.append({cle_id: None, "raison": raison_autre, "au_grand_livre": _texte(autres)})
+    return attendu_total, livre_total, ecarts
+
+
 def rapprocher(
     etat: Mapping[str, Any],
     plan: Mapping[str, Any],
@@ -923,14 +1069,18 @@ def rapprocher(
     debut: Any,
     fin: Any,
     limite_ecarts: int = 10,
+    factures_fournisseurs: Iterable[Mapping[str, Any]] = (),
 ) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
     """Le rapprochement du grand livre pour la période `debut`..`fin` :
     1. ÉQUILIBRE : chaque écriture définitive est équilibrée, et la somme des débits = la somme des crédits de toutes
        les écritures définitives jusqu'à `fin` ;
-    2. TPS et TVQ : le mouvement net (crédits moins débits) des comptes TPS et TVQ à percevoir dans la période, contre
-       la TPS et la TVQ que `taxes.py` calcule sur les factures émises dans la même période. Écart par facture :
-       facture sans écriture définitive, montant différent, ou mouvement de taxe sans facture de la période.
-    Les crédits et remboursements sur intrants (CTI/RTI) sont rendus en solde, NON rapprochés en tranche 1."""
+    2. TPS et TVQ à percevoir : le mouvement net (crédits moins débits) des comptes TPS et TVQ à percevoir dans la
+       période, contre la TPS et la TVQ que `taxes.py` calcule sur les factures émises dans la même période. Écart par
+       facture : facture sans écriture définitive, montant différent, ou mouvement de taxe sans facture de la période ;
+    3. CTI et RTI (intrants) : le mouvement net (débits moins crédits) des comptes CTI et RTI dans la période, contre la
+       TPS et la TVQ PAYÉES que portent les factures fournisseurs vivantes datées dans la période
+       (`factures_fournisseurs`, état courant des comptes à payer). Écart par facture fournisseur, mêmes raisons ; un
+       mouvement d'une autre pièce (reçu saisi à la main, import) est un écart nommé, jamais absorbé."""
     refus = _refus_anomalies(etat)
     if refus is not None:
         return None, refus
@@ -946,52 +1096,41 @@ def rapprocher(
     periode = _definitives_jusqua(etat, jour_fin, jour_debut)
     taxes_resultat = {}
     for role in ("tps_a_percevoir", "tvq_a_percevoir"):
-        compte = roles[role]
-        par_facture: dict[str, Decimal] = {}
-        autres = _ZERO
-        for ecriture in periode:
-            net = sum((ligne["credit"] - ligne["debit"] for ligne in ecriture["lignes"] if ligne["compte"] == compte),
-                      _ZERO)
-            if net == 0:
-                continue
-            if ecriture["piece"]["type"] == "facture_client":
-                reference = ecriture["piece"]["reference"]
-                par_facture[reference] = par_facture.get(reference, _ZERO) + net
-            else:
-                autres += net
-        attendu_total = sum((a.get(role, _ZERO) for a in attendues.values()), _ZERO)
-        livre_total = sum(par_facture.values(), _ZERO) + autres
-        ecarts = []
-        for reference in sorted(set(attendues) | set(par_facture)):
-            attendu = attendues.get(reference, {}).get(role, _ZERO) if reference in attendues else None
-            au_livre = par_facture.get(reference, _ZERO)
-            if attendu is None:
-                ecarts.append({"facture_id": reference, "raison": "mouvement de taxe sans facture émise dans la "
-                               "période", "au_grand_livre": _texte(au_livre)})
-            elif attendu != au_livre:
-                ecarts.append({"facture_id": reference, "attendu_taxes": _texte(attendu),
-                               "au_grand_livre": _texte(au_livre),
-                               "raison": "sans écriture définitive" if reference not in par_facture
-                               else "montant différent"})
-        if autres != 0:
-            ecarts.append({"facture_id": None, "raison": "mouvement d'une écriture non rattachée à une facture client",
-                           "au_grand_livre": _texte(autres)})
+        attendu_total, livre_total, ecarts = _rapprocher_taxe(
+            periode, roles[role], role, attendues, type_piece="facture_client", debiteur=False,
+            cle_id="facture_id", cle_attendu="attendu_taxes",
+            raison_sans_piece="mouvement de taxe sans facture émise dans la période",
+            raison_autre="mouvement d'une écriture non rattachée à une facture client")
         taxes_resultat[role] = {
-            "compte": compte,
+            "compte": roles[role],
             "attendu_taxes_py": _texte(attendu_total),
             "au_grand_livre": _texte(livre_total),
             "verdict": "CONCORDANT" if attendu_total == livre_total and not ecarts else "ECART",
             "ecarts": ecarts[:limite_ecarts],
             "ecarts_reste": max(0, len(ecarts) - limite_ecarts),
         }
+    payees, illisibles_fournisseurs = _taxes_payees(factures_fournisseurs, jour_debut, jour_fin)
     intrants = {}
     for role in ("tps_cti", "tvq_rti"):
         compte = roles.get(role)
         if compte is None:
             continue
+        attendu_total, livre_total, ecarts = _rapprocher_taxe(
+            periode, compte, role, payees, type_piece="facture_fournisseur", debiteur=True,
+            cle_id="facture_fournisseur_id", cle_attendu="attendu_facture",
+            raison_sans_piece="mouvement de taxe sans facture fournisseur vivante datée dans la période",
+            raison_autre="mouvement d'une écriture non rattachée à une facture fournisseur")
         solde = sum((ligne["debit"] - ligne["credit"] for e in jusqua for ligne in e["lignes"]
                      if ligne["compte"] == compte), _ZERO)
-        intrants[role] = {"compte": compte, "solde_debiteur": _texte(solde), "rapproche": False}
+        intrants[role] = {
+            "compte": compte,
+            "attendu_factures_fournisseurs": _texte(attendu_total),
+            "au_grand_livre": _texte(livre_total),
+            "solde_debiteur_a_la_fin": _texte(solde),
+            "verdict": "CONCORDANT" if attendu_total == livre_total and not ecarts else "ECART",
+            "ecarts": ecarts[:limite_ecarts],
+            "ecarts_reste": max(0, len(ecarts) - limite_ecarts),
+        }
     equilibre = debits == credits and not desequilibrees
     return {
         "debut": jour_debut.isoformat(),
@@ -1001,9 +1140,10 @@ def rapprocher(
                       else "DESEQUILIBRE"},
         "taxes": taxes_resultat,
         "factures_illisibles": illisibles[:limite_ecarts],
-        "intrants_non_rapproches": intrants,
+        "intrants": intrants,
+        "factures_fournisseurs_illisibles": illisibles_fournisseurs[:limite_ecarts],
         "brouillons_non_comptabilises": _brouillons(etat, jour_fin),
         "doublons_ignores": len(etat["doublons"]),
-        "verdict": "CONCORDANT" if equilibre and not illisibles and all(
-            t["verdict"] == "CONCORDANT" for t in taxes_resultat.values()) else "ECART",
+        "verdict": "CONCORDANT" if equilibre and not illisibles and not illisibles_fournisseurs and all(
+            t["verdict"] == "CONCORDANT" for t in (*taxes_resultat.values(), *intrants.values())) else "ECART",
     }, None

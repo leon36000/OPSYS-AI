@@ -101,7 +101,7 @@ def test_le_catalogue_des_refus_est_ferme_documente_et_hors_du_code_de_paie_epin
 # ================================================================================================ plan comptable
 def test_le_plan_par_defaut_porte_les_comptes_pme_qc_et_sa_version(plan):
     comptes = plan["comptes"]
-    assert plan["version_effective"] == plan["version"] == "2026-v1"
+    assert plan["version_effective"] == plan["version"] == "2026-v2"
     for numero, mot in [("2300", "TPS à percevoir"), ("2310", "TVQ à percevoir"), ("1400", "CTI"), ("1410", "RTI"),
                         ("2200", "Salaires à payer"), ("2400", "Retenues à la source"),
                         ("2420", "Cotisations de l'employeur")]:
@@ -117,9 +117,9 @@ def test_l_extension_du_client_ajoute_desactive_et_change_la_version(plan):
         "comptes_ajoutes": [{"numero": "5450", "nom": "Location d'équipement", "type": "charges"}],
         "comptes_desactives": ["5600"]}))
     assert effectif["comptes"]["5450"]["actif"] and not effectif["comptes"]["5600"]["actif"]
-    assert effectif["version_effective"].startswith("2026-v1+client.")
+    assert effectif["version_effective"].startswith("2026-v2+client.")
     assert plan["comptes"]["5600"]["actif"], "le plan de base n'est pas modifié"
-    assert _accepte(plan_comptable.appliquer_extension(plan, None))["version_effective"] == "2026-v1"
+    assert _accepte(plan_comptable.appliquer_extension(plan, None))["version_effective"] == "2026-v2"
 
 
 @pytest.mark.parametrize("extension", [

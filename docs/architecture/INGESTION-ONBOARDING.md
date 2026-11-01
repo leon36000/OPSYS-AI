@@ -132,9 +132,11 @@ Le brouillon doit être `PRET` et le rester à la **revalidation** (taux et iden
 devient alors la facture **sans PO** saisie par le même chemin que `m5_saisir_facture_sans_po` (`_ranger_sans_po` :
 catégorie de la liste configurée, taxes et total recalculés une troisième fois, doublon refusé) ; le brouillon passe
 `VALIDE` avec la référence de la facture, dans la même transaction. Un brouillon `A_VERIFIER` ne se valide jamais tel
-quel : la saisie manuelle reste le repli, puis on l'écarte (motif obligatoire). **Grand livre** : aucun brouillon
-d'écriture n'est produit — le patron ne s'y prête pas encore, faute de correspondance configurée catégorie → compte de
-charge ; en écrire un supposerait un compte (fail-closed).
+quel : la saisie manuelle reste le repli, puis on l'écarte (motif obligatoire). **Grand livre** : la facture saisie
+est une facture fournisseur comme une autre ; `m5_generer_brouillons_comptables` en tire le brouillon (Dt charge de sa
+catégorie / Dt CTI / Dt RTI / Ct comptes fournisseurs, montants relus de la pièce) par la correspondance DÉCLARÉE du
+plan comptable (`correspondance_charges`, `departments/m05-financecore/docs/grand-livre.md`) ; une catégorie sans
+compte déclaré n'a pas de brouillon (`REJ-GL-CATEGORIE-SANS-COMPTE`), jamais un compte supposé. Validation N4 humaine.
 
 ## 6. Clients importés et dédoublonnage (M2)
 
@@ -203,7 +205,8 @@ Statut d'un document selon son verdict : `REFUSE` (type, contenu corrompu, PDF r
 - **Courriels historiques** (mbox, PST, EML) et connecteurs (Gmail, Graph, Drive) : non traités.
 - **Apprentissage du profil d'entreprise** et pack sectoriel : non faits ; l'identité fiscale se déclare à la main.
 - **Factures clients, soumissions, contrats** : classés, non peuplés (aucun brouillon AR, M3 ni contrat).
-- **Grand livre** : aucun brouillon d'écriture (voir §5).
+- **Grand livre** : le brouillon vient de la génération du grand livre, pas de l'ingestion (voir §5) ; les comptes de
+  charge proposés sont à valider par le CPA.
 - Splink non installé ; dédoublonnage par règles déterministes seulement. Une fiche d'un lot suivant qui recoupe un
   brouillon existant s'y rattache sans l'enrichir. Une tâche en file morte ne se relance pas encore (nouveau dépôt).
 - Le fournisseur simulé des tests (`tests/fixtures/ingestion_onboarding_qa.py`) n'est pas une capacité livrée ; le

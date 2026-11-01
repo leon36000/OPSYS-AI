@@ -347,7 +347,7 @@ def test_l_extension_du_plan_vient_du_manifeste(par_nom, declare):
     declare({"grand_livre": {"comptes_ajoutes": [{"numero": "5450", "nom": "Location d'équipement",
                                                    "type": "charges"}], "comptes_desactives": ["5600"]}})
     ecriture = _accepte(_appeler(par_nom, "m5_proposer_ecriture_comptable", saisie))["ecriture"]
-    assert ecriture["plan_comptable_version"].startswith("2026-v1+client.")
+    assert ecriture["plan_comptable_version"].startswith("2026-v2+client.")
     loyer = {**saisie, "piece_reference": "R-2", "lignes": [{"compte": "5600", "debit": "10.00", "credit": None},
                                                             {"compte": "1010", "debit": None, "credit": "10.00"}]}
     assert _code(_appeler(par_nom, "m5_proposer_ecriture_comptable", loyer)) == "REJ-GL-COMPTE-INACTIF"

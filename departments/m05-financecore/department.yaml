@@ -121,6 +121,9 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
 #       comptes_ajoutes:
 #         - {numero: "5450", nom: "Location d'équipement", type: charges}
 #       comptes_desactives: ["5600"]
+#       correspondance_charges:                  # compte de charge des factures fournisseurs (défaut : le plan versionné)
+#         categories_depense: {location: "5450"} # ajoute ou redirige une catégorie de categories_depense_sans_po
+#       categories_depense_retirees: [marketing] # ses factures n'auront plus de brouillon (REJ-GL-CATEGORIE-SANS-COMPTE)
 #
 modeles:
   defaut: standard

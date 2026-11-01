@@ -855,6 +855,8 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
         "_contexte_grand_livre",
         "_humain_grand_livre",
         "_factures_emises",
+        "_factures_fournisseurs_vivantes",
+        "_categories_sans_compte",
         "lire_balance_verification",
         "lire_grand_livre_compte",
         "rapprocher_grand_livre",
