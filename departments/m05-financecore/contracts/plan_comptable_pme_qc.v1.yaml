@@ -1,0 +1,63 @@
+# Plan comptable par défaut d'une PME québécoise de services (grand livre M5, tranche 1).
+# Versionné : toute écriture porte la version du plan sous laquelle elle a été proposée. Le client l'étend ou désactive
+# des comptes par `department.yaml/configuration.grand_livre` (voir docs/grand-livre.md), jamais en modifiant ce fichier
+# sur place : une nouvelle version de ce fichier porte un nouveau `version`.
+# Numérotation : 1xxx actif, 2xxx passif, 3xxx capitaux propres, 4xxx produits, 5xxx à 9xxx charges.
+# Libellés et regroupements à valider par le CPA de l'entreprise : c'est un point de départ, pas un avis comptable.
+schema_version: 1
+plan_id: pme-qc-services
+version: "2026-v1"
+source: "Plan type OPSYS-AI pour PME québécoise de services (structure usuelle actif/passif/capitaux/produits/charges)"
+comptes:
+  # --- Actif
+  - {numero: "1010", nom: "Encaisse — compte bancaire principal", type: actif}
+  - {numero: "1020", nom: "Petite caisse", type: actif}
+  - {numero: "1100", nom: "Comptes clients", type: actif}
+  - {numero: "1200", nom: "Stocks de matériaux", type: actif}
+  - {numero: "1300", nom: "Frais payés d'avance", type: actif}
+  - {numero: "1400", nom: "TPS à recevoir — CTI (crédits de taxe sur les intrants)", type: actif}
+  - {numero: "1410", nom: "TVQ à recevoir — RTI (remboursements de la taxe sur les intrants)", type: actif}
+  - {numero: "1500", nom: "Équipement et outillage", type: actif}
+  - {numero: "1510", nom: "Matériel roulant", type: actif}
+  # --- Passif
+  - {numero: "2100", nom: "Comptes fournisseurs", type: passif}
+  - {numero: "2200", nom: "Salaires à payer", type: passif}
+  - {numero: "2300", nom: "TPS à percevoir", type: passif}
+  - {numero: "2310", nom: "TVQ à percevoir", type: passif}
+  - {numero: "2400", nom: "Retenues à la source à remettre — Revenu Québec (impôt QC, RRQ, RQAP)", type: passif}
+  - {numero: "2410", nom: "Retenues à la source à remettre — ARC (impôt fédéral, AE)", type: passif}
+  - {numero: "2420", nom: "Cotisations de l'employeur à payer — Revenu Québec (RRQ, RQAP, FSS, CNT)", type: passif}
+  - {numero: "2430", nom: "Cotisations de l'employeur à payer — ARC (AE)", type: passif}
+  - {numero: "2440", nom: "Cotisations CNESST à payer", type: passif}
+  - {numero: "2500", nom: "Emprunts à long terme", type: passif}
+  # --- Capitaux propres
+  - {numero: "3100", nom: "Capital-actions", type: capitaux_propres}
+  - {numero: "3200", nom: "Bénéfices non répartis", type: capitaux_propres}
+  - {numero: "3300", nom: "Dividendes déclarés", type: capitaux_propres}
+  # --- Produits
+  - {numero: "4100", nom: "Revenus de services et de travaux", type: produits}
+  - {numero: "4900", nom: "Autres revenus", type: produits}
+  # --- Charges
+  - {numero: "5100", nom: "Matériaux utilisés", type: charges}
+  - {numero: "5200", nom: "Sous-traitance", type: charges}
+  - {numero: "5300", nom: "Salaires et traitements", type: charges}
+  - {numero: "5310", nom: "Cotisations de l'employeur", type: charges}
+  - {numero: "5400", nom: "Carburant et entretien des véhicules", type: charges}
+  - {numero: "5500", nom: "Outils et petit équipement", type: charges}
+  - {numero: "5600", nom: "Loyer", type: charges}
+  - {numero: "5700", nom: "Assurances", type: charges}
+  - {numero: "5800", nom: "Frais bancaires et intérêts", type: charges}
+  - {numero: "5900", nom: "Honoraires professionnels", type: charges}
+  - {numero: "5950", nom: "Publicité et marketing", type: charges}
+  - {numero: "5990", nom: "Frais divers", type: charges}
+# Les comptes que la génération automatique des brouillons utilise : chacun doit exister dans ce plan.
+roles:
+  banque: "1010"
+  comptes_clients: "1100"
+  produits_services: "4100"
+  tps_a_percevoir: "2300"
+  tvq_a_percevoir: "2310"
+  tps_cti: "1400"
+  tvq_rti: "1410"
+  comptes_fournisseurs: "2100"
+  salaires_a_payer: "2200"

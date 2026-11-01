@@ -15,12 +15,32 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-__all__ = ["MENTION_ANALYSE_PREPARATOIRE", "SORTIES_D_ANALYSE", "SORTIES_HORS_ANALYSE", "avec_mention"]
+__all__ = [
+    "MENTION_ANALYSE_PREPARATOIRE", "MENTION_COMPTABLE", "SORTIES_COMPTABLES", "SORTIES_D_ANALYSE",
+    "SORTIES_HORS_ANALYSE", "avec_mention", "avec_mention_comptable",
+]
 
 MENTION_ANALYSE_PREPARATOIRE = (
     "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle "
     "ou action réelle."
 )
+
+# Grand livre (tranche 1) : toute sortie comptable porte EN PLUS cette mention (clé `mention_comptable`). Une balance,
+# un grand livre, un rapprochement ou une écriture préparés par OPSYS ne sont pas des états financiers vérifiés.
+MENTION_COMPTABLE = "À valider auprès d'un comptable (CPA) / professionnel qualifié."
+
+# Les outils du grand livre : des sorties d'analyse (mention obligatoire) ET comptables (mention comptable). Leurs deux
+# mentions sont testées dans `tests/test_grand_livre_outils.py`.
+SORTIES_COMPTABLES = frozenset({
+    "m5_lire_balance_verification",  # balance de vérification à une date : un état préparé, non vérifié
+    "m5_lire_grand_livre_compte",  # grand livre d'un compte : soldes courants des écritures définitives
+    "m5_rapprocher_grand_livre",  # équilibre débits/crédits et TPS/TVQ contre taxes.py : un contrôle à interpréter
+    "m5_proposer_ecriture_comptable",  # un brouillon d'écriture saisi : une proposition, jamais définitive
+    "m5_generer_brouillons_comptables",  # brouillons tirés des faits M5 : des propositions
+    "m5_proposer_contre_passation",  # le brouillon qui corrigerait une définitive : une proposition
+    "m5_valider_ecriture_comptable",  # l'écriture rendue définitive par un humain (N4) : reste à valider par le CPA
+    "m5_clore_periode_comptable",  # la clôture décidée par un humain (N4) et ses totaux : à valider par le CPA
+})
 
 # Les outils dont la réponse acceptée est une analyse, un calcul interprété ou une proposition : elle porte la mention
 # (clé `mention`, au niveau de ce que l'outil rend dans `resultat`).
@@ -41,7 +61,7 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_preparer_brut_regulier",  # estimation préparatoire humaine du brut, sans retenues ni action officielle
     "m5_preparer_dossier_webras",  # dossier préparatoire pour calcul humain dans les services officiels
     "m5_prevoir_tresorerie_contrats",  # prévision préparatoire de flux contractuels rapprochés aux sources M3/M5
-})
+}) | SORTIES_COMPTABLES
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {
@@ -84,3 +104,8 @@ def avec_mention(sortie: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(sortie, Mapping):
         raise TypeError("la mention s'ajoute à un dictionnaire de sortie")
     return {**sortie, "mention": MENTION_ANALYSE_PREPARATOIRE}
+
+
+def avec_mention_comptable(sortie: Mapping[str, Any]) -> dict[str, Any]:
+    """`sortie` avec la mention obligatoire ET la mention comptable (grand livre) ; aucune ne se remplace."""
+    return {**avec_mention(sortie), "mention_comptable": MENTION_COMPTABLE}

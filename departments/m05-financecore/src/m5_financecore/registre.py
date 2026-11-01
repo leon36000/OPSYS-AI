@@ -48,6 +48,11 @@ _TYPE_ENTREE_VALIDES = {
     # Répartitions analytiques humaines, dans leur registre propre ; aucun mouvement financier.
     "affectation_cout_marketing_enregistree",
     "affectation_cout_marketing_retiree",
+    # Grand livre en partie double (grand_livre.py), dans son registre DÉDIÉ `grand_livre` : un brouillon, sa
+    # validation par un humain (N4), la clôture d'une période. Aucun n'est un mouvement financier ; aucun ne se modifie.
+    "gl_ecriture_proposee",
+    "gl_ecriture_validee",
+    "gl_periode_cloturee",
 }
 
 _CHAMPS_MOUVEMENT = (

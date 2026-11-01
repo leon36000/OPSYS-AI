@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 232 outils sur 368 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 232 outils sur 376 sont déclarés.
 
 ### `employee` (17 outils) : §9.3, le terrain
 
@@ -449,6 +449,7 @@ Les plus sensibles :
 |---|---|
 | `m4_lire_outbox` | WCT complets : positions GPS et identités de tous les techniciens ; outil des modules aval. |
 | `m5_preparer_brut_regulier` (T0) | Brouillon provisoire du brut régulier depuis les minutes M4 complètes et le contrat CAD M5 courant; politique d'arrondi et référence humaine explicites, sources courantes ou références attendues exactes. Propriétaire confirmé via console uniquement, aucun agent ni appareil même admin. Aucun impôt, retenue, cotisation, net, DAS, paiement ou action officielle; validation Nathan/CPA requise, sans paie complète certifiée. |
+| `m5_lire_balance_verification`, `m5_lire_grand_livre_compte`, `m5_rapprocher_grand_livre` (T0), `m5_proposer_ecriture_comptable`, `m5_generer_brouillons_comptables`, `m5_proposer_contre_passation` (T1/N1), `m5_valider_ecriture_comptable`, `m5_clore_periode_comptable` (T2/N4) | Grand livre en partie double, tranche 1 (`departments/m05-financecore/docs/grand-livre.md`). Aucun rôle d'appareil : l'agent finance lit et propose des brouillons ; une écriture définitive ou une clôture n'existe qu'après la décision du propriétaire ou de la finance dans la file (N4). Une identité d'appareil qui atteindrait ces outils est refusée dans le code (`REJ-IDENTITE-APPAREIL-INVALIDE`). |
 | `m6_consommer_materiaux` | Prend encore un WCT fourni par l'appelant ; remplacé par `m6_declarer_materiaux_utilises` (T1.4-i). |
 | `m3_estimer_projet`, `m3_creer_devis` | Le barème, le plancher rentable, le coût de chaque ligne et le taux de marge viendraient de l'appelant. |
 | `m6_enregistrer_prix`, `m6_enregistrer_fournisseur`, `m6_enregistrer_besoins_prevus`, `m6_marquer_po_envoye` | Livre de prix, courriel de commande d'un fournisseur, prévu issu du devis accepté, engagement externe (N4). |
