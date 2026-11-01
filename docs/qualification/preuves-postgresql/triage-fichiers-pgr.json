@@ -1,0 +1,2582 @@
+[
+ {
+  "fichier": "departments/m01-front-office/tests/test_composition_voicemail_commit_reouverture.py",
+  "echecs": 2,
+  "classe": "B",
+  "causes": [
+   "le test ouvre le fichier SQLite lui-même (`sqlite3`, `Path`) ou le passe à un sous-processus"
+  ],
+  "premiere_erreur": "E       sqlite3.OperationalError: unable to open database file"
+ },
+ {
+  "fichier": "departments/m01-front-office/tests/test_rappels_appareil.py",
+  "echecs": 46,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "departments/m02-revenue-crm/tests/test_compositions_n3_pendantes.py",
+  "echecs": 6,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "departments/m02-revenue-crm/tests/test_previsions_outils.py",
+  "echecs": 27,
+  "classe": "B",
+  "causes": [
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"personnes\" does not exist"
+ },
+ {
+  "fichier": "departments/m02-revenue-crm/tests/test_reassignation.py",
+  "echecs": 4,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "departments/m02-revenue-crm/tests/test_relances_outils.py",
+  "echecs": 5,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "departments/m03-estimation/tests/test_calibration_promotion_sdk.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "outil d'audit qualifié SQLite (refuse sur PostgreSQL)"
+  ],
+  "premiere_erreur": "E       AssertionError: assert 'refuse' == 'ecarts'"
+ },
+ {
+  "fichier": "departments/m03-estimation/tests/test_envoi_devis_capacites.py",
+  "echecs": 19,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': False, 'erreur': 'cible_refusee', 'details': 'liaison de cible temporairement désactivée hors de SQLite'}"
+ },
+ {
+  "fichier": "departments/m03-estimation/tests/test_estimation_risquee.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_calendrier_civil_outils.py",
+  "echecs": 6,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_calendrier_detail.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_capacite_equipe_outil.py",
+  "echecs": 4,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_composition_revue_sources_reouverture.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E                                                                        [100%]"
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_declaration_equipe_appareil.py",
+  "echecs": 5,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           AssertionError: {'accepte': False, 'verdict': {'code': 'REJ-EQUIPE-SOURCE-INVALIDE', 'statut': '', 'detail': ''}}"
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_geolocalisation_gps.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "le test ouvre le fichier SQLite lui-même (`sqlite3`, `Path`) ou le passe à un sous-processus"
+  ],
+  "premiere_erreur": "E           sqlite3.OperationalError: no such table: cles_chiffrement"
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_localisation_outils.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "index d'adresses : fichier SQLite propre à M4 (hors base de l'instance)"
+  ],
+  "premiere_erreur": "E       AssertionError: assert b'C-LOC-1' in b''"
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_outils_adequation_eta.py",
+  "echecs": 44,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_revue_completion_sources.py",
+  "echecs": 5,
+  "classe": "B+D",
+  "causes": [
+   "le test lit le fichier SQLite de la base",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_temps_certifies_v2.py",
+  "echecs": 9,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           m4_field_ops.journal_durable.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_temps_certifies_v3.py",
+  "echecs": 3,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           m4_field_ops.journal_durable.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "departments/m04-field-ops/tests/test_visites_reprise.py",
+  "echecs": 2,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           m4_field_ops.journal_durable.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "departments/m05-financecore/tests/test_ventilation_source_tarifs.py",
+  "echecs": 8,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "departments/m06-material-control/tests/test_classement_intention_appareil.py",
+  "echecs": 17,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "departments/m06-material-control/tests/test_classement_variance_appareil.py",
+  "echecs": 40,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "departments/m06-material-control/tests/test_contexte_materiaux_appareil.py",
+  "echecs": 56,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "departments/m06-material-control/tests/test_garde_digest.py",
+  "echecs": 9,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "departments/m06-material-control/tests/test_garde_variance_chantier.py",
+  "echecs": 2,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "departments/m06-material-control/tests/test_lecture_reapprovisionnement_appareil.py",
+  "echecs": 53,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "departments/m06-material-control/tests/test_lectures_pertes_appareil.py",
+  "echecs": 67,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "departments/m06-material-control/tests/test_preuves_pertes_bris_appareil.py",
+  "echecs": 19,
+  "classe": "B+D",
+  "causes": [
+   "le test lit le fichier SQLite de la base",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "departments/m07-marketing/tests/test_cmo_strategie.py",
+  "echecs": 9,
+  "classe": "D",
+  "causes": [
+   "marketing M7 : stratégie CMO, Growth, coûts (port console SQLite)"
+  ],
+  "premiere_erreur": "E           PermissionError: CMO-PORT-HUMAIN-REQUIS"
+ },
+ {
+  "fichier": "departments/m07-marketing/tests/test_garde_lectures_admin.py",
+  "echecs": 27,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "departments/m07-marketing/tests/test_growth_lecture.py",
+  "echecs": 10,
+  "classe": "D",
+  "causes": [
+   "marketing M7 : stratégie CMO, Growth, coûts (port console SQLite)"
+  ],
+  "premiere_erreur": "E           PermissionError: saisie humaine Growth réservée au port console SQLite"
+ },
+ {
+  "fichier": "departments/m08-analytics/tests/test_provenance_m5_appareil.py",
+  "echecs": 23,
+  "classe": "B",
+  "causes": [
+   "marqueurs « ? » de SQLite dans le SQL du test",
+   "ordre SQLite brut (`PRAGMA`, `BEGIN`, `INSERT OR …`) dans le test",
+   "le test réutilise une transaction après une erreur SQL (PostgreSQL l'annule entièrement)",
+   "valeur de test non convertible dans la colonne typée (SQLite ne vérifie pas le type)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block"
+ },
+ {
+  "fichier": "departments/m10-memoire/tests/test_composition_domaines_journal_dev.py",
+  "echecs": 2,
+  "classe": "B",
+  "causes": [
+   "le test ouvre le fichier SQLite lui-même (`sqlite3`, `Path`) ou le passe à un sous-processus",
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/ru"
+ },
+ {
+  "fichier": "departments/m10-memoire/tests/test_consolidation_developpement.py",
+  "echecs": 27,
+  "classe": "D",
+  "causes": [
+   "captures et lectures documentaires M10 (SQLite fichier)"
+  ],
+  "premiere_erreur": "E           m10_memoire.consolidation_developpement.BackendConsolidationNonPrisEnCharge: backend_non_pris_en_charge : jobs développement SQLite fichie"
+ },
+ {
+  "fichier": "departments/m10-memoire/tests/test_developpement.py",
+  "echecs": 3,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E           FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/ru"
+ },
+ {
+  "fichier": "departments/m10-memoire/tests/test_garde_mobile_admin.py",
+  "echecs": 53,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "departments/m10-memoire/tests/test_outils_documents_affaire_appareil.py",
+  "echecs": 14,
+  "classe": "D",
+  "causes": [
+   "documents d'affaire M10 (pilote et lecteur documentaires SQLite)"
+  ],
+  "premiere_erreur": "E       opsys.documents_affaire_transactions.ErreurTransactionDocumentaire: REJ-M10-TRANSACTION-DIALECTE-NON-ADMIS : ce pilote documentaire exige SQLi"
+ },
+ {
+  "fichier": "departments/m10-memoire/tests/test_outils_documents_affaire_lecture_appareil.py",
+  "echecs": 3,
+  "classe": "D",
+  "causes": [
+   "captures et lectures documentaires M10 (SQLite fichier)",
+   "documents d'affaire M10 (pilote et lecteur documentaires SQLite)"
+  ],
+  "premiere_erreur": "E       opsys.documents_affaire_transactions.ErreurTransactionDocumentaire: REJ-M10-TRANSACTION-DIALECTE-NON-ADMIS : ce pilote documentaire exige SQLi"
+ },
+ {
+  "fichier": "departments/m10-memoire/tests/test_recherche_affaire_appareil.py",
+  "echecs": 2,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "tests/e2e/test_admin_appareil.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/e2e/test_briefing_admin_appareil.py",
+  "echecs": 3,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "tests/e2e/test_comptes_admin_appareil.py",
+  "echecs": 4,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "tests/e2e/test_equipe_declaree_appareil.py",
+  "echecs": 2,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/e2e/test_formulaire_utm_bout_en_bout.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "tests/e2e/test_marketing_admin_appareil.py",
+  "echecs": 9,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "tests/e2e/test_memoire_admin_appareil.py",
+  "echecs": 4,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "tests/e2e/test_stock_admin_appareil.py",
+  "echecs": 11,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "tests/e2e/test_transferts_admin_appareil.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "réception courriel / SMS et suivi de rappel M1 (stockage qualifié SQLite)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': False, 'erreur': 'refus_metier', 'details': 'REJ-SUIVI-RAPPEL-SOURCE-INDISPONIBLE'}"
+ },
+ {
+  "fichier": "tests/e2e/test_travaux_termines_appareil.py",
+  "echecs": 4,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/e2e/test_verticale_affaire_durable.py",
+  "echecs": 14,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": ""
+ },
+ {
+  "fichier": "tests/test_acteur_systeme_cout_certifie.py",
+  "echecs": 3,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_agent_cfo_grants.py",
+  "echecs": 13,
+  "classe": "B+D",
+  "causes": [
+   "le test lit le fichier SQLite de la base",
+   "le test attend le texte d'erreur de SQLite",
+   "grants CFO des agents",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.agent_cfo_grants.GrantCfoRefuse: grants CFO agents non disponibles hors SQLite à ce jalon"
+ },
+ {
+  "fichier": "tests/test_agents_base_declencheurs.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "cron opérateur : base SQLite fichier dédiée"
+  ],
+  "premiere_erreur": "E           opsys.agents_declencheurs.DeclencheurRefuse: CRON-SQLITE-REQUIS"
+ },
+ {
+  "fichier": "tests/test_agents_cron_autorite.py",
+  "echecs": 60,
+  "classe": "B+D",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "cron opérateur : base SQLite fichier dédiée"
+  ],
+  "premiere_erreur": "E           opsys.agents_declencheurs.DeclencheurRefuse: CRON-SQLITE-REQUIS"
+ },
+ {
+  "fichier": "tests/test_agents_cron_empreintes.py",
+  "echecs": 4,
+  "classe": "B+D",
+  "causes": [
+   "ordre SQLite brut (`PRAGMA`, `BEGIN`, `INSERT OR …`) dans le test",
+   "cron opérateur : base SQLite fichier dédiée"
+  ],
+  "premiere_erreur": "E           opsys.agents_declencheurs.DeclencheurRefuse: CRON-SQLITE-REQUIS"
+ },
+ {
+  "fichier": "tests/test_agents_cron_retraits.py",
+  "echecs": 16,
+  "classe": "B+D",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)",
+   "cron opérateur : base SQLite fichier dédiée"
+  ],
+  "premiere_erreur": "E           opsys.agents_declencheurs.DeclencheurRefuse: CRON-SQLITE-REQUIS"
+ },
+ {
+  "fichier": "tests/test_agents_declencheurs.py",
+  "echecs": 36,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "cron opérateur : base SQLite fichier dédiée"
+  ],
+  "premiere_erreur": "E           opsys.agents_declencheurs.DeclencheurRefuse: CRON-SQLITE-REQUIS"
+ },
+ {
+  "fichier": "tests/test_avatars_voix_registre.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "entier 0/1 pour une colonne booléenne dans le SQL du test"
+  ],
+  "premiere_erreur": "E           psycopg.errors.DatatypeMismatch: column \"empreinte_vocale_tiers\" is of type boolean but expression is of type integer"
+ },
+ {
+  "fichier": "tests/test_banc_postgresql.py",
+  "echecs": 1,
+  "classe": "?",
+  "causes": [],
+  "premiere_erreur": "E       KeyError: 'OPSYS_QUALIF_PG_ADMIN_URL'"
+ },
+ {
+  "fichier": "tests/test_besoins_profil_estimation_durable.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "tests/test_cablage_console.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "marqueurs « ? » de SQLite dans le SQL du test"
+  ],
+  "premiere_erreur": "E           psycopg.ProgrammingError: the query has 0 placeholders but 1 parameters were passed"
+ },
+ {
+  "fichier": "tests/test_cablage_courriel_e2e.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "marqueurs « ? » de SQLite dans le SQL du test"
+  ],
+  "premiere_erreur": "E           psycopg.ProgrammingError: the query has 0 placeholders but 1 parameters were passed"
+ },
+ {
+  "fichier": "tests/test_cablage_migration.py",
+  "echecs": 2,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test réutilise une transaction après une erreur SQL (PostgreSQL l'annule entièrement)",
+   "le test attend le texte d'erreur de SQLite"
+  ],
+  "premiere_erreur": "E           psycopg.ProgrammingError: only '%s', '%b', '%t' are allowed as placeholders, got '%''"
+ },
+ {
+  "fichier": "tests/test_cablage_processus.py",
+  "echecs": 1,
+  "classe": "?",
+  "causes": [],
+  "premiere_erreur": "E       AssertionError: ['hemy/engine/default.py\", line 1180, in do_execute"
+ },
+ {
+  "fichier": "tests/test_cascade_catalogues_m10.py",
+  "echecs": 10,
+  "classe": "B+D",
+  "causes": [
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       KeyError: 'resultat'"
+ },
+ {
+  "fichier": "tests/test_cascade_fournisseurs_m10.py",
+  "echecs": 9,
+  "classe": "D",
+  "causes": [
+   "catalogue M6 (console)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Catalogue matériaux indisponible\"}"
+ },
+ {
+  "fichier": "tests/test_cascade_marge_m5_m8_m10.py",
+  "echecs": 7,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_cascade_tarifs_m10.py",
+  "echecs": 12,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       AssertionError"
+ },
+ {
+  "fichier": "tests/test_cfo_obligations_preparees.py",
+  "echecs": 19,
+  "classe": "D",
+  "causes": [
+   "grants CFO des agents",
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           opsys.agent_cfo_grants.GrantCfoRefuse: grants CFO agents non disponibles hors SQLite à ce jalon"
+ },
+ {
+  "fichier": "tests/test_classement_variance_appareil_atomique.py",
+  "echecs": 64,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "tests/test_cloture_suivi_m9_cible_core.py",
+  "echecs": 31,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "tests/test_configuration_lecture.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "valeur de test plus longue que la colonne (PostgreSQL applique `varchar(n)`)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.StringDataRightTruncation: value too long for type character varying(64)"
+ },
+ {
+  "fichier": "tests/test_conformite_licences.py",
+  "echecs": 1,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: assert ('NumPy BSD-3-Clause' in '')"
+ },
+ {
+  "fichier": "tests/test_connaissances_migration.py",
+  "echecs": 7,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "entier 0/1 pour une colonne booléenne dans le SQL du test",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "tests/test_connaissances_postgresql.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "tests/test_console_absence_ecriture.py",
+  "echecs": 25,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_absence_formulaire.py",
+  "echecs": 17,
+  "classe": "D",
+  "causes": [
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Signalement indisponible; relire depuis le journal\"}"
+ },
+ {
+  "fichier": "tests/test_console_absences_personnes.py",
+  "echecs": 13,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_absences_personnes_http.py",
+  "echecs": 7,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_absences_quotidiennes.py",
+  "echecs": 10,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)",
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_agenda.py",
+  "echecs": 13,
+  "classe": "B+D",
+  "causes": [
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Agenda indisponible ou accès refusé\"}"
+ },
+ {
+  "fichier": "tests/test_console_agent_cfo_grants.py",
+  "echecs": 2,
+  "classe": "D",
+  "causes": [
+   "grants CFO des agents",
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: <!doctype html>"
+ },
+ {
+  "fichier": "tests/test_console_agents_declencheurs.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "cron opérateur : base SQLite fichier dédiée"
+  ],
+  "premiere_erreur": "E       assert 400 == 200"
+ },
+ {
+  "fichier": "tests/test_console_agents_etat.py",
+  "echecs": 18,
+  "classe": "B",
+  "causes": [
+   "API `sqlite3` utilisée sur une connexion SQLAlchemy"
+  ],
+  "premiere_erreur": "E       TypeError: console.<locals>.materialiser() missing 1 required positional argument: 'ligne'"
+ },
+ {
+  "fichier": "tests/test_console_annotations_cedule.py",
+  "echecs": 13,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_application_chantier.py",
+  "echecs": 18,
+  "classe": "D",
+  "causes": [
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"formulaire requis\"}"
+ },
+ {
+  "fichier": "tests/test_console_application_chantier_http.py",
+  "echecs": 5,
+  "classe": "D",
+  "causes": [
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"formulaire requis\"}"
+ },
+ {
+  "fichier": "tests/test_console_calendrier_marketing.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "studio M7 (textes, médias)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"ok\":false,\"resultat\":{\"accepte\":false,\"verdict\":{\"code\":\"REJ-MEDIA-ECRITURE-NON-QUALIFIEE\",\"detail\":\"mutation média non qual"
+ },
+ {
+  "fichier": "tests/test_console_capture_paquets_m10.py",
+  "echecs": 16,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "captures et lectures documentaires M10 (SQLite fichier)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           ValueError: CAPTURE-M10-INDISPONIBLE"
+ },
+ {
+  "fichier": "tests/test_console_catalogue_m6.py",
+  "echecs": 10,
+  "classe": "D",
+  "causes": [
+   "écrivains concurrents de console (`EcritureConcurrente` non traduite)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'raison': 'INSTANCE-NON-QUALIFIEE'}}"
+ },
+ {
+  "fichier": "tests/test_console_catalogue_m6_http.py",
+  "echecs": 20,
+  "classe": "D",
+  "causes": [
+   "modèles de soumission M3 (écriture console)",
+   "catalogue M6 (console)",
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Catalogue matériaux indisponible\"}"
+ },
+ {
+  "fichier": "tests/test_console_catalogue_memoire.py",
+  "echecs": 7,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       KeyError: 'resultat'"
+ },
+ {
+  "fichier": "tests/test_console_cedule.py",
+  "echecs": 5,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_classement_pieces.py",
+  "echecs": 28,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_classement_pieces_http.py",
+  "echecs": 22,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Pièces reçues indisponibles : INSTANCE-NON-QUALIFIEE\"}"
+ },
+ {
+  "fichier": "tests/test_console_cmo.py",
+  "echecs": 3,
+  "classe": "D",
+  "causes": [
+   "marketing M7 : stratégie CMO, Growth, coûts (port console SQLite)"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"registre ou sources CMO invalides; aucune écriture\"}"
+ },
+ {
+  "fichier": "tests/test_console_cmo_strategies.py",
+  "echecs": 29,
+  "classe": "D",
+  "causes": [
+   "marketing M7 : stratégie CMO, Growth, coûts (port console SQLite)"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"registre ou sources CMO invalides; aucune écriture\"}"
+ },
+ {
+  "fichier": "tests/test_console_composition_ecriture.py",
+  "echecs": 16,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_composition_formulaire.py",
+  "echecs": 19,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_compositions_equipes.py",
+  "echecs": 13,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_compositions_equipes_http.py",
+  "echecs": 7,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_comptes_terrain.py",
+  "echecs": 16,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_configuration.py",
+  "echecs": 2,
+  "classe": "B",
+  "causes": [
+   "API `sqlite3` utilisée sur une connexion SQLAlchemy"
+  ],
+  "premiere_erreur": "E           AttributeError: 'Connection' object has no attribute 'iterdump'"
+ },
+ {
+  "fichier": "tests/test_console_couleurs_cedule.py",
+  "echecs": 12,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_couts_marketing.py",
+  "echecs": 20,
+  "classe": "D",
+  "causes": [
+   "marketing M7 : stratégie CMO, Growth, coûts (port console SQLite)"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"commande ou source coûts refusée\"}"
+ },
+ {
+  "fichier": "tests/test_console_crm.py",
+  "echecs": 9,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       assert (2 == 3)"
+ },
+ {
+  "fichier": "tests/test_console_dates_cedule.py",
+  "echecs": 11,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_devis_modele.py",
+  "echecs": 17,
+  "classe": "D",
+  "causes": [
+   "modèles de soumission M3 (écriture console)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'accepte': False, 'verdict': {'code': 'REJ-MODELE-ECRITURE-NON-QUALIFIEE'}}"
+ },
+ {
+  "fichier": "tests/test_console_documents_chantier.py",
+  "echecs": 16,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Documents indisponibles : INSTANCE-NON-QUALIFIEE\"}"
+ },
+ {
+  "fichier": "tests/test_console_estimation_apprentissage.py",
+  "echecs": 12,
+  "classe": "B+D",
+  "causes": [
+   "`DROP TABLE` de test refusé (objets dépendants)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           assert 503 == 200"
+ },
+ {
+  "fichier": "tests/test_console_fournisseurs_m6.py",
+  "echecs": 16,
+  "classe": "B+D",
+  "causes": [
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'raison': 'INSTANCE-NON-QUALIFIEE'}}"
+ },
+ {
+  "fichier": "tests/test_console_fournisseurs_m6_http.py",
+  "echecs": 11,
+  "classe": "D",
+  "causes": [
+   "catalogue M6 (console)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Catalogue matériaux indisponible\"}"
+ },
+ {
+  "fichier": "tests/test_console_fusion_ap.py",
+  "echecs": 12,
+  "classe": "D",
+  "causes": [
+   "fusion opérationnelle (CSV / PDF / AP)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_console_fusion_ap_m5.py",
+  "echecs": 17,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_console_fusion_ap_m5_reference.py",
+  "echecs": 7,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_console_fusion_ap_m5_saisie.py",
+  "echecs": 4,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_console_fusion_operationnelle.py",
+  "echecs": 13,
+  "classe": "D",
+  "causes": [
+   "fusion opérationnelle (CSV / PDF / AP)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":{\"code\":\"STOCKAGE_NON_QUALIFIE\",\"detail\":\"Fusion opérationnelle est qualifiée SQLite seulement\"}}"
+ },
+ {
+  "fichier": "tests/test_console_fusion_pdf.py",
+  "echecs": 34,
+  "classe": "D",
+  "causes": [
+   "fusion opérationnelle (CSV / PDF / AP)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       assert (503 == 200)"
+ },
+ {
+  "fichier": "tests/test_console_fusion_pdf_ocr.py",
+  "echecs": 21,
+  "classe": "D",
+  "causes": [
+   "fusion opérationnelle (CSV / PDF / AP)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_console_fusion_synthese.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "le test bâtit sa propre base PostgreSQL et se heurte à `OPSYS_BASE_URL` du banc"
+  ],
+  "premiere_erreur": "E       assert '<dt>Lots admis</dt><dd>0</dd>' in '<!doctype html>\\n<html lang=\"fr\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=d"
+ },
+ {
+  "fichier": "tests/test_console_growth.py",
+  "echecs": 9,
+  "classe": "B+D",
+  "causes": [
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)",
+   "marketing M7 : stratégie CMO, Growth, coûts (port console SQLite)"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"commande Growth refusée; relire la période et sa tête\"}"
+ },
+ {
+  "fichier": "tests/test_console_historique_prix_m6.py",
+  "echecs": 17,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       AssertionError"
+ },
+ {
+  "fichier": "tests/test_console_historique_tarifs_http.py",
+  "echecs": 27,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       AssertionError"
+ },
+ {
+  "fichier": "tests/test_console_import_tarifs_confirmation_http.py",
+  "echecs": 26,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       AssertionError"
+ },
+ {
+  "fichier": "tests/test_console_import_tarifs_confirmation_m6.py",
+  "echecs": 29,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       AssertionError"
+ },
+ {
+  "fichier": "tests/test_console_import_tarifs_http.py",
+  "echecs": 15,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       AssertionError"
+ },
+ {
+  "fichier": "tests/test_console_import_tarifs_m6.py",
+  "echecs": 21,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       AssertionError"
+ },
+ {
+  "fichier": "tests/test_console_journal_assignations.py",
+  "echecs": 5,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_journal_ecarts.py",
+  "echecs": 3,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_journal_equipes.py",
+  "echecs": 18,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_journal_equipes_http.py",
+  "echecs": 17,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_journal_notes.py",
+  "echecs": 7,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_journal_temps_navigation.py",
+  "echecs": 6,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_journal_visites.py",
+  "echecs": 4,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_liste_pieces_classees.py",
+  "echecs": 18,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_liste_pieces_classees_http.py",
+  "echecs": 5,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Pièces reçues indisponibles : INSTANCE-NON-QUALIFIEE\"}"
+ },
+ {
+  "fichier": "tests/test_console_logs_visites.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E                                                                        [100%]"
+ },
+ {
+  "fichier": "tests/test_console_m73a_medias.py",
+  "echecs": 7,
+  "classe": "D",
+  "causes": [
+   "studio M7 (textes, médias)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"ok\":false,\"resultat\":{\"accepte\":false,\"verdict\":{\"code\":\"REJ-MEDIA-ECRITURE-NON-QUALIFIEE\",\"detail\":\"mutation média non qual"
+ },
+ {
+  "fichier": "tests/test_console_marketing_edition_textes.py",
+  "echecs": 14,
+  "classe": "D",
+  "causes": [
+   "studio M7 (textes, médias)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"ok\":false,\"erreur\":{\"message\":\"édition qualifiée sur SQLite seulement\"},\"resultat\":{\"accepte\":false,\"verdict\":{\"code\":\"REJ-T"
+ },
+ {
+  "fichier": "tests/test_console_memoire_apprentissage.py",
+  "echecs": 6,
+  "classe": "D",
+  "causes": [
+   "captures et lectures documentaires M10 (SQLite fichier)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       assert 503 == 200"
+ },
+ {
+  "fichier": "tests/test_console_memoire_chantier.py",
+  "echecs": 10,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_memoire_dates_civiles.py",
+  "echecs": 13,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_memoire_decision_chantier.py",
+  "echecs": 7,
+  "classe": "D",
+  "causes": [
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"formulaire requis\"}"
+ },
+ {
+  "fichier": "tests/test_console_memoire_jobs.py",
+  "echecs": 6,
+  "classe": "B+D",
+  "causes": [
+   "entier 0/1 pour une colonne booléenne dans le SQL du test",
+   "captures et lectures documentaires M10 (SQLite fichier)"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"racine OPSYS_HOME absente ou invalide\"}"
+ },
+ {
+  "fichier": "tests/test_console_memoire_plan_calendrier.py",
+  "echecs": 12,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_meteo_dates_chantier.py",
+  "echecs": 22,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_metier.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       assert (503 == 200)"
+ },
+ {
+  "fichier": "tests/test_console_modeles_soumission.py",
+  "echecs": 9,
+  "classe": "B+D",
+  "causes": [
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AttributeError: 'NoneType' object has no attribute 'groups'"
+ },
+ {
+  "fichier": "tests/test_console_mois_cedule.py",
+  "echecs": 8,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_notes_commande.py",
+  "echecs": 58,
+  "classe": "A-latent",
+  "causes": [
+   "audit dupliqué sous concurrence (deux lignes de journal pour une publication) (L10)"
+  ],
+  "premiere_erreur": "E       assert ('chantier-fictif' in '<!doctype html>\\n<html lang=\"fr\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, "
+ },
+ {
+  "fichier": "tests/test_console_pagination_cedule.py",
+  "echecs": 4,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_pieces_projet.py",
+  "echecs": 27,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_pieces_projet_http.py",
+  "echecs": 16,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Pièces reçues indisponibles : INSTANCE-NON-QUALIFIEE\"}"
+ },
+ {
+  "fichier": "tests/test_console_pointage_equipe.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E                                                                        [100%]"
+ },
+ {
+  "fichier": "tests/test_console_prefill_bus.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "modèles de soumission M3 (écriture console)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'accepte': False, 'verdict': {'code': 'REJ-MODELE-ECRITURE-NON-QUALIFIEE'}}"
+ },
+ {
+  "fichier": "tests/test_console_prefill_http.py",
+  "echecs": 24,
+  "classe": "D",
+  "causes": [
+   "modèles de soumission M3 (écriture console)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'accepte': False, 'verdict': {'code': 'REJ-MODELE-ECRITURE-NON-QUALIFIEE'}}"
+ },
+ {
+  "fichier": "tests/test_console_prefill_ports.py",
+  "echecs": 14,
+  "classe": "D",
+  "causes": [
+   "modèles de soumission M3 (écriture console)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'accepte': False, 'verdict': {'code': 'REJ-MODELE-ECRITURE-NON-QUALIFIEE'}}"
+ },
+ {
+  "fichier": "tests/test_console_preparation_chantier.py",
+  "echecs": 9,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Préparation indisponible : INSTANCE-NON-QUALIFIEE\"}"
+ },
+ {
+  "fichier": "tests/test_console_prix_m6.py",
+  "echecs": 21,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       assert False"
+ },
+ {
+  "fichier": "tests/test_console_prix_m6_http.py",
+  "echecs": 12,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       AssertionError"
+ },
+ {
+  "fichier": "tests/test_console_proposition_chantier.py",
+  "echecs": 14,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_proposition_chantier_http.py",
+  "echecs": 9,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Préparation indisponible : INSTANCE-NON-QUALIFIEE\"}"
+ },
+ {
+  "fichier": "tests/test_console_rapport_acquisition.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "marketing M7 : stratégie CMO, Growth, coûts (port console SQLite)"
+  ],
+  "premiere_erreur": "E       assert 0 == 1"
+ },
+ {
+  "fichier": "tests/test_console_rapprochement_bancaire.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "marqueurs « ? » de SQLite dans le SQL du test"
+  ],
+  "premiere_erreur": "E           psycopg.ProgrammingError: the query has 0 placeholders but 5 parameters were passed"
+ },
+ {
+  "fichier": "tests/test_console_rapprochement_e2e.py",
+  "echecs": 2,
+  "classe": "D",
+  "causes": [
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       assert (409 == 200)"
+ },
+ {
+  "fichier": "tests/test_console_reception_digest.py",
+  "echecs": 24,
+  "classe": "D",
+  "causes": [
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"résumé temporairement indisponible\"}"
+ },
+ {
+  "fichier": "tests/test_console_rentabilite_chantier.py",
+  "echecs": 5,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_rentabilite_chantier_export.py",
+  "echecs": 5,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Coûts indisponibles : INSTANCE-NON-QUALIFIEE\"}"
+ },
+ {
+  "fichier": "tests/test_console_rentabilite_chantier_http.py",
+  "echecs": 7,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Coûts indisponibles : INSTANCE-NON-QUALIFIEE\"}"
+ },
+ {
+  "fichier": "tests/test_console_rentabilite_chantier_tarifs.py",
+  "echecs": 8,
+  "classe": "D",
+  "causes": [
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"Déclaration de tarif refusée\"}"
+ },
+ {
+  "fichier": "tests/test_console_rentabilite_chantier_ventilation.py",
+  "echecs": 6,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_rentabilite_chantier_ventilation_http.py",
+  "echecs": 2,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       assert 503 == 200"
+ },
+ {
+  "fichier": "tests/test_console_report_visite_v2.py",
+  "echecs": 11,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_reprise_visite.py",
+  "echecs": 2,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_console_suivi_rappel.py",
+  "echecs": 58,
+  "classe": "B+D",
+  "causes": [
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":\"suivi temporairement indisponible\"}"
+ },
+ {
+  "fichier": "tests/test_console_temps_pointes.py",
+  "echecs": 25,
+  "classe": "B",
+  "causes": [
+   "le test lit les paramètres SQL sous forme de tuple (SQLite) ; PostgreSQL les rend en dictionnaire"
+  ],
+  "premiere_erreur": "E           opsys.console.preparation_chantier.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_console_visites_chantier.py",
+  "echecs": 6,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_contact_m2_m10.py",
+  "echecs": 18,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           AssertionError: {'accepte': False, 'verdict': {'code': 'REJ-CONTACT-BACKEND-NON-QUALIFIE', 'statut': '', 'detail': 'correction qualifiée s"
+ },
+ {
+  "fichier": "tests/test_courriel_imap.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "réception courriel / SMS et suivi de rappel M1 (stockage qualifié SQLite)"
+  ],
+  "premiere_erreur": "E           PermissionError: COURRIEL-AUTORITE-REFUSEE"
+ },
+ {
+  "fichier": "tests/test_courriel_registre_console.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`"
+  ],
+  "premiere_erreur": "E           psycopg.ProgrammingError: only '%s', '%b', '%t' are allowed as placeholders, got '%''"
+ },
+ {
+  "fichier": "tests/test_cout_certifie_r5.py",
+  "echecs": 5,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.service_politiques.RefusOperateur: BACKEND_NON_SQLITE: opérateur qualifié pour SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_couverture_apprentissage.py",
+  "echecs": 18,
+  "classe": "B",
+  "causes": [
+   "`DROP TABLE` de test refusé (objets dépendants)"
+  ],
+  "premiere_erreur": "E       AssertionError: assert 'refuse' == 'ecarts'"
+ },
+ {
+  "fichier": "tests/test_cron_operateur_http.py",
+  "echecs": 33,
+  "classe": "B+D",
+  "causes": [
+   "le test ouvre le fichier SQLite lui-même (`sqlite3`, `Path`) ou le passe à un sous-processus",
+   "cron opérateur : base SQLite fichier dédiée"
+  ],
+  "premiere_erreur": "E           opsys.agents_declencheurs.DeclencheurRefuse: CRON-SQLITE-REQUIS"
+ },
+ {
+  "fichier": "tests/test_deploy_backup_restore.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "le test attend le fichier `opsys.db` dans l'archive de sauvegarde"
+  ],
+  "premiere_erreur": "E               AssertionError: assert ('./' + 'opsys.db') in ['./preuve.txt']"
+ },
+ {
+  "fichier": "tests/test_devis_profil_source_estimation_durable.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "tests/test_documents_affaire_cap_appareil.py",
+  "echecs": 24,
+  "classe": "B",
+  "causes": [
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)"
+  ],
+  "premiere_erreur": "E       AssertionError: assert ({'erreur', 'ok'} == {'ok', 'rejoue', 'resultat'}"
+ },
+ {
+  "fichier": "tests/test_documents_affaire_instance.py",
+  "echecs": 6,
+  "classe": "B",
+  "causes": [
+   "ordre SQLite brut (`PRAGMA`, `BEGIN`, `INSERT OR …`) dans le test",
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)",
+   "le test attend une date SANS fuseau (SQLite) ; PostgreSQL rend l'instant en UTC",
+   "valeur de test non convertible dans la colonne typée (SQLite ne vérifie pas le type)"
+  ],
+  "premiere_erreur": "E           AssertionError: assert datetime.datetime(2026, 10, 9, 12, 0, 0, 123456, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')) == datetime.datetime(2026"
+ },
+ {
+  "fichier": "tests/test_documents_affaire_lecture_appareil.py",
+  "echecs": 30,
+  "classe": "D",
+  "causes": [
+   "documents d'affaire M10 (pilote et lecteur documentaires SQLite)"
+  ],
+  "premiere_erreur": "E       opsys.documents_affaire_lecture_appareil.ErreurLectureDocumentaire: REJ-M10-LECTURE-DIALECTE-NON-ADMIS : ce lecteur documentaire exige SQLite"
+ },
+ {
+  "fichier": "tests/test_documents_affaire_lecture_cap_appareil.py",
+  "echecs": 31,
+  "classe": "D",
+  "causes": [
+   "documents d'affaire M10 (pilote et lecteur documentaires SQLite)"
+  ],
+  "premiere_erreur": "E       opsys.documents_affaire_transactions.ErreurTransactionDocumentaire: REJ-M10-TRANSACTION-DIALECTE-NON-ADMIS : ce pilote documentaire exige SQLi"
+ },
+ {
+  "fichier": "tests/test_documents_affaire_lecture_mcp_appareil.py",
+  "echecs": 5,
+  "classe": "D",
+  "causes": [
+   "documents d'affaire M10 (pilote et lecteur documentaires SQLite)"
+  ],
+  "premiere_erreur": "E       opsys.documents_affaire_transactions.ErreurTransactionDocumentaire: REJ-M10-TRANSACTION-DIALECTE-NON-ADMIS : ce pilote documentaire exige SQLi"
+ },
+ {
+  "fichier": "tests/test_documents_affaire_mcp_appareil.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "documents d'affaire M10 (pilote et lecteur documentaires SQLite)"
+  ],
+  "premiere_erreur": "E       assert True is False"
+ },
+ {
+  "fichier": "tests/test_documents_affaire_transactions.py",
+  "echecs": 69,
+  "classe": "D",
+  "causes": [
+   "documents d'affaire M10 (pilote et lecteur documentaires SQLite)"
+  ],
+  "premiere_erreur": "E       opsys.documents_affaire_transactions.ErreurTransactionDocumentaire: REJ-M10-TRANSACTION-DIALECTE-NON-ADMIS : ce pilote documentaire exige SQLi"
+ },
+ {
+  "fichier": "tests/test_effacement_cles.py",
+  "echecs": 4,
+  "classe": "B",
+  "causes": [
+   "le test ouvre le fichier SQLite lui-même (`sqlite3`, `Path`) ou le passe à un sous-processus",
+   "le test attend le texte d'erreur de SQLite"
+  ],
+  "premiere_erreur": "E           AssertionError: assert 'non_qualifie' == 'en_attente'"
+ },
+ {
+  "fichier": "tests/test_effacement_legacy.py",
+  "echecs": 3,
+  "classe": "B",
+  "causes": [
+   "ordre SQLite brut (`PRAGMA`, `BEGIN`, `INSERT OR …`) dans le test",
+   "le test ouvre le fichier SQLite lui-même (`sqlite3`, `Path`) ou le passe à un sous-processus"
+  ],
+  "premiere_erreur": "E           psycopg.errors.SyntaxError: syntax error at or near \"PRAGMA\""
+ },
+ {
+  "fichier": "tests/test_evenements_volume.py",
+  "echecs": 3,
+  "classe": "B",
+  "causes": [
+   "API `sqlite3` utilisée sur une connexion SQLAlchemy"
+  ],
+  "premiere_erreur": "E           AttributeError: 'Connection' object has no attribute 'setlimit'"
+ },
+ {
+  "fichier": "tests/test_exportation.py",
+  "echecs": 30,
+  "classe": "D",
+  "causes": [
+   "export / sauvegarde chiffrée de la base SQLite"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "tests/test_fusion_ap.py",
+  "echecs": 14,
+  "classe": "D",
+  "causes": [
+   "fusion opérationnelle (CSV / PDF / AP)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_fusion_ap_m5.py",
+  "echecs": 11,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_fusion_ap_m5_ocr.py",
+  "echecs": 7,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_fusion_ap_m5_reference.py",
+  "echecs": 23,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_fusion_ap_m5_saisie.py",
+  "echecs": 5,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_fusion_ap_m5_saisie_gardes.py",
+  "echecs": 13,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_fusion_ap_m5_saisie_unicode.py",
+  "echecs": 1,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E                                                                        [100%]"
+ },
+ {
+  "fichier": "tests/test_fusion_ap_saisie_migration.py",
+  "echecs": 8,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_fusion_pdf.py",
+  "echecs": 50,
+  "classe": "B+D",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)",
+   "fusion opérationnelle (CSV / PDF / AP)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_fusion_pdf_ocr.py",
+  "echecs": 24,
+  "classe": "D",
+  "causes": [
+   "fusion opérationnelle (CSV / PDF / AP)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_fusion_pdf_provenance.py",
+  "echecs": 8,
+  "classe": "D",
+  "causes": [
+   "fusion opérationnelle (CSV / PDF / AP)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           opsys.fusion_csv.FusionErreur: Fusion opérationnelle est qualifiée SQLite seulement"
+ },
+ {
+  "fichier": "tests/test_fusion_preparateur.py",
+  "echecs": 23,
+  "classe": "D",
+  "causes": [
+   "fusion opérationnelle (CSV / PDF / AP)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {\"detail\":{\"code\":\"STOCKAGE_NON_QUALIFIE\",\"detail\":\"Fusion opérationnelle est qualifiée SQLite seulement\"}}"
+ },
+ {
+  "fichier": "tests/test_historique_cloture_m9_prive.py",
+  "echecs": 32,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "tests/test_ingestion_onboarding_depot.py",
+  "echecs": 2,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test lit le fichier SQLite de la base",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "tests/test_instance.py",
+  "echecs": 6,
+  "classe": "D",
+  "causes": [
+   "l'installateur local refuse `OPSYS_BASE_URL` : il gère la base SQLite de l'instance"
+  ],
+  "premiere_erreur": "E       AssertionError: CaptureResult(out='', err=\"ERREUR : OPSYS_BASE_URL est défini : l'installateur local gère la base SQLite de l'instance ($OPSYS"
+ },
+ {
+  "fichier": "tests/test_lecture_cout_certifie_d3.py",
+  "echecs": 2,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_lecture_m4_verrou_qa.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "service à verrou d'écriture SQLite (`BEGIN IMMEDIATE`)"
+  ],
+  "premiere_erreur": "E           AssertionError: assert False"
+ },
+ {
+  "fichier": "tests/test_lectures_bus_provenance.py",
+  "echecs": 2,
+  "classe": "B",
+  "causes": [
+   "le test compare l'inventaire exact des tables du schéma, construit pour SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: assert {'agents_conf...entions', ...} == {'agents_conf...entions', ...}"
+ },
+ {
+  "fichier": "tests/test_liaison_cibles.py",
+  "echecs": 18,
+  "classe": "B+D",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test attend le texte d'erreur de SQLite",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)",
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "tests/test_m1_rendez_vous_m4_reel.py",
+  "echecs": 2,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_m8_migration.py",
+  "echecs": 4,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "entier 0/1 pour une colonne booléenne dans le SQL du test",
+   "le test réutilise une transaction après une erreur SQL (PostgreSQL l'annule entièrement)",
+   "le test attend le texte d'erreur de SQLite"
+  ],
+  "premiere_erreur": "E           psycopg.ProgrammingError: only '%s', '%b', '%t' are allowed as placeholders, got '%''"
+ },
+ {
+  "fichier": "tests/test_m9_athena_raccord.py",
+  "echecs": 63,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_m9_boucle_decisions_integre.py",
+  "echecs": 7,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_m9_e2e_cahier.py",
+  "echecs": 4,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)",
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: ('m4_confirmer_dates_cedule', {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut'"
+ },
+ {
+  "fichier": "tests/test_m9_experiences_integre.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: ('m4_confirmer_dates_cedule', {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut'"
+ },
+ {
+  "fichier": "tests/test_m9_graphe_reel.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: ('m4_confirmer_dates_cedule', {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut'"
+ },
+ {
+  "fichier": "tests/test_m9_indicateurs_cadrage_integre.py",
+  "echecs": 6,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_m9_planification_cron_fictive.py",
+  "echecs": 6,
+  "classe": "D",
+  "causes": [
+   "cron opérateur : base SQLite fichier dédiée"
+  ],
+  "premiere_erreur": "E           opsys.agents_declencheurs.DeclencheurRefuse: CRON-SQLITE-REQUIS"
+ },
+ {
+  "fichier": "tests/test_m9_producteurs_a.py",
+  "echecs": 7,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: ('m4_confirmer_dates_cedule', {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut'"
+ },
+ {
+  "fichier": "tests/test_m9_producteurs_b.py",
+  "echecs": 25,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_m9_raccord_m4_capacite.py",
+  "echecs": 4,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut': '', 'detail': 'confirmation "
+ },
+ {
+  "fichier": "tests/test_m9_raccord_producteurs.py",
+  "echecs": 8,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_m9_radars_integre.py",
+  "echecs": 2,
+  "classe": "D",
+  "causes": [
+   "confirmation des dates et équipes M4 (cédule, journal, adéquation)"
+  ],
+  "premiere_erreur": "E       AssertionError: ('m4_confirmer_dates_cedule', {'ok': True, 'resultat': {'accepte': False, 'verdict': {'code': 'REJ-FRONTIERE-VIOLEE', 'statut'"
+ },
+ {
+  "fichier": "tests/test_m9_semantique_integre.py",
+  "echecs": 5,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_maillons_snapshot_lecture.py",
+  "echecs": 3,
+  "classe": "B",
+  "causes": [
+   "le test attend une date SANS fuseau (SQLite) ; PostgreSQL rend l'instant en UTC"
+  ],
+  "premiere_erreur": "E           AssertionError: assert datetime.datetime(2026, 10, 9, 12, 0, 0, 123456, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')) == datetime.datetime(2026"
+ },
+ {
+  "fichier": "tests/test_mcp_http_creation_devis_ticket.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": ""
+ },
+ {
+  "fichier": "tests/test_memoire_autorite.py",
+  "echecs": 9,
+  "classe": "B+D",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "tests/test_memoire_autorite_postgres.py",
+  "echecs": 2,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.liaison_cibles.CibleRefusee: liaison de cible temporairement désactivée hors de SQLite"
+ },
+ {
+  "fichier": "tests/test_memoire_cron.py",
+  "echecs": 4,
+  "classe": "D",
+  "causes": [
+   "captures et lectures documentaires M10 (SQLite fichier)"
+  ],
+  "premiere_erreur": "E           m10_memoire.consolidation_developpement.BackendConsolidationNonPrisEnCharge: backend_non_pris_en_charge : jobs développement SQLite fichie"
+ },
+ {
+  "fichier": "tests/test_mnemo_migration.py",
+  "echecs": 8,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "ordre SQLite brut (`PRAGMA`, `BEGIN`, `INSERT OR …`) dans le test",
+   "entier 0/1 pour une colonne booléenne dans le SQL du test",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "tests/test_moteur_recalcul_m4_e2.py",
+  "echecs": 41,
+  "classe": "B+D",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "ordre SQLite brut (`PRAGMA`, `BEGIN`, `INSERT OR …`) dans le test",
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_obligations_preparees_appareil_atomiques.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "écrivains concurrents de console (`EcritureConcurrente` non traduite)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UniqueViolation: duplicate key value violates unique constraint \"pk_registres_maillons\""
+ },
+ {
+  "fichier": "tests/test_ocr_profil.py",
+  "echecs": 1,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": "E       opsys.ocr_profil.OCRProfilErreur: profil OCR indisponible"
+ },
+ {
+  "fichier": "tests/test_openclaw_sms_profile.py",
+  "echecs": 3,
+  "classe": "B",
+  "causes": [
+   "le test attend le texte d'erreur de SQLite",
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)",
+   "valeur de test hors d'un entier 32 bits (colonne `Integer`, voir L6)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.NumericValueOutOfRange: integer out of range"
+ },
+ {
+  "fichier": "tests/test_operateur_politiques_service.py",
+  "echecs": 7,
+  "classe": "B+D",
+  "causes": [
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)",
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       assert (503 == 200)"
+ },
+ {
+  "fichier": "tests/test_pont_photos_preuves.py",
+  "echecs": 3,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "tests/test_postgres_fixture_doubles.py",
+  "echecs": 2,
+  "classe": "B",
+  "causes": [
+   "faux module `psycopg` du test incompatible avec le moteur réel"
+  ],
+  "premiere_erreur": "E           AttributeError: type object 'FakePsycopg' has no attribute 'paramstyle'"
+ },
+ {
+  "fichier": "tests/test_postgresql_concurrence_processus.py",
+  "echecs": 5,
+  "classe": "B",
+  "causes": [
+   "mode redirigé : les processus fils ouvrent le vrai fichier SQLite, pas la base redirigée"
+  ],
+  "premiere_erreur": "E       AssertionError: [('PANNE', 'OperationalError', '(sqlite3.OperationalError) no such table: approbations"
+ },
+ {
+  "fichier": "tests/test_postgresql_parite_schema.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ },
+ {
+  "fichier": "tests/test_preuves_m6_appareil_atomiques.py",
+  "echecs": 16,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "tests/test_provenance_m8_lecture_atomique.py",
+  "echecs": 0,
+  "classe": "C",
+  "causes": [
+   "échoue aussi sur SQLite"
+  ],
+  "premiere_erreur": ""
+ },
+ {
+  "fichier": "tests/test_qa_m4_core_m5.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "service à verrou d'écriture SQLite (`BEGIN IMMEDIATE`)"
+  ],
+  "premiere_erreur": "E           m4_field_ops.journal_durable.Refus: INSTANCE-NON-QUALIFIEE"
+ },
+ {
+  "fichier": "tests/test_rappels_appareil_atomique.py",
+  "echecs": 16,
+  "classe": "D",
+  "causes": [
+   "réception courriel / SMS et suivi de rappel M1 (stockage qualifié SQLite)",
+   "console de saisie ou service (instance non qualifiée)",
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': False, 'erreur': 'REJ-M1-RAPPEL-STOCKAGE-NON-QUALIFIE', 'issue': 'inconnue', 'details': 'La lecture actuelle est indisp"
+ },
+ {
+  "fichier": "tests/test_reception_courriel_stockage.py",
+  "echecs": 27,
+  "classe": "B+D",
+  "causes": [
+   "ordre SQLite brut (`PRAGMA`, `BEGIN`, `INSERT OR …`) dans le test",
+   "réception courriel / SMS et suivi de rappel M1 (stockage qualifié SQLite)"
+  ],
+  "premiere_erreur": "E           PermissionError: COURRIEL-AUTORITE-REFUSEE"
+ },
+ {
+  "fichier": "tests/test_reception_sms_receipt.py",
+  "echecs": 39,
+  "classe": "D",
+  "causes": [
+   "console : surface fermée (503) hors SQLite"
+  ],
+  "premiere_erreur": "E       assert (False)"
+ },
+ {
+  "fichier": "tests/test_receptions_tarifs.py",
+  "echecs": 24,
+  "classe": "D",
+  "causes": [
+   "tarifs et catalogue M6 (réception de prix, saisie console)"
+  ],
+  "premiere_erreur": "E       AssertionError"
+ },
+ {
+  "fichier": "tests/test_reconciliateur_cout_certifie.py",
+  "echecs": 8,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_registres_strict_qa.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           ValueError: transaction SQLite courante requise"
+ },
+ {
+  "fichier": "tests/test_regression_cascade_cout_certifie.py",
+  "echecs": 19,
+  "classe": "D",
+  "causes": [
+   "tarifs d'équipe M5 (transaction SQLite requise)"
+  ],
+  "premiere_erreur": "E           PermissionError: tarifs d'équipe : identité admin console et transaction SQLite requises"
+ },
+ {
+  "fichier": "tests/test_revue_adverse_reg_concurrence.py",
+  "echecs": 7,
+  "classe": "B",
+  "causes": [
+   "le test ouvre le fichier SQLite lui-même (`sqlite3`, `Path`) ou le passe à un sous-processus"
+  ],
+  "premiere_erreur": "E           AssertionError: on3.12/site-packages/sqlalchemy/sql/elements.py\", line 533, in _execute_on_connection"
+ },
+ {
+  "fichier": "tests/test_revue_adverse_reg_declencheurs.py",
+  "echecs": 3,
+  "classe": "B",
+  "causes": [
+   "ordre SQLite brut (`PRAGMA`, `BEGIN`, `INSERT OR …`) dans le test"
+  ],
+  "premiere_erreur": "E           psycopg.errors.SyntaxError: syntax error at or near \"OR\""
+ },
+ {
+  "fichier": "tests/test_revue_adverse_reg_migrations.py",
+  "echecs": 7,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "ordre SQLite brut (`PRAGMA`, `BEGIN`, `INSERT OR …`) dans le test",
+   "le test ouvre le fichier SQLite lui-même (`sqlite3`, `Path`) ou le passe à un sous-processus",
+   "le test attend le texte d'erreur de SQLite",
+   "le test attend une erreur propre à SQLite (contrainte, déclencheur, refus de la garde)"
+  ],
+  "premiere_erreur": "E       assert 0 >= 50"
+ },
+ {
+  "fichier": "tests/test_revue_completion_sources_atomique.py",
+  "echecs": 28,
+  "classe": "B",
+  "causes": [
+   "le test lit le fichier SQLite de la base"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "tests/test_runtime_reception_sms_mcp.py",
+  "echecs": 9,
+  "classe": "D",
+  "causes": [
+   "réception courriel / SMS et suivi de rappel M1 (stockage qualifié SQLite)"
+  ],
+  "premiere_erreur": "E       AssertionError: assert ('inconnu' == 'absent'"
+ },
+ {
+  "fichier": "tests/test_sauvegarde_chiffree.py",
+  "echecs": 4,
+  "classe": "D",
+  "causes": [
+   "export / sauvegarde chiffrée de la base SQLite"
+  ],
+  "premiere_erreur": "E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/pgq-logs/runs/p"
+ },
+ {
+  "fichier": "tests/test_serveur_mcp_http.py",
+  "echecs": 1,
+  "classe": "D",
+  "causes": [
+   "grants CFO des agents",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E           opsys.agent_cfo_grants.GrantCfoRefuse: grants CFO agents non disponibles hors SQLite à ce jalon"
+ },
+ {
+  "fichier": "tests/test_sqlite_synchronous.py",
+  "echecs": 6,
+  "classe": "B",
+  "causes": [
+   "ordre SQLite brut (`PRAGMA`, `BEGIN`, `INSERT OR …`) dans le test"
+  ],
+  "premiere_erreur": "E           psycopg.errors.SyntaxError: syntax error at or near \"PRAGMA\""
+ },
+ {
+  "fichier": "tests/test_stockage.py",
+  "echecs": 3,
+  "classe": "B",
+  "causes": [
+   "entier 0/1 pour une colonne booléenne dans le SQL du test"
+  ],
+  "premiere_erreur": "E               ValueError: transaction imbriquée vers une autre base explicitement demandée"
+ },
+ {
+  "fichier": "tests/test_stockage_home_prive.py",
+  "echecs": 3,
+  "classe": "B",
+  "causes": [
+   "le test attend la base SQLite par défaut sous `OPSYS_HOME`"
+  ],
+  "premiere_erreur": "E       AssertionError: assert False"
+ },
+ {
+  "fichier": "tests/test_stockage_ocr.py",
+  "echecs": 4,
+  "classe": "B",
+  "causes": [
+   "valeur de test hors d'un entier 32 bits (colonne `Integer`, voir L6)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.NumericValueOutOfRange: integer out of range"
+ },
+ {
+  "fichier": "tests/test_suivi_m9_cible_core.py",
+  "echecs": 28,
+  "classe": "D",
+  "causes": [
+   "liaison de cibles",
+   "console de saisie ou service (instance non qualifiée)"
+  ],
+  "premiere_erreur": "E       AssertionError: {'ok': False, 'erreur': 'refus_metier', 'details': 'REJ-LIAISON-CIBLE: liaison de cible temporairement désactivée hors de SQLi"
+ },
+ {
+  "fichier": "tests/test_vision_migration.py",
+  "echecs": 1,
+  "classe": "B",
+  "causes": [
+   "inventaire des tables par `sqlite_master`",
+   "le test ouvre une autre base que celle où il a migré (URL SQLite remplacée)"
+  ],
+  "premiere_erreur": "E           psycopg.errors.UndefinedTable: relation \"sqlite_master\" does not exist"
+ }
+]

@@ -1,0 +1,20 @@
+{
+ "serveur": "PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+ "image": "pgvector/pgvector@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d arm64",
+ "extensions": [
+  "pg_trgm 1.6",
+  "unaccent 1.1",
+  "vector 0.8.7",
+  ""
+ ],
+ "configurations_texte": [
+  "french",
+  "simple",
+  ""
+ ],
+ "options_serveur": "fsync=off synchronous_commit=off full_page_writes=off max_connections=500 tmpfs 2g shm 512m",
+ "hote": "aarch64, Docker, 20 coeurs",
+ "psycopg": "3.2.3",
+ "sqlalchemy": "2.1.1",
+ "sqlite": "3.45.1"
+}
