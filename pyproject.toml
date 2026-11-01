@@ -65,6 +65,8 @@ packages = [
     "opsys.avatars_voix",
     "opsys.ingestion_onboarding",
     "opsys.secrets_coffre",
+    "opsys.mnemo",
+    "opsys.mnemo.graphe",
     "opsys.memoire", "opsys.stockage", "opsys.stockage.migrations", "opsys.stockage.migrations.versions",
     "m1_front_office",
     "m2_revenue_crm",

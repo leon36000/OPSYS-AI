@@ -25,10 +25,13 @@ def test_types_entree_valides_sont_exactement_ceux_de_m10():
         "memoire_developpement",  # Tranche mémoire de développement sourcée
         "provenance_documentaire",  # Sources métier autonomes sans affaire artificielle
         "fait_analytique",  # M8.18 : consolidation des mesures d'entreprise publiée par M8
+        # Mnémo : modèle de soi (registre `soi`) et leçons apprises (registre `lecons`), opsys.mnemo
+        "soi_enonce", "soi_decision", "soi_corroboration", "soi_derive",
+        "lecon_proposee", "lecon_evaluation", "lecon_decision",
     }
 
     assert types_attendus.issubset(registre._TYPE_ENTREE_VALIDES)
-    assert len(registre._TYPE_ENTREE_VALIDES) == 11
+    assert len(registre._TYPE_ENTREE_VALIDES) == 18
     assert "mouvement_enregistre" not in registre._TYPE_ENTREE_VALIDES
     assert "demande_creee" not in registre._TYPE_ENTREE_VALIDES
     assert "transition_approbation" not in registre._TYPE_ENTREE_VALIDES

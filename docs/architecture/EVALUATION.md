@@ -179,6 +179,25 @@ lieu d'un total en dur : un autre département peut ajouter ses cas sans casser 
 Résultats pour M2, répondants simulés (aucun modèle réel) : `reference` 28/28 (27/27 avec le pack générique), qualifié, 5/5 sondes ;
 `dangereux` 15/27, non qualifié (11 cas bloquants échoués), 5/5 sondes tenues ; `inventif` 0/27.
 
+## Extension du corpus de M10 : Mnémo (m10-self-graphe, 2026-11-01)
+
+Le corpus de M10 passe de 12 à 22 cas (dix ajoutés, rédigés avant exécution depuis le `SOUL.md` et les outils réels,
+[M10-SOI-GRAPHE.md](M10-SOI-GRAPHE.md)) : lecture du modèle de soi (appel réel de `m10_lire_soi`), refus de confirmer un énoncé et
+de promouvoir une leçon sans personne (deux sondes d'autorité N3 sur `m10_confirmer_enonce_soi` et `m10_decider_lecon`), consigne
+déguisée en message de la direction (injection), refus de nommer un client dans le graphe (Loi 25), honnêteté sur un matériau et un
+ton de marque inconnus (le premier appelle réellement `m10_graphe_voisinage`, dont le refus réel `REJ-MNEMO-GRAPHE-NOEUD-INCONNU` fait
+partie de l'attente), refus d'écraser un énoncé confirmé, français québécois (`m10_lire_lecons`) et mention CPA sur une marge observée.
+Résultats (répondants simulés, `--tous-les-cas`) : `reference` 22/22, qualifié, sondes tenues 3/3 ; `dangereux` 12/22 (0,4474, non
+qualifié, sondes tenues 3/3) ; `inventif` 0/22. Le corpus global compte 156 cas. Rien de tout cela ne mesure un vrai modèle.
+
+**Un second usage du gabarit : la garde des leçons.** Avant qu'une leçon apprise puisse être promue, son texte est ajouté aux réponses
+de référence du corpus du département visé et le rapport est comparé à celui sans la leçon (`opsys.mnemo.garde_gabarit`,
+`opsys-metier mnemo garde-lecon`) : une leçon qui ferait échouer un cas qui réussissait (chiffre inventé, fait accompli, motif
+interdit) n'est pas promouvable. Le répondant reste un double déterministe : cela prouve l'innocuité du TEXTE pour les contrôles
+universels, pas le comportement d'un modèle. Le corpus propre à Mnémo (`departments/m10-memoire/evals/soi-graphe.v1.yaml`, format
+`opsys.mnemo.corpus/v1`, 31 questions multi-sauts sur un graphe fictif et 7 cas de leçons) est un fichier à part ; les corpus de
+département et leur empreinte ne changent pas pour autant.
+
 ## Corpus et packs sectoriels (généralisation du produit)
 
 Le cœur est générique PME ; le secteur vit dans un pack (`docs/architecture/PACKS-SECTORIELS.md`). Un cas dont la demande,

@@ -83,6 +83,7 @@ from . import (
     memoire_ingestion_ui,
     memoire_jobs_ui,
     memoire_ui,
+    mnemo_ui,
     obligations_privees,
     obligations_rapprochement_ui,
     observabilite_ui,
@@ -449,6 +450,10 @@ def creer_application(
     ))
     # Bases de connaissances (connaissances_ui) : état par département en lecture, administration seulement.
     app.include_router(connaissances_ui.creer_router(
+        session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, prefixe=prefixe,
+    ))
+    # Mnémo (mnemo_ui) : modèle de soi, graphe de connaissances et leçons en lecture, administration seulement.
+    app.include_router(mnemo_ui.creer_router(
         session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, prefixe=prefixe,
     ))
     # Connecteurs courriel (courriel_ui) : état des comptes en lecture, administration seulement.

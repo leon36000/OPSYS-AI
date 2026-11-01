@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m10.arete_en_attente",
+  "title": "M10 — Arête SENSIBLE du graphe de connaissances en attente de confirmation humaine",
+  "description": "Émis par M10 (soi_graphe.py, alimentation du graphe par le bus) quand une arête reliant un nœud personnel (client ou propriété, Loi 25) est créée en BROUILLON : elle ne répond à aucune requête tant qu'une personne ne l'a pas confirmée (N3). Aucune donnée personnelle ni identifiant de client n'est porté : l'identifiant de l'arête, son type, le type de la source et l'instant. Consommateur visé : la console de la direction (file « à confirmer »). evenement_id déterministe par arête. Toutes les propriétés sont requises.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "arete_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "type_arete": {
+      "type": "string",
+      "enum": [
+        "possede",
+        "demande",
+        "realisee_sur",
+        "documente",
+        "concerne"
+      ]
+    },
+    "source_type": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 40
+    },
+    "propose_le": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 40
+    }
+  },
+  "required": [
+    "arete_id",
+    "type_arete",
+    "source_type",
+    "propose_le"
+  ]
+}

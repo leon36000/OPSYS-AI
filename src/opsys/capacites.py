@@ -39,6 +39,7 @@ from .contexte import (
     receptionne_de,
 )
 from .departements import Departement, tous_les_outils
+from .mnemo import outils as mnemo_outils
 from .outils import Autonomie, Niveau, Outil, executer_atomique, valider_arguments
 from .politiques import approbation_requise_niveau, validation_au_depart_possible
 
@@ -178,7 +179,8 @@ class Capacites:
             tous_les_outils(self.departements.values(), ports_prives=ports_prives)
         )
         communs = (self._outils_communs() + list(_outils_memoire() if memoire else ())
-                   + list(connaissances_outils.construire(departements) if memoire else ()))
+                   + list(connaissances_outils.construire(departements) if memoire else ())
+                   + list(mnemo_outils.construire(departements) if memoire else ()))
         for outil in communs:
             self.index[outil.nom] = (None, outil)
 

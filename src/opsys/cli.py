@@ -747,6 +747,10 @@ def construire_parseur() -> argparse.ArgumentParser:
         cli as pont_bi_cli,  # pont-bi … (jetons de lecture, journal d'accès : exports BI en lecture seule)
     )
     pont_bi_cli.ajouter_commandes(sous)
+    from .mnemo import (
+        cli as mnemo_cli,  # mnemo … (état du modèle de soi, du graphe et des leçons ; banc de mesure ; garde)
+    )
+    mnemo_cli.ajouter_commandes(sous)
 
     sous.add_parser("departements", help="lister les départements").set_defaults(fn=cmd_departements)
     bases = sous.add_parser("agents-base", help="profils durables des agents départementaux")

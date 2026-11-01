@@ -148,6 +148,7 @@ def contenu_fournisseurs(vues: list[dict[str, Any]], profil: dict[str, Any] | No
     navigation = (f'<p><a href="{base}">Fournisseurs</a> · <a href="{e(prefixe)}/plateforme/secrets">Secrets</a> · '
                   f'<a href="{e(prefixe)}/plateforme/avatars">Avatars</a> · '
                   f'<a href="{e(prefixe)}/plateforme/connaissances">Connaissances</a> · '
+                  f'<a href="{e(prefixe)}/plateforme/mnemo">Mnémo</a> · '
                   f'<a href="{e(prefixe)}/plateforme/connecteurs">Connecteurs</a></p>'
                   "<p class=\"note\">Chaque fournisseur porte son bloc licence ; l’activation est refusée, avec son "
                   "code, si la licence n’est pas conforme au profil du client. Aucun repli automatique. Les mesures "

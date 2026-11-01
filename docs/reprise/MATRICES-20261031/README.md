@@ -19,8 +19,8 @@ Point de départ : l'analyse d'écarts du 2026-10-31 (`ANALYSE-ECARTS-MODULES.md
 | M6 | 21 | 0 | 21 | 0 | 0 | 0 | Material Control | 1725 passed, 0 failed, 0 skipped |
 | M7 | 15 | 0 | 13 | 2 | 0 | 0 | Marketing | 1210 passed, 0 failed, 0 skipped |
 | M8 | 18 | 0 | 18 | 0 | 0 | 0 | Analytics | 862 passed, 0 failed, 0 skipped |
-| M10 | 20 | 0 | 19 | 0 | 1 | 0 | Mémoire | 1464 passed, 0 failed, 0 skipped |
-| Total | 169 | 4 | 158 | 5 | 2 | 0 | | |
+| M10 | 20 | 0 | 20 | 0 | 0 | 0 | Mémoire | 1464 passed, 0 failed, 0 skipped (base d'origine) ; Mnémo (M10.13, M10.17) : voir `run_summary` de MATRICE-EXIGENCES-M10.json |
+| Total | 169 | 4 | 159 | 5 | 1 | 0 | | |
 
 Fichiers : `MATRICE-EXIGENCES-M1.json`, `MATRICE-EXIGENCES-M2.json`, `MATRICE-EXIGENCES-M3.json`, `MATRICE-EXIGENCES-M4.json`, `MATRICE-EXIGENCES-M5.json`, `MATRICE-EXIGENCES-M6.json`, `MATRICE-EXIGENCES-M7.json`, `MATRICE-EXIGENCES-M8.json`, `MATRICE-EXIGENCES-M10.json`.
 

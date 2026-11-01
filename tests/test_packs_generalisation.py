@@ -57,7 +57,8 @@ SOUL_AVANT = {
     "m07-marketing": "04424e6974a3833c00753ba2d3a0eccfc6130fdebf761f561275f158e073a8f0",
     "m08-analytics": "5dc5fb864a0c2cf52bb48181f4bd461808d59fd720bf7c3caab25bacba0d2e14",
     "m09-strategic-intelligence": "f0dd373d0d7b852c9590365c8a9d0c48659a3b10630a8213a16df06e727fb86c",
-    "m10-memoire": "ab0fe9fe6e0a5e8a8e52b3c35586523617f012b9be295d88d50374f393adc919",
+    # Mnémo : soi, graphe, leçons ajoutés
+    "m10-memoire": "cb0aa7ddd4e3830d9f2d8036dea413f3ba97eb3727b2283af1b71d8408c07f58",
 }
 SKILL_M3_AVANT = "7f8bbad11d1f9daf755e3b587350bd91cdb509187bef3e2f992d5d66ed712ff3"
 

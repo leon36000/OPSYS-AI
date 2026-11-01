@@ -1,0 +1,313 @@
+# Corpus de mesure de Mnémo (graphe de connaissances et leçons) — opsys.mnemo.corpus/v1.
+# Rédigé à la main AVANT exécution. Données FICTIVES : entreprise inventée, aucun nom de personne, aucune coordonnée.
+# Les clients et les propriétés s'écrivent ici par un nom court (c1, p1) ; le banc en tire un pseudonyme hexadécimal stable.
+#
+# CE QUE CE CORPUS MESURE : l'exactitude du MOTEUR de requête (parcours, validité dans le temps, états des arêtes, schéma) sur
+# des questions dont le PLAN est écrit à la main. Il ne mesure PAS la compréhension du langage naturel : aucun modèle n'y
+# intervient, la colonne `question` n'est lue que par des humains. Un score élevé prouve la plomberie, pas la qualité d'un agent.
+schema: opsys.mnemo.corpus/v1
+version: mnemo-v1
+fictif: true
+auteur: architecte OPSYS-AI (corpus de départ, un seul auteur)
+date_reference: "2026-12-01"
+graphe:
+  noeuds:
+    - {type: client, nom: c1}
+    - {type: client, nom: c2}
+    - {type: client, nom: c3}
+    - {type: client, nom: c4}
+    - {type: client, nom: c5}
+    - {type: propriete, nom: p1}
+    - {type: propriete, nom: p2}
+    - {type: propriete, nom: p3}
+    - {type: propriete, nom: p4}
+    - {type: propriete, nom: p5}
+    - {type: propriete, nom: p6}
+    - {type: intervention, cle: i1}
+    - {type: intervention, cle: i2}
+    - {type: intervention, cle: i3}
+    - {type: intervention, cle: i4}
+    - {type: intervention, cle: i5}
+    - {type: intervention, cle: i6}
+    - {type: intervention, cle: i7}
+    - {type: intervention, cle: i8}
+    - {type: materiau, cle: m-a}
+    - {type: materiau, cle: m-b}
+    - {type: materiau, cle: m-c}
+    - {type: materiau, cle: m-d}
+    - {type: materiau, cle: m-e}
+    - {type: materiau, cle: m-f}
+    - {type: fournisseur, cle: f-1}
+    - {type: fournisseur, cle: f-2}
+    - {type: fournisseur, cle: f-3}
+    - {type: equipe, cle: eq-1}
+    - {type: equipe, cle: eq-2}
+    - {type: document, cle: d1}
+    - {type: document, cle: d2}
+    - {type: document, cle: d3}
+    - {type: decision, cle: dec1}
+    - {type: decision, cle: dec2}
+    - {type: decision, cle: dec3}
+  aretes:
+    # propriétés des clients (sensibles : confirmées par une personne). p5 change de propriétaire en 2026-07-01 ; p6 attend.
+    - {id: a-p1, type: possede, de: "client:c1", vers: "propriete:p1", valide_de: "2025-01-01", etat: confirmee, source: "test:titres-fictifs"}
+    - {id: a-p2, type: possede, de: "client:c1", vers: "propriete:p2", valide_de: "2025-01-01", etat: confirmee, source: "test:titres-fictifs"}
+    - {id: a-p3, type: possede, de: "client:c2", vers: "propriete:p3", valide_de: "2025-01-01", etat: confirmee, source: "test:titres-fictifs"}
+    - {id: a-p4, type: possede, de: "client:c3", vers: "propriete:p4", valide_de: "2025-01-01", etat: confirmee, source: "test:titres-fictifs"}
+    - {id: a-p5a, type: possede, de: "client:c4", vers: "propriete:p5", valide_de: "2025-01-01", valide_a: "2026-07-01", etat: fermee, source: "test:titres-fictifs"}
+    - {id: a-p5b, type: possede, de: "client:c5", vers: "propriete:p5", valide_de: "2026-07-01", etat: confirmee, source: "test:titres-fictifs"}
+    - {id: a-p6, type: possede, de: "client:c5", vers: "propriete:p6", valide_de: "2026-09-01", etat: brouillon, source: "bus:m2.profil_propriete_confirme"}
+    # interventions : client, propriété, équipe, matériaux
+    - {id: a-d1, type: demande, de: "client:c1", vers: "intervention:i1", valide_de: "2026-02-10", etat: confirmee, source: "bus:m4.travaux_termines"}
+    - {id: a-d2, type: demande, de: "client:c1", vers: "intervention:i2", valide_de: "2026-03-05", etat: confirmee, source: "bus:m4.travaux_termines"}
+    - {id: a-d3, type: demande, de: "client:c1", vers: "intervention:i3", valide_de: "2026-04-01", etat: confirmee, source: "bus:m4.travaux_termines"}
+    - {id: a-d4, type: demande, de: "client:c2", vers: "intervention:i4", valide_de: "2026-02-20", etat: confirmee, source: "bus:m4.travaux_termines"}
+    - {id: a-d5, type: demande, de: "client:c3", vers: "intervention:i5", valide_de: "2026-05-12", etat: confirmee, source: "bus:m4.travaux_termines"}
+    - {id: a-d6, type: demande, de: "client:c4", vers: "intervention:i6", valide_de: "2026-03-15", etat: confirmee, source: "bus:m4.travaux_termines"}
+    - {id: a-d7, type: demande, de: "client:c5", vers: "intervention:i7", valide_de: "2026-08-01", etat: confirmee, source: "bus:m4.travaux_termines"}
+    - {id: a-d8, type: demande, de: "client:c2", vers: "intervention:i8", valide_de: "2026-06-10", etat: confirmee, source: "bus:m4.travaux_termines"}
+    - {id: a-s1, type: realisee_sur, de: "intervention:i1", vers: "propriete:p1", valide_de: "2026-02-10", etat: confirmee, source: "agent:m4"}
+    - {id: a-s2, type: realisee_sur, de: "intervention:i2", vers: "propriete:p1", valide_de: "2026-03-05", etat: confirmee, source: "agent:m4"}
+    - {id: a-s3, type: realisee_sur, de: "intervention:i3", vers: "propriete:p2", valide_de: "2026-04-01", etat: confirmee, source: "agent:m4"}
+    - {id: a-s4, type: realisee_sur, de: "intervention:i4", vers: "propriete:p3", valide_de: "2026-02-20", etat: confirmee, source: "agent:m4"}
+    - {id: a-s5, type: realisee_sur, de: "intervention:i5", vers: "propriete:p4", valide_de: "2026-05-12", etat: confirmee, source: "agent:m4"}
+    - {id: a-s6, type: realisee_sur, de: "intervention:i6", vers: "propriete:p5", valide_de: "2026-03-15", etat: confirmee, source: "agent:m4"}
+    - {id: a-s7, type: realisee_sur, de: "intervention:i7", vers: "propriete:p5", valide_de: "2026-08-01", etat: confirmee, source: "agent:m4"}
+    - {id: a-s8, type: realisee_sur, de: "intervention:i8", vers: "propriete:p3", valide_de: "2026-06-10", etat: confirmee, source: "agent:m4"}
+    - {id: a-e1, type: realisee_par, de: "intervention:i1", vers: "equipe:eq-1", valide_de: "2026-02-10", etat: confirmee, source: "agent:m4"}
+    - {id: a-e2, type: realisee_par, de: "intervention:i2", vers: "equipe:eq-2", valide_de: "2026-03-05", etat: confirmee, source: "agent:m4"}
+    - {id: a-e3, type: realisee_par, de: "intervention:i3", vers: "equipe:eq-1", valide_de: "2026-04-01", etat: confirmee, source: "agent:m4"}
+    - {id: a-e4, type: realisee_par, de: "intervention:i4", vers: "equipe:eq-1", valide_de: "2026-02-20", etat: confirmee, source: "agent:m4"}
+    - {id: a-e5, type: realisee_par, de: "intervention:i5", vers: "equipe:eq-2", valide_de: "2026-05-12", etat: confirmee, source: "agent:m4"}
+    - {id: a-e6, type: realisee_par, de: "intervention:i6", vers: "equipe:eq-1", valide_de: "2026-03-15", etat: confirmee, source: "agent:m4"}
+    - {id: a-e7, type: realisee_par, de: "intervention:i7", vers: "equipe:eq-2", valide_de: "2026-08-01", etat: confirmee, source: "agent:m4"}
+    - {id: a-e8, type: realisee_par, de: "intervention:i8", vers: "equipe:eq-2", valide_de: "2026-06-10", etat: brouillon, source: "agent:m4"}
+    - {id: a-u1, type: utilise, de: "intervention:i1", vers: "materiau:m-a", valide_de: "2026-02-10", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-u2, type: utilise, de: "intervention:i1", vers: "materiau:m-b", valide_de: "2026-02-10", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-u3, type: utilise, de: "intervention:i2", vers: "materiau:m-a", valide_de: "2026-03-05", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-u4, type: utilise, de: "intervention:i3", vers: "materiau:m-c", valide_de: "2026-04-01", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-u5, type: utilise, de: "intervention:i4", vers: "materiau:m-b", valide_de: "2026-02-20", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-u6, type: utilise, de: "intervention:i4", vers: "materiau:m-d", valide_de: "2026-02-20", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-u7, type: utilise, de: "intervention:i5", vers: "materiau:m-a", valide_de: "2026-05-12", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-u8, type: utilise, de: "intervention:i5", vers: "materiau:m-e", valide_de: "2026-05-12", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-u9, type: utilise, de: "intervention:i6", vers: "materiau:m-f", valide_de: "2026-03-15", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-u10, type: utilise, de: "intervention:i7", vers: "materiau:m-a", valide_de: "2026-08-01", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-u11, type: utilise, de: "intervention:i8", vers: "materiau:m-c", valide_de: "2026-06-10", etat: confirmee, source: "bus:m6.variance_chantier"}
+    - {id: a-pr1, type: precede, de: "intervention:i1", vers: "intervention:i2", valide_de: "2026-03-05", etat: confirmee, source: "agent:m4"}
+    # fournisseurs : m-a change de fournisseur le 2026-06-01 ; une arête erronée a été rejetée
+    - {id: a-f1, type: fourni_par, de: "materiau:m-a", vers: "fournisseur:f-1", valide_de: "2025-01-01", valide_a: "2026-06-01", etat: fermee, source: "agent:m6"}
+    - {id: a-f2, type: fourni_par, de: "materiau:m-a", vers: "fournisseur:f-2", valide_de: "2026-06-01", etat: confirmee, source: "agent:m6"}
+    - {id: a-f3, type: fourni_par, de: "materiau:m-b", vers: "fournisseur:f-1", valide_de: "2025-01-01", etat: confirmee, source: "agent:m6"}
+    - {id: a-f4, type: fourni_par, de: "materiau:m-c", vers: "fournisseur:f-2", valide_de: "2025-01-01", etat: confirmee, source: "agent:m6"}
+    - {id: a-f5, type: fourni_par, de: "materiau:m-d", vers: "fournisseur:f-3", valide_de: "2025-01-01", etat: confirmee, source: "agent:m6"}
+    - {id: a-f6, type: fourni_par, de: "materiau:m-e", vers: "fournisseur:f-3", valide_de: "2025-01-01", etat: confirmee, source: "agent:m6"}
+    - {id: a-f7, type: fourni_par, de: "materiau:m-f", vers: "fournisseur:f-1", valide_de: "2025-01-01", etat: confirmee, source: "agent:m6"}
+    - {id: a-f8, type: fourni_par, de: "materiau:m-a", vers: "fournisseur:f-3", valide_de: "2026-01-01", etat: rejetee, source: "agent:m6"}
+    # documents et décisions
+    - {id: a-doc1, type: documente, de: "document:d1", vers: "intervention:i1", valide_de: "2026-02-12", etat: confirmee, source: "agent:m10"}
+    - {id: a-doc2, type: documente, de: "document:d2", vers: "intervention:i5", valide_de: "2026-05-14", etat: confirmee, source: "agent:m10"}
+    - {id: a-doc3, type: justifie, de: "document:d3", vers: "decision:dec1", valide_de: "2026-06-02", etat: confirmee, source: "agent:m10"}
+    - {id: a-dec1, type: concerne, de: "decision:dec1", vers: "fournisseur:f-2", valide_de: "2026-06-02", etat: confirmee, source: "agent:m10"}
+    - {id: a-dec2, type: concerne, de: "decision:dec2", vers: "client:c1", valide_de: "2026-04-10", etat: confirmee, source: "agent:m10"}
+    - {id: a-dec3, type: concerne, de: "decision:dec3", vers: "materiau:m-a", valide_de: "2026-06-02", etat: confirmee, source: "agent:m10"}
+questions:
+  # --- un saut
+  - id: q-u1
+    categorie: un_saut
+    question: "Qui possède la propriété p1 ?"
+    plan: {operation: pas_a_pas, depart: "propriete:p1", a_la_date: "2026-12-01", etapes: [{arete: possede, sens: entrant, type_noeud: client}]}
+    attendu: {entites: ["client:c1"]}
+  - id: q-u2
+    categorie: un_saut
+    question: "Quelle équipe a réalisé l'intervention i1 ?"
+    plan: {operation: pas_a_pas, depart: "intervention:i1", a_la_date: "2026-12-01", etapes: [{arete: realisee_par, sens: sortant, type_noeud: equipe}]}
+    attendu: {entites: ["equipe:eq-1"]}
+  - id: q-u3
+    categorie: un_saut
+    question: "Quels matériaux l'intervention i4 a-t-elle utilisés ?"
+    plan: {operation: pas_a_pas, depart: "intervention:i4", a_la_date: "2026-12-01", etapes: [{arete: utilise, sens: sortant, type_noeud: materiau}]}
+    attendu: {entites: ["materiau:m-b", "materiau:m-d"]}
+  - id: q-u4
+    categorie: un_saut
+    question: "Quels documents portent sur l'intervention i5 ?"
+    plan: {operation: pas_a_pas, depart: "intervention:i5", a_la_date: "2026-12-01", etapes: [{arete: documente, sens: entrant, type_noeud: document}]}
+    attendu: {entites: ["document:d2"]}
+  - id: q-u5
+    categorie: un_saut
+    question: "Qui fournit le matériau m-a aujourd'hui ?"
+    plan: {operation: pas_a_pas, depart: "materiau:m-a", a_la_date: "2026-12-01", etapes: [{arete: fourni_par, sens: sortant, type_noeud: fournisseur}]}
+    attendu: {entites: ["fournisseur:f-2"]}
+  # --- validité dans le temps
+  - id: q-t1
+    categorie: temporel
+    question: "Qui fournissait le matériau m-a le 1er mars 2026 ?"
+    plan: {operation: pas_a_pas, depart: "materiau:m-a", a_la_date: "2026-03-01", etapes: [{arete: fourni_par, sens: sortant, type_noeud: fournisseur}]}
+    attendu: {entites: ["fournisseur:f-1"]}
+  - id: q-t2
+    categorie: temporel
+    question: "Qui possédait la propriété p5 le 1er avril 2026 ?"
+    plan: {operation: pas_a_pas, depart: "propriete:p5", a_la_date: "2026-04-01", etapes: [{arete: possede, sens: entrant, type_noeud: client}]}
+    attendu: {entites: ["client:c4"]}
+  - id: q-t3
+    categorie: temporel
+    question: "Qui possède la propriété p5 le 1er septembre 2026 ?"
+    plan: {operation: pas_a_pas, depart: "propriete:p5", a_la_date: "2026-09-01", etapes: [{arete: possede, sens: entrant, type_noeud: client}]}
+    attendu: {entites: ["client:c5"]}
+  - id: q-t4
+    categorie: temporel
+    question: "Quelles interventions avaient été réalisées sur p1 au 15 février 2026 ?"
+    plan: {operation: pas_a_pas, depart: "propriete:p1", a_la_date: "2026-02-15", etapes: [{arete: realisee_sur, sens: entrant, type_noeud: intervention}]}
+    attendu: {entites: ["intervention:i1"]}
+  - id: q-t5
+    categorie: temporel
+    question: "Quels matériaux l'intervention i1 avait-elle utilisés avant qu'elle n'ait lieu ?"
+    plan: {operation: pas_a_pas, depart: "intervention:i1", a_la_date: "2026-02-01", etapes: [{arete: utilise, sens: sortant, type_noeud: materiau}]}
+    attendu: {entites: []}
+  - id: q-t6
+    categorie: temporel
+    question: "Qui fournit le matériau m-a le jour même de la bascule, le 1er juin 2026 (la fin de validité est exclue, le début est inclus) ?"
+    plan: {operation: pas_a_pas, depart: "materiau:m-a", a_la_date: "2026-06-01", etapes: [{arete: fourni_par, sens: sortant, type_noeud: fournisseur}]}
+    attendu: {entites: ["fournisseur:f-2"]}
+  # --- plusieurs sauts
+  - id: q-m1
+    categorie: multi_sauts
+    question: "Quels fournisseurs fournissent les matériaux utilisés par les interventions du client c1 ?"
+    plan: {operation: pas_a_pas, depart: "client:c1", a_la_date: "2026-12-01", etapes: [{arete: demande, sens: sortant, type_noeud: intervention}, {arete: utilise, sens: sortant, type_noeud: materiau}, {arete: fourni_par, sens: sortant, type_noeud: fournisseur}]}
+    attendu: {entites: ["fournisseur:f-1", "fournisseur:f-2"]}
+  - id: q-m2
+    categorie: multi_sauts
+    question: "Quelles équipes ont travaillé sur les propriétés du client c1 ?"
+    plan: {operation: pas_a_pas, depart: "client:c1", a_la_date: "2026-12-01", etapes: [{arete: possede, sens: sortant, type_noeud: propriete}, {arete: realisee_sur, sens: entrant, type_noeud: intervention}, {arete: realisee_par, sens: sortant, type_noeud: equipe}]}
+    attendu: {entites: ["equipe:eq-1", "equipe:eq-2"]}
+  - id: q-m3
+    categorie: multi_sauts
+    question: "Quels clients ont eu une intervention qui a utilisé le matériau m-a ?"
+    plan: {operation: pas_a_pas, depart: "materiau:m-a", a_la_date: "2026-12-01", etapes: [{arete: utilise, sens: entrant, type_noeud: intervention}, {arete: demande, sens: entrant, type_noeud: client}]}
+    attendu: {entites: ["client:c1", "client:c3", "client:c5"]}
+  - id: q-m4
+    categorie: multi_sauts
+    question: "Quelles décisions concernent les fournisseurs des matériaux utilisés à l'intervention i5 ?"
+    plan: {operation: pas_a_pas, depart: "intervention:i5", a_la_date: "2026-12-01", etapes: [{arete: utilise, sens: sortant, type_noeud: materiau}, {arete: fourni_par, sens: sortant, type_noeud: fournisseur}, {arete: concerne, sens: entrant, type_noeud: decision}]}
+    attendu: {entites: ["decision:dec1"]}
+  - id: q-m5
+    categorie: multi_sauts
+    question: "Quels documents portent sur les interventions de la propriété p1 ?"
+    plan: {operation: pas_a_pas, depart: "propriete:p1", a_la_date: "2026-12-01", etapes: [{arete: realisee_sur, sens: entrant, type_noeud: intervention}, {arete: documente, sens: entrant, type_noeud: document}]}
+    attendu: {entites: ["document:d1"]}
+  - id: q-m6
+    categorie: multi_sauts
+    question: "Quels fournisseurs sont atteignables en trois sauts depuis le client c2 ?"
+    plan: {operation: atteignables, depart: "client:c2", k: 3, a_la_date: "2026-12-01", type_noeud: fournisseur}
+    attendu: {entites: ["fournisseur:f-1", "fournisseur:f-2", "fournisseur:f-3"]}
+  - id: q-m7
+    categorie: multi_sauts
+    question: "Quels clients sont à deux sauts de la propriété p5 le 1er avril 2026 ?"
+    plan: {operation: atteignables, depart: "propriete:p5", k: 2, a_la_date: "2026-04-01", type_noeud: client}
+    attendu: {entites: ["client:c4"]}
+  - id: q-m8
+    categorie: multi_sauts
+    question: "Quelle intervention a précédé i2, et quelle équipe l'a réalisée ?"
+    plan: {operation: pas_a_pas, depart: "intervention:i2", a_la_date: "2026-12-01", etapes: [{arete: precede, sens: entrant, type_noeud: intervention}, {arete: realisee_par, sens: sortant, type_noeud: equipe}]}
+    attendu: {entites: ["equipe:eq-1"]}
+  - id: q-m9
+    categorie: multi_sauts
+    question: "Quelles propriétés ont reçu une intervention qui a utilisé le matériau m-b ?"
+    plan: {operation: pas_a_pas, depart: "materiau:m-b", a_la_date: "2026-12-01", etapes: [{arete: utilise, sens: entrant, type_noeud: intervention}, {arete: realisee_sur, sens: sortant, type_noeud: propriete}]}
+    attendu: {entites: ["propriete:p1", "propriete:p3"]}
+  # --- chemins
+  - id: q-c1
+    categorie: chemin
+    question: "Quel est le plus court lien entre le client c1 et le fournisseur f-2 aujourd'hui ?"
+    plan: {operation: chemin, de: "client:c1", vers: "fournisseur:f-2", a_la_date: "2026-12-01"}
+    attendu: {longueur: 3}
+  - id: q-c2
+    categorie: chemin
+    question: "Existe-t-il un lien entre le client c1 et le fournisseur f-2 au 1er mars 2026 ?"
+    plan: {operation: chemin, de: "client:c1", vers: "fournisseur:f-2", a_la_date: "2026-03-01"}
+    attendu: {aucun_chemin: true}
+  - id: q-c3
+    categorie: chemin
+    question: "Quel est le plus court lien entre le client c3 et l'équipe eq-1 ?"
+    plan: {operation: chemin, de: "client:c3", vers: "equipe:eq-1", a_la_date: "2026-12-01"}
+    attendu: {longueur: 4}
+  # --- pourquoi ce lien
+  - id: q-w1
+    categorie: pourquoi
+    question: "Pourquoi le graphe dit-il que le client c5 possède la propriété p5 ?"
+    plan: {operation: pourquoi, arete: a-p5b}
+    attendu: {contient: ["test:titres-fictifs", "direction.fictive", "possede"]}
+  - id: q-w2
+    categorie: pourquoi
+    question: "Pourquoi le matériau m-a n'est-il plus relié au fournisseur f-1 ?"
+    plan: {operation: pourquoi, arete: a-f1}
+    attendu: {contient: ["jusqu'au 2026-06-01", "fermee"]}
+  # --- négatifs : le graphe doit s'abstenir, ou ne rien inventer
+  - id: q-n1
+    categorie: negatif
+    question: "Quels fournisseurs fournissent le matériau m-zzz ?"
+    plan: {operation: pas_a_pas, depart: "materiau:m-zzz", a_la_date: "2026-12-01", etapes: [{arete: fourni_par, sens: sortant, type_noeud: fournisseur}]}
+    attendu: {abstention: true}
+  - id: q-n2
+    categorie: negatif
+    question: "Qui possède la propriété p9 ?"
+    plan: {operation: pas_a_pas, depart: "propriete:p9", a_la_date: "2026-12-01", etapes: [{arete: possede, sens: entrant, type_noeud: client}]}
+    attendu: {abstention: true}
+  - id: q-n3
+    categorie: negatif
+    question: "Qui possède la propriété p6 (relation encore en attente de confirmation) ?"
+    plan: {operation: pas_a_pas, depart: "propriete:p6", a_la_date: "2026-12-01", etapes: [{arete: possede, sens: entrant, type_noeud: client}]}
+    attendu: {entites: []}
+  - id: q-n4
+    categorie: negatif
+    question: "Qui possède p6, brouillons inclus (et marqués comme tels) ?"
+    plan: {operation: pas_a_pas, depart: "propriete:p6", a_la_date: "2026-12-01", inclure_brouillons: true, etapes: [{arete: possede, sens: entrant, type_noeud: client}]}
+    attendu: {entites: ["client:c5"]}
+  - id: q-n5
+    categorie: negatif
+    question: "Fournisseurs de m-a, brouillons inclus : l'arête rejetée vers f-3 ne doit jamais revenir."
+    plan: {operation: pas_a_pas, depart: "materiau:m-a", a_la_date: "2026-12-01", inclure_brouillons: true, etapes: [{arete: fourni_par, sens: sortant, type_noeud: fournisseur}]}
+    attendu: {entites: ["fournisseur:f-2"]}
+  - id: q-n6
+    categorie: negatif
+    question: "Quelle équipe a réalisé l'intervention i8 (affectation encore en attente) ?"
+    plan: {operation: pas_a_pas, depart: "intervention:i8", a_la_date: "2026-12-01", etapes: [{arete: realisee_par, sens: sortant, type_noeud: equipe}]}
+    attendu: {entites: []}
+lecons:
+  # Cas de garde du pipeline de leçons : séries fictives de chantiers (prévu, réel) et verdict attendu.
+  - id: l-regulier
+    description: "Le réel dépasse le prévu de 15 % sur quinze chantiers : une leçon, ajustée et mesurée sur des chantiers tenus à l'écart."
+    genre: ecart_materiau
+    segments: [{n: 15, facteur: "1.15"}]
+    attendu: {lecon: true, parametre_entre: ["1.10", "1.20"], promouvable: true}
+  - id: l-support
+    description: "Cinq chantiers seulement : aucun apprentissage."
+    genre: ecart_materiau
+    segments: [{n: 5, facteur: "1.30"}]
+    attendu: {lecon: false, raison: support_insuffisant}
+  - id: l-bruit
+    description: "Moitié au-dessus, moitié en dessous : le signe est incohérent."
+    genre: ecart_materiau
+    segments: [{n: 8, facteur: "1.30"}, {n: 8, facteur: "0.70"}]
+    attendu: {lecon: false, raison: signe_incoherent}
+  - id: l-negligeable
+    description: "Écart de 2 % : sous le seuil, pas de leçon."
+    genre: ecart_materiau
+    segments: [{n: 15, facteur: "1.02"}]
+    attendu: {lecon: false, raison: ecart_negligeable}
+  - id: l-aberrant
+    description: "Un chantier aberrant (réel 90 fois le prévu) ne doit pas déplacer le paramètre."
+    genre: ecart_materiau
+    segments: [{n: 15, facteur: "1.15"}]
+    aberrants: [{prevu: "10", reel: "900"}]
+    attendu: {lecon: true, parametre_entre: ["1.10", "1.20"], promouvable: true}
+  - id: l-test-inverse
+    description: "Les chantiers tenus à l'écart se comportent à l'inverse : la leçon DÉGRADE ; elle ne doit pas être promouvable."
+    genre: ecart_materiau
+    segments: [{n: 15, facteur: "1.15"}]
+    test_facteur: "0.60"
+    attendu: {lecon: true, promouvable: false, raison_evaluation: regression_mesuree}
+  - id: l-marge
+    description: "La marge réelle est inférieure de 7 % à la marge prévue sur quinze chantiers : décalage négatif."
+    genre: ecart_marge
+    segments: [{n: 15, facteur: "0.93"}]
+    attendu: {lecon: true, parametre_negatif: true, promouvable: true}

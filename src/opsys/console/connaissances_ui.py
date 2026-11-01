@@ -74,7 +74,8 @@ def contenu(vue: Mapping[str, Any], *, prefixe: str) -> str:
                  f"<tbody>{''.join(lignes)}</tbody></table>")
     return (
         f'<p><a href="{e(prefixe)}/plateforme/fournisseurs">Fournisseurs</a> · '
-        f'<a href="{e(prefixe)}/plateforme/avatars">Avatars</a> · Connaissances</p>'
+        f'<a href="{e(prefixe)}/plateforme/avatars">Avatars</a> · Connaissances · '
+        f'<a href="{e(prefixe)}/plateforme/mnemo">Mnémo</a></p>'
         f'<p class="note">Lecture seule. L\'ingestion, la revue et le retrait se font par les outils M10 '
         f'(journalisés). '
         f'{e(vue["mention_professionnelle"])}.</p>' + corps)
