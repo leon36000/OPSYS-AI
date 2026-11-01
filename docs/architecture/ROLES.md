@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 247 outils sur 510 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 248 outils sur 537 sont déclarés.
 
 ### `employee` (17 outils) : §9.3, le terrain
 
@@ -130,7 +130,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (246 outils) : §9.5 + employé + vendeur
+### `admin` (247 outils) : §9.5 + employé + vendeur
 
 Les 17 outils de l'employé, les 27 du vendeur également permis à l'admin, et :
 
@@ -140,6 +140,7 @@ Les 17 outils de l'employé, les 27 du vendeur également permis à l'admin, et 
 | M1 | `m1_importer_appel_manuellement` (N2) | Import humain d'un appel manqué ou d'un message vocal depuis un journal/export nommé; le consentement conditionne la conservation du texte. Aucun appel n'est passé ni message envoyé. |
 | M1 | `m1_lister_rappels_appareil` (N0), `m1_prendre_en_charge_rappel_appareil` (N2) | Rappels réellement liés aux appels importés : pages courantes par identifiant, sans contact ni message dans la file, attribution interne à l'admin DEVICE confirmé. Autorité/source/quota actuels avant claim et rejeu ; confirmation liée à son maillon, sa personne, son appareil et son UUID. Aucun appel, message ou clôture ; le suivi console reste fermé aux appareils. |
 | M1 | `m1_lire_transfert` (T0), `m1_clore_transfert` (N3) | §7 M1.8, M1.12 et §9.5 M1 « plaintes, transferts, prendre en charge » (T4.5) : l'admin lit le contexte d'une plainte, d'une urgence de sécurité ou d'un transfert (résumé, contact, messages du client) puis le clôt. La clôture est une décision HUMAINE : voir « Les transferts à un humain de M1 » plus bas. Ni l'employé ni le vendeur : le contact et les mots d'un client qui se plaint sont pour le propriétaire. |
+| M1 | `m1_confirmer_rendez_vous` (N3) | §7 M1.9 : l'admin, depuis l'app, confirme un rendez-vous que M4 a DÉJÀ daté et confirmé dans la cédule (l'heure est lue de M4, jamais fournie ; aucun créneau daté valide : refus). Décision HUMAINE (`m1_clore_transfert` : identité d'appareil `admin` confirmée en base, ou demande approuvée) ; ni l'employé ni le vendeur. Voir [M1-M6-LEA-ROSALIE.md](M1-M6-LEA-ROSALIE.md). |
 | M2 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | §9.5 M2 : pipeline, leads chauds, doublons. |
 | M2 | `m2_reassigner_lead` (N3), `m2_republier_assignations` (N3) | §9.5 (le propriétaire ou son gestionnaire reprend le dossier d'un vendeur ; T1.4-m). La réassignation est une décision HUMAINE : voir « La réassignation d'un lead » plus bas. La republication remet au bus le fait de propriété que les leads qualifiés avant T1.4-k2 n'ont jamais publié ; outil de mise en service, idempotent, dérivé du registre. Ni l'employé ni le vendeur (un vendeur ne « prend » ni ne « cède » un lead). |
 | M2 | `m2_proposer_profil_propriete_depuis_onboarding` (T1, N2) | M2.3 : propose en BROUILLON la propriété à l'adresse d'une fiche client importée à l'onboarding (déjà validée par une personne). Admin seulement : un client importé n'a pas encore de vendeur. |
@@ -319,6 +320,14 @@ ce que la vue exécutive de M8 montre (« M8 consomme M5 et ne recalcule pas »,
 Limites : la date de référence est celle de l'appelant (un agent en mode `supervise` ou `autonome` peut lancer un constat sans
 file, avec la date qu'il donne : la date est dite dans l'événement et M8 en montre l'âge) ; rien ne déclenche le constat tout seul
 (le digest de 7 h ne l'appelle pas : GATE NATHAN) ; deux constats simultanés au même rang : le second lève, l'appel est à rejouer.
+
+### Tri, identité, rendez-vous, SMS, apprentissage (M1) et commande par courriel (M6, M5) : aucun droit d'appareil, un seul ajout
+
+Les 27 outils de la tranche [M1-M6-LEA-ROSALIE.md](M1-M6-LEA-ROSALIE.md) §10 sont fermés à tout appareil (`roles_appareil` vide), **sauf `m1_confirmer_rendez_vous`** (`admin`, N3 :
+l'admin confirme depuis l'app un rendez-vous que M4 a déjà daté ; la cédule de M4 exige elle-même un admin authentifié). Les décisions de personne (`m1_consigner_correction_tri`,
+`m1_consigner_retour_brouillon`, `m1_decider_proposition`, `m1_attester_moyen_verification`, `m1_decider_verification_identite`, `m1_confirmer_rendez_vous`,
+`m5_classer_facture_courriel`, `m6_valider_confirmation_courriel`) sont N3 et **refusent un agent seul même en mode `autonome`** (`tests/test_m1_m6_humain_requis.py`). Le port privé
+`lecteur_capacite_m4` donne à M1 deux lectures T0 déjà existantes de M4 (capacité des équipes, semaine de la cédule), depuis le contexte de M1 seulement : aucun outil n'est ajouté à M4.
 
 ### Les transferts à un humain de M1 (T4.5)
 

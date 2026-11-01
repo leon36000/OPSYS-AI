@@ -9,6 +9,10 @@ exécuteurs WordPress et sociaux de M7 ([M7-WORDPRESS-SOCIAL.md](M7-WORDPRESS-SO
 ([INGESTION-ONBOARDING.md](INGESTION-ONBOARDING.md)). Cette tranche les relie aux départements, à un planificateur, au bus, à la
 console, sans élargir aucun droit.
 
+**Suite (2026-11-01) : [M1-M6-LEA-ROSALIE.md](M1-M6-LEA-ROSALIE.md)** : tri des courriels reçus, aiguillage vers M5 et M6, courriel de commande d'un PO,
+vérification d'identité, rendez-vous et SMS, par-dessus ce câblage. Une limite de ce document y est précisée : aucun serveur de réception de confiance n'est transmis
+à l'ingestion, donc `authentification.fiable` est toujours faux en production.
+
 ## 1. Le flux
 
 ```

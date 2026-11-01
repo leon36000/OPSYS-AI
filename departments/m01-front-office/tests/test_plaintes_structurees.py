@@ -481,11 +481,15 @@ def test_l_outil_est_une_lecture_pure_fermee_a_tout_appareil_et_n_ajoute_aucun_d
     assert not any(outil.nom in noms for noms in portees.values()), "aucun rôle d'appareil ne l'a"
     assert {n for n in portees["admin"] if n.startswith("m1_")} == {
         "m1_lire_transfert", "m1_clore_transfert", "m1_produire_digest", "m1_importer_appel_manuellement",
-        "m1_lister_rappels_appareil", "m1_prendre_en_charge_rappel_appareil"}
+        "m1_lister_rappels_appareil", "m1_prendre_en_charge_rappel_appareil",
+        "m1_confirmer_rendez_vous"}
     manifeste = yaml.safe_load((M1 / "department.yaml").read_text(encoding="utf-8"))
-    assert manifeste["evenements"] == {"publie": [
-        "m1.lead_qualifie", "m1.retrait_consentement", "m1.courriel_recu", "m1.brouillon_courriel_pret",
-        "m1.approbation_envoi_demandee", "m1.courriel_envoye", "m1.envoi_courriel_echoue"]}
+    assert manifeste["evenements"] == {
+        "consomme": ["m1.courriel_recu", "m6.po_courriel_pret", "m1.courriel_envoye"],
+        "publie": [
+            "m1.lead_qualifie", "m1.retrait_consentement", "m1.courriel_recu", "m1.brouillon_courriel_pret",
+            "m1.approbation_envoi_demandee", "m1.courriel_envoye", "m1.envoi_courriel_echoue",
+            "m1.courriel_aiguille", "m1.commande_courriel_envoyee"]}
     assert manifeste["mode"] == "ombre"
 
 

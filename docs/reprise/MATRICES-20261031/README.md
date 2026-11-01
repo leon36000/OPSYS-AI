@@ -11,16 +11,16 @@ Point de départ : l'analyse d'écarts du 2026-10-31 (`ANALYSE-ECARTS-MODULES.md
 
 | Module | Lignes | FAIT_PROUVE | PARTIEL | SIMULE | ABSENT | INCONNU | Département | Suite de tests du département rejouée (base ci-dessus) |
 |---|---|---|---|---|---|---|---|---|
-| M1 | 20 | 0 | 13 | 2 | 5 | 0 | Front Office | 1766 passed, 0 failed, 0 skipped |
+| M1 | 20 | 0 | 18 | 1 | 1 | 0 | Front Office | 1766 passed, 0 failed, 0 skipped |
 | M2 | 15 | 1 | 14 | 0 | 0 | 0 | Revenue CRM | 2269 passed, 0 failed, 0 skipped (rejouée le 2026-11-01 sur la branche claude/m2-victor, base 1b58f4e6c) |
 | M3 | 18 | 1 | 15 | 2 | 0 | 0 | Estimation | 2491 passed, 0 failed, 9 skipped (8 tests de test_mesure_plan.py : extra vision-photo absent ; 1 garde de CI) en excluant test_gardes_des_outils.py (32 tests d'outils de preuve de mutation) : ce fichier échoue (« n'a pas restauré son entrée capturée ») aussi en exécution isolée, cause non investiguée, donc non concluant |
 | M4 | 24 | 2 | 22 | 0 | 0 | 0 | Field Ops | 3304 passed, 0 failed, 20 skipped (pyvrp absent) |
 | M5 | 18 | 0 | 18 | 0 | 0 | 0 | FinanceCore | 2702 passed, 0 failed, 0 skipped (base d'origine) ; vague 3 : voir `run_summary` de MATRICE-EXIGENCES-M5.json |
-| M6 | 21 | 0 | 20 | 0 | 1 | 0 | Material Control | 1725 passed, 0 failed, 0 skipped |
+| M6 | 21 | 0 | 21 | 0 | 0 | 0 | Material Control | 1725 passed, 0 failed, 0 skipped |
 | M7 | 15 | 0 | 13 | 2 | 0 | 0 | Marketing | 1210 passed, 0 failed, 0 skipped |
 | M8 | 18 | 0 | 18 | 0 | 0 | 0 | Analytics | 862 passed, 0 failed, 0 skipped |
 | M10 | 20 | 0 | 19 | 0 | 1 | 0 | Mémoire | 1464 passed, 0 failed, 0 skipped |
-| Total | 169 | 4 | 152 | 6 | 7 | 0 | | |
+| Total | 169 | 4 | 158 | 5 | 2 | 0 | | |
 
 Fichiers : `MATRICE-EXIGENCES-M1.json`, `MATRICE-EXIGENCES-M2.json`, `MATRICE-EXIGENCES-M3.json`, `MATRICE-EXIGENCES-M4.json`, `MATRICE-EXIGENCES-M5.json`, `MATRICE-EXIGENCES-M6.json`, `MATRICE-EXIGENCES-M7.json`, `MATRICE-EXIGENCES-M8.json`, `MATRICE-EXIGENCES-M10.json`.
 

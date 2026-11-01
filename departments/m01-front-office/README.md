@@ -5,6 +5,13 @@ Front Office IA — reception omnicanale, voix 0->5, qualification, adjointe
 Statut: PARTIAL (EPIC E — vague 1 livrée en mode ombre : registre, machine à états des phases
 voix 0->5, garde-fou des interdits absolus, qualification, adaptateurs, digest.)
 
+## Tri des courriels, identité, rendez-vous, SMS, apprentissage — tranche du 1er novembre 2026
+
+M1.6 (tri déterministe explicable des courriels et aiguillage par événements), M1.9 (fenêtres de rendez-vous depuis la capacité de M4, confirmation depuis la cédule
+datée), M1.10 (vérification d'identité à preuves minimales), M1.7 (gouvernance de l'assistant SMS), M1.13 (propositions d'amélioration promues par une personne) et le canal
+de M1 pour les commandes de M6 : **PARTIEL, prouvé sur doubles**, aucun service réel. Statuts, mesures, outils, limites :
+[`docs/architecture/M1-M6-LEA-ROSALIE.md`](../../docs/architecture/M1-M6-LEA-ROSALIE.md). Corpus fictifs : `evals/tri-courriel-{dev,test}.v1.json`. M1.2 (voix) reste **SIMULE**.
+
 ## Plaintes structurées — `m1_lire_plaintes_structurees`
 
 Lecture T0/N0 (admin confirmé, aucun rôle d'appareil, aucun événement) des plaintes de la période, avec un état qui

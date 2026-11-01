@@ -957,6 +957,11 @@ def emettre_notification(canal: str, message: str) -> dict[str, Any]:
     """Émet un message vers un canal externe (bus de notification en mode ombre).
     Action T2 : réversible, mais externe — jamais présentée comme faite avant
     l'approbation humaine effective en mode ombre/supervisé."""
+    if isinstance(canal, str) and canal.startswith("sms:"):
+        # Assistant SMS (M1.7) : le texte exact approuvé, et jamais vers un correspondant qui s'est retiré (STOP).
+        from . import assistant_sms_outils
+
+        assistant_sms_outils.garde_execution(canal, message)  # lève un refus typé (REJ-SMS-…) ou ne fait rien
     bus = adaptateurs.creer_bus(mode_ombre=True)
     resultat = bus.emettre(canal, message)
     if isinstance(resultat, dict):
@@ -2153,15 +2158,40 @@ def prendre_en_charge_rappel_appareil(transfert_id, snapshot_attendu):
     return rappels_appareil.prendre(transfert_id, snapshot_attendu)
 
 
-def outils() -> tuple[Outil, ...]:
+def outils(lecteur_capacite_m4: Any = None) -> tuple[Outil, ...]:
     """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés). Le courriel
     (boîte de réception, brouillons de réponse) vit dans `courriel_outils` ; import différé : ce module-ci est son
     socle."""
-    from . import courriel_outils
+    from . import (
+        assistant_sms_outils,
+        courriel_outils,
+        identite_client_outils,
+        rendez_vous_outils,
+        tri_courriel_outils,
+    )
 
     base = _outils_base()
     # Les deux outils d'appareil (liste et prise en charge des rappels) restent les derniers du catalogue.
-    return (*base[:-2], *courriel_outils.outils_courriel(), *base[-2:])
+    return (
+        *base[:-2],
+        *courriel_outils.outils_courriel(),
+        *tri_courriel_outils.outils_tri(),
+        *identite_client_outils.outils_identite(),
+        *assistant_sms_outils.outils_sms(),
+        *rendez_vous_outils.outils_rdv(lecteur_capacite_m4),
+        *base[-2:],
+    )
+
+
+def consommateurs() -> dict[str, Any]:
+    """Les types d'événements que M1 consomme (ADR-0009 §3) : sa propre réception de courriel (tri, M1.6)."""
+    from . import commande_fournisseur, tri_courriel_outils
+
+    return {
+        **tri_courriel_outils.consommateurs(),
+        "m6.po_courriel_pret": commande_fournisseur.recevoir_po_courriel_pret,
+        "m1.courriel_envoye": commande_fournisseur.recevoir_courriel_envoye,
+    }
 
 
 def _outils_base() -> tuple[Outil, ...]:

@@ -39,7 +39,7 @@ approbations:                                        # ADR-0009 §5, PLAN T2.5 p
 modeles:
   defaut: standard
   extraction: rapide
-skills: [receptionner-une-commande, consommer-du-materiel-terrain, compter-l-inventaire]
+skills: [receptionner-une-commande, consommer-du-materiel-terrain, compter-l-inventaire, commande-par-courriel]
 planifications:
   - nom: digest-materiel
     cron: "0 7 * * 1-5"
@@ -59,14 +59,19 @@ kpis:
   - id: taux_prix_indetermine
     description: Part des lignes reçues dont le prix reste INDETERMINE (ni catalogue fourni ni historique du registre).
 evenements:                        # ADR-0009 §3, PLAN T1.2-b/T1.2-d
-  consomme: [m4.travaux_termines, m3.devis_accepte, m3.besoins_materiaux]  # le réel (WCT), le prévu définitif (devis accepté) et provisoire (estimation, T2.3-e)
+  consomme: [m4.travaux_termines, m3.devis_accepte, m3.besoins_materiaux, m1.courriel_aiguille,
+             m1.commande_courriel_envoyee]  # le réel (WCT), le prévu définitif (devis accepté) et provisoire (estimation, T2.3-e)
   # PLAN T4.15 : m6.reception_enregistree (M6.16) : ce qui est arrivé d'un PO persisté, dans la transaction de la
   # réception ; M5 en tire ce qu'il doit attendre de payer. Aucun montant calculé, aucune unité convertie.
   # PLAN T4.14 : m6.materiel_pret (M6.4, M6.8) : la réservation du matériel d'un devis accepté change (elle naît, se
   # complète, cède du stock, est libérée) ; `pret`, `partiel` ou `a_commander`, avec les lignes manquantes. M4 le lit
   # (`preparation.py`). Publié dans la transaction du fait de réservation ; jamais pour un prévu vide, jamais un bon de
   # commande.
-  publie: [m6.catalogue_reference, m6.note_commande_referencee, m6.variance_chantier, m6.reception_enregistree, m6.materiel_pret]   # types au catalogue, M6 en est propriétaire
+  # M6.6 (commande par courriel via M1) : m6.po_courriel_pret offre à M1, le canal, le courriel de commande d'un PO
+  # approuvé (brouillon dans le sas d'envoi, jamais envoyé sans approbation) ; M6 consomme l'aiguillage de M1 (demande de
+  # commande, confirmation de fournisseur) et l'envoi constaté. M6 reste la source de vérité du PO.
+  publie: [m6.catalogue_reference, m6.note_commande_referencee, m6.variance_chantier, m6.reception_enregistree, m6.materiel_pret,
+           m6.po_courriel_pret]   # types au catalogue, M6 en est propriétaire
 configuration:
   # Seuil de criticité de la variance de CHANTIER (m6.variance_chantier, distinct du seuil de
   # variance d'INVENTAIRE physique qui reste fourni par l'appelant de m6_soumettre_comptage).

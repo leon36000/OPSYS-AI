@@ -107,10 +107,11 @@
      "niveau": "T"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
    "current_status": "SIMULE",
-   "limite": "Machine à états des phases 0→5, consentement et garde-fou des interdits, testés en processus. Aucun runtime STT/TTS/SIP/VAD, aucune mesure de latence ; le module voice-call du Core n'est pas câblé (M1-canaux §7).",
-   "verification": "grep twilio|sip : fournisseurs listés dans outils.py seulement pour l'import d'appel par l'hôte (mock/twilio/telnyx/plivo), aucun pipeline"
+   "limite": "Statut revérifié le 2026-11-01 sans changement : aucun runtime STT/TTS/SIP/VAD n'existe dans le dépôt ; avatars.CANAUX_REALISES = {messagerie} (la politique refuse tout canal vocal « disponible ») ; phases_voix.py ne fait que consommer des événements fournis par l'hôte. Rien n'a été branché dans cette tranche : le contrat de session voix est seulement réutilisé par l'assistant SMS.",
+   "verification": "grep twilio|sip : fournisseurs listés dans outils.py seulement pour l'import d'appel par l'hôte (mock/twilio/telnyx/plivo), aucun pipeline",
+   "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
   },
   {
    "id": "M1.3",
@@ -241,17 +242,23 @@
    ],
    "proofs": [
     {
-     "tests": [],
-     "docs": [
-      "docs/departements/M1-canaux.md"
+     "tests": [
+      "departments/m01-front-office/tests/test_tri_courriel.py",
+      "departments/m01-front-office/tests/test_tri_extraction.py",
+      "tests/test_m1_tri_courriel_e2e.py",
+      "tests/test_m1_m6_courriel_flux.py",
+      "tests/test_m1_m6_humain_requis.py"
      ],
-     "niveau": "-"
+     "docs": [
+      "docs/architecture/M1-M6-LEA-ROSALIE.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Seul existe le stockage d'originaux chiffrés (src/opsys/reception_courriel_*.py) : aucun classifieur, brouillon ni routage. Aucun test de triage (grep triage dans src et dans M1 : 0).",
-   "verification": "grep -ri triage src departments/m01-front-office : 0 fichier"
+   "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
+   "current_status": "PARTIEL",
+   "limite": "Tri déterministe à règles explicables (54 règles v1, classe + confiance + raisons + revue humaine), aiguillage par événements (m1.courriel_aiguille vers M5/M6, plainte vers le transfert interne, lead par la réception existante), faits minimaux sans texte ni adresse, injection testée, corpus FICTIF de 260 cas écrit par deux rédacteurs indépendants. Mesure v1 : justesse 0,638 (dev) et 0,685 (test) ; précision élevée, rappel moyen, 28 erreurs sur 41-47 sont des abstentions. Doubles seulement : aucun courrier réel, aucune mesure hors corpus fictif. En production la liste des serveurs de réception de confiance n'est pas câblée (authentification jamais « complète »). Pas de brouillon de réponse produit par le tri (m1_preparer_reponse_courriel existe à part).",
+   "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
   },
   {
    "id": "M1.7",
@@ -275,20 +282,20 @@
    "proofs": [
     {
      "tests": [
-      "departments/m01-front-office/tests/test_retrait_publie.py",
-      "departments/m02-revenue-crm/tests/test_consommer_retrait_consentement.py",
-      "departments/m01-front-office/tests/test_adaptateurs.py",
-      "tests/test_canal_conversation.py",
-      "tests/test_console_agents_sms.py"
+      "departments/m01-front-office/tests/test_gabarits_sms.py",
+      "tests/test_m1_sms_e2e.py",
+      "departments/m01-front-office/tests/test_retrait_publie.py"
      ],
-     "docs": [],
+     "docs": [
+      "docs/architecture/M1-M6-LEA-ROSALIE.md"
+     ],
      "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
-   "current_status": "SIMULE",
-   "limite": "STOP/retrait de consentement publié par lead_id et consommé par M2 et M7 (S) ; l'émission de notification va vers un bus en mémoire (adaptateurs.creer_bus(mode_ombre=True)) : aucun envoi SMS réel.",
-   "verification": "outils.py::emettre_notification instancie le bus en mode ombre"
+   "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
+   "current_status": "PARTIEL",
+   "limite": "Gouvernance prouvée hors réseau : divulgation « assistant virtuel » d'abord (contrat de session voix réutilisé), opt-in OUI exprès pour tout rappel, STOP prime (même entre la demande et l'approbation), message exact approuvé en N4 sur m1_emettre_notification, pas de rejeu (issue ENVOYE_INCONNU), fenêtre de réponse de 24 h, gabarits fixes sous garde-fou. SIMULÉ : aucun transport SMS réel (le bus d'émission est un double en mode ombre), aucun opérateur, politique d'opt-in SMS en PROPOSITION ; photos, paiement et suivi se limitent à des gabarits (M5 fournit le paiement, M1 ne donne ni lien ni montant).",
+   "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
   },
   {
    "id": "M1.8",
@@ -342,11 +349,24 @@
     "Identifiants Twilio / SIP / STT réels non fournis (gate DEFINITION §10)"
    ],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "M1 ne consomme aucun événement et ne lit pas M4 (department.yaml : evenements.publie seulement). La règle « ne jamais confirmer sans créer l'événement » n'est respectée que par absence de confirmation.",
-   "verification": "department.yaml M1 : pas de clé evenements.consomme"
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_rendez_vous.py",
+      "tests/test_m1_rendez_vous_e2e.py",
+      "tests/test_m1_rendez_vous_m4_reel.py",
+      "tests/test_m1_m6_humain_requis.py"
+     ],
+     "docs": [
+      "docs/architecture/M1-M6-LEA-ROSALIE.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
+   "current_status": "PARTIEL",
+   "limite": "Capacité des équipes et semaine datée de la cédule lues dans le VRAI M4 par un port privé à deux lectures T0 (aucun droit d'appareil élargi) ; fenêtres proposées en minutes entières, conflit avec les retenues de M1, retenue interne qui expire, confirmation par une personne seulement si M4 a déjà daté la cédule (l'heure vient de M4), brouillons de confirmation et de rappels (échéances calculées), idempotence par clé. Granularité : la SEMAINE (M4 n'expose pas de créneau libre à l'heure) ; aucun déclencheur automatique de rappel ; M1 n'écrit jamais dans M4 ; les rendez-vous d'estimation d'un vendeur (agenda M2) ne sont pas couverts.",
+   "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
   },
   {
    "id": "M1.10",
@@ -363,16 +383,21 @@
    ],
    "proofs": [
     {
-     "tests": [],
-     "docs": [
-      "docs/departements/M1-canaux.md"
+     "tests": [
+      "departments/m01-front-office/tests/test_identite_client.py",
+      "tests/test_m1_identite_client_e2e.py",
+      "tests/test_m1_m6_humain_requis.py"
      ],
-     "niveau": "-"
+     "docs": [
+      "docs/architecture/M1-M6-LEA-ROSALIE.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucune lecture bornée M2/M3/M4/M5 depuis M1, aucun mécanisme d'identité (le formulaire admet que l'usurpation de courriel est possible, M1-canaux §13.4)."
+   "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
+   "current_status": "PARTIEL",
+   "limite": "Machine d'états inconnu, à vérifier, vérifié (n moyens), refusé, expiré ; code à usage unique renvoyé par courriel (l'agent ne le voit ni ne le fournit), moyens attestés par une personne (type de pièce seulement), validation humaine pour le sensible, trois essais puis verrou, rétention bornée, pseudonyme du correspondant ; refus d'usurpation testés (autre expéditeur, authentification, code quoté, rejeu, expiration). NON FAIT : aucune lecture bornée M2/M3/M4/M5 depuis M1 : M1 décide s'il PEUT répondre sur un dossier, pas ce qu'il dit (phrase de repli « Je vais vérifier avec l'équipe ») ; pas de purge physique ; EFVP et avis juridique non faits.",
+   "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
   },
   {
    "id": "M1.11",
@@ -443,11 +468,23 @@
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun code de délai de réponse ni de raison de perte dans M1 ; M8 n'attribue que par utm_content.",
-   "verification": "grep delai_de_reponse|raison_de_perte|temps_de_reponse dans src M1 : 0"
+   "proofs": [
+    {
+     "tests": [
+      "departments/m01-front-office/tests/test_apprentissage.py",
+      "tests/test_m1_tri_courriel_e2e.py",
+      "tests/test_m1_m6_humain_requis.py"
+     ],
+     "docs": [
+      "docs/architecture/M1-M6-LEA-ROSALIE.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
+   "current_status": "PARTIEL",
+   "limite": "Retours humains (correction de classe, brouillon accepté/corrigé/rejeté) -> propositions déterministes hors ligne (expressions sur au moins 2 retours et 2 expéditeurs distincts, poids plafonné à 2, filtre contre chiffres, liens, adresses, consignes) -> mesure sur le corpus de garde -> promotion HUMAINE seulement (canari 1-50 % par hachage, promotion depuis un canari, retour arrière, régression bloquante, mesure refaite à la décision). Gain mesuré sur corpus FICTIF : justesse 0,685 à 0,715 (test) à partir des erreurs de dev. NON FAIT : délais de réponse, conversions, raisons de perte (pas de source dans M1) ; aucun apprentissage sur du courrier réel.",
+   "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
   },
   {
    "id": "M1.14",

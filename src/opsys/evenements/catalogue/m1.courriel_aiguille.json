@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.courriel_aiguille",
+  "title": "M1 — Courriel trié et aiguillé",
+  "description": "Émis par M1 (departments/m01-front-office/src/m1_front_office/tri_courriel_outils.py, M1.6) quand le tri déterministe a classé un courriel reçu d'un connecteur : classe, confiance, règles déclenchées et département aiguillé. Aucun texte de courriel ni adresse : seulement des FAITS minimaux et bornés (jetons de référence à vérifier, lignes de quantités, état annoncé par un fournisseur, dates annoncées, empreinte de l'expéditeur) que M5 et M6 rapprochent de leurs propres registres. Le tri n'agit jamais à l'externe ; un consommateur ne crée que des brouillons ou des attentes. `revue_humaine` vrai : une personne doit relire avant tout effet. evenement_id déterministe (m1-aiguille-<signal>-<empreinte des règles>) : un rejeu est un no-op.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "signal_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "compte_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "classe": {
+      "enum": [
+        "pourriel_hameconnage",
+        "plainte",
+        "facture_fournisseur",
+        "confirmation_fournisseur",
+        "commande_materiaux",
+        "demande_soumission",
+        "reponse_client",
+        "interne",
+        "autre"
+      ]
+    },
+    "confiance": {
+      "type": "string",
+      "pattern": "^[01]\\.[0-9]{2}$"
+    },
+    "aiguillage": {
+      "enum": [
+        "m02",
+        "m01_plaintes",
+        "m05",
+        "m06",
+        "m01_suivi",
+        "aucun",
+        "quarantaine",
+        "revue_humaine"
+      ]
+    },
+    "revue_humaine": {
+      "type": "boolean"
+    },
+    "motifs_revue": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "maxLength": 48
+      }
+    },
+    "regles": {
+      "type": "array",
+      "maxItems": 40,
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      }
+    },
+    "version_regles": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "canari": {
+      "type": "boolean"
+    },
+    "nb_pieces": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "recu_le": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "jetons_reference": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z0-9_-]{3,40}$"
+      }
+    },
+    "references_po": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z0-9_-]{3,40}$"
+      }
+    },
+    "lignes": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "designation": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80,
+            "pattern": "^[a-z0-9'/% -]+$"
+          },
+          "quantite": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]{1,2})?$",
+            "maxLength": 10
+          },
+          "unite": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 16
+          }
+        },
+        "required": [
+          "designation",
+          "quantite",
+          "unite"
+        ]
+      }
+    },
+    "etat_annonce": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "enum": [
+          "rupture",
+          "report",
+          "substitution",
+          "expediee",
+          "confirmee"
+        ]
+      }
+    },
+    "dates_annoncees": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "string",
+        "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+      }
+    },
+    "expediteur_empreinte": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "authentification_complete": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "signal_id",
+    "compte_id",
+    "classe",
+    "confiance",
+    "aiguillage",
+    "revue_humaine",
+    "motifs_revue",
+    "regles",
+    "version_regles",
+    "canari",
+    "nb_pieces",
+    "recu_le",
+    "jetons_reference",
+    "references_po",
+    "lignes",
+    "etat_annonce",
+    "dates_annoncees",
+    "expediteur_empreinte",
+    "authentification_complete"
+  ]
+}

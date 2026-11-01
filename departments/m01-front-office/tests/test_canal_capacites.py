@@ -201,9 +201,12 @@ def test_accueil_transferts_import_et_suivi_sont_n2_et_rien_n_est_t3_dans_m1(dep
     par_nom = {o.nom: o for o in dep.charger_outils()}
     n2 = sorted(nom for nom, o in par_nom.items() if o.niveau_effectif.value == "N2")
     assert n2 == [
-        "m1_consigner_suivi_rappel", "m1_demander_envoi_courriel", "m1_escalader_plainte",
-        "m1_importer_appel_manuellement", "m1_prendre_en_charge_rappel_appareil", "m1_preparer_reponse_courriel",
-        "m1_recevoir_message_canal", "m1_transferer",
+        "m1_annuler_rendez_vous", "m1_consigner_moyen_verification", "m1_consigner_suivi_rappel",
+        "m1_demander_envoi_courriel", "m1_escalader_plainte", "m1_importer_appel_manuellement",
+        "m1_ouvrir_verification_identite", "m1_prendre_en_charge_rappel_appareil", "m1_preparer_messages_rdv",
+        "m1_preparer_reponse_courriel", "m1_proposer_amelioration", "m1_proposer_fenetres_rdv",
+        "m1_recevoir_message_canal", "m1_retenir_fenetre_rdv", "m1_sms_demander_envoi", "m1_sms_preparer_message",
+        "m1_transferer", "m1_trier_courriel",
     ]
     assert not any(o.frontiere_humaine for o in par_nom.values())
     assert par_nom["m1_emettre_notification"].niveau_effectif.value == "N4"

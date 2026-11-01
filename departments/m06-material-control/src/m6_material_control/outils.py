@@ -75,6 +75,8 @@ et ne paie rien ; il ne convertit aucune unité (le livre de prix n'en déclare 
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -1638,7 +1640,25 @@ def generer_courriel_po(
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    _publier_courriel_po_pret(resultat)
     return _reponse_po(resultat, registre_cible)
+
+
+def _publier_courriel_po_pret(po: dict[str, Any]) -> None:
+    """M6.6 : le courriel de commande généré est offert à M1, le CANAL (`m6.po_courriel_pret`), qui en tire un
+    brouillon dans le sas d'envoi. Rien n'est envoyé ici. Pas de boîte de commande déclarée, ou hors transaction :
+    aucun événement (le repli manuel documenté reste)."""
+    courriel = po.get("courriel") or {}
+    if stockage.connexion_courante() is None or not courriel.get("destinataire"):
+        return
+    empreinte = hashlib.sha256(json.dumps(courriel, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    try:
+        evenements.publier("m6.po_courriel_pret", _DEPARTEMENT, {
+            "po_id": po["po_id"], "fournisseur_id": po["fournisseur_id"], "destinataire": courriel["destinataire"],
+            "objet": courriel["objet"], "corps": courriel["corps"], "empreinte": empreinte},
+            evenement_id=f"m6-po-courriel-{po['po_id']}-{empreinte[:16]}")
+    except evenements.ChargeInvalide:
+        return  # adresse de commande illisible : le repli manuel s'applique, rien n'est inventé
 
 
 def marquer_po_envoye(
@@ -2653,6 +2673,7 @@ _PAGE_CLASSEMENT = {
 
 def outils() -> tuple[Outil, ...]:
     from .catalogue_console import outils as outils_catalogue
+    from .commande_courriel_outils import outils_commande_courriel
     from .fournisseurs_console import outils as outils_fournisseurs
     from .prix_console import outils as outils_prix
 
@@ -3420,7 +3441,7 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=lister_notes_commande, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
-    ) + outils_catalogue() + outils_prix() + outils_fournisseurs()
+    ) + outils_catalogue() + outils_prix() + outils_fournisseurs() + outils_commande_courriel()
 
 # ---------------------------------------------------------------------------------------------
 # Consommateurs d'événements (ADR-0009 §3, PLAN T1.2, point 3 ; correctif : le trou du flux réel)
@@ -3563,11 +3584,26 @@ def _recevoir_besoins_materiaux(charge: dict[str, Any]) -> dict[str, Any]:
     return resultat
 
 
+def _recevoir_courriel_aiguille(charge: dict[str, Any]) -> dict[str, Any]:
+    from . import commande_courriel_outils
+
+    return commande_courriel_outils.recevoir_courriel_aiguille(charge)
+
+
+def _recevoir_commande_courriel_envoyee(charge: dict[str, Any]) -> dict[str, Any]:
+    from . import commande_courriel_outils
+
+    return commande_courriel_outils.recevoir_commande_envoyee(charge)
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m3.devis_accepte": _recevoir_devis_accepte,
         "m3.besoins_materiaux": _recevoir_besoins_materiaux,
+        # M6.6 : ce que M1 aiguille vers M6 (commande par courriel, confirmation d'un fournisseur) et l'envoi constaté.
+        "m1.courriel_aiguille": _recevoir_courriel_aiguille,
+        "m1.commande_courriel_envoyee": _recevoir_commande_courriel_envoyee,
     }
 
 
@@ -3582,10 +3618,12 @@ def attentes() -> list[dict[str, Any]]:
     une attente `besoin_commande` par article constaté dont le stock est encore sous le seuil, et une seule
     attente `seuil_a_configurer` pour les articles sans paramètres utilisables. Lecture seule : ne crée ni
     bon de commande, ni mouvement, ni constat. Sans constat au registre, aucune attente."""
+    from . import commande_courriel_outils
+
     return reapprovisionnement.attentes(
         stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_COMMANDE),
         stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE),
         _articles_reapprovisionnement(),
         reserves=reservations.reserve_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS)),
         hors_main=emplacements.hors_main_par_article(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS)),
-    )
+    ) + commande_courriel_outils.attentes_courriel()

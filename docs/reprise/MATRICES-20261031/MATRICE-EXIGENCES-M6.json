@@ -200,10 +200,23 @@
    "decisions_nathan": [
     "Autorisation d'envoi des commandes et identité du correspondant"
    ],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "M6 génère le corps du courriel (m6_generer_courriel_po) mais M1 n'a ni consommateur ni outil de sortie : la moitié M1 n'existe pas."
+   "proofs": [
+    {
+     "tests": [
+      "departments/m06-material-control/tests/test_commande_courriel.py",
+      "tests/test_m1_m6_courriel_flux.py",
+      "tests/test_m1_m6_humain_requis.py"
+     ],
+     "docs": [
+      "docs/architecture/M1-M6-LEA-ROSALIE.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "2f7c81c0f73777d65f0af2b107658367eed9ca7f",
+   "current_status": "PARTIEL",
+   "limite": "Entrant : une demande de commande reçue par courriel (via le tri de M1) devient un brouillon de demande rapproché des devis et des WCT par identifiant exact, idempotent par message, avec provenance, sans PO créé ; la confirmation d'un fournisseur ne met le PO à « confirmé » que si PO unique, expéditeur = boîte de commande, authentification de confiance et aucune anomalie, sinon une personne tranche. Sortant : m6_generer_courriel_po publie m6.po_courriel_pret, M1 prépare le brouillon dans le sas, une personne approuve, le planificateur envoie une fois, M6 reçoit une attente « marquer le PO envoyé » (N4 inchangé). Pont M1 vers M5 : facture reçue = attente « à saisir », aucun montant lu. Doubles seulement : aucun courriel réel, aucun fournisseur réel (Gentek, Royal, O.A.M., Kaycan non joints), aucune politique d'envoi réel validée par Nathan ; l'authentification de confiance n'est pas câblée en production.",
+   "verifie_sur_branche": "claude/m1-m6-lea-rosalie"
   },
   {
    "id": "M6.7",

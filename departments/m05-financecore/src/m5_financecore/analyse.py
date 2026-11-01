@@ -157,6 +157,12 @@ SORTIES_HORS_ANALYSE = {
     "m5_calculer_taxes_tps_tvq": "calcul déterministe avec taux versionnés et sourcés, sans interprétation",
     "m5_enregistrer_mouvement": "écriture d'un mouvement (T3) : la sortie est le maillon écrit",
     "m5_creer_facture_brouillon": "écriture d'un brouillon (T1) : la sortie est la facture recalculée",
+    "m5_lister_factures_courriel": (
+        "liste les factures reçues par courriel et leur état de classement : des faits du registre, sans montant lu"
+    ),
+    "m5_classer_facture_courriel": (
+        "classement humain (N3) d'une facture reçue par courriel : l'écriture est la décision, sans calcul ni montant"
+    ),
     "m5_lister_attentes_facturation": "liste de ce qui attend, avec l'étape manquante : un fait du registre",
     "m5_lire_comptes_a_recevoir": "liste des factures envoyées et de leur âge : un fait du registre",
     "m5_envoyer_facture": "action de N4, déjà tenue par une approbation humaine du socle",

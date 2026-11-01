@@ -62,6 +62,7 @@ ADMIN_SEUL = frozenset({
     "m1_produire_digest", "m1_importer_appel_manuellement",
     "m1_lire_transfert", "m1_clore_transfert",  # transferts à un humain : lire, clore en personne (T4.5)
     "m1_lister_rappels_appareil", "m1_prendre_en_charge_rappel_appareil",
+    "m1_confirmer_rendez_vous",  # M1.9 : confirmer un rendez-vous d'après la cédule datée par M4 (admin, depuis l'app)
     "m2_arbitrer_doublon", "m2_detecter_doublons", "m2_produire_digest", "m2_signaler_doublon",
     # réassigner un lead (décision humaine) et republier le fait de propriété d'avant T1.4-k2 (T1.4-m)
     "m2_reassigner_lead", "m2_republier_assignations",

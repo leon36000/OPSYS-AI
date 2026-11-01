@@ -78,6 +78,7 @@ __all__ = [
     "annuler",
     "generer_courriel",
     "marquer_envoye",
+    "confirmer_fournisseur",
     "enregistrer_reception_po",
     "construire_livraison",
     "livraison_deja_enregistree",
@@ -439,6 +440,22 @@ def marquer_envoye(po_id: Any, horodatage: Any, registre_po: Any) -> tuple[dict[
     primitive d'envoi ici — le courriel généré par ``generer_courriel`` reste à transmettre par le
     repli manuel documenté (M1 plus tard)."""
     return _transitionner(registre_po, po_id, "sent_to_supplier", horodatage)
+
+
+def confirmer_fournisseur(
+    po_id: Any, horodatage: Any, registre_po: Any, provenance: Mapping[str, Any]
+) -> tuple[dict[str, Any] | None, dict | None]:
+    """sent_to_supplier -> supplier_confirmed (M6.6) : le fournisseur a confirmé la commande par courriel. Suivi interne
+    seulement ; la preuve (message, conditions vérifiées) est rangée sur la transition. Jamais depuis un autre
+    statut."""
+    etat = lire(registre_po, po_id)
+    if etat is not None and etat["statut"] != "sent_to_supplier":
+        return None, verdicts.construire_verdict(
+            "REJ-PO-TRANSITION-ILLEGALE",
+            detail=f"PO {po_id!r} au statut {etat['statut']!r} : une confirmation de fournisseur ne s'applique qu'à "
+                   "un PO envoyé",
+        )
+    return _transitionner(registre_po, po_id, "supplier_confirmed", horodatage, confirmation_courriel=dict(provenance))
 
 
 def peut_recevoir(statut_actuel: Any) -> bool:

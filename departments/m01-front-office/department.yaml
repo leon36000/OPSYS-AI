@@ -32,6 +32,10 @@ skills:
   - recevoir-un-message-de-canal
   - transferer-a-un-humain
   - repondre-a-un-courriel
+  - trier-les-courriels
+  - verifier-l-identite-d-un-correspondant
+  - proposer-un-rendez-vous
+  - assistant-sms
 # PLAN T2.1-a : M1 reçoit le public par le canal SMS du core (extension `sms`). Le socle en tire la configuration
 # d'OPSYS-CORE (`opsys-metier openclaw configurer`) : canal désactivé tant que ses identifiants et la validation écrite des
 # politiques ne sont pas fournis, une session par client, aucune réponse automatique, outils fermés. Conception :
@@ -44,9 +48,13 @@ canaux: [sms]
 # CABLAGE-CONNECTEURS : M1 publie aussi le fil du courriel (message reçu d'un connecteur, brouillon de réponse prêt,
 # approbation d'envoi demandée) et, par le planificateur (acteur système, approbation consommée), l'envoi fait ou non
 # abouti. Aucun contact ni texte dans ces événements.
+# M1-M6-LEA-ROSALIE : M1 trie les courriels reçus (consomme m1.courriel_recu) et publie l'aiguillage
+# (m1.courriel_aiguille : classe, confiance, faits minimaux, jamais de texte ni d'adresse) que M5 et M6 consomment.
 evenements:
+  consomme: [m1.courriel_recu, m6.po_courriel_pret, m1.courriel_envoye]
   publie: [m1.lead_qualifie, m1.retrait_consentement, m1.courriel_recu, m1.brouillon_courriel_pret,
-           m1.approbation_envoi_demandee, m1.courriel_envoye, m1.envoi_courriel_echoue]
+           m1.approbation_envoi_demandee, m1.courriel_envoye, m1.envoi_courriel_echoue, m1.courriel_aiguille,
+           m1.commande_courriel_envoyee]
 planifications:
   - nom: digest-front-office
     cron: "0 7 * * 1-5"
@@ -68,3 +76,10 @@ kpis:
     description: >-
       Part des tentatives de violation des interdits absolus (prix, date, engagement,
       aveu) bloquées avant toute sortie — doit rester à 100 %.
+configuration:
+  # Tri des courriels (M1.6) : les domaines de messagerie de L'ENTREPRISE (ex. "monentreprise.example"), pour reconnaître un
+  # courriel INTERNE. Liste vide à dessein : sans déclaration, aucun courriel n'est jamais classé « interne » (fail-closed).
+  # Un domaine de messagerie publique (gmail.com, outlook.com…) est refusé : il ne dit rien de l'appartenance à l'entreprise.
+  # Même avec un domaine déclaré, « interne » exige l'authentification SPF, DKIM et DMARC « pass » écrite par un serveur de
+  # réception de confiance ; sinon le courriel est traité comme une usurpation possible.
+  domaines_internes: []

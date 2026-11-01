@@ -25,7 +25,10 @@ dependances: [m02-revenue-crm, m03-estimation, m04-field-ops, m06-material-contr
 evenements:                                          # ADR-0009 §3, PLAN T1.2-d/T1.3-c/T2.2
   # client réel + brouillon + signal M6 ; PLAN T4.15 : m6.reception_enregistree, ce qui est arrivé d'un PO (l'« à payer
   # attendu » des comptes à payer). Les comptes à payer se lisent (m5_lister_comptes_a_payer).
-  consomme: [m2.client_associe, m3.devis_accepte, m4.travaux_termines, m6.variance_chantier, m6.reception_enregistree]
+  # M1.6 / M6.16 : m1.courriel_aiguille (facture de fournisseur reçue par courriel) devient une attente « à saisir », jamais
+  # une écriture ; aucun montant n'est lu du courriel.
+  consomme: [m2.client_associe, m3.devis_accepte, m4.travaux_termines, m6.variance_chantier, m6.reception_enregistree,
+             m1.courriel_aiguille]
   # PLAN T1.5-d : la marge réelle du chantier (ou ce qui manque pour la chiffrer) atteint M8 et M10. Jamais
   # un prix unitaire, un taux ni une donnée de client ; jamais une marge pour un coût partiel.
   # PLAN T4.19-b : le cash libre constaté (m5.cash_libre_constate) atteint M8, qui l'affiche dans la vue exécutive. Les

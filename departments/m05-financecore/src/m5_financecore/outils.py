@@ -3597,6 +3597,12 @@ def _recevoir_client_associe(charge: dict[str, Any]) -> dict[str, Any]:
     return {"traite": True, "lead_id": lead_id, "client_id": charge["client_id"]}
 
 
+def _recevoir_courriel_aiguille(charge: dict[str, Any]) -> dict[str, Any]:
+    from . import facture_courriel_outils
+
+    return facture_courriel_outils.recevoir_courriel_aiguille(charge)
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     return {
         "m2.client_associe": _recevoir_client_associe,
@@ -3604,6 +3610,9 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m6.variance_chantier": _recevoir_variance_chantier,
         comptes_a_payer.TYPE_EVENEMENT_RECEPTION: _recevoir_reception_enregistree,
+        # Pont M1 -> M5 : une facture de fournisseur reçue par courriel devient une attente « à saisir » (jamais une
+        # écriture).
+        "m1.courriel_aiguille": _recevoir_courriel_aiguille,
     }
 
 
@@ -3790,7 +3799,9 @@ def attentes() -> list[dict[str, Any]]:
         if variance is not None:
             items.append(variance)
 
-    return items
+    from . import facture_courriel_outils
+
+    return items + facture_courriel_outils.attentes_factures_courriel()
 
 
 def _vue_chantier(etat: dict[str, Any], sources: dict[str, Any], autorise_couts: bool, detail: bool) -> dict[str, Any]:
@@ -7891,4 +7902,12 @@ def _outils_calcul() -> tuple[Outil, ...]:
             fonction=verifier_recu_calcul,
             autonomie=Autonomie.T0,
         ),
+        *_outils_facture_courriel(),
     )
+
+
+def _outils_facture_courriel() -> tuple[Outil, ...]:
+    """Factures de fournisseurs reçues par courriel via M1 (pont M1 -> M5) : lecture et classement humain."""
+    from .facture_courriel_outils import outils_facture_courriel
+
+    return outils_facture_courriel()
