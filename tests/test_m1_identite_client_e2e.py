@@ -51,7 +51,7 @@ def _ouvrir(w, finalite="facturation", **plus):
 
 
 def _contient(code, texte):
-    """Le code figure-t-il comme valeur? Une suite de chiffres au milieu d'une empreinte hexadécimale n'en est pas une."""
+    """Le code figure-t-il comme valeur? Des chiffres au milieu d'une empreinte hexadécimale n'en sont pas une."""
     return re.search(rf"(?<![0-9a-f]){code}(?![0-9a-f])", texte) is not None
 
 
