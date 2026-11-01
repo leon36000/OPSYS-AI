@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m8.fait_consolide",
+  "title": "M8 — Faits analytiques consolidés, publiés pour la mémoire de M10",
+  "description": "Émis par M8 (departments/m08-analytics/src/m8_analytics/outils.py::m8_publier_faits_consolides, M8.18) : les mesures d'ENTREPRISE du catalogue fermé de M8 (valeur exacte en texte, ou null si non calculable ; unité ; propriétaire ; version de la définition gouvernée ; instant du dernier fait ; statut de fraîcheur), avec les changements de définition et les anomalies depuis la consolidation précédente. Consommé par M10, qui le mémorise tel quel dans son registre `faits_analytiques` (append-only). evenement_id déterministe lié à l'empreinte des registres de M8 et à la version du catalogue : republier le même état rejoue la première enveloppe. RIEN de personnel : aucun technicien, client, contact ni texte libre ; seulement des identifiants de mesure, des comptes, des montants arrêtés par les départements propriétaires, des instants et des codes. Aucune de ces valeurs n'est une source de vérité comptable : les registres des départements propriétaires le restent. Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mesure": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metric_id": {"type": "string", "pattern": "^m8_[a-z0-9_]{1,76}$"},
+        "nom": {"type": "string", "minLength": 1, "maxLength": 120},
+        "domaine": {"type": "string", "enum": ["ventes", "marketing", "operations", "qualite", "finance", "clientele"]},
+        "unite": {"type": "string", "minLength": 1, "maxLength": 32},
+        "proprietaire": {"type": "string", "pattern": "^m[0-9]{2}-[a-z0-9-]{1,40}$"},
+        "statut": {"type": "string", "enum": ["calculee", "non_calculable"]},
+        "valeur": {"type": ["string", "null"], "pattern": "^-?[0-9]+(\\.[0-9]+)?$", "maxLength": 24},
+        "version_definition": {"$ref": "#/$defs/sha256"},
+        "dernier_fait_le": {"type": ["string", "null"], "maxLength": 40},
+        "fraicheur": {"type": "string", "enum": ["a_jour", "perime", "inconnu", "manquant", "non_applicable"]}
+      },
+      "required": ["metric_id", "nom", "domaine", "unite", "proprietaire", "statut", "valeur", "version_definition", "dernier_fait_le", "fraicheur"]
+    }
+  },
+  "properties": {
+    "evenement_id": {"type": "string", "pattern": "^m8-faits-[0-9a-f]{64}$"},
+    "consolide_le": {"type": "string", "minLength": 20, "maxLength": 40},
+    "empreinte_registres": {"$ref": "#/$defs/sha256"},
+    "version_catalogue": {"$ref": "#/$defs/sha256"},
+    "premiere_consolidation": {"type": "boolean"},
+    "mesures": {"type": "array", "minItems": 1, "maxItems": 40, "items": {"$ref": "#/$defs/mesure"}},
+    "changements_definition": {
+      "type": "array", "maxItems": 40,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "metric_id": {"type": "string", "pattern": "^m8_[a-z0-9_]{1,76}$"},
+          "ancienne": {"$ref": "#/$defs/sha256"},
+          "nouvelle": {"$ref": "#/$defs/sha256"}
+        },
+        "required": ["metric_id", "ancienne", "nouvelle"]
+      }
+    },
+    "anomalies": {
+      "type": "array", "maxItems": 80,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "metric_id": {"type": "string", "pattern": "^m8_[a-z0-9_]{1,76}$"},
+          "type": {"type": "string", "enum": ["devenue_non_calculable", "perimee"]}
+        },
+        "required": ["metric_id", "type"]
+      }
+    },
+    "mention": {"type": "string", "minLength": 1, "maxLength": 400}
+  },
+  "required": ["evenement_id", "consolide_le", "empreinte_registres", "version_catalogue", "premiere_consolidation", "mesures", "changements_definition", "anomalies", "mention"]
+}

@@ -1915,3 +1915,153 @@ PLANIFICATEUR_JOURNAL = Table(
     Column("details", Text, nullable=False),
     Index("ix_planificateur_journal_executeur", "executeur", "id"),
 )
+
+# -- M8 : entrepôt analytique DÉRIVÉ et pont BI en lecture (migration 0046) ---------------------------------------
+# L'entrepôt (M8.2) n'est JAMAIS une source de vérité : chaque table est reconstructible depuis les registres des
+# départements (`faits_chantier`, `faits_entonnoir`, `faits_contenus`, `faits_cash_libre`), qui restent la vérité. Il
+# est
+# versionné (`version_schema`, `version_catalogue`, empreinte des registres sources) et chaque mesure porte sa
+# fraîcheur et sa
+# provenance. `m8_ent_constructions` est le journal des constructions (une ligne par état distinct des registres) ;
+# les tables
+# `m8_ent_*` autres que `m8_ent_mesures_hist` ne portent que la construction COURANTE (remplacée en bloc, dans une
+# transaction).
+# Aucune colonne ne porte une personne (ni technicien, ni client, ni contact) : seulement des identifiants d'affaire,
+# des
+# instants, des comptes et des montants arrêtés par les départements propriétaires.
+M8_ENT_CONSTRUCTIONS = Table(
+    "m8_ent_constructions", META,
+    Column("rang", Integer, primary_key=True, autoincrement=True),
+    Column("construction_id", String(64), nullable=False, unique=True),
+    Column("version_schema", Integer, nullable=False),
+    Column("version_catalogue", String(64), nullable=False),
+    Column("empreinte_registres", String(64), nullable=False),
+    Column("construit_le", Text, nullable=False),
+    Column("nb_mesures", Integer, nullable=False),
+    Column("comptes", Text, nullable=False),
+    CheckConstraint("version_schema >= 1 AND nb_mesures >= 0", name="bornes"),
+)
+M8_ENT_MESURES_COURANTES = Table(
+    "m8_ent_mesures_courantes", META,
+    Column("metric_id", String(80), primary_key=True),
+    Column("construction_id", String(64), ForeignKey("m8_ent_constructions.construction_id"), nullable=False),
+    Column("nom", Text, nullable=False),
+    Column("domaine", String(24), nullable=False),
+    Column("sens", String(20), nullable=False),
+    Column("sensibilite", String(16), nullable=False),
+    Column("proprietaire", String(64), nullable=False),
+    Column("unite", String(32), nullable=False),
+    Column("statut", String(16), nullable=False),
+    Column("valeur", Text, nullable=True),
+    Column("detail", Text, nullable=True),
+    Column("source", Text, nullable=False),
+    Column("version_definition", String(64), nullable=False),
+    Column("dernier_fait_le", Text, nullable=True),
+    Column("fraicheur_attendue_s", Integer, nullable=True),
+    Column("fraicheur_terminale", Boolean, nullable=False),
+    CheckConstraint("statut IN ('calculee','non_calculable')", name="statut_valide"),
+    CheckConstraint("(statut = 'calculee') = (valeur IS NOT NULL)", name="valeur_si_calculee"),
+)
+M8_ENT_MESURES_HIST = Table(
+    "m8_ent_mesures_hist", META,
+    Column("construction_id", String(64), ForeignKey("m8_ent_constructions.construction_id"), primary_key=True),
+    Column("metric_id", String(80), primary_key=True),
+    Column("construit_le", Text, nullable=False),
+    Column("statut", String(16), nullable=False),
+    Column("valeur", Text, nullable=True),
+    Column("version_definition", String(64), nullable=False),
+    Column("dernier_fait_le", Text, nullable=True),
+    Index("ix_m8_ent_mesures_hist_metrique", "metric_id", "construit_le"),
+)
+M8_ENT_DIM_CHANTIER = Table(
+    "m8_ent_dim_chantier", META,
+    Column("wct_id", String(256), primary_key=True),
+    Column("construction_id", String(64), ForeignKey("m8_ent_constructions.construction_id"), nullable=False),
+    Column("devis_id", String(256), nullable=True),
+    Column("termine_le", Text, nullable=False),
+    Column("duree_reelle_minutes", Integer, nullable=True),
+    Column("duree_estimee_minutes", Integer, nullable=True),
+    Column("statut_wct", String(64), nullable=True),
+    Column("variance_statut", String(32), nullable=True),
+    Column("signal_materiaux", Boolean, nullable=True),
+    Column("verdict_marge", String(32), nullable=True),
+    Column("marge_reelle_cad", Text, nullable=True),
+)
+M8_ENT_DIM_LEAD = Table(
+    "m8_ent_dim_lead", META,
+    Column("lead_id", String(256), primary_key=True),
+    Column("construction_id", String(64), ForeignKey("m8_ent_constructions.construction_id"), nullable=False),
+    Column("recu_le", Text, nullable=True),
+    Column("qualifie_le", Text, nullable=True),
+    Column("utm_content", String(256), nullable=True),
+)
+M8_ENT_FAIT_DEVIS = Table(
+    "m8_ent_fait_devis", META,
+    Column("devis_id", String(256), primary_key=True),
+    Column("construction_id", String(64), ForeignKey("m8_ent_constructions.construction_id"), nullable=False),
+    Column("lead_id", String(256), nullable=True),
+    Column("envoye_le", Text, nullable=True),
+    Column("accepte_le", Text, nullable=True),
+    Column("prix_total_cad", Text, nullable=True),
+    Column("sans_reponse_statut", String(16), nullable=True),
+    Column("sans_reponse_constate_le", Text, nullable=True),
+)
+M8_ENT_MART_CONTENUS = Table(
+    "m8_ent_mart_contenus", META,
+    Column("contenu_id", String(256), primary_key=True),
+    Column("construction_id", String(64), ForeignKey("m8_ent_constructions.construction_id"), nullable=False),
+    Column("utm_content", String(256), nullable=False),
+    Column("canal", String(32), nullable=True),
+    Column("wct_id", String(256), nullable=True),
+    Column("exporte_le", Text, nullable=True),
+    Column("suivi", String(16), nullable=False),
+    Column("leads", Integer, nullable=True),
+    Column("devis_envoyes", Integer, nullable=True),
+    Column("devis_acceptes", Integer, nullable=True),
+)
+M8_ENTREPOT_TABLES = (
+    M8_ENT_CONSTRUCTIONS, M8_ENT_MESURES_COURANTES, M8_ENT_MESURES_HIST, M8_ENT_DIM_CHANTIER, M8_ENT_DIM_LEAD,
+    M8_ENT_FAIT_DEVIS, M8_ENT_MART_CONTENUS,
+)
+
+# Pont vers les outils BI externes (M8.14) : EN LECTURE SEULE. Un jeton BI est un secret du coffre
+# (`pont-bi.<jeton_id>`)
+# à portée de lecture dédiée ; cette table n'en garde que les métadonnées (jamais la valeur, jamais son empreinte). Le
+# journal
+# d'accès est append-only (déclencheurs) : qui (jeton), quoi (jeu), combien (lignes), quand, refus et leur code ;
+# jamais le
+# contenu exporté ni le jeton présenté.
+PONT_BI_JETONS = Table(
+    "pont_bi_jetons", META,
+    Column("jeton_id", String(32), primary_key=True),
+    Column("libelle", String(120), nullable=False),
+    Column("secret_nom", String(80), nullable=False, unique=True),
+    Column("jeux", Text, nullable=False),
+    Column("financier", Boolean, nullable=False),
+    Column("quota_requetes_heure", Integer, nullable=False),
+    Column("quota_lignes_jour", Integer, nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("cree_par", String(200), nullable=False),
+    Column("expire_epoch", BigInteger, nullable=False),
+    Column("revoque", Boolean, nullable=False),
+    Column("revoque_le", Text, nullable=True),
+    Column("revoque_par", String(200), nullable=True),
+    CheckConstraint("quota_requetes_heure >= 1 AND quota_lignes_jour >= 1", name="quotas_positifs"),
+)
+PONT_BI_ACCES = Table(
+    "pont_bi_acces", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("quand", Text, nullable=False),
+    Column("epoch", BigInteger, nullable=False),
+    Column("jeton_id", String(32), nullable=True),
+    Column("jeu", String(64), nullable=True),
+    Column("format", String(16), nullable=True),
+    Column("phase", String(8), nullable=False),
+    Column("statut", String(16), nullable=False),
+    Column("code", String(64), nullable=True),
+    Column("lignes", Integer, nullable=True),
+    CheckConstraint("phase IN ('debut','fin')", name="phase_valide"),
+    CheckConstraint("statut IN ('accepte','refuse','termine','echec')", name="statut_valide"),
+    Index("ix_pont_bi_acces_jeton", "jeton_id", "epoch"),
+)
+PONT_BI_TABLES = (PONT_BI_JETONS, PONT_BI_ACCES)

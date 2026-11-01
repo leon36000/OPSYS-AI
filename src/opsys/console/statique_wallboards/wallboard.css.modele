@@ -1,0 +1,49 @@
+:root { color-scheme: light dark; /*VARIABLES_CLAIR*/ --bordure: #8b96a3;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 18px;
+  line-height: 1.45; }
+@media (prefers-color-scheme: dark) { :root { /*VARIABLES_SOMBRE*/ --bordure: #6b7683; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--texte-bg); color: var(--texte-fg); }
+a { color: inherit; }
+:focus-visible { outline: 4px solid var(--pause-bg); outline-offset: 3px; }
+.wb { max-width: 1600px; margin: 0 auto; padding: 1rem 1.25rem 2rem; }
+.wb h1 { margin: 0 0 .25rem; font-size: 1.9rem; }
+.wb .sous-titre, .wb .mise-a-jour { color: var(--attenue-fg); margin: .1rem 0; }
+.controles { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin: .75rem 0; }
+.controles button, .controles a { min-height: 44px; min-width: 44px; padding: .5rem 1rem; border-radius: 6px; font: inherit;
+  border: 2px solid var(--bordure); background: var(--texte-bg); color: var(--texte-fg); cursor: pointer; text-decoration: none; }
+.controles button[aria-pressed="true"] { background: var(--pause-bg); color: var(--pause-fg); border-color: var(--pause-bg); }
+.banniere { padding: .9rem 1.1rem; border-radius: 8px; border: 3px solid var(--bordure); margin: .75rem 0 1rem; font-weight: 600; }
+.banniere p { margin: .15rem 0; }
+.banniere-ok { background: var(--ok-bg); color: var(--ok-fg); border-color: var(--ok-bg); }
+.banniere-attention { background: var(--attention-bg); color: var(--attention-fg); border-color: var(--attention-fg); }
+.banniere-critique { background: var(--critique-bg); color: var(--critique-fg); border-color: var(--critique-fg); }
+.grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; padding: 0; margin: 0; }
+.tuile { border: 3px solid var(--bordure); border-radius: 10px; padding: 1rem; background: var(--texte-bg); list-style: none; }
+.tuile h2 { margin: 0 0 .4rem; font-size: 1.05rem; font-weight: 600; color: var(--attenue-fg); }
+.tuile .valeur { margin: 0; font-size: 2.4rem; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.tuile .etat { margin: .5rem 0 .25rem; font-weight: 600; padding: .25rem .5rem; border-radius: 6px; display: inline-block; }
+.tuile .detail { margin: .25rem 0 0; font-size: .85rem; color: var(--attenue-fg); }
+.tuile.etat-normal .etat, .tuile.etat-sans_seuil .etat { background: var(--ok-bg); color: var(--ok-fg); }
+.tuile.etat-sans_seuil .etat { background: var(--texte-bg); color: var(--texte-fg); border: 2px solid var(--bordure); }
+.tuile.etat-attention .etat { background: var(--attention-bg); color: var(--attention-fg); }
+.tuile.etat-critique { border-color: var(--critique-bg); }
+.tuile.etat-critique .etat { background: var(--critique-bg); color: var(--critique-fg); }
+.tuile.fraicheur-perime, .tuile.fraicheur-inconnu, .tuile.fraicheur-manquant, .tuile.deconnecte {
+  border-style: dashed; background: repeating-linear-gradient(135deg, var(--perime-bg), var(--perime-bg) 12px,
+  var(--texte-bg) 12px, var(--texte-bg) 24px); }
+.tuile.fraicheur-perime .valeur, .tuile.fraicheur-inconnu .valeur, .tuile.deconnecte .valeur { text-decoration: line-through;
+  text-decoration-thickness: 3px; }
+.tuile.fraicheur-perime .etat, .tuile.fraicheur-inconnu .etat, .tuile.fraicheur-manquant .etat, .tuile.deconnecte .etat {
+  background: var(--perime-fg); color: var(--perime-bg); }
+.tv .wb h1 { font-size: 3rem; }
+.tv .tuile .valeur { font-size: 4.2rem; }
+.tv .tuile h2 { font-size: 1.5rem; }
+.tv .tuile .etat { font-size: 1.3rem; }
+.tv .grille { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
+.cache { display: none; }
+.saut { position: absolute; left: -999px; top: 0; padding: .5rem 1rem; background: var(--texte-bg); color: var(--texte-fg); }
+.saut:focus { left: 0; z-index: 10; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+@media (forced-colors: active) { .tuile, .banniere { border: 3px solid CanvasText; } .tuile.etat-critique { border-width: 6px; } }
+@media (max-width: 480px) { .tuile .valeur { font-size: 1.9rem; } }

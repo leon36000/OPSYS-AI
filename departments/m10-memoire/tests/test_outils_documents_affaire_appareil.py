@@ -74,7 +74,10 @@ def test_declaration_fermee_t1_n3_admin_affaire_append_en_fin(index):
     alltools = outils.outils()
     # Les outils de la base de connaissances (`*_connaissance*`, tests/test_connaissances_outils.py) s'insèrent
     # AVANT les deux lecteurs documentaires : cette sentinelle garde l'inventaire des outils d'affaire.
-    assert tuple(o.nom for o in alltools if "connaissance" not in o.nom) == HISTORIQUES + NOMS + (
+    # Même chose pour `m10_lire_faits_analytiques` (M8.18, lecture des faits consolidés de M8,
+    # tests/test_analytique.py).
+    hors_ajouts = tuple(o.nom for o in alltools if "connaissance" not in o.nom and "faits_analytiques" not in o.nom)
+    assert hors_ajouts == HISTORIQUES + NOMS + (
         "m10_lister_documents_affaire_appareil",
         "m10_lire_version_document_affaire_appareil",
     )

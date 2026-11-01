@@ -82,7 +82,19 @@ filtrés par rôle, conformité statique et digest quotidien.
   est une borne basse (un client qui appelle ou écrit sans passer par le lien ne porte aucune clé : son lead n'est
   attribué à aucun contenu).
 
-DuckDB/Parquet, MMM (PyMC-Marketing) et l'orchestrateur horaire réel restent GATED (hors
+## Couche analytique d'entreprise (M8.2, M8.8, M8.11, M8.12, M8.14, M8.18)
+
+Un catalogue fermé de 18 mesures d'entreprise (`definitions/m8-catalogue.v1.yaml`), lues par un seul moteur (`moteur_mesures.py`) avec la fraîcheur
+de chaque mesure (`fraicheur_mesures.py`, la plus stricte des fenêtres), alimente : l'**entrepôt** dérivé et versionné (`entrepot.py`,
+`entrepot_stockage.py`, migration 0046), les **wallboards** déclaratifs (`wallboards/*.v1.yaml`, `wallboards.py`, servis par la console en SSE
+borné), le **score de santé** transparent et indéterminé plutôt que faux (`sante.py`, `definitions/m8-sante.v1.yaml`), le **copilote** en français
+sur catalogue fermé avec reçu (`copilote.py`, corpus `evals/copilote.v1.yaml`), le **pont BI** en lecture seule (`src/opsys/pont_bi/`, jeton du coffre,
+quotas, journal) et l'**intégration mémoire** (`memoire.py`, événement `m8.fait_consolide` consommé par M10). Dix outils d'agent
+(`analytique_outils.py`), skill `lecture-analytique-fermee`, planification `entrepot-et-memoire`. Tout est lecture ou calcul (N0–N2) ; l'émission d'un
+jeton BI est un geste humain (N3). Documentation, preuves et limites : [`docs/architecture/M8-OLIVIER.md`](../../docs/architecture/M8-OLIVIER.md).
+Données de démonstration et de calibration : `jeux_fictifs.py` (fictives).
+
+DuckDB/Parquet (non installé), MMM (PyMC-Marketing) et l'orchestrateur horaire réel restent GATED (hors
 périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).
 
 ### Transmission factuelle des nouveaux chantiers à M9

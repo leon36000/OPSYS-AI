@@ -1,0 +1,17 @@
+# Wallboard « marketing » (M8.8) : ce que les contenus de M7 amènent (leads de M1, devis de M3). Impressions et clics :
+# aucune source aujourd'hui, la tuile dit « non calculable » et ne montre jamais un zéro.
+schema: opsys.m8.wallboard/v1
+id: marketing
+version: 1
+titre: "Contenus et demandes"
+description: "Contenus exportés par M7 et ce qu'ils ont amené."
+roles: [admin]
+rafraichissement: {intervalle_s: 60, flux_max: 60}
+rotation: {actif: false, intervalle_s: 20}
+tuiles:
+  - {id: contenus, mesure: m8_contenus_exportes, titre: "Contenus exportés"}
+  - {id: leads-contenu, mesure: m8_leads_par_contenu, titre: "Leads amenés"}
+  - {id: devis-envoyes, mesure: m8_devis_envoyes_par_contenu, titre: "Devis envoyés"}
+  - {id: devis-acceptes, mesure: m8_devis_acceptes_par_contenu, titre: "Devis acceptés"}
+  - {id: impressions, mesure: m8_impressions_par_contenu, titre: "Impressions"}
+  - {id: clics, mesure: m8_clics_par_contenu, titre: "Clics"}

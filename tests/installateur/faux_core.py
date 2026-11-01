@@ -84,7 +84,7 @@ COMMANDES_DEPLACEES = (
     "budgets",
     "services", "equipes", "meteo", "paliers", "openclaw", "appareils", "instance", "passerelle",
     "memoire-developpement", "fournisseurs", "coffre", "onboarding", "evaluer", "pack", "avatars", "connaissances",
-    "traces", "registre-mcp",
+    "traces", "registre-mcp", "pont-bi",
 )
 
 

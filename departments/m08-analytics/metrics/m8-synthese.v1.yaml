@@ -1,0 +1,48 @@
+# metrics-as-code v1 : les métriques de SYNTHÈSE de M8 (M8.2 entrepôt, M8.8 wallboards, M8.11 score de santé, M8.12 copilote).
+# Même patron que `m8-entonnoir.v1.yaml` et `m8-contenus.v1.yaml` : compilé par `m8_analytics.dictionnaire.compiler_fichier`
+# (garde de devise CAD comprise) ; `m8_analytics.synthese` refuse de calculer une métrique absente d'ici. Chaque métrique a un
+# calcul déterministe dans le code : le LLM ne calcule jamais. Une entrée absente donne « non calculable, manque X », jamais
+# une valeur inventée.
+#
+# Ce sont des métriques d'ENTREPRISE (aucune personne, aucun technicien, aucun client) : elles agrègent des faits que M8 a déjà
+# reçus (chantiers terminés de M4, verdict de matériaux de M6, constat du cash libre de M5). Aucun montant de M5 n'est
+# recalculé : le cash libre est repris tel que M5 l'a publié.
+#
+# `proprietaires` : le département qui tient la vérité de la donnée source (DEFINITION-PRODUIT.md §8).
+schema_version: 1
+module: m08-analytics
+owner_calcul: "M8 (le LLM ne calcule jamais)"
+proprietaires:
+  m8_chantiers_termines: m04-field-ops
+  m8_ecart_duree_equipe_pct: m04-field-ops
+  m8_chantiers_signal_materiaux: m06-material-control
+  m8_cash_libre_cad: m05-financecore
+metrics:
+  - id: m8_chantiers_termines
+    nom: "Chantiers terminés"
+    definition: "Nombre de chantiers distincts (wct_id) que M4 a déclarés terminés (m4.travaux_termines). Tous les faits reçus par M8, sans fenêtre de période. Sans aucun fait reçu, non calculable : un zéro n'est jamais supposé."
+    unite: "chantiers"
+    source_donnees: "M4 m4.travaux_termines (wct_id, horodatage_completion)"
+    frequence: "à chaque chantier terminé"
+    consommateur: "wallboards (m8_lire_wallboard), score de santé, copilote analytique"
+  - id: m8_ecart_duree_equipe_pct
+    nom: "Écart de durée de l'équipe"
+    definition: "Écart, en pourcentage, entre la durée réelle totale (M4) et la durée estimée totale (M3) des chantiers terminés qui portent les deux ; positif = plus long que prévu. Les chantiers sans durée estimée sont comptés à part, jamais ignorés en silence. Indicateur d'ENTREPRISE, non punitif : aucun technicien n'y figure. Non calculable sans chantier mesurable."
+    unite: "pourcentage"
+    source_donnees: "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)"
+    frequence: "à chaque chantier terminé ou devis accepté"
+    consommateur: "wallboards (m8_lire_wallboard), score de santé, copilote analytique"
+  - id: m8_chantiers_signal_materiaux
+    nom: "Chantiers avec signal critique de matériaux"
+    definition: "Nombre de chantiers terminés dont M6 a publié une variance de matériaux évaluée avec signal critique (au moins un matériau atteint ou dépasse le seuil de M6). M8 reprend le verdict de M6 sans le recalculer. Les chantiers sans variance évaluée sont comptés à part. Non calculable sans aucune variance évaluée."
+    unite: "chantiers"
+    source_donnees: "M6 m6.variance_chantier (wct_id, statut_variance, signal_critique) ; M4 m4.travaux_termines (wct_id)"
+    frequence: "à chaque variance publiée"
+    consommateur: "wallboards (m8_lire_wallboard), score de santé, copilote analytique"
+  - id: m8_cash_libre_cad
+    nom: "Cash libre"
+    definition: "Le cash libre que M5 a constaté en dernier (m5.cash_libre_constate), tel que M5 l'a publié : aucun calcul, aucun arrondi. Si M5 a constaté « non calculable », la mesure l'est aussi et nomme ce qui manque. Aucun constat reçu : non calculable. Analyse préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.cash_libre_constate (cash_libre_cad, statut, manque, date_reference)"
+    frequence: "à chaque constat demandé à M5"
+    consommateur: "wallboards (m8_lire_wallboard), score de santé, copilote analytique"

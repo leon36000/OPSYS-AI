@@ -36,8 +36,15 @@ dependances: [m01-front-office, m02-revenue-crm, m03-estimation, m04-field-ops, 
 modeles:
   defaut: standard
   digest: rapide
-skills: [rapport-analytique-quotidien]
+skills: [rapport-analytique-quotidien, lecture-analytique-fermee]
 planifications:
+  - nom: entrepot-et-memoire
+    cron: "30 6 * * 1-5"
+    consigne: >-
+      Reconstruis l'entrepôt dérivé puis publie les faits consolidés vers la mémoire : appelle m8_construire_entrepot, puis
+      m8_publier_faits_consolides, puis m8_enregistrer_sante_entreprise, chacun avec maintenant = l'instant courant (RFC 3339
+      avec fuseau). Ne calcule aucun chiffre ; rapporte seulement les statuts rendus (construit ou inchangé, nouvelle ou
+      rejouée, enregistré ou non). Si un outil refuse, dis le code et arrête.
   - nom: digest-analytics
     cron: "0 7 * * 1-5"
     consigne: >-
@@ -50,8 +57,8 @@ budget:
   tokens_mois: 4000000
   alerte_pct: 80
 memoire:
-  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre]
-  ecriture: [snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre]
+  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre, historique_sante, publications_memoire]
+  ecriture: [snapshots_modules, definitions_metriques, faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre, historique_sante, publications_memoire]
 evenements:
   # PLAN T1.5-d : le WCT (durée réelle, technicien), le devis accepté (prix, coût, durée estimée si
   # M3 la fournit), la variance de matériaux de M6 (verdict repris sans recalcul) et la marge réelle de
@@ -81,7 +88,7 @@ evenements:
     - m7.contenu_exporte
     - m1.lead_qualifie
     - m5.cash_libre_constate
-  publie: [m8.alerte_proposee, m8.snapshot_chantier]
+  publie: [m8.alerte_proposee, m8.snapshot_chantier, m8.fait_consolide]
 configuration:
   # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11
   # « seuils non chiffrés : chaque département doit les définir »). VIDES à dessein : aucun seuil
@@ -116,6 +123,22 @@ configuration:
   # grande) : refusée et dite dans la lecture (`fraicheur_attendue_refusee`), jamais corrigée. Clé inconnue : dite
   # (`fraicheur_attendue_ignorees`). Contrat : docs/FRAICHEUR-ATTENDUE-LECTURES.md.
   fraicheur_lectures_s: {}
+  # Fraîcheur attendue d'une MESURE du catalogue fermé (M8.5/M8.8, décision d'architecte r1 « fraîcheur M8 ») : en secondes,
+  # par mesure, pour resserrer ou fixer la fenêtre que le catalogue déclare (`definitions/m8-catalogue.v1.yaml` : 24 h pour la
+  # vue exécutive ; mesures cumulées de chantiers terminés : non applicable). VIDE à dessein. Précédence : la plus stricte
+  # des fenêtres (propriétaire, appelant). Forme : {<metric_id>: <entier de secondes, 1 à 315360000>}. Valeur invalide
+  # (zéro, négatif, décimal, texte, booléen) : refusée et dite (`fraicheur_mesures_refusees`) ; clé hors catalogue : dite
+  # (`fraicheur_mesures_ignorees`). Jamais corrigée en silence.
+  fraicheur_mesures_s: {}
+  # Score de santé de l'entreprise (M8.11). VIDE à dessein (GATE propriétaire : DEFINITION-PRODUIT.md §13 point 11) : les
+  # bornes sont des seuils d'affaires que M8 n'invente jamais. Forme :
+  #   sante:
+  #     bornes:                                  # par indicateur de definitions/m8-sante.v1.yaml
+  #       m8_taux_acceptation_pct: {pire: <nombre>, cible: <nombre>}   # pire = 0 point, cible = 100 points
+  #     ponderations_validees_par: <texte>       # qui a validé les pondérations proposées (facultatif)
+  # « pire » et « cible » vont dans le sens du « mieux » du catalogue (plus_est_mieux : pire < cible). Sans bornes valides,
+  # le score est INDÉTERMINÉ et dit lesquelles configurer.
+  sante: {}
 kpis:
   - id: taux_snapshots_rejetes
     description: Part des snapshots reçus rejetés par la validation d'entrée (structure, devise, valeurs non texte).

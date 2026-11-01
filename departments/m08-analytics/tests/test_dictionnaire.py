@@ -124,6 +124,9 @@ def test_compiler_dictionnaire_reel_depot_contient_les_metriques_de_mesure_de_ch
         "m8_taux_acceptation_pct", "m8_delai_lead_acceptation_jours", "m8_carnet_signe_cad",
         "m8_contenus_exportes", "m8_leads_par_contenu", "m8_devis_envoyes_par_contenu",
         "m8_devis_acceptes_par_contenu", "m8_impressions_par_contenu", "m8_clics_par_contenu",
+        # depuis M8.2/M8.8/M8.11/M8.12 quatre de synthèse d'entreprise (m8-synthese.v1.yaml,
+        # `test_catalogue_mesures.py`)
+        "m8_chantiers_termines", "m8_ecart_duree_equipe_pct", "m8_chantiers_signal_materiaux", "m8_cash_libre_cad",
     }
     assert resultat["m08-analytics"]["m8_marge_prevue_cad"]["unite"] == "CAD"
 

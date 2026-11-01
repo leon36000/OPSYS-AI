@@ -52,7 +52,8 @@ def appeler(cnx, index=0, args=None):
 def test_declarations_T0_N0_admin_affaire_fermees_append_et_signatures(index):
     o = outil(index)
     assert tuple(x.nom for x in outils.outils())[-2:] == NOMS
-    assert len([x for x in outils.outils() if "connaissance" not in x.nom]) == 26  # + les outils de connaissances
+    # + les outils de connaissances, + `m10_lire_faits_analytiques` (M8.18)
+    assert len([x for x in outils.outils() if "connaissance" not in x.nom and "faits_analytiques" not in x.nom]) == 26
     assert o.autonomie is Autonomie.T0 and o.niveau is Niveau.N0
     assert o.roles_appareil == frozenset({"admin"})
     assert (o.portee_contexte, o.cible_contexte, o.identite_contexte) == ("affaire", ("affaire_id",), "affaire")

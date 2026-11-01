@@ -72,16 +72,23 @@
    "decisions_nathan": [],
    "proofs": [
     {
-     "tests": [],
+     "tests": [
+      "departments/m08-analytics/tests/test_entrepot.py",
+      "tests/test_m8_migration.py",
+      "departments/m08-analytics/tests/test_outils_analytiques.py",
+      "departments/m08-analytics/tests/test_catalogue_mesures.py"
+     ],
      "docs": [
+      "docs/architecture/M8-OLIVIER.md",
       "departments/m08-analytics/README.md"
      ],
-     "niveau": "-"
+     "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Des registres chaînés de faits existent (chantier, entonnoir, contenus, cash libre) mais pas d'entrepôt ni de marts ; DuckDB/Parquet « GATED »."
+   "verified_commit": "d8634abf6",
+   "current_status": "PARTIEL",
+   "limite": "Livré en SQLite (migration 0046, schéma en étoile dérivé des quatre registres, versionné par schéma/catalogue/empreinte des registres, fraîcheur déclarée et provenance par mesure, reconstructible, jamais source de vérité). Migration 0046 montée/descendue sur SQLite et sur PostgreSQL éphémère (Docker) ; DDL compilé pour PostgreSQL ; le CONSTRUCTEUR n'a pas été exécuté sur PostgreSQL. DuckDB non installé donc non utilisé ; Parquet absent. Les consommateurs du bus n'alimentent pas l'entrepôt (reconstruction par outil/planification : il peut être en retard, et le dit). Données fictives seulement.",
+   "verification": "Suites ciblées rejouées le 2026-11-01 sur la branche claude/m8-olivier ; détail et mutations dans docs/architecture/M8-OLIVIER.md et le rapport de livraison."
   },
   {
    "id": "M8.3",
@@ -230,11 +237,25 @@
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Un seul commentaire dans outils.py ; aucune surface.",
-   "verification": "grep wallboard : un commentaire (outils.py:1373)"
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_wallboards.py",
+      "tests/test_console_wallboards.py",
+      "tests/test_wallboard_js.py",
+      "departments/m08-analytics/tests/test_outils_analytiques.py"
+     ],
+     "docs": [
+      "docs/architecture/M8-OLIVIER.md",
+      "departments/m08-analytics/README.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "d8634abf6",
+   "current_status": "PARTIEL",
+   "limite": "Définitions déclaratives validées, évaluation avec fraîcheur (une mesure périmée n'est jamais montrée comme à jour), console FastAPI réelle (rôle admin relu, SSE borné, repli, a11y vérifiée par contrastes calculés et structure HTML), script exercé sous Node avec un faux DOM. Aucun navigateur réel (niveau B jamais atteint), aucun lecteur d'écran ni écran de télé ; la rotation de pages est déclarée et inactive par défaut ; aucun seuil d'affichage n'est livré (à déclarer par le propriétaire).",
+   "verification": "Suites ciblées rejouées le 2026-11-01 sur la branche claude/m8-olivier ; détail et mutations dans docs/architecture/M8-OLIVIER.md et le rapport de livraison."
   },
   {
    "id": "M8.9",
@@ -296,11 +317,23 @@
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucune occurrence.",
-   "verification": "grep score de santé|health dans src M8 : 0"
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_sante.py",
+      "departments/m08-analytics/tests/test_outils_analytiques.py"
+     ],
+     "docs": [
+      "docs/architecture/M8-OLIVIER.md",
+      "departments/m08-analytics/README.md"
+     ],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "d8634abf6",
+   "current_status": "PARTIEL",
+   "limite": "Indice composite transparent calculé en Decimal à partir des mesures du catalogue, pondérations déclarées (proposition de l'architecte, non validée par le propriétaire), explication par composante, indéterminé plutôt que faux score, historique append-only ; calibration et sensibilité mesurées sur quatre entreprises FICTIVES (ordre saine > correcte > fragile, sensibilité bornée, ordre stable à ±5 points de pondération). Les bornes (pire/cible) sont des seuils d'affaires du propriétaire, vides à la livraison : sans elles le score réel est indéterminé. La composante clientèle n'est qu'un indicateur indirect (aucune mesure de satisfaction).",
+   "verification": "Suites ciblées rejouées le 2026-11-01 sur la branche claude/m8-olivier ; détail et mutations dans docs/architecture/M8-OLIVIER.md et le rapport de livraison."
   },
   {
    "id": "M8.12",
@@ -311,10 +344,24 @@
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun code."
+   "proofs": [
+    {
+     "tests": [
+      "departments/m08-analytics/tests/test_copilote.py",
+      "departments/m08-analytics/tests/test_outils_analytiques.py",
+      "tests/test_evaluation_gabarit.py"
+     ],
+     "docs": [
+      "docs/architecture/M8-OLIVIER.md",
+      "departments/m08-analytics/README.md"
+     ],
+     "niveau": "T"
+    }
+   ],
+   "verified_commit": "d8634abf6",
+   "current_status": "PARTIEL",
+   "limite": "Copilote déterministe sur catalogue FERMÉ (aucun SQL généré, aucun calcul de tête, reçu vérifiable), refus typés (injection, SQL, écriture, personnes, secrets, hors catalogue), précision demandée plutôt que deviner ; corpus propre de 82 questions (82/82) et dix cas ajoutés au gabarit commun (M8 22/22 avec le répondant de référence, 12/22 non qualifié avec le dangereux). Reconnaissance lexicale seulement (pas de modèle de langage) ; un seul auteur de corpus ; aucun modèle réel mesuré.",
+   "verification": "Suites ciblées rejouées le 2026-11-01 sur la branche claude/m8-olivier ; détail et mutations dans docs/architecture/M8-OLIVIER.md et le rapport de livraison."
   },
   {
    "id": "M8.13",
@@ -350,10 +397,25 @@
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun code (grep superset|metabase|grafana : 0)."
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_pont_bi.py",
+      "tests/test_pont_bi_cli.py",
+      "tests/test_m8_migration.py",
+      "departments/m08-analytics/tests/test_outils_analytiques.py"
+     ],
+     "docs": [
+      "docs/architecture/M8-OLIVIER.md",
+      "departments/m08-analytics/README.md"
+     ],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "d8634abf6",
+   "current_status": "PARTIEL",
+   "limite": "Exports CSV / JSON Lines / OData v4 minimal en lecture seule (GET seulement, 405 sinon), jeton de lecture dédié stocké dans le coffre (émission humaine N3 par ligne de commande authentifiée, jamais un outil d'agent), quotas de requêtes et de lignes, minimisation PII par le masqueur d'observabilite, neutralisation des formules CSV, journal d'accès append-only. Prouvé contre le vrai routeur, le vrai coffre et SQLite (TestClient ASGI en processus, sans le Core natif) ; aucun Metabase/Superset/Grafana réel n'a lu un export ; PostgreSQL non exécuté pour les exports (SET TRANSACTION READ ONLY non testé) ; exposition réseau/TLS hors périmètre.",
+   "verification": "Suites ciblées rejouées le 2026-11-01 sur la branche claude/m8-olivier ; détail et mutations dans docs/architecture/M8-OLIVIER.md et le rapport de livraison."
   },
   {
    "id": "M8.15",
@@ -442,11 +504,24 @@
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "M10 ne consomme aucun type m8.*.",
-   "verification": "department.yaml de M10 : evenements.consomme sans m8.*"
+   "proofs": [
+    {
+     "tests": [
+      "tests/test_m8_memoire_m10.py",
+      "departments/m10-memoire/tests/test_analytique.py",
+      "departments/m08-analytics/tests/test_outils_analytiques.py"
+     ],
+     "docs": [
+      "docs/architecture/M8-OLIVIER.md",
+      "departments/m08-analytics/README.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "d8634abf6",
+   "current_status": "PARTIEL",
+   "limite": "M8 publie ses faits consolidés (mesures d'entreprise, changements de définition, anomalies) par l'événement m8.fait_consolide ; M10 les mémorise (registre faits_analytiques, FINANCIAL, idempotent) ; M8 situe une mesure par la base de connaissances de M8 (droits existants, donnée non fiable neutralisée). Vrai bus, vraie base, vrai service de connaissances avec le double d'embeddings (aucun vrai modèle d'embeddings) ; le filtre anti-injection est à motifs ; M8 ne lit pas les registres de M10 (aucun droit élargi).",
+   "verification": "Suites ciblées rejouées le 2026-11-01 sur la branche claude/m8-olivier ; détail et mutations dans docs/architecture/M8-OLIVIER.md et le rapport de livraison."
   }
  ]
 }

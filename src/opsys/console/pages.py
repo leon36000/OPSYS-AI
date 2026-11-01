@@ -37,6 +37,7 @@ ONGLETS = (
     ("direction", "Direction IA"),
     ("plateforme/fournisseurs", "Plateforme"),
     ("observabilite", "Observabilité"),
+    ("wallboards", "Wallboards"),
 )
 LIBELLES_MODES = {"ombre": "Ombre", "supervise": "Supervisé", "autonome": "Autonome"}
 STATUTS = {

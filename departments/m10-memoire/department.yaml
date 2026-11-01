@@ -48,8 +48,8 @@ budget:
   tokens_mois: 2500000
   alerte_pct: 80
 memoire:
-  lecture: [registre_evenements, registre_affaires]
-  ecriture: [registre_evenements, registre_affaires, registre_references_configuration]
+  lecture: [registre_evenements, registre_affaires, registre_faits_analytiques]
+  ecriture: [registre_evenements, registre_affaires, registre_references_configuration, registre_faits_analytiques]
 kpis:
   - id: taux_revisions_arbitrees
     description: Part des révisions signalées ayant reçu au moins un arbitrage humain consigné.
@@ -78,8 +78,12 @@ kpis:
 # identifiants et des faits d'étape, jamais le contact du lead ni un texte de client (Loi 25) ; le client associé
 # est CLIENT_PRIVATE (M1 et M2 seulement) ; le prix et le coût d'un devis accepté sont FINANCIAL, hors de tout
 # paquet. `m3.devis_envoye` (T4.7) : l'envoi approuvé par le propriétaire, sans montant.
+# M8.18 : M10 consomme aussi les faits analytiques consolidés de M8 (`m8.fait_consolide`, catalogue socle) : les mesures
+# d'entreprise avec leur provenance, mémorisées au registre `faits_analytiques` (FINANCIAL, hors de tout paquet de contexte),
+# avec les changements de définition et les anomalies. Rien de personnel n'y voyage.
 evenements:
   consomme:
+    - m8.fait_consolide
     - m3.catalogue_reference
     - m6.catalogue_reference
     - m4.travaux_termines

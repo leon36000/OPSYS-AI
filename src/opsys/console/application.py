@@ -47,6 +47,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from .. import admission_agents, agents, agents_declencheurs, contexte, etat, identite, stockage, tableau_de_bord
 from ..capacites import Capacites
 from ..departements import Departement, charger_departements
+from ..pont_bi import http as pont_bi_http
 from ..stockage import base_cron_operateur
 from ..stockage.schema import AGENTS_POLITIQUE_ENTREPRISE
 from . import (
@@ -95,6 +96,8 @@ from . import (
     securite,
     strategie_suivis_ui,
     voicemail_ui,
+    wallboards_ressources,
+    wallboards_ui,
 )
 from .securite import Configuration, Session
 
@@ -110,6 +113,8 @@ CSP = (
 _STATIQUES = {
     "console.css": (ressources.CSS, "text/css; charset=utf-8"),
     "console.js": (ressources.JS, "text/javascript; charset=utf-8"),
+    "wallboard.css": (wallboards_ressources.CSS, "text/css; charset=utf-8"),
+    "wallboard.js": (wallboards_ressources.JS, "text/javascript; charset=utf-8"),
 }
 
 FabriqueConnexion = Callable[[], AbstractContextManager[Connection]]
@@ -244,6 +249,21 @@ def creer_application(
     app.include_router(formulaire_recepteur.creer_router(
         invoquer=recevoir_formulaire, site_id=site_formulaire, secret=secret_formulaire,
     ))
+
+    # Pont BI (M8.14) : exports EN LECTURE SEULE de l'entrepôt de M8, GET seulement, jeton de lecture dédié (secret du
+    # coffre) dans l'en-tête ; aucune session humaine, aucun cookie. Le masqueur PII utilise la clé locale
+    # d'observabilité.
+    masqueur_pont_bi: list[Any] = []
+
+    def masqueur_pii() -> Any:
+        if not masqueur_pont_bi:
+            from ..observabilite import cle_locale
+            from ..observabilite.pii import MasqueurMotifs
+
+            masqueur_pont_bi.append(MasqueurMotifs(cle_locale.deriver(cle_locale.charger(creer=True), "pii/v1")))
+        return masqueur_pont_bi[0]
+
+    app.include_router(pont_bi_http.creer_router(cnx_factory=cnx_factory, masqueur=masqueur_pii))
 
     # -- sessions et jetons ----------------------------------------------------------------------
     def session_de(request: Request) -> Session | None:
@@ -440,6 +460,11 @@ def creer_application(
     app.include_router(cablage_ui.creer_router(
         session_page=session_page, session_api=session_api, verifier_formulaire=verifier_formulaire,
         formulaire=_formulaire, cnx_factory=cnx_factory, prefixe=prefixe,
+    ))
+    # Wallboards de M8 (wallboards_ui) : tableaux de bord en direct, lecture seule, flux SSE borné, administration
+    # seulement.
+    app.include_router(wallboards_ui.creer_router(
+        session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
     ))
     # Ingestion d'onboarding (onboarding_ui) : suivi des lots en lecture, administration seulement.
     app.include_router(onboarding_ui.creer_router(
