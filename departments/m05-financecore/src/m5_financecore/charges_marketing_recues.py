@@ -14,6 +14,9 @@ Ce que ce module décide, en fonction pure (aucun import `opsys`, aucune horloge
 - seule la RÉVISION 1 d'un relevé donne un brouillon. Une révision ultérieure ne crée jamais un second brouillon (elle
   doublerait la charge) : elle est rangée `A_REVOIR_REVISION`, avec la révision déjà proposée, pour qu'une personne
   décide d'une contre-passation et d'un nouveau brouillon ;
+- une révision PÉRIMÉE ne donne jamais de brouillon : si M5 a déjà reçu une révision plus récente du même relevé (la
+  livraison du bus n'est pas ordonnée : une panne transitoire fait arriver la révision 2 avant la 1), la plus ancienne
+  est rangée `REVISION_PERIMEE`. Sans cette garde, la révision 1 tardive proposerait un brouillon au montant périmé ;
 - un montant nul ne donne rien (`MONTANT_NUL`) ;
 - la pièce est déclarée (`manuelle`, référence `m7:<relevé>:r<révision>`), jamais prétendue vérifiée : M5 ne lit pas
   le registre de M7.
@@ -36,6 +39,7 @@ MENTION = "À valider auprès d'un comptable (CPA) / professionnel qualifié"
 BROUILLON_PROPOSE = "BROUILLON_PROPOSE"
 A_COMPLETER_TAXES = "A_COMPLETER_TAXES"
 A_REVOIR_REVISION = "A_REVOIR_REVISION"
+REVISION_PERIMEE = "REVISION_PERIMEE"
 MONTANT_NUL = "MONTANT_NUL"
 REFUSE = "REFUSE"
 
@@ -52,12 +56,17 @@ def reference_piece(charge: Mapping[str, Any]) -> str:
     return f"m7:{charge['releve_id']}:r{charge['revision']}"
 
 
-def decision(charge: Mapping[str, Any], deja_proposees: Mapping[str, int]) -> str | None:
+def decision(
+    charge: Mapping[str, Any], deja_proposees: Mapping[str, int], revisions_vues: Mapping[str, int] | None = None
+) -> str | None:
     """`None` : un brouillon est à proposer. Sinon la raison pour laquelle M5 n'en propose pas.
 
-    `deja_proposees` : `{releve_id: révision déjà proposée}` d'après le registre de M5."""
+    `deja_proposees` : `{releve_id: révision déjà proposée}` d'après le registre de M5 ;
+    `revisions_vues` : `{releve_id: plus haute révision déjà REÇUE}` (toute issue confondue)."""
     if charge["base_taxes"] != "HORS_TAXES":
         return A_COMPLETER_TAXES
+    if (revisions_vues or {}).get(charge["releve_id"], 0) > charge["revision"]:
+        return REVISION_PERIMEE
     if charge["revision"] > 1 or charge["releve_id"] in deja_proposees:
         return A_REVOIR_REVISION
     if Decimal(charge["montant_cad"]) == 0:
