@@ -2036,9 +2036,20 @@ def _ranger_une_fois(nom_registre: str, fait: dict[str, Any], cles: tuple[str, .
     return True
 
 
+def _refuser_lien_contradictoire(nom_registre: str, type_entree: str, charge: dict[str, Any]) -> None:
+    """Un lead n'a qu'UN client : un second lien, avec un autre `client_id`, redirigerait le profil de propriété d'un
+    lead vers un autre client. Refus visible (quarantaine après les essais du bus, même code que M7) ; le premier lien
+    reste le seul. Le même lien rejoué sous un autre `evenement_id` n'est pas une contradiction."""
+    for existant in stockage.maillons("m03-estimation", nom_registre):
+        if (existant.get("type_entree") == type_entree and existant.get("lead_id") == charge["lead_id"]
+                and existant.get("client_id") != charge["client_id"]):
+            raise ValueError("CONFLIT_FAIT_M2_CLIENT_ASSOCIE: ce lead a déjà un client (le premier lien est conservé)")
+
+
 def _recevoir_client_associe(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m2.client_associe` (interconnexion M2 -> M3) : le lien lead -> client, seul moyen de retrouver le
     profil de propriété confirmé d'un lead. Ni nom ni contact : deux identifiants."""
+    _refuser_lien_contradictoire(profils_recus.REGISTRE_LIENS, profils_recus.TYPE_LIEN, charge)
     ajoute = _ranger_une_fois(
         profils_recus.REGISTRE_LIENS, profils_recus.fait_lien(charge), ("lead_id", "client_id"))
     return {"enregistre": ajoute, "deja_enregistre": not ajoute, "lead_id": charge["lead_id"]}

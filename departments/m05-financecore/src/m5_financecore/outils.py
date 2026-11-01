@@ -3619,9 +3619,15 @@ def _recevoir_depense_marketing(charge: dict[str, Any]) -> dict[str, Any]:
     proposees = {
         m["releve_id"]: m["revision"] for m in journal if m.get("issue") == charges_marketing_recues.BROUILLON_PROPOSE
     }
-    raison = charges_marketing_recues.decision(charge, proposees)
+    vues: dict[str, int] = {}
+    for m in journal:
+        if isinstance(m.get("releve_id"), str) and isinstance(m.get("revision"), int):
+            vues[m["releve_id"]] = max(vues.get(m["releve_id"], 0), m["revision"])
+    raison = charges_marketing_recues.decision(charge, proposees, vues)
     if raison is not None:
         extra = {"revision_deja_proposee": proposees[charge["releve_id"]]} if charge["releve_id"] in proposees else {}
+        if raison == charges_marketing_recues.REVISION_PERIMEE:
+            extra["revision_plus_recente_vue"] = vues[charge["releve_id"]]
         journal.append(charges_marketing_recues.ligne_registre(charge, raison, **extra))
         return {"traite": True, "issue": raison, "releve_id": charge["releve_id"], "revision": charge["revision"]}
     ctx, refus = _contexte_grand_livre()

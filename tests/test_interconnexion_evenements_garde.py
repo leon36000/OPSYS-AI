@@ -88,6 +88,11 @@ def test_le_script_d_audit_sort_a_zero():
 
 
 # ------------------------------------------------------------------------------------------------ l'audit voit-il ?
+def _handler_factice(charge):
+    """Un handler qui n'est pas inerte (il référence `dict`) : l'audit refuse les `lambda charge: charge`."""
+    return dict(charge)
+
+
 def _dep(identifiant, numero, publie=(), consomme=(), fonctions=(), racine=None):
     return SimpleNamespace(
         id=identifiant,
@@ -95,7 +100,7 @@ def _dep(identifiant, numero, publie=(), consomme=(), fonctions=(), racine=None)
         evenements_publie=tuple(publie),
         evenements_consomme=tuple(consomme),
         racine=racine,
-        charger_consommateurs=lambda: dict.fromkeys(fonctions, lambda charge: charge),
+        charger_consommateurs=lambda: dict.fromkeys(fonctions, _handler_factice),
     )
 
 

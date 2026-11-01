@@ -210,9 +210,24 @@ de connaissances au lecteur : ce serait élargir un droit, ce que le brief inter
 - La somme des relevés de M8 est une somme des relevés **reçus**, pas la dépense publicitaire de l'entreprise : un jour sans
   relevé n'est pas un zéro et M8 ne sait pas quels jours manquent.
 - L'ordre de livraison du bus n'est pas garanti : chaque consommateur choisit son « dernier état » par une clé de contenu
-  (révision, date de référence, version), pas par l'ordre d'arrivée, sauf mention contraire.
-- L'audit ne sait pas démontrer qu'un producteur *publie réellement* son type (il vérifie seulement que le nom du type apparaît
-  dans son code ou dans le socle) ; les scénarios prouvent les producteurs qu'ils exécutent.
+  (révision, date de référence, version), pas par l'ordre d'arrivée. Revue adverse rvi : deux états du MÊME jour (M6, rapprochement
+  de facture ; M8, constats comptables) se départagent par l'instant de PUBLICATION que le bus donne au consommateur
+  (`repartiteur.instant_publication_livre`), et M5 ne propose jamais de brouillon pour une révision de relevé plus ancienne
+  qu'une révision déjà reçue (`REVISION_PERIMEE`) ; M3 et M4 gardent le PREMIER lien lead -> client et refusent un lien contradictoire.
+- L'audit ne sait pas démontrer qu'un producteur *publie réellement* son type : il vérifie que le nom complet du type apparaît dans
+  son propre code, ou dans un fichier du socle qui appelle `publier(` (un suffixe nu cherché dans tout le socle y trouvait toujours une
+  coïncidence). Il écarte le handler qui ne référence aucun nom (`handlers_inertes`) mais ne prouve pas le comportement des autres :
+  seuls les tests de chaque consommateur le font. Les lectures directes de registre ne sont vues que par les formes décrites en
+  section 5 (littéral, constante de n'importe quel nom du même fichier) ; une constante importée d'un autre fichier n'est pas résolue.
+- Le bus ne lie pas le préfixe d'un type (`m5.…`) au producteur qui le publie : seul l'audit statique `publications_hors_espace` voit un
+  département qui publie dans l'espace d'un autre, et seulement quand le type est un littéral ou une constante du même fichier.
+- Un consentement de suivi retiré chez M4 APRÈS la publication de `m4.message_client_brouillon_pret` n'atteint pas M1 (M1 ne voit que
+  le STOP qu'il a lui-même rangé et l'échéance de conservation) : un brouillon peut être créé après ce retrait. Il reste un
+  brouillon (l'envoi est une demande N3 d'une personne, qui voit le texte), mais la page d'approbation ne dit pas que le suivi a été
+  retiré. Non corrigé : il faudrait un événement de retrait de M4 ou une lecture M1 -> M4 du consentement (nouveau droit).
+- Un même constat rejoué avec une clé de contenu identique mais un contenu différent (même `relance_id`, même `releve_id` + révision)
+  est ignoré sans alerte par M2, M5 et M8 (seul M10 nomme la contradiction de sceau) ; et M2 garde la relance de créance de
+  plus haut niveau sans jamais la lever quand la facture est payée (aucun événement de paiement au catalogue).
 
 ## 8. Commandes
 

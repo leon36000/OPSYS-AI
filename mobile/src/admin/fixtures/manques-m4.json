@@ -97,7 +97,11 @@
        "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "b2b84ada8e8bbe983b1505f02ad15e44959b25798171e91990f95635ce2918d3"
+     "empreinte": "a1818aef4d02e905cd2c6b4b118379d0593afb061866de32d2113bda94de6133",
+     "contexte_propriete": {
+      "statut": "absent",
+      "raison": "aucun profil de propriété confirmé reçu de M2 pour ce client"
+     }
     }
    }
   },
@@ -159,7 +163,11 @@
        "manque": "profil d'entreprise invalide : /srv/opsys/entreprise.yaml : 'meteo' doit être un objet (clés : fuseau, fournisseur, open_meteo, services)"
       }
      ],
-     "empreinte": "d5362bd0038ba21028115ea232e4743f1afaac102aca718fd35b3f04a9aec766"
+     "empreinte": "c6fda32920a0e93920885d783e2cef0da8d3dafbd14e85ad6fe3462eb2477700",
+     "contexte_propriete": {
+      "statut": "absent",
+      "raison": "aucun profil de propriété confirmé reçu de M2 pour ce client"
+     }
     }
    }
   },
@@ -221,7 +229,11 @@
        "manque": "seuil à configurer pour le service 'gouttieres' : pluie, gel, verglas, chaleur (un seuil par risque jugé, ou le risque déclaré sans objet : `opsys-metier meteo declarer`) ; aucun seuil n'est jamais inventé"
       }
      ],
-     "empreinte": "fa5ee7cad615333114ea39dfaa9a471d272cbf40b9886d8af950f7e99a0b6f28"
+     "empreinte": "fa5ee7cad615333114ea39dfaa9a471d272cbf40b9886d8af950f7e99a0b6f28",
+     "contexte_propriete": {
+      "statut": "absent",
+      "raison": "aucun profil de propriété confirmé reçu de M2 pour ce client"
+     }
     }
    }
   },
@@ -278,7 +290,11 @@
        "manque": "matériel partiel selon M6 (révision 2) : gouttiere-alu-5po-fictif : 20 pi manquantes sur 40 ; M6 ne crée aucun bon de commande seul (l'admin le demande à M6)"
       }
      ],
-     "empreinte": "37088231080653a675d7df05b03a3b2b3c11c62ecac8d772e6fe65d76095e34f"
+     "empreinte": "37088231080653a675d7df05b03a3b2b3c11c62ecac8d772e6fe65d76095e34f",
+     "contexte_propriete": {
+      "statut": "absent",
+      "raison": "aucun profil de propriété confirmé reçu de M2 pour ce client"
+     }
     }
    }
   },
@@ -340,7 +356,11 @@
        "manque": "intervention issue d'un lead v1 (type_travaux 'renovation_totale') : les règles météo sont par service, aucune ne s'applique à un type de travaux"
       }
      ],
-     "empreinte": "9574cdd26cac820069399574834261198baca764cf9d0fe065ab9b651c034c07"
+     "empreinte": "9574cdd26cac820069399574834261198baca764cf9d0fe065ab9b651c034c07",
+     "contexte_propriete": {
+      "statut": "absent",
+      "raison": "aucun lien lead -> client reçu de M2"
+     }
     }
    }
   },
@@ -392,7 +412,11 @@
        "manque": "matériel : M4 n'a reçu aucun état « matériel prêt » (m6.materiel_pret) pour le devis DEVIS-MQ-R-fictif ; M6 ne dit rien d'un prévu vide, et un matériel que personne n'a vérifié n'est pas prêt"
       }
      ],
-     "empreinte": "826499de908871a9b00bbd13210c67e247a78e48f3e81f40000301cddbde5edf"
+     "empreinte": "826499de908871a9b00bbd13210c67e247a78e48f3e81f40000301cddbde5edf",
+     "contexte_propriete": {
+      "statut": "absent",
+      "raison": "aucun lien lead -> client reçu de M2"
+     }
     }
    }
   }

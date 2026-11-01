@@ -75,6 +75,7 @@ def profil_pour_contexte(
     for lien in liens:
         if lien.get("type_entree") == TYPE_LIEN and lien.get("lead_id") == lead_id:
             client_id = lien["client_id"]
+            break  # le PREMIER lien fait foi (M2 n'en établit qu'un par lead ; M5 garde aussi le premier)
     if client_id is None:
         return None, STATUT_ABSENT
     candidats = _derniere_revision_par_propriete(profils, client_id)

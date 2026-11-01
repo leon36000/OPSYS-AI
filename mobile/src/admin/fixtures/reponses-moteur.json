@@ -1,6 +1,5 @@
 {
  "fictif": true,
- "origine": "HTTP MCP réel/porte Core Python simulée/SQLite temporaire ; pas Gateway Node ni téléphone",
  "appels": {
   "a_voir_vide": {
    "outil": "m9_lister_demandes_approbation",
@@ -2402,7 +2401,7 @@
     "resultat": {
      "date_cible": "2026-09-21",
      "horodatage_reference": "2026-09-21T18:00:00-04:00",
-     "ancre_registre": "edb7395c2f37f50a9befe3fca1d882e32561564b14b93a269453948dabb97784",
+     "ancre_registre": "b898587e044d0f48c6377f567e24e7052711ecfa7a373b7f204eeffab64ebd16",
      "interventions_terminees": [
       {
        "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
@@ -2418,7 +2417,7 @@
       "anomalie_pointage": 0
      },
      "interventions_bloquees_en_revue": [],
-     "empreinte": "648ec2b381ccd85f08d6f45e39b5638ef7519658449d8b924d38e79ac0582ba3"
+     "empreinte": "614084b798eea535215754f8a061d7f2be6f07dc813dc33615c798e2de0c8902"
     }
    }
   },
@@ -2444,7 +2443,7 @@
       },
       "equipe": {
        "statut": "manque",
-       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé",
        "detail": "REJ-EQUIPES-NON-CONFIGUREES"
       },
       "materiel": {
@@ -2454,7 +2453,7 @@
       },
       "meteo": {
        "statut": "manque",
-       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)",
        "detail": "REJ-METEO-NON-CONFIGUREE"
       }
      },
@@ -2467,15 +2466,19 @@
       {
        "volet": "equipe",
        "statut": "manque",
-       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé"
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé"
       },
       {
        "volet": "meteo",
        "statut": "manque",
-       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "f2f93fce2ecb9d7096cf8f12a9d37e99bba683f8e8131798a4aa9c993369a673"
+     "empreinte": "0ec391a81734fdf9a6d83a4ac5dded36951d4d6301204c2d5df863888ea7c35c",
+     "contexte_propriete": {
+      "statut": "absent",
+      "raison": "aucun profil de propriété confirmé reçu de M2 pour ce client"
+     }
     }
    }
   },
@@ -2501,7 +2504,7 @@
       },
       "equipe": {
        "statut": "manque",
-       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé",
        "detail": "REJ-EQUIPES-NON-CONFIGUREES"
       },
       "materiel": {
@@ -2511,7 +2514,7 @@
       },
       "meteo": {
        "statut": "manque",
-       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)",
        "detail": "REJ-METEO-NON-CONFIGUREE"
       }
      },
@@ -2524,15 +2527,19 @@
       {
        "volet": "equipe",
        "statut": "manque",
-       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé"
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé"
       },
       {
        "volet": "meteo",
        "statut": "manque",
-       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "1baf4cf2c434cbb1d951d012227fcba627ecd4f45523697ccac0987876be5370"
+     "empreinte": "9878a3c3be82e02a4026c60a4288242de5f4e4729a04a7cdb6d88848bcb30f29",
+     "contexte_propriete": {
+      "statut": "absent",
+      "raison": "aucun profil de propriété confirmé reçu de M2 pour ce client"
+     }
     }
    }
   },
@@ -2558,7 +2565,7 @@
       },
       "equipe": {
        "statut": "manque",
-       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé",
        "detail": "REJ-EQUIPES-NON-CONFIGUREES"
       },
       "materiel": {
@@ -2568,7 +2575,7 @@
       },
       "meteo": {
        "statut": "manque",
-       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)",
        "detail": "REJ-METEO-NON-CONFIGUREE"
       }
      },
@@ -2581,15 +2588,19 @@
       {
        "volet": "equipe",
        "statut": "manque",
-       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé"
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé"
       },
       {
        "volet": "meteo",
        "statut": "manque",
-       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "0820465eb8a29146505f9c82b1eab50dda5deedde6291d602198fa035da8e8ac"
+     "empreinte": "742d723b5941df62003a2b50f1722ac506330c429abbda9ebbb1970ffdcbb240",
+     "contexte_propriete": {
+      "statut": "absent",
+      "raison": "aucun lien lead -> client reçu de M2"
+     }
     }
    }
   },
@@ -2662,13 +2673,13 @@
     "resultat": {
      "demandes": [
       {
-       "id": "6f28ef03af00",
+       "id": "02a259814984",
        "departement": "m04-field-ops",
        "departement_nom": "Field Ops",
        "outil": "m4_resoudre_revue_completion_sources",
        "description_outil": "Proposition N4 humaine de revue de complétion, liée à toutes les sources critiques examinées.",
        "niveau": "N4",
-       "depuis": "2026-10-09T10:13:31+00:00",
+       "depuis": "2026-11-01T20:51:43+00:00",
        "motif_demande": null,
        "arguments": {
         "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
@@ -2678,8 +2689,8 @@
         "sources": {
          "wct_id": "24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c",
          "chantier_id": "CH-ADM-A-fictif",
-         "completion_ligne_id": "e7023886a84f0bb76288f801023f400613eb50bbc27810e6a0002adbaae7b044",
-         "transition_attendue_ligne_id": "e7023886a84f0bb76288f801023f400613eb50bbc27810e6a0002adbaae7b044",
+         "completion_ligne_id": "350ef7464b0f24363e2138c5730c23185afd1acb68f26256096e665bbe4a6099",
+         "transition_attendue_ligne_id": "350ef7464b0f24363e2138c5730c23185afd1acb68f26256096e665bbe4a6099",
          "reference_variance": {
           "type": "m6.variance_chantier",
           "evenement_id": "m6-variance-24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c-evaluee",
@@ -2905,7 +2916,7 @@
       {
        "wct_id": "60ea7ed59cd1fd3a4c5f15a89a7ffc415ab4c22eeece5d81b8aeb7e2937b3c48",
        "devis_id": "DEVIS-ADM-E-fictif",
-       "horodatage_completion": "2026-09-22T15:00:00+00:00",
+       "horodatage_completion": "2026-09-22T11:00:00-04:00",
        "statut": "calculee",
        "marge_reelle_cad": "114.00",
        "prix_definitif": true
@@ -2930,7 +2941,7 @@
       {
        "id": "besoin_commande:gouttiere-alu-5po-fictif",
        "resume": "Stock bas : gouttiere-alu-5po-fictif — 302.0 pi en main dont 120 pi réservé(s) pour des chantiers, 182.0 pi disponible(s), sous le seuil de 450 pi ; besoin de commande : 418.0 pi pour atteindre 600 pi (chantier CH-ADM-E-fictif)",
-       "depuis": "2026-09-22T15:00:00+00:00",
+       "depuis": "2026-09-22T11:00:00-04:00",
        "action_proposee": "Décider de commander : un bon de commande se demande en brouillon puis s'approuve, M6 n'en crée jamais seul"
       }
      ],

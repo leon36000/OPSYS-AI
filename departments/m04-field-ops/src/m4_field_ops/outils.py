@@ -3781,6 +3781,12 @@ def _ranger_une_fois(nom_registre: str, fait: dict[str, Any], cles: tuple[str, .
 
 def _recevoir_client_associe(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m2.client_associe` (interconnexion M2 -> M4) : le lien lead -> client, deux identifiants."""
+    for existant in stockage.maillons(_DEPARTEMENT, contexte_propriete.REGISTRE_LIENS):
+        # Un lead n'a qu'UN client : un second lien contradictoire redirigerait le profil vers un autre client. Refus
+        # visible (quarantaine après les essais du bus, même code que M7) ; le premier lien reste le seul.
+        if (existant.get("type_entree") == contexte_propriete.TYPE_LIEN and existant.get("lead_id") == charge["lead_id"]
+                and existant.get("client_id") != charge["client_id"]):
+            raise ValueError("CONFLIT_FAIT_M2_CLIENT_ASSOCIE: ce lead a déjà un client (le premier lien est conservé)")
     ajoute = _ranger_une_fois(
         contexte_propriete.REGISTRE_LIENS, contexte_propriete.fait_lien(charge), ("lead_id", "client_id"))
     return {"traite": True, "enregistre": ajoute, "deja_enregistre": not ajoute, "lead_id": charge["lead_id"]}
