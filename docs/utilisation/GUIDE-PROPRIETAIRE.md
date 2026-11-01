@@ -28,9 +28,9 @@ modifiables pour votre entreprise (clé `avatars` du profil d'entreprise).
 | M5 | FinanceCore | Sophie | Comptabilité, facturation, rapprochements, préparation fiscale et de paie, tableau de bord du CFO. Prépare des brouillons ; ne remplace pas votre CPA. | 87 |
 | M6 | Material Control | Rosalie | Inventaire, achats, fournisseurs, sorties sur le terrain, écarts entre le prévu et l'utilisé. | 47 |
 | M7 | Marketing | Chloé | Visibilité, site, contenu, réseaux sociaux, annonces, création visuelle. Rien ne se publie sans vous. | 64 |
-| M8 | Analytics | Olivier | Mesures gouvernées, tableaux de bord, alertes, qualité des données : « peut-on se fier à ce chiffre ? » | 25 |
-| M9 | Strategic Intelligence | Athéna | Conseil de direction : scénarios, risques, priorités, suivi des décisions. Elle propose, vous décidez. | 75 |
-| M10 | Mémoire | Mnémo | Garde ce qui a été fait, décidé et appris ; base de connaissances sourcée. | 57 |
+| M8 | Analytics | Olivier | Mesures gouvernées, tableaux de bord, alertes, qualité des données : « peut-on se fier à ce chiffre ? » | 26 |
+| M9 | Strategic Intelligence | Athéna | Conseil de direction : scénarios, risques, priorités, suivi des décisions. Elle propose, vous décidez. | 87 |
+| M10 | Mémoire | Mnémo | Garde ce qui a été fait, décidé et appris ; base de connaissances sourcée. | 58 |
 
 Total : **573 outils** (un outil = un geste précis qu'un département sait faire). **248** de ces outils sont ouverts à un téléphone
 appairé (employé, vendeur ou administrateur) ; les autres sont réservés à l'ordinateur et aux agents.
