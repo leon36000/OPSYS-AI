@@ -42,13 +42,14 @@ RACINE = Path(__file__).resolve().parents[1]
 RENOVATION = "renovation-exterieure-qc"
 GENERIQUE = "generique-pme"
 
-# sha256 des SOUL.md (et du skill de M3) AVANT la généralisation (commit d172aa2cc), pris tels quels.
+# sha256 des SOUL.md (et du skill de M3) AVANT la généralisation (commit d172aa2cc), pris tels quels ;
+# M5 : + paragraphe « base fiscale » de claude/m5-base-fiscale (aucun terme sectoriel).
 SOUL_AVANT = {
     "m01-front-office": "d74fe370f565131b0174aafbb257fa08733a09760a60067f0f6af709b25a65be",
     "m02-revenue-crm": "9c214f0c1c478b74cd875b95c9965ff190bbaaab597757a8aaadfa673ded3af7",
     "m03-estimation": "552ae4994c671bb7bc37b5ed5ed4e06773be5e580375a49abbc32a3298012f26",
     "m04-field-ops": "85e7ff89e5f82809c31467efc3a6d6e53f0d6ba310954c7ba36d9079f771179b",
-    "m05-financecore": "aed5c1a15fb01e0c572c1120160eee182619ac1fa318edada5cafa317121608b",  # r8 : + base fiscale (claude/m5-base-fiscale), sans terme sectoriel
+    "m05-financecore": "aed5c1a15fb01e0c572c1120160eee182619ac1fa318edada5cafa317121608b",
     "m06-material-control": "7813017714577d81c4aca28e5b70bc81b26aaa0d191bf2bcbe6d9930321b90dd",
     "m07-marketing": "c0975bcfda3484e808599259cd18b38491e3c0dffd2e04387fb9999a5549e71a",
     "m08-analytics": "5dc5fb864a0c2cf52bb48181f4bd461808d59fd720bf7c3caab25bacba0d2e14",
@@ -312,8 +313,8 @@ EXCEPTIONS: dict[str, tuple[frozenset[str], int, str]] = {
     "departments/m05-financecore/src/m5_financecore/garde_investissement.py": (
         frozenset({"gouttière", "revêtement"}), 1,
         "liste blanche des ACHATS D'EXPLOITATION (non-placements) de la garde investissement : « gouttières » et "
-        "« revêtements » y sont des fournitures du premier client ; les retirer ferait refuser par prudence un achat de "
-        "matériel légitime. Dette : à charger depuis le pack actif."),
+        "« revêtements » y sont des fournitures du premier client ; les retirer ferait refuser par prudence un "
+        "achat de matériel légitime. Dette : à charger depuis le pack actif."),
     "departments/m01-front-office/contracts/m1-demande-chiffrage.v1.yaml": (
         frozenset({"isolation thermique", "ravalement", "rénovation"}), 1, _CONTRAT_V1),
     "departments/m01-front-office/contracts/m1-lead-qualifie.v1.yaml": (
