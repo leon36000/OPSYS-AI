@@ -224,7 +224,7 @@ de connaissances au lecteur : ce serait élargir un droit, ce que le brief inter
   brouillon (l'envoi est une demande N3 d'une personne, qui voit le texte), mais la page d'approbation ne dit pas que le suivi a été
   retiré. Non corrigé : il faudrait un événement de retrait de M4 ou une lecture M1 -> M4 du consentement (nouveau droit).
 - Un même constat rejoué avec une clé de contenu identique mais un contenu différent (même `relance_id`, même `releve_id` + révision)
-  est ignoré sans alerte par M2, M5, M6 et M8 (seul M10 nomme la contradiction de sceau) ; et M2 garde la relance de créance de
+  est ignoré sans alerte par M2, M5 et M8 (seul M10 nomme la contradiction de sceau) ; et M2 garde la relance de créance de
   plus haut niveau sans jamais la lever quand la facture est payée (aucun événement de paiement au catalogue).
 
 ## 8. Commandes
