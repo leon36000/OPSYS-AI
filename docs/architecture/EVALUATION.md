@@ -168,6 +168,15 @@ sa validation (`valider` : 120 cas) et son empreinte restent ceux du fichier ent
 cas n'est encore écrit). Le répondant `passerelle` envoie le même `SOUL.md` effectif que l'agent (cœur rendu + bloc du pack).
 `tests/test_packs_generalisation.py` exige qu'un cas qui contient un terme sectoriel porte l'étiquette, et inversement.
 
+## Corpus transverse de sécurité MCP (observabilité-mcp, 2026-11-01)
+
+Les corpus par département mesurent ce qu'un RÉPONDANT fait ; le corpus transverse mesure ce que la GARDE du serveur MCP fait, sans modèle :
+`opsys-metier evaluer securite-mcp` (fichier `src/opsys/evaluation/corpus_transverse/securite-mcp.v1.yaml`, format fermé
+`opsys.evaluation.securite-mcp/v1`, 37 cas sur les outils réels). Il vérifie qu'une description, un schéma ou un niveau d'outil modifié, un outil
+inconnu et une violation de la Rule of Two (courriel → envoi, ingestion → paiement, web → publication…) sont refusés avec le bon code
+(`REJ-MCP-…`), et que les témoins intacts passent. C'est un fichier à part : les dix corpus de département et leur empreinte ne changent pas.
+Détail et limites : [OBSERVABILITE-MCP.md](OBSERVABILITE-MCP.md), § 6.
+
 ## Interpréter
 
 - 100 % avec `reference` prouve que le corpus est cohérent et atteignable, pas qu'un agent est bon.

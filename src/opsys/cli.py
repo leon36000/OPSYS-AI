@@ -739,6 +739,10 @@ def construire_parseur() -> argparse.ArgumentParser:
         cli as connaissances_cli,  # connaissances … (état des bases par département), lecture seule
     )
     connaissances_cli.ajouter_commandes(sous)
+    from .observabilite import cli as traces_cli  # traces … (tableaux coût/latence, intégrité, export, masquage PII)
+    traces_cli.ajouter_commandes(sous)
+    from .registre_mcp import cli as mcp_cli  # mcp … (registre en liste blanche, empreintes, Rule of Two)
+    mcp_cli.ajouter_commandes(sous)
 
     sous.add_parser("departements", help="lister les départements").set_defaults(fn=cmd_departements)
     bases = sous.add_parser("agents-base", help="profils durables des agents départementaux")

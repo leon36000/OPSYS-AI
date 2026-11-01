@@ -41,6 +41,10 @@ def ajouter_commandes(sous: argparse._SubParsersAction) -> None:
                         help="aucun filtre de pack : tous les cas du corpus (diagnostic, jamais une qualification)")
     for p in (va, la):
         p.add_argument("--departement", action="append", help="id ou code (répétable) ; défaut : les dix")
+    sm = actions.add_parser("securite-mcp",
+                            help="corpus transverse : dérive d'outil et Rule of Two doivent être refusées")
+    sm.add_argument("--corpus", help="fichier de corpus (défaut : securite-mcp.v1.yaml livré)")
+    sm.add_argument("--sortie", help="dossier du rapport (JSON + Markdown), jamais écrasé")
     co = actions.add_parser("comparer", help="comparer deux rapports JSON")
     co.add_argument("precedent")
     co.add_argument("courant")
@@ -133,6 +137,28 @@ def _lancer(args: argparse.Namespace, departements: dict) -> int:
     return 0 if not resultat["global"]["departements_non_qualifies"] else 1
 
 
+def _securite_mcp(args: argparse.Namespace) -> int:
+    from . import securite_mcp
+
+    rapport, texte = securite_mcp.lancer_depuis_cli(Path(args.corpus) if args.corpus else None)
+    if args.sortie:
+        revision = rapport["garde"]["revision_registre"]
+        base = Path(args.sortie) / f"securite-mcp-{rapport['empreinte_corpus'][:12]}-r{revision}"
+        cibles = [base.with_suffix(".json"), base.with_suffix(".md")]
+        existants = [str(c) for c in cibles if c.exists()]
+        if existants:
+            raise RefusEvaluation("REJ-EVAL-SORTIE-EXISTANTE",
+                                  f"rapport déjà présent, jamais écrasé : {', '.join(existants)}")
+        base.parent.mkdir(parents=True, exist_ok=True)
+        cibles[0].write_text(securite_mcp.serialiser(rapport), encoding="utf-8")
+        cibles[1].write_text(texte, encoding="utf-8")
+        for cible in cibles:
+            print(cible)
+    else:
+        print(texte, end="")
+    return 0 if rapport["qualifie"] else 1
+
+
 def executer(args: argparse.Namespace) -> int:
     from ..departements import charger_departements
 
@@ -143,6 +169,8 @@ def executer(args: argparse.Namespace) -> int:
             comparaison = comparer(_lire_json(args.precedent), _lire_json(args.courant))
             print(json.dumps(comparaison, ensure_ascii=False, indent=2))
             return 1 if comparaison["regressions"] else 0
+        if args.action == "securite-mcp":
+            return _securite_mcp(args)
         departements = charger_departements()
         return _valider(args, departements) if args.action == "valider" else _lancer(args, departements)
     except RefusEvaluation as exc:

@@ -52,6 +52,8 @@ export const OPSYS_METIER_MOVED_COMMANDS: readonly string[] = [
   "pack",
   "avatars",
   "connaissances",
+  "traces",
+  "registre-mcp",
 ];
 
 export type OpsysMetierInvocation =

@@ -58,6 +58,8 @@ packages = [
     "opsys.garde_fou_texte",
     "opsys.packs",
     "opsys.evaluation",
+    "opsys.observabilite",
+    "opsys.registre_mcp",
     "opsys.avatars_voix",
     "opsys.ingestion_onboarding",
     "opsys.secrets_coffre",
@@ -135,4 +137,6 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 [tool.setuptools.package-data]
 "opsys.memoire" = ["schema.sql"]
 "opsys.evenements" = ["catalogue/*.json"]
+"opsys.registre_mcp" = ["registre.v1.json"]
+"opsys.evaluation" = ["corpus_transverse/*.yaml"]
 m7_marketing = ["**/*.yaml", "**/*.html", "**/*.svg", "**/*.txt"]

@@ -316,6 +316,12 @@ EXCEPTIONS: dict[str, tuple[frozenset[str], int, str]] = {
         "liste blanche des ACHATS D'EXPLOITATION (non-placements) de la garde investissement : « gouttières » et "
         "« revêtements » y sont des fournitures du premier client ; les retirer ferait refuser par prudence un "
         "achat de matériel légitime. Dette : à charger depuis le pack actif."),
+    "src/opsys/registre_mcp/registre.v1.json": (
+        frozenset({"isolation thermique", "ravalement", "revêtement", "rénovation"}), 7,
+        "miroir GÉNÉRÉ (opsys-metier registre-mcp sceller) des descriptions et schémas d'entrée des outils des "
+        "départements, un outil par ligne : il reflète les outils qui nomment encore les services du premier client "
+        "(m2_ingerer_lead, m3_estimer_projet, m3_simuler_intervalle…) et tombe avec eux quand ils passeront par le "
+        "pack."),
     "departments/m01-front-office/contracts/m1-demande-chiffrage.v1.yaml": (
         frozenset({"isolation thermique", "ravalement", "rénovation"}), 1, _CONTRAT_V1),
     "departments/m01-front-office/contracts/m1-lead-qualifie.v1.yaml": (
