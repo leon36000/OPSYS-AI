@@ -288,7 +288,11 @@ Par type, `exacte` et `variante` sont retrouvées à 100 % (recall@5) par les tr
   est écrasé à ~0, d'où les départages par couverture et ordre de lecture.
 - Les reranker et embeddings réels, la latence et le volume n'ont **pas** été mesurés.
 
-## 12. Migrations 0041 et 0056
+## 12. Migrations 0041, 0056 et 0057
+
+**0057** (revue adverse rvi, `0057_garde_truncate_postgresql.py`) : sur PostgreSQL seulement, un déclencheur d'instruction `BEFORE TRUNCATE` sur
+les 29 tables append-only ou journaux immuables (les déclencheurs de ligne ne se réveillent jamais sur `TRUNCATE`). Descente sans perte de données.
+Limite : le propriétaire de la table peut encore retirer un déclencheur (séparation des rôles de migration et d'exécution = décision de déploiement).
 
 **0056** (qualification PostgreSQL, `0056_parite_postgresql.py`) succède à 0052 : sur PostgreSQL seulement, crée `connaissances_lexique`
 (colonne `tsv` générée, index GIN, déclencheur d'immuabilité), pose l'immuabilité de deux tables qui ne l'avaient que sur SQLite et

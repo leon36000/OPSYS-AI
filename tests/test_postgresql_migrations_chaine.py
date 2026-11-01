@@ -114,11 +114,13 @@ def test_la_chaine_s_installe_dans_deux_schemas_distincts_de_la_meme_base(serveu
                 tables = {r[0] for r in cnx.execute(text(
                     "SELECT tablename FROM pg_tables WHERE schemaname = :s"), {"s": schema})}
                 assert {"alembic_version", "connaissances_lexique", "connaissances_fragments", "personnes"} <= tables
-                declencheur = cnx.execute(text(
+                # Un déclencheur de LIGNE (UPDATE/DELETE, 0041) et un déclencheur d'INSTRUCTION (TRUNCATE, 0057).
+                declencheurs = {bit: cnx.execute(text(
                     "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid "
                     "WHERE c.relname = 'connaissances_lexique' AND c.relnamespace = CAST(:s AS regnamespace) "
-                    "AND NOT t.tgisinternal"), {"s": schema}).scalar_one()
-                assert declencheur == 1  # chaque schéma porte son propre déclencheur d'immuabilité
+                    "AND NOT t.tgisinternal AND (t.tgtype & :bit) = :bit"), {"s": schema, "bit": bit}).scalar_one()
+                    for bit in (1, 32)}
+                assert declencheurs == {1: 1, 32: 1}  # chaque schéma porte ses propres déclencheurs d'immuabilité
             assert cnx.execute(text("SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")).scalar_one() == 0
     finally:
         stockage.liberer(url)
