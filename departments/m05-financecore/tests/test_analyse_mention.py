@@ -89,6 +89,8 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
     attendues |= {
         "m5_analyser_exports_quickbooks", "m5_valider_correspondance_quickbooks", "m5_importer_quickbooks",
         "m5_lire_import_quickbooks", "m5_valider_import_quickbooks"}
+    # Ingestion d'onboarding : la lecture d'un lot (et de ses brouillons) et la validation d'une facture proposée.
+    attendues |= {"m5_lire_lot_onboarding", "m5_valider_brouillon_onboarding_ap"}
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
     assert analyse.SORTIES_COMPTABLES <= analyse.SORTIES_D_ANALYSE
     assert "m5_envoyer_facture" in analyse.SORTIES_HORS_ANALYSE

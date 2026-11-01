@@ -22,9 +22,9 @@ def test_upgrade_preserve_politique_audit_sans_grant(tmp_path):
     cfg = stockage._config()
     from alembic.script import ScriptDirectory
 
-    # 0036 (opérateur des politiques, réconciliateur) puis 0037 (registre de fournisseurs, coffre) succèdent à 0035
-    # sans toucher aux tables WCT.
-    assert ScriptDirectory.from_config(cfg).get_heads() == ["0037"]
+    # 0036 (opérateur des politiques, réconciliateur), 0037 (registre de fournisseurs, coffre) puis 0038 (ingestion
+    # d'onboarding) succèdent à 0035 sans toucher aux tables WCT.
+    assert ScriptDirectory.from_config(cfg).get_heads() == ["0038"]
     with engine.begin() as cnx:
         cfg.attributes["connection"] = cnx
         command.upgrade(cfg, "0033")

@@ -61,6 +61,7 @@ from . import (
     agenda_vendeurs,
     assignation,
     clients,
+    clients_importes,
     consentements,
     contact_memoire,
     contrats,
@@ -400,7 +401,9 @@ def _decision_approuvee_en_cours(cnx: Any, nom_outil: str, arguments: dict[str, 
     return None
 
 
-def _acteur_humain(arguments: dict[str, Any]) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+def _acteur_humain(
+    arguments: dict[str, Any], *, nom_outil: str = _OUTIL_REASSIGNATION, refus_detail: str | None = None,
+) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
     """Qui décide : `({par, role, voie}, None)` si c'est un humain identifié, sinon `(None, verdict)`.
 
     Deux voies, jamais une troisième, jamais un texte de modèle ni un argument :
@@ -415,12 +418,12 @@ def _acteur_humain(arguments: dict[str, Any]) -> tuple[dict[str, str] | None, di
         return None, refus
     if acteur is not None:
         return {"par": acteur.personne, "role": acteur.role, "voie": _VOIE_APPAREIL}, None
-    approbateur = _decision_approuvee_en_cours(stockage.connexion_courante(), _OUTIL_REASSIGNATION, arguments)
+    approbateur = _decision_approuvee_en_cours(stockage.connexion_courante(), nom_outil, arguments)
     if approbateur is not None:
         return {"par": approbateur[0], "role": approbateur[1], "voie": _VOIE_APPROBATION}, None
     return None, verdicts.construire_verdict(
         "REJ-HUMAIN-REQUIS",
-        detail=(
+        detail=refus_detail or (
             "réassigner un lead est une décision humaine : un agent ne peut pas la prendre seul. Fais-la depuis "
             "l'app admin (jeton d'appareil), ou propose-la et attends qu'une personne approuve la demande dans la "
             "console OPSYS. Ne la présente pas comme faite."
@@ -2484,6 +2487,7 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T1,
         ),
         *_outils_agenda(),
+        *_outils_onboarding(),
     )
 
 # CRM03 : port admin console privé. Aucune portée appareil ou agent ajoutée.
@@ -2621,4 +2625,137 @@ def _outils_agenda():
         Outil(nom="m2_historique_rendez_vous",
               description="Console admin privée : historique append-only d'un rendez-vous commercial.",
               parametres=schema({"rendez_vous_id": identifiant}), fonction=historique_rendez_vous),
+    )
+
+
+# ===================================================================== ingestion d'onboarding : clients importés
+# Le socle (`opsys.ingestion_onboarding`) propose des fiches clients en BROUILLON à partir d'une liste déposée ; seule
+# la décision d'un HUMAIN (app admin, ou demande approuvée dans la file) crée la fiche DÉFINITIVE, dans le registre
+# dédié `clients_importes` (jamais celui des leads). Portée d'appareil FERMÉE (aucune déclaration).
+_OUTIL_VALIDATION_CLIENT_ONBOARDING = "m2_valider_brouillon_onboarding_client"
+_NOM_REGISTRE_CLIENTS_IMPORTES = "clients_importes"
+_REFUS_HUMAIN_CLIENT_ONBOARDING = (
+    "créer (ou écarter) une fiche client importée est une décision humaine : propose-la, puis attends qu'une personne "
+    "l'approuve dans la file OPSYS. Ne la présente pas comme faite."
+)
+
+
+def _refus_sans_base_onboarding() -> dict[str, Any]:
+    return _refus(verdicts.construire_verdict(
+        "REJ-BUS-INDISPONIBLE",
+        detail="les clients importés vivent dans la base de l'instance : appel hors transaction"))
+
+
+def _registre_clients_importes() -> Registre:
+    return Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CLIENTS_IMPORTES))
+
+
+def valider_brouillon_onboarding_client(
+    brouillon_id: str, revision_attendue: int, decision: str, choix: dict[str, str] | None, motif: str | None,
+    horodatage: str,
+) -> dict[str, Any]:
+    """L'outil `m2_valider_brouillon_onboarding_client` (T1, N3) : un humain VALIDE une fiche client proposée (elle
+    devient un maillon `client_importe` du registre `clients_importes`, `client_id` du Client 360) ou l'ÉCARTE (motif
+    obligatoire). `choix` résout un conflit de valeurs (une valeur OBSERVÉE par champ). Brouillon et fiche changent dans
+    la même transaction ; un brouillon déjà décidé, ou d'une autre révision, est refusé sans rien écrire."""
+    from opsys.ingestion_onboarding import service as ingestion
+    from opsys.ingestion_onboarding.codes import IngestionErreur
+
+    arguments = {"brouillon_id": brouillon_id, "revision_attendue": revision_attendue, "decision": decision,
+                 "choix": choix, "motif": motif, "horodatage": horodatage}
+    acteur, refus = _acteur_humain(arguments, nom_outil=_OUTIL_VALIDATION_CLIENT_ONBOARDING,
+                                   refus_detail=_REFUS_HUMAIN_CLIENT_ONBOARDING)
+    if acteur is None:
+        return _refus(refus)
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        return _refus_sans_base_onboarding()
+    try:
+        brouillon = ingestion.lire_brouillon(cnx, brouillon_id)
+        ingestion.controler_decidable(brouillon, genre="crm_client", revision_attendue=revision_attendue)
+        decision_humaine = {"par": acteur["par"], "role": acteur["role"], "voie": acteur["voie"],
+                            "le": _horodatage_faisant_foi(horodatage), "decision": decision}
+        if decision == "ecarter":
+            if not isinstance(motif, str) or not motif.strip() or len(motif) > 300 or not motif.isprintable():
+                return _refus(verdicts.construire_verdict(
+                    "REJ-MOTIF-INVALIDE", detail="écarter une fiche exige un motif (300 caractères imprimables)"))
+            vue = ingestion.decider_brouillon(
+                cnx, brouillon_id, genre="crm_client", revision_attendue=revision_attendue, statut="ECARTE",
+                decision={**decision_humaine, "motif": motif.strip()}, reference=None)
+            return {"accepte": True, "resultat": {"brouillon": {k: v for k, v in vue.items() if k != "contenu"}}}
+        if decision != "valider":
+            return _refus(verdicts.construire_verdict("REJ-ENUM-INVALIDE", detail="decision : valider ou ecarter"))
+        contenu = brouillon["contenu"]
+        resultat, verdict = clients_importes.importer_client(
+            contenu["fiche"], choix, par=acteur["par"], role=acteur["role"], voie=acteur["voie"],
+            horodatage=decision_humaine["le"],
+            source={"lot_id": brouillon["lot_id"], "brouillon_id": brouillon_id,
+                    "document_sha256": contenu["document"]["sha256"], "lignes": contenu["fiche"]["lignes"]},
+            registre_cible=_registre_clients_importes())
+        if verdict is not None:
+            return _refus(verdict)
+        vue = ingestion.decider_brouillon(cnx, brouillon_id, genre="crm_client", revision_attendue=revision_attendue,
+                                          statut="VALIDE", decision={**decision_humaine, "choix": choix or {}},
+                                          reference=resultat["client_id"])
+    except IngestionErreur as exc:
+        return _refus(exc.publique())
+    return {"accepte": True, "resultat": {"client_id": resultat["client_id"],
+                                          "brouillon": {k: v for k, v in vue.items() if k != "contenu"}}}
+
+
+def lister_clients_importes(depart: int = 0, limite: int = 20) -> dict[str, Any]:
+    """L'outil `m2_lister_clients_importes` (T0) : les fiches définitives importées, dans l'ordre d'import, paginées."""
+    if type(depart) is not int or depart < 0 or type(limite) is not int or not 1 <= limite <= 50:
+        return _refus(verdicts.construire_verdict("REJ-PAGINATION-INVALIDE", detail="depart ≥ 0, limite de 1 à 50"))
+    if stockage.connexion_courante() is None:
+        return _refus_sans_base_onboarding()
+    fiches = clients_importes.clients_importes(_registre_clients_importes().lire())
+    page = fiches[depart:depart + limite]
+    champs = ("client_id", "contact", "adresse", "ville", "code_postal", "importe_par", "voie", "horodatage")
+    return {"accepte": True, "resultat": {
+        "clients": [{k: f.get(k) for k in champs} for f in page], "total": len(fiches), "depart": depart,
+        "suivant": depart + limite if depart + limite < len(fiches) else None}}
+
+
+def _outils_onboarding() -> tuple[Outil, ...]:
+    return (
+        Outil(
+            nom="m2_valider_brouillon_onboarding_client",
+            description=(
+                "Décide une fiche client PROPOSÉE par l'ingestion d'onboarding (liste de clients déposée) : valider "
+                "crée la fiche DÉFINITIVE (registre clients_importes, client_id du Client 360) ; écarter exige un "
+                "motif. Décision HUMAINE seulement (file d'approbation) : REJ-HUMAIN-REQUIS pour un agent seul. "
+                "revision_attendue : celle lue (m5_lire_lot_onboarding). choix : {champ: valeur observée} pour "
+                "chaque conflit signalé (REJ-ING-CLIENT-CONFLIT) ; une valeur mal formée n'est jamais validée."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "brouillon_id": {"type": "string"},
+                    "revision_attendue": {"type": "integer"},
+                    "decision": {"type": "string", "enum": ["valider", "ecarter"]},
+                    "choix": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+                    "motif": {"type": ["string", "null"]},
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["brouillon_id", "revision_attendue", "decision", "choix", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=valider_brouillon_onboarding_client,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m2_lister_clients_importes",
+            description=(
+                "Liste les fiches clients DÉFINITIVES importées à l'onboarding (validées par un humain), dans l'ordre "
+                "d'import, paginées : client_id, contact, adresse, qui les a validées et par quelle voie. Lecture."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"depart": {"type": "integer"}, "limite": {"type": "integer"}},
+                "additionalProperties": False,
+            },
+            fonction=lister_clients_importes,
+            autonomie=Autonomie.T0,
+        ),
     )

@@ -138,7 +138,9 @@ Une valeur passée en argument (`--valeur`, positionnel) est refusée sans être
 ## 6. Limites connues
 
 - Les consommateurs existants (passerelle LiteLLM et paliers, STT M1, embeddings M10, OCR) ne lisent pas encore
-  le registre : la résolution existe, le raccordement est le chantier suivant.
+  le registre : la résolution existe, le raccordement est le chantier suivant. Premier consommateur : le port
+  d'extraction de facture de l'ingestion d'onboarding ([INGESTION-ONBOARDING.md](INGESTION-ONBOARDING.md), capacité
+  `llm` de M5, refus typé sans repli), sans adaptateur réseau raccordé dans sa première tranche.
 - Quotas et coûts sont **déclarés et affichés**, pas encore comptés ni appliqués à l’appel.
 - Aucune mesure locale : tout reste `a_mesurer` (B.4). Les licences sont celles des recherches au 2026-10-31 ;
   une revue trimestrielle reste à planifier (R5 §7.1).

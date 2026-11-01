@@ -1,0 +1,17 @@
+FACTURE
+Émetteur : Quincaillerie Fictive Laval inc.
+Adresse émetteur : 123 boul. Fictif, Laval QC H7N 1A1
+No TPS : 123456789 RT 0001
+No TVQ : 1234567890 TQ 0001
+Facturé à : Gouttières Fictives Synergy inc.
+Numéro : QF-2026-0418
+Date : 2026-09-15
+Échéance : 2026-10-15
+Devise : CAD
+Ligne : Gouttière aluminium 5 po | 40 | 6.25 | 250.00
+Ligne : Coudes aluminium | 12 | 4.50 | 54.00
+Sous-total : 304.00
+TPS : 15.20
+TVQ : 30.32
+Total : 349.52
+Document fictif - QA OPSYS

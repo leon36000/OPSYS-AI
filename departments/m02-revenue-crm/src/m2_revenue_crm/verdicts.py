@@ -90,6 +90,22 @@ CODES_M2_LIST = [
     "REJ-AGENDA-MUTATION-ABSENTE",
     "REJ-AGENDA-VENDEUR-INACTIF",
     "REJ-AGENDA-VENDEUR-INCONNU",
+    # Groupe 9 — ingestion d'onboarding (`clients_importes.py`). D'abord la fiche définitive d'un client importé d'une
+    # liste : fiche mal formée, choix hors des valeurs observées, client déjà importé. REJ-HUMAIN-REQUIS,
+    # REJ-HORODATAGE-INVALIDE, REJ-ENUM-INVALIDE, REJ-MOTIF-INVALIDE et REJ-PAGINATION-INVALIDE servent aussi.
+    "REJ-CLIENT-IMPORT-INVALIDE",
+    "REJ-CLIENT-IMPORT-CHOIX-INVALIDE",
+    "REJ-CLIENT-DEJA-IMPORTE",
+    # Puis les RAISONS d'une fiche proposée (brouillon `A_VERIFIER`) ou d'une ligne refusée de la liste : jamais une
+    # valeur corrigée en silence (`clients_importes.CODES_RAISONS`, même liste, même ordre).
+    "REJ-ING-CLIENT-NOM-ABSENT",
+    "REJ-ING-CLIENT-COURRIEL-INVALIDE",
+    "REJ-ING-CLIENT-TELEPHONE-INVALIDE",
+    "REJ-ING-CLIENT-CODE-POSTAL-INVALIDE",
+    "REJ-ING-CLIENT-CONFLIT",
+    "REJ-ING-CLIENT-DOUBLON-PROBABLE",
+    "REJ-ING-CLIENT-ENTETE-INTROUVABLE",
+    "REJ-ING-CLIENT-TROP-DE-LIGNES",
 ]
 CODES_M2 = set(CODES_M2_LIST)
 

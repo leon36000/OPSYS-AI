@@ -1,0 +1,13 @@
+FACTURE
+Émetteur : Petit Fournisseur Fictif
+Adresse émetteur : 2 rue Fictive, Joliette QC J6E 1A1
+Facturé à : Gouttières Fictives Synergy inc.
+Numéro : PFF-12
+Date : 2026-05-20
+Devise : CAD
+Ligne : Vis inox | 1 | 80.00 | 80.00
+Sous-total : 80.00
+TPS : 4.00
+TVQ : 7.98
+Total : 91.98
+Document fictif - QA OPSYS

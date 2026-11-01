@@ -1,0 +1,26 @@
+# Corpus d'onboarding FICTIF (AGENTS.md : aucune donnée réelle). Identités, numéros TPS/TVQ, adresses, courriels et
+# téléphones sont inventés ; les numéros de taxes n'ont que la FORME attendue. L'entreprise fictive est
+# « Gouttières Fictives Synergy inc. » (TPS 987654321 RT 0001, TVQ 9876543210 TQ 0001).
+fictif: true
+factures:
+  F1-quincaillerie: {attendu: PRET, note: "304.00 + TPS 15.20 + TVQ 30.32 (30.324) = 349.52"}
+  F2-materiaux: {attendu: PRET, note: "100.50 : TPS 5.025 -> 5.03 (ROUND_HALF_UP ; HALF_EVEN donnerait 5.02)"}
+  F3-location-tvq: {attendu: A_VERIFIER, raisons: [REJ-ING-FACTURE-TVQ-ECART, REJ-ING-FACTURE-TOTAL-ECART],
+                    note: "TVQ imprimée 29.92 = arrondi du banquier de 29.925 ; la règle est ROUND_HALF_UP (29.93)"}
+  F4-peinture-sommes: {attendu: A_VERIFIER, raisons: [REJ-ING-FACTURE-SOMME-LIGNES, REJ-ING-FACTURE-NO-TPS-FORME]}
+  F5-emise-par-nous: {attendu: NON_PEUPLEE, note: "émise par l'entreprise : facture client, pas un compte à payer"}
+  F6-date-future: {attendu: A_VERIFIER, raisons: [REJ-ING-FACTURE-DATE-FUTURE]}
+  F7-sans-numero-tps: {attendu: A_VERIFIER, raisons: [REJ-ING-FACTURE-NO-TPS-ABSENT, REJ-ING-FACTURE-NO-TVQ-ABSENT]}
+autres:
+  soumission-toiture: {attendu: REJ-ING-CLASSE-NON-PEUPLEE}
+  contrat-entretien: {attendu: REJ-ING-CLASSE-NON-PEUPLEE}
+  notes-reunion: {attendu: REJ-ING-CLASSE-INCONNUE}
+clients:
+  fichier: clients.csv
+  attendu:
+    - {lignes: [2, 3], regle: courriel_identique, statut: PRET}
+    - {lignes: [4, 5], regle: telephone_et_nom, statut: PRET}
+    - {lignes: [6, 7], regle: telephone_et_nom, statut: A_VERIFIER, raison: "REJ-ING-CLIENT-CONFLIT (courriel)"}
+    - {lignes: [8], statut: A_VERIFIER, raisons: [REJ-ING-CLIENT-COURRIEL-INVALIDE, REJ-ING-CLIENT-DOUBLON-PROBABLE]}
+    - {lignes: [9], statut: A_VERIFIER, raisons: [REJ-ING-CLIENT-DOUBLON-PROBABLE]}
+    - {lignes: [10], refusee: REJ-ING-CLIENT-NOM-ABSENT}

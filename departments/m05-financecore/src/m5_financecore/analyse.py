@@ -46,6 +46,8 @@ SORTIES_COMPTABLES = frozenset({
     "m5_importer_quickbooks",  # des brouillons d'écritures repris d'un autre logiciel : des propositions
     "m5_lire_import_quickbooks",  # un import, sa vérification et ses soldes attendus : un contrôle à interpréter
     "m5_valider_import_quickbooks",  # les écritures reprises rendues définitives (N4) : reste à valider par le CPA
+    "m5_lire_lot_onboarding",  # brouillons d'onboarding : champs lus, taxes recalculées, raisons, à interpréter
+    "m5_valider_brouillon_onboarding_ap",  # la facture sans PO saisie depuis un brouillon : un calcul, comme la saisie
 })
 
 # Les outils dont la réponse acceptée est une analyse, un calcul interprété ou une proposition : elle porte la mention
@@ -71,6 +73,12 @@ SORTIES_D_ANALYSE = frozenset({
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {
+    "m5_deposer_lot_onboarding": (
+        "crée un lot de documents déposés (types, empreintes, doublons, compteurs), sans aucun montant ni calcul"
+    ),
+    "m5_avancer_lot_onboarding": (
+        "rend l'état des tâches d'un lot (compteurs et issues par étape), sans aucun montant ni calcul financier"
+    ),
     "m5_verifier_admission_paie_preparatoire": (
         "diagnostic documentaire et génération Source, sans calcul monétaire ni qualification fiscale"
     ),
