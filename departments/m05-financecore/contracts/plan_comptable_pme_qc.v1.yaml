@@ -6,7 +6,8 @@
 # Libellés et regroupements à valider par le CPA de l'entreprise : c'est un point de départ, pas un avis comptable.
 schema_version: 1
 plan_id: pme-qc-services
-version: "2026-v1"
+# 2026-v2 : ajoute `correspondance_charges` (catégorie de dépense -> compte de charge) ; les comptes sont ceux de 2026-v1.
+version: "2026-v2"
 source: "Plan type OPSYS-AI pour PME québécoise de services (structure usuelle actif/passif/capitaux/produits/charges)"
 comptes:
   # --- Actif
@@ -61,3 +62,19 @@ roles:
   tvq_rti: "1410"
   comptes_fournisseurs: "2100"
   salaires_a_payer: "2200"
+# Correspondance DÉCLARATIVE des factures fournisseurs vers leur compte de charge (brouillons du grand livre). Une facture
+# SANS PO porte une catégorie de la liste fermée `configuration.categories_depense_sans_po` (department.yaml) : son compte
+# est celui de sa catégorie ici. Une facture SUR PO (bon de commande de M6, gestion des matériaux) n'a pas de catégorie :
+# son compte est `factures_sur_po`. Chaque compte visé doit exister au plan, être actif et de type charges, sinon le plan
+# est refusé au chargement (REJ-GL-CORRESPONDANCE-INVALIDE). Une catégorie configurée absente d'ici n'a pas de compte :
+# ses factures sont ignorées (REJ-GL-CATEGORIE-SANS-COMPTE), jamais rangées dans un compte supposé. Le client ajoute,
+# redirige ou retire des entrées par `configuration.grand_livre` (docs/grand-livre.md).
+# Entrées : les catégories que le dépôt connaît (exemples de department.yaml, ingestion d'onboarding, coûts marketing).
+# Comptes PROPOSÉS, à valider par le CPA de l'entreprise (ex. : des achats sur PO stockés relèvent peut-être de 1200).
+correspondance_charges:
+  factures_sur_po: "5100"
+  categories_depense:
+    carburant: "5400"
+    materiaux: "5100"
+    marketing: "5950"
+    outils: "5500"
