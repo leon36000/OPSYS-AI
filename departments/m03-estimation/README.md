@@ -118,3 +118,13 @@ clés SŒURS sur la voie non bloquée (architecture §2.10, DA-M3-14). Photos fa
 - **À décider par Nathan (GATE)** : le taux de marge de chaque scénario, le mode de coût de chaque poste du barème
   (`cout_unitaire_mode`), la base de coût de chaque scénario (P80, P50, P50 : une politique énoncée, pas une mesure) et le
   minimum rentable (T4.7) qui rend les alertes évaluables. Tant que les taux sont vides, les prix ne sont pas chiffrés.
+
+## Contexte du site, vision et géospatial (M3.2, M3.3, M3.5, M3.7) — vague 3
+
+Dix outils fermés aux appareils (`contexte_site.py`, `vision_*.py`, `geospatial.py`, `geometrie_polygone.py`, adaptateur
+`outils_site_vision.py`). Contexte de site versionné et sourcé (« inconnu » explicite, permis « à vérifier »), contrat du pipeline de
+vision avec port `DetecteurVision` et doubles, gouvernance « un candidat n'est jamais une mesure » (référence ou personne,
+politique vide dans `department.yaml`), harnais IoU sur jeu synthétique fictif, registre des modèles (capacité `vision`),
+ports géospatiaux et aire d'un polygone avec reçu. `m3_estimer_projet` accepte `contexte_site_empreinte`.
+**Aucun modèle de vision, aucune source géospatiale réelle** : « contrat prêt, aucun modèle qualifié ». Détails, preuves et limites :
+[`docs/architecture/M3-M4-MATHIS-GABRIEL.md`](../../docs/architecture/M3-M4-MATHIS-GABRIEL.md).

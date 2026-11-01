@@ -42,6 +42,7 @@ from . import (
     hierarchie_echelle,
     modeles_soumission,
     monte_carlo,
+    outils_site_vision,
     plancher,
     politique_photos,
     qualite_photos,
@@ -408,6 +409,7 @@ def estimer_projet(
     graine: int | None = None,
     taux_marge: str | None = None,
     taux_marge_scenarios: dict[str, Any] | None = None,
+    contexte_site_empreinte: str | None = None,
 ) -> dict[str, Any]:
     """Point d'entrée agent (PLAN T2.3) : appelle l'orchestrateur pur
     `estimation.orchestrer_estimation` sur le registre DURABLE de production. Toute la logique
@@ -435,7 +437,14 @@ def estimer_projet(
     voie non bloquée seulement. Les taux de marge des trois scénarios viennent de `taux_marge_scenarios` (l'appel
     d'abord, scénario par scénario) puis de `department.yaml/configuration/scenarios_prix/taux_marge` ; le minimum
     rentable est celui de `configuration/revue_devis` (T4.7). Les deux sont lus ICI, jamais par le module pur : vides à
-    dessein, ils rendent un verdict qui dit quoi déclarer, jamais un prix. Rien de tout cela n'entre au registre."""
+    dessein, ils rendent un verdict qui dit quoi déclarer, jamais un prix. Rien de tout cela n'entre au registre.
+
+    Contexte de site (M3.2) : `contexte_site_empreinte` (facultatif) désigne une version du contexte de site de CE lead
+    (`m3_construire_contexte_site`). Ses hypothèses (données retenues, à collecter, conflits, vérifications)
+    accompagnent la
+    réponse en clé sœur `contexte_site`, hors d'EstimationV1 et du registre ; elles ne changent ni le prix ni le
+    blocage (la
+    garde photos/échelle reste la seule). Une empreinte inconnue de ce lead est refusée AVANT tout calcul."""
     vue = _vue_projection_effective(None)
     if not vue["accepte"]:
         return {"etape": "identite_appareil", "accepte": False, "verdict": vue["verdict"]}
@@ -452,6 +461,13 @@ def estimer_projet(
         vue = _vue_projection_effective(None)
         if not vue["accepte"]:
             return {"etape": "identite_appareil", "accepte": False, "verdict": vue["verdict"]}
+        contexte_resume = None
+        lead_du_contrat = contrat.get("lead_id") if isinstance(contrat, dict) else None
+        if contexte_site_empreinte is not None and isinstance(lead_du_contrat, str):
+            contexte_resume, verdict_contexte = outils_site_vision.resume_contexte_pour_estimation(
+                lead_du_contrat, contexte_site_empreinte)
+            if verdict_contexte is not None:
+                return {"etape": "contexte_site", "accepte": False, "verdict": verdict_contexte}
         calibration_candidate, erreur_calibration = _calibration_active_pour_demande(
             contrat, bareme, quantite,
         )
@@ -465,6 +481,8 @@ def estimer_projet(
         ))
         if resultat.get("accepte") is True and resultat.get("besoins_materiaux") is not None:
             _publier_besoins_materiaux(resultat["besoins_materiaux"])
+        if resultat.get("accepte") is True and contexte_resume is not None:
+            resultat = {**resultat, "contexte_site": contexte_resume}
         if vue["role"] == "employe" and resultat.get("accepte") is True:
             return _projeter_estimation_employe(resultat)
         return resultat
@@ -2046,6 +2064,14 @@ def outils() -> tuple[Outil, ...]:
                             "ou null : aucun prix_recommande calculé (coût seulement)"
                         ),
                     },
+                    "contexte_site_empreinte": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Facultatif : empreinte d'une version du contexte de site de CE lead "
+                            "(m3_construire_contexte_site). "
+                            "Ses hypothèses accompagnent la réponse (clé sœur contexte_site) ; aucun effet sur le prix."
+                        ),
+                    },
                     "taux_marge_scenarios": {
                         "type": ["object", "null"],
                         "description": (
@@ -2507,6 +2533,7 @@ def outils() -> tuple[Outil, ...]:
         *_outils_modeles(),
         *_outils_devis_modele(),
         *_outils_prefill(),
+        *outils_site_vision.outils_site_vision(),
     )
 
 

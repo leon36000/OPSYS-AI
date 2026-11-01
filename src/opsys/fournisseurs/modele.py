@@ -21,6 +21,7 @@ from typing import Any
 
 CAPACITES: tuple[str, ...] = (
     "llm", "embeddings", "reranker", "ocr", "stt", "tts", "avatar", "image", "video", "recherche_web", "courriel",
+    "vision",
 )
 MODES = ("local", "api")
 STATUTS_CATALOGUE = ("adopte", "repli", "conditionnel", "ecarte", "declare")

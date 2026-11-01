@@ -143,6 +143,14 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
         "m3_lister_modeles_soumission", "m3_creer_devis_depuis_modele",
         "m3_document_devis_console",
     }
+    # M3.2, M3.3/M3.5 et M3.7 (contexte de site, vision, géospatial) : outils fermés aux appareils, éprouvés par
+    # test_outils_site_vision.py ; ils ne touchent ni aux scénarios ni au contrat gelé d'EstimationV1.
+    site_vision_geospatial = {
+        "m3_construire_contexte_site", "m3_lire_contexte_site", "m3_executer_pipeline_vision",
+        "m3_lire_candidats_vision",
+        "m3_valider_candidat_par_reference", "m3_valider_candidat_par_humain", "m3_lister_modeles_vision",
+        "m3_calculer_aire_polygone", "m3_agreger_donnees_geospatiales", "m3_lister_sources_geospatiales",
+    }
     baseline_13 = {
         "m3_estimer_projet", "m3_qualifier_photos", "m3_classifier_confiance",
         "m3_simuler_intervalle", "m3_confronter_plancher", "m3_creer_devis",
@@ -152,7 +160,8 @@ def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
     }
     assert noms[0] == "m3_estimer_projet"
     assert len(noms) == len(set(noms))
-    assert set(noms) - outils_calibration - lectures_reprise - modeles_console == baseline_13
+    assert set(noms) - outils_calibration - lectures_reprise - modeles_console - site_vision_geospatial == baseline_13
+    assert set(noms) & site_vision_geospatial == site_vision_geospatial
     assert set(noms) & modeles_console == modeles_console
     assert all(not o.roles_appareil for o in outils_m3.outils() if o.nom in modeles_console)
     assert set(noms) & outils_calibration == outils_calibration

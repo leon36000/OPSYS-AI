@@ -40,7 +40,7 @@ _IDENT = re.compile(r"^[a-z0-9][a-z0-9._-]{2,79}$")
 _LIBELLES_CAPACITES = {
     "llm": "LLM", "embeddings": "Embeddings", "reranker": "Reranker", "ocr": "OCR / parsing", "stt": "Voix → texte",
     "tts": "Texte → voix", "avatar": "Avatar", "image": "Image", "video": "Vidéo", "recherche_web": "Recherche web",
-    "courriel": "Courriel",
+    "courriel": "Courriel", "vision": "Vision (détection, segmentation)",
 }
 _STATUTS = {"adopte": ("Adopté", "badge-ok"), "repli": ("Repli", ""), "conditionnel": ("Conditionnel", "badge-alerte"),
             "ecarte": ("Écarté", "badge-danger"), "declare": ("Déclaré", "")}

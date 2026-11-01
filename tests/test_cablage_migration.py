@@ -37,7 +37,7 @@ def _noms(cnx, motif):
 
 def test_la_tete_est_0044_et_succede_a_0041():
     script = ScriptDirectory.from_config(stockage._config())
-    assert script.get_heads() == ["0044"]
+    assert len(script.get_heads()) == 1  # les migrations suivantes (0049 : capacité « vision ») se chaînent après 0044
     assert script.get_revision("0044").down_revision == "0041"
 
 
@@ -130,7 +130,7 @@ def test_migration_0044_sur_postgresql(monkeypatch):
         monkeypatch.setenv(stockage.ENV_URL, url)
         try:
             stockage.migrer(url)
-            assert stockage.revision_courante(url) == "0044"
+            assert stockage.revision_courante(url) == ScriptDirectory.from_config(stockage._config()).get_current_head()
             with stockage.transaction() as cnx:
                 cnx.execute(text("INSERT INTO planificateur_journal (quand, executeur, evenement, acteur, details) "
                                  "VALUES ('t', 'e', 'x', 'a', '{}')"))

@@ -107,6 +107,32 @@ CODES_M3_LIST = [
     # de marge d'un scénario est ABSENT (à déclarer) ou fourni de travers ; dans les deux cas, aucun prix.
     "REJ-SCENARIOS-TAUX-ABSENT",
     "REJ-SCENARIOS-TAUX-INVALIDE",
+    # M3.2 (contexte de site, contexte_site.py) : entrée illisible, valeur affirmée sans source, version introuvable.
+    "REJ-CONTEXTE-ENTREE-INVALIDE",
+    "REJ-CONTEXTE-SOURCE-ABSENTE",
+    "REJ-CONTEXTE-INTROUVABLE",
+    # M3.3 et M3.5 (pipeline de vision et gouvernance, vision_*.py) : un candidat n'est jamais une mesure.
+    "REJ-VISION-PHOTO-INVALIDE",
+    "REJ-VISION-PROVENANCE-REFUSEE",
+    "REJ-VISION-MODELE-INCONNU",
+    "REJ-VISION-AUCUN-MODELE-QUALIFIE",
+    "REJ-VISION-DETECTEUR-INDISPONIBLE",
+    "REJ-VISION-SORTIE-INVALIDE",
+    "REJ-VISION-POLITIQUE-ABSENTE",
+    "REJ-VISION-CANDIDAT-ALTERE",
+    "REJ-VISION-CANDIDAT-INTROUVABLE",
+    "REJ-VISION-DECISION-INVALIDE",
+    "REJ-VISION-DECISION-CONFLIT",
+    "REJ-VISION-DECISION-SANS-APPROBATION",
+    # M3.7 (estimation géospatiale, geometrie_polygone.py et geospatial.py).
+    "REJ-GEO-ENTREE-INVALIDE",
+    "REJ-GEO-POLYGONE-INVALIDE",
+    "REJ-GEO-HORS-QUEBEC",
+    "REJ-GEO-AUTO-INTERSECTION",
+    "REJ-GEO-ETENDUE-EXCESSIVE",
+    "REJ-GEO-SOURCE-INCONNUE",
+    # Journal du site et de la vision (journal_site.py) : chaîne altérée.
+    "REJ-SITE-JOURNAL-ALTERE",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 

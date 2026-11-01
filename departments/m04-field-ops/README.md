@@ -525,3 +525,12 @@ retarde ou avance de trois jours, faits d'avant, anomalies de pointage, digest),
 (`Capacites.appeler` avec `_meta` réel et horloge de test : même clé, même heure, rien d'écrit) et
 `tests/e2e/test_heure_du_serveur_appareil.py` (par la porte d'appareil : vrai moteur, HTTP MCP). Fixtures FICTIVES
 (`fictif: true`).
+
+## Adéquation d'équipe et fenêtre d'arrivée du client (M4.11, M4.14) — vague 3
+
+Neuf outils fermés aux appareils (`adequation_equipe.py`, `eta_client.py`, `suivi_client.py`, adaptateur `outils_adequation_eta.py`).
+Indice d'adéquation d'ÉQUIPE pour une intervention (jamais une note de personne, R-020 intacte), explicable, équitable, calibrable sur
+cas fictifs ; fenêtre d'arrivée (jamais une heure unique), consentement de suivi Loi 25, brouillon de message publié à M1
+(`m4.message_client_brouillon_pret`, envoi N3 de M1). Poids et réglages vides dans `department.yaml` (`adequation`, `eta_client`).
+Pas de lien sécurisé, de rôle `client` ni de SMS ; aucun routeur installé (mode bridé). Détails et limites :
+[`docs/architecture/M3-M4-MATHIS-GABRIEL.md`](../../docs/architecture/M3-M4-MATHIS-GABRIEL.md).

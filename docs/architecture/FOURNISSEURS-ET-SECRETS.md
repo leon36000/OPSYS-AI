@@ -183,3 +183,14 @@ Les capacités `embeddings` et `reranker` sont consommées par `opsys.connaissan
 un refus, jamais un repli. L'**empreinte de configuration** d'un fournisseur (identifiant, mode, modèle, point d'accès, licence des
 poids) identifie l'espace vectoriel : la modifier (ex. changer `modele`) invalide les vecteurs de la base jusqu'à la réindexation.
 Aucun adaptateur réel n'est raccordé dans cette tranche. Voir [CONNAISSANCES.md](CONNAISSANCES.md).
+
+## Capacité « vision » (M3.3 et M3.5)
+
+La capacité `vision` (détection et segmentation d'objets sur photo) rejoint les onze autres (migration 0049 : la contrainte
+`fournisseurs_configurations.capacite` s'élargit, aucune table). Le catalogue porte cinq entrées (Grounding DINO et SAM 2
+« adoptés » au sens de la pile visée par DEFINITION-PRODUIT §7 M3.5 ; Florence-2 et OWLv2 en repli ; YOLO d'Ultralytics écarté
+pour sa licence AGPL). Aucune recherche R1-R6 ne couvre la vision : toutes les licences viennent de la connaissance de l'agent au
+2026-11-01, sans réseau ni lecture du texte intégral ; elles sont donc **toutes `a_lire`** (activation refusée tant qu'un
+administrateur n'a pas lu et consigné la licence du code et celle de chaque jeu de poids), sans point d'accès (aucun poids n'est
+fourni ni téléchargé par OPSYS) et `a_mesurer`. « Adopté » n'est pas « qualifié » : voir
+[M3-M4-MATHIS-GABRIEL.md](M3-M4-MATHIS-GABRIEL.md).

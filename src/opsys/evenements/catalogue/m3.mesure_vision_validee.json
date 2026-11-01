@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m3.mesure_vision_validee",
+  "title": "M3 — Mesure issue de la vision, validée",
+  "description": "Émis par M3 (departments/m03-estimation/src/m3_estimation/outils_site_vision.py, outils m3_valider_candidat_par_reference et m3_valider_candidat_par_humain, M3.3 et M3.5) quand un candidat de mesure produit par un détecteur de vision est VALIDÉ, soit par une mesure de référence dans la tolérance déclarée par l'entreprise, soit par la décision approuvée d'une personne. Un candidat non validé, rejeté ou sous le seuil de confiance ne publie rien : une sortie de modèle n'est jamais une mesure. La valeur retenue porte son origine (vision validée par référence, vision validée par un humain, ou valeur corrigée par un humain) et son incertitude d'emploi. Aucune photo, aucun contenu d'image, aucun contact. La garde de prix de M3 (photos suffisantes, échelle) s'applique toujours en aval. evenement_id déterministe (m3-mesure-vision-<candidat_id>). Consommateur visé : M8 (mesures) ; aucun n'est câblé à ce jour.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lead_id": {"type": "string", "minLength": 1},
+    "candidat_id": {"type": "string", "minLength": 1},
+    "photo_id": {"type": "string", "minLength": 1},
+    "objet": {"type": "string", "description": "Code d'objet demandé au détecteur."},
+    "grandeur": {"enum": ["surface", "longueur"]},
+    "unite": {"enum": ["m2", "m"]},
+    "valeur_retenue": {"type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$", "description": "Texte décimal, jamais un flottant."},
+    "incertitude_emploi": {"type": ["string", "null"], "description": "Borne d'emploi (tolérance déclarée) ; null si la voie n'en fournit pas."},
+    "origine_valeur": {"enum": ["vision_validee_par_reference", "vision_validee_par_humain", "humain_corrige"]},
+    "voie": {"enum": ["reference", "humain"]},
+    "decision_empreinte": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "modele": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"identifiant": {"type": "string"}, "version": {"type": "string"}},
+      "required": ["identifiant", "version"]
+    }
+  },
+  "required": ["lead_id", "candidat_id", "photo_id", "objet", "grandeur", "unite", "valeur_retenue", "incertitude_emploi",
+               "origine_valeur", "voie", "decision_empreinte", "modele"]
+}

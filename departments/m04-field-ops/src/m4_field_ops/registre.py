@@ -67,6 +67,16 @@ _TYPE_ENTREE_VALIDES = {
     "pointage_equipe_v3",  # Provenance typée transactionnelle des nouveaux pointages.
     "composition_journaliere",  # CRM-16 : registre déclaratif distinct, aucun droit courant.
     "absence_journaliere_declaree",  # CRM-16 : signalement admin distinct, aucune présence/paie.
+    # M4.11 (adequation_equipe.py, outils_adequation_eta.py) : brouillon d'affectation interne, puis approbation d'une
+    # affectation qui engage le client ; aucune des deux n'assigne (l'assignation reste cedule_appliquee).
+    "affectation_brouillon",
+    "affectation_approuvee",
+    # M4.14 (suivi_client.py) : consentement du client au suivi de la fenêtre d'arrivée, son retrait, et la fenêtre
+    # préparée
+    # (fenêtre, empreinte du texte, identifiants : jamais une position, un contact ni un texte libre).
+    "consentement_suivi_client",
+    "retrait_suivi_client",
+    "eta_client_preparee",
 }
 
 

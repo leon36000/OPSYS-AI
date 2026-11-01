@@ -330,11 +330,21 @@
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucune occurrence adéquation/fatigue dans src M4.",
-   "verification": "grep fatigue|adéquation|adequation dans src M4 : 0"
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_adequation_equipe.py",
+      "departments/m04-field-ops/tests/test_outils_adequation_eta.py"
+     ],
+     "docs": [
+      "docs/architecture/M3-M4-MATHIS-GABRIEL.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "93c508201",
+   "current_status": "PARTIEL",
+   "limite": "Indice d'adéquation d'ÉQUIPE pour une intervention, transparent (par critère : valeur, sous-indice, poids effectif), déterministe (Fraction), filtres compétence et capacité de la semaine type (capacite_equipe), distance, charge, qualité agrégée d'équipe ; refus des attributs personnels protégés (test paramétré) ; invariance à l'ordre et aux noms ; calibration sur cas fictifs ; brouillon d'affectation N2 et approbation N3 d'un engagement client ; garde R-020 de M4 intacte. PAS prouvé : poids vides dans department.yaml (aucune équipe n'est ordonnée tant qu'ils ne sont pas déclarés) ; aucune donnée d'historique réelle ; la calibration ne prouve que la mécanique ; l'assignation effective reste m4_appliquer_cedule ; le critère « fatigue » n'est pas modélisé (aucune donnée de santé ; la charge d'équipe en tient lieu)."
   },
   {
    "id": "M4.12",
@@ -409,10 +419,22 @@
     "Notifications SMS via M1 (Twilio)"
    ],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun code ; aucun rôle `client`."
+   "proofs": [
+    {
+     "tests": [
+      "departments/m04-field-ops/tests/test_eta_client.py",
+      "departments/m04-field-ops/tests/test_suivi_client.py",
+      "departments/m04-field-ops/tests/test_outils_adequation_eta.py"
+     ],
+     "docs": [
+      "docs/architecture/M3-M4-MATHIS-GABRIEL.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "93c508201",
+   "current_status": "PARTIEL",
+   "limite": "Fenêtre d'arrivée (jamais une heure unique ni une promesse) depuis le créneau daté de la cédule, le trajet (port de routage, mode bridé, aucun routeur installé) et les retards déclarés ; consentement de suivi Loi 25 (N3 par une personne, retrait N2, expiration, plafond de messages) ; brouillon de message publié à M1 (m4.message_client_brouillon_pret) ; aucune position ni point de départ en sortie. PAS prouvé : aucun lien sécurisé ni expirant, aucun rôle client côté serveur, aucune notification SMS (M1/Twilio), aucun routeur OSRM/Valhalla testé, M1 ne consomme pas encore l'événement ; réglages vides dans department.yaml ; durées de validité et de conservation à valider par un juriste."
   },
   {
    "id": "M4.15",

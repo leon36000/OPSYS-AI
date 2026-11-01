@@ -74,11 +74,24 @@
    "decisions_nathan": [
     "Budgets API géospatiaux"
    ],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun géocodage/Street View dans M3 ; l'index local de localisation vit dans M4 (localisation.py).",
-   "verification": "grep geocod|street view|nominatim dans src M3 : 0"
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_contexte_site.py",
+      "departments/m03-estimation/tests/test_journal_site.py",
+      "departments/m03-estimation/tests/test_outils_site_vision.py",
+      "departments/m03-estimation/tests/test_estimation_contexte_site.py",
+      "departments/m03-estimation/tests/test_geospatial.py"
+     ],
+     "docs": [
+      "docs/architecture/M3-M4-MATHIS-GABRIEL.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "93c508201",
+   "current_status": "PARTIEL",
+   "limite": "Agrégation sourcée et versionnée de huit facteurs (accès, hauteur, pente, âge, matériaux, saisonnier, météo de l'entreprise, permis à vérifier), « inconnu » et conflit explicites, journal chaîné, événement m3.contexte_site_pret, hypothèses reprises par m3_estimer_projet (contexte_site_empreinte). Niveau S : base SQLite réelle et bus réel, sans HTTP ni Core natif. PAS prouvé : aucun profil de propriété M2 n'existe (M2.3 : port seulement, forme attendue définie) ; la distance et l'historique du site ne sont pas dans le contexte ; aucun géocodage ni Street View (porte fermée) ; aucune donnée de site réelle ; aucun consommateur de l'événement."
   },
   {
    "id": "M3.3",
@@ -99,17 +112,23 @@
    "proofs": [
     {
      "tests": [
+      "departments/m03-estimation/tests/test_vision_contrat.py",
+      "departments/m03-estimation/tests/test_vision_gouvernance.py",
+      "departments/m03-estimation/tests/test_vision_evaluation.py",
+      "departments/m03-estimation/tests/test_outils_site_vision.py",
       "departments/m03-estimation/tests/test_mesure_plan.py",
       "departments/m03-estimation/tests/test_politique_photos.py",
       "departments/m03-estimation/tests/test_qualite_photos.py"
      ],
-     "docs": [],
-     "niveau": "T"
+     "docs": [
+      "docs/architecture/M3-M4-MATHIS-GABRIEL.md"
+     ],
+     "niveau": "S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "93c508201",
    "current_status": "SIMULE",
-   "limite": "Homographie OpenCV sur image synthétique ; ModeSource.PHOTO_REELLE refusée ; 8 tests de test_mesure_plan.py sont ignorés localement (extra vision-photo absent). Aucune photo réelle lue."
+   "limite": "Contrat du pipeline (photo avec provenance -> candidats avec incertitude, masque, version du modèle), port DetecteurVision, gouvernance (un candidat n'est jamais une mesure : seuil de confiance et tolérance déclarés, mesure de référence ou personne N3), harnais IoU / erreur de surface sur jeu synthétique FICTIF : tout cela tourne, mais uniquement avec des doubles. SIMULE reste le bon statut : aucun détecteur n'est branché, aucune photo réelle n'est lue (politique photos encore « proposition »), le harnais ne mesure que des rectangles synthétiques et ne qualifie jamais un modèle. Seuil et tolérances vides dans department.yaml (décision de l'entreprise)."
   },
   {
    "id": "M3.4",
@@ -148,11 +167,25 @@
    "decisions_nathan": [
     "GPU et budgets pour SAM2"
    ],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun code SAM2/Grounding DINO (seule mention : commentaire de politique_photos.py) ; repli manuel partiel via champs d'échelle.",
-   "verification": "grep sam2|grounding dans src M3 : mention de roadmap uniquement"
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_vision_contrat.py",
+      "departments/m03-estimation/tests/test_vision_evaluation.py",
+      "departments/m03-estimation/tests/test_outils_site_vision.py",
+      "tests/test_vision_migration.py",
+      "tests/test_fournisseurs_politique.py"
+     ],
+     "docs": [
+      "docs/architecture/M3-M4-MATHIS-GABRIEL.md",
+      "docs/architecture/FOURNISSEURS-ET-SECRETS.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "93c508201",
+   "current_status": "SIMULE",
+   "limite": "Registre des modèles (capacité « vision » du registre de fournisseurs, migration 0049) : Grounding DINO et SAM 2 (pile visée), Florence-2 et OWLv2 (replis), YOLO écarté (AGPL), drapeaux de licence, statut honnête « contrat prêt, aucun modèle qualifié ». Aucun poids téléchargé ni installé, aucun GPU, aucune mesure sur de vraies photos : AUCUN modèle qualifié. Licences écrites de mémoire de l'agent, sans réseau : toutes « a_lire » (à vérifier). Replis manuel (annotation humaine, mesure de référence) via la gouvernance ; OpenCV de base via mesure_plan.py (synthétique)."
   },
   {
    "id": "M3.6",
@@ -192,10 +225,22 @@
     "Budgets d'API externes"
    ],
    "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Voir M3.2."
+   "proofs": [
+    {
+     "tests": [
+      "departments/m03-estimation/tests/test_geometrie_polygone.py",
+      "departments/m03-estimation/tests/test_geospatial.py",
+      "departments/m03-estimation/tests/test_outils_site_vision.py"
+     ],
+     "docs": [
+      "docs/architecture/M3-M4-MATHIS-GABRIEL.md"
+     ],
+     "niveau": "S"
+    }
+   ],
+   "verified_commit": "93c508201",
+   "current_status": "PARTIEL",
+   "limite": "Modèle de données (adresse, lot, unité d'évaluation, imagerie) et trois ports (cadastre, rôle d'évaluation, imagerie) avec doubles fictifs ; aire et périmètre d'un polygone par le lacet en Decimal/Fraction avec reçu rejouable, projection locale GRS 80 documentée et contrôlée contre la forme fermée de l'aire d'une cellule de graticule (écart d'environ 1e-7 relatif) ; sept sources publiques candidates marquées « à vérifier ». PAS prouvé : aucune donnée réelle ni adaptateur ; projection non vérifiée contre PROJ ni la projection MTM officielle ; distance et région non faites ; Street View (contexte seulement) fermé ; licences non lues."
   },
   {
    "id": "M3.8",

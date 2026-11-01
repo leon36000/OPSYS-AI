@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m4.message_client_brouillon_pret",
+  "title": "M4 — Brouillon de message d'arrivée estimée pour le client",
+  "description": "Émis par M4 (departments/m04-field-ops/src/m4_field_ops/outils_adequation_eta.py, outil m4_preparer_message_eta_client, M4.14) quand une fenêtre d'arrivée a été estimée pour un chantier dont le client a un consentement de suivi ACTIF (finalité fenetre_arrivee, ce chantier, ce canal), dans la même transaction que l'enregistrement de la fenêtre au registre de M4. C'est un BROUILLON : M4 n'envoie rien. M1 (qui détient les coordonnées du client, par lead_id) le reprend comme brouillon de message et son envoi est une décision N3 de M1. Le texte est fixe (une fenêtre de temps, un avertissement « estimation, pas une promesse », le moyen de se retirer) et a passé le garde-fou de texte (aucune adresse, aucun contact, aucun nom, aucun lien, aucun prix). Aucune position de l'équipe ou d'une personne, aucun point de départ, aucun nom d'employé. conserve_jusqu_au borne la conservation de la fenêtre. evenement_id déterministe (m4-message-client-<empreinte intervention, canal, texte>) : une redélivrance est un no-op. Consommateur visé : M1 (brouillon de message) ; aucun n'est câblé à ce jour.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "intervention_id": {"type": "string", "minLength": 1},
+    "lead_id": {"type": "string", "minLength": 1, "description": "Lead M2 : la clé par laquelle M1 retrouve le contact du client."},
+    "canal": {"enum": ["sms", "courriel"]},
+    "fenetre_debut": {"type": "string", "minLength": 1, "description": "ISO 8601 avec fuseau."},
+    "fenetre_fin": {"type": "string", "minLength": 1, "description": "ISO 8601 avec fuseau, strictement après le début."},
+    "texte": {"type": "string", "minLength": 1, "maxLength": 600, "description": "Brouillon du message, en français."},
+    "statut": {"const": "brouillon"},
+    "envoi": {"const": "n3_requis_via_m1"},
+    "consentement_ligne_id": {"type": ["string", "null"], "description": "Maillon du consentement de suivi sur lequel repose ce message."},
+    "conserve_jusqu_au": {"type": "string", "minLength": 1, "description": "Fin de la conservation de la fenêtre préparée (ISO 8601 avec fuseau)."}
+  },
+  "required": ["intervention_id", "lead_id", "canal", "fenetre_debut", "fenetre_fin", "texte", "statut", "envoi",
+               "consentement_ligne_id", "conserve_jusqu_au"]
+}
