@@ -36,6 +36,7 @@ from . import (
     modeles,
     openclaw,
     openclaw_refus,
+    packs,
     passerelle,
     stockage,
     taxonomie,
@@ -123,6 +124,14 @@ def cmd_verifier(args: argparse.Namespace) -> int:
         for probleme in problemes_taxonomie:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
+    # Packs sectoriels : chacun se charge (schéma fermé, empreinte), `generique-pme` existe, le pack du profil
+    # se résout.
+    problemes_packs = packs.verifier_packs()
+    if problemes_packs:
+        print("ERREUR : packs sectoriels invalides (packs/, clé pack du profil d'entreprise) :", file=sys.stderr)
+        for probleme in problemes_packs:
+            print(f"  - {probleme}", file=sys.stderr)
+        return 1
     # Après la taxonomie : un profil illisible y est déjà signalé ; ici, seules les surcharges d'avatars sont jugées.
     problemes_surcharges = avatars.verifier_profil(deps)
     if problemes_surcharges:
@@ -144,7 +153,8 @@ def cmd_verifier(args: argparse.Namespace) -> int:
     print(f"OK : {len(deps)} départements, {len(index)} outils, noms uniques, manifestes valides, "
           f"événements cohérents, portées d'appareil valides ({avec_portee} outils déclarés, "
           "les autres fermés aux appareils), taxonomie sans copie locale, "
-          f"{len(deps)} avatars aux noms distincts.")
+          f"{len(deps)} avatars aux noms distincts, {len(packs.ids_installes())} packs sectoriels valides "
+          f"(actif : {packs.pack_actif().id}).")
     if args.paliers:
         paliers = modeles.charger_paliers()
         manquants = sorted({d.modeles[u] for d in deps.values() for u in d.modeles} - set(paliers))
@@ -589,7 +599,7 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
                                     contexte_entreprise=_contexte_entreprise(args.contexte_entreprise) or None,
                                     affaire_par_session=args.affaire_par_session or (),
                                     origine_http_mcp_autorisee=args.autoriser_origine_http_mcp)
-    except openclaw.AvatarsRefuses as erreur:
+    except (openclaw.AvatarsRefuses, openclaw.PackRefuse) as erreur:
         categorie, message = erreur.categorie, str(erreur)
         print(message, file=sys.stderr)
         _consigner_etat_configuration(lambda cnx: openclaw_refus.consigner_refus(cnx, categorie, message))
@@ -719,6 +729,8 @@ def construire_parseur() -> argparse.ArgumentParser:
     onboarding_cli.ajouter_commandes(sous)
     from .evaluation import cli as evaluation_cli  # evaluer … (gabarit d'évaluation des dix départements)
     evaluation_cli.ajouter_commandes(sous)
+    from .packs import cli as packs_cli  # pack … (packs sectoriels : lister, valider, afficher, empreinte, choisir)
+    packs_cli.ajouter_commandes(sous)
 
     sous.add_parser("departements", help="lister les départements").set_defaults(fn=cmd_departements)
     bases = sous.add_parser("agents-base", help="profils durables des agents départementaux")

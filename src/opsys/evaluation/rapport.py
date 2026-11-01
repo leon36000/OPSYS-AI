@@ -70,6 +70,15 @@ def _oui(valeur: bool) -> str:
     return "oui" if valeur else "**non**"
 
 
+def _ligne_pack(pack: Mapping[str, Any] | None) -> list[str]:
+    """Le pack sectoriel de la mesure et les cas écartés (d'un autre pack) : un score sans cela est trompeur."""
+    if not pack:
+        return []
+    if pack.get("actif") is None:
+        return ["- Pack sectoriel : aucun filtre (tous les cas du corpus)"]
+    return [f"- Pack sectoriel actif : `{pack['actif']}` ; cas écartés (d'un autre pack) : {pack['total_ecartes']}"]
+
+
 def markdown(rapport: Mapping[str, Any], comparaison: Mapping[str, Any] | None = None) -> str:
     rep, glob = rapport["repondant"], rapport["global"]
     lignes = [
@@ -82,6 +91,7 @@ def markdown(rapport: Mapping[str, Any], comparaison: Mapping[str, Any] | None =
         f"- Corpus : {len(rapport['corpus']['fichiers'])} fichier(s), empreinte "
         f"`{rapport['corpus']['empreinte'][:16]}`",
         "- Juge par modèle : aucun (vérifications déterministes seulement)",
+        *_ligne_pack(rapport.get("pack")),
         "",
         f"**Global** : {glob['reussites']}/{glob['effectif']} cas réussis, score pondéré {glob['score']} ; "
         f"qualifiés : {', '.join(glob['departements_qualifies']) or 'aucun'} ; "

@@ -1,0 +1,188 @@
+# Premier pack sectoriel : rénovation extérieure au Québec (Gouttières et Revêtements Synergy, premier client).
+# C'est ce qui était écrit en dur dans le cœur (SOUL.md, catalogue de services de `opsys.taxonomie`, météo par service,
+# calendrier saisonnier de M7) : ici, il a un nom, une version et une empreinte. Les données sont FICTIVES ou à fournir
+# par l'entreprise ; aucune valeur de barème n'est inventée (docs/architecture/PACKS-SECTORIELS.md).
+# Après toute modification : `opsys-metier pack empreinte renovation-exterieure-qc --ecrire`, puis revue du diff.
+schema: opsys.pack/v1
+id: renovation-exterieure-qc
+version: 1.0.0
+nom: Rénovation extérieure (Québec)
+langue: fr-CA
+description: >-
+  Entreprise de rénovation extérieure au Québec : gouttières et descentes, revêtement extérieur, soffite et fascia,
+  réparation. Services, vocabulaire et blocs de prompt du premier client ; les barèmes sont à fournir par l'entreprise.
+sectoriel: true
+fictif: true
+
+vocabulaire:
+  secteur: rénovation extérieure au Québec
+  qualificatif_secteur: de rénovation extérieure
+
+appellations:
+  client: client (propriétaire de la maison ou du bâtiment)
+  chantier: chantier (l'adresse des travaux et leur durée)
+  soumission: soumission (devis) remise avant les travaux
+  equipe: équipe de pose (techniciens terrain)
+  materiaux: matériaux de pose (gouttières, revêtement, soffite, fascia et accessoires)
+
+# Identique au catalogue de référence de `opsys.taxonomie` (tests/test_packs_sectoriels.py épingle l'égalité).
+services:
+  - code: gouttieres
+    libelle: Gouttières et descentes
+    mots_cles: [gouttière, descente pluviale, descente de gouttière]
+  - code: revetement
+    libelle: Revêtement extérieur
+    mots_cles: [revêtement, siding]
+  - code: soffite_fascia
+    libelle: Soffite et fascia
+    mots_cles: [soffite, fascia]
+  - code: reparation
+    libelle: Réparation
+    mots_cles: [réparation, réparer]
+
+glossaire:
+  - terme: gouttière
+    definition: Canal fixé au bord du toit qui recueille l'eau de pluie ou de fonte et la dirige vers les descentes.
+  - terme: descente pluviale
+    definition: Tuyau vertical (descente de gouttière) qui conduit l'eau de la gouttière jusqu'au sol ou au drain.
+  - terme: soffite
+    definition: Panneau, souvent ajouré pour la ventilation, qui ferme le dessous du débord de toit.
+  - terme: fascia
+    definition: Planche ou bande qui couvre l'extrémité des chevrons, le long du bord du toit, et sur laquelle se fixe la gouttière.
+  - terme: revêtement extérieur
+    definition: Matériau qui recouvre les murs extérieurs d'un bâtiment (vinyle, aluminium, bois, etc.) pour les protéger des intempéries.
+  - terme: siding
+    definition: Anglicisme courant pour le revêtement extérieur de murs posé en bandes.
+  - terme: bardeau
+    definition: Élément de couverture posé en rangées qui se chevauchent sur une toiture (bardeau d'asphalte, par exemple).
+  - terme: ravalement
+    definition: Remise à neuf de la surface extérieure d'un mur ou d'une façade.
+
+gabarits:
+  - id: soumission-sections
+    document: soumission
+    fichier: gabarits/soumission-sections.md
+    statut: exemple
+  - id: demande-photos
+    document: demande de photos
+    fichier: gabarits/demande-photos.md
+    statut: exemple
+
+# Aucune valeur : le cœur ne choisit jamais un prix, une marge ou un seuil à la place de l'entreprise (AGENTS.md, fail-closed).
+baremes:
+  - id: cout-unitaire-service
+    libelle: Coût unitaire par service
+    unite: $ par unité de mesure du service
+    statut: a_fournir_par_entreprise
+    valeur: null
+    ou_fournir: le propriétaire le déclare à M3 (paramètre de l'estimation)
+  - id: taux-marge
+    libelle: Taux de marge
+    unite: "%"
+    statut: a_fournir_par_entreprise
+    valeur: null
+    ou_fournir: le propriétaire le déclare à M3 (paramètre de la création du devis)
+  - id: plancher-rentabilite
+    libelle: Plancher de rentabilité
+    unite: "%"
+    statut: a_fournir_par_entreprise
+    valeur: null
+    ou_fournir: le propriétaire le déclare ; sous ce plancher, M3 signale une alerte rouge
+  - id: seuils-meteo-service
+    libelle: Seuils météo par service (vent, pluie, gel, verglas, chaleur)
+    unite: selon la mesure
+    statut: a_fournir_par_entreprise
+    valeur: null
+    ou_fournir: profil de l'entreprise (entreprise.yaml), clé meteo
+  - id: seuil-reapprovisionnement
+    libelle: Seuil de réapprovisionnement par article
+    unite: unités de l'article
+    statut: a_fournir_par_entreprise
+    valeur: null
+    ou_fournir: configuration de M6, article par article
+
+exemples:
+  - id: m01-gouttieres-coulent
+    departement: m01
+    demande: "Allo, mes gouttières sont toutes croches pis ça coule dans l'entrée. Vous faites-tu ça, vous autres ?"
+    fictif: true
+  - id: m03-soffite-photo-floue
+    departement: m03
+    demande: "Le client a envoyé une photo floue de son soffite et veut savoir combien ça va coûter."
+    fictif: true
+  - id: m06-fascia-bas
+    departement: m06
+    demande: "Sommes-nous bas en fascia blanc ?"
+    fictif: true
+  - id: m07-post-gouttieres
+    departement: m07
+    demande: "Un brouillon de post pour dire qu'on pose des gouttières avant les premières bordées de neige."
+    fictif: true
+
+blocs:
+  m01:
+    ligne: >-
+      Les demandes que tu reçois portent le plus souvent sur les services de référence ci-dessous, et un client les nomme avec ses mots.
+      Tu ne devines jamais un service qui n'est pas dans le message du client.
+    inclure: [services, glossaire]
+  m02:
+    ligne: >-
+      Les services de l'entreprise structurent le pipeline : un lead porte le code d'un service du profil, jamais
+      déduit du texte du client.
+    inclure: [services]
+  m03:
+    ligne: >-
+      Une estimation porte sur un des services de référence ci-dessous, à partir de photos et d'une demande qualifiée. Le pack ne fournit
+      aucun barème : sans le taux ou le coût déclaré par l'entreprise, tu ne proposes aucun prix et tu dis quoi déclarer.
+    inclure: [services, glossaire, baremes]
+  m04:
+    ligne: >-
+      La météo du créneau pèse différemment selon le service (un revêtement ne craint pas le vent comme une gouttière) :
+      les seuils et les compétences par service sont déclarés par l'entreprise dans son profil, jamais supposés.
+    inclure: [services, baremes]
+  m05:
+    ligne: >-
+      La rentabilité se lit par chantier et par service ; la marge et le plancher de rentabilité sont ceux de
+      l'entreprise, jamais une valeur du pack.
+    inclure: [baremes]
+  m06:
+    ligne: >-
+      Les matériaux du secteur (gouttières, revêtement, soffite, fascia) se suivent article par article ; le seuil de
+      réapprovisionnement de chaque article est à configurer par l'entreprise.
+    inclure: [glossaire, baremes]
+  m07:
+    ligne: >-
+      Le contenu public parle des services de référence ci-dessous, au rythme des saisons québécoises ; il ne promet ni prix, ni garantie non
+      validée, ni date.
+    inclure: [services]
+  m08:
+    ligne: >-
+      Les mesures se lisent par service et par chantier ; les seuils d'alerte sont ceux de l'entreprise.
+    inclure: [services]
+  m09:
+    ligne: >-
+      Les lectures stratégiques citent les services de l'entreprise tels qu'ils figurent dans son profil.
+    inclure: [services]
+  m10:
+    ligne: >-
+      La mémoire garde le vocabulaire du métier de l'entreprise pour le restituer tel quel, jamais réinterprété.
+    inclure: [glossaire]
+
+# Les termes que la garde interdit dans le cœur (hors packs, tests de pack et documentation d'exemple) et dans toute
+# sortie effective d'un pack non sectoriel. Comparés sans accent ni casse, au début d'un mot.
+termes_sectoriels:
+  - rénovation
+  - gouttière
+  - descente pluviale
+  - soffite
+  - fascia
+  - revêtement
+  - bardeau
+  - toiture
+  - toit
+  - siding
+  - vinyle
+  - couvreur
+  - ravalement
+  - isolation thermique
+  - Synergy

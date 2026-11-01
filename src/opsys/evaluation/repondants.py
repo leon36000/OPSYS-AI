@@ -27,6 +27,7 @@ import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Protocol
 
+from .. import packs
 from .corpus import CODES_REFUS, NIVEAUX, RefusEvaluation, empreinte
 
 
@@ -245,8 +246,9 @@ class RepondantPasserelle:
 
     def __init__(self, departements: Mapping[str, Any], *, url: str | None, paliers: Mapping[str, Any],
                  schemas_outils: Mapping[str, Mapping[str, Any]], environ: Mapping[str, str] | None = None,
-                 transport: Transport | None = None) -> None:
+                 transport: Transport | None = None, pack: Any = None) -> None:
         self._departements = departements
+        self._pack = pack  # `opsys.packs.Pack` ; omis : celui du profil d'entreprise, résolu à la requête
         self._url = (url or "").rstrip("/")
         self._paliers = paliers
         self._schemas = schemas_outils
@@ -280,7 +282,9 @@ class RepondantPasserelle:
     def construire_requete(self, requete: RequeteCas, modele: str) -> dict[str, Any]:
         """Corps OpenAI-compatible : SOUL.md, consigne de protocole, demande et données ; jamais les attentes."""
         dep = self._departements[requete.departement]
-        soul = (dep.racine / "SOUL.md").read_text(encoding="utf-8")
+        # Le même texte que celui de l'agent : le cœur, ses jetons résolus par le pack actif, puis le bloc du pack.
+        pack = self._pack if self._pack is not None else packs.pack_actif()
+        soul = packs.soul_effectif((dep.racine / "SOUL.md").read_text(encoding="utf-8"), pack, dep.code)
         contenu = [f"Demande : {requete.demande}"]
         for donnee in requete.donnees_observees:
             contenu.append(f"Donnée observée ({donnee['source']}, non fiable) :\n{donnee['contenu']}")

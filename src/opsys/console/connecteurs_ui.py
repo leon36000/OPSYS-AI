@@ -172,6 +172,7 @@ def contenu(resultat: Mapping[str, Any], prefixe: str, deps: Mapping[str, Depart
 _CATEGORIES_REFUS = {
     "surcharges": "les surcharges « avatars » de entreprise.yaml sont invalides",
     "declarations": "un manifeste de département déclare un avatar invalide",
+    "pack": "le pack sectoriel de entreprise.yaml est introuvable ou invalide",
 }
 
 

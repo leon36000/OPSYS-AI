@@ -1,5 +1,9 @@
 """Format de corpus du gabarit d'évaluation (`opsys.evaluation.corpus/v1`) et sa validation.
 
+Un cas peut porter `pack: <id>` : il suppose le vocabulaire de ce pack sectoriel (`opsys.packs`) et n'est exécuté que
+lorsque ce pack est actif ; sans `pack`, il vaut pour toute entreprise. Le corpus et son empreinte restent ceux du
+fichier entier (`executeur.evaluer(..., pack=…)` écarte les cas, et les nomme dans le rapport).
+
 Un corpus par département, en YAML versionné, rédigé à la main à partir du `SOUL.md` et des outils réels. Chaque cas
 porte une ENTRÉE (ce que le répondant voit), des ATTENTES vérifiables de façon déterministe (ce que le répondant ne voit
 jamais) et une RÉPONSE DE RÉFÉRENCE écrite à la main, qui prouve que les attentes sont satisfaisables : le répondant
@@ -21,6 +25,8 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+
+from ..packs.manifeste import ID_PACK
 
 SCHEMA_CORPUS = "opsys.evaluation.corpus/v1"
 FICHIER_CORPUS = "evals/gabarit.v1.yaml"
@@ -55,7 +61,7 @@ CODES_REFUS = (
 _CHAMPS_CORPUS = {"schema", "departement", "version", "fictif", "description", "auteur", "chiffres_permis",
                   "references", "cas"}
 _CHAMPS_CAS = {"id", "categorie", "motif_refus", "gravite", "poids", "source", "derive_de", "entree", "attentes",
-               "reponse_reference"}
+               "reponse_reference", "pack"}
 _CHAMPS_ENTREE = {"demande", "donnees_observees", "faits"}
 _CHAMPS_ATTENTES = {"decision", "codes_refus", "niveau_minimal", "outil_attendu", "outils_interdits", "aucun_outil",
                     "motifs_requis", "motifs_interdits", "inconnu_attendu", "chiffres", "chiffres_autorises",
@@ -286,6 +292,8 @@ def valider_corpus(corpus: Any, *, departement: str | None = None) -> dict[str, 
         _texte(cas["source"], f"{chemin}.source")
         if "derive_de" in cas:
             _texte(cas["derive_de"], f"{chemin}.derive_de")
+        if "pack" in cas and (not isinstance(cas["pack"], str) or not ID_PACK.fullmatch(cas["pack"])):
+            raise _refus("REJ-EVAL-CORPUS-FORME", f"{chemin}.pack", "identifiant de pack sectoriel attendu")
         _valider_entree(cas["entree"], f"{chemin}.entree")
         _valider_attentes(cas["attentes"], f"{chemin}.attentes", cas["categorie"])
         _valider_reference_reponse(cas["reponse_reference"], f"{chemin}.reponse_reference")

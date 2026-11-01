@@ -78,10 +78,11 @@ from urllib.parse import unquote, urlsplit
 from sqlalchemy import Connection, inspect
 
 from . import agents as profils_configurables
-from . import agents_base, appareils, avatars, canaux, modeles, stockage
+from . import agents_base, appareils, avatars, canaux, modeles, packs, stockage
 from .departements import PALIERS, Departement, tous_les_outils, verifier_portees
 from .memoire.embeddings import ENV_CLE, ENV_MODELE, ENV_URL, ClientEmbeddings
 from .outils import Autonomie
+from .packs import Pack, RefusPack
 from .passerelle import alias_palier
 from .politiques import approbation_requise_niveau
 from .profils import REGLES_COMMUNES, rendre_soul
@@ -749,6 +750,24 @@ class AvatarsRefuses(ProfilInvalide):
         self.categorie = categorie
 
 
+class PackRefuse(ValueError):
+    """Refus de génération pour le pack sectoriel du profil (introuvable, invalide, empreinte), avant toute écriture.
+
+    Jamais de repli sur le pack générique : une entreprise dont le pack est cassé ne doit pas se retrouver, sans le
+    savoir, avec des agents qui ne connaissent plus son métier. `cli.cmd_openclaw` le consigne pour l'admin
+    (`openclaw_refus`, catégorie `pack`), sans le chemin ni le contenu du profil.
+    """
+
+    categorie = "pack"
+
+
+def _pack_actif(profil_entreprise: Path | None) -> Pack:
+    try:
+        return packs.pack_actif(profil_entreprise)
+    except RefusPack as exc:
+        raise PackRefuse(f"pack sectoriel invalide, rien n'est écrit : {exc}") from exc
+
+
 def _identites_des_departements(
     departements: Mapping[str, Departement], profil_entreprise: Path | None
 ) -> dict[str, avatars.IdentiteEffective]:
@@ -885,6 +904,9 @@ def generer(
     `profil_entreprise` (défaut `$OPSYS_HOME/entreprise.yaml`) porte les surcharges d'avatars du client ; l'identité
     effective de chaque département est projetée dans son agent (`identite_agent`). Avatar absent, doublon de nom
     ou surcharge invalide : refus avant toute écriture (`ValueError`, `ProfilInvalide` pour le profil).
+    Il porte aussi la clé `pack` (pack sectoriel, `opsys.packs`) : le `SOUL.md` et les skills de chaque département
+    en sont rendus (cœur générique + bloc du pack). Pack absent du profil : `generique-pme`. Pack nommé mais
+    introuvable ou invalide : `PackRefuse` avant toute écriture, jamais un repli.
     """
     url_mcp, transport_security = _transport_mcp(url_mcp, origine_http_mcp_autorisee)
     if mode_fournisseur not in {"natif", "litellm"}:
@@ -910,6 +932,9 @@ def generer(
         raise ValueError("canaux du public invalides, rien n'est écrit :\n  - " + "\n  - ".join(problemes_canaux))
     # Et pour l'identité des avatars : jamais un nom par défaut à la place d'une surcharge cassée (étape 2).
     identites = _identites_des_departements(departements, profil_entreprise)
+    # Et pour le pack sectoriel : celui du profil, sinon `generique-pme` ; un pack nommé mais cassé n'est jamais
+    # remplacé.
+    pack = _pack_actif(profil_entreprise)
     # Un canal n'est jamais actif si le squelette existant n'inclut pas tous ses fragments (`canaux.configuration`).
     sans_include = includes_de_canaux_manquants(dossier_config) if fichier_racine(dossier_config).exists() else []
     env_canaux = os.environ if environ is None else environ
@@ -965,7 +990,7 @@ def generer(
                 shutil.rmtree(existant)
             else:
                 existant.unlink()
-        (espace / "SOUL.md").write_text(rendre_soul(dep, outils), encoding="utf-8")
+        (espace / "SOUL.md").write_text(rendre_soul(dep, outils, pack), encoding="utf-8")
         (espace / "AGENTS.md").write_text(
             INSTRUCTIONS.format(code=dep.code, nom=dep.nom, mission=dep.mission, prefixe=dep.prefixe_outils)
             + "\n"
@@ -976,7 +1001,7 @@ def generer(
             copie = espace / "skills" / skill
             if copie.exists():
                 shutil.rmtree(copie)
-            shutil.copytree(dep.racine / "skills" / skill, copie)
+            packs.copier_skill(dep.racine / "skills" / skill, copie, pack)
 
         modele_agent: str | dict[str, Any]
         if mode_fournisseur == "litellm":
@@ -1073,7 +1098,8 @@ def generer(
             if outil.nom in profil["outils"]
         ]
         (espace_profil / "SOUL.md").write_text(
-            rendre_soul(dep, outils_profil) + f"\n\n## Responsabilité de ce profil\n\n{profil['responsabilite']}\n",
+            rendre_soul(dep, outils_profil, pack)
+            + f"\n\n## Responsabilité de ce profil\n\n{profil['responsabilite']}\n",
             encoding="utf-8",
         )
         (espace_profil / "AGENTS.md").write_text(
@@ -1089,7 +1115,7 @@ def generer(
             encoding="utf-8",
         )
         for skill in dep.skills:
-            shutil.copytree(dep.racine / "skills" / skill, espace_profil / "skills" / skill, dirs_exist_ok=True)
+            packs.copier_skill(dep.racine / "skills" / skill, espace_profil / "skills" / skill, pack)
         agents[profile_agent_id] = {
             "name": f"Agent OPSYS · {profil['id']}",
             "workspace": f"{racine_espaces_core}/agents/{profil['id']}",

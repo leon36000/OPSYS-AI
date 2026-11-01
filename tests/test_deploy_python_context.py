@@ -38,6 +38,8 @@ FICHIERS_RUNTIME = (
     "departments/m07-marketing/contracts/brand-contract.v1.yaml",
     "departments/m07-marketing/docs/seo-knowledge.v1.yaml",
     "departments/m07-marketing/src/m7_marketing/content/templates/post_social.yaml",
+    "packs/generique-pme/pack.yaml",  # packs sectoriels : `opsys-metier verifier` et `openclaw configurer` les lisent
+    "packs/renovation-exterieure-qc/pack.yaml",
 )
 
 
@@ -78,7 +80,7 @@ def test_cli_et_ressources_depuis_projection_sans_core(tmp_path):
     copie = tmp_path / "projection-python"
     copie.mkdir()
     ignorer = shutil.ignore_patterns("__pycache__", "*.pyc", ".artifacts", "tests")
-    for dossier in ("src", "departments", "docs/compliance"):
+    for dossier in ("src", "departments", "docs/compliance", "packs"):
         shutil.copytree(RACINE / dossier, copie / dossier, ignore=ignorer)
     for fichier in ("pyproject.toml", "README.md"):
         shutil.copyfile(RACINE / fichier, copie / fichier)

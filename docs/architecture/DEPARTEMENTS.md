@@ -261,6 +261,11 @@ Une page maximum : identité, ce que l'agent fait, ce qu'il ne fait jamais. Les 
 règles communes (économie de tokens, Loi 25, approbations) sont ajoutées automatiquement à la
 génération de l'espace de travail de l'agent (`opsys-metier openclaw configurer`). Ne pas les recopier.
 
+**Aucun secteur d'activité dans le `SOUL.md` ni dans les skills** (`docs/architecture/PACKS-SECTORIELS.md`) : le cœur est
+générique PME. Là où il faut le secteur, écrire le jeton `{{qualificatif_secteur}}` (ou `{{secteur}}`), que le pack actif
+de l'entreprise résout ; le bloc sectoriel du département est ajouté à la génération. Un terme de métier du premier pack
+écrit en dur dans le cœur fait échouer `tests/test_packs_generalisation.py`.
+
 ## Skills
 
 Format Agent Skills (`SKILL.md` avec frontmatter `name` et `description`). Une skill décrit une

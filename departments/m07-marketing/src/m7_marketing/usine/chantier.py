@@ -113,7 +113,7 @@ def verifier_chantier(
 
 # -- la matière d'un chantier ---------------------------------------------------------------------------------
 def _mot_clic(terme: str) -> str | None:
-    """`#gouttiere` : sans accents, sans espaces ni ponctuation ; `None` si rien d'exploitable."""
+    """`#serviceclient` : sans accents, sans espaces ni ponctuation ; `None` si rien d'exploitable."""
     sans_accents = "".join(c for c in unicodedata.normalize("NFD", terme) if not unicodedata.combining(c))
     corps = re.sub(r"[^a-z0-9]", "", sans_accents.casefold())
     return f"#{corps}" if len(corps) >= 3 else None

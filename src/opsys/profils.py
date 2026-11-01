@@ -18,9 +18,10 @@ from typing import Any
 
 import yaml
 
-from . import __version__
+from . import __version__, packs
 from .departements import Departement
 from .modeles import section_modele_hermes
+from .packs import Pack
 
 REGLES_COMMUNES = """\
 ## Règles OPSYS (communes à tous les départements)
@@ -36,8 +37,15 @@ REGLES_COMMUNES = """\
 """
 
 
-def rendre_soul(dep: Departement, outils: list[dict[str, str]]) -> str:
-    soul = (dep.racine / "SOUL.md").read_text(encoding="utf-8").rstrip()
+def rendre_soul(dep: Departement, outils: list[dict[str, str]], pack: Pack | None = None) -> str:
+    """Le `SOUL.md` EFFECTIF du département : le texte du cœur, résolu par le pack actif, puis son bloc sectoriel.
+
+    `pack` omis : celui du profil d'entreprise de l'instance (`opsys.packs.pack_actif`), sinon `generique-pme`.
+    Le cœur ne nomme aucun secteur ; avec le pack sectoriel du premier client, le texte d'avant la généralisation
+    est retrouvé mot pour mot (`tests/test_packs_generalisation.py`), suivi du bloc du pack.
+    """
+    pack = pack if pack is not None else packs.pack_actif()
+    soul = packs.soul_effectif((dep.racine / "SOUL.md").read_text(encoding="utf-8"), pack, dep.code)
     lignes = [f"- `{o['nom']}` ({o['autonomie']}) — {o['description']}" for o in outils]
     capacites = "\n".join(lignes)
     return (
@@ -77,8 +85,13 @@ def generer_distribution(
     destination: Path,
     paliers: Mapping[str, Mapping[str, str]],
     commande_mcp: str = "opsys-mcp",
+    pack: Pack | None = None,
 ) -> Path:
-    """Écrit la distribution du département dans destination/<id> et renvoie ce dossier."""
+    """Écrit la distribution du département dans destination/<id> et renvoie ce dossier.
+
+    `pack` omis : celui du profil d'entreprise (voir `rendre_soul`) ; il est résolu AVANT toute écriture.
+    """
+    pack = pack if pack is not None else packs.pack_actif()
     outils = [
         {"nom": o.nom, "autonomie": o.autonomie.value, "description": o.description}
         for o in dep.charger_outils()
@@ -98,7 +111,7 @@ def generer_distribution(
     (dossier / "distribution.yaml").write_text(
         yaml.safe_dump(manifeste, allow_unicode=True, sort_keys=False), encoding="utf-8"
     )
-    (dossier / "SOUL.md").write_text(rendre_soul(dep, outils), encoding="utf-8")
+    (dossier / "SOUL.md").write_text(rendre_soul(dep, outils, pack), encoding="utf-8")
     (dossier / "config.yaml").write_text(
         yaml.safe_dump(config_hermes(dep, paliers, commande_mcp), allow_unicode=True, sort_keys=False),
         encoding="utf-8",
@@ -107,6 +120,6 @@ def generer_distribution(
         json.dumps(jobs_cron(dep), ensure_ascii=False, indent=2), encoding="utf-8"
     )
     for skill in dep.skills:
-        shutil.copytree(dep.racine / "skills" / skill, dossier / "skills" / skill)
+        packs.copier_skill(dep.racine / "skills" / skill, dossier / "skills" / skill, pack)
     (dossier / ".gitignore").write_text(".env\nauth.json\nmemories/\nsessions/\nlogs/\n", encoding="utf-8")
     return dossier

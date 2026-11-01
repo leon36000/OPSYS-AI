@@ -12,11 +12,11 @@ avoir besoin) ::
       liste:                          # les équipes ; l'id d'une équipe EST le technicien_id de son assignation
         - id: eq-repentigny
           membres: [alice, bruno]     # identifiants de PERSONNES OPSYS (opsys-metier personnes lister), rien d'autre
-          competences: [gouttieres, revetement]
+          competences: [service_a, service_b]
           depot: {id: depot-repentigny, latitude_microdegres: 45735000, longitude_microdegres: -73455000}
           quarts: [{jour: 0, debut_min: 480, fin_min: 1020}]     # jour : numéro de journée de la cédule
       services:                       # par code de service déclaré (`services`), durée et compétences requises
-        gouttieres: {duree_min: 90, competences: [gouttieres]}
+        service_a: {duree_min: 90, competences: [service_a]}
       cedule:                         # réglages de la cédule par tournées, tous obligatoires (graine facultative)
         {facteur_detour_milliemes: 1300, vitesse_moyenne_kmh: 50, marge_par_trajet_secondes: 600,
          iterations: 500, cout_non_cedule_m: 500000}
@@ -55,7 +55,7 @@ déduit des membres, des pointages ni des absences ; absent, il n'est jamais sup
 
 Ce que le profil n'est pas : aucune donnée de ressources humaines ni de santé, aucune évaluation, aucun classement
 d'employé (DEFINITION-PRODUIT M4, garde-fous humains). Un membre est un identifiant de personne OPSYS, pas une fiche.
-Une compétence est un code que le propriétaire choisit (« gouttieres »), pas une certification d'employé.
+Une compétence est un code que le propriétaire choisit (« service_a »), pas une certification d'employé.
 
 Fail-closed (AGENTS.md) : sans profil, aucune équipe, aucun dépôt, aucun quart ni aucune durée n'est inventé ; le
 verdict dit quoi déclarer et comment. Un profil invalide n'est jamais lu comme absent (`REJ-PROFIL-INVALIDE`). La

@@ -62,7 +62,7 @@ def render_html(content: dict) -> str:
     a {{ color: {colors['link']}; }}"""
 
     # Données structurées JSON-LD. HomeAndConstructionBusiness est un sous-type STRICT de
-    # LocalBusiness (schema.org), adapté à une entreprise de rénovation extérieure : conforme
+    # LocalBusiness (schema.org), adapté à une entreprise de travaux et de services à domicile : conforme
     # à la fois à guardrail.py (G-15) et à aeo_engine.py (A-08), qui exigeaient auparavant
     # deux littéraux mutuellement exclusifs ("Organization" vs "LocalBusiness") — corrigé des
     # deux côtés à la fois (R9 §1.4). NAP (telephone/address) ajouté seulement si le profil de
