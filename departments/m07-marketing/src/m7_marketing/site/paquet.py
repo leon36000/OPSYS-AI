@@ -31,7 +31,7 @@ REJ_VERSION = "REJ-SITE-PAQUET-VERSION"
 
 def version_valide(version: Any) -> bool:
     """`AAAAMMJJTHHMMSSZ` (UTC), une date réelle : le nom du répertoire `releases/<version>` sur le serveur."""
-    if not isinstance(version, str) or not VERSION.match(version):
+    if not isinstance(version, str) or not VERSION.fullmatch(version):
         return False
     try:
         dt.datetime.strptime(version, "%Y%m%dT%H%M%SZ")

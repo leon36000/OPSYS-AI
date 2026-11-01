@@ -230,6 +230,12 @@ def _appliquer(etats: dict[str, EtatArticle], m: Mapping[str, Any]) -> None:
             raise JournalIncoherent(f"rang {m['rang']} : jeton émis hors approbation")
         courant.jeton_emis = True
         return
+    if type_maillon == M_PUBLIE and courant.etat == ANNULE and courant.jeton_emis:
+        # Une annulation a été posée APRÈS l'émission du jeton, pendant l'appel au site : le site a publié quand même.
+        # Le registre dit la vérité sans devenir incohérent (il serait mort pour toujours, tous articles confondus).
+        courant.etat, courant.statut_site, courant.lien_public = PUBLIE, m["statut_site"], m.get("lien_public")
+        courant.derniere_erreur = None
+        return
     if type_maillon == M_PUBLIE:
         if courant.etat != APPROUVE or not courant.jeton_emis:
             raise JournalIncoherent(f"rang {m['rang']} : publication sans jeton émis")
@@ -435,7 +441,11 @@ def consigner_transmission(
     """Appelé par l'exécuteur après que le plugin a créé ou mis à jour le brouillon : l'empreinte du SITE devient
     celle que
     la direction approuvera. Une différence avec l'empreinte locale (assainissement du plugin) est consignée comme
-    divergence."""
+    divergence.
+
+    Le plugin a été appelé (réseau) AVANT cette écriture : le rang du journal est lu avant l'état et l'écriture exige
+    qu'il n'ait pas bougé (une annulation ou une publication écrite entre-temps rendrait le journal incohérent)."""
+    rang = len(journal)
     tous, refus = charger(journal)
     if refus is not None:
         return refus
@@ -446,16 +456,20 @@ def consigner_transmission(
         return _refus(REJ_ETAT, "$.publication_id", f"publication {courant.etat} : transmission impossible")
     if type(post_id) is not int or post_id <= 0 or not re.fullmatch(r"[0-9a-f]{64}", empreinte_serveur or ""):
         return _refus(REJ_EMPREINTE, "$", "réponse du site invalide (post_id, empreinte)")
-    journal_chaine.ajouter(
-        journal,
-        M_TRANSMIS,
-        {
-            "publication_id": publication_id,
-            "post_id": post_id,
-            "empreinte_serveur": empreinte_serveur,
-        },
-        horodatage,
-    )
+    try:
+        journal_chaine.ajouter(
+            journal,
+            M_TRANSMIS,
+            {
+                "publication_id": publication_id,
+                "post_id": post_id,
+                "empreinte_serveur": empreinte_serveur,
+            },
+            horodatage,
+            rang_attendu=rang,
+        )
+    except journal_chaine.ConcurrenceJournal:
+        return _refus(REJ_ETAT, "$.publication_id", "la publication a changé pendant la transmission : relire")
     return {
         "accepte": True,
         "publication_id": publication_id,
@@ -588,65 +602,136 @@ def approbation_verifiee(
     )
 
 
-def consigner_jeton_emis(journal: Any, approbation: ApprobationVerifiee, horodatage: str) -> None:
+def consigner_jeton_emis(journal: Any, approbation: ApprobationVerifiee, horodatage: str) -> dict[str, Any] | None:
     """À écrire AVANT l'envoi du jeton au site : si l'envoi échoue ou que la réponse se perd, l'approbation est brûlée
-    (jamais deux jetons pour une approbation) et la direction en donne une nouvelle."""
-    journal_chaine.ajouter(
-        journal,
-        M_JETON,
-        {
-            "publication_id": approbation.publication_id,
-            "approval_id": approbation.approval_id,
-            "expire_le": approbation.expire_le,
-        },
-        horodatage,
-    )
+    (jamais deux jetons pour une approbation) et la direction en donne une nouvelle.
+
+    C'est la CONSOMMATION de l'approbation, donc une comparaison-échange : `None` si CE appel a consigné le jeton,
+    sinon le refus typé (`REJ_APPROBATION_UTILISEE`) et RIEN n'est écrit. Entre `approbation_verifiee` et ici
+    l'exécuteur a relu le site (appel réseau) : un autre exécuteur (bail expiré, second processus) a pu consigner le
+    jeton et publier. Le rang du journal est donc lu AVANT de relire l'état, et l'écriture exige que le journal soit
+    encore à ce rang : au moindre maillon écrit entre-temps, elle est refusée. L'appelant n'envoie AUCUN jeton sur un
+    refus."""
+    rang = len(journal)
+    tous, refus = charger(journal)
+    if refus is not None:
+        return refus
+    courant = tous.get(approbation.publication_id)
+    if (
+        courant is None
+        or courant.etat != APPROUVE
+        or courant.jeton_emis
+        or courant.approbation is None
+        or courant.approbation["approval_id"] != approbation.approval_id
+    ):
+        return _refus(REJ_APPROBATION_UTILISEE, "$", "cette approbation a déjà servi ou n'est plus en cours")
+    try:
+        journal_chaine.ajouter(
+            journal,
+            M_JETON,
+            {
+                "publication_id": approbation.publication_id,
+                "approval_id": approbation.approval_id,
+                "expire_le": approbation.expire_le,
+            },
+            horodatage,
+            rang_attendu=rang,
+        )
+    except journal_chaine.ConcurrenceJournal:
+        return _refus(REJ_APPROBATION_UTILISEE, "$", "le journal a changé pendant la vérification : rien n'est émis")
+    return None
 
 
 def consigner_publication(
     journal: Any, publication_id: str, statut_site: str, lien_public: str | None, horodatage: str
-) -> None:
-    journal_chaine.ajouter(
-        journal,
-        M_PUBLIE,
-        {
-            "publication_id": publication_id,
-            "statut_site": statut_site,
-            "lien_public": lien_public,
-        },
-        horodatage,
-    )
+) -> bool:
+    """Le site a publié (réponse du plugin, ou relecture du site après une réponse perdue).
+
+    Rend True si CE appel a consigné la publication. Elle ne l'est qu'une fois et seulement si le jeton est parti
+    (`jeton_emis`) et que la publication n'est pas déjà `publie` : deux exécuteurs peuvent constater la même sortie
+    (l'un publie, l'autre réconcilie après un bail repris), et une seconde écriture de `publie` rendrait le journal
+    incohérent pour toujours. Comparaison-échange sur le rang lu AVANT l'état : au moindre maillon écrit entre-temps
+    le geste est refusé, et le prochain tour (réconciliation, relecture du site) consigne la vérité."""
+    rang = len(journal)
+    tous, refus = charger(journal)
+    courant = None if refus is not None else tous.get(publication_id)
+    if courant is None or not courant.jeton_emis or courant.etat not in (APPROUVE, ANNULE):
+        return False
+    try:
+        journal_chaine.ajouter(
+            journal,
+            M_PUBLIE,
+            {
+                "publication_id": publication_id,
+                "statut_site": statut_site,
+                "lien_public": lien_public,
+            },
+            horodatage,
+            rang_attendu=rang,
+        )
+    except journal_chaine.ConcurrenceJournal:
+        return False
+    return True
 
 
-def consigner_echec_transmission(journal: Any, publication_id: str, code: str, detail: str, horodatage: str) -> None:
+def consigner_echec_transmission(
+    journal: Any, publication_id: str, code: str, detail: str, horodatage: str
+) -> bool:
     """Le brouillon n'a pas pu être créé ou mis à jour : l'état ne change pas (on retransmet), la cause est consignée.
-    """
-    journal_chaine.ajouter(
-        journal,
-        M_TRANSMISSION_ECHEC,
-        {
-            "publication_id": publication_id,
-            "code": code[:80],
-            "detail": detail[:300],
-        },
-        horodatage,
-    )
+
+    Rend True si la cause est consignée. Elle ne l'est que pour une publication encore à transmettre (brouillon, en
+    revue, en échec) à l'instant de l'écriture : l'appel au site (réseau) précède cette écriture, et une annulation
+    posée pendant ce temps rendrait le journal incohérent (plus aucune lecture possible, tous articles confondus)."""
+    rang = len(journal)
+    tous, refus = charger(journal)
+    courant = None if refus is not None else tous.get(publication_id)
+    if courant is None or courant.etat not in (BROUILLON, EN_REVUE, ECHEC):
+        return False
+    try:
+        journal_chaine.ajouter(
+            journal,
+            M_TRANSMISSION_ECHEC,
+            {
+                "publication_id": publication_id,
+                "code": code[:80],
+                "detail": detail[:300],
+            },
+            horodatage,
+            rang_attendu=rang,
+        )
+    except journal_chaine.ConcurrenceJournal:
+        return False
+    return True
 
 
-def consigner_echec(journal: Any, publication_id: str, code: str, detail: str, horodatage: str) -> None:
-    """La publication a échoué après l'émission du jeton : l'approbation est brûlée ; `consigner_transmission`
-    (après une
-    relecture de l'état du site) rouvre la revue."""
-    journal_chaine.ajouter(
-        journal,
-        M_ECHEC,
-        {
-            "publication_id": publication_id,
-            "code": code[:80],
-            "detail": detail[:300],
-        },
-        horodatage,
-    )
+def consigner_echec(journal: Any, publication_id: str, code: str, detail: str, horodatage: str) -> bool:
+    """La publication a échoué après l'émission du jeton (ou son approbation est tombée) : l'approbation est brûlée ;
+    `consigner_transmission` (après une relecture de l'état du site) rouvre la revue.
+
+    Rend True si l'échec est consigné. Il ne l'est QUE pour une publication encore `approuve` à l'instant de
+    l'écriture (comparaison-échange sur le rang du journal, lu avant l'état) : l'exécuteur travaille sur un instantané
+    de début de tour, et une publication annulée, publiée ou retransmise entre-temps rendrait le journal incohérent
+    (plus aucune lecture possible, tous articles confondus) si on y écrivait un échec."""
+    rang = len(journal)
+    tous, refus = charger(journal)
+    courant = None if refus is not None else tous.get(publication_id)
+    if courant is None or courant.etat != APPROUVE:
+        return False
+    try:
+        journal_chaine.ajouter(
+            journal,
+            M_ECHEC,
+            {
+                "publication_id": publication_id,
+                "code": code[:80],
+                "detail": detail[:300],
+            },
+            horodatage,
+            rang_attendu=rang,
+        )
+    except journal_chaine.ConcurrenceJournal:
+        return False
+    return True
 
 
 def annuler(journal: Any, publication_id: str, par: str, motif: str, horodatage: str) -> dict[str, Any]:

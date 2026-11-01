@@ -419,6 +419,31 @@ def approbateur_en_cours(
     return signataire_valide(cnx, IdentiteAppelante(personne=decide_par, role=decide_role))
 
 
+def instant_de_la_decision_en_cours(cnx: Connection | None) -> dt.datetime | None:
+    """L'instant (UTC, horloge du SERVEUR) où `decider` a réservé la demande que l'outil exécute EN CE MOMENT, sinon
+    None. Lecture seule.
+
+    Un outil dont la validité dépend du temps (une approbation « valable une heure », un délai minimal avant une
+    planification) ne doit pas dater la décision d'un `horodatage` ARGUMENT : un agent qui dépose la demande choisit cet
+    argument, que la file montre mais que le propriétaire ne lit pas toujours. `decider` écrit `decide_le` lui-même,
+    juste avant d'exécuter l'outil, avec les arguments exacts : c'est l'heure de la décision humaine. Même garde que
+    `approbateur_en_cours` : la demande est lue en base, `en_cours`, et seul `decider` en pose l'identifiant. Hors
+    décision (appel d'agent, d'appareil, ligne de commande), ou hors transaction : None, l'appelant garde sa règle."""
+    demande_id = demande_approuvee_en_cours()
+    if cnx is None or demande_id is None:
+        return None
+    ligne = cnx.execute(
+        select(APPROBATIONS.c.statut, APPROBATIONS.c.decide_le).where(APPROBATIONS.c.id == demande_id)
+    ).one_or_none()
+    if ligne is None or ligne[0] != "en_cours" or not isinstance(ligne[1], str):
+        return None
+    try:
+        instant = dt.datetime.fromisoformat(ligne[1])
+    except ValueError:
+        return None
+    return instant if instant.tzinfo is not None else instant.replace(tzinfo=dt.UTC)
+
+
 def arguments_masques(arguments: Mapping[str, Any]) -> dict[str, Any]:
     """Copie des arguments où les valeurs de `ARGUMENTS_MASQUES_DANS_LA_TRACE` sont remplacées par
     `VALEUR_MASQUEE` (une valeur nulle reste nulle : rien à masquer, et « masqué » serait faux).

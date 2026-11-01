@@ -121,7 +121,11 @@ def publier(journal: Any, publication_id: str, client: ClientWordPress, maintena
                 }
             ],
         }
-    flux.consigner_jeton_emis(journal, approbation, horodatage)
+    consigne = flux.consigner_jeton_emis(journal, approbation, horodatage)
+    if consigne is not None:
+        # Un autre exécuteur a consommé cette approbation entre la vérification et ici : AUCUN jeton ne part, et rien
+        # n'est écrit (la publication de l'autre reste ce qu'elle est).
+        return consigne
     resultat = client.publier(approbation)
     if resultat["accepte"]:
         donnees = resultat["donnees"]

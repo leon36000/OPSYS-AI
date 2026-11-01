@@ -23,6 +23,7 @@ import dataclasses
 import datetime as dt
 import hashlib
 import json
+import re
 from collections.abc import Sequence
 from typing import Any, Protocol
 
@@ -32,6 +33,7 @@ from .toile import Toile
 
 CHEMINS_MAX = 200
 VB_MAX = 10_000.0
+_HEX6 = re.compile(r"#[0-9A-Fa-f]{6}")
 REJ_LOGO = "REJ-STUDIO-LOGO"
 REJ_LOGO_COMPLEXE = "REJ-STUDIO-LOGO-TROP-COMPLEXE"
 SCHEMA_RAPPORT_LOGO = controle.SCHEMA_RAPPORT
@@ -122,7 +124,7 @@ class VectoriseurDouble:
 
 def svg_du_logo(logo: LogoVectoriel, couleur: str = "#000000", fond: str | None = None) -> bytes:
     """SVG autonome : chemins remplis, aucun script, aucune image, aucune police, l'avertissement en `<desc>`."""
-    if len(couleur) != 7 or couleur[0] != "#" or (fond is not None and (len(fond) != 7 or fond[0] != "#")):
+    if _HEX6.fullmatch(couleur) is None or (fond is not None and _HEX6.fullmatch(fond) is None):
         raise ValueError("couleur #RRGGBB attendue")
     arriere = f'<rect width="{logo.vb_w:g}" height="{logo.vb_h:g}" fill="{fond}"/>' if fond else ""
     chemins = "".join(f'<path d="{c}"/>' for c in logo.chemins)

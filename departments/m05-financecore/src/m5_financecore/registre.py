@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 from datetime import datetime
+from decimal import Decimal
 
 from . import encodage, validation
 
@@ -88,6 +89,26 @@ _CHAMPS_MOUVEMENT = (
 )
 
 
+# Même domaine monétaire que le reste de M5 (factures, grand livre, calculs) : un mouvement est d'au plus
+# 999 999 999 999,99 $ en valeur absolue. Sans cette borne, `1E+100` fait perdre les centimes à `soldes.calculer_solde`
+# (contexte de 64 chiffres) et `1E+9999999` le fait lever à chaque lecture, définitivement (registre append-only).
+# L'échelle est bornée aussi (6 décimales : le cash libre arrondit lui-même un demi-cent, voir
+# `test_cash_libre.py::test_le_resultat_est_arrondi_une_fois_au_demi_cent_superieur`) : `1E-999999999` se formaterait
+# en un milliard de caractères.
+_MONTANT_MAX = Decimal("999999999999.99")
+_DECIMALES_MAX = 6
+
+
+def _verdict_montant_borne(montant):
+    exposant = montant.as_tuple().exponent
+    if montant.copy_abs() > _MONTANT_MAX or exposant < -_DECIMALES_MAX:
+        return validation.construire_verdict(
+            "REJ-MOUVEMENT-MONTANT-INVALIDE",
+            detail=f"montant d'au plus {_MONTANT_MAX} en valeur absolue et de {_DECIMALES_MAX} décimales au plus exigé",
+        )
+    return None
+
+
 def _valider_horodatage_local(chaine):
     try:
         dt = datetime.fromisoformat(chaine)
@@ -123,6 +144,9 @@ class Registre:
             }
             valide, verdict = validation.valider_mouvement(corps_mouvement)
             if not valide:
+                raise validation.MouvementInvalide(verdict)
+            verdict = _verdict_montant_borne(corps_mouvement["montant"])
+            if verdict is not None:
                 raise validation.MouvementInvalide(verdict)
 
         if "horodatage" not in entree:

@@ -292,6 +292,10 @@ def controler_site(fichiers: Mapping[str, bytes], schema: Mapping[str, Any]) -> 
     }
 
 
+# Les navigateurs retirent blancs et caractères de contrôle avant de lire le schéma d'une URL (`java\tscript:`).
+_SANS_BLANCS = re.compile("[\x00-\x20\x7f-\xa0\u1680\u180e\u2000-\u200f\u2028\u2029\u202f\u205f\u3000\ufeff]")
+
+
 def _externe(valeur: str) -> bool:
     return valeur.startswith(("http://", "https://", "//"))
 
@@ -303,7 +307,7 @@ def _controler_liens(
     for balise, attribut, valeur, attrs in analyse.liens:
         valeur = valeur.strip()
         bas = valeur.lower()
-        if bas.startswith("javascript:"):
+        if _SANS_BLANCS.sub("", bas).startswith("javascript:"):
             constat("QA-SCRIPTS", fichier, f"<{balise} {attribut}> en javascript:")
             continue
         if bas.startswith(("mailto:", "tel:")):

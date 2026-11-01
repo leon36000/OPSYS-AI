@@ -65,10 +65,21 @@ from __future__ import annotations
 import copy
 import math
 from collections.abc import Iterable, Mapping
+from decimal import Decimal
 from fractions import Fraction
 from typing import Any
 
-from . import contrats, encodage, evenement_reception, fournisseurs, frontieres, livre_prix, stock, verdicts
+from . import (
+    contrats,
+    contrats_sortie,
+    encodage,
+    evenement_reception,
+    fournisseurs,
+    frontieres,
+    livre_prix,
+    stock,
+    verdicts,
+)
 
 __all__ = [
     "calculer_lignes_a_commander",
@@ -125,9 +136,11 @@ def calculer_lignes_a_commander(
         materiau_id = besoin["materiau_id"]
         quantite_estimee = besoin["quantite_estimee"]
         disponible = stock.deriver_stock_theorique(chantier_id, materiau_id, registre_mouvements)
-        ecart = quantite_estimee - disponible
+        # Écart en décimal EXACT (comme `stock.py`) : 10,3 − 3,1 est 7,2, pas 7,200000000000001 — une quantité bruitée
+        # au bon de commande fait de la réception de 7,2 une réception « inférieure », donc un PO jamais complet.
+        ecart = Decimal(str(quantite_estimee)) - Decimal(str(disponible))
         if ecart > 0:
-            lignes.append({"materiau_id": materiau_id, "quantite_demandee": ecart})
+            lignes.append({"materiau_id": materiau_id, "quantite_demandee": float(ecart)})
     return lignes
 
 
@@ -303,8 +316,15 @@ def creer_brouillon(
             }
         )
         montant_ligne_prevu = (
-            prix_unitaire_prevu * quantite_demandee if prix_unitaire_prevu is not None else None
+            contrats_sortie.montant_ligne_au_cent(prix_unitaire_prevu, quantite_demandee)
+            if prix_unitaire_prevu is not None
+            else None
         )
+        if prix_unitaire_prevu is not None and montant_ligne_prevu is None:
+            return None, verdicts.construire_verdict(
+                "REJ-PO-LIGNE-INVALIDE",
+                detail=f"{materiau_id!r} : montant de ligne hors du domaine monétaire (999 999 999 999,99 $ au plus)",
+            )
         montants_lignes.append(montant_ligne_prevu)
         lignes.append(
             {
@@ -321,7 +341,9 @@ def creer_brouillon(
     # sum() plutôt qu'un accumulateur à littéral initial (jamais un 0.0 codé en dur en contexte
     # monétaire, conformite.py LITTERAL_COUT_INTERDIT).
     montant_total_prevu = (
-        sum(montants_lignes) if all(montant is not None for montant in montants_lignes) else None
+        contrats_sortie.somme_montants_au_cent(montants_lignes)
+        if all(montant is not None for montant in montants_lignes)
+        else None
     )
 
     candidat = {

@@ -64,7 +64,7 @@ __all__ = [
 def empreinte_valide(valeur: object) -> bool:
     """``True`` seulement si `valeur` est EXACTEMENT 64 caractères hexadécimaux minuscules —
     fail-closed sur tout le reste (type, longueur, casse)."""
-    return isinstance(valeur, str) and bool(_EMPREINTE_HEX.match(valeur))
+    return isinstance(valeur, str) and bool(_EMPREINTE_HEX.fullmatch(valeur))  # `$` accepterait un « \n » final
 
 
 def reference_pour(empreinte_sha256: str) -> str:

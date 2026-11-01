@@ -34,6 +34,7 @@ constructions (``m8_ent_constructions``).
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from . import contenus, encodage, entonnoir, mesures_chantier, moteur_mesures
@@ -64,7 +65,9 @@ def _entier(valeur: Any) -> int | None:
         return None
     if isinstance(valeur, int):
         return valeur
-    if isinstance(valeur, str) and valeur.strip().lstrip("-").isdigit():
+    # Un seul signe et des chiffres ASCII : `lstrip("-")` retirait tous les signes (« --5 » levait `ValueError`) et
+    # `isdigit` accepte les chiffres Unicode.
+    if isinstance(valeur, str) and re.fullmatch(r"-?[0-9]+", valeur.strip()):
         return int(valeur.strip())
     return None
 

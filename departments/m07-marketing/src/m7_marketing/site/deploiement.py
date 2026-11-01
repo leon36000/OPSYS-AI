@@ -66,7 +66,7 @@ def valider_cible(cible: Any, domaine: str) -> tuple[dict[str, Any] | None, list
     if inconnus:
         refus.append(_refus(REJ_CIBLE, "$.cible", f"champs inconnus : {inconnus}"))
     hote = cible.get("hote")
-    if not isinstance(hote, str) or not _HOTE.match(hote):
+    if not isinstance(hote, str) or not _HOTE.fullmatch(hote):
         refus.append(_refus(REJ_HOTE, "$.cible.hote", "nom d'hôte DNS en minuscules attendu (aucune IP, aucun espace)"))
     utilisateur = cible.get("utilisateur", UTILISATEUR_DEFAUT)
     if utilisateur == "root":
@@ -74,7 +74,7 @@ def valider_cible(cible: Any, domaine: str) -> tuple[dict[str, Any] | None, list
             REJ_UTILISATEUR_ROOT, "$.cible.utilisateur",
             "jamais root : un utilisateur dédié non root (opsys-deploy) avec une liste blanche sudoers",
         ))
-    elif not isinstance(utilisateur, str) or not _UTILISATEUR.match(utilisateur):
+    elif not isinstance(utilisateur, str) or not _UTILISATEUR.fullmatch(utilisateur):
         refus.append(_refus(REJ_UTILISATEUR, "$.cible.utilisateur", "nom d'utilisateur POSIX attendu"))
     port = cible.get("port", 22)
     if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:

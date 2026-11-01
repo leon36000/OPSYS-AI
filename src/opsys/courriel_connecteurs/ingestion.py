@@ -324,8 +324,15 @@ class IngestionCourriel:
         amorce_faite = comptes.amorce_terminee(curseurs_compte, dossier)
         filtre = isolation.filtre_m1() if (vers_contacts and not amorce_faite) or (vers_m1 and amorce_faite) else None
         contacts_page: dict[str, dict[str, Any]] = {}
+        refs_de_la_page: set[str] = set()
         for ref in page.ajouts:
             ref_cle = hashlib.sha256(f"{dossier}\x1f{ref.ref}".encode()).hexdigest()
+            if ref_cle in refs_de_la_page:
+                # Une même référence répétée dans la page (un delta Graph le permet) : les références sont écrites en
+                # bloc à la fin de la page, une deuxième occurrence violerait la clé primaire et bloquerait le dossier.
+                rapport.deja_vus += 1
+                continue
+            refs_de_la_page.add(ref_cle)
             with self._fabrique() as cnx:
                 connue = cnx.execute(select(COURRIEL_REFS.c.ref_cle).where(
                     COURRIEL_REFS.c.compte_id == compte_id, COURRIEL_REFS.c.ref_cle == ref_cle)).first()

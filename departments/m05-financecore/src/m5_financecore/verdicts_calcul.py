@@ -35,6 +35,7 @@ CODES_CALCUL = [
     "REJ-CALC-COUTS-REQUIS",  # Monte-Carlo : la vue sans droit aux coûts ne voit aucun montant
     "REJ-CALC-PAGE-INVALIDE",  # depart ou limite d'une page hors bornes
     "REJ-CALC-AMORTISSEMENT-IMPOSSIBLE",  # le versement arrondi ne couvre pas l'intérêt de la première période
+    "REJ-CALC-RESULTAT-HORS-PRECISION",  # montants extrêmes : TRI non convergent ou résultat hors précision
 ]
 _CODES = frozenset(CODES_CALCUL)
 

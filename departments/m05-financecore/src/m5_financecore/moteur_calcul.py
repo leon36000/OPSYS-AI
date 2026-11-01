@@ -232,11 +232,15 @@ def calculer_rentabilite(entrees: Any, parametres: Any = None):
         reinvestissement, verdict = _taux(brut.get("taux_reinvestissement"), "taux_reinvestissement")
         if verdict:
             return None, verdict
-    resultat_tri = mf.tri(flux)
-    trim = None if financement is None else mf.tri_modifie(flux, financement, reinvestissement)
-    simple, actualise = mf.delai_recuperation(flux), mf.delai_recuperation(flux, taux)
+    try:
+        resultat_tri = mf.tri(flux)
+        trim = None if financement is None else mf.tri_modifie(flux, financement, reinvestissement)
+        simple, actualise = mf.delai_recuperation(flux), mf.delai_recuperation(flux, taux)
+        van_au_cent = _txt_cent(mf.van(taux, flux))
+    except ArithmeticError as exc:
+        return _refus("REJ-CALC-RESULTAT-HORS-PRECISION", f"rentabilité non calculable avec ces montants : {exc}")
     resultat = {
-        "van": _txt_cent(mf.van(taux, flux)),
+        "van": van_au_cent,
         "tri": _vue_tri(resultat_tri),
         "tri_modifie": {
             "statut": "NON_DEMANDE" if financement is None else ("INDEFINI" if trim is None else "CALCULE"),
@@ -712,7 +716,10 @@ def analyser_sensibilite(entrees: Any, parametres: Any = None):
         scenarios.append({"nom": scenario["nom"], "hypotheses": valeurs})
     if len({s["nom"] for s in scenarios}) != len(scenarios):
         return _refus("REJ-CALC-SCENARIO-INVALIDE", "deux scénarios portent le même nom")
-    calcul = sensibilite.analyser(base, variations, scenarios)
+    try:
+        calcul = sensibilite.analyser(base, variations, scenarios)
+    except ArithmeticError as exc:
+        return _refus("REJ-CALC-RESULTAT-HORS-PRECISION", f"sensibilité non calculable avec ces hypothèses : {exc}")
 
     def vue_mesure(mesure: Mapping[str, Any]) -> dict[str, Any]:
         return {"van": format(mesure["van"], "f"), "tri_statut": mesure["tri_statut"],

@@ -3,6 +3,7 @@
 - Toute valeur déchiffrée est enregistrée ici le temps de son usage (`coffre.utiliser`) : tant qu'elle est en
   mémoire, chaque enregistrement de journal (fabrique `logging` installée par `installer`) et chaque réponse
   passée à `masquer` la remplacent par `•••`.
+- La trace d'une exception (`exc_info`, causes chaînées comprises) et `stack_info` sont masquées de la même façon.
 - Les jetons opaques `opsys-jeton:v1:…` et les formes usuelles de clés (en-tête Bearer, sk-…, AIza…, ya29.…)
   sont masqués en permanence, même hors usage.
 Limite : une valeur copiée par un tiers dans un autre format (base64, découpée) n'est pas reconnue.
@@ -89,6 +90,20 @@ def installer() -> None:
         masque = masquer_texte(message)
         if masque != message:
             enregistrement.msg, enregistrement.args = masque, None
+        # La trace d'une exception (`exc_info`) est formatée plus tard, par le gestionnaire : le message d'une
+        # exception (URL à clé, en-tête, valeur du coffre) doit être masqué lui aussi. `Formatter.format` réutilise
+        # `exc_text` s'il est déjà posé.
+        if enregistrement.exc_info and not enregistrement.exc_text:
+            try:
+                trace = logging.Formatter().formatException(enregistrement.exc_info)
+            except Exception:  # noqa: BLE001 — un tuple d'exception mal formé reste traité par logging
+                trace = None
+            if trace:
+                enregistrement.exc_text = masquer_texte(trace)
+        elif enregistrement.exc_text:
+            enregistrement.exc_text = masquer_texte(enregistrement.exc_text)
+        if enregistrement.stack_info:
+            enregistrement.stack_info = masquer_texte(enregistrement.stack_info)
         return enregistrement
 
     logging.setLogRecordFactory(fabrique)

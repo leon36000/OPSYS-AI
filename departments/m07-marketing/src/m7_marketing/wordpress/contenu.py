@@ -59,7 +59,11 @@ BALISES_ACTIVES = frozenset(
         "select",
     }
 )
-_URL_ACTIVE = re.compile(r"\s*(?:javascript|vbscript|data)\s*:", re.IGNORECASE)
+_URL_ACTIVE = re.compile(r"(?:javascript|vbscript|data):", re.IGNORECASE)
+# Les navigateurs retirent espaces, tabulations, sauts de ligne et caractères de contrôle AVANT de lire le schéma
+# (`java\tscript:` est `javascript:`) : on les retire de même avant de comparer.
+_IGNORES_PAR_LES_NAVIGATEURS = re.compile(
+    "[\x00-\x20\x7f-\xa0\u1680\u180e\u2000-\u200f\u2028\u2029\u202f\u205f\u3000\ufeff]")
 _SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 PROFIL_ARTICLE = socle.profil(
@@ -95,7 +99,7 @@ class _Lecteur(HTMLParser):
             elif (
                 nom in {"href", "src", "action", "formaction", "xlink:href", "srcset", "poster"}
                 and valeur
-                and _URL_ACTIVE.match(valeur)
+                and _URL_ACTIVE.match(_IGNORES_PAR_LES_NAVIGATEURS.sub("", valeur))
             ):
                 self.actif.append(f"adresse active dans {nom}")
 

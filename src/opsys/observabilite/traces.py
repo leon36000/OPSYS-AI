@@ -58,6 +58,7 @@ TYPES_SPAN = ("appel_outil", "tour_agent", "refus_mcp")
 ISSUES = ("ok", "refus", "attente_approbation", "erreur")
 NIVEAUX = ("N0", "N1", "N2", "N3", "N4", "N5")
 LIGNE_MAX = 16_384
+RELECTURE_MAX = 16 * 1024 * 1024  # plafond de la relecture de la fin d'un segment pour retrouver le dernier maillon
 ATTRIBUTS_MAX = 20
 VALEUR_ATTRIBUT_MAX = 200
 RETENTION_JOURS_DEFAUT = 30
@@ -215,21 +216,29 @@ class JournalTraces:
 
     @staticmethod
     def _derniere_ligne(chemin: Path) -> dict[str, Any] | None:
+        """Le dernier enregistrement lisible du segment. Une fin de fichier illisible (écriture interrompue, octets
+        nuls après une coupure de courant, ligne hostile) plus grande que la fenêtre ne doit pas faire perdre le dernier
+        vrai maillon : la fenêtre s'agrandit (jusqu'à `RELECTURE_MAX`) tant que rien de lisible n'est trouvé."""
         try:
             taille = chemin.stat().st_size
         except FileNotFoundError:
             return None
+        fenetre = 2 * LIGNE_MAX
         with chemin.open("rb") as f:
-            f.seek(max(0, taille - 2 * LIGNE_MAX))
-            lignes = [ligne for ligne in f.read().split(b"\n") if ligne.strip()]
-        for ligne in reversed(lignes):
-            try:
-                enr = json.loads(ligne)
-            except ValueError:
-                continue
-            if isinstance(enr, dict) and isinstance(enr.get("h"), str) and type(enr.get("seq")) is int:
-                return enr
-        return None
+            while True:
+                debut = max(0, taille - fenetre)
+                f.seek(debut)
+                lignes = [ligne for ligne in f.read(taille - debut).split(b"\n") if ligne.strip()]
+                for ligne in reversed(lignes):
+                    try:
+                        enr = json.loads(ligne)
+                    except (ValueError, RecursionError):  # illisible ou hostile (imbrication) : on remonte
+                        continue
+                    if isinstance(enr, dict) and isinstance(enr.get("h"), str) and type(enr.get("seq")) is int:
+                        return enr
+                if debut == 0 or fenetre >= RELECTURE_MAX:
+                    return None
+                fenetre *= 4
 
     @contextlib.contextmanager
     def _verrou_fichier(self) -> Iterator[None]:
@@ -294,7 +303,7 @@ class JournalTraces:
                     try:
                         enr = json.loads(ligne)
                         yield Enregistrement(chemin.name, int(enr["seq"]), Span.depuis_dict(enr["span"]))
-                    except (ValueError, KeyError, TypeError, ErreurObservabilite):
+                    except (ValueError, KeyError, TypeError, RecursionError, ErreurObservabilite):
                         continue
 
     def verifier(self) -> RapportIntegrite:
@@ -316,7 +325,8 @@ class JournalTraces:
                     seq, prev, h, span = enr["seq"], enr["prev"], enr["h"], enr["span"]
                     if type(seq) is not int or not isinstance(prev, str) or not isinstance(h, str):
                         raise ValueError("types")
-                except (ValueError, KeyError, TypeError):
+                    attendu_h = self._chaine(prev, seq, span)  # NaN, infini ou imbrication démesurée : illisible
+                except (ValueError, KeyError, TypeError, RecursionError):
                     problemes.append(f"{chemin.name}:{numero}: ligne illisible ou tronquée")
                     precedent_h = None
                     continue
@@ -325,7 +335,7 @@ class JournalTraces:
                     attendu_seq = seq
                 if precedent_h is not None and prev != precedent_h:
                     problemes.append(f"{chemin.name}:{numero}: maillon précédent rompu")
-                if not hmac.compare_digest(self._chaine(prev, seq, span), h):
+                if not hmac.compare_digest(attendu_h, h):
                     problemes.append(f"{chemin.name}:{numero}: empreinte invalide (enregistrement modifié)")
                 precedent_h, attendu_seq, total = h, attendu_seq + 1, total + 1
         return RapportIntegrite(not problemes, len(segments), total, tuple(problemes))

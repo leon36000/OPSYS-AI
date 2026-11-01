@@ -33,7 +33,7 @@ brouillon validé), `gl_periode_cloturee` (mois, fin, qui, totaux).
 |---|---|
 | `date_effet` | `AAAA-MM-JJ` ; postérieure à la date de verrouillage (fin du dernier mois clos). |
 | `piece` | `facture_client` ou `facture_fournisseur` (existence vérifiée dans le registre M5) ; `paie_preparatoire`, `releve_bancaire`, `recu`, `manuelle` (déclarées : `verification = declaree_non_verifiee`) ; `import_quickbooks` (déclarée, créée par l'import seulement, `import-quickbooks.md`). |
-| `cle_piece` | Idempotence : `auto:facture_client:<id>:emission|paiement`, `auto:facture_fournisseur:<id>:saisie`, `saisie:<type>:<référence>`, `contre_passation:<écriture>`. Une clé = une écriture. |
+| `cle_piece` | Idempotence : `auto:facture_client:<id>:emission|paiement`, `auto:facture_fournisseur:<id>:saisie`, `saisie:<type>:<référence>`, `contre_passation:<écriture>:<date>:<empreinte du motif>` (un brouillon mal daté ou mal motivé se reprend par un autre ; un seul devient définitif). Une clé = une écriture. |
 | `lignes` | Au moins deux ; chacune un débit OU un crédit, texte décimal, strictement positif, au cent, sur un compte ACTIF du plan. |
 | Équilibre | Somme des débits = somme des crédits, sinon rien n'est écrit. |
 | `devise` | CAD seulement. |

@@ -8,20 +8,27 @@ from . import contrats
 # Garde de devise (docs/research/R9-m7-m8.md §1.3, trou comblé par
 # docs/departements/M8-audit.md §2/§5 — T3.4) : une unité MONÉTAIRE doit être
 # en CAD — projet 100 % QC/CAD (TPS/TVQ, Loi 25). Une unité est monétaire si
-# elle est, TOUTE ENTIÈRE et NUE (ex. "CAD", "usd") ou comme préfixe avant un
-# "/" (ex. "CAD/lead", "USD/lead"), un code devise ISO 4217 (comparaison
-# insensible à la casse contre _CODES_ISO_4217 ci-dessous). Le trou corrigé
-# ici : l'ancien motif n'exigeait TOUJOURS un dénominateur ("^[A-Z]{3}/\\w+$"),
-# donc une unité monétaire nue comme "CAD" ou "EUR" traversait la garde sans
-# contrôle. Une unité qui ne correspond à AUCUN code ISO 4217 (ex. "ratio",
-# "pourcentage", "dict {note: entier}", "min", "km", "h", "jours", "nb") n'est
-# pas monétaire et n'est pas contrainte par cette garde. Préfixées `_` :
-# allow-lists techniques, pas des énumérés de domaine à classer (pas
-# d'échappatoire D-032 — voir conformite.py::_est_enumere_domaine, qui de
-# toute façon n'inspecte que les Tuple/List/Set nus, jamais un frozenset(...)).
-_MOTIF_UNITE_MONETAIRE = re.compile(r"^([A-Za-z]{3})/\w+$")
-_MOTIF_DEVISE_NUE = re.compile(r"^[A-Za-z]{3}$")
+# elle porte, comme mot entier et n'importe où (nu : "CAD", "usd" ; avec un
+# dénominateur : "CAD/lead", "USD / lead" ; entre parenthèses : "lead (EUR)"),
+# un code devise ISO 4217 (comparaison insensible à la casse contre
+# _CODES_ISO_4217 ci-dessous), ou un symbole ou un mot de devise courant
+# ("€", "US$", "dollars US", "euros"). Le trou corrigé en T3.4 : une unité
+# monétaire NUE ("CAD", "EUR") traversait la garde ; la revue adverse (num) en
+# a fermé un second : seuls "CODE" et "CODE/mot" étaient reconnus, jamais
+# "USD / lead" ni "€ par lead" (l'unité d'une définition enregistrée à
+# l'exécution est un texte libre). Une unité qui ne porte AUCUN code ISO 4217
+# (ex. "ratio", "pourcentage", "dict {note: entier}", "min", "km", "h",
+# "jours", "nb") n'est pas monétaire et n'est pas contrainte par cette garde.
+# Préfixées `_` : allow-lists techniques, pas des énumérés de domaine à
+# classer (pas d'échappatoire D-032 — voir conformite.py::_est_enumere_domaine,
+# qui de toute façon n'inspecte que les Tuple/List/Set nus, jamais un
+# frozenset(...)).
 _DEVISES_AUTORISEES = frozenset({"CAD"})
+# Un mot entier = trois lettres encadrées de non-lettres.
+_MOTIF_JETON_DEVISE = re.compile(r"(?<![A-Za-z])[A-Za-z]{3}(?![A-Za-z])")
+_MOTIF_SYMBOLE_DEVISE = re.compile(
+    r"[€£¥₹₩₽₺₫₪]|\bUS\s?\$|\$\s?US\b|\bdollars?\s+(?:us|am[ée]ricains?)\b|\beuros?\b", re.IGNORECASE
+)
 
 # Codes ISO 4217 (Table A.1 — Current currency & funds code list, tenue par le
 # SIX Group pour l'ISO), 178 codes actifs extraits de
@@ -72,20 +79,14 @@ def devise_non_autorisee(unite):
     registre_metriques.py (« unité validée par le dictionnaire »), seule source de vérité de
     cette règle dans M8.
     """
-    correspondance = _MOTIF_UNITE_MONETAIRE.match(unite)
-    if correspondance is not None:
-        candidat = correspondance.group(1)
-    elif _MOTIF_DEVISE_NUE.match(unite):
-        candidat = unite
-    else:
-        return None
-
-    devise = candidat.upper()
-    if devise not in _CODES_ISO_4217:
-        return None
-    if devise in _DEVISES_AUTORISEES:
-        return None
-    return devise
+    for jeton in _MOTIF_JETON_DEVISE.findall(unite):
+        devise = jeton.upper()
+        if devise in _CODES_ISO_4217 and devise not in _DEVISES_AUTORISEES:
+            return devise
+    symbole = _MOTIF_SYMBOLE_DEVISE.search(unite)
+    if symbole is not None:
+        return symbole.group(0)
+    return None
 
 
 def _compiler_fichier(chemin, dictionnaire, erreurs):

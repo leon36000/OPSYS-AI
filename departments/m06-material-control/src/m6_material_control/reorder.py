@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+
 def evaluer_reorder(chantier_id, materiau_id, seuils, registre):
     seuil_trouve = None
 
@@ -27,7 +30,8 @@ def evaluer_reorder(chantier_id, materiau_id, seuils, registre):
             "materiau_id": materiau_id,
             "stock_actuel": stock_actuel,
             "seuil_quantite": seuil_quantite,
-            "quantite_suggeree": seuil_quantite - stock_actuel,
+            # Écart en décimal exact (10,3 − 3,1 = 7,2, pas 7,200000000000001), comme `stock.py`.
+            "quantite_suggeree": float(Decimal(str(seuil_quantite)) - Decimal(str(stock_actuel))),
         }
 
     return None

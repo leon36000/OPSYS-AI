@@ -35,7 +35,9 @@ class MasquerRecherche(logging.Filter):
                 if historique or importer or documents:
                     record.args = (*record.args[:2], chemin + "?consultation=[MASQUE]", *record.args[3:])
                     return True
-                cle = "q" if "q" in cles else "personne_id" if "personne_id" in cles or prive else None
+                # Texte libre saisi par l'utilisateur (recherche, question de cadrage, tâche et fichiers de la mémoire).
+                libre = next((k for k in ("question", "task", "files") if k in cles), None)
+                cle = ("q" if "q" in cles else "personne_id" if "personne_id" in cles or prive else libre)
                 if cle is not None:
                     record.args = (*record.args[:2], chemin + "?" + cle + "=[MASQUE]", *record.args[3:])
         return True

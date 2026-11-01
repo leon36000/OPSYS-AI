@@ -88,7 +88,7 @@ def test_reponse_http_est_lue_avec_une_borne_fixe():
     reponse = ReponseTropGrande()
     client = ClientEmbeddings(base_url="http://embeddings:8001/v1", modele="BAAI/bge-m3")
     with (
-        patch("opsys.memoire.embeddings.urllib.request.urlopen", return_value=reponse),
+        patch("opsys.memoire.embeddings._ouvrir", return_value=reponse),
         pytest.raises(ErreurEmbeddings, match="supérieure à"),
     ):
         client._appeler(["texte fictif"])

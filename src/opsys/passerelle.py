@@ -84,6 +84,16 @@ def empreinte_cle(cle: str) -> str:
     return hashlib.sha256(cle.encode("utf-8")).hexdigest()
 
 
+class _SansRedirection(urllib.request.HTTPRedirectHandler):
+    """La clé maître ne suit jamais une redirection (l'en-tête `Authorization` serait renvoyé à l'hôte désigné)."""
+
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+_OUVREUR = urllib.request.build_opener(_SansRedirection())
+
+
 class ClientLiteLLM:
     """Client d'administration minimal (urllib) pour les clés virtuelles des départements."""
 
@@ -99,7 +109,7 @@ class ClientLiteLLM:
         requete = urllib.request.Request(f"{self._base}{chemin}", data=donnees, method=methode,
                                          headers=self._entetes)
         try:
-            with urllib.request.urlopen(requete, timeout=self._delai) as reponse:  # noqa: S310 — URL interne
+            with _OUVREUR.open(requete, timeout=self._delai) as reponse:  # noqa: S310 — URL interne
                 return reponse.status, json.loads(reponse.read() or b"null")
         except urllib.error.HTTPError as erreur:
             return erreur.code, json.loads(erreur.read() or b"null")

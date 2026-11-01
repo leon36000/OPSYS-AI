@@ -24,7 +24,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from opsys import stockage
+from opsys import approbations, stockage
+from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil
 
 from . import journal_chaine
@@ -83,6 +84,13 @@ def _horodatage(horodatage: str) -> tuple[str, datetime] | dict[str, Any]:
             ],
         }
     valeur = valeur.astimezone(UTC)
+    if contexte_appel.horodatage_reception() is None:
+        # Exécutée par la file d'approbation : l'heure faisant foi est celle de la DÉCISION (horloge du serveur,
+        # écrite par `decider`), jamais l'argument qu'un agent a déposé avec la demande. Sinon l'agent choisirait la
+        # validité de l'approbation (« une heure ») et le délai minimal d'une planification.
+        decision = approbations.instant_de_la_decision_en_cours(stockage.connexion_courante())
+        if decision is not None:
+            valeur = decision.astimezone(UTC)
     return modele.en_instant(valeur), valeur
 
 

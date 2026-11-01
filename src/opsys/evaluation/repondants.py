@@ -230,10 +230,20 @@ CONSIGNE_PROTOCOLE = (
 Transport = Callable[[str, Mapping[str, Any], Mapping[str, str]], Mapping[str, Any]]
 
 
+class _SansRedirection(urllib.request.HTTPRedirectHandler):
+    """La clé de la passerelle ne suit jamais une redirection."""
+
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+_OUVREUR = urllib.request.build_opener(_SansRedirection())
+
+
 def _transport_urllib(url: str, corps: Mapping[str, Any], entetes: Mapping[str, str]) -> Mapping[str, Any]:
     requete = urllib.request.Request(url, data=json.dumps(corps).encode("utf-8"), method="POST", headers=dict(entetes))
     try:
-        with urllib.request.urlopen(requete, timeout=120) as reponse:  # noqa: S310 — URL de passerelle déclarée
+        with _OUVREUR.open(requete, timeout=120) as reponse:  # noqa: S310 — URL de passerelle déclarée
             return json.loads(reponse.read() or b"null")
     except urllib.error.URLError as exc:
         raise RefusEvaluation("REJ-EVAL-PASSERELLE-INDISPONIBLE", f"passerelle injoignable : {exc}") from exc

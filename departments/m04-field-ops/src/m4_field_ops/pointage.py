@@ -60,6 +60,9 @@ def distance_km(lat1, lon1, lat2, lon2):
          + math.cos(math.radians(lat1))
          * math.cos(math.radians(lat2))
          * math.sin(dlon / 2) ** 2)
+    # Revue adverse coord-02 : l'arrondi flottant peut pousser `a` à 1,0000000000000002 pour deux points antipodaux
+    # (environ 4 % d'entre eux) ; `sqrt(1 - a)` levait alors « math domain error » au lieu d'un verdict.
+    a = min(1.0, max(0.0, a))
     return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
 
 

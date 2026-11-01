@@ -458,7 +458,11 @@ def test_la_publication_sans_jeton_emis_est_incoherente_au_journal(prepare):
     flux_journal, _, pid, _ = prepare
     _revu(flux_journal, pid)
     flux.approuver(flux_journal, pid, "d" * 64, "publish", None, OWNER, MAINTENANT, H)
-    flux.consigner_publication(flux_journal, pid, "publish", None, H)
+    # `consigner_publication` refuse désormais cette écriture (revue app-02) : le maillon est forgé à la main.
+    assert flux.consigner_publication(flux_journal, pid, "publish", None, H) is False
+    journal_chaine.ajouter(
+        flux_journal, flux.M_PUBLIE, {"publication_id": pid, "statut_site": "publish", "lien_public": None}, H
+    )
     assert flux.lire(flux_journal)["refus"][0]["code"] == "REJ-WP-JOURNAL-INCOHERENT"
 
 

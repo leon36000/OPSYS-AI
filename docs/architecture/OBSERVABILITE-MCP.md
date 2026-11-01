@@ -76,8 +76,11 @@ Il n'y a **aucun champ de contenu** : ni corps de courriel, ni prompt, ni sortie
 - Un fichier par jour UTC, `<OPSYS_HOME>/traces/traces-AAAAMMJJ.jsonl` (0600, dossier 0700), écrit en `O_APPEND` sous verrou
   (`flock` entre processus sous POSIX ; verrou de processus seulement ailleurs — non exercé sous Windows ici).
 - Chaque ligne : `{"v":1,"seq":n,"prev":"<h précédent>","span":{…},"h":"<HMAC-SHA256>"}`. `h` = HMAC (clé locale, usage `traces/chaine/v1`) de
-  `prev|seq|span`. `traces verifier` détecte une ligne modifiée, supprimée, insérée, dupliquée, réordonnée, tronquée, ou un segment du milieu
-  disparu. Le premier segment restant peut commencer après un segment purgé.
+  `prev|seq|span`. `traces verifier` détecte une ligne modifiée, supprimée, insérée, dupliquée, réordonnée, tronquée (ligne coupée) ou un segment du milieu
+  disparu, et ne plante pas sur une ligne hostile (NaN, imbrication démesurée : elle est signalée comme illisible). Le premier segment
+  restant peut commencer après un segment purgé. **Limite, sans ancre externe** : retirer les DERNIÈRES lignes du dernier segment (ou
+  ce segment entier) n'est pas détectable, la chaîne restante étant valide ; de même une réécriture complète par quelqu'un qui lit la clé
+  locale. Seule une ancre conservée hors du dossier (tête de chaîne publiée ailleurs) fermerait cette limite.
 - **Rétention bornée** : `retention_jours` (30 par défaut, 1–3650) et `taille_max_octets` (256 Mio) ; le dépassement supprime des **segments entiers**,
   le plus ancien d'abord, jamais le segment du jour ; chaque purge est consignée dans `purges.jsonl` (segments, raisons, dernier maillon). La
   purge s'exécute à la création d'un segment ; `traces purger --confirmer` la déclenche à la main (à blanc par défaut). Ce sont de la télémétrie,
@@ -221,6 +224,11 @@ scellé par `architecte` pour revue ; il n'a pas été approuvé par un humain.
 - Sans clé HMAC, quiconque écrit le fichier **et** modifie l'outil peut resceller : la revue du diff est alors la seule barrière. Avec `--hmac`, il
   faut aussi la clé locale ; or un processus du même compte la lit. Pour une vraie séparation des privilèges, mettre le sceau sous une clé que l'agent
   et le serveur ne lisent pas (non fait).
+- **Historique et sceau.** Depuis la revue adverse (reg), un sceau neuf couvre aussi l'empreinte de TOUTES les fiches d'historique (champ
+  `sceau.historique`, dans la charge sha256 / HMAC) : réécrire « qui a scellé quoi, quand » sans la clé casse le HMAC. La dernière fiche est de
+  plus recoupée avec la révision courante (`par`, `le`, nombre d'outils). Un registre scellé AVANT ce changement (sans `sceau.historique`, dont
+  le registre livré) reste lisible, mais l'historique de ses anciennes fiches n'y est pas authentifié : il le devient à la prochaine révision
+  scellée. Les fiches d'une révision ne sont pas recalculables seules (les outils d'alors ne sont pas conservés) : seule la marque les protège.
 - Le registre protège la **définition annoncée**, pas le comportement du code derrière : un outil dont la fonction change sans changer sa
   description passe. Les tests et la revue de code restent la barrière.
 - `inspecter_description` cherche des motifs ; il ne prouve pas qu'une description est sûre.
