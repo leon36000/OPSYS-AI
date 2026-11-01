@@ -27,7 +27,7 @@ reçu).
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 REGISTRE = "signaux_gestion_recus"
@@ -75,6 +75,19 @@ def _jour(texte: str) -> date | None:
         return None
 
 
+_PLUS_ANCIEN = datetime.min.replace(tzinfo=UTC)
+
+
+def _instant(texte: Any) -> datetime:
+    """L'instant d'un texte ISO AVEC fuseau (comparé comme un instant, jamais comme du texte : `01:30-04:00` précède
+    `01:10-05:00` au changement d'heure d'automne) ; un texte illisible ou sans fuseau passe avant tous les autres."""
+    try:
+        instant = datetime.fromisoformat(texte)
+    except (TypeError, ValueError):
+        return _PLUS_ANCIEN
+    return instant if instant.tzinfo is not None else _PLUS_ANCIEN
+
+
 def section(signaux: Iterable[Mapping[str, Any]], maintenant: str, fenetre_jours: int) -> dict[str, Any] | None:
     """La section ``signaux_de_gestion`` du briefing, ou ``None`` s'il n'y a rien à dire."""
     jour = _jour(maintenant)
@@ -115,7 +128,7 @@ def section(signaux: Iterable[Mapping[str, Any]], maintenant: str, fenetre_jours
         },
     }
     if consolidations:
-        d = max(range(len(consolidations)), key=lambda i: (consolidations[i]["consolide_le"], i))
+        d = max(range(len(consolidations)), key=lambda i: (_instant(consolidations[i]["consolide_le"]), i))
         dernier = consolidations[d]
         resultat["derniere_consolidation_m8"] = {
             "consolide_le": dernier["consolide_le"],

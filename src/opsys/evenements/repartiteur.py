@@ -41,12 +41,21 @@ _BASE_BACKOFF_S = 2
 _MAX_TENTATIVES = 5
 _STATUTS_CLOS = ("traite", "quarantaine")
 _HEURE_LIVRAISON = ContextVar("opsys_heure_livraison", default=None)
+_EVENEMENT_LIVRE = ContextVar("opsys_evenement_livre", default=None)
 _LOG = logging.getLogger("opsys.evenements.repartiteur")
 
 
 def horodatage_livraison():
     """Instant du répartiteur pour la livraison courante, ou None hors livraison."""
     return _HEURE_LIVRAISON.get()
+
+
+def instant_publication_livre() -> str | None:
+    """Instant de PUBLICATION (`cree_le`, ISO UTC) de l'événement en cours de livraison, ou None hors livraison.
+
+    La livraison n'est pas ordonnée (un réessai après panne fait arriver un événement ancien après un récent) : un
+    consommateur qui retient « le dernier état » ne doit pas se fier à son ordre d'arrivée, mais à celui-ci."""
+    return _EVENEMENT_LIVRE.get()
 
 
 _CLE_PAIRES_EN_VOL = "_opsys_evenements_paires_en_vol"
@@ -249,9 +258,11 @@ def _livrer_une_paire(
                         attente_wct.revalider_terminee(cnx, evenement_id, consommateur, maintenant_dt)
                     with _livraison(cnx, evenement, consommateur, tentatives_avant):
                         jeton_heure = _HEURE_LIVRAISON.set(maintenant_dt)
+                        jeton_publication = _EVENEMENT_LIVRE.set(evenement["cree_le"])
                         try:
                             resultat_fonction = fonction(dict(charge))
                         finally:
+                            _EVENEMENT_LIVRE.reset(jeton_publication)
                             _HEURE_LIVRAISON.reset(jeton_heure)
                         if resultat_fonction.get("service_m4") == "echec_publication":
                             # r5 : la publication certifiée a échoué DANS son propre point de sauvegarde ; la

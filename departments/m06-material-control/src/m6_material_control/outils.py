@@ -3601,7 +3601,9 @@ def _recevoir_rapprochement_po(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m5.rapprochement_po_constate` (interconnexion M5 -> M6) : range l'état du rapprochement d'une facture
     fournisseur sur PO, tel que M5 l'a constaté (M6 ne le recalcule pas). Un état identique republié sous un autre
     `evenement_id` n'ajoute rien. Registre indisponible : l'exception remonte, le bus réessaie."""
-    nouveau = rapprochements_recus.fait(charge)
+    from opsys.evenements.repartiteur import instant_publication_livre
+
+    nouveau = rapprochements_recus.fait(charge, instant_publication_livre())
     registre_cible = stockage.maillons(_DEPARTEMENT, rapprochements_recus.REGISTRE)
     if any(rapprochements_recus.meme_etat(m, nouveau) for m in registre_cible if m.get("type_entree") ==
            rapprochements_recus.TYPE_ENTREE):
