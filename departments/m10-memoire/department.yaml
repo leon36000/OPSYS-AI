@@ -96,10 +96,14 @@ kpis:
 # `m2.profil_propriete_confirme` (client_id, propriete_id : des pseudonymes, jamais l'adresse) ne nourrit QUE le graphe.
 # M10 publie : la révision proposée d'un énoncé confirmé du modèle de soi, la décision humaine sur une leçon apprise, et
 # l'arête sensible en attente de confirmation. Aucune donnée personnelle ni contenu d'énoncé n'y voyage.
+# Athéna (M9) : M10 consomme aussi les faits stratégiques (`m9.fait_strategique`) : la décision de la direction, le résultat
+# mesuré de ses attendus (en sens seulement) et la leçon proposée, validée ou rejetée, mémorisés au registre
+# `faits_strategiques` (FINANCIAL, hors de tout paquet de contexte). Une leçon n'y est jamais une cause.
 evenements:
   publie: [m10.soi_revision_proposee, m10.lecon_decidee, m10.arete_en_attente]
   consomme:
     - m8.fait_consolide
+    - m9.fait_strategique
     - m3.catalogue_reference
     - m6.catalogue_reference
     - m4.travaux_termines

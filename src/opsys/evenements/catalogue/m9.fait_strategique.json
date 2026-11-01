@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m9.fait_strategique",
+  "title": "M9 — Faits stratégiques (décision de la direction, résultat mesuré, leçon), publiés pour la mémoire de M10",
+  "description": "Émis par M9 Athéna (departments/m09-strategic-intelligence/src/m9_strategic_intelligence/adaptateur_boucle.py::m9_publier_faits_strategiques) : UNE entrée du registre chaîné `decisions_direction` = UN événement. Genres : `decision` (énoncé de la direction et résultats attendus en SENS seulement), `resultat_observe` (sens observé de chaque mesure M8 comparé à l'attendu : CONCORDE, NE_CONCORDE_PAS ou NON_MESURABLE), `lecon` (proposée, validée ou rejetée par la direction). Consommé par M10, qui le mémorise tel quel dans son registre `faits_strategiques` (append-only, FINANCIAL : jamais dans un paquet de contexte). evenement_id déterministe lié à l'empreinte du maillon M9 : republier la même entrée rejoue la première enveloppe. Une leçon n'établit AUCUNE cause ; elle n'est une leçon qu'une fois validée par la direction. Aucun nom de personne : seulement le rôle du signataire. Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sens": {"type": "string", "enum": ["hausse", "baisse", "stable"]},
+    "concordance": {"type": "string", "enum": ["CONCORDE", "NE_CONCORDE_PAS", "NON_MESURABLE", "MIXTE"]}
+  },
+  "properties": {
+    "evenement_id": {"type": "string", "pattern": "^m9-strat-[0-9a-f]{64}$"},
+    "genre": {"type": "string", "enum": ["decision", "resultat_observe", "lecon"]},
+    "decision_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "lecon_id": {"type": ["string", "null"], "maxLength": 64},
+    "statut": {"type": "string", "enum": ["declaree_par_la_direction", "observe_par_mesure", "proposee_non_validee", "validee_par_la_direction", "rejetee_par_la_direction"]},
+    "texte": {"type": ["string", "null"], "maxLength": 1200},
+    "attendus": {
+      "type": "array", "maxItems": 8,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "metric_id": {"type": "string", "pattern": "^m8_[a-z0-9_]{1,76}$"},
+          "sens": {"$ref": "#/$defs/sens"}
+        },
+        "required": ["metric_id", "sens"]
+      }
+    },
+    "observations": {
+      "type": "array", "maxItems": 8,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "metric_id": {"type": "string", "pattern": "^m8_[a-z0-9_]{1,76}$"},
+          "sens_attendu": {"$ref": "#/$defs/sens"},
+          "sens_observe": {"anyOf": [{"$ref": "#/$defs/sens"}, {"type": "null"}]},
+          "valeur_avant": {"type": ["string", "null"], "pattern": "^-?[0-9]+(\\.[0-9]+)?$", "maxLength": 24},
+          "valeur_apres": {"type": ["string", "null"], "pattern": "^-?[0-9]+(\\.[0-9]+)?$", "maxLength": 24},
+          "concordance": {"$ref": "#/$defs/concordance"}
+        },
+        "required": ["metric_id", "sens_attendu", "sens_observe", "valeur_avant", "valeur_apres", "concordance"]
+      }
+    },
+    "concordance": {"anyOf": [{"$ref": "#/$defs/concordance"}, {"type": "null"}]},
+    "decide_role": {"type": ["string", "null"], "enum": ["admin", "nathan_owner", null]},
+    "enregistre_le": {"type": "string", "minLength": 20, "maxLength": 40},
+    "source_empreinte": {"$ref": "#/$defs/sha256"},
+    "mention": {"type": "string", "minLength": 1, "maxLength": 400}
+  },
+  "required": ["evenement_id", "genre", "decision_id", "lecon_id", "statut", "texte", "attendus", "observations", "concordance", "decide_role", "enregistre_le", "source_empreinte", "mention"]
+}

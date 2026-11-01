@@ -71,6 +71,7 @@ from opsys.evenements import schemas
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
+    adaptateur_boucle,
     audit_affirmations,
     bilan_suivis,
     briefing_matin,
@@ -82,6 +83,7 @@ from . import (
     lecture_strategique,
     observations_chantier,
     outils_actions,
+    outils_athena,
     outils_cadrage_decision,
     outils_conseil,
     outils_direction,
@@ -1319,6 +1321,14 @@ def outils(
             budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible, sessions_cible=sessions_cible
         ),
         *outils_priorites.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *adaptateur_boucle.construire_outils(budget_sortie=BUDGET_SORTIE, captures_cible=captures_cible),
+        *outils_athena.construire_outils(
+            budget_sortie=BUDGET_SORTIE,
+            sources_briefing=sources_du_briefing,
+            fenetre_alertes_jours=_fenetre_alertes_jours,
+            lecteur=lecteur_producteurs_m9,
+            captures_cible=captures_cible,
+        ),
         *outils_direction.construire_outils(
             budget_sortie=BUDGET_SORTIE,
             sources_briefing=sources_du_briefing,

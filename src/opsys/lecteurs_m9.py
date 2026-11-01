@@ -40,7 +40,9 @@ PORT = "lecteur_producteurs_m9"
 # (calculateurs) n'y figurent pas : une lecture ne doit pas laisser M9 injecter la matière d'un producteur.
 LECTURES_AUTORISEES: Mapping[str, frozenset[str]] = {
     "m01-front-office": frozenset({"m1_produire_digest", "m1_lire_plaintes_structurees"}),
-    "m02-revenue-crm": frozenset({"m2_lister_leads", "m2_lister_relances"}),
+    "m02-revenue-crm": frozenset(
+        {"m2_lister_leads", "m2_lister_relances", "m2_analyser_pipeline", "m2_prevoir_pipeline"}
+    ),
     "m03-estimation": frozenset({"m3_lire_ecarts_estime_reel"}),
     "m04-field-ops": frozenset(
         {
@@ -57,14 +59,21 @@ LECTURES_AUTORISEES: Mapping[str, frozenset[str]] = {
             "m5_lire_rentabilite_chantier",
             "m5_lire_comptes_a_recevoir",
             "m5_lister_comptes_a_payer",
+            "m5_lire_calendrier_obligations",
+            "m5_lire_statut_revue_fiscale",
         }
     ),
     "m06-material-control": frozenset({"m6_lire_disponibilite"}),
     "m07-marketing": frozenset({"m7_lire_performance_campagnes", "m7_lire_depenses_marketing"}),
     "m08-analytics": frozenset(
-        {"m8_lire_vue_executive", "m8_lire_mesures_chantier", "m8_lister_definitions_metriques"}
+        {
+            "m8_lire_vue_executive",
+            "m8_lire_mesures_chantier",
+            "m8_lister_definitions_metriques",
+            "m8_lire_synthese_direction",
+        }
     ),
-    "m10-memoire": frozenset({"m10_paquet_contexte_affaire", "m10_statut_decision"}),
+    "m10-memoire": frozenset({"m10_paquet_contexte_affaire", "m10_statut_decision", "m10_lire_faits_analytiques"}),
 }
 
 

@@ -79,6 +79,7 @@ from . import (
     revision,
     signaux,
     soi_graphe,
+    strategique,
     validation,
     variance,
     wct,
@@ -92,6 +93,10 @@ _REGISTRES_NOMMES = {"evenements": _REGISTRE_EVENEMENTS, "affaires": _REGISTRE_A
 # hors de
 # `_REGISTRES_NOMMES` : une ReferenceMemoireM10 ne le nomme pas, et aucun paquet de contexte ne le lit.
 _REGISTRE_FAITS_ANALYTIQUES = registre.Registre(maillons=stockage.maillons("m10-memoire", "faits_analytiques"))
+# Athéna (M9) : les faits stratégiques (décision de la direction, résultat mesuré, leçon). Même statut que le
+# précédent :
+# registre à part, FINANCIAL, hors de tout paquet de contexte.
+_REGISTRE_FAITS_STRATEGIQUES = registre.Registre(maillons=stockage.maillons("m10-memoire", "faits_strategiques"))
 
 _DECISION = {
     "type": "object",
@@ -416,6 +421,42 @@ def _recevoir_faits_consolides(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+class StrategiqueRefuse(ValueError):
+    """Un fait stratégique de M9 est refusé par `strategique.memoriser` : champ absent ou hors de sa forme fermée. Le
+    message nomme le CHAMP, jamais sa valeur ; le répartiteur réessaie puis met en quarantaine."""
+
+
+def _recevoir_faits_strategiques(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m9.fait_strategique` : mémorise une entrée de la boucle décision → résultat → leçon, une fois par
+    `evenement_id`, au registre `faits_strategiques` (FINANCIAL : jamais dans un paquet de contexte)."""
+    resultat, verdict = strategique.memoriser(dict(charge), _REGISTRE_FAITS_STRATEGIQUES)
+    if resultat is None:
+        raise StrategiqueRefuse(
+            f"{strategique.TYPE_EVENEMENT} : fait refusé par M10 : {verdict['code']} ({verdict['detail']})")
+    maillon = resultat["maillon"]
+    return {
+        "memorise": True, "evenement_id": maillon["evenement_id"], "ligne_id": maillon["ligne_id"],
+        "producteur": strategique.PRODUCTEUR, "deja_memorise": resultat["deja_memorise"], "genre": maillon["genre"],
+        "statut": maillon["statut"],
+    }
+
+
+def lire_faits_strategiques(
+    limite: int = 8, decalage: int = 0, decision_id: str | None = None,
+) -> dict[str, Any]:
+    """Lecture admin des faits stratégiques mémorisés (page de résumés, texte rendu comme donnée non fiable). Admin
+    d'appareil confirmé en base avant tout registre ; sans identité (agent, console), lecture interne."""
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
+    if type(limite) is not int or not 1 <= limite <= strategique.MAX_PAGE or type(decalage) is not int or decalage < 0:
+        return _verdict(
+            "REJ-STRATEGIQUE-PAGINATION-INVALIDE", "limite entière de 1 à 8 et décalage entier positif ou nul")
+    if decision_id is not None and (not isinstance(decision_id, str) or not 0 < len(decision_id) <= 128):
+        return _verdict("REJ-STRATEGIQUE-DECISION-INVALIDE", "decision_id : texte de 1 à 128 caractères")
+    return strategique.lister(_REGISTRE_FAITS_STRATEGIQUES, limite, decalage, decision_id)
+
+
 def lire_faits_analytiques(
     limite: int = 8, decalage: int = 0, metric_id: str | None = None,
 ) -> dict[str, Any]:
@@ -450,6 +491,7 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
            for type_evenement in etapes.types_consommes()},
         "m2.profil_propriete_confirme": soi_graphe.recevoir_profil_propriete,
         analytique.TYPE_EVENEMENT: _recevoir_faits_consolides,
+        strategique.TYPE_EVENEMENT: _recevoir_faits_strategiques,
     }
 
 
@@ -1579,6 +1621,28 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lire_faits_analytiques,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
+        ),
+        Outil(
+            nom="m10_lire_faits_strategiques",
+            description=(
+                "Lit les faits stratégiques d'Athéna (M9) mémorisés : décision de la direction, résultat mesuré de ses "
+                "attendus (en sens seulement) et leçon proposée, validée ou rejetée par la direction, avec leur "
+                "provenance. Une leçon n'établit aucune cause ; son texte est une donnée non fiable. Niveau "
+                "FINANCIAL : "
+                "jamais dans un paquet de contexte. Lecture pure ; un appareil doit être l'admin confirmé en base."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 8},
+                    "decalage": {"type": "integer", "minimum": 0},
+                    "decision_id": {"type": ["string", "null"], "maxLength": 128},
+                },
+                "additionalProperties": False,
+            },
+            fonction=lire_faits_strategiques,
             autonomie=Autonomie.T0,
             niveau=Niveau.N0,
         ),

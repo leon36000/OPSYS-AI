@@ -39,6 +39,7 @@ from . import (
     mesures_chantier,
     moteur_mesures,
     sante,
+    synthese_direction,
     wallboards,
 )
 
@@ -275,6 +276,21 @@ def construire(
         resultat["historique"] = historique[-historique_limite:] if historique_limite else []
         resultat["maintenant"] = maintenant
         return resultat
+
+    def lire_synthese_direction(maintenant: str, fraicheur_max_s: int | None = None) -> dict[str, Any]:
+        """Santé + mesures du catalogue en une lecture compacte pour M9. Pas de `ferme_aux_appareils` : le port de M9
+        porte l'identité de l'admin ; `exiger_admin_appareil` la revérifie en base (un agent M8 sans identité lit comme
+        il lit déjà `m8_lire_mesures`). Aucun droit d'appareil n'est ajouté (`roles_appareil` vide)."""
+        exiger_admin_appareil()
+        lu = lecture(maintenant, fraicheur_max_s)
+        return synthese_direction.construire(
+            maintenant=maintenant,
+            mesures=lu["mesures"],
+            sante=sante_de(lu["mesures"]),
+            version_catalogue=lu["catalogue"]["version_catalogue"],
+            empreinte_registres=lu["empreinte_registres"],
+            avertissements=avertissements_fraicheur(lu["configuration_fraicheur"]),
+        )
 
     @ferme_aux_appareils
     def enregistrer_sante(maintenant: str) -> dict[str, Any]:
@@ -540,6 +556,19 @@ def construire(
                 ["maintenant"],
             ),
             fonction=lire_sante,
+            **lecture_seule,
+        ),
+        Outil(
+            nom="m8_lire_synthese_direction",
+            description=(
+                "Synthèse de direction pour M9 (Athéna) : le score de santé (statut, score ou INDÉTERMINÉ, "
+                "composantes, "
+                "manques nommés, pondérations validées ou non) ET les mesures du catalogue fermé avec valeur exacte, "
+                "fraîcheur et âge, en une lecture compacte. Admin authentifié relu en base ; aucun droit d'appareil. "
+                "Indicateur préparatoire : À valider auprès d'un comptable (CPA) / professionnel qualifié."
+            ),
+            parametres=_schema({"maintenant": _MAINTENANT, "fraicheur_max_s": _FRAICHEUR_MAX}, ["maintenant"]),
+            fonction=lire_synthese_direction,
             **lecture_seule,
         ),
         Outil(

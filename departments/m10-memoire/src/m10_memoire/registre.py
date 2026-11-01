@@ -32,6 +32,7 @@ _TYPE_ENTREE_VALIDES = {
     # Le contenu et les règles de ces entrées vivent dans `opsys.mnemo` ; ce registre n'en connaît que le type.
     "soi_enonce", "soi_decision", "soi_corroboration", "soi_derive",
     "lecon_proposee", "lecon_evaluation", "lecon_decision",
+    "fait_strategique",  # Athéna : strategique.py, décision, résultat mesuré ou leçon publiés par M9 (registre dédié)
 }
 
 

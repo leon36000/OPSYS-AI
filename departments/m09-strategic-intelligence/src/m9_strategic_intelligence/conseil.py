@@ -101,7 +101,7 @@ ROLES: tuple[Role, ...] = (
         "Conseiller du PDG",
         "Cadrer l'arbitrage global et la décision pour le propriétaire.",
         frozenset({"strategie", "arbitrage"}),
-        (),
+        ("m8.synthese_direction", "m10.faits_analytiques"),
         6000,
         palier="fort",
     ),
@@ -118,7 +118,10 @@ ROLES: tuple[Role, ...] = (
         "Liaison finance",
         "Relayer les faits financiers de M5 sans les recalculer.",
         frozenset({"cash", "marge", "couts", "dettes", "creances"}),
-        ("m5.prevision_tresorerie", "m5.rentabilite_chantier", "m5.comptes_a_recevoir", "m5.comptes_a_payer"),
+        (
+            "m5.prevision_tresorerie", "m5.rentabilite_chantier", "m5.comptes_a_recevoir", "m5.comptes_a_payer",
+            "m5.calendrier_obligations", "m5.statut_revue_fiscale",
+        ),  # fmt: skip
         5000,
     ),
     Role(
@@ -134,7 +137,7 @@ ROLES: tuple[Role, ...] = (
         "Stratégie de vente",
         "Lire le pipeline, les relances et la conversion de M2.",
         frozenset({"pipeline", "relances", "conversion"}),
-        ("m2.leads", "m2.relances"),
+        ("m2.leads", "m2.relances", "m2.analyse_pipeline", "m2.prevision_pipeline"),
         4500,
     ),
     Role(

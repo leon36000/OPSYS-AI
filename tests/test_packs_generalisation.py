@@ -46,7 +46,10 @@ GENERIQUE = "generique-pme"
 # M5 : + paragraphe « base fiscale » de claude/m5-base-fiscale ; M7 : + paragraphe WordPress/réseaux sociaux de
 # claude/m7-wordpress-social (aucun terme sectoriel dans ces ajouts) ; M2 : + paragraphes propriété, score, coach et
 # prévisions de claude/m2-victor ; M1 : + paragraphe « tri, identité, rendez-vous, SMS, apprentissage » et M6 : +
-# paragraphe « commande par courriel » (claude/m1-m6-lea-rosalie) ; aucun terme sectoriel dans ces ajouts.
+# paragraphe « commande par courriel » (claude/m1-m6-lea-rosalie) ; aucun terme sectoriel dans ces ajouts ; M9 : SOUL
+# réécrit pour Athéna (tableau de direction, certitude des faits, conseil gouverné, boucle de décisions ;
+# claude/m9-athena),
+# sans terme sectoriel : l'ancien « harnais pur sans recommandation » ne décrivait plus l'agent.
 SOUL_AVANT = {
     "m01-front-office": "d8344b1aa73f688582fd813e908f22f04c66254ad090cef5c080f83cc66cb131",
     "m02-revenue-crm": "a96b26c92a38015c544c87556ad9b07c8c5e65a6ec3daa959f15a609cce4e932",
@@ -56,7 +59,7 @@ SOUL_AVANT = {
     "m06-material-control": "5104a1c724c3e3afb1c3125879949cad55c2d96e661592ae25a23e7a5ae989ef",
     "m07-marketing": "04424e6974a3833c00753ba2d3a0eccfc6130fdebf761f561275f158e073a8f0",
     "m08-analytics": "5dc5fb864a0c2cf52bb48181f4bd461808d59fd720bf7c3caab25bacba0d2e14",
-    "m09-strategic-intelligence": "f0dd373d0d7b852c9590365c8a9d0c48659a3b10630a8213a16df06e727fb86c",
+    "m09-strategic-intelligence": "e958ebfc5b34e593f10226c855dd9b120a48af5508ca842a2ce0d8b88e9137c1",
     # Mnémo : soi, graphe, leçons ajoutés
     "m10-memoire": "cb0aa7ddd4e3830d9f2d8036dea413f3ba97eb3727b2283af1b71d8408c07f58",
 }

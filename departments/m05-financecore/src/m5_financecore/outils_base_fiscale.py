@@ -19,13 +19,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from opsys import contexte, jetons
+from opsys import contexte, identite, jetons, stockage
 from opsys.outils import Autonomie, Outil
 
 from . import (
     analyse,
     base_fiscale,
     catalogue_subventions,
+    conseiller_fiscal,
     garde_investissement,
     validation,
     validation_paie,
@@ -219,6 +220,59 @@ def verifier_demande_investissement(texte: str, origine: str = "utilisateur") ->
 
 
 # ----------------------------------------------------------------------------------------- déclaration
+def _refus_non_admin() -> dict[str, Any] | None:
+    """Lecture réservée à M9 : sans identité (un agent de M5) ou admin authentifié relu en base ; tout autre : refus."""
+    appelante = contexte.identite_appelante()
+    if appelante is None:
+        return None
+    cnx = stockage.connexion_courante()
+    personne = (
+        identite.personne_active(cnx, appelante.personne)
+        if cnx is not None and appelante.role == "admin" and appelante.source in {"console", "appareil"}
+        else None
+    )
+    if personne is None or "admin" not in personne.roles:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-IDENTITE-APPAREIL-INVALIDE",
+                detail="lecture réservée à l'admin authentifié (personne active portant encore le rôle admin)",
+            )
+        )
+    return None
+
+
+def lire_statut_revue_fiscale(aujourd_hui: str) -> dict[str, Any]:
+    """Où en est la REVUE des sources fiscales : dénombrement par statut de la base et état des sources de chaque sujet
+    de conseil fiscal. Aucun taux, aucun montant, aucun texte de règle : seulement des comptes et des statuts, pour que
+    la direction (M9) sache si ce que Sophie avance repose sur des sources approuvées ou sur un essai."""
+    refus = _refus_non_admin()
+    if refus is not None:
+        return refus
+    if not isinstance(aujourd_hui, str) or len(aujourd_hui) != 10:
+        return _refus(validation.construire_verdict("REJ-BASEFISC-DATE-INVALIDE", detail="aujourd_hui : AAAA-MM-JJ"))
+    base, verdict = base_fiscale.charger_base_par_defaut()
+    if verdict is not None:
+        return _refus(verdict)
+    try:
+        sujets = conseiller_fiscal.statut_sources_sujets(base, aujourd_hui)
+    except ValueError:
+        return _refus(validation.construire_verdict("REJ-BASEFISC-DATE-INVALIDE", detail="aujourd_hui : AAAA-MM-JJ"))
+    resume = base_fiscale.resume_base(base)
+    return _accepte(
+        {
+            "schema": "opsys.m5.statut_revue_fiscale/v1",
+            "aujourd_hui": aujourd_hui,
+            "base": {
+                "parametres_renseignes": resume["parametres_renseignes"],
+                "par_statut": resume["par_statut"],
+                "non_renseignes": len(resume["non_renseignes"]),
+                "empreinte_base": resume["empreinte_base"],
+            },
+            "sujets": sujets,
+        }
+    )
+
+
 def outils_base_fiscale() -> tuple[Outil, ...]:
     return (
         Outil(
@@ -231,6 +285,24 @@ def outils_base_fiscale() -> tuple[Outil, ...]:
             ),
             parametres={"type": "object", "properties": {}, "additionalProperties": False},
             fonction=lire_etat_base_fiscale,
+            autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m5_lire_statut_revue_fiscale",
+            description=(
+                "Statut de REVUE des sources fiscales, en comptes seulement : valeurs de la base par statut "
+                "(brouillon, revu_1, approuve), paramètres non renseignés, et pour chaque sujet de conseil fiscal "
+                "l'état "
+                "de ses sources (APPROUVE, ESSAI_NON_APPROUVE, REGLE_NON_RENSEIGNEE, SANS_REGLE_REQUISE). Aucun taux, "
+                "aucun montant. Lecture pour M9 : admin authentifié relu en base, aucun droit d'appareil."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"aujourd_hui": {"type": "string", "description": "AAAA-MM-JJ (M5 n'a pas d'horloge)."}},
+                "required": ["aujourd_hui"],
+                "additionalProperties": False,
+            },
+            fonction=lire_statut_revue_fiscale,
             autonomie=Autonomie.T0,
         ),
         Outil(

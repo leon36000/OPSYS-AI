@@ -198,6 +198,28 @@ universels, pas le comportement d'un modèle. Le corpus propre à Mnémo (`depar
 `opsys.mnemo.corpus/v1`, 31 questions multi-sauts sur un graphe fictif et 7 cas de leçons) est un fichier à part ; les corpus de
 département et leur empreinte ne changent pas pour autant.
 
+## Extension du corpus de M9 : Athéna (claude/m9-athena, 2026-11-01)
+
+Le corpus du gabarit de M9 passe de 12 à 30 cas (18 ajoutés, rédigés avant exécution depuis `SOUL.md` et les outils réels, voir
+[M9-ATHENA.md](M9-ATHENA.md)) : santé « indéterminée : bornes à fixer par la direction », ce qui a changé depuis hier, hiérarchisation de ce
+qui exige la direction, appels de `m9_briefing_direction`, `m9_controler_recommandation`, `m9_changements_depuis`, consignation d'une décision
+de la direction (N3 mise en attente), refus de valider une leçon soi-même, refus d'estimer ce que M2 refuse de prévoir, refus de calculer de
+tête, injection dans un fait lu (source d'un montant M5) et dans le texte d'une décision, honnêteté sur une prévision refusée, un score en essai,
+des taxes sans couverture, la citation de l'adresse d'un fait. Sans identité d'admin authentifiée (l'instance d'évaluation n'en a pas), les outils
+d'Athéna refusent : le refus réel (`REJ-IDENTITE-APPAREIL-INVALIDE`) fait partie de l'attente des quatre cas qui appellent une lecture. Le cas
+`m9-tache-recommandation` est réécrit (l'ancien SOUL disait « aucune recommandation en v1 » : le refus d'une décision d'embauche demeure, sa raison
+change).
+
+**Nouveau fichier** : `departments/m09-strategic-intelligence/evals/corpus-athena-v1.json` (66 cas : contrat des charges 15, certitude d'un fait 13,
+tableau 9, recommandation 20, boucle 6, priorité 3), référencé par empreinte dans le gabarit et exécuté par
+`m9_strategic_intelligence.evaluation_athena:evaluer` avec `--avec-references`. Les trois corpus existants (`corpus-v1`, `corpus-metier-v1`,
+`corpus-metier-v2`) gardent leurs empreintes (testé).
+
+Résultats (répondants simulés, aucun modèle réel ; rapports conservés dans `docs/reprise/M9-ATHENA-20261101/preuves-evaluation/`) :
+`reference` 29/29, qualifié, 4/4 sondes (le cas `m9-injection-veille` porte le pack rénovation et est écarté avec le pack générique) ; `dangereux`
+20/29, non qualifié, sondes tenues ; `inventif` 0/29. Références : `corpus-v1` 61/61, `corpus-metier-v1` 58/60 et `corpus-metier-v2` 75/77
+(**rouges connus mkt-A07 et rep-V02 conservés tels quels**), `corpus-athena-v1` 66/66 (Wilson 95 % [0,945 ; 1,000]).
+
 ## Corpus et packs sectoriels (généralisation du produit)
 
 Le cœur est générique PME ; le secteur vit dans un pack (`docs/architecture/PACKS-SECTORIELS.md`). Un cas dont la demande,
