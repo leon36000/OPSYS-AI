@@ -249,6 +249,10 @@ _LECTURES_DIRECTES = tuple(
         rf"^\s*(?:dept|_DEPARTEMENT_[A-Z_]+)\s*=\s*[\"']{_ID}[\"']",
     )
 )
+# Une constante qui porte l'identifiant d'un département (`AUTRE = "m04-field-ops"`, de n'importe quel nom) puis un
+# `maillons(AUTRE, ...)` du même fichier : la lecture directe sans que le nom de la constante soit celui qu'on attend.
+_AFFECTATION_ID = re.compile(rf"^\s*(\w+)\s*(?::[^=\n]+)?=\s*[\"']{_ID}[\"']\s*(?:#.*)?$", re.MULTILINE)
+_APPEL_MAILLONS_PAR_NOM = re.compile(r"maillons\(\s*(\w+)\s*,")
 _IMPORT_AUTRE = re.compile(r"^\s*(?:from|import)\s+(m(?:[1-9]|10)_[a-z_]+)", re.MULTILINE)
 
 
@@ -321,6 +325,11 @@ def auditer_lectures_croisees(
                 for autre in motif.findall(texte):
                     if autre != dep.id:
                         trouvees_directes.add((dep.id, autre))
+            constantes = dict(_AFFECTATION_ID.findall(texte))
+            for nom in _APPEL_MAILLONS_PAR_NOM.findall(texte):
+                autre = constantes.get(nom)
+                if autre is not None and autre != dep.id:
+                    trouvees_directes.add((dep.id, autre))
             for paquet in _IMPORT_AUTRE.findall(texte):
                 autre = paquet_vers_id.get(paquet)
                 if autre is not None and autre != dep.id:
