@@ -113,7 +113,7 @@ def test_la_descente_retire_les_gardes_sans_toucher_aux_donnees_et_la_remontee_l
     with stockage.moteur(base_rvi).begin() as cnx:
         cfg.attributes["connection"] = cnx
         command.upgrade(cfg, "head")
-    assert stockage.revision_courante(base_rvi) == "0057"
+    assert stockage.revision_courante(base_rvi) >= "0057"  # la tête peut être plus récente (0058 : révisions 64 bits)
     with pytest.raises(IntegrityError, match="TRUNCATE interdit"), stockage.moteur(base_rvi).begin() as cnx:
         cnx.execute(text("TRUNCATE coffre_acces"))
     assert _compte(base_rvi, "coffre_acces") == 1
@@ -122,7 +122,7 @@ def test_la_descente_retire_les_gardes_sans_toucher_aux_donnees_et_la_remontee_l
 def test_la_migration_0057_ne_change_rien_sur_sqlite(tmp_path):
     url = "sqlite:///" + str(tmp_path / "rvi.db")
     try:
-        assert stockage.migrer(url) == "0057"
+        assert stockage.migrer(url) >= "0057"
         with stockage.moteur(url).connect() as cnx:
             declencheurs = cnx.exec_driver_sql(
                 "SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND name LIKE '%truncate%'").scalar_one()

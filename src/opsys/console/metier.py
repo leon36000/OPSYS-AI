@@ -20,6 +20,7 @@ from ..capacites import Capacites
 from ..departements import Departement
 from ..etat import journaliser
 from ..outils import Autonomie, Niveau, Outil, executer_atomique, executer_atomique_console, valider_arguments
+from ..stockage.concurrence import verrou_ecriture_console
 from ..stockage.portabilite import DIALECTES_QUALIFIES
 from .securite import Session
 
@@ -206,6 +207,8 @@ def _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutati
     if not isinstance(module, str) or module.rsplit(".", 1)[0] != "m7_marketing":
         raise KeyError("service édition M7 indisponible")
     service = importlib.import_module(_NOM_MODULE_SERVICE_M7)
+    if nom == "m7_reviser_texte_humain" and cnx.engine.dialect.name in DIALECTES_QUALIFIES:
+        verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (rien sous SQLite)
     with (
         contexte.appele_par_appareil(
             contexte.IdentiteAppelante(personne.identifiant, "nathan_owner", source="console")
@@ -323,6 +326,7 @@ def lire_strategies_cmo(cnx, deps, session, *, projection=None):
 
 def _executer_strategie_cmo(cnx, deps, session, nom, arguments, mutation_id):
     personne, service = _port_cmo(cnx, deps, session)
+    verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (rien sous SQLite)
     commande = _COMMANDES_CMO[nom]
     service.valider_commande(commande, arguments)
     if commande == "decider" and "nathan_owner" not in personne.roles:
@@ -377,6 +381,7 @@ def _executer_observation_growth_humaine(cnx, deps, session, personne, arguments
         raise ValueError("GROWTH-ECRITURE-NON-QUALIFIEE")
     if stockage.connexion_courante() is not cnx:
         raise ValueError("GROWTH-CONNEXION-NON-CANONIQUE")
+    verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (rien sous SQLite)
     if not isinstance(arguments, Mapping) or set(arguments) != {"observation", "rang_attendu", "empreinte_attendue"}:
         raise ValueError("GROWTH-COMMANDE-INVALIDE")
     if not isinstance(mutation_id, str) or not 1 <= len(mutation_id) <= 200 or not mutation_id.strip():
