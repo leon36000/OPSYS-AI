@@ -241,7 +241,9 @@ def _la_mention(reponse, nom):
 
 # Les sorties du grand livre (portée d'appareil fermée, N4 par la file) : leurs deux mentions sont prouvées sur chaque
 # sortie acceptée par tests/test_grand_livre_outils.py (`_accepte`).
-@pytest.mark.parametrize("nom", sorted(analyse.SORTIES_D_ANALYSE - analyse.SORTIES_COMPTABLES))
+# Celles de l'onboarding le sont par tests/test_ingestion_onboarding_bout_en_bout.py (un lot réel déposé et avancé).
+@pytest.mark.parametrize("nom", sorted(analyse.SORTIES_D_ANALYSE - analyse.SORTIES_COMPTABLES
+                                       - analyse.SORTIES_ONBOARDING))
 def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, nom):
     _preparer_un_po()
     ident, revision = _preparer_une_facture(par_nom)

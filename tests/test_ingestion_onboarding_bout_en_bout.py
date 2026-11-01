@@ -17,6 +17,7 @@ import m5_financecore.outils as m5_outils
 import pytest
 import yaml
 from m2_revenue_crm import outils as m2_outils
+from m5_financecore.analyse import MENTION_ANALYSE_PREPARATOIRE as MENTION
 
 from opsys import approbations, stockage
 from opsys.capacites import Capacites, outils_executables
@@ -111,14 +112,16 @@ def _tout(capacites, lot_id, vue):
     while depart is not None:
         page = _accepte(capacites.appeler("m5_lire_lot_onboarding", {"lot_id": lot_id, "vue": vue,
                                                                      "depart": depart, "limite": 15}))
+        assert page["mention"] == MENTION
         elements.extend(page[vue])
         depart = page["suivant"]
     return elements
 
 
 def _brouillon(capacites, lot, brouillon_id):
-    return _accepte(capacites.appeler("m5_lire_lot_onboarding", {"lot_id": lot["lot_id"],
-                                                                 "brouillon_id": brouillon_id}))["brouillon"]
+    lu = _accepte(capacites.appeler("m5_lire_lot_onboarding", {"lot_id": lot["lot_id"], "brouillon_id": brouillon_id}))
+    assert lu["mention"] == MENTION, "sortie d'analyse : la mention obligatoire de M5"
+    return lu["brouillon"]
 
 
 def _par_fournisseur(capacites, lot):
@@ -208,6 +211,7 @@ def test_zip_depose_brouillons_ap_et_crm_puis_validation_humaine_puis_definitif(
         "REJ-AP-HUMAIN-REQUIS"
     decision = _decider(deps, capacites.appeler("m5_valider_brouillon_onboarding_ap", _args_ap(f1)))
     saisie = _accepte(_resultat_decision(decision))
+    assert saisie["mention"] == MENTION
     facture = saisie["facture"]
     assert (facture["fournisseur_id"], facture["numero_facture"], facture["montant_avant_taxes"],
             facture["montant_apres_taxes"]) == ("Quincaillerie Fictive Laval inc.", "QF-2026-0418", "304.00", "349.52")
@@ -246,7 +250,7 @@ def test_zip_depose_brouillons_ap_et_crm_puis_validation_humaine_puis_definitif(
     ecarte = _accepte(_resultat_decision(_decider(deps, capacites.appeler(
         "m5_valider_brouillon_onboarding_ap",
         _args_ap(f3, decision="ecarter", categorie=None, motif="TVQ mal arrondie : facture corrigée demandée")))))
-    assert ecarte["brouillon"]["statut"] == "ECARTE"
+    assert ecarte["brouillon"]["statut"] == "ECARTE" and ecarte["mention"] == MENTION
     assert [str(p["montant_avant_taxes"]) for p in _maillons(M5, "comptes_a_payer")] == ["304.00", "100.50"]
     assert _maillons(M5, "grand_livre") == [] and _maillons(M5, "principal") == []
 

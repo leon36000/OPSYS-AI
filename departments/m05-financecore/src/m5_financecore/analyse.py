@@ -17,7 +17,7 @@ from typing import Any
 
 __all__ = [
     "MENTION_ANALYSE_PREPARATOIRE", "MENTION_COMPTABLE", "SORTIES_COMPTABLES", "SORTIES_D_ANALYSE",
-    "SORTIES_HORS_ANALYSE", "avec_mention", "avec_mention_comptable",
+    "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE", "avec_mention", "avec_mention_comptable",
 ]
 
 MENTION_ANALYSE_PREPARATOIRE = (
@@ -46,9 +46,12 @@ SORTIES_COMPTABLES = frozenset({
     "m5_importer_quickbooks",  # des brouillons d'écritures repris d'un autre logiciel : des propositions
     "m5_lire_import_quickbooks",  # un import, sa vérification et ses soldes attendus : un contrôle à interpréter
     "m5_valider_import_quickbooks",  # les écritures reprises rendues définitives (N4) : reste à valider par le CPA
-    "m5_lire_lot_onboarding",  # brouillons d'onboarding : champs lus, taxes recalculées, raisons, à interpréter
-    "m5_valider_brouillon_onboarding_ap",  # la facture sans PO saisie depuis un brouillon : un calcul, comme la saisie
 })
+
+# Ingestion d'onboarding : la lecture d'un lot et de ses brouillons (champs lus, taxes recalculées, raisons) et la
+# validation d'une facture proposée (la facture sans PO saisie : un calcul, comme la saisie). Leur mention est prouvée
+# sur chaque sortie acceptée par `tests/test_ingestion_onboarding_bout_en_bout.py` (un lot réel est requis).
+SORTIES_ONBOARDING = frozenset({"m5_lire_lot_onboarding", "m5_valider_brouillon_onboarding_ap"})
 
 # Les outils dont la réponse acceptée est une analyse, un calcul interprété ou une proposition : elle porte la mention
 # (clé `mention`, au niveau de ce que l'outil rend dans `resultat`).
@@ -69,7 +72,7 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_preparer_brut_regulier",  # estimation préparatoire humaine du brut, sans retenues ni action officielle
     "m5_preparer_dossier_webras",  # dossier préparatoire pour calcul humain dans les services officiels
     "m5_prevoir_tresorerie_contrats",  # prévision préparatoire de flux contractuels rapprochés aux sources M3/M5
-}) | SORTIES_COMPTABLES
+}) | SORTIES_COMPTABLES | SORTIES_ONBOARDING
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {
