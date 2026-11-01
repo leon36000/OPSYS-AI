@@ -1,4 +1,4 @@
-"""Révisions de profil d'agent sur 64 bits (PostgreSQL) ; succède à 0057 (garde TRUNCATE PostgreSQL de la ligne architecte).
+"""Révisions de profil d'agent sur 64 bits (PostgreSQL) ; succède à 0057 (garde TRUNCATE PostgreSQL).
 
 NUMÉROTATION : 0058 succède à 0057 (la ligne architecte a pris 0057 ; consigne du coordinateur).
 
