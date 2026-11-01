@@ -284,6 +284,26 @@ def test_note_de_credit_ne_depasse_jamais_la_facture_et_est_idempotente(ops, gl,
     assert len(grand_livre.etat_grand_livre(gl.lire())["ecritures"]) == 1
 
 
+def test_un_cent_de_trop_avant_taxes_est_refuse_meme_quand_les_taxes_arrondies_passent(
+    ops, gl, plan, reg_factures, taux
+):
+    """Le contrôle sur le montant avant taxes est indépendant de celui des taxes : 0,02 $ sur un reste de 0,01 $ porte
+    des taxes arrondies à 0,00 $, que le seul contrôle des taxes laisserait passer."""
+    facture = facture_client(reg_factures, taux, "F-1", prix="600.00")
+    args = {"genre": "client", "facture": facture, "date_effet": "2026-10-02", "motif": "rabais", "horodatage": H}
+    accepte(
+        oc.proposer_note_credit(ops, etat(ops), gl, plan, taux, reference="NC-1", montant_avant_taxes="599.99", **args)
+    )
+    trop = oc.proposer_note_credit(
+        ops, etat(ops), gl, plan, taux, reference="NC-2", montant_avant_taxes="0.02", **args
+    )
+    assert code(trop) == "REJ-OPS-NOTE-CREDIT-EXCEDE"
+    solde = accepte(
+        oc.proposer_note_credit(ops, etat(ops), gl, plan, taux, reference="NC-3", montant_avant_taxes="0.01", **args)
+    )
+    assert solde["statut"] == "proposee"
+
+
 def test_note_de_credit_refus_nommes(ops, gl, plan, reg_factures, taux):
     facture = facture_client(reg_factures, taux, "F-1", prix="600.00")
     base = {
