@@ -384,7 +384,9 @@ def cmd_mode(args: argparse.Namespace) -> int:
         print(refus, file=sys.stderr)
         return 1
     with etat.session() as cnx:
-        if _authentifier_action_humaine(cnx, args.par, {"nathan_owner", "admin"}) is None:
+        # décision r8 : le mode autonome (approbation dès N5 seulement) est réservé au propriétaire
+        roles = {"nathan_owner"} if args.mode == "autonome" else {"nathan_owner", "admin"}
+        if _authentifier_action_humaine(cnx, args.par, roles) is None:
             return 1
         approbations.fixer_mode(cnx, args.departement, args.mode, args.par)
     print(f"{args.departement} → {args.mode}")

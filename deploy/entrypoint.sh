@@ -209,6 +209,11 @@ fi
 sync_loop_pid=$!
 
 # -- (2) et (3) : les deux process longue durée du conteneur -------------------------------------
+# Garde MCP (revue adverse D-1) : par défaut, le registre scellé livré avec le logiciel est vérifié au démarrage ET à chaque
+# appel (dérive de description, de schéma ou de niveau = refus) et un démarrage sur dérive est refusé. Désactivation
+# explicite seulement : OPSYS_MCP_REGISTRE=0.
+export OPSYS_MCP_REGISTRE="${OPSYS_MCP_REGISTRE:-defaut}"
+export OPSYS_MCP_REGISTRE_STRICT="${OPSYS_MCP_REGISTRE_STRICT:-1}"
 opsys-mcp --http --hote 0.0.0.0 --port "$OPSYS_MCP_PORT" &
 mcp_pid=$!
 

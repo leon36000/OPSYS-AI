@@ -248,6 +248,19 @@ def test_agents_plafonds_entreprise_console_et_revisions(connecte):
     assert connecte.get("/api/agents-plafonds").json()["plafonds"]["revision"] == 2
 
 
+def test_le_mode_autonome_est_reserve_au_proprietaire_pas_a_un_administrateur(client, session, opsys_home):
+    """Décision r8 : le mode `autonome` (approbation dès N5 seulement) ne se règle pas par un simple administrateur ;
+    les autres modes, oui."""
+    with session() as cnx:
+        identite.creer_personne(cnx, "admin.seul", "Administrateur", MOT_DE_PASSE, ["admin"])
+    assert _connecter(client, "admin.seul").status_code == 303
+    entetes = {"x-csrf-token": _csrf(client)}
+    url = "/api/departements/m09-demo/mode"
+    assert client.post(url, json={"mode": "autonome"}, headers=entetes).status_code == 403
+    assert client.post(url, json={"mode": "supervise"}, headers=entetes).status_code == 200
+    assert client.post(url, json={"mode": "ombre"}, headers=entetes).status_code == 200
+
+
 @pytest.mark.parametrize("role", ["employee", "client", "seller", "system_agent"])
 def test_console_administration_refusee_aux_profils_non_administrateurs(client, session, opsys_home, role):
     with session() as cnx:

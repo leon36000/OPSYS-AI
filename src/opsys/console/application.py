@@ -568,6 +568,10 @@ def creer_application(
     def changer_mode(ident: str, mode: Any, session: Session) -> dict[str, Any]:
         with cnx_factory() as cnx:
             verifier_administration(cnx, session)
+            if mode == "autonome":  # décision r8 : le mode autonome (approbation dès N5 seulement) est au propriétaire
+                personne = identite.personne_active(cnx, session.utilisateur)
+                if personne is None or "nathan_owner" not in personne.roles:
+                    raise HTTPException(403, "le mode autonome est réservé au propriétaire")
             return tableau_de_bord.changer_mode(cnx, deps, ident, mode, session.utilisateur)
 
     def decider(
