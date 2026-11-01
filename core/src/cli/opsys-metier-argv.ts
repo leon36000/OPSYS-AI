@@ -50,6 +50,7 @@ export const OPSYS_METIER_MOVED_COMMANDS: readonly string[] = [
   "onboarding",
   "evaluer",
   "pack",
+  "avatars",
 ];
 
 export type OpsysMetierInvocation =

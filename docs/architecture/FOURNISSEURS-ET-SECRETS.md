@@ -7,6 +7,10 @@ B.2, B.3, B.5). Code : `src/opsys/fournisseurs/`, `src/opsys/secrets_coffre/`, c
 « Fournisseur » désigne ici un fournisseur de **capacité technique** (modèle, service). Les fournisseurs de
 matériaux de M6 restent dans `console/fournisseurs_ui.py` (`/crm/fournisseurs`).
 
+Les voix et visages des avatars (`tts`, `avatar`, `stt`) s'appuient sur ce registre sans le dupliquer : le registre par
+client des voix et visages, ses consentements et sa politique de disponibilité des canaux appellent `politique.evaluer`
+et `registre.tester` d'ici. Voir [AVATARS-VOIX.md](AVATARS-VOIX.md).
+
 ## 1. Modèle de données
 
 | Table | Rôle |

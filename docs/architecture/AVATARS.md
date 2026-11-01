@@ -197,12 +197,15 @@ du fichier passé en `profil_entreprise`) et l'écrit dans l'entrée de l'agent 
 
 ## Étapes suivantes
 
-L'étape 2 (projection du nom dans le core) est livrée, voir plus haut. Restent :
+L'étape 2 (projection du nom dans le core) est livrée, voir plus haut. L'étape 3 (registre des voix et visages par
+client, politique de disponibilité des canaux, contrat de session voix, lecture admin) est livrée **comme gouvernance et
+contrat seulement** : voir [AVATARS-VOIX.md](AVATARS-VOIX.md). Aucun moteur vocal ni transport n'est livré, les canaux
+`voix` et `audiovisuel` restent `prevu` et `CANAUX_REALISES` est inchangé. Restent :
 
-1. **Registre de fournisseurs** : table `voix.*` / `visage.*` → fournisseur, modèle, licence, coût et référence
-   de secret, refus nommé pour un identifiant non enregistré (même patron que les paliers de modèles). C'est lui
-   qui permettra de projeter `visage` en `identity.avatarModelId` (validé contre le catalogue 3D) et `voix` en
-   configuration `tts`, dans `openclaw.identite_agent`.
+1. **Projection de `voix` et `visage` dans le core** : le registre des voix et visages (AVATARS-VOIX.md) relie
+   désormais `voix.*` / `visage.*` à un fournisseur, un modèle, une licence et un consentement ; il reste à projeter
+   `visage` en `identity.avatarModelId` (validé contre le catalogue 3D) et `voix` en configuration `tts` dans
+   `openclaw.identite_agent`, ce qui n'est pas fait.
 2. **Session voix LiveKit dans le gateway** : salle par conversation, jeton émis par le gateway, liaison à
    l'agent du département et aux mêmes permissions que le chat.
 3. **Worker vocal Python** (Pipecat, `docs/research/INGREDIENTS.md`) : STT → agent → TTS, voix résolue depuis
