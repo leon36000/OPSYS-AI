@@ -140,11 +140,13 @@ def test_signaux_avec_double_lit_ecrit_et_se_rejoue_sans_doublon(p):
 def test_le_plafond_d_appels_arrete_l_executeur_et_le_dit(p, monkeypatch):
     _declarer_source()
     _brancher_signaux(p)
-    petit = dataclasses.replace(etat.definition("m7.signaux"), plafond_appels_jour=1)
-    monkeypatch.setitem(etat._PAR_NOM, "m7.signaux", petit)
     p.activer("m7.signaux")
-    assert p.tour()["executeurs"]["m7.signaux"]["statut"] == "ok"
-    r = p.tour()["executeurs"]["m7.signaux"]  # le budget des 24 h est consommé : plus aucun appel
+    premier = p.tour()["executeurs"]["m7.signaux"]
+    assert premier["statut"] == "ok" and premier["appels"] >= 1
+    # le plafond est fixé EXACTEMENT à ce qui vient d'être consommé : le budget des 24 h est épuisé, pas dépassé
+    exact = dataclasses.replace(etat.definition("m7.signaux"), plafond_appels_jour=premier["appels"])
+    monkeypatch.setitem(etat._PAR_NOM, "m7.signaux", exact)
+    r = p.tour()["executeurs"]["m7.signaux"]
     assert (r["statut"], r["code"]) == ("plafond", "REJ-PLAN-PLAFOND-ATTEINT")
     assert p.ligne("m7.signaux")["dernier_statut"] == "plafond"
     p.tour()  # un épisode = une seule ligne de journal de plafond
@@ -343,3 +345,14 @@ def test_le_balayage_constate_les_sources_perimees_et_ne_corrige_rien(p, monkeyp
     assert len(constat) == 1 and constat[0]["details"]["expires"] == 1
     with stockage.transaction() as cnx:
         assert cnx.execute(select(func.count()).select_from(PLANIFICATEUR_JOURNAL)).scalar_one() >= 2
+
+
+def test_en_production_aucun_transport_inexistant_n_est_raccorde():
+    ports = hote.ports_par_defaut()
+    assert ports.fabrique_signaux is None and ports.fabrique_veille is None and ports.fabrique_studio is None
+    assert ports.client_wordpress is None and ports.adaptateurs_sociaux is None
+    assert ports.embeddings_raccordes() is False  # aucun adaptateur d'embeddings n'est enregistré
+    assert ports.verifier_sauvegarde is None  # sans dossier ni clé nommés par l'opérateur
+    for nom in ("signaux", "veille", "studio", "wordpress", "social", "embeddings", "sauvegarde"):
+        assert etat.transport_branche(ports, nom) is False, nom
+    assert etat.transport_branche(ports, None) is None

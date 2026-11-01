@@ -145,7 +145,7 @@ CogVideoX (conditions à lire [I]).
   transaction (un secret du coffre ne se résout pas dans une transaction métier), refait la sélection, refuse tout remplacement de
   modèle (`REJ-STUDIO-MODELE-CHANGE`), appelle l'adaptateur, **revérifie la sortie** (PNG lisible, dimensions, graine rendue,
   modèle et version déclarés), écrit la provenance puis l'actif `fond`. Trois échecs closent la demande ; les messages d'erreur sont
-  masqués (secrets) et tronqués. **Aucun planificateur ne l'appelle** dans cette version.
+  masqués (secrets) et tronqués. L'exécuteur `m7.studio.fonds` du planificateur ([PLANIFICATION.md](PLANIFICATION.md)) l'appelle pour les demandes dont le modèle est **local** ; un modèle par API (payant) n'est jamais exécuté sans approbation de dépense, qui n'existe pas encore.
 - **Provenance** (`provenance_studio`, journal chaîné append-only) : modèle, version, référence des poids, graine, invite et
   invite négative, paramètres, nature du générateur, instantané de licence, empreinte de la demande, SHA-256 de la sortie. L'empreinte
   de chaîne du maillon est l'**empreinte de provenance** reportée dans les métadonnées du visuel.
@@ -338,7 +338,7 @@ manifeste (`department.yaml` : `memoire.ecriture`, `approbations`), niveau, port
 5. **Aucune vidéo composée** ; FFmpeg est absent.
 6. **vtracer et svgo n'ont pas tourné** ; le double de vectorisation est un traceur de rectangles.
 7. **Nexora** : contrat générique seulement ; aucun transport, aucune fiche de capacités.
-8. **L'exécuteur de génération n'est branché à aucun planificateur** ; aucun adaptateur de modèle réel n'existe.
+8. **L'exécuteur de génération est branché au planificateur** (`m7.studio.fonds`, modèles locaux seulement) mais aucun adaptateur de modèle réel n'existe : il dit « en attente de transport ». Le modèle payant reste non branché.
 9. **Le registre de fournisseurs n'est pas qualifié** (tout `a_mesurer`) et le profil de licence est déclaré par un humain.
 10. **Juridique, à valider par un avocat** : seuil de « nettement prédominant », licencié des licences à seuil, protection d'un logo
     généré (marque de commerce), divulgation de l'IA, Loi 25 (EFVP avant tout transfert hors Québec).

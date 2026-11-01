@@ -152,6 +152,14 @@ def test_un_tour_dont_le_bail_est_pris_ne_travaille_pas(p):
     assert p.tour()["executeurs"]["m8.entrepot"]["statut"] == "ok" and _constructions() == 1
 
 
+def test_un_bail_expire_ne_se_renouvelle_pas_meme_si_personne_ne_l_a_repris(p):
+    t = [3_000_000.0]
+    b = bail.acquerir("r:expire", "porteur", 60, horloge=lambda: t[0])
+    assert bail.renouveler(b, 60, horloge=lambda: t[0]) is not None
+    t[0] += 200
+    assert bail.renouveler(b, 60, horloge=lambda: t[0]) is None  # un porteur lent ne reprend pas son bail échu
+
+
 # -- aucun outil N3+ n'est jamais appelé -----------------------------------------------------------------------------
 class _FauxOutil:
     def __init__(self, niveau, frontiere=False):

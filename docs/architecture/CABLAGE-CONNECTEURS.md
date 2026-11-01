@@ -1,5 +1,7 @@
 # Câblage des connecteurs : de la capacité livrée à l'agent qui s'en sert
 
+Suite : [PLANIFICATION.md](PLANIFICATION.md) étend ce planificateur (13 exécuteurs de plus, rétention Loi 25, inventaire des tours, écran de gestion complet).
+
 Statut (2026-11-01) : **câblé et qualifié contre des DOUBLES seulement.** Aucun test de cette tranche n'a touché Gmail, Microsoft
 Graph, un serveur IMAP/SMTP, un WordPress, un réseau social ni un fournisseur OAuth réels. **Rien n'est actif par défaut.** Ce
 document dit ce qui est branché, ce qui reste manuel, et ce qui n'est pas prouvé.
@@ -182,7 +184,7 @@ tests épinglaient la tête « 0040 » : ils lisent désormais la tête alembic.
 - Écrire et qualifier un transport WordPress réel et des adaptateurs de réseaux réels (**aucun n'existe** : en production ces ports sont « non raccordés », les
   exécuteurs M7 refusent avec `REJ-PLAN-WORDPRESS-NON-RACCORDE` / `REJ-PLAN-SOCIAL-NON-RACCORDE`).
 - Déclarer le profil d'entreprise de M1 (services, zone) : sans lui, la réception d'un courriel entrant s'arrête (reprenable).
-- Rétention : aucune purge n'existe (courriel : déclarée mais non appliquée ; registre de M1 : append-only).
+- Rétention : la purge du courriel d'ingestion et l'effacement par clé de l'adresse reçue par M1 existent depuis la planification autonome ([PLANIFICATION.md](PLANIFICATION.md) §5), inactifs par défaut et soumis à une validation humaine sur aperçu ; le texte neutralisé du registre de M1 reste.
 
 ## 11. Preuves et limites (sans euphémisme)
 

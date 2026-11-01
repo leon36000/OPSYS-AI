@@ -10,6 +10,8 @@ répartiteur d'événements (même cycle de vie, même arrêt propre), comme le 
   admin de
   la console, avec expiration (90 jours) et motif ;
 - `planificateur` : un tour borné, sous l'acteur système `opsys-systeme` (portée `planificateur`) ;
+- `exec_departements`, `exec_m7_lecture`, `exec_retention`, `inventaire` : les tours des départements, les lectures de
+  M7, la rétention Loi 25 et l'inventaire des tours (docs/architecture/PLANIFICATION.md) ;
 - `exec_courriel`, `exec_m7` : les exécuteurs (synchronisation incrémentale, envoi approuvé, brouillons et publications
   WordPress, publications sociales) ; `hote` : l'assemblage de production (ports).
 

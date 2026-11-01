@@ -148,7 +148,8 @@ un correspondant vérifié n'élève pas un autre correspondant.
 **Ce que M1.10 ne fait PAS** : il n'existe aucune lecture bornée de M2/M3/M4/M5 depuis M1. `reponse_autorisee` dit si M1 peut parler de statut ou de sensible ; ce qu'il
 dit (état d'une soumission, d'une visite, d'une facture) reste à fournir par une personne ou par un futur pont de lecture. Sans niveau suffisant : « Je vais vérifier
 avec l'équipe. » **Loi 25** : finalité déclarée (énumérée), rétention bornée, pseudonymisation, aucune pièce conservée ; la purge physique d'une ligne n'est pas
-livrée (registre append-only ; suppression définitive = frontière humaine) : l'expiration est logique. À valider auprès d'un avocat / conseiller en protection des
+livrée (registre append-only) : l'adresse et l'objet d'un courriel reçu sont désormais scellés par une clé propre, détruite à l'échéance du compte
+([PLANIFICATION.md](PLANIFICATION.md) §5) ; le texte neutralisé et le contact du lead restent. À valider auprès d'un avocat / conseiller en protection des
 renseignements personnels (EFVP) avant tout usage réel.
 
 ## 6. M1.9 Rappels et rendez-vous via la cédule de M4
@@ -254,7 +255,7 @@ de M1 et de M5 sont fermés (un code inconnu levait une exception) ; (3) `valide
 - **Pas de lecture M2/M3/M4/M5 pour le statut client** (M1.10) ; pas de métriques de conversion, de délai de réponse ni de raison de perte (M1.13) ; les rappels n'ont aucun déclencheur automatique (M1.9).
 - **Rendez-vous à la semaine** : pas de créneau libre à l'heure, M4 ne l'expose pas. Les rendez-vous d'estimation menés par un vendeur (agenda de M2) ne sont pas couverts.
 - **Concurrence** : prouvée par les transactions SQLite d'un seul processus ; aucun essai multi-processus sur ces registres, aucun essai PostgreSQL.
-- **Rétention et Loi 25** : pas de purge physique ; le registre de M1 conserve l'adresse et le texte neutralisé des courriels reçus (CABLAGE-CONNECTEURS §5) ; EFVP et avis juridique non faits.
+- **Rétention et Loi 25** : pas de purge physique d'une ligne ; l'adresse et l'objet des courriels reçus sont scellés et effaçables par destruction de clé ([PLANIFICATION.md](PLANIFICATION.md) §5) ; le registre de M1 conserve encore le texte neutralisé (`contenu_filtre`) et le contact du lead, et les lignes écrites avant ce changement portent l'adresse en clair ; EFVP et avis juridique non faits.
 - **Le tri ne fait pas de brouillon de réponse** : `m1_preparer_reponse_courriel` (existant) reste l'outil ; la boucle d'apprentissage des gabarits couvre les gabarits de rendez-vous et de SMS, pas le texte libre.
 - Un lead déjà publié par la réception (`m1.lead_qualifie`) pour un courriel que le tri juge ensuite « plainte » n'est pas retiré ; le transfert interne s'ouvre en plus.
 

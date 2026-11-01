@@ -159,6 +159,29 @@ def test_la_decision_expire_avec_l_execution(c):
         assert etat.approbation_valide(cnx, "retention.courriel", c.horloge()) is None
 
 
+def test_la_decision_a_sa_propre_expiration_meme_si_l_etat_de_l_executeur_est_prolonge(c):
+    """Une ligne d'état prolongée sans nouvelle décision (écriture directe, jamais par un agent) ne prolonge pas la
+    décision humaine : elle expire à sa date."""
+    c.activer("retention.courriel", "ombre")
+    c.activer("retention.courriel", "actif")
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("UPDATE planificateur_executeurs SET expire_le = expire_le + 400 * 86400")
+    c.horloge.avancer(91 * JOUR)
+    with stockage.transaction() as cnx:
+        assert etat.mode_effectif(etat.ligne(cnx, "retention.courriel"), c.horloge()) == "actif"
+        assert etat.approbation_valide(cnx, "retention.courriel", c.horloge()) is None
+
+
+def test_une_modification_de_l_etat_sans_nouvelle_decision_invalide_la_decision(c):
+    c.activer("retention.courriel", "ombre")
+    c.activer("retention.courriel", "actif")
+    with stockage.transaction() as cnx:
+        assert etat.approbation_valide(cnx, "retention.courriel", c.horloge()) is not None
+        cnx.exec_driver_sql("UPDATE planificateur_executeurs SET revision = revision + 1")  # état changé hors décision
+    with stockage.transaction() as cnx:
+        assert etat.approbation_valide(cnx, "retention.courriel", c.horloge()) is None
+
+
 def test_un_executeur_inscrit_actif_sans_decision_valide_n_efface_rien(c):
     """Même si la ligne d'état était écrite à la main (aucun agent ne le peut), le tour refuse d'effacer."""
     _synchroniser(c, _facture(1))
@@ -420,7 +443,7 @@ def test_une_ligne_du_registre_ecrite_avant_ce_changement_reste_lisible_et_n_est
     assert ouverte["expediteur"] == "ancien@example.test" and ouverte == {**ancienne}
 
 
-def test_une_enveloppe_deplacee_sur_un_autre_courriel_ne_s_ouvre_pas(c):
+def test_une_enveloppe_deplacee_sur_un_autre_courriel_ne_s_ouvre_pas(c, monkeypatch):
     from m1_front_office import courriel_pii
 
     _recevoir_chez_m1(c)
@@ -428,7 +451,13 @@ def test_une_enveloppe_deplacee_sur_un_autre_courriel_ne_s_ouvre_pas(c):
     autre = {**recu, "signal_id": "courriel:autre"}
     with stockage.transaction() as cnx:
         cles_chiffrement.obtenir_ou_creer(cnx, echeances.PORTEE_M1_COURRIEL, "courriel:autre",
-        "2026-11-01T00:00:00+00:00")
+                                          "2026-11-01T00:00:00+00:00")
+    with stockage.transaction(), pytest.raises(ValueError, match="REJ-M1-COURRIEL-ALTERE"):
+        courriel_pii.ouvrir(autre)
+    # même si, par accident, deux courriels partageaient une clé, l'enveloppe liée à SON signal ne s'ouvre pas ailleurs
+    with stockage.transaction() as cnx:
+        cle = cles_chiffrement.lire(cnx, echeances.PORTEE_M1_COURRIEL, recu["signal_id"])
+    monkeypatch.setattr(courriel_pii.cles_chiffrement, "lire", lambda cnx, portee, ident: cle)
     with stockage.transaction(), pytest.raises(ValueError, match="REJ-M1-COURRIEL-ALTERE"):
         courriel_pii.ouvrir(autre)
 
