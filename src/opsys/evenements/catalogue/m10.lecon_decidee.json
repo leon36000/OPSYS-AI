@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m10.lecon_decidee",
+  "title": "M10 — Décision humaine sur une leçon apprise (canari, promotion, retour arrière, refus)",
+  "description": "Émis par M10 (soi_graphe.py::decider_lecon) après qu'une PERSONNE (admin ou propriétaire) a décidé du sort d'une leçon candidate : canari (1 à 50 % des cas), promotion complète, retour arrière ou refus. Une leçon promue est LISIBLE par le département visé (`opsys_lecons_actives`) ; elle ne s'applique jamais seule. Aucun paramètre ni texte de leçon n'est porté (il peut venir d'une marge, donc financier) : l'identifiant, le genre, le département visé, l'étape, l'état obtenu et l'instant. Consommateurs visés : le département visé (pour relire ses leçons), M8 (mesure d'amélioration). evenement_id déterministe par (leçon, étape). Toutes les propriétés sont requises même quand leur valeur est nulle.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lecon_id": {
+      "type": "string",
+      "pattern": "^lc-[0-9a-f]{20}$"
+    },
+    "genre": {
+      "type": "string",
+      "enum": [
+        "ecart_materiau",
+        "ecart_marge",
+        "refus_recurrent",
+        "rejets_soi"
+      ]
+    },
+    "cible": {
+      "type": "string",
+      "pattern": "^m(0[1-9]|10)-[a-z][a-z0-9-]*$"
+    },
+    "etape": {
+      "type": "string",
+      "enum": [
+        "canari",
+        "complete",
+        "retour_arriere",
+        "refusee"
+      ]
+    },
+    "etat": {
+      "type": "string",
+      "enum": [
+        "canari",
+        "complete",
+        "retiree",
+        "refusee"
+      ]
+    },
+    "pourcentage": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 50
+    },
+    "decide_le": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 40
+    }
+  },
+  "required": [
+    "lecon_id",
+    "genre",
+    "cible",
+    "etape",
+    "etat",
+    "pourcentage",
+    "decide_le"
+  ]
+}

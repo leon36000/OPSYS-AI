@@ -78,6 +78,7 @@ from . import (
     rentabilite,
     revision,
     signaux,
+    soi_graphe,
     validation,
     variance,
     wct,
@@ -439,10 +440,15 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
     return {
         "m3.catalogue_reference": _consommateur_configuration("m3.catalogue_reference"),
         "m6.catalogue_reference": _consommateur_configuration("m6.catalogue_reference"),
-        "m4.travaux_termines": _recevoir_travaux_termines,
-        "m6.variance_chantier": _recevoir_variance_chantier,
+        # Mnémo : après avoir mémorisé (inchangé), ces consommateurs nourrissent aussi le graphe de connaissances
+        # (`soi_graphe.avec_graphe`) ; `m2.profil_propriete_confirme` ne nourrit que le graphe.
+        "m4.travaux_termines": soi_graphe.avec_graphe("m4.travaux_termines", _recevoir_travaux_termines),
+        "m6.variance_chantier": soi_graphe.avec_graphe("m6.variance_chantier", _recevoir_variance_chantier),
         "m5.rentabilite_chantier": _recevoir_rentabilite_chantier,
-        **{type_evenement: _consommateur_amont(type_evenement) for type_evenement in etapes.types_consommes()},
+        **{type_evenement: (soi_graphe.avec_graphe(type_evenement, _consommateur_amont(type_evenement))
+                            if type_evenement == etapes.TYPE_CLIENT_ASSOCIE else _consommateur_amont(type_evenement))
+           for type_evenement in etapes.types_consommes()},
+        "m2.profil_propriete_confirme": soi_graphe.recevoir_profil_propriete,
         analytique.TYPE_EVENEMENT: _recevoir_faits_consolides,
     }
 
@@ -1553,6 +1559,7 @@ def outils() -> tuple[Outil, ...]:
     """Conserve les déclarations historiques, ajoute les deux lecteurs T0 et les outils de connaissances."""
     return (*_OUTILS_AVANT_LECTURE_DOCUMENTAIRE(),
         *connaissances.outils_connaissances(),
+        *soi_graphe.outils_mnemo(),
         Outil(
             nom="m10_lire_faits_analytiques",
             description=(

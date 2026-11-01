@@ -142,7 +142,17 @@ PLAN T4.18-b ajoute une forme d'affaire COMMUNE et deux blocs au paquet, sans to
     validation du sous-dossier `EvenementMemoire` à `valider_evenement`, et
     `tracer_refus_contexte` trace un `verdict` construit par `construire_verdict`.
 
-Vector memory, graphe de connaissances inféré, context injector et l'application effective du
+## Mnémo : modèle de soi, graphe de connaissances, apprentissage gouverné (m10-self-graphe)
+
+`soi_graphe.py` (outils et consommateurs), `skills/gerer-le-soi-et-le-graphe/`, `evals/soi-graphe.v1.yaml` ; la logique vit dans
+`src/opsys/mnemo/` (socle). Trois pièces : le **modèle de soi** de l'entreprise (énoncés versionnés, sourcés, confirmés par une
+personne, dérive = révision proposée), un **graphe d'entités** natif (migration 0052, schéma fermé, arêtes sensibles confirmées par
+une personne, port `MoteurGraphe`) et des **leçons** mesurées hors ligne, promues par une personne (canari, retour arrière, aucune
+application seule). 21 outils M10 + 2 outils communs, aucun rôle d'appareil. Documentation, mesures et limites :
+[docs/architecture/M10-SOI-GRAPHE.md](../../docs/architecture/M10-SOI-GRAPHE.md). Statut : PARTIEL (aucun modèle réel, aucune donnée
+réelle, aucun département ne consomme encore les leçons).
+
+Vector memory, graphe de connaissances INFÉRÉ par un modèle (le graphe de Mnémo est explicite et sourcé), context injector et l'application effective du
 PREFLIGHT/POSTFLIGHT (D-014, hook applicatif) restent GATED (hors périmètre v1, cf.
 `docs/bmad/02-PRD-PM.md` §3.2 et `docs/research/R4-memory-rag.md`).
 

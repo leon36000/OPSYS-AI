@@ -1,5 +1,14 @@
 # INGREDIENTS — Catalogue des briques open source retenues pour OPSYS-AI
 
+## Graphe de connaissances M10 — 1er novembre 2026
+
+Graphe d'entités **natif** (SQLAlchemy Core sur SQLite/PostgreSQL de l'instance, aucune dépendance de plus) derrière le port
+`MoteurGraphe` : décision r1, pas de Neo4j. **LightRAG** (HKUDS/LightRAG, MIT annoncée sur la page du dépôt ; à relire dans le fichier
+`LICENSE` avant tout pilote) est retenu comme **pilote possible derrière ce port, NON installé, NON importé, NON exécuté** : il extrait
+un graphe par un LLM et peut stocker dans NetworkX, Neo4j ou PostgreSQL (AGE, pgvector). Conditions d'un pilote, garde de mesure et
+risques (données personnelles vers un LLM) : [M10-SOI-GRAPHE.md § 4](../architecture/M10-SOI-GRAPHE.md). Aucune adoption tant que le
+banc `opsys-metier mnemo mesurer` n'a pas été rejoué avec lui.
+
 ## Bêta-tests par agents — 22 octobre 2026
 
 Réutilisation initiale de **Playwright 1.63.0**, déjà installé/verrouillé dans le Core

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m10.soi_revision_proposee",
+  "title": "M10 — Révision du modèle de soi proposée (dérive d'un énoncé confirmé)",
+  "description": "Émis par M10 (departments/m10-memoire/src/m10_memoire/soi_graphe.py) quand un fait nouveau contredit un énoncé CONFIRMÉ du modèle de soi de l'entreprise : soit une version différente a été PROPOSÉE (`valeur_differente`, `revise` désigne l'énoncé confirmé qu'elle réviserait), soit la source de l'énoncé ne le soutient plus (`source_disparue`). L'énoncé confirmé n'est JAMAIS modifié : la révision attend la décision d'une personne (N3). Aucun contenu d'énoncé n'est porté : seulement des identifiants, la dimension et la clé (un code ou un identifiant d'équipe, jamais un texte libre ni une donnée personnelle). Consommateurs visés : la console de la direction, M9 (revue). evenement_id déterministe : rejouer le même constat ne republie rien. Toutes les propriétés sont requises même quand leur valeur est nulle.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "enonce_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{24}$"
+    },
+    "dimension": {
+      "type": "string",
+      "enum": [
+        "services",
+        "zones",
+        "equipes",
+        "capacite",
+        "clients_types",
+        "marges_observees",
+        "saisonnalite",
+        "preferences_direction",
+        "regles_direction",
+        "vocabulaire",
+        "ton_marque"
+      ]
+    },
+    "cle": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[a-z0-9_.-]+$"
+    },
+    "nature": {
+      "type": "string",
+      "enum": [
+        "valeur_differente",
+        "source_disparue"
+      ]
+    },
+    "revise": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{24}$"
+    },
+    "structurante": {
+      "type": "boolean"
+    },
+    "constate_le": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 40
+    }
+  },
+  "required": [
+    "enonce_id",
+    "dimension",
+    "cle",
+    "nature",
+    "revise",
+    "structurante",
+    "constate_le"
+  ]
+}

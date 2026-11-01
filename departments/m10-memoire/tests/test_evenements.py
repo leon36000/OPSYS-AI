@@ -95,7 +95,9 @@ class TestManifeste:
             "m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier",
             "m1.lead_qualifie", "m2.client_associe", "m2.contact_corrige", "m6.note_commande_referencee",
             "m3.devis_envoye", "m3.devis_accepte", "m3.devis_sans_reponse",
+            "m2.profil_propriete_confirme",  # Mnémo : ne nourrit que le graphe (tests/test_mnemo_outils.py)
         )
+        assert dep.evenements_publie == ("m10.soi_revision_proposee", "m10.lecon_decidee", "m10.arete_en_attente")
         consommateurs = dep.charger_consommateurs()
         assert set(consommateurs) == set(dep.evenements_consomme)
 

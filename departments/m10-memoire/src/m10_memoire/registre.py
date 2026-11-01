@@ -28,6 +28,10 @@ _TYPE_ENTREE_VALIDES = {
     "memoire_developpement",  # Tranche mémoire dev : événements, sources et relations dans le registre durable
     "provenance_documentaire",  # source métier autonome, sans affaire client implicite
     "fait_analytique",  # M8.18 : analytique.py, consolidation des mesures d'entreprise publiée par M8 (registre dédié)
+    # Mnémo (docs/architecture/M10-SOI-GRAPHE.md) : modèle de soi (registre `soi`) et leçons (registre `lecons`).
+    # Le contenu et les règles de ces entrées vivent dans `opsys.mnemo` ; ce registre n'en connaît que le type.
+    "soi_enonce", "soi_decision", "soi_corroboration", "soi_derive",
+    "lecon_proposee", "lecon_evaluation", "lecon_decision",
 }
 
 

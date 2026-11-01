@@ -118,7 +118,7 @@ def test_erreur_annoncee_en_alert_succes_en_status():
 
 
 # Épinglées ici : relues du code, une section retirée du code passerait inaperçue.
-SECTIONS_ATTENDUES = ["fournisseurs", "secrets", "avatars", "connaissances", "connecteurs"]
+SECTIONS_ATTENDUES = ["fournisseurs", "secrets", "avatars", "connaissances", "mnemo", "connecteurs"]
 
 
 def test_navigation_plateforme_unique_nommee_et_courante():

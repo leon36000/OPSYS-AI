@@ -45,6 +45,7 @@ SECTIONS_PLATEFORME = (
     ("secrets", "Secrets"),
     ("avatars", "Avatars"),
     ("connaissances", "Connaissances"),
+    ("mnemo", "Mnémo"),
     ("connecteurs", "Connecteurs"),
 )
 LIBELLES_MODES = {"ombre": "Ombre", "supervise": "Supervisé", "autonome": "Autonome"}
@@ -120,7 +121,7 @@ def bandeau_succes(code: str) -> Bandeau | None:
 
 
 def navigation_plateforme(prefixe: str, courant: str) -> str:
-    """Sous-navigation UNIQUE des cinq pages « Plateforme » : chaque page expose les quatre autres (aucune impasse),
+    """Sous-navigation UNIQUE des pages « Plateforme » : chaque page expose les autres (aucune impasse),
     la page courante porte `aria-current`, et le tout est un repère de navigation nommé."""
     def lien(cle: str, libelle: str) -> str:
         courante = ' aria-current="page"' if cle == courant else ""

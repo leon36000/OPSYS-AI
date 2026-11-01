@@ -26,7 +26,8 @@ mode: ombre
 dependances: []
 modeles:
   defaut: standard
-skills: [journaliser-une-decision, preflight-contexte-suffisant, traiter-un-signal-critique, gerer-les-connaissances]
+skills: [journaliser-une-decision, preflight-contexte-suffisant, traiter-un-signal-critique, gerer-les-connaissances,
+  gerer-le-soi-et-le-graphe]
 planifications:
   - nom: digest-memoire
     cron: "0 7 * * 1-5"
@@ -43,13 +44,22 @@ planifications:
       horodatage=<maintenant>) — jamais de résumé calculé par toi-même, l'outil condense
       déterministiquement et cite ses sources. Idempotente : un jour déjà consolidé pour une
       affaire ne crée rien de plus, relance sans crainte celles qui restent incertaines.
+  - nom: mnemo-quotidien
+    cron: "17 4 * * *"
+    consigne: >-
+      Mnémo, travail interne seulement (N0 à N2) : appelle m10_construire_soi, puis m10_synchroniser_graphe, puis
+      m10_extraire_lecons, puis m10_surveiller_lecons. Ne confirme rien, ne rejette rien, ne promeus aucune leçon : ce sont des
+      décisions humaines. Rapporte seulement ce que les outils rendent (énoncés proposés, révisions à trancher, arêtes en attente de
+      confirmation, leçons proposées, leçons promues qui régressent) pour que la direction les voie ; un chiffre vient de l'outil,
+      jamais de toi. Si un outil refuse, dis son code et arrête.
 budget:
   tokens_jour: 200000
   tokens_mois: 2500000
   alerte_pct: 80
 memoire:
-  lecture: [registre_evenements, registre_affaires, registre_faits_analytiques]
-  ecriture: [registre_evenements, registre_affaires, registre_references_configuration, registre_faits_analytiques]
+  lecture: [registre_evenements, registre_affaires, registre_faits_analytiques, registre_soi, registre_lecons]
+  ecriture: [registre_evenements, registre_affaires, registre_references_configuration, registre_faits_analytiques,
+    registre_soi, registre_lecons]
 kpis:
   - id: taux_revisions_arbitrees
     description: Part des révisions signalées ayant reçu au moins un arbitrage humain consigné.
@@ -81,7 +91,13 @@ kpis:
 # M8.18 : M10 consomme aussi les faits analytiques consolidés de M8 (`m8.fait_consolide`, catalogue socle) : les mesures
 # d'entreprise avec leur provenance, mémorisées au registre `faits_analytiques` (FINANCIAL, hors de tout paquet de contexte),
 # avec les changements de définition et les anomalies. Rien de personnel n'y voyage.
+# Mnémo (docs/architecture/M10-SOI-GRAPHE.md) : après avoir mémorisé WCT, variance matériaux et client associé, M10 nourrit aussi
+# le graphe de connaissances d'entités (brouillon d'arête ; une arête SENSIBLE attend la confirmation d'une personne).
+# `m2.profil_propriete_confirme` (client_id, propriete_id : des pseudonymes, jamais l'adresse) ne nourrit QUE le graphe.
+# M10 publie : la révision proposée d'un énoncé confirmé du modèle de soi, la décision humaine sur une leçon apprise, et
+# l'arête sensible en attente de confirmation. Aucune donnée personnelle ni contenu d'énoncé n'y voyage.
 evenements:
+  publie: [m10.soi_revision_proposee, m10.lecon_decidee, m10.arete_en_attente]
   consomme:
     - m8.fait_consolide
     - m3.catalogue_reference
@@ -96,3 +112,4 @@ evenements:
     - m3.devis_envoye
     - m3.devis_accepte
     - m3.devis_sans_reponse
+    - m2.profil_propriete_confirme

@@ -2072,3 +2072,60 @@ PONT_BI_ACCES = Table(
     Index("ix_pont_bi_acces_jeton", "jeton_id", "epoch"),
 )
 PONT_BI_TABLES = (PONT_BI_JETONS, PONT_BI_ACCES)
+
+# -- Graphe de connaissances d'entités de M10 (migration 0052, docs/architecture/M10-SOI-GRAPHE.md) --------------------
+# Trois tables APPEND-ONLY (déclencheurs de la migration) : des NŒUDS typés (schéma fermé : client, propriété,
+# intervention, matériau, fournisseur, équipe, document, décision), des ARÊTES typées dont la validité dans le monde est
+# bornée (`valide_de`, et `valide_a` posé par l'événement de fermeture) et dont la provenance est obligatoire, et les
+# ÉVÉNEMENTS D'ÉTAT des arêtes (brouillon → confirmée → fermée, ou rejetée) : l'état d'une arête n'est jamais un champ
+# modifiable, c'est son dernier événement. Aucune donnée personnelle : un client ou une propriété n'est connu que par
+# son pseudonyme stable.
+GRAPHE_NOEUDS = Table(
+    "graphe_noeuds", META,
+    Column("noeud_id", String(32), primary_key=True),
+    Column("type", String(16), nullable=False),
+    Column("cle", String(128), nullable=False),
+    Column("libelle", String(120), nullable=False),
+    Column("source_ref", String(200), nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("cree_par", String(200), nullable=False),
+    UniqueConstraint("type", "cle", name="uq_graphe_noeuds_cle"),
+    CheckConstraint("type IN ('client','propriete','intervention','materiau','fournisseur','equipe','document',"
+                    "'decision')", name="type_valide"),
+)
+GRAPHE_ARETES = Table(
+    "graphe_aretes", META,
+    Column("arete_id", String(32), primary_key=True),
+    Column("type", String(16), nullable=False),
+    Column("de_noeud", String(32), ForeignKey("graphe_noeuds.noeud_id"), nullable=False),
+    Column("vers_noeud", String(32), ForeignKey("graphe_noeuds.noeud_id"), nullable=False),
+    Column("valide_de", String(10), nullable=False),
+    Column("sensible", Boolean, nullable=False),
+    Column("origine", String(16), nullable=False),
+    Column("source_type", String(40), nullable=False),
+    Column("source_ref", String(200), nullable=False),
+    Column("confiance", String(8), nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("cree_par", String(200), nullable=False),
+    UniqueConstraint("type", "de_noeud", "vers_noeud", "valide_de", name="uq_graphe_aretes_identite"),
+    CheckConstraint("de_noeud <> vers_noeud", name="pas_de_boucle"),
+    CheckConstraint("origine IN ('bus','agent','humain','systeme')", name="origine_valide"),
+    Index("ix_graphe_aretes_de", "de_noeud"),
+    Index("ix_graphe_aretes_vers", "vers_noeud"),
+)
+GRAPHE_ARETES_ETATS = Table(
+    "graphe_aretes_etats", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("arete_id", String(32), ForeignKey("graphe_aretes.arete_id"), nullable=False),
+    Column("etat", String(12), nullable=False),
+    Column("quand", Text, nullable=False),
+    Column("par", String(200), nullable=False),
+    Column("mode", String(8), nullable=False),
+    Column("role", String(32), nullable=True),
+    Column("raison", Text, nullable=True),
+    Column("valide_a", String(10), nullable=True),
+    CheckConstraint("etat IN ('brouillon','confirmee','fermee','rejetee')", name="etat_valide"),
+    CheckConstraint("mode IN ('agent','humain','systeme')", name="mode_valide"),
+    Index("ix_graphe_aretes_etats_arete", "arete_id", "id"),
+)
+GRAPHE_TABLES = (GRAPHE_NOEUDS, GRAPHE_ARETES, GRAPHE_ARETES_ETATS)
