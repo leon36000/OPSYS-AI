@@ -152,3 +152,36 @@ def installer(
                 globales[cible] = objet
                 injectes.append(f"{prefixe}::{nom}")
     return injectes
+
+
+def verrou_tenu(cnx, nom: str) -> bool:
+    """Le verrou consultatif de transaction `nom` est-il TENU par la session de `cnx` ? (lu dans `pg_locks`)"""
+    from sqlalchemy import text
+
+    from opsys.stockage.concurrence import cle_verrou
+
+    cle = cle_verrou(nom)
+    haut, bas = (cle >> 32) & 0xFFFFFFFF, cle & 0xFFFFFFFF
+    return bool(cnx.execute(text(
+        "SELECT EXISTS (SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND granted AND objsubid = 1 "
+        "AND pid = pg_backend_pid() AND classid::bigint = :haut AND objid::bigint = :bas)"),
+        {"haut": haut, "bas": bas}).scalar_one())
+
+
+def espionner_verrou(monkeypatch, objet, attribut: str, nom_verrou: str = "console-ecriture") -> dict:
+    """Enveloppe `objet.attribut` : à chaque appel, note si le verrou `nom_verrou` est tenu par la session courante.
+
+    Rend le compteur `{"appels": n, "sans_verrou": m}` : un port d'écriture humaine qui perd son verrou d'écriture de
+    console est vu ici, même si la course qu'il évitait est trop étroite pour se produire dans un test."""
+    original = getattr(objet, attribut)
+    journal = {"appels": 0, "sans_verrou": 0}
+
+    def espion(*args, **kwargs):
+        cnx = stockage.connexion_courante()
+        journal["appels"] += 1
+        if cnx is None or not verrou_tenu(cnx, nom_verrou):
+            journal["sans_verrou"] += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(objet, attribut, espion)
+    return journal
