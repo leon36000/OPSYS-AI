@@ -402,6 +402,14 @@ version réellement installée (toutes vérifiées une à une ci-dessus). Aucun 
 | **OpenCV** (`opencv-python-headless`, CODE) + **YuNet** (`face_detection_yunet_2023mar.onnx`, POIDS) | OpenCV ≥4.5.0 : Apache-2.0 (vérifié <https://opencv.org/license/>) · YuNet : **MIT** (vérifié dans `models/face_detection_yunet/LICENSE` du dépôt github.com/opencv/opencv_zoo, Shiqi Yu 2020 — distinct de la licence Apache-2.0 du dépôt `opencv_zoo` lui-même) | Détection de VISAGES avant floutage obligatoire de tout contenu public (`m7_marketing.moderation.detection`, PLAN T4.3, M7-audit.md §3.5), via `cv2.FaceDetectorYN` | Dépendance pip (non installée dans ce bac à sable — `ModuleNotFoundError` vérifié) ; interface `Detecteur` injectable déjà écrite et testée (images synthétiques), adaptateur réel à brancher une fois la dépendance disponible | Phase 2 (logique et interface livrées et testées ; adaptateur réel non branché) | M7-audit.md §3.5 |
 | Cascade Haar `haarcascade_russian_plate_number.xml` | **Apache-2.0** (livré DANS le dépôt principal `github.com/opencv/opencv`, `data/haarcascades/` — même licence que le code OpenCV ci-dessus, aucun poids ni dépôt tiers séparé) | Détection de PLAQUES avant floutage obligatoire de tout contenu public, via `cv2.CascadeClassifier`. Limite documentée : entraîné sur les proportions des plaques russes, imprécis sur les plaques québécoises — mitigé par la revue humaine obligatoire sous le seuil de confiance (`moderation.floutage`), à réévaluer avant tout volume réel | Dépendance pip (même paquet OpenCV que ci-dessus) ; même statut d'adaptateur (interface prête, branchement réel à faire) | Phase 2 | M7-audit.md §3.5 |
 
+**Connecteurs WordPress et réseaux sociaux (M7-WORDPRESS-SOCIAL, 2026-11-01 ; hors décompte ci-dessous, aucune dépendance Python ajoutée).**
+Plugin « OPSYS Connect » : **GPL-2.0-or-later** par conception (un plugin WordPress est une œuvre dérivée de WordPress), écrit
+ici, isolé dans `integrations/wordpress/opsys-connect/` avec son `LICENSE` (texte GPLv2 de Debian `common-licenses`), jamais
+importé par le code Python (Apache-2.0) ; il n'embarque aucune bibliothèque tierce et n'utilise que les API du noyau WordPress
+(REST, `$wpdb`, `wp_kses_post`, `wp_upload_bits`, libsodium livré avec PHP). Outils de contrôle : `openssl` (calcul des
+vecteurs de test, hors dépôt) ; grammaire tree-sitter-php (contrôle syntaxique ponctuel, local, non versionné). Postiz (AGPL-3.0)
+reste « service séparé non modifié » derrière le même sas, non intégré. Détails : `docs/architecture/M7-WORDPRESS-SOCIAL.md`.
+
 ## M8 — Analytics
 
 | Brique | Licence vérifiée | Rôle dans OPSYS | Intégration | Phase | Rapport source |

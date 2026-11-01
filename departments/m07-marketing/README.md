@@ -279,3 +279,13 @@ est une demande N3 à la direction. Détails, codes de refus et limites : [`docs
 - **Hash de gel** : le test `test_contract_consumer.py` épingle le SHA-256 binaire
   du contrat. Toute altération du fichier v1 sans suivre la procédure ci-dessus
   rendra le test **ROUGE**.
+
+## Plugin WordPress « OPSYS Connect » et sas de publication sociale (2026-11-01)
+
+Plugin PHP GPL-2.0-or-later (`integrations/wordpress/opsys-connect/`, **jamais exécuté dans WordPress**), client signataire,
+registre des sites, flux brouillon -> revue -> approbation N3 -> publication, et sas de publication sociale (N3, N4 pour une
+annonce payante, idempotence, quotas, fenêtre, divulgation d'IA, refus des médias générés non composés) avec adaptateurs en
+doubles de test seulement. Rien ne publie ni ne dépense : les approbations sont consignées. Code : `src/m7_marketing/wordpress/`,
+`src/m7_marketing/sas_social/`, `publication_outils.py` ; vecteurs partagés : `contracts/opsys-connect-vecteurs.v1.json` ;
+tests : `tests/wordpress/`, `tests/sas_social/`, `tests/test_outils_publication.py`. Sécurité, modèle de menace, exigences d'accès
+par réseau (à vérifier) et limites : `docs/architecture/M7-WORDPRESS-SOCIAL.md`.

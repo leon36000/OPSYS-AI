@@ -1,0 +1,1307 @@
+{
+ "cle_approbation_hex": "9d2c7e6c1ccb8e09d57edf7ccbe3b8084e59efa131f7897aa1f92da03762677b",
+ "cle_id": "default",
+ "empreintes_contenu": [
+  {
+   "attendu_sha256": "2a6dcfb8ac000f7c1201ae7ea1dfa15bd761261a009c15a78d33086dde975eed",
+   "canonique_utf8": "opsys-content/v1\ntype:4:post\ntitre:7:Bonjour\ncontenu:12:<p>Texte</p>\nextrait:0:\nslug:7:bonjour\nimage_a_la_une_sha256:0:\n",
+   "champs": {
+    "contenu": "<p>Texte</p>",
+    "extrait": "",
+    "image_a_la_une_sha256": "",
+    "slug": "bonjour",
+    "titre": "Bonjour",
+    "type": "post"
+   },
+   "id": "article-simple"
+  },
+  {
+   "attendu_sha256": "53eeb557f4b7233b89d2b3c9ed7a9eac96f3cd1161401f20f4a15490e4843751",
+   "canonique_utf8": "opsys-content/v1\ntype:4:page\ntitre:22:Rénovation à Québec\ncontenu:21:<p>Été — 🏠</p>\nextrait:8:Résumé\nslug:17:renovation-quebec\nimage_a_la_une_sha256:64:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\n",
+   "champs": {
+    "contenu": "<p>Été — 🏠</p>",
+    "extrait": "Résumé",
+    "image_a_la_une_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "slug": "renovation-quebec",
+    "titre": "Rénovation à Québec",
+    "type": "page"
+   },
+   "id": "unicode-et-octets"
+  },
+  {
+   "attendu_sha256": "bdc4c0105501616deca9b9a44c4df586892875f570d6199fe732ce15a11c1b20",
+   "canonique_utf8": "opsys-content/v1\ntype:4:post\ntitre:13:a\ncontenu:1:b\ncontenu:0:\nextrait:0:\nslug:0:\nimage_a_la_une_sha256:0:\n",
+   "champs": {
+    "contenu": "",
+    "extrait": "",
+    "image_a_la_une_sha256": "",
+    "slug": "",
+    "titre": "a\ncontenu:1:b",
+    "type": "post"
+   },
+   "id": "faux-champ-dans-la-valeur"
+  },
+  {
+   "attendu_sha256": "ac172dd34e4430a7aeeaea05b6c148a7e99a9709dd28bb43e2ad8154bfa16efe",
+   "canonique_utf8": "opsys-content/v1\ntype:4:post\ntitre:0:\ncontenu:0:\nextrait:0:\nslug:0:\nimage_a_la_une_sha256:0:\n",
+   "champs": {
+    "contenu": "",
+    "extrait": "",
+    "image_a_la_une_sha256": "",
+    "slug": "",
+    "titre": "",
+    "type": "post"
+   },
+   "id": "tout-vide"
+  }
+ ],
+ "fictif": true,
+ "jetons": [
+  {
+   "attendu": "OK",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "publication immédiate",
+   "id": "ok-publish",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.a2ce0e165673fb9a8df113c348e59b1df043bfe29099767d6a2d5f17ad026745"
+  },
+  {
+   "attendu": "OK",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "planification à 14 h UTC",
+   "id": "ok-schedule",
+   "jeton": "v1.eyJhY3Rpb24iOiJzY2hlZHVsZSIsImFwcHJvdmFsX2lkIjoiYXBwcl8wMTIzNDU2Nzg5YWJjZGVmIiwiYXBwcm92ZWRfYnkiOiJuYXRoYW4iLCJjb250ZW50X3NoYTI1NiI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJleHAiOjE3NjcyMjkxNDAsImlhdCI6MTc2NzIyNTU0MCwicG9zdF9pZCI6NDIsInB1Ymxpc2hfYXQiOiIyMDI2LTAxLTAxVDE0OjAwOjAwWiIsInNpdGVfaWQiOiJob3Jpem9uLWZpY3RpZi5leGFtcGxlIiwidiI6MX0.cd96c083138c902e9e721dd4609d91ffeca744f384d1d86cb79a2f6e0790c0d6"
+  },
+  {
+   "attendu": "JETON_SIGNATURE_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "un caractère du MAC change",
+   "id": "mac-modifie",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.02ce0e165673fb9a8df113c348e59b1df043bfe29099767d6a2d5f17ad026745"
+  },
+  {
+   "attendu": "JETON_SIGNATURE_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "post_id changé, MAC d'origine",
+   "id": "charge-modifiee",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MywicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.a2ce0e165673fb9a8df113c348e59b1df043bfe29099767d6a2d5f17ad026745"
+  },
+  {
+   "attendu": "JETON_SIGNATURE_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "jeton émis avec un autre secret",
+   "id": "autre-secret",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.0a149952de6f5b6d01bd0183066e3c3af51fa7b16e558d6304b1e9c36ff1662e"
+  },
+  {
+   "attendu": "JETON_SIGNATURE_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "MAC calculé avec la clé de SIGNATURE DE REQUÊTE (séparation des domaines)",
+   "id": "domaine-requete",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.5a73bf671944b1c989888d452c5b243e3ad7caabbca08760f45a8a29012f4db1"
+  },
+  {
+   "attendu": "JETON_MALFORME",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "n'a pas la forme v1.x.y",
+   "id": "malforme-texte",
+   "jeton": "abc"
+  },
+  {
+   "attendu": "JETON_MALFORME",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "deux parties seulement",
+   "id": "malforme-deux-parties",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ"
+  },
+  {
+   "attendu": "JETON_MALFORME",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "quatre parties",
+   "id": "malforme-quatre-parties",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.a2ce0e165673fb9a8df113c348e59b1df043bfe29099767d6a2d5f17ad026745.x"
+  },
+  {
+   "attendu": "JETON_MALFORME",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "préfixe v2",
+   "id": "malforme-version",
+   "jeton": "v2.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.a2ce0e165673fb9a8df113c348e59b1df043bfe29099767d6a2d5f17ad026745"
+  },
+  {
+   "attendu": "JETON_MALFORME",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "MAC en majuscules",
+   "id": "malforme-mac-majuscules",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.A2CE0E165673FB9A8DF113C348E59B1DF043BFE29099767D6A2D5F17AD026745"
+  },
+  {
+   "attendu": "JETON_MALFORME",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "charge base64 avec bourrage =",
+   "id": "malforme-bourrage",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ=.7f12f2a8fa3eedfb647f7911144feeef103708b2ad80e63b676980070c0eee73"
+  },
+  {
+   "attendu": "JETON_MALFORME",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "charge qui n'est pas du JSON (MAC valide)",
+   "id": "malforme-json",
+   "jeton": "v1.cGFzIGR1IGpzb24.096afa263e97fc7d37282e79fdcd61a9c79272f22eaf9b5a7cede8d03ad11824"
+  },
+  {
+   "attendu": "JETON_MALFORME",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "charge JSON qui est une liste (MAC valide)",
+   "id": "malforme-pas-un-objet",
+   "jeton": "v1.WzEsMiwzXQ.3cfaef553160abe700f14c35362729f86eff42534652cda7cfe6c14f5015984a"
+  },
+  {
+   "attendu": "JETON_CHAMP_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "un champ de plus (MAC valide)",
+   "id": "champ-en-trop",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiZXh0cmEiOjEsImlhdCI6MTc2NzIyNTU0MCwicG9zdF9pZCI6NDIsInB1Ymxpc2hfYXQiOm51bGwsInNpdGVfaWQiOiJob3Jpem9uLWZpY3RpZi5leGFtcGxlIiwidiI6MX0.149233977d725bf5f8b6a614869b57cd3abc18afe397e5571e385a4a9bba6e86"
+  },
+  {
+   "attendu": "JETON_CHAMP_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "un champ de moins (MAC valide)",
+   "id": "champ-manquant",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJjb250ZW50X3NoYTI1NiI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJleHAiOjE3NjcyMjkxNDAsImlhdCI6MTc2NzIyNTU0MCwicG9zdF9pZCI6NDIsInB1Ymxpc2hfYXQiOm51bGwsInNpdGVfaWQiOiJob3Jpem9uLWZpY3RpZi5leGFtcGxlIiwidiI6MX0.202ef21923c4e4253185913c784e371b032ee30e9b3a2d5e04083661045a25d2"
+  },
+  {
+   "attendu": "JETON_CHAMP_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "post_id 42.0 (MAC valide)",
+   "id": "post-id-decimal",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0Mi4wLCJwdWJsaXNoX2F0IjpudWxsLCJzaXRlX2lkIjoiaG9yaXpvbi1maWN0aWYuZXhhbXBsZSIsInYiOjF9.1bf0c9dcf273d4183cbe0bfb70380d7d52ee662cbef425352973cddcf5f1b590"
+  },
+  {
+   "attendu": "JETON_CHAMP_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "post_id \"42\" (MAC valide)",
+   "id": "post-id-texte",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjoiNDIiLCJwdWJsaXNoX2F0IjpudWxsLCJzaXRlX2lkIjoiaG9yaXpvbi1maWN0aWYuZXhhbXBsZSIsInYiOjF9.d3066c88b2259cd36b0281e3e648cdb448440d5be2bc13f216220bb925fba4a8"
+  },
+  {
+   "attendu": "JETON_CHAMP_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "approval_id de 7 caractères (MAC valide)",
+   "id": "approbation-courte",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhYmNkZWZnIiwiYXBwcm92ZWRfYnkiOiJuYXRoYW4iLCJjb250ZW50X3NoYTI1NiI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJleHAiOjE3NjcyMjkxNDAsImlhdCI6MTc2NzIyNTU0MCwicG9zdF9pZCI6NDIsInB1Ymxpc2hfYXQiOm51bGwsInNpdGVfaWQiOiJob3Jpem9uLWZpY3RpZi5leGFtcGxlIiwidiI6MX0.4d92cbed1dfef8beacc4bf38b301ace69b17bc64459c19c824c166cc19059ffe"
+  },
+  {
+   "attendu": "JETON_CHAMP_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "publish avec publish_at (MAC valide)",
+   "id": "publish-avec-heure",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6IjIwMjYtMDEtMDFUMTQ6MDA6MDBaIiwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.5154f928e72c986f79a96923c0007f5c956c73a8a10d9bec80b5288811a52623"
+  },
+  {
+   "attendu": "JETON_CHAMP_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "schedule sans publish_at (MAC valide)",
+   "id": "schedule-sans-heure",
+   "jeton": "v1.eyJhY3Rpb24iOiJzY2hlZHVsZSIsImFwcHJvdmFsX2lkIjoiYXBwcl8wMTIzNDU2Nzg5YWJjZGVmIiwiYXBwcm92ZWRfYnkiOiJuYXRoYW4iLCJjb250ZW50X3NoYTI1NiI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJleHAiOjE3NjcyMjkxNDAsImlhdCI6MTc2NzIyNTU0MCwicG9zdF9pZCI6NDIsInB1Ymxpc2hfYXQiOm51bGwsInNpdGVfaWQiOiJob3Jpem9uLWZpY3RpZi5leGFtcGxlIiwidiI6MX0.73ba6a3144e348a339e0660f458318ecbc234cd9ad328af5305b6ec36cdf13d4"
+  },
+  {
+   "attendu": "JETON_CHAMP_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "action delete (MAC valide)",
+   "id": "action-inconnue",
+   "jeton": "v1.eyJhY3Rpb24iOiJkZWxldGUiLCJhcHByb3ZhbF9pZCI6ImFwcHJfMDEyMzQ1Njc4OWFiY2RlZiIsImFwcHJvdmVkX2J5IjoibmF0aGFuIiwiY29udGVudF9zaGEyNTYiOiJjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjIiwiZXhwIjoxNzY3MjI5MTQwLCJpYXQiOjE3NjcyMjU1NDAsInBvc3RfaWQiOjQyLCJwdWJsaXNoX2F0IjpudWxsLCJzaXRlX2lkIjoiaG9yaXpvbi1maWN0aWYuZXhhbXBsZSIsInYiOjF9.bd8ababafc8d5b09c3514ed407ceb4ab338216ddd19e29f358f979b56e834da3"
+  },
+  {
+   "attendu": "JETON_EXPIRE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "exp dans le passé",
+   "id": "expire",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyMjAwMCwiaWF0IjoxNzY3MjE4NDAwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.7ba8826a311f2a62fecef354a9af92655514d1cd18e5c7d53e62004a239ad028"
+  },
+  {
+   "attendu": "JETON_EXPIRE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "exp égale à maintenant",
+   "id": "expire-pile",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyNTYwMCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.7fc3b420c997f88d7fb432cb7465b1650b9820d2d1d790b1fcff123f7a91ede1"
+  },
+  {
+   "attendu": "OK",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "exp = maintenant + 1",
+   "id": "valide-jusqu-a-la-derniere-seconde",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyNTYwMSwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.21732315b1a7afb259b729e45fe18ca22268abd7186d8ab8c9872f6d135c8c98"
+  },
+  {
+   "attendu": "JETON_DUREE_EXCESSIVE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "vie de 86 401 s",
+   "id": "duree-excessive",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzMxMTk0MSwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.1a06033982da4c356b8e632bace65164bfb3d8e24b0eaae27b2d7e0c06434f0e"
+  },
+  {
+   "attendu": "OK",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "vie de 86 400 s exactement",
+   "id": "duree-limite",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzMxMTk0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.77a8a5cb5ef93c33ae8904fd63f5cba1d875d019a6acfef8851813e96875b8e4"
+  },
+  {
+   "attendu": "JETON_DUREE_EXCESSIVE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "exp = iat",
+   "id": "duree-nulle",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyNTU0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.7051ad8995c80aeaf8b5a0f39879e79a6ebddb6bd85fcd02318d3d877566e63f"
+  },
+  {
+   "attendu": "JETON_EMIS_DANS_LE_FUTUR",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "iat à +61 s",
+   "id": "emis-dans-le-futur",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyNjIwMCwiaWF0IjoxNzY3MjI1NjYxLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.fd933076f61e4867f4d23d04c597f09d2a0b6e22657a7bff9280bd9ea9f73830"
+  },
+  {
+   "attendu": "OK",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "iat à +60 s",
+   "id": "emis-limite-future",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyNjIwMCwiaWF0IjoxNzY3MjI1NjYwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.b461878c4507f41e235c5620e78779ccb47b291708fb72dfe50ee1a7666746ad"
+  },
+  {
+   "attendu": "JETON_SITE_DIFFERENT",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "autre.example"
+   },
+   "description": "jeton d'un autre site",
+   "id": "autre-site",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.a2ce0e165673fb9a8df113c348e59b1df043bfe29099767d6a2d5f17ad026745"
+  },
+  {
+   "attendu": "JETON_ARTICLE_DIFFERENT",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 43,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "jeton d'un autre article",
+   "id": "autre-article",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.a2ce0e165673fb9a8df113c348e59b1df043bfe29099767d6a2d5f17ad026745"
+  },
+  {
+   "attendu": "JETON_EMPREINTE_DIFFERENTE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "le contenu a changé depuis l'approbation",
+   "id": "contenu-modifie",
+   "jeton": "v1.eyJhY3Rpb24iOiJwdWJsaXNoIiwiYXBwcm92YWxfaWQiOiJhcHByXzAxMjM0NTY3ODlhYmNkZWYiLCJhcHByb3ZlZF9ieSI6Im5hdGhhbiIsImNvbnRlbnRfc2hhMjU2IjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsImV4cCI6MTc2NzIyOTE0MCwiaWF0IjoxNzY3MjI1NTQwLCJwb3N0X2lkIjo0MiwicHVibGlzaF9hdCI6bnVsbCwic2l0ZV9pZCI6Imhvcml6b24tZmljdGlmLmV4YW1wbGUiLCJ2IjoxfQ.a2ce0e165673fb9a8df113c348e59b1df043bfe29099767d6a2d5f17ad026745"
+  },
+  {
+   "attendu": "JETON_ACTION_NON_PERMISE",
+   "contexte": {
+    "actions_permises": [
+     "publish"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "schedule non permis par la configuration",
+   "id": "action-non-permise",
+   "jeton": "v1.eyJhY3Rpb24iOiJzY2hlZHVsZSIsImFwcHJvdmFsX2lkIjoiYXBwcl8wMTIzNDU2Nzg5YWJjZGVmIiwiYXBwcm92ZWRfYnkiOiJuYXRoYW4iLCJjb250ZW50X3NoYTI1NiI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJleHAiOjE3NjcyMjkxNDAsImlhdCI6MTc2NzIyNTU0MCwicG9zdF9pZCI6NDIsInB1Ymxpc2hfYXQiOiIyMDI2LTAxLTAxVDE0OjAwOjAwWiIsInNpdGVfaWQiOiJob3Jpem9uLWZpY3RpZi5leGFtcGxlIiwidiI6MX0.cd96c083138c902e9e721dd4609d91ffeca744f384d1d86cb79a2f6e0790c0d6"
+  },
+  {
+   "attendu": "JETON_CHAMP_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "charge {} (MAC valide)",
+   "id": "charge-objet-vide",
+   "jeton": "v1.e30.7589fd6eb11f19e030038fbb3b5260be60c8c640bb7df494eb46617cf5577ded"
+  },
+  {
+   "attendu": "JETON_PLANIFICATION_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "schedule le 45e jour du 13e mois (MAC valide)",
+   "id": "planification-date-impossible",
+   "jeton": "v1.eyJhY3Rpb24iOiJzY2hlZHVsZSIsImFwcHJvdmFsX2lkIjoiYXBwcl8wMTIzNDU2Nzg5YWJjZGVmIiwiYXBwcm92ZWRfYnkiOiJuYXRoYW4iLCJjb250ZW50X3NoYTI1NiI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJleHAiOjE3NjcyMjkxNDAsImlhdCI6MTc2NzIyNTU0MCwicG9zdF9pZCI6NDIsInB1Ymxpc2hfYXQiOiIyMDI2LTEzLTQ1VDI1OjYxOjYxWiIsInNpdGVfaWQiOiJob3Jpem9uLWZpY3RpZi5leGFtcGxlIiwidiI6MX0.765a5e5341af505b079ee7db775ed683dc34ac7f02f6cdd941f4ee8eeb4b4373"
+  },
+  {
+   "attendu": "JETON_PLANIFICATION_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "schedule dans le passé",
+   "id": "planification-passee",
+   "jeton": "v1.eyJhY3Rpb24iOiJzY2hlZHVsZSIsImFwcHJvdmFsX2lkIjoiYXBwcl8wMTIzNDU2Nzg5YWJjZGVmIiwiYXBwcm92ZWRfYnkiOiJuYXRoYW4iLCJjb250ZW50X3NoYTI1NiI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJleHAiOjE3NjcyMjkxNDAsImlhdCI6MTc2NzIyNTU0MCwicG9zdF9pZCI6NDIsInB1Ymxpc2hfYXQiOiIyMDI1LTEyLTMxVDIzOjAwOjAwWiIsInNpdGVfaWQiOiJob3Jpem9uLWZpY3RpZi5leGFtcGxlIiwidiI6MX0.96c0b3e517ea6465d8ed75dbdeea372186accc8b508c54f7aba99d7f584e50b0"
+  },
+  {
+   "attendu": "JETON_PLANIFICATION_INVALIDE",
+   "contexte": {
+    "actions_permises": [
+     "publish",
+     "schedule"
+    ],
+    "empreinte_courante": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "maintenant": 1767225600,
+    "post_id_attendu": 42,
+    "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef",
+    "site_id_attendu": "horizon-fictif.example"
+   },
+   "description": "schedule exactement maintenant",
+   "id": "planification-maintenant",
+   "jeton": "v1.eyJhY3Rpb24iOiJzY2hlZHVsZSIsImFwcHJvdmFsX2lkIjoiYXBwcl8wMTIzNDU2Nzg5YWJjZGVmIiwiYXBwcm92ZWRfYnkiOiJuYXRoYW4iLCJjb250ZW50X3NoYTI1NiI6ImNjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2MiLCJleHAiOjE3NjcyMjkxNDAsImlhdCI6MTc2NzIyNTU0MCwicG9zdF9pZCI6NDIsInB1Ymxpc2hfYXQiOiIyMDI2LTAxLTAxVDAwOjAwOjAwWiIsInNpdGVfaWQiOiJob3Jpem9uLWZpY3RpZi5leGFtcGxlIiwidiI6MX0.efbd5618f96d8db841d44af0fa585c29c9468386d86fdae8b825734108d42b1c"
+  }
+ ],
+ "maintenant_reference": 1767225600,
+ "provenance": "Valeurs attendues calculées par openssl (tests/wordpress/generer_vecteurs.py). Le plugin PHP (integrations/wordpress/opsys-connect/tests/verifier-vecteurs.php) et le vérificateur de référence Python doivent donner le même résultat sur chaque cas. Le plugin n'a pas été exécuté.",
+ "schema": "opsys-connect.vecteurs/v1",
+ "secret_de_test": "vecteur-de-test-public-non-secret-0123456789abcdef",
+ "signatures": [
+  {
+   "chaine_canonique": "OPSYS-CONNECT-V1\nPOST\n/opsys-connect/v1/drafts\n1767225600\nN0nce-de-test_0123456789\nf66e09a855bd9fa599d34739910f224b66339a890650448d2f26a8628371ea49",
+   "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+   "empreinte_corps": "f66e09a855bd9fa599d34739910f224b66339a890650448d2f26a8628371ea49",
+   "horodatage": "1767225600",
+   "id": "post-json-ascii",
+   "methode": "POST",
+   "nonce": "N0nce-de-test_0123456789",
+   "route": "/opsys-connect/v1/drafts",
+   "signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4"
+  },
+  {
+   "chaine_canonique": "OPSYS-CONNECT-V1\nPOST\n/opsys-connect/v1/drafts\n1767225583\nUn-Autre_nonce_0123456789abcd\n7aec28ef102989fc856623a1a699491febca0e004e9a788f1eb99c389a4d2133",
+   "corps_utf8": "{\"contenu\":\"Québec — été 🏠 \\u00e9\",\"titre\":\"Toiture à Laval\"}",
+   "empreinte_corps": "7aec28ef102989fc856623a1a699491febca0e004e9a788f1eb99c389a4d2133",
+   "horodatage": "1767225583",
+   "id": "post-json-unicode",
+   "methode": "POST",
+   "nonce": "Un-Autre_nonce_0123456789abcd",
+   "route": "/opsys-connect/v1/drafts",
+   "signature": "v1=57e28bac61e3216d2a2bd303f0c9619b94faa74299dc00530421ab0040a3d49c"
+  },
+  {
+   "chaine_canonique": "OPSYS-CONNECT-V1\nGET\n/opsys-connect/v1/health\n1767225600\nget_nonce_0123456789abcdef\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "corps_utf8": "",
+   "empreinte_corps": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "horodatage": "1767225600",
+   "id": "get-corps-vide",
+   "methode": "GET",
+   "nonce": "get_nonce_0123456789abcdef",
+   "route": "/opsys-connect/v1/health",
+   "signature": "v1=4f13ab5caaa977658dbb8fe6dc092d85d2d505c94dda10355687d65d5ed8602c"
+  },
+  {
+   "chaine_canonique": "OPSYS-CONNECT-V1\nPUT\n/opsys-connect/v1/drafts/42\n1767225605\nput-nonce-0123456789abcdef\n81a3594ef36f6c349f19e3db75c11ed466a89094000603f47cae8e9012837327",
+   "corps_utf8": "{\"empreinte_attendue\":\"abababababababababababababababababababababababababababababababab\",\"statut\":\"pending\"}",
+   "empreinte_corps": "81a3594ef36f6c349f19e3db75c11ed466a89094000603f47cae8e9012837327",
+   "horodatage": "1767225605",
+   "id": "put-brouillon",
+   "methode": "PUT",
+   "nonce": "put-nonce-0123456789abcdef",
+   "route": "/opsys-connect/v1/drafts/42",
+   "signature": "v1=4a296338035dc8d9df2b551f9a7d6ebf4a435e62269633214eb9654aac8f342b"
+  },
+  {
+   "chaine_canonique": "OPSYS-CONNECT-V1\nPOST\n/opsys-connect/v1/drafts\n1767225600\nnl-nonce-0123456789abcdef-x\n96b0e7dcb9400022061501729ee55a3c0c05d22cd2389521c95c01eb3b581d4e",
+   "corps_utf8": "{\"contenu\":\"ligne 1\\nligne 2\"}\n",
+   "empreinte_corps": "96b0e7dcb9400022061501729ee55a3c0c05d22cd2389521c95c01eb3b581d4e",
+   "horodatage": "1767225600",
+   "id": "post-saut-de-ligne-dans-le-corps",
+   "methode": "POST",
+   "nonce": "nl-nonce-0123456789abcdef-x",
+   "route": "/opsys-connect/v1/drafts",
+   "signature": "v1=75462e72f2271ffcdbd7b9e1bde92265a5c48130967917fc5d56a28d4b7dae5f"
+  }
+ ],
+ "site_id": "horizon-fictif.example",
+ "verifications": [
+  {
+   "attendu": "OK",
+   "description": "requête valide",
+   "id": "ok-post",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "OK",
+   "description": "corps UTF-8 non ASCII",
+   "id": "ok-unicode",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"contenu\":\"Québec — été 🏠 \\u00e9\",\"titre\":\"Toiture à Laval\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "Un-Autre_nonce_0123456789abcd",
+     "X-OPSYS-Signature": "v1=57e28bac61e3216d2a2bd303f0c9619b94faa74299dc00530421ab0040a3d49c",
+     "X-OPSYS-Timestamp": "1767225583"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "OK",
+   "description": "GET sans corps",
+   "id": "ok-get-vide",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "get_nonce_0123456789abcdef",
+     "X-OPSYS-Signature": "v1=4f13ab5caaa977658dbb8fe6dc092d85d2d505c94dda10355687d65d5ed8602c",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "GET",
+    "route": "/opsys-connect/v1/health"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "OK",
+   "description": "PUT valide, 5 s dans le futur",
+   "id": "ok-put",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"empreinte_attendue\":\"abababababababababababababababababababababababababababababababab\",\"statut\":\"pending\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "put-nonce-0123456789abcdef",
+     "X-OPSYS-Signature": "v1=4a296338035dc8d9df2b551f9a7d6ebf4a435e62269633214eb9654aac8f342b",
+     "X-OPSYS-Timestamp": "1767225605"
+    },
+    "methode": "PUT",
+    "route": "/opsys-connect/v1/drafts/42"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "OK",
+   "description": "LF dans et à la fin du corps",
+   "id": "ok-saut-de-ligne",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"contenu\":\"ligne 1\\nligne 2\"}\n",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "nl-nonce-0123456789abcdef-x",
+     "X-OPSYS-Signature": "v1=75462e72f2271ffcdbd7b9e1bde92265a5c48130967917fc5d56a28d4b7dae5f",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "OK",
+   "description": "exactement 300 s dans le passé",
+   "id": "ok-limite-passee",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=3b121f0848e44973ba90dab8f4a4910598fcc442af1759a920d7d22258fe35e6",
+     "X-OPSYS-Timestamp": "1767225300"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "OK",
+   "description": "exactement 300 s dans le futur",
+   "id": "ok-limite-future",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=5b3676ac24ee7d76647f10f93f7d2d4b78589214b4dc2c8dd11aa76b486ce542",
+     "X-OPSYS-Timestamp": "1767225900"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "HORS_FENETRE",
+   "description": "301 s dans le passé",
+   "id": "hors-fenetre-passee",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=dd5422ef5e45ca41064ef797d9564902d8e4f54ae2ff0027b170334bf3e00bce",
+     "X-OPSYS-Timestamp": "1767225299"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "HORS_FENETRE",
+   "description": "301 s dans le futur",
+   "id": "hors-fenetre-future",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=3df029d1c2d220ef814181ae4bdbdfd5f2ff05bd871f08cf30b6ec84c56e8c34",
+     "X-OPSYS-Timestamp": "1767225901"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "SIGNATURE_INVALIDE",
+   "description": "un octet du corps change",
+   "id": "corps-modifie",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"} ",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "SIGNATURE_INVALIDE",
+   "description": "signé POST, présenté PUT",
+   "id": "methode-modifiee",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "PUT",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "SIGNATURE_INVALIDE",
+   "description": "signé /drafts, présenté /drafts/1",
+   "id": "route-modifiee",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts/1"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "SIGNATURE_INVALIDE",
+   "description": "horodatage changé dans la fenêtre",
+   "id": "horodatage-modifie",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225601"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "SIGNATURE_INVALIDE",
+   "description": "nonce changé",
+   "id": "nonce-modifie",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "Autre-nonce-0123456789abcdef",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "SIGNATURE_INVALIDE",
+   "description": "vérifié avec un autre secret",
+   "id": "mauvais-secret",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "un-autre-secret-de-test-public-0123456789ab"
+  },
+  {
+   "attendu": "SIGNATURE_MALFORMEE",
+   "description": "hexadécimal en majuscules refusé",
+   "id": "signature-majuscules",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48B8D1EFC4ABDB5EAEDAC207EE138CD0DE68C6D41510E30032C50CB49C06DDC4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "SIGNATURE_MALFORMEE",
+   "description": "préfixe v1= absent",
+   "id": "signature-sans-version",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "SIGNATURE_MALFORMEE",
+   "description": "préfixe v2=",
+   "id": "signature-version-2",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v2=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "SIGNATURE_MALFORMEE",
+   "description": "LF final après la signature",
+   "id": "signature-lf-final",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4\n",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "EN_TETE_MANQUANT",
+   "description": "en-tête de signature absent",
+   "id": "signature-absente",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "EN_TETE_MANQUANT",
+   "description": "en-tête de nonce absent",
+   "id": "nonce-absent",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "EN_TETE_MANQUANT",
+   "description": "en-tête d'horodatage absent",
+   "id": "horodatage-absent",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "HORODATAGE_INVALIDE",
+   "description": "horodatage non numérique",
+   "id": "horodatage-texte",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "demain"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "HORODATAGE_INVALIDE",
+   "description": "horodatage décimal",
+   "id": "horodatage-decimal",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600.5"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "HORODATAGE_INVALIDE",
+   "description": "espace avant l'horodatage",
+   "id": "horodatage-espace",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": " 1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "HORODATAGE_INVALIDE",
+   "description": "LF final après l'horodatage",
+   "id": "horodatage-lf-final",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600\n"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "NONCE_INVALIDE",
+   "description": "nonce de 15 caractères",
+   "id": "nonce-court",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "aaaaaaaaaaaaaaa",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "NONCE_INVALIDE",
+   "description": "nonce de 65 caractères",
+   "id": "nonce-long",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "NONCE_INVALIDE",
+   "description": "nonce avec une espace",
+   "id": "nonce-alphabet",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "nonce avec espace 0123456",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  },
+  {
+   "attendu": "NONCE_INVALIDE",
+   "description": "LF final après le nonce",
+   "id": "nonce-lf-final",
+   "maintenant": 1767225600,
+   "requete": {
+    "corps_utf8": "{\"titre\":\"Bonjour\",\"type\":\"post\"}",
+    "en_tetes": {
+     "X-OPSYS-Key-Id": "default",
+     "X-OPSYS-Nonce": "N0nce-de-test_0123456789\n",
+     "X-OPSYS-Signature": "v1=48b8d1efc4abdb5eaedac207ee138cd0de68c6d41510e30032c50cb49c06ddc4",
+     "X-OPSYS-Timestamp": "1767225600"
+    },
+    "methode": "POST",
+    "route": "/opsys-connect/v1/drafts"
+   },
+   "secret_verificateur": "vecteur-de-test-public-non-secret-0123456789abcdef"
+  }
+ ]
+}
