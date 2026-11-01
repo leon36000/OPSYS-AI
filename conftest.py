@@ -15,6 +15,8 @@ def _instance_isolee(tmp_path, monkeypatch):
     """
     monkeypatch.setenv("OPSYS_HOME", str(tmp_path / "opsys-home"))
     monkeypatch.delenv("OPSYS_BASE_URL", raising=False)
+    # Les tests valident des dizaines de milliers de transactions : la durabilité (FULL) n'y apporte rien et les ralentirait.
+    monkeypatch.setenv("OPSYS_SQLITE_SYNCHRONOUS", "NORMAL")
     yield
     from opsys import stockage
 

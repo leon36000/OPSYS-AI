@@ -70,8 +70,14 @@ def _preparer_sqlite(connexion_dbapi, _enregistrement) -> None:
     curseur = connexion_dbapi.cursor()
     # recursive_triggers=ON : un REPLACE qui supprime une ligne en conflit fait alors déclencher les `BEFORE DELETE`
     # (journaux et registres immuables) ; à OFF (défaut SQLite) il les contournerait en silence.
+    # synchronous=FULL par défaut (revue adverse D-5) : en WAL, NORMAL peut perdre les dernières validations lors d'une
+    # coupure de courant ; pour un envoi (courriel, publication, paiement préparé) cela rejouerait une action déjà
+    # faite hors de la base. `OPSYS_SQLITE_SYNCHRONOUS` (NORMAL ou EXTRA) existe pour les bancs de test.
+    synchrone = os.environ.get("OPSYS_SQLITE_SYNCHRONOUS", "FULL").strip().upper() or "FULL"
+    if synchrone not in {"NORMAL", "FULL", "EXTRA"}:
+        raise RuntimeError(f"OPSYS_SQLITE_SYNCHRONOUS invalide : {synchrone!r} (NORMAL, FULL ou EXTRA)")
     for pragma in ("journal_mode=WAL", "foreign_keys=ON", "recursive_triggers=ON", "busy_timeout=5000",
-                   "synchronous=NORMAL"):
+                   f"synchronous={synchrone}"):
         curseur.execute(f"PRAGMA {pragma}")
     fichier = next((ligne[2] for ligne in curseur.execute("PRAGMA database_list") if ligne[1] == "main"), "")
     curseur.close()
