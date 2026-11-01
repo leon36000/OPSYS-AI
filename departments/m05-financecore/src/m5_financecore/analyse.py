@@ -16,7 +16,7 @@ from collections.abc import Mapping
 from typing import Any
 
 __all__ = [
-    "MENTION_ANALYSE_PREPARATOIRE", "MENTION_COMPTABLE", "SORTIES_COMPTABLES", "SORTIES_D_ANALYSE",
+    "MENTION_ANALYSE_PREPARATOIRE", "MENTION_COMPTABLE", "SORTIES_CALCUL", "SORTIES_COMPTABLES", "SORTIES_D_ANALYSE",
     "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE", "avec_mention", "avec_mention_comptable",
 ]
 
@@ -48,6 +48,19 @@ SORTIES_COMPTABLES = frozenset({
     "m5_valider_import_quickbooks",  # les écritures reprises rendues définitives (N4) : reste à valider par le CPA
 })
 
+# Moteur de calcul (tranche 1, `docs/moteur-calcul.md`) : chaque sortie est un REÇU de calcul sous les deux mentions
+# (analyse préparatoire et comptable) ; elles sont prouvées sur chaque sortie acceptée par
+# `tests/test_moteur_calcul_outils.py`.
+SORTIES_CALCUL = frozenset({
+    "m5_calculer_rentabilite_investissement",  # VAN, TRI (et son statut), TRI modifié, délais : sous hypothèses
+    "m5_calculer_amortissement_pret",  # tableau d'amortissement : une convention de taux déclarée
+    "m5_comparer_credit_bail_achat",  # coûts actualisés sous hypothèses : jamais une recommandation
+    "m5_calculer_point_mort",  # modèle linéaire déclaré
+    "m5_analyser_sensibilite_projet",  # tornade et scénarios sur les valeurs de l'appelant
+    "m5_simuler_tresorerie_monte_carlo",  # distributions déclarées sur la prévision existante
+    "m5_verifier_recu_calcul",  # vérification et rejeu d'un reçu : le même calcul refait
+})
+
 # Ingestion d'onboarding : la lecture d'un lot et de ses brouillons (champs lus, taxes recalculées, raisons) et la
 # validation d'une facture proposée (la facture sans PO saisie : un calcul, comme la saisie). Leur mention est prouvée
 # sur chaque sortie acceptée par `tests/test_ingestion_onboarding_bout_en_bout.py` (un lot réel est requis).
@@ -72,7 +85,7 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_preparer_brut_regulier",  # estimation préparatoire humaine du brut, sans retenues ni action officielle
     "m5_preparer_dossier_webras",  # dossier préparatoire pour calcul humain dans les services officiels
     "m5_prevoir_tresorerie_contrats",  # prévision préparatoire de flux contractuels rapprochés aux sources M3/M5
-}) | SORTIES_COMPTABLES | SORTIES_ONBOARDING
+}) | SORTIES_COMPTABLES | SORTIES_ONBOARDING | SORTIES_CALCUL
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {

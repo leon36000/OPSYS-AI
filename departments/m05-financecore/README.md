@@ -378,3 +378,12 @@ promouvoir leur montant dans le cash. Un journal vide y est explicite (trois cat
 aucune déclaration), sans inventer zéro; le dossier complet vide garde sa forme historique.
 Un contexte extrême peut encore dépasser le budget et doit être refusé intégralement. Cette
 vue source n'apporte ni recommandation CFO complète ni validation fiscale ni action financière.
+
+## Moteur de calcul (tranche 1)
+
+Sept outils T0, fermés aux appareils, calculent en `Decimal` pur et rendent un reçu rejouable (entrées normalisées,
+méthode, précision, paramètres, résultat, empreinte SHA-256) : VAN, TRI avec statut d'unicité, TRI modifié et délais de
+récupération ; amortissement d'un prêt (dont la convention canadienne composée semestriellement) ; crédit-bail ou
+achat ; point mort ; tornade et scénarios ; Monte-Carlo à graine de la prévision M5.7 existante ; vérification et rejeu
+d'un reçu. Aucune écriture, aucun conseil en placement (garde NC 31-103). Formules, conventions, bornes, codes de refus
+et limites : [moteur de calcul](docs/moteur-calcul.md).

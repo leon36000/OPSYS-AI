@@ -58,7 +58,9 @@ def test_le_nouveau_code_est_dans_la_portee_de_la_garde():
     } <= set(strict["outils"])
     # T4.16-d : la prévision ouvre elle aussi le registre des mouvements pour en tirer le solde (lecture seule) ;
     # T4.19-b : le constat aussi (`constater_cash_libre`), qui confie son écriture à une fonction en strict
-    assert set(lecture["outils"]) == {"etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre"}
+    # moteur de calcul : le Monte-Carlo lit le solde par la prévision existante, comme `prevoir_tresorerie`
+    assert set(lecture["outils"]) == {"etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre",
+                                      "simuler_tresorerie_monte_carlo"}
     assert lecture["soldes"] is None and lecture["etat_financier"] is None
 
 
@@ -206,6 +208,12 @@ _FICHIERS = (
     "grand_livre_beancount",
     "verdicts_grand_livre",
     "import_quickbooks",  # import QuickBooks : surveillé en STRICT
+    "maths_financieres",  # moteur de calcul (tranche 1) : surveillé en STRICT
+    "monte_carlo_tresorerie",
+    "sensibilite",
+    "moteur_calcul",
+    "recu_calcul",
+    "verdicts_calcul",
 )
 
 

@@ -840,6 +840,13 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "verdicts_grand_livre": None,
     # Import QuickBooks : des brouillons et des validations au grand livre, jamais un mouvement d'argent.
     "import_quickbooks": None,
+    # Moteur de calcul (tranche 1) : des reçus de calcul, jamais une écriture ni un mouvement d'argent.
+    "maths_financieres": None,
+    "monte_carlo_tresorerie": None,
+    "sensibilite": None,
+    "moteur_calcul": None,
+    "recu_calcul": None,
+    "verdicts_calcul": None,
     "outils": (
         "_lire_export_qbo",
         "_exports_qbo",
@@ -897,6 +904,17 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
         "_reglages_prevision",
         "_page_prevision",
         "_constater_cash_libre",
+        "_refus_appareil_calcul",
+        "_sortie_calcul",
+        "calculer_rentabilite_investissement",
+        "calculer_amortissement_pret",
+        "comparer_credit_bail_ou_achat",
+        "calculer_point_mort",
+        "analyser_sensibilite_projet",
+        "verifier_recu_calcul",
+        "_entrees_monte_carlo",
+        "_flux_connus_prevision",
+        "_outils_calcul",
     ),
 }
 # PLAN T4.16 : LECTURE SEULE. Le cash libre part du solde : le code qui OUVRE le registre des mouvements pour en tirer
@@ -912,7 +930,9 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
 _SURVEILLE_EN_LECTURE_SEULE: dict[str, tuple[str, ...] | None] = {
     "soldes": None,
     "etat_financier": None,
-    "outils": ("etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre"),
+    # Moteur de calcul : le Monte-Carlo ouvre le registre des mouvements pour le solde de la prévision existante,
+    # comme `prevoir_tresorerie` ; ses aides sont en STRICT.
+    "outils": ("etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre", "simuler_tresorerie_monte_carlo"),
 }
 # Tout ce qui écrit ou nomme le registre des mouvements : sa fonction d'écriture, son adaptateur et son nom durable
 # (« principal »), les types de mouvement et la clé qui les porte.
