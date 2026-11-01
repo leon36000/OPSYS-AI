@@ -96,7 +96,8 @@ def test_0056_sur_pg_cree_la_table_la_colonne_generee_l_index_gin_et_le_declench
     assert methode == "gin"
     declencheurs = {r[0] for r in cnx_pg.execute(text(
         "SELECT tgname FROM pg_trigger WHERE tgrelid = 'connaissances_lexique'::regclass AND NOT tgisinternal"))}
-    assert declencheurs == {"connaissances_lexique_immuable"}
+    # immuabilité de ligne (0056) + refus de TRUNCATE (0057, revue adverse rvi)
+    assert declencheurs == {"connaissances_lexique_immuable", "connaissances_lexique_sans_truncate"}
     definition = cnx_pg.execute(text(
         "SELECT pg_get_expr(d.adbin, d.adrelid) FROM pg_attrdef d "
         "WHERE d.adrelid = 'connaissances_lexique'::regclass"
