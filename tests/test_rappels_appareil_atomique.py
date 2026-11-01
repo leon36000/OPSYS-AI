@@ -11,10 +11,10 @@ from opsys import contexte, idempotence, stockage
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.stockage.schema import META as SCHEMA_META
-from opsys.stockage.schema import PERSONNES
+from opsys.stockage.schema import PERSONNES, TABLES_VIRTUELLES_SQLITE
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 LECTURE = "m1_lister_rappels_appareil"
 MUTATION = "m1_prendre_en_charge_rappel_appareil"

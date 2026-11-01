@@ -11,11 +11,11 @@ from sqlalchemy import event, insert, select, update
 from opsys import stockage
 from opsys.evenements import bus
 from opsys.stockage import codec
-from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, META
+from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, META, TABLES_VIRTUELLES_SQLITE
 from opsys.stockage.schema import META as SCHEMA_META
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 FICTIF = True
 TYPE = "opsys.demo_complete"

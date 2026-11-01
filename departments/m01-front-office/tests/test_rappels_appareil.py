@@ -18,10 +18,10 @@ from sqlalchemy import event, text, update
 from opsys import contexte, idempotence, identite, stockage, taxonomie
 from opsys.outils import Autonomie, Niveau, executer_atomique
 from opsys.stockage.schema import META as SCHEMA_META
-from opsys.stockage.schema import REGISTRES
+from opsys.stockage.schema import REGISTRES, TABLES_VIRTUELLES_SQLITE
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 LISTE = "m1_lister_rappels_appareil"
 PRISE = "m1_prendre_en_charge_rappel_appareil"

@@ -16,9 +16,10 @@ from m6_material_control import outils
 from opsys import contexte, idempotence, stockage
 from opsys.outils import executer_atomique
 from opsys.stockage.schema import META as SCHEMA_META
+from opsys.stockage.schema import TABLES_VIRTUELLES_SQLITE
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 spec = importlib.util.spec_from_file_location(
     "fixture_intention_classement", Path(__file__).with_name("test_classement_variance_appareil.py")

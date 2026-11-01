@@ -25,6 +25,13 @@ from sqlalchemy import (
     text,
 )
 
+# Tables créées par SQLite pour l'index lexical FTS5 de la base de connaissances (migration 0041) : elles n'ont pas de
+# `Table` dans `META` ; les inventaires de tables des tests les ajoutent à `META.tables`.
+TABLES_VIRTUELLES_SQLITE = frozenset({
+    "connaissances_fts", "connaissances_fts_config", "connaissances_fts_content", "connaissances_fts_data",
+    "connaissances_fts_docsize", "connaissances_fts_idx",
+})
+
 META = MetaData(
     naming_convention={
         "ix": "ix_%(column_0_label)s",

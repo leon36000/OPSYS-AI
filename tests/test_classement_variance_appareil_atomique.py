@@ -17,11 +17,11 @@ from opsys import approbations, contexte, fichiers, idempotence, identite, stock
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
-from opsys.stockage.schema import EVENEMENTS_SORTANTS, MUTATIONS_APPLIQUEES, REGISTRES
+from opsys.stockage.schema import EVENEMENTS_SORTANTS, MUTATIONS_APPLIQUEES, REGISTRES, TABLES_VIRTUELLES_SQLITE
 from opsys.stockage.schema import META as SCHEMA_META
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 MUTATION = "m6_classer_cause_variance_appareil"
 LECTURES = (

@@ -14,10 +14,10 @@ from sqlalchemy import create_engine, event, update
 
 from opsys import approbations, contexte, idempotence, identite, stockage
 from opsys.stockage.schema import META as SCHEMA_META
-from opsys.stockage.schema import REGISTRES
+from opsys.stockage.schema import REGISTRES, TABLES_VIRTUELLES_SQLITE
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 FICTIF = True
 _SPEC = importlib.util.spec_from_file_location(

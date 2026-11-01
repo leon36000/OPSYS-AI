@@ -74,6 +74,7 @@ def test_catalogue_m8_ferme_role_admin_n0_et_schema_quatre_arguments():
     assert {nom for nom in roles["admin"] if nom.startswith("m8_")} == {
         "m8_lire_mesures_chantier", "m8_performance_equipe", "m8_lire_vue_executive",
         "m8_lire_mesures_contenus", "m8_lire_provenance_m5_appareil",
+        "m8_lire_wallboard",  # M8.8 : seul outil d'olivier ouvert à l'admin (relu en base), cf. M8-OLIVIER.md
     }
     assert NOM not in roles["employee"] and NOM not in roles["seller"]
     dept, outil = cap.index[NOM]

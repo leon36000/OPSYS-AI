@@ -14,9 +14,10 @@ from sqlalchemy import text
 from opsys import contexte, identite, stockage
 from opsys.outils import Autonomie, Niveau, executer_atomique
 from opsys.stockage.schema import META as SCHEMA_META
+from opsys.stockage.schema import TABLES_VIRTUELLES_SQLITE
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 FICTIF = True
 NOM = "m6_lire_reapprovisionnement_appareil"

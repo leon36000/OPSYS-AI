@@ -13,9 +13,10 @@ import pytest
 
 from opsys import contexte
 from opsys.stockage.schema import META as SCHEMA_META
+from opsys.stockage.schema import TABLES_VIRTUELLES_SQLITE
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 JETON = 'BRIDGE-FICTIF-distinct-01234567890123456789'
 SELECTION = {'wct_id': 'WCT-FICTIF', 'preuve': {'index': 0, 'hash_maillon': 'a' * 64}, 'position_photo': 0}

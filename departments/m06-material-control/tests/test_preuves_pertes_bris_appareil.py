@@ -14,9 +14,10 @@ from m6_material_control import outils
 from opsys import contexte, fichiers, stockage
 from opsys.outils import Autonomie, Niveau, executer_atomique
 from opsys.stockage.schema import META as SCHEMA_META
+from opsys.stockage.schema import TABLES_VIRTUELLES_SQLITE
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 NOM = "m6_declarer_materiaux_avec_preuves_appareil"
 LECTURE = "m6_lire_preuves_pertes_wct_appareil"

@@ -15,11 +15,11 @@ from sqlalchemy import select, update
 
 from opsys import contexte, idempotence, identite, stockage
 from opsys.outils import Autonomie, Niveau, executer_atomique
-from opsys.stockage.schema import EVENEMENTS_SORTANTS
+from opsys.stockage.schema import EVENEMENTS_SORTANTS, TABLES_VIRTUELLES_SQLITE
 from opsys.stockage.schema import META as SCHEMA_META
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 p = Path(__file__).with_name("test_preuves_pertes_bris_appareil.py")
 spec = importlib.util.spec_from_file_location("fixture_classement_m6", p)

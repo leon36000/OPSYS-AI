@@ -14,15 +14,11 @@ from opsys import contexte, evenements, identite, stockage
 from opsys.departements import charger_departements
 from opsys.outils import Autonomie, executer_atomique
 from opsys.stockage import codec
-from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, REGISTRES
+from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, REGISTRES, TABLES_VIRTUELLES_SQLITE
 from opsys.stockage.schema import META as SCHEMA_META
 
 # Schéma courant déclaré : toutes les lignes, y compris la file F4 et Alembic.
-TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | {
-    # table virtuelle FTS5 de la base de connaissances M10 (0041) et ses tables d'appui, créées par SQLite
-    "connaissances_fts", "connaissances_fts_config", "connaissances_fts_content", "connaissances_fts_data",
-    "connaissances_fts_docsize", "connaissances_fts_idx",
-}
+TABLES_SQLITE = set(SCHEMA_META.tables) | {"alembic_version"} | TABLES_VIRTUELLES_SQLITE
 
 FICTIF = True
 NOM = "m8_lire_provenance_m5_appareil"
