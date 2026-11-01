@@ -54,6 +54,11 @@ def _charger(fichier: str):
     return module
 
 
+def module(fichier: str):
+    """Le module de test déjà chargé par `installer` (pour réutiliser ses fonctions d'aide dans un test du rejeu)."""
+    return sys.modules["rejeu_" + Path(fichier).stem]
+
+
 def installer(globales: dict, *fichiers: str, exclure: Iterable[str] = ()) -> list[str]:
     """Injecte tests et fixtures des `fichiers` dans `globales` ; rend les noms des tests injectés (pour les relire)."""
     exclus = set(exclure)

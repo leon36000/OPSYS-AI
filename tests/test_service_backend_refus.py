@@ -7,8 +7,8 @@ import pytest
 from opsys import service_capability as sc
 
 
-def test_postgresql_refuse_sans_emettre_capacite():
-    cnx = SimpleNamespace(engine=SimpleNamespace(dialect=SimpleNamespace(name="postgresql")))
+def test_un_moteur_non_qualifie_refuse_sans_emettre_capacite():
+    cnx = SimpleNamespace(engine=SimpleNamespace(dialect=SimpleNamespace(name="mysql")))
     portee = SimpleNamespace(cnx=cnx)
     token = sc._COURANTE.set(portee)
     try:
@@ -18,9 +18,9 @@ def test_postgresql_refuse_sans_emettre_capacite():
         sc._COURANTE.reset(token)
 
 
-def test_postgresql_refuse_revocation_sans_ecriture(monkeypatch):
+def test_un_moteur_non_qualifie_refuse_revocation_sans_ecriture(monkeypatch):
     cnx = SimpleNamespace(
-        engine=SimpleNamespace(dialect=SimpleNamespace(name="postgresql")), get_transaction=lambda: object()
+        engine=SimpleNamespace(dialect=SimpleNamespace(name="mysql")), get_transaction=lambda: object()
     )
     monkeypatch.setattr(sc, "connexion_courante", lambda: cnx)
     with pytest.raises(sc.RefusAutorite, match="backend non qualifié"):

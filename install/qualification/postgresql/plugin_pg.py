@@ -42,7 +42,7 @@ INDEX_DERIVES_PG = frozenset({"connaissances_lexique"})
 ENV_REDIRIGER = "OPSYS_QUALIF_PG_REDIRIGER"
 _ACTIF = bool(os.environ.get(ENV_ADMIN, "").strip())
 _COMPTEUR = itertools.count(1)
-_ETAT: dict = {"ordres_pg": 0, "gabarit": None}
+_ETAT: dict = {"ordres_pg": 0, "gabarit": None, "suivi": None}
 
 
 def _admin_url() -> str:
@@ -74,6 +74,19 @@ if _ACTIF:
     def _compter(conn, cursor, statement, parameters, context, executemany):  # noqa: ARG001
         if conn.dialect.name == "postgresql":
             _ETAT["ordres_pg"] += 1
+
+
+def pytest_sessionstart(session):  # noqa: ARG001
+    """Surveille les points de passage des gardes portées (voir `suivi_gardes.py`) ; jamais sans le banc PostgreSQL."""
+    if not _ACTIF or os.environ.get("OPSYS_QUALIF_PG_SANS_SUIVI") == "1":
+        return
+    try:
+        import gardes
+        import suivi_gardes
+
+        _ETAT["suivi"] = suivi_gardes.Suivi(gardes.portees())
+    except Exception as exc:  # noqa: BLE001 — le suivi est une mesure : son échec ne doit pas empêcher la suite
+        print(f"suivi des gardes indisponible : {type(exc).__name__}: {exc}", file=sys.stderr)
 
 
 @pytest.fixture(scope="session")
@@ -152,6 +165,8 @@ def _base_postgresql(_instance_isolee, monkeypatch, _gabarit_pg):
 
         monkeypatch.setattr(mod, "create_engine", _create_engine_redirige)
     _ETAT["ordres_pg"] = 0
+    if _ETAT["suivi"] is not None:
+        _ETAT["suivi"].debut_de_test()
     yield
     stockage.liberer()
     for base in cree:
@@ -170,6 +185,8 @@ def pytest_runtest_makereport(item, call):
             "nodeid": item.nodeid, "phase": rapport.when, "issue": rapport.outcome,
             "ordres_pg": _ETAT["ordres_pg"], "duree_s": round(rapport.duration, 3),
         }
+        if _ETAT["suivi"] is not None and rapport.when == "call":
+            ligne["gardes_passees"] = _ETAT["suivi"].fin_de_test()
         if rapport.outcome == "skipped" and rapport.longrepr:
             ligne["raison"] = str(rapport.longrepr[-1])[:200]
         with open(Path(chemin), "a", encoding="utf-8") as f:

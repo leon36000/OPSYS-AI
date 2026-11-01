@@ -17,7 +17,7 @@ Règles (DECISIONS-ARCHITECTE-r1 §2, D1) :
 - chaque geste écrit une ligne du journal append-only `service_politiques_journal` (acteur, motif, instant,
   révision, expiration), liée par clé étrangère à la révision qu'il a créée ; la révocation écrit aussi l'audit
   `revocation` historique de `service_audit` ;
-- SQLite seulement (D5) : PostgreSQL est refusé explicitement.
+- SQLite et PostgreSQL (verrou d'instance de la famille sous PostgreSQL) ; tout autre moteur est refusé.
 
 Ce module est une convention entre composants de confiance, pas une frontière contre du Python arbitraire.
 """
@@ -30,6 +30,8 @@ from sqlalchemy import insert, select
 
 from . import contexte, stockage
 from . import service_capability as sc
+from .stockage.exclusion import engager
+from .stockage.portabilite import DIALECTES_QUALIFIES
 from .stockage.schema import OPSYS_INSTANCE, SERVICE_AUDIT, SERVICE_POLITIQUES
 from .stockage.schema import SERVICE_POLITIQUES_JOURNAL as JOURNAL
 
@@ -56,10 +58,13 @@ def _exiger_contexte(cnx, session):
         or contexte.identite_appelante() is not None
     ):
         raise RefusOperateur("APPEL_AGENT_INTERDIT", "geste réservé à un admin de la console")
-    if cnx.engine.dialect.name != "sqlite":
-        raise RefusOperateur("BACKEND_NON_SQLITE", "opérateur qualifié pour SQLite seulement")
+    if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
+        raise RefusOperateur("BACKEND_NON_QUALIFIE", "opérateur qualifié pour SQLite et PostgreSQL seulement")
     if cnx is not stockage.connexion_courante() or cnx.get_transaction() is None:
         raise RefusOperateur("CONTEXTE_INVALIDE", "transaction de la connexion courante requise")
+    # PostgreSQL : octroyer / renouveler / révoquer lisent la dernière révision puis écrivent la suivante (clé
+    # (instance, opération, révision)) ; le verrou d'instance de la famille les sérialise avec les portées de service.
+    engager(cnx)
     from .console.securite import Session
 
     if type(session) is not Session:

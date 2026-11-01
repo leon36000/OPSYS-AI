@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from . import stockage
 from .service_capability import RefusAutorite
 from .stockage import codec
+from .stockage.portabilite import DIALECTES_QUALIFIES
 from .stockage.schema import OPSYS_INSTANCE, REGISTRES, SERVICE_ATTESTATIONS_M4, SERVICE_AUDIT
 
 _HEX = re.compile("[0-9a-f]{64}\\Z")
@@ -123,7 +124,7 @@ def attester(cap, enveloppe, rang):
     if _hash_trace(_trace(rang)) != digest:
         raise RefusAutorite("trace modifiée")
     cnx = stockage.connexion_courante()
-    if cnx is None or cnx.engine.dialect.name != "sqlite":
+    if cnx is None or cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         raise RefusAutorite("backend non qualifié")
     try:
         cnx.execute(
@@ -151,7 +152,11 @@ def lire_historique(cnx, session, recu):
     from .console.memoire_chantier import _admin
 
     _admin(cnx, session)
-    if cnx is not stockage.connexion_courante() or cnx.get_transaction() is None or cnx.engine.dialect.name != "sqlite":
+    if (
+        cnx is not stockage.connexion_courante()
+        or cnx.get_transaction() is None
+        or cnx.engine.dialect.name not in DIALECTES_QUALIFIES
+    ):
         raise RefusAutorite("transaction non qualifiée")
     if (
         type(recu) is not dict

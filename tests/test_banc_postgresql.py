@@ -27,17 +27,52 @@ def _charger(nom: str):
     return module
 
 
-def test_l_inventaire_des_gardes_retrouve_les_gardes_connues():
+def test_le_detecteur_de_gardes_distingue_un_refus_de_postgresql_d_une_admission_des_deux_moteurs(tmp_path):
+    """Détecteur, sur des sources synthétiques (indépendant de l'état du dépôt)."""
     gardes = _charger("gardes")
-    inventaire = gardes.inventaire()
-    fichiers = {g["fichier"] for g in inventaire}
-    assert "src/opsys/service_politiques.py" in fichiers  # BACKEND_NON_SQLITE
-    assert "src/opsys/liaison_cibles.py" in fichiers
-    assert any(f.startswith("departments/m07-marketing/") for f in fichiers)
-    assert len(inventaire) >= 80 and all(g["ligne"] > 0 and g["garde"] for g in inventaire)
-    # ce qui n'est PAS une garde : les branches par dialecte qui servent les deux moteurs ne comptent pas comme refus
-    assert not any(g["fichier"] == "src/opsys/connaissances/lexical.py" for g in inventaire)
-    assert "| Module | Gardes |" in gardes.markdown(inventaire)
+    source = (
+        "def refuse(cnx):\n    if cnx.dialect.name != 'sqlite':\n        raise RuntimeError('non')\n"
+        "def refuse_autre(url):\n    if url.get_backend_name() not in ('sqlite',):\n        return None\n"
+        "def admet(cnx):\n    if cnx.dialect.name not in ('sqlite', 'postgresql'):\n        raise RuntimeError('non')\n"
+        "def elif_apres_pg(cnx):\n    if cnx.dialect.name == 'postgresql':\n        return 1\n"
+        "    elif cnx.dialect.name != 'sqlite':\n        raise RuntimeError('non')\n"
+        "def revisions(a_sqlite, b):\n    if a_sqlite != b:\n        raise RuntimeError('non')\n"
+    )
+    arbre = gardes.ast.parse(source)
+    for affinee, attendu in ((False, {"refuse", "refuse_autre", "admet", "elif_apres_pg", "revisions"}),
+                             (True, {"refuse", "refuse_autre"})):
+        visiteur = gardes._Visiteur(DOSSIER / "synthetique.py", affinee)
+        gardes.RACINE, ancien = DOSSIER, gardes.RACINE
+        try:
+            visiteur.visit(arbre)
+        finally:
+            gardes.RACINE = ancien
+        assert {g["fonction"] for g in visiteur.gardes} == attendu, (affinee, visiteur.gardes)
+
+
+def test_aucune_garde_sqlite_seulement_ne_s_ajoute_sans_etre_expliquee():
+    """Les garde-fous se resserrent, jamais l'inverse : toute garde qui refuse PostgreSQL doit être dans
+    `GARDES_RESTANTES` avec sa raison ; une raison orpheline (garde levée depuis) doit être retirée."""
+    gardes = _charger("gardes")
+    restantes = {gardes.cle(g) for g in gardes.inventaire()}
+    assert restantes <= set(gardes.GARDES_RESTANTES), sorted(restantes - set(gardes.GARDES_RESTANTES))
+    assert set(gardes.GARDES_RESTANTES) <= restantes, sorted(set(gardes.GARDES_RESTANTES) - restantes)
+    assert all(len(raison) > 40 for raison in gardes.GARDES_RESTANTES.values())
+    assert "| Module | Gardes |" in gardes.markdown(gardes.inventaire())
+
+
+def test_la_regle_de_la_qualification_initiale_compte_bien_moins_de_gardes_qu_au_depart():
+    """91 gardes dans 63 fichiers au commit de départ (`6c6dba4e1`) ; la même règle ne doit jamais en retrouver plus."""
+    gardes = _charger("gardes")
+    assert len(gardes.inventaire_ancien()) <= 91
+
+
+def test_les_gardes_portees_sont_recensees_avec_un_point_de_passage():
+    gardes = _charger("gardes")
+    portees = gardes.portees()
+    assert len(portees) >= 60 and all(p["ligne"] > 0 and p["id"] for p in portees)
+    assert sum(1 for p in portees if p["passage"]) >= 20  # la plupart ont une ligne de passage, les autres un retour
+    assert any(p["fichier"] == "src/opsys/liaison_cibles.py" for p in portees)
 
 
 def test_la_matrice_range_les_fichiers_par_tranche():

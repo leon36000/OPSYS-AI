@@ -43,7 +43,7 @@ from harnais_e2e_chantier import (
 from opsys import approbations, evenements, stockage
 from opsys.approbations_appareil import BUDGET_ATTENTES
 
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 LIMITE_TRONCATURE = 6000  # `jetons.LIMITE_SORTIE_DEFAUT`
 LISTER = "m9_lister_demandes_approbation"
 

@@ -113,8 +113,10 @@ def _type_sqlite(genre: str):
 
 def _type_postgresql(noms: tuple[str, ...]):
     def rendu(element, compilateur, **kw) -> str:
-        return "(pg_typeof({})::text IN ({}))".format(compilateur.process(element.clauses.clauses[0], **kw),
-                                                   ", ".join(f"'{n}'" for n in noms))
+        x = compilateur.process(element.clauses.clauses[0], **kw)
+        liste = ", ".join(f"'{n}'" for n in noms)
+        # SQLite : `typeof(NULL)` vaut 'null', donc ni texte ni entier ; `pg_typeof` d'une colonne NULL rend son type.
+        return f"({x} IS NOT NULL AND pg_typeof({x})::text IN ({liste}))"
 
     return rendu
 
@@ -155,6 +157,7 @@ def _type_stockage_sqlite(element, compilateur, **kw) -> str:
 @compiles(type_stockage, POSTGRESQL)
 def _type_stockage_postgresql(element, compilateur, **kw) -> str:
     x = compilateur.process(element.clauses.clauses[0], **kw)
-    return (f"(CASE WHEN pg_typeof({x})::text IN ('text', 'character varying', 'character') THEN 'text' "
+    return (f"(CASE WHEN {x} IS NULL THEN 'null' "
+            f"WHEN pg_typeof({x})::text IN ('text', 'character varying', 'character') THEN 'text' "
             f"WHEN pg_typeof({x})::text IN ('smallint', 'integer', 'bigint') THEN 'integer' "
             f"ELSE pg_typeof({x})::text END)")

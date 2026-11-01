@@ -1,6 +1,6 @@
 """Intentions humaines et projection cron native ; aucun transport ni génération exécuté.
 
-Cette phase SQLite conserve l'état de remise, sans dupliquer le canon de profils. Ses fonctions
+Cette phase (SQLite et PostgreSQL) conserve l'état de remise, sans dupliquer le canon de profils. Ses fonctions
 gèrent leur transaction canonique ; une projection n'est ni une remise ni une exécution Core.
 """
 
@@ -25,7 +25,8 @@ from .departements import Departement
 from .etat import journaliser
 from .memoire import autorite
 from .outils import Autonomie, Niveau
-from .stockage.portabilite import nb_octets
+from .stockage.concurrence import verrou_consultatif
+from .stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from .stockage.schema import AGENTS_CONFIGURABLES as PROFILS
 from .stockage.schema import AGENTS_DECLENCHEURS_COMMANDES as COMMANDES
 from .stockage.schema import AGENTS_DECLENCHEURS_INTENTIONS as INTENTIONS
@@ -85,12 +86,15 @@ def _decoder(texte: str, maximum: int = 32768) -> Any:
 
 @contextmanager
 def _transaction():
-    if make_url(stockage.url_base()).get_backend_name() != "sqlite":
-        raise DeclencheurRefuse("CRON-SQLITE-REQUIS")
-    # stockage.moteur pose BEGIN IMMEDIATE avant toute lecture/écriture, y compris l'autorité.
+    if make_url(stockage.url_base()).get_backend_name() not in DIALECTES_QUALIFIES:
+        raise DeclencheurRefuse("CRON-MOTEUR-NON-QUALIFIE")
+    # SQLite : stockage.moteur pose BEGIN IMMEDIATE avant toute lecture/écriture, y compris l'autorité.
+    # PostgreSQL : toutes les opérations cron (demande, retrait, remise, reçu) passent par ici ; le verrou consultatif
+    # nommé les sérialise entre elles, comme l'écrivain unique de SQLite, jusqu'à la fin de la transaction.
     with stockage.transaction() as cnx:
-        if cnx.dialect.name != "sqlite":
-            raise DeclencheurRefuse("CRON-SQLITE-REQUIS")
+        if cnx.dialect.name not in DIALECTES_QUALIFIES:
+            raise DeclencheurRefuse("CRON-MOTEUR-NON-QUALIFIE")
+        verrou_consultatif(cnx, "cron-operateur")
         yield cnx
 
 

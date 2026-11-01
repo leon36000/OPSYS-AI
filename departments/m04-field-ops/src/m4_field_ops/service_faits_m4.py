@@ -1,7 +1,7 @@
 """Candidat interne M4 : lecture des faits V3 pour une livraison Core.
 
-Non activé. SQLite seulement ; suppose la réclamation d'écriture du répartiteur
-Core dans la même transaction. PostgreSQL reste refusé jusqu'à qualification.
+Non activé. SQLite et PostgreSQL ; suppose l'exclusion d'écriture de la famille « capacité M4 » dans la même
+transaction (`BEGIN IMMEDIATE` sous SQLite, verrou d'instance sous PostgreSQL : `opsys.stockage.exclusion`).
 """
 
 import copy
@@ -10,6 +10,7 @@ import re
 from sqlalchemy import select
 
 from opsys.stockage import codec
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 from opsys.stockage.schema import EVENEMENTS_SORTANTS, OPSYS_INSTANCE
 
 from . import encodage, outbox
@@ -25,7 +26,7 @@ def _lire(requete):
     cnx, schema, instance, evenement_id = requete._verifier()
     if (
         schema != _SCHEMA
-        or cnx.engine.dialect.name != "sqlite"
+        or cnx.engine.dialect.name not in DIALECTES_QUALIFIES
         or type(instance) is not str
         or not instance
         or len(instance) > 256

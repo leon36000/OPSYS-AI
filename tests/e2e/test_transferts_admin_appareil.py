@@ -23,7 +23,7 @@ FICTIF = True
 LIRE = "m1_lire_transfert"
 DIGEST = "m1_produire_digest"
 CAPTURES_FICTIVES: dict[str, dict] = {}
-SQLITE = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 
 
 @pytest.fixture

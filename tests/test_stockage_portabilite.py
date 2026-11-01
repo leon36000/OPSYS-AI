@@ -113,6 +113,16 @@ def test_le_type_de_stockage_est_reconnu_sur_les_deux_moteurs(url_base):  # noqa
             True, False, True, False, "text", "text", "integer")
 
 
+def test_une_valeur_null_n_est_ni_texte_ni_entier_et_son_type_est_null_sur_les_deux_moteurs(url_base):  # noqa: F811
+    """`typeof(NULL)` vaut 'null' sous SQLite ; `pg_typeof` d'une colonne NULL rend le type de la colonne : le port le
+    ramène à 'null' (régression trouvée en rejouant `test_fusion_ap.py` : un reçu OCR sans chiffré se lit NULL)."""
+    with stockage.transaction(url_base) as cnx:
+        _installer(cnx)
+        ligne = cnx.execute(select(est_texte(T.c.texte), est_entier(T.c.n), type_stockage(T.c.texte),
+                                   type_stockage(T.c.n)).where(T.c.id == 3)).one()
+        assert (bool(ligne[0]), bool(ligne[1]), ligne[2], ligne[3]) == (False, False, "null", "null")
+
+
 def test_le_type_de_stockage_filtre_dans_un_where(url_base):  # noqa: F811
     with stockage.transaction(url_base) as cnx:
         _installer(cnx)

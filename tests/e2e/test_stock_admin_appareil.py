@@ -32,7 +32,7 @@ from tests.e2e.test_materiel_pret_appareil import (
 from opsys import cli, evenements, stockage
 
 FICTIF = True
-pytestmark = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+pytestmark = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 OUTILS = ("m6_lire_disponibilite", "m6_produire_digest")
 ENV_EXPORT = "OPSYS_STOCK_FIXTURE_PATH"
 RACINE = Path(__file__).resolve().parents[2]

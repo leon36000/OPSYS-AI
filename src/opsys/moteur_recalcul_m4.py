@@ -1,16 +1,17 @@
-"""Moteur de recalcul certifié SQLite (E2, branché en E6/E8 de CONCEPTION-ROUTAGE-COUT-CERTIFIE).
+"""Moteur de recalcul certifié (SQLite et PostgreSQL) (E2, branché en E6/E8 de CONCEPTION-ROUTAGE-COUT-CERTIFIE).
 
 Dérivé de l'ancienne couture QA `_executer_qa` (retirée en E6) : mêmes gardes (double politique, intention
 idempotente, savepoint,
 portée vérifiée avant et après chaque lecture, attestation v2), auxquelles E2 ajoute :
 
-1. le verrou d'écriture `BEGIN IMMEDIATE` est VÉRIFIÉ (écouteur `begin` de l'engine), à l'entrée et à chaque
+1. l'exclusion d'écriture est VÉRIFIÉE (SQLite : écouteur `begin` de l'engine qui engage `BEGIN IMMEDIATE` ;
+   PostgreSQL : verrou consultatif d'instance détenu par la session, `stockage.exclusion`), à l'entrée et à chaque
    `_verifier` de la portée, comme le fait la lecture (`service_lecture_m4`) ;
 2. un état certifié déjà à jour rend `rien_a_faire` : AUCUNE écriture nette (ni trace, ni reçu, ni événement, ni
    intention, ni audit) ; les lectures d'autorité qui insèrent des audits `usage` sont annulées avec le savepoint ;
 3. l'acteur et l'intention sont des PARAMÈTRES validés strictement (rien n'est codé en dur) ;
 4. échec fermé et TYPÉ (`RefusRecalculM4.code`) pour chaque état qui ne peut pas produire un coût certifié :
-   politique absente, révoquée ou expirée (`m4.recalculer_v3` ET `m4.verifier_v3`), PostgreSQL, verrou absent,
+   politique absente, révoquée ou expirée (`m4.recalculer_v3` ET `m4.verifier_v3`), moteur non qualifié, verrou absent,
    projection non exploitable (revue en attente, équipe inconnue), tarifs illisibles ou absents, WCT sans
    `empreinte_charge`, WCT antérieur au modèle de visites. Un refus n'écrit RIEN : tout se passe dans un savepoint
    annulé, après des contrôles en lecture seule ;
@@ -24,7 +25,7 @@ M4 exploitable et un tarif d'équipe sourcé est REFUSÉ, jamais publié comme p
 Branchement (E6/E8) : deux appelants seulement. `service_recalcul_m4.ouvrir` (session console d'un admin actif,
 à la demande) et le réconciliateur `opsys.evenements.reconciliateur_cout_certifie` (acteur système `opsys-systeme`,
 D2, dans son seul contexte). L'autorité est la paire de politiques octroyées par l'opérateur Core (D1) ; aucun
-outil d'agent, aucun rôle d'appareil n'y mène. PostgreSQL est refusé (D5).
+outil d'agent, aucun rôle d'appareil n'y mène.
 """
 
 from __future__ import annotations
@@ -32,14 +33,14 @@ from __future__ import annotations
 import re
 from time import time
 
-from sqlalchemy import event as sqla_event
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 
 from . import service_capability as sc
 from . import service_recalcul_m4 as recalcul
 from . import stockage
-from .stockage.moteur import _debuter_sqlite
+from .stockage.exclusion import engager, exclusion_engagee, transaction_driver_ouverte
+from .stockage.portabilite import DIALECTES_QUALIFIES
 from .stockage.schema import OPSYS_INSTANCE, SERVICE_AUDIT
 from .stockage.schema import SERVICE_RECALCUL_INTENTIONS as INTENTIONS
 from .stockage.schema import SERVICE_RECALCUL_RESULTATS as RESULTATS
@@ -49,7 +50,7 @@ _OPERATION = recalcul._OPERATION
 _DEPARTEMENT_M5 = "m05-financecore"
 
 # Codes de refus : liste fermée, stable (les tests et les futurs appelants s'y réfèrent).
-BACKEND_NON_SQLITE = "BACKEND_NON_SQLITE"
+BACKEND_NON_QUALIFIE = "BACKEND_NON_QUALIFIE"
 VERROU_ECRITURE_ABSENT = "VERROU_ECRITURE_ABSENT"
 CONTEXTE_INVALIDE = "CONTEXTE_INVALIDE"
 IDENTIFIANT_INVALIDE = "IDENTIFIANT_INVALIDE"
@@ -75,7 +76,7 @@ ECHEC_RECALCUL = "ECHEC_RECALCUL"
 
 CODES = frozenset(
     {
-        BACKEND_NON_SQLITE, VERROU_ECRITURE_ABSENT, CONTEXTE_INVALIDE, IDENTIFIANT_INVALIDE, ACTEUR_INVALIDE,
+        BACKEND_NON_QUALIFIE, VERROU_ECRITURE_ABSENT, CONTEXTE_INVALIDE, IDENTIFIANT_INVALIDE, ACTEUR_INVALIDE,
         INTENTION_INVALIDE, INTENTION_EN_CONFLIT, AUTORITE_REFUSEE, POLITIQUE_ABSENTE, POLITIQUE_REVOQUEE,
         POLITIQUE_EXPIREE, PROJECTION_NON_EXPLOITABLE, REVUE_EN_ATTENTE, EQUIPE_INCONNUE, TARIFS_ILLISIBLES,
         TARIF_ABSENT, WCT_SANS_EMPREINTE, WCT_ANTERIEUR_MODELE_VISITES, SOURCE_M4_REFUSEE, PIECE_M5_ABSENTE,
@@ -104,16 +105,12 @@ class _SansEcriture(Exception):
     """Sentinelle interne : annule le savepoint (zéro écriture nette) pour `rien_a_faire`."""
 
 
-def _verrou_present(engine):
-    return sqla_event.contains(engine, "begin", _debuter_sqlite)
-
-
 class _PorteeMoteur(recalcul._PorteeRecalcul):
     """Portée de recalcul qui, en plus, prouve à CHAQUE vérification que le verrou d'écriture est engagé."""
 
     def _verifier(self):
-        if self.cnx.engine.dialect.name != "sqlite" or not _verrou_present(self.cnx.engine):
-            raise RefusRecalculM4(VERROU_ECRITURE_ABSENT, "écouteur BEGIN IMMEDIATE absent pendant la portée")
+        if self.cnx.engine.dialect.name not in DIALECTES_QUALIFIES or not exclusion_engagee(self.cnx):
+            raise RefusRecalculM4(VERROU_ECRITURE_ABSENT, "exclusion d'écriture absente pendant la portée")
         super()._verifier()
 
 
@@ -248,14 +245,16 @@ def recalculer(cnx, session, *, acteur, wct_id, devis_id, intention_id):
 
 
 def _recalculer(cnx, session, acteur, wct_id, devis_id, intention_id):
-    if cnx.engine.dialect.name != "sqlite":
-        raise RefusRecalculM4(BACKEND_NON_SQLITE, "recalcul certifié qualifié pour SQLite seulement")
-    if not _verrou_present(cnx.engine):
-        raise RefusRecalculM4(VERROU_ECRITURE_ABSENT, "l'engine ne porte pas l'écouteur BEGIN IMMEDIATE")
+    if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
+        raise RefusRecalculM4(BACKEND_NON_QUALIFIE, "recalcul certifié qualifié pour SQLite et PostgreSQL seulement")
+    if cnx is stockage.connexion_courante() and cnx.get_transaction() is not None:
+        engager(cnx)  # PostgreSQL : verrou d'instance de la famille, pris AVANT tout point de sauvegarde du recalcul
+    if not exclusion_engagee(cnx):
+        raise RefusRecalculM4(VERROU_ECRITURE_ABSENT, "l'exclusion d'écriture n'est pas engagée")
     if (
         cnx is not stockage.connexion_courante()
         or cnx.get_transaction() is None
-        or not cnx.connection.dbapi_connection.in_transaction
+        or not transaction_driver_ouverte(cnx)
         or sc._COURANTE.get() is not None
     ):
         raise RefusRecalculM4(CONTEXTE_INVALIDE, "transaction absente, autre connexion ou portée de service active")

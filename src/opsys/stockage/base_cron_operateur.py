@@ -1,4 +1,7 @@
-"""Garde d'identité SQLite partagée par l'opérateur cron privé et les mutations console."""
+"""Garde d'identité de la base canonique, partagée par l'opérateur cron privé et les mutations console.
+
+SQLite : le fichier (chemin résolu). PostgreSQL : le serveur, le port et le nom de la base ; ni le compte ni le mot de
+passe n'en font partie (une identité ne porte aucun secret, et deux comptes de la même base sont la même base)."""
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -12,10 +15,17 @@ from .. import stockage
 
 def identite_url_cron_operateur(url: Any) -> tuple[str, str, tuple[tuple[str, Any], ...]]:
     valeur = make_url(url)
-    if (valeur.get_backend_name() != "sqlite" or not valeur.database
-            or valeur.database == ":memory:" or valeur.database.startswith("file:")):
-        raise ValueError("base non canonique")
-    return (valeur.drivername, str(Path(valeur.database).expanduser().resolve()), tuple(sorted(valeur.query.items())))
+    moteur = valeur.get_backend_name()
+    if moteur == "postgresql":
+        if not valeur.database or not valeur.host:
+            raise ValueError("base non canonique")
+        cible = f"{valeur.host.lower()}:{valeur.port or 5432}/{valeur.database}"
+        return (valeur.drivername, cible, tuple(sorted(valeur.query.items())))
+    if (moteur == "sqlite" and valeur.database
+            and valeur.database != ":memory:" and not valeur.database.startswith("file:")):
+        chemin = str(Path(valeur.database).expanduser().resolve())
+        return (valeur.drivername, chemin, tuple(sorted(valeur.query.items())))
+    raise ValueError("base non canonique")
 
 
 def verifier_base_cron_operateur(cnx_factory: Any) -> tuple[str, str, tuple[tuple[str, Any], ...]]:
@@ -28,7 +38,7 @@ def verifier_base_cron_operateur(cnx_factory: Any) -> tuple[str, str, tuple[tupl
     except Exception:
         raise ValueError("canal cron opérateur indisponible pour cette base") from None
     if effective != canonique:
-        raise ValueError("canal cron opérateur réservé à la base SQLite canonique")
+        raise ValueError("canal cron opérateur réservé à la base canonique")
     return canonique
 
 

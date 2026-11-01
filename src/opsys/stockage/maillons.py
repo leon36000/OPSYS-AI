@@ -210,15 +210,18 @@ def copier_maillons_stricts(
     cnx: Connection, *, departement: str, registre: str, max_lignes: int,
     max_octets_ligne: int, max_octets_total: int,
 ) -> SnapshotMaillons:
-    """Snapshot SQLite borné, transaction courante ; rangs contigus depuis zéro.
+    """Snapshot borné (SQLite ou PostgreSQL), transaction courante ; rangs contigus depuis zéro.
 
     Codec typé inchangé, mais JSON ambigu et nombres non finis refusés.
     Aucun contrôle de droit n'est ajouté à cette lecture.
     """
+    from .exclusion import transaction_driver_ouverte
+    from .portabilite import DIALECTES_QUALIFIES
+
     if (not isinstance(cnx, Connection) or cnx is not connexion_courante() or cnx.closed
-            or cnx.dialect.name != 'sqlite' or not cnx.in_transaction()
-            or not cnx.connection.dbapi_connection.in_transaction):
-        raise ValueError('transaction SQLite courante requise')
+            or cnx.dialect.name not in DIALECTES_QUALIFIES or not cnx.in_transaction()
+            or not transaction_driver_ouverte(cnx)):
+        raise ValueError('transaction courante (SQLite ou PostgreSQL) requise')
     if (type(departement) is not str or not departement.strip()
             or type(registre) is not str or not registre.strip()):
         raise ValueError('source de registre invalide')

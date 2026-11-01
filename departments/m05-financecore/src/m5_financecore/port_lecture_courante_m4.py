@@ -1,6 +1,7 @@
 """Lecture M5 privée sous portée de revalidation Core ; ne publie ni ne crée de droit."""
 
 from opsys import service_capability, stockage
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
 from . import cout_reel, devis_recus, encodage, outils, wct_recus
 
@@ -41,7 +42,8 @@ def _capturer(cnx):
 def calculer(devis_id, cap):
     """Recalcule depuis une portée Core déjà ouverte, sans écriture ni valeur d'appelant."""
     cnx = stockage.connexion_courante()
-    if cnx is None or not cnx.in_transaction() or cnx.dialect.name != "sqlite" or type(devis_id) is not str:
+    if (cnx is None or not cnx.in_transaction() or cnx.dialect.name not in DIALECTES_QUALIFIES
+            or type(devis_id) is not str):
         raise service_capability.RefusAutorite("lecture courante non qualifiée")
     enveloppe = cap.projection_m4()
     faits, projection, charge = enveloppe["faits"], enveloppe["vue"], enveloppe["charge"]

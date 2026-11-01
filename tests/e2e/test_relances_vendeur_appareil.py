@@ -37,7 +37,7 @@ from m2_revenue_crm import gabarits_relance
 from opsys import evenements, identite, stockage
 from opsys.outils import executer_atomique
 
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 LISTER = "m2_lister_relances"
 PREPARER = "m2_preparer_relance"
 CONSENTIR = "m2_enregistrer_consentement_contact"

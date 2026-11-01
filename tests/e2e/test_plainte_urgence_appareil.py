@@ -33,7 +33,7 @@ from opsys import stockage, taxonomie
 from opsys.capacites import Capacites
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 RACINE = Path(__file__).resolve().parents[2]
 FIXTURE = RACINE / "departments" / "m01-front-office" / "fixtures" / "plaintes" / "plaintes.v1.yaml"
 LISTER = "m9_lister_demandes_approbation"

@@ -19,7 +19,7 @@ from opsys import contexte, identite, stockage
 from opsys.outils import executer_atomique
 
 FICTIF = True
-SQLITE = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 RACINE = Path(__file__).resolve().parents[2]
 DATE = "2026-09-15T14:00:00-04:00"
 MAILLON = frozenset({

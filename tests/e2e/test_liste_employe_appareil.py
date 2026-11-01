@@ -42,7 +42,7 @@ from opsys import cli, openclaw
 from opsys.departements import charger_departements
 
 FICTIF = True
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 RACINE = Path(__file__).resolve().parents[2]
 MOBILE_SRC = RACINE / "mobile" / "src"
 FIXTURE_APP = MOBILE_SRC / "today" / "fixtures" / "reponses-moteur.json"

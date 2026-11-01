@@ -1,4 +1,4 @@
-"""Requête interne SQLite liée à une livraison qualifiée.
+"""Requête interne (SQLite ou PostgreSQL) liée à une livraison qualifiée.
 
 La protection est une convention interne, pas une frontière contre du Python
 arbitraire dans le même processus ; aucune politique n’est créée ici.
@@ -8,7 +8,7 @@ _SCHEMA = "opsys.core.m4.source-request.v1"
 _CONSTRUCTION = object()
 
 
-def _etat_sqlite(sc, portee):
+def _etat_base(sc, portee):
     if sc._COURANTE.get() is not portee:
         raise sc.RefusAutorite("portée absente ou remplacée")
     portee._verifier()
@@ -50,8 +50,8 @@ def _etat(sc, portee):
     if sc._COURANTE.get() is not portee:
         raise sc.RefusAutorite("portée absente ou remplacée")
     dialecte = portee.cnx.engine.dialect.name
-    if dialecte == "sqlite":
-        return "sqlite", _etat_sqlite(sc, portee)
+    if dialecte in ("sqlite", "postgresql"):
+        return dialecte, _etat_base(sc, portee)
     raise sc.RefusAutorite("backend non qualifié")
 
 

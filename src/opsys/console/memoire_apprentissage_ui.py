@@ -32,7 +32,7 @@ _REGISTRES = ("affaires", "evenements")
 
 
 class BackendNonPrisEnCharge(RuntimeError):
-    """La cohérence de ce parcours n'est qualifiée que sur SQLite."""
+    """La cohérence de ce parcours n'est qualifiée que sur SQLite et PostgreSQL."""
 
 
 def _verifier_profondeur(texte: str) -> None:
@@ -85,9 +85,9 @@ def _valider_json_borne(texte: str) -> Any:
     return json.loads(texte, object_pairs_hook=objet, parse_float=flottant, parse_constant=constante)
 
 
-def _backend_sqlite() -> None:
+def _backend_qualifie() -> None:
     if stockage.moteur().dialect.name not in DIALECTES_QUALIFIES:
-        raise BackendNonPrisEnCharge("aperçu M10 : backend SQLite uniquement, concurrence PostgreSQL non qualifiée")
+        raise BackendNonPrisEnCharge("aperçu M10 : moteur non qualifié (SQLite ou PostgreSQL requis)")
 
 
 def _exiger_plafonds(compte: int, octets: int, maximum: int) -> None:
@@ -97,7 +97,7 @@ def _exiger_plafonds(compte: int, octets: int, maximum: int) -> None:
 
 def _lire_snapshot() -> tuple[list[dict[str, Any]], dict[str, str | None]]:
     """Préflight SQL avant tout décodage/deepcopy; lit les deux registres dans un snapshot SQLite borné."""
-    _backend_sqlite()
+    _backend_qualifie()
     noms = list(_REGISTRES)
     with stockage.transaction() as cnx:
         taille = nb_octets(REGISTRES.c.maillon)
@@ -167,7 +167,7 @@ def select_maillons_m10():
 
 
 def _lire_tetes() -> dict[str, str | None]:
-    _backend_sqlite()
+    _backend_qualifie()
     têtes: dict[str, str | None] = {}
     with stockage.transaction() as cnx:
         for nom in _REGISTRES:

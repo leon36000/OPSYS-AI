@@ -38,7 +38,7 @@ from opsys.outils import executer_atomique
 from opsys.stockage.schema import MUTATIONS_APPLIQUEES
 
 FICTIF = True
-SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+SQLITE_SEULEMENT = pytest.mark.parametrize("moteur", ["sqlite", "postgresql"], indirect=True)
 M4 = "m04-field-ops"
 SEL = "sel-t4-27-a2-e2e-fictif"
 FENETRE = {"debut": "2026-09-29T00:00:00+00:00", "fin": "2026-09-30T00:00:00+00:00"}

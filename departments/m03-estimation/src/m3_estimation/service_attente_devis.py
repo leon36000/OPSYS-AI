@@ -8,7 +8,7 @@ from sqlalchemy import select
 from opsys import stockage
 from opsys.evenements.schemas import erreurs_charge
 from opsys.stockage import codec
-from opsys.stockage.portabilite import nb_octets
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
 from . import devis_durable, estime_vs_reel, outils
@@ -41,7 +41,7 @@ def _verifier_commun(requete):
     cnx, evenement_id, devis_id, lead_id = requete._verifier()
     if (
         cnx is not stockage.connexion_courante()
-        or cnx.dialect.name != "sqlite"
+        or cnx.dialect.name not in DIALECTES_QUALIFIES
         or cnx.get_transaction() is None
         or evenement_id != "m3-devis-accepte-" + devis_id
     ):
