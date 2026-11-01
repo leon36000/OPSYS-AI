@@ -1,0 +1,15 @@
+FACTURE
+Émetteur : Location Fictive d'Outils
+Adresse émetteur : 9 rang Fictif, Terrebonne QC J6W 1A1
+No TPS : 345678912 RT 0001
+No TVQ : 3456789012 TQ 0001
+Facturé à : Gouttières Fictives Synergy inc.
+Numéro : LFO-77
+Date : 2026-07-02
+Devise : CAD
+Ligne : Location échafaudage (semaine) | 2 | 150.00 | 300.00
+Sous-total : 300.00
+TPS : 15.00
+TVQ : 29.92
+Total : 344.92
+Document fictif - QA OPSYS

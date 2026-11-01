@@ -1,0 +1,16 @@
+FACTURE
+Émetteur : Peinture Fictive Express
+Adresse émetteur : 4 av. Fictive, Gatineau QC J8X 1B1
+No TPS : 12345678 RT 0001
+No TVQ : 4567890123 TQ 0001
+Facturé à : Gouttières Fictives Synergy inc.
+Numéro : PFE-5501
+Date : 2026-06-11
+Devise : CAD
+Ligne : Peinture extérieure 3,78 L | 5 | 20.00 | 100.00
+Ligne : Rouleau | 1 | 19.99 | 19.99
+Sous-total : 120.00
+TPS : 6.00
+TVQ : 11.97
+Total : 137.97
+Document fictif - QA OPSYS

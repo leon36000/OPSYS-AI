@@ -1,0 +1,15 @@
+FACTURE
+Émetteur : Matériaux Fictifs Rive-Sud
+Adresse émetteur : 77 rue Fictive, Longueuil QC J4K 2T2
+No TPS : 234567891 RT 0001
+No TVQ : 2345678901 TQ 0001
+Facturé à : Gouttières Fictives Synergy inc.
+Numéro : MFR-1002
+Date : 2026-08-30
+Devise : CAD
+Ligne : Solin galvanisé | 3 | 33.50 | 100.50
+Sous-total : 100.50
+TPS : 5.03
+TVQ : 10.02
+Total : 115.55
+Document fictif - QA OPSYS

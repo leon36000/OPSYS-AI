@@ -27,6 +27,9 @@ _TYPE_ENTREE_VALIDES = {
     # quel rang). Additif : le maillon de qualification n'est jamais modifié, le propriétaire courant est celui de
     # la dernière assignation (assignation.py).
     "reassignation",
+    # Ingestion d'onboarding : la fiche DÉFINITIVE d'un client importé d'une liste (`clients_importes.py`), validée par
+    # un humain, dans son registre DÉDIÉ `clients_importes` (jamais le registre des leads).
+    "client_importe",
 }
 
 

@@ -1,0 +1,15 @@
+FACTURE
+Émetteur : Gouttières Fictives Synergy inc.
+Adresse émetteur : 1 rue de l'Entreprise Fictive, Laval QC H7A 0A1
+No TPS : 987654321 RT 0001
+No TVQ : 9876543210 TQ 0001
+Facturé à : Client Fictif Lambda
+Numéro : GFS-2026-031
+Date : 2026-09-01
+Devise : CAD
+Ligne : Installation gouttières | 1 | 2400.00 | 2400.00
+Sous-total : 2400.00
+TPS : 120.00
+TVQ : 239.40
+Total : 2759.40
+Document fictif - QA OPSYS

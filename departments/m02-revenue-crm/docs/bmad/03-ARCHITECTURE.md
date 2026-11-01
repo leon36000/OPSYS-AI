@@ -262,3 +262,24 @@ Ancien SHA-256 : `842411b47028076c9718d5b915389676297f3624f9fdfb52eced49e5b86f96
 Nouveau SHA-256 : `54e79d529522edf386ada2d998ecad927b2c5a7bdebd4cf87784ede9fc17553e`.
 La comparaison d’empreinte demeure stricte; le gel `horodatage.py` est inchangé.
 Vérifier conjointement conformité M2, catalogue utilitaires et refus/rejeux d’agenda.
+
+## Addendum Ingestion d'onboarding — fiches clients importées (2026-10-31)
+
+Le socle `opsys.ingestion_onboarding` (docs/architecture/INGESTION-ONBOARDING.md à la racine) lit une liste de clients
+déposée à l'onboarding ; M2 en décide seul la forme (`clients_importes.py`, module pur) : en-tête, normalisation,
+dédoublonnage DÉTERMINISTE des lignes (règles fortes : courriel identique ; téléphone et nom ; nom et adresse ; règles
+faibles signalées, jamais fondues : téléphone seul, nom seul), fiches PROPOSÉES avec l'explication de chaque fusion.
+La fiche DÉFINITIVE (`client_importe`, registre dédié `clients_importes`, `client_id` du Client 360) n'est créée que par
+la décision d'un humain (`m2_valider_brouillon_onboarding_client`, N3). M2 ne fusionne toujours aucun lead ni aucun
+client connu : seules des lignes d'un fichier importé, avant qu'aucune fiche n'existe, sont réunies sur proposition.
+
+Groupe 9, ajouté en fin de catalogue : `REJ-CLIENT-IMPORT-INVALIDE`, `REJ-CLIENT-IMPORT-CHOIX-INVALIDE`,
+`REJ-CLIENT-DEJA-IMPORTE`, puis les raisons d'une fiche proposée `REJ-ING-CLIENT-NOM-ABSENT`,
+`REJ-ING-CLIENT-COURRIEL-INVALIDE`, `REJ-ING-CLIENT-TELEPHONE-INVALIDE`, `REJ-ING-CLIENT-CODE-POSTAL-INVALIDE`,
+`REJ-ING-CLIENT-CONFLIT`, `REJ-ING-CLIENT-DOUBLON-PROBABLE`, `REJ-ING-CLIENT-ENTETE-INTROUVABLE`,
+`REJ-ING-CLIENT-TROP-DE-LIGNES`. Aucun code historique retiré ni réordonné (le diff de `verdicts.py` n'a que des
+lignes ajoutées).
+
+Ancien SHA-256 : `54e79d529522edf386ada2d998ecad927b2c5a7bdebd4cf87784ede9fc17553e`.
+Nouveau SHA-256 : `f8b89d99bb52c3299dffe2ae11caa4f8d0f204450afdff2576dbbcd26285416b`.
+La comparaison d'empreinte demeure stricte ; le gel `horodatage.py` est inchangé.

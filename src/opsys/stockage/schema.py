@@ -1403,3 +1403,127 @@ COFFRE_ACCES = Table(
     CheckConstraint("resultat IN ('ok','refus')", name="resultat_valide"),
     Index("ix_coffre_acces_nom", "nom", "id"),
 )
+
+# -- Ingestion d'onboarding : lots, documents, tâches durables, journal, brouillons (migration 0038) ---------------
+# Phase SQLite de la table de tâches (FEUILLE-DE-ROUTE r1, « Orchestration d'ingestion ») ; l'interface
+# `opsys.ingestion_onboarding.taches.PortTaches` est celle qu'un adaptateur DBOS sur PostgreSQL reprendra.
+# Les contenus (originaux, résultats d'étape, champs des brouillons) ne sont stockés que CHIFFRÉS (AES-GCM, clé
+# externe `OPSYS_INGESTION_CLE` du pilote Fusion) ; les colonnes en clair ne portent que des métadonnées.
+INGESTION_LOTS = Table(
+    "ingestion_lots", META,
+    Column("lot_id", String(32), primary_key=True),
+    Column("acteur", String(200), nullable=False),
+    Column("mutation_id", String(64), nullable=False),
+    Column("nom_source", String(128), nullable=False),
+    Column("source_sha256", String(64), nullable=False),
+    Column("type_source", String(8), nullable=False),
+    Column("statut", String(16), nullable=False),
+    Column("nb_documents", Integer, nullable=False),
+    Column("octets", BigInteger, nullable=False),
+    Column("cle_reference", String(64), nullable=False),
+    Column("version_format", Integer, nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    UniqueConstraint("acteur", "mutation_id", name="uq_ingestion_lots_mutation"),
+    CheckConstraint("statut IN ('EN_COURS','TERMINE')", name="statut_valide"),
+    CheckConstraint("nb_documents >= 0 AND octets >= 0 AND version_format = 1", name="bornes"),
+)
+INGESTION_DOCUMENTS = Table(
+    "ingestion_documents", META,
+    Column("document_id", String(32), primary_key=True),
+    Column("lot_id", String(32), ForeignKey("ingestion_lots.lot_id"), nullable=False),
+    Column("rang", Integer, nullable=False),
+    Column("nom", String(255), nullable=False),
+    Column("taille", BigInteger, nullable=False),
+    Column("sha256", String(64), nullable=False),
+    Column("type_detecte", String(8), nullable=True),
+    Column("classe", String(24), nullable=True),
+    Column("statut", String(16), nullable=False),
+    Column("code", String(64), nullable=True),
+    Column("doublon_de", String(32), nullable=True),
+    Column("nonce", Text, nullable=True),
+    Column("chiffre", Text, nullable=True),
+    Column("cree_le", Text, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    UniqueConstraint("lot_id", "rang", name="uq_ingestion_documents_rang"),
+    CheckConstraint(
+        "statut IN ('EN_ATTENTE','EN_COURS','TERMINE','A_VERIFIER','NON_TRAITE','REFUSE','DOUBLON')",
+        name="statut_valide",
+    ),
+    CheckConstraint(
+        "(chiffre IS NULL AND nonce IS NULL) OR (chiffre IS NOT NULL AND nonce IS NOT NULL)", name="chiffre_complet"
+    ),
+    CheckConstraint("statut <> 'DOUBLON' OR (doublon_de IS NOT NULL AND chiffre IS NULL)", name="doublon_sans_copie"),
+    # Dédoublonnage exact : un seul ORIGINAL conservé par empreinte, toutes les copies pointent vers lui.
+    Index("uq_ingestion_documents_original", "sha256", unique=True,
+          sqlite_where=text("chiffre IS NOT NULL"), postgresql_where=text("chiffre IS NOT NULL")),
+    Index("ix_ingestion_documents_lot", "lot_id", "rang"),
+)
+INGESTION_TACHES = Table(
+    "ingestion_taches", META,
+    Column("tache_id", String(32), primary_key=True),
+    Column("document_id", String(32), ForeignKey("ingestion_documents.document_id"), nullable=False),
+    Column("lot_id", String(32), ForeignKey("ingestion_lots.lot_id"), nullable=False),
+    Column("etape", String(16), nullable=False),
+    Column("rang_etape", Integer, nullable=False),
+    Column("statut", String(20), nullable=False),
+    Column("tentatives", Integer, nullable=False),
+    Column("porteur", String(64), nullable=True),
+    Column("bail_expire", BigInteger, nullable=True),
+    Column("disponible_des", BigInteger, nullable=False),
+    Column("code", String(64), nullable=True),
+    Column("nonce", Text, nullable=True),
+    Column("chiffre", Text, nullable=True),
+    Column("empreinte_resultat", String(64), nullable=True),
+    Column("revision", Integer, nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    # La clé d'idempotence d'une tâche : (document, étape). Une reprise ne crée jamais une seconde tâche.
+    UniqueConstraint("document_id", "etape", name="uq_ingestion_taches_etape"),
+    CheckConstraint(
+        "statut IN ('EN_ATTENTE','BAIL','TERMINEE','SAUTEE','ECHEC_REPRENABLE','FILE_MORTE')", name="statut_valide"
+    ),
+    CheckConstraint("(statut = 'BAIL') = (porteur IS NOT NULL AND bail_expire IS NOT NULL)", name="bail_coherent"),
+    CheckConstraint("tentatives >= 0 AND revision >= 1 AND rang_etape BETWEEN 1 AND 7", name="bornes"),
+    Index("ix_ingestion_taches_lot", "lot_id", "statut"),
+)
+# Journal du pipeline, append-only (déclencheurs de la migration 0038) : identifiants, étapes, codes, compteurs ;
+# jamais un contenu, un montant ni un nom de client.
+INGESTION_JOURNAL = Table(
+    "ingestion_journal", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("quand", Text, nullable=False),
+    Column("lot_id", String(32), nullable=False),
+    Column("document_id", String(32), nullable=True),
+    Column("tache_id", String(32), nullable=True),
+    Column("acteur", String(200), nullable=False),
+    Column("evenement", String(48), nullable=False),
+    Column("code", String(64), nullable=True),
+    Column("details", Text, nullable=False),
+    Index("ix_ingestion_journal_lot", "lot_id", "id"),
+)
+INGESTION_BROUILLONS = Table(
+    "ingestion_brouillons", META,
+    Column("brouillon_id", String(32), primary_key=True),
+    Column("lot_id", String(32), ForeignKey("ingestion_lots.lot_id"), nullable=False),
+    Column("document_id", String(32), ForeignKey("ingestion_documents.document_id"), nullable=False),
+    Column("genre", String(32), nullable=False),
+    Column("cle_metier", String(64), nullable=False),
+    Column("statut", String(16), nullable=False),
+    Column("raisons", Text, nullable=False),
+    Column("cles", Text, nullable=False),
+    Column("nonce", Text, nullable=False),
+    Column("chiffre", Text, nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("decision", Text, nullable=True),
+    Column("reference_definitive", String(64), nullable=True),
+    Column("cree_le", Text, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    UniqueConstraint("genre", "cle_metier", name="uq_ingestion_brouillons_cle"),
+    CheckConstraint("genre IN ('ap_facture_fournisseur','crm_client')", name="genre_valide"),
+    CheckConstraint("statut IN ('PRET','A_VERIFIER','VALIDE','ECARTE')", name="statut_valide"),
+    CheckConstraint("(statut IN ('VALIDE','ECARTE')) = (decision IS NOT NULL)", name="decision_humaine"),
+    CheckConstraint("statut <> 'VALIDE' OR reference_definitive IS NOT NULL", name="reference_si_valide"),
+    CheckConstraint("revision >= 1", name="revision_positive"),
+    Index("ix_ingestion_brouillons_lot", "lot_id", "genre", "statut"),
+)

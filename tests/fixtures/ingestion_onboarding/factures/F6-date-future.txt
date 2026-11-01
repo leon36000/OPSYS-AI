@@ -1,0 +1,15 @@
+FACTURE
+Émetteur : Béton Fictif
+Adresse émetteur : 5 chemin Fictif, Lévis QC G6V 1A1
+No TPS : 456789123 RT 0001
+No TVQ : 5678901234 TQ 0001
+Facturé à : Gouttières Fictives Synergy inc.
+Numéro : BF-9
+Date : 2027-01-15
+Devise : CAD
+Ligne : Dalle | 1 | 1000.00 | 1000.00
+Sous-total : 1000.00
+TPS : 50.00
+TVQ : 99.75
+Total : 1149.75
+Document fictif - QA OPSYS

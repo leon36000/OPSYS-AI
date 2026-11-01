@@ -79,6 +79,7 @@ from . import (
     memoire_ui,
     obligations_privees,
     obligations_rapprochement_ui,
+    onboarding_ui,
     pages,
     paie_ui,
     plateforme_ui,
@@ -410,6 +411,10 @@ def creer_application(
     app.include_router(plateforme_ui.creer_router(
         session_page=session_page, session_api=session_api, verifier_formulaire=verifier_formulaire,
         formulaire=_formulaire, cnx_factory=cnx_factory, departements=sorted(deps), prefixe=prefixe,
+    ))
+    # Ingestion d'onboarding (onboarding_ui) : suivi des lots en lecture, administration seulement.
+    app.include_router(onboarding_ui.creer_router(
+        session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, prefixe=prefixe,
     ))
 
     def appeler_memoire(session: Session, action: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:

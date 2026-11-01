@@ -11,7 +11,9 @@ TROIS CHOSES D'ORIGINE, UN SEUL REGISTRE (`comptes_a_payer`, DÉDIÉ : ni les mo
    bon de commande. M5 en tire l'« à payer ATTENDU » : quantité reçue × prix unitaire du PO, arrondie au cent par
    ligne. Une réception partielle donne un attendu partiel ; les livraisons d'un même PO se cumulent.
 2. Une FACTURE FOURNISSEUR SAISIE (`facture_fournisseur_saisie`) : tapée par un humain (jamais lue par OCR : l'OCR est
-   fermé, la saisie manuelle est le repli documenté), contre un PO déjà reçu au moins en partie. Les taxes sont
+   fermé, la saisie manuelle est le repli documenté), contre un PO déjà reçu au moins en partie. L'ingestion
+   d'onboarding (docs/architecture/INGESTION-ONBOARDING.md) ne fait que PROPOSER un brouillon : c'est la décision d'un
+   humain (`m5_valider_brouillon_onboarding_ap`) qui saisit, par le même chemin que la saisie sans PO. Les taxes sont
    RECALCULÉES depuis le montant avant taxes avec les taux versionnés (`taxes.calculer_taxes`, TPS et TVQ) ; un
    total imprimé sur la facture, s'il est fourni, doit concorder au cent près ou la saisie est refusée. Un doublon
    (même fournisseur, même numéro, même montant) est refusé.

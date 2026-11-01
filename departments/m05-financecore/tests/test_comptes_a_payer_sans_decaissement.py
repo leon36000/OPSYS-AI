@@ -162,7 +162,8 @@ def test_un_decaissement_glisse_dans_le_vrai_consommateur_est_attrape(tmp_path):
 @pytest.mark.parametrize("fonction, appel", [
     ("corriger_facture_fournisseur", "    resultat, verdict = comptes_a_payer.corriger_facture_fournisseur("),
     ("annuler_facture_fournisseur", "    resultat, verdict = comptes_a_payer.annuler_facture_fournisseur("),
-    ("saisir_facture_sans_po", "    resultat, verdict = comptes_a_payer.saisir_facture_sans_po("),
+    # La saisie sans PO vit dans `_ranger_sans_po`, partagée par l'outil et la validation d'un brouillon d'onboarding.
+    ("_ranger_sans_po", "    resultat, verdict = comptes_a_payer.saisir_facture_sans_po("),
 ], ids=["corriger", "annuler", "sans_po"])
 def test_un_decaissement_glisse_dans_les_vrais_outils_de_correction_d_annulation_et_de_facture_sans_po_est_attrape(
         tmp_path, fonction, appel):

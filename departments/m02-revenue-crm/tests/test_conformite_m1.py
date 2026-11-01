@@ -43,7 +43,10 @@ SHA256_HORODATAGE_ATTENDU = "7168dc81de0d37f0e7160b96e9df14c9a1bf5ef594a791f2574
 # Septième rescellage, 2026-10-27 : CRM-03, les quinze refus fermés de l'agenda
 # commercial ajoutés par 14540419. Octets historiques inchangés hors ajout;
 # décision et empreintes documentées dans l'addendum CRM-03 de l'architecture M2.
-SHA256_VERDICTS_ATTENDU = "54e79d529522edf386ada2d998ecad927b2c5a7bdebd4cf87784ede9fc17553e"
+# Huitième rescellage, 2026-10-31 : ingestion d'onboarding (groupe 9), trois verdicts de la fiche client importée et
+# les huit raisons d'une fiche proposée, AJOUTÉS en fin de liste seulement. Octets historiques inchangés hors ajout ;
+# décision et empreintes dans l'addendum « Ingestion d'onboarding » de l'architecture M2.
+SHA256_VERDICTS_ATTENDU = "f8b89d99bb52c3299dffe2ae11caa4f8d0f204450afdff2576dbbcd26285416b"
 
 
 class TestCA_M2_13_Empreintes:
