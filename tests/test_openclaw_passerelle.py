@@ -51,6 +51,9 @@ def test_fragments_openclaw(departements_demo, tmp_path, session):
     agents = fragment_agents["entries"]
     assert agents["m09-demo"] == {
         "name": "M9 · Démo",
+        # Avatar du manifeste de démonstration (étape 2, `openclaw.identite_agent`).
+        "identity": {"name": "Démo"},
+        "description": "Avatar fictif des tests du socle",
         "workspace": str((tmp_path / "opsys" / "espaces" / "m09-demo").resolve()),
         "model": "anthropic/claude-sonnet-5",
         "opsysIsolation": {"exec": "sandbox-required"},
