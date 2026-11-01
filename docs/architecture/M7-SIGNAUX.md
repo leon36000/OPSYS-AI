@@ -260,7 +260,10 @@ vérificateur de cohérence du dépôt `OK : 10 départements, 570 outils` ; reg
   par motifs (peut rater ou signaler à tort). Le registre `conversions_hors_ligne` n'est pas borné en taille.
 - **Légal** : Loi 25 (ÉFVP avant transfert hors Québec : Google, Meta, moteurs d'IA, analytique), LCAP, Charte de la langue française et publicité comparative sont signalés mais NON validés — **À valider auprès d'un avocat /
   professionnel qualifié**. Les conditions d'utilisation des moteurs d'IA pour un panel de visibilité (R4 §10, 11) restent à lire. Un compte publicitaire sert une marque : aucun avis n'est donné sur le contenu des annonces.
-- **Matrice** : voir `docs/reprise/MATRICES-20261031/MATRICE-EXIGENCES-M7.json` — aucun statut passé à FAIT_PROUVE.
+- **Matrice** (`docs/reprise/MATRICES-20261031/MATRICE-EXIGENCES-M7.json`) : aucun statut passé à FAIT_PROUVE. M7.7 (médias payants) et M7.9 (veille) passent de SIMULE à PARTIEL, ce qui est un JUGEMENT à
+  confirmer : M7.7 parce que le plan, ses plafonds, l'approbation N4 consignée et le dossier de lancement manuel s'utilisent sans donnée de plateforme (mais la LECTURE des campagnes reste
+  simulée par des doubles) ; M7.9 parce que la saisie humaine d'un fait lu sur une page publique est une voie de données réelle (la collecte automatique reste simulée). Au sens strict de la légende
+  (« n'existe qu'à travers un double »), la lecture des comptes publicitaires et la collecte automatique restent SIMULÉES. M7.4, M7.5, M7.6, M7.8, M7.10 et M7.11 restent PARTIEL avec une limite mise à jour.
 
 ## 13. Décisions prises (à confirmer par l'architecte)
 

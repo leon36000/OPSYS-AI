@@ -139,11 +139,23 @@
       "docs/grs/marketing/M7-GROWTH-SAISIE-HUMAINE-2026-10-03.md"
      ],
      "niveau": "T+H"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/signaux/test_analytique.py",
+      "departments/m07-marketing/tests/signaux/test_search_console.py",
+      "departments/m07-marketing/tests/signaux/test_ingestion.py",
+      "departments/m07-marketing/tests/mesure/test_attribution_simple.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-SIGNAUX.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "c89b123ca",
    "current_status": "PARTIEL",
-   "limite": "Saisie humaine privée de métriques ; aucun import analytics réel ; aucune croissance calculée."
+   "limite": "Saisie humaine privée de métriques (inchangé). S'y ajoutent, avec des DOUBLES seulement, des connecteurs de lecture Umami, Matomo et Search Console (audience, référents, requêtes, pages) avec curseurs, quotas, idempotence et fraîcheur, et une attribution descriptive honnête. PAS prouvé : aucun transport réel branché, aucun planificateur n'appelle l'ingestion, formes d'API jamais exercées contre les vrais services ; aucune croissance calculée."
   },
   {
    "id": "M7.5",
@@ -167,11 +179,20 @@
      ],
      "docs": [],
      "niveau": "T+H"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/signaux/test_gbp.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-SIGNAUX.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "c89b123ca",
    "current_status": "PARTIEL",
-   "limite": "Import manuel durable ; fixture d'avis réelle absente (1 skip déclaré par l'analyse) ; aucune lecture GBP."
+   "limite": "Import manuel durable (inchangé). S'ajoute un connecteur de lecture des avis et de la performance de la fiche d'établissement (formes d'API de R4) exercé avec un double seulement : nom d'auteur jamais lu, texte conservé seulement avec l'option extraits_avis (≤ 280 caractères, masqué, non fiable). PAS prouvé : l'accès à l'API de la fiche est sur demande (R4 §3.4) et n'est pas traité ; aucune lecture réelle ; aucune réponse publiée."
   },
   {
    "id": "M7.6",
@@ -197,11 +218,29 @@
      ],
      "docs": [],
      "niveau": "T"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/signaux/test_search_console.py",
+      "departments/m07-marketing/tests/signaux/test_pagespeed.py",
+      "departments/m07-marketing/tests/signaux/test_bing_webmaster.py",
+      "departments/m07-marketing/tests/geo/test_geo_outils.py",
+      "departments/m07-marketing/tests/geo/test_import_manuel.py",
+      "departments/m07-marketing/tests/geo/test_journaux_bots.py",
+      "departments/m07-marketing/tests/geo/test_panel.py",
+      "departments/m07-marketing/tests/geo/test_proposition_site.py",
+      "departments/m07-marketing/tests/geo/test_recommandations.py",
+      "departments/m07-marketing/tests/geo/test_robots_ia.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-SIGNAUX.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "c89b123ca",
    "current_status": "PARTIEL",
-   "limite": "Audit local et génération de site sans réseau ; aucun compte GSC/GBP ; aucune donnée d'impressions/clics."
+   "limite": "Audit local et génération de site sans réseau (inchangé). S'ajoutent, avec des DOUBLES : lecture de Search Console, PageSpeed, CrUX et Bing Webmaster ; analyse des robots d'IA et des journaux d'accès du client (sans IP) ; recommandations de contenu sourcées et priorisées ; changements de site proposés en brouillon (opsys.site/v1). PAS prouvé : aucune donnée réelle d'impressions ou de clics, le rapport « IA générative » de Search Console n'a pas d'API documentée (import manuel), aucun vrai moteur d'IA interrogé."
   },
   {
    "id": "M7.7",
@@ -223,12 +262,26 @@
      ],
      "docs": [],
      "niveau": "T"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/medias_payants/test_anomalies.py",
+      "departments/m07-marketing/tests/medias_payants/test_medias_outils.py",
+      "departments/m07-marketing/tests/medias_payants/test_paquet_sans_ecriture.py",
+      "departments/m07-marketing/tests/medias_payants/test_plan.py",
+      "departments/m07-marketing/tests/medias_payants/test_rapport.py",
+      "departments/m07-marketing/tests/medias_payants/test_regles.py",
+      "departments/m07-marketing/tests/signaux/test_publicite.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-SIGNAUX.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
-   "current_status": "SIMULE",
-   "limite": "ads_loader refuse toute donnée qui n'est pas marquée fictif: true ; aucune lecture ni écriture de compte publicitaire.",
-   "verification": "ads_loader.py:27 exige fictif: true"
+   "verified_commit": "c89b123ca",
+   "current_status": "PARTIEL",
+   "limite": "Plan de campagne payante en BROUILLON (budget en cents borné par les plafonds durs du sas, ciblage géographique seulement, visuels approuvés du studio, textes français), règles de plafond et d'arrêt PRÉPARÉES (jamais exécutées), anomalies de dépense DEP-01 à DEP-07, rapport de performance honnête (Wilson, suffisance, aucune causalité), lancement approuvé en N4 et CONSIGNÉ seulement. Partie réelle : le plan, ses plafonds, l'approbation N4 consignée et le dossier de lancement manuel s'utilisent sans aucune donnée de plateforme. Partie SIMULÉE : la lecture des campagnes et des coûts (Google Ads, Meta Ads, relevés de dépense) n'existe qu'à travers des DOUBLES, donc règles d'arrêt, anomalies et rapport n'ont aucune donnée réelle aujourd'hui. PAS prouvé : aucune lecture ni écriture réelle d'un compte publicitaire (aucun transport, niveau d'accès Google Ads Basic et revue Meta non traités), aucune donnée réelle n'entre (pas d'import manuel de rapport publicitaire), aucune création, modification ou pause de campagne n'existe dans le code."
   },
   {
    "id": "M7.8",
@@ -261,11 +314,26 @@
       "docs/grs/marketing/M7-COUTS-AFFECTES.md"
      ],
      "niveau": "T+S"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/mesure/test_attribution_simple.py",
+      "departments/m07-marketing/tests/mesure/test_conversions.py",
+      "departments/m07-marketing/tests/mesure/test_experiences.py",
+      "departments/m07-marketing/tests/mesure/test_mesure_outils.py",
+      "departments/m07-marketing/tests/mesure/test_statistiques.py",
+      "departments/m07-marketing/tests/mesure/test_utm.py",
+      "departments/m07-marketing/tests/signaux/test_signaux_outils.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-SIGNAUX.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "c89b123ca",
    "current_status": "PARTIEL",
-   "limite": "Chaîne lead/UTM et coûts affectés testés ; ROI « non calculé » tant que le coût certifié et les relevés de dépenses manquent ; impressions/clics sans source."
+   "limite": "Inchangé : faits M2/M3/M5, dépenses sourcées, ROI et attribution sur fixtures. S'ajoutent : relevés de dépense alimentés par les connecteurs publicitaires (comptes réels seulement, avec doubles), conversions hors ligne importées, attribution descriptive honnête (coût par conversion seulement quand la dépense est CONNUE), tests marche-arrêt et géographiques avec reçu rejouable. PAS prouvé : aucune causalité, aucun MMM, aucune conversion renvoyée à Google ou Meta, aucun consommateur M2/M5/M8 des événements."
   },
   {
    "id": "M7.9",
@@ -284,11 +352,27 @@
      ],
      "docs": [],
      "niveau": "T"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/veille/test_collecte.py",
+      "departments/m07-marketing/tests/veille/test_comparaison.py",
+      "departments/m07-marketing/tests/veille/test_conformite.py",
+      "departments/m07-marketing/tests/veille/test_observations.py",
+      "departments/m07-marketing/tests/veille/test_paquet_sans_reseau.py",
+      "departments/m07-marketing/tests/veille/test_registre.py",
+      "departments/m07-marketing/tests/veille/test_robots.py",
+      "departments/m07-marketing/tests/veille/test_veille_outils.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-SIGNAUX.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
-   "current_status": "SIMULE",
-   "limite": "Slug local et fictif: true, sans réseau."
+   "verified_commit": "c89b123ca",
+   "current_status": "PARTIEL",
+   "limite": "Registre de concurrents déclarés (N3), plateformes interdites, robots.txt (RFC 9309) appliqué AVANT toute page, collecte bornée (redirections revalidées, délai, taille, type), aucun accès authentifié, faits datés et sourcés, texte de tiers non fiable, injection écartée, comparaison déterministe sans classement, conformité des textes (marque, copie, comparatif) : tout cela tourne ; la seule voie de données RÉELLES est la saisie humaine d'un fait lu sur une page publique (m7_importer_observation_concurrent), la collecte automatique n'existant qu'avec un double. PAS prouvé : le port de collecte n'a AUCUN transport réel, rien n'a été collecté chez un vrai site, aucun planificateur n'appelle le tour de veille ; la conformité juridique de la collecte (conditions d'utilisation, publicité comparative) est À valider auprès d'un avocat."
   },
   {
    "id": "M7.10",
@@ -311,11 +395,22 @@
      ],
      "docs": [],
      "niveau": "T"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/mesure/test_utm.py",
+      "departments/m07-marketing/tests/mesure/test_conversions.py",
+      "departments/m07-marketing/tests/utm/test_utm_contrat_regles.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-SIGNAUX.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "c89b123ca",
    "current_status": "PARTIEL",
-   "limite": "Campagnes locales en brouillon, UTM déterministe ; coûts et attribution manuels."
+   "limite": "Campagnes locales en brouillon (inchangé). S'ajoutent la normalisation déterministe des UTM entrantes (alias déclarés, identifiants publicitaires écartés) et l'import de conversions hors ligne (appel, rendez-vous, soumission signée, vente) annoncé à M2 et M8 par le bus. PAS prouvé : coûts locaux et attribution restent manuels ; aucun consommateur des événements ; aucun envoi de conversion aux plateformes."
   },
   {
    "id": "M7.11",
@@ -341,11 +436,20 @@
       "docs/grs/marketing/M7-CMO-PROGRAMME-DURABLE-2026-10-03.md"
      ],
      "niveau": "T+H"
+    },
+    {
+     "tests": [
+      "departments/m07-marketing/tests/geo/test_recommandations.py"
+     ],
+     "docs": [
+      "docs/architecture/M7-SIGNAUX.md"
+     ],
+     "niveau": "T+S"
     }
    ],
-   "verified_commit": "83efcd82b",
+   "verified_commit": "c89b123ca",
    "current_status": "PARTIEL",
-   "limite": "Plans et rapport d'acquisition sourcé ; aucune stratégie fondée sur des données réelles de canal."
+   "limite": "Plans et rapport d'acquisition sourcé (inchangé). S'ajoutent des recommandations de contenu sourcées et priorisées par règles lisibles (GEO-01 à GEO-06) sur des signaux datés, avec fraîcheur. PAS prouvé : aucune stratégie fondée sur des données réelles de canal."
   },
   {
    "id": "M7.12",

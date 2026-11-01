@@ -17,7 +17,7 @@ Point de départ : l'analyse d'écarts du 2026-10-31 (`ANALYSE-ECARTS-MODULES.md
 | M4 | 24 | 2 | 22 | 0 | 0 | 0 | Field Ops | 3304 passed, 0 failed, 20 skipped (pyvrp absent) |
 | M5 | 18 | 0 | 18 | 0 | 0 | 0 | FinanceCore | 2702 passed, 0 failed, 0 skipped (base d'origine) ; vague 3 : voir `run_summary` de MATRICE-EXIGENCES-M5.json |
 | M6 | 21 | 0 | 21 | 0 | 0 | 0 | Material Control | 1725 passed, 0 failed, 0 skipped |
-| M7 | 15 | 0 | 13 | 2 | 0 | 0 | Marketing | 1210 passed, 0 failed, 0 skipped |
+| M7 | 15 | 0 | 15 | 0 | 0 | 0 | Marketing | 1210 passed, 0 failed, 0 skipped |
 | M8 | 18 | 0 | 18 | 0 | 0 | 0 | Analytics | 862 passed, 0 failed, 0 skipped |
 | M10 | 20 | 0 | 19 | 0 | 1 | 0 | Mémoire | 1464 passed, 0 failed, 0 skipped |
 | Total | 169 | 4 | 158 | 5 | 2 | 0 | | |
