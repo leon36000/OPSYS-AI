@@ -276,7 +276,7 @@ def test_export_d_une_base_corrompue_est_refuse_avec_son_code(tmp_path, opsys_ho
     base.write_bytes(bytes(octets))
     with pytest.raises(sc.ErreurSauvegarde) as exc:
         sc.sauvegarder(opsys_home, tmp_path / "s", par="test")
-    assert _code(exc) in {"REJ-SAUVEGARDE-BASE-CORROMPUE", "REJ-SAUVEGARDE-EXPORT"}
+    assert _code(exc) == "REJ-SAUVEGARDE-BASE-CORROMPUE" and sc.CODES_SORTIE[_code(exc)] == 26
     assert not list((tmp_path / "s").glob("*.enc"))
 
 

@@ -1,0 +1,27 @@
+{
+  "etape": "g384m-sauvegarde",
+  "titre": "[384m] Sauvegarde chiffrée (export + AES-256-GCM, clé hors sauvegarde) et vérification",
+  "attendu": "archive chiffrée dans /sauvegardes, clé dans /cles (hors sauvegarde), vérification de bout en bout, aucun clair",
+  "verdict": "ECHEC",
+  "debut": "2026-11-01T11:08:46.409+00:00",
+  "fin": "2026-11-01T11:08:46.419+00:00",
+  "duree_s": 0.01,
+  "constats": [
+    {
+      "nom": "sauvegarde chiffrée réussie (code 0)",
+      "ok": false,
+      "detail": null
+    }
+  ],
+  "mesures": {},
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb46c83f-g384m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree sauvegarder --dossier /sauvegardes --par banc",
+      "code": 1,
+      "duree_s": 0.01,
+      "sortie_fin": "",
+      "erreur_fin": "Error response from daemon: container 033185399fb4e305ea4865bdec74790f05c3aa30846027cd5194813b6aedbb2f is not running\n"
+    }
+  ]
+}

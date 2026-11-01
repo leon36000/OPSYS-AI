@@ -1,0 +1,48 @@
+{
+  "etape": "g768m-arret",
+  "titre": "[768m] Arrêt propre (gabarit seul)",
+  "attendu": "code de sortie 0, pas de message de processus mort",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:07:19.737+00:00",
+  "fin": "2026-11-01T11:07:21.220+00:00",
+  "duree_s": 1.48,
+  "constats": [
+    {
+      "nom": "arrêt propre : code 0, sans OOM",
+      "ok": true,
+      "detail": {
+        "code_sortie": 0,
+        "oom": false,
+        "duree_s": 1.2,
+        "message_arret_demande": true,
+        "message_faux_processus_mort": false
+      }
+    }
+  ],
+  "mesures": {
+    "arret": {
+      "code_sortie": 0,
+      "oom": false,
+      "duree_s": 1.2,
+      "message_arret_demande": true,
+      "message_faux_processus_mort": false
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb46c83f-g768m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py rss",
+      "code": 0,
+      "duree_s": 0.26,
+      "sortie_fin": "     \"nom\": \"opsys-console\",\n      \"rss_max_ko\": 145656,\n      \"rss_ko\": 145656\n    },\n    {\n      \"pid\": 29,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1652,\n      \"rss_ko\": 1652\n    },\n    {\n      \"pid\": 149,\n      \"nom\": \"python\",\n      \"rss_max_ko\": 32472,\n      \"rss_ko\": 32472\n    },\n    {\n      \"pid\": 154,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1652,\n      \"rss_ko\": 1652\n    }\n  ],\n  \"cgroup_pic_octets\": 454987776,\n  \"cgroup_courant_octets\": 271335424,\n  \"cgroup_limite\": \"805306368\",\n  \"cgroup_evenements\": \"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker stop -t 30 qb46c83f-g768m-s1",
+      "code": 0,
+      "duree_s": 1.2,
+      "sortie_fin": "qb46c83f-g768m-s1\n",
+      "erreur_fin": ""
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "etape": "g1g-arret",
+  "titre": "[1g] Arrêt propre (gabarit seul)",
+  "attendu": "code de sortie 0, pas de message de processus mort",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:06:32.296+00:00",
+  "fin": "2026-11-01T11:06:33.225+00:00",
+  "duree_s": 0.93,
+  "constats": [
+    {
+      "nom": "arrêt propre : code 0, sans OOM",
+      "ok": true,
+      "detail": {
+        "code_sortie": 0,
+        "oom": false,
+        "duree_s": 0.64,
+        "message_arret_demande": true,
+        "message_faux_processus_mort": false
+      }
+    }
+  ],
+  "mesures": {
+    "arret": {
+      "code_sortie": 0,
+      "oom": false,
+      "duree_s": 0.64,
+      "message_arret_demande": true,
+      "message_faux_processus_mort": false
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb46c83f-g1g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py rss",
+      "code": 0,
+      "duree_s": 0.27,
+      "sortie_fin": "    \"nom\": \"sleep\",\n      \"rss_max_ko\": 1656,\n      \"rss_ko\": 1656\n    },\n    {\n      \"pid\": 28,\n      \"nom\": \"opsys-console\",\n      \"rss_max_ko\": 145592,\n      \"rss_ko\": 145592\n    },\n    {\n      \"pid\": 149,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1656,\n      \"rss_ko\": 1656\n    },\n    {\n      \"pid\": 150,\n      \"nom\": \"python\",\n      \"rss_max_ko\": 32436,\n      \"rss_ko\": 32436\n    }\n  ],\n  \"cgroup_pic_octets\": 454926336,\n  \"cgroup_courant_octets\": 271851520,\n  \"cgroup_limite\": \"1073741824\",\n  \"cgroup_evenements\": \"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker stop -t 30 qb46c83f-g1g-s1",
+      "code": 0,
+      "duree_s": 0.64,
+      "sortie_fin": "qb46c83f-g1g-s1\n",
+      "erreur_fin": ""
+    }
+  ]
+}

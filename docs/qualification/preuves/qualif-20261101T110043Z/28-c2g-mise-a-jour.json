@@ -1,0 +1,19 @@
+{
+  "etape": "c2g-mise-a-jour",
+  "titre": "[2g] Mise à jour depuis la version précédente (0038) vers la tête, et retour arrière",
+  "attendu": "base écrite par l'ancien logiciel migrée sans perte, services prêts, retour arrière alembic sans perte, reprise",
+  "verdict": "ECHEC",
+  "debut": "2026-11-01T11:04:51.709+00:00",
+  "fin": "2026-11-01T11:04:51.709+00:00",
+  "duree_s": 0.0,
+  "constats": [
+    {
+      "nom": "exception inattendue du banc",
+      "ok": false,
+      "detail": "FileExistsError: [Errno 17] File exists: '/tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-h49t3cb9/ancien'"
+    }
+  ],
+  "mesures": {},
+  "notes": [],
+  "commandes": []
+}

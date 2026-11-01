@@ -1,0 +1,104 @@
+{
+  "etape": "c2g-destruction",
+  "titre": "[2g] Arrêt propre puis DESTRUCTION de l'instance (conteneur, données, configuration)",
+  "attendu": "arrêt avec code 0 sans message de processus mort ; volumes data/cfg supprimés ; clés et sauvegardes conservées",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:04:34.182+00:00",
+  "fin": "2026-11-01T11:04:35.809+00:00",
+  "duree_s": 1.63,
+  "constats": [
+    {
+      "nom": "arrêt propre : code de sortie 0",
+      "ok": true,
+      "detail": {
+        "code_sortie": 0,
+        "oom": false,
+        "duree_s": 1.1,
+        "message_arret_demande": true,
+        "message_faux_processus_mort": false
+      }
+    },
+    {
+      "nom": "arrêt propre : message « arrêt demandé » et pas de « processus mort »",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "aucune mise à mort par manque de mémoire (OOM)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "volume de données détruit",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "sauvegarde et clé ont survécu (volumes distincts)",
+      "ok": true,
+      "detail": [
+        "/cles:",
+        "mdp-agent-systeme",
+        "mdp-nathan",
+        "sauvegarde.cle",
+        "/sauvegardes:",
+        "opsys-sauvegarde-20261101T110428Z-29b4.tar.gz.enc",
+        "opsys-sauvegarde-20261101T110428Z-29b4.tar.gz.enc.meta.json"
+      ]
+    }
+  ],
+  "mesures": {
+    "arret": {
+      "code_sortie": 0,
+      "oom": false,
+      "duree_s": 1.1,
+      "message_arret_demande": true,
+      "message_faux_processus_mort": false
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb46c83f-c2g-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py rss",
+      "code": 0,
+      "duree_s": 0.29,
+      "sortie_fin": "    \"nom\": \"opsys-console\",\n      \"rss_max_ko\": 144168,\n      \"rss_ko\": 144168\n    },\n    {\n      \"pid\": 28,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1632,\n      \"rss_ko\": 1632\n    },\n    {\n      \"pid\": 186,\n      \"nom\": \"python\",\n      \"rss_max_ko\": 32432,\n      \"rss_ko\": 32432\n    },\n    {\n      \"pid\": 192,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1644,\n      \"rss_ko\": 1644\n    }\n  ],\n  \"cgroup_pic_octets\": 452878336,\n  \"cgroup_courant_octets\": 271990784,\n  \"cgroup_limite\": \"2147483648\",\n  \"cgroup_evenements\": \"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker stop -t 30 qb46c83f-c2g-s1",
+      "code": 0,
+      "duree_s": 1.1,
+      "sortie_fin": "qb46c83f-c2g-s1\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker rm -f qb46c83f-c2g-s1",
+      "code": 0,
+      "duree_s": 0.03,
+      "sortie_fin": "qb46c83f-c2g-s1\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker volume rm -f qb46c83f-c2g-data",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb46c83f-c2g-data\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker volume rm -f qb46c83f-c2g-cfg",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb46c83f-c2g-cfg\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 -v qb46c83f-c2g-sauv:/sauvegardes:ro -v qb46c83f-c2g-cles:/cles:ro --entrypoint ls opsys-qualif:banc /sauvegardes /cles",
+      "code": 0,
+      "duree_s": 0.17,
+      "sortie_fin": "/cles:\nmdp-agent-systeme\nmdp-nathan\nsauvegarde.cle\n\n/sauvegardes:\nopsys-sauvegarde-20261101T110428Z-29b4.tar.gz.enc\nopsys-sauvegarde-20261101T110428Z-29b4.tar.gz.enc.meta.json\n",
+      "erreur_fin": ""
+    }
+  ]
+}

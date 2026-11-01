@@ -725,8 +725,7 @@ def peupler_ancien(b: Banc, pile_ancienne: str, cles_pile: str, arbre: Path) -> 
 
 
 def mise_a_jour(b: Banc, e: Etape, pile: str, memoire: str) -> None:
-    arbre = b.tmp / "ancien"
-    arbre.mkdir()
+    arbre = Path(tempfile.mkdtemp(prefix="ancien-", dir=b.tmp))
     ar = subprocess.run(f"git -C {RACINE} archive {REVISION_ANCIENNE} src departments pyproject.toml | tar -x -C {arbre}",
                         shell=True, capture_output=True, text=True, check=False)
     e.constat(f"arbre de la version précédente ({REVISION_ANCIENNE}) extrait de git", ar.returncode == 0, ar.stderr[-200:])
@@ -974,10 +973,10 @@ def injections(b: Banc, e: Etape, pile: str, bilan: dict) -> None:
     intacte("F8")
 
 
-def etape_gabarits(b: Banc) -> list[dict]:
+def etape_gabarits(b: Banc, gabarits: tuple[str, ...] = GABARITS_BALAYAGE) -> list[dict]:
     """Descend de gabarit en gabarit jusqu'au premier qui ne tient plus (le plus petit viable est le dernier avant lui)."""
     resultats = []
-    for g in GABARITS_BALAYAGE:
+    for g in gabarits:
         bilan = chaine(b, f"g{g}", g, complet=False)
         resultats.append(bilan)
         if not bilan.get("viable"):
@@ -1011,6 +1010,7 @@ def principal(argv: list[str] | None = None) -> int:
     p.add_argument("--venv", type=Path, default=None)
     p.add_argument("--garder-image", action="store_true")
     p.add_argument("--image", default="opsys-qualif:banc")
+    p.add_argument("--gabarits", nargs="*", default=None, help="balayage : liste de gabarits (défaut : 1g … 96m)")
     args = p.parse_args(argv)
     venv = args.venv or next((v for v in (RACINE / ".venv", Path(os.environ.get("QUALIF_VENV", "/nonexistent"))) if (v / "bin/python").exists()), None)
     if venv is None:
@@ -1030,7 +1030,7 @@ def principal(argv: list[str] | None = None) -> int:
             for g in gabarits:
                 resultats[f"complet_{g}"] = chaine(b, f"c{g}", g, complet=True)
         if args.commande in ("tout", "balayage"):
-            resultats["balayage"] = etape_gabarits(b)
+            resultats["balayage"] = etape_gabarits(b, tuple(args.gabarits) if args.gabarits else GABARITS_BALAYAGE)
         with b.etape("E90-etat-final", "Conteneurs étrangers intacts, disque, nettoyage", "aucun conteneur étranger modifié") as e:
             apres = {ligne.split("|")[0]: ligne.split("|")[1].split()[0] for ligne in
                      b.docker("ps", "-a", "--format", "{{.Names}}|{{.Status}}", enregistrer=False).out.strip().splitlines()

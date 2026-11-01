@@ -1,0 +1,192 @@
+{
+  "etape": "c2g-restauration",
+  "titre": "[2g] RESTAURATION sur un conteneur neuf à partir de la seule sauvegarde chiffrée et de la clé",
+  "attendu": "restauration réussie (code 0), services démarrés, prêts, connexion avec le mot de passe d'origine",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:04:35.809+00:00",
+  "fin": "2026-11-01T11:04:45.778+00:00",
+  "duree_s": 9.97,
+  "constats": [
+    {
+      "nom": "restauration chiffrée : code 0",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "nom": "services prêts (readiness 0) sur les données restaurées",
+      "ok": true,
+      "detail": [
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "nom": "restauré : mauvais identifiant : pas de session (aucun Set-Cookie de session)",
+      "ok": true,
+      "detail": {
+        "statut": 401
+      }
+    },
+    {
+      "nom": "restauré : bon identifiant : redirection (303) avec cookie de session",
+      "ok": true,
+      "detail": {
+        "statut": 303
+      }
+    },
+    {
+      "nom": "restauré : cookie de session : HttpOnly, Secure, SameSite",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "nom": "restauré : page protégée avec le cookie : 200",
+      "ok": true,
+      "detail": 200
+    },
+    {
+      "nom": "restauré : page protégée sans cookie : redirigée",
+      "ok": true,
+      "detail": 303
+    },
+    {
+      "nom": "restauré : page protégée : en-têtes de sécurité présents",
+      "ok": true,
+      "detail": [
+        "cache-control",
+        "content-length",
+        "content-security-policy",
+        "content-type",
+        "date",
+        "referrer-policy",
+        "server",
+        "x-content-type-options",
+        "x-frame-options"
+      ]
+    },
+    {
+      "nom": "restauré : MCP GET /sante = 200 + JSON ok",
+      "ok": true,
+      "detail": {
+        "statut": 200,
+        "corps": "{\"statut\": \"ok\", \"service\": \"opsys-metier\"}"
+      }
+    },
+    {
+      "nom": "restauré : MCP POST /sante = 405",
+      "ok": true,
+      "detail": 405
+    },
+    {
+      "nom": "restauré : MCP sans jeton = 401",
+      "ok": true,
+      "detail": 401
+    },
+    {
+      "nom": "restauré : MCP mauvais jeton = 401",
+      "ok": true,
+      "detail": 401
+    },
+    {
+      "nom": "restauré : MCP bon jeton : initialize accepté (200)",
+      "ok": true,
+      "detail": 200
+    },
+    {
+      "nom": "restauré : console GET /connexion = 200",
+      "ok": true,
+      "detail": 200
+    },
+    {
+      "nom": "restauré : console : en-têtes de sécurité (nosniff, DENY, no-referrer, no-store)",
+      "ok": true,
+      "detail": {
+        "manquants": {},
+        "csp": "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+      }
+    },
+    {
+      "nom": "restauré : console 404 sans trace d'exécution",
+      "ok": true,
+      "detail": 404
+    },
+    {
+      "nom": "restauré : console /departements sans session : redirigé vers la connexion",
+      "ok": true,
+      "detail": {
+        "statut": 303,
+        "location": "/connexion"
+      }
+    },
+    {
+      "nom": "restauré : readiness.py = 0 (prêt)",
+      "ok": true,
+      "detail": {
+        "code": 0,
+        "stdout": "ready migrations: 0040\nready configuration: paliers et fragments présents\nready secrets: variables requises présentes\nready mémoire: configuration embeddings et fragment cohérents\nready console: /connexion HTTP 200\n",
+        "stderr": ""
+      }
+    }
+  ],
+  "mesures": {
+    "restauration": {
+      "duree_s": 0.87,
+      "rss_max_enfant_mo": 69.7,
+      "cgroup_pic_mo": 78.9
+    },
+    "temps_jusqu_a_pret_apres_restauration_s": 6.8
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T110043Z qb46c83f-c2gr-data",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb46c83f-c2gr-data\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker volume create --label opsys.banc=qualif-20261101T110043Z qb46c83f-c2gr-cfg",
+      "code": 0,
+      "duree_s": 0.01,
+      "sortie_fin": "qb46c83f-c2gr-cfg\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run --rm --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 2g --memory-swap 2g --label opsys.banc=qualif-20261101T110043Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-h49t3cb9/env-un-cf3a.env -v qb46c83f-c2gr-data:/opt/data -v qb46c83f-c2g-cles:/cles:ro -v qb46c83f-c2g-sauv:/sauvegardes:ro --entrypoint /opt/opsys-venv/bin/python opsys-qualif:banc /opt/opsys/install/qualification/interne.py mesurer -- /opt/opsys-venv/bin/python -m opsys.sauvegarde_chiffree restaurer /sauvegardes/opsys-sauvegarde-20261101T110428Z-29b4.tar.gz.enc --par banc",
+      "code": 0,
+      "duree_s": 1.25,
+      "sortie_fin": "{\n  \"code\": 0,\n  \"duree_s\": 0.87,\n  \"rss_max_enfant_ko\": 71344,\n  \"cgroup_pic_octets\": 82751488,\n  \"stdout\": \"{\\n  \\\"base\\\": \\\"/opt/data/opsys.db\\\",\\n  \\\"restaures\\\": [\\n    \\\"entreprise.yaml\\\",\\n    \\\"opsys.db\\\",\\n    \\\"paliers.yaml\\\"\\n  ],\\n  \\\"mis_de_cote\\\": [],\\n  \\\"revision_base\\\": \\\"0040\\\",\\n  \\\"suite\\\": \\\"redémarrer le service ; les appareils sont à réappairer (openclaw qr)\\\",\\n  \\\"sha256_clair\\\": \\\"c736330a7fab114cc8a3b48a3be8ce4c3b912bda980208859645da8572492a91\\\",\\n  \\\"cle_id\\\": \\\"c56e7a649fe39f4070ca2ff1dd2067f8\\\"\\n}\\n\",\n  \"stderr\": \"\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker run -d --init --name qb46c83f-c2g-s2 --network none --user 1000:1000 --read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 2g --memory-swap 2g --label opsys.banc=qualif-20261101T110043Z --env-file /tmp/claude-1000/-tmp/67e51219-6449-4d92-98d1-fbc071b4eb81/scratchpad/tmp-qualification-docker/banc-h49t3cb9/env-c2g-s2.env -v qb46c83f-c2gr-data:/opt/data -v qb46c83f-c2gr-cfg:/openclaw-config -v qb46c83f-c2g-cles:/cles -v qb46c83f-c2g-sauv:/sauvegardes opsys-qualif:banc",
+      "code": 0,
+      "duree_s": 0.12,
+      "sortie_fin": "2968df9ee236c8a73969b609a3a85f24be6193be93d76354a8ac0016ad2ad4ff\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "readiness.py en boucle sur qb46c83f-c2g-s2",
+      "code": 0,
+      "duree_s": 6.73,
+      "sortie_fin": "historique des codes : [1, 1, 0]",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb46c83f-c2g-s2 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py connexion",
+      "code": 0,
+      "duree_s": 0.7,
+      "sortie_fin": "\"ok\": true,\n      \"detail\": []\n    },\n    {\n      \"nom\": \"page protégée avec le cookie : 200\",\n      \"ok\": true,\n      \"detail\": 200\n    },\n    {\n      \"nom\": \"page protégée sans cookie : redirigée\",\n      \"ok\": true,\n      \"detail\": 303\n    },\n    {\n      \"nom\": \"page protégée : en-têtes de sécurité présents\",\n      \"ok\": true,\n      \"detail\": [\n        \"cache-control\",\n        \"content-length\",\n        \"content-security-policy\",\n        \"content-type\",\n        \"date\",\n        \"referrer-policy\",\n        \"server\",\n        \"x-content-type-options\",\n        \"x-frame-options\"\n      ]\n    }\n  ]\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb46c83f-c2g-s2 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py sondes",
+      "code": 0,
+      "duree_s": 1.15,
+      "sortie_fin": "n embeddings et fragment cohérents\\nready console: /connexion HTTP 200\\n\",\n        \"stderr\": \"\"\n      }\n    }\n  ],\n  \"headers_console\": {\n    \"date\": \"Sun, 01 Nov 2026 11:04:44 GMT\",\n    \"server\": \"uvicorn\",\n    \"content-length\": \"929\",\n    \"content-type\": \"text/html; charset=utf-8\",\n    \"content-security-policy\": \"default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'\",\n    \"x-content-type-options\": \"nosniff\",\n    \"x-frame-options\": \"DENY\",\n    \"referrer-policy\": \"no-referrer\",\n    \"cache-control\": \"no-store\"\n  }\n}\n",
+      "erreur_fin": ""
+    }
+  ]
+}

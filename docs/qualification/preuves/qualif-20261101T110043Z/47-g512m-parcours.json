@@ -1,0 +1,143 @@
+{
+  "etape": "g512m-parcours",
+  "titre": "[512m] Entreprise fictive et parcours minimal : lead, soumission, N3 refusée puis accordée",
+  "attendu": "chaque constat vérifié en base ; l'approbation N3 est refusée sans humain habilité et accordée par la CLI humaine",
+  "verdict": "PASSE",
+  "debut": "2026-11-01T11:07:51.056+00:00",
+  "fin": "2026-11-01T11:08:00.856+00:00",
+  "duree_s": 9.8,
+  "constats": [
+    {
+      "nom": "M1 reçoit le message et transmet à M2 (route MCP HTTP)",
+      "ok": true,
+      "detail": {
+        "decision": "TRANSMETTRE_M2",
+        "erreur": null
+      }
+    },
+    {
+      "nom": "bus : le lead est livré à M2 sans échec ni quarantaine",
+      "ok": true,
+      "detail": {
+        "livres": 7,
+        "traites": 7,
+        "echecs": 0,
+        "quarantaines": 0
+      }
+    },
+    {
+      "nom": "M2 : lead qualifié",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "M3 : soumission créée (brouillon, 625.00 $ calculé par l'outil)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "nom": "N3 par un agent (route MCP) : refusé, rien exécuté",
+      "ok": true,
+      "detail": "ticket_cible_requis"
+    },
+    {
+      "nom": "décision sans humain habilité (identité vide, inconnue, agent système) : refusée, demande en attente",
+      "ok": true,
+      "detail": [
+        "(vide): refusé (la décision doit être signée par une personne active (identifiant))",
+        "inconnu-fictif: refusé ('inconnu-fictif' : personne inconnue ou inactive ; décision refusée, r)",
+        "agent-systeme: refusé (agent-systeme : aucun rôle autorisé pour N3 dans m03-estimation (autor)"
+      ]
+    },
+    {
+      "nom": "CLI sans terminal : refusée (code 1), demande en attente",
+      "ok": true,
+      "detail": {
+        "code": 1
+      }
+    },
+    {
+      "nom": "CLI humain avec un mauvais mot de passe : refusée (code 1), demande en attente",
+      "ok": true,
+      "detail": {
+        "code": 1
+      }
+    },
+    {
+      "nom": "CLI humain authentifié (nathan_owner) : accordée (code 0), exécutée",
+      "ok": true,
+      "detail": {
+        "code": 0,
+        "statut": "executee"
+      }
+    },
+    {
+      "nom": "double décision : refusée, pas de seconde exécution",
+      "ok": true,
+      "detail": {
+        "code": 1
+      }
+    },
+    {
+      "nom": "bus après acceptation : sans échec ni quarantaine",
+      "ok": true,
+      "detail": {
+        "livres": 7,
+        "traites": 7,
+        "echecs": 0,
+        "quarantaines": 0
+      }
+    },
+    {
+      "nom": "la soumission est acceptée en base (statut « accepte », approbateur nathan)",
+      "ok": true,
+      "detail": {
+        "statut": "accepte",
+        "approbateur": "nathan"
+      }
+    },
+    {
+      "nom": "M4 : une intervention « a_planifier » est née de l'acceptation",
+      "ok": true,
+      "detail": 1
+    },
+    {
+      "nom": "la décision porte la personne et son rôle",
+      "ok": true,
+      "detail": {
+        "statut": "executee",
+        "decide_par": "nathan",
+        "decide_role": "nathan_owner"
+      }
+    }
+  ],
+  "mesures": {
+    "memoire_apres_parcours": {
+      "cgroup_pic_mo": 432.9,
+      "cgroup_limite": "536870912",
+      "rss_max_par_processus_mo": {
+        "opsys-console[29]": 142.0,
+        "opsys-mcp[27]": 134.1,
+        "python[84]": 31.7,
+        "sleep[28]": 1.6
+      }
+    }
+  },
+  "notes": [],
+  "commandes": [
+    {
+      "commande": "docker exec qb46c83f-g512m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py parcours",
+      "code": 0,
+      "duree_s": 9.52,
+      "sortie_fin": "e », approbateur nathan)\",\n      \"ok\": true,\n      \"detail\": {\n        \"statut\": \"accepte\",\n        \"approbateur\": \"nathan\"\n      }\n    },\n    {\n      \"nom\": \"M4 : une intervention « a_planifier » est née de l'acceptation\",\n      \"ok\": true,\n      \"detail\": 1\n    },\n    {\n      \"nom\": \"la décision porte la personne et son rôle\",\n      \"ok\": true,\n      \"detail\": {\n        \"statut\": \"executee\",\n        \"decide_par\": \"nathan\",\n        \"decide_role\": \"nathan_owner\"\n      }\n    }\n  ],\n  \"lead_id\": \"91ca91daaedc40d54960888c8510816099465cf10030c2121a60f8cf9f141766\",\n  \"demande_id\": \"ad18d739df85\"\n}\n",
+      "erreur_fin": ""
+    },
+    {
+      "commande": "docker exec qb46c83f-g512m-s1 /opt/opsys-venv/bin/python /opt/opsys/install/qualification/interne.py rss",
+      "code": 0,
+      "duree_s": 0.28,
+      "sortie_fin": "\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1656,\n      \"rss_ko\": 1656\n    },\n    {\n      \"pid\": 29,\n      \"nom\": \"opsys-console\",\n      \"rss_max_ko\": 145456,\n      \"rss_ko\": 145456\n    },\n    {\n      \"pid\": 84,\n      \"nom\": \"python\",\n      \"rss_max_ko\": 32432,\n      \"rss_ko\": 32432\n    },\n    {\n      \"pid\": 90,\n      \"nom\": \"sleep\",\n      \"rss_max_ko\": 1652,\n      \"rss_ko\": 1652\n    }\n  ],\n  \"cgroup_pic_octets\": 453980160,\n  \"cgroup_courant_octets\": 271290368,\n  \"cgroup_limite\": \"536870912\",\n  \"cgroup_evenements\": \"low 0\\nhigh 0\\nmax 0\\noom 0\\noom_kill 0\\noom_group_kill 0\\nsock_throttled 0\"\n}\n",
+      "erreur_fin": ""
+    }
+  ]
+}
