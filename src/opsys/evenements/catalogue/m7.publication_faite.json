@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m7.publication_faite",
+  "title": "M7 — Publication faite",
+  "description": "Émis par le planificateur des connecteurs après une publication APPROUVÉE (WordPress ou réseau social) dont l'approbation humaine a été consommée. Aucun texte de publication n'est porté. evenement_id déterministe sur (canal, publication).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "canal": {
+      "enum": [
+        "wordpress",
+        "social"
+      ]
+    },
+    "publication_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "cible": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "id_externe": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 200
+    },
+    "lien_public": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 500
+    },
+    "retrouvee": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "canal",
+    "publication_id",
+    "cible",
+    "id_externe",
+    "lien_public",
+    "retrouvee"
+  ]
+}

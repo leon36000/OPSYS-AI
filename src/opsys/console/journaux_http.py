@@ -14,6 +14,10 @@ class MasquerRecherche(logging.Filter):
         # Contrat AccessFormatter Uvicorn : client, méthode, cible HTTP, version, statut.
         if isinstance(record.args, tuple) and len(record.args) == 5 and isinstance(record.args[2], str):
             chemin, separateur, query = record.args[2].partition("?")
+            if separateur and unquote(chemin).rstrip("/").endswith("/courriel/oauth/retour"):
+                # Retour OAuth : `state` et `code` (usage unique) ne vont jamais au journal d'accès.
+                record.args = (*record.args[:2], chemin + "?oauth=[MASQUE]", *record.args[3:])
+                return True
             if separateur:
                 cles = {cle for cle, _ in parse_qsl(query, keep_blank_values=True)}
                 prive = unquote(chemin).rstrip("/").endswith((

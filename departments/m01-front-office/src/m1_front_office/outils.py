@@ -2154,7 +2154,17 @@ def prendre_en_charge_rappel_appareil(transfert_id, snapshot_attendu):
 
 
 def outils() -> tuple[Outil, ...]:
-    """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés)."""
+    """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés). Le courriel
+    (boîte de réception, brouillons de réponse) vit dans `courriel_outils` ; import différé : ce module-ci est son
+    socle."""
+    from . import courriel_outils
+
+    base = _outils_base()
+    # Les deux outils d'appareil (liste et prise en charge des rappels) restent les derniers du catalogue.
+    return (*base[:-2], *courriel_outils.outils_courriel(), *base[-2:])
+
+
+def _outils_base() -> tuple[Outil, ...]:
     return (
         Outil(
             nom="m1_traiter_demande_entrante",

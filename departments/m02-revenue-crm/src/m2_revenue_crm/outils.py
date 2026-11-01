@@ -2703,6 +2703,79 @@ def valider_brouillon_onboarding_client(
                                           "brouillon": {k: v for k, v in vue.items() if k != "contenu"}}}
 
 
+_OUTIL_VALIDATION_CONTACT_COURRIEL = "m2_valider_brouillon_onboarding_contact_courriel"
+_REFUS_HUMAIN_CONTACT_COURRIEL = (
+    "confirmer (ou écarter) un contact issu d'une boîte courriel est une décision humaine : propose-le, puis attends "
+    "qu'une personne l'approuve dans la file OPSYS. Ne le présente pas comme fait."
+)
+
+
+def valider_brouillon_onboarding_contact_courriel(
+    brouillon_id: str, revision_attendue: int, decision: str, nom: str | None, motif: str | None, horodatage: str,
+) -> dict[str, Any]:
+    """L'outil `m2_valider_brouillon_onboarding_contact_courriel` (T1, N3) : un humain CONFIRME un contact candidat tiré
+    de l'historique d'une boîte courriel (il devient un maillon `contact_courriel_importe` du registre
+    `clients_importes`) ou l'ÉCARTE (motif obligatoire). `nom` : le nom que l'humain fournit quand le courriel n'en
+    affichait aucun. Brouillon et contact changent dans la même transaction ; jamais d'écriture sans cette décision."""
+    from opsys.ingestion_onboarding import service as ingestion
+    from opsys.ingestion_onboarding.codes import IngestionErreur
+
+    arguments = {"brouillon_id": brouillon_id, "revision_attendue": revision_attendue, "decision": decision,
+                 "nom": nom, "motif": motif, "horodatage": horodatage}
+    acteur, refus = _acteur_humain(arguments, nom_outil=_OUTIL_VALIDATION_CONTACT_COURRIEL,
+                                   refus_detail=_REFUS_HUMAIN_CONTACT_COURRIEL)
+    if acteur is None:
+        return _refus(refus)
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        return _refus_sans_base_onboarding()
+    try:
+        brouillon = ingestion.lire_brouillon(cnx, brouillon_id)
+        ingestion.controler_decidable(brouillon, genre="courriel_contact", revision_attendue=revision_attendue)
+        decision_humaine = {"par": acteur["par"], "role": acteur["role"], "voie": acteur["voie"],
+                            "le": _horodatage_faisant_foi(horodatage), "decision": decision}
+        if decision == "ecarter":
+            if not isinstance(motif, str) or not motif.strip() or len(motif) > 300 or not motif.isprintable():
+                return _refus(verdicts.construire_verdict(
+                    "REJ-MOTIF-INVALIDE", detail="écarter un contact exige un motif (300 caractères imprimables)"))
+            vue = ingestion.decider_brouillon(
+                cnx, brouillon_id, genre="courriel_contact", revision_attendue=revision_attendue, statut="ECARTE",
+                decision={**decision_humaine, "motif": motif.strip()}, reference=None)
+            return {"accepte": True, "resultat": {"brouillon": {k: v for k, v in vue.items() if k != "contenu"}}}
+        if decision != "valider":
+            return _refus(verdicts.construire_verdict("REJ-ENUM-INVALIDE", detail="decision : valider ou ecarter"))
+        contenu = brouillon["contenu"]
+        resultat, verdict = clients_importes.importer_contact_courriel(
+            contenu["contact"], nom, par=acteur["par"], role=acteur["role"], voie=acteur["voie"],
+            horodatage=decision_humaine["le"],
+            source={"lot_id": brouillon["lot_id"], "brouillon_id": brouillon_id, "origine": "courriel",
+                    "document_sha256": contenu["document"]["sha256"], "lignes": contenu["contact"]["lignes"]},
+            registre_cible=_registre_clients_importes())
+        if verdict is not None:
+            return _refus(verdict)
+        vue = ingestion.decider_brouillon(cnx, brouillon_id, genre="courriel_contact",
+                                          revision_attendue=revision_attendue, statut="VALIDE",
+                                          decision={**decision_humaine, "nom": nom}, reference=resultat["client_id"])
+    except IngestionErreur as exc:
+        return _refus(exc.publique())
+    return {"accepte": True, "resultat": {"client_id": resultat["client_id"],
+                                          "brouillon": {k: v for k, v in vue.items() if k != "contenu"}}}
+
+
+def lister_contacts_courriel_importes(depart: int = 0, limite: int = 20) -> dict[str, Any]:
+    """L'outil `m2_lister_contacts_courriel_importes` (T0) : les contacts confirmés, dans l'ordre d'import."""
+    if type(depart) is not int or depart < 0 or type(limite) is not int or not 1 <= limite <= 50:
+        return _refus(verdicts.construire_verdict("REJ-PAGINATION-INVALIDE", detail="depart ≥ 0, limite de 1 à 50"))
+    if stockage.connexion_courante() is None:
+        return _refus_sans_base_onboarding()
+    fiches = clients_importes.contacts_courriel_importes(_registre_clients_importes().lire())
+    page = fiches[depart:depart + limite]
+    champs = ("client_id", "contact", "organisation", "volumetrie", "importe_par", "voie", "horodatage")
+    return {"accepte": True, "resultat": {
+        "contacts": [{k: f.get(k) for k in champs} for f in page], "total": len(fiches), "depart": depart,
+        "suivant": depart + limite if depart + limite < len(fiches) else None}}
+
+
 def lister_clients_importes(depart: int = 0, limite: int = 20) -> dict[str, Any]:
     """L'outil `m2_lister_clients_importes` (T0) : les fiches définitives importées, dans l'ordre d'import, paginées."""
     if type(depart) is not int or depart < 0 or type(limite) is not int or not 1 <= limite <= 50:
@@ -2743,6 +2816,45 @@ def _outils_onboarding() -> tuple[Outil, ...]:
             },
             fonction=valider_brouillon_onboarding_client,
             autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m2_valider_brouillon_onboarding_contact_courriel",
+            description=(
+                "Décide un CONTACT candidat PROPOSÉ par l'ingestion d'onboarding à partir de l'historique d'une boîte "
+                "courriel (genre courriel_contact) : valider crée le contact confirmé (registre clients_importes, "
+                "client_id du Client 360) ; écarter exige un motif. Décision HUMAINE seulement (file d'approbation) : "
+                "REJ-HUMAIN-REQUIS pour un agent seul. nom : le nom fourni par l'humain quand le courriel n'en "
+                "affichait aucun. revision_attendue : celle lue (m5_lire_lot_onboarding)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "brouillon_id": {"type": "string"},
+                    "revision_attendue": {"type": "integer"},
+                    "decision": {"type": "string", "enum": ["valider", "ecarter"]},
+                    "nom": {"type": ["string", "null"]},
+                    "motif": {"type": ["string", "null"]},
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["brouillon_id", "revision_attendue", "decision", "nom", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=valider_brouillon_onboarding_contact_courriel,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m2_lister_contacts_courriel_importes",
+            description=(
+                "Liste les contacts DÉFINITIFS confirmés à l'onboarding à partir d'une boîte courriel (validés par un "
+                "humain), dans l'ordre d'import, paginés : client_id, contact, organisation, volumétrie. Lecture."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"depart": {"type": "integer"}, "limite": {"type": "integer"}},
+                "additionalProperties": False,
+            },
+            fonction=lister_contacts_courriel_importes,
+            autonomie=Autonomie.T0,
         ),
         Outil(
             nom="m2_lister_clients_importes",

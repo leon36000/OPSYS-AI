@@ -1,6 +1,8 @@
 """Étape « classement » : genre du document par RÈGLES déterministes (aucun modèle).
 
-- Tableau (CSV, `.xlsx`) : `liste_clients` si un en-tête de liste de clients est reconnu (`m2_revenue_crm.
+- Tableau (CSV, `.xlsx`) : `courriel_contacts` si la première ligne est la `MAGIE` du document de correspondants des
+  connecteurs courriel (`contacts_courriel`) ; sinon `liste_clients` si un en-tête de liste de clients est reconnu
+  (`m2_revenue_crm.
   clients_importes.reperer_entete`), sinon `inconnu`.
 - Texte : le PREMIER mot-clé de genre rencontré dans les `_LIGNES_TITRE` premières lignes non vides (le titre) décide :
   facture (« facture », « invoice »), soumission (« soumission », « estimation », « devis », « quote »), contrat
@@ -16,7 +18,7 @@ import re
 import unicodedata
 from typing import Any
 
-CLASSES = ("facture", "soumission", "contrat", "liste_clients", "inconnu")
+CLASSES = ("facture", "soumission", "contrat", "liste_clients", "courriel_contacts", "inconnu")
 _LIGNES_TITRE = 5
 _MOTS = {
     "facture": "facture", "invoice": "facture",
@@ -34,6 +36,12 @@ def classer(resultat_texte: dict[str, Any]) -> dict[str, Any]:
     """`{"classe", "regle"}` : la classe et la règle qui l'a donnée."""
     if resultat_texte["genre"] == "tableau":
         from m2_revenue_crm import clients_importes
+
+        from . import contacts_courriel
+
+        if contacts_courriel.est_document(resultat_texte["candidats"]):
+            return {"classe": "courriel_contacts", "regle": f"première ligne « {contacts_courriel.MAGIE} » "
+                                                            "(correspondants d'une boîte courriel)"}
 
         for candidat in resultat_texte["candidats"]:
             trouve = clients_importes.reperer_entete(candidat["lignes"])

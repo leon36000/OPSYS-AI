@@ -1,6 +1,8 @@
 # M7 : plugin WordPress « OPSYS Connect » et sas de publication sociale
 
-Statut (2026-11-01) : **tranche 1, jamais exécutée contre un vrai WordPress ni un vrai réseau.** Tout ce qui suit a été
+Statut (2026-11-01) : **tranche 1, jamais exécutée contre un vrai WordPress ni un vrai réseau.** Les exécuteurs sont désormais
+raccordés à un planificateur (voir [CABLAGE-CONNECTEURS.md](CABLAGE-CONNECTEURS.md)), désactivé par défaut, activé par un admin ;
+aucun transport WordPress ni aucun adaptateur de réseau réel n'existe encore : le raccord est qualifié sur doubles seulement. Tout ce qui suit a été
 prouvé avec des doubles de test et une analyse statique ; ce que cela ne prouve pas est dit en toutes lettres à la section
 « Ce qui n'est PAS prouvé ». Rien n'est qualifié, rien n'est « complet ».
 
@@ -41,7 +43,8 @@ ou mention final produit par un modèle d'image sans composition déterministe),
 Principe : **aucun outil d'agent ne publie, n'émet un jeton, ne transmet un brouillon ni n'appelle un réseau.** Les douze
 outils lisent et écrivent des journaux. Les exécuteurs (`wordpress/executeur.py`, `sas_social/executeur.py`) sont du code
 séparé, appelé par un processus hors transaction (le coffre refuse la résolution d'un secret dans une transaction
-métier). Aucun planificateur ne les appelle dans cette version.
+métier). Le planificateur des connecteurs (`opsys.connecteurs_planification`, exécuteurs `m7.wordpress.brouillons`,
+`m7.wordpress.publication`, `m7.social.publication`) les appelle, sous bail, quand un admin les a activés.
 
 ## 3. Le plugin WordPress
 
@@ -317,8 +320,9 @@ séparé non modifié, derrière le même sas, non intégré.
 3. **Aucun appel réseau réel**, ni vers un site WordPress, ni vers une plateforme sociale. Les limites des réseaux ne sont pas
    revérifiées. Le comportement réel d'une plateforme face à une panne (publication « retrouvable » par son contenu exact ?)
    est une hypothèse du port `retrouver`.
-4. **Aucun exécuteur n'est branché** à un planificateur : un brouillon n'est donc pas transmis automatiquement, une publication
-   approuvée n'est pas envoyée. Les outils le disent dans leur réponse.
+4. **Le raccord au planificateur est qualifié sur doubles seulement** : tant qu'un admin n'a pas activé l'exécuteur, un
+   brouillon n'est pas transmis et une publication approuvée n'est pas envoyée (les outils le disent). Aucun transport
+   WordPress ni adaptateur de réseau réel n'est fourni : en production les ports restent « non raccordés ».
 5. **Aucune qualité de contenu** n'est mesurée : le garde-fou de texte est un jeu de motifs, pas un jugement.
 6. **Les doubles ne prouvent rien sur les vrais services** (formats réellement acceptés, quotas réels, délais).
 7. **Revue de sécurité indépendante non faite** (exigée par R4 avant diffusion publique). Pas de limitation de débit dans le plugin.

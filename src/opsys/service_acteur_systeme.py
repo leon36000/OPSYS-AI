@@ -22,19 +22,23 @@ from contextvars import ContextVar
 from . import contexte
 
 IDENTIFIANT = "opsys-systeme"
+# Deux portées, jamais interchangeables : le moteur de recalcul n'accepte que `reconciliateur`, le planificateur des
+# connecteurs (`opsys.connecteurs_planification`) que `planificateur`. Aucune des deux ne vaut une approbation humaine :
+# l'acteur système n'exécute jamais une action N3 ou plus sans approbation consommée (voir CABLAGE-CONNECTEURS.md).
+PORTEES = ("reconciliateur", "planificateur")
 _CLE = object()
 
 
 class ActeurSysteme:
     """Jeton opaque, non copiable ni sérialisable, lié au fil et au contexte du réconciliateur qui l'a créé."""
 
-    __slots__ = ("_thread", "_ferme")
+    __slots__ = ("_thread", "_ferme", "portee")
     utilisateur = IDENTIFIANT
 
-    def __init__(self, cle):
-        if cle is not _CLE:
-            raise PermissionError("acteur système réservé au réconciliateur")
-        self._thread, self._ferme = threading.get_ident(), False
+    def __init__(self, cle, portee="reconciliateur"):
+        if cle is not _CLE or portee not in PORTEES:
+            raise PermissionError("acteur système réservé au réconciliateur et au planificateur")
+        self._thread, self._ferme, self.portee = threading.get_ident(), False, portee
 
     def __copy__(self):
         raise PermissionError("copie interdite")
@@ -79,10 +83,39 @@ def contexte_reconciliateur():
         _COURANT.reset(jeton)
 
 
+@contextmanager
+def contexte_planificateur():
+    """Ouvre l'identité système pour UN tour du planificateur des connecteurs ; mêmes refus que
+    `contexte_reconciliateur` (requête HTTP/MCP, identité d'appel, livraison du bus, réentrance)."""
+    if _COURANT.get() is not None or not _hors_requete():
+        raise PermissionError("acteur système hors du contexte du planificateur")
+    acteur = ActeurSysteme(_CLE, "planificateur")
+    jeton = _COURANT.set(acteur)
+    try:
+        yield acteur
+    finally:
+        acteur._ferme = True
+        _COURANT.reset(jeton)
+
+
+def verifier_planificateur(acteur):
+    """Garde du planificateur : l'acteur est celui du tour courant, de ce fil, de portée `planificateur`."""
+    if (
+        type(acteur) is not ActeurSysteme
+        or acteur.portee != "planificateur"
+        or acteur._ferme
+        or _COURANT.get() is not acteur
+        or acteur._thread != threading.get_ident()
+        or not _hors_requete()
+    ):
+        raise PermissionError("acteur système hors du contexte du planificateur")
+
+
 def verifier(cnx, acteur):
     """Garde rejouée par le moteur à chaque vérification (comme `_admin` pour une session humaine)."""
     if (
         type(acteur) is not ActeurSysteme
+        or acteur.portee != "reconciliateur"
         or acteur._ferme
         or _COURANT.get() is not acteur
         or acteur._thread != threading.get_ident()

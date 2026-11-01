@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m7.publication_echouee",
+  "title": "M7 — Publication échouée",
+  "description": "Émis par le planificateur des connecteurs quand une publication approuvée (WordPress ou réseau social) n'a pas abouti : refus typé, approbation expirée, échec du site ou du réseau, issue incertaine. Aucun texte. evenement_id déterministe sur (canal, publication, code).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "canal": {
+      "enum": [
+        "wordpress",
+        "social"
+      ]
+    },
+    "publication_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "cible": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "code": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "transitoire": {
+      "type": "boolean"
+    },
+    "resultat_incertain": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "canal",
+    "publication_id",
+    "cible",
+    "code",
+    "transitoire",
+    "resultat_incertain"
+  ]
+}

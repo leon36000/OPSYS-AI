@@ -22,10 +22,12 @@ Garanties :
 
 from __future__ import annotations
 
+import csv
 import dataclasses
 import hashlib
 import io
 import os
+import re
 import stat
 import time
 import zipfile
@@ -36,18 +38,21 @@ from typing import Any
 
 from sqlalchemy import Connection, insert, select
 
-from ..ingestion_onboarding import depot
+from ..ingestion_onboarding import contacts_courriel, depot
 from ..ingestion_onboarding import service as ingestion
 from ..ingestion_onboarding.codes import IngestionErreur
 from ..stockage.schema import COURRIEL_MESSAGES, COURRIEL_REFS
-from . import comptes
+from . import comptes, isolation
 from .erreurs import ErreurCourriel
-from .modele import MessageNormalise, PieceJointe
+from .modele import Adresse, MessageNormalise, PieceJointe
 from .normalisation import normaliser
 from .port import FournisseurCourriel
+from .reception import Recepteur, construire
 
 FabriqueConnexion = Callable[[], AbstractContextManager[Connection]]
 MODE = "brouillon_a_confirmer"
+# Interruptions du planificateur (arrêt propre, bail repris par un autre exécuteur) : propagées telles quelles.
+CODES_INTERRUPTION = frozenset({"REJ-COURRIEL-ARRET-DEMANDE", "REJ-COURRIEL-BAIL-PERDU"})
 ARCHIVE_OCTETS_MAX = 24 * 1024 * 1024
 ARCHIVE_MEMBRES_MAX = 400
 _EXTENSION = {
@@ -55,6 +60,18 @@ _EXTENSION = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
 }
 _GENERIQUES = frozenset({"application/octet-stream", "binary/octet-stream", "application/x-download"})
+# En-tête du document de contacts déposé à l'onboarding (genre de brouillon « courriel_contact ») : le classement de
+# l'ingestion le reconnaît à cette première ligne et à elle seule.
+MAGIE_CONTACTS = contacts_courriel.MAGIE
+COLONNES_CONTACTS = contacts_courriel.COLONNES
+CONTACTS_PAR_PAGE_MAX = 500
+NOM_CONTACT_MAX = 80
+_DOMAINES_PERSONNELS = frozenset({
+    "gmail.com", "googlemail.com", "hotmail.com", "hotmail.ca", "hotmail.fr", "outlook.com", "outlook.fr", "live.com",
+    "live.ca", "msn.com", "yahoo.com", "yahoo.ca", "yahoo.fr", "icloud.com", "me.com", "mac.com", "aol.com",
+    "protonmail.com", "proton.me", "videotron.ca", "bell.net", "sympatico.ca", "cgocable.ca", "videotron.qc.ca",
+})
+_CONTROLE = re.compile(r"[\x00-\x1f\x7f]")
 
 
 class LimiteurDebit:
@@ -91,6 +108,11 @@ class RapportIngestion:
     reprises_curseur: int = 0
     statut: str = "termine"  # termine | quota | erreur | page_max
     code: str | None = None
+    recus_m1: int = 0  # courriels ENTRANTS devenus une réception de M1
+    deja_recus_m1: int = 0  # déjà reçus par M1 (autre voie, autre compte, rejeu) : aucun doublon
+    refuses_m1: dict[str, int] = dataclasses.field(default_factory=dict)
+    contacts: int = 0  # correspondants déposés à l'onboarding (amorçage seulement)
+    amorce_termine: bool = False
 
     def refuser_piece(self, raison: str) -> None:
         self.pieces_non_transmises[raison] = self.pieces_non_transmises.get(raison, 0) + 1
@@ -159,14 +181,67 @@ def deposer_archive(octets: bytes, dossier: Path | None = None) -> str:
     return nom
 
 
+def _nom_contact(nom: str, filtre: isolation.Filtre) -> str:
+    """Le nom affiché d'un correspondant : DONNÉE NON FIABLE, neutralisée comme tout texte de courriel, une ligne."""
+    propre, _ = isolation._neutraliser(nom, filtre)
+    return " ".join(_CONTROLE.sub(" ", propre).split())[:NOM_CONTACT_MAX]
+
+
+def _organisation(adresse: str) -> str:
+    domaine = adresse.rsplit("@", 1)[-1].lower()
+    return "" if domaine in _DOMAINES_PERSONNELS else domaine
+
+
+def releves_contacts(message: MessageNormalise, propre_courriel: str, filtre: isolation.Filtre,
+                     cumul: dict[str, dict[str, Any]]) -> None:
+    """Ajoute au `cumul` de la page les correspondants d'un message (expéditeur, destinataires, copie) hors l'adresse du
+    compte lui-même : nom (neutralisé), nombre de messages reçus et envoyés, premier et dernier échange."""
+    propre = propre_courriel.lower()
+    envoye = message.expediteur is not None and message.expediteur.courriel.lower() == propre
+    personnes: list[Adresse] = ([message.expediteur] if message.expediteur and not envoye else []) + (
+        [*message.destinataires, *message.copie] if envoye else [])
+    date = message.date_utc or ""
+    for personne in personnes:
+        adresse = personne.courriel.lower()
+        if adresse == propre or not adresse:
+            continue
+        fiche = cumul.setdefault(adresse, {"nom": "", "recus": 0, "envoyes": 0, "premier": date, "dernier": date})
+        if not fiche["nom"] and personne.nom:
+            fiche["nom"] = _nom_contact(personne.nom, filtre)
+        fiche["envoyes" if envoye else "recus"] += 1
+        if date and (not fiche["premier"] or date < fiche["premier"]):
+            fiche["premier"] = date
+        if date and date > fiche["dernier"]:
+            fiche["dernier"] = date
+
+
+def document_contacts(cumul: dict[str, dict[str, Any]]) -> bytes | None:
+    """Le CSV déterministe des correspondants d'une page (adresses triées, plafonné), ou `None` s'il n'y en a pas."""
+    if not cumul:
+        return None
+    sortie = io.StringIO()
+    ecrivain = csv.writer(sortie, lineterminator="\n")
+    ecrivain.writerow([MAGIE_CONTACTS])
+    ecrivain.writerow(COLONNES_CONTACTS)
+    for adresse in sorted(cumul)[:CONTACTS_PAR_PAGE_MAX]:
+        f = cumul[adresse]
+        ecrivain.writerow([f["nom"], adresse, _organisation(adresse), f["recus"], f["envoyes"], f["premier"],
+                           f["dernier"]])
+    return sortie.getvalue().encode("utf-8")
+
+
 class IngestionCourriel:
     def __init__(self, fabrique: FabriqueConnexion, *, acteur: str, limiteur: LimiteurDebit | None = None,
                  dossier_depot: Path | None = None, taille_page: int = 50, pages_max: int = 10_000,
                  serveurs_fiables: frozenset[str] | None = None,
-                 signaler: Callable[[str, ErreurCourriel], None] | None = None) -> None:
+                 signaler: Callable[[str, ErreurCourriel], None] | None = None,
+                 recepteur: Recepteur | None = None, entre_pages: Callable[[], None] | None = None) -> None:
         self._fabrique, self._acteur, self._limiteur = fabrique, acteur, limiteur
         self._dossier, self._taille_page, self._pages_max = dossier_depot, taille_page, pages_max
         self._serveurs_fiables, self._signaler = serveurs_fiables, signaler
+        # `recepteur` : M1 (réception des courriels ENTRANTS, comptes qui l'ont demandé) ; `entre_pages` : appelé avant
+        # chaque page (renouvellement du bail, arrêt propre) ; il lève `ErreurCourriel` pour interrompre.
+        self._recepteur, self._entre_pages = recepteur, entre_pages
 
     def synchroniser_compte(self, compte_id: str, fournisseur: FournisseurCourriel) -> dict[str, RapportIngestion]:
         """Tous les dossiers suivis du compte, l'un après l'autre ; un dossier en erreur n'empêche pas les autres, sauf
@@ -191,6 +266,8 @@ class IngestionCourriel:
         try:
             self._boucle(compte_id, fournisseur, dossier, rapport)
         except ErreurCourriel as exc:
+            if exc.code in CODES_INTERRUPTION:
+                raise  # arrêt demandé ou bail perdu : ce n'est pas une erreur du compte, rien n'est signalé
             rapport.statut, rapport.code = "erreur", exc.code
             if self._signaler is not None:
                 self._signaler(compte_id, exc)
@@ -206,6 +283,8 @@ class IngestionCourriel:
     def _boucle(self, compte_id: str, fournisseur: FournisseurCourriel, dossier: str,
                 rapport: RapportIngestion) -> None:
         for _ in range(self._pages_max):
+            if self._entre_pages is not None:
+                self._entre_pages()
             with self._fabrique() as cnx:
                 curseur = comptes.curseurs(cnx, compte_id).get(dossier)
             try:
@@ -236,6 +315,15 @@ class IngestionCourriel:
         refs_faites: list[str] = []
         membres_page: dict[str, bytes] = {}
         interrompu = False
+        with self._fabrique() as cnx:
+            ligne_compte = comptes.ligne_brute(cnx, compte_id)
+            curseurs_compte = comptes.curseurs(cnx, compte_id)
+            propre_courriel = ligne_compte["adresse"]
+            vers_m1 = comptes.option(ligne_compte, "reception_m1") and self._recepteur is not None
+            vers_contacts = comptes.option(ligne_compte, "contacts_courriel")
+        amorce_faite = comptes.amorce_terminee(curseurs_compte, dossier)
+        filtre = isolation.filtre_m1() if (vers_contacts and not amorce_faite) or (vers_m1 and amorce_faite) else None
+        contacts_page: dict[str, dict[str, Any]] = {}
         for ref in page.ajouts:
             ref_cle = hashlib.sha256(f"{dossier}\x1f{ref.ref}".encode()).hexdigest()
             with self._fabrique() as cnx:
@@ -269,6 +357,10 @@ class IngestionCourriel:
                                        and m.empreinte == message.empreinte for m, _, _ in retenus):
                 rapport.doublons += 1
                 continue
+            if vers_m1 and amorce_faite:
+                self._vers_m1(compte_id, fournisseur, message, brut.recu_le, filtre, rapport)
+            if vers_contacts and not amorce_faite:
+                releves_contacts(message, propre_courriel, filtre, contacts_page)
             transmises: list[tuple[str, bytes]] = []
             for piece in message.pieces_jointes:
                 extension, raison = classer_piece(piece)
@@ -279,6 +371,10 @@ class IngestionCourriel:
                 membres_page.setdefault(nom, piece.octets)
                 transmises.append((nom, piece.octets))
             retenus.append((message, transmises, len(message.pieces_jointes)))
+        contacts = document_contacts(contacts_page)
+        if contacts is not None:
+            membres_page.setdefault(f"contacts-{hashlib.sha256(contacts).hexdigest()[:16]}.csv", contacts)
+            rapport.contacts += min(len(contacts_page), CONTACTS_PAR_PAGE_MAX)
         lots = self._deposer(compte_id, membres_page, rapport)
         lot_de: dict[str, str] = {}
         for nom_lot, noms in lots:
@@ -295,14 +391,46 @@ class IngestionCourriel:
                 rapport.pieces_transmises += len(transmises)
             for ref_cle in refs_faites:
                 cnx.execute(insert(COURRIEL_REFS).values(compte_id=compte_id, ref_cle=ref_cle, vu_le=comptes.instant()))
+            a_jour: dict[str, str | None] = {} if interrompu else {dossier: page.curseur}
+            if not interrompu and page.termine and not amorce_faite:
+                a_jour[comptes.CLE_AMORCE + dossier] = "1"  # l'historique est lu : la suite est de l'ENTRANT
+                rapport.amorce_termine = True
             comptes.enregistrer_synchro(
-                cnx, compte_id, self._acteur, curseurs_a_jour={} if interrompu else {dossier: page.curseur},
+                cnx, compte_id, self._acteur, curseurs_a_jour=a_jour,
                 statut="quota" if interrompu else "page", ajoutes=len(retenus))
             comptes.journaliser(cnx, compte_id, "ingestion.page", self._acteur, details={
                 "dossier": dossier[:64], "messages": len(retenus), "pieces_transmises": sum(len(t) for _, t,
                                                                                             _ in retenus),
                 "doublons": rapport.doublons, "page": rapport.pages, "termine": not interrompu})
         return not interrompu
+
+    def _vers_m1(self, compte_id: str, fournisseur: FournisseurCourriel, message: MessageNormalise,
+                 recu_brut: str | None, filtre: isolation.Filtre | None, rapport: RapportIngestion) -> None:
+        """Un courriel ENTRANT : sa vue neutralisée devient une réception de M1. Un message non transmissible est
+        compté et laissé ; un refus de configuration de M1 arrête la page (rien n'avance, reprenable)."""
+        assert self._recepteur is not None
+        vue = isolation.vue_pour_agent(message, compte_id=compte_id, fournisseur=fournisseur.identifiant,
+                                       filtre=filtre)
+        entrant, raison = construire(message, vue, compte_id=compte_id, fournisseur=fournisseur.identifiant,
+                                     recu_brut=recu_brut)
+        if entrant is None:
+            rapport.refuses_m1[raison or "inconnu"] = rapport.refuses_m1.get(raison or "inconnu", 0) + 1
+            return
+        try:
+            resultat = self._recepteur(entrant)
+        except ErreurCourriel:
+            raise
+        except ValueError as exc:
+            raise ErreurCourriel("REJ-COURRIEL-M1-REFUSE", f"M1 refuse la réception : {str(exc)[:200]}", 503,
+                                 reprenable=True) from None
+        statut = resultat.get("statut")
+        if statut == "recu":
+            rapport.recus_m1 += 1
+        elif statut == "deja_recu":
+            rapport.deja_recus_m1 += 1
+        else:
+            cle = str(resultat.get("code") or statut or "inconnu")[:48]
+            rapport.refuses_m1[cle] = rapport.refuses_m1.get(cle, 0) + 1
 
     def _deposer(self, compte_id: str, membres: dict[str, bytes], rapport: RapportIngestion) -> list[tuple[str,
                                                                                                            list[str]]]:

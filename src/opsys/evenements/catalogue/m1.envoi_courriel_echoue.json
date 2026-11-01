@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.envoi_courriel_echoue",
+  "title": "M1 — Envoi de courriel non abouti",
+  "description": "Émis par le planificateur des connecteurs quand l'envoi d'un brouillon approuvé n'a pas abouti : refus de la garde (approbation expirée ou invalide), échec définitif, ou issue INCERTAINE (le message a peut-être été remis : jamais de reprise automatique, un humain vérifie la boîte Envoyés). Aucun contenu.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "brouillon_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "empreinte": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "compte_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "issue": {
+      "enum": [
+        "refuse",
+        "echec",
+        "incertain"
+      ]
+    },
+    "code": {
+      "type": "string",
+      "maxLength": 64
+    }
+  },
+  "required": [
+    "brouillon_id",
+    "empreinte",
+    "compte_id",
+    "issue",
+    "code"
+  ]
+}

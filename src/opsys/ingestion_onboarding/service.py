@@ -31,7 +31,7 @@ from sqlalchemy import Connection, select, update
 
 from .. import etat
 from ..stockage.schema import INGESTION_BROUILLONS, INGESTION_DOCUMENTS, INGESTION_JOURNAL
-from . import classement, depot, extraction_texte, port_extraction, scellement
+from . import classement, contacts_courriel, depot, extraction_texte, port_extraction, scellement
 from .codes import EchecEtape, IngestionErreur
 from .taches import ETAPES, QUOTAS, RANG, TachesSQLite, instant_texte, nouvel_identifiant
 
@@ -262,6 +262,11 @@ def _executer_etape(entrees: Mapping[str, Any], *, extracteur_pdf: Any = None, e
             extracteur = entrees["extracteur"]
             return {"provenance": extracteur.provenance(),
                     "facture": port_extraction.extraire(extracteur, entrees["texte"]["pages"])}, None
+        if entrees["classe"] == "courriel_contacts":
+            lecture, raison = contacts_courriel.lire(entrees["texte"]["candidats"])
+            if raison is not None:
+                raise EchecEtape("REJ-ING-TABLEAU-ILLISIBLE", f"correspondants courriel : {raison['code']}")
+            return {"contacts": lecture}, None
         from m2_revenue_crm import clients_importes
 
         lecture, raison = clients_importes.lire_lignes(entrees["texte"]["candidats"])
@@ -279,6 +284,10 @@ def _executer_etape(entrees: Mapping[str, Any], *, extracteur_pdf: Any = None, e
             if verdict["direction"] == "client":
                 return verdict, "REJ-ING-CLASSE-NON-PEUPLEE"
             return verdict, None
+        if entrees["classe"] == "courriel_contacts":
+            lecture = entrees["extraction"]["contacts"]
+            fiches, refusees = contacts_courriel.proposer(lecture["lignes"])
+            return {"fiches": fiches, "lignes_refusees": [*lecture["refusees"], *refusees]}, None
         from m2_revenue_crm import clients_importes
 
         lecture = entrees["extraction"]["clients"]
@@ -353,10 +362,54 @@ def _cles_connues_crm(port: TachesSQLite) -> tuple[dict[str, str], dict[str, str
         for cle in json.loads(cles):
             brouillons.setdefault(cle, brouillon_id)
     definitifs: dict[str, str] = {}
-    for maillon in clients_importes.clients_importes(stockage.maillons("m02-revenue-crm", "clients_importes")):
+    registre = stockage.maillons("m02-revenue-crm", "clients_importes")
+    connus = (*clients_importes.clients_importes(registre), *clients_importes.contacts_courriel_importes(registre))
+    for maillon in connus:
         for cle in clients_importes.empreintes_du_client(maillon):
             definitifs.setdefault(cle, maillon["client_id"])
     return brouillons, definitifs
+
+
+def _cles_contacts_courriel(port: TachesSQLite) -> dict[str, str]:
+    """Les clés fortes des brouillons « courriel_contact » existants : clé -> brouillon_id."""
+    brouillons: dict[str, str] = {}
+    for brouillon_id, cles in port.cnx.execute(select(INGESTION_BROUILLONS.c.brouillon_id, INGESTION_BROUILLONS.c.cles)
+                                               .where(INGESTION_BROUILLONS.c.genre == "courriel_contact")):
+        for cle in json.loads(cles):
+            brouillons.setdefault(cle, brouillon_id)
+    return brouillons
+
+
+def _proposer_contacts_courriel(port: TachesSQLite, lot: Mapping[str, Any], document: Mapping[str, Any],
+                                entrees: Mapping[str, Any]) -> dict[str, Any]:
+    """Un brouillon « courriel_contact » par correspondant nouveau ; un correspondant déjà importé (client ou contact)
+    ou déjà proposé s'y rattache sans nouveau brouillon. Rien n'est écrit au CRM."""
+    _, definitifs = _cles_connues_crm(port)
+    brouillons = _cles_contacts_courriel(port)
+    crees, rattaches = [], []
+    a_verifier = False
+    for fiche in entrees["validation"]["fiches"]:
+        client = next((definitifs[c] for c in fiche["cles"] if c in definitifs), None)
+        if client is not None:
+            rattaches.append({"lignes": fiche["lignes"], "client_id": client, "regle": "cle_forte_d_un_client_importe"})
+            continue
+        existant = next((brouillons[c] for c in fiche["cles"] if c in brouillons), None)
+        if existant is not None:
+            rattaches.append({"lignes": fiche["lignes"], "brouillon_id": existant,
+                              "regle": "cle_forte_d_un_brouillon_existant"})
+            continue
+        charge = {"contact": fiche, "document": {"nom": document["nom"], "sha256": document["sha256"]}}
+        brouillon_id = _inserer_brouillon(
+            port, lot, document["document_id"], genre="courriel_contact", cle_metier=fiche["cle_metier"],
+            statut=fiche["statut"], raisons=[r["code"] for r in fiche["raisons"]], cles=fiche["cles"], charge=charge)
+        for cle in fiche["cles"]:
+            brouillons.setdefault(cle, brouillon_id)
+        crees.append(brouillon_id)
+        a_verifier = a_verifier or fiche["statut"] != "PRET"
+    if entrees["validation"]["lignes_refusees"]:
+        a_verifier = True
+    return {"brouillons": crees, "rattaches": rattaches, "lignes_refusees": entrees["validation"]["lignes_refusees"],
+            "statut": "A_VERIFIER" if a_verifier else "TERMINE"}
 
 
 def _proposer_clients(port: TachesSQLite, lot: Mapping[str, Any], document: Mapping[str, Any],
@@ -493,6 +546,8 @@ def _proposer(port: TachesSQLite, lot: Mapping[str, Any], document: Mapping[str,
               entrees: Mapping[str, Any]) -> dict[str, Any]:
     if entrees["classe"] == "facture":
         return {"classe": "facture", **_proposer_facture(port, lot, document, entrees)}
+    if entrees["classe"] == "courriel_contacts":
+        return {"classe": "courriel_contacts", **_proposer_contacts_courriel(port, lot, document, entrees)}
     return {"classe": "liste_clients", **_proposer_clients(port, lot, document, entrees)}
 
 

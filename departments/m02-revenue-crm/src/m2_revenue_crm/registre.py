@@ -30,6 +30,7 @@ _TYPE_ENTREE_VALIDES = {
     # Ingestion d'onboarding : la fiche DÉFINITIVE d'un client importé d'une liste (`clients_importes.py`), validée par
     # un humain, dans son registre DÉDIÉ `clients_importes` (jamais le registre des leads).
     "client_importe",
+    "contact_courriel_importe",
 }
 
 

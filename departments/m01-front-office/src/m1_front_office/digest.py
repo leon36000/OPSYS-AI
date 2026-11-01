@@ -3,7 +3,7 @@
 import collections
 
 from . import transferts
-from .registre import TYPE_RECU_SMS_HOTE
+from .registre import TYPE_RECU_COURRIEL, TYPE_RECU_SMS_HOTE, TYPE_REPONSE_COURRIEL
 
 CANAUX = ["telephone", "courriel", "formulaire", "texte"]
 TYPES = ["signal", "transition_phase", "lead_emis", "chiffrage_emis", "alerte"]
@@ -125,7 +125,8 @@ def produire_digest(entrees: list[dict], date_reference: str) -> str:
     compteur = collections.Counter()
     non_classes = 0
     for entree in entrees:
-        if entree.get("type_entree") in (TYPE_SUIVI, TYPE_TRANSFERT, TYPE_APPEL_IMPORTE, TYPE_RECU_SMS_HOTE):
+        if entree.get("type_entree") in (TYPE_SUIVI, TYPE_TRANSFERT, TYPE_APPEL_IMPORTE, TYPE_RECU_SMS_HOTE,
+                                          TYPE_RECU_COURRIEL, TYPE_REPONSE_COURRIEL):
             continue  # comptés à part (`_lignes_de_suivi`, `_lignes_de_transferts`), jamais parmi les « non classées »
         if not _correspond_a_la_date(entree, date_reference):
             continue

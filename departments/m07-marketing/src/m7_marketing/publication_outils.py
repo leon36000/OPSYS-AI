@@ -15,8 +15,8 @@ Niveaux (ADR-0009) :
 Un N3 ou un N4 appelé par un agent attend la file d'approbation du propriétaire ; approuvé, il CONSIGNE la décision et
 rend `PUBLICATION_APPROUVEE_NON_EXECUTEE` : aucun outil ne transmet un brouillon, n'émet un jeton ni ne publie. Ces
 gestes
-appartiennent à des exécuteurs hors transaction (`wordpress.executeur`, `sas_social.executeur`) qui ne sont pas branchés
-à un planificateur dans cette version et n'ont été exercés qu'avec des doubles de test.
+appartiennent à des exécuteurs hors transaction (`wordpress.executeur`, `sas_social.executeur`) que le planificateur des
+connecteurs appelle (désactivé par défaut, activé par un admin) et qui n'ont été exercés qu'avec des doubles de test.
 """
 
 from __future__ import annotations
@@ -156,9 +156,8 @@ def preparer_brouillon_wordpress(
         resultat = {
             **resultat,
             "transmission": (
-                "en attente d'un exécuteur : le brouillon n'est PAS encore sur le site WordPress (aucun exécuteur "
-                "n'est branché "
-                "à un planificateur dans cette version)"
+                "en attente d'un exécuteur : le brouillon n'est PAS encore sur le site WordPress (le planificateur "
+                "des connecteurs le transmet seulement si un admin a activé l'exécuteur m7.wordpress.brouillons)"
             ),
         }
     return resultat

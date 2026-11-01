@@ -36,7 +36,10 @@ from . import horodatage as _horodatage
 __all__ = [
     "CODES_RAISONS",
     "CHAMPS",
+    "TYPE_CONTACT_COURRIEL",
     "TYPE_ENTREE",
+    "contacts_courriel_importes",
+    "importer_contact_courriel",
     "empreintes_cles",
     "importer_client",
     "lire_lignes",
@@ -50,6 +53,7 @@ __all__ = [
 ]
 
 TYPE_ENTREE = "client_importe"
+TYPE_CONTACT_COURRIEL = "contact_courriel_importe"
 CHAMPS: tuple[str, ...] = ("nom", "courriel", "telephone", "adresse", "ville", "code_postal")
 CODES_RAISONS: tuple[str, ...] = (
     "REJ-ING-CLIENT-NOM-ABSENT",
@@ -418,3 +422,46 @@ def empreintes_du_client(maillon: Mapping[str, Any]) -> list[str]:
                             "telephone": contact.get("telephone", ""), "adresse": maillon.get("adresse") or "",
                             "code_postal": maillon.get("code_postal") or ""})
 
+
+
+# ------------------------------------------------------------------- contacts candidats issus d'une boîte courriel
+def importer_contact_courriel(
+    fiche: Mapping[str, Any], nom: str | None, *, par: Any, role: Any, voie: Any, horodatage: Any,
+    source: Mapping[str, Any], registre_cible: Any,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Range un CONTACT confirmé par un humain (un maillon `contact_courriel_importe`) : un correspondant d'une boîte
+    courriel (nom affiché, adresse, organisation déduite du domaine, volumétrie), PAS un client. Même registre
+    dédié et même `client_id` du Client 360 que les clients importés : un lead futur au même contact rejoint la même
+    identité. `nom` : le nom que l'humain fournit ou confirme (obligatoire si le courriel n'en affichait aucun).
+    `({"client_id", "maillon"}, None)` ou `(None, verdict)` sans rien écrire."""
+    if voie not in ("appareil", "approbation") or not isinstance(par, str) or not par.strip():
+        return _refus("REJ-HUMAIN-REQUIS", "un contact courriel se confirme par un humain identifié")
+    try:
+        _horodatage.valider_horodatage(horodatage)
+    except ValueError as exc:
+        return _refus("REJ-HORODATAGE-INVALIDE", str(exc))
+    adresse = normaliser_courriel(str(fiche.get("courriel", "")))
+    nom_retenu = " ".join((nom or fiche.get("nom") or "").split())[:_VALEUR_MAX]
+    if adresse is None:
+        return _refus("REJ-CLIENT-IMPORT-INVALIDE", "adresse mal formée : écarter le brouillon")
+    if not nom_retenu:
+        return _refus("REJ-CLIENT-IMPORT-INVALIDE", "contact sans nom : fournir le nom à la validation")
+    contact = {"nom": nom_retenu, "courriel": adresse}
+    client_id = clients.identifiant_client({"contact": contact})
+    for maillon in registre_cible.lire():
+        if maillon.get("type_entree") in (TYPE_ENTREE, TYPE_CONTACT_COURRIEL) and maillon.get("client_id") == client_id:
+            return _refus("REJ-CLIENT-DEJA-IMPORTE", f"contact {client_id} déjà importé")
+    entree = {
+        "type_entree": TYPE_CONTACT_COURRIEL, "client_id": client_id, "contact": contact,
+        "organisation": fiche.get("organisation") or None, "adresse": None, "ville": None, "code_postal": None,
+        "volumetrie": {k: fiche.get(k) for k in ("recus", "envoyes", "premier", "dernier")},
+        "source": copy.deepcopy(dict(source)), "importe_par": par, "role": role, "voie": voie,
+        "horodatage": horodatage,
+    }
+    registre_cible.ajouter(entree)
+    return {"client_id": client_id, "maillon": registre_cible.lire()[-1]}, None
+
+
+def contacts_courriel_importes(maillons: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Les contacts courriel confirmés, dans l'ordre d'import."""
+    return [copy.deepcopy(dict(m)) for m in maillons if m.get("type_entree") == TYPE_CONTACT_COURRIEL]
