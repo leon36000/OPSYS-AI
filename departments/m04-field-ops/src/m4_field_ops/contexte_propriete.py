@@ -57,6 +57,7 @@ def contexte_du_lead(
     for lien in liens:
         if lien.get("type_entree") == TYPE_LIEN and lien.get("lead_id") == lead_id:
             client_id = lien["client_id"]
+            break  # le PREMIER lien fait foi (M2 n'en établit qu'un par lead ; M5 garde aussi le premier)
     if client_id is None:
         return {"statut": STATUT_ABSENT, "raison": "aucun lien lead -> client reçu de M2"}
     meilleures: dict[str, Mapping[str, Any]] = {}
