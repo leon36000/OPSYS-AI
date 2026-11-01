@@ -1,0 +1,15 @@
+Liste des comptes
+Toitures Fictives Démo inc. (FICTIF)
+
+N° de compte;Compte;Type;Type de détail;Solde
+;Desjardins — opérations;Banque;Compte chèques;13 146,81
+1100;Comptes clients;Comptes clients (C/C);Comptes clients (C/C);0,00
+2100;Comptes fournisseurs;Comptes fournisseurs (C/F);Comptes fournisseurs (C/F);80,00
+2300;TPS/TVH à payer;Autres passifs à court terme;TPS/TVH à payer;137,50
+2310;TVQ à payer;Autres passifs à court terme;Taxe de vente à payer;274,31
+3100;Capital-actions;Capitaux propres;Capital-actions;10 000,00
+3200;Bénéfices non répartis;Capitaux propres;Bénéfices non répartis;0,00
+;Ventes;Revenus;Ventes de produits;
+5400;Carburant;Dépenses;Automobile;
+5800;Frais bancaires;Dépenses;Frais bancaires;
+;Repas et représentation;Dépenses;Repas et représentation;

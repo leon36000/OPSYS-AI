@@ -1,0 +1,26 @@
+# Exports QuickBooks Online FICTIFS (aucune donnée réelle) pour les tests de l'import M5 (import_quickbooks.py).
+# Entreprise, clients, fournisseurs et montants inventés ; mise en forme calquée sur les exports CSV standard de QBO.
+fictif: true
+entreprise: "Toitures Fictives Démo inc. (FICTIF)"
+jeux:
+  en:
+    langue: anglais
+    encodage: "UTF-8 avec BOM"
+    separateur: virgule
+    montants: "point décimal, $ en préfixe, milliers à la virgule"
+    dates: "MM/JJ/AAAA"
+    fichiers:
+      account_list.csv: "Account List (sans numéros de compte)"
+      trial_balance_2025-12-31.csv: "Trial Balance d'ouverture, fin de l'exercice 2025 (exercice au 31 décembre)"
+      journal_2026-01-01_2026-03-31.csv: "Journal du 1er janvier au 31 mars 2026, total par transaction"
+      trial_balance_2026-03-31.csv: "Trial Balance de clôture (date de reprise)"
+  fr:
+    langue: français
+    encodage: "Windows-1252"
+    separateur: point-virgule
+    montants: "virgule décimale, $ en suffixe, espace insécable de milliers"
+    dates: "JJ/MM/AAAA"
+    fichiers:
+      liste_des_comptes.csv: "Liste des comptes (numéros pour une partie des comptes), entreprise ouverte le 1er janvier 2026"
+      journal_2026-01-01_2026-02-28.csv: "Journal depuis l'ouverture, sans total par transaction"
+      balance_de_verification_2026-02-28.csv: "Balance de vérification au 28 février 2026 (noms précédés du numéro)"

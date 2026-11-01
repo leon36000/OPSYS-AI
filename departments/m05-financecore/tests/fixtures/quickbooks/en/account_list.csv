@@ -1,0 +1,15 @@
+﻿Account,Type,Detail Type,Description,Balance
+Chequing,Bank,Chequing,Compte d'opérations (fictif),"15,487.00"
+Savings,Bank,Savings,,"6,000.00"
+Accounts Receivable (A/R),Accounts receivable (A/R),Accounts Receivable (A/R),,"4,599.75"
+Equipment,Fixed Assets,Machinery & Equipment,,"12,000.00"
+Accounts Payable (A/P),Accounts payable (A/P),Accounts Payable (A/P),,"4,024.63"
+GST/HST Payable,Other Current Liabilities,GST/HST Payable,,525.00
+QST Payable,Other Current Liabilities,Sales Tax Payable,,"1,047.37"
+Share capital,Equity,Share capital,,
+Retained Earnings,Equity,Retained Earnings,,
+Sales,Income,Sales of Product Income,,
+Subcontractors,Cost of Goods Sold,Cost of labour - COS,,
+Rent or Lease,Expenses,Rent or Lease of Buildings,,
+Bank Charges,Expenses,Bank charges,,
+Office Supplies,Expenses,Office/General Administrative Expenses,,

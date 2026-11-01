@@ -85,6 +85,10 @@ def test_les_outils_qui_calculent_ou_proposent_sont_des_analyses():
         "m5_lire_balance_verification", "m5_lire_grand_livre_compte", "m5_rapprocher_grand_livre",
         "m5_proposer_ecriture_comptable", "m5_generer_brouillons_comptables", "m5_proposer_contre_passation",
         "m5_valider_ecriture_comptable", "m5_clore_periode_comptable"}
+    # Import QuickBooks (repli « exports ») : mêmes deux mentions, prouvées par tests/test_import_quickbooks_outils.py.
+    attendues |= {
+        "m5_analyser_exports_quickbooks", "m5_valider_correspondance_quickbooks", "m5_importer_quickbooks",
+        "m5_lire_import_quickbooks", "m5_valider_import_quickbooks"}
     assert set(analyse.SORTIES_D_ANALYSE) == attendues
     assert analyse.SORTIES_COMPTABLES <= analyse.SORTIES_D_ANALYSE
     assert "m5_envoyer_facture" in analyse.SORTIES_HORS_ANALYSE

@@ -1,0 +1,42 @@
+﻿Toitures Fictives Démo inc. (FICTIF)
+Journal
+"January 1 - March 31, 2026"
+
+,Date,Transaction Type,Num,Name,Memo/Description,Account,Debit,Credit
+,01/15/2026,Invoice,1001,Client Fictif A,,Accounts Receivable (A/R),"$2,299.50",
+,,,,,Installation gouttières (fictif),Sales,,"$2,000.00"
+,,,,,,GST/HST Payable,,$100.00
+,,,,,,QST Payable,,$199.50
+,,,,,,,"$2,299.50","$2,299.50"
+
+,01/20/2026,Bill,F-778,Sous-traitant Fictif,Pose (fictif),Subcontractors,"$1,500.00",
+,,,,,,GST/HST Payable,$75.00,
+,,,,,,QST Payable,$149.63,
+,,,,,,Accounts Payable (A/P),,"$1,724.63"
+,,,,,,,"$1,724.63","$1,724.63"
+
+,02/01/2026,Cheque,CHQ-310,Propriétaire Fictif,Loyer février (fictif),Rent or Lease,$800.00,
+,,,,,,Chequing,,$800.00
+,,,,,,,$800.00,$800.00
+
+,02/10/2026,Payment,P-1001,Client Fictif A,,Chequing,"$2,299.50",
+,,,,,,Accounts Receivable (A/R),,"$2,299.50"
+,,,,,,,"$2,299.50","$2,299.50"
+
+,03/15/2026,Transfer,TR-2,,Épargne (fictif),Savings,"$1,000.00",
+,,,,,,Chequing,,"$1,000.00"
+,,,,,,,"$1,000.00","$1,000.00"
+
+,03/20/2026,Invoice,1002,Client Fictif C,,Accounts Receivable (A/R),"$1,149.75",
+,,,,,Réparation (fictif),Sales,,"$1,000.00"
+,,,,,,GST/HST Payable,,$50.00
+,,,,,,QST Payable,,$99.75
+,,,,,,,"$1,149.75","$1,149.75"
+
+,03/31/2026,Journal Entry,JE-7,,Frais bancaires mars (fictif),Bank Charges,$12.50,
+,,,,,,Chequing,,$12.50
+,,,,,,,$12.50,$12.50
+
+TOTAL,,,,,,,"$9,285.88","$9,285.88"
+
+"Accrual Basis Thursday, April 2, 2026 09:12 AM GMT-04:00"
