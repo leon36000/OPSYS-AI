@@ -30,6 +30,16 @@ import sys
 import time
 from pathlib import Path
 
+
+
+def _tete() -> str:
+    """Tête alembic du logiciel installé dans l'image (jamais un numéro écrit en dur)."""
+    from alembic.script import ScriptDirectory
+
+    from opsys import stockage
+
+    return ScriptDirectory.from_config(stockage._config()).get_current_head()
+
 CLES = Path(os.environ.get("QUALIF_CLES", "/cles"))
 MDP_PROPRIETAIRE = CLES / "mdp-nathan"
 MDP_AGENT = CLES / "mdp-agent-systeme"
@@ -698,10 +708,10 @@ def commande_migration_interrompue(args) -> int:
     intacte = all(apres["details"].get(t) == d for t, d in attendu["details"].items() if t != "alembic_version")
     # Atomicité : après un SIGKILL la base est soit à sa révision d'origine (retour en arrière, la plupart des cas), soit à
     # la tête (kill APRÈS la validation) — jamais entre les deux. Au moins trois kills doivent être tombés AVANT la validation.
-    ok = (all(e["code_enfant"] == -9 and e["integrity_check"] and e["revision"] in {attendu["revision"], "0040"}
+    ok = (all(e["code_enfant"] == -9 and e["integrity_check"] and e["revision"] in {attendu["revision"], _tete()}
               and e["donnees_anciennes_intactes"] for e in essais)
           and sum(1 for e in essais if e["revision"] == attendu["revision"]) >= 3
-          and final["code"] == 0 and apres["revision"] == "0040" and intacte and apres["integrity_check"])
+          and final["code"] == 0 and apres["revision"] == _tete() and intacte and apres["integrity_check"])
     return sortie({"instructions_totales": total, "essais": essais,
                    "reprise": {"code": final["code"], "revision": apres["revision"], "donnees_anciennes_intactes": intacte,
                                "integrity_check": apres["integrity_check"]}}, 0 if ok else 1)

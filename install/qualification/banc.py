@@ -43,6 +43,24 @@ PEUPLER_ANCIEN = "/opt/opsys/install/qualification/peupler_ancien.py"
 IMAGE_BASE = "python:3.12-slim"
 REVISION_ANCIENNE = "2ffa4f606^"  # dernier état avant la migration 0039 : base à la révision 0038
 PYTHON_VENV = "/opt/opsys-venv/bin/python"
+
+
+def _tete_alembic() -> str:
+    """Tête de la chaîne de migrations du dépôt (lue dans les fichiers, jamais écrite en dur)."""
+    versions = RACINE / "src/opsys/stockage/migrations/versions"
+    revisions: dict[str, str | None] = {}
+    for f in sorted(versions.glob("[0-9]*.py")):
+        t = f.read_text(encoding="utf-8")
+        rev = re.search(r"""^revision\s*=\s*['"]([^'"]+)['"]""", t, re.M).group(1)
+        down = re.search(r"""^down_revision\s*=\s*(?:['"]([^'"]+)['"]|None)""", t, re.M).group(1)
+        revisions[rev] = down
+    tetes = sorted(set(revisions) - {d for d in revisions.values() if d})
+    if len(tetes) != 1:
+        raise SystemExit(f"la chaîne de migrations a {len(tetes)} têtes : {tetes}")
+    return tetes[0]
+
+
+TETE = _tete_alembic()
 GABARITS_BALAYAGE = ("1g", "768m", "512m", "384m", "256m", "192m", "128m", "96m")
 
 
@@ -686,7 +704,7 @@ def etapes_suite(b: Banc, etiquette: str, memoire: str, pile: str, cont: str, bi
             time.sleep(3)
             r, apres = b.interne(cont2, "empreinte")
             (b.dossier / f"empreinte-apres-{etiquette}.json").write_text(json.dumps(apres, indent=1) + "\n")
-            e.constat("base restaurée : integrity_check = ok, révision 0040", bool(apres) and apres["integrity_check"] and apres["revision"] == "0040")
+            e.constat("base restaurée : integrity_check = ok, révision " + TETE, bool(apres) and apres["integrity_check"] and apres["revision"] == TETE)
             diffs = sorted(t for t in set(avant["details"]) | set(apres["details"]) if avant["details"].get(t) != apres["details"].get(t))
             e.mesure("tables", {"avant": avant["tables"], "apres": apres["tables"]})
             e.mesure("lignes", {"avant": avant["lignes_total"], "apres": apres["lignes_total"]})
@@ -757,10 +775,10 @@ def mise_a_jour(b: Banc, e: Etape, pile: str, memoire: str) -> None:
     # mise à jour par le logiciel courant
     mig = b.une_fois("512m", mont, [INTERNE, "mesurer", "--", PYTHON_VENV, "-m", "opsys.cli", "base", "migrer"])
     dm = mig.json()
-    e.constat("`opsys-metier base migrer` (logiciel courant) : code 0, révision 0040", bool(dm) and dm["code"] == 0 and '"0040"' in dm["stdout"],
+    e.constat(f"`opsys-metier base migrer` (logiciel courant) : code 0, révision {TETE}", bool(dm) and dm["code"] == 0 and f'"{TETE}"' in dm["stdout"],
               dm and (dm["stdout"][-120:] or dm["stderr"][-200:]))
     if dm:
-        e.mesure("migration_0038_vers_0040", {"duree_s": dm["duree_s"], "rss_max_mo": round(dm["rss_max_enfant_ko"] / 1024, 1)
+        e.mesure("migration_0038_vers_tete", {"duree_s": dm["duree_s"], "rss_max_mo": round(dm["rss_max_enfant_ko"] / 1024, 1)
                                               })
     r1 = b.une_fois("512m", mont, [INTERNE, "empreinte"])
     d1 = r1.json()
@@ -770,7 +788,7 @@ def mise_a_jour(b: Banc, e: Etape, pile: str, memoire: str) -> None:
         e.constat("aucune donnée existante perdue ou modifiée (toutes les tables de 0038 identiques)", not perdues, perdues or "identiques")
         nouvelles = sorted(set(d1["details"]) - set(d0["details"]))
         e.mesure("tables_ajoutees_par_la_mise_a_jour", len(nouvelles))
-        e.constat("integrity_check = ok après mise à jour", d1["integrity_check"] and d1["revision"] == "0040")
+        e.constat("integrity_check = ok après mise à jour", d1["integrity_check"] and d1["revision"] == TETE)
     copier(pa, pa + "d")  # base migrée, avant tout démarrage de service : pour le retour arrière
     copier(pa, pa + "e")  # idem : pour l'essai du logiciel précédent sur une base à la tête
     # démarrage des services sur la base mise à jour
@@ -790,7 +808,7 @@ def mise_a_jour(b: Banc, e: Etape, pile: str, memoire: str) -> None:
     md = ["-v", f"{b.volume(pa + 'd', 'data')}:/opt/data"]
     desc = b.une_fois("512m", md, [INTERNE, "migrer-vers", "descendre", "0038"])
     dd = desc.json()
-    e.constat("retour arrière alembic 0040 -> 0038 : code 0", bool(dd) and desc.code == 0 and dd["apres"] == "0038", dd)
+    e.constat(f"retour arrière alembic {TETE} -> 0038 : code 0", bool(dd) and desc.code == 0 and dd["apres"] == "0038", dd)
     rd = b.une_fois("512m", md, [INTERNE, "empreinte"]).json()
     if d0 and rd:
         perdues = [t for t in d0["details"] if t != "alembic_version" and rd["details"].get(t) != d0["details"][t]]
@@ -805,15 +823,15 @@ def mise_a_jour(b: Banc, e: Etape, pile: str, memoire: str) -> None:
     # ré-montée : même résultat qu'une première montée
     remonte = b.une_fois("512m", md, [INTERNE, "migrer-vers", "monter", "head"]).json()
     rr = b.une_fois("512m", md, [INTERNE, "empreinte"]).json()
-    e.constat("nouvelle montée à la tête : mêmes données, révision 0040", bool(remonte and rr and d1 and d0) and rr["revision"] == "0040" and
+    e.constat(f"nouvelle montée à la tête : mêmes données, révision {TETE}", bool(remonte and rr and d1 and d0) and rr["revision"] == TETE and
               all(rr["details"].get(t) == d1["details"].get(t) for t in d0["details"] if t != "alembic_version"))
     # logiciel précédent sur une base à la tête : refus propre, base intacte
     me = ["-v", f"{b.volume(pa + 'e', 'data')}:/opt/data"]
     refus = b.une_fois("512m", me + ["-v", f"{arbre}:/ancien:ro"], ["-m", "opsys.cli", "base", "migrer"],
                        env={"PYTHONPATH": ":".join(pp)})
     apres = b.une_fois("512m", me, [INTERNE, "empreinte"]).json()
-    e.constat("logiciel PRÉCÉDENT sur base à 0040 : refus (code ≠ 0), base intacte",
-              refus.code != 0 and bool(apres) and apres["revision"] == "0040" and apres["sha256_global"] == (d1 or {}).get("sha256_global"),
+    e.constat(f"logiciel PRÉCÉDENT sur base à {TETE} : refus (code ≠ 0), base intacte",
+              refus.code != 0 and bool(apres) and apres["revision"] == TETE and apres["sha256_global"] == (d1 or {}).get("sha256_global"),
               {"code": refus.code, "stderr": (refus.err or refus.out)[-200:]})
     b.noeuds["pile_ancienne"] = pa
     b.noeuds["arbre_ancien"] = arbre
@@ -892,7 +910,7 @@ def injections(b: Banc, e: Etape, pile: str, bilan: dict) -> None:
         r = b.une_fois("512m", ["-v", f"{b.volume(pa + 'm', 'data')}:/opt/data", "-v", ref],
                        [INTERNE, "migration-interrompue", "/ref/opsys.db"], timeout=900)
         d = r.json()
-        e.constat("F3 migration 0038->0040 tuée (SIGKILL) à 6 stades : base saine, atomique, reprise sans perte", r.code == 0 and bool(d), d and {
+        e.constat(f"F3 migration 0038->{TETE} tuée (SIGKILL) à 6 stades : base saine, atomique, reprise sans perte", r.code == 0 and bool(d), d and {
             "instructions": d["instructions_totales"], "revisions_apres_kill": [x["revision"] for x in d["essais"]],
             "reprise": d["reprise"]})
         e.mesure("F3_detail", d)
