@@ -32,7 +32,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 
 <!-- interconnexion:debut -->
 
-49 types au catalogue : 40 ont au moins un consommateur réel, 9 n'en ont pas (chacun avec sa justification datée).
+56 types au catalogue : 47 ont au moins un consommateur réel, 9 n'en ont pas (chacun avec sa justification datée).
 
 | Type | Producteur | Consommateurs réels | Sans consommateur : justification |
 |---|---|---|---|
@@ -44,6 +44,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | `m1.courriel_recu` | M1 | M1 |  |
 | `m1.envoi_courriel_echoue` | M1 | — | Alerte pour un humain (refus de garde, échec définitif, issue INCERTAINE : vérifier la boîte Envoyés, jamais de reprise automatique). Elle est lue... (revue 2026-11-01) |
 | `m1.lead_qualifie` | M1 | M2, M8, M10 |  |
+| `m1.plaintes_constatees` | M1 | M8 |  |
 | `m1.retrait_consentement` | M1 | M2, M7 |  |
 | `m10.arete_en_attente` | M10 | — | File « à confirmer » de la direction (N3, Loi 25) : l'arête personnelle en brouillon ne répond à aucune requête avant la confirmation d'une personn... (revue 2026-11-01) |
 | `m10.lecon_decidee` | M10 | — | Une leçon promue est lisible par le département visé par tirage (opsys_lecons_actives) et ne s'applique jamais seule. La mesure d'amélioration par... (revue 2026-11-01) |
@@ -51,6 +52,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | `m2.client_associe` | M2 | M3, M4, M5, M7, M8, M10 |  |
 | `m2.contact_corrige` | M2 | M10 |  |
 | `m2.lead_assigne` | M2 | M8 |  |
+| `m2.pipeline_constate` | M2 | M8 |  |
 | `m2.profil_propriete_confirme` | M2 | M3, M4, M10 |  |
 | `m3.besoins_materiaux` | M3 | M6 |  |
 | `m3.catalogue_reference` | M3 | M10 |  |
@@ -59,15 +61,19 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | `m3.devis_envoye` | M3 | M2, M8, M10 |  |
 | `m3.devis_sans_reponse` | M3 | M2, M8, M10 |  |
 | `m3.mesure_vision_validee` | M3 | M8 |  |
+| `m4.capacite_equipe_constatee` | M4 | M8 |  |
 | `m4.message_client_brouillon_pret` | M4 | M1 |  |
 | `m4.travaux_termines` | M4 | M2, M3, M5, M6, M7, M8, M10 |  |
 | `m5.cash_libre_constate` | M5 | M8 |  |
 | `m5.creance_relance_preparee` | M5 | M2 |  |
+| `m5.depense_publicitaire_constatee` | M5 | M8 |  |
 | `m5.dossier_cpa_scelle` | M5 | M10 |  |
+| `m5.facture_emise_constatee` | M5 | M8 |  |
 | `m5.mesures_comptables_constatees` | M5 | M8 |  |
 | `m5.rapprochement_po_constate` | M5 | M6 |  |
 | `m5.rentabilite_chantier` | M5 | M7, M8, M10 |  |
 | `m6.catalogue_reference` | M6 | M10 |  |
+| `m6.disponibilite_constatee` | M6 | M8 |  |
 | `m6.materiel_pret` | M6 | M4 |  |
 | `m6.note_commande_referencee` | M6 | M10 |  |
 | `m6.po_courriel_pret` | M6 | M1 |  |
@@ -77,6 +83,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 | `m7.contenu_exporte` | M7 | M8 |  |
 | `m7.conversion_hors_ligne_importee` | M7 | M2, M8 |  |
 | `m7.depenses_marketing_constatees` | M7 | M5, M8 |  |
+| `m7.performance_signaux_constatee` | M7 | M8 |  |
 | `m7.publication_echouee` | M7 | — | Alerte du planificateur (refus typé, approbation expirée, issue incertaine) pour un humain : relue dans l'état du planificateur et le sas d'approba... (revue 2026-11-01) |
 | `m7.publication_faite` | M7 | — | Constat du planificateur après une publication approuvée (WordPress ou réseau social) : l'état de la publication se lit dans le registre de M7 et l... (revue 2026-11-01) |
 | `m7.signaux_marketing_constates` | M7 | M8 |  |
