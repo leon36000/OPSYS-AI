@@ -40,6 +40,7 @@ from . import encodage, plan_comptable, taxes, verdicts_grand_livre
 
 __all__ = [
     "etat_grand_livre",
+    "lire_montants_facture",
     "proposer_ecriture",
     "proposer_ecritures_lot",
     "valider_ecriture",
@@ -79,6 +80,10 @@ _TYPES_PIECE = {
     # Reprise d'historique par les exports QuickBooks Online (`import_quickbooks.py`) : la pièce cite le numéro de
     # transaction QBO et l'empreinte du fichier exporté ; rien dans M5 ne la vérifie (déclarée).
     "import_quickbooks": False,
+    # Opérations comptables (`operations_comptables.py`) : la note de crédit et la dépense d'employé naissent d'une
+    # opération DU REGISTRE `operations_comptables` (vérifiée, comme une facture) ; leur brouillon d'écriture la cite.
+    "note_credit": True,
+    "depense_employe": True,
 }
 _LOT_MAX = 5000
 _TAXES_FACTURE = {"tps_federale": "tps_a_percevoir", "tvq_quebec": "tvq_a_percevoir"}
@@ -696,6 +701,13 @@ def _montants_lus(
     return avant, apres, montants
 
 
+def lire_montants_facture(facture: Mapping[str, Any], genre: str) -> tuple[Decimal, Decimal, dict[str, Decimal]] | None:
+    """Les montants RELUS d'une facture cliente (`genre` « client ») ou fournisseur (« fournisseur ») : `(avant taxes,
+    après taxes, {rôle du plan: taxe})` ou `None` si la pièce est illisible ou incohérente. Rien n'est recalculé."""
+    table = _TAXES_FACTURE if genre == "client" else _TAXES_INTRANTS
+    return _montants_lus(facture, table)
+
+
 def propositions_factures_clients(
     factures: Iterable[Mapping[str, Any]], plan: Mapping[str, Any]
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
@@ -1020,7 +1032,7 @@ def _rapprocher_taxe(
     role: str,
     attendues: Mapping[str, Mapping[str, Decimal]],
     *,
-    type_piece: str,
+    types_piece: tuple[str, ...],
     debiteur: bool,
     cle_id: str,
     cle_attendu: str,
@@ -1028,7 +1040,7 @@ def _rapprocher_taxe(
     raison_autre: str,
 ) -> tuple[Decimal, Decimal, list[dict[str, Any]]]:
     """Le mouvement net d'un compte de taxe dans la période (débiteur ou créditeur selon le compte), par pièce du type
-    `type_piece`, contre ce que chaque pièce attend : `(attendu total, au grand livre total, écarts par pièce)`."""
+    `types_piece`, contre ce que chaque pièce attend : `(attendu total, au grand livre total, écarts par pièce)`."""
     par_piece: dict[str, Decimal] = {}
     autres = _ZERO
     for ecriture in periode:
@@ -1038,7 +1050,7 @@ def _rapprocher_taxe(
             net = -net
         if net == 0:
             continue
-        if ecriture["piece"]["type"] == type_piece:
+        if ecriture["piece"]["type"] in types_piece:
             reference = ecriture["piece"]["reference"]
             par_piece[reference] = par_piece.get(reference, _ZERO) + net
         else:
@@ -1070,6 +1082,7 @@ def rapprocher(
     fin: Any,
     limite_ecarts: int = 10,
     factures_fournisseurs: Iterable[Mapping[str, Any]] = (),
+    autres_pieces_taxees: Iterable[Mapping[str, Any]] = (),
 ) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
     """Le rapprochement du grand livre pour la période `debut`..`fin` :
     1. ÉQUILIBRE : chaque écriture définitive est équilibrée, et la somme des débits = la somme des crédits de toutes
@@ -1080,7 +1093,12 @@ def rapprocher(
     3. CTI et RTI (intrants) : le mouvement net (débits moins crédits) des comptes CTI et RTI dans la période, contre la
        TPS et la TVQ PAYÉES que portent les factures fournisseurs vivantes datées dans la période
        (`factures_fournisseurs`, état courant des comptes à payer). Écart par facture fournisseur, mêmes raisons ; un
-       mouvement d'une autre pièce (reçu saisi à la main, import) est un écart nommé, jamais absorbé."""
+       mouvement d'une autre pièce (reçu saisi à la main, import) est un écart nommé, jamais absorbé.
+
+    `autres_pieces_taxees` : les pièces d'`operations_comptables.py` (notes de crédit, dépenses d'employés) qui
+    mouvementent ces comptes de taxe ; chacune `{piece_type, reference, date_effet, taxes: {rôle: montant attendu}}`, le
+    montant étant le mouvement net attendu dans le sens naturel du compte (négatif pour une note de crédit). Sans cela,
+    leurs écritures seraient des « écritures non rattachées » ; avec cela, elles sont rapprochées comme les factures."""
     refus = _refus_anomalies(etat)
     if refus is not None:
         return None, refus
@@ -1094,10 +1112,24 @@ def rapprocher(
     roles = plan["roles"]
     attendues, illisibles = _taxes_attendues(factures, dictionnaire_taux, jour_debut, jour_fin)
     periode = _definitives_jusqua(etat, jour_fin, jour_debut)
+    roles_clients = {"tps_a_percevoir", "tvq_a_percevoir"}
+    supplementaires: dict[str, dict[str, dict[str, Decimal]]] = {"clients": {}, "intrants": {}}
+    types_clients, types_intrants = ["facture_client"], ["facture_fournisseur"]
+    for piece in autres_pieces_taxees:
+        jour_piece = _date(piece.get("date_effet"))
+        if jour_piece is None or not jour_debut <= jour_piece <= jour_fin:
+            continue
+        for role, montant in piece["taxes"].items():
+            cote = "clients" if role in roles_clients else "intrants"
+            supplementaires[cote].setdefault(piece["reference"], {})[role] = montant
+            liste = types_clients if cote == "clients" else types_intrants
+            if piece["piece_type"] not in liste:
+                liste.append(piece["piece_type"])
     taxes_resultat = {}
     for role in ("tps_a_percevoir", "tvq_a_percevoir"):
         attendu_total, livre_total, ecarts = _rapprocher_taxe(
-            periode, roles[role], role, attendues, type_piece="facture_client", debiteur=False,
+            periode, roles[role], role, {**attendues, **supplementaires["clients"]},
+            types_piece=tuple(types_clients), debiteur=False,
             cle_id="facture_id", cle_attendu="attendu_taxes",
             raison_sans_piece="mouvement de taxe sans facture émise dans la période",
             raison_autre="mouvement d'une écriture non rattachée à une facture client")
@@ -1116,7 +1148,8 @@ def rapprocher(
         if compte is None:
             continue
         attendu_total, livre_total, ecarts = _rapprocher_taxe(
-            periode, compte, role, payees, type_piece="facture_fournisseur", debiteur=True,
+            periode, compte, role, {**payees, **supplementaires["intrants"]},
+            types_piece=tuple(types_intrants), debiteur=True,
             cle_id="facture_fournisseur_id", cle_attendu="attendu_facture",
             raison_sans_piece="mouvement de taxe sans facture fournisseur vivante datée dans la période",
             raison_autre="mouvement d'une écriture non rattachée à une facture fournisseur")

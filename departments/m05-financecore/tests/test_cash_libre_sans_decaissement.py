@@ -29,6 +29,12 @@ _PAQUET = _RACINE_M5 / "src" / "m5_financecore"
 
 
 # --------------------------------------------------------------------------------- 1. le vrai paquet
+# Vague 3 (docs/architecture/M5-SOPHIE.md) : deux outils portent un mot d'argent sans payer quoi que ce soit. Le
+# paiement PRÉPARÉ est une fiche (N3, une personne l'approuve) qu'un humain exécute hors d'OPSYS ; la simulation de
+# remboursement anticipé est un calcul T0. Ni l'un ni l'autre n'est T3 ni ne touche le registre des mouvements
+# (garde statique).
+_PREPARATOIRES_D_ARGENT = {"m5_preparer_paiement_fournisseur", "m5_simuler_remboursement_anticipe"}
+
 def test_le_vrai_paquet_est_conforme_aux_deux_regimes():
     assert conformite.verifier_aucun_decaissement(_PAQUET) == (True, "")
 
@@ -214,6 +220,20 @@ _FICHIERS = (
     "moteur_calcul",
     "recu_calcul",
     "verdicts_calcul",
+    "operations_registre",  # vague 3 (M5-SOPHIE.md) : surveillés en STRICT
+    "operations_comptables",
+    "operations_periodes",
+    "releve_bancaire",
+    "rapprochement_bancaire",
+    "dossier_cpa",
+    "conseiller_financement",
+    "conseiller_fiscal",
+    "connaissances_fiscales",
+    "verdicts_operations",
+    "outils_operations",
+    "outils_bancaire",
+    "outils_dossier",
+    "outils_conseillers",
 )
 
 
@@ -330,7 +350,8 @@ def test_les_seuls_outils_t3_de_m5_restent_les_deux_d_avant_et_le_calendrier_est
     assert par_nom["m5_etat_tresorerie"].autonomie is Autonomie.T0
     parlent_d_argent = {nom for nom in par_nom if re.search(r"(remise|remet|paye|paiement|decaisse|virement|rembours|"
                                                             r"declar)", nom)}
-    assert parlent_d_argent == {"m5_enregistrer_paiement_facture", "m5_lister_comptes_a_payer"}, (
+    assert parlent_d_argent - _PREPARATOIRES_D_ARGENT == {
+        "m5_enregistrer_paiement_facture", "m5_lister_comptes_a_payer"}, (
         "aucun outil de remise ni de déclaration fiscale : le calendrier PROPOSE des dates")
 
 

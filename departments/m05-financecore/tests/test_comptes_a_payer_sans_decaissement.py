@@ -36,6 +36,12 @@ HORODATAGE = "2026-10-08T10:00:00-04:00"
 
 
 # ---------------------------------------------------------------------------------- 1. la garde AST
+# Vague 3 (docs/architecture/M5-SOPHIE.md) : deux outils portent un mot d'argent sans payer quoi que ce soit. Le
+# paiement PRÉPARÉ est une fiche (N3, une personne l'approuve) qu'un humain exécute hors d'OPSYS ; la simulation de
+# remboursement anticipé est un calcul T0. Ni l'un ni l'autre n'est T3 ni ne touche le registre des mouvements
+# (garde statique).
+_PREPARATOIRES_D_ARGENT = {"m5_preparer_paiement_fournisseur", "m5_simuler_remboursement_anticipe"}
+
 def test_le_vrai_paquet_ne_touche_pas_aux_mouvements_dans_les_comptes_a_payer():
     assert conformite.verifier_aucun_decaissement(_PAQUET) == (True, "")
 
@@ -246,7 +252,8 @@ def test_les_seuls_outils_t3_de_m5_sont_les_deux_d_avant_aucun_ne_paie_un_fourni
                 "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur"):
         assert par_nom[nom].autonomie is not Autonomie.T3 and not par_nom[nom].frontiere_humaine, nom
     parlent_d_argent = {nom for nom in par_nom if re.search(r"(paye|paiement|decaisse|virement|rembours)", nom)}
-    assert parlent_d_argent == {"m5_enregistrer_paiement_facture", "m5_lister_comptes_a_payer"}, (
+    assert parlent_d_argent - _PREPARATOIRES_D_ARGENT == {
+        "m5_enregistrer_paiement_facture", "m5_lister_comptes_a_payer"}, (
         "aucun outil de paiement fournisseur : le paiement d'une facture CLIENT (d'avant) et la LECTURE des "
         "comptes à payer")
     assert par_nom["m5_lister_comptes_a_payer"].autonomie is Autonomie.T0

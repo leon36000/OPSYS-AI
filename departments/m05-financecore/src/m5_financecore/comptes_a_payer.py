@@ -82,6 +82,7 @@ __all__ = [
     "corriger_facture_fournisseur",
     "dettes_datables",
     "enregistrer_reception",
+    "etats_toutes_les_factures",
     "lire_categories_depense",
     "lister",
     "lister_sans_po",
@@ -1473,6 +1474,12 @@ def proposer_rapprochement(
 
 
 # ------------------------------------------------------------------- ce que le cash libre en retient
+def etats_toutes_les_factures(registre_cible: Any) -> list[dict[str, Any]]:
+    """Les factures fournisseur de TOUS les statuts (annulées comprises), à leur état courant, dans l'ordre de saisie :
+    pour un journal des corrections ou une lecture d'audit. Lecture pure."""
+    return list(_etats_factures(registre_cible.lire()).values())
+
+
 def factures_saisies(registre_cible: Any) -> list[dict[str, Any]]:
     """Les factures fournisseur VIVANTES du registre (avec ou sans PO), à leur ÉTAT COURANT et dans l'ordre de saisie
     (lecture pure) : une corrigée vaut sa dernière correction, une annulée n'y est plus. Le cash libre (T4.16) en tire

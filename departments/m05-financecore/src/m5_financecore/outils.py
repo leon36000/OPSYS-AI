@@ -234,6 +234,7 @@ from . import (
     grand_livre,
     import_quickbooks,
     moteur_calcul,
+    operations_registre,
     outils_base_fiscale,
     plan_comptable,
     prevision,
@@ -5652,7 +5653,17 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
         _outils_couts_marketing(lecteur_campagne_m7) if lecteur_campagne_m7 is not None else ()
     ) + _outils_obligations_preparees() + _outils_grand_livre() + _outils_import_quickbooks() + (
         _outils_onboarding() + _outils_calcul() + outils_base_fiscale.outils_base_fiscale()
-    )
+    ) + _outils_vague3()
+
+
+def _outils_vague3() -> tuple[Outil, ...]:
+    """Opérations comptables, dossier CPA, conseillers et base de connaissances fiscale
+    (docs/architecture/M5-SOPHIE.md).
+    Importés ici et non en tête de fichier : ces modules lisent les aides de celui-ci (cycle d'import)."""
+    from . import outils_bancaire, outils_conseillers, outils_dossier, outils_operations
+
+    return (outils_operations.outils_operations() + outils_bancaire.outils_bancaire() + outils_dossier.outils_dossier()
+            + outils_conseillers.outils_conseillers())
 
 
 # DEVICE préparatoire, hors registre des mouvements et hors consommateurs YAML.
@@ -6330,6 +6341,39 @@ def _registre_grand_livre() -> registre_module.Registre | None:
     return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_GRAND_LIVRE))
 
 
+_NOM_REGISTRE_OPERATIONS = "operations_comptables"
+
+
+def _registre_operations() -> registre_module.Registre | None:
+    """Le registre DÉDIÉ des opérations comptables (`operations_registre.py` : relances, notes de crédit, dépenses
+    d'employés, pièces, paiements préparés, rapprochements bancaires, périodes, jugements, mesures, dossiers CPA),
+    durable
+    et sans repli en mémoire (aucune migration : même mécanique que le grand livre). Jamais le registre des
+    mouvements."""
+    if not _stockage_durable_actif:
+        return None
+    return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_OPERATIONS))
+
+
+def _autres_pieces_taxees() -> list[dict[str, Any]]:
+    """Les notes de crédit et les dépenses d'employés du registre des opérations, sous la forme que le rapprochement
+    TPS/TVQ du grand livre attend (`grand_livre.rapprocher(autres_pieces_taxees=...)`) : sans elles, leurs écritures
+    seraient des « écritures non rattachées ». Registre absent ou vide : rien."""
+    registre_ops = _registre_operations()
+    if registre_ops is None or registre_ops.taille() == 0:
+        return []
+    etat = operations_registre.etat_operations(registre_ops.lire())
+    pieces: list[dict[str, Any]] = []
+    for note in etat["par_type"]["op_note_credit_proposee"].values():
+        pieces.append({"piece_type": "note_credit", "reference": note["note_id"], "date_effet": note["date_effet"],
+                       "taxes": {role: -Decimal(montant) for role, montant in note["taxes"].items()}})
+    for depense in etat["par_type"]["op_depense_employe_proposee"].values():
+        pieces.append({"piece_type": "depense_employe", "reference": depense["depense_id"],
+                       "date_effet": depense["date_depense"],
+                       "taxes": {role: Decimal(montant) for role, montant in depense["taxes"].items()}})
+    return pieces
+
+
 def _plan_comptable_effectif() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Le plan de base versionné, étendu par `configuration.grand_livre` du manifeste (relu à chaque appel)."""
     plan, refus = plan_comptable.charger_plan(_CHEMIN_PLAN_COMPTABLE)
@@ -6469,7 +6513,8 @@ def rapprocher_grand_livre(debut: str, fin: str) -> dict[str, Any]:
     registre_cible, plan = ctx
     etat = grand_livre.etat_grand_livre(registre_cible.lire())
     resultat, refus = grand_livre.rapprocher(etat, plan, _factures_emises(), dictionnaire, debut=debut, fin=fin,
-                                             limite_ecarts=6, factures_fournisseurs=_factures_fournisseurs_vivantes())
+                                             limite_ecarts=6, factures_fournisseurs=_factures_fournisseurs_vivantes(),
+                                             autres_pieces_taxees=_autres_pieces_taxees())
     return _refus(refus) if refus is not None else _sortie_grand_livre(resultat)
 
 

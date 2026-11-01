@@ -258,7 +258,9 @@ def test_m5_declare_consommer_le_type_et_le_fournit(dep):
     assert TYPE in departement.evenements_consomme
     assert TYPE in departement.charger_consommateurs()
     # les comptes à payer ne publient rien : M5 publie la marge (T1.5-d) et, depuis T4.19-b, le cash libre constaté
-    assert departement.evenements_publie == ("m5.rentabilite_chantier", "m5.cash_libre_constate")
+    assert departement.evenements_publie == (
+        "m5.rentabilite_chantier", "m5.cash_libre_constate", "m5.creance_relance_preparee",
+        "m5.mesures_comptables_constatees", "m5.rapprochement_po_constate", "m5.dossier_cpa_scelle")
     assert evenements.verifier_coherence({DEPARTEMENT: departement}) == []
 
 

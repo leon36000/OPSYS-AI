@@ -59,6 +59,24 @@ _TYPE_ENTREE_VALIDES = {
     "qbo_correspondance_validee",
     "qbo_import_propose",
     "qbo_lot_valide",
+    # Opérations comptables (operations_registre.py), dans leur registre DÉDIÉ `operations_comptables` : relances
+    # préparées, notes de crédit et dépenses d'employés proposées, pièces justificatives liées, paiements fournisseurs
+    # PRÉPARÉS, rapprochements bancaires préparés puis confirmés par un humain, ouverture et préclôture de période,
+    # jugements et estimations, mesures constatées, flux fournisseur constatés, dossiers CPA scellés. Aucun n'est un
+    # mouvement financier ; aucun ne se modifie.
+    "op_relance_preparee",
+    "op_note_credit_proposee",
+    "op_depense_employe_proposee",
+    "op_piece_liee",
+    "op_paiement_prepare",
+    "op_rapprochement_prepare",
+    "op_rapprochement_confirme",
+    "op_periode_ouverte",
+    "op_precloture_constatee",
+    "op_jugement_enregistre",
+    "op_mesures_constatees",
+    "op_flux_fournisseur_constate",
+    "op_dossier_cpa_scelle",
 }
 
 _CHAMPS_MOUVEMENT = (

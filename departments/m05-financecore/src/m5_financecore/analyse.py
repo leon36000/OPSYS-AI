@@ -17,7 +17,8 @@ from typing import Any
 
 __all__ = [
     "MENTION_ANALYSE_PREPARATOIRE", "MENTION_COMPTABLE", "SORTIES_CALCUL", "SORTIES_COMPTABLES", "SORTIES_D_ANALYSE",
-    "SORTIES_FISCALES", "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE", "avec_mention", "avec_mention_comptable",
+    "SORTIES_FISCALES", "SORTIES_ONBOARDING", "SORTIES_HORS_ANALYSE", "SORTIES_OPERATIONS", "SORTIES_CONSEIL",
+    "avec_mention", "avec_mention_comptable",
 ]
 
 MENTION_ANALYSE_PREPARATOIRE = (
@@ -72,6 +73,41 @@ SORTIES_FISCALES = frozenset({
     "m5_verifier_demande_investissement",  # verdict de la garde NC 31-103 : refus générique ou contenu permis
 })
 
+# Opérations comptables, rapprochement bancaire et dossier CPA (`docs/architecture/M5-SOPHIE.md`) : brouillons,
+# constats et lectures sous les deux mentions, prouvés sur chaque sortie acceptée par
+# `tests/test_m5_operations_outils.py`.
+SORTIES_OPERATIONS = frozenset({
+    "m5_preparer_relances_clients",  # brouillons de relance de créances en retard : rien n'est envoyé
+    "m5_proposer_note_credit",  # note de crédit et brouillon d'écriture : une proposition
+    "m5_proposer_depense_employe",  # dépense d'employé et brouillon d'écriture : une proposition
+    "m5_lier_piece_justificative",  # empreinte d'une pièce liée à une opération
+    "m5_lire_flux_fournisseur",  # où en est une facture fournisseur, prochaine action
+    "m5_avancer_flux_fournisseur",  # brouillon d'écriture et constat de rapprochement PO
+    "m5_preparer_paiement_fournisseur",  # paiement PRÉPARÉ (fiche), jamais exécuté
+    "m5_consigner_jugement_comptable",  # jugement ou estimation consigné par une personne
+    "m5_ouvrir_periode_comptable",  # soldes d'ouverture consignés
+    "m5_precloturer_periode_comptable",  # liste de contrôle de préclôture
+    "m5_constater_mesures_comptables",  # mesures publiées pour M8
+    "m5_executer_cycle_comptable",  # cycle jusqu'aux brouillons
+    "m5_preparer_rapprochement_bancaire",  # état de rapprochement PRÉPARÉ avec reçu
+    "m5_lire_rapprochement_bancaire",  # liste, détail et rejeu des rapprochements
+    "m5_confirmer_rapprochement_bancaire",  # confirmation humaine (N4)
+    "m5_preparer_dossier_cpa",  # dossier scellé pour le CPA
+    "m5_verifier_dossier_cpa",  # vérification d'un dossier scellé
+})
+
+# Conseillers (dette, financement, investissement de trésorerie ; fiscal et comptable ; base de connaissances fiscale) :
+# reçus de calcul, analyses sourcées et citations, mêmes deux mentions, prouvés par
+# `tests/test_m5_conseillers_outils.py`.
+SORTIES_CONSEIL = frozenset({
+    "m5_comparer_financement_achat",  # coûts actualisés comptant, prêt, location : jamais une recommandation
+    "m5_simuler_remboursement_anticipe",  # intérêts épargnés sous hypothèses
+    "m5_echelonner_placements_terme_fixe",  # échelonnement de trésorerie aux taux saisis, aucun titre
+    "m5_lister_sujets_conseil_fiscal",  # les sujets, leurs règles et données exigées
+    "m5_analyser_situation_fiscale",  # affirmations sourcées, ESSAI/non approuvé, refus si règle non renseignée
+    "m5_rechercher_connaissance_fiscale",  # citations de la base fiscale et comptable, ou « inconnu »
+})
+
 # Ingestion d'onboarding : la lecture d'un lot et de ses brouillons (champs lus, taxes recalculées, raisons) et la
 # validation d'une facture proposée (la facture sans PO saisie : un calcul, comme la saisie). Leur mention est prouvée
 # sur chaque sortie acceptée par `tests/test_ingestion_onboarding_bout_en_bout.py` (un lot réel est requis).
@@ -96,7 +132,8 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_preparer_brut_regulier",  # estimation préparatoire humaine du brut, sans retenues ni action officielle
     "m5_preparer_dossier_webras",  # dossier préparatoire pour calcul humain dans les services officiels
     "m5_prevoir_tresorerie_contrats",  # prévision préparatoire de flux contractuels rapprochés aux sources M3/M5
-}) | SORTIES_COMPTABLES | SORTIES_ONBOARDING | SORTIES_CALCUL | SORTIES_FISCALES
+}) | (
+    SORTIES_COMPTABLES | SORTIES_ONBOARDING | SORTIES_CALCUL | SORTIES_FISCALES | SORTIES_OPERATIONS | SORTIES_CONSEIL)
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {

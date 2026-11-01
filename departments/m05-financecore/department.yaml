@@ -32,7 +32,13 @@ evenements:                                          # ADR-0009 §3, PLAN T1.2-d
   # montants tels que le calcul de M5 les rend, chaque composante avec sa source et sa fraîcheur, ou « non calculable,
   # manque X » avec des codes ; jamais un texte saisi par le propriétaire ni une donnée de client. Il part quand l'admin
   # fait constater le cash libre (m5_constater_cash_libre, T1), pas à chaque lecture de m5_etat_tresorerie.
-  publie: [m5.rentabilite_chantier, m5.cash_libre_constate]
+  # Opérations comptables (docs/architecture/M5-SOPHIE.md, catalogue src/opsys/evenements/catalogue/) : m5.creance_relance_preparee
+  # (brouillon de relance, pour M2 ; rien n'est envoyé), m5.mesures_comptables_constatees (nombres et montants comptés par le
+  # code, pour M8), m5.rapprochement_po_constate (facture fournisseur contre la commande réceptionnée, pour M6),
+  # m5.dossier_cpa_scelle (dossier de période scellé, pour M10). Aucun ne porte de nom, de libellé ni de texte libre ; les
+  # consommateurs (M2, M8, M6, M10) les déclarent dans leur propre `evenements.consomme`.
+  publie: [m5.rentabilite_chantier, m5.cash_libre_constate, m5.creance_relance_preparee, m5.mesures_comptables_constatees,
+           m5.rapprochement_po_constate, m5.dossier_cpa_scelle]
 approbations:                                         # ADR-0009 §5, PLAN T1.3-c point 5
   n3: [finance, nathan_owner]
   n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture), correction et annulation d'une
@@ -125,6 +131,21 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
 #         categories_depense: {location: "5450"} # ajoute ou redirige une catégorie de categories_depense_sans_po
 #       categories_depense_retirees: [marketing] # ses factures n'auront plus de brouillon (REJ-GL-CATEGORIE-SANS-COMPTE)
 #
+# Opérations comptables (outils_operations.py, outils_bancaire.py) : ce que le PROPRIÉTAIRE décide, jamais supposé (GATE NATHAN).
+# Absent, l'outil concerné dit quoi déclarer (REJ-OPS-CONFIGURATION-A-DECLARER, REJ-OPS-COMPTE-A-DECLARER) ; relu à chaque appel.
+# Forme, sous la même clé `configuration` (EXEMPLES de forme fictifs, jamais des valeurs à recopier) :
+#
+#   configuration:
+#     operations:
+#       relances:                                    # m5_preparer_relances_clients
+#         delai_echeance_jours: 30                   # 0 à 365 : jours entre l'envoi d'une facture et son échéance
+#         paliers_jours_apres_echeance: [7, 21, 45]  # 1 à 4 entiers croissants : jours de retard de chaque relance
+#       compte_remboursement_employes: "2200"        # un compte de PASSIF du plan : ce que l'entreprise doit aux employés
+#       rapprochement:                               # m5_preparer_rapprochement_bancaire
+#         motifs_frais: ["frais mensuels"]           # libellés bancaires reconnus comme frais (jamais supposés)
+#         compte_frais_bancaires: "5800"             # exigé dès que des motifs sont déclarés
+#
+# Rien de tout cela n'est un taux ni une règle fiscale : ce sont des décisions d'exploitation de l'entreprise.
 modeles:
   defaut: standard
   extraction: rapide

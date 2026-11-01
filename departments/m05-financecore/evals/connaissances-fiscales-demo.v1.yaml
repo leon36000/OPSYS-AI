@@ -1,0 +1,164 @@
+# Corpus de DÉMONSTRATION de la base de connaissances fiscale et comptable de Sophie (M5.18) — ENTIÈREMENT FICTIF.
+# Aucune règle, aucun taux, aucun délai, aucun seuil de ce fichier n'existe : la principauté de « Valdoré », son agence
+# (AFRV), ses « talents » et ses chiffres sont inventés (et volontairement fantaisistes) pour qu'aucun lecteur ne les
+# prenne pour du réel. Ce corpus ne sert qu'à PROUVER LE MÉCANISME (recherche sourcée, citations, états de revue,
+# « inconnu plutôt qu'estimé »). Il ne remplace aucune source officielle et ne doit jamais être cité comme une règle.
+# Les vraies sources officielles n'entrent dans la base que par l'ingestion de M10 et la revue
+# HUMAINE obligatoire des domaines fiscalité et comptabilité (docs/architecture/CONNAISSANCES.md).
+# Les jugements de pertinence sont écrits à la main AVANT la mesure, d'après le contenu des sections.
+schema: opsys.connaissances.corpus/v1
+fictif: true
+version: m5-connaissances-fiscales-demo-v1
+langue: fr-CA
+date_reference: "2026-10-15"
+sources:
+  - departement: m05-financecore
+    cle: demo-m5-taxe-consommation
+    titre: Régime fictif de la taxe de consommation de Valdoré (démonstration)
+    domaine: fiscalite
+    date_publication: "2026-02-01"
+    revision_due_le: "2027-02-01"
+    contenu: |
+      # Régime fictif de la taxe de consommation de Valdoré
+
+      ## Inscription
+      Toute entreprise dont les ventes annuelles dépassent quarante mille talents s'inscrit auprès de l'Agence fictive
+      du revenu de Valdoré (AFRV) avant de percevoir la taxe de consommation.
+
+      ## Taux
+      Le taux fictif de la taxe de consommation est de 6 % sur les biens et de 3 % sur les services d'entretien. Aucun
+      de ces taux n'existe dans la réalité.
+
+      ## Déclaration
+      La déclaration est produite chaque trimestre, au plus tard le vingtième jour qui suit la fin du trimestre. Le
+      paiement accompagne la déclaration.
+
+      ## Crédit sur les achats
+      L'entreprise inscrite déduit la taxe payée sur ses achats d'exploitation, sur présentation de la facture du
+      fournisseur qui indique son numéro d'inscription.
+  - departement: m05-financecore
+    cle: demo-m5-retenues-salaires
+    titre: Guide fictif des retenues sur les salaires de Valdoré (démonstration)
+    domaine: fiscalite
+    date_publication: "2026-03-01"
+    revision_due_le: "2027-03-01"
+    contenu: |
+      # Guide fictif des retenues sur les salaires de Valdoré
+
+      ## Remise des retenues
+      L'employeur remet les retenues de ses salariés au plus tard le douzième jour du mois suivant le versement de la
+      paie. Une remise tardive porte un intérêt fictif de 2 % par mois.
+
+      ## Relevés de fin d'année
+      Les relevés annuels sont remis aux salariés avant la fin du mois de mars. Une correction passe par un relevé
+      modifié.
+  - departement: m05-financecore
+    cle: demo-m5-conservation-pieces
+    titre: Règle fictive de conservation des pièces comptables (démonstration)
+    domaine: comptabilite
+    date_publication: "2026-04-01"
+    revision_due_le: "2027-04-01"
+    contenu: |
+      # Règle fictive de conservation des pièces comptables
+
+      ## Durée de conservation
+      Les pièces justificatives se conservent neuf ans après la fin de l'exercice. Cette durée est inventée.
+
+      ## Copies numériques
+      Une copie numérique remplace l'original si elle est complète, lisible et accompagnée de son empreinte
+      d'intégrité.
+  - departement: m05-financecore
+    cle: demo-m5-amortissement-vehicules
+    titre: Barème fictif d'amortissement des véhicules de Valdoré (démonstration)
+    domaine: comptabilite
+    date_publication: "2026-05-01"
+    revision_due_le: "2027-05-01"
+    contenu: |
+      # Barème fictif d'amortissement des véhicules de Valdoré
+
+      ## Catégories
+      Les camions utilitaires se classent dans la catégorie fictive V3 et les voitures de livraison dans la catégorie
+      fictive V1. Ces catégories n'existent pas.
+
+      ## Première année
+      Au cours de la première année, la déduction fictive vaut la moitié du taux de la catégorie.
+  - departement: m05-financecore
+    cle: demo-m5-notes-de-credit
+    titre: Règle fictive sur les notes de crédit (démonstration)
+    domaine: comptabilite
+    date_publication: "2026-06-01"
+    revision_due_le: "2027-06-01"
+    contenu: |
+      # Règle fictive sur les notes de crédit
+
+      ## Émission
+      Une note de crédit fait référence à la facture d'origine, indique le motif de la correction et reprend les
+      taxes de la partie créditée.
+
+      ## Délai d'ajustement
+      Le vendeur ajuste sa déclaration de taxe dans la période où la note est émise. Cette règle est fictive.
+  - departement: m05-financecore
+    cle: demo-m5-rapprochement-bancaire
+    titre: Guide fictif du rapprochement bancaire (démonstration)
+    domaine: comptabilite
+    date_publication: "2026-07-01"
+    revision_due_le: "2027-07-01"
+    contenu: |
+      # Guide fictif du rapprochement bancaire
+
+      ## Fréquence
+      Le rapprochement bancaire se fait chaque mois, avant la clôture de la période.
+
+      ## Éléments en suspens
+      Les dépôts en transit et les chèques en circulation sont listés avec leur date. Un écart non expliqué est
+      signalé au comptable avant toute clôture.
+  - departement: m05-financecore
+    cle: demo-m5-acomptes
+    titre: Notice fictive sur les acomptes provisionnels (démonstration)
+    domaine: fiscalite
+    date_publication: "2026-08-01"
+    revision_due_le: "2027-08-01"
+    contenu: |
+      # Notice fictive sur les acomptes provisionnels
+
+      ## Seuil et versements
+      Une entreprise dont l'impôt fictif de l'année précédente dépasse trois mille talents verse quatre acomptes
+      égaux. Ce seuil est inventé.
+  - departement: m05-financecore
+    cle: demo-m5-periodes-comptables
+    titre: Guide fictif des périodes comptables (démonstration)
+    domaine: comptabilite
+    date_publication: "2026-09-01"
+    revision_due_le: "2027-09-01"
+    contenu: |
+      # Guide fictif des périodes comptables
+
+      ## Clôture mensuelle
+      La clôture d'un mois verrouille les écritures datées jusqu'à sa fin. Elle est décidée par une personne.
+
+      ## Correction après clôture
+      Une erreur découverte après la clôture se corrige par une contre-passation datée dans la période ouverte.
+requetes:
+  # type « exacte »
+  - {id: f01, type: exacte, texte: "Quel est le taux de la taxe de consommation de Valdoré ?", pertinents: ["demo-m5-taxe-consommation#Taux"]}
+  - {id: f02, type: exacte, texte: "À partir de quelles ventes faut-il s'inscrire auprès de l'AFRV ?", pertinents: ["demo-m5-taxe-consommation#Inscription"]}
+  - {id: f03, type: exacte, texte: "Quand remettre les retenues sur les salaires ?", pertinents: ["demo-m5-retenues-salaires#Remise des retenues"]}
+  - {id: f04, type: exacte, texte: "Combien de temps conserver les pièces justificatives ?", pertinents: ["demo-m5-conservation-pieces#Durée de conservation"]}
+  - {id: f05, type: exacte, texte: "Dans quelle catégorie se classent les camions utilitaires ?", pertinents: ["demo-m5-amortissement-vehicules#Catégories"]}
+  - {id: f06, type: exacte, texte: "À quelle fréquence faire le rapprochement bancaire ?", pertinents: ["demo-m5-rapprochement-bancaire#Fréquence"]}
+  - {id: f07, type: exacte, texte: "Que faut-il indiquer sur une note de crédit ?", pertinents: ["demo-m5-notes-de-credit#Émission"]}
+  - {id: f08, type: exacte, texte: "Comment corriger une erreur découverte après la clôture ?", pertinents: ["demo-m5-periodes-comptables#Correction après clôture"]}
+  # type « variante » : accents omis, pluriels, fautes
+  - {id: f09, type: variante, texte: "declaration trimestrielle de la taxe et paiement", pertinents: ["demo-m5-taxe-consommation#Déclaration"]}
+  - {id: f10, type: variante, texte: "releves de fin d'annee des salaries", pertinents: ["demo-m5-retenues-salaires#Relevés de fin d'année"]}
+  - {id: f11, type: variante, texte: "copies numeriques acceptees a la place de l'original", pertinents: ["demo-m5-conservation-pieces#Copies numériques"]}
+  - {id: f12, type: variante, texte: "deposits en transit et cheques en circulation", pertinents: ["demo-m5-rapprochement-bancaire#Éléments en suspens"]}
+  - {id: f13, type: variante, texte: "acomptes provisionnels seuil et versements", pertinents: ["demo-m5-acomptes#Seuil et versements"]}
+  # type « reformulation »
+  - {id: f14, type: reformulation, texte: "Puis-je récupérer la taxe que j'ai payée à mes fournisseurs ?", pertinents: ["demo-m5-taxe-consommation#Crédit sur les achats"]}
+  - {id: f15, type: reformulation, texte: "Mon employé a un retard, y a-t-il une pénalité sur la paie remise tard ?", pertinents: ["demo-m5-retenues-salaires#Remise des retenues"]}
+  - {id: f16, type: reformulation, texte: "Qui décide qu'un mois est fermé ?", pertinents: ["demo-m5-periodes-comptables#Clôture mensuelle"]}
+  # type « sans_reponse » : rien dans la base ne répond ; la bonne réponse est « aucune source » (inconnu plutôt qu'estimé)
+  - {id: f17, type: sans_reponse, texte: "recette de tarte aux pommes", pertinents: []}
+  - {id: f18, type: sans_reponse, texte: "quelle voiture électrique acheter", pertinents: []}
+  - {id: f19, type: sans_reponse, texte: "météo de samedi à Gatineau", pertinents: []}
