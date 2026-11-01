@@ -344,4 +344,12 @@ dans une table du chantier ou qu'un fournisseur « courriel » est configuré. T
 - Le garde-fou de texte de sortie (prix, engagement…) est celui de M1 : trop strict pour un courriel qui doit légitimement contenir un
   prix (`profil=None` réservé à un appelant de confiance). Un humain doit lire le brouillon avant d'approuver : la console ne l'affiche pas encore.
 - Les caractères de largeur nulle ou stylisés sont ramenés par NFKC avant le filtre, mais le texte rendu à l'agent est la forme normalisée.
-- PostgreSQL : la migration est testée ; l'exécution des connecteurs n'est testée que sur SQLite.
+- PostgreSQL : la migration ET un parcours complet (OAuth, ingestion, brouillon, approbation, envoi) sont testés sur un PostgreSQL
+  éphémère en conteneur ; les autres tests tournent sur SQLite. Aucun test de charge ni de concurrence multi-processus sur PostgreSQL.
+- Les services (`ServiceCourriel`, `ServiceEnvoi`, `IngestionCourriel`) ne doivent PAS être appelés depuis une transaction métier
+  ouverte : le coffre refuse de résoudre un secret dans une telle transaction (`COFFRE_TRANSACTION_METIER`). Le câblage futur
+  (outils, planificateur) devra les appeler hors transaction.
+- Les destinataires et l'objet d'un brouillon figurent en clair dans la demande du sas (`approbations.arguments`) : l'approbateur doit
+  les voir pour décider ; le corps, lui, n'y est jamais.
+- L'en-tête `Bcc` d'un envoi Gmail est transmis dans le MIME brut : son retrait avant livraison par Gmail est **à vérifier** à la
+  qualification (risque : exposer les cci aux autres destinataires).

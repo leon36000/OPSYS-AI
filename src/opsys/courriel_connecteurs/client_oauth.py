@@ -81,10 +81,8 @@ def _attente_demandee(reponse: ReponseHttp, maintenant: Callable[[], float]) -> 
     if brut is None:
         return None
     brut = brut.strip()
-    try:
-        return max(0.0, float(int(brut)))
-    except ValueError:
-        pass
+    if brut.isascii() and brut.isdigit():
+        return float(int(brut))
     try:
         date = parsedate_to_datetime(brut)
         if date.tzinfo is None:
@@ -128,7 +126,7 @@ class ClientApi:
                 json_corps: Any = None, octets: bytes | None = None, entetes: Mapping[str, str] | None = None,
                 idempotente: bool = True, rendre: frozenset[int] = frozenset()) -> ReponseHttp:
         if params:
-            url += ("&" if "?" in url else "?") + urllib.parse.urlencode(params, doseq=True)
+            url += ("&" if "?" in url else "?") + urllib.parse.urlencode(params, doseq=True, safe="$,")
         self.verifier_url(url)
         corps = octets
         base = {"Accept": "application/json", **(entetes or {})}

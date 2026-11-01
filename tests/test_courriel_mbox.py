@@ -314,3 +314,11 @@ def test_nom_de_piece_d_un_export_ne_sert_jamais_de_chemin(imports, tmp_path):
     m = normalisation.normaliser(MessageBrut(ref.ref, ref.dossier, f.lire_message(ref).octets))
     assert m.pieces_jointes[0].nom == "evil.sh" and m.pieces_jointes[0].dangereux
     assert not (tmp_path / "evil.sh").exists() and not os.path.exists("/tmp/evil.sh")
+
+
+def test_octets_d_un_message_sont_ceux_de_l_original_sans_la_ligne_vide_du_separateur(imports):
+    originaux = [b"Subject: un\n\ncorps un\n", b"Subject: deux\n\ncorps deux\n"]
+    nom = _ecrire(imports, "e.mbox", _sep(0) + originaux[0] + b"\n" + _sep(1) + originaux[1] + b"\n")
+    f = FournisseurMbox(nom, dossier=imports)
+    refs, _, _ = _tout(f)
+    assert [f.lire_message(r).octets for r in refs] == originaux

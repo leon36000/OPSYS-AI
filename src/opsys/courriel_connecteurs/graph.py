@@ -82,7 +82,7 @@ class FournisseurGraph(EnvoiSousGarde):
         if not isinstance(dossier, str) or not _ID.fullmatch(dossier):
             raise ErreurCourriel("REJ-COURRIEL-ARGUMENT-INVALIDE", "identifiant de dossier invalide", 422)
         return (f"{BASE}/mailFolders/{urllib.parse.quote(dossier, safe='')}/messages/delta?"
-                + urllib.parse.urlencode({"$select": "id,conversationId,receivedDateTime"}))
+                + urllib.parse.urlencode({"$select": "id,conversationId,receivedDateTime"}, safe="$,"))
 
     def _verifier_lien(self, url: str) -> str:
         self._client.verifier_url(url)

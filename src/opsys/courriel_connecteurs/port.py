@@ -135,8 +135,7 @@ class EnvoiSousGarde:
     identifiant: str
     _garde: GardeEnvoi | None
 
-    def _transmettre(self, brouillon: BrouillonSortant) -> Issue:  # pragma: no cover — surchargée
-        raise NotImplementedError
+    _transmettre: Callable[[BrouillonSortant], Issue]  # fournie par l'adaptateur ; jamais appelée hors de ce mixin
 
     def envoyer_brouillon(self, brouillon: BrouillonSortant, jeton: JetonApprobation) -> RecuEnvoi:
         if self._garde is None:

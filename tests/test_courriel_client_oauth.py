@@ -234,7 +234,7 @@ def test_jetons_masques_dans_les_journaux_pendant_l_appel(m, caplog):
 
     class Espion:
         def envoyer(self, requete: RequeteHttp):
-            logging.getLogger("test").warning("requête avec %s", requete.entetes["Authorization"])
+            logging.getLogger("test").warning("jeton %s", requete.entetes["Authorization"].removeprefix("Bearer "))
             return m.gmail.traiter(requete)
 
     m.client._transport = Espion()

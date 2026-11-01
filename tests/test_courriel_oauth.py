@@ -18,7 +18,7 @@ from opsys.courriel_connecteurs import comptes
 from opsys.courriel_connecteurs.erreurs import ErreurCourriel
 from opsys.courriel_connecteurs.jetons import JeuJetons, StockageJetonsCoffre
 from opsys.courriel_connecteurs.oauth import PORTEES_GMAIL, PORTEES_GRAPH, config_gmail
-from opsys.secrets_coffre import coffre
+from opsys.secrets_coffre import coffre, masquage
 from opsys.stockage.schema import COURRIEL_ETATS_OAUTH
 
 FICTIF = True
@@ -382,3 +382,32 @@ def test_secret_client_oauth_jamais_dans_l_url_ni_les_erreurs(tmp_path, monkeypa
     with pytest.raises(ErreurCourriel) as exc:
         qa.connecter_oauth(monde)
     assert "mauvais-secret" not in str(exc.value) and "secret-client-fictif" not in str(exc.value)
+
+
+def test_state_lie_au_compte_en_base_meme_si_la_signature_est_valide(monde):
+    qa.creer_compte(monde)
+    url, p = _demarrer(monde)
+    monde.oauth_google.autoriser("c", p["code_challenge"][0])
+    with stockage.transaction() as cnx:  # altération de la ligne : le nonce appartiendrait à un autre compte
+        cnx.execute(COURRIEL_ETATS_OAUTH.update().values(compte_id="autre-compte"))
+    with pytest.raises(ErreurCourriel) as exc:
+        monde.service.terminer_autorisation(qa.ADMIN, url.state, "c")
+    assert exc.value.code == "REJ-COURRIEL-OAUTH-ETAT-REUTILISE"
+
+
+def test_aucun_jeton_dans_les_journaux_applicatifs_pendant_un_parcours_complet(monde, caplog):
+    import logging
+
+    from opsys.courriel_connecteurs.ingestion import IngestionCourriel
+    masquage.installer()
+    qa.creer_compte(monde)
+    with caplog.at_level(logging.DEBUG):
+        qa.connecter_oauth(monde)
+        monde.gmail.ajouter(dbl.courriel_brut())
+        monde.horloge.t += 4000
+        IngestionCourriel(stockage.transaction, acteur="nathan").synchroniser(
+            "gmail-paul", monde.service.fournisseur("gmail-paul"), "INBOX")
+        monde.service.revoquer(qa.ADMIN, "gmail-paul")
+    for secret in (monde.oauth_google.dernier_acces, *monde.oauth_google.refresh_valides, *monde.oauth_google.revoques):
+        assert secret not in caplog.text
+    assert "refresh-fictif" not in caplog.text and "acces-fictif" not in caplog.text

@@ -405,3 +405,31 @@ def test_migration_0040_sur_postgresql(monkeypatch, tmp_path):
                 command.downgrade(cfg, "0038")
         finally:
             stockage.liberer()
+
+
+def test_l_application_reelle_sert_la_page_courriel_aux_administrateurs_seulement(monde):
+    from opsys import identite
+    from opsys.console import application
+    from opsys.console.securite import Configuration
+    from opsys.departements import charger_departements
+
+    mot_de_passe = "mot-de-passe-console-courriel-fictif-2026"
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "proprio_fictif", "Propriétaire fictif", mot_de_passe, ["nathan_owner"])
+        identite.creer_personne(cnx, "employe_fictif", "Employé fictif", mot_de_passe, ["employee"])
+    qa.creer_compte(monde)
+    app = application.creer_application(
+        Configuration("secret-session-courriel-fictif-" + "x" * 32), charger_departements(), stockage.transaction)
+    with TestClient(app, base_url="https://testserver/opsys") as client:
+        assert client.get("/courriel", follow_redirects=False).status_code in {303, 401, 403}  # sans session
+        reponse = client.post("/connexion", data={"identifiant": "proprio_fictif", "mot_de_passe": mot_de_passe},
+                              follow_redirects=False)
+        assert reponse.status_code == 303
+        page = client.get("/courriel")
+        assert page.status_code == 200 and "gmail-paul" in page.text
+        assert client.get("/api/courriel/comptes").json()["comptes"][0]["compte_id"] == "gmail-paul"
+    with TestClient(app, base_url="https://testserver/opsys") as client:
+        client.post("/connexion", data={"identifiant": "employe_fictif", "mot_de_passe": mot_de_passe},
+                    follow_redirects=False)
+        assert client.get("/courriel", follow_redirects=False).status_code in {303, 401, 403}
+        assert client.get("/api/courriel/comptes").status_code in {401, 403}

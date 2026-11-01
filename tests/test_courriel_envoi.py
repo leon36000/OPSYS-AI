@@ -214,6 +214,45 @@ def test_personne_sans_role_autorise_ne_peut_pas_approuver(monde, gm):
 
 
 # -- jeton rejoué ---------------------------------------------------------------------------------
+def test_course_perdue_entre_verification_et_reservation_la_comparaison_echange_protege(monde, gm):
+    """Un concurrent gagne APRÈS les vérifications et AVANT la réservation : la comparaison-échange (statut
+    APPROUVE) doit refuser, sinon deux envois partiraient."""
+    from sqlalchemy import event
+
+    brouillon, demande = _approuve()
+    moteur = stockage.moteur()
+    declenche = []
+
+    def concurrent(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("SELECT courriel_comptes.etat") and not declenche:
+            declenche.append(True)
+            conn.exec_driver_sql("UPDATE courriel_brouillons SET statut = 'ENVOYE' WHERE statut = 'APPROUVE'")
+
+    event.listen(moteur, "before_cursor_execute", concurrent)
+    try:
+        with pytest.raises(ErreurCourriel) as exc:
+            gm.envoyer_brouillon(brouillon, JetonApprobation(demande, brouillon.empreinte))
+    finally:
+        event.remove(moteur, "before_cursor_execute", concurrent)
+    assert declenche and exc.value.code == "REJ-COURRIEL-BROUILLON-ETAT" and monde.gmail.envoyes == []
+    assert _statut(brouillon.brouillon_id) == "ENVOYE"
+
+
+def test_l_outil_refuse_un_brouillon_dont_la_base_ne_correspond_plus_a_la_demande(monde):
+    """Défense en profondeur : même si la ligne reste `DEMANDE` avec la bonne demande, une révision ou une empreinte
+    différente (altération, bogue) interdit l'approbation."""
+    for colonne, valeur in (("revision", 7), ("empreinte", "e" * 64)):
+        brouillon = _creer()
+        demande = _demander(brouillon)
+        with stockage.transaction() as cnx:
+            cnx.execute(COURRIEL_BROUILLONS.update().where(
+                COURRIEL_BROUILLONS.c.brouillon_id == brouillon.brouillon_id).values({colonne: valeur}))
+        decision = _decider(demande)
+        assert decision["statut"] == "echec", colonne
+        assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-COURRIEL-APPROBATION-CONTENU-MODIFIE"
+        assert _statut(brouillon.brouillon_id) == "DEMANDE"
+
+
 def test_jeton_a_usage_unique(monde, gm):
     brouillon, demande = _approuve()
     service = ServiceEnvoi(stockage.transaction)

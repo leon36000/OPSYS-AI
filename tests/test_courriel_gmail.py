@@ -203,3 +203,12 @@ def test_historique_page_suivante_ne_recule_jamais(monde, gmail):
     page = gmail.synchroniser("INBOX", curseur)
     assert int(decoder_curseur("gmail", page.curseur)["h"]) == h
     assert json.loads(base64.urlsafe_b64decode(page.curseur.split(":", 2)[2] + "==="))["p"] == "h"
+
+
+def test_incremental_filtre_par_etiquette(monde, gmail):
+    monde.gmail.ajouter(dbl.courriel_brut(objet="base"))
+    _, _, curseur, _ = _tout_lire(gmail)
+    monde.gmail.ajouter(dbl.courriel_brut(objet="ailleurs"), labels=("Label_1",))
+    dans_inbox = monde.gmail.ajouter(dbl.courriel_brut(objet="ici"))
+    ajouts, _, _, _ = _tout_lire(gmail, curseur=curseur)
+    assert ajouts == [dans_inbox]
