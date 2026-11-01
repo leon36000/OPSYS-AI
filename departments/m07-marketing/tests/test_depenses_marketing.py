@@ -7,7 +7,7 @@ from datetime import date
 
 import pytest
 from m7_marketing import depenses_marketing as dep
-from m7_marketing import outils
+from m7_marketing import medias_outils, outils
 from sqlalchemy import select
 
 from opsys import contexte, identite, stockage
@@ -70,7 +70,15 @@ def test_outil_t0_lecture_fermee_aux_appareils_et_aux_agents_seuls():
     assert outil.parametres["required"] == ["debut", "fin"] and outil.parametres["additionalProperties"] is False
     assert outil.fonction is outils.lire_depenses_marketing
     # Aucune entrée d'écriture n'est exposée aux agents : le registre n'a pas d'outil d'écriture.
-    assert not [o.nom for o in outils.outils() if "depense" in o.nom and o.nom != "m7_lire_depenses_marketing"]
+    # (`m7_signaler_anomalies_depense`, tranche « signaux » : N2, annonce une anomalie au bus et n'écrit PAS le registre
+    # des
+    # dépenses ; le registre ne s'écrit que par les connecteurs de lecture, `signaux/ingestion.py`, jamais par un
+    # outil.)
+    autres = [o.nom for o in outils.outils() if "depense" in o.nom and o.nom != "m7_lire_depenses_marketing"]
+    assert autres == ["m7_signaler_anomalies_depense"]
+    import inspect
+
+    assert "enregistrer_releve" not in inspect.getsource(medias_outils)
 
 
 def test_agent_seul_refuse_avant_toute_lecture_du_registre(monkeypatch):

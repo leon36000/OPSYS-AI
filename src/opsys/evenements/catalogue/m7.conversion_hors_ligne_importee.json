@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m7.conversion_hors_ligne_importee",
+  "title": "M7 — Conversion hors ligne importée",
+  "description": "Émis par M7 (mesure/conversions.py, outil m7_importer_conversions_hors_ligne) quand une conversion survenue hors du site (appel, rendez-vous, soumission signée, vente) est importée et rattachée à une source normalisée. Dit à M2 (source et issue d'un lead) et à M8 (comptage par source) : l'identifiant du lead (celui que M2 connaît), le type, le jour, la source/medium/campagne NORMALISÉS (convention UTM gelée) et la valeur déclarée en CAD ou null. AUCUN nom, courriel, téléphone ni identifiant publicitaire (gclid, fbclid). evenement_id déterministe sur la conversion : un rejeu est un no-op. Une conversion importée n'établit aucune causalité : elle compte une issue, elle n'explique pas son origine.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "conversion_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$"
+    },
+    "lead_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "type": {
+      "enum": [
+        "appel",
+        "rendez_vous",
+        "soumission_signee",
+        "vente"
+      ]
+    },
+    "convertie_le": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "utm_source": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z0-9_-]{1,40}$"
+    },
+    "utm_medium": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z0-9_-]{1,40}$"
+    },
+    "utm_campaign": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100
+    },
+    "valeur_cad": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]{1,12}(\\.[0-9]{1,2})?$"
+    },
+    "source_normalisee": {
+      "type": "boolean"
+    },
+    "importee_le": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 40
+    }
+  },
+  "required": [
+    "conversion_id",
+    "lead_id",
+    "type",
+    "convertie_le",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "valeur_cad",
+    "source_normalisee",
+    "importee_le"
+  ]
+}

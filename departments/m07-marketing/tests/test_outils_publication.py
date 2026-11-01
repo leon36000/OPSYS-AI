@@ -111,9 +111,11 @@ def test_le_manifeste_charge_les_douze_outils_et_n4_est_reserve_au_proprietaire(
     assert set(departement.roles_autorises(Niveau.N4)) == {"nathan_owner"}
 
 
-def test_le_seul_niveau_n4_de_m7_est_l_annonce_payante():
+def test_les_seuls_niveaux_n4_de_m7_sont_les_engagements_de_depense():
+    """L'annonce payante du sas social et, depuis la tranche « signaux », le LANCEMENT d'un plan de campagne payante
+    (`m7_demander_lancement_campagne`, consigné et jamais exécuté) : deux engagements de dépense, rien d'autre."""
     n4 = {o.nom for o in outils.outils() if o.niveau_effectif is Niveau.N4}
-    assert n4 == {"m7_demander_annonce_payante"}
+    assert n4 == {"m7_demander_annonce_payante", "m7_demander_lancement_campagne"}
 
 
 def test_aucun_outil_ne_publie_emet_un_jeton_ou_appelle_un_reseau():

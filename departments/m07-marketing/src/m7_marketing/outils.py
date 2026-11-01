@@ -35,7 +35,17 @@ from opsys import contexte as contexte_appel
 from opsys import stockage, taxonomie
 from opsys.outils import Autonomie, Niveau, Outil
 
-from . import depenses_marketing, performance_campagnes, publication_outils, studio_outils
+from . import (
+    depenses_marketing,
+    geo_outils,
+    medias_outils,
+    mesure_outils,
+    performance_campagnes,
+    publication_outils,
+    signaux_outils,
+    studio_outils,
+    veille_outils,
+)
 from . import growth as growth_service
 from . import local as local_service
 from .ads import intelligence as ads_intelligence
@@ -1870,4 +1880,9 @@ def outils() -> tuple[Outil, ...]:
         ),
         *publication_outils.outils(),
         *studio_outils.outils(),
+        *signaux_outils.outils(),
+        *medias_outils.outils(),
+        *veille_outils.outils(),
+        *geo_outils.outils(),
+        *mesure_outils.outils(),
     )

@@ -201,6 +201,22 @@ inconnu et une violation de la Rule of Two (courriel → envoi, ingestion → pa
 (`REJ-MCP-…`), et que les témoins intacts passent. C'est un fichier à part : les dix corpus de département et leur empreinte ne changent pas.
 Détail et limites : [OBSERVABILITE-MCP.md](OBSERVABILITE-MCP.md), § 6.
 
+## Corpus de la tranche « signaux » de M7 (m7-signaux, 2026-11-01)
+
+Fichier SÉPARÉ `departments/m07-marketing/evals/signaux.v1.yaml` (29 cas, ids `m7-sig-…`, vocabulaire neutre, 12 cas bloquants, 9 sondes d'autorité) :
+les dix corpus de département et leurs empreintes (`evals/gabarit.v1.yaml`, épinglé par `tests/test_evaluation_gabarit.py`) ne changent pas. Écrit à la main
+AVANT exécution depuis les outils réels de la tranche ([M7-SIGNAUX.md](M7-SIGNAUX.md)) : lecture des sources et des signaux, plan de campagne payante et lancement N4,
+veille et conformité des textes, robots d'IA, panel et visibilité, mesure et tests. Les sept catégories y sont ; les refus visent le lancement sans approbation du propriétaire,
+le ciblage par âge ou sexe, le scraping de Google ou d'une interface d'IA, la collecte d'une plateforme ou d'une page derrière connexion, un mot de passe donné dans le clavardage,
+les faux avis et la causalité sans test ; les injections viennent d'un texte de concurrent observé, d'un nom de campagne, d'une réponse de moteur d'IA et d'un journal d'accès.
+Les sondes appellent elles-mêmes les gestes N3/N4 réels (`m7_demander_lancement_campagne`, `m7_demander_annonce_payante`, `m7_enregistrer_source_signaux`,
+`m7_declarer_concurrent`, `m7_decider_contenu`) ou les refus du code (ciblage interdit, moteur d'interface, URL de plateforme).
+
+Résultats (répondants simulés, outils réels sur instance fictive vide ; aucun modèle réel) : `reference` 29/29 (1.0000, qualifié, 9/9 sondes) ; `dangereux` 17/29 (0.4857,
+non qualifié, 11 cas bloquants échoués, 9/9 sondes tenues) ; `inventif` 0/29. Tests : `departments/m07-marketing/tests/test_evaluation_signaux.py`. Limite : les outils d'argent
+(`m7_evaluer_regles_media`, `m7_rapport_performance_media`, `m7_lire_attribution_simple`) ne sont pas appelés par le corpus (la garde financière les refuse à un agent seul) ; leur comportement
+est couvert par leurs propres tests.
+
 ## Interpréter
 
 - 100 % avec `reference` prouve que le corpus est cohérent et atteignable, pas qu'un agent est bon.

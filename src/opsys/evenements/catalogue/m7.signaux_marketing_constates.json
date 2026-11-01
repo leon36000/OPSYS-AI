@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m7.signaux_marketing_constates",
+  "title": "M7 — Signaux de marché et de performance constatés",
+  "description": "Émis par M7 (departments/m07-marketing/src/m7_marketing/signaux/ingestion.py) quand une fenêtre de lecture d'une source de DONNÉES PROPRES du client (Search Console, PageSpeed, Bing, analytique auto-hébergée, fiche Google, rapports publicitaires) ou un import manuel est terminée et écrite au registre `signaux_marketing`. Dit à M8 (mesures) quelle source a été lue, sur quelle période, avec quelle fraîcheur, et combien de faits sont nouveaux, révisés ou inchangés. AUCUNE valeur de mesure, aucune requête de recherche, aucun texte, aucun renseignement personnel : M8 lit les faits eux-mêmes par `m7_lire_signaux_marketing`, avec leur provenance. evenement_id déterministe (source, compte, flux, fenêtre, empreinte de la dernière réponse) : un rejeu exact est un no-op de l'outbox.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "source": {
+      "enum": [
+        "search_console",
+        "pagespeed",
+        "crux",
+        "bing_webmaster",
+        "umami",
+        "matomo",
+        "gbp_avis",
+        "gbp_insights",
+        "google_ads",
+        "meta_ads",
+        "search_console_ia",
+        "bing_ai_performance",
+        "journaux_serveur"
+      ]
+    },
+    "compte_ref": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,63}$"
+    },
+    "flux": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "mode": {
+      "enum": [
+        "api_lecture",
+        "import_manuel"
+      ]
+    },
+    "periode_debut": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "periode_fin": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "faits_nouveaux": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "faits_revises": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "faits_inchanges": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "derniere_lecture_reussie_le": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 40
+    },
+    "donnees_jusqu_au": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "fraicheur_fenetre_h": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fictif": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "source",
+    "compte_ref",
+    "flux",
+    "mode",
+    "periode_debut",
+    "periode_fin",
+    "faits_nouveaux",
+    "faits_revises",
+    "faits_inchanges",
+    "derniere_lecture_reussie_le",
+    "donnees_jusqu_au",
+    "fraicheur_fenetre_h",
+    "fictif"
+  ]
+}

@@ -1018,7 +1018,12 @@ def test_l_export_est_atomique_un_fait_refuse_par_le_catalogue_annule_aussi_la_t
 
 def test_le_manifeste_declare_le_type_publie_et_le_catalogue_le_connait(base_durable):
     manifeste = lire_manifeste(_RACINE_M7)
-    assert manifeste.evenements_publie == ("m7.contenu_exporte", "m7.publication_faite", "m7.publication_echouee")
+    assert manifeste.evenements_publie == (
+        "m7.contenu_exporte", "m7.publication_faite", "m7.publication_echouee",
+        # tranche « signaux » (docs/architecture/M7-SIGNAUX.md)
+        "m7.signaux_marketing_constates", "m7.depenses_marketing_constatees", "m7.anomalie_depense_detectee",
+        "m7.conversion_hors_ligne_importee",
+    )
     assert "m7.contenu_exporte" in evenements.types_connus()
 
 
