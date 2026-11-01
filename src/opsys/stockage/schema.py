@@ -1527,3 +1527,97 @@ INGESTION_BROUILLONS = Table(
     CheckConstraint("revision >= 1", name="revision_positive"),
     Index("ix_ingestion_brouillons_lot", "lot_id", "genre", "statut"),
 )
+
+# -- Voix et visages des avatars : registre par client, consentements, qualifications, canaux (migration 0039) ---
+# Un avatar garde ses identifiants LOGIQUES (`voix.lea.defaut`, `visage.lea.defaut` : manifeste ou profil) ;
+# ces tables disent ce que le client a réellement derrière : quel fournisseur (registre de fournisseurs, 0037), quel
+# manifeste figé (empreinte), quel consentement du locuteur, quelle qualification EXÉCUTÉE. Aucune donnée vocale n'est
+# stockée ici : seulement des références (contrat, empreinte SHA-256 du document) et des métadonnées.
+AVATARS_ENTREES = Table(
+    "avatars_entrees", META,
+    Column("identifiant", String(64), primary_key=True),
+    Column("genre", String(8), nullable=False),
+    # NULL tant que l'entrée est « prevu » : aucun runtime n'est lié. La clé étrangère impose un fournisseur CONFIGURÉ.
+    Column("fournisseur_id", String(80), ForeignKey("fournisseurs_configurations.identifiant"), nullable=True),
+    Column("langue", String(8), nullable=False),
+    Column("accent", String(40), nullable=True),
+    Column("origine", String(16), nullable=False),
+    Column("actif_usage_commercial", String(16), nullable=True),
+    Column("empreinte_vocale_tiers", Boolean, nullable=False),
+    Column("declaration_biometrie", Text, nullable=True),
+    Column("manifeste", Text, nullable=False),
+    Column("empreinte_manifeste", String(64), nullable=False),
+    Column("etat", String(12), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    Column("modifie_par", String(64), nullable=False),
+    CheckConstraint("genre IN ('voix','visage')", name="genre_valide"),
+    CheckConstraint("etat IN ('prevu','configure','qualifie')", name="etat_valide"),
+    CheckConstraint("(etat = 'prevu') = (fournisseur_id IS NULL)", name="etat_runtime_coherent"),
+    CheckConstraint("origine IN ('generique','clonee','ressemblance')", name="origine_valide"),
+    CheckConstraint("(genre = 'voix' AND origine <> 'ressemblance') OR (genre = 'visage' AND origine <> 'clonee')",
+                    name="origine_du_genre"),
+    CheckConstraint("length(empreinte_manifeste) = 64 AND revision > 0", name="bornes"),
+)
+# Consentement ÉCRIT d'un locuteur (voix) ou d'une personne dont la ressemblance sert de visage. Révocable une fois,
+# jamais modifiable ni supprimable (déclencheurs de la migration 0039). Le document signé reste hors de la base :
+# on garde sa référence et son empreinte.
+AVATARS_CONSENTEMENTS = Table(
+    "avatars_consentements", META,
+    Column("consentement_id", String(32), primary_key=True),
+    Column("identifiant", String(64), ForeignKey("avatars_entrees.identifiant"), nullable=False),
+    Column("locuteur_ref", String(64), nullable=False),
+    Column("portee", Text, nullable=False),
+    Column("forme", String(8), nullable=False),
+    Column("document_ref", String(200), nullable=False),
+    Column("document_sha256", String(64), nullable=False),
+    Column("signe_le", String(10), nullable=False),
+    Column("expire_le", String(10), nullable=True),
+    Column("enregistre_le", Text, nullable=False),
+    Column("enregistre_par", String(64), nullable=False),
+    Column("revoque_le", Text, nullable=True),
+    Column("revoque_par", String(64), nullable=True),
+    Column("revoque_motif", String(200), nullable=True),
+    CheckConstraint("forme = 'ecrit'", name="forme_ecrite"),
+    CheckConstraint("length(document_sha256) = 64", name="empreinte_document"),
+    CheckConstraint("(revoque_le IS NULL) = (revoque_par IS NULL)", name="revocation_coherente"),
+    CheckConstraint("expire_le IS NULL OR expire_le > signe_le", name="expiration_apres_signature"),
+    Index("ix_avatars_consentements_entree", "identifiant", "revoque_le"),
+)
+# Journal des tests de connexion/qualification EXÉCUTÉS, append-only. Lié à l'empreinte du runtime testé : une
+# modification du fournisseur (modèle, point d'accès, licence) rend la qualification périmée. `nature` = « reel » pour
+# une sonde réelle du serveur ; « double » pour un double de test (jamais qualifiant).
+AVATARS_QUALIFICATIONS = Table(
+    "avatars_qualifications", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("quand", Text, nullable=False),
+    Column("acteur", String(64), nullable=False),
+    Column("fournisseur_id", String(80), ForeignKey("fournisseurs_configurations.identifiant"), nullable=False),
+    Column("empreinte_runtime", String(64), nullable=False),
+    Column("nature", String(8), nullable=False),
+    Column("statut", String(20), nullable=False),
+    Column("detail", String(200), nullable=False),
+    Column("latence_ms", Integer, nullable=True),
+    CheckConstraint("nature IN ('reel','double')", name="nature_valide"),
+    CheckConstraint(
+        "statut IN ('succes','echec','delai','non_verifiable','refuse_politique')", name="statut_valide"),
+    CheckConstraint("length(empreinte_runtime) = 64", name="empreinte_runtime_valide"),
+    Index("ix_avatars_qualifications_runtime", "fournisseur_id", "empreinte_runtime", "id"),
+)
+# Canal déclaré « disponible » pour un département : décision d'un administrateur, avec les preuves qui l'ont permise.
+# L'état EFFECTIF est recalculé à chaque lecture (consentement révoqué => « suspendu ») ; cette ligne n'est jamais
+# une preuve suffisante à elle seule.
+AVATARS_CANAUX = Table(
+    "avatars_canaux", META,
+    Column("departement", String(64), primary_key=True),
+    Column("canal", String(16), primary_key=True),
+    Column("etat", String(10), nullable=False),
+    Column("preuves", Text, nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    Column("modifie_par", String(64), nullable=False),
+    CheckConstraint("canal IN ('voix','audiovisuel')", name="canal_valide"),
+    CheckConstraint("etat IN ('disponible','retire')", name="etat_valide"),
+    CheckConstraint("revision > 0", name="revision_positive"),
+)

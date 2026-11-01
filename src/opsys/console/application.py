@@ -51,6 +51,7 @@ from ..stockage.schema import AGENTS_POLITIQUE_ENTREPRISE
 from . import (
     agents_etat,
     agents_ui,
+    avatars_ui,
     banque_metier,
     banque_ui,
     brand_ui,
@@ -411,6 +412,10 @@ def creer_application(
     app.include_router(plateforme_ui.creer_router(
         session_page=session_page, session_api=session_api, verifier_formulaire=verifier_formulaire,
         formulaire=_formulaire, cnx_factory=cnx_factory, departements=sorted(deps), prefixe=prefixe,
+    ))
+    # Avatars (avatars_ui) : état des canaux et registre des voix et visages, en lecture, administration seulement.
+    app.include_router(avatars_ui.creer_router(
+        session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
     ))
     # Ingestion d'onboarding (onboarding_ui) : suivi des lots en lecture, administration seulement.
     app.include_router(onboarding_ui.creer_router(

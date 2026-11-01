@@ -144,7 +144,8 @@ def contenu_fournisseurs(vues: list[dict[str, Any]], profil: dict[str, Any] | No
                          secrets_actifs: list[str], departements: list[str], *, prefixe: str, csrf: str) -> str:
     e = pages.e
     base = f"{e(prefixe)}/plateforme/fournisseurs"
-    navigation = (f'<p><a href="{base}">Fournisseurs</a> · <a href="{e(prefixe)}/plateforme/secrets">Secrets</a></p>'
+    navigation = (f'<p><a href="{base}">Fournisseurs</a> · <a href="{e(prefixe)}/plateforme/secrets">Secrets</a> · '
+                  f'<a href="{e(prefixe)}/plateforme/avatars">Avatars</a></p>'
                   "<p class=\"note\">Chaque fournisseur porte son bloc licence ; l’activation est refusée, avec son "
                   "code, si la licence n’est pas conforme au profil du client. Aucun repli automatique. Les mesures "
                   "locales n’existent pas encore : tout est « à mesurer ».</p>")
@@ -231,7 +232,8 @@ def contenu_secrets(metas: list[dict[str, Any]], journal: list[dict[str, Any]], 
         f"<td>{e(j['acteur'])}</td><td>{e(j['usage'] or '')}</td><td>{e(j['resultat'])}</td>"
         f"<td>{e(j['code'] or '')}</td></tr>" for j in journal) or '<tr><td colspan="7">Journal vide.</td></tr>'
     return (
-        f'<p><a href="{e(prefixe)}/plateforme/fournisseurs">Fournisseurs</a> · <a href="{base}">Secrets</a></p>'
+        f'<p><a href="{e(prefixe)}/plateforme/fournisseurs">Fournisseurs</a> · <a href="{base}">Secrets</a> · '
+        f'<a href="{e(prefixe)}/plateforme/avatars">Avatars</a></p>'
         "<p class=\"note\">Les valeurs sont chiffrées au repos (AES-256-GCM, clé maîtresse hors base). Les agents ne "
         "reçoivent qu’un jeton opaque, résolu par le serveur au moment de l’appel. Aucun export en clair.</p>"
         "<table><thead><tr><th>Nom</th><th>Service</th><th>État</th><th>Version</th><th>Modifié</th>"
