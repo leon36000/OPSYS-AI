@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import LargeBinary, cast, func, insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.engine import make_url
 
 from . import admission_agents, agents, agents_base, identite, stockage
@@ -25,6 +25,7 @@ from .departements import Departement
 from .etat import journaliser
 from .memoire import autorite
 from .outils import Autonomie, Niveau
+from .stockage.portabilite import nb_octets
 from .stockage.schema import AGENTS_CONFIGURABLES as PROFILS
 from .stockage.schema import AGENTS_DECLENCHEURS_COMMANDES as COMMANDES
 from .stockage.schema import AGENTS_DECLENCHEURS_INTENTIONS as INTENTIONS
@@ -143,7 +144,7 @@ def _cron(expression: str) -> None:
 def _profil(cnx, deps: Mapping[str, Departement], ident: str, revision: int, *, actif=True):
     # Ne pas matérialiser le JSON libre avant la borne SQL en octets.
     tailles = cnx.execute(select(*[
-        func.length(cast(PROFILS.c[key], LargeBinary)) for key in ("responsabilite", "outils", "declencheurs")
+        nb_octets(PROFILS.c[key]) for key in ("responsabilite", "outils", "declencheurs")
     ]).where(PROFILS.c.id == ident)).first()
     if tailles is None or any(type(n) is not int or n > cap
                               for n, cap in zip(tailles, (8192, 32768, 32768), strict=True)):

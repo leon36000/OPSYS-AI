@@ -4,13 +4,14 @@ import json
 from urllib.parse import urlencode
 
 from m4_field_ops.absences_ecriture import ROLES_INTERNES
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 from starlette.datastructures import QueryParams
 
 from opsys import identite, stockage
 from opsys.stockage.schema import PERSONNES as P
 from opsys.stockage.schema import ROLES_PERSONNES as R
 
+from ..stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from . import journal_equipes, pages
 from . import memoire_chantier as autorite
 from . import preparation_chantier as lecture
@@ -48,11 +49,11 @@ def _encoder(valeur):
 
 
 def _capturer(cnx):
-    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite':
+    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise lecture.Refus('INSTANCE-NON-QUALIFIEE')
 
     def taille(colonne):
-        return func.length(cast(colonne, LargeBinary))
+        return nb_octets(colonne)
 
     n, octets = cnx.execute(select(func.count(), func.sum(taille(P.c.identifiant) + taille(P.c.nom)
                                         + taille(P.c.actif))).select_from(P).where(_eligible())).one()

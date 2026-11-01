@@ -14,9 +14,10 @@ from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from opsys import stockage
+from opsys.stockage.portabilite import nb_octets
 from opsys.stockage.schema import REGISTRES
 
 DEPARTEMENT = "m07-marketing"
@@ -36,7 +37,7 @@ _EMPREINTE = re.compile(r"^[0-9a-f]{64}$")
 
 def _longueur_octets(dialecte: str):
     if dialecte == "sqlite":
-        return func.length(cast(REGISTRES.c.maillon, LargeBinary))
+        return nb_octets(REGISTRES.c.maillon)
     if dialecte == "postgresql":
         # convert_to fixe UTF-8 même si l'encodage de la base est différent.
         return func.octet_length(func.convert_to(REGISTRES.c.maillon, "UTF8"))

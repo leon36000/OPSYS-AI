@@ -1,10 +1,11 @@
 """Adaptation SQL privée du journal pur : snapshot borné avant tout décodage."""
 import json
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from opsys import contexte, stockage
 from opsys.stockage.maillons import copier_maillons_avec_metadonnees
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from opsys.stockage.schema import REGISTRES
 
 from . import journal_quotidien
@@ -20,10 +21,10 @@ class Refus(ValueError):
 
 
 def capturer(cnx):
-    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite':
+    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise Refus('INSTANCE-NON-QUALIFIEE')
     condition = (REGISTRES.c.departement == DEPARTEMENT) & (REGISTRES.c.registre == 'principal')
-    nombre, octets = cnx.execute(select(func.count(), func.sum(func.length(cast(REGISTRES.c.maillon, LargeBinary))))
+    nombre, octets = cnx.execute(select(func.count(), func.sum(nb_octets(REGISTRES.c.maillon)))
                                 .select_from(REGISTRES).where(condition)).one()
     if nombre > journal_quotidien.MAX_SOURCES or (octets or 0) > journal_quotidien.MAX_OCTETS:
         raise Refus('SOURCE-TROP-VOLUMINEUSE')

@@ -1,9 +1,10 @@
 """Lecture console privée de l’historique, source SQL bornée et autorité courante."""
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from opsys import stockage
 from opsys.outils import Outil, valider_arguments
 from opsys.stockage.maillons import copier_maillons_avec_metadonnees
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from opsys.stockage.schema import REGISTRES
 
 from . import catalogue_console as acces
@@ -25,10 +26,10 @@ def schema():
 
 
 def capturer(cnx):
-    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite':
+    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise historique_prix.Refus('INSTANCE-NON-QUALIFIEE')
     condition = (REGISTRES.c.departement == acces.DEPARTEMENT) & (REGISTRES.c.registre == REGISTRE)
-    n, octets = cnx.execute(select(func.count(), func.sum(func.length(cast(REGISTRES.c.maillon, LargeBinary))))
+    n, octets = cnx.execute(select(func.count(), func.sum(nb_octets(REGISTRES.c.maillon)))
                            .select_from(REGISTRES).where(condition)).one()
     if n > historique_prix.MAX_SOURCES or (octets or 0) > historique_prix.MAX_OCTETS:
         raise historique_prix.Refus('SOURCES-TROP-VOLUMINEUSES')

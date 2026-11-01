@@ -9,9 +9,10 @@ import math
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from opsys import stockage
+from opsys.stockage.portabilite import nb_octets
 from opsys.stockage.schema import REGISTRES
 
 from .utm import utm_engine
@@ -270,7 +271,7 @@ def _source_couts(campagne: dict[str, Any]) -> dict[str, Any]:
 def _lire_local_borne(cnx) -> list[dict[str, Any]]:
     filtre = (REGISTRES.c.departement == REGISTRE[0]) & (REGISTRES.c.registre == REGISTRE[1])
     if cnx.dialect.name == "sqlite":
-        octets = func.length(cast(REGISTRES.c.maillon, LargeBinary))
+        octets = nb_octets(REGISTRES.c.maillon)
     elif cnx.dialect.name == "postgresql":
         octets = func.octet_length(func.convert_to(REGISTRES.c.maillon, "UTF8"))
     else:

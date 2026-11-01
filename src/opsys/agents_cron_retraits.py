@@ -9,12 +9,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from sqlalchemy import LargeBinary, cast, func, insert, select, update
+from sqlalchemy import insert, select, update
 
 from . import agents, agents_base
 from . import agents_cron_autorite as autorite
 from . import agents_declencheurs as intentions
 from .etat import journaliser
+from .stockage.portabilite import nb_octets
 from .stockage.schema import AGENTS_CRON_RETRAITS as RETRAITS
 
 DeclencheurRefuse = intentions.DeclencheurRefuse
@@ -40,7 +41,7 @@ def _source_commande(cnx, row, *, retire_le=None):
     )
     mesures = list(cnx.execute(select(
         intentions.COMMANDES.c.mutation_id,
-        func.length(cast(intentions.COMMANDES.c.reponse, LargeBinary)).label("octets"),
+        nb_octets(intentions.COMMANDES.c.reponse).label("octets"),
     ).where(*filtre).limit(2)).mappings())
     if len(mesures) != 1 or mesures[0]["octets"] > 8192:
         _refuser()

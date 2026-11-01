@@ -2,11 +2,12 @@
 import json
 from datetime import UTC, datetime
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import select
 
 from .. import approbations, contexte, idempotence, identite, stockage
 from ..etat import journaliser
 from ..outils import Autonomie, Niveau
+from ..stockage.portabilite import nb_octets
 from ..stockage.schema import APPROBATIONS, MUTATIONS_APPLIQUEES
 from . import memoire_chantier
 from . import preparation_chantier as lecture
@@ -92,8 +93,8 @@ def _preuve_application(cnx, revue, approbation_id, acteur):
             or etats.technicien_assigne(passe, iid) != equipe):
         raise lecture.Refus('SOURCE-INCOHERENTE')
     condition = APPROBATIONS.c.id == approbation_id
-    tailles = cnx.execute(select(func.length(cast(APPROBATIONS.c.arguments, LargeBinary)),
-        func.length(cast(APPROBATIONS.c.resultat, LargeBinary))).where(condition)).one_or_none()
+    tailles = cnx.execute(select(nb_octets(APPROBATIONS.c.arguments),
+        nb_octets(APPROBATIONS.c.resultat)).where(condition)).one_or_none()
     if tailles is None or any(t is None or t > lecture.MAX_SORTIE_OCTETS for t in tailles):
         raise lecture.Refus('APPROBATION-INDISPONIBLE')
     decision = cnx.execute(select(APPROBATIONS).where(condition)).mappings().one()
@@ -124,7 +125,7 @@ def appliquer(cnx, deps, session, lead_id, devis_id, plan_id, empreinte_attendue
         condition = ((MUTATIONS_APPLIQUEES.c.appareil == meta.appareil)
                      & (MUTATIONS_APPLIQUEES.c.cle_idempotence == meta.cle))
         precedent = cnx.execute(select(MUTATIONS_APPLIQUEES.c.statut,
-            func.length(cast(MUTATIONS_APPLIQUEES.c.reponse, LargeBinary))).where(condition)).one_or_none()
+            nb_octets(MUTATIONS_APPLIQUEES.c.reponse)).where(condition)).one_or_none()
         if precedent is not None and (precedent[0] != 'ok' or precedent[1] > lecture.MAX_SORTIE_OCTETS):
             raise lecture.Refus('RECU-INDISPONIBLE')
         try:

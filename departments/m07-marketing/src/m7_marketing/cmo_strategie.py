@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 
 from opsys import contexte, identite, stockage
 from opsys.stockage import codec
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 from opsys.stockage.schema import REGISTRES
 
 from . import growth_lecture, plan_cmo
@@ -157,8 +158,9 @@ def valider_commande(nom, a):
 
 def _autorite(cnx, *, owner=False):
     appelant = contexte.identite_appelante()
-    if (stockage.connexion_courante() is not cnx or cnx.engine.dialect.name != "sqlite" or appelant is None
-            or appelant.source != "console" or contexte.departement_origine_appelante() != "console"):
+    if (stockage.connexion_courante() is not cnx or cnx.engine.dialect.name not in DIALECTES_QUALIFIES
+            or appelant is None or appelant.source != "console"
+            or contexte.departement_origine_appelante() != "console"):
         raise PermissionError("CMO-PORT-HUMAIN-REQUIS")
     personne = identite.personne_active(cnx, appelant.personne)
     if (personne is None or appelant.role not in personne.roles

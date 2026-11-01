@@ -12,6 +12,7 @@ from starlette.datastructures import QueryParams
 from opsys import contexte, stockage
 from opsys.outils import Autonomie, executer
 
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import absences_personnes, pages
 from . import memoire_chantier as autorite
 from . import preparation_chantier as lecture
@@ -32,7 +33,7 @@ def _encoder(valeur):
 
 
 def _cible(cnx, personne_id):
-    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite':
+    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise lecture.Refus('INSTANCE-NON-QUALIFIEE')
     try:
         cible = absences_ecriture._cible_initiale(cnx, personne_id)

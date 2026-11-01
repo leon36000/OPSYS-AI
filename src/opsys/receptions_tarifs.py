@@ -5,10 +5,11 @@ import re
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from . import idempotence, stockage
 from .stockage import codec
+from .stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from .stockage.schema import MUTATIONS_APPLIQUEES, REGISTRES
 
 DEPARTEMENT = 'm06-material-control'
@@ -30,7 +31,7 @@ def _sha(valeur):
 
 
 def _connexion(cnx):
-    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite':
+    if cnx is None or cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES:
         _refuser()
 
 
@@ -84,7 +85,7 @@ def _prix(cnx, rang):
     _rang(rang)
     condition = ((REGISTRES.c.departement == DEPARTEMENT) & (REGISTRES.c.registre == 'livre_prix')
                  & (REGISTRES.c.rang == rang))
-    octets = cnx.execute(select(func.length(cast(REGISTRES.c.maillon, LargeBinary)))
+    octets = cnx.execute(select(nb_octets(REGISTRES.c.maillon))
                         .where(condition)).scalar_one_or_none()
     if octets is None or octets > 8192:
         _refuser()
@@ -103,7 +104,7 @@ def _prix(cnx, rang):
 def _recu(cnx, appareil, cle):
     condition = ((MUTATIONS_APPLIQUEES.c.appareil == appareil)
                  & (MUTATIONS_APPLIQUEES.c.cle_idempotence == cle))
-    octets = cnx.execute(select(func.length(cast(MUTATIONS_APPLIQUEES.c.reponse, LargeBinary)))
+    octets = cnx.execute(select(nb_octets(MUTATIONS_APPLIQUEES.c.reponse))
                         .where(condition)).scalar_one_or_none()
     if octets is None or octets > 65536:
         _refuser()

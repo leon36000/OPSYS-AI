@@ -10,9 +10,10 @@ import hashlib
 import json
 import re
 
-from sqlalchemy import LargeBinary, case, cast, func, select
+from sqlalchemy import case, func, select
 
 from .. import stockage
+from ..stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from ..stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
 
 MAX_PUBLICATIONS = 2_000
@@ -37,7 +38,7 @@ def _connexion():
     cnx = stockage.connexion_courante()
     if cnx is None or not cnx.in_transaction():
         raise InventaireRefuse("transaction_lecture_requise")
-    if cnx.dialect.name != "sqlite":
+    if cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise InventaireRefuse("backend_source_non_qualifie")
     return cnx
 
@@ -78,7 +79,7 @@ def lire_receptions_m3() -> list:
     cnx = _connexion()
     table = REGISTRES
     filtre = (table.c.departement == "m03-estimation") & (table.c.registre == "estime_vs_reel")
-    longueurs = select(func.length(cast(table.c.maillon, LargeBinary)).label("octets")).where(
+    longueurs = select(nb_octets(table.c.maillon).label("octets")).where(
         filtre,
     ).limit(MAX_MAILLONS_M3 + 1).subquery()
     nombre, maxi, total = cnx.execute(select(

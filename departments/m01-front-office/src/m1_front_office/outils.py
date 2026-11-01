@@ -73,6 +73,7 @@ from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil
 from opsys.stockage import lecture_m1
 from opsys.stockage.maillons import copier_maillons_avec_metadonnees
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
 from . import (
     adaptateurs,
@@ -1553,7 +1554,7 @@ def _lire_registre_suivi_rappel() -> tuple[Registre, list[dict[str, Any]]]:
         or cnx is None
         or stockage.connexion_courante() is not cnx
         or not cnx.in_transaction()
-        or cnx.dialect.name != "sqlite"
+        or cnx.dialect.name not in DIALECTES_QUALIFIES
         or not isinstance(maillons, stockage.MaillonsDurables)
         or maillons.departement != _DEPARTEMENT
         or maillons.registre != _NOM_REGISTRE
@@ -2047,7 +2048,7 @@ def registre_sms_hote():
     port = getattr(reg, "_entrees", None)
     if (not _stockage_durable_actif or cnx is None or not cnx.in_transaction()
             or cnx.engine.url != stockage.moteur().url
-            or cnx.dialect.name != "sqlite" or not isinstance(port, stockage.MaillonsDurables)
+            or cnx.dialect.name not in DIALECTES_QUALIFIES or not isinstance(port, stockage.MaillonsDurables)
             or port.departement != _DEPARTEMENT or port.registre != _NOM_REGISTRE):
         raise ValueError("REJ-M1-SMS-SOURCE-NON-QUALIFIEE")
     lecture_m1.borner(cnx)

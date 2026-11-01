@@ -267,7 +267,41 @@ def executer_atomique(outil: Outil, arguments: Mapping[str, Any]) -> dict[str, A
 
     Toutes les écritures d'un appel (registres, événements, audit) sont validées ensemble si la
     réponse est un succès, annulées ensemble si elle est un échec ou si une exception survient.
+
+    Port humain de la console, sur PostgreSQL seulement (SQLite n'est pas touché) : (1) les écritures de console sont
+    sérialisées entre elles par un verrou d'instance (`console-ecriture`, pris AVANT tout point de sauvegarde et tenu
+    jusqu'à la fin de la transaction de la requête) : sous SQLite, `BEGIN IMMEDIATE` ne laissait qu'un écrivain, et
+    sans cela deux saisies lisaient le même état puis s'ajoutaient toutes deux (mise à jour perdue) ; (2) si l'appel
+    perd malgré tout une course d'écriture (clé en double d'un registre chaîné contre un écrivain d'agent), il est
+    REJOUÉ après annulation de sa part et relit l'état validé par le gagnant. Dans les deux cas le perdant rend le
+    verdict que SQLite rend (`REVISION-PERIMEE`, `SOURCE-MODIFIEE`, rejeu identique…). Les appels d'agent ne sont
+    pas touchés. Voir `stockage.concurrence`.
     """
+    from . import contexte
+
+    appelante = contexte.identite_appelante()
+    if appelante is not None and getattr(appelante, "source", None) == "console":
+        return _executer_console(outil, arguments)
+    return _executer_atomique(outil, arguments)
+
+
+def _executer_console(outil: Outil, arguments: Mapping[str, Any]) -> dict[str, Any]:
+    from .stockage import connexion_courante, moteur, transaction
+    from .stockage.concurrence import relire_si_conflit, verrou_ecriture_console
+
+    cnx = connexion_courante()
+    dialecte = cnx.dialect.name if cnx is not None else moteur().dialect.name
+    if dialecte != "postgresql":
+        return _executer_atomique(outil, arguments)
+    if cnx is None:  # le verrou appartient à la transaction extérieure : l'ouvrir d'abord
+        with transaction():
+            return _executer_console(outil, arguments)
+    if outil.autonomie != Autonomie.T0:
+        verrou_ecriture_console(cnx)
+    return relire_si_conflit(lambda: _executer_atomique(outil, arguments))
+
+
+def _executer_atomique(outil: Outil, arguments: Mapping[str, Any]) -> dict[str, Any]:
     from .stockage import transaction
 
     try:

@@ -3,11 +3,12 @@
 import hashlib
 import json
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import select
 
 from opsys import stockage
 from opsys.evenements.schemas import erreurs_charge
 from opsys.stockage import codec
+from opsys.stockage.portabilite import nb_octets
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
 from . import devis_durable, estime_vs_reel, outils
@@ -47,7 +48,7 @@ def _verifier_commun(requete):
         raise ValueError("requête M3 invalide")
     filtre = EVENEMENTS_SORTANTS.c.evenement_id == evenement_id
     taille = cnx.execute(
-        select(func.length(cast(EVENEMENTS_SORTANTS.c.charge, LargeBinary))).where(filtre)
+        select(nb_octets(EVENEMENTS_SORTANTS.c.charge)).where(filtre)
     ).scalar_one_or_none()
     if type(taille) is not int or not 0 <= taille <= 262144:
         raise ValueError("source M3 absente ou hors limite")

@@ -24,10 +24,11 @@ from pathlib import Path
 from time import monotonic
 from typing import Any
 
-from sqlalchemy import LargeBinary, cast, func, insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.exc import OperationalError
 
 from . import etat, fusion_csv, identite, stockage
+from .stockage.portabilite import nb_octets
 from .stockage.schema import FUSION_PDF_COMMANDES, FUSION_PDF_LOTS, FUSION_PDF_QUOTA, REGISTRES
 
 FusionPDFErreur = fusion_csv.FusionErreur
@@ -126,7 +127,7 @@ def _journal(cnx, acteur: str, lot: Mapping[str, Any]) -> None:
 def _maillons_provenance(cnx):
     """Vérifie les bornes SQL du registre entier avant tout décodage de ses maillons."""
     filt = (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
-    taille_octets = func.length(cast(REGISTRES.c.maillon, LargeBinary))
+    taille_octets = nb_octets(REGISTRES.c.maillon)
     nombre, total, maximum, premier, dernier = cnx.execute(select(
         func.count(), func.coalesce(func.sum(taille_octets), 0), func.coalesce(func.max(taille_octets), 0),
         func.min(REGISTRES.c.rang), func.max(REGISTRES.c.rang),

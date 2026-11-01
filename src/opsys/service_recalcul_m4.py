@@ -11,12 +11,13 @@ import re
 import threading
 from time import monotonic, time
 
-from sqlalchemy import LargeBinary, cast, func, insert, select
+from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 
 from . import service_capability as sc
 from . import stockage
 from .stockage import codec
+from .stockage.portabilite import nb_octets
 from .stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, OPSYS_INSTANCE, SERVICE_AUDIT, SERVICE_POLITIQUES
 from .stockage.schema import SERVICE_RECALCUL_ATTESTATIONS as ATTESTATIONS
 from .stockage.schema import SERVICE_RECALCUL_INTENTIONS as INTENTIONS
@@ -258,12 +259,12 @@ def _reference(intention, attestation):
 
 def _valider_source(cnx, wct_id, devis_id):
     taille_event = cnx.execute(
-        select(func.length(cast(EVENEMENTS_SORTANTS.c.charge, LargeBinary))).where(
+        select(nb_octets(EVENEMENTS_SORTANTS.c.charge)).where(
             EVENEMENTS_SORTANTS.c.evenement_id == wct_id
         )
     ).scalar_one_or_none()
     taille_recu = cnx.execute(
-        select(func.length(cast(EVENEMENTS_RECUS.c.resultat, LargeBinary))).where(
+        select(nb_octets(EVENEMENTS_RECUS.c.resultat)).where(
             EVENEMENTS_RECUS.c.evenement_id == wct_id, EVENEMENTS_RECUS.c.consommateur == sc._CONSOMMATEUR
         )
     ).scalar_one_or_none()

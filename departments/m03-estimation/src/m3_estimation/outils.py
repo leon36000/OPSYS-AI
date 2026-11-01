@@ -27,6 +27,8 @@ from opsys import approbations, contexte, evenements, idempotence, identite, jet
 from opsys.approbations import approbateur_en_cours
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from opsys.stockage import codec
+from opsys.stockage.concurrence import verrou_ecriture_console
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 from opsys.stockage.schema import APPROBATIONS
 
 from . import (
@@ -2605,8 +2607,9 @@ def enregistrer_modele_soumission(modele_id, titre, description, clauses, revisi
     try:
         auteur = _autoriser_modeles()
         cnx = stockage.connexion_courante()
-        if cnx.dialect.name != "sqlite":
+        if cnx.dialect.name not in DIALECTES_QUALIFIES:
             raise n.Refus("ECRITURE-NON-QUALIFIEE")
+        verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (SQLite : déjà le cas)
         meta, reception = _META_MODELES.get(), contexte.horodatage_reception()
         if (not isinstance(meta, idempotence.Meta) or reception is None
                 or meta.appareil != "console:" + auteur["personne"] or reception.appareil != meta.appareil
@@ -2744,8 +2747,9 @@ def creer_devis_depuis_modele(devis_id, lead_id, chantier_id, lignes, taux_marge
     try:
         auteur = _autoriser_modeles()
         cnx = stockage.connexion_courante()
-        if cnx.dialect.name != "sqlite":
+        if cnx.dialect.name not in DIALECTES_QUALIFIES:
             raise n.Refus("ECRITURE-NON-QUALIFIEE")
+        verrou_ecriture_console(cnx)  # PostgreSQL : un seul écrivain humain à la fois (SQLite : déjà le cas)
         args = dict(devis_id=devis_id, lead_id=lead_id, chantier_id=chantier_id, lignes=lignes,
                     taux_marge=taux_marge, modele_id=modele_id, modele_revision=modele_revision,
                     modele_source=modele_source)
@@ -2876,8 +2880,9 @@ def _texte_modele_exact(modele_id, modele_revision, modele_source):
 
 def _mutation_prefill(auteur):
     n = modeles_soumission
-    if stockage.connexion_courante().dialect.name != "sqlite":
+    if stockage.connexion_courante().dialect.name not in DIALECTES_QUALIFIES:
         raise n.Refus("ECRITURE-NON-QUALIFIEE")
+    verrou_ecriture_console(stockage.connexion_courante())
     meta, reception = _META_MODELES.get(), contexte.horodatage_reception()
     if (not isinstance(meta, idempotence.Meta) or reception is None or not meta.cle.strip()
             or len(meta.cle) > 200 or meta.appareil != "console:" + auteur["personne"]

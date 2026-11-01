@@ -6,12 +6,13 @@ import json
 import uuid
 
 from m5_financecore import encodage
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from .. import contexte
 from ..outils import Autonomie, executer
 from ..stockage import codec
 from ..stockage.maillons import EcritureConcurrente, copier_maillons_avec_metadonnees
+from ..stockage.portabilite import nb_octets
 from ..stockage.schema import EVENEMENTS_RECUS, JOURNAL, OPSYS_INSTANCE
 from . import memoire_chantier as autorite
 from . import preparation_chantier as lecture
@@ -208,7 +209,7 @@ def _ancre(cnx, deps, session, lead_id, devis_id):
 def _reception(cnx, devis_id):
     condition = ((EVENEMENTS_RECUS.c.evenement_id == 'm3-devis-accepte-' + devis_id)
                  & (EVENEMENTS_RECUS.c.consommateur == M5))
-    taille = cnx.execute(select(func.length(cast(EVENEMENTS_RECUS.c.resultat, LargeBinary)))
+    taille = cnx.execute(select(nb_octets(EVENEMENTS_RECUS.c.resultat))
                         .where(condition)).scalar_one_or_none()
     if taille is not None and taille > lecture.MAX_SORTIE_OCTETS:
         raise lecture.Refus('SOURCE-TROP-VOLUMINEUSE')
@@ -250,7 +251,7 @@ def _wct_publie_et_recu(cnx, recu):
     if charge is None:
         return None
     condition = ((EVENEMENTS_RECUS.c.evenement_id == ident) & (EVENEMENTS_RECUS.c.consommateur == M5))
-    taille = cnx.execute(select(func.length(cast(EVENEMENTS_RECUS.c.resultat, LargeBinary)))
+    taille = cnx.execute(select(nb_octets(EVENEMENTS_RECUS.c.resultat))
                         .where(condition)).scalar_one_or_none()
     if taille is not None and taille > lecture.MAX_SORTIE_OCTETS:
         raise lecture.Refus('SOURCE-TROP-VOLUMINEUSE')
@@ -434,7 +435,7 @@ def _audits_recus(cnx, recus):
     if len(ids) != len(set(ids)) or len(ids) > 320:
         raise lecture.Refus('RECU-INVALIDE')
     condition = ((JOURNAL.c.action == 'm5.ventilation_v3_tracee') & JOURNAL.c.cible.in_(ids))
-    taille = func.length(cast(JOURNAL.c.details, LargeBinary))
+    taille = nb_octets(JOURNAL.c.details)
     nombre, total, maximum = cnx.execute(select(
         func.count(), func.coalesce(func.sum(taille), 0), func.coalesce(func.max(taille), 0),
     ).where(condition)).one()

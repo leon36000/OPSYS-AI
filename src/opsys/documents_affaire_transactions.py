@@ -13,13 +13,14 @@ import re
 from m10_memoire import amont, confidentialite, encodage, humain
 from m10_memoire import documents_affaire as domaine
 from m10_memoire import recherche_affaire as corpus
-from sqlalchemy import Connection, LargeBinary, and_, case, cast, func, insert, select
+from sqlalchemy import Connection, and_, case, insert, select
 from sqlalchemy.exc import IntegrityError
 
 from . import approbations, contexte, idempotence
 from .documents_affaire_instance import copier_registre_m10
 from .outils import Niveau
 from .stockage import codec, connexion_courante, maillons
+from .stockage.portabilite import DIALECTES_QUALIFIES, est_entier, est_texte, nb_octets
 from .stockage.schema import APPROBATIONS, JOURNAL, MUTATIONS_APPLIQUEES
 
 _DEP = "m10-memoire"
@@ -78,7 +79,7 @@ def _connexion(cnx):
         or cnx.get_nested_transaction() is None
     ):
         _refuser("CONNEXION-INVALIDE")
-    if cnx.engine.dialect.name != "sqlite":
+    if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         _refuser("DIALECTE-NON-ADMIS")
 
 
@@ -177,11 +178,11 @@ def _lire_borne(cnx, table, filtre, textes, *, nuls=(), entiers=()):
     Ce contrôle borne la réception Python, pas le travail du planner SQLite.
     """
     conditions = [
-        and_(func.typeof(table.c[k]) == "text", func.length(cast(table.c[k], LargeBinary)) <= cap)
+        and_(est_texte(table.c[k]), nb_octets(table.c[k]) <= cap)
         for k, cap in textes.items()
     ]
     conditions += [table.c[k].is_(None) for k in nuls]
-    conditions += [and_(func.typeof(table.c[k]) == "integer", table.c[k] > 0, table.c[k] <= 2**63 - 1) for k in entiers]
+    conditions += [and_(est_entier(table.c[k]), table.c[k] > 0, table.c[k] <= 2**63 - 1) for k in entiers]
     admissible = and_(*conditions)
     fields = tuple(textes) + tuple(nuls) + tuple(entiers)
     return (

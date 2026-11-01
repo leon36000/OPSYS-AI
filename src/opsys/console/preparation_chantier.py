@@ -4,12 +4,13 @@ import re
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from .. import cles_chiffrement, contexte, identite, stockage
 from ..evenements.schemas import erreurs_charge
 from ..outils import Autonomie, executer, vers_json
 from ..stockage import codec
+from ..stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from ..stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, REGISTRES
 from . import pages
 
@@ -29,7 +30,7 @@ class Refus(ValueError):
 
 def _borner(cnx, departement, registre):
     condition = (REGISTRES.c.departement == departement) & (REGISTRES.c.registre == registre)
-    n, taille = cnx.execute(select(func.count(), func.sum(func.length(cast(REGISTRES.c.maillon, LargeBinary))))
+    n, taille = cnx.execute(select(func.count(), func.sum(nb_octets(REGISTRES.c.maillon)))
                            .select_from(REGISTRES).where(condition)).one()
     if n > MAX_SOURCES or (taille or 0) > MAX_SOURCE_OCTETS:
         raise Refus('SOURCE-TROP-VOLUMINEUSE')
@@ -65,7 +66,7 @@ def _appel(deps, utilisateur, departement, nom, args):
 
 def _publication(cnx, ident, typ, producteur):
     condition = EVENEMENTS_SORTANTS.c.evenement_id == ident
-    taille = cnx.execute(select(func.length(cast(EVENEMENTS_SORTANTS.c.charge, LargeBinary)))
+    taille = cnx.execute(select(nb_octets(EVENEMENTS_SORTANTS.c.charge))
                         .where(condition)).scalar_one_or_none()
     if taille is None:
         return None
@@ -80,7 +81,7 @@ def _publication(cnx, ident, typ, producteur):
 
 def _reception(cnx, evenement_id, lead_id, devis_id, intervention):
     condition = ((EVENEMENTS_RECUS.c.evenement_id == evenement_id) & (EVENEMENTS_RECUS.c.consommateur == M4))
-    taille = cnx.execute(select(func.length(cast(EVENEMENTS_RECUS.c.resultat, LargeBinary)))
+    taille = cnx.execute(select(nb_octets(EVENEMENTS_RECUS.c.resultat))
                         .where(condition)).scalar_one_or_none()
     # Un reçu d'échec peut légitimement n'avoir aucun résultat. Ne jamais afficher son erreur libre.
     if taille is not None and taille > MAX_SORTIE_OCTETS:
@@ -106,7 +107,7 @@ def lire(cnx, deps, session, lead_id, devis_id):
     from m4_field_ops import cedule, etats, preparation, registre
     from m4_field_ops import outils as m4
 
-    if cnx is not stockage.connexion_courante() or cnx.dialect.name != 'sqlite':
+    if cnx is not stockage.connexion_courante() or cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise Refus('INSTANCE-NON-QUALIFIEE')
     personne = identite.personne_active(cnx, session.utilisateur)
     if (personne is None or 'admin' not in personne.roles

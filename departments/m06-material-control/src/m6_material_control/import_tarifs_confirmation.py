@@ -1,11 +1,12 @@
 """Confirmation privée tout-ou-rien; les writers de tarifs restent seuls propriétaires."""
 import re
 
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 
 from opsys import idempotence, receptions_tarifs, stockage
 from opsys.outils import Autonomie, Outil, valider_arguments
 from opsys.stockage import codec
+from opsys.stockage.portabilite import nb_octets
 from opsys.stockage.schema import MUTATIONS_APPLIQUEES, REGISTRES
 
 from . import catalogue_console as acces
@@ -66,7 +67,7 @@ def _mutation(cnx, meta):
     # La lecture commune décode la réponse au rejeu; borner ses octets SQL avant ce décodage.
     condition = ((MUTATIONS_APPLIQUEES.c.appareil == meta.appareil)
                  & (MUTATIONS_APPLIQUEES.c.cle_idempotence == meta.cle))
-    taille = cnx.execute(select(func.length(cast(MUTATIONS_APPLIQUEES.c.reponse, LargeBinary)))
+    taille = cnx.execute(select(nb_octets(MUTATIONS_APPLIQUEES.c.reponse))
                         .where(condition)).scalar_one_or_none()
     if taille is not None and taille > 65536:
         _refuser()
@@ -149,7 +150,7 @@ def _verifier_sources(cnx, snapshots, tarifs, arguments):
     # Le livre peut maintenant avoir EXACTEMENT 10000 entrées, contrairement à l'aperçu.
     for registre in ('catalogue_materiaux', 'fournisseurs', 'livre_prix'):
         condition = ((REGISTRES.c.departement == acces.DEPARTEMENT) & (REGISTRES.c.registre == registre))
-        n, octets = cnx.execute(select(func.count(), func.sum(func.length(cast(REGISTRES.c.maillon, LargeBinary))))
+        n, octets = cnx.execute(select(func.count(), func.sum(nb_octets(REGISTRES.c.maillon)))
                                .select_from(REGISTRES).where(condition)).one()
         if n > import_tarifs_console.MAX_SOURCES or (octets or 0) > import_tarifs_console.MAX_OCTETS:
             _refuser('SOURCES-TROP-VOLUMINEUSES')

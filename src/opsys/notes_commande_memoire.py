@@ -9,6 +9,7 @@ from . import contexte, evenements, stockage
 from . import notes_commande_affaire as liaison
 from .etat import journaliser
 from .stockage import codec
+from .stockage.concurrence import verrou_consultatif
 from .stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 
 TYPE = "m6.note_commande_referencee"
@@ -91,6 +92,11 @@ def publier(note_id, revision, devis_id, lead_id, source_hash):
     if appelante is None or appelante.source != 'console':
         raise ReferenceRefusee('HUMAIN-CONSOLE-REQUIS')
     attendu = _attendue(note_id, revision, devis_id, lead_id, source_hash)
+    # Lire l'état puis publier puis auditer n'est atomique que sous SQLite (un seul écrivain). Sous PostgreSQL, deux
+    # publications simultanées lisaient toutes deux « NON_PUBLIE » : une seule référence sortante (le bus est
+    # idempotent) mais DEUX lignes d'audit (défaut latent L10). Le verrou nommé, pris AVANT la lecture de l'état,
+    # fait relire au second l'état validé par le premier : il rend « EN_ATTENTE » sans écrire ni auditer.
+    verrou_consultatif(stockage.connexion_courante(), 'm6-note-' + attendu['fait_id'])
     etat = _etat(attendu)
     if etat['etat'] == 'CONFLIT':
         raise ReferenceRefusee('REFERENCE-CONTRADICTOIRE')

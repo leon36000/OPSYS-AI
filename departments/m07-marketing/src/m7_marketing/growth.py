@@ -9,6 +9,7 @@ import math
 from typing import Any
 
 from opsys import stockage
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
 DEPARTEMENT = "m07-marketing"
 REGISTRE = "growth"
@@ -130,7 +131,7 @@ def enregistrer_observation_humaine(
 
     cnx = stockage.connexion_courante()
     appelant = contexte.identite_appelante()
-    if (cnx is None or cnx.engine.dialect.name != "sqlite" or appelant is None
+    if (cnx is None or cnx.engine.dialect.name not in DIALECTES_QUALIFIES or appelant is None
             or appelant.source != "console" or contexte.departement_origine_appelante() != "console"):
         raise PermissionError("saisie humaine Growth réservée au port console SQLite")
     personne = identite.personne_active(cnx, appelant.personne)

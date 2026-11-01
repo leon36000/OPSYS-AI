@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from opsys import approbations, contexte, idempotence, stockage
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
 from . import reception, transferts
 from .registre import Registre
@@ -91,7 +92,7 @@ def _acteur():
         raise Refus("IDENTITE-INVALIDE")
     if (
         cnx.closed
-        or cnx.dialect.name != "sqlite"
+        or cnx.dialect.name not in DIALECTES_QUALIFIES
         or cnx.engine.url != stockage.moteur().url
         or not isinstance(cnx.connection.driver_connection, sqlite3.Connection)
         or not cnx.connection.driver_connection.in_transaction

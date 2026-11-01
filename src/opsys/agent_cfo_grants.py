@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import Connection, func, insert, select, update
 
 from . import agents, contexte, identite
+from .stockage.portabilite import DIALECTES_QUALIFIES
 from .stockage.schema import (
     AGENTS_GRANTS_CFO,
     AGENTS_GRANTS_CFO_HISTORIQUE,
@@ -37,9 +38,9 @@ def _iso(value: dt.datetime) -> str:
     return value.astimezone(dt.UTC).isoformat(timespec="seconds")
 
 
-def _sqlite_uniquement(cnx: Connection) -> None:
-    if cnx.dialect.name != "sqlite":
-        raise GrantCfoRefuse("grants CFO agents non disponibles hors SQLite à ce jalon")
+def _moteur_qualifie(cnx: Connection) -> None:
+    if cnx.dialect.name not in DIALECTES_QUALIFIES:
+        raise GrantCfoRefuse("grants CFO agents non disponibles hors SQLite et PostgreSQL")
 
 
 def _lire_date_rapport(arguments: Mapping[str, Any]) -> dt.date:
@@ -109,7 +110,7 @@ def _historiser(cnx: Connection, row: Mapping[str, Any], event: str, actor: str,
 
 
 def lire(cnx: Connection, agent_id: str, *, instance_id: str) -> dict[str, Any] | None:
-    _sqlite_uniquement(cnx)
+    _moteur_qualifie(cnx)
     _instance(cnx, instance_id)
     row = cnx.execute(select(AGENTS_GRANTS_CFO).where(AGENTS_GRANTS_CFO.c.agent_id == agent_id)).mappings().fetchone()
     if row is None or row["instance_id"] != instance_id:
@@ -132,7 +133,7 @@ def accorder(
     rapports_par_jour: int = 3,
     expire_le: str | None = None,
 ) -> dict[str, Any]:
-    _sqlite_uniquement(cnx)
+    _moteur_qualifie(cnx)
     _instance(cnx, instance_id)
     tools = sorted(set(OUTILS if outils is None else outils))
     if not tools or not set(tools) <= OUTILS:
@@ -207,7 +208,7 @@ def accorder(
 
 
 def revoquer(cnx: Connection, agent_id: str, *, par: str, instance_id: str, version_attendue: int) -> dict[str, Any]:
-    _sqlite_uniquement(cnx)
+    _moteur_qualifie(cnx)
     _instance(cnx, instance_id)
     if isinstance(version_attendue, bool) or not isinstance(version_attendue, int):
         raise ValueError("version de grant attendue invalide")
@@ -246,7 +247,7 @@ def emettre(
     instance_id: str,
     revision_profil: int,
 ) -> dict[str, str]:
-    _sqlite_uniquement(cnx)
+    _moteur_qualifie(cnx)
     _instance(cnx, instance_id)
     if (
         outil not in OUTILS
@@ -322,7 +323,7 @@ def emettre(
 
 
 def consommer(cnx: Connection, ticket: str, outil: str, arguments: Mapping[str, Any], *, instance_id: str) -> None:
-    _sqlite_uniquement(cnx)
+    _moteur_qualifie(cnx)
     _instance(cnx, instance_id)
     if not isinstance(ticket, str) or len(ticket) < 32 or len(ticket) > 256:
         raise GrantCfoRefuse("ticket CFO absent ou invalide")

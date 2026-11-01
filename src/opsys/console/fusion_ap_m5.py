@@ -13,12 +13,14 @@ from typing import Any
 
 import yaml
 from m5_financecore import comptes_a_payer, outils, registre, taux_fiscaux
-from sqlalchemy import LargeBinary, cast, func, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from opsys import fusion_ap, fusion_pdf, identite
 from opsys.stockage import codec
 from opsys.stockage.schema import REGISTRES
+
+from ..stockage.portabilite import nb_octets
 
 _MONTANT = re.compile(r"[0-9]{1,12}(?:\.[0-9]{1,2})?\Z")
 _MAX_ROWS = 10_000
@@ -47,7 +49,7 @@ def _taux_octets() -> bytes:
 
 def _maillons(cnx: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     filt = (REGISTRES.c.departement == "m05-financecore") & (REGISTRES.c.registre == "comptes_a_payer")
-    size = func.length(cast(REGISTRES.c.maillon, LargeBinary))
+    size = nb_octets(REGISTRES.c.maillon)
     count, total, largest, first, last = cnx.execute(select(
         func.count(), func.coalesce(func.sum(size), 0), func.coalesce(func.max(size), 0),
         func.min(REGISTRES.c.rang), func.max(REGISTRES.c.rang),

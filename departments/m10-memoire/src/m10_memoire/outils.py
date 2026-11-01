@@ -48,11 +48,12 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import Connection, LargeBinary, cast, func, select
+from sqlalchemy import Connection, func, select
 
 from opsys import approbations, idempotence, jetons, stockage
 from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from opsys.stockage.schema import REGISTRES
 
 from . import (
@@ -613,7 +614,7 @@ def _verifier_capture_paquets(capture):
     try:
         if (type(capture) is not _CapturePaquetsAppareil or not capture.active
                 or type(capture.cnx) is not Connection or capture.cnx is not stockage.connexion_courante()
-                or capture.cnx.closed or capture.cnx.dialect.name != 'sqlite'
+                or capture.cnx.closed or capture.cnx.dialect.name not in DIALECTES_QUALIFIES
                 or capture.transaction is None or not capture.transaction.is_active
                 or capture.cnx.get_transaction() is not capture.transaction
                 or (capture.savepoint is not None and not capture.savepoint.is_active)
@@ -628,14 +629,14 @@ def capture_paquets_appareil(cnx):
     """Snapshots privés pour une préparation; ne crée ni identité, ni rôle, ni permission."""
     if (_CAPTURE_PAQUETS_APPAREIL.get() is not None or type(cnx) is not Connection
             or cnx is not stockage.connexion_courante() or cnx.closed
-            or cnx.dialect.name != 'sqlite' or not cnx.in_transaction()):
+            or cnx.dialect.name not in DIALECTES_QUALIFIES or not cnx.in_transaction()):
         raise ValueError('CAPTURE-M10-INDISPONIBLE')
     if contexte_appel.identite_appelante() is None or _refus_lecture_admin() is not None:
         raise PermissionError('admin actif requis pour la capture M10')
     # Borner les deux sources avant de décoder la première.
     for nom in ('evenements', 'affaires'):
         condition = (REGISTRES.c.departement == 'm10-memoire') & (REGISTRES.c.registre == nom)
-        nombre, octets = cnx.execute(select(func.count(), func.sum(func.length(cast(REGISTRES.c.maillon, LargeBinary))))
+        nombre, octets = cnx.execute(select(func.count(), func.sum(nb_octets(REGISTRES.c.maillon)))
             .where(condition)).one()
         if nombre > _MAX_CAPTURE_MAILLONS or (octets or 0) > _MAX_CAPTURE_OCTETS:
             raise ValueError('CAPTURE-M10-SOURCE-TROP-VOLUMINEUSE')
@@ -1556,7 +1557,7 @@ def _verifier_invocation_lecture_documentaire(invocation):
             or invocation.cnx is not stockage.connexion_courante()
             or invocation.cnx.closed
             or not invocation.cnx.in_transaction()
-            or invocation.cnx.engine.dialect.name != "sqlite"
+            or invocation.cnx.engine.dialect.name not in DIALECTES_QUALIFIES
             or type(invocation.quota) is not int
             or invocation.quota < 1
             or type(invocation.mode_manifeste) is not str

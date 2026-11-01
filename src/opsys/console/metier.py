@@ -20,6 +20,7 @@ from ..capacites import Capacites
 from ..departements import Departement
 from ..etat import journaliser
 from ..outils import Autonomie, Niveau, Outil, executer_atomique, valider_arguments
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from .securite import Session
 
 # Surface fermée : aucune écriture externe, dépense ou soumission officielle.
@@ -215,7 +216,7 @@ def _executer_edition_texte(cnx, deps, session, personne, nom, arguments, mutati
             if mutation_id is not None or valider_arguments(_SCHEMA_LIRE_DOSSIER_MEDIA, arguments):
                 raise ValueError("lecture édition invalide")
             return service.lire_edition_texte_humain(**arguments)
-        if cnx.engine.dialect.name != "sqlite":
+        if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
             return {
                 "accepte": False,
                 "verdict": {
@@ -261,7 +262,7 @@ _COMMANDES_CMO = {
 def _port_cmo(cnx, deps, session):
     if session.expire <= datetime.now(UTC).timestamp():
         raise PermissionError("CMO-SESSION-EXPIREE")
-    if (stockage.connexion_courante() is not cnx or cnx.engine.dialect.name != "sqlite"
+    if (stockage.connexion_courante() is not cnx or cnx.engine.dialect.name not in DIALECTES_QUALIFIES
             or "m07-marketing" not in deps or deps["m07-marketing"].module_outils != "m7_marketing.outils"):
         raise ValueError("CMO-PORT-NON-QUALIFIE")
     personne = identite.personne_active(cnx, session.utilisateur)
@@ -372,7 +373,7 @@ def _executer_observation_growth_humaine(cnx, deps, session, personne, arguments
     """Commande interne privée : absente du catalogue MCP et des arguments du writer agent."""
     departement = "m07-marketing"
     module = deps[departement].module_outils if departement in deps else None
-    if module != "m7_marketing.outils" or cnx.engine.dialect.name != "sqlite":
+    if module != "m7_marketing.outils" or cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
         raise ValueError("GROWTH-ECRITURE-NON-QUALIFIEE")
     if stockage.connexion_courante() is not cnx:
         raise ValueError("GROWTH-CONNEXION-NON-CANONIQUE")
@@ -436,7 +437,7 @@ def _executer_note_commande(cnx, deps, session, personne, nom, arguments, mutati
     if (ecriture and (not isinstance(mutation_id, str) or not mutation_id.strip() or len(mutation_id) > 200)
             or (not ecriture and mutation_id is not None)):
         raise ValueError("intention de note invalide")
-    if ecriture and cnx.dialect.name != "sqlite":
+    if ecriture and cnx.dialect.name not in DIALECTES_QUALIFIES:
         return {"ok": True, "resultat": n.refuser("ECRITURE-NON-QUALIFIEE")}
     with (
         contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, "admin", source="console")),

@@ -155,3 +155,71 @@ def reclamer_cle(cle: str, attendre) -> tuple:
         time.sleep(0.4)
         idempotence.finaliser(cnx, meta, {"ok": True, "resultat": {"x": 1}})
     return ("frais",)
+
+
+# -- 6. N processus de console écrivent la MÊME révision d'une fiche matériau M6 --------------------------------------
+def ecrire_materiau_console(cle: str, revision_attendue: int, nom: str, attendre) -> tuple:
+    """Un écrivain HUMAIN de la console (chemin de production : `console.metier.executer` -> `executer_atomique`)."""
+    from opsys import stockage
+    from opsys.console import metier
+    from opsys.console.securite import Session
+    from opsys.departements import charger_departements
+
+    deps = charger_departements()
+    session = Session("admin.fictif", frozenset({"admin"}), "csrf-fictif", 4102444800)
+    arguments = dict(materiau_id="mat-fictif", nom=nom, unite="pi", actif=True, raison="Fiche FICTIVE",
+                     revision_attendue=revision_attendue)
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    with stockage.transaction() as cnx:
+        reponse = metier.executer(cnx, deps, session, "m6_enregistrer_materiau_console", arguments, mutation_id=cle)
+    resultat = reponse["resultat"]
+    return ("accepte",) if resultat["accepte"] else ("refus", resultat["raison"])
+
+
+# -- 7. relire_si_conflit : N processus lisent « registre vide ? » puis écrivent, sans verrou -------------------------
+def ajouter_si_vide(registre: str, i: int, attendre) -> tuple:
+    """Lire-puis-écrire sans verrou : SQLite l'exclut (écrivain unique), PostgreSQL le départage par la clé du rang ;
+    `relire_si_conflit` rejoue la perdante, qui relit alors le registre non vide et ne l'écrit pas."""
+    from opsys import stockage
+    from opsys.stockage.concurrence import relire_si_conflit
+
+    def corps():
+        journal = stockage.maillons("m09-demo", registre)
+        if len(journal) == 0:
+            time.sleep(0.5)  # élargit la fenêtre : tous les processus ont lu « vide » avant la première écriture
+            journal.append({"i": i})
+            return "ecrit"
+        return "relu"
+
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    with stockage.transaction():
+        return (relire_si_conflit(corps),)
+
+
+# -- 8. verrou_consultatif : N processus font « si absent, écrire + auditer » ------------------------------------------
+def auditer_une_fois(nom: str, attendre) -> tuple:
+    """Le motif de L10 : lire l'état, puis écrire et auditer. Sans verrou, PostgreSQL audite autant de fois qu'il y a
+    de processus ; avec le verrou nommé (pris AVANT la lecture), une seule fois."""
+    from sqlalchemy import func, select
+
+    from opsys import stockage
+    from opsys.etat import journaliser
+    from opsys.stockage.concurrence import verrou_consultatif
+    from opsys.stockage.schema import JOURNAL
+
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql("SELECT 1")
+    attendre()
+    with stockage.transaction() as cnx:
+        verrou_consultatif(cnx, "essai-" + nom)
+        deja = cnx.execute(select(func.count()).select_from(JOURNAL).where(
+            JOURNAL.c.action == "essai.verrou", JOURNAL.c.cible == nom)).scalar_one()
+        if deja:
+            return ("relu",)
+        time.sleep(0.5)
+        journaliser(cnx, "essai", "essai.verrou", nom, {})
+    return ("ecrit",)

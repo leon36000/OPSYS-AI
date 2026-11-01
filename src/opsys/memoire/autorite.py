@@ -126,7 +126,7 @@ def _liaison(session: str) -> dict[str, Any]:
 
 def emettre(cnx: Any, politique: Mapping[str, Any], departement: str, agent_id: str,
             cle_session: str, arguments: Mapping[str, Any]) -> dict[str, str]:
-    liaison_cibles._sqlite_uniquement(cnx)
+    liaison_cibles._moteur_qualifie(cnx)
     politique = valider_politique(politique)
     binding = politique["agents"].get(agent_id)
     if (binding != {"departement": departement, "mode": "client_session"}
@@ -159,7 +159,7 @@ def emettre(cnx: Any, politique: Mapping[str, Any], departement: str, agent_id: 
 
 def verifier(cnx: Any, politique: Mapping[str, Any], departement: str, token: str,
              arguments: Mapping[str, Any]) -> tuple[str, ...]:
-    liaison_cibles._sqlite_uniquement(cnx)
+    liaison_cibles._moteur_qualifie(cnx)
     politique = valider_politique(politique)
     ligne = cnx.execute(select(LIAISONS_TICKETS).where(
         LIAISONS_TICKETS.c.ticket_hash == liaison_cibles.empreinte_ticket(token)

@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from .. import identite
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from . import catalogue_memoire_ui, metier, pages
 
 IDENTIFIANT = re.compile(r'[A-Za-z0-9_.:@-]{1,100}')
@@ -98,7 +99,7 @@ def creer_router(*, session_page, cnx_factory, deps, prefixe, verifier_formulair
 
     def ecriture():
         with cnx_factory() as cnx:
-            return cnx.dialect.name == 'sqlite'
+            return cnx.dialect.name in DIALECTES_QUALIFIES
 
     def conflit(session, message):
         r = rendre(session, 'Modèles à relire', f'<p role="alert">{pages.e(message)}</p>'

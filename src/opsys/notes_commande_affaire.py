@@ -6,6 +6,7 @@ transaction SQLite. Aucun ticket Core, rôle d'agent ou fait mémoire n'est cré
 from __future__ import annotations
 
 from . import stockage
+from .stockage.portabilite import DIALECTES_QUALIFIES
 
 MAX_SOURCES = 10000
 
@@ -38,7 +39,7 @@ def resoudre(note_id, revision, devis_attendu, affaire_attendue):
         # Avant toute lecture métier, même lorsque les arguments sont invalides.
         m6.autoriser_note_commande()
         cnx = stockage.connexion_courante()
-        if cnx.dialect.name != "sqlite":
+        if cnx.dialect.name not in DIALECTES_QUALIFIES:
             raise RattachementRefuse("BACKEND-NON-QUALIFIE")
         if not notes_commande.entier(revision, 1):
             raise RattachementRefuse("REVISION-INVALIDE")

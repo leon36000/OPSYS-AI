@@ -40,6 +40,7 @@ from typing import Any
 from sqlalchemy import func, insert, select
 
 from ..stockage import transaction
+from ..stockage.portabilite import DIALECTES_QUALIFIES
 from ..stockage.schema import (
     COUT_CERTIFIE_RECONCILIATIONS,
     EVENEMENTS_RECUS,
@@ -260,7 +261,7 @@ def reconcilier(departements: Mapping[str, Any] | None = None, *, limite: int = 
         resume["raison"] = "m5_indisponible"
         return resume
     with transaction() as cnx:
-        if cnx.engine.dialect.name != "sqlite":
+        if cnx.engine.dialect.name not in DIALECTES_QUALIFIES:
             resume["raison"] = "backend_non_sqlite"
             return resume
         instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id).where(OPSYS_INSTANCE.c.id == 1)

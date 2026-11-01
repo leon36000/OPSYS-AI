@@ -12,12 +12,13 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from m10_memoire import apprentissage, registre
-from sqlalchemy import select, text
+from sqlalchemy import func, select
 
 from opsys import stockage
 from opsys.stockage import codec
 from opsys.stockage.schema import REGISTRES
 
+from ..stockage.portabilite import DIALECTES_QUALIFIES, nb_octets
 from . import pages
 from .securite import Session
 
@@ -85,7 +86,7 @@ def _valider_json_borne(texte: str) -> Any:
 
 
 def _backend_sqlite() -> None:
-    if stockage.moteur().dialect.name != "sqlite":
+    if stockage.moteur().dialect.name not in DIALECTES_QUALIFIES:
         raise BackendNonPrisEnCharge("aperçu M10 : backend SQLite uniquement, concurrence PostgreSQL non qualifiée")
 
 
@@ -99,11 +100,11 @@ def _lire_snapshot() -> tuple[list[dict[str, Any]], dict[str, str | None]]:
     _backend_sqlite()
     noms = list(_REGISTRES)
     with stockage.transaction() as cnx:
-        compte, octets, maximum = cnx.execute(text(
-            "SELECT count(*), COALESCE(sum(length(CAST(maillon AS BLOB))),0), "
-            "COALESCE(max(length(CAST(maillon AS BLOB))),0) FROM registres_maillons "
-            "WHERE departement=:departement AND registre IN (:r0,:r1)"
-        ), {"departement": "m10-memoire", "r0": noms[0], "r1": noms[1]}).one()
+        taille = nb_octets(REGISTRES.c.maillon)
+        compte, octets, maximum = cnx.execute(
+            select(func.count(), func.coalesce(func.sum(taille), 0), func.coalesce(func.max(taille), 0))
+            .where(REGISTRES.c.departement == "m10-memoire", REGISTRES.c.registre.in_(noms))
+        ).one()
         _exiger_plafonds(compte, octets, maximum)
         lignes = cnx.execute(
             select_maillons_m10(), {"departement": "m10-memoire", "r0": noms[0], "r1": noms[1]}
@@ -171,10 +172,9 @@ def _lire_tetes() -> dict[str, str | None]:
     with stockage.transaction() as cnx:
         for nom in _REGISTRES:
             taille = cnx.execute(
-                text("SELECT length(CAST(maillon AS BLOB)) FROM registres_maillons "
-                     "WHERE departement=:departement AND registre=:registre "
-                     "ORDER BY rang DESC LIMIT 1"),
-                {"departement": "m10-memoire", "registre": nom},
+                select(nb_octets(REGISTRES.c.maillon))
+                .where(REGISTRES.c.departement == "m10-memoire", REGISTRES.c.registre == nom)
+                .order_by(REGISTRES.c.rang.desc()).limit(1)
             ).scalar_one_or_none()
             if taille is None:
                 têtes[nom] = None

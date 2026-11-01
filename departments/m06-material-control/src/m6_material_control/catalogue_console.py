@@ -5,6 +5,7 @@ from contextvars import ContextVar
 
 from opsys import approbations, contexte, idempotence, stockage
 from opsys.outils import Autonomie, Outil, valider_arguments
+from opsys.stockage.portabilite import DIALECTES_QUALIFIES
 
 from . import catalogue_materiaux as domaine
 
@@ -46,7 +47,7 @@ def _autoriser():
     signataire = approbations.signataire_valide(cnx, personne)
     if signataire is None or signataire.role != 'admin':
         raise domaine.CatalogueRefuse('IDENTITE')
-    if cnx.dialect.name != 'sqlite':
+    if cnx.dialect.name not in DIALECTES_QUALIFIES:
         raise domaine.CatalogueRefuse('INSTANCE-NON-QUALIFIEE')
     reception = contexte.horodatage_reception()
     if (reception is None or reception.appareil != 'console:' + signataire.personne
