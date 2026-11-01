@@ -81,9 +81,13 @@ kpis:
 # M8.18 : M10 consomme aussi les faits analytiques consolidés de M8 (`m8.fait_consolide`, catalogue socle) : les mesures
 # d'entreprise avec leur provenance, mémorisées au registre `faits_analytiques` (FINANCIAL, hors de tout paquet de contexte),
 # avec les changements de définition et les anomalies. Rien de personnel n'y voyage.
+# Athéna (M9) : M10 consomme aussi les faits stratégiques (`m9.fait_strategique`) : la décision de la direction, le résultat
+# mesuré de ses attendus (en sens seulement) et la leçon proposée, validée ou rejetée, mémorisés au registre
+# `faits_strategiques` (FINANCIAL, hors de tout paquet de contexte). Une leçon n'y est jamais une cause.
 evenements:
   consomme:
     - m8.fait_consolide
+    - m9.fait_strategique
     - m3.catalogue_reference
     - m6.catalogue_reference
     - m4.travaux_termines

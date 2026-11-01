@@ -88,6 +88,49 @@ def resume(capture: Mapping) -> dict:
     }
 
 
+def capturer_lecture(
+    lecteur: Callable[..., dict[str, Any]] | None,
+    registre_cible: Any,
+    chaine_verifiee: Callable[[], list[dict]],
+    lecture_id: str,
+    arguments: dict[str, Any],
+    horodatage: str,
+) -> dict:
+    """Lit UNE lecture du catalogue par le port privé (toutes ses pages) et ajoute la capture au registre chaîné.
+
+    Partagé par ``m9_capturer_producteur`` et le rafraîchissement par lot : même chemin, mêmes refus. L'appelant a déjà
+    exigé l'admin authentifié. Une réponse refusée par le producteur est CONSERVÉE (un manque se prouve)."""
+    lecture = cat.obtenir(lecture_id)
+    finaux = cat.arguments_admis(lecture, arguments)
+    if lecteur is None:
+        raise _refus("REJ-CAPTURE-INDISPONIBLE", "port de lecture des producteurs non fourni à ce département")
+    chaine = chaine_verifiee()
+    pages: list[dict] = []
+    courants = dict(finaux)
+    for _ in range(cs.MAX_PAGES):
+        reponse = lecteur(lecture.departement, lecture.outil, courants)
+        pages.append(reponse)
+        if lecture.pagination is None or cs.verdict_reponse(reponse)[0] != "ACCEPTEE":
+            break
+        suivants = [v for v in cs.extraire(reponse, lecture.pagination.chemin_suivant) if v is not None]
+        if not suivants or suivants[0] == courants.get(lecture.pagination.arg_depart):
+            break  # pas de suite, ou aucun progrès : la capture dira PARTIELLE si une suite reste déclarée
+        courants = {**courants, lecture.pagination.arg_depart: suivants[0]}
+    index = len(chaine)
+    capture = cs.construire(
+        lecture,
+        finaux,
+        pages,
+        recu_a=horodatage,
+        reference=finaux.get(lecture.reference) if lecture.reference else None,
+        index=index,
+        hash_precedent=chaine[-1]["hash_maillon"] if chaine else cs.HASH_INITIAL,
+        dernier_recu_a=chaine[-1]["recu_a"] if chaine else None,
+    )
+    registre_cible.append(capture, rang_attendu=index)
+    return capture
+
+
 def construire_outils(
     *,
     lecteur: Callable[..., dict[str, Any]] | None,
@@ -108,34 +151,7 @@ def construire_outils(
 
     def capturer_producteur(lecture_id: str, arguments: dict[str, Any], horodatage: str) -> dict[str, Any]:
         exiger_admin_strict()
-        lecture = cat.obtenir(lecture_id)
-        finaux = cat.arguments_admis(lecture, arguments)
-        if lecteur is None:
-            raise _refus("REJ-CAPTURE-INDISPONIBLE", "port de lecture des producteurs non fourni à ce département")
-        chaine = chaine_verifiee()
-        pages: list[dict] = []
-        courants = dict(finaux)
-        for _ in range(cs.MAX_PAGES):
-            reponse = lecteur(lecture.departement, lecture.outil, courants)
-            pages.append(reponse)
-            if lecture.pagination is None or cs.verdict_reponse(reponse)[0] != "ACCEPTEE":
-                break
-            suivants = [v for v in cs.extraire(reponse, lecture.pagination.chemin_suivant) if v is not None]
-            if not suivants or suivants[0] == courants.get(lecture.pagination.arg_depart):
-                break  # pas de suite, ou aucun progrès : la capture dira PARTIELLE si une suite reste déclarée
-            courants = {**courants, lecture.pagination.arg_depart: suivants[0]}
-        index = len(chaine)
-        capture = cs.construire(
-            lecture,
-            finaux,
-            pages,
-            recu_a=horodatage,
-            reference=finaux.get(lecture.reference) if lecture.reference else None,
-            index=index,
-            hash_precedent=chaine[-1]["hash_maillon"] if chaine else cs.HASH_INITIAL,
-            dernier_recu_a=chaine[-1]["recu_a"] if chaine else None,
-        )
-        registre().append(capture, rang_attendu=index)
+        capture = capturer_lecture(lecteur, registre(), chaine_verifiee, lecture_id, arguments, horodatage)
         return borner({"accepte": True, "capture": resume(capture)}, budget_sortie)
 
     def lister_captures(depart: int = 0, lecture_id: str | None = None, vue: str | None = None) -> dict[str, Any]:

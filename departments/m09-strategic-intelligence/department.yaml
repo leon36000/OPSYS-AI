@@ -31,7 +31,7 @@ mode: ombre
 dependances: [m08-analytics, m10-memoire]
 modeles:
   defaut: standard
-skills: [etat-consolide-et-contradictions, briefing-du-matin]
+skills: [etat-consolide-et-contradictions, briefing-du-matin, lecture-direction, conseil-gouverne, memoire-strategique]
 planifications:
   - nom: briefing-du-matin
     cron: "0 7 * * 1-5"
@@ -49,6 +49,9 @@ memoire:
   ecriture: [snapshots_modules, etat_consolide]
 evenements:
   consomme: [m8.alerte_proposee, m8.snapshot_chantier]
+  # Athéna : chaque entrée de la boucle « décision → résultat mesuré → leçon » est publiée pour la mémoire de M10
+  # (`m9.fait_strategique`, un maillon = un événement, FINANCIAL côté M10). Aucune leçon n'y est une cause.
+  publie: [m9.fait_strategique]
 configuration:
   # Jours d'alertes M8 relus par le briefing du matin, jour du briefing compris (PLAN T1.5-d). Une alerte
   # de mesure de chantier porte l'instant du chantier : fini le vendredi à 15 h, il doit encore paraître le

@@ -24,7 +24,7 @@ import functools
 import re
 from collections.abc import Mapping
 
-CATALOGUE_VERSION = "2026-10-31.1"
+CATALOGUE_VERSION = "2026-11-01.1"
 _CHEMIN = re.compile(r"[A-Za-z0-9_]+(\[\*\])?(\.[A-Za-z0-9_]+(\[\*\])?)*")
 _CHEMIN_CITABLE = re.compile(r"(?:[A-Za-z0-9_]+|\*)(\[\*\])?(\.(?:[A-Za-z0-9_]+|\*)(\[\*\])?)*")
 
@@ -398,6 +398,166 @@ LECTURES: tuple[Lecture, ...] = (
         reference="horodatage",
         instants_metier=("resultat.couches[*].faits[*].horodatage",),
         incomplets=(Marqueur("resultat.couches[*].tronque", "vrai"),),
+    ),
+
+    # --- Raccordements d'Athéna (2026-11-01). Chaque charge est rejouée par ``charges_athena`` AVANT d'être
+    # conservée. ---
+    # M8 : santé de l'entreprise + 18 mesures du catalogue fermé. Lecture dédiée (les lectures d'agent de M8 sont
+    # fermées à toute identité). Citables : statuts, scores/valeurs EN TEXTE EXACT, fraîcheur, âge ; un score nul
+    # (indéterminé) ou une valeur nulle n'est pas un fait (le statut, lui, en est un). Jamais un détail libre.
+    _lecture(
+        "m8.synthese_direction",
+        "m08-analytics",
+        "m8_lire_synthese_direction",
+        {"maintenant", "fraicheur_max_s"},
+        reference="maintenant",
+        instants_metier=("resultat.mesures[*].dernier_fait_le",),
+        revisions=("resultat.empreinte_registres",),
+        citables=(
+            "resultat.maintenant",
+            "resultat.sante.statut",
+            "resultat.sante.score",
+            "resultat.sante.ponderations.validee",
+            "resultat.sante.composantes[*].id",
+            "resultat.sante.composantes[*].statut",
+            "resultat.sante.composantes[*].score",
+            "resultat.sante.composantes[*].poids",
+            "resultat.sante.manques[*].composante",
+            "resultat.sante.manques[*].metric_id",
+            "resultat.sante.manques[*].raison",
+            "resultat.mesures[*].metric_id",
+            "resultat.mesures[*].valeur",
+            "resultat.mesures[*].unite",
+            "resultat.mesures[*].statut",
+            "resultat.mesures[*].fraicheur",
+            "resultat.mesures[*].age_s",
+            "resultat.mesures[*].dernier_fait_le",
+        ),
+    ),
+    # M2 : pipeline et prévision PAR INTERVALLE avec reçu rejouable. Aucun instant métier déclaré par le producteur
+    # (la référence est celle de l'appelant) : la couverture le dit. Une prévision refusée (historique insuffisant) est
+    # un REFUS conservé, jamais un manque rempli.
+    _lecture(
+        "m2.analyse_pipeline",
+        "m02-revenue-crm",
+        "m2_analyser_pipeline",
+        {"horodatage", "graine", "repetitions", "niveau"},
+        fixes={"avec_recu": False},
+        reference="horodatage",
+        revisions=("resultat.resultat.empreinte_recu",),
+        citables=(
+            "resultat.resultat.perimetre",
+            "resultat.resultat.pipeline.par_statut.*",
+            "resultat.resultat.pipeline.ouverts",
+            "resultat.resultat.pipeline.total",
+            "resultat.resultat.entonnoir.*",
+            "resultat.resultat.taux_conversion_des_resolus.*",
+            "resultat.resultat.taux_qualification.*",
+            "resultat.resultat.probabilite_de_conversion_par_etape.*.*",
+            "resultat.resultat.delai_de_cycle.n",
+            "resultat.resultat.delai_de_cycle.valeurs.*",
+            "resultat.resultat.valeur_ponderee.ouverts",
+            "resultat.resultat.valeur_ponderee.sans_valeur_declaree",
+            "resultat.resultat.valeur_ponderee.valeur_declaree_totale",
+            "resultat.resultat.valeur_ponderee.valeur_ponderee.centre",
+            "resultat.resultat.valeur_ponderee.valeur_ponderee.intervalle.*",
+            "resultat.resultat.empreinte_recu",
+        ),
+    ),
+    _lecture(
+        "m2.prevision_pipeline",
+        "m02-revenue-crm",
+        "m2_prevoir_pipeline",
+        {
+            "horodatage", "serie", "methode", "horizon", "niveau", "graine", "repetitions", "fenetre", "alpha",
+            "periodes_minimum", "evenements_minimum",
+        },  # fmt: skip
+        fixes={"avec_recu": False},
+        reference="horodatage",
+        revisions=("resultat.resultat.empreinte_recu",),
+        citables=(
+            "resultat.resultat.serie.nom",
+            "resultat.resultat.serie.periodes",
+            "resultat.resultat.serie.evenements",
+            "resultat.resultat.prevision_totale.horizon_periodes",
+            "resultat.resultat.prevision_totale.centre",
+            "resultat.resultat.prevision_totale.intervalle.*",
+            "resultat.resultat.par_periode[*].periode",
+            "resultat.resultat.par_periode[*].centre",
+            "resultat.resultat.par_periode[*].intervalle.*",
+            "resultat.resultat.empreinte_recu",
+        ),
+    ),
+    # M5 : échéances préparatoires (jamais validées par le CPA) et état de revue des sources fiscales (comptes).
+    _lecture(
+        "m5.calendrier_obligations",
+        "m05-financecore",
+        "m5_lire_calendrier_obligations",
+        {"aujourd_hui", "limite"},
+        reference="aujourd_hui",
+        reference_genre="date",
+        citables=(
+            "resultat.resultat.aujourd_hui",
+            "resultat.resultat.obligations[*].id",
+            "resultat.resultat.obligations[*].echeance",
+            "resultat.resultat.obligations[*].echeance_statut",
+            "resultat.resultat.obligations[*].statut",
+            "resultat.resultat.obligations[*].montant",
+            "resultat.resultat.obligations[*].montant_utilisable",
+            "resultat.resultat.obligations[*].devise",
+            "resultat.resultat.echeances_tps_tvq.statut",
+            "resultat.resultat.echeances_tps_tvq.echeances[*].periode_debut",
+            "resultat.resultat.echeances_tps_tvq.echeances[*].periode_fin",
+            "resultat.resultat.echeances_tps_tvq.echeances[*].limite_paiement",
+            "resultat.resultat.echeances_tps_tvq.echeances[*].limite_production",
+            "resultat.resultat.echeances_tps_tvq.echeances[*].statut",
+            "resultat.resultat.echeances_tps_tvq.echeances[*].taxes_nettes.a_remettre",
+            "resultat.resultat.echeances_tps_tvq.echeances[*].taxes_nettes.couverture.statut",
+            "resultat.resultat.echeances_tps_tvq.validation_cpa.*",
+        ),
+    ),
+    _lecture(
+        "m5.statut_revue_fiscale",
+        "m05-financecore",
+        "m5_lire_statut_revue_fiscale",
+        {"aujourd_hui"},
+        reference="aujourd_hui",
+        reference_genre="date",
+        revisions=("resultat.resultat.base.empreinte_base",),
+        citables=(
+            "resultat.resultat.aujourd_hui",
+            "resultat.resultat.base.parametres_renseignes",
+            "resultat.resultat.base.par_statut.*",
+            "resultat.resultat.base.non_renseignes",
+            "resultat.resultat.sujets[*].sujet",
+            "resultat.resultat.sujets[*].genre",
+            "resultat.resultat.sujets[*].statut_sources",
+            "resultat.resultat.sujets[*].regles_requises",
+            "resultat.resultat.sujets[*].regles_non_renseignees",
+            "resultat.resultat.sujets[*].regles_non_approuvees",
+        ),
+    ),
+    # M10 : historique des consolidations de M8 mémorisées (changements de définition, anomalies) : de quoi dire « ce
+    # qui a changé » sans relire M8. Pagination par décalage ; plus de 400 consolidations = PARTIELLE, dit.
+    _lecture(
+        "m10.faits_analytiques",
+        "m10-memoire",
+        "m10_lire_faits_analytiques",
+        {"decalage"},
+        fixes={"limite": 8},
+        pagination=Pagination("decalage", "resultat.suivant", "resultat.total"),
+        instants_metier=("resultat.consolidations[*].consolide_le",),
+        revisions=("resultat.consolidations[*].evenement_id",),
+        citables=(
+            "resultat.total",
+            "resultat.consolidations[*].evenement_id",
+            "resultat.consolidations[*].consolide_le",
+            "resultat.consolidations[*].n_mesures",
+            "resultat.consolidations[*].premiere_consolidation",
+            "resultat.consolidations[*].changements_definition[*].metric_id",
+            "resultat.consolidations[*].anomalies[*].metric_id",
+            "resultat.consolidations[*].anomalies[*].type",
+        ),
     ),
 )
 

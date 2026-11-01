@@ -1,13 +1,15 @@
 """Prévisions consolidées M9.9 : lire ce que les propriétaires ont PRÉVU, jamais le prévoir à leur place.
 
-Module pur. Seule la prévision de trésorerie de M5 (``m5.prevision_tresorerie``) existe aujourd'hui chez un
-propriétaire.
-M9 la présente avec ce que M5 déclare (horizon, réserves, ce qui est non calculable, encaissements non comptés), ses
+Module pur. Deux prévisions existent chez leurs propriétaires : la trésorerie de M5 (``m5.prevision_tresorerie``) et,
+depuis Athéna, les leads de M2 (``m2.prevision_pipeline``, toujours PAR INTERVALLE avec un reçu rejouable ; sous son
+seuil
+d'échantillon M2 refuse et ce refus reste un refus). M9 présente la première avec ce que M5 déclare (horizon, réserves,
+ce qui est non calculable, encaissements non comptés), ses
 VERSIONS successives (empreinte ``prevision_id``) et leur âge au jour de référence ; chaque valeur est un fait citable
 ``<lecture>#<rang>:p<page>.<chemin>`` en texte exact. M9 ne calcule aucun solde, aucune différence d'argent et aucune
 probabilité : M5 ne publie pas d'incertitude chiffrée, et ce manque est dit tel quel.
 
-Les domaines sans prévision publiée par leur propriétaire (leads, capacité d'équipe, matériaux) restent
+Les domaines sans prévision publiée par leur propriétaire (capacité d'équipe, matériaux) restent
 ``AUCUNE_PREVISION_PRODUITE`` avec le propriétaire attendu : un chiffre n'est jamais produit à leur place, et une
 absence ne devient pas une valeur. Une capture refusée, partielle ou contradictoire ne produit aucune prévision citée.
 """
@@ -22,10 +24,11 @@ from . import capture_strategique as cs
 
 VERSION = "2026-10-28.1"
 LECTURE_TRESORERIE = "m5.prevision_tresorerie"
+LECTURE_LEADS = "m2.prevision_pipeline"
 _R = "resultat.resultat"
 DOMAINES: dict[str, dict] = {
     "tresorerie": {"proprietaire": "m05-financecore", "lecture": LECTURE_TRESORERIE},
-    "leads": {"proprietaire": "m02-revenue-crm", "lecture": None},
+    "leads": {"proprietaire": "m02-revenue-crm", "lecture": LECTURE_LEADS},
     "capacite": {"proprietaire": "m04-field-ops", "lecture": None},
     "materiaux": {"proprietaire": "m06-material-control", "lecture": None},
 }
@@ -40,9 +43,22 @@ _CHAMPS_CITES = (
     "prevision_id",
     "solde_initial.montant",
 )
+_CHAMPS_CITES_LEADS = (
+    "serie.nom",
+    "serie.periodes",
+    "serie.evenements",
+    "prevision_totale.horizon_periodes",
+    "prevision_totale.centre",
+    "prevision_totale.intervalle.niveau",
+    "prevision_totale.intervalle.bas",
+    "prevision_totale.intervalle.haut",
+    "empreinte_recu",
+)
 _LIMITES = (
     "Prévisions de leurs propriétaires, citées telles quelles : M9 n'en produit aucune et ne calcule aucun montant.",
-    "M5 ne publie ni intervalle ni probabilité : l'incertitude n'est pas chiffrée, elle est décrite par ses réserves.",
+    "M5 ne publie ni intervalle ni probabilité : l'incertitude n'est pas chiffrée, elle est décrite par ses réserves. "
+    "M2 publie un INTERVALLE avec un reçu rejouable (jamais un point seul) ; sous son seuil d'échantillon il refuse, "
+    "et M9 ne remplit pas ce refus.",
 )
 
 
@@ -77,6 +93,41 @@ def _statut_capture(capture: Mapping, en_conflit: set) -> str:
     if (capture["lecture_id"], capture["arguments_sha256"]) in en_conflit:
         return "CONTRADICTOIRE"
     return "COMPLETE" if capture["complete"] else "PARTIELLE"
+
+
+def _version_m2(capture: Mapping, statut: str, jour_connaissance: dt.date | None) -> dict:
+    """Une version de la prévision des leads de M2 : l'intervalle est la matière (jamais le centre seul)."""
+    entree: dict = {
+        "capture": capture["index"],
+        "hash_capture": capture["hash_maillon"],
+        "recu_a": capture["recu_a"],
+        "statut": statut,
+        "arguments": capture["arguments"],
+        "reference_jour": capture.get("reference_jour"),
+    }
+    if statut not in ("COMPLETE", "PARTIELLE"):
+        return entree
+    racine = "resultat.resultat"
+    faits: dict = {}
+    valeurs: dict = {}
+    for chemin in _CHAMPS_CITES_LEADS:
+        for numero_page, page in enumerate(capture["pages"]):
+            trouvees = cs.extraire(page, f"{racine}.{chemin}")
+            if trouvees:
+                faits[chemin] = f"{capture['lecture_id']}#{capture['index']}:p{numero_page}.{racine}.{chemin}"
+                valeurs[chemin] = _texte(trouvees[0])
+                break
+        else:
+            valeurs[chemin] = None
+    entree["faits"], entree["valeurs"] = faits, valeurs
+    entree["solde_initial"] = None
+    reference = cs.instant(str(capture.get("reference"))) if capture.get("reference") else None
+    entree["age_jours"] = (
+        (jour_connaissance - reference.date()).days if reference is not None and jour_connaissance is not None else None
+    )
+    entree["reserves"], entree["manque"], entree["encaissements_non_comptes"] = [], [], []
+    entree["partielle_raison"] = capture.get("raison_incomplete") if statut == "PARTIELLE" else None
+    return entree
 
 
 def _version(capture: Mapping, statut: str, jour_connaissance: dt.date | None) -> dict:
@@ -136,13 +187,23 @@ def consolider(
             continue
         lues = [c for c in connues if c["lecture_id"] == source["lecture"]]
         if not lues:
-            entree |= {"statut": "ABSENTE", "raison": "aucune capture connue de cette lecture", "versions": []}
+            if nom == "leads":
+                # Historique des corpus gelés : tant que M2 n'a pas été lu, aucune prévision de leads n'est connue.
+                entree |= {
+                    "statut": "AUCUNE_PREVISION_PRODUITE",
+                    "raison": f"aucune prévision de leads lue chez {source['proprietaire']} "
+                    f"({LECTURE_LEADS} non capturée) ; M9 n'en estime aucune",
+                    "versions": [],
+                }
+            else:
+                entree |= {"statut": "ABSENTE", "raison": "aucune capture connue de cette lecture", "versions": []}
             domaines.append(entree)
             continue
-        versions = [_version(c, _statut_capture(c, en_conflit), jour_connaissance) for c in lues]
+        construire_version = _version_m2 if source["lecture"] == LECTURE_LEADS else _version
+        versions = [construire_version(c, _statut_capture(c, en_conflit), jour_connaissance) for c in lues]
         precedente: dict | None = None
         for version in versions:
-            if "valeurs" in version and precedente is not None and "valeurs" in precedente:
+            if "valeurs" in version and precedente is not None and "valeurs" in precedente and nom == "tresorerie":
                 version["change_depuis_precedente"] = {
                     "prevision_id": version["valeurs"]["prevision_id"] != precedente["valeurs"]["prevision_id"],
                     "solde_initial": version["solde_initial"] != precedente["solde_initial"],
@@ -161,10 +222,24 @@ def consolider(
         else:
             entree["statut"] = "DISPONIBLE"
             entree["courante"] = courante["capture"]
-            entree["incertitude"] = {
-                "chiffree": False,
-                "decrite_par": {"reserves": courante["reserves"], "manque": courante["manque"]},
-            }
+            if nom == "leads":
+                valeurs = courante["valeurs"]
+                entree["incertitude"] = {
+                    "chiffree": True,
+                    "decrite_par": {
+                        "intervalle": {
+                            "niveau": valeurs["prevision_totale.intervalle.niveau"],
+                            "bas": valeurs["prevision_totale.intervalle.bas"],
+                            "haut": valeurs["prevision_totale.intervalle.haut"],
+                        },
+                        "recu": valeurs["empreinte_recu"],
+                    },
+                }
+            else:
+                entree["incertitude"] = {
+                    "chiffree": False,
+                    "decrite_par": {"reserves": courante["reserves"], "manque": courante["manque"]},
+                }
             age = courante["age_jours"]
             if perime_apres_jours is not None and age is not None and age > perime_apres_jours:
                 entree["statut"] = "PERIMEE"

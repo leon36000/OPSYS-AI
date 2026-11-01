@@ -76,7 +76,8 @@ def test_declaration_fermee_t1_n3_admin_affaire_append_en_fin(index):
     # AVANT les deux lecteurs documentaires : cette sentinelle garde l'inventaire des outils d'affaire.
     # Même chose pour `m10_lire_faits_analytiques` (M8.18, lecture des faits consolidés de M8,
     # tests/test_analytique.py).
-    hors_ajouts = tuple(o.nom for o in alltools if "connaissance" not in o.nom and "faits_analytiques" not in o.nom)
+    hors_ajouts = tuple(o.nom for o in alltools if "connaissance" not in o.nom and "faits_analytiques" not in o.nom
+                            and "faits_strategiques" not in o.nom)
     assert hors_ajouts == HISTORIQUES + NOMS + (
         "m10_lister_documents_affaire_appareil",
         "m10_lire_version_document_affaire_appareil",

@@ -91,6 +91,8 @@ class TestManifeste:
         dep = charger_departements()["m10-memoire"]
         assert dep.evenements_consomme == (
             "m8.fait_consolide",  # M8.18 : les mesures d'entreprise consolidées par M8 (tests/test_analytique.py)
+            # Athéna : décision, résultat mesuré et leçon de la direction (tests/test_strategique.py)
+            "m9.fait_strategique",
             "m3.catalogue_reference", "m6.catalogue_reference",
             "m4.travaux_termines", "m6.variance_chantier", "m5.rentabilite_chantier",
             "m1.lead_qualifie", "m2.client_associe", "m2.contact_corrige", "m6.note_commande_referencee",

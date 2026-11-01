@@ -37,7 +37,7 @@ from typing import Any
 
 from . import analyse, base_fiscale, grand_livre, verdicts_operations
 
-__all__ = ["VERSION", "analyser", "lister_sujets", "requete_connaissance", "MARQUAGE_ESSAI"]
+__all__ = ["VERSION", "analyser", "lister_sujets", "requete_connaissance", "statut_sources_sujets", "MARQUAGE_ESSAI"]
 
 VERSION = "1.0.0"
 MARQUAGE_ESSAI = (
@@ -184,6 +184,39 @@ def lister_sujets() -> list[dict[str, Any]]:
         }
         for cle, s in sorted(_SUJETS.items())
     ]
+
+
+def statut_sources_sujets(base: Any, aujourd_hui: str) -> list[dict[str, Any]]:
+    """Pour chaque sujet : l'état des SOURCES dont il dépend, à `aujourd_hui`, sans rien analyser ni chiffrer.
+
+    `REGLE_NON_RENSEIGNEE` (au moins une règle requise sans valeur : en mode officiel comme en essai le sujet chiffré
+    est refusé), `ESSAI_NON_APPROUVE` (toutes valorisées, au moins une sans deux réviseurs : jamais présentée comme
+    établie), `APPROUVE` (toutes approuvées), `SANS_REGLE_REQUISE` (le sujet dépend d'autre chose que de la base : le
+    calendrier, le grand livre). Les nombres de règles sont des dénombrements, pas des taux."""
+    resultat = []
+    for fiche in lister_sujets():
+        requises = fiche["regles_requises"]
+        _, manquantes, _ = _resoudre_regles(base, requises, aujourd_hui, "essai")
+        _, _, non_approuvees = _resoudre_regles(base, requises, aujourd_hui, "officiel")
+        if not requises:
+            statut = "SANS_REGLE_REQUISE"
+        elif manquantes:
+            statut = "REGLE_NON_RENSEIGNEE"
+        elif non_approuvees:
+            statut = "ESSAI_NON_APPROUVE"
+        else:
+            statut = "APPROUVE"
+        resultat.append(
+            {
+                "sujet": fiche["sujet"],
+                "genre": fiche["genre"],
+                "statut_sources": statut,
+                "regles_requises": len(requises),
+                "regles_non_renseignees": len(manquantes),
+                "regles_non_approuvees": len(non_approuvees),
+            }
+        )
+    return resultat
 
 
 def requete_connaissance(sujet: str) -> str | None:

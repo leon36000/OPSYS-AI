@@ -1,6 +1,7 @@
 # M9-strategic-intelligence
 
-Strategic Intelligence OS — direction IA, harnais déterministe pur (aucun Council en v1).
+Strategic Intelligence OS — direction IA (Athéna) : état consolidé, tableau de direction interconnecté et conseil gouverné, sur des
+couches déterministes (le code calcule, le modèle explique).
 
 Statut : **PARTIEL**. Département OPSYS structuré (manifeste, SOUL, skill, outils d'agent) sur le modèle de
 M3-estimation, mode `ombre`. Les cinq stories de domaine S001-S005 du PRD sont livrées et
@@ -342,3 +343,23 @@ La console admin expose la même composition sur `/opsys/strategie/activite`, de
 L’empreinte attendue provient de `m9_preparer_dossier_direction` avec la même question et les mêmes modules ; une capture différente est refusée sans renouvellement implicite. Cette empreinte porte sur le dossier sélectionné et ses contradictions, pas sur tout le registre : un ajout ancien sans effet sur ces éléments peut la conserver. La réponse garde le dossier original complet et toutes les affirmations admises, sous le budget natif entier de 5900 caractères, sans pagination ni troncature.
 
 `SOURCE_CONCORDANTE` signifie seulement que le champ cité concorde avec la source capturée. La vérité, l’authenticité du producteur et l’actualité métier restent non prouvées ou non évaluées. Ce jalon ne fait tourner aucun modèle, conseil ou critique sémantique et ne valide aucune décision ou approbation. OPSYS-AI demeure PARTIEL.
+
+## Athéna : tableau de direction, conseil gouverné et mémoire stratégique (claude/m9-athena, 2026-11-01)
+
+Détail et limites : [`docs/architecture/M9-ATHENA.md`](../../docs/architecture/M9-ATHENA.md). Statut inchangé : **PARTIEL** ; la
+qualification par un modèle réel reste **OUVERTE**.
+
+- **Lectures raccordées** : santé et mesures de M8 (`m8_lire_synthese_direction`, ajouté), pipeline et prévision par intervalle de M2,
+  échéances de M5 et revue de ses sources fiscales (`m5_lire_statut_revue_fiscale`, ajouté), faits analytiques de M10. Chaque charge est
+  rejouée par `charges_athena` avant d'être conservée.
+- **Certitude** (`certitude.py`) : `ETABLI` (seul certain), `ESSAI_NON_APPROUVE`, `INDETERMINE`, `PERIME`, `PREVISION_PAR_INTERVALLE`, et
+  l'état de la lecture. Un essai, un indéterminé ou une prévision n'est jamais rendu sans son statut.
+- **Outils** : `m9_rafraichir_lectures_direction`, `m9_briefing_direction`, `m9_tableau_direction`, `m9_exige_la_direction` (niveau puis âge),
+  `m9_changements_depuis` (+ `m9_verifier_recu_changements`), `m9_controler_recommandation`, `m9_consigner_decision_direction` (N3),
+  `m9_mesurer_resultat_decision`, `m9_valider_lecon_decision` (N3), `m9_publier_faits_strategiques`, `m9_lire_boucle_decisions`. Aucun rôle
+  d'appareil.
+- **Skills** : `lecture-direction`, `conseil-gouverne`, `memoire-strategique`.
+- **Évaluation** : `evals/gabarit.v1.yaml` (30 cas) et le nouveau `evals/corpus-athena-v1.json` (66 cas, `evaluation_athena.py`) ; les trois
+  corpus existants gardent leurs empreintes ; rouges connus `mkt-A07` et `rep-V02` conservés.
+- **Tests** : `tests/test_charges_athena.py`, `test_tableau_direction.py`, `test_recommandation_gouvernee.py`, `test_boucle_decisions.py`,
+  `test_evaluation_athena.py` (purs) ; `tests/test_m9_athena_raccord.py` et `tests/test_m9_boucle_decisions_integre.py` (vrais départements).

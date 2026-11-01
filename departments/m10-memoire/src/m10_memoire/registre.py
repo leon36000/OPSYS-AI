@@ -28,6 +28,7 @@ _TYPE_ENTREE_VALIDES = {
     "memoire_developpement",  # Tranche mémoire dev : événements, sources et relations dans le registre durable
     "provenance_documentaire",  # source métier autonome, sans affaire client implicite
     "fait_analytique",  # M8.18 : analytique.py, consolidation des mesures d'entreprise publiée par M8 (registre dédié)
+    "fait_strategique",  # Athéna : strategique.py, décision, résultat mesuré ou leçon publiés par M9 (registre dédié)
 }
 
 

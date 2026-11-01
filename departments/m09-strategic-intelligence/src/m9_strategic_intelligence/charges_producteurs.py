@@ -668,7 +668,9 @@ def valider(lecture_id: str, page: object, arguments: Mapping | None) -> list[st
     """Erreurs de conformité de la réponse d'une lecture à contrat ; liste vide si conforme (ou sans contrat à rejouer).
     ``arguments`` ``None`` : la période ou la semaine rendue n'est pas comparée à une demande (validation hors
     capture)."""
-    validateur = VALIDATEURS.get(lecture_id)
+    from . import charges_athena  # import tardif : charges_athena réutilise les aides de ce module
+
+    validateur = VALIDATEURS.get(lecture_id) or charges_athena.VALIDATEURS.get(lecture_id)
     if validateur is None:
         return []
     try:
