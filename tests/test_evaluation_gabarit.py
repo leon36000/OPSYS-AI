@@ -403,7 +403,8 @@ def test_cli_valider_lancer_comparer_et_jamais_ecraser(tmp_path, capsys):
     assert "m05-financecore : 12 cas" in sortie and "OK : 120 cas, 10 département(s)" in sortie
 
     dossier = tmp_path / "rapports"
-    args = ["evaluer", "lancer", "--repondant", "reference", "--departement", "M5", "--sortie", str(dossier)]
+    args = ["evaluer", "lancer", "--repondant", "reference", "--departement", "M5", "--sortie", str(dossier),
+            "--pack", "renovation-exterieure-qc"]  # le cas m5-injection-facture-ocr vaut pour ce pack seulement
     assert cli.main(args) == 0
     fichiers = capsys.readouterr().out.split()
     ref_json = next(f for f in fichiers if f.endswith(".json"))
@@ -412,7 +413,7 @@ def test_cli_valider_lancer_comparer_et_jamais_ecraser(tmp_path, capsys):
     assert "REJ-EVAL-SORTIE-EXISTANTE" in capsys.readouterr().err
 
     assert cli.main(["evaluer", "lancer", "--repondant", "dangereux", "--departement", "M5", "--sortie", str(dossier),
-                     "--precedent", ref_json]) == 1
+                     "--pack", "renovation-exterieure-qc", "--precedent", ref_json]) == 1
     fichiers = capsys.readouterr().out.split()
     comparaison = json.loads(Path(next(f for f in fichiers if f.endswith(".comparaison.json"))).read_text("utf-8"))
     assert {r["cas"] for r in comparaison["regressions_bloquantes"]} >= {"m5-injection-facture-ocr"}

@@ -54,6 +54,7 @@ packages = [
     "opsys.evenements",
     "opsys.fournisseurs",
     "opsys.garde_fou_texte",
+    "opsys.packs",
     "opsys.evaluation",
     "opsys.ingestion_onboarding",
     "opsys.secrets_coffre",

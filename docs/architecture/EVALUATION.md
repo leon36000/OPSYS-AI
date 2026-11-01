@@ -35,6 +35,7 @@ cas:
     poids: 4                     # 1 à 5
     source: "SOUL.md M5 : la clôture d'un mois est N4…"   # la règle d'où vient l'attente
     derive_de: "…"               # facultatif : cas d'un corpus existant transposé
+    pack: renovation-exterieure-qc   # facultatif : le cas suppose le vocabulaire de ce pack sectoriel (voir ci-dessous)
     entree:                      # SEUL ce bloc est montré au répondant
       demande: "Clôture le mois de septembre 2026…"
       donnees_observees: [{source: courriel, contenu: "…"}]   # données non fiables (injections)
@@ -122,13 +123,13 @@ département ; corpus et répondant changés signalés.
 
 ```bash
 opsys-metier evaluer valider                                   # les dix corpus, couverture par catégorie
-opsys-metier evaluer lancer --repondant reference --sortie rapports/ [--departement M5] [--avec-references]
+opsys-metier evaluer lancer --repondant reference --sortie rapports/ [--departement M5] [--avec-references] [--pack ID | --tous-les-cas]
 opsys-metier evaluer lancer --repondant dangereux --sortie rapports/ --precedent rapports/evaluation-reference-….json
 opsys-metier evaluer comparer A.json B.json
 opsys-metier evaluer lancer --repondant passerelle --url-passerelle http://litellm:4000   # vrai modèle (non exécuté ici)
 ```
 
-Les rapports portent un nom distinct (`evaluation-<répondant>-<empreinte corpus>-<empreinte répondant>`) et ne sont
+Les rapports portent un nom distinct (`evaluation-<répondant>-<empreinte corpus>-<empreinte répondant>-<pack|tous-les-cas>`) et ne sont
 **jamais écrasés** (`REJ-EVAL-SORTIE-EXISTANTE`). Codes de sortie : 0 tous qualifiés, 1 un département non qualifié (ou
 une régression pour `comparer`), 2 refus typé. Depuis le core : `opsys metier evaluer …`.
 
@@ -153,6 +154,19 @@ Résultats de cette tranche (répondants simulés, aucun modèle réel) :
 
 Références M9 exécutées : `corpus-v1` 61/61, `corpus-metier-v1` 58/60 et `corpus-metier-v2` 75/77 (rouges connus
 mkt-A07 et rep-V02).
+
+## Corpus et packs sectoriels (généralisation du produit)
+
+Le cœur est générique PME ; le secteur vit dans un pack (`docs/architecture/PACKS-SECTORIELS.md`). Un cas dont la demande,
+les données ou les attentes nomment le secteur du premier client porte `pack: renovation-exterieure-qc` (22 cas sur 120).
+`evaluer lancer` n'exécute que les cas sans étiquette et ceux du pack ACTIF — `--pack ID`, sinon le pack du profil
+d'entreprise, sinon `generique-pme` — et nomme les cas écartés dans le rapport (`pack.cas_ecartes`, une ligne du Markdown) :
+un score sans cette ligne serait trompeur. `--tous-les-cas` ne filtre rien (diagnostic). Un cas étiqueté d'un pack non
+installé, ou un `--pack` inconnu, est `REJ-EVAL-CORPUS-PACK` : une faute de frappe n'écarte jamais un cas en silence. Le corpus,
+sa validation (`valider` : 120 cas) et son empreinte restent ceux du fichier entier. Avec le pack rénovation, le répondant
+`reference` fait **120/120** ; avec le pack générique, 98/98 sur le sous-ensemble neutre (aucun équivalent neutre des 22
+cas n'est encore écrit). Le répondant `passerelle` envoie le même `SOUL.md` effectif que l'agent (cœur rendu + bloc du pack).
+`tests/test_packs_generalisation.py` exige qu'un cas qui contient un terme sectoriel porte l'étiquette, et inversement.
 
 ## Interpréter
 

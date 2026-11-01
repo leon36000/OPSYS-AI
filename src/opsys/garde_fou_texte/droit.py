@@ -1,6 +1,6 @@
 """Famille « avis légal » : ce qu'un texte destiné au public ou à un client ne dit jamais du droit.
 
-Une entreprise de rénovation n'est pas un cabinet : « M1 ne doit jamais donner un avis légal, fiscal ou contractuel »
+Une PME de services n'est pas un cabinet : « M1 ne doit jamais donner un avis légal, fiscal ou contractuel »
 (DEFINITION-PRODUIT §7, règles dures de M1).
 Le motif est celui que M1 appliquait au seul gabarit de plainte (PLAN T4.5, `plaintes.py`) ; il est devenu une famille
 du socle pour que chaque texte de M1 le passe, pas seulement ce gabarit.

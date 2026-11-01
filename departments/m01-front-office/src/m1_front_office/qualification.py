@@ -177,8 +177,8 @@ def _diagnostic(contenu: str, zone_desservie, services, contact_canal: dict | No
     """Le diagnostic d'un contenu déjà nettoyé, zone et services déjà validés.
 
     Le lead porte un seul `service` : un contenu qui en évoque plusieurs, ou aucun, ne l'établit pas (fail-closed,
-    jamais un choix arbitraire ; l'agent demande alors lequel). La règle de précédence (p. ex. « réparation de
-    gouttières ») reste une décision du propriétaire (T2.1).
+    jamais un choix arbitraire ; l'agent demande alors lequel). La règle de précédence (p. ex. un contenu qui nomme
+    deux services à la fois) reste une décision du propriétaire (T2.1).
     """
     evoques = _services_evoques(contenu, services)
     return {

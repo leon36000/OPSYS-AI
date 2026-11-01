@@ -1,6 +1,6 @@
 ---
 name: estimer-un-projet
-description: Procédure pour estimer un projet de rénovation extérieure à partir de photos et d'une demande qualifiée, sans inventer de précision.
+description: Procédure pour estimer un projet {{qualificatif_secteur}} à partir de photos et d'une demande qualifiée, sans inventer de précision.
 ---
 
 # Estimer un projet

@@ -77,7 +77,7 @@ _CENT = Decimal("0.01")
 _QUATRE_DECIMALES = Decimal("0.0001")
 _DEVISE = "CAD"
 # Ordre de grandeur au-delà duquel une valeur lue (montant, quantité, prix, durée) est illisible : 10^12.
-# Un chantier de rénovation n'en approche jamais ; ce plafond garde tout calcul dans la précision de
+# Un chantier n'en approche jamais ; ce plafond garde tout calcul dans la précision de
 # `decimal` (jamais une exception d'arithmétique sur une pièce absurde : elle devient un manque).
 _EXPOSANT_MAX = 11
 

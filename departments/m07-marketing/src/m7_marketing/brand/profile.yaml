@@ -3,7 +3,7 @@
 # m7_marketing.brand.profil_client), `profil_client.charger_profil_client` refuse ce profil
 # (fail-closed, verdict nommé) : aucun contenu public ni contenu client n'est jamais composé sous
 # ce gabarit. Le nom commercial exact (docs/programme/PLAN.md « Décisions attendues de Nathan » —
-# ex. « Gouttières et Revêtements Synergy ») est une décision de Nathan (GATE) : ne jamais le
+# ex. le nom du premier client) est une décision de Nathan (GATE) : ne jamais le
 # deviner ici, seulement lui réserver sa place. tagline/tone/colors/mentions sont pareillement à
 # fournir par/pour le client réel — aucune valeur ci-dessous n'est une donnée du client, et
 # surtout plus jamais celle d'OPSYS-AI (SOUL.md : « jamais OPSYS-AI, jamais une autre marque »).

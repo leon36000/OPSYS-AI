@@ -138,7 +138,7 @@ _ZERO = Decimal("0")
 # largement sous 80 chiffres significatifs. La précision par défaut de `decimal` (28) aurait pu arrondir le produit
 # AVANT l'arrondi au cent : ce serait une erreur silencieuse sur de l'argent.
 _CONTEXTE = Context(prec=80)
-# Ordre de grandeur au-delà duquel un montant est illisible : 10^12 dollars. Un chantier de rénovation n'en approche
+# Ordre de grandeur au-delà duquel un montant est illisible : 10^12 dollars. Un chantier n'en approche
 # jamais ; ce plafond garde tout calcul dans la précision de `decimal` (jamais une exception d'arithmétique).
 _EXPOSANT_MAX = 11
 _LONGUEUR_TEXTE_MAX = 40

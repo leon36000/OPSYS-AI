@@ -1,0 +1,30 @@
+# Pack par défaut : le cœur générique PME, VIDE de secteur (docs/architecture/PACKS-SECTORIELS.md).
+# Il ne porte ni service, ni glossaire, ni gabarit, ni barème, ni exemple, ni bloc de département : l'entreprise qui
+# ne déclare aucun pack n'a pas d'agents qui supposent un métier. Les appellations ci-dessous sont le vocabulaire
+# générique d'une PME de services (client, chantier, soumission, équipe, matériaux), pas celui d'un secteur.
+schema: opsys.pack/v1
+id: generique-pme
+version: 1.0.0
+nom: Cœur générique PME
+langue: fr-CA
+description: >-
+  Pack par défaut, sans secteur d'activité. Les agents des dix départements ne supposent aucun type de travaux,
+  aucun produit ni aucun barème : le métier vient du profil de l'entreprise et de ce que l'humain dit.
+sectoriel: false
+fictif: true
+vocabulaire:
+  secteur: ""
+  qualificatif_secteur: ""
+appellations:
+  client: client
+  chantier: chantier ou projet de travaux
+  soumission: soumission (devis)
+  equipe: équipe
+  materiaux: matériaux
+services: []
+glossaire: []
+gabarits: []
+baremes: []
+exemples: []
+blocs: {}
+termes_sectoriels: []

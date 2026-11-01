@@ -34,6 +34,11 @@ def ajouter_commandes(sous: argparse._SubParsersAction) -> None:
                     help="exécuter aussi les corpus existants référencés (M9)")
     la.add_argument("--url-passerelle", help="passerelle LiteLLM (répondant passerelle seulement)")
     la.add_argument("--latence", action="store_true", help="mesurer la latence du répondant (hors comparaison)")
+    groupe = la.add_mutually_exclusive_group()
+    groupe.add_argument("--pack", help="pack sectoriel actif (défaut : celui du profil d'entreprise, sinon "
+                        "generique-pme) ; les cas étiquetés d'un autre pack sont écartés et nommés dans le rapport")
+    groupe.add_argument("--tous-les-cas", action="store_true",
+                        help="aucun filtre de pack : tous les cas du corpus (diagnostic, jamais une qualification)")
     for p in (va, la):
         p.add_argument("--departement", action="append", help="id ou code (répétable) ; défaut : les dix")
     co = actions.add_parser("comparer", help="comparer deux rapports JSON")
@@ -49,7 +54,7 @@ def _lire_json(chemin: str) -> object:
         raise RefusEvaluation("REJ-EVAL-RAPPORT-FORME", f"rapport illisible : {exc}", chemin) from exc
 
 
-def _repondant(nom: str, entrees: list, departements: dict, url: str | None):
+def _repondant(nom: str, entrees: list, departements: dict, url: str | None, pack=None):
     from . import repondants
 
     if nom in repondants.REPONDANTS_SIMULES:
@@ -59,7 +64,8 @@ def _repondant(nom: str, entrees: list, departements: dict, url: str | None):
 
     schemas = {n: {"description": o.description, "parametres": dict(o.parametres)}
                for n, (_d, o) in tous_les_outils(departements.values()).items()}
-    return repondants.RepondantPasserelle(departements, url=url, paliers=charger_paliers(), schemas_outils=schemas)
+    return repondants.RepondantPasserelle(departements, url=url, paliers=charger_paliers(), schemas_outils=schemas,
+                                          pack=pack)
 
 
 def _valider(args: argparse.Namespace, departements: dict) -> int:
@@ -77,20 +83,36 @@ def _valider(args: argparse.Namespace, departements: dict) -> int:
     return 0
 
 
+def _pack(demande: str | None):
+    """Le pack actif de l'évaluation : celui demandé, sinon celui du profil d'entreprise (jamais de repli)."""
+    from .. import packs
+
+    try:
+        return packs.charger_pack(demande) if demande else packs.pack_actif()
+    except packs.RefusPack as exc:
+        raise RefusEvaluation("REJ-EVAL-CORPUS-PACK", exc.detail, exc.chemin) from exc
+
+
+def _identifiant_filtre(args: argparse.Namespace, pack) -> str | None:
+    return None if args.tous_les_cas else pack.id
+
+
 def _lancer(args: argparse.Namespace, departements: dict) -> int:
     from . import executeur, rapport
 
     entrees = executeur.charger_corpus_departements(departements, args.departement)
     precedent = _lire_json(args.precedent) if args.precedent else None
-    repondant = _repondant(args.repondant, entrees, departements, args.url_passerelle)
+    pack = _pack(args.pack)
+    repondant = _repondant(args.repondant, entrees, departements, args.url_passerelle, pack)
     resultat = executeur.evaluer(entrees, repondant, departements, avec_references=args.avec_references,
-                                 horloge=time.perf_counter if args.latence else None)
+                                 horloge=time.perf_counter if args.latence else None,
+                                 pack=_identifiant_filtre(args, pack))
     comparaison = rapport.comparer(precedent, resultat) if precedent is not None else None
     texte = rapport.markdown(resultat, comparaison)
     if args.sortie:
         dossier = Path(args.sortie)
         base = (f"evaluation-{args.repondant}-{resultat['corpus']['empreinte'][:12]}-"
-                f"{resultat['repondant']['empreinte'][:12]}")
+                f"{resultat['repondant']['empreinte'][:12]}-{_identifiant_filtre(args, pack) or 'tous-les-cas'}")
         cibles = [dossier / f"{base}.json", dossier / f"{base}.md"]
         if comparaison is not None:
             cibles.append(dossier / f"{base}.comparaison.json")

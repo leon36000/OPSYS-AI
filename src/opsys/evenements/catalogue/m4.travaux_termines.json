@@ -69,7 +69,7 @@
     },
     "service": {
       "type": "string",
-      "description": "Lead v2 (LeadQualifie v2) : code du service, déclaré par le profil d'entreprise de l'instance (opsys.taxonomie ; gouttieres, revetement, soffite_fascia, reparation pour le premier client), porté tel quel depuis l'inscription. Clé additive : un lead v1 porte `type_travaux` à la place, jamais `service` (PLAN T0.13-b)."
+      "description": "Lead v2 (LeadQualifie v2) : code du service, déclaré par le profil d'entreprise de l'instance (opsys.taxonomie ; le catalogue du pack sectoriel actif, opsys.packs), porté tel quel depuis l'inscription. Clé additive : un lead v1 porte `type_travaux` à la place, jamais `service` (PLAN T0.13-b)."
     },
     "photos": {
       "type": "array",

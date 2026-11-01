@@ -91,7 +91,7 @@ def _sans_accent_minuscule(texte: str) -> str:
 
 def est_retrait_de_consentement(texte: str) -> bool:
     """Vrai si le message ENTIER est un mot de retrait (« STOP », « Arrêt. »). Jamais une phrase qui en contient un :
-    « arrêt de mes gouttières » est une demande."""
+    « arrêt de mes paiements » est une demande."""
     return _RETRAIT.fullmatch(_sans_accent_minuscule(texte).strip()) is not None
 
 

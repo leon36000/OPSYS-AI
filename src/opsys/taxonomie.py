@@ -6,9 +6,12 @@ gardent aucune copie locale de la liste des services : ils la lisent ici. Un tes
 
 Deux couches :
 
-- Le CATALOGUE DE RÉFÉRENCE (`CATALOGUE_REFERENCE`) : les quatre services réels du premier client,
-  Gouttières et Revêtements Synergy (DEFINITION-PRODUIT §1, M1.3, M3.8, M6.1) — gouttières et
-  descentes, revêtement extérieur, soffite/fascia, réparation. Codes stables, libellés fr-CA.
+- Le CATALOGUE DE RÉFÉRENCE (`CATALOGUE_REFERENCE`) : les quatre services réels du premier client
+  (DEFINITION-PRODUIT §1, M1.3, M3.8, M6.1). Codes stables, libellés fr-CA. Il est HÉRITÉ : sa description vit
+  désormais dans le pack sectoriel du premier client (`packs/`, `opsys.packs`), qui en est la copie documentée ;
+  `tests/test_packs_sectoriels.py` épingle l'égalité des deux. Le basculer sur le pack actif est un lot à part
+  (docs/architecture/PACKS-SECTORIELS.md, « Ce qui reste »). Le pack générique n'en porte aucun : l'entreprise qui
+  n'est pas celle du premier client déclare ses services par `{code, libelle}`.
   C'est un vocabulaire, pas une déclaration : rien n'est accepté du seul fait d'y figurer.
 - Le PROFIL D'ENTREPRISE de l'instance : `$OPSYS_HOME/entreprise.yaml`, clé `services`. C'est lui
   qui déclare ce que CETTE entreprise offre : des codes du catalogue, ou ses propres services

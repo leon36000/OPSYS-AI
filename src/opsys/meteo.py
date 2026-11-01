@@ -1,7 +1,7 @@
 """Profil météo de l'entreprise : règles par service, fournisseur ouvert et fuseau (PLAN T4.13, M4.10).
 
 M4 (Field Ops) juge un créneau contre la météo (`m4_verifier_meteo_creneau`). Les SEUILS ne sont pas ceux du code : ils
-sont ceux de l'entreprise, par service (un revêtement ne craint pas le vent comme une gouttière), et se DÉCLARENT dans
+sont ceux de l'entreprise, par service (deux services ne craignent pas le vent de la même façon), et se DÉCLARENT dans
 le même fichier que ses services et ses équipes : `$OPSYS_HOME/entreprise.yaml`, clé `meteo` (même mécanisme que
 `opsys.equipes` : lu à la demande, écrit avec un nom signé au journal d'audit). Le module est pur (fichier YAML et
 journal d'audit seulement) : il ne connaît pas M4 et n'ouvre aucune connexion.
@@ -16,7 +16,7 @@ avoir besoin : « seuil à configurer ») ::
         forfait: commercial
         cle_env: OPSYS_OPEN_METEO_CLE     # NOM d'une variable d'environnement : la clé n'entre jamais dans ce fichier
       services:                           # par code de service déclaré
-        revetement:
+        service_exemple:
           seuils:                         # mesure -> {validation, blocage} ; au moins l'un des deux
             vent_kmh: {validation: 30, blocage: 45}            # vent moyen horaire, >= seuil
             rafales_kmh: {validation: 50, blocage: 65}         # rafales horaires, >= seuil

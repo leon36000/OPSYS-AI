@@ -365,6 +365,40 @@ def charger_corpus_departements(departements: Mapping[str, Any],
     return entrees
 
 
+def appliquer_pack(entrees: Sequence[Mapping[str, Any]], pack: str | None
+                   ) -> tuple[list[dict[str, Any]], dict[str, list[str]]]:
+    """Écarte des corpus les cas d'un AUTRE pack sectoriel que `pack` ; rend les entrées et les cas écartés.
+
+    `pack` omis : aucun filtre (tous les cas, comportement d'avant les packs). Un cas qui nomme un pack non installé, ou
+    un `pack` demandé non installé, est un refus (`REJ-EVAL-CORPUS-PACK`) : une faute de frappe n'écarte jamais un cas
+    en silence. Le corpus lui-même (fichier, empreinte) ne change pas : seule l'exécution est filtrée.
+    """
+    from ..packs import ids_installes
+
+    installes = set(ids_installes())
+    if pack is not None and pack not in installes:
+        raise RefusEvaluation("REJ-EVAL-CORPUS-PACK",
+                              f"pack {pack!r} non installé (installés : {sorted(installes)})", "pack")
+    retenues: list[dict[str, Any]] = []
+    ecartes: dict[str, list[str]] = {}
+    for entree in entrees:
+        etiquettes = {c["id"]: c["pack"] for c in entree["corpus"]["cas"] if "pack" in c}
+        inconnus = sorted({v for v in etiquettes.values() if v not in installes})
+        if inconnus:
+            raise RefusEvaluation("REJ-EVAL-CORPUS-PACK", f"cas étiqueté(s) d'un pack non installé : {inconnus}",
+                                  entree["chemin"])
+        if pack is None:
+            retenues.append(dict(entree))
+            ecartes[entree["departement"]] = []
+            continue
+        gardes = [c for c in entree["corpus"]["cas"] if c.get("pack", pack) == pack]
+        ecartes[entree["departement"]] = sorted(c["id"] for c in entree["corpus"]["cas"] if c.get("pack", pack) != pack)
+        if not gardes:
+            raise RefusEvaluation("REJ-EVAL-CORPUS-PACK", f"aucun cas ne vaut pour le pack {pack!r}", entree["chemin"])
+        retenues.append({**entree, "corpus": {**entree["corpus"], "cas": gardes}})
+    return retenues, ecartes
+
+
 def _verifier_coherence_registre(corpus: Mapping[str, Any], banc: _Banc) -> None:
     for cas in corpus["cas"]:
         attentes = cas["attentes"]
@@ -523,9 +557,16 @@ def _synthese(entree: Mapping[str, Any], resultats: list[dict[str, Any]], sondes
 
 
 def evaluer(entrees: Sequence[Mapping[str, Any]], repondant: Repondant, departements: Mapping[str, Any], *,
-            horloge: Callable[[], float] | None = None, avec_references: bool = False) -> dict[str, Any]:
-    """Rapport complet (JSON) : un bloc par département, un bloc global, empreintes du corpus et du répondant."""
+            horloge: Callable[[], float] | None = None, avec_references: bool = False,
+            pack: str | None = None) -> dict[str, Any]:
+    """Rapport complet (JSON) : un bloc par département, un bloc global, empreintes du corpus et du répondant.
+
+    `pack` : identifiant du pack sectoriel ACTIF ; les cas étiquetés d'un autre pack sont écartés et nommés dans le
+    rapport (`pack.cas_ecartes`). Omis : tous les cas.
+    """
     identite = repondant.identite()
+    entrees_corpus = list(entrees)  # empreintes du corpus ENTIER, filtré ou non
+    entrees, ecartes = appliquer_pack(entrees, pack)
     blocs = {e["departement"]: evaluer_departement(e, repondant, departements, horloge=horloge,
                                                    avec_references=avec_references) for e in entrees}
     effectif = sum(b["effectif"] for b in blocs.values())
@@ -537,8 +578,9 @@ def evaluer(entrees: Sequence[Mapping[str, Any]], repondant: Repondant, departem
         "repondant": {**identite, "empreinte": empreinte(identite)},
         "modele_reel": bool(identite.get("modele_reel")),
         "juge_modele": False,
-        "corpus": {"fichiers": [{k: e[k] for k in ("departement", "chemin", "sha256")} for e in entrees],
-                   "empreinte": empreinte(sorted(e["sha256"] for e in entrees))},
+        "corpus": {"fichiers": [{k: e[k] for k in ("departement", "chemin", "sha256")} for e in entrees_corpus],
+                   "empreinte": empreinte(sorted(e["sha256"] for e in entrees_corpus))},
+        "pack": {"actif": pack, "cas_ecartes": ecartes, "total_ecartes": sum(len(v) for v in ecartes.values())},
         "departements": blocs,
         "global": {
             "effectif": effectif, "reussites": sum(b["reussites"] for b in blocs.values()),
