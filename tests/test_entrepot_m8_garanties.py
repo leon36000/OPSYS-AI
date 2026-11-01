@@ -109,6 +109,13 @@ CAS = [
         "faits_operations",
     ),
     ("reception", M6, "m6.reception_enregistree", lambda v: ch.reception_m6(f"po-v{v}", rang=v), "faits_operations"),
+    (
+        "commande",
+        M1,
+        "m1.commande_courriel_envoyee",
+        lambda v: ch.commande_envoyee(f"po-c{v}", rang=v),
+        "faits_operations",
+    ),
     ("demande-m1", M1, "m1.lead_qualifie", lambda v: ch.lead_qualifie_m1(f"lead-v{v}"), "faits_contenus"),
     ("lead-m2", M2, "m2.client_associe", lambda v: ch.client_associe(lead_id=f"lead-v{v}"), "faits_entonnoir"),
 ]

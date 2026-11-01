@@ -45,7 +45,10 @@ IDS = [
     "m8_ecart_marge_cumule_cad",
     "m8_creances_ouvertes_cad",
     "m8_creances_90_jours_plus_cad",
+    "m8_ecritures_en_attente",
     "m8_comptes_a_payer_cad",
+    "m8_solde_tresorerie_cad",
+    "m8_taxes_a_remettre_cad",
     "m8_releves_depense_pub_cad",
     "m8_conversions_hors_ligne",
     "m8_anomalies_depense_critiques",
@@ -55,6 +58,7 @@ IDS = [
     "m8_receptions_avec_ecart",
     "m8_demandes_qualifiees_m1",
     "m8_demandes_m1_sans_lead_m2",
+    "m8_commandes_envoyees",
 ]
 
 
@@ -263,6 +267,19 @@ def _reception(i, verdict="CONFORME", po="po-1"):
     return op.fait(op.TYPE_RECEPTION, charge)
 
 
+def _commande(i, po="po-1"):
+    charge = _valide(
+        "m1.commande_courriel_envoyee",
+        {
+            "po_id": po,
+            "brouillon_id": f"brouillon-{i}",
+            "empreinte": "e" * 64,
+            "envoye_le": f"2026-10-2{i}T10:00:00-04:00",
+        },
+    )
+    return op.fait(op.TYPE_COMMANDE, charge)
+
+
 def _lead_m1(i, jour="2026-10-2"):
     return contenus.fait_lead_m1(
         {
@@ -366,7 +383,7 @@ def _vide(definitions):
 
 
 # ================================================================================================ définitions
-def test_seize_definitions_gouvernees_avec_proprietaire_connu_et_devise_cad(definitions):
+def test_vingt_definitions_gouvernees_avec_proprietaire_connu_et_devise_cad(definitions):
     assert list(definitions) == IDS
     for metric_id, definition in definitions.items():
         assert definition["proprietaire"].startswith("m0") and definition["definition"]
@@ -738,3 +755,99 @@ def test_sans_marge_chiffree_la_raison_dit_pourquoi_chantier_par_chantier(defini
         raison = m[metric_id]["manque"][0]["raison"]
         assert "1 chantier(s) : aucune trace de rentabilité reçue de M5" in raison, metric_id
         assert "prix non définitif" in raison and "REJ-COUT-MATERIAUX-MANQUANTS" in raison, metric_id
+
+
+def test_l_empreinte_des_faits_ne_depend_pas_de_l_ordre_de_livraison(definitions):
+    a = _mesures(_registres(operations=[_conversion(1), _conversion(2, type_="vente")]), definitions)
+    b = _mesures(_registres(operations=[_conversion(2, type_="vente"), _conversion(1)]), definitions)
+    assert a["m8_conversions_hors_ligne"] == b["m8_conversions_hors_ligne"]
+
+
+def test_les_receptions_ne_figurent_pas_dans_la_section_de_la_vue_executive():
+    assert op.section([_reception(1)]) is None
+    section = op.section([_reception(1), _depense()])
+    assert section["constats_recus"] == 1 and "reception_materiaux" not in json.dumps(section)
+
+
+def test_la_periode_d_un_releve_a_une_borne_et_un_format(definitions):
+    longue = [_depense("r1", debut="2016-10-27", fin="2026-10-25")]  # 3 650 jours d'écart : crédible
+    assert _mesures(_registres(operations=longue), definitions)["m8_releves_depense_pub_cad"]["statut"] == "calculee"
+    trop = [_depense("r1", debut="2006-01-01", fin="2026-10-25")]  # plus de dix ans : refusé
+    assert (
+        _mesures(_registres(operations=trop), definitions)["m8_releves_depense_pub_cad"]["statut"] == "non_calculable"
+    )
+    format_basique = _depense("r1")
+    format_basique["periode_debut"] = format_basique["periode_fin"] = (
+        "20261027"  # lisible par Python, pas un AAAA-MM-JJ
+    )
+    m = _mesures(_registres(operations=[format_basique]), definitions)["m8_releves_depense_pub_cad"]
+    assert m["statut"] == "non_calculable" and "période" in m["manque"][0]["raison"]
+
+
+def test_une_revision_qui_n_est_pas_un_entier_n_est_pas_une_revision(definitions):
+    faux = _depense("r1")
+    faux["revision"] = True
+    m = _mesures(_registres(operations=[faux]), definitions)["m8_releves_depense_pub_cad"]
+    assert m["statut"] == "non_calculable" and m["valeur"] is None
+
+
+def test_commandes_envoyees_comptees_par_bon_de_commande_sans_brouillon_ni_adresse(definitions):
+    faits = [_commande(1, "po-1"), _commande(2, "po-1"), _commande(3, "po-2")]  # un renvoi du même bon : une commande
+    m = _mesures(_registres(operations=faits), definitions)["m8_commandes_envoyees"]
+    assert m["valeur"] == "2" and m["dernier_fait_le"] == "2026-10-23T10:00:00-04:00"
+    assert set(faits[0]) == {"type_entree", "po_id", "envoye_le", "provenance"}
+    assert "brouillon" not in json.dumps(faits)
+    assert op.section(faits) is None  # ni la vue exécutive ni la section n'en parlent
+    vide = _mesures(_registres(), definitions)["m8_commandes_envoyees"]
+    assert vide["statut"] == "non_calculable" and vide["manque"][0]["champ"] == "m1.commande_courriel_envoyee"
+
+
+def test_solde_et_taxes_a_remettre_repris_tels_quels_du_dernier_constat_du_cash_libre(definitions):
+    m = _mesures(_registres(cash=[_cash("459.91")]), definitions)
+    assert m["m8_solde_tresorerie_cad"]["valeur"] == "5000.00" and m["m8_taxes_a_remettre_cad"]["valeur"] == "100.00"
+    assert m["m8_solde_tresorerie_cad"]["entrees"]["sequence"] == 1
+    # la composante que M5 n'a pas pu chiffrer ne contamine pas les autres : le solde reste calculé
+    non = _mesures(_registres(cash=[_cash(statut="NON_CALCULABLE", plancher="300.00", manque=True)]), definitions)
+    assert non["m8_comptes_a_payer_cad"]["statut"] == "non_calculable"
+    assert (
+        non["m8_solde_tresorerie_cad"]["valeur"] == "5000.00" and non["m8_taxes_a_remettre_cad"]["valeur"] == "100.00"
+    )
+
+
+def test_une_composante_absente_du_constat_est_nommee_pas_devinee(definitions):
+    constat = _cash("459.91")
+    constat["composantes"] = [c for c in constat["composantes"] if c["id"] != "taxes_a_remettre"]
+    m = _mesures(_registres(cash=[constat]), definitions)["m8_taxes_a_remettre_cad"]
+    assert m["statut"] == "non_calculable" and "absente du constat" in m["manque"][0]["raison"]
+    sans_solde = _cash("459.91")
+    sans_solde["solde"] = None
+    assert _mesures(_registres(cash=[sans_solde]), definitions)["m8_solde_tresorerie_cad"]["statut"] == "non_calculable"
+
+
+def test_ecritures_en_attente_reprises_du_dernier_constat_comptable_et_refusees_si_illisibles(definitions):
+    ok = _mesures(_registres(operations=[_comptable()]), definitions)["m8_ecritures_en_attente"]
+    assert ok["valeur"] == "4" and ok["dernier_fait_le"] == "2026-10-30T00:00:00+00:00"
+    for illisible in (True, -1, "4", None):
+        constat = _comptable()
+        constat["brouillons_en_attente"] = illisible
+        m = _mesures(_registres(operations=[constat]), definitions)["m8_ecritures_en_attente"]
+        assert m["statut"] == "non_calculable" and m["valeur"] is None, illisible
+    vide = _mesures(_registres(), definitions)["m8_ecritures_en_attente"]
+    assert vide["manque"][0]["champ"] == "m5.mesures_comptables_constatees"
+
+
+def test_un_chantier_a_marge_nulle_n_est_ni_en_perte_ni_oublie(definitions):
+    faits = [
+        _wct(1),
+        _wct(2),
+        _wct(3),
+        _devis(1),
+        _devis(2),
+        _devis(3),
+        _renta(1, "0.00"),
+        _renta(2, "-0.01"),
+        _renta(3, "0.01"),
+    ]
+    m = _mesures(_registres(chantier=faits), definitions)
+    assert m["m8_chantiers_en_perte"]["valeur"] == "1"  # seulement -0.01 : zéro n'est pas une perte
+    assert m["m8_chantiers_marge_reelle"]["valeur"] == "3" and m["m8_marge_reelle_cumulee_cad"]["valeur"] == "0.00"

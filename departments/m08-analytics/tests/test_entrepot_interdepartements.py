@@ -7,7 +7,7 @@ Prouve :
   lisait pas) ;
 - la fenêtre de fraîcheur que le département SOURCE déclare (M7) s'ajoute à celles du catalogue et de l'appelant : la
 plus stricte des trois l'emporte, avec son origine ;
-- l'entrepôt reconstruit porte les 34 mesures avec valeur, source, version, dernier fait ; une valeur à couverture
+- l'entrepôt reconstruit porte les 38 mesures avec valeur, source, version, dernier fait ; une valeur à couverture
 partielle garde sa valeur ET le dit dans `detail` ; une mesure sans source reste sans valeur ; rien de personnel ;
 - le wallboard « finance et opérations » montre les valeurs exactes, marque une tuile partielle et ne dit pas « ok » ;
 - le copilote répond avec la valeur, dit la couverture partielle, et reste en lecture seule (« comptes à payer » est une
@@ -75,11 +75,15 @@ def test_les_valeurs_de_l_entreprise_fictive_viennent_de_leurs_departements():
         "m8_creances_ouvertes_cad": "7210.55",
         "m8_creances_90_jours_plus_cad": "0.00",
         "m8_comptes_a_payer_cad": "459.91",
+        "m8_solde_tresorerie_cad": "37654.33",
+        "m8_taxes_a_remettre_cad": "1981.69",
+        "m8_ecritures_en_attente": "4",
         "m8_releves_depense_pub_cad": "413.75",
         "m8_conversions_hors_ligne": "2",
         "m8_anomalies_depense_critiques": "1",
         "m8_heures_sur_site_chantiers": "7.33",
         "m8_receptions_materiaux": "3",
+        "m8_commandes_envoyees": "2",
         "m8_receptions_avec_ecart": "1",
         "m8_demandes_qualifiees_m1": "6",
         "m8_demandes_m1_sans_lead_m2": "0",
@@ -187,11 +191,11 @@ def test_une_mesure_a_la_fenetre_resserree_par_m7_est_perimee_avant_celle_du_cat
 
 
 # ================================================================================================ entrepôt
-def test_l_entrepot_porte_les_trente_quatre_mesures_sans_personne_ni_zero_invente():
+def test_l_entrepot_porte_les_trente_huit_mesures_sans_personne_ni_zero_invente():
     registres = jeux_fictifs.registres_fictifs(avec_operations=True)
     resultat = entrepot.construire(registres, CAT, construit_le=INSTANT, rang_precedent=0)
     lignes = {ligne["metric_id"]: ligne for ligne in resultat["tables"][entrepot.TABLE_MESURES]}
-    assert len(lignes) == resultat["construction"]["nb_mesures"] == 34
+    assert len(lignes) == resultat["construction"]["nb_mesures"] == 38
     assert lignes["m8_creances_ouvertes_cad"]["valeur"] == "7210.55"
     assert lignes["m8_creances_ouvertes_cad"]["source"].startswith("M5 m5.mesures_comptables_constatees")
     assert lignes["m8_ecart_depense_pub_comptabilisee_cad"]["valeur"] is None

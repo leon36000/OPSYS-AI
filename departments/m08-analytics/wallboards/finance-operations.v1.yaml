@@ -19,6 +19,8 @@ tuiles:
   - {id: creances, mesure: m8_creances_ouvertes_cad, titre: "Créances ouvertes", page: 2}
   - {id: creances-vieilles, mesure: m8_creances_90_jours_plus_cad, titre: "Créances de 90 jours et plus", page: 2}
   - {id: a-payer, mesure: m8_comptes_a_payer_cad, titre: "Comptes à payer", page: 2}
+  - {id: solde, mesure: m8_solde_tresorerie_cad, titre: "Solde de trésorerie", page: 2}
   - {id: heures, mesure: m8_heures_sur_site_chantiers, titre: "Heures sur site", page: 3}
   - {id: receptions, mesure: m8_receptions_materiaux, titre: "Réceptions de matériaux", page: 3}
   - {id: receptions-ecart, mesure: m8_receptions_avec_ecart, titre: "Réceptions avec écart", page: 3}
+  - {id: commandes, mesure: m8_commandes_envoyees, titre: "Commandes envoyées", page: 3}

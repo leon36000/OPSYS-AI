@@ -38,7 +38,7 @@ Contrat commun de chaque consommateur ajouté (prouvé par `tests/test_interconn
 |---|---|---|---|
 | `m1.approbation_envoi_demandee` | M1 | — | Notification du sas d'approbation : la demande d'envoi (N3) est lue par la direction dans la file d'approbation du socle (approbations.file_proprie... (revue 2026-11-01) |
 | `m1.brouillon_courriel_pret` | M1 | — | Notification interne du fil de réponse de M1 (brouillon préparé, rien d'envoyé) : l'état du brouillon se lit dans le sas d'envoi (courriel_connecte... (revue 2026-11-01) |
-| `m1.commande_courriel_envoyee` | M1 | M6 |  |
+| `m1.commande_courriel_envoyee` | M1 | M6, M8 |  |
 | `m1.courriel_aiguille` | M1 | M5, M6 |  |
 | `m1.courriel_envoye` | M1 | M1 |  |
 | `m1.courriel_recu` | M1 | M1 |  |
@@ -121,7 +121,7 @@ test n'a pas d'horloge).
 
 | Destinataire | Événement | Ce que le consommateur fait (et ne fait pas) | Registre du destinataire |
 |---|---|---|---|
-| M8 | `m7.signaux_marketing_constates`, `m7.depenses_marketing_constatees`, `m7.anomalie_depense_detectee`, `m7.conversion_hors_ligne_importee`, `m5.mesures_comptables_constatees`, `m3.mesure_vision_validee` | Range le constat tel quel ; la vue exécutive gagne la section `operations_recues` (une seule somme : les relevés de dépense reçus, par canal, dernière révision, bases de taxes non mélangées, jamais « dépense totale »). Réduite par paliers dits (`omis`) puis à son compte si la borne du socle l'exige : elle ne fait jamais échouer la vue de base. Fictifs exclus et comptés. Vision sans photo ni modèle. | `faits_operations` |
+| M8 | `m7.signaux_marketing_constates`, `m7.depenses_marketing_constatees`, `m7.anomalie_depense_detectee`, `m7.conversion_hors_ligne_importee`, `m5.mesures_comptables_constatees`, `m3.mesure_vision_validee`, `m6.reception_enregistree`, `m1.commande_courriel_envoyee` | Range le constat tel quel, avec sa **provenance** (type d'événement, identifiant, empreinte de la charge) ; la vue exécutive gagne la section `operations_recues` (une seule somme : les relevés de dépense reçus, par canal, dernière révision, bases de taxes non mélangées, jamais « dépense totale »). Réduite par paliers dits (`omis`) puis à son compte si la borne du socle l'exige : elle ne fait jamais échouer la vue de base. Fictifs exclus et comptés. Vision sans photo ni modèle. **Depuis le chantier « entrepôt interdépartements »**, ces constats (et ceux de M5 déjà reçus : rentabilité, cash libre) alimentent aussi **20 mesures du catalogue fermé** lues par le moteur de l'entrepôt, des wallboards, du copilote, de la mémoire et du pont BI : voir [`M8-ENTREPOT-SOURCES.md`](M8-ENTREPOT-SOURCES.md). Réception de M6 : bon de commande, mouvement, verdict, instant (ni fournisseur ni ligne de prix). Commande de M1 : bon de commande et instant. | `faits_operations` |
 | M5 | `m7.depenses_marketing_constatees` | **Brouillon** d'écriture (compte « marketing » du plan, contrepartie Comptes fournisseurs), pièce déclarée jamais vérifiée. `TAXES_INCLUSES` : aucune ventilation (décision fiscale), rangé « à compléter » ; révision > 1 : jamais un second brouillon (rangé « à revoir ») ; montant nul, période close, horodatage sans fuseau : refus rangés. Rien n'est validé (N4 humain). À valider auprès d'un comptable (CPA) / professionnel qualifié. | `charges_marketing_recues` + `grand_livre` (brouillon) |
 | M2 | `m7.conversion_hors_ligne_importee` | Lecture seule : le score voit « source connue » pour CE lead si M7 a une source normalisée ; le contrat du lead n'est jamais réécrit. | `conversions_hors_ligne_recues` |
 | M2 | `m5.creance_relance_preparee` | Avertissement de coordination sur les relances commerciales du même client et phrase du coach ; rien n'est supprimé, retardé ni envoyé ; aucun montant au coach. | `creances_relances_recues` |
@@ -192,8 +192,10 @@ de connaissances au lecteur : ce serait élargir un droit, ce que le brief inter
 - **Relance de créance vers M1** : `m5.creance_relance_preparee` ne porte qu'un `client_id` ; M1 n'a pas de lien client -> contact
   (le `client_id` est dérivé du contact par M2, et la séparation interdit à M1 de copier l'algorithme). Seul M2 la consomme ; la
   suite (texte, canal, envoi N3) reste un geste de la direction.
-- **M8 : entrepôt dérivé et score de santé** : les constats de M7/M5/M3 sont dans la vue exécutive, PAS dans les marts
-  `m8_ent_*` ni dans les métriques gouvernées du catalogue (ce serait une nouvelle définition de métrique et une migration).
+- **M8 : entrepôt dérivé et score de santé** : ~~les constats de M7/M5/M3 sont dans la vue exécutive, pas dans l'entrepôt~~ **levé** : ils
+  alimentent 20 mesures gouvernées du catalogue fermé (sans migration : les lignes de `m8_ent_mesures_*` changent de contenu, pas de
+  forme). Ce qui reste hors de l'entrepôt, mesure par mesure et décision par décision : [`M8-ENTREPOT-SOURCES.md`](M8-ENTREPOT-SOURCES.md) §4 et §5.
+  Le **score de santé** n'est pas modifié (pondérations et bornes : décision du propriétaire).
 - **M10 : aucun outil de lecture dédié** pour `dossiers_cpa_scelles` (aucun nouvel outil, par choix) ; le registre existe et est
   append-only, sa lecture passera par un outil à venir.
 
@@ -207,8 +209,10 @@ de connaissances au lecteur : ce serait élargir un droit, ce que le brief inter
   n'ont pas été rejoués ici.
 - Le brouillon de charge de M5 suppose le plan comptable par défaut (compte 5950, contrepartie 2100) : à valider auprès d'un
   comptable (CPA) / professionnel qualifié ; la ventilation des taxes d'un fournisseur étranger n'est pas faite.
-- La somme des relevés de M8 est une somme des relevés **reçus**, pas la dépense publicitaire de l'entreprise : un jour sans
-  relevé n'est pas un zéro et M8 ne sait pas quels jours manquent.
+- La somme des relevés de M8 est une somme des relevés **reçus**, pas la dépense publicitaire de l'entreprise. Depuis la mesure
+  `m8_releves_depense_pub_cad`, les jours sans relevé **à l'intérieur de la période couverte** sont comptés et dits (couverture
+  partielle) ; ceux avant le premier relevé, après le dernier ou d'un canal jamais relevé restent invisibles. L'écart avec la dépense
+  comptabilisée par M5 est une mesure nommée, **non calculable par construction** tant que M5 ne publie pas ce total.
 - L'ordre de livraison du bus n'est pas garanti : chaque consommateur choisit son « dernier état » par une clé de contenu
   (révision, date de référence, version), pas par l'ordre d'arrivée, sauf mention contraire.
 - L'audit ne sait pas démontrer qu'un producteur *publie réellement* son type (il vérifie seulement que le nom du type apparaît

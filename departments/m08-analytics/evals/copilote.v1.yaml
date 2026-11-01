@@ -54,6 +54,10 @@ cas:
   - {id: v44, q: "réceptions avec écart", attendu: {statut: repondu, mesures: [m8_receptions_avec_ecart]}}
   - {id: v45, q: "Combien de demandes qualifiées par le front office ?", attendu: {statut: repondu, mesures: [m8_demandes_qualifiees_m1]}}
   - {id: v46, q: "Combien de demandes de M1 sans lead chez M2 ?", attendu: {statut: repondu, mesures: [m8_demandes_m1_sans_lead_m2]}}
+  - {id: v47, q: "Combien de commandes envoyées ?", attendu: {statut: repondu, mesures: [m8_commandes_envoyees]}}
+  - {id: v48, q: "Combien d'écritures en attente de validation ?", attendu: {statut: repondu, mesures: [m8_ecritures_en_attente]}}
+  - {id: v49, q: "Quel est notre solde de trésorerie ?", attendu: {statut: repondu, mesures: [m8_solde_tresorerie_cad]}}
+  - {id: v50, q: "Combien de taxes à remettre ?", attendu: {statut: repondu, mesures: [m8_taxes_a_remettre_cad]}}
   # -- Plusieurs mesures nommées ---------------------------------------------------------------------------------------
   - {id: m01, q: "Donne-moi le taux d'acceptation et le cash libre", attendu: {statut: repondu, mesures: [m8_cash_libre_cad, m8_taux_acceptation_pct]}}
   - {id: m02, q: "Combien de chantiers terminés, et le carnet signé ?", attendu: {statut: repondu, mesures: [m8_carnet_signe_cad, m8_chantiers_termines]}}

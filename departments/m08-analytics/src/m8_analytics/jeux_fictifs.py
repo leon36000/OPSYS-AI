@@ -29,6 +29,10 @@ def _instant(jour: str, heure: int, minute: int = 0) -> str:
     return f"{jour}T{heure:02d}:{minute:02d}:00{_FUSEAU}"
 
 
+def _composante_fictive(identifiant: str, montant: str) -> dict[str, Any]:
+    return {"id": identifiant, "statut": "CALCULE", "montant_cad": montant, "plancher_cad": None}
+
+
 def _id(prefixe: str, rang: int) -> str:
     return f"{prefixe}-fictif-{rang:03d}"
 
@@ -208,15 +212,15 @@ def registres_fictifs(
                     "manque": [],
                     "reserves": [],
                     **(
-                        {"composantes": [
-                            {
-                                "id": "comptes_a_payer",
-                                "statut": "CALCULE",
-                                "montant_cad": "459.91",
-                                "plancher_cad": None,
-                            }
-                        ]}
-                        if avec_operations else {}
+                        {
+                            "solde": _composante_fictive("solde", "37654.33"),
+                            "composantes": [
+                                _composante_fictive("taxes_a_remettre", "1981.69"),
+                                _composante_fictive("comptes_a_payer", "459.91"),
+                            ],
+                        }
+                        if avec_operations
+                        else {}
                     ),
                 }
             )
@@ -276,8 +280,8 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
     """Les constats FICTIFS de M5, M6 et M7 du registre ``operations``, construits par le VRAI constructeur
     (``operations_recues.fait``) : trois jours de relevés de dépense Google Ads et un de Meta (hors taxes, sans trou),
     les signaux de M7 qui disent la fraîcheur de leurs sources, deux conversions hors ligne, trois anomalies (dont une
-    critique), un constat comptable de M5 (créances de 7 210,55 $ dont rien à 90 jours et plus) et trois réceptions de
-    M6 (dont une avec écart)."""
+    critique), un constat comptable de M5 (créances de 7 210,55 $ dont rien à 90 jours et plus), trois réceptions de M6
+    (dont une avec écart) et deux commandes envoyées par le canal de M1."""
     veille = (date.fromisoformat(jour) - timedelta(days=1)).isoformat()
     avant_veille = (date.fromisoformat(jour) - timedelta(days=2)).isoformat()
     lu = _instant(jour, 6)
@@ -333,6 +337,15 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
             },
         )
 
+    def commande(rang: int) -> dict[str, Any]:
+        return operations_recues.fait(
+            operations_recues.TYPE_COMMANDE,
+            {
+                "po_id": _id("po", rang), "brouillon_id": _id("brouillon", rang), "empreinte": "e" * 64,
+                "envoye_le": _instant(jour, 10, rang),
+            },
+        )
+
     return [
         depense("releve-g1", "google_ads", avant_veille, "120.00"),
         depense("releve-g2", "google_ads", veille, "135.50"),
@@ -363,6 +376,8 @@ def operations_fictives(jour: str = "2026-10-30") -> list[dict[str, Any]]:
         reception(1, "CONFORME"),
         reception(2, "CONFORME"),
         reception(3, "RECEPTION_INFERIEURE"),
+        commande(1),
+        commande(2),
     ]
 
 

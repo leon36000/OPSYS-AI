@@ -127,14 +127,15 @@ def test_compiler_dictionnaire_reel_depot_contient_les_metriques_de_mesure_de_ch
         # depuis M8.2/M8.8/M8.11/M8.12 quatre de synthèse d'entreprise (m8-synthese.v1.yaml,
         # `test_catalogue_mesures.py`)
         "m8_chantiers_termines", "m8_ecart_duree_equipe_pct", "m8_chantiers_signal_materiaux", "m8_cash_libre_cad",
-        # depuis l'entrepôt interdépartements seize de plus (m8-interdepartements.v1.yaml,
+        # depuis l'entrepôt interdépartements vingt de plus (m8-interdepartements.v1.yaml,
         # `test_mesures_interdepartements.py`)
         "m8_chantiers_marge_reelle", "m8_marge_reelle_cumulee_cad", "m8_chantiers_en_perte",
         "m8_ecart_marge_cumule_cad", "m8_creances_ouvertes_cad", "m8_creances_90_jours_plus_cad",
         "m8_comptes_a_payer_cad", "m8_releves_depense_pub_cad", "m8_conversions_hors_ligne",
         "m8_anomalies_depense_critiques", "m8_ecart_depense_pub_comptabilisee_cad", "m8_heures_sur_site_chantiers",
         "m8_receptions_materiaux", "m8_receptions_avec_ecart", "m8_demandes_qualifiees_m1",
-        "m8_demandes_m1_sans_lead_m2",
+        "m8_demandes_m1_sans_lead_m2", "m8_commandes_envoyees", "m8_ecritures_en_attente",
+        "m8_solde_tresorerie_cad", "m8_taxes_a_remettre_cad",
     }
     assert resultat["m08-analytics"]["m8_marge_prevue_cad"]["unite"] == "CAD"
 

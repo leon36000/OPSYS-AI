@@ -427,6 +427,16 @@ def reception_m6(po_id: str = "po-fictif-1", rang: int = 1, verdict: str = "CONF
     return _valide("m6.reception_enregistree", charge)
 
 
+def commande_envoyee(po_id: str = "po-fictif-1", rang: int = 1, **plus: Any) -> dict[str, Any]:
+    """Un bon de commande de M6 dont le courriel est parti (M1 est le canal ; ni adresse ni texte dans la charge)."""
+    charge = {
+        "po_id": po_id, "brouillon_id": f"brouillon-{po_id}-{rang}", "empreinte": empreinte("courriel", po_id),
+        "envoye_le": f"2026-10-2{rang}T10:00:00-04:00",
+    }
+    charge.update(plus)
+    return _valide("m1.commande_courriel_envoyee", charge)
+
+
 def lead_qualifie_m1(lead_id: str = "lead-fictif-1", **plus: Any) -> dict[str, Any]:
     """Une demande qualifiée par M1 : la charge porte le CONTACT (nom, courriel, téléphone fictifs) que M8 ne garde
     pas."""

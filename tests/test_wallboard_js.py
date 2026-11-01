@@ -68,6 +68,11 @@ def test_une_valeur_hostile_reste_du_texte(resultats):
     assert resultats["id_hostile_ok"] is True
 
 
+def test_une_tuile_a_couverture_partielle_le_dit_et_une_tuile_complete_ne_le_dit_pas(resultats):
+    assert resultats["etat_partielle"] == "À jour · sans seuil · couverture partielle"
+    assert "partielle" not in resultats["etat_complete"] and "partielle" not in resultats["etat_apres_complet"]
+
+
 def test_le_flux_met_a_jour_se_ferme_a_la_fin_et_se_reconnecte(resultats):
     assert resultats["flux_url"] == "/api/wb/flux" and resultats["flux_credentials"] is True
     assert resultats["apres_instantane"] == "20 leads" and resultats["connexion"] == "Connecté (flux)"

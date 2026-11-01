@@ -331,7 +331,7 @@ def test_la_pagination_est_bornee_et_cumulative(base, cle, horloge, client):
     page2 = client.get("/pont-bi/v1/jeux/mesures_courantes.jsonl?limite=5&depart=5", headers=_en_tete(jeton))
     ids = [json.loads(ligne)["metric_id"] for ligne in (page1.text + page2.text).splitlines()]
     assert len(ids) == 10 and len(set(ids)) == 10
-    assert page1.headers["x-opsys-total-lignes"] == "25"  # 34 mesures moins les 9 financières
+    assert page1.headers["x-opsys-total-lignes"] == "27"  # 38 mesures moins les 11 financières
     for requete in ("limite=0", "limite=5001", "limite=abc", "depart=-1", "inconnu=1", "limite=1&limite=2"):
         assert (
             client.get(f"/pont-bi/v1/jeux/mesures_courantes.csv?{requete}", headers=_en_tete(jeton)).status_code == 400
@@ -451,11 +451,11 @@ def test_le_quota_de_requetes_refuse_429_avant_toute_donnee_et_se_libere_apres_u
 def test_le_quota_de_lignes_refuse_sans_rien_remettre(base, cle, horloge, client):
     jeton = _emettre(base, cle, horloge, jeux=["mesures_courantes"], quota_lignes_jour=30)
     url = "/pont-bi/v1/jeux/mesures_courantes.csv"
-    assert client.get(url, headers=_en_tete(jeton)).status_code == 200  # 25 lignes remises (sans les financières)
-    refus = client.get(url, headers=_en_tete(jeton))  # 25 + 25 > 30
+    assert client.get(url, headers=_en_tete(jeton)).status_code == 200  # 27 lignes remises (sans les financières)
+    refus = client.get(url, headers=_en_tete(jeton))  # 27 + 27 > 30
     assert refus.status_code == 429 and refus.json()["erreur"] == "quota_lignes"
     assert "m8_leads_recus" not in refus.text
-    petit = client.get(url + "?limite=5", headers=_en_tete(jeton))  # 25 + 5 = 30 : permis, pile
+    petit = client.get(url + "?limite=3", headers=_en_tete(jeton))  # 27 + 3 = 30 : permis, pile
     assert petit.status_code == 200
     assert client.get(url + "?limite=1", headers=_en_tete(jeton)).status_code == 429  # 31 > 30
     horloge.maintenant += 86401

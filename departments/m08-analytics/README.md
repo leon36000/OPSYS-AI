@@ -84,7 +84,7 @@ filtrés par rôle, conformité statique et digest quotidien.
 
 ## Couche analytique d'entreprise (M8.2, M8.8, M8.11, M8.12, M8.14, M8.18)
 
-Un catalogue fermé de 18 mesures d'entreprise (`definitions/m8-catalogue.v1.yaml`), lues par un seul moteur (`moteur_mesures.py`) avec la fraîcheur
+Un catalogue fermé de 38 mesures d'entreprise (18 de la tranche 1 et 20 interdépartements ; `definitions/m8-catalogue.v1.yaml`), lues par un seul moteur (`moteur_mesures.py`) avec la fraîcheur
 de chaque mesure (`fraicheur_mesures.py`, la plus stricte des fenêtres), alimente : l'**entrepôt** dérivé et versionné (`entrepot.py`,
 `entrepot_stockage.py`, migration 0046), les **wallboards** déclaratifs (`wallboards/*.v1.yaml`, `wallboards.py`, servis par la console en SSE
 borné), le **score de santé** transparent et indéterminé plutôt que faux (`sante.py`, `definitions/m8-sante.v1.yaml`), le **copilote** en français
@@ -93,6 +93,19 @@ quotas, journal) et l'**intégration mémoire** (`memoire.py`, événement `m8.f
 (`analytique_outils.py`), skill `lecture-analytique-fermee`, planification `entrepot-et-memoire`. Tout est lecture ou calcul (N0–N2) ; l'émission d'un
 jeton BI est un geste humain (N3). Documentation, preuves et limites : [`docs/architecture/M8-OLIVIER.md`](../../docs/architecture/M8-OLIVIER.md).
 Données de démonstration et de calibration : `jeux_fictifs.py` (fictives).
+
+### Entrepôt interdépartements (20 mesures de plus)
+
+Le catalogue fermé compte 38 mesures : aux 18 premières s'ajoutent vingt mesures tirées des constats que M1, M3, M4, M5, M6 et M7
+publient déjà sur le bus (`metrics/m8-interdepartements.v1.yaml`, `src/m8_analytics/mesures_interdepartements.py`) : marge réelle
+cumulée, chantiers à marge chiffrée et en perte, écart de marge réelle (M5) contre prévue (M3), créances (total et 90 jours et plus),
+écritures en attente, comptes à payer, solde, taxes à remettre, somme des relevés de dépense publicitaire, conversions hors ligne,
+anomalies critiques, heures sur site, réceptions et commandes de matériaux, demandes qualifiées par M1 et leur écart avec les leads de
+M2. Un registre de plus (`operations`) entre dans l'empreinte de l'entrepôt ; deux consommateurs de plus (`m6.reception_enregistree`,
+`m1.commande_courriel_envoyee`) ; chaque constat rangé porte sa provenance (événement, empreinte). Une valeur calculée sur une partie
+seulement dit sa couverture (`couverture`, `detail`) ; une source absente reste « non calculable » ; un écart entre deux définitions est
+une mesure nommée. Rien n'est ajouté aux droits d'appareil, aux outils ni aux migrations. Sources, états, décisions à prendre et limites :
+[`docs/architecture/M8-ENTREPOT-SOURCES.md`](../../docs/architecture/M8-ENTREPOT-SOURCES.md).
 
 DuckDB/Parquet (non installé), MMM (PyMC-Marketing) et l'orchestrateur horaire réel restent GATED (hors
 périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).

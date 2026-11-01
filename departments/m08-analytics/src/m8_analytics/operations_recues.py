@@ -4,7 +4,7 @@ Module PUR (ADR-0009) : aucun import d'``opsys``, aucune horloge (« aujourd'hui
 seul point de contact avec le socle, reçoit les événements, range les faits au registre ``faits_operations`` et lit ce
 registre pour la section « operations_recues » de la vue exécutive.
 
-Sept types, tous des CONSTATS d'un département propriétaire, que M8 reprend sans les refaire :
+Huit types, tous des CONSTATS d'un département propriétaire, que M8 reprend sans les refaire :
 
 - ``m7.signaux_marketing_constates`` : quelle source de données propres a été lue, sur quelle période, avec quelle
   fraîcheur (aucune valeur de mesure : les faits eux-mêmes se lisent chez M7) ;
@@ -17,7 +17,9 @@ action) ;
 - ``m5.mesures_comptables_constatees`` : les nombres et montants comptés par M5 dans ses propres registres ;
 - ``m3.mesure_vision_validee`` : une mesure de vision VALIDÉE (par référence ou par une personne), jamais un candidat ;
 - ``m6.reception_enregistree`` : une livraison de matériaux reçue contre un bon de commande (verdict de M6 repris : ni
-  fournisseur, ni ligne de prix, ni quantité).
+  fournisseur, ni ligne de prix, ni quantité) ;
+- ``m1.commande_courriel_envoyee`` : le courriel d'un bon de commande de M6 est parti (après l'approbation humaine du
+  sas de M1) : le bon de commande et l'instant, ni le brouillon ni l'adresse.
 
 Principes :
 
@@ -37,7 +39,8 @@ Principes :
    contenu : le même constat rejoué sous un autre `evenement_id` n'ajoute toujours rien.
 
 Les mesures d'entreprise du catalogue qui en dérivent (dépenses de M7, créances de M5, réceptions de M6...) sont dans
-``mesures_interdepartements.py`` ; la section « operations_recues » de la vue exécutive ne montre pas les réceptions.
+``mesures_interdepartements.py`` ; la section « operations_recues » de la vue exécutive ne montre ni les réceptions ni
+les commandes.
 """
 
 from __future__ import annotations
@@ -56,6 +59,7 @@ TYPE_CONVERSION = "conversion_hors_ligne_importee"
 TYPE_MESURES_COMPTABLES = "mesures_comptables_constatees"
 TYPE_MESURE_VISION = "mesure_vision_validee"
 TYPE_RECEPTION = "reception_materiaux"
+TYPE_COMMANDE = "commande_envoyee"
 
 EVENEMENT_PAR_TYPE = {
     "m7.signaux_marketing_constates": TYPE_SIGNAUX,
@@ -65,6 +69,7 @@ EVENEMENT_PAR_TYPE = {
     "m5.mesures_comptables_constatees": TYPE_MESURES_COMPTABLES,
     "m3.mesure_vision_validee": TYPE_MESURE_VISION,
     "m6.reception_enregistree": TYPE_RECEPTION,
+    "m1.commande_courriel_envoyee": TYPE_COMMANDE,
 }
 _EVENEMENT_DU_TYPE = {type_entree: evenement for evenement, type_entree in EVENEMENT_PAR_TYPE.items()}
 
@@ -84,6 +89,7 @@ _CLES_UNICITE = {
     TYPE_MESURES_COMPTABLES: ("date_reference", "version_donnees"),
     TYPE_MESURE_VISION: ("candidat_id",),
     TYPE_RECEPTION: ("po_id", "hash_maillon"),
+    TYPE_COMMANDE: ("po_id",),
 }
 # Ce que M8 garde d'une mesure de vision : ni la photo, ni le modèle, ni l'empreinte de décision.
 _CLES_VISION = (
@@ -100,6 +106,9 @@ _CLES_VISION = (
 # et le statut du bon. Ni le fournisseur, ni le chantier, ni les lignes (prix et quantités) : la réception se compte,
 # elle ne se rejoue pas.
 _CLES_RECEPTION = ("po_id", "hash_maillon", "horodatage_reception", "verdict_reception", "statut_po")
+# Ce que M8 garde d'une commande envoyée par M1 : le bon de commande et l'instant. Ni le brouillon, ni l'empreinte du
+# courriel.
+_CLES_COMMANDE = ("po_id", "envoye_le")
 _ANOMALIES_LISTEES = 5
 _ORDRE_SEVERITE = {"critique": 0, "attention": 1, "info": 2}
 
@@ -116,6 +125,8 @@ def fait(type_entree: str, charge: dict[str, Any]) -> dict[str, Any]:
     }
     if type_entree == TYPE_MESURE_VISION:
         return {"type_entree": type_entree, **{cle: charge[cle] for cle in _CLES_VISION}, "provenance": provenance}
+    if type_entree == TYPE_COMMANDE:
+        return {"type_entree": type_entree, **{cle: charge[cle] for cle in _CLES_COMMANDE}, "provenance": provenance}
     if type_entree == TYPE_RECEPTION:
         return {"type_entree": type_entree, **{cle: charge[cle] for cle in _CLES_RECEPTION}, "provenance": provenance}
     return {"type_entree": type_entree, **charge, "provenance": provenance}
@@ -281,8 +292,9 @@ def _mesures_comptables(faits: list[dict[str, Any]], aujourd_hui: str | None) ->
 
 def section(faits: list[dict[str, Any]], aujourd_hui: str | None = None) -> dict[str, Any] | None:
     """La section « operations_recues » de la vue exécutive, ou ``None`` sans aucun fait (la vue reste inchangée). Les
-    réceptions de matériaux de M6 n'y figurent pas : elles se lisent par leurs mesures du catalogue."""
-    faits = [f for f in faits if f.get("type_entree") != TYPE_RECEPTION]
+    réceptions de matériaux de M6 et les commandes envoyées n'y figurent pas : elles se lisent par leurs mesures du
+    catalogue."""
+    faits = [f for f in faits if f.get("type_entree") not in (TYPE_RECEPTION, TYPE_COMMANDE)]
     if not faits:
         return None
     visions = _de_type(faits, TYPE_MESURE_VISION)
@@ -373,6 +385,7 @@ __all__ = [
     "TYPE_DEPENSE",
     "TYPE_MESURES_COMPTABLES",
     "TYPE_MESURE_VISION",
+    "TYPE_COMMANDE",
     "TYPE_RECEPTION",
     "TYPE_SIGNAUX",
     "cles_unicite",

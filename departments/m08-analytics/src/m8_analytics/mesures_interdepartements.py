@@ -423,24 +423,24 @@ def _creances_90_jours_plus_cad(reg: dict[str, list[dict[str, Any]]]) -> Resulta
     return _creances(reg, "90+")
 
 
-def _comptes_a_payer_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+def _composante_du_cash_libre(reg: dict[str, list[dict[str, Any]]], composante_id: str, libelle: str) -> Resultat:
+    """Une composante du dernier constat du cash libre de M5 (le solde, ou une des obligations retranchées), reprise
+    telle quelle. Si M5 n'a pas pu la chiffrer : non calculable, avec les codes de M5 et le plancher qu'il connaît
+    (un repère, jamais le total)."""
     source = "M5 (m5.cash_libre_constate)"
     constat = cash_libre.constat_courant(reg["cash_libre"])
     if constat is None:
         return _non_calculable([_manque("m5.cash_libre_constate", source, "aucun constat du cash libre reçu")])
     instant = synthese.jour_en_instant(constat.get("date_reference"))
-    composantes = constat.get("composantes")
-    composante = (
-        next((c for c in composantes if isinstance(c, dict) and c.get("id") == "comptes_a_payer"), None)
-        if isinstance(composantes, list)
-        else None
-    )
+    composantes = [
+        constat.get("solde"),
+        *(constat.get("composantes") if isinstance(constat.get("composantes"), list) else []),
+    ]
+    composante = next((c for c in composantes if isinstance(c, dict) and c.get("id") == composante_id), None)
     entrees = {"date_reference": constat.get("date_reference"), "sequence": constat.get("sequence")}
     if composante is None:
         return _non_calculable(
-            [_manque("comptes_a_payer", source, "la composante « comptes à payer » est absente du constat")],
-            entrees,
-            instant,
+            [_manque(composante_id, source, f"la composante « {libelle} » est absente du constat")], entrees, instant
         )
     montant = composante.get("montant_cad")
     if composante.get("statut") == "CALCULE" and nombres.decimal_lu(montant) is not None:
@@ -448,14 +448,54 @@ def _comptes_a_payer_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
     codes = [
         str(m.get("code"))
         for m in constat.get("manque") or []
-        if isinstance(m, dict) and m.get("composante") == "comptes_a_payer"
+        if isinstance(m, dict) and m.get("composante") == composante_id
     ]
-    raison = "M5 n'a pas pu chiffrer les comptes à payer" + (f" (codes de M5 : {', '.join(codes)})" if codes else "")
+    raison = f"M5 n'a pas pu chiffrer {libelle}" + (f" (codes de M5 : {', '.join(codes)})" if codes else "")
     plancher = composante.get("plancher_cad")
     if plancher is not None:
         entrees["plancher_cad"] = plancher
         raison += f" ; le plancher connu ({plancher}) est un repère, jamais le total"
-    return _non_calculable([_manque("comptes_a_payer", source, raison)], entrees, instant)
+    return _non_calculable([_manque(composante_id, source, raison)], entrees, instant)
+
+
+def _comptes_a_payer_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    return _composante_du_cash_libre(reg, "comptes_a_payer", "les comptes à payer")
+
+
+def _solde_tresorerie_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    return _composante_du_cash_libre(reg, "solde", "le solde")
+
+
+def _taxes_a_remettre_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    return _composante_du_cash_libre(reg, "taxes_a_remettre", "les taxes à remettre")
+
+
+def _ecritures_en_attente(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    """Les brouillons d'écriture que M5 a préparés et qu'aucune personne n'a encore validés (N4), tels que le dernier
+    constat des mesures comptables les compte : un retard de validation, jamais une erreur."""
+    dernier = operations_recues.dernier_constat_comptable(reg["operations"])
+    if dernier is None:
+        return _non_calculable([_MANQUE_COMPTABLE])
+    instant = synthese.jour_en_instant(dernier.get("date_reference"))
+    nombre = dernier.get("brouillons_en_attente")
+    if type(nombre) is not int or nombre < 0:
+        return _non_calculable(
+            [
+                _manque(
+                    "brouillons_en_attente",
+                    "M5 (m5.mesures_comptables_constatees)",
+                    "le compte du constat est illisible",
+                )
+            ],
+            {"date_reference": dernier.get("date_reference")},
+            instant,
+        )
+    entrees = {
+        "date_reference": dernier["date_reference"],
+        "version_donnees": dernier["version_donnees"],
+        "empreinte_faits": _empreinte_faits([dernier]),
+    }
+    return str(nombre), entrees, [], instant, None, None
 
 
 # ---------------------------------------------------------------------------
@@ -726,6 +766,23 @@ def _receptions_avec_ecart(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
     )
 
 
+def _commandes_envoyees(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
+    commandes = _uniques(_de_type(reg["operations"], operations_recues.TYPE_COMMANDE), "po_id")
+    if not commandes:
+        return _non_calculable(
+            [
+                _manque(
+                    "m1.commande_courriel_envoyee",
+                    "M1 (m1.commande_courriel_envoyee)",
+                    "aucune commande envoyée reçue : aucun bon de commande n'est parti après l'approbation du sas, ou "
+                    "rien livré par le bus",
+                )
+            ]
+        )
+    entrees = {"empreinte_faits": _empreinte_faits(commandes)}
+    return str(len(commandes)), entrees, [], _plus_recent([c.get("envoye_le") for c in commandes]), None, None
+
+
 def _demandes_m1(reg: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
     return _uniques(_de_type(reg["contenus"], contenus.TYPE_LEAD_M1), "lead_id")
 
@@ -783,12 +840,16 @@ _CALCULS = {
     "m8_ecart_marge_cumule_cad": _ecart_marge_cumule_cad,
     "m8_creances_ouvertes_cad": _creances_ouvertes_cad,
     "m8_creances_90_jours_plus_cad": _creances_90_jours_plus_cad,
+    "m8_ecritures_en_attente": _ecritures_en_attente,
     "m8_comptes_a_payer_cad": _comptes_a_payer_cad,
+    "m8_solde_tresorerie_cad": _solde_tresorerie_cad,
+    "m8_taxes_a_remettre_cad": _taxes_a_remettre_cad,
     "m8_releves_depense_pub_cad": _releves_depense_pub_cad,
     "m8_conversions_hors_ligne": _conversions_hors_ligne,
     "m8_anomalies_depense_critiques": _anomalies_depense_critiques,
     "m8_ecart_depense_pub_comptabilisee_cad": _ecart_depense_pub_comptabilisee_cad,
     "m8_heures_sur_site_chantiers": _heures_sur_site_chantiers,
+    "m8_commandes_envoyees": _commandes_envoyees,
     "m8_receptions_materiaux": _receptions_materiaux,
     "m8_receptions_avec_ecart": _receptions_avec_ecart,
     "m8_demandes_qualifiees_m1": _demandes_qualifiees_m1,

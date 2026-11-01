@@ -17,7 +17,7 @@ Statut : tranche 1 (2026-11-01). Exigences : M8.2, M8.8, M8.11, M8.12, M8.14, M8
 registres des départements (faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre)      ← la vérité, inchangée
         │  moteurs gouvernés existants (entonnoir, contenus, mesures_chantier, cash_libre) + synthese.py (4 mesures d'entreprise)
         ▼
-moteur_mesures.lire(registres, catalogue)  →  18 mesures : valeur exacte (texte) | « non calculable », source, version de définition,
+moteur_mesures.lire(registres, catalogue)  →  38 mesures (18 + 20 interdépartements) : valeur exacte (texte) | « non calculable », source, version de définition,
         │                                        instant du dernier fait qui la porte, fenêtre de fraîcheur DÉCLARÉE
         ├── fraicheur_mesures  : a_jour | perime | inconnu | manquant | non_applicable   (la plus stricte des fenêtres)
         ├── wallboards (M8.8)  ├── sante (M8.11)  ├── copilote (M8.12)  ├── memoire → M10 (M8.18)
@@ -31,19 +31,19 @@ dépendent pas de lui : détruire l'entrepôt ne change aucune de leurs réponse
 
 ### Le catalogue fermé (`definitions/m8-catalogue.v1.yaml`)
 
-Dix-huit mesures d'ENTREPRISE (aucune personne : ni technicien, ni client, ni contact), chacune référençant une métrique gouvernée d'un
-registre existant (`m8-entonnoir`, `m8-contenus`, nouveau `m8-synthese`) : nom, unité, propriétaire et version de définition viennent d'elle,
+**Trente-huit** mesures d'ENTREPRISE (18 de la tranche 1, plus 20 alimentées par les constats de M1, M3, M4, M5, M6 et M7 : voir [`M8-ENTREPOT-SOURCES.md`](M8-ENTREPOT-SOURCES.md)) (aucune personne : ni technicien, ni client, ni contact), chacune référençant une métrique gouvernée d'un
+registre existant (`m8-entonnoir`, `m8-contenus`, `m8-synthese`, `m8-interdepartements`) : nom, unité, propriétaire et version de définition viennent d'elle,
 une seule fois. Le catalogue est validé en mode fermé (clé inconnue, énuméré hors liste, doublon, synonyme partagé, fenêtre invalide,
 métrique non définie : refus `REJ-CATALOGUE-…`). Sa `version_catalogue` est l'empreinte de sa forme canonique.
 
 | Domaine | Mesures |
 |---|---|
 | ventes | leads reçus et qualifiés, devis envoyés, acceptés, sans réponse, taux d'acceptation, carnet signé (financier) |
-| clientele | délai du lead à l'acceptation (indicateur indirect : aucune mesure de satisfaction n'existe, M1 plaintes n'est pas consommé par M8) |
-| marketing | contenus exportés, leads / devis envoyés / devis acceptés par contenu, impressions et clics (aucune source : toujours « non calculable ») |
-| operations | chantiers terminés, écart de durée de l'équipe (agrégat existant, jamais par technicien) |
-| qualite | chantiers avec signal critique de matériaux (le verdict de M6, compté) |
-| finance | cash libre (le dernier constat de M5, tel quel ; financier) |
+| clientele | délai du lead à l'acceptation (indicateur indirect : aucune mesure de satisfaction n'existe, M1 plaintes n'est pas consommé par M8) ; **interdépartements** : demandes qualifiées par M1 et **écart** avec les leads reçus par M2 |
+| marketing | contenus exportés, leads / devis envoyés / devis acceptés par contenu, impressions et clics (aucune source : toujours « non calculable ») ; **interdépartements** : somme des relevés de dépense publicitaire de M7 (jamais « la dépense »), conversions hors ligne, anomalies critiques, écart relevés / dépense comptabilisée (non calculable par construction) |
+| operations | chantiers terminés, écart de durée de l'équipe (agrégat existant, jamais par technicien) ; **interdépartements** : heures sur site (M4), réceptions de matériaux (M6), commandes envoyées (M1 pour M6) |
+| qualite | chantiers avec signal critique de matériaux (le verdict de M6, compté) ; **interdépartements** : réceptions avec écart (verdict de M6) |
+| finance | cash libre (le dernier constat de M5, tel quel ; financier) ; **interdépartements** : marge réelle cumulée, chantiers à marge chiffrée et en perte, écart de marge réelle (M5) contre prévue (M3), créances ouvertes et de 90 jours et plus, écritures en attente, comptes à payer, solde, taxes à remettre (tous repris de M5, couverture dite) |
 
 Les quatre mesures de synthèse (`synthese.py`, `metrics/m8-synthese.v1.yaml`) reprennent des résultats existants : aucun montant de M5 n'est
 recalculé. Une donnée absente est « non calculable, manque X », jamais un zéro (par exemple l'absence de `m3.devis_sans_reponse` rend ce compte
@@ -76,13 +76,13 @@ par décision d'architecte, et le dire est tout ce que M8 fait de plus.
 
 ## 2. M8.2 Entrepôt de données (`entrepot.py`, `entrepot_stockage.py`, migration 0046)
 
-Couche analytique DÉRIVÉE : jamais une source de vérité, reconstructible depuis les quatre registres, versionnée, avec fraîcheur et provenance par
+Couche analytique DÉRIVÉE : jamais une source de vérité, reconstructible depuis les cinq registres (`faits_chantier`, `faits_entonnoir`, `faits_contenus`, `faits_cash_libre`, `faits_operations`), versionnée, avec fraîcheur et provenance par
 mesure. Schéma en étoile dans la base de l'instance (SQLAlchemy Core, **portable SQLite et PostgreSQL**) :
 
 | Table | Rôle | Écriture |
 |---|---|---|
 | `m8_ent_constructions` | journal des constructions : `version_schema`, `version_catalogue`, `empreinte_registres`, instant, comptes | append |
-| `m8_ent_mesures_courantes` | mart : les 18 mesures, source, version de définition, dernier fait, fenêtre déclarée | remplacée en bloc |
+| `m8_ent_mesures_courantes` | mart : les 38 mesures, source, version de définition, dernier fait, fenêtre déclarée | remplacée en bloc |
 | `m8_ent_mesures_hist` | historique d'une mesure par construction | append |
 | `m8_ent_dim_chantier` | dimension : durées, verdict de matériaux, marge réelle de M5 (aucun technicien) | remplacée en bloc |
 | `m8_ent_dim_lead`, `m8_ent_fait_devis`, `m8_ent_mart_contenus` | dimension, fait, mart | remplacées en bloc |
@@ -239,7 +239,7 @@ l'affaire du déploiement ; l'adresse du client n'est pas journalisée (Loi 25, 
 
 ## 7. M8.18 Intégration mémoire (`memoire.py`, `m10_memoire/analytique.py`)
 
-* **Publier vers M10** : `m8_publier_faits_consolides` (N2) publie UN événement `m8.fait_consolide` (catalogue du socle, schéma fermé) : les 18 mesures (valeur ou null,
+* **Publier vers M10** : `m8_publier_faits_consolides` (N2) publie UN événement `m8.fait_consolide` (catalogue du socle, schéma fermé) : les 38 mesures (valeur ou null,
   unité, propriétaire, version de définition, dernier fait, fraîcheur), les **changements de définition** et les **anomalies** (`devenue_non_calculable`, `perimee`)
   depuis la consolidation précédente, avec l'empreinte des registres. Identifiant lié à l'état des registres et au catalogue : republier le même état rejoue la
   première enveloppe. **Aucune personne** (le catalogue du socle refuse un champ de plus).
@@ -292,6 +292,8 @@ sante:
   `tests/test_m8_memoire_m10.py`, `tests/test_console_wallboards.py`, `tests/test_wallboard_js.py`.
 
 ## 11. Ce qui reste (suivi explicite)
+
+* Décisions D1 à D7 de [`M8-ENTREPOT-SOURCES.md`](M8-ENTREPOT-SOURCES.md) §5 (dépense comptabilisée de M5, lectures croisées, factures émises, coût réel de M5 chez M8, volume de demandes, UTM → canal, fenêtres de fraîcheur).
 
 * Lecture réelle par Metabase/Superset/Grafana ; exécution du constructeur de l'entrepôt et des exports sur PostgreSQL ; DuckDB/Parquet (non installé).
 * Wallboard sur un écran de télé ; test avec lecteur d'écran ; autres navigateurs (le parcours Chromium réel est fait, voir ci-dessus).

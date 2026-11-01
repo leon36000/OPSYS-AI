@@ -21,12 +21,16 @@ proprietaires:
   m8_ecart_marge_cumule_cad: m05-financecore
   m8_creances_ouvertes_cad: m05-financecore
   m8_creances_90_jours_plus_cad: m05-financecore
+  m8_ecritures_en_attente: m05-financecore
   m8_comptes_a_payer_cad: m05-financecore
+  m8_solde_tresorerie_cad: m05-financecore
+  m8_taxes_a_remettre_cad: m05-financecore
   m8_releves_depense_pub_cad: m07-marketing
   m8_conversions_hors_ligne: m07-marketing
   m8_anomalies_depense_critiques: m07-marketing
   m8_ecart_depense_pub_comptabilisee_cad: m05-financecore
   m8_heures_sur_site_chantiers: m04-field-ops
+  m8_commandes_envoyees: m06-material-control
   m8_receptions_materiaux: m06-material-control
   m8_receptions_avec_ecart: m06-material-control
   m8_demandes_qualifiees_m1: m01-front-office
@@ -74,11 +78,32 @@ metrics:
     source_donnees: "M5 m5.mesures_comptables_constatees (creances.par_tranche, date_reference)"
     frequence: "à chaque constat des mesures comptables demandé à M5"
     consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_ecritures_en_attente
+    nom: "Écritures comptables en attente de validation"
+    definition: "Nombre de brouillons d'écriture que M5 a préparés et qu'aucune personne n'a encore validés, tel que le dernier constat des mesures comptables de M5 (m5.mesures_comptables_constatees : plus grande date de référence) le compte. C'est un retard de validation humaine (N4), pas une erreur ni un solde. Aucun constat reçu : non calculable. À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "écritures"
+    source_donnees: "M5 m5.mesures_comptables_constatees (brouillons_en_attente, date_reference)"
+    frequence: "à chaque constat des mesures comptables demandé à M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
   - id: m8_comptes_a_payer_cad
     nom: "Comptes à payer"
     definition: "La composante « comptes à payer » du dernier constat du cash libre de M5 (m5.cash_libre_constate : le constat de plus grand `sequence`), telle que M5 l'a publiée. Si M5 n'a pas pu la chiffrer, la mesure est non calculable et nomme le code de M5 ; le plancher que M5 connaît est dit, jamais pris pour le total. Aucun constat reçu : non calculable. À valider auprès d'un comptable (CPA) / professionnel qualifié."
     unite: "CAD"
     source_donnees: "M5 m5.cash_libre_constate (composantes.comptes_a_payer, manque, sequence, date_reference)"
+    frequence: "à chaque constat du cash libre demandé à M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_solde_tresorerie_cad
+    nom: "Solde de trésorerie"
+    definition: "Le solde que M5 a constaté en dernier (composante « solde » de m5.cash_libre_constate : le constat de plus grand `sequence`), tel que M5 l'a publié : aucun calcul. Ce n'est PAS de l'argent disponible : le cash libre (m8_cash_libre_cad) retranche les obligations. Si M5 n'a pas pu le chiffrer, non calculable avec le code de M5 ; le plancher connu est dit, jamais pris pour le solde. Aucun constat reçu : non calculable. À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.cash_libre_constate (solde, manque, sequence, date_reference)"
+    frequence: "à chaque constat du cash libre demandé à M5"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
+  - id: m8_taxes_a_remettre_cad
+    nom: "Taxes à remettre"
+    definition: "La composante « TPS/TVQ à remettre » du dernier constat du cash libre de M5 (m5.cash_libre_constate : le constat de plus grand `sequence`), telle que M5 l'a publiée : aucun calcul, aucun taux de M8. Si M5 n'a pas pu la chiffrer, non calculable avec le code de M5 ; le plancher connu est dit, jamais pris pour le total. Aucun constat reçu : non calculable. À valider auprès d'un comptable (CPA) / professionnel qualifié."
+    unite: "CAD"
+    source_donnees: "M5 m5.cash_libre_constate (composantes.taxes_a_remettre, manque, sequence, date_reference)"
     frequence: "à chaque constat du cash libre demandé à M5"
     consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"
   - id: m8_releves_depense_pub_cad
@@ -144,3 +169,10 @@ metrics:
     source_donnees: "M1 m1.lead_qualifie (lead_id) ; M2 m2.client_associe (lead_id)"
     frequence: "à chaque demande qualifiée par M1 ou lead reçu par M2"
     consommateur: "wallboard marketing, copilote analytique, entrepôt"
+  - id: m8_commandes_envoyees
+    nom: "Commandes de matériaux envoyées"
+    definition: "Nombre de bons de commande de M6 dont le courriel est parti, après l'approbation humaine du sas d'envoi de M1 (bon de commande distincts ; m1.commande_courriel_envoyee). M1 est le canal, M6 reste la source de vérité du bon de commande : M8 ne garde ni le brouillon, ni l'adresse, ni le fournisseur. Une commande créée mais non envoyée n'est pas comptée. Aucune commande envoyée reçue : non calculable."
+    unite: "commandes"
+    source_donnees: "M1 m1.commande_courriel_envoyee (po_id, envoye_le)"
+    frequence: "à chaque commande envoyée"
+    consommateur: "wallboard finance et opérations, copilote analytique, entrepôt"

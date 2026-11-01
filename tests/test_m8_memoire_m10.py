@@ -157,7 +157,7 @@ def test_m10_relit_la_derniere_valeur_memorisee_par_son_outil(instance, deps):
     lecture = m10.appeler("m10_lire_faits_analytiques", {"metric_id": "m8_taux_acceptation_pct"})
     assert lecture["ok"] is True and lecture["resultat"]["mesure"]["valeur"] == "50.00"
     page = m10.appeler("m10_lire_faits_analytiques", {"limite": 1})["resultat"]
-    assert page["total"] == 1 and page["consolidations"][0]["n_mesures"] == 34
+    assert page["total"] == 1 and page["consolidations"][0]["n_mesures"] == 38
     employe = contexte.IdentiteAppelante("employe.fictif", "employee")
     with contexte.appele_par_appareil(employe):
         refus = m10.appeler("m10_lire_faits_analytiques", {"limite": 1})

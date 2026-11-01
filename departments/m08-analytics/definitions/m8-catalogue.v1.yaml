@@ -224,3 +224,27 @@ mesures:
     sensibilite: agregat
     fraicheur: {fenetre_s: 86400}
     synonymes: ["demandes sans lead", "demandes de M1 sans lead chez M2", "demandes perdues entre M1 et M2"]
+  - metric_id: m8_commandes_envoyees
+    domaine: operations
+    sens: neutre
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["commandes envoyées", "commandes de matériaux envoyées", "bons de commande envoyés"]
+  - metric_id: m8_ecritures_en_attente
+    domaine: finance
+    sens: moins_est_mieux
+    sensibilite: agregat
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["écritures en attente", "écritures comptables en attente de validation", "brouillons d'écriture en attente"]
+  - metric_id: m8_solde_tresorerie_cad
+    domaine: finance
+    sens: plus_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["solde de trésorerie", "solde bancaire", "solde du compte"]
+  - metric_id: m8_taxes_a_remettre_cad
+    domaine: finance
+    sens: moins_est_mieux
+    sensibilite: financier
+    fraicheur: {fenetre_s: 86400}
+    synonymes: ["taxes à remettre", "TPS et TVQ à remettre", "taxes de vente à remettre"]
