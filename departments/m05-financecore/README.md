@@ -387,3 +387,14 @@ récupération ; amortissement d'un prêt (dont la convention canadienne compos�
 achat ; point mort ; tornade et scénarios ; Monte-Carlo à graine de la prévision M5.7 existante ; vérification et rejeu
 d'un reçu. Aucune écriture, aucun conseil en placement (garde NC 31-103). Formules, conventions, bornes, codes de refus
 et limites : [moteur de calcul](docs/moteur-calcul.md).
+
+## Base fiscale, validation de la paie, subventions, garde investissement
+
+Cinq outils T0 (N0), fermés aux appareils, en lecture et brouillon : `m5_lire_etat_base_fiscale`,
+`m5_lire_regle_fiscale` (mode `officiel` ou `essai` obligatoire), `m5_lire_statut_campagne_paie`,
+`m5_apparier_subventions` et `m5_verifier_demande_investissement` (garde NC 31-103). Statut honnête : la base de règles
+(`contracts/regles_fiscales.v1.yaml`, 62 valeurs migrées des constantes du dépôt, 9 paramètres « source officielle
+requise ») compte **0 valeur approuvée** par deux réviseurs distincts ; les calculateurs de paie ne la lisent pas encore
+(exposition en parallèle, équivalence testée) ; la campagne de validation de la paie est à **« campagne officielle :
+0/300 »** (18 cas de démonstration fictifs, jamais comptés) ; le catalogue de subventions est **vide**. Format,
+gouvernance, plan de bascule, limites : [BASE-FISCALE](../../docs/architecture/BASE-FISCALE.md).

@@ -1,0 +1,1034 @@
+# Cas de DÉMONSTRATION du harnais de validation de la paie (format cas_paie.v1).
+#
+# ATTENTION — AUCUN de ces cas n'est officiel. Chaque cas est `fictif_pour_tests_du_harnais` : les montants « attendus »
+# ont été produits par le moteur préparatoire lui-même (salaires arbitraires, cumuls simulés d'une année de paies), pour
+# prouver que le harnais rejoue et détecte un écart. Ils ne prouvent PAS que le moteur est juste. Le mode de
+# qualification les REFUSE. Les cas officiels (WebRAS / PDOC) vont dans validation_paie/cas_officiels/ ; il y en a 0.
+schema: cas_paie.v1
+cas:
+- id: demo-fictif-001
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-01-15'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 1
+    salaire_brut_periode: '1002.00'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '0.00'
+      rrq_palier1: '0.00'
+      rrq_palier2: '0.00'
+      rqap_salarie: '0.00'
+      rqap_employeur: '0.00'
+      ae_salarie: '0.00'
+      ae_employeur: '0.00'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '54.65'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '4.31'
+        outil: aucun
+      rqap_employeur:
+        montant: '6.03'
+        outil: aucun
+      ae_salarie:
+        montant: '13.03'
+        outil: aucun
+      ae_employeur:
+        montant: '18.24'
+        outil: aucun
+      impot_federal:
+        montant: '28.00'
+        outil: aucun
+      impot_quebec:
+        montant: '131.26'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-002
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-01-29'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 2
+    salaire_brut_periode: '1002.00'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '1002.00'
+      rrq_palier1: '54.65'
+      rrq_palier2: '0.00'
+      rqap_salarie: '4.31'
+      rqap_employeur: '6.03'
+      ae_salarie: '13.03'
+      ae_employeur: '18.24'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '54.65'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '4.31'
+        outil: aucun
+      rqap_employeur:
+        montant: '6.03'
+        outil: aucun
+      ae_salarie:
+        montant: '13.03'
+        outil: aucun
+      ae_employeur:
+        montant: '18.24'
+        outil: aucun
+      impot_federal:
+        montant: '28.00'
+        outil: aucun
+      impot_quebec:
+        montant: '131.26'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-003
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-02-12'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 3
+    salaire_brut_periode: '1002.00'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '2004.00'
+      rrq_palier1: '109.30'
+      rrq_palier2: '0.00'
+      rqap_salarie: '8.62'
+      rqap_employeur: '12.06'
+      ae_salarie: '26.06'
+      ae_employeur: '36.48'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '54.65'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '4.31'
+        outil: aucun
+      rqap_employeur:
+        montant: '6.03'
+        outil: aucun
+      ae_salarie:
+        montant: '13.03'
+        outil: aucun
+      ae_employeur:
+        montant: '18.24'
+        outil: aucun
+      impot_federal:
+        montant: '28.00'
+        outil: aucun
+      impot_quebec:
+        montant: '131.26'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-004
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-07-16'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 14
+    salaire_brut_periode: '1002.00'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '13026.00'
+      rrq_palier1: '710.45'
+      rrq_palier2: '0.00'
+      rqap_salarie: '56.03'
+      rqap_employeur: '78.39'
+      ae_salarie: '169.39'
+      ae_employeur: '237.12'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '54.65'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '4.31'
+        outil: aucun
+      rqap_employeur:
+        montant: '6.03'
+        outil: aucun
+      ae_salarie:
+        montant: '13.03'
+        outil: aucun
+      ae_employeur:
+        montant: '18.24'
+        outil: aucun
+      impot_federal:
+        montant: '28.00'
+        outil: aucun
+      impot_quebec:
+        montant: '131.26'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-005
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-01-15'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 1
+    salaire_brut_periode: '2350.50'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '0.00'
+      rrq_palier1: '0.00'
+      rrq_palier2: '0.00'
+      rqap_salarie: '0.00'
+      rqap_employeur: '0.00'
+      ae_salarie: '0.00'
+      ae_employeur: '0.00'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '139.60'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '10.11'
+        outil: aucun
+      rqap_employeur:
+        montant: '14.15'
+        outil: aucun
+      ae_salarie:
+        montant: '30.56'
+        outil: aucun
+      ae_employeur:
+        montant: '42.78'
+        outil: aucun
+      impot_federal:
+        montant: '177.18'
+        outil: aucun
+      impot_quebec:
+        montant: '327.29'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-006
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-07-02'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 13
+    salaire_brut_periode: '2350.50'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '28206.00'
+      rrq_palier1: '1675.20'
+      rrq_palier2: '0.00'
+      rqap_salarie: '121.32'
+      rqap_employeur: '169.80'
+      ae_salarie: '366.72'
+      ae_employeur: '513.36'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '139.60'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '10.11'
+        outil: aucun
+      rqap_employeur:
+        montant: '14.15'
+        outil: aucun
+      ae_salarie:
+        montant: '30.56'
+        outil: aucun
+      ae_employeur:
+        montant: '42.78'
+        outil: aucun
+      impot_federal:
+        montant: '177.18'
+        outil: aucun
+      impot_quebec:
+        montant: '327.29'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-007
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-07-16'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 14
+    salaire_brut_periode: '2350.50'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '30556.50'
+      rrq_palier1: '1814.80'
+      rrq_palier2: '0.00'
+      rqap_salarie: '131.43'
+      rqap_employeur: '183.95'
+      ae_salarie: '397.28'
+      ae_employeur: '556.14'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '139.60'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '10.11'
+        outil: aucun
+      rqap_employeur:
+        montant: '14.15'
+        outil: aucun
+      ae_salarie:
+        montant: '30.56'
+        outil: aucun
+      ae_employeur:
+        montant: '42.78'
+        outil: aucun
+      impot_federal:
+        montant: '177.18'
+        outil: aucun
+      impot_quebec:
+        montant: '327.29'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-008
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-01-15'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 1
+    salaire_brut_periode: '4875.75'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '0.00'
+      rrq_palier1: '0.00'
+      rrq_palier2: '0.00'
+      rqap_salarie: '0.00'
+      rqap_employeur: '0.00'
+      ae_salarie: '0.00'
+      ae_employeur: '0.00'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '298.69'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '20.97'
+        outil: aucun
+      rqap_employeur:
+        montant: '29.35'
+        outil: aucun
+      ae_salarie:
+        montant: '63.38'
+        outil: aucun
+      ae_employeur:
+        montant: '88.74'
+        outil: aucun
+      impot_federal:
+        montant: '615.66'
+        outil: aucun
+      impot_quebec:
+        montant: '831.92'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-009
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-05-07'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 9
+    salaire_brut_periode: '4875.75'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '39006.00'
+      rrq_palier1: '2389.52'
+      rrq_palier2: '0.00'
+      rqap_salarie: '167.76'
+      rqap_employeur: '234.80'
+      ae_salarie: '507.04'
+      ae_employeur: '709.92'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '298.69'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '20.97'
+        outil: aucun
+      rqap_employeur:
+        montant: '29.35'
+        outil: aucun
+      ae_salarie:
+        montant: '63.38'
+        outil: aucun
+      ae_employeur:
+        montant: '88.74'
+        outil: aucun
+      impot_federal:
+        montant: '615.66'
+        outil: aucun
+      impot_quebec:
+        montant: '831.92'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-010
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-01-15'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 1
+    salaire_brut_periode: '8500.00'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '0.00'
+      rrq_palier1: '0.00'
+      rrq_palier2: '0.00'
+      rqap_salarie: '0.00'
+      rqap_employeur: '0.00'
+      ae_salarie: '0.00'
+      ae_employeur: '0.00'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '527.02'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '36.55'
+        outil: aucun
+      rqap_employeur:
+        montant: '51.17'
+        outil: aucun
+      ae_salarie:
+        montant: '110.50'
+        outil: aucun
+      ae_employeur:
+        montant: '154.70'
+        outil: aucun
+      impot_federal:
+        montant: '1430.61'
+        outil: aucun
+      impot_quebec:
+        montant: '1750.35'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-011
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-04-23'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 8
+    salaire_brut_periode: '8500.00'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '59500.00'
+      rrq_palier1: '3689.14'
+      rrq_palier2: '0.00'
+      rqap_salarie: '255.85'
+      rqap_employeur: '358.19'
+      ae_salarie: '773.50'
+      ae_employeur: '1082.90'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '527.02'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '36.55'
+        outil: aucun
+      rqap_employeur:
+        montant: '51.17'
+        outil: aucun
+      ae_salarie:
+        montant: '110.50'
+        outil: aucun
+      ae_employeur:
+        montant: '154.70'
+        outil: aucun
+      impot_federal:
+        montant: '1430.61'
+        outil: aucun
+      impot_quebec:
+        montant: '1750.35'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-012
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-07-30'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 15
+    salaire_brut_periode: '8500.00'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '119000.00'
+      rrq_palier1: '4479.30'
+      rrq_palier2: '416.00'
+      rqap_salarie: '442.90'
+      rqap_employeur: '620.06'
+      ae_salarie: '895.70'
+      ae_employeur: '1253.98'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '0.00'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '0.00'
+        outil: aucun
+      rqap_employeur:
+        montant: '0.00'
+        outil: aucun
+      ae_salarie:
+        montant: '0.00'
+        outil: aucun
+      ae_employeur:
+        montant: '0.00'
+        outil: aucun
+      impot_federal:
+        montant: '1450.86'
+        outil: aucun
+      impot_quebec:
+        montant: '1771.89'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-013
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-10-08'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 20
+    salaire_brut_periode: '8500.00'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '161500.00'
+      rrq_palier1: '4479.30'
+      rrq_palier2: '416.00'
+      rqap_salarie: '442.90'
+      rqap_employeur: '620.06'
+      ae_salarie: '895.70'
+      ae_employeur: '1253.98'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '0.00'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '0.00'
+        outil: aucun
+      rqap_employeur:
+        montant: '0.00'
+        outil: aucun
+      ae_salarie:
+        montant: '0.00'
+        outil: aucun
+      ae_employeur:
+        montant: '0.00'
+        outil: aucun
+      impot_federal:
+        montant: '1450.86'
+        outil: aucun
+      impot_quebec:
+        montant: '1771.89'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-014
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-12-31'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 26
+    salaire_brut_periode: '8500.00'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '212500.00'
+      rrq_palier1: '4479.30'
+      rrq_palier2: '416.00'
+      rqap_salarie: '442.90'
+      rqap_employeur: '620.06'
+      ae_salarie: '895.70'
+      ae_employeur: '1253.98'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '0.00'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '0.00'
+        outil: aucun
+      rqap_employeur:
+        montant: '0.00'
+        outil: aucun
+      ae_salarie:
+        montant: '0.00'
+        outil: aucun
+      ae_employeur:
+        montant: '0.00'
+        outil: aucun
+      impot_federal:
+        montant: '1450.86'
+        outil: aucun
+      impot_quebec:
+        montant: '1771.89'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-015
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-01-15'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 1
+    salaire_brut_periode: '612.35'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '0.00'
+      rrq_palier1: '0.00'
+      rrq_palier2: '0.00'
+      rqap_salarie: '0.00'
+      rqap_employeur: '0.00'
+      ae_salarie: '0.00'
+      ae_employeur: '0.00'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '30.10'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '2.63'
+        outil: aucun
+      rqap_employeur:
+        montant: '3.69'
+        outil: aucun
+      ae_salarie:
+        montant: '7.96'
+        outil: aucun
+      ae_employeur:
+        montant: '11.14'
+        outil: aucun
+      impot_federal:
+        montant: '0.00'
+        outil: aucun
+      impot_quebec:
+        montant: '79.92'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-016
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-12-31'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 26
+    salaire_brut_periode: '612.35'
+    credit_personnel_federal_td1: '16452.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '15308.75'
+      rrq_palier1: '752.50'
+      rrq_palier2: '0.00'
+      rqap_salarie: '65.75'
+      rqap_employeur: '92.25'
+      ae_salarie: '199.00'
+      ae_employeur: '278.50'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '30.10'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '2.63'
+        outil: aucun
+      rqap_employeur:
+        montant: '3.69'
+        outil: aucun
+      ae_salarie:
+        montant: '7.96'
+        outil: aucun
+      ae_employeur:
+        montant: '11.14'
+        outil: aucun
+      impot_federal:
+        montant: '0.00'
+        outil: aucun
+      impot_quebec:
+        montant: '79.92'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-017
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-01-15'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 1
+    salaire_brut_periode: '3100.00'
+    credit_personnel_federal_td1: '0.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '0.00'
+      rrq_palier1: '0.00'
+      rrq_palier2: '0.00'
+      rqap_salarie: '0.00'
+      rqap_employeur: '0.00'
+      ae_salarie: '0.00'
+      ae_employeur: '0.00'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '186.82'
+        outil: aucun
+      rrq_palier2:
+        montant: '0.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '13.33'
+        outil: aucun
+      rqap_employeur:
+        montant: '18.66'
+        outil: aucun
+      ae_salarie:
+        montant: '40.30'
+        outil: aucun
+      ae_employeur:
+        montant: '56.42'
+        outil: aucun
+      impot_federal:
+        montant: '374.12'
+        outil: aucun
+      impot_quebec:
+        montant: '468.27'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null
+- id: demo-fictif-018
+  nature: fictif_pour_tests_du_harnais
+  entrees:
+    annee: 2026
+    date_paie: '2026-12-31'
+    province: QC
+    frequence: bihebdomadaire
+    periode_annuelle: 26
+    salaire_brut_periode: '3100.00'
+    credit_personnel_federal_td1: '0.00'
+    exemptions:
+      gratif_ou_retroactif: false
+      exemption_speciale: false
+      transfert_province: false
+      taux_ae_reduit: false
+      exonere: false
+    cumuls_avant:
+      salaire_rrq: '77500.00'
+      rrq_palier1: '4479.30'
+      rrq_palier2: '116.00'
+      rqap_salarie: '333.25'
+      rqap_employeur: '466.50'
+      ae_salarie: '895.70'
+      ae_employeur: '1253.98'
+  attendu:
+    lignes:
+      rrq_palier1:
+        montant: '0.00'
+        outil: aucun
+      rrq_palier2:
+        montant: '124.00'
+        outil: aucun
+      rqap_salarie:
+        montant: '13.33'
+        outil: aucun
+      rqap_employeur:
+        montant: '18.66'
+        outil: aucun
+      ae_salarie:
+        montant: '0.00'
+        outil: aucun
+      ae_employeur:
+        montant: '0.00'
+        outil: aucun
+      impot_federal:
+        montant: '357.97'
+        outil: aucun
+      impot_quebec:
+        montant: '450.34'
+        outil: aucun
+  source:
+    type: fictif_pour_tests_du_harnais
+    executions: []
+  saisie:
+    auteur: generateur.fictif
+    le: '2026-11-01'
+  revue: null

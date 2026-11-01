@@ -234,6 +234,7 @@ from . import (
     grand_livre,
     import_quickbooks,
     moteur_calcul,
+    outils_base_fiscale,
     plan_comptable,
     prevision,
     recu_calcul,
@@ -5650,7 +5651,7 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
     ) + (
         _outils_couts_marketing(lecteur_campagne_m7) if lecteur_campagne_m7 is not None else ()
     ) + _outils_obligations_preparees() + _outils_grand_livre() + _outils_import_quickbooks() + (
-        _outils_onboarding() + _outils_calcul()
+        _outils_onboarding() + _outils_calcul() + outils_base_fiscale.outils_base_fiscale()
     )
 
 
