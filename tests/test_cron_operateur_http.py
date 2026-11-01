@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy import create_engine, delete, insert, inspect, select, update
 from starlette.testclient import TestClient
 
-from opsys import agents, agents_cron_autorite, stockage
+from opsys import agents, agents_cron_autorite, serveur_mcp, stockage
 from opsys import agents_declencheurs as intentions
 from opsys.departements import charger_departements
 from opsys.serveur_mcp import application_http_departements
@@ -29,6 +29,13 @@ HASH_CAPACITE = hashlib.sha256(bytes.fromhex(CAPACITE)).hexdigest()
 
 @pytest.fixture
 def transport_cron(session, nathan, opsys_home, monkeypatch):
+    # Répartiteur de fond éteint, comme le dit la docstring du module (« sans scheduler
+    # exécuté ») et comme le font les autres transports HTTP du socle. Allumé, il relit
+    # `OPSYS_BASE_URL` à chaque tour (3 s) : quand un test bascule cette variable vers une
+    # base non migrée pendant que l'application est montée, un tour tombé dans cette fenêtre
+    # échoue (« no such table: evenements_sortants » ou « opsys_instance ») et casse le
+    # groupe de tâches du cycle de vie, donc l'arrêt du TestClient, en erreur de teardown.
+    monkeypatch.setenv(serveur_mcp.ENV_REPARTITEUR, "0")
     monkeypatch.delenv(stockage.ENV_URL, raising=False)
     monkeypatch.setenv("OPENCLAW_CONFIG_DIR", str(opsys_home / "core"))
     monkeypatch.setenv("OPSYS_CRON_OPERATEUR_JETON", JETON_OPERATEUR)
@@ -200,6 +207,24 @@ def test_base_canonique_changee_apres_montage_refuse_avant_ecriture(transport_cr
     assert response.status_code == 503 and response.json()["erreur"] == "base_canonique_modifiee"
     assert inspect(moteur_autre).get_table_names() == avant
     moteur_autre.dispose()
+
+
+@pytest.fixture
+def tours_repartiteur(monkeypatch):
+    """Signale tout tour du répartiteur de fond ; à demander AVANT `transport_cron`."""
+    from threading import Event
+
+    tour = Event()
+    monkeypatch.setattr(serveur_mcp.evenements, "repartir", lambda *_a, **_k: tour.set())
+    return tour
+
+
+def test_transport_cron_monte_sans_repartiteur_de_fond(tours_repartiteur, transport_cron):
+    """Garde de l'isolation ci-dessus : allumé, le répartiteur fait son premier tour dès le
+    montage et lirait la base de `OPSYS_BASE_URL` au moment du tour, pas celle du montage."""
+    client, intention_id, declaration, _ = transport_cron
+    assert _preparer(client, intention_id, declaration).status_code == 200
+    assert not tours_repartiteur.wait(0.5), "le répartiteur de fond tourne pendant le transport cron"
 
 
 def test_route_absente_sans_credential_operateur(transport_cron, monkeypatch):

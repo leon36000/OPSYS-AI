@@ -35,6 +35,7 @@ from . import (
     meteo,
     modeles,
     openclaw,
+    openclaw_refus,
     passerelle,
     stockage,
     taxonomie,
@@ -547,6 +548,20 @@ def _contexte_entreprise(specifications: list[tuple[str, list[str]]] | None) -> 
     return contexte
 
 
+def _consigner_etat_configuration(consigner) -> None:
+    """Consigne pour l'admin un refus (ou son rétablissement) de `openclaw configurer`.
+
+    Rejouée toutes les 300 s par `deploy/entrypoint.sh`, la commande échouerait sinon en boucle sans
+    autre trace que sa sortie d'erreur (`openclaw_refus`). Une panne du journal ne change ni le code de
+    sortie ni le refus : elle est seulement dite.
+    """
+    try:
+        with etat.session() as cnx:
+            consigner(cnx)
+    except Exception as exc:  # noqa: BLE001 — la consignation ne doit jamais masquer la génération
+        print(f"état de la configuration non consigné dans le journal ({type(exc).__name__})", file=sys.stderr)
+
+
 def cmd_openclaw(args: argparse.Namespace) -> int:
     if args.action == "bootstrap-serveur":
         from . import serveur_bootstrap
@@ -574,9 +589,15 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
                                     contexte_entreprise=_contexte_entreprise(args.contexte_entreprise) or None,
                                     affaire_par_session=args.affaire_par_session or (),
                                     origine_http_mcp_autorisee=args.autoriser_origine_http_mcp)
+    except openclaw.AvatarsRefuses as erreur:
+        categorie, message = erreur.categorie, str(erreur)
+        print(message, file=sys.stderr)
+        _consigner_etat_configuration(lambda cnx: openclaw_refus.consigner_refus(cnx, categorie, message))
+        return 2
     except ValueError as erreur:
         print(str(erreur), file=sys.stderr)
         return 2
+    _consigner_etat_configuration(openclaw_refus.consigner_retablissement)
     racine = openclaw.racine_si_absente(dossier)
     for nom, chemin in fichiers.items():
         print(f"{nom}: {chemin}")

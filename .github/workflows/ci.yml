@@ -276,6 +276,9 @@ jobs:
         env:
           PART: ${{ matrix.part }}
           PARTS: ${{ matrix.parts }}
+          # Sans cette variable, la fixture `campagne_gardes` saute la campagne (conftest M3) :
+          # ce job est le seul qui la qualifie, il ne doit jamais la sauter.
+          OPSYS_QUALIFIER_M3_MUTATIONS: "1"
         run: |
           set -euo pipefail
           fichier="departments/m03-estimation/tests/${{ matrix.fichier }}"

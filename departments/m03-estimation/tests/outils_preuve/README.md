@@ -74,7 +74,14 @@ durcissement, c'est une intention.
 
 ## Les gardes des outils sont éprouvées par des TESTS
 
-    pytest "departments/m03-estimation/tests/test_gardes_des_outils.py"
+    OPSYS_QUALIFIER_M3_MUTATIONS=1 pytest "departments/m03-estimation/tests/test_gardes_des_outils.py"
+
+Sans `OPSYS_QUALIFIER_M3_MUTATIONS=1`, les cas qui dépendent de la campagne (fixture
+`campagne_gardes`, `tests/conftest.py`) sont sautés avec cette raison ; les preuves structurelles
+du fichier tournent toujours. La campagne relance la suite M3 complète en sous-processus pour la
+référence et pour chaque mutation : plus de cent exécutions d'environ 50 s, plus d'une heure en
+série. Ce n'est pas un blocage, mais un `pytest departments/m03-estimation` qui l'incluait semblait
+figé vers son 14e cas. Le job CI `m03-preuves` pose la variable et répartit le fichier en huit parts.
 
 Un script `verifier_les_outils.py` de 350 lignes jouait ce rôle. Sept rondes de revue scellée
 l'ont amélioré — et à chaque itération il gagnait un défaut propre : deux variantes d'un même

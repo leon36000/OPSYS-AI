@@ -114,18 +114,22 @@ def test_refuse_ferme_si_plafond_entreprise_non_configure(session, departements_
         _reserve(cnx, departements_demo, "execution-0001", "call-key-0001", 20)
 
 
-def test_aggregat_usage_externe_superieur_i64_refuse_sans_overflow_sqlite(session, departements_demo):
-    from datetime import date
-
+def test_aggregat_usage_externe_superieur_i64_refuse_sans_overflow_sqlite(
+    session, departements_demo, monkeypatch,
+):
     from opsys.stockage.schema import USAGE_TOKENS
 
+    # Le budget est compté au jour UTC (`admission_agents._maintenant`). Un `date.today()`
+    # local déposait l'usage la veille dès 20 h à Toronto : la réservation passait alors,
+    # faute d'usage dans la fenêtre, et le test échouait chaque soir sans défaut de production.
+    maintenant = _horloge_budget_utc(monkeypatch)
     _setup(session, departements_demo)
     _policy(session)
     maximum = (1 << 63) - 1
     with session() as cnx:
         for modele in ("fournisseur-a", "fournisseur-b"):
             cnx.execute(USAGE_TOKENS.insert().values(
-                jour=date.today().isoformat(), departement="m09-demo", modele=modele,
+                jour=maintenant.date().isoformat(), departement="m09-demo", modele=modele,
                 appels=1, tokens_entree=maximum, tokens_sortie=0, tokens_cache_lus=0,
             ))
         with pytest.raises(admission_agents.AdmissionRefusee, match="budget"):
