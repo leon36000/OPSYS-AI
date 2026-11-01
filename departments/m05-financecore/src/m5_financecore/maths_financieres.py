@@ -54,7 +54,10 @@ _QUANTUM_DELAI = Decimal("0.0001")
 
 
 def au_cent(valeur: Decimal) -> Decimal:
-    return valeur.quantize(_CENT, rounding=ROUND_HALF_UP)
+    # Dans CONTEXTE (50 chiffres) et non dans celui de l'appelant : à 28 chiffres, un montant de plus de 26 chiffres
+    # entiers (projet à 50 ans à 100 % de croissance) levait `InvalidOperation` au lieu d'un résultat.
+    with localcontext(CONTEXTE):
+        return valeur.quantize(_CENT, rounding=ROUND_HALF_UP)
 
 
 # ------------------------------------------------------------------------------------------- valeurs et VAN
@@ -145,6 +148,13 @@ def _quantifier_tri(r: Decimal) -> Decimal:
     return valeur.copy_abs() if valeur == 0 else valeur
 
 
+def _encadre(f: Callable[[Decimal], Decimal], valeur: Decimal) -> bool:
+    """Vrai si la VAN change de signe (ou s'annule) entre `valeur − QUANTUM_TRI` et `valeur + QUANTUM_TRI` : la racine
+    est alors connue à un quantum près, même si le résidu |VAN(valeur)| dépasse la tolérance relative (là où la pente de
+    la VAN est de 1e14, un écart d'un quantum vaut déjà 1e-16)."""
+    return _signe(f(valeur - QUANTUM_TRI)) * _signe(f(valeur + QUANTUM_TRI)) <= 0
+
+
 def _grille_tri() -> list[Decimal]:
     """Grille déterministe de balayage : pas de 0,01 de −0,9999 à 1, puis ×1,1 jusqu'à 100."""
     points = [TAUX_MIN_TRI]
@@ -193,7 +203,7 @@ def tri(flux: Sequence[Decimal]) -> dict[str, Any]:
                 racine, iterations = _racine(f, df, TAUX_MIN_TRI, TAUX_MAX_TRI, f_bas)
             valeur = _quantifier_tri(racine)
             residu = f(valeur)
-            if abs(residu) > tolerance_van:
+            if abs(residu) > tolerance_van and not _encadre(f, valeur):
                 raise ArithmeticError(f"TRI : |VAN(TRI)| = {residu} dépasse la tolérance {tolerance_van}")
             return {**base, "statut": "UNIQUE", "tri": valeur, "racines": [valeur], "iterations": iterations,
                     "van_au_tri": format(residu, "E")}

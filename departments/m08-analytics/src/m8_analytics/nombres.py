@@ -17,18 +17,27 @@ SENS_AU_DESSUS = "au_dessus"
 SENS_AU_DESSOUS = "au_dessous"
 
 _CENTIEME = Decimal("0.01")
+# Ordre de grandeur lisible : de 1e-15 à 1e15 en valeur absolue (un montant de M5 plafonne à ~1e12). Au-delà, un nombre
+# fait lever `texte_decimal` (28 chiffres), `1e999999999` fait déborder le contexte et `1e-999999999` s'écrirait en un
+# milliard de caractères : il n'est pas « lisible », la mesure est non calculable et le dit.
+_ADJUSTED_MAX = 15
 
 
 def decimal_lu(valeur: Any) -> Decimal | None:
-    """Décimal fini lu d'un nombre ou d'un texte décimal ; ``None`` sinon (un booléen n'est pas un
-    nombre). Jamais une valeur par défaut."""
+    """Décimal fini lu d'un nombre ou d'un texte décimal, d'au plus 1e15 en valeur absolue et d'au moins 1e-15 s'il
+    n'est pas nul ; ``None`` sinon (un booléen n'est pas un nombre). Jamais une valeur par défaut. Un zéro à exposant
+    démesuré (``0E+999999``) est rendu comme le zéro tout court."""
     if valeur is None or isinstance(valeur, bool):
         return None
     try:
         lu = Decimal(str(valeur).strip())
-    except InvalidOperation:
+    except (InvalidOperation, ValueError):  # ValueError : un entier de plus de 4 300 chiffres refuse `str`
         return None
-    return lu if lu.is_finite() else None
+    if not lu.is_finite():
+        return None
+    if lu.is_zero():
+        return lu if abs(lu.as_tuple().exponent) <= _ADJUSTED_MAX else Decimal(0)
+    return lu if -_ADJUSTED_MAX <= lu.adjusted() <= _ADJUSTED_MAX else None
 
 
 def texte_decimal(valeur: Decimal) -> str:

@@ -86,7 +86,7 @@ def _texte_borne(valeur: Any, maximum: int) -> str | None:
 
 
 def _date(valeur: Any) -> date | None:
-    if not isinstance(valeur, str) or not _DATE.match(valeur):
+    if not isinstance(valeur, str) or not _DATE.fullmatch(valeur):
         return None
     try:
         return date.fromisoformat(valeur)
@@ -272,9 +272,24 @@ def preparer_relances(
             "statut": "BROUILLON",
             "envoi": "non_envoye : l'envoi appartient à M1 et passe par l'approbation humaine",
         }
+        # L'identité d'une relance est (facture, niveau, échéance, montant dû) : `jours_retard`, `date_reference` et
+        # `texte` (qui cite le retard) changent chaque jour sans que ce soit une autre relance.
         resultat, refus = operations_registre.ajouter_operation(
-            registre_ops, etat_ops, "op_relance_preparee", f"relance:{ident}:{niveau}", corps, horodatage
+            registre_ops, etat_ops, "op_relance_preparee", f"relance:{ident}:{niveau}", corps, horodatage,
+            hors_identite=("jours_retard", "date_reference", "texte"),
         )
+        if refus is not None and refus["code"] == "REJ-OPS-DOUBLON":
+            # Le montant dû (note de crédit) ou l'échéance (politique) a changé depuis la relance de ce niveau : elle
+            # n'est jamais récrite, et elle ne bloque pas les autres factures du lot ; on le DIT.
+            ignorees.append(
+                {
+                    "facture_id": ident,
+                    "code": refus["code"],
+                    "detail": f"relance de niveau {niveau} déjà préparée pour un autre montant dû ou une autre "
+                    "échéance : jamais récrite, à reprendre à la main ou au niveau suivant",
+                }
+            )
+            continue
         if refus is not None:
             return None, refus
         if resultat["statut"] == "deja":
@@ -376,7 +391,7 @@ def proposer_note_credit(
         jour_facture = facture.get("date_facture") if _date(facture.get("date_facture")) else None
     if not isinstance(ident, str) or jour_facture is None:
         return None, _verdict("REJ-OPS-ENTREE-INVALIDE", "facture sans identifiant ou sans date lisible")
-    ref = reference if isinstance(reference, str) and _REFERENCE.match(reference) else None
+    ref = reference if isinstance(reference, str) and _REFERENCE.fullmatch(reference) else None
     if ref is None:
         return None, _verdict("REJ-OPS-ENTREE-INVALIDE", "reference : numéro de la note (lettres, chiffres, . _ : / -)")
     texte_motif = _texte_borne(motif, 300)
@@ -536,8 +551,8 @@ def proposer_depense_employe(
     refus = _horodatage_valide(horodatage)
     if refus is not None:
         return None, refus
-    employe = employe_id if isinstance(employe_id, str) and _IDENTIFIANT.match(employe_id) else None
-    ref = reference if isinstance(reference, str) and _REFERENCE.match(reference) else None
+    employe = employe_id if isinstance(employe_id, str) and _IDENTIFIANT.fullmatch(employe_id) else None
+    ref = reference if isinstance(reference, str) and _REFERENCE.fullmatch(reference) else None
     texte_description = _texte_borne(description, 120)
     if employe is None or ref is None or texte_description is None or not isinstance(categorie, str):
         return None, _verdict(
@@ -683,7 +698,7 @@ def lier_piece(
         return None, _verdict("REJ-OPS-PIECE-INVALIDE", f"cible_type parmi {', '.join(_CIBLES_PIECE)} et cible_id")
     if cible_id not in set(cibles_connues.get(cible_type, ())):
         return None, _verdict("REJ-OPS-PIECE-INTROUVABLE", f"{cible_type} {cible_id!r} absent du registre de M5")
-    if not isinstance(sha256, str) or not _SHA256.match(sha256):
+    if not isinstance(sha256, str) or not _SHA256.fullmatch(sha256):
         return None, _verdict("REJ-OPS-PIECE-INVALIDE", "sha256 : 64 caractères hexadécimaux minuscules")
     nom_propre = _texte_borne(nom, 120)
     if (

@@ -1,5 +1,5 @@
 import math
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Context, Decimal, localcontext
 
 CLES_MONETAIRES_INTERDITES = frozenset({
     "cout_unitaire",
@@ -118,3 +118,39 @@ def montant_decimal_a_la_frontiere(montant_m6):
         raise ValueError(f"montant M6 non fini, conversion Decimal refusée : {montant_m6!r}")
     return Decimal(str(montant_m6))
 
+
+
+# Domaine monétaire de M5 (`facturation._MONTANT_MAX`) : au-delà, un montant ne se facture ni ne s'approuve.
+_PLAFOND_DOMAINE = Decimal("999999999999.99")
+_AU_CENT = Decimal("0.01")
+
+
+def montant_ligne_au_cent(prix_unitaire, quantite):
+    """`prix_unitaire × quantite` au CENT (ROUND_HALF_UP), calculé en décimal exact sur la représentation décimale des
+    nombres M6 (`Decimal(str(x))`, jamais le bruit binaire du produit de deux float : 4,35 × 100 = 434,99999999999994),
+    rendu en float (contrat gelé M6). `None` si un opérande n'est pas un nombre fini (un booléen n'en est pas un) ou si
+    le montant sort du domaine monétaire de M5 (999 999 999 999,99 $) : jamais `inf`, jamais un montant inventé."""
+    for operande in (prix_unitaire, quantite):
+        if isinstance(operande, bool) or not isinstance(operande, (int, float)):
+            return None
+        if isinstance(operande, float) and not math.isfinite(operande):
+            return None
+    try:
+        with localcontext(Context(prec=120)):
+            produit = Decimal(str(prix_unitaire)) * Decimal(str(quantite))
+            if produit.adjusted() > 11:
+                return None
+            montant = produit.quantize(_AU_CENT, rounding=ROUND_HALF_UP)
+    except ValueError:  # entier démesuré que `str` refuse de lire
+        return None
+    if montant.copy_abs() > _PLAFOND_DOMAINE:
+        return None
+    return float(montant)
+
+
+def somme_montants_au_cent(montants):
+    """La somme EXACTE de montants au cent (float M6) : en décimal, puis rendue en float. `0.3 + 0.6 + 435.0` en float
+    donne 435.90000000000003."""
+    with localcontext(Context(prec=120)):
+        total = sum((Decimal(str(montant)) for montant in montants), Decimal(0))
+        return float(total.quantize(_AU_CENT, rounding=ROUND_HALF_UP))

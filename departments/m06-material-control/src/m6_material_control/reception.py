@@ -13,7 +13,7 @@ sinon un PO de 0,3 ne serait jamais complet.
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from . import catalogue
+from . import catalogue, contrats_sortie
 
 
 def _verdict_depuis_ecarts(ecarts) -> str:
@@ -64,13 +64,15 @@ def traiter_reception(bon_demande, reception_po, catalogue_fourni, registre):
 
         quantite_demandee = ligne_demandee["quantite_demandee"]
         quantite_recue = recues_par_materiau[materiau_id]
-        ecart = quantite_recue - quantite_demandee
+        # Décimal exact (comme `evaluer_cumul`) : 3,3 − 3,0 est 0,3, pas 0,2999999999999998.
+        ecart = float(Decimal(str(quantite_recue)) - Decimal(str(quantite_demandee)))
         resolution_prix = catalogue.resoudre_prix(
             materiau_id, catalogue_fourni, registre
         )
         cout_unitaire_resolu = resolution_prix["cout_unitaire_resolu"]
+        # Au cent, en décimal exact ; hors du domaine monétaire, la ligne est INDÉTERMINÉE (None), jamais `inf`.
         montant_ligne = (
-            cout_unitaire_resolu * quantite_recue
+            contrats_sortie.montant_ligne_au_cent(cout_unitaire_resolu, quantite_recue)
             if cout_unitaire_resolu is not None
             else None
         )
@@ -92,7 +94,7 @@ def traiter_reception(bon_demande, reception_po, catalogue_fourni, registre):
     verdict_reception = _verdict_depuis_ecarts([ligne["ecart"] for ligne in lignes])
 
     montant_total_estime = (
-        sum(ligne["montant_ligne"] for ligne in lignes)
+        contrats_sortie.somme_montants_au_cent([ligne["montant_ligne"] for ligne in lignes])
         if all(ligne["montant_ligne"] is not None for ligne in lignes)
         else None
     )

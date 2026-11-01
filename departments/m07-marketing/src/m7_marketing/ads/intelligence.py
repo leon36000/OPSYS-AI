@@ -94,7 +94,8 @@ def _analyser_campagne(plateforme: str, campagne: dict, active_ids: set[str]) ->
     else:
         verdicts.append(_mk_verdict("AD-04", "conforme", f"conversions={conversions}"))
 
-    if budget > 0 and cout > budget:
+    # Une dépense sans budget (budget nul) est le pire dépassement, pas un cas « conforme ».
+    if cout > budget:
         verdicts.append(
             _mk_verdict(
                 "AD-05",

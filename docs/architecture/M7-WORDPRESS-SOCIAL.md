@@ -236,6 +236,35 @@ plus strict que N3). Le niveau de l'outil doit être EXACTEMENT celui que la pub
 (`REJ-SOCIAL-NIVEAU-INSUFFISANT`), un N4 refuse une publication organique. Décideur : `nathan_owner` seulement
 (`department.yaml` : `n3` et `n4`).
 
+### Deux exécuteurs, une annulation, une horloge : ce que la revue adverse (app-01, -02, -04) a fermé
+
+Les exécuteurs travaillent HORS transaction sur un journal durable : chaque lecture et chaque écriture ouvre la sienne, et le
+rang d'un maillon est celui du journal AU MOMENT de l'écriture. Trois défauts en découlaient, tous prouvés par un exploit
+rouge avant le correctif (`tests/test_revue_adverse_app_wordpress_course.py`,
+`departments/m07-marketing/tests/sas_social/test_revue_adverse_*.py`) :
+
+- **Une approbation consommée deux fois.** Entre la vérification et la consignation du jeton (WordPress : un appel au site
+  entre les deux) ou de la `tentative` (social), un second exécuteur (bail expiré, second processus) pouvait écrire le sien :
+  deux jetons, deux publications. `journal_chaine.ajouter(..., rang_attendu=)` est une comparaison-échange : le rang est lu
+  AVANT l'état et l'écriture est refusée si le journal a bougé (`ConcurrenceJournal`, aussi pour un journal durable). Refus
+  typés : `REJ-WP-APPROBATION-DEJA-UTILISEE`, `REJ-SOCIAL-EXECUTEUR-CONCURRENT`. Rien n'est envoyé sur un refus.
+- **Un registre empoisonné.** Un maillon impossible depuis l'état courant rend le journal incohérent POUR TOUJOURS (plus aucune
+  lecture, tous articles confondus ; le journal est append-only). Les écritures qui suivent un appel réseau (`publie`, `echec`,
+  `echec de transmission`) ou qui reposent sur un instantané de début de tour ne sont plus faites que si la publication est
+  encore dans l'état attendu (`consigner_publication`, `consigner_echec`, `consigner_echec_transmission`,
+  `sas_social.executeur._consigner_issue`), sous la même comparaison-échange. Une annulation posée PENDANT une sortie est
+  permise (c'est le frein d'urgence) : le registre dit alors la vérité (`publie` malgré l'annulation, jeton parti ou tentative
+  ouverte), il ne devient pas incohérent. `annule` sans jeton ni tentative ouverte reste terminal.
+- **Une approbation dont l'agent choisit l'heure.** Exécuté par la file, un outil recevait l'`horodatage` ARGUMENT de la
+  demande, que l'agent dépose : `emis_le`/`expire_le` (« valable une heure ») et le délai minimal d'une planification en
+  dépendaient. L'heure faisant foi est maintenant celle de la décision (`approbations.instant_de_la_decision_en_cours`, lue
+  en base comme `approbateur_en_cours`), ou celle de la réception pour un appel d'appareil.
+
+Limites, sans euphémisme : une comparaison-échange globale au registre échoue aussi quand une AUTRE publication écrit entre-temps
+(refus sans effet, le tour suivant reprend) ; le plugin WordPress réel n'a pas été exercé ; les ports WordPress et réseaux
+sociaux ne sont toujours pas raccordés en production. `studio_outils` et `usine` datent encore leurs journaux d'après l'argument
+(aucune validité n'en dépend aujourd'hui).
+
 ### Idempotence et pannes
 
 Même clé sur le même compte et même contenu = la même publication (identifiant déterministe) ; même clé et autre contenu =

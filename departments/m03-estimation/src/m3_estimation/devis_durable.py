@@ -88,7 +88,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation, localcontext
 from typing import Any
 
 from . import verdicts
@@ -110,6 +110,12 @@ __all__ = [
 ]
 
 _DEUX_DECIMALES = Decimal("0.01")
+# Même domaine monétaire que M5 (`facturation._MONTANT_MAX`) : au-delà, un devis accepté ne pourrait pas devenir une
+# facture. Il borne aussi la quantité, le coût unitaire et chaque montant de ligne, ainsi que les totaux.
+_MONTANT_MAX = Decimal("999999999999.99")
+# Taux de marge (markup sur le coût) : 1 000 = +100 000 %. Borne de validation d'entrée, pas une valeur d'affaires :
+# elle écarte l'exposant démesuré, la borne de domaine des montants faisant le reste.
+_TAUX_MARGE_MAX = Decimal("1000")
 
 STATUTS_DEVIS = ("brouillon", "envoye", "accepte")
 _STATUTS_AVANT_ENVOI = ("brouillon",)
@@ -195,7 +201,18 @@ def texte_vers_taux_marge(taux_marge: Any) -> tuple[Decimal | None, dict | None]
         return None, verdicts.construire_verdict(
             "REJ-DEVIS-TAUX-MARGE-INVALIDE", detail=f"taux_marge doit être strictement supérieur à -1 (donné : {taux})"
         )
+    if taux > _TAUX_MARGE_MAX:
+        return None, verdicts.construire_verdict(
+            "REJ-DEVIS-TAUX-MARGE-INVALIDE", detail=f"taux_marge doit être au plus {_TAUX_MARGE_MAX} (donné : {taux})"
+        )
     return taux, None
+
+
+def _contexte_exact(*facteurs: Decimal) -> Context:
+    """Un contexte `decimal` assez précis pour que le produit des `facteurs` (et un « 1 + » devant l'un d'eux) soit
+    EXACT avant l'arrondi au cent, quel que soit le contexte de l'appelant (28 chiffres par défaut)."""
+    chiffres = sum(len(facteur.as_tuple().digits) + 2 for facteur in facteurs)
+    return Context(prec=max(32, chiffres + 4))
 
 
 def prix_depuis_cout(cout: Decimal, taux_marge: Decimal) -> Decimal:
@@ -205,7 +222,8 @@ def prix_depuis_cout(cout: Decimal, taux_marge: Decimal) -> Decimal:
     réutilise TELLE QUELLE pour dériver ``prix_recommande`` depuis les bornes de l'intervalle de
     coût Monte Carlo (PLAN T2.3, reste de T2.3-b : séparer coût et prix sans dupliquer la logique
     de prix)."""
-    return (cout * (Decimal("1") + taux_marge)).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
+    with localcontext(_contexte_exact(cout, taux_marge)):
+        return (cout * (Decimal("1") + taux_marge)).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
 
 
 def _valider_ligne(
@@ -254,9 +272,21 @@ def _valider_ligne(
     # quantite, arrondi une seconde fois — exactement l'ordre que la facture M5 rejouera plus tard
     # depuis le seul prix_unitaire qu'elle connaît (montant = quantite x prix_unitaire, arrondi une
     # fois).
-    cout_ligne = (cout_unitaire * quantite).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
+    if quantite > _MONTANT_MAX or cout_unitaire > _MONTANT_MAX:
+        return None, verdicts.construire_verdict(
+            "REJ-DEVIS-LIGNE-INVALIDE",
+            detail=f"ligne {index} : quantite et cout_unitaire doivent être au plus {_MONTANT_MAX}",
+        )
+    with localcontext(_contexte_exact(cout_unitaire, quantite)):
+        cout_ligne = (cout_unitaire * quantite).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
     prix_unitaire = prix_depuis_cout(cout_unitaire, taux_marge)
-    prix_ligne = (prix_unitaire * quantite).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
+    with localcontext(_contexte_exact(prix_unitaire, quantite)):
+        prix_ligne = (prix_unitaire * quantite).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
+    if cout_ligne > _MONTANT_MAX or prix_ligne > _MONTANT_MAX:
+        return None, verdicts.construire_verdict(
+            "REJ-DEVIS-LIGNE-INVALIDE",
+            detail=f"ligne {index} : montant de ligne au-delà de {_MONTANT_MAX}",
+        )
 
     ligne = LigneDevis(
         reference_ligne=f"{devis_id}-L{index}",
@@ -343,6 +373,10 @@ def calculer_lignes_devis(lignes, taux_marge, devis_id):
         # somme) : la somme de valeurs à exactement 2 décimales reste exacte à 2 décimales.
         cout_total += ligne.cout_ligne
         prix_total += ligne.prix_ligne
+    if cout_total > _MONTANT_MAX or prix_total > _MONTANT_MAX:
+        return None, verdicts.construire_verdict(
+            "REJ-DEVIS-LIGNE-INVALIDE", detail=f"total du devis au-delà de {_MONTANT_MAX}"
+        )
 
     return {"lignes": [dataclasses.asdict(ligne) for ligne in lignes_validees],
             "taux_marge": taux, "cout_total": cout_total, "prix_total": prix_total}, None

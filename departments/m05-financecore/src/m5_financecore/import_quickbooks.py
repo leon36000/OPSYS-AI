@@ -146,6 +146,8 @@ _MONTANT_MAX = Decimal("999999999999.99")
 _ENTETE_RECHERCHE_MAX = 40
 _XLSX_MEMBRES_MAX = 2_000
 _XLSX_OCTETS_DECOMPRESSES_MAX = 60 * 1024 * 1024
+_COLONNES_MAX = 16_384  # dernière colonne d'un classeur (« XFD ») : au-delà, la rangée serait construite à vide
+_EXPOSANT_CELLULE_MAX = 18  # au plus 19 chiffres entiers : bien au-delà de _MONTANT_MAX (12 chiffres)
 _PIECE = "import_quickbooks"
 TABLE_SYNONYMES_VERSION = "qbo-synonymes-v1"
 
@@ -345,6 +347,8 @@ def _colonne_excel(reference: str) -> int:
     index = 0
     for lettre in lettres.group(0):
         index = index * 26 + (ord(lettre) - 64)
+        if index > _COLONNES_MAX:
+            raise ValueError("colonne hors des limites d'un classeur")
     return index - 1
 
 
@@ -356,6 +360,10 @@ def _nombre_excel(valeur: str) -> str:
     except InvalidOperation:
         return valeur
     if not nombre.is_finite():
+        return valeur
+    if nombre.adjusted() > _EXPOSANT_CELLULE_MAX:
+        # Ni un montant ni un numéro de série de date : rendu tel quel, la lecture du montant le refusera. Sans cette
+        # borne, `int(1E+99999999)` calcule pendant des minutes et `quantize` de plus de 28 chiffres lève.
         return valeur
     if nombre == nombre.to_integral_value():
         return str(int(nombre))

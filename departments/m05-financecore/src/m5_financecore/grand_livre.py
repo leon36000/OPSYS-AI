@@ -64,7 +64,8 @@ _CENT = Decimal("0.01")
 _ZERO = Decimal("0.00")
 _MONTANT_MAX = Decimal("999999999999.99")
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_PERIODE = re.compile(r"^(\d{4})-(\d{2})$")
+# ASCII et `fullmatch` : `$` accepte un « \n » final et `\d` les chiffres Unicode (« ２０２６-０１ »).
+_PERIODE = re.compile(r"(\d{4})-(\d{2})", re.ASCII)
 _LIBELLE_MAX = 200
 _REFERENCE_MAX = 120
 _LIGNES_MAX = 50
@@ -108,7 +109,7 @@ def _texte_borne(valeur: Any, maximum: int) -> str | None:
 
 
 def _date(valeur: Any) -> date | None:
-    if not isinstance(valeur, str) or not _DATE.match(valeur):
+    if not isinstance(valeur, str) or not _DATE.fullmatch(valeur):
         return None
     try:
         return date.fromisoformat(valeur)
@@ -128,7 +129,7 @@ def _horodatage_valide(horodatage: Any) -> dict[str, str] | None:
 
 def fin_de_periode(periode: Any) -> date | None:
     """Le dernier jour du mois `AAAA-MM`, ou `None` si la période est mal formée."""
-    correspondance = _PERIODE.match(periode) if isinstance(periode, str) else None
+    correspondance = _PERIODE.fullmatch(periode) if isinstance(periode, str) else None
     if correspondance is None:
         return None
     annee, mois = int(correspondance.group(1)), int(correspondance.group(2))
@@ -609,7 +610,10 @@ def proposer_contre_passation(
               for ligne in originale["lignes"]]
     return proposer_ecriture(
         registre_cible, plan,
-        cle_piece=f"contre_passation:{originale['ecriture_id']}",
+        # La clé porte la date et l'empreinte du motif : le même geste est idempotent, mais un brouillon mal daté ou mal
+        # motivé (jamais supprimable, registre append-only) se REPREND par un autre brouillon au lieu d'un conflit sans
+        # issue. Un seul des deux peut devenir définitif (`REJ-GL-DEJA-CONTRE-PASSEE` à la validation du second).
+        cle_piece=f"contre_passation:{originale['ecriture_id']}:{jour.isoformat()}:{encodage.empreinte(texte_motif)[:12]}",
         piece=originale["piece"],
         nature="contre_passation",
         date_effet=date_effet,

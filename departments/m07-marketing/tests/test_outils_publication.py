@@ -46,6 +46,9 @@ def base(tmp_path, monkeypatch):
     monkeypatch.setenv(stockage.ENV_URL, url)
     monkeypatch.setenv("OPSYS_HOME", str(tmp_path / "opsys-home"))
     stockage.migrer(url)
+    # L'heure d'une décision est celle du SERVEUR (`approbations.instant_de_la_decision_en_cours`, revue app-04) et non
+    # l'`horodatage` déposé par l'agent : le test fixe l'horloge du serveur à l'instant de ses données.
+    monkeypatch.setattr(approbations, "_maintenant", lambda: HORODATAGE)
     with stockage.transaction() as cnx:
         identite.creer_personne(cnx, "nathan", "Propriétaire fictif", "mot-de-passe-test-1234", ["nathan_owner"])
         identite.creer_personne(cnx, "gestion", "Gestionnaire fictif", "mot-de-passe-test-1234", ["admin"])

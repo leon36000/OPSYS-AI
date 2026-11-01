@@ -43,6 +43,21 @@ class ErreurEmbeddings(RuntimeError):
         self.http_status = http_status
 
 
+class _SansRedirection(urllib.request.HTTPRedirectHandler):
+    """Aucune redirection suivie : `urllib` renverrait l'en-tête `Authorization` (la clé) à l'hôte désigné par un
+    serveur compromis ; un 3xx est un refus (`HTTPError`), jamais un saut silencieux."""
+
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+_OUVREUR = urllib.request.build_opener(_SansRedirection())
+
+
+def _ouvrir(requete: urllib.request.Request, delai_s: float):
+    return _OUVREUR.open(requete, timeout=delai_s)  # noqa: S310 — http(s) vérifié par ClientEmbeddings
+
+
 @dataclasses.dataclass(frozen=True)
 class EmbeddingsProfil:
     vecteurs: tuple[tuple[float, ...], ...]
@@ -149,7 +164,7 @@ class ClientEmbeddings:
         racine = self.base_url[:-3] if self.base_url.endswith("/v1") else self.base_url
         requete = urllib.request.Request(f"{racine}/healthz", headers=entetes, method="GET")
         try:
-            with urllib.request.urlopen(requete, timeout=self.delai_s) as reponse:  # noqa: S310 - URL validée
+            with _ouvrir(requete, self.delai_s) as reponse:
                 brut = reponse.read(8193)
                 if len(brut) > 8192:
                     raise ErreurEmbeddings("handshake du provider trop volumineux")
@@ -208,7 +223,7 @@ class ClientEmbeddings:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(requete, timeout=self.delai_s) as reponse:  # noqa: S310 - http(s) vérifié
+            with _ouvrir(requete, self.delai_s) as reponse:
                 brut = reponse.read(MAX_REPONSE_OCTETS + 1)
                 if len(brut) > MAX_REPONSE_OCTETS:
                     raise ErreurEmbeddings(f"réponse d'embeddings supérieure à {MAX_REPONSE_OCTETS} octets")

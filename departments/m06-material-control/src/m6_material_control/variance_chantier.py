@@ -25,6 +25,8 @@ Règles dures (DEFINITION-PRODUIT.md §7 M6, « Règles dures », et M6.12 l.515
   Le seuil de criticité est TOUJOURS fourni par l'appelant, jamais codé en dur ici.
 """
 
+from decimal import Decimal
+
 from . import contrats_sortie, validation
 
 # Types de ligne (contrats.TYPES_LIGNE_MATERIAUX_UTILISES) qui augmentent la quantité
@@ -34,11 +36,17 @@ from . import contrats_sortie, validation
 _TYPES_EN_SORTIE_NETTE = frozenset({"prevu", "non_prevu", "achat_terrain", "perte", "bris"})
 
 
+def _dec(quantite) -> Decimal:
+    """La quantité (nombre JSON, donc float) en décimal EXACT, par sa représentation décimale — comme `stock.py` : 0,1 +
+    0,2 doit valoir 0,3 et un écart de 10 % doit rester exactement 10 %."""
+    return Decimal(str(quantite))
+
+
 def _quantite_nette_declaree(materiau_id, lignes_declarees) -> tuple[float, str | None, bool]:
     """Somme les lignes déclarées pour un matériau : sortie nette (prevu/non_prevu/
     achat_terrain/perte/bris) moins les retours. Renvoie aussi l'unité déclarée et si
     elle est ambiguë (plus d'une unité distincte pour le même matériau_id)."""
-    total = 0.0
+    total = Decimal(0)
     unites: set[str] = set()
 
     for ligne in lignes_declarees:
@@ -46,13 +54,13 @@ def _quantite_nette_declaree(materiau_id, lignes_declarees) -> tuple[float, str 
             continue
         unites.add(ligne["unite"])
         if ligne["type_ligne"] in _TYPES_EN_SORTIE_NETTE:
-            total += ligne["quantite"]
+            total += _dec(ligne["quantite"])
         elif ligne["type_ligne"] == "retour":
-            total -= ligne["quantite"]
+            total -= _dec(ligne["quantite"])
 
     unite = next(iter(unites)) if len(unites) == 1 else None
     unite_ambigue = len(unites) > 1
-    return total, unite, unite_ambigue
+    return float(total), unite, unite_ambigue
 
 
 def _indetermine(materiau_id, quantite_estimee, quantite_reelle) -> dict:
@@ -77,22 +85,26 @@ def _verdict_neutre(materiau_id, unite, quantite_estimee, quantite_reelle) -> di
     la MÊME unité (ou dont l'unité est simplement inconnue, PLAN T1.1-d2). Partagé par
     `comparer` (lignes_declarees explicites) et `comparer_depuis_registre` (mouvements
     persistés, qui ne portent pas d'unité)."""
-    ecart = quantite_reelle - quantite_estimee
+    # Écart et ratio en décimal EXACT (un float donnait 0,09999999999999994 pour 10 % et un faux écart pour 0,1 + 0,2 vs
+    # 0,3) ; le contrat de sortie reste un float, celui du nombre décimal le plus proche du résultat exact.
+    estimee_exacte, reelle_exacte = _dec(quantite_estimee), _dec(quantite_reelle)
+    ecart_exact = reelle_exacte - estimee_exacte
+    ecart = float(ecart_exact)
 
     if quantite_estimee == 0 and quantite_reelle > 0:
         verdict_variance = "NON_PREVU"
     elif quantite_estimee > 0 and quantite_reelle == 0:
         verdict_variance = "NON_UTILISE"
-    elif ecart == 0:
+    elif ecart_exact == 0:
         verdict_variance = "AUCUN_ECART"
-    elif ecart > 0:
+    elif ecart_exact > 0:
         verdict_variance = "ECART_REEL_SUPERIEUR"
     else:
         verdict_variance = "ECART_REEL_INFERIEUR"
 
     # Ratio non défini quand rien n'était estimé (division par zéro) : None, jamais une
     # valeur fabriquée (0 ou infini) — cohérent avec le reste du paquet (DA-M6-09).
-    ecart_pourcentage = abs(ecart) / quantite_estimee if quantite_estimee > 0 else None
+    ecart_pourcentage = float(abs(ecart_exact) / estimee_exacte) if quantite_estimee > 0 else None
 
     return {
         "materiau_id": materiau_id,
@@ -151,7 +163,7 @@ def _quantite_reelle_depuis_registre(chantier_id, materiau_id, wct_id, registre)
     registre : CONSOMMATION/PERTE/BRIS sont stockés négatifs (materiel.py), RETOUR
     positif — la somme signée négée donne directement la même quantité que
     `_quantite_nette_declaree` calculerait depuis les lignes déclarées d'origine."""
-    total_signe = 0.0
+    total_signe = Decimal(0)
     for mouvement in registre.lire():
         if (
             mouvement.get("type_mouvement") in _TYPES_MOUVEMENT_REEL_DECLARE
@@ -159,8 +171,8 @@ def _quantite_reelle_depuis_registre(chantier_id, materiau_id, wct_id, registre)
             and mouvement.get("materiau_id") == materiau_id
             and (wct_id is None or mouvement.get("wct_id") == wct_id)
         ):
-            total_signe += mouvement["quantite"]
-    return -total_signe
+            total_signe += _dec(mouvement["quantite"])
+    return float(-total_signe)
 
 
 def comparer_depuis_registre(besoins_estimes, chantier_id, registre, wct_id=None) -> list[dict]:

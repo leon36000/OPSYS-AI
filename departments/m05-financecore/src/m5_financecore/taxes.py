@@ -56,6 +56,13 @@ def calculer_taxes(montant_avant_taxes, dictionnaire_taux, ids_taux=_IDS_TAXES_Q
             "REJ-MOUVEMENT-MONTANT-INVALIDE",
             detail=f"montant_avant_taxes hors domaine (maximum { _MONTANT_MAX })",
         )
+    if montant_avant_taxes.as_tuple().exponent < -2:
+        # Un montant de facture n'a pas de fraction de cent : accepter 100.005 rendrait un total après taxes à trois
+        # décimales (114.985), et choisir un arrondi en silence serait décider à la place de l'appelant.
+        return None, validation.construire_verdict(
+            "REJ-MOUVEMENT-MONTANT-INVALIDE",
+            detail="montant_avant_taxes doit être au cent près (deux décimales au plus)",
+        )
 
     with localcontext(_CONTEXTE_MONETAIRE):
         detail_taxes = []

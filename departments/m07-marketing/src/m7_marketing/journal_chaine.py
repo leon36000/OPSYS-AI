@@ -34,6 +34,11 @@ class Journal(Protocol):
         """Parcourt les maillons du plus ancien au plus récent."""
 
 
+class ConcurrenceJournal(RuntimeError):
+    """Le journal a changé depuis la lecture sur laquelle repose l'écriture (`rang_attendu` périmé) : rien n'est
+    écrit."""
+
+
 def _json(valeur: Any) -> str:
     return json.dumps(valeur, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
@@ -46,16 +51,34 @@ def maillons(journal: Iterable[Any]) -> list[dict[str, Any]]:
     return [dict(m) for m in journal]
 
 
-def ajouter(journal: Journal, type_maillon: str, donnees: Mapping[str, Any], horodatage: str) -> dict[str, Any]:
-    """Écrit un maillon et le rend. `donnees` ne peut pas redéfinir `rang`, `type`, `horodatage` ni `chaine`."""
+def ajouter(
+    journal: Journal, type_maillon: str, donnees: Mapping[str, Any], horodatage: str, *, rang_attendu: int | None = None
+) -> dict[str, Any]:
+    """Écrit un maillon et le rend. `donnees` ne peut pas redéfinir `rang`, `type`, `horodatage` ni `chaine`.
+
+    `rang_attendu` (comparaison-échange) : le nombre de maillons que l'appelant a LU AVANT de décider d'écrire.
+    Une écriture qui consomme quelque chose (jeton d'approbation, tentative d'envoi) le donne : si un autre exécuteur
+    a écrit entre la lecture et ici, `ConcurrenceJournal` est levée (aussi pour un journal durable) et rien n'est
+    écrit. Sans lui, le rang est celui du journal au moment de l'écriture et deux exécuteurs qui ont lu le même état
+    écrivent chacun le leur."""
     collision = CLES_RESERVEES & set(donnees)
     if collision:
         raise ValueError(f"clés réservées du journal : {sorted(collision)}")
     taille = len(journal)
+    if rang_attendu is not None and taille != rang_attendu:
+        raise ConcurrenceJournal(f"rang attendu {rang_attendu} devenu {taille}")
     precedent = journal[-1]["chaine"] if taille else GENESE
     corps = {"rang": taille, "type": type_maillon, "horodatage": horodatage, **donnees}
     maillon = {**corps, "chaine": _chaine(precedent, corps)}
-    journal.append(maillon)
+    if rang_attendu is None or isinstance(journal, list):
+        journal.append(maillon)  # liste pure (tests) : un seul fil, la comparaison ci-dessus a suffi
+    else:
+        try:
+            journal.append(maillon, rang_attendu=rang_attendu)  # journal durable : la vérification est refaite en base
+        except RuntimeError as exc:
+            if type(exc).__name__ == "EcritureConcurrente":  # opsys.stockage : ce module n'importe rien d'opsys
+                raise ConcurrenceJournal(str(exc)) from exc
+            raise
     return maillon
 
 

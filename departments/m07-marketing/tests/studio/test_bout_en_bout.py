@@ -74,8 +74,11 @@ def _codes(resultat):
 
 
 @pytest.fixture
-def monde(base):
+def monde(base, monkeypatch):
     """Instance migrée + polices épinglées + marque + fournisseur d'image conforme sélectionné + comptes sociaux."""
+    # L'heure d'une décision est celle du SERVEUR (`approbations.instant_de_la_decision_en_cours`, revue app-04) et non
+    # l'`horodatage` déposé par l'agent : le test fixe l'horloge du serveur à l'instant de ses données.
+    monkeypatch.setattr(approbations, "_maintenant", lambda: HORODATAGE)
     f.ecrire_polices(base / "studio" / "polices")
     registre_marque.enregistrer(PROFIL_MARQUE, "nathan", HORODATAGE)
     with stockage.transaction() as cnx:

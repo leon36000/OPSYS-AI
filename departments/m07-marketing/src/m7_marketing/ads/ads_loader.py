@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import yaml
@@ -15,6 +16,20 @@ REQUIRED_FIELDS = {
     "conversions",
 }
 ALLOWED_PLATFORMS = {"google_ads", "meta"}
+# Montants en dollars (nombre fini, zéro ou plus) et comptes (entiers, zéro ou plus) : un booléen n'est ni l'un
+# ni l'autre.
+CHAMPS_MONTANTS = ("budget", "cout")
+CHAMPS_COMPTES = ("impressions", "clics", "conversions")
+
+
+def _nombre_fini_positif(valeur) -> bool:
+    return (
+        not isinstance(valeur, bool) and isinstance(valeur, (int, float)) and math.isfinite(valeur) and valeur >= 0
+    )
+
+
+def _compte_valide(valeur) -> bool:
+    return not isinstance(valeur, bool) and isinstance(valeur, int) and valeur >= 0
 
 
 def load_fixture(path: str) -> dict:
@@ -46,6 +61,14 @@ def load_fixture(path: str) -> dict:
         missing = sorted(REQUIRED_FIELDS - set(campagne.keys()))
         if missing:
             raise ValueError(f"champs campagne manquants: {', '.join(missing)}")
+        # Présence ne suffit pas : un budget texte levait TypeError, un coût NaN rendait tous les verdicts
+        # « conformes ».
+        for champ in CHAMPS_MONTANTS:
+            if not _nombre_fini_positif(campagne[champ]):
+                raise ValueError(f"{champ} invalide (attendu: nombre fini, zéro ou plus)")
+        for champ in CHAMPS_COMPTES:
+            if not _compte_valide(campagne[champ]):
+                raise ValueError(f"{champ} invalide (attendu: entier, zéro ou plus)")
         normalized.append(dict(campagne))
 
     return {

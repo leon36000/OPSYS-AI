@@ -33,10 +33,11 @@ _CANAUX_VALIDES = {"telephone", "courriel", "formulaire", "texte"}
 
 
 def _canonical_material(entree: dict) -> bytes:
-    """Retourne le JSON canonique des champs hors lignee_id, precedent_ligne_id, hash."""
+    """Retourne le JSON canonique des champs hors ligne_id et precedent_ligne_id (les deux seuls champs de chaîne :
+    tout autre champ, `hash` compris, est couvert par l'empreinte)."""
     contenu = {}
     for k, v in entree.items():
-        if k not in ("ligne_id", "precedent_ligne_id", "hash"):
+        if k not in ("ligne_id", "precedent_ligne_id"):
             contenu[k] = v
     return json.dumps(
         contenu, sort_keys=True, ensure_ascii=False, default=str

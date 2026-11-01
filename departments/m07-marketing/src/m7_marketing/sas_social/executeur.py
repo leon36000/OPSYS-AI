@@ -41,6 +41,7 @@ REJ_ECHEANCE_DEPASSEE = "REJ-SOCIAL-ECHEANCE-DEPASSEE"
 REJ_TENTATIVES_EPUISEES = "REJ-SOCIAL-TENTATIVES-EPUISEES"
 REJ_ERREUR_ADAPTATEUR = "REJ-SOCIAL-ERREUR-ADAPTATEUR"
 REJ_REPRISE = "REJ-SOCIAL-REPRISE-IMPOSSIBLE"
+REJ_CONCURRENCE = "REJ-SOCIAL-EXECUTEUR-CONCURRENT"
 DETAIL_MAX = 300
 
 
@@ -93,8 +94,11 @@ def _ecrire_echec(
     incertain: bool,
     horodatage: str,
 ) -> None:
-    journal_chaine.ajouter(
+    """Consigne un échec, seulement si la publication est encore en cours de sortie (`_consigner_issue`) : une
+    annulation ou la conclusion d'un autre exécuteur, écrite depuis la lecture de l'état, n'est pas défaite."""
+    _consigner_issue(
         journal,
+        publication_id,
         etats.MAILLON_ECHEC,
         {
             "publication_id": publication_id,
@@ -111,6 +115,30 @@ def _refus(code: str, detail: str) -> dict[str, Any]:
     return {"accepte": False, "publie": False, "refus": [{"code": code, "chemin": "$", "detail": detail}]}
 
 
+def _consigner_issue(
+    journal: Any, publication_id: str, type_maillon: str, donnees: dict[str, Any], horodatage: str
+) -> bool:
+    """Consigne l'ISSUE d'une tentative (`publiee` ou `echec`) si la publication est encore en cours de sortie.
+
+    Deux exécuteurs peuvent conclure la même tentative (l'un attend le réseau, l'autre retrouve le message après un bail
+    repris) : une seconde conclusion (`publie` -> `publie`, `publie` -> `echec`) rendrait le registre incohérent pour
+    toujours. Rend True si CE appel a écrit. Comparaison-échange sur le rang lu avant l'état ; si elle échoue ou si la
+    publication est déjà conclue, rien n'est écrit : la tentative reste « incertaine » et le prochain tour la retrouve
+    (`retrouver`), jamais une republication à l'aveugle."""
+    rang = len(journal)
+    tous, refus = service.charger(journal)
+    courant = None if refus is not None else tous.get(publication_id)
+    if courant is None or not (
+        courant.etat == etats.PLANIFIE or (courant.etat == etats.ANNULE and courant.incertain)
+    ):
+        return False
+    try:
+        journal_chaine.ajouter(journal, type_maillon, donnees, horodatage, rang_attendu=rang)
+    except journal_chaine.ConcurrenceJournal:
+        return False
+    return True
+
+
 def _ecrire_publiee(
     journal: Any,
     courant: EtatPublication,
@@ -120,8 +148,9 @@ def _ecrire_publiee(
     *,
     retrouvee: bool,
 ) -> dict[str, Any]:
-    journal_chaine.ajouter(
+    _consigner_issue(
         journal,
+        courant.publication_id,
         etats.MAILLON_PUBLIEE,
         {
             "publication_id": courant.publication_id,
@@ -152,6 +181,24 @@ def executer(
     maintenant: datetime,
     actifs: portes.Resolveur | None = None,
 ) -> dict[str, Any]:
+    """Une tentative de publication (voir `_executer`). Si un autre exécuteur (bail expiré, second processus) ou une
+    annulation a écrit entre la lecture de l'état et une écriture qui en dépend, rien n'est envoyé ni écrit : refus
+    `REJ_CONCURRENCE`, l'état est relu au prochain tour."""
+    try:
+        return _executer(journal, publication_id, adaptateurs, fournisseur_secret, politique, maintenant, actifs)
+    except journal_chaine.ConcurrenceJournal:
+        return _refus(REJ_CONCURRENCE, "le journal a changé pendant les contrôles : état relu au prochain tour")
+
+
+def _executer(
+    journal: Any,
+    publication_id: str,
+    adaptateurs: Mapping[str, AdaptateurReseau],
+    fournisseur_secret: FournisseurSecret,
+    politique: PolitiqueSas,
+    maintenant: datetime,
+    actifs: portes.Resolveur | None = None,
+) -> dict[str, Any]:
     """Une tentative de publication. Rend `{accepte, publie, ...}` ou `{accepte: False, publie: False, refus}`.
 
     `actifs` : résolveur du registre des actifs du studio créatif ; le contrôle est refait à la sortie, comme tout
@@ -162,6 +209,9 @@ def executer(
     d'écrire sur le réseau (jamais pour un refus), enregistré au masquage pendant l'appel, et n'entre jamais au
     journal."""
     horodatage = modele.en_instant(maintenant)
+    # Le rang est lu AVANT l'état : `tentative` (qui consomme l'approbation) exige que le journal n'ait pas bougé
+    # depuis.
+    rang_lu = len(journal)
     tous, refus = service.charger(journal)
     if refus is not None:
         return {**refus, "publie": False}
@@ -255,6 +305,7 @@ def executer(
             "cle_idempotence": courant.cle_idempotence,
         },
         horodatage,
+        rang_attendu=rang_lu,
     )
     with fournisseur_secret() as jeton:
         masquage.enregistrer(jeton)
@@ -304,6 +355,7 @@ def executer(
 def reprendre(journal: Any, publication_id: str, politique: PolitiqueSas, horodatage: str) -> dict[str, Any]:
     """echec -> planifie, SEULEMENT pour un échec transitoire et tant que les tentatives ne sont pas épuisées. L'heure
     approuvée reste la même (la tolérance de retard s'applique)."""
+    rang_lu = len(journal)  # avant l'état : la reprise exige que le journal n'ait pas bougé depuis
     tous, refus = service.charger(journal)
     if refus is not None:
         return refus
@@ -317,5 +369,10 @@ def reprendre(journal: Any, publication_id: str, politique: PolitiqueSas, horoda
     # message sorti).
     if courant.tentatives >= politique.tentatives_max and not courant.incertain:
         return service._refus(REJ_REPRISE, "$.publication_id", "tentatives épuisées")
-    journal_chaine.ajouter(journal, etats.MAILLON_REPRISE, {"publication_id": publication_id}, horodatage)
+    try:
+        journal_chaine.ajouter(
+            journal, etats.MAILLON_REPRISE, {"publication_id": publication_id}, horodatage, rang_attendu=rang_lu
+        )
+    except journal_chaine.ConcurrenceJournal:
+        return service._refus(REJ_REPRISE, "$.publication_id", "la publication a changé pendant la lecture : relire")
     return {"accepte": True, "publication_id": publication_id, "etat": etats.PLANIFIE}

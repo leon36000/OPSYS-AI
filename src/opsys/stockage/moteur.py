@@ -3,8 +3,9 @@
 - `dossier_opsys()` : racine `OPSYS_HOME` (défaut `~/.opsys`) — la base par défaut, l'ancien
   `etat.db` (migration, voir `opsys.etat`) et les fichiers de configuration y vivent tous.
 - URL : `OPSYS_BASE_URL`, sinon SQLite `opsys.db` dans ce dossier.
-- SQLite : WAL, clés étrangères, attente de 5 s sur verrou, `BEGIN IMMEDIATE` (l'écrivain prend le
-  verrou dès le début : pas d'échec de promotion lecture → écriture entre deux processus).
+- SQLite : WAL, clés étrangères, déclencheurs récursifs (sans eux, `INSERT OR REPLACE` supprime la ligne en conflit
+  SANS déclencher les `BEFORE DELETE` d'immuabilité des journaux), attente de 5 s sur verrou, `BEGIN IMMEDIATE`
+  (l'écrivain prend le verrou dès le début : pas d'échec de promotion lecture → écriture entre deux processus).
 - `transaction()` ouvre une transaction, ou un point de sauvegarde si une transaction est déjà en
   cours dans ce contexte : un échec interne n'annule que sa part. Une autre base explicitement
   demandée est refusée avant toute écriture : elle ne peut pas rejoindre la transaction courante.
@@ -67,7 +68,10 @@ def _preparer_sqlite(connexion_dbapi, _enregistrement) -> None:
     # Le pilote sqlite3 ne gère plus les transactions : SQLAlchemy les pilote (événement « begin »).
     connexion_dbapi.isolation_level = None
     curseur = connexion_dbapi.cursor()
-    for pragma in ("journal_mode=WAL", "foreign_keys=ON", "busy_timeout=5000", "synchronous=NORMAL"):
+    # recursive_triggers=ON : un REPLACE qui supprime une ligne en conflit fait alors déclencher les `BEFORE DELETE`
+    # (journaux et registres immuables) ; à OFF (défaut SQLite) il les contournerait en silence.
+    for pragma in ("journal_mode=WAL", "foreign_keys=ON", "recursive_triggers=ON", "busy_timeout=5000",
+                   "synchronous=NORMAL"):
         curseur.execute(f"PRAGMA {pragma}")
     fichier = next((ligne[2] for ligne in curseur.execute("PRAGMA database_list") if ligne[1] == "main"), "")
     curseur.close()

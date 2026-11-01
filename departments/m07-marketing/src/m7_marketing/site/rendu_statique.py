@@ -24,6 +24,7 @@ import re
 import struct
 from collections.abc import Mapping, Sequence
 from typing import Any
+from xml.etree import ElementTree
 
 from .schema_site import chemin_page, refus
 
@@ -180,6 +181,44 @@ _SVG_ACTIF = re.compile(
 )
 
 
+_BLANCS_IGNORES = re.compile("[\x00-\x20\x7f-\xa0\u1680\u180e\u2000-\u200f\u2028\u2029\u202f\u205f\u3000\ufeff]")
+_SCHEMAS_REFUSES = ("javascript:", "vbscript:", "data:", "http:", "https:", "//")
+_CSS_EXTERNE = re.compile(r"url\([\"']?(?:https?:|//|javascript:|data:)|@import")
+_ELEMENTS_ACTIFS = frozenset({"script", "foreignobject", "iframe", "embed", "object", "handler", "listener"})
+
+
+def _svg_actif(texte: str) -> bool:
+    """Vrai si le SVG porte quelque chose d'actif ou d'externe. Le texte brut est d'abord passé au crible
+    (`_SVG_ACTIF`), puis le XML est LU : une entité (`&#106;avascript:`), une tabulation dans le schéma ou un élément
+    d'animation qui vise `href` échappent à une simple recherche de motifs, pas au navigateur qui décode d'abord."""
+    if _SVG_ACTIF.search(texte) or re.search(r"<!DOCTYPE|<!ENTITY", texte, re.IGNORECASE):
+        return True
+    try:
+        racine = ElementTree.fromstring(texte)
+    except ElementTree.ParseError:
+        return False  # pas du XML : aucun navigateur ne l'exécute, et `dimensions_image` le refusera comme format
+    for element in racine.iter():
+        etiquette = element.tag.rsplit("}", 1)[-1].lower() if isinstance(element.tag, str) else ""
+        if etiquette in _ELEMENTS_ACTIFS:
+            return True
+        if etiquette == "style" and _CSS_EXTERNE.search(_BLANCS_IGNORES.sub("", element.text or "").lower()):
+            return True
+        cible_animee = (element.get("attributeName") or "").rsplit(":", 1)[-1].lower()
+        for nom, valeur in element.attrib.items():
+            nom_court = nom.rsplit("}", 1)[-1].lower()
+            net = _BLANCS_IGNORES.sub("", valeur).lower()
+            if nom_court.startswith("on"):
+                return True
+            visee = nom_court in {"href", "src"} or (
+                etiquette in {"set", "animate"} and nom_court in {"to", "values", "from", "by"}
+                and (cible_animee in {"href", "src"} or cible_animee.startswith("on")))
+            if visee and net.startswith(_SCHEMAS_REFUSES):
+                return True
+            if _CSS_EXTERNE.search(net):
+                return True
+    return False
+
+
 def dimensions_image(contenu: bytes, fichier: str) -> tuple[int, int] | None:
     """(largeur, hauteur) lues dans le fichier lui-même (attributs de la racine SVG, en-tête IHDR d'un PNG)."""
     if fichier.endswith(".png"):
@@ -210,7 +249,7 @@ def verifier_actifs(schema: Mapping[str, Any], actifs: Mapping[str, bytes]) -> l
         if contenu is None:
             resultat.append(refus(REJ_IMAGE_ABSENTE, chemin, f"fichier {fichier} non fourni"))
             continue
-        if fichier.endswith(".svg") and _SVG_ACTIF.search(contenu.decode("utf-8", errors="replace")):
+        if fichier.endswith(".svg") and _svg_actif(contenu.decode("utf-8", errors="replace")):
             resultat.append(refus(REJ_IMAGE_ACTIVE, chemin, "SVG avec script, gestionnaire ou ressource externe"))
             continue
         dimensions = dimensions_image(contenu, fichier)

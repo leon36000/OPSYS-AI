@@ -128,10 +128,14 @@ def analyser_montant(brut: str) -> tuple[Decimal | None, str | None]:
     if not texte or not re.fullmatch(r"[0-9.,]+", texte):
         return None, "invalide"
     if "," in texte and "." in texte:
-        if texte.rfind(",") > texte.rfind("."):  # 1.234,56 : la virgule est décimale
-            texte = texte.replace(".", "").replace(",", ".")
-        else:  # 1,234.56
-            texte = texte.replace(",", "")
+        # Le dernier séparateur est le décimal, l'autre ne peut être que celui des milliers : des groupes de TROIS
+        # chiffres (« 1.234,56 », « 1,234,567.89 »). « 1.23,45 » ou « 12,34,56.78 » ne sont pas des montants.
+        dernier = max(texte.rfind(","), texte.rfind("."))
+        milliers = "." if texte.rfind(",") > texte.rfind(".") else ","
+        entiere = texte[:dernier]
+        if not re.fullmatch(rf"[0-9]{{1,3}}(?:{re.escape(milliers)}[0-9]{{3}})+", entiere):
+            return None, "ambigu"
+        texte = entiere.replace(milliers, "") + "." + texte[dernier + 1 :]
     elif "," in texte:
         morceaux = texte.split(",")
         if len(morceaux) == 2 and 1 <= len(morceaux[1]) <= 2 and morceaux[0] != "":

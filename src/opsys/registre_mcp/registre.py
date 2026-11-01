@@ -178,11 +178,27 @@ def _empreinte_revision(revision: int, entrees: Mapping[str, Mapping[str, Any]],
                  "precedent": precedent})
 
 
-def _sceau(empreinte: str, revision: int, par: str, le: str, cle: bytes | None) -> dict[str, str]:
+def _empreinte_historique(historique: Iterable[Mapping[str, Any]]) -> str:
+    """Empreinte de TOUTES les fiches d'historique (qui a scellé, quand, quels outils ajoutés, modifiés, retirés)."""
+    return _sha([dict(fiche) for fiche in historique])
+
+
+def _sceau(empreinte: str, revision: int, par: str, le: str, cle: bytes | None,
+           historique: Iterable[Mapping[str, Any]] | None = None) -> dict[str, str]:
+    """Sceau de la révision. Avec `historique`, le sceau porte aussi l'empreinte des fiches (champ `historique`, dans
+    la charge scellée) : retoucher une fiche sans la clé casse le HMAC. Sans lui, c'est le sceau d'avant (lisible)."""
     charge = f"{empreinte}|{revision}|{par}|{le}"
+    marque = None
+    if historique is not None:
+        marque = _empreinte_historique(historique)
+        charge += f"|{marque}"
     if cle is None:
-        return {"algo": "sha256", "valeur": hashlib.sha256(charge.encode()).hexdigest()}
-    return {"algo": "hmac-sha256", "valeur": hmac.new(cle, charge.encode(), hashlib.sha256).hexdigest()}
+        sceau = {"algo": "sha256", "valeur": hashlib.sha256(charge.encode()).hexdigest()}
+    else:
+        sceau = {"algo": "hmac-sha256", "valeur": hmac.new(cle, charge.encode(), hashlib.sha256).hexdigest()}
+    if marque is not None:
+        sceau["historique"] = marque
+    return sceau
 
 
 def sceller(definitions: Iterable[DefinitionOutil], ancien: Registre | None, *, par: str, maintenant: dt.datetime,
@@ -241,8 +257,9 @@ def sceller(definitions: Iterable[DefinitionOutil], ancien: Registre | None, *, 
     fiche = {"revision": revision, "par": par, "le": le, "ajoutes": ajoutes, "modifies": modifies,
              "niveaux_changes": sorted(set(niveaux)), "retires": retires, "outils": len(entrees),
              "empreinte_registre": empreinte, "precedent": ancien.empreinte if ancien else None}
-    return Registre(revision, entrees, (*(ancien.historique if ancien else ()), fiche), par, le, empreinte,
-                    _sceau(empreinte, revision, par, le, cle))
+    historique = (*(ancien.historique if ancien else ()), fiche)
+    return Registre(revision, entrees, historique, par, le, empreinte,
+                    _sceau(empreinte, revision, par, le, cle, historique))
 
 
 # --- Lecture, écriture, intégrité ------------------------------------------------------------------------------------
@@ -276,6 +293,10 @@ def depuis_dict(donnees: Mapping[str, Any], *, cle: bytes | None = None) -> Regi
     derniere = historique[-1] if historique else {}
     if derniere.get("revision") != revision or derniere.get("empreinte_registre") != registre.empreinte:
         raise RefusMCP("REJ-MCP-REGISTRE-ALTERE", "historique incohérent avec la révision courante")
+    # La dernière fiche DIT ce que le sceau atteste : qui, quand, combien d'outils (sinon l'audit se réécrit).
+    if (derniere.get("par") != registre.scelle_par or derniere.get("le") != registre.scelle_le
+            or derniere.get("outils") != len(entrees)):
+        raise RefusMCP("REJ-MCP-REGISTRE-ALTERE", "la dernière fiche d'historique contredit le sceau de la révision")
     for avant, apres in zip(historique, historique[1:], strict=False):
         if apres.get("precedent") != avant.get("empreinte_registre") or apres.get("revision") != avant.get("revision",
                                                                                                            0) + 1:
@@ -293,8 +314,16 @@ def depuis_dict(donnees: Mapping[str, Any], *, cle: bytes | None = None) -> Regi
     elif cle is not None:
         raise RefusMCP("REJ-MCP-REGISTRE-SCEAU",
                        "une clé de scellement est configurée mais le registre n'est scellé que par sha256")
+    marque = sceau.get("historique")
+    if marque is not None:
+        try:
+            historique_intact = isinstance(marque, str) and marque == _empreinte_historique(historique)
+        except (TypeError, ValueError):
+            historique_intact = False
+        if not historique_intact:
+            raise RefusMCP("REJ-MCP-REGISTRE-ALTERE", "historique modifié : son empreinte ne correspond plus au sceau")
     attendu = _sceau(registre.empreinte, revision, registre.scelle_par, registre.scelle_le,
-                     cle if sceau.get("algo") == "hmac-sha256" else None)
+                     cle if sceau.get("algo") == "hmac-sha256" else None, historique if marque is not None else None)
     if not hmac.compare_digest(str(sceau.get("valeur", "")), attendu["valeur"]):
         raise RefusMCP("REJ-MCP-REGISTRE-SCEAU", "sceau invalide : registre modifié ou scellé avec une autre clé")
     return registre

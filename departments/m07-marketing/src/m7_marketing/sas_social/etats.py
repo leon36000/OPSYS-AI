@@ -4,7 +4,9 @@
                                                               \\-> echec -> planifie (reprise bornée)
     (brouillon, en_attente_approbation, approuve, planifie, echec) -> annule
 
-`publie` et `annule` sont terminaux. Seul `brouillon` se modifie (une révision d'une publication en attente la ramène
+`publie` et `annule` sont terminaux (sauf une annulation posée pendant une tentative d'envoi ouverte : le message
+peut sortir après elle, et le registre le dit : `publie`).
+Seul `brouillon` se modifie (une révision d'une publication en attente la ramène
 d'abord en brouillon : l'approbation demandée ne vaut plus rien pour un autre contenu). L'état d'une publication est le
 PLIAGE de ses maillons ; un maillon qui n'est pas permis depuis l'état courant rend le journal incohérent (refus
 `REJ-SOCIAL-JOURNAL-INCOHERENT`), jamais un état deviné.
@@ -166,6 +168,25 @@ def _appliquer(etats: dict[str, EtatPublication], maillon: Mapping[str, Any]) ->
         courant.tentatives += 1
         courant.incertain = True
         courant.derniere_tentative_le = maillon["horodatage"]
+        return
+    if courant.etat == ANNULE and courant.incertain and type_maillon in (MAILLON_PUBLIEE, MAILLON_ECHEC):
+        # Une annulation a été posée PENDANT une tentative d'envoi ouverte : l'appel réseau a fini après elle. Le
+        # registre dit la vérité sans devenir incohérent (il serait mort pour toujours) : un message sorti est `publie`
+        # (rien ne se retire d'un réseau), un échec laisse l'annulation en place.
+        if type_maillon == MAILLON_PUBLIEE:
+            courant.etat = PUBLIE
+            courant.incertain = False
+            courant.id_externe = maillon["id_externe"]
+            courant.url_externe = maillon.get("url")
+            courant.publie_le = maillon["publie_le"]
+            courant.derniere_erreur = None
+        else:
+            courant.incertain = bool(maillon["resultat_incertain"])
+            courant.derniere_erreur = {
+                "code": maillon["code"],
+                "detail": maillon["detail"],
+                "transitoire": maillon["transitoire"],
+            }
         return
     cible = _ARRIVEE[type_maillon]
     if not transition_permise(courant.etat, cible):

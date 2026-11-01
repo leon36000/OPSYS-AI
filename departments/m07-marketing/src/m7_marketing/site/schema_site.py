@@ -196,7 +196,7 @@ class _Collecteur:
         vus: set[str] = set()
         for i, element in enumerate(elements):
             ident = element.get("id") if isinstance(element, Mapping) else None
-            if not isinstance(ident, str) or not _IDENTIFIANT.match(ident):
+            if not isinstance(ident, str) or not _IDENTIFIANT.fullmatch(ident):
                 self.ajouter(REJ_SCHEMA_IDENTIFIANT, f"{chemin}[{i}].id", "identifiant [a-z][a-z0-9-]* attendu")
             elif ident in vus:
                 self.ajouter(REJ_SCHEMA_IDENTIFIANT, f"{chemin}[{i}].id", f"identifiant en double : {ident}")
@@ -257,12 +257,12 @@ def valider_schema(schema: Any) -> list[dict[str, str]]:
     c = _Collecteur(langues)
     c.objet(schema, "$", CHAMPS_RACINE)
 
-    if not isinstance(schema.get("site_id"), str) or not _IDENTIFIANT.match(schema.get("site_id", "")):
+    if not isinstance(schema.get("site_id"), str) or not _IDENTIFIANT.fullmatch(schema.get("site_id", "")):
         c.ajouter(REJ_SCHEMA_IDENTIFIANT, "$.site_id", "identifiant [a-z][a-z0-9-]* attendu")
     if not isinstance(schema.get("fictif"), bool):
         c.ajouter(REJ_SCHEMA_CHAMP, "$.fictif", "booléen attendu (true pour toute donnée de démonstration)")
     domaine = schema.get("domaine")
-    if not isinstance(domaine, str) or not _DOMAINE.match(domaine):
+    if not isinstance(domaine, str) or not _DOMAINE.fullmatch(domaine):
         c.ajouter(REJ_SCHEMA_CHAMP, "$.domaine", "nom de domaine en minuscules attendu (sans schéma ni chemin)")
         domaine = None
     elif schema.get("fictif") is True and not domaine.endswith(_DOMAINES_RESERVES):
@@ -307,7 +307,7 @@ def valider_schema(schema: Any) -> list[dict[str, str]]:
         if not c.objet(image, chemin, ("id", "fichier", "largeur", "hauteur", "alt")):
             continue
         fichier = image.get("fichier")
-        if not isinstance(fichier, str) or not _FICHIER_IMAGE.match(fichier) or fichier in fichiers_vus:
+        if not isinstance(fichier, str) or not _FICHIER_IMAGE.fullmatch(fichier) or fichier in fichiers_vus:
             c.ajouter(REJ_SCHEMA_IMAGE, f"{chemin}.fichier", "images/<nom>.svg ou .png, unique")
         else:
             fichiers_vus.add(fichier)
@@ -341,7 +341,7 @@ def valider_schema(schema: Any) -> list[dict[str, str]]:
             continue
         c.localise(temoignage.get("texte"), f"{chemin}.texte", maximum=600)
         initiales = temoignage.get("initiales")
-        if not isinstance(initiales, str) or not _INITIALES.match(initiales):
+        if not isinstance(initiales, str) or not _INITIALES.fullmatch(initiales):
             c.ajouter(
                 REJ_SCHEMA_CHAMP, f"{chemin}.initiales",
                 "initiales seulement (ex. « M. T. ») : jamais un nom complet de client",
@@ -424,10 +424,10 @@ def _valider_entreprise(c: _Collecteur, entreprise: Any, domaine: str | None, id
     c.localise(entreprise.get("description"), "$.entreprise.description", maximum=DESCRIPTION_MAX)
     nap = entreprise.get("nap")
     if c.objet(nap, "$.entreprise.nap", ("telephone", "courriel", "adresse")):
-        if "telephone" in nap and (not isinstance(nap["telephone"], str) or not _TELEPHONE.match(nap["telephone"])):
+        if "telephone" in nap and (not isinstance(nap["telephone"], str) or not _TELEPHONE.fullmatch(nap["telephone"])):
             c.ajouter(REJ_SCHEMA_NAP, "$.entreprise.nap.telephone", "format « +1 450 555 0142 » attendu")
         courriel = nap.get("courriel", "")
-        trouve = _COURRIEL.match(courriel) if isinstance(courriel, str) else None
+        trouve = _COURRIEL.fullmatch(courriel) if isinstance(courriel, str) else None
         if trouve is None and "courriel" in nap:
             c.ajouter(REJ_SCHEMA_NAP, "$.entreprise.nap.courriel", "courriel en minuscules attendu")
         elif domaine is not None and trouve.group(1) != domaine:
@@ -440,7 +440,7 @@ def _valider_entreprise(c: _Collecteur, entreprise: Any, domaine: str | None, id
                 c.chaine(adresse.get(cle), f"$.entreprise.nap.adresse.{cle}", maximum=120)
             if adresse.get("region") != "QC" or adresse.get("pays") != "CA":
                 c.ajouter(REJ_SCHEMA_NAP, "$.entreprise.nap.adresse", "région QC et pays CA (tranche 1 : Québec)")
-            if not isinstance(adresse.get("code_postal"), str) or not _CODE_POSTAL.match(adresse["code_postal"]):
+            if not isinstance(adresse.get("code_postal"), str) or not _CODE_POSTAL.fullmatch(adresse["code_postal"]):
                 c.ajouter(REJ_SCHEMA_NAP, "$.entreprise.nap.adresse.code_postal", "code postal canadien « H7N 1A1 »")
     for i, plage in enumerate(c.liste(entreprise.get("heures"), "$.entreprise.heures")):
         chemin = f"$.entreprise.heures[{i}]"
@@ -450,7 +450,8 @@ def _valider_entreprise(c: _Collecteur, entreprise: Any, domaine: str | None, id
         if not isinstance(jours, list) or not jours or any(j not in JOURS for j in jours):
             c.ajouter(REJ_SCHEMA_CHAMP, f"{chemin}.jours", f"jours parmi {list(JOURS)}")
         ouverture, fermeture = plage.get("ouverture"), plage.get("fermeture")
-        if not all(isinstance(h, str) and _HEURE.match(h) for h in (ouverture, fermeture)) or ouverture >= fermeture:
+        heures_valides = all(isinstance(h, str) and _HEURE.fullmatch(h) for h in (ouverture, fermeture))
+        if not heures_valides or ouverture >= fermeture:
             c.ajouter(REJ_SCHEMA_CHAMP, chemin, "heures HH:MM, ouverture avant fermeture")
     if "licence_rbq" in entreprise:
         licence = entreprise["licence_rbq"]
@@ -493,7 +494,7 @@ def _valider_pages(c: _Collecteur, pages: Sequence[Any], refs: Mapping[str, set[
                 c.ajouter(REJ_SCHEMA_SLUG, f"{chemin}.slug", "la page d'accueil a un slug vide dans toutes les langues")
             for langue in c.langues:
                 valeur = slug[langue]
-                if not isinstance(valeur, str) or not _SLUG.match(valeur) or valeur in ("en", "images", "404.html"):
+                if not isinstance(valeur, str) or not _SLUG.fullmatch(valeur) or valeur in ("en", "images", "404.html"):
                     c.ajouter(REJ_SCHEMA_SLUG, f"{chemin}.slug.{langue}", "slug [a-z0-9-] (segments séparés par /)")
                     continue
                 url = chemin_page(valeur, langue, c.langues)
@@ -536,7 +537,7 @@ def _valider_section(
         return ""
     requis, optionnels = _CHAMPS_SECTION[type_section]
     c.objet(section, chemin, ("type", *requis), (*optionnels, "ancre"))
-    if "ancre" in section and (not isinstance(section["ancre"], str) or not _IDENTIFIANT.match(section["ancre"])):
+    if "ancre" in section and (not isinstance(section["ancre"], str) or not _IDENTIFIANT.fullmatch(section["ancre"])):
         c.ajouter(REJ_SCHEMA_IDENTIFIANT, f"{chemin}.ancre", "ancre [a-z][a-z0-9-]* attendue")
     for cle in ("titre", "texte"):
         if cle in section and cle in (*requis, *optionnels):
@@ -565,7 +566,7 @@ def _valider_legal(c: _Collecteur, legal: Any) -> None:
     responsable = legal.get("responsable_rp")
     if c.objet(responsable, "$.legal.responsable_rp", ("titre", "courriel")):
         c.localise(responsable.get("titre"), "$.legal.responsable_rp.titre", maximum=80)
-        if not isinstance(responsable.get("courriel"), str) or not _COURRIEL.match(responsable["courriel"]):
+        if not isinstance(responsable.get("courriel"), str) or not _COURRIEL.fullmatch(responsable["courriel"]):
             c.ajouter(REJ_SCHEMA_NAP, "$.legal.responsable_rp.courriel", "courriel de fonction en minuscules attendu")
     if not isinstance(legal.get("traceurs_non_essentiels"), bool):
         c.ajouter(REJ_SCHEMA_CHAMP, "$.legal.traceurs_non_essentiels", "booléen attendu")

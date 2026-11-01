@@ -1,6 +1,8 @@
 """Bail par ressource : un seul exécuteur à la fois pour un compte courriel, un site WordPress ou un compte social.
 
-Un bail est une ligne de `planificateur_baux` (porteur, jeton de fencing croissant, expiration). `acquerir` est
+Un bail est une ligne de `planificateur_baux` (porteur, jeton de fencing croissant, expiration). La ligne n'est jamais
+supprimée : libérer un bail la marque libre (porteur vide, échéance = acquisition), pour que le jeton suivant soit
+toujours plus grand que tous les précédents de la ressource. `acquerir` est
 atomique (transaction d'écriture : `BEGIN IMMEDIATE` sur SQLite, verrou de ligne sur PostgreSQL) : deux fils ou deux
 processus qui se disputent la même ressource ne l'obtiennent jamais tous les deux. Un bail expiré (processus mort) se
 reprend avec un jeton plus grand ; l'ancien porteur le voit au renouvellement suivant (`renouveler` rend `False`) et
@@ -16,13 +18,14 @@ import dataclasses
 import time
 from collections.abc import Callable
 
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from .. import stockage
 from ..stockage.schema import PLANIFICATEUR_BAUX
 
 DUREE_DEFAUT_S = 120
+LIBRE = ""  # porteur d'un bail libéré (un porteur réel est non vide : `acquerir` l'exige)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -49,9 +52,10 @@ def acquerir(ressource: str, porteur: str, duree_s: int = DUREE_DEFAUT_S, *,
                     ressource=ressource, porteur=porteur, jeton=1, acquis_epoch=maintenant,
                     expire_epoch=maintenant + duree_s))
                 return Bail(ressource, porteur, 1, maintenant + duree_s)
-            if ligne["expire_epoch"] > maintenant and ligne["porteur"] != porteur:
+            libre = ligne["porteur"] == LIBRE or ligne["expire_epoch"] <= maintenant
+            if not libre and ligne["porteur"] != porteur:
                 return None
-            jeton = ligne["jeton"] + (0 if ligne["porteur"] == porteur and ligne["expire_epoch"] > maintenant else 1)
+            jeton = ligne["jeton"] + (0 if not libre and ligne["porteur"] == porteur else 1)
             cnx.execute(update(PLANIFICATEUR_BAUX).where(PLANIFICATEUR_BAUX.c.ressource == ressource).values(
                 porteur=porteur, jeton=jeton, acquis_epoch=maintenant, expire_epoch=maintenant + duree_s))
             return Bail(ressource, porteur, jeton, maintenant + duree_s)
@@ -73,11 +77,12 @@ def renouveler(bail: Bail, duree_s: int = DUREE_DEFAUT_S, *, horloge: Callable[[
 
 
 def liberer(bail: Bail) -> None:
-    """Rend le bail (sans effet si un autre porteur l'a repris)."""
+    """Rend le bail (sans effet si un autre porteur l'a repris). La ligne reste, libre, pour garder le jeton."""
     with stockage.transaction() as cnx:
-        cnx.execute(delete(PLANIFICATEUR_BAUX).where(
+        cnx.execute(update(PLANIFICATEUR_BAUX).where(
             PLANIFICATEUR_BAUX.c.ressource == bail.ressource, PLANIFICATEUR_BAUX.c.porteur == bail.porteur,
-            PLANIFICATEUR_BAUX.c.jeton == bail.jeton))
+            PLANIFICATEUR_BAUX.c.jeton == bail.jeton,
+        ).values(porteur=LIBRE, expire_epoch=PLANIFICATEUR_BAUX.c.acquis_epoch))
 
 
 def detenu(ressource: str, *, horloge: Callable[[], float] = time.time) -> dict[str, object] | None:
@@ -85,6 +90,6 @@ def detenu(ressource: str, *, horloge: Callable[[], float] = time.time) -> dict[
     with stockage.transaction() as cnx:
         ligne = cnx.execute(select(PLANIFICATEUR_BAUX).where(
             PLANIFICATEUR_BAUX.c.ressource == ressource)).mappings().first()
-    if ligne is None or ligne["expire_epoch"] <= int(horloge()):
+    if ligne is None or ligne["porteur"] == LIBRE or ligne["expire_epoch"] <= int(horloge()):
         return None
     return dict(ligne)

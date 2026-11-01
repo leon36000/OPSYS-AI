@@ -336,6 +336,7 @@ M5 n'est pas un conseiller inscrit.
 | `REJ-CALC-COUTS-REQUIS` | Monte-Carlo sans droit aux coûts |
 | `REJ-CALC-PAGE-INVALIDE` | `depart` ou `limite` hors bornes (tableau d'amortissement) |
 | `REJ-CALC-AMORTISSEMENT-IMPOSSIBLE` | Le versement arrondi ne couvre pas l'intérêt de la première période |
+| `REJ-CALC-RESULTAT-HORS-PRECISION` | Montants extrêmes : le TRI ne converge pas ou un résultat sort de la précision de calcul (aucun chiffre rendu) |
 
 ## Preuves
 

@@ -45,17 +45,43 @@ class Contexte:
     longueur_max: int | None = None
 
 
+# Lettres d'autres alphabets qui se lisent comme une lettre latine (revue adverse coord-01) : « gar<а cyrillique>ntie »
+# s'affiche « garantie » mais ne correspond à aucun motif. Liste volontairement courte : les confusables sans ambiguïté.
+_CONFUSABLES = str.maketrans({
+    **dict(zip("асеорхуіјѕӏԁԛԝ", "acepoxyijsldqw", strict=True)),
+    **dict(zip("АВЕКМНОРСТХУІЈЅ", "ABEKMHOPCTXYIJS", strict=True)),
+    **dict(zip("αεικορυχ", "aeikopux", strict=True)),
+    **dict(zip("ΑΒΕΖΗΙΚΜΝΟΡΤΥΧ", "ABEZHIKMNOPTYX", strict=True)),
+})
+
+
+def sans_invisibles(texte: str) -> str:
+    """Retire ce que le lecteur ne voit pas mais qui coupe un mot pour un motif : caractères de FORMAT (espace de
+    largeur nulle, trait d'union conditionnel, marques bidirectionnelles, balises Unicode), de CONTRÔLE (hors saut
+    de ligne et tabulation) et sélecteurs de variante. Revue adverse coord-01 : « garan\u200btie », « 514\u200b-555 »
+    passaient tous les motifs. Les lettres de l'alphabet cyrillique ou grec qui imitent une lettre latine sont ramenées
+    à celle-ci."""
+    texte = "".join(
+        c for c in texte
+        if (cat := unicodedata.category(c)) != "Cf"
+        and not (cat == "Cc" and c not in "\t\n\r")
+        and not ("\ufe00" <= c <= "\ufe0f" or "\U000e0100" <= c <= "\U000e01ef")
+    )
+    return texte.translate(_CONFUSABLES)
+
+
 def plier(texte: str) -> str:
     """Forme de recherche : compatibilité Unicode (espaces insécables, exposants), sans accents, minuscules,
-    apostrophes droites, espaces réduits. Les mots-clés y sont cherchés ; le texte lui-même n'est pas modifié."""
-    normal = unicodedata.normalize("NFKC", texte).replace("’", "'").replace("‘", "'")
+    apostrophes droites, espaces réduits, sans caractères invisibles. Les mots-clés y sont cherchés ; le texte
+    lui-même n'est pas modifié."""
+    normal = unicodedata.normalize("NFKC", sans_invisibles(texte)).replace("’", "'").replace("‘", "'")
     sans_accents = "".join(c for c in unicodedata.normalize("NFD", normal) if not unicodedata.combining(c))
     return re.sub(r"\s+", " ", sans_accents).casefold()
 
 
 def normal(texte: str) -> str:
     """Forme qui garde les majuscules et les accents (noms propres), espaces réduits."""
-    forme = unicodedata.normalize("NFKC", texte).replace("’", "'").replace("‘", "'")
+    forme = unicodedata.normalize("NFKC", sans_invisibles(texte)).replace("’", "'").replace("‘", "'")
     return re.sub(r"\s+", " ", forme)
 
 
@@ -85,7 +111,7 @@ class Formes:
 
     @functools.cached_property
     def droit(self) -> str:
-        return apostrophes_droites(self.texte)
+        return apostrophes_droites(sans_invisibles(self.texte))
 
     @functools.cached_property
     def plie(self) -> str:

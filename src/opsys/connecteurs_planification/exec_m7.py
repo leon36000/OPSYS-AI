@@ -210,9 +210,11 @@ class PublicationWordPress(_WordPressBase):
                 # Approbation absente, expirée ou ne correspondant plus au brouillon : AUCUN jeton n'est émis, le site
                 # n'est pas touché ; la publication retombe en échec (une nouvelle revue et une nouvelle approbation).
                 refus = verifiee["refus"][0]
-                flux.consigner_echec(_journal("wp"), pub.publication_id, refus["code"], refus["detail"], horodatage)
-                expires += 1
-                code = refus["code"]
+                # Instantané de début de tour : si la publication n'est plus « approuvée » (annulée, publiée par un
+                # autre exécuteur), rien n'est écrit et rien n'est compté.
+                if flux.consigner_echec(_journal("wp"), pub.publication_id, refus["code"], refus["detail"], horodatage):
+                    expires += 1
+                    code = refus["code"]
                 self._apres(m7, pub, ressource)
                 continue
             resultat = executeur.publier(_journal("wp"), pub.publication_id, client, maintenant)

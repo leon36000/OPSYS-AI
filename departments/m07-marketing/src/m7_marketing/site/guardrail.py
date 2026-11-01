@@ -25,6 +25,10 @@ class GuardrailViolation(Exception):
 TYPES_ORGANISATION_ACCEPTES = frozenset({"Organization", "LocalBusiness", "HomeAndConstructionBusiness"})
 
 
+# Les navigateurs retirent blancs et caractères de contrôle avant de lire le schéma d'une URL (`java\tscript:`).
+_SANS_BLANCS = re.compile("[\x00-\x20\x7f-\xa0\u1680\u180e\u2000-\u200f\u2028\u2029\u202f\u205f\u3000\ufeff]")
+
+
 def _est_couleur_hex(valeur: str | None) -> bool:
     """True seulement si `valeur` est une couleur hexadécimale CSS bien formée (#rgb/#rrggbb)."""
     return bool(valeur) and bool(re.fullmatch(r'#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?', valeur))
@@ -237,7 +241,7 @@ class _SiteValidator(html.parser.HTMLParser):
 
         # check javascript: protocol in attribute values
         for val in attrs_dict.values():
-            if val.strip().lower().startswith("javascript:"):
+            if _SANS_BLANCS.sub("", val).lower().startswith("javascript:"):
                 self.has_javascript_protocol = True
 
         # <nav> aria-label / aria-labelledby
