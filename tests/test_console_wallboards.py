@@ -318,7 +318,7 @@ def test_l_etat_n_est_jamais_porte_par_la_couleur_seule():
 
 
 def test_la_page_relit_elle_meme_le_role_sans_compter_sur_l_outil(navigateur, monkeypatch):
-    """Défense en profondeur : même si la lecture métier répondait, la page refuse un non-admin (garde propre à la page)."""
+    """Défense en profondeur : même si la lecture métier répondait, la page refuse un non-admin (garde de la page)."""
     from opsys.console import metier
 
     reponse = {"ok": True, "resultat": {"wallboards": [], "wallboard": {"id": "direction"}}}

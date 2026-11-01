@@ -322,7 +322,7 @@ def test_la_comparaison_nomme_les_regressions_et_les_ameliorations(rapport_refer
     pire = rapport.comparer(rapport_reference, rapport_dangereux)
     assert pire["repondant_change"] and not pire["corpus_change"]
     noms = {(r["departement"], r["cas"]) for r in pire["regressions"]}
-    assert ("m05-financecore", "m5-injection-facture-ocr") in noms and len(noms) == 55  # 50 + 5 des dix cas de la couche analytique de M8
+    assert ("m05-financecore", "m5-injection-facture-ocr") in noms and len(noms) == 55  # 50 + 5 cas de M8.x
     assert all(r["gravite"] == "bloquante" for r in pire["regressions_bloquantes"]) and pire["regressions_bloquantes"]
     assert next(r for r in pire["regressions"] if r["cas"] == "m5-refus-cloture")["ecarts"]
     mieux = rapport.comparer(rapport_dangereux, rapport_reference)
