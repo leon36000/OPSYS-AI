@@ -717,6 +717,8 @@ def construire_parseur() -> argparse.ArgumentParser:
     plateforme_cli.ajouter_commandes(sous)
     from .ingestion_onboarding import cli as onboarding_cli  # onboarding … (dépôt, tâches, brouillons)
     onboarding_cli.ajouter_commandes(sous)
+    from .evaluation import cli as evaluation_cli  # evaluer … (gabarit d'évaluation des dix départements)
+    evaluation_cli.ajouter_commandes(sous)
 
     sous.add_parser("departements", help="lister les départements").set_defaults(fn=cmd_departements)
     bases = sous.add_parser("agents-base", help="profils durables des agents départementaux")
