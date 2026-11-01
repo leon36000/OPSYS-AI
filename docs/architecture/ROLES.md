@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 232 outils sur 431 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 246 outils sur 447 sont déclarés.
 
 ### `employee` (17 outils) : §9.3, le terrain
 
@@ -101,7 +101,7 @@ Rien qui lise les données des autres (`m4_lire_outbox`, `m4_lire_position_gps`,
 M10. Les trois outils M7 bornés à l'import d'avis, à la liste filtrée et au consentement de référence
 sont décrits ci-dessus; décisions, exportations et publication restent fermées à l'employé.
 
-### `seller` (15 outils) : §9.4, ses leads, ses relances et ses soumissions
+### `seller` (28 outils) : §9.4, ses leads, ses relances et ses soumissions
 
 | Outil | Pourquoi |
 |---|---|
@@ -119,13 +119,20 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 | `m3_generer_soumission_brouillon` | §9.4 « soumissions ». HTML ou PDF (`format`), mêmes gardes. Sans coût ni marge. Les devis de ses leads seulement. |
 | `m3_demander_envoi_devis` (T2, **N4**) | §9.4 « soumissions », §7 M3.14 « revue et approbation humaine » (T4.7). Il DEMANDE : le socle met la demande dans la file du propriétaire, rien n'est envoyé, rien ne change. Il ne décide jamais (voir « L'envoi d'un devis par approbation N4 » plus bas). |
 | `m3_qualifier_photos` | §9.4 « demander des photos au client » : ce qui manque. |
+| `m2_proposer_profil_propriete` (T1, **N2**), `m2_proposer_profil_propriete_depuis_courriel` (T1, **N2**) | M2.3 : un BROUILLON de profil de propriété pour le client de SES leads (liste blanche, source obligatoire, révision attendue) ; depuis un courriel, par motifs fixes et extrait comme preuve. Rien n'est confirmé. Voir « Les outils « ventes » de M2 ». |
+| `m2_confirmer_profil_propriete` (T1, **N3**) | M2.3 : une PERSONNE confirme ou écarte le brouillon ; publie le fait minimisé `m2.profil_propriete_confirme`. Un agent seul : `REJ-HUMAIN-REQUIS`. |
+| `m2_lire_profil_propriete` (T0) | M2.3 : les propriétés de SES clients (confirmé, brouillon, âge, complétude). Textes libres neutralisés. |
+| `m2_calculer_score_lead`, `m2_classer_file_leads`, `m2_lire_modele_scoring` (T0) | M2.4 : score expliqué de SES leads ouverts, file classée (permutation : aucun lead écarté), modèle et calibration fictive. |
+| `m2_declarer_valeur_pipeline` (T1, **N3**) | M2.4/M2.15 : une PERSONNE déclare l'ordre de grandeur d'une opportunité ouverte (estimation commerciale, jamais un prix). |
+| `m2_analyser_pipeline`, `m2_prevoir_pipeline`, `m2_rejouer_recu_commercial` (T0) | M2.15 : analytique et prévision par intervalle de SON périmètre, sous seuil d'échantillon ; reçu `recu-calcul.v1` rejouable. |
+| `m2_decider_suggestion_coach` (T1, **N2**), `m2_lister_suggestions_coach` (T0) | M2.9 : une PERSONNE accepte, modifie ou rejette une suggestion du coach ; journal et bilan de SES leads. Le coach lui-même (`m2_contexte_coach`, `m2_proposer_suggestion_coach`) n'a aucune portée d'appareil. |
 
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (231 outils) : §9.5 + employé + vendeur
+### `admin` (245 outils) : §9.5 + employé + vendeur
 
-Les 17 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
+Les 17 outils de l'employé, les 27 du vendeur également permis à l'admin, et :
 
 | Département | Outils réservés à l'admin | Pourquoi |
 |---|---|---|
@@ -135,6 +142,7 @@ Les 17 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M1 | `m1_lire_transfert` (T0), `m1_clore_transfert` (N3) | §7 M1.8, M1.12 et §9.5 M1 « plaintes, transferts, prendre en charge » (T4.5) : l'admin lit le contexte d'une plainte, d'une urgence de sécurité ou d'un transfert (résumé, contact, messages du client) puis le clôt. La clôture est une décision HUMAINE : voir « Les transferts à un humain de M1 » plus bas. Ni l'employé ni le vendeur : le contact et les mots d'un client qui se plaint sont pour le propriétaire. |
 | M2 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | §9.5 M2 : pipeline, leads chauds, doublons. |
 | M2 | `m2_reassigner_lead` (N3), `m2_republier_assignations` (N3) | §9.5 (le propriétaire ou son gestionnaire reprend le dossier d'un vendeur ; T1.4-m). La réassignation est une décision HUMAINE : voir « La réassignation d'un lead » plus bas. La republication remet au bus le fait de propriété que les leads qualifiés avant T1.4-k2 n'ont jamais publié ; outil de mise en service, idempotent, dérivé du registre. Ni l'employé ni le vendeur (un vendeur ne « prend » ni ne « cède » un lead). |
+| M2 | `m2_proposer_profil_propriete_depuis_onboarding` (T1, N2) | M2.3 : propose en BROUILLON la propriété à l'adresse d'une fiche client importée à l'onboarding (déjà validée par une personne). Admin seulement : un client importé n'a pas encore de vendeur. |
 | M2 | `m2_corriger_contact_client` (N3), `m2_lister_historique_contact_client`, `m2_reconcilier_memoire_contact_client` (N0) | CRM-04 : admin SQL actif, correction avec révision attendue et motif, historique privé et diagnostic de livraison M10. Aucun envoi au client, accès vendeur ou réécriture des documents historiques. |
 | M3 | `m3_lister_devis_lead_admin` (T0/N0) | Sommaires paginés des soumissions d’un lead désigné ; admin SQL actif. Lecture seule, aucune page vide ne prouve l’existence du lead M2. |
 | M4 | `m4_confirmer_dates_cedule` (N3), `m4_lire_calendrier_plan`, `m4_lire_cedule_semaine` (N0) | Calendrier civil explicite d’un plan déjà appliqué, révision et historique ; admin SQL actif. Plan interne seulement, sans confirmation client ni promesse globale de disponibilité. |
@@ -982,6 +990,26 @@ l'approbateur la couvre ; un devis déjà envoyé au client ne change pas (M3 n'
   (`_vue_projection_effective`, qui relit `identite.personne_active` au lieu de `signataire_valide`) : cinq copies
   d'une même règle, voulues tant que les départements n'importent rien les uns des autres (#109). Un seul helper du
   socle serait plus sûr.
+
+### Les outils « ventes » de M2 : propriété, score, coach, prévisions (m2-victor)
+
+Seize outils, un même contrôle d'accès que la liste des leads (identité confirmée en base à chaque appel, `seller` sur SES
+leads, `admin` sur tous, employé refusé) ; le détail, les preuves et les limites sont dans
+[M2-VICTOR.md](M2-VICTOR.md). Ce qui compte pour les portées :
+
+- **Autonome (N0 à N2) : lire, calculer, classer, préparer un brouillon.** Score, file, analytique, prévision, lecture d'un
+  profil, contexte du coach : T0/N0. Proposer un profil de propriété, proposer une suggestion du coach, décider d'une suggestion :
+  T1/**N2**, aucune approbation. **Humain (N3)** : confirmer un profil de propriété et déclarer une valeur d'opportunité
+  (`REJ-HUMAIN-REQUIS` pour un agent seul). Rien ici n'envoie un message, ne change un statut, ne consent une remise ni n'écarte
+  un lead : ces gestes restent à `m1_*` (sas courriel, N3), `m2_transitionner_statut` et la direction.
+- **Le coach est fermé aux appareils.** `m2_contexte_coach` et `m2_proposer_suggestion_coach` n'ont aucun rôle d'appareil : la
+  base de connaissances (M10) n'est ouverte à aucun téléphone (`CONNAISSANCES.md`), et le vendeur parle au coach par
+  l'agent. Le vendeur DÉCIDE (`m2_decider_suggestion_coach`) et LIT le journal depuis l'app.
+- **Aucune lecture inter-départements élargie.** M3 et M4 lisent le profil de propriété par le fait `m2.profil_propriete_confirme`
+  (minimisé, sans adresse précise) du bus, ou par l'outil de lecture de M2 selon les droits existants ; aucun droit d'appareil, aucune
+  entrée de `LECTURES_AUTORISEES` de M9 n'est ajoutée.
+- **Un vendeur ne résout jamais un client par son identifiant** (`client_id`) : il passe par un de SES leads ; l'admin et l'agent
+  peuvent viser un client connu, y compris une fiche importée à l'onboarding qui n'a pas encore de lead.
 
 ## Limites de la portée par outil (T1.4-j)
 

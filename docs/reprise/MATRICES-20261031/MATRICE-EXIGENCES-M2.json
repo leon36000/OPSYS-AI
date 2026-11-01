@@ -27,7 +27,8 @@
  "run_summary": {
   "suite_du_departement": "departments/m02-revenue-crm/tests rejoué le 2026-10-31 sur la base_sha : 1899 passed, 0 failed, 0 skipped",
   "tests_de_socle_cites": "97 fichiers cités sous tests/ rejoués le 2026-10-31 : 1597 passed, 0 failed, 22 skipped (opt-in PostgreSQL / job CI dédié)",
-  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue"
+  "non_rejoues": "variantes PostgreSQL (P), tests Core TypeScript (N) et tests Jest du client mobile : cités, non exécutés par cette matrice ; CI GitHub non relue",
+  "tranche_ventes_m2_victor": "2026-11-01 : voir le rapport de branche claude/m2-victor (tests purs, tests d'outils sur SQLite réelle, parcours de la porte d'appareil sur SQLite et PostgreSQL, 35 mutations tuées sur 35, évaluation du gabarit commun) ; aucune donnée réelle, aucun modèle réel"
  },
  "requirements": [
   {
@@ -94,36 +95,87 @@
    "title": "Profil de propriété",
    "target": "Type de bâtiment, étages, matériaux, historique, accès, photos, services potentiels.",
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
-   "reuse_read_first": [],
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/clients.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/clients_importes.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/registre.py",
+    "src/opsys/ingestion_onboarding/contacts_courriel.py",
+    "src/opsys/garde_fou_texte/__init__.py"
+   ],
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
    "decisions_nathan": [
-    "Définition du profil de propriété avec M3 (M3.2)"
+    "Définition du profil de propriété avec M3 (M3.2) : champs et énumérés initiaux déclarés par M2, à confirmer",
+    "Durée de conservation et procédure d'effacement des propriétés (Loi 25)"
    ],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun module ; les occurrences de « propriété » désignent le propriétaire d'un lead.",
-   "verification": "grep profil_propriete|type_batiment|etages dans src M2 : 0"
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_propriete.py",
+      "departments/m02-revenue-crm/tests/test_propriete_outils.py"
+     ],
+     "docs": [
+      "docs/architecture/M2-VICTOR.md",
+      "docs/architecture/ROLES.md"
+     ],
+     "niveau": "T+S"
+    },
+    {
+     "tests": [
+      "tests/e2e/test_ventes_vendeur_appareil.py"
+     ],
+     "docs": [],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "claude/m2-victor (base 1b58f4e6c)",
+   "current_status": "PARTIEL",
+   "limite": "Livré et prouvé en processus (liste blanche minimisée, sources, révisions, brouillon puis confirmation par une personne, extraction de courriel par motifs fixes, brouillon depuis l'onboarding, fait minimisé m2.profil_propriete_confirme, lecture par SES leads) et par la porte d'appareil du harnais Python (SQLite et PostgreSQL). PARTIEL : aucun consommateur câblé chez M3, M4 ni M10 (leurs branches) ; le déclencheur « courriel reçu » est à configurer comme profil d'agent ; photos et mesures ne sont que des références non vérifiées chez M3/M4 ; aucun outil d'effacement ni de purge (registres append-only) ; jamais testé contre le core natif ni l'app mobile.",
+   "verification": "pytest departments/m02-revenue-crm/tests/test_propriete.py test_propriete_outils.py + tests/e2e/test_ventes_vendeur_appareil.py ; mutations M14-M18 tuées (rapport de branche)"
   },
   {
    "id": "M2.4",
    "title": "Lead scoring 2.0",
    "target": "Qualité, urgence, conversion, rentabilité, préparation, risque.",
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
-   "reuse_read_first": [],
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/liste_leads.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/readiness.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/segments.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/consentements.py",
+    "src/opsys/taxonomie.py"
+   ],
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [
-    "Politique de profilage Loi 25 « à venir » non rédigée"
+    "Politique de profilage Loi 25 « à venir » non rédigée : le score n'a aucun effet sur la personne (un humain décide), mais la qualification juridique reste à valider auprès d'un professionnel qualifié"
    ],
    "decisions_nathan": [
-    "Poids et seuils du scoring ; feu vert profilage"
+    "Poids et seuils du scoring : valeurs initiales déclarées par l'architecte (scoring.FACTEURS), à confirmer ; bandes de valeur (configuration.scoring.bandes_valeur_cents) à configurer ; feu vert profilage"
    ],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucun score dans M2 (grep scor : 0) ; le score de M1 reste dans M1.",
-   "verification": "grep -rniE scor departments/m02-revenue-crm/src : 0"
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_scoring.py",
+      "departments/m02-revenue-crm/tests/test_scoring_outils.py",
+      "departments/m02-revenue-crm/tests/test_moteurs_commerciaux.py"
+     ],
+     "docs": [
+      "docs/architecture/M2-VICTOR.md"
+     ],
+     "niveau": "T+S"
+    },
+    {
+     "tests": [
+      "tests/e2e/test_ventes_vendeur_appareil.py"
+     ],
+     "docs": [],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "claude/m2-victor (base 1b58f4e6c)",
+   "current_status": "PARTIEL",
+   "limite": "Livré et prouvé : six facteurs à poids déclarés, explication par facteur et signal, signaux non évalués nommés, déterminisme (fractions exactes), reçu recu-calcul.v1 rejouable, file = permutation (aucun lead écarté, aucun statut modifié), liste de champs interdits testée, invariance au nom/téléphone/courriel/ville. Calibration (AUC 0,6875, Brier 0,1926 contre 0,2096 de référence, ECE 0,0314 à la graine par défaut) mesurée sur un jeu SYNTHÉTIQUE : elle prouve l'outil de mesure, pas la valeur prédictive sur de vrais clients ; aucune probabilité n'est affirmée. PARTIEL : poids/paliers non décidés par la direction, politique de profilage non rédigée, aucune donnée réelle, aucune mesure de disparité ni de proxy.",
+   "verification": "pytest departments/m02-revenue-crm/tests/test_scoring.py test_scoring_outils.py test_moteurs_commerciaux.py ; mutations M01-M04, M19, M23, M24 tuées (rapport de branche)"
   },
   {
    "id": "M2.5",
@@ -248,15 +300,45 @@
    "title": "Coach de vente IA",
    "target": "Coaching de vente.",
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
-   "reuse_read_first": [],
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/suggestions.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/gabarits_relance.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/relances.py",
+    "src/opsys/garde_fou_texte/__init__.py",
+    "src/opsys/connaissances/service.py",
+    "src/opsys/courriel_connecteurs/envoi.py"
+   ],
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
-   "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucune occurrence (grep coach : 0).",
-   "verification": "grep -rniE coach departments/m02-revenue-crm/src : 0"
+   "decisions_nathan": [
+    "Validation écrite de la politique de consentement et de l'identification de l'expéditeur avant tout envoi réel (hors de ce lot : l'envoi reste au sas courriel N3)"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_coach.py",
+      "departments/m02-revenue-crm/tests/test_coach_outils.py"
+     ],
+     "docs": [
+      "docs/architecture/M2-VICTOR.md",
+      "docs/architecture/EVALUATION.md"
+     ],
+     "niveau": "T+S"
+    },
+    {
+     "tests": [
+      "tests/e2e/test_ventes_vendeur_appareil.py",
+      "tests/test_evaluation_gabarit.py",
+      "tests/test_packs_generalisation.py"
+     ],
+     "docs": [],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "claude/m2-victor (base 1b58f4e6c)",
+   "current_status": "PARTIEL",
+   "limite": "Gouvernance livrée et prouvée : brouillon seulement (N2, envoye=false, aucune table du sas ni du bus ne change), faits du CRM cités avec identifiant et phrase fixe, extraits de connaissances avec provenance (sources publiées, lisibles par M2, non périmées), garde-fou de texte du socle plus refus de remise, de pourcentage, de nombre non sourcé et d'envoi présenté comme fait, journal chaîné des suggestions et des décisions, taux d'acceptation rendu à partir de 20 décisions, coach fermé aux appareils. Évaluation par le gabarit commun : 28 cas dont 16 nouveaux ; répondant de référence 28/28, dangereux non qualifié (sondes 5/5 tenues), inventif 0/27. PARTIEL : le texte est rédigé par un agent dont la qualité n'a JAMAIS été mesurée avec un vrai modèle (aucun répondant passerelle exécuté) ; les garde-fous sont des motifs ; la base de connaissances de M2 est vide en production ; aucun envoi réel (hors périmètre).",
+   "verification": "pytest departments/m02-revenue-crm/tests/test_coach.py test_coach_outils.py ; opsys-metier evaluer lancer --repondant reference|dangereux|inventif --departement M2 ; mutations M05-M08, M20, M22, M25, M26 tuées (rapport de branche)"
   },
   {
    "id": "M2.10",
@@ -392,15 +474,42 @@
    "title": "Analytique et prévisions commerciales",
    "target": "Analytique et prévisions du pipeline.",
    "acceptance": "Cible de la ligne atteinte et prouvée ; preuve de complétion du département (DEFINITION-PRODUIT §7 M2) : Cœur stable et aucune route cassée ; Client 360, scoring 2.0, préparation, relances, prochaine action, cycle de soumission, attribution, sales coach fonctionnels ; intégrations M1/M3/M4/M5/M7/M10 ; E2E verts (lead complet, lead incomplet, soumission gagnée, perdue, Client 360, lead dormant).",
-   "reuse_read_first": [],
+   "reuse_read_first": [
+    "departments/m02-revenue-crm/src/m2_revenue_crm/liste_leads.py",
+    "departments/m02-revenue-crm/src/m2_revenue_crm/statuts.py",
+    "departments/m05-financecore/src/m5_financecore/recu_calcul.py",
+    "departments/m05-financecore/src/m5_financecore/moteur_calcul.py",
+    "departments/m08-analytics/src/m8_analytics/entonnoir.py"
+   ],
    "initial_status": "ABSENT",
    "gates_to_resolve_or_keep_open": [],
-   "decisions_nathan": [],
-   "proofs": [],
-   "verified_commit": "83efcd82b",
-   "current_status": "ABSENT",
-   "limite": "Aucune prévision dans M2 (grep prévision : 0) ; M8 couvre l'entonnoir (entonnoir.py).",
-   "verification": "grep prévision|prevision dans src M2 : 0"
+   "decisions_nathan": [
+    "Seuils d'échantillon (20 résolus, 10 convertis, 12 semaines, 20 événements) : valeurs initiales déclarées dans previsions.SEUILS, relevables par l'appelant, à confirmer"
+   ],
+   "proofs": [
+    {
+     "tests": [
+      "departments/m02-revenue-crm/tests/test_previsions.py",
+      "departments/m02-revenue-crm/tests/test_previsions_outils.py",
+      "departments/m02-revenue-crm/tests/test_moteurs_commerciaux.py"
+     ],
+     "docs": [
+      "docs/architecture/M2-VICTOR.md"
+     ],
+     "niveau": "T+S"
+    },
+    {
+     "tests": [
+      "tests/e2e/test_ventes_vendeur_appareil.py"
+     ],
+     "docs": [],
+     "niveau": "H"
+    }
+   ],
+   "verified_commit": "claude/m2-victor (base 1b58f4e6c)",
+   "current_status": "PARTIEL",
+   "limite": "Livré et prouvé : pipeline, taux de qualification et de conversion des leads résolus, délai de cycle (quantiles au rang le plus proche), probabilité par étape, valeur pondérée avec intervalle, prévision par intervalle (moyenne mobile, lissage exponentiel, bootstrap à graine), reçu recu-calcul.v1 de M5 vérifiable par m5_verifier_recu_calcul et rejouable ; refus typés sous les seuils d'échantillon, série constante, paramètres invalides ; séries hebdomadaires exactes. PARTIEL : jamais exécuté sur des données réelles ; modèle de niveau sans tendance ni saison ; la valeur pondérée repose sur la valeur déclarée par le vendeur (M2 n'est pas source financière) ; M8 reste le propriétaire de l'entonnoir et n'est pas rapproché ici.",
+   "verification": "pytest departments/m02-revenue-crm/tests/test_previsions.py test_previsions_outils.py test_moteurs_commerciaux.py ; mutations M09-M13, M21, M27 tuées (rapport de branche)"
   }
  ]
 }

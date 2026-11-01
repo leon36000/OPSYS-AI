@@ -19,6 +19,29 @@ admin) et publie `m2.lead_assigne`, que M3 relit. Sans identité d'appareil (age
 d'événements) : comportement d'avant, `owner` en texte libre. Voir « Ce que T1.4-k2 laisse ouvert » ; la
 réassignation et la republication du fait, qui en fermaient deux, sont plus bas (PLAN T1.4-m).
 
+## Ventes : profil de propriété, score, coach, analytique et prévisions (m2-victor, M2.3 / M2.4 / M2.9 / M2.15)
+
+Seize outils (niveaux et portées : [ROLES.md](../../docs/architecture/ROLES.md), « Les outils « ventes » de M2 » ; conception,
+preuves et limites : [M2-VICTOR.md](../../docs/architecture/M2-VICTOR.md)). Autonome (N0 à N2) : lire, calculer, classer, préparer un
+brouillon ; humain (N3) : confirmer un profil de propriété, déclarer une valeur ; jamais d'envoi, de changement de statut ni de remise.
+- **Profil de propriété** (`propriete.py`, registre `profils_propriete`) : liste blanche minimisée (Loi 25), chaque fait sourcé,
+  versionné, en BROUILLON jusqu'à la confirmation d'une personne ; alimenté par saisie, courriel (motifs fixes, extrait comme preuve)
+  et onboarding ; fait minimisé `m2.profil_propriete_confirme` au bus.
+- **Score de lead 2.0** (`scoring.py`, `scoring_faits.py`, `calibration_scoring.py`) : six facteurs de poids déclarés, explication
+  par facteur et par signal, signaux « non évalués » nommés, déterministe (fractions exactes), reçu rejouable ; il ORDONNE la file
+  (`m2_classer_file_leads`, permutation) et ne décide jamais ; liste de champs interdits testée ; calibration (AUC, Brier, courbe)
+  mesurée sur un jeu FICTIF.
+- **Coach de vente** (`coach.py`) : faits du CRM + extraits de connaissances avec provenance, suggestions en brouillon (N2) qui
+  citent leurs faits, garde-fou de texte (aucun prix, remise, engagement ni nombre inventé), journal et taux d'acceptation ; fermé
+  aux appareils ; le vendeur décide ; l'envoi reste au sas courriel (N3).
+- **Analytique et prévisions** (`previsions.py`, `moteurs_commerciaux.py`) : pipeline, conversion, délai de cycle, valeur pondérée,
+  prévision par INTERVALLE (moyenne mobile, lissage exponentiel, bootstrap à graine), refus sous les seuils d'échantillon, reçu
+  `recu-calcul.v1` de M5 rejouable.
+
+Preuve : `tests/test_propriete*.py`, `test_scoring*.py`, `test_previsions*.py`, `test_coach*.py`, `test_moteurs_commerciaux.py`
+et, du socle, `tests/e2e/test_ventes_vendeur_appareil.py` (la vraie porte d'appareil, SQLite et PostgreSQL). Corpus d'évaluation :
+28 cas (`evals/gabarit.v1.yaml`).
+
 ## Réassigner un lead, republier le fait de propriété (PLAN T1.4-m)
 
 Deux outils d'admin (`m2_reassigner_lead`, `m2_republier_assignations`, T1, N3, `admin` seulement ; ROLES.md, « La

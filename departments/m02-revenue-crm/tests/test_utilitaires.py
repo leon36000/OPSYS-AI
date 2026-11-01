@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from m2_revenue_crm import encodage, fixtures_garde, horodatage, verdicts
+from m2_revenue_crm import encodage, fixtures_garde, horodatage, verdicts, verdicts_commercial
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 _PKG = _SRC / "m2_revenue_crm"  # répertoire du paquet, pour les scans de sources
@@ -1119,9 +1119,15 @@ class TestCatalogueCoherentAvecLeCadrage:
         assert len(codes_emis) > 0, (
             f"Aucun identifiant REJ- extrait des {nombre_fichiers} sources de {src}"
         )
-        absents = sorted(code for code in codes_emis if not verdicts.est_verdict(code))
+        # Deux catalogues fermés : le catalogue historique (verdicts.py, épinglé) et celui des capacités
+        # commerciales (verdicts_commercial.py : propriété, score, coach, prévisions), à part comme M5 et son
+        # verdicts_calcul.py. Un code émis doit figurer dans l'un des deux.
+        absents = sorted(
+            code for code in codes_emis
+            if not verdicts.est_verdict(code) and not verdicts_commercial.est_verdict(code)
+        )
         assert not absents, (
-            f"Codes émis par les sources de {src} mais absents du catalogue M2 : {absents}"
+            f"Codes émis par les sources de {src} mais absents des catalogues M2 : {absents}"
         )
     def test_construire_verdict_leve_une_exception_dediee(self):
         """

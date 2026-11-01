@@ -47,8 +47,10 @@ __all__ = [
     "ORDRE_LEADS",
     "Vue",
     "evaluer",
+    "fiches_des_leads",
     "identifiants_des_leads",
     "lister",
+    "opportunites_par_client",
 ]
 
 ORDRE_LEADS = "ingestion croissante (le plus ancien d'abord, instants comparés en UTC), puis lead_id croissant"
@@ -164,6 +166,17 @@ def _fiches(maillons: list[dict[str, Any]]) -> dict[str, _Fiche]:
             client_id=clients.client_de_lead(vue, lead_id),
         )
     return fiches
+
+
+def fiches_des_leads(maillons: list[dict[str, Any]]) -> dict[str, _Fiche]:
+    """Les fiches des leads (statut, contrat, dernière activité…), en UN parcours : l'accès public de `_fiches` pour les
+    capacités de score et d'analytique (M2.4, M2.15), qui lisent les mêmes fiches que la liste des leads."""
+    return _fiches(maillons)
+
+
+def opportunites_par_client(maillons: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """L'accès public de `_opportunites_par_client`."""
+    return _opportunites_par_client(maillons)
 
 
 def _opportunites_par_client(maillons: list[dict[str, Any]]) -> dict[str, list[str]]:

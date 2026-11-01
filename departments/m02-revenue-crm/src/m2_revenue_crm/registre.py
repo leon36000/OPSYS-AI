@@ -31,6 +31,13 @@ _TYPE_ENTREE_VALIDES = {
     # un humain, dans son registre DÉDIÉ `clients_importes` (jamais le registre des leads).
     "client_importe",
     "contact_courriel_importe",
+    # M2.3 : profil de propriété (propositions et décisions, registre `profils_propriete`) ; M2.4/M2.15 : valeur
+    # déclarée
+    # d'une opportunité (registre `valeurs_pipeline`) ; M2.9 : suggestions du coach et décisions (registre
+    # `suggestions_coach`). Chaque registre est dédié, chaîné et append-only ; jamais le registre des leads.
+    "profil_propriete",
+    "valeur_pipeline",
+    "suggestion_coach",
 }
 
 

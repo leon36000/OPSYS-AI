@@ -44,10 +44,11 @@ GENERIQUE = "generique-pme"
 
 # sha256 des SOUL.md (et du skill de M3) AVANT la généralisation (commit d172aa2cc), pris tels quels ;
 # M5 : + paragraphe « base fiscale » de claude/m5-base-fiscale ; M7 : + paragraphe WordPress/réseaux sociaux de
-# claude/m7-wordpress-social (aucun terme sectoriel dans ces ajouts).
+# claude/m7-wordpress-social (aucun terme sectoriel dans ces ajouts) ; M2 : + paragraphes propriété, score, coach et
+# prévisions de claude/m2-victor (aucun terme sectoriel).
 SOUL_AVANT = {
     "m01-front-office": "d74fe370f565131b0174aafbb257fa08733a09760a60067f0f6af709b25a65be",
-    "m02-revenue-crm": "9c214f0c1c478b74cd875b95c9965ff190bbaaab597757a8aaadfa673ded3af7",
+    "m02-revenue-crm": "a96b26c92a38015c544c87556ad9b07c8c5e65a6ec3daa959f15a609cce4e932",
     "m03-estimation": "552ae4994c671bb7bc37b5ed5ed4e06773be5e580375a49abbc32a3298012f26",
     "m04-field-ops": "85e7ff89e5f82809c31467efc3a6d6e53f0d6ba310954c7ba36d9079f771179b",
     "m05-financecore": "aed5c1a15fb01e0c572c1120160eee182619ac1fa318edada5cafa317121608b",
@@ -502,24 +503,27 @@ def rapports(entrees, deps):
     return {pack: executeur.evaluer(entrees, repondant, deps, pack=pack) for pack in (RENOVATION, GENERIQUE, None)}
 
 
-def test_avec_le_pack_renovation_le_repondant_reference_reste_a_120_sur_120(rapports):
+def test_avec_le_pack_renovation_le_repondant_reference_reussit_tous_les_cas(rapports, entrees):
     rapport = rapports[RENOVATION]
-    assert rapport["global"]["effectif"] == 120 and rapport["global"]["reussites"] == 120
+    total = sum(len(e["corpus"]["cas"]) for e in entrees)  # 120 à la tranche 1 ; M2 « ventes » en ajoute 16
+    assert total >= 120 and rapport["global"]["effectif"] == total and rapport["global"]["reussites"] == total
     assert rapport["global"]["score"] == "1.0000" and rapport["global"]["departements_non_qualifies"] == []
     assert rapport["pack"]["actif"] == RENOVATION and rapport["pack"]["total_ecartes"] == 0
 
 
 def test_avec_le_pack_generique_les_22_cas_sectoriels_sont_ecartes_et_nommes_et_le_reste_passe(rapports, entrees):
     rapport = rapports[GENERIQUE]
-    assert rapport["global"]["effectif"] == 98 and rapport["global"]["reussites"] == 98
+    neutres = sum(1 for e in entrees for c in e["corpus"]["cas"] if "pack" not in c)  # 98 à la tranche 1 ; 114 avec M2
+    assert neutres >= 98 and rapport["global"]["effectif"] == neutres and rapport["global"]["reussites"] == neutres
     assert rapport["pack"]["total_ecartes"] == 22
     ecartes = {i for ids in rapport["pack"]["cas_ecartes"].values() for i in ids}
     assert ecartes == {c["id"] for e in entrees for c in e["corpus"]["cas"] if "pack" in c}
     assert ecartes.isdisjoint({i for d in rapport["departements"].values() for i in d["cas"]})
 
 
-def test_sans_pack_donne_tous_les_cas_restent_et_le_corpus_garde_sa_meme_empreinte(rapports):
-    assert rapports[None]["global"]["effectif"] == 120 and rapports[None]["pack"]["actif"] is None
+def test_sans_pack_donne_tous_les_cas_restent_et_le_corpus_garde_sa_meme_empreinte(rapports, entrees):
+    total = sum(len(e["corpus"]["cas"]) for e in entrees)
+    assert rapports[None]["global"]["effectif"] == total >= 120 and rapports[None]["pack"]["actif"] is None
     assert rapports[None]["corpus"] == rapports[RENOVATION]["corpus"] == rapports[GENERIQUE]["corpus"]
 
 

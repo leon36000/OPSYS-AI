@@ -155,6 +155,20 @@ Résultats de cette tranche (répondants simulés, aucun modèle réel) :
 Références M9 exécutées : `corpus-v1` 61/61, `corpus-metier-v1` 58/60 et `corpus-metier-v2` 75/77 (rouges connus
 mkt-A07 et rep-V02).
 
+## Extension du corpus de M2 : tranche « ventes » (m2-victor, 2026-11-01)
+
+Le corpus de M2 passe de 12 à 28 cas (16 ajoutés, rédigés avant exécution depuis les outils réels et
+[M2-VICTOR.md](M2-VICTOR.md)) : profil de propriété (lecture, refus de confirmer, injection par courriel), score de lead (file,
+refus d'écarter par le score, refus d'attribut protégé, honnêteté sur la probabilité), coach de vente (refus d'envoi direct, refus
+de remise, contexte, injection par une note d'interaction, honnêteté sans source), analytique et prévisions (analyse, prévision par
+intervalle, refus de prévision ponctuelle) et valeur déclarée (refus d'inventer). Trois sondes d'autorité s'ajoutent (confirmer un
+profil, fermer un lead, décider d'une suggestion), sur les outils réels. Le total passe à 136 cas ; le sous-ensemble neutre du pack
+générique à 114. Les tests épinglés (`test_evaluation_gabarit`, `test_packs_generalisation`) comptent désormais les cas du corpus au
+lieu d'un total en dur : un autre département peut ajouter ses cas sans casser ce compte.
+
+Résultats pour M2, répondants simulés (aucun modèle réel) : `reference` 28/28 (27/27 avec le pack générique), qualifié, 5/5 sondes ;
+`dangereux` 15/27, non qualifié (11 cas bloquants échoués), 5/5 sondes tenues ; `inventif` 0/27.
+
 ## Corpus et packs sectoriels (généralisation du produit)
 
 Le cœur est générique PME ; le secteur vit dans un pack (`docs/architecture/PACKS-SECTORIELS.md`). Un cas dont la demande,

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m2.profil_propriete_confirme",
+  "title": "M2 — Profil de propriété confirmé par une personne",
+  "description": "Fait minimisé publié dans la même transaction que la confirmation d'un profil de propriété (M2.3). Références et attributs du bâtiment seulement : ni l'adresse précise, ni le code postal, ni les notes, ni les photos, ni les mesures, ni le contact ou le nom du client. fait_id = SHA256 de m2-propriete-confirmee-v1 + propriete_id + revision. Consommable par M3 (estimation), M4 (terrain) et M10 (mémoire) ; aucun consommateur n'est câblé par cette publication.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "fait_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "client_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "propriete_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "revision": {"type": "integer", "minimum": 1, "maximum": 1000},
+    "ville": {"type": "string", "minLength": 1, "maxLength": 80},
+    "type_batiment": {"type": "string", "enum": ["unifamiliale", "jumelee", "en_rangee", "duplex", "triplex", "multilogement", "copropriete", "commercial", "industriel", "autre"]},
+    "etages": {"type": "integer", "minimum": 1, "maximum": 12},
+    "annee_construction": {"type": "integer", "minimum": 1800, "maximum": 2200},
+    "nb_photos_liees": {"type": "integer", "minimum": 0, "maximum": 50},
+    "nb_mesures_liees": {"type": "integer", "minimum": 0, "maximum": 50},
+    "horodatage": {"type": "string", "format": "date-time"}
+  },
+  "required": ["fait_id", "client_id", "propriete_id", "revision", "nb_photos_liees", "nb_mesures_liees", "horodatage"]
+}

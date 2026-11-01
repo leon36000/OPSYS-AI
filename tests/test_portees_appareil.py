@@ -46,6 +46,14 @@ VENDEUR = frozenset({
     "m2_lister_relances", "m2_preparer_relance", "m2_enregistrer_consentement_contact",
     "m3_generer_soumission_brouillon", "m3_lire_devis", "m3_lister_devis", "m3_qualifier_photos",
     "m3_demander_envoi_devis",  # DEMANDE l'envoi d'un devis (N4, T4.7) : le propriétaire décide dans la file
+    # M2 « ventes » (m2-victor) : profil de propriété de SES clients (proposer, confirmer en personne, lire), score
+    # expliqué
+    # et file classée de SES leads, valeur déclarée, analytique et prévisions de SON périmètre, reçu rejouable, décision
+    # sur une suggestion du coach (journal). Le coach lui-même (contexte, proposition) reste fermé aux appareils.
+    "m2_proposer_profil_propriete", "m2_proposer_profil_propriete_depuis_courriel", "m2_confirmer_profil_propriete",
+    "m2_lire_profil_propriete", "m2_calculer_score_lead", "m2_classer_file_leads", "m2_lire_modele_scoring",
+    "m2_declarer_valeur_pipeline", "m2_analyser_pipeline", "m2_prevoir_pipeline", "m2_rejouer_recu_commercial",
+    "m2_decider_suggestion_coach", "m2_lister_suggestions_coach",
 })
 
 # §9.5 (profil admin / propriétaire) : ce que fait l'employé et le vendeur, plus ce que le propriétaire
@@ -59,6 +67,7 @@ ADMIN_SEUL = frozenset({
     "m2_reassigner_lead", "m2_republier_assignations",
     "m2_corriger_contact_client", "m2_lister_historique_contact_client",
     "m2_reconcilier_memoire_contact_client",  # correction humaine et lectures privées CRM-04
+    "m2_proposer_profil_propriete_depuis_onboarding",  # brouillon de propriété à l'adresse d'une fiche importée (admin)
     "m3_lister_devis_lead_admin",  # inventaire par lead, distinct du lecteur vendeur
     # Calibration du temps M3 : lecture/évaluation, candidate inactive et demandes de décision N4.
     "m3_evaluer_calibration_cohortes", "m3_proposer_calibration_temps", "m3_evaluer_candidate_calibration",

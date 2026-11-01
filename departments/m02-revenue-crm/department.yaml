@@ -41,7 +41,8 @@ mode: ombre
 dependances: [m01-front-office, m03-estimation, m04-field-ops]
 modeles:
   defaut: standard
-skills: [ingerer-un-lead, faire-progresser-vers-m3, arbitrer-un-doublon, lister-les-leads, preparer-une-relance]
+skills: [ingerer-un-lead, faire-progresser-vers-m3, arbitrer-un-doublon, lister-les-leads, preparer-une-relance,
+         profil-de-propriete, scorer-et-classer-les-leads, coacher-un-vendeur, analyser-et-prevoir-le-pipeline]
 planifications:
   - nom: digest-commercial
     cron: "0 7 * * 1-5"
@@ -93,10 +94,13 @@ kpis:
 # m1.retrait_consentement (le STOP d'un client, par lead_id, jamais son numéro : plus aucune relance SMS ni courriel pour
 # cette personne, un retrait ne se lève pas) — voir _recevoir_devis_envoye et _recevoir_retrait_consentement dans outils.py.
 # Catalogue : src/opsys/evenements/catalogue/m3.devis_envoye.json et m1.retrait_consentement.json.
+# M2.3 (profil de propriété) : M2 publie m2.profil_propriete_confirme quand une PERSONNE confirme un profil (fait minimisé,
+# sans adresse précise) — catalogue src/opsys/evenements/catalogue/m2.profil_propriete_confirme.json. Aucun consommateur
+# n'est câblé (M3, M4 et M10 pourront s'y abonner) ; la lecture directe reste l'outil m2_lire_profil_propriete.
 evenements:
   consomme: [m4.travaux_termines, m3.devis_sans_reponse, m1.lead_qualifie, m3.devis_accepte, m3.devis_envoye,
              m1.retrait_consentement]
-  publie: [m2.client_associe, m2.lead_assigne, m2.contact_corrige]
+  publie: [m2.client_associe, m2.lead_assigne, m2.contact_corrige, m2.profil_propriete_confirme]
 configuration:
   # Seuils de segmentation des leads (PLAN T4.6 ; DEFINITION-PRODUIT.md §7 M2.11 ; §13 point 11 « seuils non
   # chiffrés : chaque département doit les définir »). VIDES à dessein : aucun seuil n'est inventé. Tant qu'un
@@ -123,3 +127,12 @@ configuration:
   #   relances:
   #     jours_entre_relances: 7
   relances: {}
+  # Bandes de valeur du facteur « rentabilité » du score de lead (M2.4, `scoring.py`). VIDES à dessein, comme les seuils
+  # ci-dessus : aucune bande n'est inventée. Tant qu'elles sont absentes ou invalides, le facteur rentabilité est « non
+  # évalué, bandes à configurer » (le score est alors normalisé sur les autres facteurs et dit sa couverture), jamais calculé
+  # avec des bandes devinées. Relues à chaque appel. Trois montants entiers en CENTS, strictement croissants : une valeur
+  # déclarée sous le premier vaut 25 points sur 100, sous le deuxième 50, sous le troisième 75, au-delà 100.
+  # Exemple (à recopier sous `scoring:`, avec de vraies valeurs, décidées par Nathan) :
+  #   scoring:
+  #     bandes_valeur_cents: [500000, 1500000, 4000000]
+  scoring: {}
