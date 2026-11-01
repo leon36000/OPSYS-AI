@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 #!/usr/bin/env python3
 """Rafraîchit les chiffres clés cités dans la documentation à partir du dépôt (après un ajout d'outils, de migrations ou
 un nouveau sceau du registre MCP). Les mêmes valeurs sont vérifiées par `tests/test_coherence_documentaire.py` : ce script

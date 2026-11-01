@@ -99,7 +99,7 @@ ci-dessous sont recopiés par un script et vérifiés par un test.
 | M4 | Field Ops (Gabriel) | 24 | FAIT_PROUVE 2 · PARTIEL 22 · SIMULE 0 · ABSENT 0 |
 | M5 | FinanceCore (Sophie) | 18 | FAIT_PROUVE 0 · PARTIEL 18 · SIMULE 0 · ABSENT 0 |
 | M6 | Material Control (Rosalie) | 21 | FAIT_PROUVE 0 · PARTIEL 21 · SIMULE 0 · ABSENT 0 |
-| M7 | Marketing (Chloé) | 15 | FAIT_PROUVE 0 · PARTIEL 13 · SIMULE 2 · ABSENT 0 |
+| M7 | Marketing (Chloé) | 15 | FAIT_PROUVE 0 · PARTIEL 15 · SIMULE 0 · ABSENT 0 |
 | M8 | Analytics (Olivier) | 18 | FAIT_PROUVE 0 · PARTIEL 18 · SIMULE 0 · ABSENT 0 |
 | M9 | Strategic Intelligence (Athéna) | 28 | DONE_VERIFIED 16 · PARTIEL 11 · PHASE_MOBILE_FINALE 1 |
 | M10 | Mémoire (Mnémo) | 20 | FAIT_PROUVE 0 · PARTIEL 20 · SIMULE 0 · ABSENT 0 |
@@ -114,8 +114,6 @@ Pour M1 à M8 et M10 : 169 exigences, dont **4** seulement `FAIT_PROUVE`. M9 sui
 | M1.19 | Bac à sable vocal | ABSENT | Aucun faux appel ni pipeline STT/TTS : seule la machine à états des phases (cf. M1.2) est testée. |
 | M3.3 | Pipeline de vision | SIMULE | Contrat du pipeline (photo avec provenance -> candidats avec incertitude, masque, version du modèle), port DetecteurVision, gouvernance (un candidat n'est jamais une mesure : seuil de confiance et tolérance déclarés, mesure de référence ou personne N3), harna… |
 | M3.5 | Détection et segmentation (Grounding DINO + SAM2) | SIMULE | Registre des modèles (capacité « vision » du registre de fournisseurs, migration 0049) : Grounding DINO et SAM 2 (pile visée), Florence-2 et OWLv2 (replis), YOLO écarté (AGPL), drapeaux de licence, statut honnête « contrat prêt, aucun modèle qualifié ». |
-| M7.7 | Médias payants et intelligence publicitaire | SIMULE | ads_loader refuse toute donnée qui n'est pas marquée fictif: true ; aucune lecture ni écriture de compte publicitaire. |
-| M7.9 | Veille concurrentielle | SIMULE | Slug local et fictif: true, sans réseau. |
 
 ### Décisions que les matrices attendent de Nathan
 
