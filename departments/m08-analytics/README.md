@@ -84,7 +84,7 @@ filtrés par rôle, conformité statique et digest quotidien.
 
 ## Couche analytique d'entreprise (M8.2, M8.8, M8.11, M8.12, M8.14, M8.18)
 
-Un catalogue fermé de 38 mesures d'entreprise (18 de la tranche 1 et 20 interdépartements ; `definitions/m8-catalogue.v1.yaml`), lues par un seul moteur (`moteur_mesures.py`) avec la fraîcheur
+Un catalogue fermé de 56 mesures d'entreprise (18 de la tranche 1, 20 interdépartements et 18 de la phase 2 ; `definitions/m8-catalogue.v1.yaml`), lues par un seul moteur (`moteur_mesures.py`) avec la fraîcheur
 de chaque mesure (`fraicheur_mesures.py`, la plus stricte des fenêtres), alimente : l'**entrepôt** dérivé et versionné (`entrepot.py`,
 `entrepot_stockage.py`, migration 0046), les **wallboards** déclaratifs (`wallboards/*.v1.yaml`, `wallboards.py`, servis par la console en SSE
 borné), le **score de santé** transparent et indéterminé plutôt que faux (`sante.py`, `definitions/m8-sante.v1.yaml`), le **copilote** en français
@@ -96,7 +96,7 @@ Données de démonstration et de calibration : `jeux_fictifs.py` (fictives).
 
 ### Entrepôt interdépartements (20 mesures de plus)
 
-Le catalogue fermé compte 38 mesures : aux 18 premières s'ajoutent vingt mesures tirées des constats que M1, M3, M4, M5, M6 et M7
+Le catalogue fermé compte 56 mesures (voir plus bas la phase 2) : aux 18 premières s'ajoutent vingt mesures tirées des constats que M1, M3, M4, M5, M6 et M7
 publient déjà sur le bus (`metrics/m8-interdepartements.v1.yaml`, `src/m8_analytics/mesures_interdepartements.py`) : marge réelle
 cumulée, chantiers à marge chiffrée et en perte, écart de marge réelle (M5) contre prévue (M3), créances (total et 90 jours et plus),
 écritures en attente, comptes à payer, solde, taxes à remettre, somme des relevés de dépense publicitaire, conversions hors ligne,
@@ -105,6 +105,22 @@ M2. Un registre de plus (`operations`) entre dans l'empreinte de l'entrepôt ; d
 `m1.commande_courriel_envoyee`) ; chaque constat rangé porte sa provenance (événement, empreinte). Une valeur calculée sur une partie
 seulement dit sa couverture (`couverture`, `detail`) ; une source absente reste « non calculable » ; un écart entre deux définitions est
 une mesure nommée. Rien n'est ajouté aux droits d'appareil, aux outils ni aux migrations. Sources, états, décisions à prendre et limites :
+[`docs/architecture/M8-ENTREPOT-SOURCES.md`](../../docs/architecture/M8-ENTREPOT-SOURCES.md).
+
+#### Phase 2 : des résumés agrégés publiés par les départements (18 mesures de plus)
+
+Les décisions D1 à D7 de l'architecte (r10) sont exécutées **sans lecture croisée ni droit d'appareil de plus** : sept départements
+publient un événement NOUVEAU du catalogue (schéma fermé, minimisé, sans renseignement nominatif, identifiant déterministe) et M8 le
+consomme dans `faits_operations` (`operations_recues.py`, la version publiée en dernier fait foi : `publie_le`) :
+`m5.depense_publicitaire_constatee` et `m5.facture_emise_constatee`, `m7.performance_signaux_constatee`,
+`m4.capacite_equipe_constatee`, `m2.pipeline_constate`, `m6.disponibilite_constatee`, `m1.plaintes_constatees`. Dix-huit mesures en
+tirent (`mesures_constats.py`) : dépense publicitaire comptabilisée et son **écart** avec les relevés de M7 (désormais calculable),
+factures émises et facturation avant taxes, clics, impressions et visites du site, heures d'équipe disponibles et planifiées et
+leur rapport, leads ouverts, taux de conversion des résolus et valeur pondérée du pipeline, articles en rupture ou sur-réservés et
+réservations incomplètes, plaintes, leads publicitaires et coût par lead (D6 : correspondance `canaux_marketing` d'`entreprise.yaml`,
+sinon « non calculable »). D7 : chaque entrée du catalogue déclare sa `cadence_s` (ou `null`), la fenêtre du producteur est
+`max(24 h, cadence)` et le propriétaire peut déclarer une cadence par mesure (`configuration.cadences_mesures_s`, vide). Trois
+wallboards de plus (`acquisition`, `ventes-clientele`, `equipes-materiel`). Détail, preuves et limites :
 [`docs/architecture/M8-ENTREPOT-SOURCES.md`](../../docs/architecture/M8-ENTREPOT-SOURCES.md).
 
 DuckDB/Parquet (non installé), MMM (PyMC-Marketing) et l'orchestrateur horaire réel restent GATED (hors

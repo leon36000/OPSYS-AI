@@ -154,14 +154,14 @@ def test_lire_mesures_rend_valeur_source_version_et_fraicheur_par_mesure():
     reponse = _appeler(outils, "m8_lire_mesures", maintenant=MAINTENANT)
     assert reponse["ok"] is True
     resultat = reponse["resultat"]
-    assert resultat["n_mesures"] == 38 and len(json.dumps(resultat, ensure_ascii=False)) <= m8_outils.BUDGET_SORTIE
+    assert resultat["n_mesures"] == 56 and len(json.dumps(resultat, ensure_ascii=False)) <= m8_outils.BUDGET_SORTIE
     lues = {m["metric_id"]: m for m in resultat["mesures"]}
     while resultat["prochain_depart"] is not None:  # la pagination reprend là où la borne a coupé, rien n'est perdu
         resultat = _appeler(outils, "m8_lire_mesures", maintenant=MAINTENANT, depart=resultat["prochain_depart"])[
             "resultat"
         ]
         lues |= {m["metric_id"]: m for m in resultat["mesures"]}
-    assert len(lues) == 38
+    assert len(lues) == 56
     taux = lues["m8_taux_acceptation_pct"]
     assert taux["valeur"] == "50.00" and taux["fraicheur"] == "a_jour" and taux["a_jour"] is True
     assert taux["source"] and len(taux["version_definition"]) == 16 and taux["proprietaire"] == "m03-estimation"
@@ -226,7 +226,14 @@ def test_le_wallboard_est_lu_par_l_admin_authentifie_et_refuse_aux_autres(base):
     outils, _, _ = _construire()
     liste = _appeler(outils, "m8_lire_wallboard", atomique=True, maintenant=MAINTENANT)
     ids = {w["id"] for w in liste["resultat"]["wallboards"]}  # voie des agents
-    assert ids == {"direction", "marketing", "finance-operations"}
+    assert ids == {
+        "direction",
+        "marketing",
+        "finance-operations",
+        "acquisition",
+        "ventes-clientele",
+        "equipes-materiel",
+    }
     with contexte.appele_par_appareil(IdentiteAppelante("admin.fictif", "admin")):
         etat = _appeler(outils, "m8_lire_wallboard", atomique=True, maintenant=MAINTENANT, wallboard_id="direction")
     assert etat["ok"] is True
@@ -374,7 +381,7 @@ def test_le_copilote_lit_l_historique_de_l_entrepot_pour_une_tendance(base):
 def test_la_publication_vers_m10_est_idempotente_et_dit_changements_et_anomalies(base):
     outils, faits, cibles = _construire()
     premiere = _appeler(outils, "m8_publier_faits_consolides", atomique=True, maintenant=MAINTENANT)["resultat"]
-    assert premiere["nouvelle"] is True and premiere["premiere_consolidation"] is True and premiere["n_mesures"] == 38
+    assert premiere["nouvelle"] is True and premiere["premiere_consolidation"] is True and premiere["n_mesures"] == 56
     rejouee = _appeler(outils, "m8_publier_faits_consolides", atomique=True, maintenant=APRES)["resultat"]
     assert rejouee["nouvelle"] is False and rejouee["evenement_id"] == premiere["evenement_id"]
     assert len(cibles["publications_cible"]) == 1
@@ -402,7 +409,7 @@ def test_la_publication_ne_porte_aucune_personne_et_la_charge_est_conforme_au_ca
     texte = json.dumps(charge, ensure_ascii=False)
     for interdit in ("tech-fictif", "technicien", "client_id", "@"):
         assert interdit not in texte
-    assert charge["mention"].endswith("professionnel qualifié.") and len(charge["mesures"]) == 38
+    assert charge["mention"].endswith("professionnel qualifié.") and len(charge["mesures"]) == 56
 
 
 def test_la_publication_exige_la_base_et_un_instant_lisible(base):

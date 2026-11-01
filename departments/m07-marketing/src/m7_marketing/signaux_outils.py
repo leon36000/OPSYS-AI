@@ -22,14 +22,16 @@ plus tard ; aucun transport réel n'est branché. Aucun rôle d'appareil.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, date, datetime
 from typing import Any
 
-from opsys import stockage
+from opsys import evenements, stockage
 from opsys.outils import Autonomie, Niveau, Outil
 
 from .publication_outils import _decideur, _horodatage
-from .signaux import comptes, curseurs, fraicheur, modele, registre
+from .signaux import comptes, curseurs, fraicheur, modele, registre, resume_performance
 from .signaux.erreurs import ErreurSignaux
 from .usine import service as usine_service
 
@@ -244,6 +246,60 @@ def lire_signaux_marketing(
     return resultat
 
 
+NOM_CONSTATER_PERFORMANCE = "m7_constater_performance_signaux"
+TYPE_PERFORMANCE = "m7.performance_signaux_constatee"
+PRODUCTEUR = registre.DEPARTEMENT
+
+
+def constater_performance_signaux(debut: str, fin: str, horodatage: str) -> dict[str, Any]:
+    """N2 : résume les valeurs de signaux (clics, impressions, visites du SITE) de `[debut, fin]` par source et par
+    compte,
+    et les publie au bus pour M8 (`m7.performance_signaux_constatee`). Des TOTAUX seulement : aucune requête, aucune
+    page,
+    aucun référent, aucun texte. Un jour sans fait n'est pas un zéro (`jours_couverts`). Un résumé par version des
+    données : le redire à l'identique ne publie rien (identifiant déterministe) ; des faits révisés ou ajoutés en font
+    une version de plus. Ne lit rien chez un fournisseur."""
+    instant = _horodatage(horodatage)
+    if isinstance(instant, dict):
+        return instant
+    try:
+        faits = registre.courants(registre.charger(_journal(registre.REGISTRE))).values()
+        resumes = resume_performance.resumer(faits, debut, fin)
+    except ErreurSignaux as erreur:
+        return _refus_erreur(erreur)
+    publies = []
+    for resume in resumes:
+        version = _version(resume)
+        charge = {
+            "evenement_id": f"m7-perf-{resume['source']}-{resume['compte_ref']}-{debut}-{fin}-{version}",
+            **resume,
+            "version_donnees": version,
+        }
+        evenements.publier(TYPE_PERFORMANCE, PRODUCTEUR, charge, evenement_id=charge["evenement_id"])
+        publies.append(
+            {
+                "source": resume["source"],
+                "compte_ref": resume["compte_ref"],
+                "jours_couverts": resume["jours_couverts"],
+                "jours_periode": resume["jours_periode"],
+                "fictif": resume["fictif"],
+                "version_donnees": version,
+            }
+        )
+    return {
+        "accepte": True,
+        "periode": {"debut": debut, "fin": fin},
+        "resumes_publies": publies,
+        "lecture": "Des totaux de SOURCES PROPRES : un jour sans fait n'est pas un zéro (jours_couverts). Aucun "
+        "transport réel n'étant branché, une source jamais lue ne produit aucun résumé.",
+    }
+
+
+def _version(resume: dict[str, Any]) -> str:
+    corps = json.dumps(resume, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(corps.encode("utf-8")).hexdigest()[:16]
+
+
 _HORODATAGE = {"type": "string", "description": "ISO 8601 avec fuseau (l'heure du serveur fait foi)."}
 _SECRET_REF = {"type": "object", "description": "{nom} : le NOM du secret dans le coffre, jamais le jeton."}
 
@@ -297,6 +353,30 @@ def outils() -> tuple[Outil, ...]:
                 ["source", "compte_ref", "motif", "horodatage"],
             ),
             fonction=desactiver_source_signaux,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+        ),
+        Outil(
+            nom=NOM_CONSTATER_PERFORMANCE,
+            description=(
+                "Fait CONSTATER les valeurs de signaux du SITE (clics et impressions de recherche ; visites) d'une "
+                "période "
+                "(367 jours au plus) par source de données propres et par compte, et les publie au bus "
+                "(m7.performance_signaux_constatee) pour M8, qui n'appelle aucun outil de M7. Des TOTAUX : aucune "
+                "requête, "
+                "aucune page, aucun référent. Un jour sans fait n'est pas un zéro (jours_couverts). Rejouer à "
+                "l'identique "
+                "ne publie rien. Aucune lecture chez un fournisseur."
+            ),
+            parametres=_objet(
+                {
+                    "debut": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+                    "fin": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+                    "horodatage": _HORODATAGE,
+                },
+                ["debut", "fin", "horodatage"],
+            ),
+            fonction=constater_performance_signaux,
             autonomie=Autonomie.T1,
             niveau=Niveau.N2,
         ),

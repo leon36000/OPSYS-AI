@@ -88,6 +88,8 @@ SORTIES_OPERATIONS = frozenset({
     "m5_ouvrir_periode_comptable",  # soldes d'ouverture consignés
     "m5_precloturer_periode_comptable",  # liste de contrôle de préclôture
     "m5_constater_mesures_comptables",  # mesures publiées pour M8
+    "m5_constater_depense_publicitaire",  # dépense publicitaire comptabilisée, publiée pour M8
+    "m5_constater_factures_emises",  # factures clients émises, publiées pour M8
     "m5_executer_cycle_comptable",  # cycle jusqu'aux brouillons
     "m5_preparer_rapprochement_bancaire",  # état de rapprochement PRÉPARÉ avec reçu
     "m5_lire_rapprochement_bancaire",  # liste, détail et rejeu des rapprochements

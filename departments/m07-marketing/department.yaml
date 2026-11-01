@@ -55,7 +55,7 @@ memoire:
 # texte, une ville, un lead ni un contact. M8 en tire les contenus qui existent et compte les leads par `utm_content`.
 evenements:
   consomme: [m4.travaux_termines, m1.retrait_consentement, m2.client_associe, m3.devis_accepte, m5.rentabilite_chantier]
-  publie: [m7.contenu_exporte, m7.publication_faite, m7.publication_echouee, m7.signaux_marketing_constates, m7.depenses_marketing_constatees, m7.anomalie_depense_detectee, m7.conversion_hors_ligne_importee]
+  publie: [m7.contenu_exporte, m7.publication_faite, m7.publication_echouee, m7.signaux_marketing_constates, m7.depenses_marketing_constatees, m7.anomalie_depense_detectee, m7.conversion_hors_ligne_importee, m7.performance_signaux_constatee]
 kpis:
   - id: m7_cout_par_lead_global
     description: Coût publicitaire joignable divisé par les leads attribués aux canaux correspondants (CAD/lead).

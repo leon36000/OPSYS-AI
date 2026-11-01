@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m1.plaintes_constatees",
+  "title": "M1 — Plaintes sur une période (résumé agrégé)",
+  "description": "Émis par M1 (outils.py::constater_plaintes, D2 de docs/architecture/M8-ENTREPOT-SOURCES.md) quand l'agent fait CONSTATER les plaintes d'une période : l'ÉTAT que le contrat `m1.plaintes_structurees` établit (CONNUE, AUCUNE_DECLAREE_PAR_SOURCE ou NON_BRANCHEE) et, seulement s'il est CONNUE, le nombre de plaintes et d'urgences de sécurité reçues. Une absence n'est jamais un zéro : `AUCUNE_DECLAREE_PAR_SOURCE` n'est pas « aucune plainte » (une plainte que les règles ne reconnaissent pas n'y figure pas) et `nombre` vaut alors null. Aucun contact, aucune conversation, aucun texte du client, aucun pseudonyme de plainte : que l'état, un nombre et l'empreinte de la lecture. evenement_id déterministe m1-plaintes-<date_reference>-<jours>-<empreinte_contenu[:16]> ; le consommateur retient, par (jour, longueur de période), la version publiée en dernier (`publie_le`). Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "date_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "jours": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 366
+    },
+    "etat": {
+      "type": "string",
+      "enum": [
+        "CONNUE",
+        "AUCUNE_DECLAREE_PAR_SOURCE",
+        "NON_BRANCHEE"
+      ]
+    },
+    "nombre": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "empreinte_contenu": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "evenement_id",
+    "date_reference",
+    "jours",
+    "etat",
+    "nombre",
+    "empreinte_contenu"
+  ]
+}

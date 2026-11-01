@@ -454,6 +454,146 @@ def lead_qualifie_m1(lead_id: str = "lead-fictif-1", **plus: Any) -> dict[str, A
     return _valide("m1.lead_qualifie", charge)
 
 
+# -- Phase 2 (D1 à D3, docs/architecture/M8-ENTREPOT-SOURCES.md) : les résumés agrégés que les producteurs publient
+# pour M8 ----
+def depense_comptabilisee(
+    sequence: int = 1, debut: str = "2026-10-28", fin: str = "2026-10-30", comptabilise: str = "300.00", **plus: Any
+) -> dict[str, Any]:
+    charge = {
+        "evenement_id": f"m5-depense-pub-{sequence}-{debut}-{fin}-{sequence:016x}",
+        "sequence": sequence,
+        "date_reference": fin,
+        "periode_debut": debut,
+        "periode_fin": fin,
+        "version_donnees": f"{sequence:016x}",
+        "devise": "CAD",
+        "base_taxes": "HORS_TAXES",
+        "comptabilise_cad": comptabilise,
+        "ecritures_definitives": 3,
+        "brouillons_en_attente": 2,
+        "brouillons_en_attente_cad": "113.75",
+    }
+    charge.update(plus)
+    return _valide("m5.depense_publicitaire_constatee", charge)
+
+
+def facture_emise(
+    facture_id: str = "facture-fictive-1", statut: str = "ENVOYEE", avant: str = "1000.00", **plus: Any
+) -> dict[str, Any]:
+    charge = {
+        "evenement_id": f"m5-facture-emise-{facture_id}-{statut}",
+        "facture_id": facture_id,
+        "statut": statut,
+        "emise_le": "2026-10-29",
+        "devise": "CAD",
+        "montant_avant_taxes_cad": avant,
+        "total_taxes_cad": "149.75",
+        "montant_apres_taxes_cad": "1149.75",
+    }
+    charge.update(plus)
+    return _valide("m5.facture_emise_constatee", charge)
+
+
+def performance_signaux(
+    source: str = "search_console", version: str = "a" * 16, clics: str | None = "120", **plus: Any
+) -> dict[str, Any]:
+    charge = {
+        "evenement_id": f"m7-perf-{source}-site-fictif-2026-10-24-2026-10-30-{version}",
+        "source": source,
+        "compte_ref": "site-fictif",
+        "periode_debut": "2026-10-24",
+        "periode_fin": "2026-10-30",
+        "jours_periode": 7,
+        "jours_couverts": 7,
+        "clics": clics,
+        "impressions": "4300",
+        "visites": None,
+        "derniere_observation_le": "2026-10-30T06:00:00-04:00",
+        "fraicheur_fenetre_h": 48,
+        "fictif": False,
+        "version_donnees": version,
+    }
+    charge.update(plus)
+    return _valide("m7.performance_signaux_constatee", charge)
+
+
+def capacite_equipe(
+    semaine: str = "2026-10-26", version: str = "b" * 16, constate_le: str = "2026-10-30T07:00:00-04:00", **plus: Any
+) -> dict[str, Any]:
+    charge = {
+        "evenement_id": f"m4-capacite-{semaine}-journees_datees_seulement-{version}-{constate_le[11:13]}",
+        "semaine_debut": semaine,
+        "portee": "journees_datees_seulement",
+        "calculable": True,
+        "heures_disponibles": "80",
+        "heures_planifiees": "62",
+        "manque": [],
+        "constate_le": constate_le,
+        "version_donnees": version,
+    }
+    charge.update(plus)
+    return _valide("m4.capacite_equipe_constatee", charge)
+
+
+def pipeline_constate(
+    jour: str = "2026-10-30", version: str = "c" * 16, constate_le: str = "2026-10-30T07:00:00-04:00", **plus: Any
+) -> dict[str, Any]:
+    charge = {
+        "evenement_id": f"m2-pipeline-{jour}-{version}-{constate_le[11:13]}",
+        "date_reference": jour,
+        "constate_le": constate_le,
+        "version_donnees": version,
+        "total": 40,
+        "ouverts": 12,
+        "par_statut": {"nouveau": 4, "qualifie": 8, "converti": 9, "perdu": 15},
+        "convertis_un_jour": 9,
+        "perdus": 15,
+        "resolus": 24,
+        "taux_conversion_resolus_pct": "37.50",
+        "valeur_ponderee_cad": "41250.00",
+    }
+    charge.update(plus)
+    return _valide("m2.pipeline_constate", charge)
+
+
+def disponibilite_constatee(
+    jour: str = "2026-10-30", version: str = "d" * 16, constate_le: str = "2026-10-30T07:00:00-04:00", **plus: Any
+) -> dict[str, Any]:
+    charge = {
+        "evenement_id": f"m6-disponibilite-{jour}-{version}-{constate_le[11:13]}",
+        "date_reference": jour,
+        "constate_le": constate_le,
+        "version_donnees": version,
+        "articles_suivis": 42,
+        "articles_en_rupture": 3,
+        "articles_sur_reserves": 1,
+        "reservations_actives": 5,
+        "reservations_incompletes": 2,
+    }
+    charge.update(plus)
+    return _valide("m6.disponibilite_constatee", charge)
+
+
+def plaintes_constatees(
+    jour: str = "2026-10-30",
+    jours: int = 30,
+    empreinte_contenu: str = "ab" * 32,
+    etat: str = "CONNUE",
+    nombre: int | None = 2,
+    **plus: Any,
+) -> dict[str, Any]:
+    charge = {
+        "evenement_id": f"m1-plaintes-{jour}-{jours}-{empreinte_contenu[:16]}",
+        "date_reference": jour,
+        "jours": jours,
+        "etat": etat,
+        "nombre": nombre if etat == "CONNUE" else None,
+        "empreinte_contenu": empreinte_contenu,
+    }
+    charge.update(plus)
+    return _valide("m1.plaintes_constatees", charge)
+
+
 def publier_depuis(
     producteur: str, type_evenement: str, charge: dict[str, Any], evenement_id: str | None = None
 ) -> str:

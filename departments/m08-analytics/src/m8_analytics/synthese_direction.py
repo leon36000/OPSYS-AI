@@ -23,7 +23,7 @@ from typing import Any
 
 SCHEMA = "opsys.m8.synthese_direction/v1"
 MENTION = "Indicateur préparatoire. À valider auprès d'un comptable (CPA) / professionnel qualifié."
-_MESURES_MAX = 40
+_MESURES_MAX = 80
 
 
 def projeter_sante(sante: dict[str, Any]) -> dict[str, Any]:

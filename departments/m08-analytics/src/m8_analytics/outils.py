@@ -60,7 +60,7 @@ from typing import Any
 
 import yaml
 
-from opsys import approbations, contexte, evenements, identite, jetons, stockage
+from opsys import approbations, contexte, evenements, identite, jetons, stockage, taxonomie
 from opsys.departements import charger_departements
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
@@ -232,6 +232,17 @@ def _seuils_entonnoir() -> dict[str, Any]:
     NATHAN : `entonnoir.evaluer_seuils` répond alors « seuil à configurer », jamais une valeur par défaut)."""
     seuils = _configuration().get("seuils_entonnoir")
     return seuils if isinstance(seuils, dict) else {}
+
+
+def _declarations_canaux() -> list[dict[str, Any]]:
+    """Ce que le propriétaire a déclaré dans `entreprise.yaml` (clé `canaux_marketing`, D6) : à quelles sources UTM de
+    ses
+    leads correspond chacun de ses canaux publicitaires. Un seul fait ; sans déclaration valide, `canaux` est vide et le
+    `verdict` dit pourquoi (à configurer, ou profil invalide) : M8 ne devine aucune correspondance."""
+    canaux, verdict = taxonomie.charger_canaux_marketing()
+    if canaux:
+        return [{"type_entree": "canaux_marketing", "canaux": {c: list(sources) for c, sources in canaux.items()}}]
+    return [{"type_entree": "canaux_marketing", "canaux": {}, "verdict": verdict["code"] if verdict else None}]
 
 
 def _fraicheur_attendue(lecture: str) -> dict[str, Any]:
@@ -1148,7 +1159,7 @@ def outils(
         return {
             "chantier": list(faits_cible), "entonnoir": list(faits_entonnoir_cible),
             "contenus": list(faits_contenus_cible), "cash_libre": list(faits_cash_libre_cible),
-            "operations": list(faits_operations_cible),
+            "operations": list(faits_operations_cible), "declarations": _declarations_canaux(),
         }
 
     outils_analytiques = analytique_outils.construire(

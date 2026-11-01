@@ -1023,6 +1023,8 @@ def test_le_manifeste_declare_le_type_publie_et_le_catalogue_le_connait(base_dur
         # tranche « signaux » (docs/architecture/M7-SIGNAUX.md)
         "m7.signaux_marketing_constates", "m7.depenses_marketing_constatees", "m7.anomalie_depense_detectee",
         "m7.conversion_hors_ligne_importee",
+        # D2 (docs/architecture/M8-ENTREPOT-SOURCES.md) : le résumé des valeurs de signaux, publié pour M8
+        "m7.performance_signaux_constatee",
     )
     assert "m7.contenu_exporte" in evenements.types_connus()
 

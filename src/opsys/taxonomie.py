@@ -41,6 +41,12 @@ VOCABULAIRE des plaintes (`signaux_plainte`, par catégorie, écrit par le propr
 la table « type de transfert -> rôle » (`destinataires_transfert`, vide par défaut : le verdict dit « destinataire à
 configurer »). Le profil de l'instance les porte, comme le reste, parce que chaque PME a ses mots et ses gens.
 
+Enfin, ce que M8 rattache à quel CANAL PUBLICITAIRE (`canaux_marketing`, D6 de
+`docs/architecture/M8-ENTREPOT-SOURCES.md`) :
+la table « canal de dépense (celui des relevés de M7 : `google_ads`, `meta`) -> sources UTM des leads qui en viennent »,
+écrite par le propriétaire. Sans déclaration, le coût par lead publicitaire de M8 est « non calculable » : aucune
+correspondance n'est devinée.
+
 Ce module est pur (fichier YAML et journal d'audit seulement) : il ne connaît ni M1, ni M2, ni M3.
 Les verdicts sont des dict `{"code", "detail"}` ; chaque département les traduit dans son propre
 catalogue de codes et garde le `detail`, qui porte la consigne de configuration.
@@ -68,6 +74,7 @@ CLE_QUESTIONS_QUALIFICATION = "questions_qualification"
 CLE_POIDS_SCORE_LEAD = "poids_score_lead"
 CLE_SIGNAUX_PLAINTE = "signaux_plainte"
 CLE_DESTINATAIRES_TRANSFERT = "destinataires_transfert"
+CLE_CANAUX_MARKETING = "canaux_marketing"
 
 # Codes de verdict émis par ce module (jamais un booléen nu : le détail dit quoi corriger).
 VERDICT_SERVICE_NON_CONFIGURE = "REJ-SERVICE-NON-CONFIGURE"
@@ -80,6 +87,7 @@ VERDICT_QUESTIONS_NON_CONFIGUREES = "REJ-QUESTIONS-NON-CONFIGUREES"
 VERDICT_POIDS_SCORE_NON_CONFIGURES = "REJ-POIDS-SCORE-NON-CONFIGURES"
 VERDICT_SIGNAUX_PLAINTE_NON_CONFIGURES = "REJ-SIGNAUX-PLAINTE-NON-CONFIGURES"
 VERDICT_DESTINATAIRE_NON_CONFIGURE = "REJ-DESTINATAIRE-NON-CONFIGURE"
+VERDICT_CANAUX_MARKETING_NON_CONFIGURES = "REJ-CANAUX-MARKETING-NON-CONFIGURES"
 
 _FORME_CODE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _LIBELLE_MAX = 120
@@ -921,13 +929,108 @@ def enregistrer_destinataires_transfert(table: Any, chemin: Path | None = None, 
     )
 
 
+_CANAUX_DEPENSE = ("google_ads", "meta")
+_SOURCE_UTM = re.compile(r"^[a-z0-9][a-z0-9._-]{0,39}$")
+_SOURCES_PAR_CANAL_MAX = 20
+
+
+def normaliser_canaux_marketing(brut: Any) -> dict[str, tuple[str, ...]]:
+    """Valide la correspondance `{canal: [sources UTM]}` : les canaux sont ceux des relevés de dépense de M7
+    (`google_ads`, `meta`) ; une source UTM (`utm_source` des leads, en minuscules : lettres, chiffres, point, tiret,
+    souligné) ne se rattache qu'à UN canal. Une déclaration vide n'est pas une déclaration ; un canal absent n'est pas
+    une erreur (aucun lead n'y est rattaché)."""
+    if not isinstance(brut, Mapping):
+        raise ProfilInvalide(f"'{CLE_CANAUX_MARKETING}' doit être un objet {{canal: [sources utm]}}")
+    if not brut:
+        raise ProfilInvalide(f"'{CLE_CANAUX_MARKETING}' est vide : déclare au moins un canal")
+    inconnus = sorted(str(c) for c in set(brut) - set(_CANAUX_DEPENSE))
+    if inconnus:
+        raise ProfilInvalide(
+            f"'{CLE_CANAUX_MARKETING}' : canaux inconnus {inconnus} (attendu : {', '.join(_CANAUX_DEPENSE)})"
+        )
+    propres: dict[str, tuple[str, ...]] = {}
+    deja: dict[str, str] = {}
+    for canal in _CANAUX_DEPENSE:
+        if canal not in brut:
+            continue
+        contexte = f"{CLE_CANAUX_MARKETING}.{canal}"
+        sources = brut[canal]
+        if isinstance(sources, (str, bytes, Mapping)) or not isinstance(sources, Iterable):
+            raise ProfilInvalide(f"{contexte} : une liste de sources UTM est attendue")
+        liste: list[str] = []
+        for position, source in enumerate(sources):
+            if not isinstance(source, str) or _SOURCE_UTM.fullmatch(source.strip().lower()) is None:
+                raise ProfilInvalide(
+                    f"{contexte}[{position}] : une source UTM (lettres, chiffres, '.', '_' ou '-', 40 caractères au "
+                    f"plus) est attendue (reçu {source!r})"
+                )
+            nette = source.strip().lower()
+            if nette in liste:
+                raise ProfilInvalide(f"{contexte} : source déclarée en double : {nette!r}")
+            if nette in deja:
+                raise ProfilInvalide(
+                    f"{contexte} : la source {nette!r} est déjà rattachée au canal {deja[nette]!r} "
+                    "(une source, un canal)"
+                )
+            liste.append(nette)
+            deja[nette] = canal
+        if not liste:
+            raise ProfilInvalide(f"{contexte} est vide : déclare au moins une source, ou retire ce canal")
+        if len(liste) > _SOURCES_PAR_CANAL_MAX:
+            raise ProfilInvalide(f"{contexte} : {_SOURCES_PAR_CANAL_MAX} sources au plus par canal")
+        propres[canal] = tuple(liste)
+    return propres
+
+
+def lire_canaux_marketing(chemin: Path | None = None) -> dict[str, tuple[str, ...]]:
+    """Correspondance déclarée par le profil ; `{}` si le fichier ou la clé est absent ou vide. Lève `ProfilInvalide`
+    si elle est écrite mais invalide : jamais lue comme absente."""
+    fichier = chemin or fichier_profil()
+    valeur = _valeur_du_profil(CLE_CANAUX_MARKETING, fichier)
+    if valeur is None or valeur == {}:
+        return {}
+    try:
+        return normaliser_canaux_marketing(valeur)
+    except ProfilInvalide as exc:
+        raise ProfilInvalide(f"{fichier} : {exc}") from exc
+
+
+def charger_canaux_marketing() -> tuple[dict[str, tuple[str, ...]], dict[str, str] | None]:
+    """`(correspondance, None)` si l'instance en déclare une, sinon `({}, verdict)` : « canaux à configurer » (M8 dit
+    « non calculable » pour tout coût par lead publicitaire). Ne lève jamais : un profil invalide est un verdict
+    `REJ-PROFIL-INVALIDE`, distinct de l'absence."""
+    chemin = fichier_profil()
+    try:
+        canaux = lire_canaux_marketing(chemin)
+    except ProfilInvalide as exc:
+        return {}, _verdict(VERDICT_PROFIL_INVALIDE, f"profil d'entreprise invalide : {exc}")
+    if not canaux:
+        return {}, _verdict(
+            VERDICT_CANAUX_MARKETING_NON_CONFIGURES,
+            f"canaux publicitaires à configurer : écris, par canal de dépense ({', '.join(_CANAUX_DEPENSE)}), les "
+            f"sources UTM des leads qui en viennent dans {chemin} (clé '{CLE_CANAUX_MARKETING}') ; tant qu'elles sont "
+            "absentes, M8 ne rattache aucun lead à un canal et ne calcule aucun coût par lead publicitaire",
+        )
+    return canaux, None
+
+
+def enregistrer_canaux_marketing(canaux: Any, chemin: Path | None = None, par: str | None = None) -> Path:
+    """Écrit la correspondance validée dans le profil, sans toucher aux autres clés. Signée par `par`, elle est inscrite
+    au journal d'audit (le nombre de sources par canal)."""
+    propres = normaliser_canaux_marketing(canaux)
+    return _ecrire_cle_du_profil(
+        CLE_CANAUX_MARKETING, {canal: list(sources) for canal, sources in propres.items()}, chemin, par,
+        "entreprise.canaux_marketing", {"sources_par_canal": {c: len(s) for c, s in propres.items()}},
+    )
+
+
 def verifier_profil() -> list[str]:
     """`opsys-metier verifier` : un profil présent doit être valide. Un profil absent n'est pas une erreur
     (l'instance n'a simplement encore déclaré aucun service, et tout service est alors refusé)."""
     problemes: list[str] = []
     lectures = (
         lire_services, lire_zone_desservie, lire_fenetre_conversation, lire_questions_qualification,
-        lire_poids_score_lead, lire_signaux_plainte, lire_destinataires_transfert,
+        lire_poids_score_lead, lire_signaux_plainte, lire_destinataires_transfert, lire_canaux_marketing,
     )
     for lecture in lectures:
         try:

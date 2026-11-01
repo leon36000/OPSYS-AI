@@ -136,6 +136,14 @@ def test_compiler_dictionnaire_reel_depot_contient_les_metriques_de_mesure_de_ch
         "m8_receptions_materiaux", "m8_receptions_avec_ecart", "m8_demandes_qualifiees_m1",
         "m8_demandes_m1_sans_lead_m2", "m8_commandes_envoyees", "m8_ecritures_en_attente",
         "m8_solde_tresorerie_cad", "m8_taxes_a_remettre_cad",
+        # depuis la phase 2 (D1 à D3, D5, D6) dix-huit de plus, tirées des résumés agrégés des départements
+        # (m8-interdepartements.v1.yaml, `test_mesures_constats.py`)
+        "m8_depense_pub_comptabilisee_cad", "m8_factures_emises", "m8_facturation_emise_cad", "m8_clics_recherche",
+        "m8_impressions_recherche", "m8_visites_site", "m8_capacite_heures_disponibles",
+        "m8_capacite_heures_planifiees", "m8_charge_planifiee_pct", "m8_pipeline_leads_ouverts",
+        "m8_taux_conversion_resolus_pct", "m8_valeur_ponderee_pipeline_cad", "m8_articles_en_rupture",
+        "m8_articles_sur_reserves", "m8_reservations_incompletes", "m8_plaintes_periode", "m8_leads_publicitaires",
+        "m8_cout_par_lead_pub_cad",
     }
     assert resultat["m08-analytics"]["m8_marge_prevue_cad"]["unite"] == "CAD"
 

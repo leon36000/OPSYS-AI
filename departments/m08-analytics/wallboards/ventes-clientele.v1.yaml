@@ -1,0 +1,19 @@
+# Wallboard « ventes et clientèle » (M8.8, phase 2 de l'entrepôt) : le pipeline de M2 (leads ouverts, taux de conversion des
+# résolus, valeur pondérée déclarée), les factures que M5 a émises et les plaintes que M1 a lues. Définition DÉCLARATIVE : aucune
+# mesure n'est calculée ici, aucun seuil n'est inventé. Un taux que M2 refuse d'établir, une valeur sans valeur déclarée et des
+# plaintes « aucune déclarée par la source » sont NON CALCULABLES, jamais zéro. Montants : admin seulement.
+schema: opsys.m8.wallboard/v1
+id: ventes-clientele
+version: 1
+titre: "Ventes et clientèle"
+description: "Pipeline commercial, factures émises et plaintes, tels que M2, M5 et M1 les ont publiés."
+roles: [admin]
+rafraichissement: {intervalle_s: 60, flux_max: 60}
+rotation: {actif: false, intervalle_s: 20}
+tuiles:
+  - {id: leads-ouverts, mesure: m8_pipeline_leads_ouverts, titre: "Leads ouverts"}
+  - {id: conversion-resolus, mesure: m8_taux_conversion_resolus_pct, titre: "Conversion des leads résolus"}
+  - {id: valeur-ponderee, mesure: m8_valeur_ponderee_pipeline_cad, titre: "Valeur pondérée du pipeline"}
+  - {id: factures-emises, mesure: m8_factures_emises, titre: "Factures émises"}
+  - {id: facturation, mesure: m8_facturation_emise_cad, titre: "Facturation émise avant taxes"}
+  - {id: plaintes, mesure: m8_plaintes_periode, titre: "Plaintes reçues"}

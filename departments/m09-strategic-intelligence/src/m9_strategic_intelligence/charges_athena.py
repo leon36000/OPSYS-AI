@@ -188,8 +188,8 @@ def valider_m8_synthese(page: object, arguments: Mapping | None) -> list[str]:
             erreurs.append(f"{cle} : condensat attendu")
     _m8_sante(charge["sante"], erreurs)  # type: ignore[index]
     mesures = charge["mesures"]  # type: ignore[index]
-    if not isinstance(mesures, list) or not 1 <= len(mesures) <= 40:
-        erreurs.append("mesures : liste de 1 à 40 mesures")
+    if not isinstance(mesures, list) or not 1 <= len(mesures) <= 80:
+        erreurs.append("mesures : liste de 1 à 80 mesures")
     else:
         ids = [m.get("metric_id") if isinstance(m, Mapping) else None for m in mesures]
         if len(set(map(str, ids))) != len(ids):
@@ -569,14 +569,14 @@ def valider_m10_faits_analytiques(page: object, arguments: Mapping | None) -> li
         elif ligne["evenement_id"] in vus:  # type: ignore[index]
             erreurs.append(f"{nom}.evenement_id : distinct")
         vus.add(str(ligne["evenement_id"]))
-        if not _instant_ok(ligne["consolide_le"]) or not _entier(ligne["n_mesures"], 1, 40):  # type: ignore[index]
+        if not _instant_ok(ligne["consolide_le"]) or not _entier(ligne["n_mesures"], 1, 80):  # type: ignore[index]
             erreurs.append(f"{nom} : instant de consolidation et nombre de mesures")
         if type(ligne["premiere_consolidation"]) is not bool:  # type: ignore[index]
             erreurs.append(f"{nom}.premiere_consolidation : booléen")
         changements, anomalies = ligne["changements_definition"], ligne["anomalies"]  # type: ignore[index]
         if (
             not isinstance(changements, list)
-            or len(changements) > 40
+            or len(changements) > 80
             or not all(
                 isinstance(c, Mapping)
                 and set(c) == {"metric_id", "ancienne", "nouvelle"}
@@ -587,7 +587,7 @@ def valider_m10_faits_analytiques(page: object, arguments: Mapping | None) -> li
             erreurs.append(f"{nom}.changements_definition : liste bornée de changements du contrat")
         if (
             not isinstance(anomalies, list)
-            or len(anomalies) > 80
+            or len(anomalies) > 160
             or not all(
                 isinstance(a, Mapping)
                 and set(a) == {"metric_id", "type"}

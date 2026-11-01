@@ -84,6 +84,7 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import yaml
 from sqlalchemy import select
@@ -103,6 +104,7 @@ from . import (
     besoins_prevus,
     bons_commande,
     classement_variance_appareil,
+    constat_disponibilite,
     contexte_materiaux_appareil,
     contrats,
     digest,
@@ -1822,6 +1824,43 @@ def lire_disponibilite(materiau_ids: list[str] | None = None) -> dict[str, Any]:
     }}
 
 
+def constater_disponibilite(horodatage: str) -> dict[str, Any]:
+    """D2 (docs/architecture/M8-ENTREPOT-SOURCES.md) : établit la disponibilité du matériel comme
+    `m6_lire_disponibilite`
+    et PUBLIE cinq COMPTES (`m6.disponibilite_constatee`) pour M8, qui n'appelle aucun outil de M6 : articles suivis, en
+    rupture, sur-réservés, réservations actives et incomplètes. Aucun article, aucune quantité, aucun prix, aucun
+    chantier.
+    `horodatage` : l'instant du constat (ISO 8601 avec fuseau) ; le jour de référence est le jour civil
+    America/Montreal.
+    Rejouer le MÊME constat (même instant) ne publie rien de plus ; un constat à un autre instant est un événement de
+    plus
+    (le retour à une version antérieure des données ne se confond pas avec la première). Dans la transaction
+    seulement."""
+    refus = _hors_transaction()
+    if refus is not None:
+        return refus
+    _, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    try:
+        instant = datetime.fromisoformat(horodatage)
+        valide = instant.utcoffset() is not None
+    except (TypeError, ValueError):
+        valide = False
+    if not valide:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-M6-HORODATAGE-INVALIDE", detail="horodatage : un instant ISO 8601 avec fuseau")}
+    jour = instant.astimezone(ZoneInfo("America/Montreal")).date().isoformat()
+    charge = constat_disponibilite.charge_disponibilite(
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE),
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_EMPLACEMENTS),
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RESERVATIONS),
+        jour,
+        horodatage,
+    )
+    evenements.publier("m6.disponibilite_constatee", _DEPARTEMENT, charge, evenement_id=charge["evenement_id"])
+    return {"accepte": True, "resultat": {"publie": True, **charge}}
+
 def _snapshots_pertes_appareil(wct_id: str | None = None) -> dict[str, Any]:
     """Copie les sources dans la transaction courante ; les rangs viennent du stockage réel."""
     cnx = stockage.connexion_courante()
@@ -3166,6 +3205,27 @@ def outils() -> tuple[Outil, ...]:
             # vers le rebut ou le fournisseur retire du stock de ce qu'on peut réserver, et le stock non localisé
             # d'aujourd'hui est tout entier à `inconnu`.
             roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_constater_disponibilite",
+            description=(
+                "D2 : fait CONSTATER la disponibilité du matériel et la PUBLIE au bus (m6.disponibilite_constatee) "
+                "pour "
+                "M8 : CINQ comptes seulement, articles suivis, en rupture (disponible nul ou négatif), sur-réservés, "
+                "réservations actives et réservations incomplètes. Mêmes calculs que m6_lire_disponibilite. Aucun "
+                "article, "
+                "aucune quantité, aucun prix, aucun chantier ne part. Rejouer le même constat sur les mêmes "
+                "registres (même horodatage) ne publie rien. horodatage : l'instant du constat (ISO 8601 avec fuseau)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"horodatage": {"type": "string", "maxLength": 64}},
+                "required": ["horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=constater_disponibilite,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
         ),
         Outil(
             nom="m6_lire_disponibilite",

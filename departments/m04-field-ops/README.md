@@ -534,3 +534,7 @@ cas fictifs ; fenêtre d'arrivée (jamais une heure unique), consentement de sui
 (`m4.message_client_brouillon_pret`, envoi N3 de M1). Poids et réglages vides dans `department.yaml` (`adequation`, `eta_client`).
 Pas de lien sécurisé, de rôle `client` ni de SMS ; aucun routeur installé (mode bridé). Détails et limites :
 [`docs/architecture/M3-M4-MATHIS-GABRIEL.md`](../../docs/architecture/M3-M4-MATHIS-GABRIEL.md).
+
+## Capacité d'équipe publiée pour M8 — `m4_constater_capacite_equipe`
+
+(phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) L'outil (T1/N2, agent seulement, aucun droit d'appareil) calcule la capacité d'une semaine comme `m4_lire_capacite_equipe` et publie `m4.capacite_equipe_constatee` : le total des heures d'équipe DÉCLARÉES et le total des heures planifiées de la cédule appliquée. Une semaine non calculable ne porte aucun total (`null`) et dit ses causes en codes fermés, sans suffixe (ni équipe, ni date, ni nombre). Aucune équipe ni aucun membre ne part. L'identifiant porte l'instant du constat.

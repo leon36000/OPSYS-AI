@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m6.disponibilite_constatee",
+  "title": "M6 — Disponibilité du matériel (résumé agrégé)",
+  "description": "Émis par M6 (outils.py::constater_disponibilite, D2 de docs/architecture/M8-ENTREPOT-SOURCES.md) quand l'agent fait CONSTATER la disponibilité : combien d'articles le stock suit, combien n'ont plus rien de disponible (en main moins réservé ≤ 0), combien sont réservés au-delà de ce qui est en main, et combien de réservations de chantier sont actives et lesquelles ne sont pas prêtes. Que des comptes : aucun article, aucune quantité, aucun prix, aucun fournisseur, aucun chantier. evenement_id déterministe m6-disponibilite-<date_reference>-<version_donnees>-<empreinte du constat_le sur 8 hexadécimaux> ; le consommateur retient, par jour, la version publiée en dernier (`publie_le`). `constate_le` est l'instant du constat (celui que l'appelant ou le serveur donne à l'outil) : il fait partie de l'identifiant, de sorte qu'un retour à une version antérieure des données (A, puis B, puis A) publie un événement DISTINCT, jamais un doublon silencieux de la première ; `version_donnees` n'identifie que les données. Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "date_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "constate_le": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "version_donnees": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "articles_suivis": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "articles_en_rupture": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "articles_sur_reserves": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reservations_actives": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reservations_incompletes": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "evenement_id",
+    "date_reference",
+    "constate_le",
+    "version_donnees",
+    "articles_suivis",
+    "articles_en_rupture",
+    "articles_sur_reserves",
+    "reservations_actives",
+    "reservations_incompletes"
+  ]
+}

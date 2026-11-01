@@ -1,5 +1,5 @@
 """Outils « ventes » de M2 : profil de propriété (M2.3), score de lead (M2.4), coach de vente (M2.9), analytique et
-prévisions (M2.15). Seize outils, une couture mince entre l'identité, les registres et les modules purs.
+prévisions (M2.15). Dix-sept outils, une couture mince entre l'identité, les registres et les modules purs.
 
 Chaque outil réutilise les contrôles d'accès de `outils.py` (identité d'appareil confirmée en base, un vendeur ne voit
 que SES leads, l'admin tous, l'agent sans identité comme avant) ; ce module importe donc `outils` et n'est chargé que
@@ -17,11 +17,13 @@ calculé sur un registre qu'on ne peut pas lire.
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import yaml
 
-from opsys import stockage
+from opsys import evenements, stockage
 from opsys.outils import Autonomie, Niveau, Outil
 
 from . import (
@@ -30,6 +32,7 @@ from . import (
     clients_importes,
     coach,
     consentements,
+    constat_pipeline,
     faits_interconnexion,
     liste_leads,
     moteurs_commerciaux,
@@ -55,6 +58,9 @@ _NOM_DECLARER_VALEUR = "m2_declarer_valeur_pipeline"
 _NOM_DECIDER_COACH = "m2_decider_suggestion_coach"
 _REGISTRE_CLIENTS_IMPORTES = "clients_importes"
 _LIMITE_RECU = 200_000
+_GRAINE_CONSTAT = 20261101  # la graine par défaut de m2_analyser_pipeline : le point publié ne dépend pas du bootstrap
+_REPETITIONS_CONSTAT = 1000
+_NIVEAU_CONSTAT = 80
 _TEXTES_LIBRES = frozenset({"materiau", "nature", "note", "extrait", "resume"})
 
 
@@ -722,6 +728,42 @@ def analyser_pipeline(
     return {"accepte": True, "resultat": sortie}
 
 
+def constater_pipeline(horodatage: str) -> dict[str, Any]:
+    """D2 (docs/architecture/M8-ENTREPOT-SOURCES.md) : établit le pipeline de TOUS les leads comme
+    `m2_analyser_pipeline`
+    et PUBLIE ses comptes agrégés (`m2.pipeline_constate`) pour M8, qui n'appelle aucun outil de M2. Aucun lead, aucun
+    contact, aucun vendeur. Un taux ou une valeur que M2 refuse d'établir part en null, jamais en zéro. Une version par
+    jour (America/Montreal) : rejouer sur les mêmes données ne publie rien de plus. Agent seulement : un appel
+    d'appareil n'a pas de droit sur cet outil, et un périmètre partiel (un vendeur) serait faux pour M8."""
+    acteur, refus = _o._acteur_appareil(acces.ROLES_LEADS)
+    if refus is not None:
+        return _o._refus(refus)
+    if acteur is not None and acteur.role != acces.ROLE_ADMIN:
+        return _refus("REJ-PREV-PARAMETRE-INVALIDE", "le constat porte sur tous les leads : agent ou admin seulement")
+    instant, refus_instant = _instant(horodatage)
+    if refus_instant is not None:
+        return refus_instant
+    records, _maintenant_s, absent = _enregistrements_visibles(acteur, instant)
+    if absent is not None:
+        return absent
+    recu, verdict = moteurs_commerciaux.produire(
+        "analytique_pipeline",
+        moteurs_commerciaux.VERSION_ANALYTIQUE,
+        {"leads": records},
+        {"graine": _GRAINE_CONSTAT, "repetitions": _REPETITIONS_CONSTAT, "niveau": _NIVEAU_CONSTAT},
+    )
+    if verdict is not None:
+        return _o._refus(verdict)
+    jour = datetime.fromisoformat(instant).astimezone(ZoneInfo("America/Montreal")).date().isoformat()
+    charge = constat_pipeline.charge_pipeline(recu, jour, instant)
+    evenements.publier("m2.pipeline_constate", _o._DEPARTEMENT, charge, evenement_id=charge["evenement_id"])
+    return {"accepte": True, "resultat": {
+        "publie": True, "evenement_id": charge["evenement_id"], "date_reference": jour,
+        "version_donnees": charge["version_donnees"], "total": charge["total"],
+        "taux_conversion_resolus_pct": charge["taux_conversion_resolus_pct"],
+        "valeur_ponderee_cad": charge["valeur_ponderee_cad"]}}
+
+
 def prevoir_pipeline(
     horodatage: str,
     serie: str,
@@ -1209,7 +1251,7 @@ def lister_suggestions_coach(lead_id: str | None = None, decalage: int = 0, limi
 
 # ================================================================================================ déclaration
 def outils_ventes() -> tuple[Outil, ...]:
-    """Les seize outils « ventes » de M2."""
+    """Les dix-sept outils « ventes » de M2."""
     horodatage = _o._HORODATAGE
     identifiant = {"type": "string", "minLength": 1, "maxLength": 200}
     revision = {"type": "integer", "minimum": 0, "maximum": 10000}
@@ -1425,6 +1467,24 @@ def outils_ventes() -> tuple[Outil, ...]:
             ),
             fonction=analyser_pipeline,
             roles_appareil=acces.ROLES_LEADS,
+        ),
+        Outil(
+            nom="m2_constater_pipeline",
+            description=(
+                "M2.15/D2 : fait CONSTATER le pipeline de TOUS les leads et le PUBLIE au bus (m2.pipeline_constate) "
+                "pour "
+                "M8 : comptes par statut, ouverts, convertis, perdus, résolus, taux de conversion des résolus et "
+                "valeur "
+                "pondérée DÉCLARÉE (estimation commerciale, pas un prix de M3), mêmes calculs et mêmes seuils que "
+                "m2_analyser_pipeline. Un taux ou une valeur que M2 refuse d'établir part en null, jamais en zéro. "
+                "Aucun "
+                "lead, aucun contact, aucun vendeur ne part. Rejouer le même constat (même horodatage) ne publie "
+                "rien. horodatage : instant de lecture (ISO 8601 avec fuseau)."
+            ),
+            parametres=schema({"horodatage": horodatage}, ["horodatage"]),
+            fonction=constater_pipeline,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
         ),
         Outil(
             nom="m2_prevoir_pipeline",

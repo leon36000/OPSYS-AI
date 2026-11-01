@@ -59,6 +59,25 @@ IDS = [
     "m8_demandes_qualifiees_m1",
     "m8_demandes_m1_sans_lead_m2",
     "m8_commandes_envoyees",
+    # Phase 2 (D1 à D3, D5, D6) : les mesures tirées des résumés des départements, voir test_mesures_constats.py
+    "m8_depense_pub_comptabilisee_cad",
+    "m8_factures_emises",
+    "m8_facturation_emise_cad",
+    "m8_clics_recherche",
+    "m8_impressions_recherche",
+    "m8_visites_site",
+    "m8_capacite_heures_disponibles",
+    "m8_capacite_heures_planifiees",
+    "m8_charge_planifiee_pct",
+    "m8_pipeline_leads_ouverts",
+    "m8_taux_conversion_resolus_pct",
+    "m8_valeur_ponderee_pipeline_cad",
+    "m8_articles_en_rupture",
+    "m8_articles_sur_reserves",
+    "m8_reservations_incompletes",
+    "m8_plaintes_periode",
+    "m8_leads_publicitaires",
+    "m8_cout_par_lead_pub_cad",
 ]
 
 
@@ -386,7 +405,7 @@ def _vide(definitions):
 
 
 # ================================================================================================ définitions
-def test_vingt_definitions_gouvernees_avec_proprietaire_connu_et_devise_cad(definitions):
+def test_trente_huit_definitions_gouvernees_avec_proprietaire_connu_et_devise_cad(definitions):
     assert list(definitions) == IDS
     for metric_id, definition in definitions.items():
         assert definition["proprietaire"].startswith("m0") and definition["definition"]
@@ -618,12 +637,14 @@ def test_dernier_fait_est_le_releve_le_plus_recent_et_un_instant_illisible_est_d
     assert m["dernier_fait_le"] == "2026-10-29T06:00:00-04:00" and m["entrees"]["n_releve_le_illisibles"] == 1
 
 
-def test_l_ecart_entre_releves_et_depense_comptabilisee_est_nomme_et_non_calculable(definitions):
+def test_l_ecart_entre_releves_et_depense_comptabilisee_est_nomme_et_non_calculable_sans_constat_de_m5(definitions):
+    """D1 : tant que M5 n'a publié aucun constat de la dépense comptabilisée, l'écart est non calculable ET le dit ; il
+    se calcule dès qu'il y en a un (test_mesures_constats.py)."""
     faits = [_depense("r1"), _comptable()]
     m = _mesures(_registres(operations=faits), definitions)["m8_ecart_depense_pub_comptabilisee_cad"]
     assert m["statut"] == "non_calculable" and m["valeur"] is None
     assert "M5" in m["manque"][0]["source"] and "comptabilis" in m["manque"][0]["raison"]
-    assert "N4" in m["manque"][0]["raison"] or "humain" in m["manque"][0]["raison"]
+    assert m["manque"][0]["champ"] == "m5.depense_publicitaire_constatee"
 
 
 def test_conversions_distinctes_et_source_non_normalisee_dite(definitions):

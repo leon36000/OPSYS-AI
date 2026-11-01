@@ -33,7 +33,7 @@ _DOMAINES = frozenset({"ventes", "marketing", "operations", "qualite", "finance"
 _SENS = frozenset({"plus_est_mieux", "moins_est_mieux", "neutre"})
 _SENSIBILITES = frozenset({"agregat", "financier"})
 _CLES_ENTREE = frozenset({"metric_id", "domaine", "sens", "sensibilite", "fraicheur", "synonymes"})
-_CLES_FRAICHEUR = frozenset({"fenetre_s", "terminale"})
+_CLES_FRAICHEUR = frozenset({"fenetre_s", "cadence_s", "terminale"})
 _SYNONYMES_MAX = 12
 _LONGUEUR_SYNONYME_MAX = 80
 
@@ -83,17 +83,26 @@ def _refus(detail: str) -> CatalogueRefuse:
 
 def _valider_fraicheur(metric_id: str, brut: Any) -> dict[str, Any]:
     if not isinstance(brut, dict) or not brut or set(brut) - _CLES_FRAICHEUR:
-        raise _refus(f"{metric_id} : fraicheur doit être {{fenetre_s}} ou {{terminale: true}}")
-    if "fenetre_s" in brut and "terminale" in brut:
-        raise _refus(f"{metric_id} : fraicheur : fenetre_s et terminale s'excluent")
+        raise _refus(f"{metric_id} : fraicheur doit être {{fenetre_s, cadence_s}} ou {{terminale: true}}")
     if "terminale" in brut:
+        if len(brut) != 1:
+            raise _refus(f"{metric_id} : fraicheur : terminale ne se combine ni avec fenetre_s ni avec cadence_s")
         if brut["terminale"] is not True:
             raise _refus(f"{metric_id} : fraicheur.terminale ne vaut que true")
         return {"terminale": True}
+    if set(brut) != {"fenetre_s", "cadence_s"}:
+        raise _refus(
+            f"{metric_id} : fraicheur doit déclarer fenetre_s ET cadence_s (null quand la source est sporadique et que "
+            "personne n'a déclaré sa cadence : aucune cadence n'est inventée)"
+        )
     raison = fraicheur_lectures.raison_invalide(brut["fenetre_s"])
     if raison is not None:
         raise _refus(f"{metric_id} : fraicheur.fenetre_s : {raison}")
-    return {"fenetre_s": brut["fenetre_s"]}
+    if brut["cadence_s"] is not None:
+        raison = fraicheur_lectures.raison_invalide(brut["cadence_s"])
+        if raison is not None:
+            raise _refus(f"{metric_id} : fraicheur.cadence_s : {raison}")
+    return {"fenetre_s": brut["fenetre_s"], "cadence_s": brut["cadence_s"]}
 
 
 def _valider_entree(brut: Any, definitions: dict[str, dict[str, str]], vus: dict[str, str]) -> dict[str, Any]:

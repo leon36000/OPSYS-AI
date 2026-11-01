@@ -190,3 +190,7 @@ Bugs corrigés (test rouge → vert) lors de cette passe :
   `Decimal(str(x))`, jamais `Decimal(x)`), prouvée par un test
   inter-départements M6 → M5 réel (`tests/test_frontiere_finance_m5.py`,
   aucune modification de m5_financecore).
+
+## Disponibilité du matériel publiée pour M8 — `m6_constater_disponibilite`
+
+(phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) L'outil (T1/N2, agent seulement, aucun droit d'appareil) publie `m6.disponibilite_constatee` : CINQ comptes (articles suivis, en rupture, sur-réservés, réservations actives et incomplètes), calculés comme `m6_lire_disponibilite` (module pur `constat_disponibilite.py`). Aucun article, quantité, prix ni chantier ne part. L'identifiant porte l'instant du constat.

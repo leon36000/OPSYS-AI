@@ -208,3 +208,7 @@ Qualification locale : 1 849 tests département/verticale sans skip, puis 121 te
 principal ; Ruff et vérificateur verts, revue indépendante de 30 cas. Porte Python du harnais
 vers HTTP MCP/SQLite, Gateway TypeScript et téléphone distincts. Publication et CI exactes
 suivantes requises. [Audit et limites](../../docs/reprise/NOTES-M2-2026-10-08/AUDIT-NOTES-M2-2026-10-08-r1.md).
+
+## Résumé du pipeline publié pour M8 — `m2_constater_pipeline`
+
+(phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) L'outil (T1/N2, agent seulement, aucun droit d'appareil) établit le pipeline de TOUS les leads comme `m2_analyser_pipeline` (module pur `constat_pipeline.py`) et publie `m2.pipeline_constate` : comptes par statut, ouverts, convertis, perdus, résolus, taux de conversion des résolus et valeur pondérée DÉCLARÉE (centre de l'estimation). Un taux ou une valeur que M2 refuse d'établir part en `null`. Aucun lead, contact ni vendeur. Un vendeur n'a pas de périmètre global : refusé. L'identifiant porte l'instant du constat, de sorte qu'un retour à une version antérieure des données ne se confond pas avec la première publication.

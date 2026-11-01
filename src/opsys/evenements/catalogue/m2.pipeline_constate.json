@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m2.pipeline_constate",
+  "title": "M2 — Pipeline commercial (résumé agrégé)",
+  "description": "Émis par M2 (outils_ventes.py::constater_pipeline, D2 de docs/architecture/M8-ENTREPOT-SOURCES.md) quand l'agent fait CONSTATER le pipeline : les comptes que `m2_analyser_pipeline` établit sur TOUS les leads (par statut, ouverts, résolus, convertis un jour, perdus), le taux de conversion des résolus quand l'échantillon est suffisant (null sinon : M2 refuse de conclure, jamais un zéro) et la valeur pondérée DÉCLARÉE par les vendeurs (estimation commerciale, pas un prix de M3 ; null si M2 ne l'établit pas). Aucun lead, aucun contact, aucun vendeur, aucun propriétaire : que des comptes et deux montants. evenement_id déterministe m2-pipeline-<date_reference>-<version_donnees>-<empreinte du constat_le sur 8 hexadécimaux> ; le consommateur retient, par jour, la version publiée en dernier (`publie_le`). `constate_le` est l'instant du constat (celui que l'appelant ou le serveur donne à l'outil) : il fait partie de l'identifiant, de sorte qu'un retour à une version antérieure des données (A, puis B, puis A) publie un événement DISTINCT, jamais un doublon silencieux de la première ; `version_donnees` n'identifie que les données. Toutes les propriétés sont REQUISES.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "date_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "constate_le": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "version_donnees": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ouverts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "par_statut": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "maxProperties": 12
+    },
+    "convertis_un_jour": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "perdus": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "resolus": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "taux_conversion_resolus_pct": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]+(\\.[0-9]{1,4})?$",
+      "maxLength": 24
+    },
+    "valeur_ponderee_cad": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$",
+      "maxLength": 24,
+      "description": "Montant en dollars canadiens, texte décimal (jamais un nombre JSON, jamais un flottant)."
+    }
+  },
+  "required": [
+    "evenement_id",
+    "date_reference",
+    "constate_le",
+    "version_donnees",
+    "total",
+    "ouverts",
+    "par_statut",
+    "convertis_un_jour",
+    "perdus",
+    "resolus",
+    "taux_conversion_resolus_pct",
+    "valeur_ponderee_cad"
+  ]
+}

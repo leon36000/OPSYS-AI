@@ -17,7 +17,7 @@ Statut : tranche 1 (2026-11-01). Exigences : M8.2, M8.8, M8.11, M8.12, M8.14, M8
 registres des départements (faits_chantier, faits_entonnoir, faits_contenus, faits_cash_libre)      ← la vérité, inchangée
         │  moteurs gouvernés existants (entonnoir, contenus, mesures_chantier, cash_libre) + synthese.py (4 mesures d'entreprise)
         ▼
-moteur_mesures.lire(registres, catalogue)  →  38 mesures (18 + 20 interdépartements) : valeur exacte (texte) | « non calculable », source, version de définition,
+moteur_mesures.lire(registres, catalogue)  →  56 mesures (18 + 20 interdépartements + 18 de la phase 2) : valeur exacte (texte) | « non calculable », source, version de définition,
         │                                        instant du dernier fait qui la porte, fenêtre de fraîcheur DÉCLARÉE
         ├── fraicheur_mesures  : a_jour | perime | inconnu | manquant | non_applicable   (la plus stricte des fenêtres)
         ├── wallboards (M8.8)  ├── sante (M8.11)  ├── copilote (M8.12)  ├── memoire → M10 (M8.18)
@@ -54,6 +54,7 @@ non calculable : M8 ne peut pas dire si le bus n'a rien livré ou s'il n'y a rie
 Décision d'architecte r1 (« fraîcheur M8 ») appliquée mesure par mesure : le catalogue déclare une fenêtre (vue exécutive : 24 h = 86 400 s) ou
 `terminale` (mesure cumulée de chantiers terminés : non applicable une fois le chantier terminé). Le propriétaire peut resserrer ou fixer une
 fenêtre (`department.yaml`, `configuration.fraicheur_mesures_s`, vide à la livraison : valeur invalide refusée ET dite, clé inconnue dite).
+D7 (phase 2 de l'entrepôt) : chaque entrée non terminale déclare aussi sa `cadence_s` (le rythme de publication de la SOURCE, ou `null` quand elle est sporadique et que personne n'a déclaré sa cadence) ; la fenêtre du producteur est `max(fenetre_s, cadence)`, le propriétaire corrige une cadence par mesure (`configuration.cadences_mesures_s`, vide à la livraison, mêmes refus : valeur invalide dite, clé inconnue dite) et origine « cadence » est dite. Aucune cadence n'est inventée (seule la capacité d'équipe, constatée par semaine, en déclare une).
 **Précédence : la plus stricte** entre le producteur (configuration, sinon catalogue) et l'appelant (`fraicheur_max_s`). L'âge est celui du
 dernier fait qui porte la mesure, face à `maintenant`, que l'APPELANT donne (M8 n'a pas d'horloge : le garde statique `HORLOGE_INTERNE` couvre
 tous les nouveaux modules).
@@ -82,7 +83,7 @@ mesure. Schéma en étoile dans la base de l'instance (SQLAlchemy Core, **portab
 | Table | Rôle | Écriture |
 |---|---|---|
 | `m8_ent_constructions` | journal des constructions : `version_schema`, `version_catalogue`, `empreinte_registres`, instant, comptes | append |
-| `m8_ent_mesures_courantes` | mart : les 38 mesures, source, version de définition, dernier fait, fenêtre déclarée | remplacée en bloc |
+| `m8_ent_mesures_courantes` | mart : les 56 mesures, source, version de définition, dernier fait, fenêtre déclarée | remplacée en bloc |
 | `m8_ent_mesures_hist` | historique d'une mesure par construction | append |
 | `m8_ent_dim_chantier` | dimension : durées, verdict de matériaux, marge réelle de M5 (aucun technicien) | remplacée en bloc |
 | `m8_ent_dim_lead`, `m8_ent_fait_devis`, `m8_ent_mart_contenus` | dimension, fait, mart | remplacées en bloc |
@@ -239,7 +240,7 @@ l'affaire du déploiement ; l'adresse du client n'est pas journalisée (Loi 25, 
 
 ## 7. M8.18 Intégration mémoire (`memoire.py`, `m10_memoire/analytique.py`)
 
-* **Publier vers M10** : `m8_publier_faits_consolides` (N2) publie UN événement `m8.fait_consolide` (catalogue du socle, schéma fermé) : les 38 mesures (valeur ou null,
+* **Publier vers M10** : `m8_publier_faits_consolides` (N2) publie UN événement `m8.fait_consolide` (catalogue du socle, schéma fermé) : les 56 mesures (valeur ou null,
   unité, propriétaire, version de définition, dernier fait, fraîcheur), les **changements de définition** et les **anomalies** (`devenue_non_calculable`, `perimee`)
   depuis la consolidation précédente, avec l'empreinte des registres. Identifiant lié à l'état des registres et au catalogue : republier le même état rejoue la
   première enveloppe. **Aucune personne** (le catalogue du socle refuse un champ de plus).
@@ -268,6 +269,7 @@ Aucun droit d'appareil n'est élargi au-delà de `m8_lire_wallboard` (ROLES.md).
 
 ```yaml
 fraicheur_mesures_s: {m8_leads_recus: 3600}          # secondes, par mesure ; vide à la livraison
+cadences_mesures_s: {m8_factures_emises: 604800}     # D7 : cadence de la SOURCE, fenêtre = max(24 h, cadence) ; vide à la livraison
 sante:
   bornes:
     m8_taux_acceptation_pct: {pire: 20, cible: 60}   # seuils d'affaires du propriétaire ; vides à la livraison

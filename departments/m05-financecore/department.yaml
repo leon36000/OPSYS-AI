@@ -44,7 +44,8 @@ evenements:                                          # ADR-0009 §3, PLAN T1.2-d
   # m5.dossier_cpa_scelle (dossier de période scellé, pour M10). Aucun ne porte de nom, de libellé ni de texte libre ; les
   # consommateurs (M2, M8, M6, M10) les déclarent dans leur propre `evenements.consomme`.
   publie: [m5.rentabilite_chantier, m5.cash_libre_constate, m5.creance_relance_preparee, m5.mesures_comptables_constatees,
-           m5.rapprochement_po_constate, m5.dossier_cpa_scelle]
+           m5.rapprochement_po_constate, m5.dossier_cpa_scelle,
+           m5.depense_publicitaire_constatee, m5.facture_emise_constatee]
 approbations:                                         # ADR-0009 §5, PLAN T1.3-c point 5
   n3: [finance, nathan_owner]
   n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture), correction et annulation d'une

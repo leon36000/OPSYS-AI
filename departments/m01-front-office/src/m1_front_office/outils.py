@@ -953,6 +953,35 @@ def lire_plaintes_structurees(
         verdict_profil=verdict_profil)}
 
 
+def constater_plaintes(
+    date_reference: str, jours: int = plaintes_structurees.JOURS_DEFAUT
+) -> dict[str, Any]:
+    """D2 (docs/architecture/M8-ENTREPOT-SOURCES.md) : lit les plaintes comme `m1_lire_plaintes_structurees` et PUBLIE
+    un
+    résumé minimal (`m1.plaintes_constatees`) pour M8, qui n'appelle aucun outil de M1 : l'ÉTAT de la lecture, le
+    nombre de
+    plaintes SEULEMENT si l'état est CONNUE (sinon null : `AUCUNE_DECLAREE_PAR_SOURCE` n'est pas « aucune plainte », et
+    `NON_BRANCHEE` n'est pas zéro) et l'empreinte du contenu lu. Aucun pseudonyme de plainte, aucune catégorie, aucun
+    texte, aucun contact. Même garde que la lecture. Rejouer sur le même registre redonne la même charge : rien de
+    plus."""
+    lecture = lire_plaintes_structurees(date_reference, jours)
+    if lecture.get("accepte") is not True:
+        return lecture
+    resultat = lecture["resultat"]
+    connue = resultat["etat"] == plaintes_structurees.ETAT_CONNUE
+    empreinte = resultat["revision"]["empreinte_contenu"]
+    charge = {
+        "evenement_id": f"m1-plaintes-{date_reference}-{jours}-{empreinte[:16]}",
+        "date_reference": date_reference,
+        "jours": jours,
+        "etat": resultat["etat"],
+        "nombre": resultat["comptes"]["declarees"] if connue else None,
+        "empreinte_contenu": empreinte,
+    }
+    evenements.publier("m1.plaintes_constatees", _DEPARTEMENT, charge, evenement_id=charge["evenement_id"])
+    return {"accepte": True, "resultat": {"publie": True, **charge}}
+
+
 def emettre_notification(canal: str, message: str) -> dict[str, Any]:
     """Émet un message vers un canal externe (bus de notification en mode ombre).
     Action T2 : réversible, mais externe — jamais présentée comme faite avant
@@ -2466,6 +2495,35 @@ def _outils_base() -> tuple[Outil, ...]:
             fonction=lire_plaintes_structurees,
             # T0/N0 : lecture pure. Aucun `roles_appareil` : fermé à tous les appareils, comme tout outil sans
             # déclaration ; aucun droit n'est ajouté. L'ouverture à un lecteur (M9) est une décision du socle.
+        ),
+        Outil(
+            nom="m1_constater_plaintes",
+            description=(
+                "D2 : fait CONSTATER les plaintes des `jours` jours civils finissant à `date_reference` et en PUBLIE "
+                "un "
+                "résumé minimal au bus (m1.plaintes_constatees) pour M8 : l'ÉTAT de la lecture (CONNUE, "
+                "AUCUNE_DECLAREE_PAR_SOURCE, NON_BRANCHEE), le nombre de plaintes SEULEMENT s'il est CONNUE (sinon "
+                "null : "
+                "une absence n'est jamais un zéro) et l'empreinte du contenu. Même lecture et mêmes refus que "
+                "m1_lire_plaintes_structurees. Aucun pseudonyme, aucune catégorie, aucun texte du client ne part. "
+                "Rejouer sur le même registre ne publie rien de plus."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "date_reference": {"type": "string", "description": "Jour de la lecture, AAAA-MM-JJ (inclus)."},
+                    "jours": {
+                        "type": "integer",
+                        "description": f"Longueur de la période en jours civils, 1 à {plaintes_structurees.JOURS_MAX} "
+                                       f"(défaut {plaintes_structurees.JOURS_DEFAUT}).",
+                    },
+                },
+                "required": ["date_reference"],
+                "additionalProperties": False,
+            },
+            fonction=constater_plaintes,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
         ),
         Outil(
             nom="m1_transferer",

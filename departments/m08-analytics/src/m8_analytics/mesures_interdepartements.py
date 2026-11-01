@@ -34,95 +34,44 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from . import cash_libre, contenus, encodage, entonnoir, mesures_chantier, nombres, operations_recues, synthese
+from . import (
+    cash_libre,
+    contenus,
+    entonnoir,
+    mesures_chantier,
+    mesures_communes,
+    mesures_constats,
+    nombres,
+    operations_recues,
+    synthese,
+)
 
 _CHEMIN_METRIQUES = Path(__file__).resolve().parents[2] / "metrics" / "m8-interdepartements.v1.yaml"
 _REGISTRE = "des mesures interdépartements"
 
 _MINUTES_PAR_HEURE = Decimal("60")
 _JOURS_PAR_RELEVE_MAX = 3660  # dix ans : au-delà, la période d'un relevé n'est pas crédible, le relevé est refusé
-_CITES = 3
 _SEVERITE_CRITIQUE = "critique"
 _VERDICT_CONFORME = "CONFORME"
-# Canal de dépense (M7 `depenses_marketing_constatees`) -> source de signaux de M7 qui dit sa fraîcheur.
-_SOURCE_DU_CANAL = {"google_ads": "google_ads", "meta": "meta_ads"}
 
-Resultat = tuple[str | None, dict[str, Any], list[dict[str, str]], str | None, dict[str, Any] | None, int | None]
+# Les helpers partagés avec `mesures_constats` : une seule définition (`mesures_communes`).
+Resultat = mesures_communes.Resultat
+_cites = mesures_communes.cites
+_de_type = mesures_communes.de_type
+_empreinte_faits = mesures_communes.empreinte_faits
+_jour = mesures_communes.jour
+_manque = mesures_communes.manque
+_non_calculable = mesures_communes.non_calculable
+_partielle = mesures_communes.partielle
+_plus_recent = mesures_communes.plus_recent
+_fenetre_source_s = mesures_communes.fenetre_source_s
+_uniques = mesures_communes.uniques
 
 
 def charger_definitions(chemin: str | Path | None = None) -> dict[str, dict[str, str]]:
     """Définitions de ``metrics/m8-interdepartements.v1.yaml`` : mêmes contrôles et mêmes refus que les autres registres
     (fail-closed, garde de devise CAD, chaque métrique a un propriétaire connu)."""
     return entonnoir.charger_definitions(chemin if chemin is not None else _CHEMIN_METRIQUES, registre=_REGISTRE)
-
-
-# ---------------------------------------------------------------------------
-# Petits outils communs
-# ---------------------------------------------------------------------------
-def _manque(champ: str, source: str, raison: str) -> dict[str, str]:
-    return {"champ": champ, "source": source, "raison": raison}
-
-
-def _non_calculable(
-    manque: list[dict[str, str]], entrees: dict[str, Any] | None = None, instant: str | None = None
-) -> Resultat:
-    return None, entrees or {}, manque, instant, None, None
-
-
-def _empreinte_faits(faits: list[dict[str, Any]]) -> str:
-    """Empreinte des faits utilisés, indépendante de l'ordre de livraison : chaque fait est mis en forme canonique,
-    puis les
-    formes sont triées."""
-    return encodage.empreinte(sorted(encodage.encoder_canonique(fait) for fait in faits))
-
-
-def _de_type(faits: list[dict[str, Any]], type_entree: str) -> list[dict[str, Any]]:
-    return [fait for fait in faits if fait.get("type_entree") == type_entree]
-
-
-def _uniques(faits: list[dict[str, Any]], cle: str) -> list[dict[str, Any]]:
-    """Le premier fait de chaque valeur de ``cle`` (une relivraison n'ajoute rien) ; un fait sans identifiant lisible
-    n'est
-    pas un fait."""
-    vus: set[str] = set()
-    uniques = []
-    for fait in faits:
-        identifiant = fait.get(cle)
-        if isinstance(identifiant, str) and identifiant and identifiant not in vus:
-            vus.add(identifiant)
-            uniques.append(fait)
-    return uniques
-
-
-def _plus_recent(instants: list[Any]) -> str | None:
-    lus = [(entonnoir.instant_lu(texte), texte) for texte in instants]
-    lisibles = [(instant, texte) for instant, texte in lus if instant is not None]
-    return max(lisibles, key=lambda paire: paire[0])[1] if lisibles else None
-
-
-def _cites(identifiants: list[str]) -> str:
-    cites = ", ".join(identifiants[:_CITES])
-    reste = len(identifiants) - _CITES
-    return f"{cites} et {reste} autre(s)" if reste > 0 else cites
-
-
-def _partielle(couverts: int, attendus: int, raison: str) -> dict[str, Any]:
-    return {
-        "etat": "partielle",
-        "couverts": couverts,
-        "attendus": attendus,
-        "manquants": attendus - couverts,
-        "raison": raison,
-    }
-
-
-def _jour(texte: Any) -> date | None:
-    if not isinstance(texte, str) or len(texte) != 10:
-        return None
-    try:
-        return date.fromisoformat(texte)
-    except ValueError:
-        return None
 
 
 # ---------------------------------------------------------------------------
@@ -518,30 +467,6 @@ def _derniers_releves(faits: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(dernieres.values())
 
 
-def _fenetre_source_s(canaux: set[str], signaux: list[dict[str, Any]]) -> tuple[int | None, list[str]]:
-    """La fenêtre (secondes) que M7 déclare pour les sources publicitaires des canaux présents : la plus stricte,
-    d'après
-    la dernière lecture de chaque source. Les canaux dont M7 n'a donné aucun signal sont dits, jamais devinés."""
-    derniers: dict[str, tuple[Any, dict[str, Any]]] = {}
-    for signal in signaux:
-        instant = entonnoir.instant_lu(signal.get("derniere_lecture_reussie_le"))
-        if instant is None or signal.get("fictif") is True:
-            continue
-        actuel = derniers.get(signal.get("source"))
-        if actuel is None or instant >= actuel[0]:
-            derniers[signal.get("source")] = (instant, signal)
-    fenetres = []
-    sans_fenetre = []
-    for canal in sorted(canaux):
-        signal = derniers.get(_SOURCE_DU_CANAL.get(canal, ""))
-        heures = signal[1].get("fraicheur_fenetre_h") if signal is not None else None
-        if type(heures) is int and heures >= 1:
-            fenetres.append(heures * 3600)
-        else:
-            sans_fenetre.append(canal)
-    return (min(fenetres) if fenetres else None), sans_fenetre
-
-
 def _releves_depense_pub_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
     operations = reg["operations"]
     releves = _derniers_releves(_de_type(operations, operations_recues.TYPE_DEPENSE))
@@ -689,24 +614,6 @@ def _anomalies_depense_critiques(reg: dict[str, list[dict[str, Any]]]) -> Result
     return str(len(critiques)), entrees, [], _plus_recent([a.get("detectee_le") for a in reelles]), None, None
 
 
-def _ecart_depense_pub_comptabilisee_cad(reg: dict[str, list[dict[str, Any]]]) -> Resultat:
-    """Écart de définition entre M7 (relevés) et M5 (dépense comptabilisée) : aucun événement ne publie la dépense
-    comptabilisée, la mesure est donc non calculable PAR CONSTRUCTION et le dit (décision à prendre, pas un oubli)."""
-    return _non_calculable(
-        [
-            _manque(
-                "charges_marketing_comptabilisees",
-                "M5 (aucun événement ne les publie)",
-                "M5 range un brouillon de charge pour chaque relevé de M7 (validation humaine N4) mais ne "
-                "publie aucun total "
-                "comptabilisé, et M8 ne lit pas le grand livre de M5 : l'écart entre les relevés et la "
-                "dépense comptabilisée ne "
-                "peut pas être mesuré ; décision requise (voir M8-ENTREPOT-SOURCES.md)",
-            )
-        ]
-    )
-
-
 # ---------------------------------------------------------------------------
 # M6 : réceptions ; M1 et M2 : demandes
 # ---------------------------------------------------------------------------
@@ -847,7 +754,6 @@ _CALCULS = {
     "m8_releves_depense_pub_cad": _releves_depense_pub_cad,
     "m8_conversions_hors_ligne": _conversions_hors_ligne,
     "m8_anomalies_depense_critiques": _anomalies_depense_critiques,
-    "m8_ecart_depense_pub_comptabilisee_cad": _ecart_depense_pub_comptabilisee_cad,
     "m8_heures_sur_site_chantiers": _heures_sur_site_chantiers,
     "m8_commandes_envoyees": _commandes_envoyees,
     "m8_receptions_materiaux": _receptions_materiaux,
@@ -856,10 +762,14 @@ _CALCULS = {
     "m8_demandes_m1_sans_lead_m2": _demandes_m1_sans_lead_m2,
 }
 
+# Les mesures tirées des résumés de la phase 2 (D1 à D3, D5, D6) : `mesures_constats`.
+_CALCULS.update(mesures_constats.CALCULS)
+
 
 def mesurer(registres: dict[str, list[dict[str, Any]]], definitions: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
     """Les mesures interdépartements, une par métrique du registre, dans l'ordre du registre. ``registres`` porte les
-    cinq registres de M8 (``chantier``, ``entonnoir``, ``contenus``, ``cash_libre``, ``operations``). Une métrique sans
+    six registres de M8 (``chantier``, ``entonnoir``, ``contenus``, ``cash_libre``, ``operations``, ``declarations``).
+    Une métrique sans
     calcul est non calculable, nommément."""
     mesures = []
     for metric_id, definition in definitions.items():

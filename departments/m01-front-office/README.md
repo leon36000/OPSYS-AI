@@ -157,3 +157,7 @@ l'exécuteur `courriel.envoi` du planificateur, après l'approbation de la direc
 `courriel_outils.recevoir_courriel_connecteur`, idempotente (signal `courriel:<cle>`), avec une ligne de provenance
 `reception_courriel_connecteur_v1`. Tout est désactivé par défaut et qualifié sur doubles : voir
 [CABLAGE-CONNECTEURS](../../docs/architecture/CABLAGE-CONNECTEURS.md). Skill : `repondre-a-un-courriel`.
+
+## Résumé des plaintes publié pour M8 — `m1_constater_plaintes`
+
+(phase 2 de l'entrepôt de M8, D2 : `docs/architecture/M8-ENTREPOT-SOURCES.md`) L'outil (T1/N2, agent seulement, aucun droit d'appareil, même garde admin que la lecture) lit les plaintes comme `m1_lire_plaintes_structurees` et publie `m1.plaintes_constatees` : l'ÉTAT de la lecture (CONNUE, AUCUNE_DECLAREE_PAR_SOURCE, NON_BRANCHEE), le nombre de plaintes SEULEMENT s'il est CONNUE (sinon `null` : « aucune déclarée » n'est pas « zéro plainte ») et l'empreinte du contenu lu. Aucun pseudonyme de plainte, catégorie, texte ou contact ne part. Rejouer sur le même registre redonne la même charge : rien de plus n'est publié.

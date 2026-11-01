@@ -171,6 +171,29 @@ s'écrit à part : « déçu », « déçue »). Les types de transfert sont ceu
 (`tests/test_taxonomie_plaintes.py`) les compare à ce texte. Un vocabulaire ou une table invalides n'arrêtent pas la réception
 d'un message. Ce que M1 en fait : [M1-canaux](../departements/M1-canaux.md) §10.
 
+## Canaux publicitaires et sources UTM (D6, entrepôt de M8)
+
+La clé `canaux_marketing` d'`entreprise.yaml` dit à QUEL canal de dépense publicitaire correspond chaque source UTM des leads.
+C'est une décision d'affaires du propriétaire, que M8 ne devine jamais : M8 ne l'applique qu'aux leads de M2 (`m2.client_associe`,
+`utm.utm_source` en minuscules) et aux relevés de dépense de M7 (`canal` : `google_ads` ou `meta`).
+
+```yaml
+canaux_marketing:
+  google_ads: [google, google-ads]
+  meta: [facebook, instagram]
+```
+
+| Situation | Effet chez M8 |
+|---|---|
+| Clé absente ou vide | `REJ-CANAUX-MARKETING-NON-CONFIGURES` : `m8_leads_publicitaires` et `m8_cout_par_lead_pub_cad` sont **non calculables** et le disent (« M8 n'en devine aucune »). Les autres mesures n'en dépendent pas. |
+| Clé écrite mais invalide (canal inconnu, source en double ou rattachée à deux canaux, source mal formée, liste vide) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lu comme absent**. `opsys-metier verifier` le signale. |
+| Source UTM d'un lead non déclarée, ou lead sans source | Le lead n'est pas classé : compté à part (`n_leads_source_non_declaree`, `n_leads_sans_source`), couverture partielle dite. |
+| Canal avec relevés mais sans source déclarée | Il n'entre pas dans le coût par lead, et c'est dit (`canaux_sans_source_declaree`). |
+
+Une source (`google`, `facebook`…) ne se rattache qu'à UN canal. Fonctions : `taxonomie.normaliser_canaux_marketing`,
+`lire_canaux_marketing`, `charger_canaux_marketing` (jamais de levée : un verdict), `enregistrer_canaux_marketing` (signée au journal
+d'audit, le nombre de sources par canal seulement). Mesures : `docs/architecture/M8-ENTREPOT-SOURCES.md`.
+
 ## Garde de dérive
 
 - `opsys-metier verifier` : profil valide s'il existe ; aucune source de département ni du socle ne recopie

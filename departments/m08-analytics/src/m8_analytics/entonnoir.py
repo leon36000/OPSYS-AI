@@ -156,10 +156,17 @@ def charger_definitions(
 # ---------------------------------------------------------------------------
 def fait_lead_recu(charge: dict[str, Any]) -> dict[str, Any]:
     """Fait tiré de ``m2.client_associe`` : le lead existe chez M2 depuis cet instant. Le ``client_id`` (empreinte du
-    contact) n'est PAS gardé : M8 n'en a pas besoin."""
-    return {
+    contact) n'est PAS gardé : M8 n'en a pas besoin. La source UTM (``utm.utm_source``, déjà validée par M2) est gardée
+    en minuscules quand elle est présente (D6 : rattacher un lead à un canal publicitaire déclaré par le propriétaire) ;
+    la campagne ne l'est pas. Sans source, le fait n'a pas la clé : un fait d'avant D6 reste identique."""
+    fait = {
         "type_entree": TYPE_LEAD_RECU, "lead_id": charge["lead_id"], "horodatage": charge["horodatage_association"],
     }
+    utm = charge.get("utm")
+    source = utm.get("utm_source") if isinstance(utm, dict) else None
+    if isinstance(source, str) and source.strip():
+        fait["utm_source"] = source.strip().lower()
+    return fait
 
 
 def fait_lead_qualifie(charge: dict[str, Any]) -> dict[str, Any]:
