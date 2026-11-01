@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 from sqlalchemy import Connection, LargeBinary, case, cast, func, or_, select
 
-from opsys import approbations, avatars, modeles, openclaw, taxonomie
+from opsys import approbations, avatars, modeles, openclaw, openclaw_refus, taxonomie
 from opsys.departements import PALIERS, Departement
 from opsys.stockage.schema import AGENTS_CONFIGURABLES, AGENTS_POLITIQUE_ENTREPRISE
 
@@ -165,6 +165,14 @@ def _avatars(deps: Mapping[str, Departement], chemin_profil: Path | None) -> tup
     return {ident: identite.en_dict() for ident, identite in identites.items()}, statut
 
 
+def _generation_core(cnx: Connection) -> dict[str, Any]:
+    """Dernier refus de `openclaw configurer` consigné et non rétabli (`openclaw_refus`), sans message brut."""
+    refus = openclaw_refus.refus_en_cours(cnx)
+    if refus is None:
+        return {"statut": "aucun_refus_consigne"}
+    return {"statut": "refusee", "depuis": refus["depuis"], "categorie": refus["categorie"]}
+
+
 def verifier_sortie(brut: bytes) -> None:
     if len(brut) > MAX_OCTETS:
         raise ConfigurationLectureErreur("configuration_sortie_trop_volumineuse", statut=413)
@@ -215,6 +223,7 @@ def lire(
         "schema": "opsys.configuration_dashboard/v1", "departements": departements, "paliers": tiers,
         "profils": {k: v for k, v in profils.items() if k != "par_departement"},
         "avatars": statut_avatars,
+        "generation_core": _generation_core(cnx),
         "plafonds_specialistes": {k: _entier(v, 1) for k, v in politique.items()} if politique else None,
         "verification_runtime": "non_observee", "cout_financier": "inconnu",
         "limites": {"octets": MAX_OCTETS, "departements": MAX_DEPARTEMENTS,

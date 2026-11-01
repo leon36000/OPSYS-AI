@@ -169,10 +169,31 @@ def contenu(resultat: Mapping[str, Any], prefixe: str, deps: Mapping[str, Depart
     return "".join(html) + "</ul></section>"
 
 
+_CATEGORIES_REFUS = {
+    "surcharges": "les surcharges « avatars » de entreprise.yaml sont invalides",
+    "declarations": "un manifeste de département déclare un avatar invalide",
+}
+
+
+def _alerte_generation_core(generation: Mapping[str, Any]) -> str:
+    """Refus consigné de `openclaw configurer` : le core garde la configuration précédente (`openclaw_refus`)."""
+    if generation.get("statut") != "refusee":
+        return ""
+    e = pages.e
+    cause = _CATEGORIES_REFUS.get(generation.get("categorie"), "cause non classée")
+    return (
+        '<section class="carte pile"><p class="message message-erreur">'
+        f'Configuration du core refusée depuis {e(generation.get("depuis"))} : {e(cause)}. '
+        'Le core conserve la configuration précédente ; chaque nouvelle tentative est refusée tant que '
+        'la cause demeure. Le détail est donné par <code>opsys-metier verifier</code>.</p></section>'
+    )
+
+
 def configuration_contenu(projection: Mapping[str, Any], prefixe: str) -> str:
     """Vue synthétique : références uniquement, jamais les configurations brutes."""
     e = pages.e
-    sections = [
+    sections = [_alerte_generation_core(projection.get("generation_core") or {})]
+    sections += [
         '<section class="carte pile"><h2>Spécialistes et connexions par département</h2>'
         '<p>Profil activé, configuration projetée et tâche exécutée sont trois états distincts. '
         'Le chargement Core et les exécutions ne sont pas observés ici.</p>'

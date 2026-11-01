@@ -103,14 +103,14 @@ sync_openclaw() {
             --url-passerelle "$LITELLM_URL"; then
             log "configuration LiteLLM d'OpenClaw synchronisée dans $OPENCLAW_CONFIG_DIR/opsys/."
         else
-            warn "configuration d'OpenClaw non générée; vérifiez les paliers dans la console."
+            warn "configuration d'OpenClaw non générée (cause ci-dessus ; un refus d'avatars est aussi signalé dans la console, page Connecteurs) — la configuration précédente reste en place."
         fi
     else
         if opsys-metier openclaw configurer --config-dir "$OPENCLAW_CONFIG_DIR" --mode-fournisseur natif \
             --url-mcp "${MCP_ORIGIN}/mcp" --autoriser-origine-http-mcp "$MCP_ORIGIN"; then
             log "configuration native d'OpenClaw synchronisée dans $OPENCLAW_CONFIG_DIR/opsys/."
         else
-            warn "configuration native non générée — configurez les paliers dans la console, puis nouvelle tentative dans ${SYNC_INTERVAL}s."
+            warn "configuration native non générée (cause ci-dessus ; un refus d'avatars est aussi signalé dans la console, page Connecteurs) — la configuration précédente reste en place, nouvelle tentative dans ${SYNC_INTERVAL}s."
         fi
     fi
 }

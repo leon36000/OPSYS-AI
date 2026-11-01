@@ -737,6 +737,18 @@ def _preparer_projection_sms(
     return configuration, projections
 
 
+class AvatarsRefuses(ProfilInvalide):
+    """Refus de génération pour les avatars, avant toute écriture.
+
+    `categorie` vaut `declarations` (manifeste d'un département) ou `surcharges` (`entreprise.yaml`) ;
+    `cli.cmd_openclaw` la consigne pour l'admin (`openclaw_refus`), sans le chemin ni le contenu du profil.
+    """
+
+    def __init__(self, message: str, categorie: str) -> None:
+        super().__init__(message)
+        self.categorie = categorie
+
+
 def _identites_des_departements(
     departements: Mapping[str, Departement], profil_entreprise: Path | None
 ) -> dict[str, avatars.IdentiteEffective]:
@@ -749,11 +761,14 @@ def _identites_des_departements(
     """
     problemes = avatars.verifier_declarations(departements)
     if problemes:
-        raise ValueError("avatars des départements invalides, rien n'est écrit :\n  - " + "\n  - ".join(problemes))
+        raise AvatarsRefuses(
+            "avatars des départements invalides, rien n'est écrit :\n  - " + "\n  - ".join(problemes),
+            "declarations",
+        )
     try:
         return avatars.identites_effectives(departements, profil_entreprise)
     except ProfilInvalide as exc:
-        raise ProfilInvalide(f"avatars des départements invalides, rien n'est écrit : {exc}") from exc
+        raise AvatarsRefuses(f"avatars des départements invalides, rien n'est écrit : {exc}", "surcharges") from exc
 
 
 def identite_agent(identite: avatars.IdentiteEffective) -> dict[str, Any]:

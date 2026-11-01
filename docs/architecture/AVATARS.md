@@ -173,11 +173,18 @@ du fichier passé en `profil_entreprise`) et l'écrit dans l'entrée de l'agent 
   mentions de groupe reconnaissent le nom (`core/src/auto-reply/reply/mentions.ts`) et l'identité sortante des
   canaux qui la portent (Slack, Discord...) le reprend (`core/src/infra/outbound/identity.ts`). Le canal SMS de M1
   n'utilise aucun de ces champs, et `session.sendPolicy` interdit toujours la réponse automatique à un client.
-- **Fail-closed** : un département sans avatar ou deux noms par défaut identiques → `ValueError` ; une surcharge
+- **Fail-closed** : un département sans avatar ou deux noms par défaut identiques, ou une surcharge
   cassée (YAML illisible, nom refusé, doublon, département inconnu, clé non personnalisable, identifiant mal formé)
-  → `ProfilInvalide` « avatars des départements invalides, rien n'est écrit ». Aucun fichier n'est écrit, pas
-  même un espace de travail ; une configuration déjà générée reste intacte. `opsys-metier openclaw configurer`
-  sort en code 2 avec le message.
+  → `openclaw.AvatarsRefuses` (sous-classe de `ProfilInvalide`, donc de `ValueError`) « avatars des départements
+  invalides, rien n'est écrit ». Aucun fichier n'est écrit, pas même un espace de travail ; une configuration déjà
+  générée reste intacte. `opsys-metier openclaw configurer` sort en code 2 avec le message.
+- **Refus visible pour l'admin** (`src/opsys/openclaw_refus.py`) : sur le VPS, `deploy/entrypoint.sh` rejoue
+  `configurer` toutes les 300 s sans regarder son code de sortie. Chaque refus d'avatars est donc consigné dans le
+  journal d'audit (`openclaw.configuration.refusee`, catégorie `surcharges` ou `declarations`, empreinte SHA-256 du
+  message ; ni chemin ni contenu du profil), une seule fois par état distinct ; la génération réussie suivante écrit
+  une ligne `openclaw.configuration.retablie`. La page Connecteurs de la console (et `GET /api/connecteurs`,
+  champ `configuration_dashboard.generation_core`) affiche le refus en cours et dit que le core conserve la
+  configuration précédente. Preuves : `tests/test_openclaw_refus_visible.py`.
 - **Idempotence** : régénérer sans changement rend tous les fichiers identiques octet pour octet ; renommer un
   avatar ne change que `identity.name` de son agent dans `agents.json`.
 - Preuves : `tests/test_openclaw_avatars.py` (dix départements réels, surcharges, dix cas invalides, idempotence,
