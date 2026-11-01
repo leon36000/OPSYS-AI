@@ -22,6 +22,12 @@ from opsys.secrets_coffre.erreurs import CoffreErreur
 from opsys.stockage.schema import COFFRE_ACCES, COFFRE_VERSIONS
 
 FICTIF = True
+
+
+def _tete() -> str:
+    from alembic.script import ScriptDirectory
+
+    return ScriptDirectory.from_config(stockage._config()).get_current_head()
 VALEUR = "valeur-fictive-cle-api-0123456789-XYZ"
 VALEUR_2 = "valeur-fictive-rotation-9876543210-ABC"
 MOT_DE_PASSE = "mot-de-passe-coffre-fictif-2026"
@@ -327,7 +333,7 @@ def test_postgresql_coffre_chiffre_append_only_et_descente(monkeypatch, tmp_path
         try:
             stockage.migrer(url)
             assert stockage.moteur(url).dialect.name == "postgresql"
-            assert stockage.revision_courante(url) == "0040"
+            assert stockage.revision_courante(url) == _tete()
             with stockage.transaction() as cnx:
                 identite.creer_personne(cnx, "admin_fictif", "Admin fictif", MOT_DE_PASSE, ["admin"])
                 coffre.definir(cnx, acteur="admin_fictif", nom="google.ads", service="google_ads", valeur=VALEUR)

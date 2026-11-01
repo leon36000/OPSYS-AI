@@ -285,7 +285,7 @@ def test_migration_0040_montee_descendue_et_refus_avec_donnees(tmp_path):
     from alembic.script import ScriptDirectory
 
     cfg = stockage._config()
-    assert ScriptDirectory.from_config(cfg).get_heads() == ["0040"]
+    assert ScriptDirectory.from_config(cfg).get_revision("0040").down_revision == "0039"
     url = "sqlite:///" + str(tmp_path / "m.db")
     with stockage.moteur(url).begin() as cnx:
         cfg.attributes["connection"] = cnx
@@ -374,7 +374,7 @@ def test_migration_0040_sur_postgresql(monkeypatch, tmp_path):
         monkeypatch.setenv(stockage.ENV_URL, url)
         try:
             stockage.migrer(url)
-            assert stockage.moteur(url).dialect.name == "postgresql" and stockage.revision_courante(url) == "0040"
+            assert stockage.moteur(url).dialect.name == "postgresql" and stockage.revision_courante(url) == "0041"
             with stockage.transaction() as cnx:
                 cnx.execute(
                     text(

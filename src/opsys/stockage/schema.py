@@ -1738,3 +1738,130 @@ COURRIEL_JOURNAL = Table(
     Column("details", Text, nullable=False),
     Index("ix_courriel_journal_compte", "compte_id", "id"),
 )
+
+# -- Bases de connaissances par département (migration 0041, docs/architecture/CONNAISSANCES.md) ----------------------
+# Une base par département ; des SOURCES (suite de versions) ; des VERSIONS immuables (texte, empreinte, provenance
+# complète) dont l'état n'est jamais un champ modifiable : c'est le dernier événement de `connaissances_etats`
+# (append-only). Des FRAGMENTS immuables avec leur emplacement (page, section, décalages) ; un index lexical FTS5
+# (SQLite seulement, créé par la migration) ; des ESPACES vectoriels (un par fournisseur d'embeddings ET empreinte de sa
+# configuration) et des VECTEURS rattachés à un espace. Tout est append-only (déclencheurs de la migration 0041) sauf la
+# ligne de `connaissances_bases`, qui ne porte que l'espace vectoriel actif.
+CONNAISSANCES_BASES = Table(
+    "connaissances_bases", META,
+    Column("departement", String(64), primary_key=True),
+    Column("cree_le", Text, nullable=False),
+    Column("cree_par", String(200), nullable=False),
+    Column("espace_actif", String(64), ForeignKey("connaissances_espaces.espace_id"), nullable=True),
+    Column("modifie_le", Text, nullable=False),
+)
+CONNAISSANCES_ESPACES = Table(
+    "connaissances_espaces", META,
+    Column("espace_id", String(64), primary_key=True),
+    Column("fournisseur_id", String(80), nullable=False),
+    Column("modele", String(200), nullable=False),
+    Column("dimension", Integer, nullable=False),
+    Column("config_sha256", String(64), nullable=False),
+    Column("profil", Text, nullable=False),
+    Column("cree_le", Text, nullable=False),
+    CheckConstraint("dimension BETWEEN 2 AND 8192", name="dimension_valide"),
+)
+CONNAISSANCES_SOURCES = Table(
+    "connaissances_sources", META,
+    Column("source_id", String(32), primary_key=True),
+    Column("departement", String(64), ForeignKey("connaissances_bases.departement"), nullable=False),
+    Column("cle", String(96), nullable=False),
+    Column("titre", String(300), nullable=False),
+    Column("domaine", String(16), nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("cree_par", String(200), nullable=False),
+    UniqueConstraint("departement", "cle", name="uq_connaissances_sources_cle"),
+    CheckConstraint("domaine IN ('comptabilite','fiscalite','juridique','investissement','technique','general')",
+                    name="domaine_valide"),
+)
+CONNAISSANCES_VERSIONS = Table(
+    "connaissances_versions", META,
+    Column("version_id", String(32), primary_key=True),
+    Column("source_id", String(32), ForeignKey("connaissances_sources.source_id"), nullable=False),
+    Column("numero", Integer, nullable=False),
+    Column("type_source", String(8), nullable=False),
+    Column("editeur", String(200), nullable=False),
+    Column("type_autorite", String(10), nullable=False),
+    Column("reference", String(500), nullable=False),
+    Column("date_publication", String(10), nullable=True),
+    Column("date_consultation", String(10), nullable=False),
+    Column("licence_reutilisation", String(24), nullable=False),
+    Column("expire_le", String(10), nullable=True),
+    Column("revision_due_le", String(10), nullable=True),
+    Column("sha256", String(64), nullable=False),
+    Column("sha256_octets", String(64), nullable=False),
+    Column("empreinte_meta", String(64), nullable=False),
+    Column("texte", Text, nullable=False),
+    Column("nb_pages", Integer, nullable=False),
+    Column("nb_fragments", Integer, nullable=False),
+    Column("suspect", Boolean, nullable=False),
+    Column("signaux", Text, nullable=False),
+    Column("cree_le", Text, nullable=False),
+    Column("cree_par", String(200), nullable=False),
+    UniqueConstraint("source_id", "numero", name="uq_connaissances_versions_numero"),
+    CheckConstraint("numero >= 1 AND nb_pages >= 1 AND nb_fragments >= 0", name="bornes"),
+    CheckConstraint("type_source IN ('texte','markdown','html','pdf')", name="type_valide"),
+    CheckConstraint("type_autorite IN ('officielle','reconnue','interne','tierce','fictive')", name="autorite_valide"),
+    CheckConstraint(
+        "licence_reutilisation IN ('domaine_public','licence_ouverte','permission_ecrite','interne',"
+        "'droit_auteur_reserve','inconnue')", name="licence_valide"),
+    Index("ix_connaissances_versions_source", "source_id", "numero"),
+)
+CONNAISSANCES_ETATS = Table(
+    "connaissances_etats", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("version_id", String(32), ForeignKey("connaissances_versions.version_id"), nullable=False),
+    Column("etat", String(10), nullable=False),
+    Column("par", String(200), nullable=False),
+    Column("mode", String(8), nullable=False),
+    Column("role", String(32), nullable=True),
+    Column("raison", Text, nullable=True),
+    Column("controles", Text, nullable=True),
+    Column("quand", Text, nullable=False),
+    CheckConstraint("etat IN ('brouillon','revu','publie','retire')", name="etat_valide"),
+    CheckConstraint("mode IN ('humain','agent','systeme')", name="mode_valide"),
+    CheckConstraint("etat <> 'retire' OR (raison IS NOT NULL AND length(raison) >= 10)", name="retrait_motive"),
+    CheckConstraint("mode <> 'humain' OR role IS NOT NULL", name="humain_avec_role"),
+    Index("ix_connaissances_etats_version", "version_id", "id"),
+)
+CONNAISSANCES_FRAGMENTS = Table(
+    "connaissances_fragments", META,
+    Column("chunk_id", String(32), primary_key=True),
+    Column("version_id", String(32), ForeignKey("connaissances_versions.version_id"), nullable=False),
+    Column("rang", Integer, nullable=False),
+    Column("texte", Text, nullable=False),
+    Column("sha256", String(64), nullable=False),
+    Column("page", Integer, nullable=False),
+    Column("section", Text, nullable=True),
+    Column("debut", Integer, nullable=False),
+    Column("fin", Integer, nullable=False),
+    UniqueConstraint("version_id", "rang", name="uq_connaissances_fragments_rang"),
+    CheckConstraint("rang >= 0 AND page >= 1 AND debut >= 0 AND fin > debut", name="bornes"),
+    Index("ix_connaissances_fragments_version", "version_id", "rang"),
+)
+CONNAISSANCES_VECTEURS = Table(
+    "connaissances_vecteurs", META,
+    Column("chunk_id", String(32), ForeignKey("connaissances_fragments.chunk_id"), primary_key=True),
+    Column("espace_id", String(64), ForeignKey("connaissances_espaces.espace_id"), primary_key=True),
+    Column("dimension", Integer, nullable=False),
+    Column("vecteur", LargeBinary, nullable=False),
+    CheckConstraint("dimension BETWEEN 2 AND 8192 AND length(vecteur) = dimension * 4", name="taille_coherente"),
+)
+CONNAISSANCES_INDEXATIONS = Table(
+    "connaissances_indexations", META,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("quand", Text, nullable=False),
+    Column("departement", String(64), nullable=False),
+    Column("version_id", String(32), nullable=True),
+    Column("genre", String(10), nullable=False),
+    Column("espace_id", String(64), nullable=True),
+    Column("nb_fragments", Integer, nullable=False),
+    Column("par", String(200), nullable=False),
+    CheckConstraint("genre IN ('lexical','vectoriel','bascule')", name="genre_valide"),
+    CheckConstraint("nb_fragments >= 0", name="bornes"),
+    Index("ix_connaissances_indexations_base", "departement", "id"),
+)

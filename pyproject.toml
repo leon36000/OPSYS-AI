@@ -50,6 +50,7 @@ version = { attr = "opsys.__version__" }
 [tool.setuptools]
 packages = [
     "opsys",
+    "opsys.connaissances",
     "opsys.console",
     "opsys.courriel_connecteurs",
     "opsys.evenements",

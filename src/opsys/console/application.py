@@ -57,6 +57,7 @@ from . import (
     brand_ui,
     calendrier_marketing_ui,
     cfo_ui,
+    connaissances_ui,
     connecteurs_ui,
     courriel_ui,
     crm_ui,
@@ -417,6 +418,10 @@ def creer_application(
     # Avatars (avatars_ui) : état des canaux et registre des voix et visages, en lecture, administration seulement.
     app.include_router(avatars_ui.creer_router(
         session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe,
+    ))
+    # Bases de connaissances (connaissances_ui) : état par département en lecture, administration seulement.
+    app.include_router(connaissances_ui.creer_router(
+        session_page=session_page, session_api=session_api, cnx_factory=cnx_factory, prefixe=prefixe,
     ))
     # Connecteurs courriel (courriel_ui) : état des comptes en lecture, administration seulement.
     app.include_router(courriel_ui.creer_router(

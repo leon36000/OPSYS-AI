@@ -1,0 +1,248 @@
+# Corpus de mesure de la recherche hybride (docs/architecture/CONNAISSANCES.md) — ENTIÈREMENT FICTIF.
+# Aucune règle, aucun taux, aucun délai de ce fichier n'existe : la province de « Valdoré », ses agences, ses normes et
+# ses chiffres sont inventés (et volontairement fantaisistes) pour qu'aucun lecteur ne les prenne pour du réel.
+# Les jugements de pertinence sont écrits à la main AVANT la mesure, d'après le contenu des sections, pas d'après les
+# résultats d'un moteur. Ils s'attachent à « clé de source # titre de la dernière section ».
+schema: opsys.connaissances.corpus/v1
+fictif: true
+version: connaissances-v1
+langue: fr-CA
+date_reference: "2026-08-15"   # « aujourd'hui » de la mesure : toutes les sources sont alors à jour
+sources:
+  # ------------------------------------------------------------------ base de M5 (comptabilité, fiscalité, juridique…)
+  - departement: m05-financecore
+    cle: taxe-vente-valdore
+    titre: Régime fictif de la taxe de vente de Valdoré
+    domaine: fiscalite
+    date_publication: "2026-01-15"
+    revision_due_le: "2027-01-15"
+    contenu: |
+      # Régime fictif de la taxe de vente de Valdoré
+
+      ## Inscription
+      Toute entreprise dont les ventes annuelles dépassent trente mille talents doit s'inscrire auprès de l'Agence
+      fictive du revenu de Valdoré (AFRV) avant de percevoir la taxe. L'inscription se fait en ligne sur le portail de
+      l'AFRV et donne un numéro à neuf chiffres.
+
+      ## Taux
+      Le taux fictif de la taxe de vente de Valdoré est de 4,5 % sur les biens et de 2 % sur les services de
+      consultation. Les deux taux s'appliquent avant la majoration de transport.
+
+      ## Remboursement
+      Une entreprise peut réclamer le remboursement de la taxe payée sur ses achats d'exploitation. La demande de
+      remboursement doit être déposée dans les quatre-vingt-dix jours qui suivent la fin de la période de déclaration.
+
+      ## Exemptions
+      Sont exemptés les livres, les semences et les services d'éducation offerts par un organisme reconnu. Un
+      organisme fictif doit conserver son certificat d'exemption pendant onze ans.
+
+      ## Facturation
+      La facture doit indiquer le numéro d'inscription du fournisseur, la date de la vente et le montant de la taxe
+      perçue, présenté sur une ligne distincte.
+  - departement: m05-financecore
+    cle: conservation-pieces
+    titre: Guide fictif de conservation des pièces comptables
+    domaine: comptabilite
+    date_publication: "2026-02-01"
+    revision_due_le: "2027-02-01"
+    contenu: |
+      # Guide fictif de conservation des pièces comptables
+
+      ## Durée de conservation
+      Les factures, les reçus et les relevés bancaires se conservent pendant onze ans à compter de la fin de l'exercice
+      visé. Un registre détruit trop tôt expose l'entreprise à une pénalité fictive de 250 talents par exercice.
+
+      ## Format des copies
+      Une copie numérique est acceptée si elle est lisible, complète et accompagnée d'une empreinte d'intégrité. Les
+      photos de reçus prises au téléphone sont admises quand la date et le montant restent visibles.
+
+      ## Destruction sécurisée
+      À l'échéance, les documents papier sont déchiquetés et les fichiers numériques sont effacés de façon vérifiable.
+      Le responsable des registres inscrit la date de destruction dans un journal.
+  - departement: m05-financecore
+    cle: calendrier-retenues
+    titre: Calendrier fictif des remises de retenues à la source
+    domaine: fiscalite
+    date_publication: "2026-03-01"
+    expire_le: "2026-12-31"
+    contenu: |
+      # Calendrier fictif des remises de retenues à la source
+
+      ## Employeur régulier
+      Un employeur régulier remet les retenues de ses salariés le quinzième jour du mois suivant la paie. Une remise
+      tardive entraîne des intérêts fictifs de 1,2 % par mois.
+
+      ## Petit employeur
+      Un petit employeur, dont la masse salariale est inférieure à cent mille talents, remet ses retenues une fois par
+      trimestre, au plus tard le trentième jour qui suit la fin du trimestre.
+
+      ## Relevés annuels
+      Les relevés annuels des salariés sont produits avant la fin de février. Une correction se fait par un relevé
+      modifié, jamais par l'écrasement de l'original.
+  - departement: m05-financecore
+    cle: clause-paiement
+    titre: Modèle fictif de clause de paiement
+    domaine: juridique
+    date_publication: "2026-04-10"
+    revision_due_le: "2027-04-10"
+    contenu: |
+      # Modèle fictif de clause de paiement
+
+      ## Délai de paiement
+      Le client paie la facture dans les trente jours suivant sa réception. Le délai commence à la date inscrite sur
+      la facture et non à la date de livraison.
+
+      ## Intérêts de retard
+      Tout solde impayé après l'échéance porte intérêt au taux fictif de 1,5 % par mois, calculé au jour le jour.
+
+      ## Contestation
+      Le client qui conteste une facture en informe l'entreprise par écrit dans les dix jours. La partie non contestée
+      reste payable à l'échéance.
+  - departement: m05-financecore
+    cle: placements-termes
+    titre: Notice fictive sur les placements à terme
+    domaine: investissement
+    date_publication: "2026-05-05"
+    revision_due_le: "2027-05-05"
+    contenu: |
+      # Notice fictive sur les placements à terme
+
+      ## Échelonnement des échéances
+      Répartir un excédent de trésorerie sur plusieurs échéances, par exemple six, douze et dix-huit mois, permet de
+      garder une partie des fonds disponible. Cette notice est générale et ne recommande aucun titre.
+
+      ## Risque de liquidité
+      Un placement à terme encaissé avant l'échéance peut entraîner une perte d'intérêts. L'entreprise garde un fonds
+      de roulement avant de placer son excédent.
+  - departement: m05-financecore
+    cle: notes-de-frais
+    titre: Politique fictive de notes de frais
+    domaine: general
+    date_publication: "2026-06-01"
+    contenu: |
+      # Politique fictive de notes de frais
+
+      ## Repas
+      Un repas d'affaires est remboursé sur présentation du reçu détaillé. Le plafond fictif est de 45 talents par
+      personne.
+
+      ## Déplacements
+      Les déplacements en voiture personnelle sont remboursés selon le kilométrage inscrit au carnet de route. Le
+      stationnement est remboursé avec son reçu.
+
+      ## Délai de remise
+      Une note de frais est remise dans les trente jours suivant la dépense. Passé ce délai, elle est refusée sauf
+      autorisation écrite de la direction.
+  # ------------------------------------------------------------------ base de M3 (normes techniques)
+  - departement: m03-estimation
+    cle: garde-corps-temporaires
+    titre: Norme fictive NCF-12 sur les garde-corps temporaires
+    domaine: technique
+    date_publication: "2026-01-20"
+    revision_due_le: "2027-01-20"
+    contenu: |
+      # Norme fictive NCF-12 sur les garde-corps temporaires
+
+      ## Hauteur minimale
+      Un garde-corps temporaire installé sur un échafaudage mesure au moins un mètre de hauteur au-dessus de la
+      plateforme de travail. La lisse intermédiaire se place à mi-hauteur.
+
+      ## Inspection quotidienne
+      Le chef d'équipe inspecte les garde-corps au début de chaque journée et consigne le résultat dans le carnet de
+      chantier. Un garde-corps endommagé est remplacé avant la reprise du travail.
+
+      ## Dispositif antichute
+      Quand un garde-corps ne peut pas être installé, les travailleurs portent un harnais relié à un point d'ancrage
+      vérifié. L'ancrage supporte une charge fictive de quinze kilonewtons.
+  - departement: m03-estimation
+    cle: charge-neige
+    titre: Fiche fictive de calcul de la charge de neige sur une structure
+    domaine: technique
+    date_publication: "2026-02-15"
+    revision_due_le: "2027-02-15"
+    contenu: |
+      # Fiche fictive de calcul de la charge de neige sur une structure
+
+      ## Charge de base
+      La charge de neige de base dépend de la zone climatique de Valdoré. Elle se lit dans le tableau de la fiche et
+      s'exprime en kilopascals.
+
+      ## Facteur de pente
+      Le facteur de pente réduit la charge lorsque la pente de la structure dépasse trente degrés, car la neige
+      glisse plus facilement. Une surface presque plate conserve le facteur maximal.
+
+      ## Accumulation locale
+      Près d'un obstacle, la neige s'accumule et la charge locale augmente. Le concepteur ajoute un coefficient
+      d'accumulation fictif de 1,25 dans ces zones.
+  - departement: m03-estimation
+    cle: tolerances-mesure
+    titre: Guide fictif des tolérances de mesure
+    domaine: technique
+    date_publication: "2026-03-12"
+    revision_due_le: "2027-03-12"
+    contenu: |
+      # Guide fictif des tolérances de mesure
+
+      ## Prise de mesures
+      Les dimensions se relèvent deux fois, par deux personnes différentes, avec un télémètre laser étalonné.
+      L'écart toléré entre deux relevés est de cinq millimètres.
+
+      ## Arrondi des quantités
+      Les quantités de matériaux se calculent sans arrondi intermédiaire, puis se majorent d'un pourcentage de perte
+      fictif de 7 % avant la commande.
+
+      ## Étalonnage des instruments
+      Un instrument de mesure est étalonné chaque année. Un instrument sans certificat valide est retiré du service.
+  - departement: m03-estimation
+    cle: entreposage-materiaux
+    titre: Fiche fictive d'entreposage des matériaux
+    domaine: technique
+    date_publication: "2026-04-02"
+    expire_le: "2026-09-30"
+    contenu: |
+      # Fiche fictive d'entreposage des matériaux
+
+      ## Humidité
+      Les panneaux et les bois se rangent à l'abri de l'humidité, sur des palettes surélevées d'au moins dix
+      centimètres. Une bâche perméable à l'air évite la condensation.
+
+      ## Matériaux inflammables
+      Les solvants et les adhésifs inflammables se conservent dans une armoire métallique ventilée, loin des sources
+      de chaleur et de la zone de soudage.
+
+      ## Gestion des surplus
+      Les surplus de matériaux sont inventoriés chaque vendredi. Un surplus de plus de trois mois est offert à un
+      autre chantier avant d'être mis au rebut.
+requetes:
+  # type « exacte » : les mots de la question sont ceux de la section visée
+  - {id: q01, type: exacte, texte: "Quel est le taux de la taxe de vente de Valdoré ?", pertinents: ["taxe-vente-valdore#Taux"]}
+  - {id: q02, type: exacte, texte: "Dans quel délai déposer la demande de remboursement de la taxe ?", pertinents: ["taxe-vente-valdore#Remboursement"]}
+  - {id: q03, type: exacte, texte: "Pendant combien d'années conserver les factures et les reçus ?", pertinents: ["conservation-pieces#Durée de conservation"]}
+  - {id: q04, type: exacte, texte: "Quand un petit employeur remet-il ses retenues ?", pertinents: ["calendrier-retenues#Petit employeur"]}
+  - {id: q05, type: exacte, texte: "Quel taux d'intérêt sur un solde impayé après l'échéance ?", pertinents: ["clause-paiement#Intérêts de retard"]}
+  - {id: q06, type: exacte, texte: "Quelle est la hauteur minimale d'un garde-corps temporaire ?", pertinents: ["garde-corps-temporaires#Hauteur minimale"]}
+  - {id: q07, type: exacte, texte: "À quelle fréquence inspecter les garde-corps ?", pertinents: ["garde-corps-temporaires#Inspection quotidienne"]}
+  - {id: q08, type: exacte, texte: "Quel est le plafond du remboursement d'un repas d'affaires ?", pertinents: ["notes-de-frais#Repas"]}
+  - {id: q09, type: exacte, texte: "Comment calculer le facteur de pente de la charge de neige ?", pertinents: ["charge-neige#Facteur de pente"]}
+  - {id: q10, type: exacte, texte: "Quel pourcentage de perte ajouter aux quantités de matériaux commandées ?", pertinents: ["tolerances-mesure#Arrondi des quantités"]}
+  # type « variante » : formes dérivées, pluriels, fautes de frappe, accents omis
+  - {id: q11, type: variante, texte: "inscription a l'agence du revenu pour percevoir la taxe", pertinents: ["taxe-vente-valdore#Inscription"]}
+  - {id: q12, type: variante, texte: "exemptions pour organismes d'education et livres", pertinents: ["taxe-vente-valdore#Exemptions"]}
+  - {id: q13, type: variante, texte: "photos de recus prises au telephone sont-elles acceptees ?", pertinents: ["conservation-pieces#Format des copies"]}
+  - {id: q14, type: variante, texte: "destruction securisee des documents papiers et des fichiers", pertinents: ["conservation-pieces#Destruction sécurisée"]}
+  - {id: q15, type: variante, texte: "relevés annuels des salariés et corrections modifiées", pertinents: ["calendrier-retenues#Relevés annuels"]}
+  - {id: q16, type: variante, texte: "contestation d'une facturee par ecrit", pertinents: ["clause-paiement#Contestation"]}
+  - {id: q17, type: variante, texte: "repartir les placemens sur plusieurs echeances", pertinents: ["placements-termes#Échelonnement des échéances"]}
+  - {id: q18, type: variante, texte: "harnais et points d'ancrages verifies pour les travailleurs", pertinents: ["garde-corps-temporaires#Dispositif antichute"]}
+  - {id: q19, type: variante, texte: "etalonnage annuel des instruments de mesures", pertinents: ["tolerances-mesure#Étalonnage des instruments"]}
+  - {id: q20, type: variante, texte: "stockage des palettes a l'abri de l'humidite avec une bache", pertinents: ["entreposage-materiaux#Humidité"]}
+  # type « reformulation » : peu de mots en commun avec la section visée (là où un vrai modèle sémantique aiderait)
+  - {id: q21, type: reformulation, texte: "Combien de temps ai-je pour payer ce que le client me doit avant que ça coûte plus cher ?", pertinents: ["clause-paiement#Délai de paiement", "clause-paiement#Intérêts de retard"]}
+  - {id: q22, type: reformulation, texte: "Mon employé veut se faire rembourser un souper avec un client, c'est permis ?", pertinents: ["notes-de-frais#Repas"]}
+  - {id: q23, type: reformulation, texte: "Est-ce risqué d'immobiliser mon surplus d'argent trop longtemps ?", pertinents: ["placements-termes#Risque de liquidité"]}
+  - {id: q24, type: reformulation, texte: "Qu'arrive-t-il à la neige quand le versant est très incliné ?", pertinents: ["charge-neige#Facteur de pente"]}
+  - {id: q25, type: reformulation, texte: "Où ranger la colle et les produits qui brûlent facilement ?", pertinents: ["entreposage-materiaux#Matériaux inflammables"]}
+  # type « sans_reponse » : rien dans les bases ne répond ; la bonne réponse est « aucune source »
+  - {id: q26, type: sans_reponse, texte: "recette de tarte aux pommes", pertinents: []}
+  - {id: q27, type: sans_reponse, texte: "Quel est le résultat du match de hockey d'hier soir ?", pertinents: []}
+  - {id: q28, type: sans_reponse, texte: "horaire des traversiers vers l'île", pertinents: []}

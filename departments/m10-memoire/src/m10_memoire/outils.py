@@ -60,6 +60,7 @@ from . import (
     audit,
     catalogue_references,
     classification,
+    connaissances,
     consolidation,
     contexte,
     contrats,
@@ -1500,8 +1501,9 @@ _OUTILS_AVANT_LECTURE_DOCUMENTAIRE = outils
 
 
 def outils() -> tuple[Outil, ...]:
-    """Conserve les déclarations historiques et ajoute les deux lecteurs T0."""
+    """Conserve les déclarations historiques, ajoute les deux lecteurs T0 et les outils de connaissances."""
     return (*_OUTILS_AVANT_LECTURE_DOCUMENTAIRE(),
+        *connaissances.outils_connaissances(),
         Outil(
             nom="m10_lister_documents_affaire_appareil",
             description="Index documentaire courant d'une affaire pour l'admin appareil, sans corps ni effet de bord.",

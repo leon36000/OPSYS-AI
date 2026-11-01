@@ -169,3 +169,11 @@ Quatre entrées au catalogue (`courriel.gmail.api`, `courriel.graph.api`, `courr
 `a_mesurer`. Gmail et Graph sont `sur_contrat` (contrat du client requis) et exigent une EFVP (Loi 25) hors Québec. Les jetons OAuth et
 mots de passe d'application des comptes passent par ce coffre (`courriel.<compte>.g<génération>`, service `google`, `microsoft` ou `autre`),
 jamais par `reference_secret` d'un fournisseur. Voir [CONNECTEURS-COURRIEL.md](CONNECTEURS-COURRIEL.md).
+
+## Consommateur : bases de connaissances (M10)
+
+Les capacités `embeddings` et `reranker` sont consommées par `opsys.connaissances` (`ports.resoudre_embeddeur`,
+`ports.resoudre_reranker`) : la sélection du département de la base, sinon le défaut global ; une sélection inactive ou non conforme est
+un refus, jamais un repli. L'**empreinte de configuration** d'un fournisseur (identifiant, mode, modèle, point d'accès, licence des
+poids) identifie l'espace vectoriel : la modifier (ex. changer `modele`) invalide les vecteurs de la base jusqu'à la réindexation.
+Aucun adaptateur réel n'est raccordé dans cette tranche. Voir [CONNAISSANCES.md](CONNAISSANCES.md).

@@ -39,7 +39,7 @@ def _cap_garde(limite=5400):
 
 
 def _tables(cnx):
-    noms = inspect(cnx).get_table_names()
+    noms = [n for n in inspect(cnx).get_table_names() if not n.startswith("connaissances_fts")]  # index FTS5 dérivé
     assert set(noms) == TABLES_SQLITE  # Aucun DDL ajouté par ce diagnostic.
     return {nom: sorted(map(tuple, cnx.execute(text(
         'SELECT * FROM "' + nom.replace('"', '""') + '"',

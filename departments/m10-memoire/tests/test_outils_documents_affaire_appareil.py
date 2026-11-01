@@ -72,7 +72,9 @@ def _tool(nom):
 @pytest.mark.parametrize("index", range(3))
 def test_declaration_fermee_t1_n3_admin_affaire_append_en_fin(index):
     alltools = outils.outils()
-    assert tuple(o.nom for o in alltools) == HISTORIQUES + NOMS + (
+    # Les outils de la base de connaissances (`*_connaissance*`, tests/test_connaissances_outils.py) s'insèrent
+    # AVANT les deux lecteurs documentaires : cette sentinelle garde l'inventaire des outils d'affaire.
+    assert tuple(o.nom for o in alltools if "connaissance" not in o.nom) == HISTORIQUES + NOMS + (
         "m10_lister_documents_affaire_appareil",
         "m10_lire_version_document_affaire_appareil",
     )
@@ -99,6 +101,7 @@ def _tables(cnx):
     return {
         n: sorted(map(tuple, cnx.execute(text('SELECT * FROM "' + n.replace('"', '""') + '"')).all()), key=repr)
         for n in inspect(cnx).get_table_names()
+        if not n.startswith("connaissances_fts")  # table virtuelle FTS5 et ses tables fantômes : index dérivé
     }
 
 

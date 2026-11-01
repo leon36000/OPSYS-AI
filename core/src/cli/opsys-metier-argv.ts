@@ -51,6 +51,7 @@ export const OPSYS_METIER_MOVED_COMMANDS: readonly string[] = [
   "evaluer",
   "pack",
   "avatars",
+  "connaissances",
 ];
 
 export type OpsysMetierInvocation =
