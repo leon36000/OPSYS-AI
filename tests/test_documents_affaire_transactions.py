@@ -493,6 +493,8 @@ def test_reclamation_nommee_meme_insert_socle_et_ne_decode_pas(monde, monkeypatc
 def test_case_sql_masque_tout_avant_reception_python(monde, column, cap):
     _first()
     with stockage.transaction() as cnx:
+        if cnx.dialect.name == "postgresql" and column in ("appareil", "outil"):
+            pytest.skip("PostgreSQL applique varchar(n) : la valeur hors plafond ne peut pas être stockée (SQLite oui)")
         # BLOB valide UTF8 n'est pas TEXT. La sélection ne retourne aucun payload.
         if column == "appareil":
             valeur = META.appareil + " " * (cap + 1 - len(META.appareil))
