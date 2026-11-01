@@ -1,0 +1,47 @@
+# Contexte de build de l'image opsys (deploy/Dockerfile)
+.git
+.github
+.claude
+.pytest_cache
+.ruff_cache
+*.egg-info
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/.cache
+**/.mypy_cache
+**/.tox
+**/coverage
+**/playwright-report
+**/test-results
+deploy/.env
+deploy/**/*.env
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+.forge/secrets
+.forge/secrets/**
+**/.forge/secrets
+**/.forge/secrets/**
+deploy/backups
+deploy/backups/**
+**/backups
+**/backups/**
+
+# Image Python seulement : le Core est construit avec core/Dockerfile.
+core
+core/**
+# Captures de recherche et preuves historisées sans accès runtime Python.
+docs/research
+docs/research/**
+# Artefacts de compilation/cache, où qu'ils soient dans le contexte.
+**/.artifacts
+**/.artifacts/**

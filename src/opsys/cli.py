@@ -360,6 +360,8 @@ def cmd_instance(args: argparse.Namespace) -> int:
         return 0
     except (instance.ErreurInstance, exportation.ErreurExportation, ValueError) as erreur:
         print(f"ERREUR : {erreur}", file=sys.stderr)
+        if getattr(erreur, "code", None):  # refus typé (REJ-EXPORT-…) : lisible par un script sans analyser le texte
+            print(f"CODE : {erreur.code}", file=sys.stderr)
         return 1
 
 

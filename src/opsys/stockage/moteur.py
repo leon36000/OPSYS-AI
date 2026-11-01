@@ -69,7 +69,24 @@ def _preparer_sqlite(connexion_dbapi, _enregistrement) -> None:
     curseur = connexion_dbapi.cursor()
     for pragma in ("journal_mode=WAL", "foreign_keys=ON", "busy_timeout=5000", "synchronous=NORMAL"):
         curseur.execute(f"PRAGMA {pragma}")
+    fichier = next((ligne[2] for ligne in curseur.execute("PRAGMA database_list") if ligne[1] == "main"), "")
     curseur.close()
+    restreindre_base(fichier)
+
+
+def restreindre_base(chemin: str) -> None:
+    """La base (et son journal WAL) porte des renseignements personnels, des empreintes de mots de passe et les clés de
+    chiffrement destructibles : retire tout accès au groupe et aux autres (0644 -> 0600), jamais l'inverse. Un
+    compte qui n'est pas propriétaire, ou Windows (ACL), laisse le mode tel quel (relevé en qualification conteneur)."""
+    if not chemin or os.name == "nt":
+        return
+    for suffixe in ("", "-wal", "-shm"):
+        try:
+            mode = os.stat(chemin + suffixe).st_mode
+            if mode & 0o077:
+                os.chmod(chemin + suffixe, mode & ~0o077 & 0o777)
+        except OSError:
+            continue
 
 
 def _debuter_sqlite(connexion: Connection) -> None:

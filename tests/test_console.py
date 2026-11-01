@@ -426,6 +426,16 @@ def test_connexion_refusee_avec_mauvais_mot_de_passe(client, personne_nathan):
     assert client.get("/api/session").status_code == 401
 
 
+def test_le_journal_d_un_echec_de_connexion_ne_garde_pas_l_identifiant_tape(client, personne_nathan, caplog):
+    """Qualification en conteneur : l'identifiant tapé (parfois un courriel) était écrit tel quel dans le journal."""
+    saisi = "intrus.fictif@example.test"
+    with caplog.at_level("WARNING", logger="opsys.console"):
+        assert _connecter(client, identifiant=saisi, mot_de_passe="mauvais-mot-de-passe").status_code == 401
+    journal = "\n".join(r.getMessage() for r in caplog.records)
+    assert "échec de connexion" in journal and saisi not in journal and "example.test" not in journal
+    assert re.search(r"empreinte de l'identifiant [0-9a-f]{10}", journal)
+
+
 def test_connexion_refusee_pour_identifiant_inconnu_ou_personne_inactive(client, session, personne_nathan):
     inconnu = _connecter(client, identifiant="fantome")
     assert inconnu.status_code == 401 and "Identifiant ou mot de passe incorrect" in inconnu.text

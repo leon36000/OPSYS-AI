@@ -187,6 +187,19 @@ services:
       retries: 10
       start_period: 20s
     mem_limit: 512m
+    # Durcissement vérifié par le banc de qualification en conteneur (install/qualification, docs/qualification/
+    # QUALIFICATION-CONTENEUR.md) : le service, l'initialisation, le parcours métier, la sauvegarde et la restauration
+    # tournent avec exactement ces réglages. Les écritures vont aux volumes (/opt/data, /openclaw-config,
+    # /shared/litellm-config) et à /tmp ; aucune capacité Linux n'est utilisée. Le profil optionnel ingestion-pdf
+    # (bubblewrap) n'a PAS été requalifié sous ces réglages.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
     # Aucun port publié : le MCP (8765) n'est joint que par openclaw-gateway, la console (8700)
     # n'est jointe que par Caddy — toutes deux via opsys_internal.
 
