@@ -219,6 +219,8 @@ de connaissances au lecteur : ce serait élargir un droit, ce que le brief inter
   coïncidence). Il écarte le handler qui ne référence aucun nom (`handlers_inertes`) mais ne prouve pas le comportement des autres :
   seuls les tests de chaque consommateur le font. Les lectures directes de registre ne sont vues que par les formes décrites en
   section 5 (littéral, constante de n'importe quel nom du même fichier) ; une constante importée d'un autre fichier n'est pas résolue.
+- Le bus ne lie pas le préfixe d'un type (`m5.…`) au producteur qui le publie : seul l'audit statique `publications_hors_espace` voit un
+  département qui publie dans l'espace d'un autre, et seulement quand le type est un littéral ou une constante du même fichier.
 - Un consentement de suivi retiré chez M4 APRÈS la publication de `m4.message_client_brouillon_pret` n'atteint pas M1 (M1 ne voit que
   le STOP qu'il a lui-même rangé et l'échéance de conservation) : un brouillon peut être créé après ce retrait. Il reste un
   brouillon (l'envoi est une demande N3 d'une personne, qui voit le texte), mais la page d'approbation ne dit pas que le suivi a été

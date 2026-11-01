@@ -12,6 +12,7 @@ Il en tire une matrice producteur -> consommateurs et quatre familles d'écarts 
   justification écrite dans `docs/architecture/evenements-sans-consommateur.json` (raison, date de revue) ;
 - `declares_sans_handler` : un département déclare consommer un type mais n'a pas de fonction pour lui
   (il croit recevoir, il ne reçoit rien) ;
+- `publications_hors_espace` : un `publier(...)` du code d'un département dont le type porte le préfixe d'un autre ;
 - `handlers_inertes` : une fonction qui ne référence aucun nom (`lambda charge: {}`) : elle ne compte PAS comme un
   consommateur réel ;
 - `handlers_sans_declaration` : une fonction de `consommateurs()` absente de `evenements.consomme`
@@ -26,6 +27,7 @@ fixe, jamais une liste en dur dans un test.
 
 from __future__ import annotations
 
+import ast
 import datetime as dt
 import json
 import re
@@ -143,6 +145,47 @@ def _inerte(fonction: Any) -> bool:
     return code is not None and not code.co_names and not code.co_freevars
 
 
+def _publications_hors_espace(departement: Departement) -> list[dict[str, Any]]:
+    """Les `publier(<type>, ...)` du code d'un département dont le type (littéral, ou constante du même fichier) porte
+    le préfixe d'UN AUTRE département (`m5.…` publié par M3). Le bus ne lie pas le type au producteur : sans ce
+    contrôle, un département écrirait dans l'espace de noms d'un autre (un fait « scellé » ou « confirmé » qui n'est pas
+    le sien). Les types `opsys.*` et les noms qu'on ne sait pas résoudre statiquement ne sont pas vus (limite dite)."""
+    numero = departement.numero
+    sortie: list[dict[str, Any]] = []
+    racine = departement.racine / "src" if departement.racine is not None else None
+    if racine is None or not racine.is_dir():
+        return sortie
+    for fichier in sorted(racine.rglob("*.py")):
+        try:
+            arbre = ast.parse(fichier.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError):
+            continue
+        constantes = {
+            cible.id: noeud.value.value
+            for noeud in ast.walk(arbre)
+            if isinstance(noeud, ast.Assign) and isinstance(noeud.value, ast.Constant)
+            and isinstance(noeud.value.value, str)
+            for cible in noeud.targets
+            if isinstance(cible, ast.Name)
+        }
+        for appel in ast.walk(arbre):
+            if not isinstance(appel, ast.Call) or not appel.args:
+                continue
+            nom = appel.func.attr if isinstance(appel.func, ast.Attribute) else getattr(appel.func, "id", None)
+            if nom != "publier":
+                continue
+            premier = appel.args[0]
+            type_evenement = (
+                premier.value if isinstance(premier, ast.Constant)
+                else constantes.get(premier.id) if isinstance(premier, ast.Name) else None
+            )
+            correspondance = re.match(r"m(\d+)\.", type_evenement) if isinstance(type_evenement, str) else None
+            if correspondance and int(correspondance.group(1)) != numero:
+                sortie.append({"departement": departement.id, "type": type_evenement,
+                               "fichier": fichier.name, "ligne": appel.lineno})
+    return sortie
+
+
 def analyser(
     departements: Mapping[str, Departement], justifications: Mapping[str, Any] | None = None
 ) -> dict[str, Any]:
@@ -156,8 +199,10 @@ def analyser(
     handlers_sans_declaration: list[dict[str, str]] = []
     illisibles: list[dict[str, str]] = []
     handlers_inertes: list[dict[str, str]] = []
+    publications_hors_espace: list[dict[str, Any]] = []
     producteurs_sans_trace: list[dict[str, str]] = []
     for dep in sorted(departements.values(), key=lambda d: d.numero):
+        publications_hors_espace.extend(_publications_hors_espace(dep))
         for type_evenement in dep.evenements_publie:
             producteurs.setdefault(type_evenement, []).append(dep.id)
             if type_evenement in catalogue and not _trace_dans_le_code(dep, type_evenement):
@@ -197,6 +242,7 @@ def analyser(
         "justifications_perimees": sorted(t for t in justifs if reels.get(t)),
         "declares_sans_handler": declares_sans_handler,
         "handlers_inertes": handlers_inertes,
+        "publications_hors_espace": publications_hors_espace,
         "handlers_sans_declaration": handlers_sans_declaration,
         "types_sans_producteur": sorted(t for t in catalogue if reels.get(t) and not producteurs.get(t)),
         "producteurs_sans_trace": producteurs_sans_trace,
@@ -214,6 +260,10 @@ def problemes(analyse: Mapping[str, Any]) -> list[str]:
         sortie.append(f"{t} : justifié « sans consommateur » alors qu'un consommateur réel existe (retirer la fiche)")
     for ecart in analyse["declares_sans_handler"]:
         sortie.append(f"{ecart['departement']} : consomme {ecart['type']} sans handler dans consommateurs()")
+    for ecart in analyse["publications_hors_espace"]:
+        sortie.append(
+            f"{ecart['departement']} : publie {ecart['type']} (espace d'un autre département) "
+            f"à {ecart['fichier']}:{ecart['ligne']}")
     for ecart in analyse["handlers_inertes"]:
         sortie.append(f"{ecart['departement']} : handler {ecart['type']} inerte (ne référence aucun appel ni écriture)")
     for ecart in analyse["handlers_sans_declaration"]:

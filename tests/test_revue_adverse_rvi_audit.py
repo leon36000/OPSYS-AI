@@ -175,3 +175,64 @@ def test_aucun_consommateur_reel_du_depot_n_est_inerte():
 
     analyse = ic.analyser(charger_departements(Path(__file__).resolve().parents[1] / "departments"))
     assert analyse["handlers_inertes"] == []
+
+
+# --------------------------------------------------------------------------------------- publication hors espace
+def _producteur_m3(racine, code):
+    (racine / "src" / "pub.py").write_text(code, encoding="utf-8")
+    return SimpleNamespace(
+        id="m03-fictif", numero=3, evenements_publie=(), evenements_consomme=(), racine=racine,
+        charger_consommateurs=lambda: {})
+
+
+def _hors_espace(racine, code):
+    analyse = ic.analyser({"m03-fictif": _producteur_m3(racine, code)}, {})
+    return analyse, [(e["type"], e["ligne"]) for e in analyse["publications_hors_espace"]]
+
+
+def test_un_departement_qui_publie_dans_l_espace_d_un_autre_est_vu(racine):
+    code = (
+        "from opsys import evenements\n"
+        "TYPE_FORGE = 'm5.dossier_cpa_scelle'\n"
+        "def a():\n"
+        "    evenements.publier('m5.rapprochement_po_constate', 'm03', {})\n"
+        "def b():\n"
+        "    evenements.publier(TYPE_FORGE, 'm05-financecore', {})\n"
+        "def c():\n"
+        "    publier('m2.client_associe', 'm03', {})\n")
+    analyse, vus = _hors_espace(racine, code)
+    assert vus == [("m5.rapprochement_po_constate", 4), ("m5.dossier_cpa_scelle", 6), ("m2.client_associe", 8)]
+    assert any("m03-fictif : publie m5.dossier_cpa_scelle" in p for p in ic.problemes(analyse))
+
+
+def test_son_propre_espace_opsys_les_commentaires_et_les_noms_non_resolus_ne_sont_pas_des_ecarts(racine):
+    code = (
+        "from opsys import evenements\n"
+        "# evenements.publier('m5.dossier_cpa_scelle', 'x', {})\n"
+        "DOC = \"evenements.publier('m5.dossier_cpa_scelle')\"\n"
+        "def a(type_evenement):\n"
+        "    evenements.publier('m3.devis_accepte', 'm03', {})\n"
+        "    evenements.publier('opsys.demo_complete', 'm03', {})\n"
+        "    evenements.publier(type_evenement, 'm03', {})\n"
+        "    evenements.publier(modele.TYPE, 'm03', {})\n"
+        "    evenements.publier()\n"
+        "    autre.envoyer('m5.dossier_cpa_scelle')\n")
+    assert _hors_espace(racine, code)[1] == []
+
+
+def test_aucun_departement_du_depot_ne_publie_dans_l_espace_d_un_autre():
+    from pathlib import Path
+
+    from opsys.departements import charger_departements
+
+    analyse = ic.analyser(charger_departements(Path(__file__).resolve().parents[1] / "departments"))
+    assert analyse["publications_hors_espace"] == []
+
+
+def test_un_fichier_illisible_ou_un_departement_sans_code_ne_fait_pas_tomber_l_audit(racine):
+    (racine / "src" / "casse.py").write_text("def (:\n", encoding="utf-8")
+    assert _hors_espace(racine, "x = 1\n")[1] == []
+    sans_code = SimpleNamespace(
+        id="m03-fictif", numero=3, evenements_publie=(), evenements_consomme=(), racine=None,
+        charger_consommateurs=lambda: {})
+    assert ic.analyser({"m03-fictif": sans_code}, {})["publications_hors_espace"] == []
