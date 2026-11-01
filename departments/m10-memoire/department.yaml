@@ -26,7 +26,7 @@ mode: ombre
 dependances: []
 modeles:
   defaut: standard
-skills: [journaliser-une-decision, preflight-contexte-suffisant, traiter-un-signal-critique]
+skills: [journaliser-une-decision, preflight-contexte-suffisant, traiter-un-signal-critique, gerer-les-connaissances]
 planifications:
   - nom: digest-memoire
     cron: "0 7 * * 1-5"

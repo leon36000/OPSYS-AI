@@ -735,6 +735,10 @@ def construire_parseur() -> argparse.ArgumentParser:
     packs_cli.ajouter_commandes(sous)
     from .avatars_voix import cli as avatars_cli  # avatars … (état des canaux, registre voix/visage), lecture seule
     avatars_cli.ajouter_commandes(sous)
+    from .connaissances import (
+        cli as connaissances_cli,  # connaissances … (état des bases par département), lecture seule
+    )
+    connaissances_cli.ajouter_commandes(sous)
 
     sous.add_parser("departements", help="lister les départements").set_defaults(fn=cmd_departements)
     bases = sous.add_parser("agents-base", help="profils durables des agents départementaux")

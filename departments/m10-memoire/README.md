@@ -10,6 +10,23 @@ L’arbitrage appareil confirme l’acteur humain et utilise la réception serve
 
 Source isolée non publiée ; qualification locale mobile 3122 tests/153 suites et TypeScript. Les captures HTTP/SQLite sont réelles avec porte Core Python rejouée ; Gateway Node et CI du prochain commit restent à qualifier séparément. Téléphone, Expo SQLite et Hermes natifs ne sont pas inférés. Cette tranche ne clôt pas la mémoire profonde définie au §7 M10 du produit.
 
+## Bases de connaissances par département — tranche 1 (2026-11-01)
+
+M10 est le gardien des bases de connaissances sourcées et versionnées de chaque département (`src/opsys/connaissances/`,
+[CONNAISSANCES.md](../../docs/architecture/CONNAISSANCES.md), migration 0041). Neuf outils : lecture T0/N0
+(`m10_rechercher_connaissances`, `m10_lire_connaissance`, `m10_lister_sources_connaissance`), écritures internes N2
+(`m10_ingerer_source_connaissance`, `m10_reviser_source_connaissance`, `m10_publier_source_connaissance`,
+`m10_retirer_source_connaissance` avec raison obligatoire, `m10_reindexer_connaissances`) et la validation HUMAINE N3
+(`m10_valider_source_connaissance`) : seule voie de publication d'un domaine réglementé (comptabilité, fiscalité, juridique,
+investissement) ou d'une source dont le texte a déclenché le filtre anti-injection. Les autres départements lisent par
+`opsys_connaissances_rechercher` / `opsys_connaissances_lire` (leur base et celles de leurs `dependances`). Recherche hybride
+(FTS5 BM25 + similarité exacte + fusion RRF, reranker facultatif), toujours sourcée, avec âge et marque « périmée ».
+Compétence : `skills/gerer-les-connaissances`. Aucun appareil. Corpus de mesure fictif : `evals/connaissances-recherche.v1.yaml`.
+
+**Statut honnête.** Le mécanisme est prouvé avec un double déterministe d'embeddings ; aucun vrai modèle ni reranker n'est raccordé ni
+mesuré ; aucun contenu fiscal, comptable ou juridique réel n'existe (seule une démonstration fictive). À valider auprès d'un
+comptable (CPA) / professionnel qualifié.
+
 ## Provenance PDF Finance — tranche 26 qualifiée localement
 
 **M10 global et Fusion restent PARTIEL.** Le raccord inscrit des métadonnées

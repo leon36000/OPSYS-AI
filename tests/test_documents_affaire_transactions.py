@@ -38,6 +38,7 @@ def _tables(cnx):
     return {
         n: sorted(map(tuple, cnx.execute(text('SELECT * FROM "' + n.replace('"', '""') + '"')).all()), key=repr)
         for n in inspect(cnx).get_table_names()
+        if not n.startswith("connaissances_fts")  # FTS5 et ses tables fantômes : index dérivé
     }
 
 

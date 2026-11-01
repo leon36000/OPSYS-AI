@@ -29,6 +29,7 @@ from sqlalchemy import Connection
 
 from . import actions_m9, approbations, idempotence, jetons, lecteurs_m9, liaison_cibles, openclaw
 from . import contexte as contexte_appel
+from .connaissances import outils as connaissances_outils
 from .contexte import (
     HorodatageAppareil,
     IdentiteAppelante,
@@ -169,7 +170,8 @@ class Capacites:
         self.index: dict[str, tuple[Departement | None, Outil]] = dict(
             tous_les_outils(self.departements.values(), ports_prives=ports_prives)
         )
-        communs = self._outils_communs() + list(_outils_memoire() if memoire else ())
+        communs = (self._outils_communs() + list(_outils_memoire() if memoire else ())
+                   + list(connaissances_outils.construire(departements) if memoire else ()))
         for outil in communs:
             self.index[outil.nom] = (None, outil)
 
